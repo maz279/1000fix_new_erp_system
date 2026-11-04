@@ -20,7 +20,8 @@ export const MODULE = {
     ]},
     { en: 'Requisitions', screens: [
       { id: 'M58-reqs', en: 'Requisitions', bn: 'নিয়োগ অনুরোধ', t: 'g' },
-      { id: 'M58-approval', en: 'Approval vs Budget', bn: 'বাজেট অনুমোদন', t: 'g' }
+      { id: 'M58-approval', en: 'Approval vs Budget', bn: 'বাজেট অনুমোদন', t: 'g' },
+      { id: 'M58-budget', en: 'Headcount Budget', bn: 'জনবল বাজেট', t: 'g' }
     ]},
     { en: 'Sourcing', screens: [
       { id: 'M58-postings', en: 'Job Postings', bn: 'চাকরির বিজ্ঞপ্তি', t: 'g' },
@@ -28,12 +29,14 @@ export const MODULE = {
     ]},
     { en: 'Selection', screens: [
       { id: 'M58-interviews', en: 'Structured Interviews', bn: 'সাক্ষাৎকার', t: 'g' },
+      { id: 'M58-evaluations', en: 'My Panel Evaluations', bn: 'আমার মূল্যায়ন', t: 'g' },
       { id: 'M58-practical', en: 'Practical Assessments', bn: 'ব্যবহারিক মূল্যায়ন', t: 'r' },
       { id: 'M58-checks', en: 'Reference & Background', bn: 'রেফারেন্স', t: 'g' },
       { id: 'M58-offers', en: 'Offers', bn: 'প্রস্তাব', t: 'g' }
     ]},
     { en: 'Onboarding', screens: [
       { id: 'M58-preboard', en: 'Pre-Boarding', bn: 'প্রি-বোর্ডিং', t: 'g' },
+      { id: 'M58-onboarding-tasks', en: 'Onboarding Tasks', bn: 'অনবোর্ডিং কাজ', t: 'g' },
       { id: 'M58-first90', en: 'First-90-Days', bn: 'প্রথম ৯০ দিন', t: 'g' }
     ]}
   ],
@@ -55,7 +58,7 @@ export const SCREENS = {
   'M58-talent-assessment': { kind: 'model_list', model: 'fix.talent.assessment',
     cols: ['name', 'candidate_id', 'requisition_id', 'competency_code', 'assessed_on', 'score', 'passed', 'assessor_id'] },
   'M58-reqs': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
-    cols: ['name', 'department_id', 'position_id', 'openings', 'operating_unit_id', 'approval_state', 'approved_by_id', 'state'],
+    cols: ['name', 'department_id', 'position_id', 'openings', 'hiring_manager_id', 'budget_year', 'over_budget', 'operating_unit_id', 'approval_state', 'approved_by_id', 'state'],
     /* A09 audit M58-F3: "Approve Requisition" was the requester's own state
      * flip. The requester asks; an approver decides from the M63 inbox. A
      * requisition fills itself when its hires reach the approved headcount. */
@@ -65,7 +68,17 @@ export const SCREENS = {
       { m: 'action_close', l: 'Close Requisition' }
     ] },
   'M58-approval': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
-    cols: ['name', 'position_id', 'openings', 'approval_state', 'approved_by_id', 'approved_on', 'state'] },
+    cols: ['name', 'position_id', 'openings', 'budget_id', 'over_budget', 'approval_state', 'approved_by_id', 'approved_on', 'state'] },
+  /* Round 2 (BRU-TAO-01): the approved headcount per position or department
+   * and year, decided by the CFO tier. A requisition beyond it is refused,
+   * or routed to the CFO tier with its justification. */
+  'M58-budget': { kind: 'model_list', model: 'fix.headcount.budget', stateField: 'state',
+    cols: ['name', 'year', 'position_id', 'department_id', 'approved_headcount', 'used_headcount', 'approval_state', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval (CFO)' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_close', l: 'Close Budget' }
+    ] },
   'M58-postings': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
     cols: ['name', 'department_id', 'openings', 'state'] },
   'M58-candidates': { kind: 'model_list', model: 'fix.candidate', stateField: 'state',
@@ -77,9 +90,19 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject', ask: 'Outcome communicated to the candidate', kwarg: 'reason' },
       { m: 'action_hire', l: 'Hire (accepted offer)' }
     ] },
+  /* Round 2 (BRU-TAO-07): each panelist evaluates on their own; the round's
+   * score and recommendation appear only once every panelist submitted. */
   'M58-interviews': { kind: 'model_list', model: 'fix.talent.interview', stateField: 'state',
-    cols: ['name', 'candidate_id', 'interviewer_id', 'scheduled_on', 'round_no', 'score', 'recommendation', 'state'],
-    actions: [{ m: 'action_done', l: 'Submit Evaluation' }, { m: 'action_cancel', l: 'Cancel' }] },
+    cols: ['name', 'candidate_id', 'interviewer_id', 'scheduled_on', 'round_no', 'panel_size', 'panel_submitted', 'score', 'recommendation', 'state'],
+    actions: [
+      { m: 'action_add_panelist', l: 'Add Panelist', ask: 'Employee id, code or full name', kwarg: 'panelist' },
+      { m: 'action_remove_panelist', l: 'Remove Panelist', ask: 'Employee id, code or full name', kwarg: 'panelist' },
+      { m: 'action_done', l: 'Complete Round' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M58-evaluations': { kind: 'model_list', model: 'fix.talent.evaluation', stateField: 'state',
+    cols: ['candidate_name', 'round_no', 'scheduled_on', 'panelist_id', 'score', 'recommendation', 'submitted_on', 'state'],
+    actions: [{ m: 'action_submit', l: 'Submit My Evaluation' }] },
   'M58-practical': { kind: 'table_report', module: 'M58', report: 'practical_results', title: 'Practical Assessment Results', period: true },
   'M58-checks': { kind: 'model_list', model: 'fix.talent.check', stateField: 'result',
     cols: ['name', 'candidate_id', 'check_type', 'requested_on', 'completed_on', 'result', 'verified_by_id', 'approval_state'],
@@ -102,8 +125,22 @@ export const SCREENS = {
       { m: 'action_decline', l: 'Record Decline' }
     ] },
   'M58-preboard': { kind: 'model_list', model: 'fix.onboarding.plan',
-    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'nid_verified', 'contract_signed', 'bank_details_captured', 'safety_kit_issued', 'state'],
-    actions: [{ m: 'action_start', l: 'Start Onboarding' }, { m: 'action_complete', l: 'Complete (Provision Identity)' }] },
+    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'nid_verified', 'contract_signed', 'bank_details_captured', 'safety_kit_issued', 'open_mandatory_tasks', 'state'],
+    /* Round 2 (M24, BLA s.5): the appointment letter is generated at hire and
+     * acknowledged by the employee (in person, or their signed copy attested
+     * by a verifier who did not upload it); every mandatory task is done. */
+    actions: [
+      { m: 'action_start', l: 'Start Onboarding' },
+      { m: 'action_acknowledge_appointment', l: 'Acknowledge My Appointment Letter' },
+      { m: 'action_attest_signed_appointment', l: 'Attest Signed Appointment Letter' },
+      { m: 'action_complete', l: 'Complete (Provision Identity)' }
+    ] },
+  'M58-onboarding-tasks': { kind: 'model_list', model: 'fix.onboarding.task', stateField: 'state',
+    cols: ['name', 'plan_id', 'function', 'owner_id', 'due_date', 'mandatory', 'overdue', 'completed_by_id', 'state'],
+    actions: [
+      { m: 'action_done', l: 'Mark Done (owner)' },
+      { m: 'action_cancel', l: 'Cancel (optional task)', ask: 'Why is the task cancelled?', kwarg: 'reason' }
+    ] },
   'M58-first90': { kind: 'model_list', model: 'fix.talent.first90',
     cols: ['name', 'employee_id', 'milestone', 'check_date', 'rating', 'on_track'] },
 
@@ -138,7 +175,20 @@ export const SCREENS = {
           { name: 'openings', required: true, label: 'Open Positions (Headcount)' },
           { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
           { name: 'is_field_role', label: 'Field / In-Home Role (PCC & Assessment)' },
-          { name: 'assessment_pass_mark', label: 'Practical Assessment Pass Mark (%)' }
+          { name: 'assessment_pass_mark', label: 'Practical Assessment Pass Mark (%)' },
+          { name: 'hiring_manager_id', label: 'Hiring Manager' },
+          { name: 'onboarding_template_id', label: 'Onboarding Template' }
+        ]
+      },
+      {
+        tab: 'workflow',
+        title: 'Headcount Budget (BRU-TAO-01)',
+        note: 'Checked at submission against the approved budget of the position, else the department, for the year.',
+        fields: [
+          { name: 'budget_year', required: true, label: 'Budget Year' },
+          { name: 'over_budget_reason', type: 'text', label: 'Over-Budget Justification (routes to the CFO tier)' },
+          { name: 'budget_id', label: 'Headcount Budget', readonly: true },
+          { name: 'over_budget', label: 'Beyond Budget', readonly: true }
         ]
       },
       {
@@ -219,20 +269,23 @@ export const SCREENS = {
         fields: [
           { name: 'candidate_id', required: true, label: 'Candidate' },
           { name: 'requisition_id', label: 'Job Requisition', readonly: true },
-          { name: 'interviewer_id', label: 'Lead Interviewer' },
+          { name: 'interviewer_id', label: 'Lead Interviewer (joins the panel)' },
           { name: 'scheduled_on', required: true, label: 'Scheduled Date & Time' },
           { name: 'round_no', required: true, label: 'Round Number' }
         ]
       },
       {
         tab: 'evaluation',
-        title: 'Competency Scoring & Recommendation',
-        note: '1–5 standardized technical rating and hire recommendation.',
+        title: 'Panel Result (BRU-TAO-07)',
+        note: 'Each panelist submits their own evaluation; the panel result appears only when all have.',
         fields: [
           { name: 'competency_code', label: 'Primary Competency Evaluated' },
-          { name: 'score', label: 'Evaluation Score (1-5)' },
-          { name: 'recommendation', label: 'Hiring Recommendation' },
-          { name: 'notes', type: 'text', label: 'Interviewer Notes' }
+          { name: 'panel_size', label: 'Panel Size', readonly: true },
+          { name: 'panel_submitted', label: 'Evaluations Submitted', readonly: true },
+          { name: 'panel_complete', label: 'Panel Complete', readonly: true },
+          { name: 'score', label: 'Panel Score (1-5)', readonly: true },
+          { name: 'recommendation', label: 'Panel Recommendation', readonly: true },
+          { name: 'notes', type: 'text', label: 'Coordinator Notes (logistics only)' }
         ]
       }
     ]
@@ -317,10 +370,14 @@ export const SCREENS = {
         note: 'Mandatory statutory onboarding verifications.',
         fields: [
           { name: 'nid_verified', label: 'National ID (NID) Verified', readonly: true },
-          { name: 'contract_signed', label: 'Statutory Form 6 Contract Signed', readonly: true },
+          { name: 'appointment_letter_id', label: 'Generated Appointment Letter (M24)', readonly: true },
+          { name: 'signed_contract_file', type: 'binary', label: 'Employee-Signed Appointment Letter' },
+          { name: 'appointment_ack_method', label: 'Acknowledged By', readonly: true },
+          { name: 'appointment_ack_attested_by_id', label: 'Signature Attested By', readonly: true },
+          { name: 'contract_signed', label: 'Appointment Letter Acknowledged', readonly: true },
           { name: 'bank_details_captured', label: 'Bank / MFS Wallet Captured', readonly: true },
-          { name: 'signed_contract_file', type: 'binary', label: 'Signed Appointment Letter / Contract' },
-          { name: 'contract_id', label: 'Draft Employment Contract', readonly: true }
+          { name: 'contract_id', label: 'Draft Employment Contract', readonly: true },
+          { name: 'open_mandatory_tasks', label: 'Mandatory Tasks Still Open', readonly: true }
         ]
       },
       {
@@ -354,8 +411,11 @@ export const SCREENS = {
         fields: [
           { name: 'candidate_id', required: true, label: 'Candidate' },
           { name: 'requisition_id', label: 'Job Requisition', readonly: true },
-          { name: 'competency_code', label: 'Tested Competency Code' },
-          { name: 'assessor_id', label: 'Bench Technical Assessor' }
+          { name: 'competency_id', label: 'M22 Competency Tested (becomes the baseline)' },
+          { name: 'competency_code', label: 'Tested Competency Code', readonly: true },
+          { name: 'level', label: 'Observed Level' },
+          { name: 'assessor_id', label: 'Bench Technical Assessor' },
+          { name: 'baseline_id', label: 'M22 Baseline Assessment', readonly: true }
         ]
       },
       {
@@ -407,6 +467,119 @@ export const SCREENS = {
           { name: 'verified_by_id', label: 'Verified By', readonly: true },
           { name: 'approval_state', label: 'Verification Request', readonly: true },
           { name: 'notes', type: 'text', label: 'Verification Remarks & Reference Notes' }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-evaluation': {
+    kind: 'model_form',
+    model: 'fix.talent.evaluation',
+    title: 'My Panel Evaluation',
+    back: 'M58-evaluations',
+    status: { field: 'state', labels: { draft: 'Not Submitted', submitted: 'Submitted' } },
+    tabs: [
+      { id: 'round', label: 'Interview Round', bn: 'সাক্ষাৎকার', icon: '🗓️', badge: '4' },
+      { id: 'evaluation', label: 'My Evaluation', bn: 'আমার মূল্যায়ন', icon: '✍️', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'round',
+        title: 'Round',
+        note: 'You see only your own evaluation; nobody sees it before the whole panel has submitted.',
+        fields: [
+          { name: 'candidate_name', label: 'Candidate', readonly: true },
+          { name: 'round_no', label: 'Round', readonly: true },
+          { name: 'scheduled_on', label: 'Scheduled', readonly: true },
+          { name: 'panelist_id', label: 'Panelist', readonly: true }
+        ]
+      },
+      {
+        tab: 'evaluation',
+        title: 'Independent Evaluation (BRU-TAO-07)',
+        note: 'Final once submitted.',
+        fields: [
+          { name: 'score', label: 'Score (1-5)' },
+          { name: 'recommendation', label: 'Recommendation' },
+          { name: 'notes', type: 'text', label: 'Evaluation Notes' },
+          { name: 'submitted_on', label: 'Submitted On', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-budget': {
+    kind: 'model_form',
+    model: 'fix.headcount.budget',
+    title: 'Headcount Budget',
+    back: 'M58-budget',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', closed: 'Closed' } },
+    tabs: [
+      { id: 'scope', label: 'Scope & Figure', bn: 'পরিধি ও সংখ্যা', icon: '📊', badge: '5' },
+      { id: 'workflow', label: 'Approval', bn: 'অনুমোদন', icon: '⚙️', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'scope',
+        title: 'Approved Headcount per Position or Department and Year',
+        note: 'One position or one department per budget. In post plus open requisitions may not exceed it without the CFO tier.',
+        fields: [
+          { name: 'year', required: true, label: 'Year' },
+          { name: 'position_id', label: 'Position' },
+          { name: 'department_id', label: 'Department' },
+          { name: 'approved_headcount', required: true, label: 'Budgeted Headcount' },
+          { name: 'basis', type: 'text', label: 'Budget Basis (M54 plan)' }
+        ]
+      },
+      {
+        tab: 'workflow',
+        title: 'Approval (CFO tier)',
+        note: 'Approved from the M63 inbox by someone other than its requester.',
+        fields: [
+          { name: 'used_headcount', label: 'In Post + Open', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-task': {
+    kind: 'model_form',
+    model: 'fix.onboarding.task',
+    title: 'Onboarding Task',
+    back: 'M58-onboarding-tasks',
+    status: { field: 'state', labels: { open: 'Open', done: 'Done', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'task', label: 'Task & Owner', bn: 'কাজ ও দায়িত্ব', icon: '📋', badge: '5' },
+      { id: 'evidence', label: 'Completion Evidence', bn: 'সম্পাদনের প্রমাণ', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'task',
+        title: 'Task (FR-TAO-027)',
+        note: 'Generated from the onboarding template at hire; a mandatory task is never cancelled.',
+        fields: [
+          { name: 'plan_id', label: 'Onboarding Plan', readonly: true },
+          { name: 'name', required: true, label: 'Task' },
+          { name: 'function', label: 'Function' },
+          { name: 'owner_id', required: true, label: 'Owner' },
+          { name: 'due_date', required: true, label: 'Due Date' },
+          { name: 'mandatory', label: 'Mandatory', readonly: true }
+        ]
+      },
+      {
+        tab: 'evidence',
+        title: 'Evidence (the owner completes the task)',
+        note: 'What was done, with the file where the task asks for one.',
+        fields: [
+          { name: 'evidence_note', type: 'text', label: 'Completion Evidence' },
+          { name: 'evidence_file', type: 'binary', label: 'Evidence File' },
+          { name: 'completed_by_id', label: 'Completed By', readonly: true },
+          { name: 'completed_on', label: 'Completed On', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
         ]
       }
     ]
@@ -475,7 +648,10 @@ export const FORM_CHIPS = {
     'fix.talent.check': 'M58-form-check',
     'fix.talent.offer': 'M58-form-offer',
     'fix.onboarding.plan': 'M58-form-onboarding',
-    'fix.talent.first90': 'M58-form-first90'
+    'fix.talent.first90': 'M58-form-first90',
+    'fix.talent.evaluation': 'M58-form-evaluation',
+    'fix.headcount.budget': 'M58-form-budget',
+    'fix.onboarding.task': 'M58-form-task'
   },
   'M58:__by_screen__': {
     'M58-talent-assessment': 'M58-form-assessment',
@@ -487,7 +663,10 @@ export const FORM_CHIPS = {
     'M58-checks': 'M58-form-check',
     'M58-offers': 'M58-form-offer',
     'M58-preboard': 'M58-form-onboarding',
-    'M58-first90': 'M58-form-first90'
+    'M58-first90': 'M58-form-first90',
+    'M58-evaluations': 'M58-form-evaluation',
+    'M58-budget': 'M58-form-budget',
+    'M58-onboarding-tasks': 'M58-form-task'
   }
 };
 

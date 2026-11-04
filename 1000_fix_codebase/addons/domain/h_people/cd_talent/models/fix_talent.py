@@ -13,6 +13,10 @@
 #   * the hire creates the employee and a DRAFT contract from the offer (I6)
 #     and holds the identity event until onboarding completes (M58-F6);
 #   * onboarding completion reads evidence, not ticks (M58-F8).
+import base64
+import hashlib
+import hmac
+import secrets
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -42,9 +46,51 @@ def _digits(value):
     return "".join(ch for ch in (value or "") if ch.isdigit())
 
 
+# The identity hash shared with M21 (cd_hr_core fix_hr_identity_residency):
+# the same key and message, so a candidate's hash and an employee's hash of
+# one NID are equal, and neither table holds the NID in clear for long.
+IDENTITY_HASH_KEY = "cd_hr_core.identity_hash_key"
+
+
+def nid_hash(env, value):
+    value = str(value or "").strip()
+    if not value:
+        return False
+    key = env["ir.config_parameter"].sudo().get_param(IDENTITY_HASH_KEY)
+    if not key:
+        # never minted at hash time: a new key silently breaks every duplicate check
+        raise UserError("The identity hash key is missing: upgrade the Talent module.")
+    return hmac.new(key.encode(), ("nid:%s" % value).encode(), hashlib.sha256).hexdigest()
+
+
+RECRUITER = "cd_talent.group_talent"
+HIRING_MANAGER = "cd_talent.group_hiring_manager"
+# BRU-TAO-01 / R03: a requisition beyond the approved headcount budget is
+# decided by the CFO tier, like an out-of-band offer.
+CFO_GROUP = "cd_entity_config.group_dofa_tier_4"
+LIVE_REQ_STATES = ("open",)
+
+
+def _is_recruiter(env):
+    return env.su or env.user.has_group(RECRUITER)
+
+
 def _require_recruiter(env, what):
-    if not (env.su or env.user.has_group("cd_talent.group_talent")):
+    if not _is_recruiter(env):
         raise AccessError("Only Recruitment may %s." % what)
+
+
+def _require_recruiter_or_hiring_manager(env, requisitions, what):
+    """M58-F7: a hiring manager acts on their own requisitions' records only."""
+    if _is_recruiter(env):
+        return
+    if (
+        env.user.has_group(HIRING_MANAGER)
+        and requisitions
+        and all(r.sudo().hiring_manager_id == env.user for r in requisitions)
+    ):
+        return
+    raise AccessError("Only Recruitment, or the requisition's own hiring manager, may %s." % what)
 
 
 class FixJobRequisition(models.Model):
@@ -66,6 +112,10 @@ class FixJobRequisition(models.Model):
         "is_field_role",
         "assessment_pass_mark",
         "company_id",
+        "hiring_manager_id",
+        "budget_year",
+        "over_budget_reason",
+        "onboarding_template_id",
     )
 
     company_id = fields.Many2one(
@@ -97,6 +147,47 @@ class FixJobRequisition(models.Model):
     approved_openings = fields.Integer(string="Approved Headcount", readonly=True, copy=False)
     hired_count = fields.Integer(compute="_compute_fill", string="Hired")
     openings_left = fields.Integer(compute="_compute_fill", string="Openings Left")
+    # M58-F7: the hiring manager sees and acts on their own requisitions only.
+    hiring_manager_id = fields.Many2one(
+        "res.users",
+        string="Hiring Manager",
+        index=True,
+        default=lambda self: self._default_hiring_manager(),
+        help="The manager this requisition hires for. A Hiring Manager reads and works only "
+        "the requisitions, candidates and onboarding plans that name them.",
+    )
+    # BRU-TAO-01: the approved headcount budget for the position or department.
+    budget_year = fields.Integer(
+        string="Budget Year",
+        required=True,
+        default=lambda self: fields.Date.context_today(self).year,
+    )
+    budget_id = fields.Many2one(
+        "fix.headcount.budget", string="Headcount Budget", readonly=True, copy=False
+    )
+    over_budget = fields.Boolean(
+        string="Beyond Headcount Budget",
+        readonly=True,
+        copy=False,
+        help="Stamped at submission: the requisition takes the scope beyond its approved "
+        "headcount budget, so the CFO tier decides it.",
+    )
+    over_budget_reason = fields.Text(
+        string="Over-Budget Justification",
+        help="Required to submit a requisition beyond the approved headcount budget.",
+    )
+    onboarding_template_id = fields.Many2one(
+        "fix.onboarding.template",
+        string="Onboarding Template",
+        help="The task set generated at hire. Empty: the default template.",
+    )
+
+    @api.model
+    def _default_hiring_manager(self):
+        user = self.env.user
+        if not self.env.su and user.has_group(HIRING_MANAGER) and not user.has_group(RECRUITER):
+            return user
+        return False
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -104,7 +195,14 @@ class FixJobRequisition(models.Model):
             "approved_by_id",
             "approved_on",
             "approved_openings",
+            "budget_id",
+            "over_budget",
         }
+
+    def _approval_group_xmlid(self):
+        if self.over_budget:
+            return CFO_GROUP
+        return super()._approval_group_xmlid()
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -131,8 +229,29 @@ class FixJobRequisition(models.Model):
             if rec.assessment_pass_mark and not 0 < rec.assessment_pass_mark <= 100:
                 raise ValidationError("The assessment pass mark is a percentage above 0.")
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not _is_recruiter(self.env):
+            for vals in vals_list:
+                # a hiring manager raises requisitions for themself only
+                if vals.get("hiring_manager_id", self.env.uid) != self.env.uid:
+                    raise AccessError("A hiring manager raises requisitions in their own name.")
+                vals["hiring_manager_id"] = self.env.uid
+        return super().create(vals_list)
+
     def write(self, vals):
         if not self._fix_guard_open():
+            if (
+                "hiring_manager_id" in vals
+                and not _is_recruiter(self.env)
+                and any(
+                    r._fix_guard_differs(
+                        "hiring_manager_id", vals["hiring_manager_id"], r.hiring_manager_id
+                    )
+                    for r in self
+                )
+            ):
+                raise AccessError("Only Recruitment names a requisition's hiring manager.")
             frozen = set(self._FROZEN) & set(vals)
             for rec in self:
                 if not frozen or not rec.id:
@@ -146,6 +265,129 @@ class FixJobRequisition(models.Model):
                             % (", ".join(self._fields[n].string for n in changed), rec.name)
                         )
         return super().write(vals)
+
+    # ---- the position's seats (M21 fix.org.position.headcount) --------------
+    def _fix_claimed_seats(self, position):
+        """Seats of `position` already promised to OTHER live requisitions."""
+        others = self.sudo().search(
+            [
+                ("id", "not in", self.ids),
+                ("position_id", "=", position.id),
+                "|",
+                ("state", "in", LIVE_REQ_STATES),
+                ("approval_state", "=", "pending"),
+            ]
+        )
+        claimed = 0
+        for req in others:
+            claimed += req.openings_left if req.state == "open" else req.openings
+        return claimed
+
+    def _fix_seat_problems(self):
+        """BRU-HCM-10: a position never holds more than its sanctioned headcount,
+        so a requisition cannot ask for seats the position does not have."""
+        self.ensure_one()
+        position = self.position_id.sudo()
+        if not position:
+            return []
+        holders = len(position.employee_ids)
+        free = (position.headcount or 0) - holders - self._fix_claimed_seats(position)
+        if self.openings > free:
+            return [
+                "position %s has %d free seat(s) of its sanctioned headcount %d (%d held, the "
+                "rest promised to other requisitions); raise the headcount in M21 first "
+                "(BRU-HCM-10)" % (position.name, max(free, 0), position.headcount, holders)
+            ]
+        return []
+
+    # ---- the headcount budget (BRU-TAO-01) -----------------------------------
+    def _fix_budget(self):
+        """The approved budget covering this requisition: its position's, else
+        its department's, for the budget year."""
+        self.ensure_one()
+        Budget = self.env["fix.headcount.budget"].sudo()
+        base = [
+            ("company_id", "=", self.company_id.id),
+            ("year", "=", self.budget_year),
+            ("state", "=", "approved"),
+        ]
+        if self.position_id:
+            budget = Budget.search([*base, ("position_id", "=", self.position_id.id)], limit=1)
+            if budget:
+                return budget
+        if self.department_id:
+            return Budget.search(
+                [*base, ("department_id", "=", self.department_id.id), ("position_id", "=", False)],
+                limit=1,
+            )
+        return Budget
+
+    def _fix_budget_used(self, budget):
+        """Headcount the scope would reach with this requisition: today's holders,
+        the openings still to fill on the scope's other live requisitions of the
+        year, and this requisition's openings."""
+        self.ensure_one()
+        budget = budget.sudo()
+        if budget.position_id:
+            scope = [("position_id", "=", budget.position_id.id)]
+            holders = len(budget.position_id.employee_ids)
+        else:
+            scope = [("department_id", "=", budget.department_id.id)]
+            holders = self.env["hr.employee"].sudo().search_count(scope)
+        others = self.sudo().search(
+            [
+                ("id", "not in", self.ids),
+                ("company_id", "=", budget.company_id.id),
+                ("budget_year", "=", budget.year),
+                *scope,
+                "|",
+                ("state", "in", LIVE_REQ_STATES),
+                ("approval_state", "=", "pending"),
+            ]
+        )
+        promised = sum(r.openings_left if r.state == "open" else r.openings for r in others)
+        return holders + promised + self.openings
+
+    def _fix_budget_status(self):
+        """(budget, used, over) for this requisition now."""
+        self.ensure_one()
+        budget = self._fix_budget()
+        if not budget:
+            return budget, 0, False
+        used = self._fix_budget_used(budget)
+        return budget, used, used > budget.approved_headcount
+
+    def _fix_budget_gate(self):
+        """Refuse a requisition beyond its budget unless it carries the
+        justification that routes it to the CFO tier. Returns {id: (budget, over)}."""
+        required = _int_param(self.env, "cd_talent.require_headcount_budget", 0)
+        out = {}
+        for rec in self:
+            budget, used, over = rec._fix_budget_status()
+            if not budget and required:
+                raise UserError(
+                    "Requisition %s: no approved headcount budget for %s in %d (BRU-TAO-01)."
+                    % (
+                        rec.name,
+                        rec.position_id.name or rec.department_id.name or "its scope",
+                        rec.budget_year,
+                    )
+                )
+            if over and not (rec.over_budget_reason or "").strip():
+                raise UserError(
+                    "Requisition %s takes %s to %d against an approved headcount budget of %d "
+                    "for %d (BRU-TAO-01). Give the over-budget justification: the request is "
+                    "then decided by the CFO tier."
+                    % (
+                        rec.name,
+                        budget.display_name,
+                        used,
+                        budget.approved_headcount,
+                        rec.budget_year,
+                    )
+                )
+            out[rec.id] = (budget, over)
+        return out
 
     # ---- transitions ------------------------------------------------------
     def _fix_submit_gate(self):
@@ -163,10 +405,16 @@ class FixJobRequisition(models.Model):
                 raise UserError(
                     "Field role %s needs a practical assessment pass mark (BRU-TAO-05)." % rec.name
                 )
+            problems = rec._fix_seat_problems()
+            if problems:
+                raise UserError("Requisition %s: %s." % (rec.name, "; ".join(problems)))
 
     def action_request_approval(self, justification=None):
-        _require_recruiter(self.env, "submit a requisition")
+        _require_recruiter_or_hiring_manager(self.env, self, "submit a requisition")
         self._fix_submit_gate()
+        for rec in self:
+            budget, over = rec._fix_budget_gate()[rec.id]
+            rec._guarded().write({"budget_id": budget.id or False, "over_budget": over})
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
@@ -174,6 +422,24 @@ class FixJobRequisition(models.Model):
         self._approval_assert_routed()
         self._people_assert_not_conflicted()
         self._fix_submit_gate()
+        for rec in self:
+            # the budget is read again at the decision: another requisition may
+            # have used it up since this one was submitted
+            _budget, _used, over = rec._fix_budget_status()
+            if over and not rec.over_budget:
+                raise UserError(
+                    "Requisition %s no longer fits its headcount budget. Recall it and submit "
+                    "it again with the over-budget justification." % rec.name
+                )
+            if (
+                rec.over_budget
+                and not self.env.su
+                and not rec._people_decider().has_group(CFO_GROUP)
+            ):
+                raise UserError(
+                    "Requisition %s is beyond its headcount budget: the CFO tier decides it."
+                    % rec.name
+                )
         for rec in self:
             rec._guarded().write(
                 {
@@ -229,7 +495,12 @@ class FixCandidate(models.Model):
     )
     date_of_birth = fields.Date(help="Verified before offer: BLA 2006 s.34 (BRU-TAO-17).")
     nid_number = fields.Char(
-        string="NID Number", help="10-, 13- or 17-digit National ID. Used to de-duplicate."
+        string="NID Number",
+        help="10-, 13- or 17-digit National ID. Held in clear only until the hire copies it "
+        "to the employee (or the record is erased); duplicates are found by its hash.",
+    )
+    nid_hash = fields.Char(
+        string="NID Hash", readonly=True, copy=False, index=True, groups="cd_talent.group_talent"
     )
     consent_given = fields.Boolean(
         string="Consent to Processing & Retention",
@@ -271,7 +542,17 @@ class FixCandidate(models.Model):
             "rejection_reason",
             "rejected_on",
             "hired_on",
+            "nid_hash",
         }
+
+    @api.model
+    def _fix_ensure_identity_hash_key(self):
+        """Create the shared identity hash key once, if M21 has not (install /
+        upgrade only; the same idempotent rule as cd_hr_core)."""
+        Param = self.env["ir.config_parameter"].sudo()
+        if not Param.get_param(IDENTITY_HASH_KEY):
+            Param.set_param(IDENTITY_HASH_KEY, secrets.token_hex(32))
+        return True
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -295,8 +576,9 @@ class FixCandidate(models.Model):
             keys.append(("email", "=ilike", self.email.strip()))
         if _digits(self.phone):
             keys.append(("phone", "ilike", _digits(self.phone)[-10:]))
-        if self.nid_number:
-            keys.append(("nid_number", "=", self.nid_number.strip()))
+        digest = nid_hash(self.env, self.nid_number) if self.nid_number else self.sudo().nid_hash
+        if digest:
+            keys.append(("nid_hash", "=", digest))
         if not keys:
             return None
         return ["|"] * (len(keys) - 1) + keys
@@ -329,7 +611,12 @@ class FixCandidate(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("nid_number"):
+                vals["nid_number"] = str(vals["nid_number"]).strip()
         recs = super().create(vals_list)
+        for rec in recs.filtered("nid_number"):
+            rec.sudo()._guarded().write({"nid_hash": nid_hash(rec.env, rec.nid_number)})
         # consent_date is the system's stamp, never typed
         recs.filtered("consent_given")._guarded().write({"consent_date": fields.Datetime.now()})
         return recs
@@ -347,7 +634,20 @@ class FixCandidate(models.Model):
                     raise UserError(
                         "%s is past the interview; their requisition no longer changes." % rec.name
                     )
+        if not self._fix_guard_open() and vals.get("nid_number"):
+            for rec in self:
+                if rec.state == "hired" or rec.erased:
+                    raise UserError(
+                        "%s is %s: their NID lives on the employee master, not here."
+                        % (rec.name, "hired" if rec.state == "hired" else "erased")
+                    )
+        if vals.get("nid_number"):
+            vals = dict(vals, nid_number=str(vals["nid_number"]).strip())
         result = super().write(vals)
+        if "nid_number" in vals:
+            for rec in self:
+                if rec.nid_number:
+                    rec.sudo()._guarded().write({"nid_hash": nid_hash(rec.env, rec.nid_number)})
         if "consent_given" in vals:
             for rec in self:
                 if not rec.id:
@@ -458,17 +758,38 @@ class FixCandidate(models.Model):
         problems += self._fix_interview_problems()
         problems += self._fix_check_problems()
         problems += self._fix_assessment_problems()
+        problems += self._fix_baseline_problems()
+        position = (offer.position_id if offer else False) or self.requisition_id.position_id
+        if position:
+            position = position.sudo()
+            if len(position.employee_ids) >= (position.headcount or 0):
+                problems.append(
+                    "position %s is full (%d sanctioned, BRU-HCM-10)"
+                    % (position.name, position.headcount)
+                )
         if not self.consent_given:
             problems.append("no recorded consent to processing (BRU-TAO-13)")
         problems += self._fix_age_problems(offer.joining_date if offer else None)
         dup = self._fix_duplicate_hire()
         if dup:
             problems.append("the same person is already hired as %s" % dup.name)
+        if self.nid_number:
+            # the employee master searches its own (hashed) NID
+            twin = (
+                self.env["hr.employee"]
+                .sudo()
+                .with_context(active_test=False)
+                .search([("nid_number", "=", self.nid_number.strip())], limit=1)
+            )
+            if twin:
+                problems.append("an employee with this NID already exists (%s)" % twin.name)
         return problems
 
     # ---- transitions ---------------------------------------------------------
     def _fix_move(self, frm, to, what):
-        _require_recruiter(self.env, what)
+        _require_recruiter_or_hiring_manager(self.env, self.mapped("requisition_id"), what)
+        if not _is_recruiter(self.env) and not all(self.mapped("requisition_id")):
+            raise AccessError("Only Recruitment works a candidate with no requisition.")
         for rec in self:
             if rec.state not in frm:
                 raise UserError(
@@ -510,7 +831,11 @@ class FixCandidate(models.Model):
 
     def action_reject(self, reason=None):
         """Close the application with its outcome (BRU-TAO-16)."""
-        _require_recruiter(self.env, "reject a candidate")
+        _require_recruiter_or_hiring_manager(
+            self.env, self.mapped("requisition_id"), "reject a candidate"
+        )
+        if not _is_recruiter(self.env) and not all(self.mapped("requisition_id")):
+            raise AccessError("Only Recruitment works a candidate with no requisition.")
         if not (reason or "").strip():
             raise UserError("State the outcome communicated to the candidate.")
         days = _int_param(self.env, "cd_talent.candidate_retention_days", 0)
@@ -542,13 +867,61 @@ class FixCandidate(models.Model):
                     "Hiring Gate Blocked (RAP-M58-05) for %s: %s." % (rec.name, "; ".join(problems))
                 )
             emp = rec._fix_create_employee(accepted)
+            # the NID now lives on the employee master: no second clear copy
+            if rec.nid_number:
+                rec.sudo()._guarded().write({"nid_number": False})
             contract = rec._fix_create_contract(emp, accepted)
             rec._guarded().write(
                 {"state": "hired", "employee_id": emp.id, "hired_on": fields.Datetime.now()}
             )
-            rec._fix_open_onboarding(emp, contract, accepted)
+            rec._fix_carry_baseline(emp)
+            plan = rec._fix_open_onboarding(emp, contract, accepted)
+            plan._fix_generate_appointment_letter()
+            plan._fix_generate_tasks()
             rec.requisition_id.sudo()._fix_refresh_fill()
         return True
+
+    # ---- BRU-TAO-12: the assessment becomes the M22 baseline -----------------
+    def _fix_passed_assessments(self):
+        self.ensure_one()
+        return (
+            self.env["fix.talent.assessment"]
+            .sudo()
+            .search([("candidate_id", "=", self.id), ("passed", "=", True)])
+        )
+
+    def _fix_baseline_problems(self):
+        unmapped = self._fix_passed_assessments().filtered(lambda a: not a.competency_id)
+        if unmapped:
+            return [
+                "passed assessment %s names no M22 competency, so it cannot become the "
+                "competency baseline (BRU-TAO-12)" % ", ".join(unmapped.mapped("name"))
+            ]
+        return []
+
+    def _fix_carry_baseline(self, employee):
+        """The passed practical assessments become the new employee's first M22
+        assessments. Created with sudo, M22's trusted path: the assessor and
+        score are the M58 record's, and the assessee never records their own."""
+        self.ensure_one()
+        M22 = self.env["fix.competency.assessment"].sudo()
+        for asmt in self._fix_passed_assessments().filtered(lambda a: not a.baseline_id):
+            baseline = M22.create(
+                {
+                    "employee_id": employee.id,
+                    "competency_id": asmt.competency_id.id,
+                    "company_id": asmt.company_id.id,
+                    "assessed_on": asmt.assessed_on,
+                    "assessor_id": asmt.assessor_id.id or False,
+                    "level": asmt.level or "l2",
+                    "score": asmt.score,
+                    "notes": "Competency baseline from the M58 practical assessment %s "
+                    "(BRU-TAO-12)." % asmt.name,
+                }
+            )
+            asmt._guarded().write(
+                {"baseline_id": baseline.id, "baseline_on": fields.Datetime.now()}
+            )
 
     # ---- the hand-off to M21 (I6) ---------------------------------------------
     def _fix_create_employee(self, offer):
@@ -649,6 +1022,7 @@ class FixCandidate(models.Model):
                     "email": False,
                     "phone": False,
                     "nid_number": False,
+                    "nid_hash": False,
                     "date_of_birth": False,
                     "rejection_reason": False,
                     "erased": True,
@@ -696,16 +1070,42 @@ class FixOnboardingPlan(models.Model):
         compute="_compute_evidence",
         help="An NID check on the candidate, cleared by a verifier other than its requester.",
     )
+    # M24 / BLA 2006 s.5: the appointment letter is GENERATED at hire from the
+    # accepted offer and the draft contract, and the employee acknowledges it:
+    # in person (their own login), or by signing it, when a verifier other
+    # than the uploader attests the employee-signed counterpart.
+    appointment_letter_id = fields.Many2one(
+        "fix.hr.document", string="Generated Appointment Letter", readonly=True, copy=False
+    )
     signed_contract_file = fields.Binary(
-        string="Signed Appointment Letter / Contract", attachment=True, copy=False
+        string="Employee-Signed Appointment Letter", attachment=True, copy=False
     )
     signed_contract_filename = fields.Char(copy=False)
-    contract_signed = fields.Boolean(
-        string="Employment Contract Executed",
-        compute="_compute_evidence",
-        help="BLA 2006 s.5: the signed appointment letter is on file and the draft "
-        "contract exists.",
+    signed_contract_uploaded_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    appointment_ack_method = fields.Selection(
+        [
+            ("employee", "Acknowledged by the employee in the system"),
+            ("signed_counterpart", "Employee-signed counterpart, attested"),
+        ],
+        string="Appointment Letter Acknowledged By",
+        readonly=True,
+        copy=False,
     )
+    appointment_ack_attested_by_id = fields.Many2one(
+        "res.users", string="Signature Attested By", readonly=True, copy=False
+    )
+    appointment_ack_on = fields.Datetime(readonly=True, copy=False)
+    contract_signed = fields.Boolean(
+        string="Appointment Letter Acknowledged",
+        compute="_compute_evidence",
+        help="BLA 2006 s.5: the generated appointment letter exists and the employee "
+        "acknowledged it; the draft contract exists.",
+    )
+    task_ids = fields.One2many("fix.onboarding.task", "plan_id", string="Onboarding Tasks")
+    open_mandatory_tasks = fields.Integer(
+        compute="_compute_task_counts", string="Mandatory Tasks Open"
+    )
+    task_count = fields.Integer(compute="_compute_task_counts", string="Tasks")
     bank_details_captured = fields.Boolean(
         string="Payroll & BEFTN Bank Details Captured",
         compute="_compute_evidence",
@@ -752,20 +1152,238 @@ class FixOnboardingPlan(models.Model):
             "completed_by_id",
             "completed_on",
             "readiness_escalated_on",
+            "appointment_letter_id",
+            "signed_contract_uploaded_by_id",
+            "appointment_ack_method",
+            "appointment_ack_attested_by_id",
+            "appointment_ack_on",
         }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
+        if any(r.state in ("completed", "cancelled") or r.appointment_ack_method for r in self):
+            locked |= {"signed_contract_file", "signed_contract_filename"}
         if any(r.state in ("completed", "cancelled") for r in self):
-            locked |= {"signed_contract_file", "signed_contract_filename", "joined_date"}
+            locked |= {"joined_date"}
         return locked
+
+    @api.depends("task_ids.state", "task_ids.mandatory")
+    def _compute_task_counts(self):
+        for rec in self:
+            tasks = rec.sudo().task_ids
+            rec.task_count = len(tasks)
+            rec.open_mandatory_tasks = len(
+                tasks.filtered(lambda t: t.mandatory and t.state != "done")
+            )
 
     def write(self, vals):
         if not self._fix_guard_open() and {"signed_contract_file", "joined_date"} & set(vals):
             for rec in self:
                 if rec.id and rec.state in ("completed", "cancelled"):
                     raise UserError("%s is %s; its evidence is frozen." % (rec.name, rec.state))
-        return super().write(vals)
+                if (
+                    rec.id
+                    and "signed_contract_file" in vals
+                    and rec.appointment_ack_method
+                    and rec._fix_guard_differs(
+                        "signed_contract_file",
+                        vals["signed_contract_file"],
+                        rec.signed_contract_file,
+                    )
+                ):
+                    raise UserError(
+                        "The appointment letter of %s is acknowledged; its signed copy is a "
+                        "record." % rec.name
+                    )
+        result = super().write(vals)
+        if "signed_contract_file" in vals and not self.env.su:
+            # who uploaded the counterpart never attests it
+            self._guarded().write(
+                {
+                    "signed_contract_uploaded_by_id": self.env.uid
+                    if vals["signed_contract_file"]
+                    else False
+                }
+            )
+        return result
+
+    # ---- the appointment letter (M24, BLA 2006 s.5, BRU-TAO-08) --------------
+    def _fix_appointment_text(self):
+        self.ensure_one()
+        emp = self.employee_id.sudo()
+        offer = self.offer_id.sudo()
+        contract = self.contract_id.sudo()
+        company = self.company_id.sudo()
+        types = dict(offer._fields["contract_type"].selection)
+        cur = offer.currency_id.name or "BDT"
+        return (
+            "APPOINTMENT LETTER (Bangladesh Labour Act 2006 s.5; Labour Rules 2015 r.19, "
+            "Form 6)\n"
+            "Employer: %s\n"
+            "Appointee: %s\n"
+            "Position: %s\n"
+            "Department: %s\n"
+            "Date of joining: %s\n"
+            "Nature of employment: %s\n"
+            "Basic monthly wage: %s %s\n"
+            "Gross monthly wage: %s %s\n"
+            "Contract reference: %s\n"
+            "Offer reference: %s (approved by %s on %s)\n"
+            "Generated by the system from the accepted offer and the draft contract; "
+            "valid once acknowledged by the appointee.\n"
+            % (
+                company.name,
+                emp.name,
+                (offer.position_id or self.position_id).name or "",
+                self.department_id.name or "",
+                offer.joining_date or self.joined_date,
+                types.get(offer.contract_type, offer.contract_type or ""),
+                cur,
+                f"{contract.basic_monthly or offer.basic_salary or 0.0:,.2f}",
+                cur,
+                f"{offer.approved_gross or offer.gross_salary or 0.0:,.2f}",
+                contract.name or "",
+                offer.name or "",
+                offer.approved_by_id.name or "",
+                offer.approved_on or "",
+            )
+        )
+
+    def _fix_generate_appointment_letter(self):
+        """Generated once, at hire, as the employee's M21 statutory document
+        (an unsigned, system-written fix.hr.document)."""
+        Doc = self.env["fix.hr.document"].sudo()
+        for rec in self.filtered(lambda r: r.employee_id and not r.appointment_letter_id):
+            emp = rec.employee_id.sudo()
+            doc = Doc._guarded().create(
+                {
+                    "employee_id": emp.id,
+                    "company_id": rec.company_id.id,
+                    "doc_type": "appointment",
+                    "reference": "APPT/%s" % (rec.offer_id.name or rec.id),
+                    "issued_on": fields.Date.context_today(rec),
+                    "generated": True,
+                    "verified": False,
+                    "file_name": "Appointment_Letter_%s.txt" % (rec.offer_id.name or rec.id),
+                    "file_data": base64.b64encode(rec._fix_appointment_text().encode()),
+                }
+            )
+            rec._guarded().write({"appointment_letter_id": doc.id})
+        return True
+
+    def _fix_require_letter(self):
+        for rec in self:
+            if rec.state not in ("draft", "in_progress"):
+                raise UserError("%s is %s." % (rec.name, rec.state))
+            if not rec.appointment_letter_id:
+                raise UserError("%s has no generated appointment letter." % rec.name)
+            if rec.appointment_ack_method:
+                raise UserError("The appointment letter of %s is already acknowledged." % rec.name)
+
+    def action_acknowledge_appointment(self):
+        """The employee acknowledges their own appointment letter."""
+        self._fix_require_letter()
+        for rec in self:
+            if not self.env.su and rec.employee_id.sudo().user_id != self.env.user:
+                raise AccessError(
+                    "Only %s acknowledges their appointment letter." % rec.employee_id.sudo().name
+                )
+            now = fields.Datetime.now()
+            rec.appointment_letter_id.sudo()._guarded().write(
+                {"acknowledged": True, "acknowledged_on": now}
+            )
+            # the identity was checked above; the employee holds no plan write
+            rec.sudo()._guarded().write(
+                {"appointment_ack_method": "employee", "appointment_ack_on": now}
+            )
+        return True
+
+    def action_attest_signed_appointment(self):
+        """A Background Verifier, not the person who uploaded it, attests the
+        employee-signed counterpart: the signature is the employee's
+        acknowledgement. The signed scan becomes the verified document."""
+        if not (self.env.su or self.env.user.has_group("cd_talent.group_background_verifier")):
+            raise AccessError("A Background Verifier attests a signed appointment letter.")
+        self._fix_require_letter()
+        for rec in self:
+            if not rec.signed_contract_file:
+                raise UserError(
+                    "Attach the appointment letter signed by %s first."
+                    % rec.employee_id.sudo().name
+                )
+            if not self.env.su and self.env.user in (
+                rec.signed_contract_uploaded_by_id | rec.employee_id.sudo().user_id
+            ):
+                raise UserError(
+                    "You uploaded (or are the subject of) this signed copy; another verifier "
+                    "attests it."
+                )
+            now = fields.Datetime.now()
+            doc = rec.appointment_letter_id.sudo()
+            # a new file resets the generated flag: the signed scan is the record
+            doc._guarded().write(
+                {
+                    "file_data": rec.signed_contract_file,
+                    "file_name": rec.signed_contract_filename or doc.file_name,
+                    "generated": False,
+                    "verified": True,
+                    "verified_by_id": self.env.uid,
+                    "verified_on": now,
+                    "acknowledged": True,
+                    "acknowledged_on": now,
+                }
+            )
+            rec.sudo()._guarded().write(
+                {
+                    "appointment_ack_method": "signed_counterpart",
+                    "appointment_ack_attested_by_id": self.env.uid,
+                    "appointment_ack_on": now,
+                }
+            )
+        return True
+
+    # ---- onboarding tasks (FR-TAO-027, T-07) ----------------------------------
+    def _fix_template(self):
+        self.ensure_one()
+        Template = self.env["fix.onboarding.template"].sudo()
+        tpl = self.requisition_id.sudo().onboarding_template_id
+        if tpl and tpl.active:
+            return tpl
+        return Template.search(
+            [("is_default", "=", True), ("company_id", "in", (self.company_id.id, False))],
+            order="company_id desc, id",  # a company's own default first
+            limit=1,
+        )
+
+    def _fix_generate_tasks(self):
+        """The task set of the template, with owners and due dates, created
+        once per template line (idempotent)."""
+        Task = self.env["fix.onboarding.task"].sudo()
+        for rec in self:
+            tpl = rec._fix_template()
+            if not tpl:
+                continue
+            req = rec.requisition_id.sudo()
+            done = set(rec.sudo().task_ids.mapped("template_line_id").ids)
+            fallback = req.hiring_manager_id or self.env.user
+            for line in tpl.line_ids.filtered(
+                lambda ln, r=req: r.is_field_role or not ln.field_role_only
+            ):
+                if line.id in done:
+                    continue
+                Task._guarded().create(
+                    {
+                        "plan_id": rec.id,
+                        "template_line_id": line.id,
+                        "name": line.name,
+                        "function": line.function,
+                        "owner_id": (line.owner_user_id or fallback).id,
+                        "due_date": rec.joined_date + timedelta(days=line.due_offset_days),
+                        "mandatory": line.mandatory,
+                        "evidence_required": line.evidence_required,
+                    }
+                )
+        return True
 
     _EVIDENCE = (
         "nid_verified",
@@ -775,7 +1393,13 @@ class FixOnboardingPlan(models.Model):
         "safety_kit_issued",
     )
 
-    @api.depends("signed_contract_file", "contract_id", "employee_id", "candidate_id")
+    @api.depends(
+        "appointment_ack_method",
+        "appointment_letter_id",
+        "contract_id",
+        "employee_id",
+        "candidate_id",
+    )
     def _compute_evidence(self):
         Check = self.env["fix.talent.check"].sudo()
         Issue = self.env["fix.ppe.issue"].sudo() if "fix.ppe.issue" in self.env else None
@@ -792,7 +1416,10 @@ class FixOnboardingPlan(models.Model):
                     ]
                 )
             )
-            rec.contract_signed = bool(rec.signed_contract_file and rec.contract_id)
+            letter = rec.appointment_letter_id.sudo()
+            rec.contract_signed = bool(
+                rec.contract_id and letter and letter.acknowledged and rec.appointment_ack_method
+            )
             rec.bank_details_captured = bool(
                 emp and ((emp.bank_account_number and emp.routing_number) or emp.mfs_account_number)
             )
@@ -812,8 +1439,19 @@ class FixOnboardingPlan(models.Model):
             problems.append("the candidate has not been hired")
         if not self.nid_verified:
             problems.append("NID not verified by a verifier")
-        if not self.contract_signed:
-            problems.append("no signed appointment letter / contract on file (BLA s.5)")
+        if not self.appointment_letter_id:
+            problems.append("no generated appointment letter (BLA s.5)")
+        elif not self.contract_signed:
+            problems.append(
+                "the appointment letter is not acknowledged by the employee (BLA s.5): their "
+                "own acknowledgement, or their signed copy attested by a verifier"
+            )
+        open_tasks = self.sudo().task_ids.filtered(lambda t: t.mandatory and t.state != "done")
+        if open_tasks:
+            problems.append(
+                "%d mandatory onboarding task(s) not done: %s"
+                % (len(open_tasks), ", ".join(open_tasks.mapped("name")))
+            )
         if not self.bank_details_captured:
             problems.append("no bank account and routing number, or MFS wallet, on the employee")
         if self.employee_id and not self.employee_id.sudo().employee_code:

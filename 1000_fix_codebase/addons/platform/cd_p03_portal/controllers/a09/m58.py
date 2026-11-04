@@ -26,7 +26,12 @@ SURFACES = {
     "fix.talent.interview": {
         "order": "scheduled_on desc, id desc",
         "limit": 400,
-        "actions": {"action_done", "action_cancel"},
+        "actions": {
+            "action_add_panelist",
+            "action_remove_panelist",
+            "action_done",
+            "action_cancel",
+        },
     },
     "fix.talent.assessment": {"order": "assessed_on desc, id desc", "limit": 400, "actions": set()},
     "fix.talent.check": {
@@ -52,9 +57,33 @@ SURFACES = {
     "fix.onboarding.plan": {
         "order": "joined_date desc, id desc",
         "limit": 300,
-        "actions": {"action_start", "action_complete"},
+        "actions": {
+            "action_start",
+            "action_complete",
+            "action_acknowledge_appointment",
+            "action_attest_signed_appointment",
+        },
     },
     "fix.talent.first90": {"order": "check_date desc, id desc", "limit": 300, "actions": set()},
+    # Round 2 (BRU-TAO-07): a panelist's own evaluation, private until the
+    # whole panel has submitted (record rules).
+    "fix.talent.evaluation": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_submit"},
+    },
+    # Round 2 (BRU-TAO-01): the approved headcount budget, decided by the CFO tier.
+    "fix.headcount.budget": {
+        "order": "year desc, id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_close"},
+    },
+    # Round 2 (FR-TAO-027): onboarding tasks with owners, due dates and evidence.
+    "fix.onboarding.task": {
+        "order": "due_date, id",
+        "limit": 500,
+        "actions": {"action_done", "action_cancel"},
+    },
 }
 
 

@@ -107,7 +107,11 @@ def call():
 
 @pytest.fixture
 def x(odoo_env):
-    env = odoo_env
+    return make_x(odoo_env)
+
+
+def make_x(env):
+    """The cast of the M58 suites (also used by test_a09_talent_r2.py)."""
     c = SimpleNamespace(env=env)
     c.plain = _user(env)
     c.recruiter = _user(env, "cd_talent.group_talent")
@@ -116,7 +120,10 @@ def x(odoo_env):
     c.hrmgr = _user(env, "hr.group_hr_manager")
     c.offer_approver = _user(env, "cd_talent.group_offer_approver")
     c.cfo = _user(env, "cd_entity_config.group_dofa_tier_4")
-    c.position = env["fix.org.position"].create({"name": "A09 M58 Technician", "grade": "A09T1"})
+    # a position with room: round 2 enforces its sanctioned headcount (BRU-HCM-10)
+    c.position = env["fix.org.position"].create(
+        {"name": "A09 M58 Technician", "grade": "A09T1", "headcount": 50}
+    )
     env["fix.compensation.band"].sudo().create(
         {
             "name": "A09 T1",
@@ -127,7 +134,11 @@ def x(odoo_env):
         }
     )
     c.dept = env["hr.department"].create({"name": "A09 M58 Field Service"})
-    c.interviewer = env["hr.employee"].create({"name": "A09 M58 Panel Lead"})
+    c.panel_user = _user(env)
+    c.interviewer = env["hr.employee"].create(
+        {"name": "A09 M58 Panel Lead", "user_id": c.panel_user.id}
+    )
+    c.verifier2 = _user(env, "cd_talent.group_background_verifier")
     c.today = fields.Date.today()
     return c
 
@@ -163,19 +174,27 @@ def _candidate(x, req, **vals):
     return x.env(user=x.recruiter.id)["fix.candidate"].create(base)
 
 
+def _evaluate(x, iv, user, score=4.0, recommendation="yes"):
+    """The panelist writes and submits their own evaluation (BRU-TAO-07)."""
+    ev = x.env(user=user.id)["fix.talent.evaluation"].search([("interview_id", "=", iv.id)])
+    assert len(ev) == 1, "a panelist sees exactly their own evaluation"
+    _rpc_write(x.env, user, ev, {"score": score, "recommendation": recommendation})
+    ev.with_user(user).action_submit()
+    return ev
+
+
 def _interviewed(x, cand, recommendation="yes"):
-    cand.action_screen()
-    cand.action_interview()
+    cand.with_user(x.recruiter).action_screen()
+    cand.with_user(x.recruiter).action_interview()
     iv = x.env(user=x.recruiter.id)["fix.talent.interview"].create(
         {
             "candidate_id": cand.id,
             "scheduled_on": fields.Datetime.now(),
             "interviewer_id": x.interviewer.id,
-            "score": 4.0,
-            "recommendation": recommendation,
         }
     )
-    iv.action_done()
+    _evaluate(x, iv, x.panel_user, recommendation=recommendation)
+    iv.with_user(x.recruiter).action_done()
     return iv
 
 
@@ -572,13 +591,30 @@ def _hired_plan(x):
     return plan
 
 
+def _attest(x, plan):
+    """The employee-signed letter, uploaded by the recruiter, attested by a
+    verifier who did not upload it."""
+    plan.with_user(x.recruiter).write({"signed_contract_file": EVIDENCE})
+    plan.with_user(x.verifier).action_attest_signed_appointment()
+
+
+def _finish_tasks(x, plan):
+    for task in plan.sudo().task_ids.filtered(lambda t: t.mandatory and t.state == "open"):
+        owner = task.owner_id
+        _rpc_write(x.env, owner, task, {"evidence_note": "Done on day one"})
+        task.with_user(owner).action_done()
+
+
 def test_onboarding_completes_only_on_evidence(x, call):
     plan = _hired_plan(x)
     with pytest.raises(UserError, match="changes only through its workflow"):
         _rpc_write(x.env, x.recruiter, plan, {"state": "completed"})
-    with pytest.raises(UserError, match="signed appointment letter"):
+    with pytest.raises(UserError, match="appointment letter is not acknowledged"):
         plan.with_user(x.recruiter).action_complete()
-    plan.with_user(x.recruiter).write({"signed_contract_file": EVIDENCE})
+    _attest(x, plan)
+    with pytest.raises(UserError, match="mandatory onboarding task"):
+        plan.with_user(x.recruiter).action_complete()
+    _finish_tasks(x, plan)
     with pytest.raises(UserError, match="bank account"):
         plan.with_user(x.recruiter).action_complete()
     emp = plan.employee_id.sudo()
@@ -604,7 +640,7 @@ def test_onboarding_flags_cannot_be_ticked(x):
         plan.invalidate_recordset()
         if flag != "nid_verified":  # the NID check was cleared on this path
             assert not plan[flag], flag
-    with pytest.raises(UserError, match="signed appointment letter"):
+    with pytest.raises(UserError, match="appointment letter is not acknowledged"):
         plan.with_user(x.recruiter).action_complete()
 
 

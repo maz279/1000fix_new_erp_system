@@ -15,14 +15,44 @@ from odoo.exceptions import UserError, ValidationError
 
 from .fix_talent import _require_recruiter
 
+# An object, never a flag: a JSON-RPC caller cannot put it in the context.
+_PANEL_SYNC = object()
+_PANEL_SYNC_KEY = "fix_talent_panel_sync"
+
+RECOMMENDATIONS = [
+    ("strong_yes", "Strong Yes"),
+    ("yes", "Yes"),
+    ("no", "No"),
+    ("strong_no", "Strong No"),
+]
+
+
+def consolidate(recommendations):
+    """The panel's result (BRU-TAO-07): any Strong No vetoes; otherwise the
+    majority; a tie is No (fail closed)."""
+    recs = [r for r in recommendations if r]
+    if not recs:
+        return False
+    if "strong_no" in recs:
+        return "strong_no"
+    positive = sum(1 for r in recs if r in ("strong_yes", "yes"))
+    negative = len(recs) - positive
+    if positive > negative:
+        return "strong_yes" if all(r == "strong_yes" for r in recs) else "yes"
+    return "no"
+
 
 class FixTalentInterview(models.Model):
+    """A structured interview round with a panel. Each panelist evaluates
+    independently (fix.talent.evaluation); the round's score and
+    recommendation exist only once EVERY panelist has submitted (BRU-TAO-07)."""
+
     _name = "fix.talent.interview"
     _description = "Structured Interview"
     _inherit = ["fix.guarded.mixin"]
     _order = "scheduled_on desc, id desc"
 
-    _EVALUATION = ("score", "recommendation", "notes", "interviewer_id", "candidate_id")
+    _FROZEN = ("notes", "interviewer_id", "candidate_id", "panelist_ids")
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -30,17 +60,32 @@ class FixTalentInterview(models.Model):
     )
     candidate_id = fields.Many2one("fix.candidate", required=True, ondelete="cascade", index=True)
     requisition_id = fields.Many2one(related="candidate_id.requisition_id", store=True)
-    interviewer_id = fields.Many2one("hr.employee", string="Interviewer")
+    interviewer_id = fields.Many2one(
+        "hr.employee", string="Lead Interviewer", help="Always a member of the panel."
+    )
+    panelist_ids = fields.Many2many(
+        "hr.employee",
+        "fix_talent_interview_panelist_rel",
+        "interview_id",
+        "employee_id",
+        string="Interview Panel",
+    )
+    evaluation_ids = fields.One2many(
+        "fix.talent.evaluation", "interview_id", string="Panel Evaluations"
+    )
+    panel_size = fields.Integer(compute="_compute_panel", store=True, string="Panel Size")
+    panel_submitted = fields.Integer(compute="_compute_panel", store=True, string="Submitted")
+    panel_complete = fields.Boolean(compute="_compute_panel", store=True, string="Panel Complete")
     scheduled_on = fields.Datetime(required=True)
     round_no = fields.Integer(string="Round", default=1)
-    # cd_talent has no dependency on cd_competency (the M38 lesson): the
-    # competency is referenced by code, not by a cross-module FK.
     competency_code = fields.Char(string="Focus Competency Code")
-    score = fields.Float(string="Score (1-5)")
+    # The panel's consolidated result: empty until every panelist submitted,
+    # so nobody, the recruiter included, sees a partial result.
+    score = fields.Float(string="Panel Score (1-5)", compute="_compute_panel", store=True)
     recommendation = fields.Selection(
-        [("strong_yes", "Strong Yes"), ("yes", "Yes"), ("no", "No"), ("strong_no", "Strong No")],
+        RECOMMENDATIONS, string="Panel Recommendation", compute="_compute_panel", store=True
     )
-    notes = fields.Text()
+    notes = fields.Text(string="Coordinator Notes", help="Logistics only; never an evaluation.")
     completed_on = fields.Datetime(readonly=True, copy=False)
     state = fields.Selection(
         [("scheduled", "Scheduled"), ("done", "Completed"), ("cancelled", "Cancelled")],
@@ -56,8 +101,26 @@ class FixTalentInterview(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if any(r.state != "scheduled" for r in self):
-            locked |= set(self._EVALUATION)
+            locked |= set(self._FROZEN)
         return locked
+
+    @api.depends("evaluation_ids.state", "evaluation_ids.score", "evaluation_ids.recommendation")
+    def _compute_panel(self):
+        # read with sudo: the compute runs as whoever triggered it, often a
+        # panelist, whose record rules hide the other evaluations
+        Evaluation = self.env["fix.talent.evaluation"].sudo()
+        for rec in self:
+            evals = Evaluation.search([("interview_id", "=", rec.id)]) if rec.id else Evaluation
+            submitted = evals.filtered(lambda e: e.state == "submitted")
+            rec.panel_size = len(evals)
+            rec.panel_submitted = len(submitted)
+            rec.panel_complete = bool(evals) and len(submitted) == len(evals)
+            if rec.panel_complete:
+                rec.score = round(sum(submitted.mapped("score")) / len(submitted), 2)
+                rec.recommendation = consolidate(submitted.mapped("recommendation"))
+            else:
+                rec.score = 0.0
+                rec.recommendation = False
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -66,33 +129,134 @@ class FixTalentInterview(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.talent.interview") or "INT/New"
                 )
-        return super().create(vals_list)
+        # Superuser code (seeds, migrations, data loads) is trusted, as for the
+        # guard: a seeded round's typed result becomes its lead interviewer's
+        # submitted evaluation, so the panel result stays computed.
+        seeded = [
+            (vals.pop("score", 0.0), vals.pop("recommendation", False))
+            if self.env.su
+            else (0.0, False)
+            for vals in vals_list
+        ]
+        recs = super().create(vals_list)
+        recs._fix_sync_panel()
+        Evaluation = self.env["fix.talent.evaluation"].sudo()
+        for rec, (score, recommendation) in zip(recs, seeded, strict=True):
+            if recommendation and rec.interviewer_id:
+                Evaluation.search(
+                    [("interview_id", "=", rec.id), ("panelist_id", "=", rec.interviewer_id.id)]
+                )._guarded().write(
+                    {
+                        "score": score or 0.0,
+                        "recommendation": recommendation,
+                        "state": "submitted",
+                        "submitted_on": fields.Datetime.now(),
+                    }
+                )
+        return recs
 
     def write(self, vals):
-        if not self._fix_guard_open() and set(self._EVALUATION) & set(vals):
+        if not self._fix_guard_open() and set(self._FROZEN) & set(vals):
             for rec in self:
                 if rec.id and rec.state != "scheduled":
                     changed = [
                         n
-                        for n in set(self._EVALUATION) & set(vals)
+                        for n in set(self._FROZEN) & set(vals)
                         if rec._fix_guard_differs(n, vals[n], rec[n])
                     ]
                     if changed:
                         raise UserError(
-                            "Interview %s is submitted; its evaluation no longer changes."
-                            % rec.name
+                            "Interview %s is %s; its panel no longer changes."
+                            % (rec.name, rec.state)
                         )
-        return super().write(vals)
+        result = super().write(vals)
+        if {"panelist_ids", "interviewer_id"} & set(vals) and (
+            self.env.context.get(_PANEL_SYNC_KEY) is not _PANEL_SYNC
+        ):
+            self._fix_sync_panel()
+        return result
+
+    def _fix_sync_panel(self):
+        """One evaluation per panelist; the lead interviewer is on the panel.
+        A panelist who already submitted is never removed."""
+        Evaluation = self.env["fix.talent.evaluation"].sudo()
+        for rec in self:
+            if rec.interviewer_id and rec.interviewer_id not in rec.panelist_ids:
+                rec.sudo().with_context(**{_PANEL_SYNC_KEY: _PANEL_SYNC}).write(
+                    {"panelist_ids": [(4, rec.interviewer_id.id)]}
+                )
+            evals = Evaluation.search([("interview_id", "=", rec.id)])
+            have = evals.mapped("panelist_id")
+            gone = evals.filtered(lambda e, r=rec: e.panelist_id not in r.panelist_ids)
+            if gone.filtered(lambda e: e.state == "submitted"):
+                raise UserError(
+                    "%s already submitted an evaluation for %s and stays on its panel."
+                    % (
+                        ", ".join(
+                            gone.filtered(lambda e: e.state == "submitted").mapped(
+                                "panelist_id.name"
+                            )
+                        ),
+                        rec.name,
+                    )
+                )
+            gone._guarded().unlink()
+            for emp in rec.panelist_ids - have:
+                Evaluation._guarded().create(
+                    {"interview_id": rec.id, "panelist_id": emp.id, "company_id": rec.company_id.id}
+                )
+
+    def _fix_resolve_employee(self, panelist):
+        """An employee from an id, a record, an employee code or an exact name."""
+        Employee = self.env["hr.employee"].sudo()
+        if isinstance(panelist, models.BaseModel):
+            return panelist[:1]
+        text = str(panelist or "").strip()
+        if not text:
+            raise UserError("Name the panelist (employee id, code or full name).")
+        if text.isdigit():
+            emp = Employee.browse(int(text)).exists()
+        else:
+            emp = Employee.search(["|", ("employee_code", "=", text), ("name", "=", text)])
+        if len(emp) != 1:
+            raise UserError("No single employee matches %r." % text)
+        return emp
+
+    def action_add_panelist(self, panelist=None):
+        _require_recruiter(self.env, "set an interview panel")
+        emp = self._fix_resolve_employee(panelist)
+        for rec in self:
+            if rec.state != "scheduled":
+                raise UserError("%s is %s; its panel no longer changes." % (rec.name, rec.state))
+            if emp.user_id and emp.user_id == rec.candidate_id.sudo().employee_id.user_id:
+                raise UserError("A candidate does not sit on their own panel.")
+            rec.write({"panelist_ids": [(4, emp.id)]})
+        return True
+
+    def action_remove_panelist(self, panelist=None):
+        _require_recruiter(self.env, "set an interview panel")
+        emp = self._fix_resolve_employee(panelist)
+        for rec in self:
+            if rec.state != "scheduled":
+                raise UserError("%s is %s; its panel no longer changes." % (rec.name, rec.state))
+            if emp == rec.interviewer_id:
+                raise UserError("Name another lead interviewer first.")
+            rec.write({"panelist_ids": [(3, emp.id)]})
+        return True
 
     def action_done(self):
-        _require_recruiter(self.env, "submit an interview evaluation")
+        _require_recruiter(self.env, "complete an interview round")
         for rec in self:
             if rec.state != "scheduled":
                 raise UserError("Complete a scheduled interview.")
-            if not rec.recommendation:
-                raise UserError("Record the recommendation before completing the interview")
-            if not rec.interviewer_id:
-                raise UserError("Name the interviewer whose evaluation this is.")
+            if not rec.panel_size:
+                raise UserError("Name the interview panel of %s." % rec.name)
+            if not rec.panel_complete:
+                raise UserError(
+                    "%d of %d panelists have submitted their evaluation of %s; the round "
+                    "completes when every panelist has (BRU-TAO-07)."
+                    % (rec.panel_submitted, rec.panel_size, rec.name)
+                )
             rec._guarded().write({"state": "done", "completed_on": fields.Datetime.now()})
         return True
 
@@ -108,6 +272,7 @@ class FixTalentInterview(models.Model):
 class FixTalentAssessment(models.Model):
     _name = "fix.talent.assessment"
     _description = "Practical Candidate Assessment"
+    _inherit = ["fix.guarded.mixin"]
     _order = "assessed_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -115,7 +280,29 @@ class FixTalentAssessment(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     candidate_id = fields.Many2one("fix.candidate", required=True, ondelete="cascade", index=True)
-    competency_code = fields.Char(string="Competency Tested (code)")
+    # BRU-TAO-12: the M22 competency tested; at hire a passed assessment
+    # becomes the employee's first fix.competency.assessment (the baseline).
+    competency_id = fields.Many2one(
+        "fix.competency", string="M22 Competency Tested", ondelete="restrict"
+    )
+    competency_code = fields.Char(
+        string="Competency Tested (code)", help="Set from the M22 competency when one is named."
+    )
+    level = fields.Selection(
+        [
+            ("l1", "L1 - Aware"),
+            ("l2", "L2 - Assisted"),
+            ("l3", "L3 - Independent"),
+            ("l4", "L4 - Expert / Trainer"),
+        ],
+        string="Observed Level",
+        default="l2",
+        help="Carried to the M22 baseline assessment.",
+    )
+    baseline_id = fields.Many2one(
+        "fix.competency.assessment", string="M22 Baseline", readonly=True, copy=False
+    )
+    baseline_on = fields.Datetime(string="Baseline Carried On", readonly=True, copy=False)
     requisition_id = fields.Many2one(
         "fix.job.requisition",
         string="Requisition",
@@ -137,13 +324,38 @@ class FixTalentAssessment(models.Model):
         "CHECK (score >= 0 AND score <= 100)", "Assessment score is a 0-100 percentage"
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"baseline_id", "baseline_on"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(r.baseline_id for r in self):
+            locked |= {"score", "competency_id", "competency_code", "level", "assessor_id"}
+        return locked
+
+    def _fix_code_vals(self, vals):
+        if vals.get("competency_id"):
+            vals["competency_code"] = (
+                self.env["fix.competency"].sudo().browse(vals["competency_id"]).code
+            )
+        return vals
+
     def write(self, vals):
         # `passed` is computed; a direct write would stand until the next recompute.
         if "passed" in vals and not self.env.su:
             raise UserError(
                 "%s is computed and cannot be set directly." % self._fields["passed"].string
             )
-        return super().write(vals)
+        frozen = {"score", "competency_id", "level", "assessor_id", "candidate_id"} & set(vals)
+        if frozen and not self._fix_guard_open():
+            for rec in self:
+                if rec.baseline_id and any(
+                    rec._fix_guard_differs(n, vals[n], rec[n]) for n in frozen
+                ):
+                    raise UserError(
+                        "%s is the employee's M22 baseline; it no longer changes." % rec.name
+                    )
+        return super().write(self._fix_code_vals(dict(vals)))
 
     @api.depends("score", "candidate_id.requisition_id.assessment_pass_mark")
     def _compute_passed(self):
@@ -158,6 +370,7 @@ class FixTalentAssessment(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.talent.assessment") or "TASM/New"
                 )
+            self._fix_code_vals(vals)
         return super().create(vals_list)
 
 
