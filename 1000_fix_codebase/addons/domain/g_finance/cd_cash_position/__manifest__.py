@@ -37,6 +37,8 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        # A04 report C7: consumer of the storefront refund hand-off.
+        "data/fix_a04_consumers.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

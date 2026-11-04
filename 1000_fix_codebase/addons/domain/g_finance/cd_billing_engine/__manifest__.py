@@ -31,6 +31,10 @@ CD-M20-01: the M20 accounts-receivable core.
         "cd_tax_engine_bd",
         "cd_service_order",
         "cd_gl_ext",
+        # A04 report §6 C7: the warranty_claim.decided consumer needs the
+        # claim master (brand code, approved amount). No cycle: the warranty
+        # module's closure does not reach this one.
+        "cd_warranty_claims",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
@@ -41,6 +45,8 @@ CD-M20-01: the M20 accounts-receivable core.
         "data/fix_ar_cron.xml",
         # A03 audit W1: party.merged consumer (re-points are logged).
         "data/fix_party_merge_consumers.xml",
+        # A04 report §6 C7: warranty_claim.decided -> draft M20 OEM invoice.
+        "data/fix_a04_consumers.xml",
         "views/fix_billing_engine_views.xml",
         "views/fix_ar_engine_views.xml",
         "views/fix_vds_certificate_views.xml",

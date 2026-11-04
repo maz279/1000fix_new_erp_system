@@ -41,6 +41,10 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 HANDBACK_ACCOUNTS = {
     "customer_refund": ("ar", "Customer refund (the customer's money held on AR control)"),
     "damage_claim_expense": (None, "Transit damage claim expense"),
+    # A04 C7: an approved channel rebate's payout (M40 -> M50). A partner
+    # payable, not AR money; the GL account is finance's to configure
+    # (cd_settlement_ext.account_code.partner_rebate_payout).
+    "partner_rebate_payout": (None, "Channel partner rebate payout"),
 }
 
 # the source models whose M50 instructions are hand-backs, and the field
