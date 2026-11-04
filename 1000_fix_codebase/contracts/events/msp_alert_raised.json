@@ -37,10 +37,10 @@
       ],
       "properties": {
         "agent": {
-          "description": "Type not statically derivable from `agent_id` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:183)."
+          "description": "Type not statically derivable from `agent_id` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:191)."
         },
         "health": {
-          "description": "Type not statically derivable from `health` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:183)."
+          "description": "Type not statically derivable from `health` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:191)."
         }
       },
       "additionalProperties": false

@@ -98,11 +98,6 @@
       "status": "planned"
     },
     {
-      "event_type": "service_order.delivered",
-      "filename": "service_order_delivered.json",
-      "status": "planned"
-    },
-    {
       "event_type": "supplier.scorecard_updated",
       "filename": "supplier_scorecard_updated.json",
       "status": "planned"

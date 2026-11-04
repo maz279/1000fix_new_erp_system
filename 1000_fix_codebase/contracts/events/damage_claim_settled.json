@@ -54,7 +54,7 @@
           ]
         },
         "amount": {
-          "description": "Type not statically derivable from `amount` (addons/domain/e_supply_chain/cd_consignment/models/fix_damage_claim.py:361)."
+          "description": "Type not statically derivable from `amount` (addons/domain/e_supply_chain/cd_consignment/models/fix_damage_claim.py:435)."
         },
         "currency": {
           "type": [

@@ -57,7 +57,6 @@ WRITABLE = {
             "branch_id",
             "company_id",
             "customer_id",
-            "mushak_63_ref",
             "notes",
             "operating_unit_id",
             "payment_method",
@@ -67,6 +66,7 @@ WRITABLE = {
             "serial_or_warranty_ref",
             "shift_id",
             "sold_by",
+            "tendered_amount",
             "transaction_ref",
             "unit_price",
         }
@@ -111,6 +111,7 @@ WRITABLE = {
             "evidence_ref",
             "incident_photo_attachment_id",
             "liability",
+            "requested_payout",
         }
     ),
     "fix.data.backup.plan": frozenset(
@@ -194,9 +195,10 @@ WRITABLE = {
             "customer_id",
             "device_id",
             "donor_drive_serial",
+            "encrypted_target_serial",
             "firmware_revision",
             "form_factor",
-            "image_sha256_hash",
+            "handover_recipient_id",
             "interface_type",
             "media_serial_number",
             "media_type",
@@ -274,6 +276,7 @@ WRITABLE = {
             "zone_id",
         }
     ),
+    "fix.field.order.part": frozenset(),
     "fix.field.route": frozenset(
         {
             "date",
@@ -419,14 +422,12 @@ WRITABLE = {
             "cosmetic_condition_notes",
             "customer_id",
             "deferred_notes",
-            "deferred_reason",
             "deferred_until",
             "device_id",
             "diagnostic_engineer_id",
             "diagnostic_notes",
             "fault_description",
             "intake_photo_attachment_id",
-            "is_deferred_block",
             "lci_tripped",
             "order_category",
             "passcode_type",
@@ -457,33 +458,7 @@ WRITABLE = {
             "warn_at_pct",
         }
     ),
-    "fix.sla.kpi.instance": frozenset(
-        {
-            "breached_at",
-            "calendar_id",
-            "cancelled_reason",
-            "display_label",
-            "elapsed_pause_minutes",
-            "item_id",
-            "kpi_code",
-            "partner_id",
-            "pause_reason",
-            "paused_at",
-            "policy_id",
-            "res_id",
-            "res_model",
-            "series_index",
-            "started_at",
-            "state",
-            "succeeded_at",
-            "superseded_by_id",
-            "supersedes_id",
-            "target_at",
-            "target_hours",
-            "warn_at",
-            "warned_at",
-        }
-    ),
+    "fix.sla.kpi.instance": frozenset(),
     "fix.sla.policy": frozenset(),
     "fix.technician.location": frozenset(
         {
@@ -527,6 +502,7 @@ WRITABLE = {
             "lci_status",
             "loaner_device_id",
             "payment_channel",
+            "payment_trx_ref",
             "storage_bin_code",
             "token_id",
         }
@@ -594,6 +570,12 @@ WRITABLE = {
         {
             "actual_logged_minutes",
             "bench_id",
+            "bookin_accessories",
+            "bookin_accessory_bag",
+            "bookin_condition",
+            "bookin_lci_tripped",
+            "bookin_no_accessories",
+            "bookin_photo_attachment_id",
             "burn_in_duration_hours",
             "burn_in_temp_celsius",
             "dc_power_rail_readings",

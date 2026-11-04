@@ -40,7 +40,7 @@
           "type": "string"
         },
         "period": {
-          "description": "Type not statically derivable from `period[2]` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:101)."
+          "description": "Type not statically derivable from `period[2]` (addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py:109)."
         }
       },
       "additionalProperties": false
