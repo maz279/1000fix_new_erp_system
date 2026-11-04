@@ -25,6 +25,7 @@ import random
 import subprocess
 import sys
 import urllib.request
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -661,6 +662,12 @@ def main() -> int:
     outbox = c.call("fix.event.outbox", "search_count", [])
     print(f"seed: outbox carries {outbox} events (AS-08) - dispatcher drain is a separate step")
 
+    # The M63 approval groups: with nobody appointed every routed request is
+    # refused with "No one can approve" (db/seeds/appoint_approvers.py). Done
+    # here because the anchors below decide as the appointed approvers.
+    appoint = (Path(__file__).parent / "appoint_approvers.py").read_text(encoding="utf-8")
+    run_in_shell(args.db, appoint, "appoint-approvers:")
+
     # --- Phase 8 estate: employment contracts, roster, attendance, payroll,
     # certifications, NCRs, MSP contracts (P08 seed extension).
     # IDEMPOTENT: every block searches before creating (a --force rerun
@@ -1139,6 +1146,10 @@ def main() -> int:
                         "incident_type": rng.choice(["injury", "near_miss", "fire"]),
                         "severity": rng.choice(["low", "medium", "high"]),
                         "description": f"Seed HSE incident {i+1}",
+                        # a high-severity injury names the injured worker or the reporter
+                        "employee_id": hr_employees[i % len(hr_employees)]
+                        if hr_employees
+                        else False,
                     },
                 )
         print("seed: HSE incidents (idempotent)")
@@ -1202,20 +1213,29 @@ def main() -> int:
             for i in range(5):
                 sname = f"Seed Seller {i+1}"
                 if not c.first("fix.marketplace.seller", [("name", "=", sname)]):
-                    c.call(
+                    seller = c.call(
                         "fix.marketplace.seller",
                         "create",
                         {
                             "name": sname,
                             "partner_id": seed_customers[i],
-                            "kyc_status": rng.choice(["pending", "verified"]),
                             "rating": round(rng.uniform(3.0, 5.0), 1),
                         },
                     )
+                    # BRU-ECM-01: only a CFO-approved, KYC-verified seller quotes;
+                    # the sign-offs are the actions, not a typed status
+                    if rng.random() < 0.6:
+                        c.call("fix.marketplace.seller", "action_cfo_approve", [seller])
+                        c.call("fix.marketplace.seller", "action_verify_kyc", [seller])
             print("seed: marketplace sellers (idempotent)")
 
             # 5 marketplace orders (journey 7 states)
-            sellers = c.call("fix.marketplace.seller", "search", [], limit=5)
+            sellers = c.call(
+                "fix.marketplace.seller",
+                "search",
+                [("kyc_status", "=", "verified"), ("cfo_approved", "=", True)],
+                limit=5,
+            )
             for i in range(5):
                 oname = f"SEED-MKT-{i+1:03d}"
                 if not c.first("fix.marketplace.order", [("name", "=", oname)]):
@@ -1574,7 +1594,11 @@ def main() -> int:
             if not c.first(model, key_domain):
                 c.call(model, "create", vals)
 
-        emp = c.call("hr.employee", "search", [], limit=5) or [1]
+        def cycle(ids: list, n: int) -> list:
+            # a small database has fewer rows than the anchors index
+            return [ids[i % len(ids)] for i in range(n)]
+
+        emp = cycle(c.call("hr.employee", "search", [], limit=5) or [1], 5)
         brn = c.call("fix.branch", "search", [], limit=5) or [1]
         ord_ids = c.call("fix.service.order", "search", [], limit=5) or [1]
         dev_ids = c.call("fix.device", "search", [], limit=5) or [1]
@@ -1606,8 +1630,15 @@ def main() -> int:
         mspc = c.call("fix.msp.contract", "search", [], limit=1) or [1]
         mon = c.call("fix.monitored.asset", "search", [], limit=3) or [1]
         rres = c.call("fix.rental.reservation", "search", [], limit=3) or [1]
-        slr = c.call("fix.marketplace.seller", "search", [], limit=3) or [1]
-        mvl = c.call("account.move.line", "search", [], limit=3) or [1]
+        # only an approved seller is scored or quotes (BRU-ECM-01); none may exist
+        slr = c.call(
+            "fix.marketplace.seller",
+            "search",
+            [("kyc_status", "=", "verified"), ("cfo_approved", "=", True)],
+            limit=3,
+        )
+        slr = cycle(slr, 3) if slr else []
+        mvl = c.call("account.move.line", "search", [], limit=3)  # none on a fresh database
         ou = c.call("operating.unit", "search", [], limit=1) or [1]
         cust = seed_customers or [1]
 
@@ -1730,12 +1761,17 @@ def main() -> int:
 
         # Service-delivery chain (estimates -> discount approvals, work
         # orders, QC, front desk, warranty)
-        for i in range(3):
-            ensure(
-                "fix.estimate",
-                [("order_id", "=", ord_ids[i]), ("version", "=", 1)],
-                {"order_id": ord_ids[i], "version": 1, "state": ["draft", "sent", "approved"][i]},
-            )
+        # A02 P0 (M01-4): an estimate's state moves only by send / approve. The
+        # order walk seeded sent and approved estimates; a draft is prepared on
+        # an order still in diagnosis.
+        diag = c.call(
+            "fix.service.order",
+            "search",
+            [("state", "=", "diagnostic"), ("estimate_ids", "=", False)],
+            limit=1,
+        )
+        if diag and not c.first("fix.estimate", [("state", "=", "draft")]):
+            c.call("fix.estimate", "create", seed_estimate(diag[0], rng))
         est = c.call("fix.estimate", "search", [], limit=3) or [1]
         for i in range(2):
             ensure(
@@ -1746,63 +1782,86 @@ def main() -> int:
                     "discount_pct": 5.0 * (i + 1),
                     "justification": "Seed margin-approved discount",
                     "operating_unit_id": ou[0],
-                    "state": ["pending", "approved"][i],
+                    # 5% is within the agent's authority (approved on create);
+                    # 10% waits in a DOFA Tier 2 inbox (A03 audit R7)
                 },
             )
+        # A02 audit M01-P2: a work order is assigned only by a dispatcher
+        # (action_assign), and M55 only to a technician rostered today (the
+        # server's UTC date); in progress / completed come from the technician
+        # app. The order walk seeded passed and failed QC; these checklists are
+        # pending.
+        rostered = [
+            s["employee_id"][0]
+            for s in c.call(
+                "fix.roster.slot",
+                "search_read",
+                [("date", "=", datetime.now(UTC).date().isoformat()), ("on_leave", "=", False)],
+                ["employee_id"],
+                limit=2,
+            )
+        ]
         for i in range(3):
-            ensure(
-                "fix.work.order",
-                [("order_id", "=", ord_ids[i])],
-                {"order_id": ord_ids[i], "state": ["pending", "in_progress", "completed"][i]},
-            )
-            ensure(
-                "fix.qc.checklist",
-                [("order_id", "=", ord_ids[i])],
-                {"order_id": ord_ids[i], "state": ["pending", "passed", "failed"][i]},
-            )
+            ensure("fix.work.order", [("order_id", "=", ord_ids[i])], {"order_id": ord_ids[i]})
+            if i and len(rostered) >= i:
+                wo = c.first(
+                    "fix.work.order", [("order_id", "=", ord_ids[i]), ("state", "=", "pending")]
+                )
+                if wo:
+                    c.call("fix.work.order", "action_assign", [wo], rostered[i - 1])
+            ensure("fix.qc.checklist", [("order_id", "=", ord_ids[i])], {"order_id": ord_ids[i]})
         for i in range(2):
-            ensure(
-                "fix.token.queue",
-                [("branch_id", "=", brn[i]), ("service_type", "=", "drop_off")],
-                {
-                    "branch_id": brn[i],
-                    "service_type": "drop_off",
-                    "state": ["waiting", "completed"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+            # A02 audit M04: a token moves by call / serve / complete
+            if not c.first(
+                "fix.token.queue", [("branch_id", "=", brn[i]), ("service_type", "=", "drop_off")]
+            ):
+                tok = c.call(
+                    "fix.token.queue",
+                    "create",
+                    {"branch_id": brn[i], "service_type": "drop_off", "operating_unit_id": ou[0]},
+                )
+                if i:
+                    for step in ("action_call", "action_serving", "action_complete"):
+                        c.call("fix.token.queue", step, [tok])
             ensure(
                 "fix.walkin.intake",
-                [
-                    ("branch_id", "=", brn[i]),
-                    ("customer_id", "=", cust[i]),
-                    ("state", "=", "in_progress"),
-                ],
+                [("branch_id", "=", brn[i]), ("customer_id", "=", cust[i])],
                 {
                     "branch_id": brn[i],
                     "customer_id": cust[i],
+                    "device_id": dev_ids[i],  # BRU-FRD-12: an intake starts with the device
                     "fault_description": "স্ক্রিন ভাঙা (seed)",
-                    "state": "in_progress",
                     "operating_unit_id": ou[0],
                 },
             )
-            ensure(
-                "fix.cash.shift",
-                [
-                    ("branch_id", "=", brn[i]),
-                    ("shift_date", "=", "2026-10-01"),
-                    ("shift_type", "=", "morning"),
-                ],
-                {
-                    "branch_id": brn[i],
-                    "operator_id": emp[i],
-                    "shift_date": "2026-10-01",
-                    "shift_type": "morning",
-                    "opening_float": 5000.0,
-                    "state": ["open", "reconciled"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+            # A02 audit M04-2/-6/-11: a shift closes on the cashier's blind
+            # denomination count and is reconciled by a Branch Manager who did
+            # not handle the cash (BRU-FRD-11)
+            shift_key = [
+                ("branch_id", "=", brn[i]),
+                ("shift_date", "=", "2026-10-01"),
+                ("shift_type", "=", "morning"),
+            ]
+            if not c.first("fix.cash.shift", shift_key):
+                shift = c.call(
+                    "fix.cash.shift",
+                    "create",
+                    {
+                        "branch_id": brn[i],
+                        "operator_id": emp[i],
+                        "shift_date": "2026-10-01",
+                        "shift_type": "morning",
+                        "opening_float": 5000.0,
+                        "operating_unit_id": ou[0],
+                    },
+                )
+                if i:
+                    c.call("fix.cash.shift", "write", [shift], {"denom_1000_count": 5})
+                    c.call("fix.cash.shift", "action_submit_blind_count", [shift])
+                    c.call("fix.cash.shift", "action_confirm_closed", [shift])
+                    manager = Client()
+                    manager.login(args.db, *(["seed.branch.manager@1000fix.local"] * 2))
+                    manager.call("fix.cash.shift", "action_reconcile", [shift])
         for i in range(3):
             ensure(
                 "fix.warranty.product",
@@ -1842,26 +1901,49 @@ def main() -> int:
         print("seed: service-delivery anchors (idempotent)")
 
         # CX + commercial
+        # A03 audit: a campaign runs only through action_launch (social needs no
+        # consent list or BTRC window) and ends through action_complete; a call
+        # resolves only with a disposition and substantive wrap-up notes
+        # (REQ-27.1). Abandoned calls come from the telephony hang-up endpoint,
+        # so the second call stays in the queue.
+        disposition = c.first("fix.cc.disposition", [("code", "=", "SEED-RES")]) or c.call(
+            "fix.cc.disposition",
+            "create",
+            {"code": "SEED-RES", "name": "Seed: resolved at first contact"},
+        )
         for i in range(2):
-            ensure(
-                "fix.campaign",
-                [("name", "=", f"Seed Campaign {i+1}")],
-                {
-                    "name": f"Seed Campaign {i+1}",
-                    "channel": ["sms", "social"][i],
-                    "state": ["running", "completed"][i],
-                },
-            )
-            ensure(
-                "fix.conversation",
-                [("channel", "=", "voice"), ("started_at", "=", f"2026-10-0{i+1} 09:00:00")],
-                {
-                    "channel": "voice",
-                    "started_at": f"2026-10-0{i+1} 09:00:00",
-                    "state": ["resolved_agent", "abandoned"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+            cname = f"Seed Campaign {i+1}"
+            if not c.first("fix.campaign", [("name", "=", cname)]):
+                camp = c.call(
+                    "fix.campaign",
+                    "create",
+                    {
+                        "name": cname,
+                        "channel": "social",
+                        "start_date": "2026-10-01",
+                        "end_date": "2026-12-31",
+                    },
+                )
+                c.call("fix.campaign", "action_launch", [camp])
+                if i:
+                    c.call("fix.campaign", "action_complete", [camp])
+            started = f"2026-10-0{i+1} 09:00:00"
+            if not c.first(
+                "fix.conversation", [("channel", "=", "voice"), ("started_at", "=", started)]
+            ):
+                conv = c.call(
+                    "fix.conversation",
+                    "create",
+                    {
+                        "channel": "voice",
+                        "started_at": started,
+                        "disposition_id": disposition,
+                        "wrapup_notes": "গ্রাহকের প্রশ্নের উত্তর দেওয়া হয়েছে; seed call resolved.",
+                        "operating_unit_id": ou[0],
+                    },
+                )
+                if not i:
+                    c.call("fix.conversation", "action_resolve", [conv])
         for i in range(3):
             ensure(
                 "fix.survey",
@@ -1873,19 +1955,27 @@ def main() -> int:
                     "operating_unit_id": ou[0],
                 },
             )
-            ensure(
-                "fix.complaint",
-                [("name", "=", f"SEED-CMP-{i+1:03d}")],
-                {
-                    "name": f"SEED-CMP-{i+1:03d}",
-                    "customer_id": cust[i],
-                    "category": ["service_quality", "delay", "billing"][i],
-                    "severity": ["minor", "major", "critical"][i],
-                    "description": "Seed complaint description",
-                    "state": ["new", "investigating", "closed"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+            # A03 audit M34: a complaint is assessed, then investigated; it
+            # closes only with a root cause and the customer's acceptance, which
+            # a seed cannot honestly supply, so the third stops investigating.
+            cmp_name = f"SEED-CMP-{i+1:03d}"
+            if not c.first("fix.complaint", [("name", "=", cmp_name)]):
+                cmp_id = c.call(
+                    "fix.complaint",
+                    "create",
+                    {
+                        "name": cmp_name,
+                        "customer_id": cust[i],
+                        "category": ["service_quality", "delay", "billing"][i],
+                        "severity": ["minor", "major", "critical"][i],
+                        "description": "Seed complaint description",
+                        "operating_unit_id": ou[0],
+                    },
+                )
+                if i:
+                    c.call("fix.complaint", "action_assess", [cmp_id])
+                if i == 2:
+                    c.call("fix.complaint", "action_investigate", [cmp_id])
         for i, lt in enumerate(["labour", "part", "transport"]):
             ensure(
                 "fix.rate.card",
@@ -1960,19 +2050,24 @@ def main() -> int:
                 [("name", "=", f"SEED-IMP-{i+1:03d}")],
                 {"name": f"SEED-IMP-{i+1:03d}", "state": ["shipped", "received"][i]},
             )
-            ensure(
-                "fix.consignment",
-                [
-                    ("consignment_type", "=", "pickup"),
-                    ("scheduled_date", "=", f"2026-10-0{i+2} 08:00:00"),
-                ],
-                {
-                    "consignment_type": "pickup",
-                    "scheduled_date": f"2026-10-0{i+2} 08:00:00",
-                    "state": ["confirmed", "delivered"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+            # A02 M03: a consignment is confirmed by its action; delivery needs
+            # it in transit with a verified proof of delivery, so none is seeded
+            cons_key = [
+                ("consignment_type", "=", "pickup"),
+                ("scheduled_date", "=", f"2026-10-0{i+2} 08:00:00"),
+            ]
+            if not c.first("fix.consignment", cons_key):
+                cons = c.call(
+                    "fix.consignment",
+                    "create",
+                    {
+                        "consignment_type": "pickup",
+                        "scheduled_date": f"2026-10-0{i+2} 08:00:00",
+                        "operating_unit_id": ou[0],
+                    },
+                )
+                if i:
+                    c.call("fix.consignment", "action_confirm", [cons])
             ensure(
                 "fix.refurbishment",
                 [("name", "=", f"SEED-RFB-{i+1:03d}")],
@@ -2197,7 +2292,11 @@ def main() -> int:
         ensure(
             "fix.withholding.certificate",
             [("vendor_invoice_id", "=", vi[0])],
-            {"vendor_invoice_id": vi[0], "withheld_amount": 250.0},
+            {
+                "vendor_invoice_id": vi[0],
+                "withheld_amount": 250.0,
+                "supplier_name": "Seed Vendor 1",
+            },
         )
         for i in range(3):
             ensure(
@@ -2223,8 +2322,9 @@ def main() -> int:
         )
         ensure(
             "fix.tds.return",
-            [("quarter", "=", "Q2-2026")],
-            {"quarter": "Q2-2026", "state": "draft"},
+            # the label is the fiscal-year start and quarter (Oct-Dec 2026 = 2026-Q2)
+            [("quarter", "=", "2026-Q2")],
+            {"quarter": "2026-Q2"},
         )
         for i in range(2):
             ensure(
@@ -2254,7 +2354,7 @@ def main() -> int:
             [("period_end", "=", "2026-09-30")],
             {"period_end": "2026-09-30", "state": "ready_to_close"},
         )
-        for i in range(2):
+        for i in range(min(2, len(mvl))):
             ensure(
                 "fix.journal.dimension",
                 [("move_line_id", "=", mvl[i])],
@@ -2396,19 +2496,28 @@ def main() -> int:
                     "asset_id": mon[i],
                     "message": "Seed RMM alert: disk usage 92%",
                     "severity": ["minor", "major"][i],
-                    "state": ["new", "resolved"][i],
                 },
             )
+            if i:
+                alert = c.first(
+                    "fix.msp.alert",
+                    [("asset_id", "=", mon[i]), ("message", "=", "Seed RMM alert: disk usage 92%")],
+                )
+                if (
+                    alert
+                    and c.call("fix.msp.alert", "read", [alert], ["state"])[0]["state"] == "new"
+                ):
+                    c.call("fix.msp.alert", "action_acknowledge", [alert])
+            # A02 M05: consent and the start are captured by the session's
+            # actions from the client's own answer; seeded sessions await it
             ensure(
                 "fix.remote.session",
-                [("asset_id", "=", mon[i]), ("started_at", "=", f"2026-09-2{i+1} 10:00:00")],
+                [("asset_id", "=", mon[i]), ("technician_id", "=", emp[i])],
                 {
                     "msp_contract_id": mspc[0],
                     "asset_id": mon[i],
                     "technician_id": emp[i],
                     "tool": "rustdesk",
-                    "started_at": f"2026-09-2{i+1} 10:00:00",
-                    "consent_captured": True,
                 },
             )
         ensure(
@@ -2444,11 +2553,12 @@ def main() -> int:
                 [("vendor_id", "=", cust[i]), ("period", "=", "2026-Q3")],
                 {"vendor_id": cust[i], "period": "2026-Q3", "operating_unit_id": ou[0]},
             )
-            ensure(
-                "fix.seller.score",
-                [("seller_id", "=", slr[i]), ("period", "=", "2026-09")],
-                {"seller_id": slr[i], "period": "2026-09"},
-            )
+            if slr:
+                ensure(
+                    "fix.seller.score",
+                    [("seller_id", "=", slr[i]), ("period", "=", "2026-09")],
+                    {"seller_id": slr[i], "period": "2026-09"},
+                )
             ensure(
                 "fix.contract.entitlement",
                 [
@@ -2606,6 +2716,15 @@ def main() -> int:
                     "sms_route": ["masking", "non-masking"][i],
                 },
             )
+        notice = c.first("fix.transparency.notice", []) or c.call(
+            "fix.transparency.notice",
+            "create",
+            {
+                "version": "0.1-seed",
+                "text_en": "Synthetic seed transparency notice (DE-12).",
+                "text_bn": "সিড স্বচ্ছতা বিজ্ঞপ্তি (পরীক্ষামূলক)।",
+            },
+        )
         for i in range(2):
             ensure(
                 "fix.consent",
@@ -2616,6 +2735,7 @@ def main() -> int:
                     "state": "granted",
                     "source": "web",
                     "proof": f"SEED-CONSENT-{i + 1}",
+                    "notice_version_id": notice,
                 },
             )
         # Identity documents (synthetic checksum-valid style per DE-12)
@@ -2626,7 +2746,7 @@ def main() -> int:
                 {
                     "partner_id": cust[i],
                     "document_type": "nid_17",
-                    "verification_status": "verified",
+                    # verified only by a data steward's routed decision (A02 B1)
                 },
             )
         # Party model: roles + hierarchy
@@ -2711,7 +2831,18 @@ def main() -> int:
         ensure(
             "fix.service.kit",
             [("name", "=", "Seed Screen Replacement Kit")],
-            {"name": "Seed Screen Replacement Kit", "catalogue_item_id": cat[1 % len(cat)]},
+            {
+                "name": "Seed Screen Replacement Kit",
+                "catalogue_item_id": cat[1 % len(cat)],
+                # a kit must have at least one component when it is created
+                "component_ids": [
+                    (
+                        0,
+                        0,
+                        {"component_type": "part", "quantity": 1.0, "notes": "স্ক্রিন প্যানেল"},
+                    )
+                ],
+            },
         )
         kit = c.first("fix.service.kit", [("name", "=", "Seed Screen Replacement Kit")])
         if kit:
@@ -2749,8 +2880,8 @@ def main() -> int:
                     "match_state": ["unmatched", "auto", "manual"][i],
                 },
             )
-        mo = c.call("fix.marketplace.order", "search", [], limit=2) or [1]
-        for i in range(2):
+        mo = c.call("fix.marketplace.order", "search", [], limit=2)
+        for i in range(min(2, len(mo)) if slr else 0):
             ensure(
                 "fix.seller.quote",
                 [("marketplace_order_id", "=", mo[i]), ("seller_id", "=", slr[i])],
@@ -2759,15 +2890,10 @@ def main() -> int:
                     "seller_id": slr[i],
                     "eta_days": 2 + i,
                     "quoted_price": round(rng.uniform(800, 3000), 2),
-                    "state": ["submitted", "selected"][i],
+                    # selection is the order's action (action_select_quote)
                 },
             )
         print("seed: config masters (idempotent)")
-
-    # The M63 approval groups: with nobody appointed every routed request is
-    # refused with "No one can approve" (db/seeds/appoint_approvers.py).
-    appoint = (Path(__file__).parent / "appoint_approvers.py").read_text(encoding="utf-8")
-    run_in_shell(args.db, appoint, "appoint-approvers:")
 
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
