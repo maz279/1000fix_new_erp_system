@@ -5,6 +5,7 @@ from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 from . import m21, m22, m55, m56, m57, m58, m59
+from .writable import WRITABLE
 
 MODULES = {
     "M21": m21,
@@ -26,6 +27,11 @@ for _mod in MODULES.values():
         # company's employees. People data is read under the caller's own
         # record rules (p03_generic_api honours "rules").
         SURFACES[_model] = {**_conf, "rules": True}
+
+# B1 (A09 workflow audit): every A09 surface declares what /p03/model/write
+# may set on it, generated from the workspace forms (form_fields.py --a09).
+for _model, _conf in SURFACES.items():
+    _conf["writable"] = WRITABLE[_model]
 
 
 def _module_kpis(env, mod):
