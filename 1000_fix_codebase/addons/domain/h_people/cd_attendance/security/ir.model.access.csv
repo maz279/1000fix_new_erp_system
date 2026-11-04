@@ -14,3 +14,7 @@ access_fix_biometric_device_role,fix.biometric.device.role,model_fix_biometric_d
 access_fix_hr_holiday_role,fix.hr.holiday.role,model_fix_hr_holiday,cd_attendance.group_attendance_supervisor,1,1,1,0
 access_fix_hr_oncall_role,fix.hr.oncall.role,model_fix_hr_oncall,cd_attendance.group_attendance_supervisor,1,1,1,0
 access_fix_attendance_lock_sup,fix.attendance.lock.supervisor,model_fix_attendance_lock,cd_attendance.group_attendance_supervisor,1,1,1,0
+access_fix_attendance_regularisation_user,fix.attendance.regularisation.user,model_fix_attendance_regularisation,base.group_user,1,0,0,0
+access_fix_overtime_request_user,fix.overtime.request.user,model_fix_overtime_request,base.group_user,1,1,1,0
+access_fix_night_work_consent_user,fix.night.work.consent.user,model_fix_night_work_consent,base.group_user,1,1,1,0
+access_fix_attendance_lock_lockmgr,fix.attendance.lock.lock_manager,model_fix_attendance_lock,cd_attendance.group_attendance_lock_manager,1,1,0,0
