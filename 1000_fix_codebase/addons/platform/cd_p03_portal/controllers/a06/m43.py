@@ -1,7 +1,15 @@
 # A06 · M43 Demand Planning & Replenishment — surfaces, packs and KPIs over the
-# existing demand plans plus forecasts, segmentation, safety-stock policy,
-# reviews, rebalancing and what-if scenarios. MAPE uses forecast vs recorded
-# actuals; stock-out causes read the recorded plan gaps.
+# demand plans, forecasts, segmentation, policy versions, reviews, rebalancing
+# and what-if scenarios.
+#
+# A06 audit (2026-11-03): every pack and KPI read with sudo().search([]) over
+# every company, MAPE came from typed actuals and the rebalance KPI summed a
+# flat "10% savings". Now: everything reads as the CALLER, filtered to the
+# caller's allowed companies; forecast actuals and MAPE are M15 consumption
+# (closed months only); plan figures are the computed position; rebalancing
+# reports the stock value moved and the transfer cost, and claims no savings.
+# Every workflow transition the screens offer is declared below; the models
+# enforce the roles and the segregation of duties.
 
 SURFACES = {
     "fix.demand.plan": {
@@ -12,13 +20,24 @@ SURFACES = {
     "fix.demand.forecast": {
         "order": "period desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_publish"},
+        "actions": {
+            "action_compute_forecast",
+            "action_approve",
+            "action_reset_draft",
+            "action_publish",
+        },
     },
-    "fix.demand.segment": {"order": "product_id", "limit": 300, "actions": set()},
+    "fix.demand.segment": {"order": "product_id", "limit": 300, "actions": {"action_classify"}},
     "fix.demand.policy": {
-        "order": "product_id",
+        "order": "product_id, version desc",
         "limit": 300,
-        "actions": {"action_pause"},
+        "actions": {
+            "action_refresh_from_history",
+            "action_activate",
+            "action_revise",
+            "action_pause",
+            "action_resume",
+        },
     },
     "fix.demand.review": {
         "order": "period desc, id desc",
@@ -50,8 +69,32 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _company_domain(env):
+    return [("company_id", "in", env.companies.ids)]
+
+
+def _sel(rec, name):
+    return dict(rec._fields[name].selection).get(rec[name])
+
+
 def _forecasts(env):
-    return env["fix.demand.forecast"].sudo().search([])
+    return env["fix.demand.forecast"].search(_company_domain(env))
+
+
+def _measured(env):
+    """Forecasts that can be measured: approved/published, tied to an M15
+    part, for a month that has ended."""
+    return _forecasts(env).filtered(
+        lambda f: f.part_id and f.state in ("approved", "published") and f.period_closed
+    )
+
+
+def _policies(env, domain=None):
+    return env["fix.demand.policy"].search(_company_domain(env) + (domain or []))
+
+
+def _plans(env):
+    return env["fix.demand.plan"].search(_company_domain(env))
 
 
 def history_assembly(env, date_from=None, date_to=None, **params):
@@ -60,33 +103,52 @@ def history_assembly(env, date_from=None, date_to=None, **params):
         rows.append(
             {
                 "product": rec.product_id.display_name,
+                "part": rec.part_id.display_name or "—",
                 "period": rec.period,
+                "window": rec.window_months,
+                "history": rec.history_detail or "—",
+                "statistical": round(rec.statistical_qty, 3),
                 "forecast": round(rec.forecast_qty, 3),
                 "actual": round(rec.actual_qty, 3),
-                "method": dict(rec._fields["method"].selection).get(rec.method),
-                "source": dict(rec._fields["source"].selection).get(rec.source),
-                "confidence_pct": rec.confidence_pct,
-                "state": dict(rec._fields["state"].selection).get(rec.state),
+                "method": _sel(rec, "method"),
+                "source": _sel(rec, "source"),
+                "state": _sel(rec, "state"),
             }
         )
     rows.sort(key=lambda r: (r["product"], r["period"]))
     return _pack(
-        "History Assembly — recorded forecast/actual periods",
-        ["product", "period", "forecast", "actual", "method", "source", "confidence_pct", "state"],
+        "History Assembly — M15 consumption behind each forecast",
+        [
+            "product",
+            "part",
+            "period",
+            "window",
+            "history",
+            "statistical",
+            "forecast",
+            "actual",
+            "method",
+            "source",
+            "state",
+        ],
         {
             "product": "Product",
+            "part": "M15 Part",
             "period": "Period",
+            "window": "Window (months)",
+            "history": "History Used",
+            "statistical": "Statistical",
             "forecast": "Forecast",
-            "actual": "Actual",
+            "actual": "Actual (M15)",
             "method": "Method",
             "source": "Source",
-            "confidence_pct": "Confidence %",
             "state": "State",
         },
         rows,
         [
-            "Only recorded periods appear; the actual quantity is entered/loaded, "
-            "never inferred from forecast."
+            "The statistical forecast is the moving average of the M15 consumption of the "
+            "window months before the period; a planner override keeps its rationale and is "
+            "labelled Manual. The actual is the M15 consumption of the period."
         ],
         empty="No forecast periods recorded yet.",
     )
@@ -94,7 +156,7 @@ def history_assembly(env, date_from=None, date_to=None, **params):
 
 def accuracy_bias(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in _forecasts(env).filtered(lambda f: (f.actual_qty or 0.0) > 0):
+    for rec in _measured(env):
         rows.append(
             {
                 "product": rec.product_id.display_name,
@@ -108,119 +170,140 @@ def accuracy_bias(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: -r["abs_error_pct"])
     mape = round(sum(r["abs_error_pct"] for r in rows) / len(rows), 1) if rows else 0.0
     return _pack(
-        "Accuracy & Bias (MAPE) — forecast against the recorded actual",
+        "Accuracy & Bias (MAPE) — forecast against M15 consumption",
         ["product", "period", "forecast", "actual", "bias", "abs_error_pct"],
         {
             "product": "Product",
             "period": "Period",
             "forecast": "Forecast",
-            "actual": "Actual",
+            "actual": "Actual (M15)",
             "bias": "Bias (actual−forecast)",
             "abs_error_pct": "Abs Error %",
         },
         rows,
-        ["MAPE %.1f%% across %d period(s) with an actual." % (mape, len(rows))],
-        empty="No period has a recorded actual yet.",
+        [
+            "MAPE %.1f%% across %d closed month(s). Actuals are M15 consumption and cannot "
+            "be typed." % (mape, len(rows))
+        ],
+        empty="No approved forecast for a closed month yet.",
     )
 
 
 def lead_time(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in env["fix.demand.policy"].sudo().search([]):
+    for rec in _policies(env):
         rows.append(
             {
+                "policy": "%s v%d" % (rec.name, rec.version),
                 "product": rec.product_id.display_name,
+                "location": rec.location_id.display_name or "—",
                 "avg_daily": round(rec.avg_daily_demand, 2),
                 "stddev": round(rec.demand_stddev, 2),
                 "lead_time_days": rec.lead_time_days,
+                "lead_time_source": _sel(rec, "lead_time_source") or "—",
+                "observed_lead_time": round(rec.observed_lead_time_days, 1),
                 "service_level_pct": rec.service_level_pct,
                 "safety_stock": round(rec.safety_stock, 2),
                 "reorder_point": round(rec.reorder_point, 2),
-                "state": dict(rec._fields["state"].selection).get(rec.state),
+                "target_level": round(rec.target_level, 2),
+                "state": _sel(rec, "state"),
             }
         )
     rows.sort(key=lambda r: -r["reorder_point"])
     return _pack(
-        "Lead-Time Modelling — safety stock and ROP per product",
+        "Lead-Time Modelling — safety stock, ROP and target per policy version",
         [
+            "policy",
             "product",
+            "location",
             "avg_daily",
             "stddev",
             "lead_time_days",
+            "lead_time_source",
+            "observed_lead_time",
             "service_level_pct",
             "safety_stock",
             "reorder_point",
+            "target_level",
             "state",
         ],
         {
+            "policy": "Policy",
             "product": "Product",
+            "location": "Location",
             "avg_daily": "Avg Daily",
             "stddev": "Std Dev",
             "lead_time_days": "Lead Time",
+            "lead_time_source": "Lead-Time Source",
+            "observed_lead_time": "Observed (M16)",
             "service_level_pct": "Service %",
             "safety_stock": "Safety Stock",
             "reorder_point": "Reorder Point",
+            "target_level": "Target",
             "state": "State",
         },
         rows,
         [
-            "Safety stock = z × σ × √lead time (z from the service level); ROP = "
-            "avg daily × lead time + safety stock. Transparent formula, no model."
+            "Average daily demand and its deviation come from M15 consumption; the lead time is "
+            "the observed M16 PO-sent-to-receipt time unless overridden with a rationale "
+            "(typed when there is no receipt history). Safety stock = "
+            "z × σ × √lead time; ROP = avg daily × lead time + safety stock; target = ROP + "
+            "avg daily × review period."
         ],
         empty="No demand policies yet.",
     )
 
 
 def van_par(env, date_from=None, date_to=None, **params):
-    policies = env["fix.demand.policy"].sudo().search([("state", "=", "active")])
+    from odoo.addons.cd_demand_plan.models.fix_demand_common import on_hand
+
     rows = []
-    for rec in policies:
-        par = round((rec.reorder_point or 0.0) * 1.2, 2)
+    for rec in _policies(env, [("state", "=", "active")]):
+        loc = rec.location_id
+        if not loc or not (loc.is_van_location or loc.is_van_stock):
+            continue
+        stock = on_hand(env, rec.company_id, rec.part_id, loc) if rec.part_id else 0.0
         rows.append(
             {
                 "product": rec.product_id.display_name,
+                "van": loc.display_name,
                 "reorder_point": round(rec.reorder_point, 2),
                 "safety_stock": round(rec.safety_stock, 2),
-                "van_par": par,
-                "top_up_qty": round(max(par - rec.safety_stock, 0.0), 2),
+                "van_par": round(rec.target_level, 2),
+                "on_van": round(stock, 2),
+                "top_up_qty": round(max(rec.target_level - stock, 0.0), 2),
             }
         )
     rows.sort(key=lambda r: -r["van_par"])
     return _pack(
-        "Van-Stock Par Calculation — 1.2 × ROP as the van par",
-        ["product", "reorder_point", "safety_stock", "van_par", "top_up_qty"],
+        "Van-Stock Par Calculation — the van policy's target level",
+        ["product", "van", "reorder_point", "safety_stock", "van_par", "on_van", "top_up_qty"],
         {
             "product": "Product",
+            "van": "Van",
             "reorder_point": "ROP",
             "safety_stock": "Safety Stock",
             "van_par": "Van Par",
-            "top_up_qty": "Top-up per Visit",
+            "on_van": "On Van (M15)",
+            "top_up_qty": "Top-up",
         },
         rows,
         [
-            "Van par = 1.2 × ROP (20% on-van buffer); the top-up is the par less the "
-            "safety stock the van already carries."
+            "Van par is the target level of the van location's active policy (from its M15 "
+            "demand and variability); the top-up is par less the owned stock on the van."
         ],
-        empty="No active demand policies yet.",
+        empty="No active policy for a van location yet.",
     )
 
 
 def accuracy_by_class(env, date_from=None, date_to=None, **params):
-    segments = env["fix.demand.segment"].sudo().search([])
-    forecasts = _forecasts(env).filtered(lambda f: (f.actual_qty or 0.0) > 0)
+    segments = env["fix.demand.segment"].search([])
+    forecasts = _measured(env)
     buckets = {}
     for segment in segments:
-        key = segment.abc_class.upper()
+        key = segment.abc_class.upper() if segment.classified_on else "Unclassified"
         recs = forecasts.filtered(lambda f, p=segment.product_id: f.product_id.id == p.id)
-        row = buckets.setdefault(
-            key,
-            {
-                "abc": key,
-                "products": 0,
-                "periods": 0,
-                "errors": [],
-            },
-        )
+        row = buckets.setdefault(key, {"abc": key, "products": 0, "periods": 0, "errors": []})
         row["products"] += 1
         row["periods"] += len(recs)
         row["errors"].extend(recs.mapped("abs_error_pct"))
@@ -235,42 +318,48 @@ def accuracy_by_class(env, date_from=None, date_to=None, **params):
         ["abc", "products", "periods", "mape_pct"],
         {"abc": "ABC Class", "products": "Products", "periods": "Periods", "mape_pct": "MAPE %"},
         rows,
-        ["Classes come from the segmentation rows; only periods with an actual " "enter the MAPE."],
+        [
+            "Classes are computed from M15 consumption value; only approved forecasts of "
+            "closed months enter the MAPE."
+        ],
         empty="No segmentation/actuals yet.",
     )
 
 
 def stockout_causes(env, date_from=None, date_to=None, **params):
-    plans = env["fix.demand.plan"].sudo().search([])
     rows = []
-    for plan in plans:
-        gap = (plan.forecast_quantity or 0.0) - (plan.current_stock or 0.0)
-        if gap <= 0:
+    for plan in _plans(env):
+        if not plan.policy_id or plan.projected_stock > plan.reorder_point:
             continue
+        cause = (
+            "stock below safety stock"
+            if plan.current_stock <= plan.safety_stock
+            else "projected below ROP"
+        )
         rows.append(
             {
                 "plan": plan.name,
                 "product": plan.product_id.display_name,
                 "forecast": round(plan.forecast_quantity, 2),
                 "stock": round(plan.current_stock, 2),
-                "gap": round(gap, 2),
+                "on_order": round(plan.on_order_qty, 2),
+                "projected": round(plan.projected_stock, 2),
                 "reorder_point": round(plan.reorder_point, 2),
                 "recommended": round(plan.recommended_order, 2),
-                "cause": "below ROP"
-                if (plan.current_stock or 0.0) <= (plan.reorder_point or 0.0)
-                else "forecast exceeds stock",
-                "state": dict(plan._fields["state"].selection).get(plan.state),
+                "cause": cause,
+                "state": _sel(plan, "state"),
             }
         )
-    rows.sort(key=lambda r: -r["gap"])
+    rows.sort(key=lambda r: r["projected"])
     return _pack(
-        "Stockout Root Causes — forecast gaps against stock",
+        "Stockout Risk — plans projected at or below the reorder point",
         [
             "plan",
             "product",
             "forecast",
             "stock",
-            "gap",
+            "on_order",
+            "projected",
             "reorder_point",
             "recommended",
             "cause",
@@ -280,8 +369,9 @@ def stockout_causes(env, date_from=None, date_to=None, **params):
             "plan": "Plan",
             "product": "Product",
             "forecast": "Forecast",
-            "stock": "Stock",
-            "gap": "Gap",
+            "stock": "Stock (M15)",
+            "on_order": "On Order",
+            "projected": "Projected",
             "reorder_point": "ROP",
             "recommended": "Recommended",
             "cause": "Cause",
@@ -289,19 +379,17 @@ def stockout_causes(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Cause is classified from the recorded position: below ROP, or a "
-            "forecast that exceeds current stock while still above ROP."
+            "Projected = M15 owned stock + open M16 orders − approved forecast demand of the "
+            "plan period."
         ],
-        empty="No forecast gap in the recorded plans.",
+        empty="No plan is projected at or below its reorder point.",
     )
 
 
 def excess_obsolescence(env, date_from=None, date_to=None, **params):
-    plans = env["fix.demand.plan"].sudo().search([])
     rows = []
-    for plan in plans:
-        excess = (plan.current_stock or 0.0) - (plan.forecast_quantity or 0.0)
-        if excess <= 0:
+    for plan in _plans(env):
+        if not plan.policy_id or plan.current_stock <= plan.target_level:
             continue
         rows.append(
             {
@@ -309,110 +397,141 @@ def excess_obsolescence(env, date_from=None, date_to=None, **params):
                 "product": plan.product_id.display_name,
                 "stock": round(plan.current_stock, 2),
                 "forecast": round(plan.forecast_quantity, 2),
-                "excess": round(excess, 2),
-                "reorder_point": round(plan.reorder_point, 2),
-                "state": dict(plan._fields["state"].selection).get(plan.state),
+                "target_level": round(plan.target_level, 2),
+                "excess": round(plan.current_stock - plan.target_level, 2),
+                "state": _sel(plan, "state"),
             }
         )
     rows.sort(key=lambda r: -r["excess"])
     return _pack(
-        "Excess & Obsolescence Exposure — stock above forecast",
-        ["plan", "product", "stock", "forecast", "excess", "reorder_point", "state"],
+        "Excess & Obsolescence Exposure — stock above the target level",
+        ["plan", "product", "stock", "forecast", "target_level", "excess", "state"],
         {
             "plan": "Plan",
             "product": "Product",
-            "stock": "Stock",
+            "stock": "Stock (M15)",
             "forecast": "Forecast",
+            "target_level": "Target",
             "excess": "Excess",
-            "reorder_point": "ROP",
             "state": "State",
         },
         rows,
         [
-            "Excess = current stock − forecast. Ageing by lot remains M15's report; "
-            "this is the planning exposure."
+            "Excess = M15 owned stock − the policy's target level. Ageing by lot remains "
+            "M15's report; this is the planning exposure."
         ],
-        empty="No plan carries excess stock.",
+        empty="No plan carries stock above its target.",
     )
 
 
-def rebalancing_savings(env, date_from=None, date_to=None, **params):
+def rebalancing_value(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in env["fix.demand.rebalance"].sudo().search([]):
+    for rec in env["fix.demand.rebalance"].search(_company_domain(env)):
         rows.append(
             {
                 "proposal": rec.name,
                 "product": rec.product_id.display_name,
-                "from": rec.source_branch,
-                "to": rec.target_branch,
+                "from": rec.source_location_id.display_name or rec.source_branch or "—",
+                "to": rec.target_location_id.display_name or rec.target_branch or "—",
                 "qty": round(rec.qty, 3),
-                "unit_cost": round(rec.unit_cost, 2),
-                "savings": round(rec.savings, 2),
-                "state": dict(rec._fields["state"].selection).get(rec.state),
+                "stock_value": round(rec.stock_value, 2),
+                "transfer_cost": round(rec.transfer_cost, 2),
+                "transfer": rec.transfer_id.name or "—",
+                "state": _sel(rec, "state"),
             }
         )
-    rows.sort(key=lambda r: -r["savings"])
-    approved = round(sum(r["savings"] for r in rows if r["state"] == "Approved"), 2)
+    rows.sort(key=lambda r: -r["stock_value"])
+    approved = [r for r in rows if r["state"] == "Approved"]
     return _pack(
-        "Rebalancing Savings — transfer vs buy (10% avoided-buy basis)",
-        ["proposal", "product", "from", "to", "qty", "unit_cost", "savings", "state"],
+        "Rebalancing — stock value moved and transfer cost",
+        [
+            "proposal",
+            "product",
+            "from",
+            "to",
+            "qty",
+            "stock_value",
+            "transfer_cost",
+            "transfer",
+            "state",
+        ],
         {
             "proposal": "Proposal",
             "product": "Product",
             "from": "From",
             "to": "To",
             "qty": "Qty",
-            "unit_cost": "Unit Cost",
-            "savings": "Savings",
+            "stock_value": "Stock Value",
+            "transfer_cost": "Transfer Cost",
+            "transfer": "M15 Transfer",
             "state": "State",
         },
         rows,
         [
-            "Savings = qty x unit cost x 10%% (the declared avoided-buy assumption); "
-            "approved proposals total %s." % approved
+            "Approved proposals move BDT %.2f of stock at an estimated transfer cost of BDT "
+            "%.2f. No savings figure is claimed: the avoided-buy benefit is not measured."
+            % (
+                sum(r["stock_value"] for r in approved),
+                sum(r["transfer_cost"] for r in approved),
+            )
         ],
-        totals={"proposal": "Total", "savings": round(sum(r["savings"] for r in rows), 2)},
+        totals={
+            "proposal": "Total",
+            "stock_value": round(sum(r["stock_value"] for r in rows), 2),
+            "transfer_cost": round(sum(r["transfer_cost"] for r in rows), 2),
+        },
         empty="No rebalancing proposals yet.",
     )
 
 
 def new_part_intro(env, date_from=None, date_to=None, **params):
-    segments = env["fix.demand.segment"].sudo().search([])
+    segments = env["fix.demand.segment"].search([])
     forecasts = _forecasts(env)
     rows = []
     for segment in segments:
         product_forecasts = forecasts.filtered(
             lambda f, p=segment.product_id: f.product_id.id == p.id
         )
-        periods = len(product_forecasts)
+        computed = product_forecasts.filtered(lambda f: f.source == "history")
         rows.append(
             {
                 "product": segment.product_id.display_name,
-                "segment": "%s/%s" % (segment.abc_class.upper(), segment.xyz_class.upper()),
-                "criticality": dict(segment._fields["criticality"].selection).get(
-                    segment.criticality
+                "segment": (
+                    "%s/%s" % (segment.abc_class.upper(), segment.xyz_class.upper())
+                    if segment.classified_on
+                    else "unclassified"
                 ),
-                "periods_of_data": periods,
-                "first_forecast": min(product_forecasts.mapped("period")) if periods else "—",
-                "status": "established" if periods >= 2 else "new / insufficient history",
+                "criticality": _sel(segment, "criticality"),
+                "history_forecasts": len(computed),
+                "manual_forecasts": len(product_forecasts) - len(computed),
+                "status": (
+                    "established" if computed else "new / insufficient M15 history (manual only)"
+                ),
             }
         )
-    rows.sort(key=lambda r: (r["periods_of_data"], r["product"]))
+    rows.sort(key=lambda r: (r["history_forecasts"], r["product"]))
     return _pack(
         "New-Part Introduction — history depth per product",
-        ["product", "segment", "criticality", "periods_of_data", "first_forecast", "status"],
+        [
+            "product",
+            "segment",
+            "criticality",
+            "history_forecasts",
+            "manual_forecasts",
+            "status",
+        ],
         {
             "product": "Product",
             "segment": "Segment",
             "criticality": "Criticality",
-            "periods_of_data": "Periods",
-            "first_forecast": "First Forecast",
+            "history_forecasts": "History Forecasts",
+            "manual_forecasts": "Manual Forecasts",
             "status": "Status",
         },
         rows,
         [
-            "A product with fewer than two recorded periods is labelled new / "
-            "insufficient history rather than forecast as if established."
+            "A product whose forecasts are all manual has no M15 history the moving average "
+            "could use; it is labelled new rather than forecast as if established."
         ],
         empty="No segmentation rows yet.",
     )
@@ -426,36 +545,26 @@ REPORTS = {
     "accuracy_by_class": accuracy_by_class,
     "stockout_causes": stockout_causes,
     "excess_obsolescence": excess_obsolescence,
-    "rebalancing_savings": rebalancing_savings,
+    "rebalancing_value": rebalancing_value,
     "new_part_intro": new_part_intro,
 }
 
 
 def kpis(env):
     forecasts = _forecasts(env)
-    policies = env["fix.demand.policy"].sudo().search([])
-    plans = env["fix.demand.plan"].sudo().search([])
-    rebalances = env["fix.demand.rebalance"].sudo().search([])
-    with_actuals = forecasts.filtered(lambda f: (f.actual_qty or 0.0) > 0)
-    mape = (
-        round(sum(with_actuals.mapped("abs_error_pct")) / len(with_actuals), 1)
-        if with_actuals
-        else 0.0
+    measured = _measured(env)
+    active = _policies(env, [("state", "=", "active")])
+    plans = _plans(env)
+    rebalances = env["fix.demand.rebalance"].search(
+        [*_company_domain(env), ("state", "=", "approved")]
     )
-    levels = [int(p.service_level_pct or 95) for p in policies]
+    mape = round(sum(measured.mapped("abs_error_pct")) / len(measured), 1) if measured else 0.0
+    levels = [int(p.service_level_pct or 95) for p in active]
     return {
         "forecasts_pending": len(forecasts.filtered(lambda f: f.state == "draft")),
         "mape_pct": mape,
-        "policies_active": len(policies.filtered(lambda p: p.state == "active")),
-        "planned_orders": len(
-            plans.filtered(
-                lambda p: p.state == "approved"
-                and (p.recommended_order or 0.0) > 0
-                and not p.pr_requisition_id
-            )
-        ),
-        "rebalance_savings": round(
-            sum(r.savings or 0.0 for r in rebalances if r.state == "approved"), 2
-        ),
+        "policies_active": len(active),
+        "planned_orders": len(plans.filtered(lambda p: p.state == "approved")),
+        "rebalance_value_moved": round(sum(rebalances.mapped("stock_value")), 2),
         "service_level_avg": round(sum(levels) / len(levels), 1) if levels else 0.0,
     }

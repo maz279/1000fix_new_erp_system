@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M43 planning parameters (business decisions, A06 report section 7). Shipped
+  once (noupdate) with the conservative defaults the code also falls back to;
+  change them in Settings > Technical > System Parameters.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="cfg_forecast_window_months" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.forecast_window_months</field>
+            <field name="value">3</field>
+        </record>
+        <record id="cfg_forecast_min_history_months" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.forecast_min_history_months</field>
+            <field name="value">2</field>
+        </record>
+        <record id="cfg_policy_history_days" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.policy_history_days</field>
+            <field name="value">90</field>
+        </record>
+        <record id="cfg_review_period_days" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.review_period_days</field>
+            <field name="value">30</field>
+        </record>
+        <record id="cfg_segment_window_months" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.segment_window_months</field>
+            <field name="value">12</field>
+        </record>
+        <record id="cfg_abc_a_share" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.abc_a_share</field>
+            <field name="value">0.80</field>
+        </record>
+        <record id="cfg_abc_b_share" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.abc_b_share</field>
+            <field name="value">0.95</field>
+        </record>
+        <record id="cfg_xyz_x_max_cv" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.xyz_x_max_cv</field>
+            <field name="value">0.5</field>
+        </record>
+        <record id="cfg_xyz_y_max_cv" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.xyz_y_max_cv</field>
+            <field name="value">1.0</field>
+        </record>
+        <record id="cfg_lead_time_window_days" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.lead_time_window_days</field>
+            <field name="value">365</field>
+        </record>
+        <record id="cfg_enforce_budget" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.enforce_budget</field>
+            <field name="value">0</field>
+        </record>
+    </data>
+</odoo>
