@@ -1,2 +1,3 @@
 # cd_talent models.
-from . import fix_talent, fix_talent_ops
+# ruff: noqa: I001
+from . import hr_employee_talent, fix_talent, fix_talent_ops

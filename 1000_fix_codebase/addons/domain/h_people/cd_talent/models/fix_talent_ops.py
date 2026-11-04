@@ -1,14 +1,28 @@
 # fix_talent_ops — M58: structured interviews, practical assessments,
 # background/reference checks, offers and first-90-day reviews.
 # Requisitions, candidates and onboarding plans live in fix_talent.py.
+#
+# A09 audit M58-F4/F5: a police check was cleared by the recruiter in one
+# click or rewritten from failed to clear; an assessment scored 4/100 was
+# typed "passed"; one HR manager created and issued a BDT 9,999,999 offer and
+# raised an issued offer's salary afterwards. Now clearance is decided by a
+# verifier from the M63 inbox on an evidence file, `passed` is the score
+# against the requisition's approved pass mark, and an offer is issued only
+# by an approver (the CFO tier when it falls outside the M57 pay band, I7),
+# with its terms pinned at approval.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
+
+from .fix_talent import _require_recruiter
 
 
 class FixTalentInterview(models.Model):
     _name = "fix.talent.interview"
     _description = "Structured Interview"
+    _inherit = ["fix.guarded.mixin"]
     _order = "scheduled_on desc, id desc"
+
+    _EVALUATION = ("score", "recommendation", "notes", "interviewer_id", "candidate_id")
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -27,6 +41,7 @@ class FixTalentInterview(models.Model):
         [("strong_yes", "Strong Yes"), ("yes", "Yes"), ("no", "No"), ("strong_no", "Strong No")],
     )
     notes = fields.Text()
+    completed_on = fields.Datetime(readonly=True, copy=False)
     state = fields.Selection(
         [("scheduled", "Scheduled"), ("done", "Completed"), ("cancelled", "Cancelled")],
         required=True,
@@ -34,6 +49,15 @@ class FixTalentInterview(models.Model):
     )
 
     _score_range = models.Constraint("CHECK (score >= 0 AND score <= 5)", "Interview score is 0-5")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "completed_on"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(r.state != "scheduled" for r in self):
+            locked |= set(self._EVALUATION)
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -44,11 +68,41 @@ class FixTalentInterview(models.Model):
                 )
         return super().create(vals_list)
 
+    def write(self, vals):
+        if not self._fix_guard_open() and set(self._EVALUATION) & set(vals):
+            for rec in self:
+                if rec.id and rec.state != "scheduled":
+                    changed = [
+                        n
+                        for n in set(self._EVALUATION) & set(vals)
+                        if rec._fix_guard_differs(n, vals[n], rec[n])
+                    ]
+                    if changed:
+                        raise UserError(
+                            "Interview %s is submitted; its evaluation no longer changes."
+                            % rec.name
+                        )
+        return super().write(vals)
+
     def action_done(self):
+        _require_recruiter(self.env, "submit an interview evaluation")
         for rec in self:
+            if rec.state != "scheduled":
+                raise UserError("Complete a scheduled interview.")
             if not rec.recommendation:
                 raise UserError("Record the recommendation before completing the interview")
-            rec.state = "done"
+            if not rec.interviewer_id:
+                raise UserError("Name the interviewer whose evaluation this is.")
+            rec._guarded().write({"state": "done", "completed_on": fields.Datetime.now()})
+        return True
+
+    def action_cancel(self):
+        _require_recruiter(self.env, "cancel an interview")
+        for rec in self:
+            if rec.state != "scheduled":
+                raise UserError("Cancel a scheduled interview.")
+            rec._guarded().write({"state": "cancelled"})
+        return True
 
 
 class FixTalentAssessment(models.Model):
@@ -72,12 +126,30 @@ class FixTalentAssessment(models.Model):
     assessor_id = fields.Many2one("hr.employee", string="Assessor")
     assessed_on = fields.Date(required=True, default=fields.Date.context_today)
     score = fields.Float(string="Score %")
-    passed = fields.Boolean(string="Passed")
+    pass_mark = fields.Float(
+        related="candidate_id.requisition_id.assessment_pass_mark", string="Pass Mark %"
+    )
+    # A09 audit M58-18: `passed` was typed, so 4/100 counted as a pass.
+    passed = fields.Boolean(string="Passed", compute="_compute_passed", store=True)
     notes = fields.Char()
 
     _score_range = models.Constraint(
         "CHECK (score >= 0 AND score <= 100)", "Assessment score is a 0-100 percentage"
     )
+
+    def write(self, vals):
+        # `passed` is computed; a direct write would stand until the next recompute.
+        if "passed" in vals and not self.env.su:
+            raise UserError(
+                "%s is computed and cannot be set directly." % self._fields["passed"].string
+            )
+        return super().write(vals)
+
+    @api.depends("score", "candidate_id.requisition_id.assessment_pass_mark")
+    def _compute_passed(self):
+        for rec in self:
+            mark = rec.candidate_id.requisition_id.assessment_pass_mark
+            rec.passed = bool(mark and rec.score >= mark)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -90,9 +162,17 @@ class FixTalentAssessment(models.Model):
 
 
 class FixTalentCheck(models.Model):
+    """A background check. A negative outcome is recorded; a CLEAR outcome is
+    decided by a verifier (not the requester) from the M63 inbox, on file."""
+
     _name = "fix.talent.check"
     _description = "Reference / Background Check"
+    _inherit = ["fix.people.approval.mixin"]
     _order = "id desc"
+
+    _approval_domain = "hr_background_check"
+    _approval_apply_method = "action_clear"
+    _approval_group = "cd_talent.group_background_verifier"
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -111,7 +191,7 @@ class FixTalentCheck(models.Model):
         default="reference",
     )
     requested_on = fields.Date(required=True, default=fields.Date.context_today)
-    completed_on = fields.Date()
+    completed_on = fields.Date(readonly=True)
     result = fields.Selection(
         [
             ("pending", "Pending"),
@@ -124,6 +204,24 @@ class FixTalentCheck(models.Model):
     )
     reference_contact = fields.Char(string="Reference Contact")
     notes = fields.Char()
+    evidence_file = fields.Binary(string="Verification Evidence", attachment=True, copy=False)
+    evidence_filename = fields.Char(copy=False)
+    verified_by_id = fields.Many2one("res.users", string="Verified By", readonly=True, copy=False)
+    verified_on = fields.Datetime(readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "result",
+            "completed_on",
+            "verified_by_id",
+            "verified_on",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(r.result == "clear" or r.approval_state == "pending" for r in self):
+            locked |= {"evidence_file", "evidence_filename", "check_type", "candidate_id"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -132,16 +230,98 @@ class FixTalentCheck(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.talent.check") or "CHK/New"
         return super().create(vals_list)
 
-    def action_clear(self):
+    def write(self, vals):
+        frozen = {"evidence_file", "check_type", "candidate_id"} & set(vals)
+        if frozen and not self._fix_guard_open():
+            for rec in self:
+                if rec.id and (rec.result == "clear" or rec.approval_state == "pending"):
+                    raise UserError(
+                        "Check %s is cleared or awaiting its verifier; its evidence is frozen."
+                        % rec.name
+                    )
+        return super().write(vals)
+
+    def action_request_approval(self, justification=None):
+        _require_recruiter(self.env, "send a check for verification")
         for rec in self:
-            rec.result = "clear"
-            rec.completed_on = fields.Date.context_today(self)
+            if rec.result == "clear":
+                raise UserError("%s is already clear." % rec.name)
+            if not rec.evidence_file:
+                raise UserError(
+                    "Attach the verification evidence (certificate, reference letter, PCC) "
+                    "to %s before sending it to the verifier." % rec.name
+                )
+        return super().action_request_approval(justification=justification)
+
+    def action_clear(self):
+        """Routed apply method: the verifier clears the check."""
+        self._approval_assert_routed()
+        self._people_assert_not_conflicted()
+        for rec in self:
+            if not rec.evidence_file:
+                raise UserError("%s has no verification evidence on file." % rec.name)
+            rec._guarded().write(
+                {
+                    "result": "clear",
+                    "completed_on": fields.Date.context_today(rec),
+                    "verified_by_id": rec._people_decider().id,
+                    "verified_on": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def _fix_record_negative(self, result, reason):
+        _require_recruiter(self.env, "record a check outcome")
+        if not (reason or "").strip():
+            raise UserError("Say what the check found.")
+        for rec in self:
+            if rec.approval_state == "pending":
+                raise UserError("%s is with its verifier." % rec.name)
+            rec._guarded().write(
+                {
+                    "result": result,
+                    "completed_on": fields.Date.context_today(rec),
+                    "notes": reason.strip(),
+                    "verified_by_id": False,
+                    "verified_on": False,
+                }
+            )
+            if rec.approval_state == "approved":
+                rec._approval_void("the check was re-recorded as %s" % result)
+        return True
+
+    def action_mark_failed(self, reason=None):
+        return self._fix_record_negative("failed", reason)
+
+    def action_mark_discrepancy(self, reason=None):
+        return self._fix_record_negative("discrepancy", reason)
 
 
 class FixTalentOffer(models.Model):
+    """An offer is issued only once someone other than its maker approves it."""
+
     _name = "fix.talent.offer"
     _description = "Employment Offer"
+    _inherit = ["mail.thread", "fix.people.approval.mixin"]
     _order = "issued_on desc, id desc"
+
+    _approval_domain = "hr_offer"
+    _approval_apply_method = "action_issue"
+    _approval_group = "cd_talent.group_offer_approver"
+    # BRU-TAO-03: an offer outside its band (or with no band to check) goes
+    # to the CFO tier.
+    _OUT_OF_BAND_GROUP = "cd_entity_config.group_dofa_tier_4"
+    # The terms an approval covers; pinned at issue.
+    _TERMS = (
+        "candidate_id",
+        "position_id",
+        "gross_salary",
+        "basic_salary",
+        "joining_date",
+        "contract_type",
+        "currency_id",
+        "valid_until",
+    )
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -154,9 +334,41 @@ class FixTalentOffer(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     gross_salary = fields.Monetary(currency_field="currency_id", string="Gross Monthly")
-    issued_on = fields.Date(required=True, default=fields.Date.context_today)
+    basic_salary = fields.Monetary(
+        currency_field="currency_id",
+        string="Basic Monthly",
+        help="Carried to the draft employment contract (I6); the rest of the gross is "
+        "carried as other allowance.",
+    )
+    contract_type = fields.Selection(
+        [
+            ("permanent", "Permanent"),
+            ("probation", "Probation"),
+            ("fixed_term", "Fixed Term"),
+            ("part_time", "Part Time"),
+        ],
+        default="probation",
+        required=True,
+    )
+    issued_on = fields.Date(readonly=True, copy=False)
     valid_until = fields.Date()
     joining_date = fields.Date()
+    band_id = fields.Many2one(
+        "fix.compensation.band", compute="_compute_band", string="Pay Band (M57)"
+    )
+    in_band = fields.Boolean(compute="_compute_band", string="Within Band")
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_on = fields.Datetime(readonly=True, copy=False)
+    approved_gross = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
+    approved_in_band = fields.Boolean(readonly=True, copy=False)
+    acceptance_ref = fields.Char(
+        string="Candidate Acceptance Reference",
+        help="The candidate's own acknowledgement: e-signature envelope, signed letter number.",
+    )
+    acceptance_file = fields.Binary(string="Signed Acceptance", attachment=True, copy=False)
+    acceptance_filename = fields.Char(copy=False)
+    responded_on = fields.Datetime(readonly=True, copy=False)
+    response_recorded_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -169,31 +381,215 @@ class FixTalentOffer(models.Model):
         default="draft",
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "issued_on",
+            "approved_by_id",
+            "approved_on",
+            "approved_gross",
+            "approved_in_band",
+            "responded_on",
+            "response_recorded_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(r.state != "draft" for r in self):
+            locked |= set(self._TERMS)
+        if any(r.state != "issued" for r in self):
+            locked |= {"acceptance_ref", "acceptance_file", "acceptance_filename"}
+        return locked
+
+    # ---- the band (I7, read-only) ---------------------------------------------
+    def _fix_band(self):
+        """The M57 band for the offered position's grade (read-only, I7)."""
+        self.ensure_one()
+        Band = self.env["fix.compensation.band"].sudo()
+        position = self.position_id or self.requisition_id.position_id
+        if not position.grade:
+            return Band
+        return Band.search(
+            [("grade", "=", position.grade), ("company_id", "in", (self.company_id.id, False))],
+            limit=1,
+        )
+
+    @api.depends("position_id", "candidate_id", "gross_salary")
+    def _compute_band(self):
+        for rec in self:
+            band = rec._fix_band()
+            rec.band_id = band.id if band else False
+            rec.in_band = bool(
+                band and band.sudo().range_min <= (rec.gross_salary or 0.0) <= band.sudo().range_max
+            )
+
+    # ---- approval routing ----------------------------------------------------
+    def _approval_amount(self) -> float:
+        return self.gross_salary or 0.0
+
+    def _approval_group_xmlid(self):
+        if not self.in_band:
+            return self._OUT_OF_BAND_GROUP
+        return super()._approval_group_xmlid()
+
+    # ---- create / write ------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.talent.offer") or "OFR/New"
+            if not vals.get("position_id") and vals.get("candidate_id"):
+                cand = self.env["fix.candidate"].browse(vals["candidate_id"])
+                vals["position_id"] = cand.requisition_id.position_id.id or False
         return super().create(vals_list)
 
+    def write(self, vals):
+        terms = set(self._TERMS) & set(vals)
+        accept = {"acceptance_ref", "acceptance_file"} & set(vals)
+        void = self.browse()
+        if (terms or accept) and not self._fix_guard_open():
+            for rec in self:
+                if not rec.id:
+                    continue
+                changed = [n for n in terms if rec._fix_guard_differs(n, vals[n], rec[n])]
+                if changed and rec.state != "draft":
+                    raise UserError(
+                        "Offer %s is %s: its terms were approved and cannot change. Issue a "
+                        "new offer." % (rec.name, rec.state)
+                    )
+                if changed and rec.approval_state == "pending":
+                    void |= rec
+                if (
+                    accept
+                    and rec.state != "issued"
+                    and any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in accept)
+                ):
+                    raise UserError("Record the candidate's acceptance on an issued offer.")
+        result = super().write(vals)
+        if void:
+            void._approval_void("the offer's terms changed while awaiting approval")
+        return result
+
+    # ---- the issue gate (BRU-TAO-03/04/05/17) ----------------------------------
+    def _fix_issue_problems(self):
+        self.ensure_one()
+        cand = self.candidate_id.sudo()
+        problems = []
+        if cand.state != "offered":
+            problems.append("the candidate has not reached the offer stage")
+        problems += cand._fix_requisition_problems()
+        req_position = cand.requisition_id.position_id
+        if req_position and self.position_id and self.position_id != req_position:
+            problems.append("the offered position is not the requisition's (BRU-TAO-04)")
+        if (self.gross_salary or 0.0) <= 0 or (self.basic_salary or 0.0) <= 0:
+            problems.append("no gross and basic salary")
+        elif self.basic_salary > self.gross_salary:
+            problems.append("the basic salary exceeds the gross")
+        today = fields.Date.context_today(self)
+        if not self.joining_date or self.joining_date < today:
+            problems.append("no joining date on or after today")
+        if self.valid_until and self.valid_until < today:
+            problems.append("the offer's validity has passed")
+        problems += cand._fix_interview_problems()
+        problems += cand._fix_assessment_problems()
+        problems += cand._fix_age_problems(self.joining_date)
+        live = self.sudo().search(
+            [
+                ("candidate_id", "=", cand.id),
+                ("id", "!=", self.id),
+                ("state", "in", ("issued", "accepted")),
+            ],
+            limit=1,
+        )
+        if live:
+            problems.append("offer %s is already live for this candidate" % live.name)
+        return problems
+
+    def _fix_raise_issue_problems(self):
+        for rec in self:
+            problems = rec._fix_issue_problems()
+            if problems:
+                raise UserError("Offer %s cannot be issued: %s." % (rec.name, "; ".join(problems)))
+
+    def action_request_approval(self, justification=None):
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft offer is sent for approval.")
+        self._fix_raise_issue_problems()
+        return super().action_request_approval(justification=justification)
+
     def action_issue(self):
+        """Routed apply method: the approver issues the offer and pins its terms."""
+        self._approval_assert_routed()
+        self._people_assert_not_conflicted()
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Issue a draft offer")
-            rec.state = "issued"
+        self._fix_raise_issue_problems()
+        for rec in self:
+            rec._guarded().write(
+                {
+                    "state": "issued",
+                    "issued_on": fields.Date.context_today(rec),
+                    "approved_by_id": rec._people_decider().id,
+                    "approved_on": fields.Datetime.now(),
+                    "approved_gross": rec.gross_salary,
+                    "approved_in_band": rec.in_band,
+                }
+            )
+        return True
 
     def action_accept(self):
+        """Record the candidate's own acceptance, then hire."""
+        _require_recruiter(self.env, "record an offer acceptance")
         for rec in self:
             if rec.state != "issued":
                 raise UserError("Accept an issued offer")
-            rec.state = "accepted"
-            rec.candidate_id.action_hire()
+            if not rec.acceptance_file:
+                raise UserError(
+                    "Attach the candidate's signed acceptance of %s first: acceptance is the "
+                    "candidate's act, not a back-office click." % rec.name
+                )
+            if rec.valid_until and rec.valid_until < fields.Date.context_today(rec):
+                raise UserError("Offer %s expired on %s." % (rec.name, rec.valid_until))
+            if abs((rec.gross_salary or 0.0) - (rec.approved_gross or 0.0)) > 0.005:
+                raise UserError("Offer %s no longer matches what was approved." % rec.name)
+            rec._guarded().write(
+                {
+                    "state": "accepted",
+                    "responded_on": fields.Datetime.now(),
+                    "response_recorded_by_id": self.env.user.id,
+                }
+            )
+            rec.candidate_id.action_hire(offer=rec)
+        return True
 
     def action_decline(self):
+        _require_recruiter(self.env, "record an offer decline")
         for rec in self:
             if rec.state != "issued":
                 raise UserError("Decline an issued offer")
-            rec.state = "declined"
+            rec._guarded().write(
+                {
+                    "state": "declined",
+                    "responded_on": fields.Datetime.now(),
+                    "response_recorded_by_id": self.env.user.id,
+                }
+            )
+        return True
+
+    @api.model
+    def cron_expire_offers(self):
+        """Issued offers past their validity expire. Idempotent; superuser."""
+        due = self.sudo().search(
+            [
+                ("state", "=", "issued"),
+                ("valid_until", "!=", False),
+                ("valid_until", "<", fields.Date.context_today(self)),
+            ]
+        )
+        due._guarded().write({"state": "expired"})
+        return len(due)
 
 
 class FixTalentFirst90(models.Model):
@@ -221,6 +617,12 @@ class FixTalentFirst90(models.Model):
     _rating_range = models.Constraint(
         "CHECK (rating >= 0 AND rating <= 5)", "First-90 rating is 0-5"
     )
+
+    @api.constrains("reviewer_id", "employee_id")
+    def _check_reviewer(self):
+        for rec in self:
+            if rec.reviewer_id and rec.reviewer_id == rec.employee_id:
+                raise ValidationError("A new hire does not review their own first 90 days.")
 
     @api.model_create_multi
     def create(self, vals_list):

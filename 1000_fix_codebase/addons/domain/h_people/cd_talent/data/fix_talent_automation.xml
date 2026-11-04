@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M58 automation (A09 workflow audit C5 / P10: 0 crons on any talent model).
+     Each method is idempotent and runs as superuser. The settings below are
+     business decisions (A09 report section 7): their values keep today's
+     behaviour or come from the M58 specification, and are listed as
+     decisions in the build report. -->
+<odoo>
+    <data noupdate="1">
+        <!-- AUT-TAO-11: "7 days before start date" (M58 spec). -->
+        <record id="param_readiness_lead_days" model="ir.config_parameter">
+            <field name="key">cd_talent.readiness_lead_days</field>
+            <field name="value">7</field>
+        </record>
+        <!-- BRU-TAO-14 / T-03: the retention period is "configurable" and no
+             repository source states it. 0 = no automatic erasure, which is
+             what the code did before this change. -->
+        <record id="param_candidate_retention_days" model="ir.config_parameter">
+            <field name="key">cd_talent.candidate_retention_days</field>
+            <field name="value">0</field>
+        </record>
+        <!-- BRU-TAO-17 / BLA 2006 s.2(63) and s.34: no child (under 14) is
+             employed. Whether 1000FiX hires adolescents (14-18) at all is for
+             labour counsel. -->
+        <record id="param_minimum_hiring_age" model="ir.config_parameter">
+            <field name="key">cd_talent.minimum_hiring_age</field>
+            <field name="value">14</field>
+        </record>
+    </data>
+
+    <record id="cron_talent_day_one_readiness" model="ir.cron">
+        <field name="name">M58: Escalate day-one readiness before the start date</field>
+        <field name="model_id" ref="model_fix_onboarding_plan"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_escalate_day_one_readiness()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <record id="cron_talent_expire_offers" model="ir.cron">
+        <field name="name">M58: Expire issued offers past their validity</field>
+        <field name="model_id" ref="model_fix_talent_offer"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_expire_offers()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <record id="cron_talent_erase_candidates" model="ir.cron">
+        <field name="name">M58: Anonymise candidates past their retention date</field>
+        <field name="model_id" ref="model_fix_candidate"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_erase_expired_candidates()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

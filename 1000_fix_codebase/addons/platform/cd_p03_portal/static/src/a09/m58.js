@@ -55,29 +55,55 @@ export const SCREENS = {
   'M58-talent-assessment': { kind: 'model_list', model: 'fix.talent.assessment',
     cols: ['name', 'candidate_id', 'requisition_id', 'competency_code', 'assessed_on', 'score', 'passed', 'assessor_id'] },
   'M58-reqs': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
-    cols: ['name', 'department_id', 'position_id', 'openings', 'operating_unit_id', 'state'],
-    actions: [{ m: 'action_open', l: 'Approve Requisition' }, { m: 'action_hired', l: 'Mark Hired' }] },
+    cols: ['name', 'department_id', 'position_id', 'openings', 'operating_unit_id', 'approval_state', 'approved_by_id', 'state'],
+    /* A09 audit M58-F3: "Approve Requisition" was the requester's own state
+     * flip. The requester asks; an approver decides from the M63 inbox. A
+     * requisition fills itself when its hires reach the approved headcount. */
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_close', l: 'Close Requisition' }
+    ] },
   'M58-approval': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
-    cols: ['name', 'position_id', 'openings', 'state'] },
+    cols: ['name', 'position_id', 'openings', 'approval_state', 'approved_by_id', 'approved_on', 'state'] },
   'M58-postings': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
     cols: ['name', 'department_id', 'openings', 'state'] },
   'M58-candidates': { kind: 'model_list', model: 'fix.candidate', stateField: 'state',
     cols: ['name', 'email', 'phone', 'requisition_id', 'employee_id', 'operating_unit_id', 'state'],
-    actions: [{ m: 'action_screen', l: 'Screen' }, { m: 'action_interview', l: 'Invite to Interview' }, { m: 'action_offer', l: 'Generate Offer' }, { m: 'action_hire', l: 'Hire' }] },
+    actions: [
+      { m: 'action_screen', l: 'Screen' },
+      { m: 'action_interview', l: 'Invite to Interview' },
+      { m: 'action_offer', l: 'Move to Offer Stage' },
+      { m: 'action_reject', l: 'Reject', ask: 'Outcome communicated to the candidate', kwarg: 'reason' },
+      { m: 'action_hire', l: 'Hire (accepted offer)' }
+    ] },
   'M58-interviews': { kind: 'model_list', model: 'fix.talent.interview', stateField: 'state',
     cols: ['name', 'candidate_id', 'interviewer_id', 'scheduled_on', 'round_no', 'score', 'recommendation', 'state'],
-    actions: [{ m: 'action_done', l: 'Complete Interview' }] },
+    actions: [{ m: 'action_done', l: 'Submit Evaluation' }, { m: 'action_cancel', l: 'Cancel' }] },
   'M58-practical': { kind: 'table_report', module: 'M58', report: 'practical_results', title: 'Practical Assessment Results', period: true },
   'M58-checks': { kind: 'model_list', model: 'fix.talent.check', stateField: 'result',
-    cols: ['name', 'candidate_id', 'check_type', 'requested_on', 'completed_on', 'result'],
-    actions: [{ m: 'action_clear', l: 'Mark Clear' }] },
+    cols: ['name', 'candidate_id', 'check_type', 'requested_on', 'completed_on', 'result', 'verified_by_id', 'approval_state'],
+    /* A09 audit M58-F5: a check is cleared by a Background Verifier, not the
+     * recruiter, on the evidence attached to it. */
+    actions: [
+      { m: 'action_request_approval', l: 'Send for Verification' },
+      { m: 'action_recall_approval', l: 'Recall' },
+      { m: 'action_mark_failed', l: 'Record Failed', ask: 'What did the check find?', kwarg: 'reason' },
+      { m: 'action_mark_discrepancy', l: 'Record Discrepancy', ask: 'What did the check find?', kwarg: 'reason' }
+    ] },
   'M58-offers': { kind: 'model_list', model: 'fix.talent.offer', stateField: 'state',
-    cols: ['name', 'candidate_id', 'position_id', 'gross_salary', 'issued_on', 'joining_date', 'state'],
-    actions: [{ m: 'action_issue', l: 'Issue Offer' }, { m: 'action_accept', l: 'Accept' },
-              { m: 'action_decline', l: 'Decline' }] },
+    cols: ['name', 'candidate_id', 'position_id', 'gross_salary', 'basic_salary', 'in_band', 'issued_on', 'joining_date', 'approval_state', 'state'],
+    /* A09 audit M58-F4: an offer is issued by its approver (the CFO tier when
+     * it is outside the M57 band); acceptance is the candidate's signed act. */
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval to Issue' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_accept', l: 'Record Signed Acceptance' },
+      { m: 'action_decline', l: 'Record Decline' }
+    ] },
   'M58-preboard': { kind: 'model_list', model: 'fix.onboarding.plan',
-    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'nid_verified', 'contract_signed', 'it_assets_allocated'],
-    actions: [{ m: 'action_start', l: 'Start Onboarding' }, { m: 'action_complete', l: 'Complete (Create Employee)' }] },
+    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'nid_verified', 'contract_signed', 'bank_details_captured', 'safety_kit_issued', 'state'],
+    actions: [{ m: 'action_start', l: 'Start Onboarding' }, { m: 'action_complete', l: 'Complete (Provision Identity)' }] },
   'M58-first90': { kind: 'model_list', model: 'fix.talent.first90',
     cols: ['name', 'employee_id', 'milestone', 'check_date', 'rating', 'on_track'] },
 
@@ -95,7 +121,7 @@ export const SCREENS = {
     title: 'Job Requisition',
     back: 'M58-reqs',
     status: { field: 'state', labels: {
-      draft: 'Draft', approved: 'Approved', active: 'Open', filled: 'Filled', cancelled: 'Cancelled' } },
+      draft: 'Draft', open: 'Open', hired: 'Filled', closed: 'Closed' } },
     tabs: [
       { id: 'scope', label: 'Requisition Scope', bn: 'নিয়োগের চাহিদা', icon: '📋', badge: '5' },
       { id: 'workflow', label: 'Status & Approval', bn: 'অবস্থা ও অনুমোদন', icon: '⚙️', badge: '1' }
@@ -110,7 +136,9 @@ export const SCREENS = {
           { name: 'department_id', required: true, label: 'Target Department' },
           { name: 'position_id', required: true, label: 'Target Establishment Position' },
           { name: 'openings', required: true, label: 'Open Positions (Headcount)' },
-          { name: 'operating_unit_id', label: 'Branch / Operating Unit' }
+          { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
+          { name: 'is_field_role', label: 'Field / In-Home Role (PCC & Assessment)' },
+          { name: 'assessment_pass_mark', label: 'Practical Assessment Pass Mark (%)' }
         ]
       },
       {
@@ -118,7 +146,11 @@ export const SCREENS = {
         title: 'Requisition Lifecycle Status',
         note: 'Budget and department authorization.',
         fields: [
-          { name: 'state', required: true, label: 'Requisition State' }
+          { name: 'state', label: 'Requisition State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'openings_left', label: 'Openings Left', readonly: true }
         ]
       }
     ]
@@ -145,7 +177,13 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Candidate Full Name' },
           { name: 'email', label: 'Contact Email' },
           { name: 'phone', label: 'Contact Mobile Phone' },
-          { name: 'operating_unit_id', label: 'Target Operating Unit' }
+          { name: 'operating_unit_id', label: 'Target Operating Unit' },
+          { name: 'source', label: 'Source / Channel' },
+          { name: 'date_of_birth', label: 'Date of Birth (verified)' },
+          { name: 'nid_number', label: 'NID Number (10 / 13 / 17 digits)' },
+          { name: 'consent_given', label: 'Consent to Processing & Retention' },
+          { name: 'consent_date', label: 'Consent Recorded On', readonly: true },
+          { name: 'retention_until', label: 'Retain Until', readonly: true }
         ]
       },
       {
@@ -154,8 +192,9 @@ export const SCREENS = {
         note: 'Pipeline progression from application to hire and linked M21 employee master.',
         fields: [
           { name: 'requisition_id', label: 'Linked Job Requisition' },
-          { name: 'employee_id', label: 'Created M21 Employee Record' },
-          { name: 'state', required: true, label: 'Recruitment Stage' }
+          { name: 'employee_id', label: 'Created M21 Employee Record', readonly: true },
+          { name: 'state', label: 'Recruitment Stage', readonly: true },
+          { name: 'rejection_reason', type: 'text', label: 'Outcome Communicated', readonly: true }
         ]
       }
     ]
@@ -179,7 +218,7 @@ export const SCREENS = {
         note: 'Structured technical and behavioral assessment rounds.',
         fields: [
           { name: 'candidate_id', required: true, label: 'Candidate' },
-          { name: 'requisition_id', label: 'Job Requisition' },
+          { name: 'requisition_id', label: 'Job Requisition', readonly: true },
           { name: 'interviewer_id', label: 'Lead Interviewer' },
           { name: 'scheduled_on', required: true, label: 'Scheduled Date & Time' },
           { name: 'round_no', required: true, label: 'Round Number' }
@@ -218,9 +257,13 @@ export const SCREENS = {
         note: 'Monthly gross compensation offered to candidate.',
         fields: [
           { name: 'candidate_id', required: true, label: 'Candidate' },
-          { name: 'requisition_id', label: 'Job Requisition' },
+          { name: 'requisition_id', label: 'Job Requisition', readonly: true },
           { name: 'position_id', label: 'Offered Position' },
-          { name: 'gross_salary', label: 'Gross Monthly Salary (BDT)' }
+          { name: 'gross_salary', label: 'Gross Monthly Salary (BDT)' },
+          { name: 'basic_salary', label: 'Basic Monthly Salary (BDT)' },
+          { name: 'contract_type', label: 'Contract Type' },
+          { name: 'band_id', label: 'M57 Pay Band', readonly: true },
+          { name: 'in_band', label: 'Within Band', readonly: true }
         ]
       },
       {
@@ -228,10 +271,15 @@ export const SCREENS = {
         title: 'Offer Timeline & Acceptance',
         note: 'Validity dates and formal candidate acceptance status.',
         fields: [
-          { name: 'issued_on', required: true, label: 'Offer Issued Date' },
+          { name: 'issued_on', label: 'Offer Issued Date', readonly: true },
           { name: 'valid_until', label: 'Offer Valid Until' },
           { name: 'joining_date', label: 'Expected Date of Joining' },
-          { name: 'state', required: true, label: 'Offer Acceptance State' }
+          { name: 'state', label: 'Offer Acceptance State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'acceptance_ref', label: 'Candidate Acceptance Reference' },
+          { name: 'acceptance_file', type: 'binary', label: 'Signed Acceptance (candidate)' },
+          { name: 'responded_on', label: 'Candidate Responded On', readonly: true }
         ]
       }
     ]
@@ -257,7 +305,7 @@ export const SCREENS = {
         fields: [
           { name: 'name', required: true, label: 'Plan Reference' },
           { name: 'candidate_id', label: 'Candidate' },
-          { name: 'employee_id', label: 'Created Employee Record' },
+          { name: 'employee_id', label: 'Created Employee Record', readonly: true },
           { name: 'position_id', label: 'Establishment Position' },
           { name: 'department_id', label: 'Department' },
           { name: 'joined_date', label: 'Date of Joining' }
@@ -268,9 +316,11 @@ export const SCREENS = {
         title: 'Statutory Verification Gates',
         note: 'Mandatory statutory onboarding verifications.',
         fields: [
-          { name: 'nid_verified', label: 'National ID (NID) Verified' },
-          { name: 'contract_signed', label: 'Statutory Form 6 Contract Signed' },
-          { name: 'bank_details_captured', label: 'Bank / MFS Wallet Captured' }
+          { name: 'nid_verified', label: 'National ID (NID) Verified', readonly: true },
+          { name: 'contract_signed', label: 'Statutory Form 6 Contract Signed', readonly: true },
+          { name: 'bank_details_captured', label: 'Bank / MFS Wallet Captured', readonly: true },
+          { name: 'signed_contract_file', type: 'binary', label: 'Signed Appointment Letter / Contract' },
+          { name: 'contract_id', label: 'Draft Employment Contract', readonly: true }
         ]
       },
       {
@@ -279,9 +329,9 @@ export const SCREENS = {
         note: 'Equipment and identity provisioning tracking.',
         fields: [
           { name: 'it_assets_allocated', label: 'Mobile Device / Laptop Issued' },
-          { name: 'keycloak_provisioned', label: 'Single Sign-On (IdP) Provisioned' },
-          { name: 'safety_kit_issued', label: 'Standard PPE Kit Issued' },
-          { name: 'state', required: true, label: 'Onboarding Plan State' }
+          { name: 'keycloak_provisioned', label: 'Single Sign-On (IdP) Provisioned', readonly: true },
+          { name: 'safety_kit_issued', label: 'Standard PPE Kit Issued', readonly: true },
+          { name: 'state', label: 'Onboarding Plan State', readonly: true }
         ]
       }
     ]
@@ -303,7 +353,7 @@ export const SCREENS = {
         note: 'Hands-on micro-soldering, diagnostic, or HVAC practical bench test.',
         fields: [
           { name: 'candidate_id', required: true, label: 'Candidate' },
-          { name: 'requisition_id', label: 'Job Requisition' },
+          { name: 'requisition_id', label: 'Job Requisition', readonly: true },
           { name: 'competency_code', label: 'Tested Competency Code' },
           { name: 'assessor_id', label: 'Bench Technical Assessor' }
         ]
@@ -315,7 +365,8 @@ export const SCREENS = {
         fields: [
           { name: 'assessed_on', required: true, label: 'Assessment Date' },
           { name: 'score', label: 'Practical Score (0-100)' },
-          { name: 'passed', label: 'Passed Bench Assessment' },
+          { name: 'pass_mark', label: 'Approved Pass Mark (%)', readonly: true },
+          { name: 'passed', label: 'Passed Bench Assessment', readonly: true },
           { name: 'notes', type: 'text', label: 'Assessor Observations' }
         ]
       }
@@ -350,8 +401,11 @@ export const SCREENS = {
         title: 'Verification Outcome & Hire Gate',
         note: 'Discrepancy or failed background check blocks candidate hire.',
         fields: [
-          { name: 'completed_on', label: 'Completed Date' },
-          { name: 'result', required: true, label: 'Verification Result' },
+          { name: 'completed_on', label: 'Completed Date', readonly: true },
+          { name: 'result', label: 'Verification Result', readonly: true },
+          { name: 'evidence_file', type: 'binary', label: 'Verification Evidence' },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true },
+          { name: 'approval_state', label: 'Verification Request', readonly: true },
           { name: 'notes', type: 'text', label: 'Verification Remarks & Reference Notes' }
         ]
       }
