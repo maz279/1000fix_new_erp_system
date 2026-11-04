@@ -3,10 +3,19 @@
 # (REPORTS) and the live executive dashboard payloads (/p03/bi/kpis,
 # /p03/bi/exec). Every number is a measured read of the real service order,
 # estimate and AR invoice tables — nothing here invents data.
+#
+# A11 audit E5/E6 (M25-1/-2/-3/-7): every read is the CALLER's read — the
+# user's own record rules apply and every source is filtered by the caller's
+# allowed companies. Only members of the explicit "BI company-wide" group get
+# cross-OU company-wide tiles. "Delivered MTD" counts delivered_at/closed_at
+# stamps (an edit no longer resurrects a January delivery), the
+# approved-estimate tile is named what it is (Approved quotes), and the
+# count tiles count records instead of carrying constants.
 import datetime
 import logging
 
 from odoo import http
+from odoo.exceptions import UserError
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -20,22 +29,32 @@ SURFACES = {
         "actions": {"action_test_connection", "action_run_sync"},
     },
     "fix.bi.sync.log": {
+        # E7/M25-10: the log is append-only — no row action at all.
         "order": "ran_at desc, id desc",
         "limit": 100,
         "actions": set(),
     },
     "fix.bi.dashboard": {
+        # G8: the lifecycle — review entry, certification through M63, and
+        # retirement. There is no direct "certify" click: activation runs
+        # only from an approved request in the approver's inbox.
         "order": "role, name",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_submit_review", "action_request_approval", "action_retire"},
     },
     "fix.bi.distribution.schedule": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_send_now"},
     },
     "fix.bi.alert.subscription": {
         "order": "name",
+        "limit": 200,
+        "actions": set(),
+    },
+    # E6/BRU-BID-11: the export audit trail (append-only, no actions).
+    "fix.bi.export.log": {
+        "order": "ran_at desc, id desc",
         "limit": 200,
         "actions": set(),
     },
@@ -62,12 +81,68 @@ def _companies(env):
     return env.companies.ids
 
 
+def _has_bi_group(env, xmlid):
+    """Membership of a cd_bi_reporting group (True for the superuser). The
+    portal does not depend on that module, so resolve by ref."""
+    if env.su:
+        return True
+    group = env.ref(xmlid, raise_if_not_found=False)
+    return bool(group) and env.user in group.user_ids
+
+
+def _is_company_wide(env):
+    """E6: the explicit executive charter — cross-OU reads INSIDE the
+    allowed companies. Everyone else reads under their own record rules."""
+    return _has_bi_group(env, "cd_bi_reporting.group_bi_company_wide")
+
+
+def _read(env, model):
+    """E6: the handle every M25 read goes through. Company-wide readers get
+    sudo + an explicit company filter (their charter); everyone else gets
+    the caller's env, so the OU/company record rules apply (BRU-BID-02)."""
+    if _is_company_wide(env):
+        return env[model].sudo()
+    return env[model]
+
+
 def _bi_domain(env, model, extra):
-    """Company-wide read domain (A08 pattern: sudo reads + explicit company)."""
+    """The read domain: the caller's allowed companies, explicitly."""
     domain = list(extra)
     if "company_id" in env[model]._fields:
         domain.append(("company_id", "in", _companies(env)))
     return domain
+
+
+def _require_finance_reader(env):
+    """E6 (M25-2): finance figures are not for every internal user."""
+    if not _has_bi_group(env, "cd_bi_reporting.group_bi_finance"):
+        raise UserError(
+            "The finance pack is reserved for BI Finance Readers (M25) — AR "
+            "outstanding, overdue and collections figures are not served to "
+            "your account."
+        )
+
+
+def _require_company_wide(env):
+    """E6 (M25-2): the executive pack crosses operating units — that is the
+    company-wide group's explicit charter, nobody else's."""
+    if not _is_company_wide(env):
+        raise UserError(
+            "The executive pack is reserved for BI Company-Wide Readers "
+            "(M25). Your dashboards stay scoped to your own record rules."
+        )
+
+
+def _delivered_extra(start):
+    """E5 (M25-3): delivered in the window by its OWN stamp — delivered_at
+    or closed_at — never write_date (an edit must not resurrect a January
+    delivery into this month's count)."""
+    return [
+        ("state", "in", ["delivered", "closed"]),
+        "|",
+        ("delivered_at", ">=", start),
+        ("closed_at", ">=", start),
+    ]
 
 
 def _week_bounds(weeks=8):
@@ -89,10 +164,11 @@ def fields_date(value):
 
 def weekly_exec_review(env, **params):
     """The Weekly Executive Business Review: 8 measured ISO weeks — orders
-    opened and delivered, approved estimate value, issued AR invoices."""
-    orders = env["fix.service.order"].sudo()
-    estimates = env["fix.estimate"].sudo()
-    invoices = env["fix.ar.invoice"].sudo()
+    opened and delivered (by delivery stamp, E5), approved estimate value,
+    issued AR invoices."""
+    orders = _read(env, "fix.service.order")
+    estimates = _read(env, "fix.estimate")
+    invoices = _read(env, "fix.ar.invoice")
     mondays = _week_bounds(int(params.get("weeks", 8)))
 
     def week_of(day):
@@ -114,19 +190,19 @@ def weekly_exec_review(env, **params):
             opened.get(week_of(fields_date(day_group)), 0) + count
         )
 
+    # E5 (M25-3): a delivery is counted in the week the order was DELIVERED
+    # or CLOSED (its own stamp) — never in the week somebody edited it.
     delivered = {}
     for rec in orders.search(
         _bi_domain(
             env,
             "fix.service.order",
-            [
-                ("state", "in", ["delivered", "closed"]),
-                ("write_date", ">=", datetime.datetime.combine(mondays[0], datetime.time.min)),
-            ],
+            _delivered_extra(datetime.datetime.combine(mondays[0], datetime.time.min)),
         )
     ):
-        stamp = rec.write_date.date() if rec.write_date else None
+        stamp = rec.delivered_at or rec.closed_at
         if stamp:
+            stamp = stamp.date() if isinstance(stamp, datetime.datetime) else stamp
             delivered[week_of(stamp)] = delivered.get(week_of(stamp), 0) + 1
 
     approved = {}
@@ -189,7 +265,8 @@ def weekly_exec_review(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Approved = fix.estimate state 'approved' in the week; invoiced = AR invoices issued/paid."
+            "Approved = fix.estimate state 'approved' in the week; invoiced = AR invoices issued/paid. ",
+            "Delivered counts the order's own delivered_at/closed_at stamp — an edit does not move it.",
         ],
     }
 
@@ -198,8 +275,10 @@ def commercial_board(env, **params):
     """CCO commercial board: pipeline definitions by revenue stream and the open
     opportunity value by stage (crm.lead). Nothing is forecast beyond what the
     pipeline records hold."""
-    pipelines = env["fix.pipeline"].sudo().search([("active", "=", True)])
-    leads = env["crm.lead"].sudo().search([("type", "=", "opportunity")])
+    pipelines = _read(env, "fix.pipeline").search([("active", "=", True)])
+    leads = _read(env, "crm.lead").search(
+        _bi_domain(env, "crm.lead", [("type", "=", "opportunity")])
+    )
     rows = []
     for pipeline in pipelines:
         stream = dict(pipeline._fields["revenue_stream"].selection).get(
@@ -250,10 +329,11 @@ REPORTS["commercial_board"] = commercial_board
 
 
 def _exec_payload(env):
-    """The Executive C-Suite KPI dashboard payload — all live reads."""
-    orders = env["fix.service.order"].sudo()
-    estimates = env["fix.estimate"].sudo()
-    invoices = env["fix.ar.invoice"].sudo()
+    """The Executive C-Suite KPI dashboard payload — all live reads, each
+    under the caller's scope (or the company-wide charter when granted)."""
+    orders = _read(env, "fix.service.order")
+    estimates = _read(env, "fix.estimate")
+    invoices = _read(env, "fix.ar.invoice")
     today = datetime.date.today()
     month_start = today.replace(day=1)
 
@@ -267,10 +347,7 @@ def _exec_payload(env):
         _bi_domain(
             env,
             "fix.service.order",
-            [
-                ("state", "in", ["delivered", "closed"]),
-                ("write_date", ">=", datetime.datetime.combine(month_start, datetime.time.min)),
-            ],
+            _delivered_extra(datetime.datetime.combine(month_start, datetime.time.min)),
         )
     )
     revenue_mtd = sum(
@@ -299,7 +376,7 @@ def _exec_payload(env):
             ],
         )
     )
-    freshness = env["fix.bi.sync.log"].sudo().freshness_minutes()
+    freshness = env["fix.bi.sync.log"].freshness_minutes()
 
     # 12-month orders trend (real create_date counts per month)
     year_ago = (today - datetime.timedelta(days=365)).strftime("%Y-%m-01")
@@ -360,14 +437,14 @@ class P03BiApi(http.Controller):
         payload = _exec_payload(env)
         fresh = payload["kpis"]["bi_data_freshness"]
         try:
-            dashboards = 9 + env["fix.bi.dashboard"].sudo().search_count(
-                [("company_id", "in", _companies(env))]
+            dashboards = _read(env, "fix.bi.dashboard").search_count(
+                _bi_domain(env, "fix.bi.dashboard", [])
             )
         except Exception:
             dashboards = None
         try:
-            schedules = (
-                env["fix.bi.distribution.schedule"].sudo().search_count([("active", "=", True)])
+            schedules = _read(env, "fix.bi.distribution.schedule").search_count(
+                _bi_domain(env, "fix.bi.distribution.schedule", [("active", "=", True)])
             )
         except Exception:
             schedules = None
@@ -380,11 +457,11 @@ class P03BiApi(http.Controller):
                 "delivered_mtd": payload["kpis"]["delivered_mtd"],
                 "revenue_mtd": payload["kpis"]["revenue_mtd"],
                 "invoiced_mtd": payload["kpis"]["invoiced_mtd"],
-                # registry KPI strip (M25 spec): measured where a model exists
+                # registry KPI strip (M25 spec): MEASURED counts (E5/M25-7 —
+                # the old `9 +` and constant `6` are gone).
                 "dashboards_live": dashboards,
-                # the registry's standard report library (six packs; the
-                # weekly review and dataset catalog are additional surfaces)
-                "standard_reports": 6,
+                # the report library actually registered below
+                "standard_reports": len(REPORTS),
                 "weekly_manager_usage": usage,
                 "load_time_p95": None,
                 "scheduled_distributions": schedules,
@@ -395,22 +472,39 @@ class P03BiApi(http.Controller):
     @http.route("/p03/bi/exec", type="jsonrpc", auth="user", readonly=True)
     def bi_exec(self, **kw):
         _require_internal(request.env)
+        # E6 (M25-2): the executive payload carries company-wide money
+        # figures — that read belongs to the company-wide group's charter.
+        _require_company_wide(request.env)
         return _exec_payload(request.env)
 
     @http.route("/p03/bi/role", type="jsonrpc", auth="user", readonly=True)
     def bi_role(self, role="ceo", **kw):
         _require_internal(request.env)
-        return _role_payload(request.env, role or "ceo")
+        role = role or "ceo"
+        if role == "cfo":
+            # E6 (M25-2): the CFO dashboard is the finance pack with a
+            # different layout — same entitlement.
+            _require_finance_reader(request.env)
+        elif role == "all":
+            _require_company_wide(request.env)
+        return _role_payload(request.env, role)
 
 
 def _weekly_usage(env):
     """Distinct users who logged in during the last 7 days (res.users.log is
     the only usage telemetry the platform actually records; dashboard-level
-    telemetry has no model and is never invented)."""
+    telemetry has no model and is never invented). E6: counted within the
+    caller's allowed companies only — one company's activity is not another
+    company's usage — and read through _read, so a caller who may not read
+    the log at all has the tile WITHHELD (None → '—') instead of a sudo
+    count of a source they cannot see (M25 K07)."""
     try:
         since = datetime.datetime.now() - datetime.timedelta(days=7)
-        rows = env["res.users.log"].sudo().search([("create_date", ">=", since)])
-        return len(set(rows.mapped("create_uid").ids))
+        rows = _read(env, "res.users.log").search([("create_date", ">=", since)])
+        users = rows.mapped("create_uid").filtered(
+            lambda u: bool(set(u.company_ids.ids) & set(_companies(env)))
+        )
+        return len(users)
     except Exception:
         return None
 
@@ -429,13 +523,16 @@ ROLE_TITLES = {
 
 
 def _metrics(env):
-    """The measured metric bank every role dashboard and pack reads from."""
+    """The measured metric bank every role dashboard and pack reads from.
+    E6: every read is the caller's read (record rules apply) filtered by the
+    caller's companies; a source the caller may not read withholds its tile
+    instead of leaking through sudo."""
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    orders = env["fix.service.order"].sudo()
-    estimates = env["fix.estimate"].sudo()
-    invoices = env["fix.ar.invoice"].sudo()
-    receipts = env["fix.ar.receipt"].sudo()
+    orders = _read(env, "fix.service.order")
+    estimates = _read(env, "fix.estimate")
+    invoices = _read(env, "fix.ar.invoice")
+    receipts = _read(env, "fix.ar.receipt")
     m = {}
     m["open_orders"] = orders.search_count(
         _bi_domain(env, "fix.service.order", [("state", "in", OPEN_ORDER_STATES)])
@@ -447,10 +544,7 @@ def _metrics(env):
         _bi_domain(
             env,
             "fix.service.order",
-            [
-                ("state", "in", ["delivered", "closed"]),
-                ("write_date", ">=", datetime.datetime.combine(month_start, datetime.time.min)),
-            ],
+            _delivered_extra(datetime.datetime.combine(month_start, datetime.time.min)),
         )
     )
     m["revenue_mtd"] = sum(
@@ -513,54 +607,68 @@ def _metrics(env):
         _bi_domain(env, "fix.estimate", [("state", "=", "sent")])
     )
     try:
-        m["complaints_open"] = (
-            env["fix.complaint"]
-            .sudo()
-            .search_count([("state", "not in", ("closed", "resolved", "rejected", "cancelled"))])
+        Complaints = _read(env, "fix.complaint")
+        m["complaints_open"] = Complaints.search_count(
+            _bi_domain(
+                env,
+                "fix.complaint",
+                [("state", "not in", ("closed", "resolved", "rejected", "cancelled"))],
+            )
         )
-        m["complaints_total"] = env["fix.complaint"].sudo().search_count([])
+        m["complaints_total"] = Complaints.search_count(_bi_domain(env, "fix.complaint", []))
     except Exception:
         m["complaints_open"] = m["complaints_total"] = None
     try:
-        m["ncr_open"] = (
-            env["fix.ncr"]
-            .sudo()
-            .search_count([("state", "not in", ("closed", "verified", "rejected", "cancelled"))])
+        m["ncr_open"] = _read(env, "fix.ncr").search_count(
+            _bi_domain(
+                env,
+                "fix.ncr",
+                [("state", "not in", ("closed", "verified", "rejected", "cancelled"))],
+            )
         )
     except Exception:
         m["ncr_open"] = None
     try:
-        Lead = env["crm.lead"].sudo()
-        m["leads_open"] = Lead.search_count([("type", "=", "opportunity"), ("active", "=", True)])
-        m["pipeline_value"] = sum(
-            Lead.search([("type", "=", "opportunity"), ("active", "=", True)]).mapped(
-                "expected_revenue"
-            )
+        Lead = _read(env, "crm.lead")
+        # company filter explicit: a lead with no company shows nowhere
+        # rather than on every company's board (K05).
+        lead_dom = _bi_domain(
+            env, "crm.lead", [("type", "=", "opportunity"), ("active", "=", True)]
         )
+        m["leads_open"] = Lead.search_count(lead_dom)
+        m["pipeline_value"] = sum(Lead.search(lead_dom).mapped("expected_revenue"))
     except Exception:
         m["leads_open"] = m["pipeline_value"] = None
     try:
-        m["loyalty_members"] = env["fix.loyalty.account"].sudo().search_count([])
+        m["loyalty_members"] = _read(env, "fix.loyalty.account").search_count(
+            _bi_domain(env, "fix.loyalty.account", [])
+        )
     except Exception:
         m["loyalty_members"] = None
     try:
-        m["employees_active"] = env["hr.employee"].sudo().search_count([("active", "=", True)])
-        m["present_today"] = (
-            env["hr.attendance"]
-            .sudo()
-            .search_count([("check_in", ">=", datetime.datetime.combine(today, datetime.time.min))])
+        m["employees_active"] = _read(env, "hr.employee").search_count(
+            _bi_domain(env, "hr.employee", [("active", "=", True)])
+        )
+        m["present_today"] = _read(env, "hr.attendance").search_count(
+            [
+                ("check_in", ">=", datetime.datetime.combine(today, datetime.time.min)),
+                ("employee_id.company_id", "in", _companies(env)),
+            ]
         )
     except Exception:
         m["employees_active"] = m["present_today"] = None
     try:
-        m["requisitions_open"] = (
-            env["fix.requisition"].sudo().search_count([("state", "in", ("draft", "approved"))])
+        m["requisitions_open"] = _read(env, "fix.requisition").search_count(
+            _bi_domain(env, "fix.requisition", [("state", "in", ("draft", "approved"))])
         )
     except Exception:
         m["requisitions_open"] = None
     try:
-        m["dunning_active"] = (
-            env["fix.dunning"].sudo().search_count([("invoice_id.state", "=", "issued")])
+        m["dunning_active"] = _read(env, "fix.dunning").search_count(
+            [
+                ("invoice_id.state", "=", "issued"),
+                ("invoice_id.company_id", "in", _companies(env)),
+            ]
         )
     except Exception:
         m["dunning_active"] = None
@@ -585,7 +693,9 @@ def _role_payload(env, role):
             {
                 "title": "Company Performance",
                 "kpis": [
-                    _k("Revenue MTD (approved)", m["revenue_mtd"], money=True),
+                    # E5 (M25-3): named what it measures — the value of
+                    # approved quotes, NOT booked revenue.
+                    _k("Approved Quotes MTD", m["revenue_mtd"], money=True),
                     _k("Delivered MTD", m["delivered_mtd"]),
                     _k("Invoices Issued MTD", m["invoiced_mtd"]),
                     _k("Open Orders", m["open_orders"]),
@@ -670,7 +780,7 @@ def _role_payload(env, role):
                 "title": "Billing",
                 "kpis": [
                     _k("Invoiced Taxable MTD", m["invoiced_taxable_mtd"], money=True),
-                    _k("Revenue MTD (approved)", m["revenue_mtd"], money=True),
+                    _k("Approved Quotes MTD", m["revenue_mtd"], money=True),
                 ],
             }
         )
@@ -730,10 +840,12 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def executive_pack(env, date_from=None, date_to=None, **params):
+    # E6 (M25-2): company-wide figures are the company-wide group's charter.
+    _require_company_wide(env)
     m = _metrics(env)
     rows = [
         {
-            "metric": "Revenue MTD (approved estimates)",
+            "metric": "Approved quotes MTD (estimate value)",
             "value": m["revenue_mtd"],
             "basis": "fix.estimate state=approved, created this month",
         },
@@ -770,7 +882,7 @@ def executive_pack(env, date_from=None, date_to=None, **params):
         {
             "metric": "Delivered MTD",
             "value": m["delivered_mtd"],
-            "basis": "orders reaching delivered/closed this month",
+            "basis": "orders with a delivered_at/closed_at stamp this month",
         },
         {
             "metric": "Open complaints",
@@ -793,7 +905,7 @@ def executive_pack(env, date_from=None, date_to=None, **params):
 def branch_league(env, date_from=None, date_to=None, **params):
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    orders = env["fix.service.order"].sudo()
+    orders = _read(env, "fix.service.order")
     groups = orders._read_group(
         _bi_domain(env, "fix.service.order", []),
         groupby=["branch_id"],
@@ -821,16 +933,13 @@ def branch_league(env, date_from=None, date_to=None, **params):
             _bi_domain(
                 env,
                 "fix.service.order",
-                [
-                    ("state", "in", ["delivered", "closed"]),
-                    ("write_date", ">=", datetime.datetime.combine(month_start, datetime.time.min)),
-                ],
+                _delivered_extra(datetime.datetime.combine(month_start, datetime.time.min)),
             ),
             groupby=["branch_id"],
             aggregates=["__count"],
         )
     }
-    invoices = env["fix.ar.invoice"].sudo()
+    invoices = _read(env, "fix.ar.invoice")
     invoiced_groups = {}
     for branch, total in invoices._read_group(
         _bi_domain(
@@ -889,7 +998,7 @@ def branch_league(env, date_from=None, date_to=None, **params):
 
 def service_kpi_pack(env, date_from=None, date_to=None, **params):
     m = _metrics(env)
-    orders = env["fix.service.order"].sudo()
+    orders = _read(env, "fix.service.order")
     state_rows = orders._read_group(
         _bi_domain(env, "fix.service.order", []),
         groupby=["state"],
@@ -912,7 +1021,7 @@ def service_kpi_pack(env, date_from=None, date_to=None, **params):
         {
             "metric": "Delivered MTD",
             "value": m["delivered_mtd"],
-            "basis": "delivered/closed this month",
+            "basis": "delivered_at/closed_at stamped this month",
         },
     ]
     for state, count in sorted(state_rows, key=lambda r: -r[1]):
@@ -932,6 +1041,10 @@ def service_kpi_pack(env, date_from=None, date_to=None, **params):
 
 
 def finance_pack(env, date_from=None, date_to=None, **params):
+    # E6 (M25-2): AR outstanding, overdue and collections are finance-reader
+    # figures — the pack (screen AND export) is gated, and every export is
+    # logged by the download route (BRU-BID-11).
+    _require_finance_reader(env)
     m = _metrics(env)
     rows = [
         {
@@ -1027,7 +1140,7 @@ def export_catalog(env, date_from=None, date_to=None, **params):
             }
         )
     try:
-        saved = env["fix.bi.dashboard"].sudo().search([("company_id", "in", _companies(env))])
+        saved = _read(env, "fix.bi.dashboard").search(_bi_domain(env, "fix.bi.dashboard", []))
         for d in saved:
             rows.append(
                 {
@@ -1062,19 +1175,13 @@ def dataset_catalog(env, date_from=None, date_to=None, **params):
     """Certified datasets = the BI sync configurations that define a scope,
     with their measured freshness. Configuration only; nothing is invented."""
     rows = []
-    for cfg in (
-        env["fix.bi.sync.config"]
-        .sudo()
-        .search([("company_id", "in", _companies(env))], order="sequence, id")
+    for cfg in _read(env, "fix.bi.sync.config").search(
+        _bi_domain(env, "fix.bi.sync.config", []), order="sequence, id"
     ):
-        last = (
-            env["fix.bi.sync.log"]
-            .sudo()
-            .search(
-                [("config_id", "=", cfg.id), ("status", "=", "success")],
-                order="ran_at desc",
-                limit=1,
-            )
+        last = _read(env, "fix.bi.sync.log").search(
+            [("config_id", "=", cfg.id), ("status", "=", "success")],
+            order="ran_at desc",
+            limit=1,
         )
         rows.append(
             {

@@ -33,6 +33,29 @@ from .p03_service_order_api import _require_internal, _user_error
 _logger = logging.getLogger(__name__)
 
 
+def _log_report_export(module, report, fmt, out, params):
+    """A11 audit E6 / BRU-BID-11: every pack download is logged — who, what,
+    which scope, how many rows. The audit row itself is append-only (see
+    fix.bi.export.log). A logging failure must never block the download."""
+    try:
+        env = request.env
+        if "fix.bi.export.log" not in env:
+            return
+        env["fix.bi.export.log"].sudo().create(
+            {
+                "user_id": env.user.id,
+                "pack": "%s:%s" % (module or "?", report or "?"),
+                "channel": "download",
+                "format": fmt,
+                "company_ids": ", ".join(env.companies.mapped("name")),
+                "row_count": len(out.get("rows") or []),
+                "params_json": repr(params or {})[:2000],
+            }
+        )
+    except Exception:
+        _logger.exception("export log write failed for %s:%s", module, report)
+
+
 def _readonly_changed(rec, field, value) -> bool:
     """Would writing `value` change read-only `field` on `rec`?
 
@@ -157,9 +180,12 @@ class P03GenericApiController(http.Controller):
                     search_domain.append((state_field, "=", state_filter))
             # Finance list screens are COMPANY-wide reads (an accountant sees
             # every operating unit's bills — the M19 CoA sudo-read pattern).
-            # OU record rules stay enforced for every OTHER surface; writes
+            # A surface that declares `caller_scoped` (A11 audit M26 X03: the
+            # PdM prediction list) reads AS THE CALLER instead — the caller's
+            # OU record rules apply, so one operating unit's rows never leak
+            # onto another unit's screen through the list endpoint. Writes
             # below keep the calling user's context (SoD/permissions apply).
-            rec_model = env[model].sudo()
+            rec_model = env[model] if conf.get("caller_scoped") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
@@ -281,6 +307,7 @@ class P03GenericApiController(http.Controller):
         labels = out.get("labels") or {}
         labels = labels if isinstance(labels, dict) else {}
         base_name = "%s_%s" % (module or "report", (report or "export").replace("/", "_"))
+        _log_report_export(module, report, format, out, params or {})
 
         if format == "xlsx":
             return self._report_xlsx(out, cols, labels, base_name, params or {})

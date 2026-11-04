@@ -21,7 +21,11 @@ blocks the real workflow would be "fixed" by switching it off.
 """
 
 import pytest
-from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
+    approve_via_inbox,
+    assigned,
+    inbox_task,
+)
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -602,19 +606,30 @@ class TestDiscountApproval:
         assert req.state == "approved"
 
     def test_a_seller_cannot_approve_their_own_estimate_discount(self, env, make_user, estimate_of):
+        """A11 P2: the estimate discount DOFA is a routed M63 request — the
+        stamp is given from the approver's inbox, never by a direct press."""
         seller = make_user(T4)
         estimate = estimate_of(seller, discount=400.0)  # 40%
         assert estimate.dofa_tier_required == "tier_4"
-        with pytest.raises(UserError, match="Segregation"):
+        with pytest.raises(UserError, match="inbox"):
             estimate.action_dofa_approve()
         with pytest.raises(UserError):
             estimate.write({"dofa_approved_by": seller.id})
-        director = estimate.with_user(make_user(T4))
+        # Routed: the seller asks, is never routed to themselves, and a second
+        # Tier-4 holder decides. Without a justification the decision refuses.
+        director = make_user(T4)  # must exist BEFORE the request routes
+        estimate.with_user(seller).action_request_approval()
+        assert seller not in assigned(estimate)  # never routed to themselves
+        task = inbox_task(estimate, director)
+        assert task, "the Tier-4 director received no inbox task"
         with pytest.raises(ValidationError, match="justification"):
-            director.action_dofa_approve()
-        director.dofa_justification = "Corporate account retention, signed off by sales head."
-        director.action_dofa_approve()
-        assert estimate.dofa_approved_by and estimate.dofa_approved_amount == 40.0
+            task.with_user(director).action_approve()
+        estimate.with_user(
+            director
+        ).dofa_justification = "Corporate account retention, signed off by sales head."
+        task.with_user(director).action_approve()
+        assert estimate.dofa_approved_by == director
+        assert estimate.dofa_approved_amount == 40.0
 
     def test_an_estimate_discount_raised_after_approval_needs_reapproval(
         self, env, make_user, estimate_of
@@ -623,9 +638,10 @@ class TestDiscountApproval:
         amount pin and the immediate withdrawal apply to it as well."""
         seller = make_user()
         estimate = estimate_of(seller, discount=120.0)  # 12% -> Tier 2
-        manager = estimate.with_user(make_user(T2))
-        manager.dofa_justification = "Price match against a competitor quote."
-        manager.action_dofa_approve()
+        manager = make_user(T2)
+        approve_via_inbox(
+            estimate, manager, justification="Price match against a competitor quote."
+        )
         assert estimate.dofa_approved
         estimate.with_user(seller).write({"discount": 140.0})  # 14%, still Tier 2
         assert not estimate.dofa_approved
@@ -640,7 +656,7 @@ class TestDiscountApproval:
         estimate = estimate_of(seller, discount=40.0)  # 4% -> Tier 1
         assert estimate.dofa_tier_required == "tier_1"
         with pytest.raises(UserError, match="Nothing to approve"):
-            estimate.with_user(make_user(T2)).action_dofa_approve()
+            estimate.with_user(seller).action_request_approval()
         estimate.with_user(seller)._dofa_assert_approved("Estimate approval")
 
 

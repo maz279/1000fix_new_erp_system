@@ -30,6 +30,18 @@ class FixEstimate(models.Model):
     _description = "Repair Estimate"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
 
+    # A11 audit P2 (A02 area): the discount DOFA used to be decided by
+    # whoever pressed Approve while holding the tier — no request, no named
+    # approver, no deadline, no delegate, no history. The DOFA stamp is now
+    # given from the approver's M63 inbox only: the preparer asks
+    # (action_request_approval), the engine routes to the tier holders minus
+    # the preparer and the amount-changer, and action_dofa_approve refuses a
+    # direct press. The discount pct is the approval amount, so a change
+    # while the request is pending withdraws it (E4/M63-6) and the changer
+    # is never its approver.
+    _approval_domain = "estimate_discount"
+    _approval_routed = True
+
     def _fix_guarded_fields(self) -> set:
         # The approval keys are evidence; only their actions stamp them. The
         # DOFA stamp (dofa_approved, _by, _tier, _amount) comes with the mixin.
@@ -684,6 +696,15 @@ class FixEstimate(models.Model):
             "view_mode": "form",
         }
 
+    def _approval_on_rejected(self, comment):
+        """A11 audit P2: an inbox rejection of the discount is evidence on the
+        estimate's thread — the preparer lowers the discount or asks again."""
+        for rec in self:
+            rec.message_post(
+                body="Discount approval rejected by %s: %s"
+                % (rec.env.user.name, comment or "no comment recorded")
+            )
+
     @api.model
     def _cron_expire_estimates(self):
         """BRU-SRM-13: a sent estimate past its validity date expires."""
@@ -704,6 +725,19 @@ class FixEstimate(models.Model):
             "state": self.state,
             "grand_total": self.grand_total,
         }
+
+
+class FixApprovalMatrixEstimateDiscount(models.Model):
+    """A11 audit P2: lets a DoA matrix row target the routed estimate
+    discount (SLA, escalation, policy) without touching any other DOFA
+    approval."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("estimate_discount", "Estimate Discount Approval")],
+        ondelete={"estimate_discount": "cascade"},
+    )
 
 
 class FixEstimateLine(models.Model):

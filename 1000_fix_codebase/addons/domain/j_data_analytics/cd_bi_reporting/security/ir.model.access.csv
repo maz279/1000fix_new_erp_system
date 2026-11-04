@@ -9,3 +9,12 @@ access_fix_bi_schedule_user,fix.bi.distribution.schedule.user,model_fix_bi_distr
 access_fix_bi_schedule_system,fix.bi.distribution.schedule.system,model_fix_bi_distribution_schedule,base.group_system,1,1,1,1
 access_fix_bi_alert_user,fix.bi.alert.subscription.user,model_fix_bi_alert_subscription,base.group_user,1,0,0,0
 access_fix_bi_alert_system,fix.bi.alert.subscription.system,model_fix_bi_alert_subscription,base.group_system,1,1,1,1
+access_fix_bi_dashboard_author,fix.bi.dashboard.author,model_fix_bi_dashboard,group_bi_author,1,1,1,1
+access_fix_bi_dashboard_certifier,fix.bi.dashboard.certifier,model_fix_bi_dashboard,group_bi_certifier,1,1,0,0
+access_fix_bi_schedule_author,fix.bi.distribution.schedule.author,model_fix_bi_distribution_schedule,group_bi_author,1,1,1,1
+access_fix_bi_alert_author,fix.bi.alert.subscription.author,model_fix_bi_alert_subscription,group_bi_author,1,1,1,1
+access_fix_bi_sync_config_operator,fix.bi.sync.config.operator,model_fix_bi_sync_config,group_bi_operator,1,1,1,1
+access_fix_bi_sync_log_operator,fix.bi.sync.log.operator,model_fix_bi_sync_log,group_bi_operator,1,0,0,0
+access_fix_bi_export_log_certifier,fix.bi.export.log.certifier,model_fix_bi_export_log,group_bi_certifier,1,0,0,0
+access_fix_bi_export_log_operator,fix.bi.export.log.operator,model_fix_bi_export_log,group_bi_operator,1,0,0,0
+access_fix_bi_export_log_system,fix.bi.export.log.system,model_fix_bi_export_log,base.group_system,1,0,0,0

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M62 scheduled jobs (A11 audit G3/G5/G6, 2026-11-04).
+
+  - Quality runner (hourly): measures every active rule whose entity maps to
+    a model — completeness, uniqueness, timeliness — and records an immutable
+    test row per run. A failure publishes data_quality.failing, which the
+    relay hands to the incident consumer.
+  - Declassification expiry (daily): a lapsed authorisation reverts the
+    classification it granted (BRU-DAT-11: a downgrade is time-limited).
+  - Disposition report (weekly): what is past retention is REPORTED as
+    evidence; deletion runs only when an officer executes the disposition
+    with a rule that says delete, never automatically.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_dq_run_checks" model="ir.cron">
+            <field name="name">M62: measure data quality rules</field>
+            <field name="model_id" ref="model_fix_data_quality_rule"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_run_checks()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_declassification_expiry" model="ir.cron">
+            <field name="name">M62: lapse and revert expired declassification authorisations</field>
+            <field name="model_id" ref="model_fix_data_declassification_auth"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_retention_disposition_report" model="ir.cron">
+            <field name="name">M62: report records past retention (evidence only)</field>
+            <field name="model_id" ref="model_fix_data_retention_policy"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_report_disposition()</field>
+            <field name="interval_number">7</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

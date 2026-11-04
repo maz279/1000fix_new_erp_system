@@ -96,13 +96,12 @@ def _dofa_approver(env):
 
 
 def _approved(env, rec, value):
-    """Graded value entered, requested (superuser) and approved (4-eyes),
-    then the DOFA tier the amount needs signed off from the M63 inbox."""
+    """Graded value entered, then the payout approved from the M63 inbox —
+    one routed decision stamps the payout and its DOFA sign-off (A11 P2)."""
+    _dofa_approver(env)  # the tier-1 holder must exist before the request routes
     rec.write({"graded_value": value})
     rec.action_request_payout_approval()
-    rec.with_user(_approver(env)).sudo().action_approve_payout()
-    if rec.dofa_tier_required not in (False, "tier_0"):
-        approve_via_inbox(rec, _dofa_approver(env), justification="Trade-in payout")
+    approve_via_inbox(rec, _dofa_approver(env), justification="Trade-in payout")
     return rec
 
 
@@ -513,6 +512,7 @@ def test_pay_requires_graded_value_and_approval(odoo_env):
     rec.write({"graded_value": 9000})
     with pytest.raises(UserError, match="'none': it must be approved"):
         rec.action_pay()
+    _dofa_approver(odoo_env)  # the tier-1 holder must exist before the request routes
     rec.action_request_payout_approval()
     assert (rec.payout_approval_state, rec.payout_requested_by_id) == ("pending", odoo_env.user)
     with pytest.raises(UserError, match="must be approved"):
@@ -526,7 +526,7 @@ def test_payout_approval_lifecycle(odoo_env):
     rec = _in(odoo_env, "resale_ready", offered_value=5000)
     _approved(odoo_env, rec, 4000)
     assert rec.payout_approval_state == "approved"
-    assert rec.payout_approved_by_id.login == "tradein-payout-approver"
+    assert rec.payout_approved_by_id.login == "tradein-dofa-tier1"
     assert rec.payout_approved_at
     with pytest.raises(UserError, match="already approved"):
         rec.action_request_payout_approval()

@@ -1,8 +1,52 @@
-# M26 governance: model versions, evaluation gates, guard rails. These are
-# real configuration/governance records; evaluation results are keyed in by
-# the reviewer (no metric is invented), and a version only reaches
-# 'deployed' through the approval chain.
-from odoo import fields, models
+# M26 governance: model versions, evaluation gates, guard rails.
+#
+# A11 audit G7 (M26-1/-2/-9/-11): promotion used to be a field anyone with
+# admin typed — a version with two FAILED gates went draft->deployed in one
+# write and nobody stamped who deployed it. Now a version is BORN DRAFT, is
+# promoted only through the M63 approval engine (a Model Owner who is not the
+# registrant decides from their inbox), and only after every evaluation gate
+# reads 'passed' by a reviewer who is not the registrant. Gates default
+# PENDING — an unevaluated gate can no longer pose as a passed one — and once
+# recorded a gate row is evidence: append-only.
+import operator
+import re
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
+from odoo.tools.translate import _
+
+# Kinds whose output affects people (spec §13 names dispatch ranking and
+# seller-facing lead scores): promoting one of these without a PASSED bias
+# gate is refused — 'untested' is not silently treated as 'passed'.
+PEOPLE_AFFECTING_KINDS = {"dispatch_scoring", "lead_scoring"}
+
+MODEL_OWNER_GROUP = "cd_ml_services.group_ml_model_owner"
+
+# ---- guard-rail rule syntax (shared with the inference path) --------------
+#
+# A rail is `<key> <op> <number>` — e.g. 'score >= 40', 'confidence < 0.60'.
+# The condition says when the rail FIRES; `action` says what happens then.
+_GUARDRAIL_RULE_RE = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)\s*$"
+)
+_GUARDRAIL_OPS = {
+    ">=": operator.ge,
+    "<=": operator.le,
+    ">": operator.gt,
+    "<": operator.lt,
+    "=": operator.eq,
+}
+
+
+def parse_guardrail_rule(rule):
+    """(key, op_fn, threshold) for a well-formed rail rule, else None. The
+    inference path and the save-time constraint share this, so what saves is
+    exactly what executes."""
+    match = rule and _GUARDRAIL_RULE_RE.match(rule.strip())
+    if not match:
+        return None
+    key, op_str, number = match.groups()
+    return key, _GUARDRAIL_OPS[op_str], float(number)
 
 
 class FixMlModelVersion(models.Model):
@@ -11,7 +55,14 @@ class FixMlModelVersion(models.Model):
 
     _name = "fix.ml.model.version"
     _description = "AI/ML Model Version"
+    _inherit = ["mail.thread", "fix.approvable.mixin"]
     _order = "model_id, version desc"
+
+    # ---- the M63 routing contract (G7) --------------------------------------
+    _approval_routed = True
+    _approval_domain = "ml_promotion"
+    _approval_apply_method = "action_deploy"
+    _approval_group = MODEL_OWNER_GROUP
 
     name = fields.Char(compute="_compute_name", store=True)
     model_id = fields.Many2one("fix.ml.model", required=True, ondelete="cascade", index=True)
@@ -52,18 +103,219 @@ class FixMlModelVersion(models.Model):
         ],
         required=True,
         default="draft",
+        copy=False,
+        tracking=True,
     )
-    approved_by = fields.Many2one("res.users", readonly=True)
-    deployed_at = fields.Datetime(readonly=True)
+    approved_by = fields.Many2one("res.users", readonly=True, copy=False)
+    deployed_at = fields.Datetime(readonly=True, copy=False)
     gate_ids = fields.One2many("fix.ml.evaluation.gate", "version_id", string="Evaluation Gates")
 
+    # M26-9: the stored compute had no @api.depends, so every version was
+    # named False. It depends on exactly what it reads.
+    @api.depends("model_id.code", "version")
     def _compute_name(self):
         for rec in self:
             rec.name = "%s %s" % (rec.model_id.code or "?", rec.version or "")
 
+    # ---- lifecycle guards (M26-1) -------------------------------------------
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A version is born DRAFT; state/approved_by/deployed_at belong to
+        # the engine (or the superuser seeding baselines).
+        for vals in vals_list:
+            if not self.env.su and any(
+                vals.get(k) for k in ("state", "approved_by", "deployed_at")
+            ):
+                raise UserError(
+                    _(
+                        "A model version is created as a DRAFT and reaches "
+                        "'deployed' only through a promotion request (M26) — "
+                        "state, approver and deploy date are not typeable."
+                    )
+                )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        engine = self.env.su or self.env.context.get("ml_promotion_engine")
+        if not engine and any(k in vals for k in ("state", "approved_by", "deployed_at")):
+            raise UserError(
+                _(
+                    "A model version changes state only through its lifecycle "
+                    "actions (Request Promotion / Deploy / Retire), never by "
+                    "editing the field (M26)."
+                )
+            )
+        return super().write(vals)
+
+    # ---- the registrant / reviewer contract ---------------------------------
+    def _registrant_id(self):
+        """Who registered this version (SoD reference point)."""
+        self.ensure_one()
+        return self.create_uid
+
+    def action_evaluate(self):
+        """Draft -> evaluated: the registrant has keyed in the measured
+        metrics and the model card, and asks for gate reviews."""
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError(_("Only a draft version can be marked evaluated."))
+            if not (rec.model_card or "").strip():
+                raise UserError(
+                    _(
+                        "Complete the model card before evaluation — purpose, "
+                        "intended use and limitations are part of the record, "
+                        "not decoration (BRU-AIM-08)."
+                    )
+                )
+            if not (rec.metrics_json or "").strip():
+                raise UserError(
+                    _(
+                        "Key in the measured metrics from the evaluation run "
+                        "before asking for gate reviews — no number is invented."
+                    )
+                )
+            rec.with_context(ml_promotion_engine=True).write({"state": "evaluated"})
+        return True
+
+    def _assert_gates_promotable(self):
+        """Every gate 'passed', recorded by a reviewer who is not the
+        registrant; a version with no gates fails closed."""
+        self.ensure_one()
+        gates = self.gate_ids
+        registrant = self._registrant_id()
+        if not gates:
+            raise UserError(
+                _(
+                    "Version %s has no evaluation gate results — promotion "
+                    "fails closed until a reviewer records them."
+                )
+                % self.display_name
+            )
+        not_passed = gates.filtered(lambda g: g.result != "passed")
+        if not_passed:
+            raise UserError(
+                _(
+                    "Version %s cannot be promoted: gate(s) %s are %s. Every "
+                    "gate must read 'passed' — a pending or failed gate "
+                    "blocks deployment (BRU-AIM-13)."
+                )
+                % (
+                    self.display_name,
+                    ", ".join(not_passed.mapped("gate")),
+                    ", ".join(
+                        dict(not_passed._fields["result"].selection)[r]
+                        for r in not_passed.mapped("result")
+                    ),
+                )
+            )
+        own = gates.filtered(lambda g: g.checked_by and g.checked_by == registrant)
+        if own:
+            raise UserError(
+                _(
+                    "Version %s cannot be promoted: gate(s) %s were recorded "
+                    "by the registrant %s. A gate counts only when a "
+                    "reviewer who did not register the version signed it "
+                    "(spec §13 SoD)."
+                )
+                % (self.display_name, ", ".join(own.mapped("gate")), registrant.name)
+            )
+        if self.bias_status == "failed":
+            raise UserError(
+                _(
+                    "Version %s failed its bias review — a failed bias gate "
+                    "blocks every promotion."
+                )
+                % self.display_name
+            )
+        if self.model_id.kind in PEOPLE_AFFECTING_KINDS and self.bias_status != "passed":
+            raise UserError(
+                _(
+                    "Model kind '%s' affects people, so version %s needs a "
+                    "PASSED bias review before promotion — 'untested' is not "
+                    "'passed' (BRU-AIM-07)."
+                )
+                % (self.model_id.kind, self.display_name)
+            )
+
+    def action_request_promotion(self, justification=None):
+        """Route the promotion through M63: a Model Owner who is not the
+        registrant decides. Refused before routing unless every gate holds."""
+        for rec in self:
+            if rec.state not in ("draft", "evaluated"):
+                raise UserError(
+                    _("Only a draft or evaluated version can request promotion (current: %s).")
+                    % rec.state
+                )
+            rec._assert_gates_promotable()
+            rec.action_request_approval(
+                justification=justification
+                or "Deploy %s %s (%s)" % (rec.model_id.code, rec.version, rec.model_id.kind)
+            )
+        return True
+
+    def action_deploy(self):
+        """The engine calls this AS THE MODEL OWNER once the request is
+        granted: stamp state/approver/deploy date. Nothing else reaches here
+        (the routed assert is the proof)."""
+        self._approval_assert_routed()
+        for rec in self:
+            if rec.state not in ("draft", "evaluated", "approved"):
+                raise UserError(
+                    _("Only a draft/evaluated/approved version can deploy (current: %s).")
+                    % rec.state
+                )
+            approver = rec.env.user
+            if approver == rec._registrant_id():
+                raise UserError(
+                    _(
+                        "The registrant cannot deploy their own version — the "
+                        "promotion must be decided by another Model Owner "
+                        "(spec §13 SoD)."
+                    )
+                )
+            rec.with_context(ml_promotion_engine=True).write(
+                {
+                    "state": "deployed",
+                    "approved_by": approver.id,
+                    "deployed_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(
+                body=_(
+                    "Deployed by %s through the M63 promotion request. "
+                    "Serving resolves this version from now on."
+                )
+                % approver.name
+            )
+        return True
+
+    def action_retire(self):
+        """Deployed -> retired: a Model Owner's act, never a field edit."""
+        for rec in self:
+            if rec.state != "deployed":
+                raise UserError(
+                    _("Only a deployed version can be retired (current: %s).") % rec.state
+                )
+            if not (self.env.su or self.env.user.has_group(MODEL_OWNER_GROUP)):
+                raise UserError(_("Retiring a deployed version is a Model Owner act (M26)."))
+            rec.with_context(ml_promotion_engine=True).write({"state": "retired"})
+        return True
+
+    def _approval_on_rejected(self, comment):
+        for rec in self:
+            rec.message_post(
+                body=_("Promotion request rejected: %s") % (comment or "no comment recorded")
+            )
+
 
 class FixMlEvaluationGate(models.Model):
-    """One evaluation gate result for a model version (pass/fail, reviewer)."""
+    """One evaluation gate result for a model version.
+
+    A11 audit M26-1: `result` used to default to 'passed' — a gate nobody
+    evaluated read as cleared. It now defaults to PENDING, the reviewer is
+    stamped by the engine (not typed), a reviewer who is also the version's
+    registrant is refused (four eyes), and a recorded gate row is evidence:
+    append-only."""
 
     _name = "fix.ml.evaluation.gate"
     _description = "AI/ML Evaluation Gate"
@@ -87,15 +339,63 @@ class FixMlEvaluationGate(models.Model):
         default="accuracy",
     )
     result = fields.Selection(
-        [("passed", "Passed"), ("failed", "Failed")], required=True, default="passed"
+        [
+            ("pending", "Pending"),
+            ("passed", "Passed"),
+            ("failed", "Failed"),
+        ],
+        required=True,
+        default="pending",
     )
-    checked_by = fields.Many2one("res.users", default=lambda self: self.env.user, readonly=True)
+    checked_by = fields.Many2one("res.users", readonly=True)
     checked_at = fields.Datetime(default=fields.Datetime.now, required=True)
     notes = fields.Char()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # checked_by is STAMPED, never typed (M26-1: the reviewer was
+        # forgeable). A gate is recorded by the person who actually ran the
+        # evaluation, who must not be the version's registrant.
+        for vals in vals_list:
+            vals["checked_by"] = self.env.user.id
+        versions = (
+            self.env["fix.ml.model.version"].browse(
+                {v for vals in vals_list if (v := vals.get("version_id"))}
+            )
+            if any(vals.get("version_id") for vals in vals_list)
+            else self.env["fix.ml.model.version"]
+        )
+        if not self.env.su:
+            for rec in versions:
+                if rec.create_uid and rec.create_uid == self.env.user:
+                    raise UserError(
+                        _(
+                            "You registered version %s, so you cannot record "
+                            "its gate results — a reviewer who is not the "
+                            "registrant must sign them (spec §13 SoD)."
+                        )
+                        % rec.display_name
+                    )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        raise UserError(
+            _("An evaluation gate row is evidence and cannot be edited (M26) — record a new gate.")
+        )
+
+    def unlink(self):
+        raise UserError(_("An evaluation gate row is evidence and cannot be deleted (M26)."))
+
 
 class FixMlGuardrail(models.Model):
-    """A guard rail applied to a model's output (block, flag, fallback)."""
+    """A guard rail applied to a model's output on the inference path.
+
+    A11 audit M26-2/G03: rails existed as configuration no engine read. The
+    rule syntax the inference path enforces is `<key> <op> <number>` (for
+    example ``score >= 40`` or ``confidence < 0.60``); `action` says what a
+    violation does — block the output, flag it for human review, or engage
+    the declared fallback. Every application is recorded on the inference
+    run's output (the immutable decision log)."""
 
     _name = "fix.ml.guardrail"
     _description = "AI/ML Guard Rail"
@@ -106,8 +406,17 @@ class FixMlGuardrail(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    rule = fields.Char(required=True, help="The condition, stated precisely.")
-    threshold = fields.Float()
+    rule = fields.Char(
+        required=True,
+        help="The condition, stated precisely: <key> <op> <number>, e.g. "
+        "'score >= 40' or 'confidence < 0.60'. The key is read from the "
+        "engine's output (a scalar key, or a key of each row when the output "
+        "is a list).",
+    )
+    threshold = fields.Float(
+        help="Kept for the screens; the parsed number in `rule` is what the "
+        "inference path enforces."
+    )
     action = fields.Selection(
         [
             ("flag", "Flag for human review"),
@@ -119,3 +428,65 @@ class FixMlGuardrail(models.Model):
     )
     active = fields.Boolean(default=True)
     note = fields.Char()
+
+    @api.constrains("rule")
+    def _check_rule(self):
+        # What saves is what executes: a rail whose rule does not parse is
+        # refused at save time, never silently skipped at inference time.
+        for rec in self:
+            if rec.rule and parse_guardrail_rule(rec.rule) is None:
+                raise ValidationError(
+                    _(
+                        "Guard rail '%s': rule %r does not parse. State it as "
+                        "<key> <op> <number>, e.g. 'score >= 40' or "
+                        "'confidence < 0.60'."
+                    )
+                    % (rec.name, rec.rule)
+                )
+
+
+class FixMlWeightsRevision(models.Model):
+    """A11 audit M26-A02 (model change control): every change to a model's
+    factor weights is recorded as an immutable revision row — old vector, new
+    vector, who, when. The weights govern every score the engine produces,
+    so a silent edit changed the model without leaving a version, a gate or
+    an approval behind. Revisions are written by the engine (sudo) only:
+    they are an audit trail, not a form."""
+
+    _name = "fix.ml.weights.revision"
+    _description = "AI/ML Model Weights Revision"
+    _order = "changed_at desc, id desc"
+    _rec_name = "changed_at"
+
+    model_id = fields.Many2one("fix.ml.model", required=True, ondelete="cascade", index=True)
+    model_code = fields.Char(related="model_id.code", store=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    previous_json = fields.Text(string="Previous Weights (JSON)")
+    new_json = fields.Text(string="New Weights (JSON)")
+    changed_by = fields.Many2one(
+        "res.users", default=lambda self: self.env.user, readonly=True, index=True
+    )
+    changed_at = fields.Datetime(default=fields.Datetime.now, required=True)
+
+    def write(self, vals):
+        raise UserError(
+            _(
+                "A weights revision is evidence and cannot be edited (M26) — the next change records a new row."
+            )
+        )
+
+    def unlink(self):
+        raise UserError(_("A weights revision is evidence and cannot be deleted (M26)."))
+
+
+class FixApprovalMatrixM26Domains(models.Model):
+    """Register M26's decision domain on the M63 matrix."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("ml_promotion", "AI/ML Model Promotion")],
+        ondelete=dict.fromkeys(("ml_promotion",), "cascade"),
+    )

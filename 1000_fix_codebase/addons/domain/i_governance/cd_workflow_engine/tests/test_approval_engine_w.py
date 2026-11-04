@@ -185,13 +185,21 @@ class TestCalendarChoice:
             or _estimate(env).order_id
         )
         rule_cal, branch_cal, default_cal = calendar("W Rule"), calendar("W Br"), calendar("W Co")
+        # G9: a dated row in force is never edited in place, and this test
+        # clears the rule's calendar mid-run to prove the fall-through. A
+        # FUTURE-dated row is still a draft of a ruling, so it stays editable
+        # — and the request below pins the row by id regardless.
         rule = env["fix.approval.matrix"].create(
             {
                 "decision_domain": "other",
                 "res_model": "fix.service.order",
                 "name": "W calendar rule",
                 "calendar_id": rule_cal.id,
-                "date_from": fields.Date.today(),
+                # context_today (user timezone), the clock the G9 guard
+                # compares against — fields.Date.today() is UTC and Dhaka is
+                # already tomorrow.
+                "date_from": fields.Date.context_today(env["fix.approval.matrix"])
+                + timedelta(days=1),
             }
         )
         req = Request.create(

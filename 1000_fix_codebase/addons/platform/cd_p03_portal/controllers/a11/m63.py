@@ -80,7 +80,10 @@ SURFACES = {
     "fix.approval.matrix": {
         "order": "res_model, decision_domain, date_from desc, id",
         "limit": 200,
-        "actions": {"action_test_rule"},
+        # G9: a dated row in force is never edited in place; New Version
+        # closes it and opens the successor. The engine guard holds the line
+        # regardless of what the form offers.
+        "actions": {"action_test_rule", "action_new_version"},
         "writable": WRITABLE["fix.approval.matrix"],
     },
     # Read-only evidence: requests change only through their tasks, and the
@@ -126,9 +129,9 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def automation_rate(env, date_from=None, date_to=None, **params):
     """Automation rate by process area: automated definitions vs manual tasks."""
-    automations = env["fix.automation"].sudo().search([])
-    tasks = env["fix.workflow.task"].sudo().search([])
-    rules = env["fix.business.rule"].sudo().search([])
+    automations = env["fix.automation"].search([])
+    tasks = env["fix.workflow.task"].search([])
+    rules = env["fix.business.rule"].search([])
     groups = {}
     for rule in rules:
         key = rule.domain_area or "Unassigned"
@@ -178,7 +181,7 @@ def automation_rate(env, date_from=None, date_to=None, **params):
 
 def approval_cycle_time(env, date_from=None, date_to=None, **params):
     """Approval cycle time: decided tasks from creation to decision."""
-    tasks = env["fix.workflow.task"].sudo().search([("state", "=", "done")])
+    tasks = env["fix.workflow.task"].search([("state", "=", "done")])
     rows = []
     for task in tasks:
         if not (task.created_at and task.decided_at):
@@ -219,8 +222,8 @@ def approval_cycle_time(env, date_from=None, date_to=None, **params):
 
 def escalation_analysis(env, date_from=None, date_to=None, **params):
     """Escalation analysis: escalated instances and overdue pending tasks."""
-    instances = env["fix.workflow.instance"].sudo().search([("escalated", "=", True)])
-    tasks = env["fix.workflow.task"].sudo().search([("state", "=", "pending")])
+    instances = env["fix.workflow.instance"].search([("escalated", "=", True)])
+    tasks = env["fix.workflow.task"].search([("state", "=", "pending")])
     now = fields_datetime_now()
     rows = []
     for instance in instances:
@@ -271,7 +274,7 @@ def escalation_analysis(env, date_from=None, date_to=None, **params):
 
 def rule_change_log(env, date_from=None, date_to=None, **params):
     """Rule change log: version bumps and last editor per rule."""
-    rules = env["fix.business.rule"].sudo().search([])
+    rules = env["fix.business.rule"].search([])
     rows = []
     for rule in rules:
         rows.append(
@@ -373,7 +376,7 @@ def a02_control_figures(env) -> dict:
     }
     Shift = env.get("fix.cash.shift")
     if Shift is not None:
-        approved = Shift.sudo().search([("supervisor_variance_approved_by", "!=", False)])
+        approved = Shift.search([("supervisor_variance_approved_by", "!=", False)])
         out["cash_variance_self_approved"] = len(
             approved.filtered(
                 lambda s: (
@@ -383,19 +386,19 @@ def a02_control_figures(env) -> dict:
         )
     Cert = env.get("fix.data.wipe.certificate")
     if Cert is not None:
-        verified = Cert.sudo().search([("verified_by_id", "!=", False)])
+        verified = Cert.search([("verified_by_id", "!=", False)])
         out["wipe_cert_self_verified"] = len(
             verified.filtered(lambda c: c.verified_by_id == c.technician_id)
         )
     Order = env.get("fix.service.order")
     if Order is not None:
-        delivered = Order.sudo().search([("state", "in", ("delivered", "closed"))])
+        delivered = Order.search([("state", "in", ("delivered", "closed"))])
         out["delivery_otp_verified_pct"] = _pct(
             len(delivered.filtered("delivery_otp_verified")), len(delivered)
         )
     Field = env.get("fix.field.order")
     if Field is not None:
-        done = Field.sudo().search([("state", "=", "completed")])
+        done = Field.search([("state", "=", "completed")])
         evidenced = done.filtered(
             lambda f: (
                 (f.customer_otp_verified or f.customer_signature_attachment_id)
@@ -448,10 +451,10 @@ REPORTS = {
 
 
 def kpis(env):
-    automations = env["fix.automation"].sudo().search([])
-    instances = env["fix.workflow.instance"].sudo().search([])
-    tasks = env["fix.workflow.task"].sudo().search([])
-    rules = env["fix.business.rule"].sudo().search([])
+    automations = env["fix.automation"].search([])
+    instances = env["fix.workflow.instance"].search([])
+    tasks = env["fix.workflow.task"].search([])
+    rules = env["fix.business.rule"].search([])
     decided = tasks.filtered(lambda t: t.state == "done" and t.created_at and t.decided_at)
     month_start = datetime.date.today().replace(day=1)
     escalations = instances.filtered(

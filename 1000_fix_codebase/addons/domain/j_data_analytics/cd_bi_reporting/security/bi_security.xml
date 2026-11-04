@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A11 audit M25-11 / D02: the module shipped no BI role at all, so every
+  form was admin-only. The G8/E6 build adds the five roles the spec names:
+  author (builds content), certifier (Data Steward — approves through M63,
+  never the author), operator (runs the sync), company-wide reader
+  (executive tiles may cross OU boundaries INSIDE allowed companies) and
+  finance reader (the finance pack).
+
+  Members are appointed by the business; the development admin is seeded
+  only so the workspace keeps working on development databases.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_bi_author" model="res.groups.privilege">
+            <field name="name">BI Author</field>
+            <field name="description">Builds BI dashboards, schedules and alerts (M25).</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="privilege_bi_certifier" model="res.groups.privilege">
+            <field name="name">BI Data Steward / Certifier</field>
+            <field name="description">Certifies BI content through the approval engine (M63).</field>
+            <field name="sequence">31</field>
+        </record>
+        <record id="privilege_bi_operator" model="res.groups.privilege">
+            <field name="name">BI Sync Operator</field>
+            <field name="description">Runs BI snapshots and manages sync configurations (M25).</field>
+            <field name="sequence">32</field>
+        </record>
+        <record id="privilege_bi_company_wide" model="res.groups.privilege">
+            <field name="name">BI Company-Wide Reader</field>
+            <field name="description">Reads BI tiles across operating units of the allowed companies.</field>
+            <field name="sequence">33</field>
+        </record>
+        <record id="privilege_bi_finance" model="res.groups.privilege">
+            <field name="name">BI Finance Reader</field>
+            <field name="description">Opens the finance pack and the CFO role dashboard.</field>
+            <field name="sequence">34</field>
+        </record>
+
+        <record id="group_bi_author" model="res.groups">
+            <field name="name">BI Author</field>
+            <field name="privilege_id" ref="privilege_bi_author"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Builds and edits dashboards, distribution schedules and alerts. Cannot certify own content (author != steward, M63).</field>
+        </record>
+
+        <record id="group_bi_certifier" model="res.groups">
+            <field name="name">BI Data Steward / Certifier</field>
+            <field name="privilege_id" ref="privilege_bi_certifier"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves dashboard certification through the approval engine (M63). Never the author of the content being certified.</field>
+        </record>
+
+        <record id="group_bi_operator" model="res.groups">
+            <field name="name">BI Sync Operator</field>
+            <field name="privilege_id" ref="privilege_bi_operator"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Runs BI snapshots and manages sync configurations. Every run is stamped with who ran it (fix.bi.sync.log.ran_by).</field>
+        </record>
+
+        <record id="group_bi_company_wide" model="res.groups">
+            <field name="name">BI Company-Wide Reader</field>
+            <field name="privilege_id" ref="privilege_bi_company_wide"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Executive tier: reads BI tiles across ALL operating units of the allowed companies. Without this group every tile is read as the caller, under the caller's own record rules (BRU-BID-02).</field>
+        </record>
+
+        <record id="group_bi_finance" model="res.groups">
+            <field name="name">BI Finance Reader</field>
+            <field name="privilege_id" ref="privilege_bi_finance"/>
+            <field name="implied_ids" eval="[(4, ref('group_bi_company_wide'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">May open the finance pack and the CFO role dashboard (AR outstanding, overdue, collections). Export of those packs is logged (BRU-BID-11).</field>
+        </record>
+
+    </data>
+</odoo>

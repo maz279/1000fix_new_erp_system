@@ -3,6 +3,7 @@
 # (register / governance / STT endpoints; repo root = __file__.parents[5]).
 import json
 import sys
+import threading
 import types
 from datetime import date, timedelta
 from types import SimpleNamespace
@@ -266,7 +267,13 @@ def test_governance_evidence_passthrough(repo, endpoint, filename):
         "error": {"code": "not_found", "message": f"{filename} not found"}
     }
     _write(repo, EVIDENCE + filename, {"status": "PASS", "file": filename})
-    assert getattr(API, endpoint)() == {"status": "PASS", "file": filename}
+    # A11 audit E5: the artefact is served verbatim AND labelled as a frozen
+    # audit artefact — the endpoint must not imply a live measurement.
+    result = getattr(API, endpoint)()
+    assert result["status"] == "PASS" and result["file"] == filename
+    assert result["is_frozen_artifact"] is True
+    assert result["artifact"] == filename
+    assert "NOT a live measurement" in result["note"]
 
 
 def test_governance_lineage(repo):
@@ -324,3 +331,63 @@ def test_stt_dashboard_reports_an_unavailable_service(repo, monkeypatch):
     assert result["drift_monitoring"] == {"drift_detected": False, "status": "HEALTHY"}
     assert result["active_version"] == "1.0.0"
     assert "stt" in result["error"]
+
+
+# --- route registration & the published contract ------------------------------------
+# A11 P3: these replaced the old source-grep suite (assertIn on the .py text).
+# The behaviour under test is what the SERVER actually registered, read from
+# the live routing map — if a decorator drifts, the map drifts with it.
+
+ANALYTICS_ROUTES = (
+    "/analytics/dashboards",
+    "/analytics/kpis",
+    "/analytics/kpis/register",
+    "/analytics/governance/catalogue",
+    "/analytics/governance/lineage",
+    "/analytics/governance/dq",
+    "/analytics/governance/residency",
+    "/analytics/stt/dashboard",
+)
+
+
+def test_routes_are_registered_jsonrpc_user_readonly(live):
+    registered = {}
+    # routing_map() builds lazily via Registry(threading.current_thread().dbname);
+    # Odoo sets that attribute on its worker threads, pytest runs on the bare
+    # main thread — stamp it for the duration, restore afterwards.
+    thread = threading.current_thread()
+    previous = getattr(thread, "dbname", None)
+    thread.dbname = live.cr.dbname
+    try:
+        rules = list(live["ir.http"].routing_map().iter_rules())
+    finally:
+        if previous is None:
+            del thread.dbname
+        else:
+            thread.dbname = previous
+    for rule in rules:
+        path = rule.rule
+        if path.startswith("/analytics"):
+            registered[path] = rule.endpoint.routing
+    assert sorted(registered) == sorted(ANALYTICS_ROUTES), (
+        "the analytics surface changed: %s" % sorted(registered)
+    )
+    for path, routing in registered.items():
+        assert routing.get("type") == "jsonrpc", "%s is not jsonrpc" % path
+        assert routing.get("auth") == "user", "%s is not auth=user" % path
+        assert routing.get("readonly") is True, "%s is not readonly" % path
+
+
+def test_openapi_contract_lists_the_analytics_operations():
+    """The published W4 contract carries the same eight operations the server
+    registers (the contract file is data, not module source)."""
+    import json
+    from pathlib import Path
+
+    spec = json.loads(
+        (
+            Path(__file__).resolve().parents[5] / "contracts" / "openapi" / "w4-portals.json"
+        ).read_text(encoding="utf-8")
+    )
+    missing = [r for r in ANALYTICS_ROUTES if r not in spec["paths"]]
+    assert not missing, "the OpenAPI contract is missing %s" % missing

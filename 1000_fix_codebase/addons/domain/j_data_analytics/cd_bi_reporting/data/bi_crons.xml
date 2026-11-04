@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A11 audit M25-5/M25-6 (wiring): nothing ever ran the snapshot engine or
+  the distribution worker — freshness depended on a manual click and
+  schedules sat at last_status=never forever. These two crons are the
+  missing send/refresh side of the module.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="ir_cron_bi_sync_snapshot" model="ir.cron">
+            <field name="name">M25: BI snapshot refresh</field>
+            <field name="model_id" ref="model_fix_bi_sync_config"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_run_enabled()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="ir_cron_bi_distribution" model="ir.cron">
+            <field name="name">M25: BI distribution worker</field>
+            <field name="model_id" ref="model_fix_bi_distribution_schedule"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_dispatch()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="ir_cron_bi_alerts" model="ir.cron">
+            <field name="name">M25: BI alert evaluator</field>
+            <field name="model_id" ref="model_fix_bi_alert_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_evaluate()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

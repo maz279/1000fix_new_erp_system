@@ -12,12 +12,13 @@
     " predictive maintenance, fault-code classification, trade-in valuation,"
     " BI aggregation. Demand forecasting stays honestly 'planned' until the"
     " M15 consumption-history seam exists.",
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
     "depends": [
         "base",
+        "mail",
         "cd_entity_config",
         "cd_field_service",
         "cd_service_order",
@@ -25,12 +26,15 @@
         "cd_demand_plan",
         "cd_tradein",
         "cd_bi_reporting",
+        "cd_workflow_engine",
     ],
     "data": [
+        "security/ml_security.xml",
         "data/fix_ml_lead_scoring_data.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ml_model_catalog.xml",
+        "data/ml_versions.xml",
     ],
     "installable": True,
     "application": False,

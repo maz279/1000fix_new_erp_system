@@ -37,6 +37,18 @@ class FixTradeinRequest(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "create_date desc, id desc"
 
+    # A11 audit P2 (A05 area): the payout used to be a bespoke four-eyes flag
+    # anyone but the requester could press — no request record, no named
+    # approver, no deadline, no delegate, no history. It is now ONE routed M63
+    # request: the grader asks (action_request_payout_approval), the engine
+    # routes to the holders of the tier the graded value derives (minus the
+    # grader and the amount-changer), and the inbox decision stamps the payout
+    # AND the DOFA sign-off it needs in one act. The graded value is the
+    # approval amount, so re-grading while the request is pending withdraws it.
+    _approval_domain = "tradein_payout"
+    _approval_apply_method = "action_approve_payout"
+    _approval_routed = True
+
     # A05 DOFA matrix — Customer Trade-In Valuation & Payout: Appraisal
     # Specialist to 50k, Service Hub Lead to 250k, Head of Circular Economy
     # to 1M, CFO above.
@@ -564,8 +576,9 @@ class FixTradeinRequest(models.Model):
                 },
             )
 
-    def action_request_payout_approval(self):
-        """Submit the graded payout value for approval (after grading)."""
+    def action_request_payout_approval(self, justification=None):
+        """Submit the graded payout value for approval (after grading) — one
+        routed M63 request decides the payout and its DOFA sign-off."""
         for rec in self:
             if rec.state not in ("resale_ready", "graded"):
                 raise UserError("Payout approval from graded or resale-ready")
@@ -584,13 +597,20 @@ class FixTradeinRequest(models.Model):
                     "payout_approved_at": False,
                 }
             )
+            rec.action_request_approval(
+                justification=justification
+                or "Trade-in payout of BDT %.2f" % (rec.graded_value or 0.0)
+            )
         return True
 
     def action_approve_payout(self):
-        """Four-eyes approval: the approver is not the requester."""
+        """The payout approval — from the approver's M63 inbox only (a direct
+        press is refused). The one decision stamps the payout and the DOFA
+        sign-off for the graded amount."""
         for rec in self:
             if rec.payout_approval_state != "pending":
                 raise UserError("Only a pending payout can be approved")
+            self._approval_assert_routed()
             if rec.payout_requested_by_id.id == self.env.uid:
                 raise UserError("Four-eyes: the payout requester cannot approve their own payout")
             rec.write(
@@ -600,7 +620,22 @@ class FixTradeinRequest(models.Model):
                     "payout_approved_at": fields.Datetime.now(),
                 }
             )
+            # The DOFA sign-off rides the same inbox decision (the routed
+            # assert inside accepts this task's context).
+            if rec.dofa_tier_required not in (False, "tier_0"):
+                rec.action_dofa_approve()
         return True
+
+    def _approval_on_rejected(self, comment):
+        """An inbox rejection declines the payout: the grader re-grades or
+        lets the request lapse."""
+        for rec in self:
+            if rec.payout_approval_state == "pending":
+                rec.write({"payout_approval_state": "rejected"})
+            rec.message_post(
+                body="Payout approval rejected by %s: %s"
+                % (rec.env.user.name, comment or "no comment recorded")
+            )
 
     def action_reject_payout(self):
         for rec in self:
@@ -792,3 +827,15 @@ class FixRefurbishment(models.Model):
                         rec.total_cost,
                     )
                 )
+
+
+class FixApprovalMatrixTradeinDomains(models.Model):
+    """A11 audit P2: lets a DoA matrix row target the routed trade-in payout
+    (SLA, escalation, policy) without touching any other DOFA approval."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("tradein_payout", "Trade-In Payout")],
+        ondelete={"tradein_payout": "cascade"},
+    )

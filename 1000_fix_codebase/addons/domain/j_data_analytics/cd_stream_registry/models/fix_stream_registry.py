@@ -352,6 +352,24 @@ class FixPredictiveMaintenance(models.Model):
     _description = "Predictive Maintenance Prediction"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
+    # A11 audit M26-P02: prediction/confidence/days/model_name are the
+    # MODEL'S OUTPUT, and an output is recorded, never rewritten — a plain
+    # user could flip healthy/0.95 to failure_predicted/0.2 after the fact
+    # and raise a work order from a decision no engine made. Recording a NEW
+    # prediction stays free (that is the intake act); an existing row's
+    # output half is locked here and shown read-only on the P03 form. A
+    # re-assessment records a NEW prediction row — the same decision-log
+    # rule the M26 inference runs follow.
+    _OUTPUT_FIELDS = {
+        "prediction",
+        "confidence",
+        "estimated_days_to_failure",
+        "model_name",
+        "feature_window_from",
+        "feature_window_to",
+        "last_evaluated",
+    }
+
     # A07 P0 recipe (2026-11-03) M48-5: a plain user typed outcome=confirmed
     # on five predictions and the precision KPI went 0 -> 100%, and set
     # work_order_created with no work order. The outcome is now recorded only
@@ -366,6 +384,28 @@ class FixPredictiveMaintenance(models.Model):
             "outcome_action_id",
             "work_order_created",
         }
+
+    def _fix_form_locked_fields(self) -> set:
+        # The output half is locked ON THE FORM for every existing record
+        # (P03 reads this), but not via _fix_guarded_fields so RECORDING a
+        # new prediction keeps its natural create values.
+        return super()._fix_form_locked_fields() | self._OUTPUT_FIELDS
+
+    def write(self, vals):
+        # P02: the lock itself. Only the engine (superuser code or a guard
+        # token) rewrites an output; anyone else records a new prediction.
+        if self and not self._fix_guard_open():
+            touched = self._OUTPUT_FIELDS & set(vals)
+            if touched:
+                changed = {
+                    name
+                    for rec in self
+                    for name in touched
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+                if changed:
+                    self._fix_guard_refuse(changed)
+        return super().write(vals)
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company

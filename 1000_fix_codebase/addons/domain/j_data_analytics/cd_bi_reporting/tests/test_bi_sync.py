@@ -36,9 +36,14 @@ def test_snapshot_metrics_match_live_counts(odoo_env):
     cfg = _config(odoo_env)
     orders = odoo_env["fix.service.order"]
     metrics = cfg._compute_snapshot_metrics()
-    assert metrics["orders_open"] == orders.search_count([("state", "in", OPEN_STATES)])
-    assert metrics["orders_in_repair"] == orders.search_count([("state", "=", "in_repair")])
-    assert isinstance(metrics["revenue_approved_mtd"], int | float)
+    company = [("company_id", "=", cfg.company_id.id)]
+    assert metrics["orders_open"] == orders.search_count([("state", "in", OPEN_STATES), *company])
+    assert metrics["orders_in_repair"] == orders.search_count(
+        [("state", "=", "in_repair"), *company]
+    )
+    # E5: delivered by its own stamp, quotes named what they are
+    assert "orders_delivered_mtd" in metrics
+    assert isinstance(metrics["quotes_value_mtd"], int | float)
 
 
 def test_run_sync_logs_real_snapshot(odoo_env):

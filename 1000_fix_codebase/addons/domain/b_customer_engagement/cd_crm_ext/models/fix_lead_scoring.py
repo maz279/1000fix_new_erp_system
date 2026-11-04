@@ -139,13 +139,15 @@ class FixCrmScoreModel(models.Model):
     basis = fields.Selection(
         [
             ("heuristic", "Declared heuristic (inspectable factors)"),
-            ("m26_model", "M26 machine-learning model"),
+            ("m26_model", "Registered M26 engine (deterministic — not a fitted model)"),
         ],
         required=True,
         default="heuristic",
         help="A heuristic is NOT a prediction, and the score records which it "
         "was. A seller who thinks a number came from a trained model will "
-        "act on it differently.",
+        "act on it differently. The registered M26 lead-scoring engine is "
+        "rule-based: chosen factor weights over live facts, never a fitted "
+        "statistical model — and it is labelled as exactly that.",
     )
     m26_model_ref = fields.Char(
         string="M26 Model Reference",
@@ -275,12 +277,16 @@ class FixCrmScoreModel(models.Model):
             },
             ensure_ascii=False,
         )
-        run = Run.sudo().create(
-            {
-                "model_id": model.id,
-                "input_text": payload,
-                "company_id": lead.company_id.id or self.env.company.id,
-            }
+        run = (
+            Run.sudo()
+            .with_context(ml_inference_gateway=True)
+            .create(
+                {
+                    "model_id": model.id,
+                    "input_text": payload,
+                    "company_id": lead.company_id.id or self.env.company.id,
+                }
+            )
         )
         try:
             run.action_execute()
@@ -326,8 +332,10 @@ class FixCrmScoreModel(models.Model):
             "score": bounded,
             "band": self._band(bounded),
             "basis": "m26_model",
-            "reasons": "Predicted by M26 model %s (run %d, %dms)."
-            % (model.code, run.id, run.latency_ms or 0),
+            "reasons": "Scored by the registered M26 engine %s "
+            "(implementation %s — chosen factor weights, not a fitted "
+            "prediction; run %d, %dms)."
+            % (model.code, model.implementation, run.id, run.latency_ms or 0),
             "model": self.code,
         }
 
@@ -366,7 +374,7 @@ class CrmLeadScoring(models.Model):
     lead_score_basis = fields.Selection(
         [
             ("heuristic", "Declared heuristic"),
-            ("m26_model", "M26 model prediction"),
+            ("m26_model", "Registered M26 engine (deterministic rules)"),
             ("m26_unavailable", "M26 unavailable — not scored"),
         ],
         readonly=True,
