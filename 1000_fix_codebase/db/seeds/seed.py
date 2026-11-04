@@ -1585,7 +1585,26 @@ def main() -> int:
         brd = c.call("fix.brand", "search", [], limit=3) or [1]
         ste = c.call("fix.site", "search", [], limit=3) or [1]
         prj = c.call("fix.project", "search", [], limit=3) or [1]
-        veh = c.call("fleet.vehicle", "search", [], limit=3) or [1]
+        veh = c.call("fleet.vehicle", "search", [], limit=3)
+        if not veh:
+            # A07 P1 (M46): a fresh database has no vehicles, and the old `or [1]`
+            # pointed every vehicle row below at a record that does not exist.
+            vbrand = c.first("fleet.vehicle.model.brand", [("name", "=", "Seed Van Brand")])
+            vbrand = vbrand or c.call(
+                "fleet.vehicle.model.brand", "create", {"name": "Seed Van Brand"}
+            )
+            vmodel = c.first("fleet.vehicle.model", [("name", "=", "Seed Van")])
+            vmodel = vmodel or c.call(
+                "fleet.vehicle.model", "create", {"name": "Seed Van", "brand_id": vbrand}
+            )
+            veh = [
+                c.call(
+                    "fleet.vehicle",
+                    "create",
+                    {"model_id": vmodel, "license_plate": f"SEED-VAN-{i + 1}"},
+                )
+                for i in range(2)
+            ]
         ncr = c.call("fix.ncr", "search", [], limit=3) or [1]
         ctr = c.call("fix.contract", "search", [], limit=1) or [1]
         mspc = c.call("fix.msp.contract", "search", [], limit=1) or [1]
