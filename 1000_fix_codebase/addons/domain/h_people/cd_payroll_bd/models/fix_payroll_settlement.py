@@ -12,7 +12,12 @@
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .fix_payroll_statutory import notice_served_days, separation_figures, statutory_basis
+from .fix_payroll_statutory import (
+    death_rules,
+    notice_served_days,
+    separation_figures,
+    statutory_basis,
+)
 
 
 def separation_contract(env, employee, as_of):
@@ -54,6 +59,10 @@ class FixHrExitPayrollSettlement(models.Model):
         if not last_day:
             raise UserError("Set the last working day of %s before settling." % self.display_name)
         basic, joining = separation_contract(self.env, employee, last_day)
+        death = {}
+        if self.exit_type == "death":
+            min_years, at_work = death_rules(self)
+            death = {"death_min_service_years": min_years, "death_at_work": at_work}
         years, lines = separation_figures(
             basic,
             joining,
@@ -61,13 +70,16 @@ class FixHrExitPayrollSettlement(models.Model):
             self.exit_type,
             notice_served_days=notice_served_days(self.notice_date, last_day),
             unused_leave_days=unused_leave_days(employee, last_day),
+            **death,
         )
         company = self.company_id or employee.company_id
+        # M56-11: the statutory pack in force on the last day names the rule set
+        pack = self.env["fix.statutory.pack"]._pack_for(company, last_day)
         net = float(sum(amount for _key, _label, amount in lines))
         basis = (
             "exit=%s; joined=%s; last_day=%s; completed_years=%d; basic=%.2f; %s; "
             "final month's salary is paid by the monthly run prorated to the last day (I3)"
-            % (self.exit_type, joining, last_day, years, basic, statutory_basis(company))
+            % (self.exit_type, joining, last_day, years, basic, statutory_basis(company, pack))
         )
         return {
             "lines": [(label, float(amount)) for _key, label, amount in lines],
@@ -108,6 +120,11 @@ class FixHrExitPayrollSettlement(models.Model):
                     "Exit %s already has settlement payment %s."
                     % (rec.display_name, existing[0].name)
                 )
+            if rec.exit_type == "death":
+                # BLA s.19: the benefit goes to the NOMINEES, one payment each,
+                # with the share M21 pinned at settlement
+                created |= rec._fix_nominee_payments(OffCycle, user, breakdown)
+                continue
             created |= OffCycle._guarded().create(
                 {
                     "prepared_by_id": user.id,
@@ -125,3 +142,44 @@ class FixHrExitPayrollSettlement(models.Model):
                 }
             )
         return {"offcycle_ids": created.ids}
+
+    def _fix_nominee_payments(self, OffCycle, user, breakdown):
+        """One DRAFT off-cycle per pinned nominee payee of a death exit. The
+        payees and amounts are M21's pin (exit._fix_nominee_payees()); they
+        must add up to the settlement net."""
+        self.ensure_one()
+        payees = self._fix_nominee_payees() if hasattr(self, "_fix_nominee_payees") else []
+        if not payees:
+            raise UserError(
+                "Exit %s has no pinned nominee split: compute its settlement first (BLA s.19 "
+                "pays the nominees)." % self.display_name
+            )
+        currency = self.currency_id or self.env.ref("base.BDT")
+        total = currency.round(sum(float(p.get("amount") or 0.0) for p in payees))
+        if currency.compare_amounts(total, breakdown["net"]) != 0:
+            raise UserError(
+                "Exit %s's nominee split totals %.2f but the settlement is %.2f."
+                % (self.display_name, total, breakdown["net"])
+            )
+        created = OffCycle
+        for payee in payees:
+            amount = float(payee.get("amount") or 0.0)
+            if amount <= 0:
+                continue
+            created |= OffCycle._guarded().create(
+                {
+                    "prepared_by_id": user.id,
+                    "employee_id": self.employee_id.id,
+                    "company_id": self.company_id.id,
+                    "payment_type": "settlement",
+                    "payment_date": fields.Date.context_today(self),
+                    "exit_id": self.id,
+                    "amount": amount,
+                    "nominee_dependant_id": payee.get("dependant_id") or False,
+                    "nominee_name": payee.get("name") or False,
+                    "nominee_share_pct": float(payee.get("share_pct") or 0.0),
+                    "reason": "Death-in-service settlement of %s (BLA s.19): %s, %.2f%% nominee"
+                    % (self.display_name, payee.get("name") or "?", payee.get("share_pct") or 0.0),
+                }
+            )
+        return created

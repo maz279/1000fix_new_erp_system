@@ -53,6 +53,32 @@ def master_bank_details(employee):
     return (record_acc or field_acc or False), routing, bank_name, ""
 
 
+def master_payment_channel(employee):
+    """('bank' | 'mfs', provider, wallet) for the employee's salary.
+
+    The master has no explicit salary-channel field (cd_hr_core holds a bank
+    account and, separately, an MFS wallet "for daily allowances & field
+    expenses"). The rule taken here (A09 round 2 decision, M56): an employee
+    with ANY registered bank account is paid by bank, as today; an employee
+    with no bank account and a registered MFS wallet is paid to the wallet."""
+    master = employee.sudo()
+    has_bank = bool(
+        (master.primary_bank_account_id.acc_number or "").strip()
+        or (
+            (master.bank_account_number or "").strip()
+            if "bank_account_number" in master._fields
+            else ""
+        )
+    )
+    wallet = (
+        (master.mfs_account_number or "").strip() if "mfs_account_number" in master._fields else ""
+    )
+    provider = master.mfs_provider if "mfs_provider" in master._fields else False
+    if not has_bank and wallet:
+        return "mfs", provider or False, wallet
+    return "bank", False, False
+
+
 def check_releaser(records, what, conflicted):
     """SoD-29 / BRU-PAY-03: the releaser holds the release role and is none of
     the users `conflicted(rec)` returns (preparer, calculator, approver)."""

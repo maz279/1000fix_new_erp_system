@@ -498,6 +498,8 @@ def test_wppf_needs_a_second_payroll_manager_and_freezes_the_profit(w):
             "company_id": w.co.id,
             "trustee_board_resolution_ref": "TRUSTEE/2026/01",
             "trustee_resolution_file": RESOLUTION_PDF,
+            "audited_statement_file": RESOLUTION_PDF,
+            "audit_report_ref": "AUDIT/FY26/01",
         }
     )
     a.action_calculate()
@@ -519,6 +521,8 @@ def test_wppf_needs_a_second_payroll_manager_and_freezes_the_profit(w):
             "company_id": w.co.id,
             "trustee_board_resolution_ref": "R",
             "trustee_resolution_file": RESOLUTION_PDF,
+            "audited_statement_file": RESOLUTION_PDF,
+            "audit_report_ref": "AUDIT/FY27/01",
         }
     )
     b.action_calculate()

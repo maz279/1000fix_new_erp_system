@@ -441,6 +441,13 @@ def test_completed_on_call_allowance_is_paid_and_listed(w):
     )
     done.action_start()
     done.action_complete()
+    if "approved_allowance" in OnCall._fields:
+        # I9 (M55 round 2): payroll pays the APPROVED allowance; M55's approval
+        # of the full 1,500 is played as a database write here
+        w.env.cr.execute(
+            "UPDATE fix_hr_oncall SET approved_allowance = 1500 WHERE id = %s", (done.id,)
+        )
+        w.env.invalidate_all()
     OnCall.create(  # planned, never worked: not paid
         {
             "employee_id": w.karim.id,
@@ -983,6 +990,8 @@ def test_wppf_needs_the_signed_resolution_and_a_routed_decision(w):
         {
             "fiscal_year": "2025-2026",
             "net_profit": 10_000_000.0,
+            "audited_statement_file": FILE,
+            "audit_report_ref": "AUD-FY26-1",
             "trustee_board_resolution_ref": "typed-by-officer",
         }
     )
@@ -1224,6 +1233,8 @@ def test_wppf_posts_only_to_configured_accounts(w):
         {
             "fiscal_year": "2025-2026",
             "net_profit": 10_000_000.0,
+            "audited_statement_file": FILE,
+            "audit_report_ref": "AUD-FY26-1",
             "trustee_board_resolution_ref": "R1",
             "trustee_resolution_file": FILE,
             "bwwf_challan_ref": "C1",

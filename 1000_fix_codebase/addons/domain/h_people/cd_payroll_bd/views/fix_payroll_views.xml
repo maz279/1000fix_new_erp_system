@@ -511,6 +511,16 @@
                             <field name="ot_divisor_hours"/>
                             <field name="ita_exemption_ceiling"/>
                         </group>
+                        <group string="Round-2 Decisions (0 / today's method = off)">
+                            <field name="payroll_tds_method"/>
+                            <field name="payroll_bonus_tds"/>
+                            <field name="payroll_variance_threshold_pct"/>
+                            <field name="payroll_bank_cooloff_days"/>
+                            <field name="payroll_wppf_min_service_months"/>
+                            <field name="payroll_wppf_bank_account_id"/>
+                            <field name="payroll_gratuity_expense_account_id"/>
+                            <field name="payroll_gratuity_provision_account_id"/>
+                        </group>
                     </group>
                 </page>
             </xpath>

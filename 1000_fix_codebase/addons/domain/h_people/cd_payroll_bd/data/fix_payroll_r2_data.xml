@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 round 2 (M56).
+     * M56-11: statutory pack version 1 holds EXACTLY the figures payroll used
+       before packs existed (libs/py/payroll_engine: tax table FY 2026-27,
+       OT_DIVISOR_HOURS 208, SALARY_EXEMPTION_CEILING 450,000, the separation
+       bands citing a 2026 amendment) and says so: "as coded, unsourced". It
+       applies to every company until a sourced pack is prepared by one
+       Payroll Manager and approved by a second. No new rate is introduced.
+     * FR-PAY-022: the monthly gratuity provision (a cron method without its
+       ir.cron record never runs: the deployment test asserts this record). -->
+<odoo>
+    <data noupdate="1">
+        <record id="statutory_pack_v1_as_coded" model="fix.statutory.pack">
+            <field name="company_id" eval="False"/>
+            <field name="version">1</field>
+            <field name="state">baseline</field>
+            <field name="basis">as_coded</field>
+            <field name="effective_from">2000-01-01</field>
+            <field name="tax_table_rule">engine_fy2026_27</field>
+            <field name="ot_divisor_hours">208</field>
+            <field name="exemption_ceiling">450000</field>
+            <field name="separation_rule">engine_2026_amendment</field>
+            <field name="prepared_by_id" eval="False"/>
+            <field name="source_note">As coded, unsourced. These are the constants libs/py/payroll_engine applied before statutory packs existed: the FY 2026-27 tax table (375k/400k/475k/500k thresholds, 10-30% slabs, minimum tax 5,000/4,000/3,000), the 208-hour overtime divisor (labelled "BLR 2015 formula", no citation), the ITA 2023 Para 27 ceiling of BDT 450,000 and the gratuity / resignation bands citing a Labour (Amendment) Act 2026 that no repository source holds. None is confirmed by a tax adviser or labour counsel (A09 report 7.3 / 7.4); the A09 audit found the tax thresholds contradicted by the hr.employee category labels (400k/450k/500k/525k).</field>
+        </record>
+    </data>
+    <data>
+        <record id="ir_cron_payroll_gratuity_accrual" model="ir.cron">
+            <field name="name">M56: monthly gratuity provision (FR-PAY-022)</field>
+            <field name="model_id" ref="model_fix_payroll_gratuity_accrual"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_accrue_gratuity()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -25,10 +25,13 @@
 #   * the certificate counts the fiscal year's paid slips only; the return is
 #     filed by a Payroll Manager with the challan and the NBR acknowledgement,
 #     and a daily cron reminds payroll of returns falling due (M56-10).
+import re
 from datetime import date, timedelta
+from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
-from odoo import api, fields, models
+from odoo import Command, api, fields, models
+from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -38,6 +41,7 @@ from .fix_payroll_disbursement import (
     PAYMENT_GL_ACCOUNTS,
     check_releaser,
     master_bank_details,
+    master_payment_channel,
     payroll_gl_journal,
     post_two_line_entry,
 )
@@ -47,11 +51,14 @@ from .fix_payroll_statutory import (
     FESTIVAL_BONUSES_PER_YEAR,
     digest_rows,
     fiscal_year_bounds,
+    marginal_rate,
     q2,
 )
 
 PAYROLL_MANAGER = "cd_payroll_bd.group_payroll_manager"
 PAYROLL_OFFICER = "cd_payroll_bd.group_payroll_officer"
+# An 11-digit Bangladesh mobile wallet (cd_hr_core's MFS format).
+MFS_WALLET_RE = re.compile(r"^01[3-9]\d{8}$")
 # A paid run: what a certificate or a return reports (a calculated or approved
 # run may still change or never be paid).
 PAID_PERIOD_STATES = ("paid", "posted")
@@ -149,6 +156,20 @@ class FixFestivalBonusLine(models.Model):
     )
     amount = fields.Monetary(currency_field="currency_id", readonly=True)
     capped = fields.Boolean(string="Capped at Basic (r.111(5))", readonly=True)
+    # A09 round 2 (bonus TDS decision): withheld at the employee's payslip
+    # marginal rate once the company turns it on; nothing withheld today
+    marginal_rate = fields.Float(string="Marginal Tax Rate", readonly=True, digits=(4, 2))
+    tax_withheld = fields.Monetary(currency_field="currency_id", readonly=True)
+    net_amount = fields.Monetary(currency_field="currency_id", string="Net Paid", readonly=True)
+    # A09 round 2: how it is paid - the bank, or (an employee with no bank
+    # account) the MFS wallet on the master, exactly as the monthly run
+    payment_channel = fields.Selection(
+        [("bank", "Bank (BEFTN)"), ("mfs", "MFS Wallet")], default="bank", readonly=True
+    )
+    mfs_provider = fields.Selection(
+        lambda self: self.env["hr.employee"]._fields["mfs_provider"].selection, readonly=True
+    )
+    mfs_wallet = fields.Char(readonly=True)
     bank_account_no = fields.Char(readonly=True)
     routing_no = fields.Char(readonly=True)
     currency_id = fields.Many2one(related="run_id.currency_id")
@@ -166,6 +187,12 @@ class FixFestivalBonusLine(models.Model):
             "capped",
             "bank_account_no",
             "routing_no",
+            "marginal_rate",
+            "tax_withheld",
+            "net_amount",
+            "payment_channel",
+            "mfs_provider",
+            "mfs_wallet",
         }
 
     def unlink(self):
@@ -212,6 +239,8 @@ class FixFestivalBonusRun(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     total_amount = fields.Monetary(currency_field="currency_id", readonly=True)
+    total_tax = fields.Monetary(currency_field="currency_id", readonly=True, string="Tax Withheld")
+    total_net = fields.Monetary(currency_field="currency_id", readonly=True, string="Net Paid")
     computation_note = fields.Text(readonly=True)
     state = fields.Selection(
         [
@@ -251,6 +280,8 @@ class FixFestivalBonusRun(models.Model):
             "gl_move_id",
             "employee_count",
             "total_amount",
+            "total_tax",
+            "total_net",
             "computation_note",
             "line_ids",
         }
@@ -308,6 +339,24 @@ class FixFestivalBonusRun(models.Model):
     def _approval_preparers(self):
         return (self.prepared_by_id | self.computed_by_id | self.create_uid).sudo()
 
+    def _rate_slip(self, employee):
+        """The employee's latest committed payslip of this company, whose
+        marginal rate a festival bonus is withheld at."""
+        return (
+            self.env["fix.payslip"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "=", employee.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("period_id.state", "in", ("approved", "paid", "posted")),
+                    ("period_id.period_start", "<=", self.bonus_date),
+                ],
+                order="id desc",
+                limit=1,
+            )
+        )
+
     def _lines_digest(self):
         self.ensure_one()
         return digest_rows(
@@ -316,8 +365,11 @@ class FixFestivalBonusRun(models.Model):
                     line.id,
                     line.employee_id.id,
                     "%.2f" % line.amount,
+                    "%.2f" % line.net_amount,
                     (line.bank_account_no or "").strip(),
                     (line.routing_no or "").strip(),
+                    line.payment_channel or "bank",
+                    (line.mfs_wallet or "").strip(),
                 )
                 for line in self.line_ids
             ]
@@ -365,8 +417,9 @@ class FixFestivalBonusRun(models.Model):
             for line in others:
                 already[line.employee_id.id] = already.get(line.employee_id.id, 0) + 1
             rec.line_ids._guarded().unlink()
-            vals_list, skipped = [], []
+            vals_list, skipped, unrated = [], [], []
             multiplier = q2(rec.multiplier)
+            withhold = rec.company_id.payroll_bonus_tds == "marginal"
             for emp, own in by_emp.items():
                 if len(own) > 1:
                     skipped.append("%s: more than one active contract" % emp.name)
@@ -405,7 +458,23 @@ class FixFestivalBonusRun(models.Model):
                     )
                 wanted = q2(base * multiplier)
                 cap = q2(basic * FESTIVAL_BONUS_CAP_MONTHS)
+                amount = min(wanted, cap)
+                rate = Decimal("0")
+                if withhold:
+                    slip = rec._rate_slip(emp)
+                    if not slip:
+                        unrated.append(emp.name)
+                        continue
+                    rate = marginal_rate(
+                        slip.annual_taxable,
+                        slip.taxpayer_category,
+                        1 if slip.has_disabled_child else 0,
+                    )
+                tax = q2(amount * rate)
                 account, routing = master_bank(emp)
+                channel, provider, wallet = master_payment_channel(emp)
+                if channel == "mfs":
+                    account = routing = False
                 vals_list.append(
                     {
                         "run_id": rec.id,
@@ -414,11 +483,22 @@ class FixFestivalBonusRun(models.Model):
                         "completed_years": years,
                         "basic": float(basic),
                         "base_amount": float(base),
-                        "amount": float(min(wanted, cap)),
+                        "amount": float(amount),
                         "capped": wanted > cap,
+                        "marginal_rate": float(rate * 100),
+                        "tax_withheld": float(tax),
+                        "net_amount": float(amount - tax),
+                        "payment_channel": channel,
+                        "mfs_provider": provider,
+                        "mfs_wallet": wallet,
                         "bank_account_no": account,
                         "routing_no": routing,
                     }
+                )
+            if unrated:
+                raise UserError(
+                    "Festival bonus TDS is withheld at the payslip marginal rate, and %s have no "
+                    "committed payslip to take the rate from." % ", ".join(sorted(unrated))
                 )
             lines = self.env["fix.payroll.bonus.line"]._guarded().create(vals_list)
             note = "Eligible: %d. %s" % (
@@ -431,6 +511,8 @@ class FixFestivalBonusRun(models.Model):
                     "computed_by_id": self.env.user.id,
                     "employee_count": len(lines),
                     "total_amount": sum(lines.mapped("amount")),
+                    "total_tax": sum(lines.mapped("tax_withheld")),
+                    "total_net": sum(lines.mapped("net_amount")),
                     "computation_note": note.strip(),
                 }
             )
@@ -442,7 +524,11 @@ class FixFestivalBonusRun(models.Model):
                     "Compute the bonus run (with at least one eligible employee) first."
                 )
             missing = rec.line_ids.filtered(
-                lambda line: not line.bank_account_no or not line.routing_no
+                lambda line: (
+                    not (line.mfs_provider and line.mfs_wallet)
+                    if line.payment_channel == "mfs"
+                    else not line.bank_account_no or not line.routing_no
+                )
             )
             if missing:
                 raise UserError(
@@ -474,10 +560,11 @@ class FixFestivalBonusRun(models.Model):
                 "Bonus run %s does not match its approval - nothing is paid from a changed run."
                 % self.name
             )
+        # the employee receives the bonus net of any withholding
         return [
-            beftn_entry(line.employee_id, line.bank_account_no, line.routing_no, line.amount)
+            beftn_entry(line.employee_id, line.bank_account_no, line.routing_no, line.net_amount)
             for line in self.line_ids
-            if line.amount > 0
+            if line.net_amount > 0 and line.payment_channel != "mfs"
         ]
 
     def action_pay(self):
@@ -493,30 +580,54 @@ class FixFestivalBonusRun(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Pay an approved bonus run")
+            if rec._lines_digest() != rec.approved_digest:
+                raise UserError(
+                    "Bonus run %s does not match its approval - nothing is paid from a changed "
+                    "run." % rec.name
+                )
             account, routing = originating_account(rec.company_id)
             submitted = fields.Datetime.now()
-            batch = (
-                self.env["fix.beftn.batch"]
-                ._guarded()
-                .create(
-                    {
-                        "bonus_run_id": rec.id,
-                        "company_id": rec.company_id.id,
-                        "submitted_at": submitted,
-                        "settlement_date": beftn_settlement_date(submitted),
-                        "employee_count": rec.employee_count,
-                        "total_amount": rec.total_amount,
-                        "company_account_no": account,
-                        "company_routing_no": routing,
-                        "released_by_id": self.env.user.id,
-                    }
-                )
+            wallets = rec.line_ids.filtered(
+                lambda ln: ln.payment_channel == "mfs" and ln.net_amount > 0
             )
-            batch.action_generate_beftn_file()
+            cur = rec.company_id.currency_id
+            bank_total = cur.round(rec.total_net - sum(wallets.mapped("net_amount")))
+            batch = self.env["fix.beftn.batch"]
+            if cur.compare_amounts(bank_total, 0.0) > 0 or not wallets:
+                batch = (
+                    self.env["fix.beftn.batch"]
+                    ._guarded()
+                    .create(
+                        {
+                            "bonus_run_id": rec.id,
+                            "company_id": rec.company_id.id,
+                            "submitted_at": submitted,
+                            "settlement_date": beftn_settlement_date(submitted),
+                            "employee_count": rec.employee_count - len(wallets),
+                            "total_amount": bank_total,
+                            "company_account_no": account,
+                            "company_routing_no": routing,
+                            "released_by_id": self.env.user.id,
+                        }
+                    )
+                )
+                batch.action_generate_beftn_file()
+            if wallets:
+                # the same rule and file as the monthly run
+                self.env["fix.mfs.disbursement"]._create_rows(
+                    {"bonus_run_id": rec.id},
+                    [
+                        (ln.employee_id, ln.mfs_provider, ln.mfs_wallet, ln.net_amount)
+                        for ln in wallets
+                    ],
+                    submitted,
+                    rec.company_id,
+                    "BONUS %s" % rec.name,
+                )
             rec._guarded().write(
                 {
                     "state": "paid",
-                    "beftn_batch_id": batch.id,
+                    "beftn_batch_id": batch.id or False,
                     "released_by_id": self.env.user.id,
                     "released_on": fields.Datetime.now(),
                 }
@@ -526,26 +637,114 @@ class FixFestivalBonusRun(models.Model):
                 "payroll.bonus_paid",
                 "fix.payroll.bonus.run",
                 rec.id,
-                {"run": rec.name, "total": float(rec.total_amount), "batch_id": batch.id},
+                {"run": rec.name, "total": float(rec.total_amount), "batch_id": batch.id or False},
             )
 
     def action_post(self):
         for rec in self:
             if rec.state != "paid" or rec.gl_move_id:
                 raise UserError("Post a paid bonus run once.")
-            payroll_gl_journal(rec.company_id, PAYMENT_GL_ACCOUNTS, rec.name)
-            move = post_two_line_entry(
-                self.env,
-                rec.company_id,
-                "Festival Bonus - %s" % rec.name,
-                rec.bonus_date,
-                rec.total_amount,
-                "Festival bonus %s" % rec.name,
-                "payroll_salary_expense_account_id",
-                "payroll_net_payable_account_id",
-                ou=rec.operating_unit_id,
-            )
+            if rec.company_id.currency_id.is_zero(rec.total_tax or 0.0):
+                payroll_gl_journal(rec.company_id, PAYMENT_GL_ACCOUNTS, rec.name)
+                move = post_two_line_entry(
+                    self.env,
+                    rec.company_id,
+                    "Festival Bonus - %s" % rec.name,
+                    rec.bonus_date,
+                    rec.total_amount,
+                    "Festival bonus %s" % rec.name,
+                    "payroll_salary_expense_account_id",
+                    "payroll_net_payable_account_id",
+                    ou=rec.operating_unit_id,
+                )
+            else:
+                move = rec._post_with_tds()
             rec._guarded().write({"state": "posted", "gl_move_id": move.id})
+            publish(
+                self.env,
+                "payroll.bonus_posted",
+                "fix.payroll.bonus.run",
+                rec.id,
+                rec._bonus_posted_payload(move),
+            )
+
+    def _bonus_posted_payload(self, move):
+        """payroll.bonus_posted for M19/M50/M51: the bonus and its TDS per
+        operating unit (the employee's unit, else the contract's, else the
+        run's - the monthly run's cost rule); the per-unit tax sums to the
+        run's tax_total."""
+        self.ensure_one()
+        by_ou = {}
+        for line in self.sudo().line_ids:
+            emp = line.employee_id.sudo()
+            ou = (
+                emp.operating_unit_id
+                or line.contract_id.operating_unit_id
+                or self.operating_unit_id
+            )
+            row = by_ou.setdefault(ou.id or False, [0.0, 0.0])
+            row[0] += line.amount
+            row[1] += line.tax_withheld
+        cur = self.company_id.currency_id
+        return {
+            "company_id": self.company_id.id,
+            "bonus_run_id": self.id,
+            "move_id": move.id,
+            "period_end": str(self.bonus_date),
+            "tax_total": float(cur.round(self.total_tax or 0.0)),
+            "by_operating_unit": [
+                {
+                    "operating_unit_id": ou_id,
+                    "gross": float(cur.round(gross)),
+                    "tax": float(cur.round(tax)),
+                }
+                for ou_id, (gross, tax) in sorted(by_ou.items(), key=lambda kv: kv[0] or 0)
+            ],
+        }
+
+    def _post_with_tds(self):
+        """Dr salary expense (the bonus) / Cr net payable (paid) / Cr TDS payable."""
+        self.ensure_one()
+        company = self.company_id
+        accounts = [
+            *PAYMENT_GL_ACCOUNTS,
+            ("payroll_tax_payable_account_id", "Income Tax (TDS) Payable"),
+        ]
+        journal = payroll_gl_journal(company, accounts, self.name)
+        cur = company.currency_id
+        rows = [
+            ("payroll_salary_expense_account_id", "Festival bonus", self.total_amount, 0.0),
+            ("payroll_net_payable_account_id", "Festival bonus paid", 0.0, self.total_net),
+            ("payroll_tax_payable_account_id", "Festival bonus TDS", 0.0, self.total_tax),
+        ]
+        lines = [
+            {
+                "account_id": company[fname].id,
+                "name": "%s %s" % (label, self.name),
+                "debit": cur.round(debit),
+                "credit": cur.round(credit),
+            }
+            for fname, label, debit, credit in rows
+        ]
+        debits = sum(line["debit"] for line in lines)
+        credits = sum(line["credit"] for line in lines)
+        if cur.compare_amounts(debits, credits):
+            raise UserError("Festival bonus %s does not balance: amount != net + TDS." % self.name)
+        move, _dims = post_with_dimensions(
+            self.env,
+            {
+                "move_type": "entry",
+                "ref": "Festival Bonus - %s" % self.name,
+                "journal_id": journal.id,
+                "date": self.bonus_date,
+                "line_ids": [Command.create(line) for line in lines],
+            },
+            {
+                idx: {"operating_unit_id": self.operating_unit_id.id or False}
+                for idx in range(len(lines))
+            },
+        )
+        return move
 
     def action_cancel(self):
         for rec in self:
@@ -882,9 +1081,19 @@ class FixOffcyclePayment(models.Model):
             ("settlement", "Final Settlement Part"),
             ("compensation", "Injury Compensation (BLA Ch. XII)"),
             ("recognition", "Recognition Prize (M57)"),
+            ("correction", "Post-Payment Correction"),
         ],
         required=True,
         default="arrear",
+    )
+    # BRU-PAY-04 / T-07 (A09 round 2): a paid payslip is never edited; what
+    # it should have paid on top is an off-cycle correction linked to it
+    correction_slip_id = fields.Many2one(
+        "fix.payslip",
+        string="Corrects Payslip",
+        index=True,
+        ondelete="restrict",
+        help="The paid payslip this correction tops up. The slip itself stays as paid.",
     )
     payment_date = fields.Date(required=True, default=fields.Date.context_today)
     currency_id = fields.Many2one(
@@ -924,6 +1133,25 @@ class FixOffcyclePayment(models.Model):
     source_event_id = fields.Char(string="Source Event", readonly=True, index=True, copy=False)
     hse_incident_ref = fields.Integer(string="HSE Incident ID", readonly=True)
     recognition_ref = fields.Integer(string="Recognition ID", readonly=True)
+    # BLA s.19 death in service: the settlement is paid to each NOMINEE, with
+    # the share M21 pinned; the nominee's account is a verified payroll record
+    nominee_dependant_id = fields.Many2one(
+        "fix.hr.dependant", string="Nominee", readonly=True, ondelete="restrict"
+    )
+    nominee_name = fields.Char(string="Nominee (payee)", readonly=True)
+    nominee_share_pct = fields.Float(string="Nominee Share %", readonly=True)
+    nominee_account_id = fields.Many2one(
+        "fix.payroll.nominee.account", string="Nominee Account", readonly=True
+    )
+    # A09 round 2: how it is paid - the bank, or (an employee with no bank
+    # account) the MFS wallet on the master, exactly as the monthly run
+    payment_channel = fields.Selection(
+        [("bank", "Bank (BEFTN)"), ("mfs", "MFS Wallet")], default="bank", readonly=True
+    )
+    mfs_provider = fields.Selection(
+        lambda self: self.env["hr.employee"]._fields["mfs_provider"].selection, readonly=True
+    )
+    mfs_wallet = fields.Char(readonly=True)
 
     _source_event_unique = models.Constraint(
         "UNIQUE (source_event_id)", "An event creates one off-cycle payment."
@@ -946,6 +1174,13 @@ class FixOffcyclePayment(models.Model):
             "source_event_id",
             "hse_incident_ref",
             "recognition_ref",
+            "nominee_dependant_id",
+            "nominee_name",
+            "nominee_share_pct",
+            "nominee_account_id",
+            "payment_channel",
+            "mfs_provider",
+            "mfs_wallet",
         }
 
     def _payroll_state_locked_fields(self) -> set:
@@ -956,7 +1191,35 @@ class FixOffcyclePayment(models.Model):
             locked |= {"payment_date", "company_id"}
         if self.exit_id or self.source_event_id:
             locked |= {"employee_id", "amount", "currency_id", "payment_type", "company_id"}
+        if self.state != "draft":
+            locked |= {"correction_slip_id", "reason"}
         return locked
+
+    @api.constrains("payment_type", "correction_slip_id", "employee_id", "company_id", "reason")
+    def _check_correction(self):
+        for rec in self:
+            slip = rec.correction_slip_id.sudo()
+            if rec.payment_type != "correction":
+                if slip:
+                    raise ValidationError(
+                        "Only a post-payment correction names the payslip it corrects."
+                    )
+                continue
+            if not slip:
+                raise ValidationError(
+                    "A post-payment correction names the paid payslip it corrects."
+                )
+            if slip.period_id.state not in PAID_PERIOD_STATES:
+                raise ValidationError(
+                    "Payslip %s is in a %s run: only a PAID payslip is corrected off-cycle; an "
+                    "unpaid run is recalculated." % (slip.display_name, slip.period_id.state)
+                )
+            if slip.employee_id != rec.employee_id or slip.company_id != rec.company_id:
+                raise ValidationError(
+                    "A correction pays the employee and company of the payslip it corrects."
+                )
+            if not (rec.reason or "").strip():
+                raise ValidationError("State what the correction puts right.")
 
     @api.constrains("amount")
     def _check_amount(self):
@@ -967,6 +1230,11 @@ class FixOffcyclePayment(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if vals.get("correction_slip_id"):
+                slip = self.env["fix.payslip"].sudo().browse(vals["correction_slip_id"])
+                vals.setdefault("employee_id", slip.employee_id.id)
+                vals.setdefault("company_id", slip.company_id.id)
+                vals.setdefault("payment_type", "correction")
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.payroll.offcycle") or "OFC/New"
@@ -992,30 +1260,118 @@ class FixOffcyclePayment(models.Model):
                     (self.routing_no or "").strip(),
                 )
             ]
+            + (
+                [
+                    (
+                        self.id,
+                        self.employee_id.id,
+                        "mfs",
+                        self.mfs_provider or "",
+                        self.mfs_wallet or "",
+                    )
+                ]
+                if self.payment_channel == "mfs"
+                else []
+            )
+            + (
+                [
+                    (
+                        self.id,
+                        self.employee_id.id,
+                        "nominee",
+                        self.nominee_name,
+                        "%.4f" % self.nominee_share_pct,
+                    )
+                ]
+                if self.nominee_name
+                else []
+            )
         )
 
     def _check_source_amount(self):
-        """A settlement pays the exit's computed net (I1), nothing else."""
+        """A settlement pays the exit's computed net (I1), nothing else; a
+        nominee's payment pays exactly that nominee's pinned share of it."""
         for rec in self.filtered("exit_id"):
-            net = rec.exit_id.sudo()._fix_settlement_breakdown()["net"]
+            exit_rec = rec.exit_id.sudo()
+            net = exit_rec._fix_settlement_breakdown()["net"]
+            if rec.nominee_name:
+                payees = exit_rec._fix_nominee_payees()
+                total = sum(float(p.get("amount") or 0.0) for p in payees)
+                mine = [
+                    p
+                    for p in payees
+                    if (p.get("dependant_id") or False) == (rec.nominee_dependant_id.id or False)
+                    and (p.get("name") or "") == rec.nominee_name
+                ]
+                if rec.currency_id.compare_amounts(total, net) != 0 or not mine:
+                    raise UserError(
+                        "Exit %s's nominee split no longer matches the settlement payroll "
+                        "computes (%.2f)." % (exit_rec.display_name, net)
+                    )
+                net = float(mine[0].get("amount") or 0.0)
             if rec.currency_id.compare_amounts(rec.amount, net) != 0:
                 raise UserError(
                     "Settlement payment %s is %.2f but payroll computes %.2f for exit %s."
                     % (rec.name, rec.amount, net, rec.exit_id.display_name)
                 )
 
+    def _payee_channel(self):
+        """('bank' | 'mfs', provider, wallet): a nominee is paid by bank; the
+        employee by the master's channel (the monthly run's rule)."""
+        self.ensure_one()
+        if self.nominee_name:
+            return "bank", False, False
+        return master_payment_channel(self.employee_id)
+
+    def _payee_bank(self):
+        """(account, routing, nominee account record) of who this pays: the
+        employee's registered salary account, or for a death settlement the
+        nominee's VERIFIED account (fix.payroll.nominee.account)."""
+        self.ensure_one()
+        if not self.nominee_name:
+            if self._payee_channel()[0] == "mfs":
+                return False, False, self.env["fix.payroll.nominee.account"]
+            account, routing = master_bank(self.employee_id)
+            return account, routing, self.env["fix.payroll.nominee.account"]
+        acc = self.env["fix.payroll.nominee.account"]._verified_for(
+            self.employee_id, self.nominee_dependant_id, self.nominee_name
+        )
+        return (acc.bank_account_no or False), (acc.routing_no or False), acc
+
     def action_request_approval(self, justification=None):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft off-cycle payment is sent for approval.")
-            account, routing = master_bank(rec.employee_id)
-            if not account or not routing:
+            account, routing, nominee_acc = rec._payee_bank()
+            if rec.nominee_name and not nominee_acc:
+                raise UserError(
+                    "Nominee %s has no registered account: record the nominee's bank account "
+                    "and have a second payroll user verify it (Nominee Accounts) before this "
+                    "death-in-service payment is requested." % rec.nominee_name
+                )
+            channel, provider, wallet = rec._payee_channel()
+            if channel == "mfs":
+                if not provider or not MFS_WALLET_RE.match(wallet or ""):
+                    raise UserError(
+                        "%s is paid by MFS but has no provider or no valid 11-digit wallet."
+                        % rec.employee_id.name
+                    )
+            elif not account or not routing:
                 raise UserError(
                     "%s has no registered salary account and routing number: an off-cycle "
                     "payment is never sent to an assumed account." % rec.employee_id.name
                 )
             rec._check_source_amount()
-            rec._guarded().write({"bank_account_no": account, "routing_no": routing})
+            rec._guarded().write(
+                {
+                    "bank_account_no": account,
+                    "routing_no": routing,
+                    "nominee_account_id": nominee_acc.id or False,
+                    "payment_channel": channel,
+                    "mfs_provider": provider,
+                    "mfs_wallet": wallet,
+                }
+            )
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
@@ -1023,11 +1379,18 @@ class FixOffcyclePayment(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Approve a draft off-cycle payment")
-            # the payee the approver saw is still the payee on the master
-            if master_bank(rec.employee_id) != (rec.bank_account_no, rec.routing_no):
+            # the payee the approver saw is still the payee on record
+            account, routing, _acc = rec._payee_bank()
+            channel, _provider, wallet = rec._payee_channel()
+            if (account, routing, channel, wallet or False) != (
+                rec.bank_account_no,
+                rec.routing_no,
+                rec.payment_channel,
+                rec.mfs_wallet or False,
+            ):
                 raise UserError(
                     "%s's bank details changed after approval was requested - request it again."
-                    % rec.employee_id.name
+                    % (rec.nominee_name or rec.employee_id.name)
                 )
             rec._check_source_amount()
             rec._guarded().write(
@@ -1052,7 +1415,10 @@ class FixOffcyclePayment(models.Model):
                 "Off-cycle payment %s does not match its approval - nothing is paid from a "
                 "changed payment." % self.name
             )
-        return [beftn_entry(self.employee_id, self.bank_account_no, self.routing_no, self.amount)]
+        entry = beftn_entry(self.employee_id, self.bank_account_no, self.routing_no, self.amount)
+        if self.nominee_name:
+            entry.employee_name = self.nominee_name.strip()  # the nominee is the beneficiary
+        return [entry]
 
     def action_pay(self):
         """Released to the bank by a releaser who neither prepared nor
@@ -1069,8 +1435,42 @@ class FixOffcyclePayment(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Pay an approved off-cycle payment")
-            account, routing = originating_account(rec.company_id)
             submitted = fields.Datetime.now()
+            if rec.payment_channel == "mfs":
+                if rec._payee_digest() != rec.approved_digest:
+                    raise UserError(
+                        "Off-cycle payment %s does not match its approval - nothing is paid "
+                        "from a changed payment." % rec.name
+                    )
+                disb = self.env["fix.mfs.disbursement"]._create_rows(
+                    {"offcycle_id": rec.id},
+                    [(rec.employee_id, rec.mfs_provider, rec.mfs_wallet, rec.amount)],
+                    submitted,
+                    rec.company_id,
+                    "OFFCYCLE %s" % rec.name,
+                )
+                rec._guarded().write(
+                    {
+                        "state": "paid",
+                        "released_by_id": self.env.user.id,
+                        "released_on": fields.Datetime.now(),
+                    }
+                )
+                publish(
+                    self.env,
+                    "payroll.offcycle_paid",
+                    "fix.payroll.offcycle",
+                    rec.id,
+                    {
+                        "employee_id": rec.employee_id.id,
+                        "amount": float(rec.amount),
+                        "payment_type": rec.payment_type,
+                        "batch_id": False,
+                        "mfs_disbursement_id": disb.id,
+                    },
+                )
+                continue
+            account, routing = originating_account(rec.company_id)
             batch = (
                 self.env["fix.beftn.batch"]
                 ._guarded()
@@ -1329,6 +1729,36 @@ class FixWppfAllocation(models.Model):
     approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
     approved_on = fields.Datetime(string="Approved On", readonly=True)
     gl_move_id = fields.Many2one("account.move", string="GL Entry", readonly=True)
+    # ---- A09 round 2 (M56-13) ---------------------------------------------------
+    # The profit is the AUDITED figure. M19 holds no audited-profit record (its
+    # fix.financial.report.bridge P&L is computed from the ledger, not signed
+    # by an auditor), so the figure is typed WITH the audited statements and
+    # the auditor's report reference as evidence; a linked M19 P&L shows the
+    # ledger figure beside it for the trustees.
+    audited_statement_file = fields.Binary(string="Audited Financial Statements", attachment=True)
+    audited_statement_filename = fields.Char()
+    audit_report_ref = fields.Char(string="Auditor's Report Reference")
+    ledger_report_id = fields.Many2one(
+        "fix.financial.report.bridge",
+        string="M19 Profit & Loss (ledger)",
+        domain="[('report_type', '=', 'pnl'), ('company_id', '=', company_id)]",
+    )
+    ledger_net_profit = fields.Monetary(
+        currency_field="currency_id",
+        string="Ledger Net Profit (M19, at calculation)",
+        readonly=True,
+    )
+    beneficiary_ids = fields.One2many(
+        "fix.wppf.beneficiary", "allocation_id", string="Beneficiaries"
+    )
+    approved_digest = fields.Char(readonly=True)
+    # the 10% Bangladesh Workers' Welfare Foundation share, paid by challan
+    bwwf_challan_date = fields.Date(string="BWWF Challan Date")
+    bwwf_challan_file = fields.Binary(string="BWWF Deposit Challan", attachment=True)
+    bwwf_challan_filename = fields.Char()
+    bwwf_paid_by_id = fields.Many2one("res.users", string="BWWF Paid By", readonly=True)
+    bwwf_paid_on = fields.Datetime(string="BWWF Paid On", readonly=True)
+    bwwf_move_id = fields.Many2one("account.move", string="BWWF GL Entry", readonly=True)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1338,6 +1768,14 @@ class FixWppfAllocation(models.Model):
             "approved_by_id",
             "approved_on",
             "gl_move_id",
+            "ledger_net_profit",
+            "beneficiary_ids",
+            # counted from the beneficiary lines, never typed (M56-13)
+            "eligible_workers_count",
+            "approved_digest",
+            "bwwf_paid_by_id",
+            "bwwf_paid_on",
+            "bwwf_move_id",
             "total_wppf_pool",
             "participatory_fund_amount",
             "welfare_fund_amount",
@@ -1363,6 +1801,20 @@ class FixWppfAllocation(models.Model):
             }
         if self.state == "posted":
             locked |= {"bwwf_challan_ref"}
+        if self.state != "draft":
+            locked |= {
+                "audited_statement_file",
+                "audited_statement_filename",
+                "audit_report_ref",
+                "ledger_report_id",
+            }
+        if self.bwwf_paid_on:
+            locked |= {
+                "bwwf_challan_ref",
+                "bwwf_challan_date",
+                "bwwf_challan_file",
+                "bwwf_challan_filename",
+            }
         return locked
 
     @api.model_create_multi
@@ -1417,14 +1869,95 @@ class FixWppfAllocation(models.Model):
                 raise UserError("Calculate a draft WPPF allocation.")
             if rec.net_profit <= 0:
                 raise UserError("Net profit must be positive to compute WPPF 5% allocation.")
-            rec = rec._guarded()
-            if not rec.eligible_workers_count:
-                cnt = self.env["hr.employee"].search_count(
-                    [("company_id", "=", rec.company_id.id), ("active", "=", True)]
+            if not rec.audited_statement_file or not (rec.audit_report_ref or "").strip():
+                raise UserError(
+                    "The WPPF profit is the audited net profit (BLA s.234): attach the audited "
+                    "financial statements and the auditor's report reference first."
                 )
-                rec.write({"eligible_workers_count": max(cnt, 1)})
+            ledger = 0.0
+            if rec.ledger_report_id:
+                report = rec.ledger_report_id.sudo()
+                if report.company_id != rec.company_id or report.report_type != "pnl":
+                    raise UserError("Link a profit & loss statement of the same company.")
+                if not report.generated_at:
+                    raise UserError("Generate the linked M19 profit & loss statement first.")
+                ledger = report.headline_amount
+            rec = rec._guarded()
+            count = rec._wppf_build_beneficiaries()
+            if not count:
+                raise UserError(
+                    "No employee of %s is an eligible WPPF beneficiary." % rec.company_id.name
+                )
+            rec.write({"eligible_workers_count": count, "ledger_net_profit": ledger})
             rec._compute_wppf_split()
             rec.write({"state": "calculated", "calculated_by_id": self.env.user.id})
+
+    def _wppf_build_beneficiaries(self):
+        """One line per active employee of the company under an active
+        contract: eligible unless short of the company's minimum service or
+        marked by payroll as not a worker (BLA s.2(65): managerial and
+        administrative staff are not workers). Returns the eligible count."""
+        self.ensure_one()
+        Line = self.env["fix.wppf.beneficiary"].sudo()._guarded()
+        Line.search([("allocation_id", "=", self.id)]).unlink()
+        as_of = self.fiscal_year_end_date or fields.Date.context_today(self)
+        minimum = self.company_id.payroll_wppf_min_service_months or 0
+        contracts = (
+            self.env["fix.employment.contract"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("state", "=", "active"),
+                    ("employee_id.active", "=", True),
+                ],
+                order="employee_id, joining_date",
+            )
+        )
+        vals_list, seen = [], set()
+        for contract in contracts:
+            emp = contract.employee_id
+            if emp.id in seen:
+                continue
+            seen.add(emp.id)
+            joining = fields.Date.to_date(contract.joining_date)
+            delta = relativedelta(as_of, joining) if joining <= as_of else relativedelta()
+            months = delta.years * 12 + delta.months if joining <= as_of else 0
+            short = bool(minimum) and months < minimum
+            vals_list.append(
+                {
+                    "allocation_id": self.id,
+                    "employee_id": emp.id,
+                    "contract_id": contract.id,
+                    "joining_date": joining,
+                    "service_months": months,
+                    "auto_excluded": short,
+                    "auto_reason": (
+                        "%d month(s) of service, under the %d-month minimum" % (months, minimum)
+                    )
+                    if short
+                    else False,
+                }
+            )
+        lines = Line.create(vals_list)
+        return len(lines.filtered("eligible"))
+
+    def _wppf_recount(self):
+        for rec in self:
+            count = len(rec.beneficiary_ids.filtered("eligible"))
+            if not count:
+                raise UserError("A WPPF allocation keeps at least one eligible beneficiary.")
+            rec._guarded().write({"eligible_workers_count": count})
+
+    def _beneficiary_digest(self):
+        self.ensure_one()
+        return digest_rows(
+            [
+                ("emp-%d" % ln.employee_id.id, str(bool(ln.eligible)), "%.2f" % ln.share_amount)
+                for ln in self.sudo().beneficiary_ids
+            ]
+            + [("pool", "%.2f" % self.total_wppf_pool, str(self.eligible_workers_count))]
+        )
 
     def action_request_approval(self, justification=None):
         for rec in self:
@@ -1451,8 +1984,66 @@ class FixWppfAllocation(models.Model):
                     "state": "approved",
                     "approved_by_id": rec._people_decider().id,
                     "approved_on": fields.Datetime.now(),
+                    "approved_digest": rec._beneficiary_digest(),
                 }
             )
+
+    def _check_approved_beneficiaries(self):
+        for rec in self:
+            if rec.approved_digest and rec.approved_digest != rec._beneficiary_digest():
+                raise UserError(
+                    "WPPF allocation %s no longer matches what the trustees approved." % rec.name
+                )
+
+    def action_pay_bwwf(self):
+        """The 10% Bangladesh Workers' Welfare Foundation share (BLA s.240,
+        BWWF Act 2006): paid by treasury challan, recorded by a Payroll
+        Disbursement Releaser who neither prepared nor approved the
+        allocation, with the challan as evidence, and posted Dr WPPF payable /
+        Cr the company's WPPF paying bank account."""
+        check_releaser(
+            self,
+            "a WPPF BWWF payment",
+            lambda rec: rec._approval_preparers() | rec.approved_by_id,
+        )
+        accounts = [
+            ("payroll_wppf_payable_account_id", "WPPF Payable"),
+            ("payroll_wppf_bank_account_id", "WPPF / BWWF Paying Bank Account"),
+        ]
+        for rec in self:
+            if rec.state not in ("approved", "posted"):
+                raise UserError("The BWWF share is paid from an approved WPPF allocation.")
+            if rec.bwwf_paid_on:
+                raise UserError("The BWWF share of %s is already paid." % rec.name)
+            rec._check_approved_beneficiaries()
+            if not (
+                (rec.bwwf_challan_ref or "").strip()
+                and rec.bwwf_challan_date
+                and rec.bwwf_challan_file
+            ):
+                raise UserError(
+                    "Record the BWWF deposit challan (reference, date and the challan itself) "
+                    "before marking the BWWF share paid."
+                )
+            payroll_gl_journal(rec.company_id, accounts, rec.name)
+            move = post_two_line_entry(
+                self.env,
+                rec.company_id,
+                "WPPF BWWF Payment - %s" % rec.name,
+                rec.bwwf_challan_date,
+                rec.welfare_foundation_amount,
+                "BWWF 10%% share %s (challan %s)" % (rec.fiscal_year, rec.bwwf_challan_ref),
+                "payroll_wppf_payable_account_id",
+                "payroll_wppf_bank_account_id",
+            )
+            rec._guarded().write(
+                {
+                    "bwwf_paid_by_id": self.env.user.id,
+                    "bwwf_paid_on": fields.Datetime.now(),
+                    "bwwf_move_id": move.id,
+                }
+            )
+        return True
 
     def action_post(self):
         """Distribution posted: Dr WPPF expense / Cr WPPF payable for the 5%
@@ -1464,6 +2055,7 @@ class FixWppfAllocation(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Approve WPPF allocation before posting distribution.")
+            rec._check_approved_beneficiaries()
             if not rec.bwwf_challan_ref:
                 raise UserError(
                     "BWWF 10% Government Welfare Foundation deposit challan reference is required before posting."
@@ -1480,3 +2072,89 @@ class FixWppfAllocation(models.Model):
                 "payroll_wppf_payable_account_id",
             )
             rec._guarded().write({"state": "posted", "gl_move_id": move.id})
+
+
+# WPPF payments to participants: ITA 2023 s.88, 10% at payment (benchmark
+# "Bangladesh statutory" table, verified [48]).
+WPPF_PAYMENT_TDS_RATE = Decimal("0.10")
+
+
+class FixWppfBeneficiary(models.Model):
+    """One employee's place in a WPPF allocation (BLA s.240-242): eligibility,
+    the equal share of the cash pool, and the s.88 withholding on it."""
+
+    _name = "fix.wppf.beneficiary"
+    _description = "WPPF Beneficiary"
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _order = "allocation_id, employee_id"
+
+    allocation_id = fields.Many2one(
+        "fix.wppf.allocation", required=True, ondelete="cascade", index=True, readonly=True
+    )
+    company_id = fields.Many2one(related="allocation_id.company_id", store=True)
+    operating_unit_id = fields.Many2one("operating.unit", readonly=True)
+    currency_id = fields.Many2one(related="allocation_id.currency_id")
+    employee_id = fields.Many2one("hr.employee", required=True, index=True, readonly=True)
+    contract_id = fields.Many2one("fix.employment.contract", readonly=True)
+    joining_date = fields.Date(readonly=True)
+    service_months = fields.Integer(readonly=True)
+    auto_excluded = fields.Boolean(string="Excluded by Rule", readonly=True)
+    auto_reason = fields.Char(string="Rule", readonly=True)
+    worker_status = fields.Selection(
+        [
+            ("worker", "Worker (BLA s.2(65))"),
+            ("excluded", "Not a worker (managerial / administrative)"),
+        ],
+        required=True,
+        default="worker",
+    )
+    exclusion_reason = fields.Char(string="Why Not a Worker")
+    eligible = fields.Boolean(compute="_compute_share", store=True)
+    share_amount = fields.Monetary(
+        currency_field="currency_id", compute="_compute_share", store=True
+    )
+    tds_amount = fields.Monetary(
+        currency_field="currency_id", compute="_compute_share", store=True, string="TDS (s.88)"
+    )
+    net_share = fields.Monetary(currency_field="currency_id", compute="_compute_share", store=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "allocation_id",
+            "operating_unit_id",
+            "employee_id",
+            "contract_id",
+            "joining_date",
+            "service_months",
+            "auto_excluded",
+            "auto_reason",
+        }
+
+    @api.depends("auto_excluded", "worker_status", "allocation_id.per_worker_equal_share")
+    def _compute_share(self):
+        for rec in self:
+            rec.eligible = not rec.auto_excluded and rec.worker_status == "worker"
+            share = Decimal(str(rec.allocation_id.per_worker_equal_share or 0.0))
+            share = share if rec.eligible else Decimal(0)
+            tds = q2(share * WPPF_PAYMENT_TDS_RATE)
+            rec.share_amount = float(share)
+            rec.tds_amount = float(tds)
+            rec.net_share = float(share - tds)
+
+    def write(self, vals):
+        if not self._fix_guard_open() and {"worker_status", "exclusion_reason"} & set(vals):
+            for rec in self:
+                alloc = rec.allocation_id
+                if alloc.state != "calculated" or alloc.approval_state == "pending":
+                    raise UserError(
+                        "A WPPF beneficiary is classified on a calculated allocation, before "
+                        "the trustees are asked to approve it."
+                    )
+            if vals.get("worker_status") == "excluded" and not (
+                vals.get("exclusion_reason") or all(r.exclusion_reason for r in self)
+            ):
+                raise UserError("State why the employee is not a worker (BLA s.2(65)).")
+        result = super().write(vals)
+        if {"worker_status"} & set(vals):
+            self.mapped("allocation_id")._wppf_recount()
+        return result

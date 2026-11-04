@@ -517,8 +517,16 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     # 27,576.92 + 51,725.00 = 7,930,192 paisa in the batch and file controls
     assert lines[4][32:44] == "000008110192"
     assert lines[5][43:55] == "000008110192"
+    # A09 round 2: the payload names the company and the amounts for M50
     assert _events(env, "payroll.beftn_submitted", period.id) == [
-        {"period": "2026-01", "batch_id": batch.id, "settlement": "2026-10-04"}
+        {
+            "period": "2026-01",
+            "company_id": payroll_co.company.id,
+            "batch_id": batch.id,
+            "amount": 81101.92,
+            "mfs_amount": 0.0,
+            "settlement": "2026-10-04",
+        }
     ]
 
     period.action_post()
@@ -543,15 +551,28 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     dimensions = env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
     assert len(dimensions) == 6
     assert dimensions.operating_unit_id.company_id == payroll_co.company
+    # A09 round 2: plus the company, the entry and the per-unit split (M56-5)
     assert _events(env, "payroll.posted", period.id) == [
         {
             "period": "2026-01",
+            "company_id": payroll_co.company.id,
+            "move_id": move.id,
+            "period_end": "2026-01-31",
             "gross": 90576.92,
             "net": 81101.92,
             "tax": 475.0,
             "pf": 18000.0,
             "total_debit": 99576.92,
             "total_credit": 99576.92,
+            "by_operating_unit": [
+                {
+                    "operating_unit_id": False,
+                    "branch_id": False,
+                    "gross": 90576.92,
+                    "tax": 475.0,
+                    "net": 81101.92,
+                }
+            ],
         }
     ]
     # idempotent: a posted period is never posted twice
@@ -1064,6 +1085,10 @@ def test_separation_and_retrenchment_need_a_contract(odoo_env):
 def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
     company = _bdt_company(odoo_env, name="WPPF Test Ltd", code="WPPT")
     env = _company_env(odoo_env, company)
+    # A09 round 2 (M56-13): the beneficiaries are the company's employees
+    # under an active contract, one line each; a typed head count is not used
+    for n in range(4):
+        _contract(env, _employee(env, "WPPF Worker %d" % n, company), 20000.0)
     alloc = env["fix.wppf.allocation"].create(
         {
             "company_id": company.id,
@@ -1072,10 +1097,14 @@ def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
             "net_profit": 10_000_000.0,
             "eligible_workers_count": 100,
             "fiscal_year_end_date": date(2026, 6, 30),
+            # the audited figure, with its evidence (no M19 audited record exists)
+            "audited_statement_file": "JVBERi0xLjQK",
+            "audit_report_ref": "AUDIT/FY26/01",
         }
     )
     alloc.action_calculate()
     assert alloc.state == "calculated"
+    assert alloc.eligible_workers_count == 4 and len(alloc.beneficiary_ids) == 4
     # 5% of 10,000,000 = 500,000 pool
     assert alloc.total_wppf_pool == 500000.00
     # 80 : 10 : 10, the foundation taking the residual so the split is exact
@@ -1093,8 +1122,9 @@ def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
     assert (
         alloc.equal_distribution_pool + alloc.investment_pool_share
     ) == alloc.participatory_fund_amount
-    # equal per-worker share of the cash pool
-    assert alloc.per_worker_equal_share == 2666.67
+    # equal per-worker share of the cash pool, over the 4 eligible workers
+    assert alloc.per_worker_equal_share == 66666.67
+    assert set(alloc.beneficiary_ids.mapped("share_amount")) == {66666.67}
     # s.234: transferred within nine months of the year end
     assert alloc.distribution_due_date == date(2026, 6, 30) + timedelta(days=270)
 

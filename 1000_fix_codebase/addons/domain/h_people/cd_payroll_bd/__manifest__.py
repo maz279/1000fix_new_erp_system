@@ -39,6 +39,7 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
         "security/ir.model.access.csv",
         "data/payroll_ops_sequences.xml",
         "data/fix_payroll_a09_data.xml",
+        "data/fix_payroll_r2_data.xml",
         "views/fix_payroll_views.xml",
         "report/report_payslip_bn.xml",
     ],

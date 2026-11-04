@@ -24,6 +24,7 @@ SURFACES = {
         "limit": 100,
         "actions": {
             "action_verify_attendance_locked",
+            "action_trial_run",
             "action_calculate",
             "action_prevalidate",
             "action_request_approval",
@@ -87,7 +88,74 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_post",
+            "action_pay_bwwf",
         },
+    },
+    # ---- A09 round 2 ------------------------------------------------------------
+    # M56-11: the statutory pack; approved from the inbox by a second Payroll
+    # Manager, never from this screen
+    "fix.statutory.pack": {
+        "order": "effective_from desc, version desc, id desc",
+        "limit": 100,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+            "action_new_version",
+        },
+    },
+    # BRU-PAY-06: the variance review lines of a trial or calculated run
+    "fix.payroll.variance": {
+        "order": "period_id desc, kind, abs_variance_pct desc, id",
+        "limit": 500,
+        "actions": {"action_acknowledge"},
+    },
+    # M56-1: bank changes inside the cool-off, confirmed by a second person
+    "fix.payroll.bank.check": {
+        "order": "period_id desc, id",
+        "limit": 300,
+        "actions": {"action_confirm"},
+    },
+    # M56-4: the bank's per-item return and the re-issue of failed items
+    "fix.beftn.return": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_import", "action_reissue"},
+    },
+    "fix.beftn.return.line": {"order": "return_id desc, id", "limit": 500, "actions": set()},
+    # wallet-paid salaries: one disbursement file per MFS provider
+    "fix.mfs.disbursement": {"order": "id desc", "limit": 100, "actions": {"action_settle"}},
+    # FR-PAY-022: the monthly gratuity provision register (written by its cron)
+    "fix.payroll.gratuity.accrual": {
+        "order": "month desc, employee_id",
+        "limit": 500,
+        "actions": set(),
+    },
+    # BRU-PAY-04: an overpaid salary recovered from the next runs (routed)
+    "fix.payroll.recovery": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+    },
+    "fix.payroll.recovery.line": {"order": "id desc", "limit": 500, "actions": set()},
+    # the provider's per-wallet answer to an MFS file, and its re-issue
+    "fix.mfs.return": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_import", "action_reissue"},
+    },
+    "fix.mfs.return.line": {"order": "return_id desc, id", "limit": 500, "actions": set()},
+    # BLA s.19: a death-in-service nominee's account, verified by a second user
+    "fix.payroll.nominee.account": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_verify", "action_cancel"},
+    },
+    # M56-13: WPPF beneficiaries (worker classification before trustee approval)
+    "fix.wppf.beneficiary": {
+        "order": "allocation_id desc, employee_id",
+        "limit": 500,
+        "actions": set(),
     },
 }
 
@@ -281,9 +349,8 @@ def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Provident-fund contributions per payslip. Gratuity is NOT accrued per payslip: the "
-            "Labour Act gratuity is computed at separation by the payslip's separation action, so "
-            "it is shown on the Final Settlements screen, not invented here."
+            "Provident-fund contributions per payslip. Gratuity is provided monthly by the "
+            "gratuity provision cron (see the Gratuity Provision report) and paid at separation."
         ],
         totals={
             "period": "Total",
@@ -295,55 +362,69 @@ def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
 
 
 def payroll_variance(env, date_from=None, date_to=None, **params):
-    """Payroll variance: latest two periods compared per employee."""
-    periods = _payroll(env, "fix.payroll.period", order="period_start desc", limit=2)
-    if len(periods) < 2:
+    """Payroll variance (BRU-PAY-06): the latest run's net per employee
+    against the previous PAID period, as computed by its calculation or, before
+    that, by its trial run; with the threshold and who acknowledged what."""
+    lines = _payroll(env, "fix.payroll.variance", order="period_id desc, id desc", limit=1)
+    if not lines:
         return _pack(
-            "Payroll Variance — needs two periods",
+            "Payroll Variance — no trial or calculated run yet",
             [],
             {},
             [],
-            ["Two calculated periods are required for a variance."],
-            empty="Fewer than two payroll periods exist.",
+            [
+                "Run a trial or calculate a period: the variance is recorded against the "
+                "previous paid period."
+            ],
+            empty="No variance recorded.",
         )
-    current, previous = periods[0], periods[1]
-    cur_slips = {
-        s.employee_id.id: s for s in _payroll(env, "fix.payslip", [("period_id", "=", current.id)])
-    }
-    prev_slips = {
-        s.employee_id.id: s for s in _payroll(env, "fix.payslip", [("period_id", "=", previous.id)])
-    }
-    rows = []
-    for emp_id in sorted(set(cur_slips) | set(prev_slips)):
-        cur = cur_slips.get(emp_id)
-        prev = prev_slips.get(emp_id)
-        name = (cur or prev).employee_id.name
-        cur_net = float(cur.net or 0.0) if cur else 0.0
-        prev_net = float(prev.net or 0.0) if prev else 0.0
-        rows.append(
-            {
-                "employee": name,
-                "previous": round(prev_net, 2),
-                "current": round(cur_net, 2),
-                "variance": round(cur_net - prev_net, 2),
-                "pct": round((cur_net - prev_net) / prev_net * 100.0, 2) if prev_net else 0.0,
-            }
+    period = lines.period_id
+    kind = (
+        "run"
+        if _payroll(
+            env,
+            "fix.payroll.variance",
+            [("period_id", "=", period.id), ("kind", "=", "run")],
+            limit=1,
         )
-    rows.sort(key=lambda r: -abs(r["variance"]))
+        else "trial"
+    )
+    rows_rec = _payroll(
+        env,
+        "fix.payroll.variance",
+        [("period_id", "=", period.id), ("kind", "=", kind)],
+        order="abs_variance_pct desc, id",
+    )
+    threshold = period.company_id.payroll_variance_threshold_pct or 0.0
+    rows = [
+        {
+            "employee": r.employee_id.name,
+            "previous": round(r.previous_net, 2),
+            "current": round(r.current_net, 2),
+            "variance": round(r.variance, 2),
+            "pct": "new" if r.no_comparison else round(r.variance_pct, 2),
+            "flag": "over" if r._over(threshold) else "",
+            "acknowledged": r.acknowledged_by_id.name or "",
+        }
+        for r in rows_rec
+    ]
+    previous = rows_rec[:1].previous_period_id.name or "no paid period"
     return _pack(
-        "Payroll Variance — %s vs %s" % (current.name, previous.name),
-        ["employee", "previous", "current", "variance", "pct"],
+        "Payroll Variance — %s (%s) vs %s" % (period.name, kind, previous),
+        ["employee", "previous", "current", "variance", "pct", "flag", "acknowledged"],
         {
             "employee": "Employee",
-            "previous": "Previous Net",
+            "previous": "Previous Paid Net",
             "current": "Current Net",
             "variance": "Variance",
             "pct": "Variance %",
+            "flag": "Over Threshold",
+            "acknowledged": "Acknowledged By",
         },
         rows,
         [
-            "Compared on net pay; an employee present in only one period shows the full amount "
-            "as variance."
+            "Threshold %s: an employee over it blocks the approval until a reviewer who did not "
+            "calculate the run acknowledges it." % ("%g%%" % threshold if threshold else "off (0)")
         ],
         totals={
             "employee": "Total",
@@ -352,6 +433,44 @@ def payroll_variance(env, date_from=None, date_to=None, **params):
             "variance": round(sum(r["variance"] for r in rows), 2),
         },
         empty="No payslips in the two periods.",
+    )
+
+
+def gratuity_provision(env, date_from=None, date_to=None, **params):
+    """FR-PAY-022: the monthly gratuity provision register."""
+    recs = _payroll(env, "fix.payroll.gratuity.accrual", order="month desc, employee_id")
+    rows = [
+        {
+            "month": r.month,
+            "employee": r.employee_id.name,
+            "years": r.completed_years,
+            "liability": round(r.liability, 2),
+            "accrual": round(r.accrual, 2),
+            "posted": r.move_id.name or "",
+        }
+        for r in recs
+    ]
+    return _pack(
+        "Gratuity Provision — %d rows" % len(rows),
+        ["month", "employee", "years", "liability", "accrual", "posted"],
+        {
+            "month": "Month",
+            "employee": "Employee",
+            "years": "Completed Years",
+            "liability": "Owed at Month End",
+            "accrual": "Month's Movement",
+            "posted": "GL Entry",
+        },
+        rows,
+        [
+            "Computed monthly by the existing separation rule (the statutory pack's bands, as "
+            "coded and unsourced until a sourced pack is approved)."
+        ],
+        totals={
+            "month": "Total",
+            "accrual": round(sum(r["accrual"] for r in rows), 2),
+        },
+        empty="No gratuity provision recorded yet.",
     )
 
 
@@ -387,6 +506,7 @@ REPORTS = {
     "tax_deduction_summary": tax_deduction_summary,
     "pf_gratuity": pf_gratuity_provisions,
     "payroll_variance": payroll_variance,
+    "gratuity_provision": gratuity_provision,
 }
 
 
