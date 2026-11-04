@@ -13,8 +13,32 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_assert_usable", "action_request_approval", "action_recall_approval"},
     },
-    "fix.calibration": {"order": "calibrated_on desc, id desc", "limit": 400, "actions": set()},
-    "fix.equipment.kit": {"order": "code", "limit": 200, "actions": set()},
+    # A07 P2 (2026-11-04): the usage decision is taken by a Quality Manager
+    # other than the recorder (SOD-07)
+    "fix.calibration": {
+        "order": "calibrated_on desc, id desc",
+        "limit": 400,
+        "actions": {"action_accept_calibration", "action_reject_calibration"},
+    },
+    # A07 P1 (2026-11-04) FR-EAM-007: a kit is issued and returned as one unit
+    "fix.equipment.kit": {
+        "order": "code",
+        "limit": 200,
+        "actions": {"action_issue_kit", "action_return_kit"},
+    },
+    # A07 P2 (2026-11-04): calibration profiles; an interval change is
+    # requested here and approved from a Quality Manager's M63 inbox (routed)
+    "fix.calibration.profile": {
+        "order": "equipment_id",
+        "limit": 400,
+        "actions": {"action_request_approval", "action_recall_approval"},
+    },
+    # A07 P2 (2026-11-04) BRU-EAM-03: the retrospective impact assessments
+    "fix.calibration.impact": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_close_impact"},
+    },
     "fix.equipment.issue": {
         "order": "issued_on desc, id desc",
         "limit": 300,
@@ -191,6 +215,10 @@ def calibration_schedule(env, date_from=None, date_to=None, **params):
     )
 
 
+# a pass, or an adjustment that left every point in tolerance (A07 P2)
+CERTIFYING = ("pass", "adjusted")
+
+
 def _cal_key(calibration):
     return (calibration.calibrated_on, calibration.id)
 
@@ -220,13 +248,14 @@ def retrospective_impact(env, date_from=None, date_to=None, **params):
             fail = failed[-1]
             last_fail = fail.calibrated_on
             key = _cal_key(fail)
-            before = cals.filtered(lambda c, k=key: c.result == "pass" and _cal_key(c) < k)
-            after = cals.filtered(lambda c, k=key: c.result == "pass" and _cal_key(c) > k)
+            before = cals.filtered(lambda c, k=key: c.result in CERTIFYING and _cal_key(c) < k)
+            after = cals.filtered(lambda c, k=key: c.result in CERTIFYING and _cal_key(c) > k)
             since = before[-1].calibrated_on if before else None
             until = after[0].calibrated_on if after else None
             affected = uses.filtered(
-                lambda u, a=since, b=until: (a is None or u.used_on >= a)
-                and (b is None or u.used_on < b)
+                lambda u, a=since, b=until: (
+                    (a is None or u.used_on >= a) and (b is None or u.used_on < b)
+                )
             )
             window = "%s to %s" % (since or "first use", until or "open")
         else:
@@ -413,8 +442,10 @@ def loss_writeoff(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "A missing verification is the recorded loss; retirement/write-off is the "
-            "equipment's operational status, not inferred here."
+            "A missing verification is the recorded loss: the item is Lost / Missing "
+            "(unusable, not issued, not transferred) until a store keeper's count finds "
+            "it. A write-off is requested on the equipment and approved within the "
+            "authority matrix; Operational shows Retired once it is approved."
         ],
         totals={"code": "Total"},
         empty="No equipment was missing at verification.",
@@ -453,8 +484,9 @@ def cost_of_ownership(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Only recorded PM cost is summed; the equipment register carries no "
-            "acquisition cost, so total cost of ownership is not claimed."
+            "Only recorded PM cost is summed. The acquisition cost on the register is "
+            "the write-off basis, and calibration, repair and downtime costs are not "
+            "recorded, so total cost of ownership is not claimed."
         ],
         totals={
             "code": "Total",
@@ -490,4 +522,8 @@ def kpis(env):
         "issued_out": len(_scoped(env, "fix.equipment.issue", [("state", "=", "issued")])),
         "kits": len(_scoped(env, "fix.equipment.kit", [("active", "=", True)])),
         "pm_open": len(_scoped(env, "fix.equipment.pm", [("state", "=", "open")])),
+        # A07 P1/P2 (2026-11-04)
+        "missing": len(equipment.filtered(lambda e: e.operational_status == "missing")),
+        "impact_open": len(_scoped(env, "fix.calibration.impact", [("state", "=", "open")])),
+        "custody_overdue": len(_scoped(env, "fix.equipment.issue", [("is_overdue", "=", True)])),
     }

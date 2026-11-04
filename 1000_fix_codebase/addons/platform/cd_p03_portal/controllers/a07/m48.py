@@ -50,12 +50,32 @@ SURFACES = {
             "action_done_not_confirmed",
         },
     },
+    # A07 P1 (2026-11-04): a consent a non-officer records is verified by a
+    # Consent Officer who did not record it; a revocation whose agreed
+    # treatment is anonymisation leaves a manual task the officer closes.
     "fix.iot.consent": {
         "order": "valid_to desc, id desc",
         "limit": 300,
-        "actions": {"action_revoke"},
+        "actions": {"action_revoke", "action_verify", "action_record_treatment"},
     },
     "fix.iot.device": {"order": "id desc", "limit": 400, "actions": set()},
+    # A07 P1 (2026-11-04) M48-11 / probe 57: the Downsampling Policy form had
+    # no surface, so it could not save. Activation is requested here and
+    # decided by the CTO through a retention change.
+    "fix.iot.downsample": {
+        "order": "stream_id",
+        "limit": 300,
+        "actions": {"action_activate"},
+    },
+    # BRU-IOT-06: retention and downsampling changes, routed to the CTO;
+    # action_apply is the engine's apply method, not a workspace button.
+    "fix.iot.retention.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval"},
+    },
+    # AUT-IOT-03: the gaps the liveness cron recorded. Read only.
+    "fix.iot.gap": {"order": "detected_at desc, id desc", "limit": 400, "actions": set()},
 }
 
 
@@ -83,32 +103,13 @@ def _telemetry_cutoff(hours=24):
 
 # A07 audit (2026-11-03) M48-7: every pack and kpis() read sudo().search([]),
 # so a clerk's Open Alerts counted another company's alerts he cannot see.
-# Records are now SEARCHED with the caller's env, so the device / telemetry /
-# alert / prediction record rules (company and operating unit) apply, plus the
-# explicit company fence; only the display read is sudo. Six M48 models have
-# no company_id; they are scoped through the record they hang off.
-_COMPANY_PATH = {
-    "fix.iot.stream": "device_id.company_id",
-    "fix.iot.rule": "stream_id.device_id.company_id",
-    "fix.iot.downsample": "stream_id.device_id.company_id",
-    "fix.iot.action": "prediction_id.company_id",
-}
-
-
+# Records are now SEARCHED with the caller's env, so the record rules (company
+# and operating unit) apply, plus the explicit company fence; only the display
+# read is sudo. A07 P1 (2026-11-04): every M48 model now carries a company
+# (its own or its parent's) and a record rule; an adapter with no company is
+# shared protocol configuration.
 def _scope(env, model):
-    if "company_id" in env[model]._fields:
-        return _company_domain(env, model)
-    companies = env.user.company_ids.ids
-    if model == "fix.iot.adapter":
-        # An adapter is shared protocol configuration with no owner. It is
-        # listed when it serves a stream of the caller's companies, or serves
-        # no stream at all (then it exposes only its own configuration).
-        return [
-            "|",
-            ("stream_ids", "=", False),
-            ("stream_ids.device_id.company_id", "in", companies),
-        ]
-    return [(_COMPANY_PATH[model], "in", companies)]
+    return _company_domain(env, model)
 
 
 def _visible(env, model, domain=(), **kw):
@@ -397,6 +398,9 @@ def stream_quality(env, date_from=None, date_to=None, **params):
         last = latest.get(_key(stream), (0, None))[1]
         lag = int((now - last).total_seconds()) if last else None
         gaps = "No data" if lag is None else ("Fresh" if lag <= 3600 else "Stale")
+        if stream.state == "silent":
+            # A07 P1: the liveness cron opened a gap (BRU-IOT-09).
+            gaps = "Silent (gap open)"
         policy = (
             env["fix.iot.downsample"]
             .sudo()
@@ -431,7 +435,11 @@ def stream_quality(env, date_from=None, date_to=None, **params):
             "downsample": "Downsampling Policy",
         },
         rows,
-        ["Fresh = a reading within the last hour; Stale = older; No data = never seen."],
+        [
+            "Fresh = a reading within the last hour; Stale = older; No data = never seen; "
+            "Silent = the liveness check found no reading within the stream's silence window "
+            "and recorded a gap."
+        ],
         empty="No stream bindings configured.",
     )
 
@@ -555,7 +563,11 @@ def kpis(env):
     recent = _stream_readings(env, streams, cutoff)
     confirmed = len(predictions.filtered(lambda p: p.outcome == "confirmed"))
     false_alarm = len(predictions.filtered(lambda p: p.outcome == "false_alarm"))
-    compression = sum(policies.mapped("compression_pct"))
+    # A07 P1 (2026-11-04) M48-7 / probe 55: this averaged a TYPED
+    # compression_pct (99999 accepted). It is now the compression the
+    # retention cron measured from the aggregates it actually wrote; None
+    # (shown as "-") until a policy has aggregated anything.
+    measured = policies.filtered(lambda p: p.raw_points_rolled > 0)
     return {
         # A07 audit (2026-11-03) M48-7: this counted state=active, so it read 9
         # while no reading had arrived for 6 days. Now: active streams with at
@@ -570,5 +582,9 @@ def kpis(env):
             else None
         ),
         "prescriptive_actions": len(actions),
-        "retention_compression": (round(compression / len(policies), 1) if policies else 0.0),
+        "retention_compression": (
+            round(sum(measured.mapped("measured_compression_pct")) / len(measured), 1)
+            if measured
+            else None
+        ),
     }
