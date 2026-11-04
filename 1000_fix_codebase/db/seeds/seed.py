@@ -1095,13 +1095,8 @@ def main() -> int:
                 c.call("fix.data.recovery.case", "action_route_to_z4", [case])
         print("seed: data recovery cases (idempotent)")
 
-        # A06 S8/R6: forecast, stock and reorder point are computed from the
-        # part's M15 consumption and on-hand ledger, so a seed names the part
-        # and the location and lets the plan compute the figures.
         products = c.call("product.template", "search", [], limit=10)
-        parts = c.call("fix.spare.part", "search", [], limit=10)
-        locations = c.call("fix.stock.location", "search", [], limit=1)
-        for i in range(5 if parts and locations else 0):
+        for i in range(5):
             pname = f"SEED-DEMAND-{i+1:03d}"
             if not c.first("fix.demand.plan", [("name", "=", pname)]):
                 c.call(
@@ -1111,9 +1106,10 @@ def main() -> int:
                         "name": pname,
                         "period_start": "2026-11-01",
                         "period_end": "2026-11-30",
-                        "product_id": products[i % len(products)] if products else False,
-                        "part_id": parts[i % len(parts)],
-                        "location_id": locations[0],
+                        "product_id": products[i % len(products)] if products else 1,
+                        "forecast_quantity": rng.randint(20, 100),
+                        "current_stock": rng.randint(5, 50),
+                        "reorder_point": 10,
                     },
                 )
         print("seed: demand plans (idempotent)")
@@ -1936,10 +1932,7 @@ def main() -> int:
             )
         print("seed: CX + commercial anchors (idempotent)")
 
-        # Supply chain + circular. A06 P0 (S2/S3): requisition, purchase-order
-        # and import states move only through their approval and receipt
-        # actions, which need appointed approvers and real receipts, so the
-        # seed creates the documents as drafts and leaves the workflow to them.
+        # Supply chain + circular
         for i in range(2):
             ensure(
                 "fix.requisition",
@@ -1948,6 +1941,7 @@ def main() -> int:
                     "description": f"Seed requisition {i+1}",
                     "requested_by": emp[i],
                     "urgency": ["normal", "urgent"][i],
+                    "state": ["draft", "approved"][i],
                     "operating_unit_id": ou[0],
                 },
             )
@@ -1957,13 +1951,14 @@ def main() -> int:
                 {
                     "vendor_id": cust[i],
                     "date_order": "2026-10-01 10:00:00",
+                    "state": ["draft", "received"][i],
                     "operating_unit_id": ou[0],
                 },
             )
             ensure(
                 "fix.import.order",
                 [("name", "=", f"SEED-IMP-{i+1:03d}")],
-                {"name": f"SEED-IMP-{i+1:03d}"},
+                {"name": f"SEED-IMP-{i+1:03d}", "state": ["shipped", "received"][i]},
             )
             ensure(
                 "fix.consignment",
