@@ -268,6 +268,40 @@ def test_a_recurring_pm_schedules_its_next_job(c):
     assert not one_off.next_pm_id
 
 
+def test_business_default_intervals_apply_where_none_is_set(c):
+    ICP = c.env["ir.config_parameter"].sudo()
+    ICP.set_param("cd_facility.default_pm_interval_months", "3")
+    ICP.set_param("cd_facility.default_inspection_interval_months", "3")
+    # a PM with no interval of its own repeats by the business default
+    pm = (
+        c.env["fix.site.pm"]
+        .with_user(c.clerk)
+        .create({"site_id": c.site.id, "scheduled_on": c.today - timedelta(days=1)})
+    )
+    pm.action_done()
+    assert pm.next_pm_id.scheduled_on == pm.scheduled_on + relativedelta(months=3)
+    assert not pm.next_pm_id.interval_months  # it keeps following the default
+    # its own interval still wins
+    own = (
+        c.env["fix.site.pm"].with_user(c.clerk).create({"site_id": c.site.id, "interval_months": 6})
+    )
+    own.action_done()
+    assert own.next_pm_id.scheduled_on == own.scheduled_on + relativedelta(months=6)
+    # a safety item with no interval rolls by the default
+    item = (
+        c.env["fix.site.safety"]
+        .with_user(c.clerk)
+        .create({"site_id": c.site.id, "next_check": c.today - timedelta(days=1)})
+    )
+    item.with_user(c.clerk2).action_check()
+    assert item.next_check == c.today + relativedelta(months=3)
+    # a malformed default counts as none
+    ICP.set_param("cd_facility.default_pm_interval_months", "three")
+    once = c.env["fix.site.pm"].with_user(c.clerk).create({"site_id": c.site.id})
+    once.action_done()
+    assert not once.next_pm_id
+
+
 # ------------------------------------------------------------------- P03 wiring
 def test_p03_offers_the_new_actions_and_surfaces(c):
     from odoo.addons.cd_p03_portal.controllers.a07 import SURFACES

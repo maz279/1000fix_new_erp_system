@@ -39,6 +39,22 @@ HSE_NOTICE_DAYS = 2
 # Switch (default off, so live work is not stopped before the M59 bridge
 # exists): an injury incident closes only once its HSE case is linked.
 INJURY_CLOSE_PARAM = "cd_facility.injury_close_requires_hse_case"
+# FR-FAC-025 / M47-9: the spec gives no PM or inspection interval, so a plan
+# or item carries its own. These business defaults (whole months, empty =
+# none) apply where a plan or item has none; the business set 3 on 4 Nov 2026.
+PM_INTERVAL_PARAM = "cd_facility.default_pm_interval_months"
+INSPECTION_INTERVAL_PARAM = "cd_facility.default_inspection_interval_months"
+
+
+def _default_months(env, key) -> int:
+    """A whole-month business default from ir.config_parameter, or 0 for none."""
+    raw = env["ir.config_parameter"].sudo().get_param(key) or ""
+    try:
+        months = int(str(raw).strip())
+    except ValueError:
+        return 0
+    return months if months > 0 else 0
+
 
 _PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -1182,7 +1198,9 @@ class FixSitePm(models.Model):
     # (§10.1 "interval_value"), so none is invented: set it per plan.
     interval_months = fields.Integer(
         string="Repeat Every (months)",
-        help="Empty: a one-off job. Set: marking it done schedules the next one.",
+        help="Empty: the business default (cd_facility.default_pm_interval_months) "
+        "applies, or a one-off job when there is none. Set: marking it done "
+        "schedules the next one.",
     )
     next_pm_id = fields.Many2one("fix.site.pm", string="Next PM", readonly=True, copy=False)
     work_order_id = fields.Many2one(
@@ -1218,14 +1236,18 @@ class FixSitePm(models.Model):
             if rec.state != "open":
                 raise UserError("Complete an open PM job")
             rec._guarded().write({"state": "done", "done_on": done})
-            if rec.interval_months and rec.interval_months > 0:
+            months = (
+                rec.interval_months
+                if rec.interval_months and rec.interval_months > 0
+                else _default_months(self.env, PM_INTERVAL_PARAM)
+            )
+            if months:
                 nxt = rec.sudo().create(
                     {
                         "site_id": rec.site_id.id,
                         "service_type": rec.service_type,
                         "provider_id": rec.provider_id.id,
-                        "scheduled_on": rec.scheduled_on
-                        + relativedelta(months=rec.interval_months),
+                        "scheduled_on": rec.scheduled_on + relativedelta(months=months),
                         "interval_months": rec.interval_months,
                         "cost": rec.cost,
                         "currency_id": rec.currency_id.id,
@@ -1293,7 +1315,8 @@ class FixSiteSafety(models.Model):
     # invented), who recorded the last check, and the unfit notice to M59.
     inspection_interval_months = fields.Integer(
         string="Inspection Interval (months)",
-        help="When set, Record Check rolls the next check by this interval",
+        help="When set, Record Check rolls the next check by this interval; when "
+        "empty, by the business default (cd_facility.default_inspection_interval_months).",
     )
     last_checked_by_id = fields.Many2one(
         "res.users", string="Last Checked By", readonly=True, copy=False
@@ -1397,10 +1420,16 @@ class FixSiteSafety(models.Model):
             next_date = fields.Date.to_date(next_check) if next_check else None
         except ValueError as exc:
             raise UserError("Next check date %r is not a date (YYYY-MM-DD)." % next_check) from exc
+        default_months = _default_months(self.env, INSPECTION_INTERVAL_PARAM)
         for rec in self:
             due = next_date
-            if not due and rec.inspection_interval_months and rec.inspection_interval_months > 0:
-                due = today + relativedelta(months=rec.inspection_interval_months)
+            months = (
+                rec.inspection_interval_months
+                if rec.inspection_interval_months and rec.inspection_interval_months > 0
+                else default_months
+            )
+            if not due and months:
+                due = today + relativedelta(months=months)
             if not due:
                 raise UserError(
                     "Enter the next check date when recording a check of %s: it has no "
