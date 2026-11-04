@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04) AS-03: the hand-off queues are restricted to the user's allowed
+     companies (global rule) and, for internal users, to their allowed operating units,
+     in the shape tooling/generators/generate-isolation-rules.py emits. -->
+<odoo>
+    <record id="rule_fix_bridge_exception_company" model="ir.rule">
+        <field name="name">fix.bridge.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_bridge_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bridge_exception_operating_unit" model="ir.rule">
+        <field name="name">fix.bridge.exception: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_bridge_exception"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_finance_request_company" model="ir.rule">
+        <field name="name">fix.asset.finance.request: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_finance_request"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_finance_request_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.finance.request: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_finance_request"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_lease_modification_item_company" model="ir.rule">
+        <field name="name">fix.lease.modification.item: allowed companies</field>
+        <field name="model_id" ref="model_fix_lease_modification_item"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_lease_modification_item_operating_unit" model="ir.rule">
+        <field name="name">fix.lease.modification.item: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_lease_modification_item"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_cost_entry_company" model="ir.rule">
+        <field name="name">fix.asset.cost.entry: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_cost_entry"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_cost_entry_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.cost.entry: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_cost_entry"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>
