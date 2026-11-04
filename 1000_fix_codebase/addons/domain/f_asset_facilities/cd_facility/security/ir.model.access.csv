@@ -1,12 +1,31 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_site,fix.site,model_fix_site,base.group_user,1,1,1,0
+access_fix_site,fix.site,model_fix_site,base.group_user,1,0,1,0
+access_fix_site_fm,fix.site facility manager,model_fix_site,group_facility_manager,1,1,1,0
+access_fix_site_bol,fix.site branch operations lead,model_fix_site,group_branch_operations_lead,1,1,1,1
 access_fix_facility_work_order,fix.facility.work.order,model_fix_facility_work_order,base.group_user,1,1,1,0
-access_fix_site_lease,fix.site.lease,model_fix_site_lease,base.group_user,1,1,1,0
-access_fix_site_licence,fix.site.licence,model_fix_site_licence,base.group_user,1,1,1,0
+access_fix_facility_work_order_bol,fix.facility.work.order branch operations lead,model_fix_facility_work_order,group_branch_operations_lead,1,1,1,1
+access_fix_site_lease,fix.site.lease,model_fix_site_lease,base.group_user,1,0,1,0
+access_fix_site_lease_fm,fix.site.lease facility manager,model_fix_site_lease,group_facility_manager,1,1,1,0
+access_fix_site_lease_bol,fix.site.lease branch operations lead,model_fix_site_lease,group_branch_operations_lead,1,1,1,1
+access_fix_site_licence,fix.site.licence,model_fix_site_licence,base.group_user,1,0,1,0
+access_fix_site_licence_fm,fix.site.licence facility manager,model_fix_site_licence,group_facility_manager,1,1,1,0
+access_fix_site_licence_bol,fix.site.licence branch operations lead,model_fix_site_licence,group_branch_operations_lead,1,1,1,1
 access_fix_site_utility,fix.site.utility,model_fix_site_utility,base.group_user,1,1,1,0
-access_fix_site_condition,fix.site.condition,model_fix_site_condition,base.group_user,1,1,1,0
+access_fix_site_utility_bol,fix.site.utility branch operations lead,model_fix_site_utility,group_branch_operations_lead,1,1,1,1
+access_fix_site_condition,fix.site.condition,model_fix_site_condition,base.group_user,1,0,0,0
+access_fix_site_condition_fm,fix.site.condition facility manager,model_fix_site_condition,group_facility_manager,1,1,1,0
+access_fix_site_condition_bol,fix.site.condition branch operations lead,model_fix_site_condition,group_branch_operations_lead,1,1,1,1
 access_fix_site_pm,fix.site.pm,model_fix_site_pm,base.group_user,1,1,1,0
+access_fix_site_pm_bol,fix.site.pm branch operations lead,model_fix_site_pm,group_branch_operations_lead,1,1,1,1
 access_fix_site_safety,fix.site.safety,model_fix_site_safety,base.group_user,1,1,1,0
+access_fix_site_safety_bol,fix.site.safety branch operations lead,model_fix_site_safety,group_branch_operations_lead,1,1,1,1
 access_fix_site_incident,fix.site.incident,model_fix_site_incident,base.group_user,1,1,1,0
+access_fix_site_incident_bol,fix.site.incident branch operations lead,model_fix_site_incident,group_branch_operations_lead,1,1,1,1
 access_fix_site_project,fix.site.project,model_fix_site_project,base.group_user,1,1,1,0
+access_fix_site_project_bol,fix.site.project branch operations lead,model_fix_site_project,group_branch_operations_lead,1,1,1,1
 access_fix_site_asset,fix.site.asset,model_fix_site_asset,base.group_user,1,1,1,0
+access_fix_site_asset_bol,fix.site.asset branch operations lead,model_fix_site_asset,group_branch_operations_lead,1,1,1,1
+access_fix_site_risk_exception,fix.site.risk.exception,model_fix_site_risk_exception,base.group_user,1,0,0,0
+access_fix_site_risk_exception_bol,fix.site.risk.exception branch operations lead,model_fix_site_risk_exception,group_branch_operations_lead,1,1,0,0
+access_fix_site_lease_schedule,fix.site.lease.schedule,model_fix_site_lease_schedule,base.group_user,1,0,0,0
+access_fix_site_lease_extract,fix.site.lease.extract,model_fix_site_lease_extract,base.group_user,1,0,0,0

@@ -2,6 +2,7 @@
 # occupancy/condition inspections, building PM, safety equipment, security
 # incidents and site open/close projects. Sites and facility work orders live in
 # fix_facility.py.
+import json
 import re
 from datetime import timedelta
 
@@ -17,8 +18,39 @@ from .fix_facility import ESTATE_COST_DOFA_THRESHOLDS, _changes, _refuse_if_cove
 # AUT-FAC-14: safety equipment alerts the branch 30 days before its inspection
 # or refill date; inside that window the item is "due", after it "overdue".
 SAFETY_DUE_DAYS = 30
+# AUT-FAC-01: licence alerts at 90, 60, 30, 15 and 7 days before expiry.
+LICENCE_ALERT_DAYS = (90, 60, 30, 15, 7)
+# AUT-FAC-04: lease critical-date horizons; inside 30 days of the renewal
+# notice deadline the decision request repeats daily to the CFO.
+LEASE_ALERT_DAYS = (90, 60, 30, 15, 7)
+LEASE_DECISION_DAILY_DAYS = 30
+# BRU-FAC-11 / AUT-FAC-13: a utility bill whose amount or consumption is this
+# many times its own trailing average (up to the last 3 periods of the same
+# site and utility) is held from payment until reviewed. The spec says "the
+# configured anomaly threshold" and gives no figure: 2.0 is a DEFAULT THE
+# BUSINESS MUST CONFIRM (decision B2), set without code in this parameter.
+UTILITY_FACTOR_PARAM = "cd_facility.utility_anomaly_factor"
+UTILITY_FACTOR_DEFAULT = "2.0"
+UTILITY_HISTORY = 3
+# BRU-FAC-18 / AUT-FAC-15: an injury opens an HSE case the same day; BLA 2006
+# s.80 gives the Inspector notice within 2 working days. Without a working
+# calendar the clock counts calendar days, which can only be earlier.
+HSE_NOTICE_DAYS = 2
+# Switch (default off, so live work is not stopped before the M59 bridge
+# exists): an injury incident closes only once its HSE case is linked.
+INJURY_CLOSE_PARAM = "cd_facility.injury_close_requires_hse_case"
 
 _PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+UTILITY_GUARDED = (
+    "flagged",
+    "review_state",
+    "anomaly_basis",
+    "anomaly_evaluated",
+    "reviewed_by_id",
+    "reviewed_at",
+    "review_notes",
+)
 
 
 # The terms a lease modification changes, and the proposal that carries them.
@@ -128,13 +160,83 @@ class FixSiteLease(models.Model):
     proposed_escalation_pct = fields.Float(string="Proposed Escalation %", copy=False)
     modification_reason = fields.Char(string="Modification Reason", copy=False)
     terminated_reason = fields.Char(string="Termination Reason", readonly=True, copy=False)
+    # A07 P2 (2026-11-04) M47-8 / BRU-FAC-05: the renewal-notice deadline and
+    # the decision that must be recorded before it passes (CFO).
+    notice_period_days = fields.Integer(
+        string="Renewal Notice (days)",
+        help="Days before the end date by which the landlord must be told (from the lease)",
+    )
+    renewal_notice_date = fields.Date(
+        string="Renewal Notice Deadline", compute="_compute_renewal_notice_date", store=True
+    )
+    renewal_decision = fields.Selection(
+        [("renew", "Renew"), ("renegotiate", "Renegotiate"), ("exit", "Exit (do not renew)")],
+        string="Renewal Decision",
+        readonly=True,
+        copy=False,
+    )
+    renewal_decision_by_id = fields.Many2one(
+        "res.users", string="Decided By", readonly=True, copy=False
+    )
+    renewal_decision_on = fields.Date(string="Decided On", readonly=True, copy=False)
+    renewal_decision_notes = fields.Char(string="Decision Notes", readonly=True, copy=False)
+    # cron bookkeeping: the last critical-date alert sent, "<kind>:<date>:<days>"
+    critical_alert_key = fields.Char(readonly=True, copy=False)
+    schedule_ids = fields.One2many("fix.site.lease.schedule", "lease_id", string="Rent Schedule")
+    extract_ids = fields.One2many("fix.site.lease.extract", "lease_id", string="IFRS 16 Extracts")
+    current_rent = fields.Monetary(
+        string="Current Monthly Rent",
+        currency_field="currency_id",
+        compute="_compute_current_rent",
+        help="Today's rent from the schedule: the commencement rent escalated on each "
+        "anniversary (FR-FAC-012)",
+    )
+
+    @api.depends("end_date", "notice_period_days")
+    def _compute_renewal_notice_date(self):
+        for rec in self:
+            rec.renewal_notice_date = (
+                rec.end_date - timedelta(days=rec.notice_period_days)
+                if rec.end_date and rec.notice_period_days
+                else rec.end_date
+            )
+
+    def _compute_current_rent(self):
+        today = fields.Date.context_today(self)
+        for rec in self:
+            rec.current_rent = rec._lease_rent_on(today)
+
+    def _lease_rent_on(self, day) -> float:
+        """The scheduled rent for the month of `day` (the commencement rent
+        escalated on every anniversary); the lease's own figure outside the
+        term or before a schedule exists."""
+        self.ensure_one()
+        period = day.strftime("%Y-%m")
+        row = self.schedule_ids.filtered(lambda r: r.period == period)[:1]
+        if row:
+            return row.rent_due
+        if self.start_date and self.end_date and self.start_date <= day <= self.end_date:
+            years = relativedelta(day, self.start_date).years
+            return round(
+                self.monthly_rent * (1.0 + (self.escalation_pct or 0.0) / 100.0) ** years, 2
+            )
+        return self.monthly_rent
 
     _dates_ordered = models.Constraint(
         "CHECK (end_date >= start_date)", "Lease end cannot precede its start"
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "modification_open", "terminated_reason"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "modification_open",
+            "terminated_reason",
+            "renewal_decision",
+            "renewal_decision_by_id",
+            "renewal_decision_on",
+            "renewal_decision_notes",
+            "critical_alert_key",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -150,7 +252,114 @@ class FixSiteLease(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.site.lease") or "LEASE/New"
-        return super().create(vals_list)
+        leases = super().create(vals_list)
+        today = fields.Date.context_today(self)
+        for rec in leases:
+            # a lease recorded after its end date is expired, not active (M47-8)
+            if rec.state == "active" and rec.end_date and rec.end_date < today:
+                rec.sudo()._guarded().write({"state": "expired"})
+            rec.sudo()._lease_build_schedule()
+            # BRU-FAC-13/14, AUT-FAC-05: the lease data goes to M19/M49
+            publish(
+                self.env,
+                "lease.recorded",
+                "fix.site.lease",
+                rec.id,
+                {
+                    "lease": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "lessor": rec.lessor_id.name,
+                    "start_date": str(rec.start_date),
+                    "end_date": str(rec.end_date),
+                    "monthly_rent": float(rec.monthly_rent or 0.0),
+                    "escalation_pct": float(rec.escalation_pct or 0.0),
+                    "deposit": float(rec.deposit or 0.0),
+                    "notice_period_days": rec.notice_period_days or 0,
+                },
+            )
+            rec.sudo()._lease_publish_extract("recorded")
+        return leases
+
+    # ---- rent schedule and IFRS 16 extract (A07 P2, FR-FAC-012, BRU-FAC-13)
+    def _lease_build_schedule(self):
+        """One row per month of the term, the rent escalated on each
+        anniversary. Rows already paid, and rows before this month, are the
+        record and are kept; the rest is rebuilt from the current terms."""
+        Schedule = self.env["fix.site.lease.schedule"].sudo()
+        this_month = fields.Date.context_today(self).replace(day=1)
+        for rec in self:
+            if not rec.start_date or not rec.end_date:
+                continue
+            keep = rec.schedule_ids.filtered(lambda r: r.paid_amount or r.due_date < this_month)
+            (rec.schedule_ids - keep)._guarded().unlink()
+            kept = set(keep.mapped("period"))
+            rows = []
+            cursor = rec.start_date
+            while cursor <= rec.end_date:
+                period = cursor.strftime("%Y-%m")
+                if period not in kept:
+                    years = relativedelta(cursor, rec.start_date).years
+                    rows.append(
+                        {
+                            "lease_id": rec.id,
+                            "period": period,
+                            "due_date": cursor,
+                            "rent_due": round(
+                                rec.monthly_rent
+                                * (1.0 + (rec.escalation_pct or 0.0) / 100.0) ** years,
+                                2,
+                            ),
+                            "escalation_year": years,
+                        }
+                    )
+                cursor += relativedelta(months=1)
+            if rows:
+                Schedule._guarded().create(rows)
+
+    def _lease_publish_extract(self, reason):
+        """A new version of the lease data extract for M19/M49. M47 never
+        computes the right-of-use asset or the liability (BRU-FAC-13)."""
+        Extract = self.env["fix.site.lease.extract"].sudo()
+        for rec in self:
+            version = (max(rec.extract_ids.mapped("version")) if rec.extract_ids else 0) + 1
+            term = (
+                relativedelta(rec.end_date, rec.start_date)
+                if rec.start_date and rec.end_date
+                else None
+            )
+            data = {
+                "lease": rec.name,
+                "site": rec.site_id.name,
+                "lessor": rec.lessor_id.name,
+                "commencement": str(rec.start_date),
+                "end_date": str(rec.end_date),
+                "term_months": (term.years * 12 + term.months + (1 if term.days else 0))
+                if term
+                else 0,
+                "monthly_rent": float(rec.monthly_rent or 0.0),
+                "escalation_pct": float(rec.escalation_pct or 0.0),
+                "deposit": float(rec.deposit or 0.0),
+                "notice_period_days": rec.notice_period_days or 0,
+                "renewal_decision": rec.renewal_decision or None,
+                "fixed_payments_total": round(sum(rec.schedule_ids.mapped("rent_due")), 2),
+            }
+            Extract._guarded().create(
+                {
+                    "lease_id": rec.id,
+                    "version": version,
+                    "reason": reason,
+                    "payload": json.dumps(data, sort_keys=True),
+                    "published_at": fields.Datetime.now(),
+                }
+            )
+            publish(
+                self.env,
+                "lease.extract_published",
+                "fix.site.lease",
+                rec.id,
+                {"lease": rec.name, "version": version, "reason": reason, "extract": data},
+            )
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -236,6 +445,14 @@ class FixSiteLease(models.Model):
             rec._lease_clear_proposal()
         return True
 
+    def action_dofa_approve(self):
+        """The approver (a DOFA tier holder) needs no M47 write right on the
+        lease: the routing check runs as the approver, then the approval is
+        stamped as a service. The tier, SoD and justification checks still
+        read the approver (sudo keeps the user)."""
+        self._approval_assert_routed()
+        return super(FixSiteLease, self.sudo()).action_dofa_approve()
+
     def action_request_approval(self, justification=None):
         for rec in self:
             if not rec.modification_open:
@@ -266,9 +483,21 @@ class FixSiteLease(models.Model):
             if rec.state == "expired" and rec.proposed_end_date >= today:
                 vals["state"] = "active"  # a renewal of an expired lease
             reason = rec.modification_reason
+            if vals["end_date"] != rec.end_date:
+                # a new term needs its own renewal decision (BRU-FAC-05)
+                vals.update(
+                    {
+                        "renewal_decision": False,
+                        "renewal_decision_by_id": False,
+                        "renewal_decision_on": False,
+                        "renewal_decision_notes": False,
+                        "critical_alert_key": False,
+                    }
+                )
             rec._guarded().write(vals)
             rec._lease_clear_proposal()
             rec._lease_consume_approval()
+            rec.sudo()._lease_build_schedule()
             # BRU-FAC-14: a modification is a remeasurement trigger for M19/M49
             publish(
                 self.env,
@@ -283,7 +512,115 @@ class FixSiteLease(models.Model):
                     "after": {k: str(v) if k == "end_date" else v for k, v in new.items()},
                 },
             )
+            rec.sudo()._lease_publish_extract("modified")
         return True
+
+    # ---- renewal decision (BRU-FAC-05: CFO) --------------------------------
+    def _lease_record_decision(self, decision, notes):
+        notes = (notes or "").strip()
+        if not notes:
+            raise UserError("State the basis of the renewal decision.")
+        for rec in self:
+            if rec.state != "active":
+                raise UserError("A renewal decision is recorded for an active lease.")
+            if not self.env.su:
+                # no CFO group exists: DOFA Tier 4 "CFO / CCO / COO" (P0)
+                if not self.env.user.has_group("cd_entity_config.group_dofa_tier_4"):
+                    raise UserError(
+                        "The renewal decision of lease %s is the CFO's (DOFA Tier 4)." % rec.name
+                    )
+                if self.env.user == rec.create_uid:
+                    raise UserError(
+                        "Segregation of duties: you recorded lease %s; another person decides "
+                        "its renewal." % rec.name
+                    )
+            # a service write after the checks above: the CFO decides without
+            # holding an M47 write right on the lease
+            rec.sudo()._guarded().write(
+                {
+                    "renewal_decision": decision,
+                    "renewal_decision_by_id": self.env.uid,
+                    "renewal_decision_on": fields.Date.context_today(rec),
+                    "renewal_decision_notes": notes,
+                }
+            )
+        return True
+
+    def action_decide_renew(self, notes=None):
+        return self._lease_record_decision("renew", notes)
+
+    def action_decide_renegotiate(self, notes=None):
+        return self._lease_record_decision("renegotiate", notes)
+
+    def action_decide_exit(self, notes=None):
+        return self._lease_record_decision("exit", notes)
+
+    # ---- scheduled job (AUT-FAC-04) ----------------------------------------
+    @api.model
+    def cron_lease_critical_dates(self):
+        """Daily: build any missing rent schedule, expire leases past their
+        end date, and raise the critical-date and renewal-decision alerts.
+        Idempotent: each alert is sent once per date and horizon, except the
+        decision request inside 30 days of the notice deadline, which repeats
+        daily until the decision is recorded (AUT-FAC-04)."""
+        today = fields.Date.context_today(self)
+        leases = self.sudo().search([("state", "=", "active")])
+        for rec in leases.filtered(lambda r: not r.schedule_ids):
+            rec._lease_build_schedule()
+        for rec in leases:
+            if rec.end_date < today and not rec.modification_open:
+                rec._guarded().write({"state": "expired"})
+                rec._lease_alert("expiry", rec.end_date, (rec.end_date - today).days)
+                continue
+            notice = rec.renewal_notice_date
+            if notice and not rec.renewal_decision:
+                days = (notice - today).days
+                if days <= LEASE_DECISION_DAILY_DAYS:
+                    key = "decision:%s:%s" % (notice, today)
+                    if rec.critical_alert_key != key:
+                        publish(
+                            self.env,
+                            "lease.renewal_decision_required",
+                            "fix.site.lease",
+                            rec.id,
+                            {
+                                "lease": rec.name,
+                                "site": rec.site_id.name,
+                                "deadline": str(notice),
+                                "days_left": days,
+                                "responsible_role": "CFO",
+                            },
+                        )
+                        rec._guarded().write({"critical_alert_key": key})
+                    continue
+            days_to_end = (rec.end_date - today).days
+            for horizon in LEASE_ALERT_DAYS:
+                if days_to_end <= horizon:
+                    rec._lease_alert("expiry", rec.end_date, horizon)
+                    break
+        return True
+
+    def _lease_alert(self, kind, due_on, horizon):
+        self.ensure_one()
+        key = "%s:%s:%s" % (kind, due_on, horizon)
+        if self.critical_alert_key == key:
+            return
+        today = fields.Date.context_today(self)
+        publish(
+            self.env,
+            "lease.critical_date_due",
+            "fix.site.lease",
+            self.id,
+            {
+                "lease": self.name,
+                "site": self.site_id.name,
+                "event_type": kind,
+                "due_on": str(due_on),
+                "days_left": (due_on - today).days,
+                "responsible_role": "CFO",
+            },
+        )
+        self._guarded().write({"critical_alert_key": key})
 
     def action_expire(self):
         """An active lease past its end date is recorded as expired."""
@@ -367,8 +704,116 @@ class FixSiteLicence(models.Model):
         domain = Domain.OR([valid if flag else ~valid for flag in {bool(v) for v in value}])
         return ~domain if operator == "not in" else domain
 
+    # cron bookkeeping: the smallest expiry horizon already alerted (AUT-FAC-01)
+    alert_horizon = fields.Integer(readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"alert_horizon"}
+
     def _is_lapsed(self, today) -> bool:
         return self.state == "expired" or bool(self.valid_to and self.valid_to < today)
+
+    def _licence_check_fire_dependency(self):
+        """BRU-FAC-03 / AUT-FAC-02: no trade licence renewal while the site's
+        fire licence is expired. A site that holds a fire licence and none
+        of them is current cannot record a current trade licence."""
+        for rec in self.filtered(lambda r: r.licence_type == "trade" and r.is_valid):
+            fire = self.sudo().search(
+                [("site_id", "=", rec.site_id.id), ("licence_type", "=", "fire")]
+            )
+            if fire and not fire.filtered("is_valid"):
+                raise UserError(
+                    "%s cannot record a trade licence renewal while its fire licence is "
+                    "expired (BRU-FAC-03). Renew the fire licence first." % rec.site_id.name
+                )
+
+    def _licence_resolve_exceptions(self):
+        """A current licence resolves the site's open risk exceptions for
+        its type (the renewal is the resolution)."""
+        Exc = self.env["fix.site.risk.exception"].sudo()
+        for rec in self.filtered("is_valid"):
+            Exc.search(
+                [
+                    ("site_id", "=", rec.site_id.id),
+                    ("licence_type", "=", rec.licence_type),
+                    ("state", "in", ("open", "continue", "suspend")),
+                ]
+            )._exception_resolve("renewed by %s (valid to %s)" % (rec.name, rec.valid_to))
+
+    def _licence_sync_compliance(self, mark_expired=True):
+        """Lapse handling (AUT-FAC-03): mark the licence expired (the daily
+        job), publish site.compliance_expired and raise the operating-risk
+        exception, unless a current licence of the same type supersedes it.
+        Recording an already-lapsed licence raises the exception at once."""
+        today = fields.Date.context_today(self)
+        Exc = self.env["fix.site.risk.exception"].sudo()
+        for rec in self.sudo():
+            if not rec._is_lapsed(today) or rec.state == "suspended":
+                continue
+            if rec.state == "valid" and mark_expired:
+                rec._guarded().write({"state": "expired"})
+                publish(
+                    self.env,
+                    "site.compliance_expired",
+                    "fix.site.licence",
+                    rec.id,
+                    {
+                        "site": rec.site_id.name,
+                        "site_id": rec.site_id.id,
+                        "licence": rec.name,
+                        "licence_type": rec.licence_type,
+                        "expiry": str(rec.valid_to) if rec.valid_to else None,
+                    },
+                )
+            superseded = self.sudo().search_count(
+                [
+                    ("site_id", "=", rec.site_id.id),
+                    ("licence_type", "=", rec.licence_type),
+                    ("id", "!=", rec.id),
+                    ("is_valid", "=", True),
+                ]
+            )
+            # the exception is about operating on a lapse: a planned site is
+            # not operating (its readiness gate needs current licences) and a
+            # closed one has surrendered them
+            if superseded or rec.site_id.state != "active":
+                continue
+            if not Exc.search_count([("licence_id", "=", rec.id)]):
+                Exc._exception_raise(rec)
+
+    @api.model
+    def cron_licence_expiry(self):
+        """Daily (AUT-FAC-01/03): expiry alerts at 90/60/30/15/7 days, lapse
+        handling, and the daily escalation of undecided risk exceptions.
+        Idempotent: each horizon is alerted once per licence."""
+        today = fields.Date.context_today(self)
+        licences = self.sudo().search([("state", "=", "valid")])
+        for rec in licences:
+            if not rec.valid_to:
+                continue
+            days = (rec.valid_to - today).days
+            if days < 0:
+                continue
+            due = [h for h in LICENCE_ALERT_DAYS if days <= h]
+            if due and (not rec.alert_horizon or min(due) < rec.alert_horizon):
+                publish(
+                    self.env,
+                    "site.compliance_expiring",
+                    "fix.site.licence",
+                    rec.id,
+                    {
+                        "site": rec.site_id.name,
+                        "site_id": rec.site_id.id,
+                        "licence": rec.name,
+                        "licence_type": rec.licence_type,
+                        "expiry": str(rec.valid_to),
+                        "days_remaining": days,
+                    },
+                )
+                rec._guarded().write({"alert_horizon": min(due)})
+        self.sudo().search([("state", "in", ("valid", "expired"))])._licence_sync_compliance()
+        self.env["fix.site.risk.exception"].sudo()._exception_escalate()
+        return True
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -377,7 +822,12 @@ class FixSiteLicence(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.site.licence") or "SLIC/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        if not self.env.su:
+            records._licence_check_fire_dependency()
+        records._licence_resolve_exceptions()
+        records._licence_sync_compliance(mark_expired=False)
+        return records
 
     def write(self, vals):
         # A07 audit (2026-11-03, M47-2/M47-3): an expired licence was revived
@@ -402,12 +852,21 @@ class FixSiteLicence(models.Model):
                         "valid again. Record the renewal as a new licence with its own "
                         "number and validity dates." % (rec.name, rec.valid_to or "-", rec.state)
                     )
-        return super().write(vals)
+        result = super().write(vals)
+        if {"state", "valid_to", "licence_type"} & set(vals) and not self._fix_guard_has_token():
+            if "valid_to" in vals:
+                # a new expiry date restarts the expiry alerts
+                self._guarded().write({"alert_horizon": 0})
+            if not self.env.su:
+                self._licence_check_fire_dependency()
+            self._licence_resolve_exceptions()
+        return result
 
 
 class FixSiteUtility(models.Model):
     _name = "fix.site.utility"
     _description = "Site Utility Account"
+    _inherit = ["fix.guarded.mixin"]
     _order = "period desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -426,8 +885,33 @@ class FixSiteUtility(models.Model):
     )
     usage = fields.Float(string="Usage")
     unit = fields.Char(string="Unit", default="kWh")
-    flagged = fields.Boolean(string="Anomaly Flagged", default=False)
+    flagged = fields.Boolean(string="Anomaly Flagged", default=False, readonly=True)
     notes = fields.Char()
+    # A07 P1 (2026-11-04) M47-13 / BRU-FAC-11: the flag was a manual tick the
+    # recorder could clear. A bill is now evaluated against its own history
+    # on record (and by the daily job); a breach holds it from payment until
+    # a Branch Operations Lead who did not record it releases or confirms it.
+    review_state = fields.Selection(
+        [
+            ("none", "Not Held"),
+            ("held", "Held for Review"),
+            ("released", "Released after Review"),
+            ("confirmed", "Anomaly Confirmed"),
+        ],
+        string="Payment Hold",
+        default="none",
+        required=True,
+        readonly=True,
+        copy=False,
+    )
+    anomaly_basis = fields.Char(string="Anomaly Basis", readonly=True, copy=False)
+    anomaly_evaluated = fields.Boolean(readonly=True, copy=False)
+    reviewed_by_id = fields.Many2one("res.users", string="Reviewed By", readonly=True, copy=False)
+    reviewed_at = fields.Datetime(string="Reviewed At", readonly=True, copy=False)
+    review_notes = fields.Char(string="Review Notes", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | set(UTILITY_GUARDED)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -436,7 +920,143 @@ class FixSiteUtility(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.site.utility") or "SUTL/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records._utility_evaluate()
+        return records
+
+    def write(self, vals):
+        figures = {k: vals[k] for k in ("amount", "usage") if k in vals}
+        if (
+            self
+            and figures
+            and not self._fix_guard_open()
+            and _changes(self.filtered(lambda r: r.review_state != "none"), figures)
+        ):
+            raise UserError(
+                "A bill under or after anomaly review keeps the figures it was reviewed "
+                "on. Record a correction note and ask the reviewer."
+            )
+        result = super().write(vals)
+        if {"amount", "usage", "period"} & set(vals) and not self._fix_guard_has_token():
+            self._utility_evaluate()
+        return result
+
+    def _utility_factor(self) -> float:
+        raw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(UTILITY_FACTOR_PARAM, UTILITY_FACTOR_DEFAULT)
+        )
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return float(UTILITY_FACTOR_DEFAULT)
+
+    def _utility_evaluate(self):
+        """AUT-FAC-13: compare the bill with its own history (up to the last
+        3 earlier periods of the same site and utility). A breach holds it."""
+        factor = self._utility_factor()
+        for rec in self.sudo():
+            if rec.review_state != "none":
+                continue
+            history = rec.search(
+                [
+                    ("id", "!=", rec.id),
+                    ("site_id", "=", rec.site_id.id),
+                    ("utility_type", "=", rec.utility_type),
+                    ("period", "<", rec.period),
+                ],
+                order="period desc",
+                limit=UTILITY_HISTORY,
+            )
+            basis = []
+            if history and factor > 0:
+                avg_amount = sum(history.mapped("amount")) / len(history)
+                if avg_amount > 0 and rec.amount >= factor * avg_amount:
+                    basis.append(
+                        "amount %.2f is %.1fx the %d-period average %.2f"
+                        % (rec.amount, rec.amount / avg_amount, len(history), avg_amount)
+                    )
+                used = history.filtered(lambda h: h.usage > 0)
+                if used and rec.usage:
+                    avg_usage = sum(used.mapped("usage")) / len(used)
+                    if rec.usage >= factor * avg_usage:
+                        basis.append(
+                            "usage %.2f is %.1fx the %d-period average %.2f"
+                            % (rec.usage, rec.usage / avg_usage, len(used), avg_usage)
+                        )
+            vals = {"anomaly_evaluated": True}
+            if basis:
+                vals.update(
+                    {
+                        "flagged": True,
+                        "review_state": "held",
+                        "anomaly_basis": "; ".join(basis)[:250],
+                    }
+                )
+            rec._guarded().write(vals)
+            if basis:
+                rec._utility_publish_anomaly()
+
+    def _utility_publish_anomaly(self):
+        for rec in self:
+            publish(
+                self.env,
+                "site.utility_anomaly",
+                "fix.site.utility",
+                rec.id,
+                {
+                    "record": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "utility_type": rec.utility_type,
+                    "period": rec.period,
+                    "amount": float(rec.amount or 0.0),
+                    "usage": float(rec.usage or 0.0),
+                    "basis": rec.anomaly_basis or None,
+                },
+            )
+
+    @api.model
+    def cron_utility_anomaly(self):
+        """Daily: evaluate bills recorded without an evaluation (imports,
+        service writes). Idempotent: each bill is evaluated once."""
+        self.sudo().search([("anomaly_evaluated", "=", False)])._utility_evaluate()
+        return True
+
+    def _utility_review(self, outcome, notes):
+        notes = (notes or "").strip()
+        if not notes:
+            raise UserError("Record the basis of the anomaly review.")
+        for rec in self:
+            if rec.review_state != "held":
+                raise UserError("%s is not held for review." % rec.name)
+            if not self.env.su:
+                if not self.env.user.has_group("cd_facility.group_branch_operations_lead"):
+                    raise UserError("A utility anomaly is reviewed by a Branch Operations Lead.")
+                if self.env.user == rec.create_uid:
+                    raise UserError(
+                        "Segregation of duties: you recorded %s; another person reviews its "
+                        "anomaly (§13)." % rec.name
+                    )
+            rec._guarded().write(
+                {
+                    "review_state": outcome,
+                    "flagged": outcome == "confirmed",
+                    "reviewed_by_id": self.env.uid,
+                    "reviewed_at": fields.Datetime.now(),
+                    "review_notes": notes,
+                }
+            )
+        return True
+
+    def action_release(self, notes=None):
+        """Reviewed: the bill is genuine and released for payment."""
+        return self._utility_review("released", notes)
+
+    def action_confirm_anomaly(self, notes=None):
+        """Reviewed: the anomaly is real; the bill stays out of payment."""
+        return self._utility_review("confirmed", notes)
 
     # A07 audit (2026-11-03, M47-13): the same site / utility / period was
     # accepted twice and a free-text period ("last month") once, and both were
@@ -471,8 +1091,23 @@ class FixSiteUtility(models.Model):
                 )
 
     def action_flag(self):
+        """Hold a bill for review by hand (anyone may raise the concern;
+        only a reviewer who did not record it clears it)."""
         for rec in self:
-            rec.flagged = True
+            if rec.review_state == "held":
+                continue
+            rec._guarded().write(
+                {
+                    "flagged": True,
+                    "review_state": "held",
+                    "anomaly_basis": ("Flagged by %s" % self.env.user.name)[:250],
+                    "reviewed_by_id": False,
+                    "reviewed_at": False,
+                    "review_notes": False,
+                }
+            )
+            rec._utility_publish_anomaly()
+        return True
 
 
 class FixSiteCondition(models.Model):
@@ -542,9 +1177,20 @@ class FixSitePm(models.Model):
     cost = fields.Monetary(currency_field="currency_id")
     state = fields.Selection([("open", "Open"), ("done", "Done")], required=True, default="open")
     notes = fields.Char()
+    # A07 P1 (2026-11-04) M47-15 / FR-FAC-025 / AUT-FAC-10: recurrence and
+    # the work order a due PM raises. The spec gives no interval per service
+    # (§10.1 "interval_value"), so none is invented: set it per plan.
+    interval_months = fields.Integer(
+        string="Repeat Every (months)",
+        help="Empty: a one-off job. Set: marking it done schedules the next one.",
+    )
+    next_pm_id = fields.Many2one("fix.site.pm", string="Next PM", readonly=True, copy=False)
+    work_order_id = fields.Many2one(
+        "fix.facility.work.order", string="Work Order", readonly=True, copy=False
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "done_on"}
+        return super()._fix_guarded_fields() | {"state", "done_on", "next_pm_id", "work_order_id"}
 
     @api.constrains("state", "done_on")
     def _check_done_has_date(self):
@@ -572,6 +1218,49 @@ class FixSitePm(models.Model):
             if rec.state != "open":
                 raise UserError("Complete an open PM job")
             rec._guarded().write({"state": "done", "done_on": done})
+            if rec.interval_months and rec.interval_months > 0:
+                nxt = rec.sudo().create(
+                    {
+                        "site_id": rec.site_id.id,
+                        "service_type": rec.service_type,
+                        "provider_id": rec.provider_id.id,
+                        "scheduled_on": rec.scheduled_on
+                        + relativedelta(months=rec.interval_months),
+                        "interval_months": rec.interval_months,
+                        "cost": rec.cost,
+                        "currency_id": rec.currency_id.id,
+                    }
+                )
+                rec._guarded().write({"next_pm_id": nxt.id})
+        return True
+
+    @api.model
+    def cron_pm_due(self):
+        """Daily (AUT-FAC-10): an open PM that is due raises its scheduled
+        facility work order, once. The WO goes through its own approval and
+        lifecycle (a costed one is approved under DOFA before scheduling)."""
+        today = fields.Date.context_today(self)
+        WO = self.env["fix.facility.work.order"].sudo()
+        for rec in self.sudo().search(
+            [("state", "=", "open"), ("scheduled_on", "<=", today), ("work_order_id", "=", False)]
+        ):
+            labels = dict(rec._fields["service_type"].selection)
+            wo = WO._guarded().create(
+                {
+                    "site_id": rec.site_id.id,
+                    "company_id": rec.site_id.company_id.id,
+                    "operating_unit_id": rec.site_id.operating_unit_id.id,
+                    "work_type": "maintenance",
+                    "description": "Preventive maintenance %s: %s (scheduled %s)"
+                    % (rec.name, labels.get(rec.service_type), rec.scheduled_on),
+                    "scheduled_date": rec.scheduled_on,
+                    "estimated_cost": rec.cost,
+                    "assigned_type": "vendor" if rec.provider_id else "internal",
+                    "vendor_id": rec.provider_id.id,
+                    "pm_id": rec.id,
+                }
+            )
+            rec._guarded().write({"work_order_id": wo.id})
         return True
 
 
@@ -599,6 +1288,17 @@ class FixSiteSafety(models.Model):
     ref = fields.Char(string="Tag / Reference")
     last_check = fields.Date()
     next_check = fields.Date(required=True)
+    # A07 P1 (2026-11-04) M47-9: the inspection interval of THIS item (the
+    # spec sets it "per equipment class" and gives no figure, so none is
+    # invented), who recorded the last check, and the unfit notice to M59.
+    inspection_interval_months = fields.Integer(
+        string="Inspection Interval (months)",
+        help="When set, Record Check rolls the next check by this interval",
+    )
+    last_checked_by_id = fields.Many2one(
+        "res.users", string="Last Checked By", readonly=True, copy=False
+    )
+    unfit_notified_for = fields.Date(readonly=True, copy=False)
     # A07 audit (2026-11-03, M47-9): `state` was typed and defaulted to `ok`,
     # so an extinguisher 45 days past its check was born `ok` and the overdue
     # KPI read 0; a plain write or the P03 form cleared an overdue item. The
@@ -647,6 +1347,9 @@ class FixSiteSafety(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.site.safety") or "SSAF/New"
         return super().create(vals_list)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"last_checked_by_id", "unfit_notified_for"}
+
     def write(self, vals):
         # A07 audit (2026-11-03, M47-9): with the status derived from the
         # dates, forging moved to the dates themselves. Outside Record Check a
@@ -694,15 +1397,46 @@ class FixSiteSafety(models.Model):
             next_date = fields.Date.to_date(next_check) if next_check else None
         except ValueError as exc:
             raise UserError("Next check date %r is not a date (YYYY-MM-DD)." % next_check) from exc
-        if not next_date:
-            raise UserError(
-                "Enter the next check date when recording a check: no inspection "
-                "interval is configured for safety equipment."
-            )
-        if next_date <= today:
-            raise UserError("The next check date must be after today (%s)." % today)
         for rec in self:
-            rec._guarded().write({"last_check": today, "next_check": next_date})
+            due = next_date
+            if not due and rec.inspection_interval_months and rec.inspection_interval_months > 0:
+                due = today + relativedelta(months=rec.inspection_interval_months)
+            if not due:
+                raise UserError(
+                    "Enter the next check date when recording a check of %s: it has no "
+                    "inspection interval." % rec.name
+                )
+            if due <= today:
+                raise UserError("The next check date must be after today (%s)." % today)
+            rec._guarded().write(
+                {"last_check": today, "next_check": due, "last_checked_by_id": self.env.uid}
+            )
+        return True
+
+    @api.model
+    def cron_safety_due(self):
+        """Daily (AUT-FAC-14): equipment past its inspection date is unfit;
+        the site's safety status goes to M59 once per lapse (BRU-FAC-09)."""
+        today = fields.Date.context_today(self)
+        for rec in self.sudo().search([("next_check", "<", today)]):
+            if rec.unfit_notified_for == rec.next_check:
+                continue
+            publish(
+                self.env,
+                "site.safety_equipment_unfit",
+                "fix.site.safety",
+                rec.id,
+                {
+                    "item": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "equipment_type": rec.equipment_type,
+                    "ref": rec.ref or None,
+                    "due_date": str(rec.next_check),
+                },
+            )
+            rec._guarded().write({"unfit_notified_for": rec.next_check})
+        return True
 
 
 class FixSiteIncident(models.Model):
@@ -746,9 +1480,36 @@ class FixSiteIncident(models.Model):
     )
     closed_by_id = fields.Many2one("res.users", string="Closed By", readonly=True, copy=False)
     closed_at = fields.Datetime(string="Closed At", readonly=True, copy=False)
+    # A07 P1/P2 (2026-11-04) M47-10 / BRU-FAC-18: an injury opens an M59 HSE
+    # case the same day. M47 publishes `site.incident` with the s.80 clock;
+    # the bridge creates the case and writes its reference back.
+    injuries_flag = fields.Boolean(
+        string="Injury Involved",
+        help="Set for an Injury incident; tick for any other with injuries",
+    )
+    hse_notice_due_on = fields.Date(
+        string="Inspector Notice Due (s.80)",
+        readonly=True,
+        copy=False,
+        help="BLA 2006 s.80: notice to the Inspector within 2 working days of the "
+        "accident. Counted in calendar days here, which is never later.",
+    )
+    hse_case_ref = fields.Char(string="HSE Case (M59)", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "closed_by_id", "closed_at"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "closed_by_id",
+            "closed_at",
+            "hse_notice_due_on",
+            "hse_case_ref",
+        }
+
+    def _incident_set_injury_clock(self):
+        for rec in self.filtered(lambda r: r.injuries_flag and not r.hse_notice_due_on):
+            rec._guarded().write(
+                {"hse_notice_due_on": rec.occurred_on + timedelta(days=HSE_NOTICE_DAYS)}
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -766,7 +1527,20 @@ class FixSiteIncident(models.Model):
             )
         ):
             raise UserError("A closed incident's resolution is the record it was closed on.")
-        return super().write(vals)
+        if (
+            self
+            and not self._fix_guard_open()
+            and "injuries_flag" in vals
+            and not vals["injuries_flag"]
+            and self.filtered("injuries_flag")
+            and not self.env.user.has_group("cd_facility.group_branch_operations_lead")
+        ):
+            # un-ticking it would take an injury out of the HSE route
+            raise UserError("Only a Branch Operations Lead may clear an incident's injury flag.")
+        result = super().write(vals)
+        if vals.get("injuries_flag"):
+            self._incident_set_injury_clock()
+        return result
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -775,7 +1549,58 @@ class FixSiteIncident(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.site.incident") or "SINC/New"
                 )
-        return super().create(vals_list)
+            if vals.get("incident_type") == "injury":
+                vals["injuries_flag"] = True
+        records = super().create(vals_list)
+        records._incident_set_injury_clock()
+        for rec in records:
+            # AUT-FAC-15: M59 (HSE case on injury) and M60 (risk register)
+            publish(
+                self.env,
+                "site.incident",
+                "fix.site.incident",
+                rec.id,
+                {
+                    "incident": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "incident_type": rec.incident_type,
+                    "severity": rec.severity,
+                    "injuries_flag": bool(rec.injuries_flag),
+                    "occurred_on": str(rec.occurred_on),
+                    "hse_notice_due_on": str(rec.hse_notice_due_on)
+                    if rec.hse_notice_due_on
+                    else None,
+                    "description": rec.description,
+                },
+            )
+        return records
+
+    def _incident_check_closer(self):
+        """Who closes (A07 P1): an injury incident is closed by HSE (cd_hse's
+        HSE Officer, where installed) or a Branch Operations Lead (spec:
+        HR Director for injury); any other by a Facility Manager."""
+        self.ensure_one()
+        user = self.env.user
+        if self.injuries_flag:
+            hse = self.env.ref("cd_hse.group_hse_officer", raise_if_not_found=False)
+            if not (
+                user.has_group("cd_facility.group_branch_operations_lead")
+                or (hse and user.has_group("cd_hse.group_hse_officer"))
+            ):
+                raise UserError(
+                    "An injury incident (%s) is closed by HSE or a Branch Operations Lead."
+                    % self.name
+                )
+            requires_case = (
+                self.env["ir.config_parameter"].sudo().get_param(INJURY_CLOSE_PARAM, "False")
+            )
+            if str(requires_case).lower() in ("1", "true", "yes") and not self.hse_case_ref:
+                raise UserError(
+                    "%s involves an injury: it closes once its M59 HSE case is linked." % self.name
+                )
+        elif not user.has_group("cd_facility.group_facility_manager"):
+            raise UserError("A site incident is closed by a Facility Manager.")
 
     def action_close(self, resolution=None):
         for rec in self:
@@ -789,10 +1614,13 @@ class FixSiteIncident(models.Model):
                 )
             # the reporter does not close their own incident (§13 SoD);
             # superuser code (data fixes, service calls) stays trusted
-            if not self.env.su and rec.create_uid == self.env.user:
-                raise UserError(
-                    "Segregation of duties: you reported %s; another person closes it." % rec.name
-                )
+            if not self.env.su:
+                if rec.create_uid == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: you reported %s; another person closes it."
+                        % rec.name
+                    )
+                rec._incident_check_closer()
             rec._guarded().write(
                 {
                     "state": "closed",
@@ -855,6 +1683,15 @@ class FixSiteProject(models.Model):
         default="planned",
     )
     notes = fields.Char()
+    # A07 P1 (2026-11-04) M47-81: once signed off or started, the budget is
+    # revised only by Revise Budget, with a reason, by a Facility Manager.
+    budget_proposed = fields.Monetary(
+        string="Proposed Budget", currency_field="currency_id", copy=False
+    )
+    budget_change_reason = fields.Char(string="Budget Change Reason", copy=False)
+    budget_revised_by = fields.Many2one("res.users", readonly=True, copy=False)
+    budget_revised_on = fields.Date(readonly=True, copy=False)
+    budget_revision_note = fields.Char(readonly=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -866,7 +1703,67 @@ class FixSiteProject(models.Model):
         return super().create(vals_list)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "done_on"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "done_on",
+            "budget_revised_by",
+            "budget_revised_on",
+            "budget_revision_note",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and (self.state != "planned" or self.dofa_approved):
+            locked.add("budget")
+        return locked
+
+    def write(self, vals):
+        # A07 P1 M47-81: the audit raised an in-progress project's budget 1M -> 9M
+        # by a plain write. Approval voiding alone let the spend run on unapproved
+        # until completion; the approved budget now stays as signed off.
+        if (
+            self
+            and "budget" in vals
+            and not self._fix_guard_open()
+            and _changes(
+                self.filtered(lambda r: r.state != "planned" or r.dofa_approved),
+                {"budget": vals["budget"]},
+            )
+        ):
+            raise UserError(
+                "The budget of an approved or started project is changed with Revise "
+                "Budget (the proposed budget and a reason); raising it needs re-approval."
+            )
+        return super().write(vals)
+
+    def action_revise_budget(self, new_budget=None, reason=None):
+        """Apply the staged Proposed Budget with its reason. A raise withdraws the
+        DOFA approval (fix.dofa.mixin), so the project completes only once the
+        new budget is approved; a cut leaves the approval standing."""
+        for rec in self:
+            if rec.state == "done":
+                raise UserError("A completed project's budget is final.")
+            if not self.env.su and not self.env.user.has_group(
+                "cd_facility.group_facility_manager"
+            ):
+                raise UserError("Revising a project budget needs the Facility Manager role.")
+            new = rec.budget_proposed if new_budget is None else new_budget
+            why = (reason or rec.budget_change_reason or "").strip()
+            if not new or new <= 0:
+                raise UserError("Enter the proposed budget for %s." % rec.name)
+            if not why:
+                raise UserError("Give the reason for revising the budget of %s." % rec.name)
+            rec._guarded().write(
+                {
+                    "budget": new,
+                    "budget_proposed": False,
+                    "budget_change_reason": False,
+                    "budget_revised_by": self.env.user.id,
+                    "budget_revised_on": fields.Date.context_today(self),
+                    "budget_revision_note": "%.2f -> %.2f: %s" % (rec.budget, new, why),
+                }
+            )
+        return True
 
     def action_request_approval(self, justification=None):
         for rec in self:
@@ -889,6 +1786,14 @@ class FixSiteProject(models.Model):
                 raise UserError("Complete an in-progress project")
             # a budget raised after start voided the approval: re-approve first
             rec._dofa_assert_approved("Completing capex project %s" % rec.name)
+            # M47-12/84: a closure project is done when the site has closed
+            # (CFO + CEO sign-off and the recovery checklist), never before.
+            if rec.project_type == "close" and rec.site_id.state != "closed":
+                raise UserError(
+                    "Closure project %s completes once %s has closed: request the site "
+                    "closure (CFO and CEO sign-off) and close the site first."
+                    % (rec.name, rec.site_id.name)
+                )
             rec._guarded().write({"state": "done", "done_on": fields.Date.context_today(self)})
         return True
 

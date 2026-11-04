@@ -252,3 +252,449 @@ msgstr "কাজের বিবরণ"
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site__work_order_ids
 msgid "Work Orders"
 msgstr "ওয়ার্ক অর্ডারসমূহ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__accountable_manager_id
+msgid "Accountable Manager"
+msgstr "দায়বদ্ধ ব্যবস্থাপক"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__anomaly_basis
+msgid "Anomaly Basis"
+msgstr "অস্বাভাবিকতার ভিত্তি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__flagged
+msgid "Anomaly Flagged"
+msgstr "অস্বাভাবিকতা চিহ্নিত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__tag
+msgid "Asset Tag"
+msgstr "সম্পদ ট্যাগ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_assets_recovered
+msgid "Assets Recovered"
+msgstr "সম্পদ পুনরুদ্ধার সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__assigned_type
+msgid "Assigned To"
+msgstr "নিয়োজিত পক্ষ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_project__budget_change_reason
+msgid "Budget Change Reason"
+msgstr "বাজেট পরিবর্তনের কারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_ceo_approved_at
+msgid "CEO Signed At"
+msgstr "CEO স্বাক্ষরের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_cfo_approved_at
+msgid "CFO Signed At"
+msgstr "CFO স্বাক্ষরের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__closed_at
+msgid "Closed At"
+msgstr "বন্ধের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__closed_by_id
+msgid "Closed By"
+msgstr "বন্ধকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completed_at
+msgid "Completed At"
+msgstr "সম্পন্ন করার সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completed_by_id
+msgid "Completed By"
+msgstr "সম্পন্নকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completion_notes
+msgid "Completion Evidence"
+msgstr "সমাপ্তির প্রমাণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_connectivity
+msgid "Connectivity Live"
+msgstr "নেটওয়ার্ক সংযোগ সচল"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_extract__consumed_by_m19_at
+msgid "Consumed by M19 At"
+msgstr "M19 কর্তৃক গ্রহণের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__current_rent
+msgid "Current Monthly Rent"
+msgstr "বর্তমান মাসিক ভাড়া"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decided_at
+msgid "Decided At"
+msgstr "সিদ্ধান্তের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_by_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decided_by_id
+msgid "Decided By"
+msgstr "সিদ্ধান্তদাতা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_on
+msgid "Decided On"
+msgstr "সিদ্ধান্তের তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decision_notes
+msgid "Decision Basis"
+msgstr "সিদ্ধান্তের ভিত্তি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_notes
+msgid "Decision Notes"
+msgstr "সিদ্ধান্ত নোট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__review_due_on
+msgid "Decision Review Date"
+msgstr "সিদ্ধান্ত পর্যালোচনার তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_deposit_settled
+msgid "Deposit Recovered / Written Off"
+msgstr "জামানত আদায় / অবলোপন সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_equipment
+msgid "Equipment Complement Installed (M45)"
+msgstr "প্রয়োজনীয় যন্ত্রপাতি স্থাপিত (M45)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__escalation_pct
+msgid "Escalation %"
+msgstr "ভাড়া বৃদ্ধি %"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__hazard_type
+msgid "Hazard"
+msgstr "বিপদের ধরন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__high_risk
+msgid "High-Risk Job (Permit to Work)"
+msgstr "উচ্চ ঝুঁকিপূর্ণ কাজ (কাজের অনুমতি)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__hse_case_ref
+msgid "HSE Case (M59)"
+msgstr "HSE কেস (M59)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__extract_ids
+msgid "IFRS 16 Extracts"
+msgstr "IFRS 16 নির্যাস"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__asset_ids
+msgid "Infrastructure Assets"
+msgstr "অবকাঠামো সম্পদ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__injuries_flag
+msgid "Injury Involved"
+msgstr "আঘাত সংশ্লিষ্ট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__inspection_interval_months
+msgid "Inspection Interval (months)"
+msgstr "পরিদর্শন বিরতি (মাস)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_condition__inspector_id
+msgid "Inspector"
+msgstr "পরিদর্শক"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__hse_notice_due_on
+msgid "Inspector Notice Due (s.80)"
+msgstr "পরিদর্শককে নোটিশ প্রদানের শেষ তারিখ (s.80)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__invoice_ref
+msgid "Invoice Ref (M52)"
+msgstr "ইনভয়েস রেফারেন্স (M52)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__licence_id
+msgid "Lapsed Licence"
+msgstr "মেয়াদোত্তীর্ণ লাইসেন্স"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_checked_by_id
+msgid "Last Checked By"
+msgstr "সর্বশেষ পরীক্ষাকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__lessor_id
+msgid "Lessor"
+msgstr "ইজারাদাতা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__number
+msgid "Licence Number"
+msgstr "লাইসেন্স নম্বর"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__licence_type
+msgid "Licence Type"
+msgstr "লাইসেন্সের ধরন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_licences_surrendered
+msgid "Licences Surrendered"
+msgstr "লাইসেন্স সমর্পণ সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__modification_open
+msgid "Modification Open"
+msgstr "পরিবর্তন চলমান"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__modification_reason
+msgid "Modification Reason"
+msgstr "পরিবর্তনের কারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__next_pm_id
+msgid "Next PM"
+msgstr "পরবর্তী PM"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_condition__occupancy_pct
+msgid "Occupancy %"
+msgstr "দখলের হার %"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__opened_on
+msgid "Operational Since"
+msgstr "চালু হওয়ার তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_opsdir_approved_at
+msgid "Operations Director Signed At"
+msgstr "অপারেশনস ডিরেক্টরের স্বাক্ষরের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__review_state
+msgid "Payment Hold"
+msgstr "পেমেন্ট স্থগিত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_approved_at
+msgid "Permit Approved At"
+msgstr "অনুমতি অনুমোদনের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_approved_by_id
+msgid "Permit Approved By"
+msgstr "অনুমতি অনুমোদনকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_precautions
+msgid "Permit Precautions"
+msgstr "অনুমতিপত্রের সতর্কতামূলক ব্যবস্থা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_valid_to
+msgid "Permit Valid To"
+msgstr "অনুমতির মেয়াদ পর্যন্ত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_power
+msgid "Power Connected"
+msgstr "বিদ্যুৎ সংযোগ সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_project__budget_proposed
+msgid "Proposed Budget"
+msgstr "প্রস্তাবিত বাজেট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_end_date
+msgid "Proposed End Date"
+msgstr "প্রস্তাবিত শেষ তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_escalation_pct
+msgid "Proposed Escalation %"
+msgstr "প্রস্তাবিত ভাড়া বৃদ্ধি %"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_monthly_rent
+msgid "Proposed Monthly Rent"
+msgstr "প্রস্তাবিত মাসিক ভাড়া"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__pm_id
+msgid "Raised by PM"
+msgstr "PM থেকে সৃষ্ট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__readiness_notes
+msgid "Readiness Evidence"
+msgstr "প্রস্তুতির প্রমাণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_notes
+msgid "Recovery Notes"
+msgstr "পুনরুদ্ধার নোট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision
+msgid "Renewal Decision"
+msgstr "নবায়ন সিদ্ধান্ত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__notice_period_days
+msgid "Renewal Notice (days)"
+msgstr "নবায়ন নোটিশ (দিন)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_notice_date
+msgid "Renewal Notice Deadline"
+msgstr "নবায়ন নোটিশের শেষ তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__schedule_ids
+msgid "Rent Schedule"
+msgstr "ভাড়ার সূচি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__interval_months
+msgid "Repeat Every (months)"
+msgstr "পুনরাবৃত্তির বিরতি (মাস)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__retire_reason
+msgid "Retirement Reason"
+msgstr "অবসরের কারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__review_notes
+msgid "Review Notes"
+msgstr "পর্যালোচনা নোট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__reviewed_at
+msgid "Reviewed At"
+msgstr "পর্যালোচনার সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__reviewed_by_id
+msgid "Reviewed By"
+msgstr "পর্যালোচনাকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_security
+msgid "Security Arrangements in Place"
+msgstr "নিরাপত্তা ব্যবস্থা প্রস্তুত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__serial_no
+msgid "Serial No"
+msgstr "সিরিয়াল নম্বর"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__provider_id
+msgid "Service Provider"
+msgstr "সেবা প্রদানকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_signage
+msgid "Signage Installed / Permitted"
+msgstr "সাইনবোর্ড স্থাপিত / অনুমোদিত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_ceo_approved_by_id
+msgid "Status Change: CEO Sign-off"
+msgstr "অবস্থা পরিবর্তন: CEO অনুমোদন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_cfo_approved_by_id
+msgid "Status Change: CFO Sign-off"
+msgstr "অবস্থা পরিবর্তন: CFO অনুমোদন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_opsdir_approved_by_id
+msgid "Status Change: Operations Director"
+msgstr "অবস্থা পরিবর্তন: অপারেশনস ডিরেক্টর"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__suspended_reason
+msgid "Suspension Reason"
+msgstr "স্থগিতের কারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__ref
+msgid "Tag / Reference"
+msgstr "ট্যাগ / রেফারেন্স"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__terminated_reason
+msgid "Termination Reason"
+msgstr "অবসানের কারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__unit
+msgid "Unit"
+msgstr "একক"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__usage
+msgid "Usage"
+msgstr "ব্যবহার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__is_valid
+msgid "Valid Today"
+msgstr "আজ বৈধ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__vendor_id
+msgid "Vendor"
+msgstr "সরবরাহকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__invoice_ref
+msgid "Vendor Invoice Ref"
+msgstr "সরবরাহকারীর ইনভয়েস রেফারেন্স"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verification_notes
+msgid "Verification Notes"
+msgstr "যাচাই নোট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verified_at
+msgid "Verified At"
+msgstr "যাচাইয়ের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verified_by_id
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__work_order_id
+msgid "Work Order"
+msgstr "ওয়ার্ক অর্ডার"

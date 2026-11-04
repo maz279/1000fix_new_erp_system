@@ -19,7 +19,11 @@ REFUSED = (UserError, ValidationError, AccessError)
 m47 = importlib.import_module("odoo.addons.cd_p03_portal.controllers.a07.m47")
 
 
-def _user(env, login, company, ou):
+FM = "cd_facility.group_facility_manager"
+
+
+def _user(env, login, company, ou, *groups):
+    ids = [env.ref("base.group_user").id] + [env.ref(g).id for g in groups]
     return (
         env["res.users"]
         .with_context(no_reset_password=True)
@@ -27,7 +31,7 @@ def _user(env, login, company, ou):
             {
                 "name": login,
                 "login": login,
-                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+                "group_ids": [(6, 0, ids)],
                 "company_ids": [(6, 0, company.ids)],
                 "company_id": company.id,
                 "assigned_operating_unit_ids": [(6, 0, ou.ids)],
@@ -51,8 +55,9 @@ def c(odoo_env):
             "partner_id": x.co.partner_id.id,
         }
     )
-    x.clerk = _user(env, "a07p0_m47_clerk", x.co, x.ou)
-    x.clerk2 = _user(env, "a07p0_m47_clerk2", x.co, x.ou)
+    # A07 P1: licences are maintained by the Facility Manager role
+    x.clerk = _user(env, "a07p0_m47_clerk", x.co, x.ou, FM)
+    x.clerk2 = _user(env, "a07p0_m47_clerk2", x.co, x.ou, FM)
     # the clerks' env, restricted to their company like a browser session
     x.cenv = env(user=x.clerk.id, context=dict(env.context, allowed_company_ids=x.co.ids))
     x.landlord = env["res.partner"].create({"name": "A07P0 M47 Landlord"})
@@ -60,7 +65,8 @@ def c(odoo_env):
 
 
 def _site(c, name, **kw):
-    vals = {"name": name, "company_id": c.co.id, "floor_area_sqm": 100.0}
+    # operational unless stated (A07 P1: new sites are born Planned)
+    vals = {"name": name, "company_id": c.co.id, "floor_area_sqm": 100.0, "state": "active"}
     vals.update(kw)
     return c.env["fix.site"].create(vals)
 
@@ -274,7 +280,10 @@ def test_record_check_requires_and_rolls_the_next_date(c, p03):
 
 
 # ------------------------------------------------------------------ leases
-def test_lease_past_end_stays_in_the_expiry_figures(c):
+def test_lease_recorded_past_end_is_expired(c):
+    """A07 P0 kept a lease past its end date in the expiry figures; A07 P1
+    expires it: recorded after its end date it is born Expired, and the
+    daily job expires an active one once the date passes."""
     site = _site(c, "A07P0 Lease Site")
     lease = (
         c.env["fix.site.lease"]
@@ -289,13 +298,11 @@ def test_lease_past_end_stays_in_the_expiry_figures(c):
             }
         )
     )
+    assert lease.state == "expired"
     k = m47.kpis(c.cenv)
-    assert k["leases_expiring_90d"] == 1 and k["leases_past_end"] == 1, k
-    assert lease.state == "active"  # no auto-change in this pass
+    assert k["leases_expiring_90d"] == 0 and k["leases_past_end"] == 0, k
     row = next(r for r in m47.lease_expiry(c.cenv)["rows"] if r["lease"] == lease.name)
-    assert row["days_left"] == -3 and "past end date" in row["state"]
-    dates = [r for r in m47.critical_dates(c.cenv)["rows"] if r["reference"] == lease.name]
-    assert dates and dates[0]["days_left"] == -3
+    assert row["days_left"] == -3 and row["state"] == "Expired"
 
 
 # ------------------------------------------------------------------ utilities

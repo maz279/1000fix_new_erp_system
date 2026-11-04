@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M47 facility roles (A07 audit 2026-11-03, D7 / M47 §13; P1 build 2026-11-04).
+
+     M47 had no role group: every internal user did every facility job and
+     no decision had a role to route to. The spec (§8.1, §9, §13) names:
+
+     - Facility Manager: the site-level facility work (R06 Branch Manager's
+       "own site" duties): site master data, leases, licences and condition
+       records, branch verification of facility work orders, permits to
+       work, closing ordinary incidents. The dev admin is a member so daily
+       work keeps running; the segregation-of-duties checks still apply.
+     - Branch Operations Lead: the module's business owner (§13 "C R U D A,
+       all sites"). Requests readiness and resume decisions, reviews utility
+       anomalies (stand-in for R26 Finance Manager, which has no group in
+       the estate), closes injury incidents with HSE, deletes records.
+     - Operations Director (R05): signs off the readiness gate (BRU-FAC-04)
+       and a suspended site's resumption, and takes the continue-or-suspend
+       decision on a licence lapse (BRU-FAC-02, with the CEO = DOFA Tier 5).
+
+     Each role implies the one below it. The two decision roles ship EMPTY:
+     who holds them is a business appointment (decision B1). A decision with
+     no holder is refused with a clear message. CFO and CEO sign-offs keep
+     the DOFA Tier 4 / Tier 5 groups (no CFO/CEO group exists). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_facility" model="res.groups.privilege">
+            <field name="name">Facility &amp; Branch Infrastructure</field>
+            <field name="description">Sites, leases, licences, facility work orders and their decisions (M47).</field>
+            <field name="sequence">47</field>
+        </record>
+
+        <record id="group_facility_manager" model="res.groups">
+            <field name="name">Facility Manager</field>
+            <field name="privilege_id" ref="privilege_facility"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Maintains sites, leases, licences and condition records; verifies facility work orders they neither raised nor completed; approves permits to work; closes ordinary incidents they did not report.</field>
+        </record>
+
+        <record id="group_branch_operations_lead" model="res.groups">
+            <field name="name">Branch Operations Lead</field>
+            <field name="privilege_id" ref="privilege_facility"/>
+            <field name="implied_ids" eval="[(4, ref('group_facility_manager'))]"/>
+            <field name="comment">Business owner of M47: requests the readiness gate and a site's resumption, reviews utility anomalies they did not record, closes injury incidents, and may delete facility records.</field>
+        </record>
+
+        <record id="group_operations_director" model="res.groups">
+            <field name="name">Operations Director</field>
+            <field name="privilege_id" ref="privilege_facility"/>
+            <field name="implied_ids" eval="[(4, ref('group_branch_operations_lead'))]"/>
+            <field name="comment">Signs off the readiness gate and a suspended site's resumption (routed, never their own request), and decides continue-or-suspend on a licence lapse.</field>
+        </record>
+
+    </data>
+</odoo>

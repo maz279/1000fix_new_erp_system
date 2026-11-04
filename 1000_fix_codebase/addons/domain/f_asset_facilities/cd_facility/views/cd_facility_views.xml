@@ -26,9 +26,11 @@
                     <button name="action_link_assets" string="Publish Linked Assets" type="object" class="btn-primary"/>
                     <!-- A07 P0 recipe: a status change needs the CFO and CEO sign-offs (routed) -->
                     <button name="action_request_approval" string="Request Status-Change Approval" type="object" invisible="approval_state == 'pending'"/>
-                    <button name="action_close" string="Close Site" type="object" invisible="state == 'closed'"/>
-                    <button name="action_reopen" string="Reopen Site" type="object" invisible="state == 'active'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="active,closed"/>
+                    <button name="action_open" string="Open Site (Readiness Gate)" type="object" class="btn-primary" invisible="state != 'planned'"/>
+                    <button name="action_resume" string="Resume Site" type="object" invisible="state != 'suspended'"/>
+                    <button name="action_close" string="Close Site" type="object" invisible="state != 'active'"/>
+                    <button name="action_reopen" string="Reopen Site" type="object" invisible="state != 'closed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="planned,active,closed"/>
                     <field name="approval_state" invisible="1"/>
                 </header>
                 <sheet>
@@ -51,6 +53,23 @@
                     </group>
                     <group string="Address">
                         <field name="address"/>
+                    </group>
+                    <!-- A07 P1: the readiness gate (BRU-FAC-04/06) -->
+                    <group string="Readiness Gate">
+                        <group>
+                            <field name="accountable_manager_id"/>
+                            <field name="occupancy_basis"/>
+                            <field name="opened_on"/>
+                            <field name="suspended_reason" invisible="state != 'suspended'"/>
+                        </group>
+                        <group>
+                            <field name="ready_power"/>
+                            <field name="ready_connectivity"/>
+                            <field name="ready_security"/>
+                            <field name="ready_equipment"/>
+                            <field name="ready_signage"/>
+                            <field name="readiness_notes"/>
+                        </group>
                     </group>
                     <notebook>
                         <page string="Linked Equipment (M46)" name="equipment">
