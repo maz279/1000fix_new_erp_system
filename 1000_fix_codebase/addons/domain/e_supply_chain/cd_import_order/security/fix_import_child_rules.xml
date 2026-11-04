@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M44 child-record isolation (A06 audit M44-11): the ten child models had no
+  company or operating-unit field and no rule, so an OU-B user who could not
+  see an OU-A order edited its LC amount and Bill of Entry values. Every child
+  now carries the order's company and unit (stored related fields) and the
+  same two rules the generated file gives the order. Hand-written, so
+  tooling/generators/generate-isolation-rules.py leaves these models alone.
+-->
+<odoo>
+    <record id="rule_fix_import_order_line_company" model="ir.rule">
+        <field name="name">fix.import.order.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_order_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_proforma_company" model="ir.rule">
+        <field name="name">fix.import.proforma: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_proforma"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_company" model="ir.rule">
+        <field name="name">fix.import.lc: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_lc"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_amendment_company" model="ir.rule">
+        <field name="name">fix.import.lc.amendment: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_lc_amendment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_payment_company" model="ir.rule">
+        <field name="name">fix.import.lc.payment: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_lc_payment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lca_company" model="ir.rule">
+        <field name="name">fix.import.lca: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_lca"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_shipdoc_company" model="ir.rule">
+        <field name="name">fix.import.shipdoc: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_shipdoc"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_arrival_company" model="ir.rule">
+        <field name="name">fix.import.arrival: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_arrival"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_boe_company" model="ir.rule">
+        <field name="name">fix.import.boe: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_boe"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_boe_line_company" model="ir.rule">
+        <field name="name">fix.import.boe.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_boe_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_landed_company" model="ir.rule">
+        <field name="name">fix.import.landed: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_landed"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_landed_line_company" model="ir.rule">
+        <field name="name">fix.import.landed.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_landed_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_tariff_company" model="ir.rule">
+        <field name="name">fix.import.tariff: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_tariff"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_hs_company" model="ir.rule">
+        <field name="name">fix.import.hs: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_hs"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_irc_company" model="ir.rule">
+        <field name="name">fix.import.irc: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_irc"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_order_line_operating_unit" model="ir.rule">
+        <field name="name">fix.import.order.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_order_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_proforma_operating_unit" model="ir.rule">
+        <field name="name">fix.import.proforma: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_proforma"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_operating_unit" model="ir.rule">
+        <field name="name">fix.import.lc: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_lc"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_amendment_operating_unit" model="ir.rule">
+        <field name="name">fix.import.lc.amendment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_lc_amendment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_payment_operating_unit" model="ir.rule">
+        <field name="name">fix.import.lc.payment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_lc_payment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lca_operating_unit" model="ir.rule">
+        <field name="name">fix.import.lca: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_lca"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_shipdoc_operating_unit" model="ir.rule">
+        <field name="name">fix.import.shipdoc: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_shipdoc"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_arrival_operating_unit" model="ir.rule">
+        <field name="name">fix.import.arrival: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_arrival"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_boe_operating_unit" model="ir.rule">
+        <field name="name">fix.import.boe: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_boe"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_boe_line_operating_unit" model="ir.rule">
+        <field name="name">fix.import.boe.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_boe_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_landed_operating_unit" model="ir.rule">
+        <field name="name">fix.import.landed: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_landed"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_landed_line_operating_unit" model="ir.rule">
+        <field name="name">fix.import.landed.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_landed_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

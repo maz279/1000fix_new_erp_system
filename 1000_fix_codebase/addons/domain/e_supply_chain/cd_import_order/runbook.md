@@ -134,3 +134,48 @@ py -3.12 -m pytest addons/domain/e_supply_chain/cd_import_order -q -o 'addopts='
 ---
 
 *Last Updated: 2026-10-20 · Approved by: 1000FiX Architecture Review Board (ARB)*
+
+---
+
+## 8. Controls and configuration (A06 remediation, November 2026)
+
+### 8.1 Roles
+| Role | Group | Does |
+|---|---|---|
+| Import Officer | `cd_import_order.group_fix_import_officer` (admin member) | Records orders and lines, proformas, LCs, LCAs, amendments, tariff rows, HS classifications, shipping documents, arrivals, Bills of Entry; applies for and opens LCs; requests LC approval; receives the consignment; posts the landed-cost estimate |
+| Import Approver | `cd_import_order.group_fix_import_approver` (ships EMPTY) | Approves proformas, LCAs, HS rulings, tariff rows, IRC suspension/reinstatement, the final landed cost; with a DOFA tier group, decides LC opening and amendments in the M63 inbox. Never on a record they recorded or changed |
+| Finance | `account.group_account_user` | Pays a Bill of Entry (posts the duty), reverses a paid one, records LC payments |
+
+A plain internal user reads everything and writes nothing.
+
+### 8.2 Business decisions left configurable (`ir.config_parameter`)
+| Key | Default | Meaning |
+|---|---|---|
+| `cd_import_order.lc_dofa_ladder` | `inf:tier_4` | LC and LC-amendment authority ladder on the BDT value (`<bound>:<tier>,...,inf:<tier>`). Default: every LC needs Tier 4 (CFO/CCO/COO) |
+| `cd_import_order.lc_value_tolerance_pct` | `0` | How far an LC may exceed the order invoice value without an amendment |
+| `cd_import_order.proforma_tolerance_pct` | `0` | Proforma vs order invoice value |
+| `cd_import_order.lc_requires_lca` | `1` | Require an approved LCA before LC application (Finance may set `0`: the LCAF was repealed in 2022) |
+| `cd_import_order.boe_required_documents` | `bl,invoice,packing` | Documents received before a Bill of Entry is assessed (BRU-ITC-05) |
+| `cd_import_order.duty_variance_tolerance` | `0` | BDT difference allowed between customs' assessed total and the computed duty (BRU-ITC-07) |
+| `cd_import_order.landing_charge_pct` | `1.0` | Landing charge in AV = CIF x FX x (1 + %), from spec FR-ITC-033; Finance to confirm |
+| `cd_import_order.journal_code` | company's first general journal | Journal for landed-cost postings |
+| `cd_import_order.payment_journal_code` | none (REQUIRED) | Bank/cash journal customs duty is paid from |
+| (stock line, not configurable) | M15 valuation suspense account (`110999`) | The stock line posts to the account M15 books every stock-valuation movement against; the M19 cutover journal moves it to Inventory, so the landed cost reaches the GL once. It must exist in the chart, or posting is refused. |
+| `cd_import_order.account_code.duty_clearing` | none (REQUIRED) | CD + RD + SD paid, awaiting capitalisation |
+| `cd_import_order.account_code.landed_accrual` | none (REQUIRED) | Freight, insurance, clearing owed; landed-cost estimates |
+| `cd_import_order.account_code.vat_input` | none (REQUIRED) | Import VAT input tax |
+| `cd_import_order.account_code.at_input` | none (REQUIRED) | Advance Tax recoverable |
+| `cd_import_order.account_code.ait_advance` | none (REQUIRED) | AIT paid at import (income-tax advance) |
+| `cd_import_order.account_code.variance` | none (REQUIRED when used) | Landed cost of stock consumed before the final cost (cost-of-sales adjustment) |
+
+A posting whose account or journal is not configured is refused with the key to set; nothing is posted to a guessed account.
+
+Tariff rates are data: enter each heading's rates and SRO reference on the HS Tariff Master (`fix.import.tariff`) with an effective date; an Import Approver who did not enter the row activates it.
+
+### 8.3 Postings
+- **Bill of Entry paid**: Dr duty clearing (CD+RD+SD), Dr import VAT, Dr AT, Dr AIT advance / Cr duty bank.
+- **Receipt with a posted estimate**: stock enters M15 at goods (FOB x commitment FX) + estimate; Dr inventory / Cr landed-cost accrual (estimate).
+- **Final landed cost**: Dr landed-cost accrual (reverse estimate), Cr duty clearing (CD+RD+SD), Cr landed-cost accrual (freight+insurance+clearing), Dr inventory (true-up on stock still on hand, revalued through `fix.stock.onhand._fix_revalue`), Dr variance (true-up on stock already consumed).
+
+### 8.4 Scheduled job
+`M44: expire lapsed Import Registration Certificates` (`ir_cron_import_irc_expire`, daily).

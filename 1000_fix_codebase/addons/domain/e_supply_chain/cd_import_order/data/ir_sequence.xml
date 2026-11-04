@@ -64,5 +64,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_import_lc_amendment" model="ir.sequence">
+            <field name="name">LC Amendment</field>
+            <field name="code">fix.import.lc.amendment</field>
+            <field name="prefix">ILCAM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

@@ -518,7 +518,11 @@ def sd_at_liability(env, date_from=None, date_to=None, **params):
     """SD and AT liability from the assessed Bill of Entry duty cascade (M44).
     Import assessments are the only place the platform holds SD/AT amounts, so
     this pack reports them rather than inventing a domestic SD/AT estimate."""
-    boes = env["fix.import.boe"].sudo().search([("state", "!=", "draft")])
+    # A06 R4: a paid Bill of Entry is corrected by a reversal, so only assessed
+    # and paid entries carry a liability; read as the caller, in their companies.
+    boes = env["fix.import.boe"].search(
+        [("state", "in", ("assessed", "paid")), ("company_id", "in", env.companies.ids)]
+    )
     rows = []
     for boe in boes:
         rows.append(

@@ -14,16 +14,19 @@ export const MODULE = {
     { l: 'BOE Unpaid', m: 'boe_unpaid' },
     { l: 'Demurrage Days', m: 'demurrage_days' },
     { l: 'Landed Cost MTD', m: 'landed_mtd', prefix: '৳ ' },
-    { l: 'FX Exposure', m: 'fx_exposure', prefix: '৳ ' }
+    { l: 'Open FX Commitment', m: 'fx_commitment', prefix: '৳ ' }
   ],
   groups: [
     { en: 'Orders & Finance', screens: [
       { id: 'M44-orders', en: 'Import Orders', bn: 'আমদানি অর্ডার', t: 'g' },
       { id: 'M44-proforma', en: 'Proforma Invoices', bn: 'প্রফর্মা ইনভয়েস', t: 'g' },
       { id: 'M44-lc', en: 'Letters of Credit', bn: 'এলসি', t: 'g' },
+      { id: 'M44-lc-amend', en: 'LC Amendments', bn: 'এলসি সংশোধন', t: 'g' },
+      { id: 'M44-lc-pay', en: 'LC Payments', bn: 'এলসি পেমেন্ট', t: 'g' },
       { id: 'M44-incoterms', en: 'Incoterms & FX', bn: 'ইনকোটার্ম ও এফএক্স', t: 'g' }
     ]},
     { en: 'Compliance', screens: [
+      { id: 'M44-tariff', en: 'HS Tariff Master', bn: 'শুল্ক তালিকা', t: 'g' },
       { id: 'M44-hs', en: 'HS Classification', bn: 'এইচএস শ্রেণিবিন্যাস', t: 'g' },
       { id: 'M44-irc', en: 'IRC & Restrictions', bn: 'আইআরসি', t: 'g' },
       { id: 'M44-lca', en: 'LCA via Dealer Bank', bn: 'এলসিএ', t: 'g' }
@@ -56,46 +59,84 @@ export const MODULE = {
 
 export const SCREENS = {
   'M44-orders': { kind: 'model_list', model: 'fix.import.order', stateField: 'state',
-    cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'landed_cost', 'state'],
-    actions: [{ m: 'action_receive', l: 'Mark Received' }] },
+    cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'customs_duty', 'landed_cost', 'state'],
+    actions: [{ m: 'action_receive', l: 'Receive into Stock' }] },
   'M44-proforma': { kind: 'model_list', model: 'fix.import.proforma', stateField: 'state',
-    cols: ['proforma_no', 'order_id', 'amount', 'issued_on', 'valid_until', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve Proforma' }] },
+    cols: ['proforma_no', 'order_id', 'currency_id', 'amount', 'issued_on', 'valid_until', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve Proforma' },
+      { m: 'action_reject', l: 'Reject' }
+    ] },
   'M44-lc': { kind: 'model_list', model: 'fix.import.lc', stateField: 'state',
-    cols: ['lc_no', 'order_id', 'bank', 'amount', 'opened_on', 'expiry', 'state'],
+    cols: ['lc_no', 'order_id', 'bank', 'amount', 'paid_amount', 'expiry', 'approval_state', 'state'],
     actions: [
       { m: 'action_apply', l: 'Apply' },
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
       { m: 'action_open', l: 'Open LC' },
       { m: 'action_close', l: 'Close LC' }
     ] },
+  'M44-lc-amend': { kind: 'model_list', model: 'fix.import.lc.amendment', stateField: 'state',
+    cols: ['name', 'lc_id', 'old_amount', 'new_amount', 'new_expiry', 'reason', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_apply_amendment', l: 'Apply Amendment' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M44-lc-pay': { kind: 'model_list', model: 'fix.import.lc.payment',
+    cols: ['lc_id', 'payment_date', 'amount', 'reference', 'recorded_by_id'] },
   'M44-incoterms': { kind: 'table_report', module: 'M44', report: 'incoterms_fx', title: 'Incoterms & FX', period: false },
+  'M44-tariff': { kind: 'model_list', model: 'fix.import.tariff', stateField: 'state',
+    cols: ['hs_code', 'sro_ref', 'date_from', 'date_to', 'cd_pct', 'rd_pct', 'sd_pct', 'vat_pct', 'at_pct', 'ait_pct', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate' },
+      { m: 'action_retire', l: 'Retire' }
+    ] },
   'M44-hs': { kind: 'model_list', model: 'fix.import.hs', stateField: 'state',
-    cols: ['product_id', 'hs_code', 'cd_pct', 'rd_pct', 'sd_pct', 'vat_pct', 'state'],
-    actions: [{ m: 'action_rule', l: 'Rule' }] },
+    cols: ['product_id', 'hs_code', 'ruling_ref', 'cd_pct', 'rd_pct', 'sd_pct', 'vat_pct', 'ruled_by_id', 'state'],
+    actions: [
+      { m: 'action_rule', l: 'Rule' },
+      { m: 'action_reopen', l: 'Reopen for Reclassification' }
+    ] },
   'M44-irc': { kind: 'model_list', model: 'fix.import.irc', stateField: 'state',
-    cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'] },
+    cols: ['irc_no', 'company_id', 'issued_on', 'valid_to', 'is_valid', 'state'],
+    actions: [
+      { m: 'action_suspend', l: 'Suspend' },
+      { m: 'action_reinstate', l: 'Reinstate' }
+    ] },
   'M44-lca': { kind: 'model_list', model: 'fix.import.lca', stateField: 'state',
-    cols: ['lca_no', 'lc_id', 'bank', 'amount', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve LCA' }] },
+    cols: ['lca_no', 'lc_id', 'bank', 'amount', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve LCA' },
+      { m: 'action_reject', l: 'Reject' }
+    ] },
   'M44-docs': { kind: 'model_list', model: 'fix.import.shipdoc', stateField: 'state',
     cols: ['name', 'order_id', 'doc_type', 'ref', 'received_on', 'state'],
-    actions: [{ m: 'action_receive', l: 'Mark Received' }] },
+    actions: [
+      { m: 'action_receive', l: 'Mark Received' },
+      { m: 'action_verify', l: 'Verify' }
+    ] },
   'M44-arrival': { kind: 'model_list', model: 'fix.import.arrival', stateField: 'state',
-    cols: ['name', 'order_id', 'vessel', 'eta', 'arrival_date', 'demurrage_days', 'state'],
+    cols: ['name', 'order_id', 'vessel', 'eta', 'arrival_date', 'demurrage_days', 'release_ref', 'state'],
     actions: [
       { m: 'action_arrive', l: 'Mark Arrived' },
       { m: 'action_clear', l: 'Clear' }
     ] },
   'M44-boe': { kind: 'model_list', model: 'fix.import.boe', stateField: 'state',
-    cols: ['boe_no', 'order_id', 'assessed_on', 'total_tax', 'state'],
+    cols: ['boe_no', 'order_id', 'boe_date', 'total_tax', 'customs_assessed_total', 'duty_variance', 'state'],
     actions: [
       { m: 'action_assess', l: 'Assess' },
-      { m: 'action_pay', l: 'Mark Paid' }
+      { m: 'action_pay', l: 'Pay Duty' },
+      { m: 'action_reverse', l: 'Reverse' }
     ] },
   'M44-duty': { kind: 'table_report', module: 'M44', report: 'duty_cascade', title: 'Duty Cascade', period: false },
   'M44-landed': { kind: 'model_list', model: 'fix.import.landed', stateField: 'state',
-    cols: ['name', 'order_id', 'freight', 'insurance', 'duty', 'total_landed', 'state'],
-    actions: [{ m: 'action_finalise', l: 'Finalise Sheet' }] },
+    cols: ['name', 'order_id', 'sheet_type', 'freight', 'insurance', 'duty', 'clearing_charges', 'total_landed', 'state'],
+    actions: [
+      { m: 'action_post_estimate', l: 'Post Estimate' },
+      { m: 'action_finalise', l: 'Finalise Sheet' }
+    ] },
   'M44-cf': { kind: 'table_report', module: 'M44', report: 'cnf_management', title: 'C&F Management', period: false },
 
   /* Report chips -> their own computed pack */
@@ -103,32 +144,53 @@ export const SCREENS = {
   'M44-rpt-duty': { kind: 'table_report', module: 'M44', report: 'duty_cascade', title: 'Duty & Tax Cascade', period: false },
   'M44-rpt-cycle': { kind: 'table_report', module: 'M44', report: 'cycle_time', title: 'Cycle-Time Analysis', period: false },
   'M44-rpt-demurrage': { kind: 'table_report', module: 'M44', report: 'demurrage_avoidance', title: 'Demurrage Avoidance', period: false },
-  'M44-rpt-fx': { kind: 'table_report', module: 'M44', report: 'fx_exposure', title: 'FX Exposure', period: false },
+  'M44-rpt-fx': { kind: 'table_report', module: 'M44', report: 'fx_exposure', title: 'Open FX Commitments', period: false },
 
-  /* ============ D365 IN-WORKSPACE FORMS ============ */
+  /* ============ D365 IN-WORKSPACE FORMS ============
+   * A06 audit M44-6: no form offers a state, approval, evidence or stamp
+   * field; those change only through the actions above. */
   'M44-form-order': {
     kind: 'model_form',
     model: 'fix.import.order',
     title: 'Import Order',
     back: 'M44-orders',
     status: { field: 'state', labels: {
-      draft: 'Draft', shipped: 'Shipped', customs: 'In Customs',
+      draft: 'Draft', shipped: 'Shipped', customs: 'In Customs', cleared: 'Cleared by Customs',
       received: 'Received', landed: 'Landed Cost Applied' } },
     sections: [
-      { title: 'Order', note: 'The incoterm and FX rate are recorded inputs; FOB × rate is the local exposure basis.',
+      { title: 'Order', note: 'The currency, FX rate (with its source), incoterm, FOB and lines are pinned once the proforma is approved; freight and insurance once a Bill of Entry is assessed.',
         fields: [
           { name: 'name', required: true, label: 'Order Reference' },
           { name: 'supplier_id', label: 'Supplier' },
+          { name: 'purchase_order_id', label: 'Purchase Order (M16)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'country_origin', label: 'Country of Origin' },
           { name: 'incoterm', label: 'Incoterm' },
           { name: 'shipment_mode', label: 'Shipment Mode' },
+          { name: 'currency_id', label: 'Currency' },
           { name: 'fx_rate', label: 'FX Rate' },
+          { name: 'fx_rate_source', label: 'FX Rate Source' },
+          { name: 'fx_rate_date', label: 'FX Rate Date' },
           { name: 'fob_value', label: 'FOB Value' },
           { name: 'freight_cost', label: 'Freight' },
           { name: 'insurance_cost', label: 'Insurance' },
-          { name: 'customs_duty', label: 'Customs Duty' }
+          { name: 'location_id', label: 'Receiving Location' },
+          { name: 'customs_duty', readonly: true, label: 'Customs Duty (from paid B/E)' },
+          { name: 'landed_cost', readonly: true, label: 'Landed Cost' }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'Lines — what is imported',
+      note: 'The receipt, the assessable value and the landed-cost allocation read these lines.',
+      fields: [
+        { name: 'part_id', required: true, label: 'Spare Part' },
+        { name: 'description', label: 'Description' },
+        { name: 'hs_id', label: 'HS Classification' },
+        { name: 'quantity', required: true, label: 'Quantity' },
+        { name: 'unit_price', required: true, label: 'Unit Price' }
+      ]
+    }
   },
 
   'M44-form-proforma': {
@@ -139,13 +201,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       received: 'Received', approved: 'Approved', rejected: 'Rejected' } },
     sections: [
-      { title: 'Proforma', fields: [
+      { title: 'Proforma', note: 'Approved by an Import Approver who did not record it, against the order value and a valid IRC.',
+        fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
           { name: 'proforma_no', required: true, label: 'Proforma No' },
+          { name: 'currency_id', required: true, label: 'Currency' },
           { name: 'amount', label: 'Amount' },
           { name: 'issued_on', required: true, label: 'Issued On' },
-          { name: 'valid_until', label: 'Valid Until' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'valid_until', label: 'Valid Until' }
         ] }
     ]
   },
@@ -159,15 +222,52 @@ export const SCREENS = {
       draft: 'Draft', applied: 'Applied', opened: 'Opened',
       amended: 'Amended', closed: 'Closed' } },
     sections: [
-      { title: 'Letter of Credit', note: 'Apply from draft, open from applied/amended, close from opened.',
+      { title: 'Letter of Credit', note: 'Apply, request approval (routed by amount to an Import Approver with the DOFA tier), then open. An opened LC changes only through an amendment.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
           { name: 'lc_no', required: true, label: 'LC No' },
           { name: 'bank', label: 'Issuing Bank' },
+          { name: 'facility_id', required: true, label: 'LC Facility (M50)' },
+          { name: 'currency_id', required: true, label: 'Currency' },
           { name: 'amount', label: 'LC Amount' },
-          { name: 'opened_on', label: 'Opened On' },
           { name: 'expiry', label: 'Expiry' },
-          { name: 'margin_pct', label: 'Margin %' }
+          { name: 'margin_pct', label: 'Margin %' },
+          { name: 'dofa_justification', type: 'text', label: 'Justification' },
+          { name: 'paid_amount', readonly: true, label: 'Paid' }
+        ] }
+    ]
+  },
+
+  'M44-form-lc-amend': {
+    kind: 'model_form',
+    model: 'fix.import.lc.amendment',
+    title: 'LC Amendment',
+    back: 'M44-lc-amend',
+    status: { field: 'state', labels: { draft: 'Draft', applied: 'Applied', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Amendment', note: 'Approved at the authority band of the NEW total (BRU-ITC-20), then applied.',
+        fields: [
+          { name: 'lc_id', required: true, label: 'Letter of Credit' },
+          { name: 'new_amount', label: 'New LC Amount' },
+          { name: 'new_expiry', label: 'New Expiry' },
+          { name: 'reason', required: true, label: 'Reason' },
+          { name: 'dofa_justification', type: 'text', label: 'Justification' }
+        ] }
+    ]
+  },
+
+  'M44-form-lc-pay': {
+    kind: 'model_form',
+    model: 'fix.import.lc.payment',
+    title: 'LC Payment',
+    back: 'M44-lc-pay',
+    sections: [
+      { title: 'Payment', note: 'Finance only. Payments never exceed the LC; a recorded payment is final.',
+        fields: [
+          { name: 'lc_id', required: true, label: 'Letter of Credit' },
+          { name: 'payment_date', required: true, label: 'Payment Date' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'reference', required: true, label: 'Bank Reference' }
         ] }
     ]
   },
@@ -184,7 +284,32 @@ export const SCREENS = {
           { name: 'lc_id', required: true, label: 'Letter of Credit' },
           { name: 'lca_no', required: true, label: 'LCA No' },
           { name: 'bank', label: 'Dealer Bank' },
+          { name: 'currency_id', required: true, label: 'Currency' },
           { name: 'amount', label: 'Amount' }
+        ] }
+    ]
+  },
+
+  'M44-form-tariff': {
+    kind: 'model_form',
+    model: 'fix.import.tariff',
+    title: 'Tariff Rate',
+    back: 'M44-tariff',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    sections: [
+      { title: 'Tariff row', note: 'Rates are entered from the operative tariff and SRO; activated by an Import Approver who did not enter them, then frozen. A new rate is a new row with its own effective date.',
+        fields: [
+          { name: 'hs_code', required: true, label: 'HS Code' },
+          { name: 'description', label: 'Description' },
+          { name: 'sro_ref', required: true, label: 'SRO / Tariff Reference' },
+          { name: 'date_from', required: true, label: 'Effective From' },
+          { name: 'date_to', label: 'Effective To' },
+          { name: 'cd_pct', label: 'CD %' },
+          { name: 'rd_pct', label: 'RD %' },
+          { name: 'sd_pct', label: 'SD %' },
+          { name: 'vat_pct', label: 'VAT %' },
+          { name: 'at_pct', label: 'AT %' },
+          { name: 'ait_pct', label: 'AIT %' }
         ] }
     ]
   },
@@ -196,18 +321,18 @@ export const SCREENS = {
     back: 'M44-hs',
     status: { field: 'state', labels: { draft: 'Draft', ruled: 'Ruled' } },
     sections: [
-      { title: 'Classification', note: 'The rates feed the duty cascade: CD/RD/AT/AIT on the assessable value, SD on duty-inclusive, VAT on value + CD + RD + SD.',
+      { title: 'Classification', note: 'Ruled by an Import Approver who did not classify it. The rates are the tariff row in force, never typed here.',
         fields: [
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'hs_code', required: true, label: 'HS Code' },
           { name: 'description', label: 'Description' },
-          { name: 'cd_pct', label: 'CD %' },
-          { name: 'rd_pct', label: 'RD %' },
-          { name: 'sd_pct', label: 'SD %' },
-          { name: 'vat_pct', label: 'VAT %' },
-          { name: 'at_pct', label: 'AT %' },
-          { name: 'ait_pct', label: 'AIT %' },
-          { name: 'ruling_ref', label: 'Ruling Reference' }
+          { name: 'ruling_ref', label: 'Ruling Reference' },
+          { name: 'cd_pct', readonly: true, label: 'CD %' },
+          { name: 'rd_pct', readonly: true, label: 'RD %' },
+          { name: 'sd_pct', readonly: true, label: 'SD %' },
+          { name: 'vat_pct', readonly: true, label: 'VAT %' },
+          { name: 'at_pct', readonly: true, label: 'AT %' },
+          { name: 'ait_pct', readonly: true, label: 'AIT %' }
         ] }
     ]
   },
@@ -220,13 +345,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       valid: 'Valid', expired: 'Expired', suspended: 'Suspended' } },
     sections: [
-      { title: 'IRC', note: 'Validity is the state AND the end date.',
+      { title: 'IRC', note: 'Validity is computed from the state and the end date on every read; a daily job expires lapsed certificates. A renewal is a new certificate.',
         fields: [
           { name: 'irc_no', required: true, label: 'IRC No' },
           { name: 'issued_on', required: true, label: 'Issued On' },
           { name: 'valid_to', label: 'Valid To' },
           { name: 'restrictions', type: 'text', label: 'Restrictions' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'is_valid', readonly: true, label: 'Valid Today' }
         ] }
     ]
   },
@@ -243,8 +368,7 @@ export const SCREENS = {
           { name: 'order_id', required: true, label: 'Import Order' },
           { name: 'doc_type', required: true, label: 'Document Type' },
           { name: 'ref', label: 'Document Reference' },
-          { name: 'received_on', required: true, label: 'Received On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'received_on', required: true, label: 'Received On' }
         ] }
     ]
   },
@@ -257,7 +381,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       in_transit: 'In Transit', arrived: 'Arrived', cleared: 'Cleared' } },
     sections: [
-      { title: 'Arrival', note: 'Marking arrived stamps the arrival date and computes demurrage beyond the free days; clearance stamps the cleared date.',
+      { title: 'Arrival', note: 'Free time runs from the actual arrival; demurrage is computed to release. Clearance needs a paid Bill of Entry and the customs release order number.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
           { name: 'vessel', label: 'Vessel / Flight' },
@@ -266,7 +390,8 @@ export const SCREENS = {
           { name: 'etd', label: 'ETD' },
           { name: 'eta', label: 'ETA' },
           { name: 'free_days', label: 'Free Days' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'release_ref', label: 'Customs Release Order No' },
+          { name: 'demurrage_days', readonly: true, label: 'Demurrage Days' }
         ] }
     ]
   },
@@ -277,24 +402,29 @@ export const SCREENS = {
     title: 'Bill of Entry',
     back: 'M44-boe',
     status: { field: 'state', labels: {
-      draft: 'Draft', assessed: 'Assessed', paid: 'Paid' } },
+      draft: 'Draft', assessed: 'Assessed', paid: 'Paid', reversed: 'Reversed' } },
     sections: [
-      { title: 'Bill of Entry', note: 'Assess from draft with at least one line; the totals are computed from the line cascade.',
+      { title: 'Bill of Entry', note: 'Assessed with the document checklist complete; paid by Finance with the payment reference once the customs-assessed total agrees. A paid Bill of Entry is final: a correction is a reversal.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
           { name: 'boe_no', required: true, label: 'Bill of Entry No' },
           { name: 'asycuda_ref', label: 'ASYCUDA Reference' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'boe_date', required: true, label: 'Lodgement Date' },
+          { name: 'customs_assessed_total', label: 'Customs Assessed Total' },
+          { name: 'payment_ref', label: 'Duty Payment Reference' },
+          { name: 'reversal_reason', label: 'Reversal Reason' },
+          { name: 'total_tax', readonly: true, label: 'Computed Duty & Tax' },
+          { name: 'duty_variance', readonly: true, label: 'Variance vs Customs' }
         ] }
     ],
     lines: {
       field: 'line_ids',
       title: 'BOE Lines — duty cascade per line',
-      note: 'Each line takes its rates from the HS classification; the amounts are computed, never typed.',
+      note: 'Each line is a line of the import order; the assessable value (CIF × FX + landing charge), the rates (tariff in force on the lodgement date) and the amounts are computed, never typed.',
       fields: [
-        { name: 'hs_id', required: true, label: 'HS Classification' },
-        { name: 'description', label: 'Description' },
-        { name: 'assessable_value', required: true, label: 'Assessable Value' }
+        { name: 'order_line_id', required: true, label: 'Import Order Line' },
+        { name: 'quantity', required: true, label: 'Quantity' },
+        { name: 'description', label: 'Description' }
       ]
     }
   },
@@ -304,18 +434,19 @@ export const SCREENS = {
     model: 'fix.import.landed',
     title: 'Landed Cost Sheet',
     back: 'M44-landed',
-    status: { field: 'state', labels: { draft: 'Draft', finalised: 'Finalised' } },
+    status: { field: 'state', labels: { draft: 'Draft', estimated: 'Estimate Posted', finalised: 'Finalised' } },
     sections: [
-      { title: 'Landed Cost', note: 'Total landed = freight + insurance + duty + clearing + other; the allocation method is recorded, the allocation itself is reported.',
+      { title: 'Landed Cost', note: 'An estimate is posted at shipment and valued into stock at receipt. The final sheet takes CD + RD + SD from the paid Bills of Entry (VAT, AT and AIT are recoverable, never capitalised), is finalised by an Import Approver who did not prepare it, revalues the stock and posts the true-up.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
+          { name: 'sheet_type', required: true, label: 'Sheet Type' },
           { name: 'freight', label: 'Freight' },
           { name: 'insurance', label: 'Insurance' },
-          { name: 'duty', label: 'Duty' },
-          { name: 'clearing_charges', label: 'Clearing Charges' },
-          { name: 'other_charges', label: 'Other Charges' },
+          { name: 'clearing_charges', label: 'Clearing, Port & C&F' },
+          { name: 'duty_estimate', label: 'Estimated CD + RD + SD (estimate only)' },
           { name: 'allocation_method', required: true, label: 'Allocation Method' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'duty', readonly: true, label: 'Duty (CD + RD + SD)' },
+          { name: 'total_landed', readonly: true, label: 'Total Landed' }
         ] }
     ]
   }
@@ -351,7 +482,10 @@ export const FORM_CHIPS = {
     'fix.import.shipdoc': 'M44-form-shipdoc',
     'fix.import.arrival': 'M44-form-arrival',
     'fix.import.boe': 'M44-form-boe',
-    'fix.import.landed': 'M44-form-landed'
+    'fix.import.landed': 'M44-form-landed',
+    'fix.import.tariff': 'M44-form-tariff',
+    'fix.import.lc.amendment': 'M44-form-lc-amend',
+    'fix.import.lc.payment': 'M44-form-lc-pay'
   },
   'M44:__by_screen__': {
     'M44-orders': 'M44-form-order',
@@ -363,7 +497,10 @@ export const FORM_CHIPS = {
     'M44-docs': 'M44-form-shipdoc',
     'M44-arrival': 'M44-form-arrival',
     'M44-boe': 'M44-form-boe',
-    'M44-landed': 'M44-form-landed'
+    'M44-landed': 'M44-form-landed',
+    'M44-tariff': 'M44-form-tariff',
+    'M44-lc-amend': 'M44-form-lc-amend',
+    'M44-lc-pay': 'M44-form-lc-pay'
   }
 };
 

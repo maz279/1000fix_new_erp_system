@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M44 (A06 audit M44-9, AUT-ITC-05): an Import Registration Certificate past
+  its validity date is expired every day. is_valid is computed on every
+  read; this job also moves the recorded state so lists and alerts agree.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_import_irc_expire" model="ir.cron">
+            <field name="name">M44: expire lapsed Import Registration Certificates</field>
+            <field name="model_id" ref="model_fix_import_irc"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>
