@@ -1009,7 +1009,10 @@ def main() -> int:
                             "date_start": "2026-01-01",
                             "date_end": "2027-12-31",
                             "annual_value": 120000.0,
-                            "state": "active",
+                            # A04 build (M08-14): activation is the DOFA ->
+                            # Legal -> signed-envelope -> stamp-duty ladder;
+                            # a seed cannot honestly supply the customer's
+                            # signature, so the contract stays a draft.
                         },
                     )
                 except RuntimeError as e:
@@ -1251,7 +1254,10 @@ def main() -> int:
                             "customer_id": seed_customers[i],
                             "description": f"Seed marketplace order {i+1}",
                             "budget": rng.choice([2000, 5000, 10000]),
-                            "state": rng.choice(["open", "quoted", "commissioned"]),
+                            # A04 build (M14): the order state is readonly and
+                            # moves only through select_quote / start_job /
+                            # complete, which need seller quotes a fresh seed
+                            # has not yet accepted; it is born open.
                         },
                     )
                     # Add a quote for each order
@@ -1282,7 +1288,9 @@ def main() -> int:
                             "gross_amount": rng.choice([2000, 5000, 10000]),
                             "commission_rate": 0.10,
                             "tds_amount": rng.choice([20, 50, 100]),
-                            "state": "earned",
+                            # A04 build: "earned" is set by the marketplace
+                            # order's action_earn_commission once a completed
+                            # job is reviewed; it is not a typed status.
                         },
                     )
             print("seed: commission ledger entries (idempotent)")
@@ -1898,7 +1906,10 @@ def main() -> int:
                     "brand_id": brd[i],
                     "service_order_id": ord_ids[i],
                     "claim_amount": round(rng.uniform(500, 5000), 2),
-                    "state": ["draft", "submitted", "approved"][i],
+                    # A04 build (M09-5 / C6): a claim is raised from a CLOSED
+                    # warranty job for its approved estimate, and its state
+                    # moves only through submit / propose / decide; the seed
+                    # leaves the ladder to the workshop.
                     "operating_unit_id": ou[0],
                 },
             )
@@ -1998,7 +2009,9 @@ def main() -> int:
                     "recurring_amount": [499.0, 999.0, 1999.0][i],
                     "start_date": "2026-07-01",
                     "next_invoice_date": "2026-11-01",
-                    "state": ["trial", "active", "past_due"][i],
+                    # A04 build (M39): subscriptions are born per the model
+                    # default; past_due arrives from the dunning job and
+                    # trial from the plan's terms, never from a typed status.
                     "operating_unit_id": ou[0],
                 },
             )
@@ -2011,7 +2024,9 @@ def main() -> int:
                     "name": f"SEED-RET-{i+1:03d}",
                     "customer_id": cust[i],
                     "reason": ["defective", "changed_mind"][i],
-                    "state": ["requested", "refunded"][i],
+                    # A04 build: a refund is executed through the payment
+                    # rails once the return is approved; the seed stops at
+                    # the requested return.
                     "operating_unit_id": ou[0],
                 },
             )
@@ -2021,7 +2036,9 @@ def main() -> int:
                 {
                     "name": f"Seed Referral {i+1}",
                     "partner_id": fxp[i % len(fxp)],
-                    "state": ["submitted", "converted"][i],
+                    # A04 build (M40): conversion records the converted
+                    # customer and payout basis through action_convert;
+                    # a referral is born submitted and stays there.
                 },
             )
         print("seed: CX + commercial anchors (idempotent)")
