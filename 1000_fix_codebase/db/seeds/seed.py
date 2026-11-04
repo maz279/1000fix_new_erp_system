@@ -2193,6 +2193,8 @@ def main() -> int:
                 ("fitness", "2027-06-30"),
                 ("insurance", "2027-03-31"),
                 ("tax", "2027-06-30"),
+                # B3 (decided 4 Nov 2026): the route permit is a mandatory document
+                ("route_permit", "2027-06-30"),
             ):
                 ensure(
                     "fix.vehicle.document",
