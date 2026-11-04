@@ -20,9 +20,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
+import subprocess
 import sys
 import urllib.request
+from pathlib import Path
 from urllib.parse import urlparse
 
 BIND = "http://127.0.0.1:8069"
@@ -179,18 +182,145 @@ class Client:
         return ids[0] if ids else None
 
 
+QC_LOGIN = "seed.qc@1000fix.local"
+ROOT = Path(__file__).resolve().parents[2]
+ODOO_CONF = "infra/odoo-conf/local.resolved.conf"
+
+
+def xmlid(c: Client, module: str, name: str) -> int:
+    rows = c.call(
+        "ir.model.data", "search_read", [("module", "=", module), ("name", "=", name)], ["res_id"]
+    )
+    if not rows:
+        raise RuntimeError(f"seed: {module}.{name} is not installed")
+    return rows[0]["res_id"]
+
+
+def qc_inspector_client(c: Client, db: str) -> Client:
+    """A seed QC inspector, logged in. SOD-07: the admin walking the orders
+    completes their repairs, so it may not inspect them."""
+    if not c.first("res.users", [("login", "=", QC_LOGIN)]):
+        groups = [
+            xmlid(c, "base", "group_user"),
+            xmlid(c, "cd_service_order", "group_so_qc_inspector"),
+        ]
+        c.call(
+            "res.users",
+            "create",
+            {
+                "name": "সিড কিউসি পরিদর্শক (Seed QC Inspector)",
+                "login": QC_LOGIN,
+                "email": QC_LOGIN,
+                "password": QC_LOGIN,
+                "group_ids": [(6, 0, groups)],
+            },
+        )
+    qc = Client()
+    qc.login(db, QC_LOGIN, QC_LOGIN)
+    return qc
+
+
+def seed_estimate(order_id: int, rng: random.Random) -> dict:
+    """A priced estimate under the BDT 5,000 customer-approval threshold."""
+    return {
+        "order_id": order_id,
+        "line_ids": [
+            (0, 0, {"line_type": "diagnostic", "description": "ডায়াগনস্টিক", "unit_price": 300}),
+            (0, 0, {"line_type": "labour", "description": "মেরামত শ্রম", "unit_price": 800}),
+            (
+                0,
+                0,
+                {
+                    "line_type": "part",
+                    "description": "যন্ত্রাংশ",
+                    "unit_price": rng.choice([600, 900, 1500]),
+                },
+            ),
+        ],
+    }
+
+
+def seed_checklist(order_id: int, passed: bool) -> dict:
+    items = ["পাওয়ার অন", "ডিসপ্লে", "চার্জিং", "স্পিকার ও মাইক"]
+    return {
+        "order_id": order_id,
+        "item_ids": [
+            (0, 0, {"name": name, "passed": passed or i > 0}) for i, name in enumerate(items)
+        ],
+    }
+
+
+# Run inside `odoo-bin shell` as the superuser acting for admin. The handover
+# code goes to the customer's phone, so the seed captures it from a stubbed
+# SMS sender (as the tests do) and reads it back; everything else is the
+# real settle / verify / deliver / close path.
+HANDOVER_SHELL = r"""
+import base64, json
+from odoo.addons.cd_service_order.models import fix_otp_util
+
+plan = json.loads(%(plan)r)
+sent = {}
+fix_otp_util.dispatch_otp = lambda phone, code, ttl, language="bn": sent.update({phone: code})
+env = env(user=env.ref("base.user_admin").id, su=True)
+SO = env["fix.service.order"]
+for target, ids in plan.items():
+    for order in SO.browse(ids):
+        if order.state == "ready":
+            due = order._fix_amount_due()
+            if due > 0 and order.payment_settlement_state == "unpaid":
+                order.action_mark_settled(amount_bdt=due, reference="SEED-PAY-%%d" %% order.id)
+            order.action_send_delivery_otp()
+            order.action_verify_delivery_otp(otp=sent[fix_otp_util.bd_mobile(order.customer_id)])
+            report = env["ir.attachment"].create({
+                "name": "%%s-service-report.pdf" %% order.name,
+                "datas": base64.b64encode(b"%%PDF-1.4 synthetic seed report"),
+                "res_model": SO._name,
+                "res_id": order.id,
+            })
+            order.write({"recipient_name": order.customer_id.name,
+                         "service_report_attachment_id": report.id})
+            order.action_deliver()
+        if target == "closed" and order.state == "delivered":
+            order.action_close()
+env.cr.commit()
+print("seed-handover:", {t: len(i) for t, i in plan.items()})
+"""
+
+
+def run_in_shell(db: str, script: str, marker: str) -> None:
+    """Run ``script`` in `odoo-bin shell` on ``db`` and print its ``marker`` line."""
+    env = {**os.environ, "PYTHONPATH": str(ROOT), "PYTHONUTF8": "1"}
+    out = subprocess.run(  # noqa: S603 - fixed argv, local odoo-bin only
+        [sys.executable, "vendor/odoo/odoo-bin", "shell", "-c", ODOO_CONF, "-d", db, "--no-http"],
+        input=script,
+        text=True,
+        capture_output=True,
+        cwd=ROOT,
+        env=env,
+        check=False,
+    )
+    if marker not in out.stdout:
+        raise RuntimeError(f"seed: {marker} shell failed:\n{out.stderr[-3000:]}")
+    print(next(line for line in out.stdout.splitlines() if marker in line))
+
+
+def handover_in_shell(db: str, plan: dict[str, list[int]]) -> None:
+    run_in_shell(db, HANDOVER_SHELL % {"plan": json.dumps(plan)}, "seed-handover:")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", default="1000fix", help="fixed random seed (DE-12)")
     ap.add_argument(
         "--force", action="store_true", help="seed even if orders already exist (appends)"
     )
+    ap.add_argument("--db", default=DB, help="database on the local Odoo (default fix_dev)")
     args = ap.parse_args()
     rng = random.Random(args.seed)
 
     c = Client()
     try:
-        c.login(DB, *ADMIN)
+        c.login(args.db, *ADMIN)
     except Exception as e:
         print(f"seed: NOT-AVAILABLE - no Odoo on {BIND} ({e})")
         print("  remedy: tasks.ps1 -Target up, then -Target run")
@@ -304,7 +434,8 @@ def main() -> int:
     brand_ids = []
     for code, name in BRANDS:
         brand_ids.append(
-            c.first("fix.brand", [("code", "=", code)])
+            # the brand master ships as module data (BRD-001 ...): reuse by name too
+            c.first("fix.brand", ["|", ("code", "=", code), ("name", "=ilike", name)])
             or c.call("fix.brand", "create", {"code": code, "name": name})
         )
     have_models = c.call(
@@ -467,6 +598,41 @@ def main() -> int:
                     queue.append((nxt, [*p, nxt]))
         raise RuntimeError(f"no legal path {src} -> {dst}")
 
+    # A02 P0 (M01): state changes only through the action that owns it, so
+    # each hop brings the evidence its gate asks for - a priced estimate
+    # sent and approved, a QC checklist completed by an independent
+    # inspector (SOD-07: not the person who completed the repair).
+    # Ready -> Delivered -> Closed needs the customer's handover code, which
+    # by design never comes back over RPC: those hops run in a superuser
+    # odoo shell instead (handover_in_shell).
+    qc = qc_inspector_client(c, args.db)
+    handover: dict[str, list[int]] = {"delivered": [], "closed": []}
+
+    def hop(group: list[int], nxt: str) -> None:
+        if nxt == "estimate_sent":
+            orders_ = c.call("fix.service.order", "read", group, ["estimate_ids"])
+            fresh = [o["id"] for o in orders_ if not o["estimate_ids"]]
+            if fresh:
+                c.call("fix.estimate", "create", [seed_estimate(oid, rng) for oid in fresh])
+            c.call("fix.service.order", "action_send_estimate", group)
+        elif nxt == "approved":
+            sent = c.call(
+                "fix.estimate", "search", [("order_id", "in", group), ("state", "=", "sent")]
+            )
+            c.call("fix.estimate", "action_approve", sent)
+        elif nxt in ("ready", "qc_failed"):
+            passed = nxt == "ready"
+            checklists = c.call(
+                "fix.qc.checklist", "create", [seed_checklist(oid, passed) for oid in group]
+            )
+            qc.call("fix.qc.checklist", "action_complete", checklists)  # a fail sends it back
+            if passed:
+                c.call("fix.service.order", "action_ready", group)
+        elif nxt == "cancelled":
+            c.call("fix.service.order", "action_cancel", group, reason_code="customer_declined")
+        else:
+            c.call("fix.service.order", "action_transition", group, nxt)
+
     # zip(order_ids, targets_all): id -> its assigned target state
     for target in ALL_TARGETS:
         ids = [oid for oid, t in zip(order_ids, targets_all, strict=False) if t == target]
@@ -481,7 +647,12 @@ def main() -> int:
             by_state.setdefault(states[oid], []).append(oid)
         for cur, group in by_state.items():
             for nxt in path_to(cur, target):
-                c.call("fix.service.order", "write", group, {"state": nxt})
+                if nxt in handover:  # the rest of the walk is the handover
+                    handover[target] += group
+                    break
+                hop(group, nxt)
+    if handover["delivered"] or handover["closed"]:
+        handover_in_shell(args.db, handover)
 
     counts = {}
     for t in ALL_TARGETS:
@@ -909,17 +1080,19 @@ def main() -> int:
         for i in range(3):
             dname = f"SEED-DRC-{i+1:03d}"
             if not c.first("fix.data.recovery.case", [("name", "=", dname)]):
-                c.call(
+                # A02 P2 (M06-2, M06-9): custody and the Z4 route are taken by
+                # their actions, which write the custody ledger
+                case = c.call(
                     "fix.data.recovery.case",
                     "create",
                     {
                         "name": dname,
                         "customer_id": customers[2] if len(customers) > 2 else 1,
                         "media_type": rng.choice(["hdd", "ssd", "phone"]),
-                        "residency_zone": "z4",
-                        "state": "custody",
                     },
                 )
+                c.call("fix.data.recovery.case", "action_take_custody", [case], "Seed intake")
+                c.call("fix.data.recovery.case", "action_route_to_z4", [case])
         print("seed: data recovery cases (idempotent)")
 
         products = c.call("product.template", "search", [], limit=10)
@@ -933,7 +1106,7 @@ def main() -> int:
                         "name": pname,
                         "period_start": "2026-11-01",
                         "period_end": "2026-11-30",
-                        "product_id": products[i] if products else 1,
+                        "product_id": products[i % len(products)] if products else 1,
                         "forecast_quantity": rng.randint(20, 100),
                         "current_stock": rng.randint(5, 50),
                         "reorder_point": 10,
@@ -996,7 +1169,7 @@ def main() -> int:
                     {
                         "name": iname,
                         "title": f"Seed ITSM ticket {i+1}",
-                        "requester_id": hr_employees[i] if hr_employees else 1,
+                        "requester_id": hr_employees[i % len(hr_employees)] if hr_employees else 1,
                         "category": rng.choice(["hardware", "software", "network"]),
                         "priority": rng.choice(["low", "medium", "high"]),
                         "description": f"Seed ITSM issue {i+1}",
@@ -1336,7 +1509,7 @@ def main() -> int:
                     "fix.iot.alert",
                     "create",
                     {
-                        "device_id": iot_devices[i] if iot_devices else 1,
+                        "device_id": iot_devices[i % len(iot_devices)] if iot_devices else 1,
                         "severity": sev,
                         "message": msg,
                     },
@@ -1367,7 +1540,7 @@ def main() -> int:
                 "fix.ewaste.collection",
                 "create",
                 {
-                    "customer_id": seed_customers[i] if seed_customers else 1,
+                    "customer_id": seed_customers[i % len(seed_customers)] if seed_customers else 1,
                     "material_type": rng.choice(["phone", "laptop", "battery"]),
                     "weight_kg": round(rng.uniform(0.2, 3.0), 2),
                     "state": rng.choice(["collected", "triaged", "recycled"]),
@@ -2571,6 +2744,11 @@ def main() -> int:
                 },
             )
         print("seed: config masters (idempotent)")
+
+    # The M63 approval groups: with nobody appointed every routed request is
+    # refused with "No one can approve" (db/seeds/appoint_approvers.py).
+    appoint = (Path(__file__).parent / "appoint_approvers.py").read_text(encoding="utf-8")
+    run_in_shell(args.db, appoint, "appoint-approvers:")
 
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0

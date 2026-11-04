@@ -4,8 +4,9 @@
      _fix_start_sla looked for a policy matching the order's channel and
      priority and silently skipped the clock when none matched: 0 of 930
      orders had a deadline. An order with no matching policy now runs on
-     this one. noupdate: the targets are a business decision (report §7.6);
-     change them here in the data, not by an upgrade. -->
+     this one. noupdate: the targets are a business decision (report §7.6),
+     approved as 8 h / 72 h on 2026-11-04; change them on the policy record,
+     not by an upgrade. -->
 <odoo>
     <data noupdate="1">
         <record id="sla_policy_m01_default" model="fix.sla.policy">
