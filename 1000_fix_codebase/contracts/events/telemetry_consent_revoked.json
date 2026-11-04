@@ -72,10 +72,10 @@
           "type": "string"
         },
         "treatment_state": {
-          "description": "Type not statically derivable from `vals['treatment_state']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1970)."
+          "description": "Type not statically derivable from `vals['treatment_state']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1999)."
         },
         "readings_treated": {
-          "description": "Type not statically derivable from `vals['readings_treated']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1970)."
+          "description": "Type not statically derivable from `vals['readings_treated']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1999)."
         },
         "streams_suspended": {
           "type": "array"

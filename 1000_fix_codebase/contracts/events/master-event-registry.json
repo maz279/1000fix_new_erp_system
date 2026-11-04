@@ -1628,7 +1628,7 @@
       "producer": "cd_stream_registry",
       "filename": "iot_intervention_outcome_recorded.json",
       "kafka_topic": "fix.events.iot",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3212,7 +3212,7 @@
       "producer": "cd_stream_registry",
       "filename": "telemetry_consent_revoked.json",
       "kafka_topic": "fix.events.telemetry",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3220,7 +3220,7 @@
       "producer": "cd_stream_registry",
       "filename": "telemetry_retention_policy_changed.json",
       "kafka_topic": "fix.events.telemetry",
-      "schema_version": "3.0.0",
+      "schema_version": "4.0.0",
       "schema_source": "derived"
     },
     {
@@ -3388,7 +3388,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_available.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3396,7 +3396,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_check_completed.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3404,7 +3404,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_defect_raised.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3412,7 +3412,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_document_expired.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3420,7 +3420,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_document_expiring.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3428,7 +3428,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_fuel_exception.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3436,7 +3436,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_fuel_recorded.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3444,7 +3444,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_incident.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3452,7 +3452,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_off_road.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3460,7 +3460,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_service_completed.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3468,7 +3468,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_service_due.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -3476,7 +3476,7 @@
       "producer": "cd_vehicle_ext",
       "filename": "vehicle_telematics_silent.json",
       "kafka_topic": "fix.events.vehicle",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {

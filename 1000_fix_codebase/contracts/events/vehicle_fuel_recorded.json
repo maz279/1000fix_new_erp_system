@@ -44,7 +44,7 @@
       ],
       "properties": {
         "vehicle": {
-          "description": "Type not statically derivable from `_vehicle_label(rec.vehicle_id)` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:1542 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
+          "description": "Type not statically derivable from `_vehicle_label(rec.vehicle_id)` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:1610 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
         },
         "vehicle_id": {
           "type": "integer"

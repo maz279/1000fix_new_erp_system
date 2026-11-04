@@ -41,7 +41,7 @@
       ],
       "properties": {
         "vehicle": {
-          "description": "Type not statically derivable from `_vehicle_label(doc.vehicle_id)` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:775 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
+          "description": "Type not statically derivable from `_vehicle_label(doc.vehicle_id)` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:843 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
         },
         "vehicle_id": {
           "type": [
@@ -59,7 +59,7 @@
           "type": "string"
         },
         "days_remaining": {
-          "description": "Type not statically derivable from `left` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:775 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
+          "description": "Type not statically derivable from `left` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:843 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
         }
       },
       "additionalProperties": false

@@ -45,16 +45,16 @@
           "type": "string"
         },
         "prediction": {
-          "description": "Type not statically derivable from `rec.prediction_id.sudo().name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1563)."
+          "description": "Type not statically derivable from `rec.prediction_id.sudo().name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1592)."
         },
         "model": {
-          "description": "Type not statically derivable from `rec.prediction_id.sudo().model_name or ''` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1563)."
+          "description": "Type not statically derivable from `rec.prediction_id.sudo().model_name or ''` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1592)."
         },
         "outcome": {
           "type": "null"
         },
         "prediction_outcome": {
-          "description": "Type not statically derivable from `_ACTION_OUTCOME[outcome]` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1563)."
+          "description": "Type not statically derivable from `_ACTION_OUTCOME[outcome]` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1592)."
         },
         "evidence_ref": {
           "type": [
