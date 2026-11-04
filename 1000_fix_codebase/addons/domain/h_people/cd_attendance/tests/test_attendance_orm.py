@@ -218,6 +218,15 @@ def device(odoo_env):
     )
 
 
+def _consent(env, employee):
+    """BRU-WFM-08: the employee's biometric consent, recorded by HR from the signed form."""
+    consent = env["fix.biometric.consent"].create(
+        {"employee_id": employee.id, "consent_file": "c2lnbmVk", "consent_file_name": "c.pdf"}
+    )
+    consent.action_give()
+    return consent
+
+
 def test_device_identifier_is_unique(odoo_env, device):
     assert (device.model_type, device.status, device.active) == ("INT-041", "online", True)
     with (
@@ -237,6 +246,7 @@ def test_punch_rejects_unknown_employee(device):
 
 
 def test_check_in_and_check_out_punches(odoo_env, device, emp):
+    _consent(odoo_env, emp)
     check_in = device.action_ingest_punch(emp.id, "2026-03-01 09:00:00")
     assert (check_in.employee_id, check_in.check_in) == (emp, datetime(2026, 3, 1, 9, 0))
     assert (check_in.source, check_in.device_ref, check_in.device_id) == (
@@ -262,6 +272,7 @@ def test_check_in_and_check_out_punches(odoo_env, device, emp):
 
 
 def test_punch_into_locked_period_is_rejected(odoo_env, device, emp):
+    _consent(odoo_env, emp)
     _lock(odoo_env)
     with (
         pytest.raises(UserError, match="Attendance period Jan 2026 is locked"),
@@ -282,6 +293,7 @@ class _FakeResidencyClient:
 def test_biometric_template_is_routed_to_z4_never_stored_regionally(odoo_env, device):
     user = odoo_env["res.users"].create({"name": "Selim Login", "login": "selim.att.t"})
     with_user = odoo_env["hr.employee"].create({"name": "Selim Reza", "user_id": user.id})
+    _consent(odoo_env, with_user)
     z4 = _FakeResidencyClient()
     with mock.patch("libs.py.fix_residency.get_client", return_value=z4):
         device.action_ingest_punch(
@@ -299,6 +311,7 @@ def test_biometric_template_is_routed_to_z4_never_stored_regionally(odoo_env, de
 
 
 def test_biometric_template_without_any_party_is_not_stored(odoo_env, device, emp):
+    _consent(odoo_env, emp)
     z4 = _FakeResidencyClient()
     before = odoo_env["fix.identity.document"].search_count([])
     with mock.patch("libs.py.fix_residency.get_client", return_value=z4):

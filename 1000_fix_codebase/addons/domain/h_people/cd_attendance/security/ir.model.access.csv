@@ -18,3 +18,15 @@ access_fix_attendance_regularisation_user,fix.attendance.regularisation.user,mod
 access_fix_overtime_request_user,fix.overtime.request.user,model_fix_overtime_request,base.group_user,1,1,1,0
 access_fix_night_work_consent_user,fix.night.work.consent.user,model_fix_night_work_consent,base.group_user,1,1,1,0
 access_fix_attendance_lock_lockmgr,fix.attendance.lock.lock_manager,model_fix_attendance_lock,cd_attendance.group_attendance_lock_manager,1,1,0,0
+access_fix_working_time_rule_user,fix.working.time.rule.user,model_fix_working_time_rule,base.group_user,1,0,0,0
+access_fix_working_time_rule_hrm,fix.working.time.rule.hr_manager,model_fix_working_time_rule,hr.group_hr_manager,1,1,1,1
+access_fix_biometric_punch_event_sup,fix.biometric.punch.event.supervisor,model_fix_biometric_punch_event,cd_attendance.group_attendance_supervisor,1,0,0,0
+access_fix_biometric_consent_user,fix.biometric.consent.user,model_fix_biometric_consent,base.group_user,1,0,0,0
+access_fix_biometric_consent_hr,fix.biometric.consent.hr_officer,model_fix_biometric_consent,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_roster_publication_user,fix.roster.publication.user,model_fix_roster_publication,base.group_user,1,0,0,0
+access_fix_roster_publication_sup,fix.roster.publication.supervisor,model_fix_roster_publication,cd_attendance.group_attendance_supervisor,1,1,1,0
+access_fix_roster_change_request_user,fix.roster.change.request.user,model_fix_roster_change_request,base.group_user,1,0,0,0
+access_fix_roster_change_request_sup,fix.roster.change.request.supervisor,model_fix_roster_change_request,cd_attendance.group_attendance_supervisor,1,1,1,0
+access_fix_attendance_adjustment_user,fix.attendance.adjustment.user,model_fix_attendance_adjustment,base.group_user,1,0,0,0
+access_fix_attendance_paid_baseline_sup,fix.attendance.paid.baseline.supervisor,model_fix_attendance_paid_baseline,cd_attendance.group_attendance_supervisor,1,0,0,0
+access_fix_attendance_paid_baseline_lockmgr,fix.attendance.paid.baseline.lock_manager,model_fix_attendance_paid_baseline,cd_attendance.group_attendance_lock_manager,1,0,0,0

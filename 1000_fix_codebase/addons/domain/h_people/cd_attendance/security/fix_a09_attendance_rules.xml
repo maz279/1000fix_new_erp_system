@@ -46,4 +46,58 @@
         <field name="model_id" ref="model_fix_night_work_consent"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- A09 r2 (BRU-WFM-12): an employee sees PUBLISHED roster slots only; the
+         planners, approvers and the HR/payroll/attendance roles see drafts too. -->
+    <record id="rule_roster_slot_published" model="ir.rule">
+        <field name="name">fix.roster.slot: published unless an attendance role</field>
+        <field name="model_id" ref="model_fix_roster_slot"/>
+        <field name="domain_force">['|', ('state', '=', 'published'), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_roster_publication_company" model="ir.rule">
+        <field name="name">fix.roster.publication: allowed companies</field>
+        <field name="model_id" ref="model_fix_roster_publication"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_roster_change_request_own" model="ir.rule">
+        <field name="name">fix.roster.change.request: own, the requester's, or an attendance role</field>
+        <field name="model_id" ref="model_fix_roster_change_request"/>
+        <field name="domain_force">['|', '|', '|', ('old_employee_id.user_id', '=', user.id), ('new_employee_id.user_id', '=', user.id), ('create_uid', '=', user.id), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_roster_change_request_company" model="ir.rule">
+        <field name="name">fix.roster.change.request: allowed companies</field>
+        <field name="model_id" ref="model_fix_roster_change_request"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- BRU-WFM-08: a consent is the employee's own; HR and the attendance roles read all -->
+    <record id="rule_biometric_consent_own" model="ir.rule">
+        <field name="name">fix.biometric.consent: own unless HR or an attendance role</field>
+        <field name="model_id" ref="model_fix_biometric_consent"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_biometric_consent_company" model="ir.rule">
+        <field name="name">fix.biometric.consent: allowed companies</field>
+        <field name="model_id" ref="model_fix_biometric_consent"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- FR-WFM-052: an adjustment is pay data: own and direct reports, HR, payroll
+         and the attendance roles -->
+    <record id="rule_attendance_adjustment_own" model="ir.rule">
+        <field name="name">fix.attendance.adjustment: own and direct reports unless an attendance role</field>
+        <field name="model_id" ref="model_fix_attendance_adjustment"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_attendance_adjustment_company" model="ir.rule">
+        <field name="name">fix.attendance.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_attendance_adjustment"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_working_time_rule_company" model="ir.rule">
+        <field name="name">fix.working.time.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_working_time_rule"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

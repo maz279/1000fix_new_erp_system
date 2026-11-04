@@ -62,6 +62,23 @@ class ResCompanyLeaveSettings(models.Model):
         help="BLA 2006 s.117(1): 1 day of annual leave per 18 days of work performed. "
         "Choose how the days of work are counted (A09 decision).",
     )
+    # BRU-WFM-04: no source states the threshold (A09 decision)
+    fix_leave_coverage_max_pct = fields.Float(
+        string="Leave Coverage: Max % of a Team Away",
+        default=0.0,
+        help="BRU-WFM-04: a leave is not approved when, with it, more than this share of the "
+        "employee's team (department, or the line manager's reports) would be on approved "
+        "leave on any of its days. 0 = not checked (not ruled; A09 decision).",
+    )
+    fix_leave_coverage_mode = fields.Selection(
+        [("flag", "Flag the request"), ("block", "Refuse the approval")],
+        string="Leave Coverage: When Exceeded",
+        default="flag",
+        required=True,
+        help="Flag records the shortfall on the request and lets the approver decide; Block "
+        "refuses the approval. Maternity and certified sick leave are statutory rights and "
+        "are only ever flagged.",
+    )
 
 
 class FixLeaveTypeControls(models.Model):
@@ -222,6 +239,11 @@ class FixLeaveRequestRouted(models.Model):
     expected_confinement_date = fields.Date(
         string="Expected Confinement Date", help="Maternity: the expected day of delivery."
     )
+    # BRU-WFM-04: the team coverage at the last check
+    coverage_flag = fields.Boolean(
+        string="Team Coverage Below Threshold", readonly=True, copy=False
+    )
+    coverage_note = fields.Char(string="Team Coverage", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -236,6 +258,8 @@ class FixLeaveRequestRouted(models.Model):
             "approved_date_from",
             "approved_date_to",
             "approved_days",
+            "coverage_flag",
+            "coverage_note",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -370,11 +394,95 @@ class FixLeaveRequestRouted(models.Model):
                 % (half, half, max(before, 0), max(after, 0))
             )
 
+    # ---- BRU-WFM-04: team coverage --------------------------------------------------
+    def _fix_team(self):
+        """The employee's team: their department, else their line manager's
+        reports; empty when neither is recorded."""
+        self.ensure_one()
+        emp = self.employee_id.sudo()
+        Employee = self.env["hr.employee"].sudo()
+        if emp.department_id:
+            return Employee.search([("department_id", "=", emp.department_id.id)])
+        if emp.parent_id:
+            return Employee.search([("parent_id", "=", emp.parent_id.id)])
+        return Employee
+
+    def _fix_coverage_shortfall(self):
+        """(day, away, team size, pct) of the worst day above the company
+        threshold, or None. Off when the threshold is 0 or the team has fewer
+        than two people (a team of one cannot keep cover by refusing leave)."""
+        self.ensure_one()
+        limit = self.company_id.fix_leave_coverage_max_pct or 0.0
+        if limit <= 0 or not (self.date_from and self.date_to):
+            return None
+        team = self._fix_team()
+        if len(team) < 2:
+            return None
+        others = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("employee_id", "in", (team - self.employee_id).ids),
+                ("state", "=", "approved"),
+                ("date_from", "<=", self.date_to),
+                ("date_to", ">=", self.date_from),
+            ]
+        )
+        worst = None
+        day = self.date_from
+        while day <= self.date_to:
+            away = (
+                len({lv.employee_id.id for lv in others if lv.date_from <= day <= lv.date_to}) + 1
+            )
+            pct = away * 100.0 / len(team)
+            if pct > limit + 1e-9 and (worst is None or pct > worst[3]):
+                worst = (day, away, len(team), pct)
+            day += timedelta(days=1)
+        return worst
+
+    def _fix_check_coverage(self, deciding):
+        """At submission the shortfall is recorded; at approval a 'block'
+        company refuses it (never a statutory maternity or certified sick leave)."""
+        for rec in self:
+            worst = rec._fix_coverage_shortfall()
+            note = (
+                "%d of %d in the team away on %s (%.0f%%, above %.0f%%)"
+                % (
+                    worst[1],
+                    worst[2],
+                    worst[0],
+                    worst[3],
+                    rec.company_id.fix_leave_coverage_max_pct,
+                )
+                if worst
+                else False
+            )
+            if bool(worst) != rec.coverage_flag or note != (rec.coverage_note or False):
+                rec._guarded().write({"coverage_flag": bool(worst), "coverage_note": note})
+            if not worst or not deciding:
+                continue
+            ltype = rec.leave_type_id.sudo()
+            statutory = (
+                ltype.maternity or ltype.code == "maternity" or ltype._fix_is_certificate_type()
+            )
+            if rec.company_id.fix_leave_coverage_mode == "block" and not statutory:
+                raise UserError(
+                    "%s cannot be approved: team coverage would fall below the threshold "
+                    "(BRU-WFM-04): %s." % (rec.display_name, note)
+                )
+            rec.message_post(body="Team coverage below the threshold (BRU-WFM-04): %s." % note)
+
     def _fix_leave_check_rules(self):
         """Every rule a leave must meet to be submitted or approved."""
         for rec in self:
             ltype = rec.leave_type_id.sudo()
             ltype.action_validate_statutory()
+            if ltype.code == "festival":
+                # BLA s.118: the festival holidays are days of the company's
+                # holiday calendar (fix.hr.holiday, type Festival), with wages
+                raise UserError(
+                    "Festival holidays (BLA s.118) are days of the holiday calendar, fixed by "
+                    "the employer and paid; they are not requested as leave."
+                )
             if ltype.company_id != rec.company_id:
                 raise UserError("%s is not a leave type of %s." % (ltype.name, rec.company_id.name))
             if rec.date_to < rec.date_from:
@@ -431,6 +539,7 @@ class FixLeaveRequestRouted(models.Model):
                     % (rec.display_name, rec.state)
                 )
             rec._fix_leave_check_rules()
+            rec._fix_check_coverage(deciding=False)
             rec._guarded().write({"state": "submitted", "submitted_at": fields.Datetime.now()})
             rec.action_request_approval()
         return True
@@ -447,6 +556,7 @@ class FixLeaveRequestRouted(models.Model):
                     % (rec.display_name, rec.state)
                 )
             rec._fix_leave_check_rules()
+            rec._fix_check_coverage(deciding=True)
             rec._guarded().write(
                 {
                     "state": "approved",

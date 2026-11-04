@@ -225,6 +225,11 @@ def test_device_ingest_registered_active_and_replay_safe(x):
     with pytest.raises(UserError, match="inactive or offline"), x.env.cr.savepoint():
         x.dev_off.with_user(x.sup_u).action_ingest_punch(x.e_emp.id, dt(date(2026, 2, 3), 9))
     d = x.dev.with_user(x.sup_u)
+    # BRU-WFM-08: no punch without the employee's own biometric consent
+    with pytest.raises(UserError, match="no recorded consent"), x.env.cr.savepoint():
+        d.action_ingest_punch(x.e_emp.id, dt(date(2026, 2, 3), 9))
+    consent = x.env["fix.biometric.consent"].with_user(x.hro_u).create({"employee_id": x.e_emp.id})
+    consent.with_user(x.emp_u).action_give()
     first = d.action_ingest_punch(x.e_emp.id, dt(date(2026, 2, 3), 9))
     replay = d.action_ingest_punch(x.e_emp.id, dt(date(2026, 2, 3), 9))
     assert replay == first

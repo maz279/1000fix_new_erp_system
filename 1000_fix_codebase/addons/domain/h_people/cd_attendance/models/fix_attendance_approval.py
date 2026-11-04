@@ -17,10 +17,6 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .fix_attendance import (
     APPROVER_GROUP,
-    MAX_DAILY_HOURS,
-    MAX_DAILY_OT_HOURS,
-    MAX_WEEKLY_HOURS,
-    MIN_SHIFT_REST_HOURS,
     SUPERVISOR_GROUP,
     _day_bounds,
     _locked_lock,
@@ -33,25 +29,6 @@ ATTENDANCE_ALL_READERS = (
     "cd_attendance.group_attendance_lock_manager",
 )
 RETRO_GROUP = "hr.group_hr_manager"
-
-
-class ResCompanyAttendanceSettings(models.Model):
-    _inherit = "res.company"
-
-    # A09 decisions (report §7.4): figures the audit marked as needing a ruling
-    # keep the value the code used before the audit.
-    fix_att_max_weekly_hours = fields.Float(
-        string="Weekly Hours Limit",
-        default=MAX_WEEKLY_HOURS,
-        help="Hours a week above which attendance is flagged. BLA s.102: 48 ordinary, up to "
-        "60 with overtime; the M55 spec says 48. Coded at 60 before the A09 audit.",
-    )
-    fix_att_min_rest_hours = fields.Float(
-        string="Minimum Rest Between Shifts (h)",
-        default=MIN_SHIFT_REST_HOURS,
-        help="The company's rest-between-shifts rule (flag only). Not a BLA figure: s.101 "
-        "is the rest interval inside a day. Coded at 11 h before the A09 audit.",
-    )
 
 
 class ResUsersAttendance(models.Model):
@@ -298,7 +275,9 @@ class FixOvertimeRequest(models.Model):
     # ---- rules -------------------------------------------------------------------
     def _fix_cap(self):
         self.ensure_one()
-        return MAX_DAILY_HOURS if self.rest_day_work else MAX_DAILY_OT_HOURS
+        # T-07: the caps of the working-time rule version in force that day
+        rule = self.env["fix.working.time.rule"]._fix_values_for(self.company_id, self.date)
+        return rule["daily_max_hours"] if self.rest_day_work else rule["daily_ot_cap_hours"]
 
     @api.constrains("hours", "rest_day_work")
     def _check_hours(self):

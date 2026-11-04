@@ -19,14 +19,51 @@ SURFACES = {
             "action_clear_rest_day",
         },
     },
-    # action_ingest_punch is the device integration's (it needs the employee
-    # and the punch time); it is not a workspace button.
-    "fix.biometric.device": {"order": "name", "limit": 100, "actions": set()},
+    # action_ingest_punch is the device integration's (the webhook
+    # /hooks/v1/biometric/<device>); it is not a workspace button. The
+    # supervisor rotates the webhook credential (A09 r2, M55-8).
+    "fix.biometric.device": {
+        "order": "name",
+        "limit": 100,
+        "actions": {"action_rotate_credential"},
+    },
+    "fix.biometric.punch.event": {"order": "id desc", "limit": 500, "actions": set()},
+    # BRU-WFM-08: the employee gives and withdraws their own consent
+    "fix.biometric.consent": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_give", "action_withdraw"},
+    },
     "fix.shift.template": {"order": "name", "limit": 100, "actions": set()},
     "fix.roster.slot": {
         "order": "date desc, employee_id",
         "limit": 500,
+        # FR-WFM-042/043: the rostered employee asks; a supervisor raises the change
+        "actions": {"action_ask_change"},
+    },
+    # BRU-WFM-12: a roster is published once someone other than the planner
+    # approves it; a published slot changes only through a change request
+    "fix.roster.publication": {
+        "order": "date_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_inbox_approve", "action_reject", "action_cancel"},
+    },
+    "fix.roster.change.request": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_inbox_approve", "action_reject", "action_cancel"},
+    },
+    # T-07: versioned, effective-dated working-time rules
+    "fix.working.time.rule": {
+        "order": "company_id, date_from desc",
+        "limit": 100,
         "actions": set(),
+    },
+    # FR-WFM-052 / I8: corrections carried into the next payroll
+    "fix.attendance.adjustment": {
+        "order": "date desc, id desc",
+        "limit": 300,
+        "actions": {"action_inbox_approve", "action_reject"},
     },
     "fix.leave.request": {
         "order": "date_from desc, id desc",
@@ -40,7 +77,16 @@ SURFACES = {
     "fix.hr.oncall": {
         "order": "date_from desc, id desc",
         "limit": 300,
-        "actions": {"action_start", "action_complete", "action_cancel"},
+        # I9: the allowance is approved by someone other than the person on
+        # call and the person who recorded it
+        "actions": {
+            "action_start",
+            "action_complete",
+            "action_cancel",
+            "action_submit_allowance",
+            "action_inbox_approve",
+            "action_reject_allowance",
+        },
     },
     "fix.attendance.lock": {
         "order": "period_start desc, id desc",
@@ -396,4 +442,13 @@ def kpis(env):
         "leave_pending": len(leave),
         "geofence_clockins": geo,
         "holidays": len(public_holidays),
+        # A09 r2: rosters awaiting publication and corrections awaiting approval
+        "rosters_awaiting": env["fix.roster.publication"].search_count(
+            [("state", "=", "submitted")]
+        )
+        if "fix.roster.publication" in env
+        else 0,
+        "adjustments_open": env["fix.attendance.adjustment"].search_count([("state", "=", "draft")])
+        if "fix.attendance.adjustment" in env
+        else 0,
     }
