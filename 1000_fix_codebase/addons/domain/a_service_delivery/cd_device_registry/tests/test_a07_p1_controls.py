@@ -171,7 +171,8 @@ def test_spec_roles_exist_with_the_manager_implying_the_agent(c):
 @pytest.mark.parametrize(
     "xmlid, model, method",
     [
-        ("cd_device_registry.ir_cron_warranty_expiry", "fix.warranty", "cron_warranty_expiry"),
+        # one warranty job: the A02 record, which also runs the A07 notices
+        ("cd_device_registry.ir_cron_warranty_expiry", "fix.warranty", "_cron_expire_warranties"),
         ("cd_device_registry.ir_cron_device_pm_due", "fix.device.pm", "cron_pm_due"),
     ],
 )
@@ -201,7 +202,7 @@ def test_warranty_cron_expires_ended_cover_and_announces_expiry_once(c):
             "status": "active",
         }
     )
-    W.cron_warranty_expiry()
+    W._cron_expire_warranties()
     assert ended.status == "expired" and ending.status == "active"
     assert ending.expiry_notified_on == fields.Date.context_today(W.with_context(tz="Asia/Dhaka"))
     expired_ev = events(c, "device.warranty_expired", d.id)
@@ -209,7 +210,8 @@ def test_warranty_cron_expires_ended_cover_and_announces_expiry_once(c):
     assert len(expired_ev) == 1 and len(expiring_ev) == 1
     assert json.loads(expired_ev.payload)["warranty_id"] == ended.id
     # idempotent: a second run the same day changes and publishes nothing
-    assert W.cron_warranty_expiry() == (0, 0)
+    assert W._cron_expire_warranties() == 0
+    assert len(events(c, "device.warranty_expired", d.id)) == 1
     assert len(events(c, "device.warranty_expiring", d.id)) == 1
     # the stamp is the cron's: a user cannot reset it to be told again
     assert refused(c.env, lambda: ending.with_user(c.clerk).write({"expiry_notified_on": False}))
@@ -427,8 +429,9 @@ def test_a_provisional_identity_gets_no_cover_no_transfer_until_confirmed(c):
             }
         )
     )
+    # verification is a routed approval (A02 B1): the request itself is refused
     with pytest.raises(UserError, match="provisional"), c.env.cr.savepoint():
-        pending.with_user(c.officer).action_verify()
+        pending.with_user(c.clerk).action_request_approval(justification="card on file")
     with pytest.raises(UserError, match="Provisional"), c.env.cr.savepoint():
         d.with_user(c.agent).action_transfer_ownership(
             c.buyer.id, reason="sold", evidence_document_id=doc(c).id
@@ -583,11 +586,12 @@ def test_warranty_dates_and_proof_binding(c):
             "proof_document_id": foreign.id,
         }
     )
+    # verification is a routed approval (A02 B1): the request itself is refused
     with pytest.raises(UserError, match="another record"), c.env.cr.savepoint():
-        w.with_user(c.officer).action_verify()
+        w.with_user(c.clerk).action_request_approval(justification="receipt on file")
     unfiled = doc(c, doc_type="warranty_card")
     w.write({"proof_document_id": unfiled.id})
-    w.with_user(c.officer).action_verify()
+    approve_via_inbox(w, c.officer, requester=c.clerk, justification="card on file")
     assert w.status == "active" and (unfiled.res_model, unfiled.res_id) == ("fix.warranty", w.id)
 
 

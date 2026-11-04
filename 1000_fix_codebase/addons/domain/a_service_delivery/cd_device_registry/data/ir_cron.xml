@@ -2,23 +2,14 @@
 <!--
   M17 scheduled jobs (A07 audit 2026-11-04, M17-12/M17-15, D9).
 
-  The registry had no cron: a warranty whose end date had passed stayed
-  `active` (53 such rows on fix_dev, all ended by 1 Oct 2026), and a
-  maintenance plan that fell due raised nothing (AUT-AST-10, AUT-AST-13).
-  Both jobs are idempotent: a second run the same day changes nothing and
-  publishes nothing.
+  A maintenance plan that fell due raised nothing (AUT-AST-13). The job is
+  idempotent: a second run the same day changes nothing and publishes nothing.
+  Warranty expiry (AUT-AST-10) is the A02 job ir_cron_warranty_expiry in
+  fix_warranty_expiry_cron.xml; A07 adds its expiry events and the approaching-
+  expiry notice to that one job (fix_warranty.py), so there is one record.
 -->
 <odoo>
     <data noupdate="1">
-        <record id="ir_cron_warranty_expiry" model="ir.cron">
-            <field name="name">M17: expire ended warranties and announce approaching expiry</field>
-            <field name="model_id" ref="model_fix_warranty"/>
-            <field name="state">code</field>
-            <field name="code">model.cron_warranty_expiry()</field>
-            <field name="interval_number">1</field>
-            <field name="interval_type">days</field>
-            <field name="active" eval="True"/>
-        </record>
         <record id="ir_cron_device_pm_due" model="ir.cron">
             <field name="name">M17: announce device maintenance plans that fall due</field>
             <field name="model_id" ref="model_fix_device_pm"/>

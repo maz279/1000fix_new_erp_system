@@ -37,7 +37,7 @@ class FixWarranty(models.Model):
             "verified_by",
             "verified_at",
             "void_reason",
-            # A07 P1 (2026-11-04): stamped by cron_warranty_expiry only.
+            # A07 P1 (2026-11-04): stamped by the daily expiry job only.
             "expiry_notified_on",
         }
 
@@ -195,22 +195,12 @@ class FixWarranty(models.Model):
         if self.proof_document_id:
             bind_evidence(self.proof_document_id, [self, self.device_id], "proof document")
 
-    @api.model
-    def cron_warranty_expiry(self):
-        """ir_cron_warranty_expiry (daily, AUT-AST-10). An active warranty
-        whose end date has passed becomes `expired` (53 live rows read active
-        after they ended); cover ending within the notice horizon is announced
-        once as device.warranty_expiring. Idempotent, superuser-safe, and every
-        effect goes through the guard. Returns (expired, announced)."""
-        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
-        days = int(
-            self.env["ir.config_parameter"].sudo().get_param(self.EXPIRY_NOTICE_DAYS_PARAM, 30) or 0
-        )
-        Warranty = self.sudo()
-        ended = Warranty.search([("status", "=", "active"), ("end_date", "<", today)])
-        for w in ended:
-            w._guarded().write({"status": "expired"})
-            w.message_post(body="Expired: the cover ended on %s." % w.end_date)
+    # The daily job is the A02 ir_cron_warranty_expiry (_cron_expire_warranties,
+    # fix_warranty_expiry.py, AUT-AST-10): it expires ended cover and calls the
+    # two A07 steps below, so one record runs both and nothing expires twice.
+    def _announce_expired(self):
+        """device.warranty_expired for cover the daily job has just expired."""
+        for w in self:
             w.device_id._publish(
                 "device.warranty_expired",
                 {
@@ -221,6 +211,17 @@ class FixWarranty(models.Model):
                     "owner_id": w.device_id.owner_id.id or None,
                 },
             )
+
+    @api.model
+    def _announce_expiring_cover(self):
+        """Cover ending within the notice horizon is announced once as
+        device.warranty_expiring (the stamp is the job's: a user cannot reset
+        it to be told again). Idempotent and superuser-safe; returns the count."""
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        days = int(
+            self.env["ir.config_parameter"].sudo().get_param(self.EXPIRY_NOTICE_DAYS_PARAM, 30) or 0
+        )
+        Warranty = self.sudo()
         soon = Warranty.search(
             [
                 ("status", "=", "active"),
@@ -242,7 +243,7 @@ class FixWarranty(models.Model):
                     "owner_id": w.device_id.owner_id.id or None,
                 },
             )
-        return len(ended), len(soon)
+        return len(soon)
 
     # ---- end A07 P1/P2 ------------------------------------------------------
 

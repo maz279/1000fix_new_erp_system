@@ -39,6 +39,14 @@ class FixWarrantyRoutedVerification(models.Model):
                 "cannot %s it." % (self.device_id.display_name, verb)
             )
 
+    def action_request_approval(self, justification=None):
+        # A07 P2 (2026-11-04): a request the officer could never apply is refused
+        # when it is made: cover on a provisional identity (BRU-AST-03), or proof
+        # filed against another record (M17-13). action_verify checks again.
+        for rec in self:
+            rec._a07_verify_checks()
+        return super().action_request_approval(justification=justification)
+
     def action_verify(self):
         self._approval_assert_routed()
         return super().action_verify()
