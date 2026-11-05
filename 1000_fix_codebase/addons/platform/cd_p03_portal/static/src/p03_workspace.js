@@ -3181,11 +3181,12 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 : (mid === "M63" ? "/p03/workflow/kpis"
                 : (mid === "M25" ? "/p03/bi/kpis"
                 : (mid === "M26" ? "/p03/ml/kpis"
+                : (mod.area === "A12" ? "/p03/platform/kpis"
                 : (mod.area === "A05" ? "/p03/circular/kpis"
                 : (mod.area === "A09" ? "/p03/people/kpis"
                 : (mod.area === "A07" ? "/p03/asset/kpis"
                 : (mod.area === "A06" ? "/p03/supply/kpis"
-                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis"))))))))))))))));
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")))))))))))))))));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
