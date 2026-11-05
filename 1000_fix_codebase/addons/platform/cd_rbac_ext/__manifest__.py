@@ -43,6 +43,7 @@ Owns:
         "data/fix_sod_controls.xml",
         "data/fix_event_consumers.xml",
         "data/fix_a12_crons.xml",
+        "data/fix_access_cron.xml",
         "data/access_ops_sequences.xml",
         "data/security_ops_sequences.xml",
         "views/fix_rbac_views.xml",

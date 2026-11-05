@@ -175,6 +175,60 @@ class FixServiceOrderHandback(models.Model):
         )
         return {"moved": True, "state": order.state}
 
+    # ------------------------------------------------- recall routing (A10 P1-7)
+    @api.model
+    def consume_bulletin_distributed(self, event: dict) -> dict:
+        """M61 recall routing (A10 P1-7, M61-4): a distributed safety recall
+        reaches the desks that hold the devices. Every OPEN order whose
+        device's model is in the bulletin's affected list gets one recall
+        note on its thread — the intake desk checks the serial against the
+        scope. The bulletin never moves the order's own lifecycle."""
+        self._fix_assert_relay()
+        payload = event.get("payload") or {}
+        if payload.get("bulletin_type") != "recall":
+            return {"flagged": 0, "reason": "not a recall"}
+        models_in_scope = [
+            m.strip() for m in (payload.get("affected_models") or "").split(",") if m.strip()
+        ]
+        if not models_in_scope:
+            return {"flagged": 0, "reason": "no affected models on the bulletin"}
+        try:
+            bulletin_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            bulletin_id = 0
+        domain = [
+            ("state", "not in", ("closed", "cancelled")),
+            ("device_id.device_model_id.name", "in", models_in_scope),
+        ]
+        company_id = event.get("company_id")
+        if company_id:
+            domain.append(("company_id", "in", [company_id, False]))
+        marker = "[recall-bulletin-%s]" % (bulletin_id or payload.get("name"))
+        Message = self.env["mail.message"].sudo()
+        already = set(
+            Message.search([("model", "=", "fix.service.order"), ("body", "ilike", marker)]).mapped(
+                "res_id"
+            )
+        )
+        serials = (payload.get("serial_scope") or "").strip()
+        flagged = 0
+        for order in self.search(domain):
+            if order.id in already:
+                continue  # the relay may redeliver; the desk heard us once
+            order.message_post(
+                body="%s Recall %s (%s): this device's model %s is on the affected "
+                "list — check the serial against the scope%s before release."
+                % (
+                    marker,
+                    payload.get("name") or bulletin_id,
+                    payload.get("severity") or "unclassified",
+                    order.device_id.device_model_id.name,
+                    " %s" % serials if serials else " (no serial list stated)",
+                )
+            )
+            flagged += 1
+        return {"flagged": flagged, "in_scope": len(self.search(domain))}
+
     # ------------------------------------------------------- abandoned devices
     @api.model
     def _cron_flag_abandoned(self):

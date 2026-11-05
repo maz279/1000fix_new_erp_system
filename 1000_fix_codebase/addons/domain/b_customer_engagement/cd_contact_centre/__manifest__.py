@@ -44,6 +44,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         "data/fix_m01_notif_consumers.xml",
         # A11 audit P2: approver e-mail/SMS on approval.* events.
         "data/fix_approval_notify_consumers.xml",
+        # A10 S6 (M61 -> M27 hand-off): sync knowledge bindings on publish.
+        "data/fix_knowledge_consumers.xml",
         "views/fix_contact_centre_views.xml",
     ],
     "installable": True,

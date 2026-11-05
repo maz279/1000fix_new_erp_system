@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 D2 (2026-11-05): in-Odoo consumers for the document governance
+     events. The external consumers (Mayan EDMS, BI) read the transactional
+     outbox; these keep the trace on the record's own thread. -->
+<odoo>
+    <record id="consumer_document_retention_due" model="fix.event.consumer">
+        <field name="name">M24: announce the retention review on the document thread</field>
+        <field name="event_type">document.retention_due</field>
+        <field name="model">fix.document</field>
+        <field name="method">consume_document_retention_due</field>
+        <field name="module">cd_document_core</field>
+    </record>
+</odoo>

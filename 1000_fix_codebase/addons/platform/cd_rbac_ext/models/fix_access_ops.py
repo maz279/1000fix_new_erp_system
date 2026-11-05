@@ -169,10 +169,13 @@ class FixAccessRequest(models.Model):
 
     def action_grant(self):
         """Real effect: the role's Odoo groups are added to (or removed from)
-        the user. Re-checks the approval, runs the SoD gate, then performs
-        the group change as a service — so the approver needs no Access
-        Rights of their own (X1)."""
+        the user. Re-checks the approval, runs the SoD gate (A10 P1-3: the
+        approved request itself is the waiver — an approver who is not the
+        beneficiary, an expiry and a reason; a block control is refused
+        outright), then performs the group change as a service through the
+        JML chain — so the approver needs no Access Rights of their own (X1)."""
         Jml = self.env["fix.jml.event"]
+        Sod = self.env["fix.sod.control"]
         for rec in self:
             if not self._approval_is_intact(rec):
                 raise UserError(
@@ -180,7 +183,7 @@ class FixAccessRequest(models.Model):
                     "approver who is neither the requester nor the beneficiary"
                 )
             role = rec.role_id
-            groups = self.env["fix.sod.control"]._role_groups(role)
+            groups = Sod._role_groups(role)
             if not groups:
                 raise UserError(
                     "Role %s has no Odoo group mapped, so it cannot be granted" % role.code
@@ -205,8 +208,18 @@ class FixAccessRequest(models.Model):
                 raise UserError(
                     "This elevation expired on %s — file a new request" % rec.valid_until
                 )
-            # R2: every held role x the incoming role, before anything changes
-            self.env["fix.sod.control"].check_user_assignment(rec.user_id, role)
+            # R2 + A10 P1-3: every held role x the incoming role, before
+            # anything changes; the approved request is the waiver record
+            # (approver ≠ beneficiary, expiry, reason) — block always refuses
+            waived = Sod.check_role_set(
+                Sod._user_role_ids(rec.user_id) | {role.id},
+                waiver={
+                    "approver_id": rec.approver_id.id,
+                    "user_id": rec.user_id.id,
+                    "valid_until": rec.valid_until,
+                    "reason": rec.decision_note or rec.reason,
+                },
+            )
             granted = Jml._apply_role_grant(rec.user_id, role)
             rec._guarded().write({"state": "granted"})
             self.env["fix.security.audit"].log_event(
@@ -221,6 +234,12 @@ class FixAccessRequest(models.Model):
                     ", ".join(granted.mapped("name"))[:160],
                 ),
             )
+            for control in waived:
+                rec.message_post(
+                    body="SoD waiver applied — control %s (%s) accepted by %s, "
+                    "expires %s."
+                    % (control.code, control.name, rec.approver_id.name, rec.valid_until)
+                )
 
     # ------------------------------------------------------------------
     # R3: elevation expiry cron (a granted elevation past valid_until is
@@ -251,6 +270,30 @@ class FixAccessRequest(models.Model):
                 % (rec.user_id.login, rec.valid_until, rec.role_id.code, len(removed)),
             )
         return len(expired)
+
+    @api.model
+    def cron_revoke_expired(self):
+        """Daily (A10 P1-3): a waiver or elevation is only as real as its
+        expiry. A granted request past its valid_until loses the group and
+        is revoked — the chatter is the log."""
+        today = fields.Date.today()
+        stale = self.search(
+            [
+                ("state", "=", "granted"),
+                ("valid_until", "!=", False),
+                ("valid_until", "<", today),
+            ]
+        )
+        for rec in stale:
+            group = rec.role_id.group_id
+            if group:
+                rec.user_id.sudo().write({"group_ids": [(3, group.id)]})
+            rec.write({"state": "revoked"})
+            rec.message_post(
+                body="Expired on %s — the access and its SoD waiver ended with "
+                "it (role %s)." % (rec.valid_until, rec.role_id.code)
+            )
+        return len(stale)
 
 
 class FixSodTest(models.Model):

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 W1 (2026-11-04): in-Odoo consumers for the GRC governance events.
+
+     grc.whistle.closed carries NO reporter identity (W1): the payload is
+     report, category, finding, follow_up. The external consumers (the
+     audit-committee digest, BI) read the transactional outbox; this
+     consumer keeps the closure note on the report's own thread. -->
+<odoo>
+    <record id="consumer_grc_whistle_closed" model="fix.event.consumer">
+        <field name="name">M60: keep the closure note on the whistle report's own thread</field>
+        <field name="event_type">grc.whistle.closed</field>
+        <field name="model">fix.grc.whistle</field>
+        <field name="method">consume_grc_whistle_closed</field>
+        <field name="module">cd_grc</field>
+    </record>
+    <!-- A10 P1-2 (M60-10): the licence and obligation clocks keep their
+         announcements on the register's own thread. External consumers (the
+         compliance digest, BI) read the transactional outbox. -->
+    <record id="consumer_grc_licence_expired" model="fix.event.consumer">
+        <field name="name">M60: licence expired — announcement on the register thread</field>
+        <field name="event_type">grc.licence.expired</field>
+        <field name="model">fix.grc.licence</field>
+        <field name="method">consume_licence_clock</field>
+        <field name="module">cd_grc</field>
+    </record>
+    <record id="consumer_grc_licence_expiring" model="fix.event.consumer">
+        <field name="name">M60: licence expiring — announcement on the register thread</field>
+        <field name="event_type">grc.licence.expiring</field>
+        <field name="model">fix.grc.licence</field>
+        <field name="method">consume_licence_clock</field>
+        <field name="module">cd_grc</field>
+    </record>
+    <record id="consumer_grc_obligation_due" model="fix.event.consumer">
+        <field name="name">M60: obligation review due — reminder on the obligation thread</field>
+        <field name="event_type">grc.obligation.due</field>
+        <field name="model">fix.compliance.obligation</field>
+        <field name="method">consume_obligation_due</field>
+        <field name="module">cd_grc</field>
+    </record>
+</odoo>

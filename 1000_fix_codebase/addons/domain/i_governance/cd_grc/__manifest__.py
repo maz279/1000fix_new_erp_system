@@ -13,12 +13,29 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Governance, Risk & Compliance",
-    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox", "cd_document_core"],
+    "depends": [
+        "base",
+        "mail",
+        "hr",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_document_core",
+        "cd_rbac_ext",
+        # A10 P1-5: above-appetite residual acceptance routes through the M63
+        # approval engine (fix.approvable.mixin / fix.approval.matrix), and a
+        # failed control test raises an NCR + CAPA in the QMS journey.
+        "cd_workflow_engine",
+        "cd_qms_process",
+    ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_grc_groups.xml",
+        "security/fix_grc_whistle_rules.xml",
         "security/ir.model.access.csv",
         "data/grc_ops_sequences.xml",
         "data/fix_grc_handoff_consumers.xml",
+        "data/fix_grc_event_consumers.xml",
+        "data/fix_grc_crons.xml",
         "views/cd_grc_views.xml",
     ],
     "installable": True,

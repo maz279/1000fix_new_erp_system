@@ -181,12 +181,14 @@ class P03GenericApiController(http.Controller):
             # Finance list screens are COMPANY-wide reads (an accountant sees
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # A surface may opt OUT of the sudo read with "rules": True (the
-            # A09 pattern — people data, M29 res.users / res.device.log) or
-            # "caller_scoped": True (the A11 pattern — M26 X03, the PdM
-            # prediction list): either way its rows are read AS THE CALLER,
-            # so the caller's ACLs and OU record rules apply and one unit's
-            # rows never leak onto another unit's screen. Writes below keep
-            # the calling user's context (SoD/permissions apply).
+            # A09 pattern — people data, M29 res.users / res.device.log;
+            # the A10 pattern — W1, an investigator sees only their assigned
+            # whistle reports, never the whole register the ACL alone would
+            # allow) or "caller_scoped": True (the A11 pattern — M26 X03,
+            # the PdM prediction list): either way its rows are read AS THE
+            # CALLER, so the caller's ACLs and OU record rules apply and one
+            # unit's rows never leak onto another unit's screen. Writes
+            # below keep the calling user's context (SoD/permissions apply).
             rec_model = (
                 env[model]
                 if (conf.get("rules") or conf.get("caller_scoped"))
@@ -494,12 +496,19 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            read_model = env[model] if conf.get("rules") else env[model].sudo()
-            rec = read_model.browse(int(record_id)).exists() if record_id else None
-            if rec and conf.get("rules"):
-                # opening a record by id must not step around the rules the
-                # list applies (A09 audit M21-5: another company's NID by id)
-                rec.check_access("read")
+            rec = None
+            if record_id:
+                if conf.get("rules") or conf.get("caller_scoped"):
+                    # W1-class surfaces: the record rule decides — browsing a
+                    # record the caller may not see (an investigator opening
+                    # another's whistleblowing report by ID; A09 audit M21-5,
+                    # another company's NID by id) fails read access cleanly
+                    # instead of leaking it through sudo.
+                    rec = env[model].browse(int(record_id)).exists()
+                    if rec:
+                        rec.check_access("read")
+                else:
+                    rec = env[model].sudo().browse(int(record_id)).exists()
             out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
             if rec:

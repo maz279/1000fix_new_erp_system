@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 P1-2 (M61-6): the review clock keeps its announcement on the
+     article's own thread. External consumers (the library digest, BI) read
+     the transactional outbox. -->
+<odoo>
+    <record id="consumer_knowledge_review_due" model="fix.event.consumer">
+        <field name="name">M61: article review due — announcement on the article thread</field>
+        <field name="event_type">knowledge.review.due</field>
+        <field name="model">fix.knowledge.article</field>
+        <field name="method">consume_article_review_due</field>
+        <field name="module">cd_knowledge</field>
+    </record>
+</odoo>

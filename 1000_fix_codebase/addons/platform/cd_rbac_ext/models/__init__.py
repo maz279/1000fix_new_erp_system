@@ -8,5 +8,6 @@ from . import (
     fix_security_ops,
     fix_sod_control,
     res_users_ext,
+    res_users_sod,
     residency_mixin,
 )

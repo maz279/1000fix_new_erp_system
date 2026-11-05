@@ -7,16 +7,32 @@ SURFACES = {
     "fix.document": {
         "order": "create_date desc, id desc",
         "limit": 500,
-        "actions": {"action_legal_hold", "action_release_hold", "action_assert_can_destroy"},
+        "actions": {
+            # A10 D2/P1-1: the lifecycle moves through actions, never typed
+            "action_legal_hold",
+            "action_release_hold",
+            "action_assert_can_destroy",
+            "action_dispose",
+            "action_sync_to_mayan",
+            "action_submit_review",
+            "action_publish",
+            "action_new_revision",
+        },
     },
     "fix.document.template": {"order": "name", "limit": 200, "actions": set()},
     "fix.retention.class": {"order": "name", "limit": 100, "actions": set()},
+    "fix.legal.hold": {"order": "id desc", "limit": 200, "actions": {"action_release"}},
+    "fix.disposal.record": {"order": "id desc", "limit": 200, "actions": set()},
     "fix.esignature.envelope": {
         "order": "id desc",
         "limit": 400,
-        "actions": {"action_send"},
+        "actions": {"action_send", "action_check_complete", "action_void"},
     },
-    "fix.esignature.signer": {"order": "envelope_id, sequence", "limit": 500, "actions": set()},
+    "fix.esignature.signer": {
+        "order": "envelope_id, sequence",
+        "limit": 500,
+        "actions": {"action_sign", "action_decline"},
+    },
 }
 
 
@@ -34,7 +50,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def retention_compliance(env, date_from=None, date_to=None, **params):
     """Retention compliance: documents by retention class and expiry state."""
-    docs = env["fix.document"].sudo().search([])
+    docs = env["fix.document"].search([])
     today = datetime.date.today()
     groups = {}
     for doc in docs:
@@ -76,11 +92,13 @@ def retention_compliance(env, date_from=None, date_to=None, **params):
 
 def signature_status(env, date_from=None, date_to=None, **params):
     """Signature status: envelopes and their signer progress."""
-    envelopes = env["fix.esignature.envelope"].sudo().search([])
+    envelopes = env["fix.esignature.envelope"].search([])
     rows = []
     for envl in envelopes:
         signers = envl.signer_ids
-        signed = len(signers.filtered(lambda s: getattr(s, "state", "pending") != "pending"))
+        # A10 M24-12 (k01): the old row counted a signer 'state' field that
+        # does not exist, so 'signed' was always 0. The signature is signed_at.
+        signed = len(signers.filtered("signed_at"))
         rows.append(
             {
                 "envelope": envl.name,
@@ -92,7 +110,9 @@ def signature_status(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: r["envelope"], reverse=True)
-    pending = len([r for r in rows if r["state"] not in ("Completed", "completed")])
+    # only envelopes still awaiting signatures are pending — declined, voided
+    # and expired ones are decided, not pending
+    pending = len(envelopes.filtered(lambda e: e.state in ("sent", "partially_signed")))
     return _pack(
         "Signature Status — %d pending envelope(s)" % pending,
         ["envelope", "document", "signers", "signed", "state", "completed"],
@@ -115,7 +135,7 @@ def signature_status(env, date_from=None, date_to=None, **params):
 
 def repository_growth(env, date_from=None, date_to=None, **params):
     """Repository growth by month and document type."""
-    docs = env["fix.document"].sudo().search([])
+    docs = env["fix.document"].search([])
     groups = {}
     for doc in docs:
         month = doc.create_date.strftime("%Y-%m") if doc.create_date else "Unknown"
@@ -143,7 +163,7 @@ def repository_growth(env, date_from=None, date_to=None, **params):
 
 def access_audit(env, date_from=None, date_to=None, **params):
     """Access audit export: documents with their integrity and hold signals."""
-    docs = env["fix.document"].sudo().search([])
+    docs = env["fix.document"].search([])
     rows = []
     for doc in docs:
         rows.append(
@@ -197,9 +217,10 @@ REPORTS = {
 
 
 def kpis(env):
-    docs = env["fix.document"].sudo().search([])
-    envelopes = env["fix.esignature.envelope"].sudo().search([])
-    pending = len(envelopes.filtered(lambda e: e.state not in ("completed",)))
+    docs = env["fix.document"].search([])
+    envelopes = env["fix.esignature.envelope"].search([])
+    # A10 M24-12: an envelope is pending only while signatures may still land
+    pending = len(envelopes.filtered(lambda e: e.state in ("sent", "partially_signed")))
     held = len(docs.filtered(lambda d: d.legal_hold))
     auto_filed = len(docs.filtered(lambda d: d.retention_class_id))
     return {

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 D1 (2026-11-05): in-flight envelopes past their signing deadline
+  expire and unseal their documents (M24-10). Without this a dead envelope
+  kept its document signature-locked forever.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_esignature_expire" model="ir.cron">
+            <field name="name">M24: expire envelopes past their signing deadline</field>
+            <field name="model_id" ref="model_fix_esignature_envelope"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_envelopes()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

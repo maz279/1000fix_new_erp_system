@@ -32,11 +32,22 @@
     "payload": {
       "type": "object",
       "required": [
-        "subject"
+        "subject",
+        "document",
+        "evidence_hash"
       ],
       "properties": {
         "subject": {
           "type": "string"
+        },
+        "document": {
+          "type": "string"
+        },
+        "evidence_hash": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false
