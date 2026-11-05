@@ -1247,13 +1247,15 @@ def main() -> int:
             for i in range(5):
                 sname = f"Seed Seller {i+1}"
                 if not c.first("fix.marketplace.seller", [("name", "=", sname)]):
+                    # rating is a guarded field (the guard mixin refuses it at
+                    # create): a seller is born unrated, the rating accrues
+                    # through reviews, so the seed must not type it.
                     seller = c.call(
                         "fix.marketplace.seller",
                         "create",
                         {
                             "name": sname,
                             "partner_id": seed_customers[i],
-                            "rating": round(rng.uniform(3.0, 5.0), 1),
                         },
                     )
                     # BRU-ECM-01: only a CFO-approved, KYC-verified seller quotes;
