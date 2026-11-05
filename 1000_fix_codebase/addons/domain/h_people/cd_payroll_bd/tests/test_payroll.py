@@ -73,9 +73,11 @@ class TestMakerCheckerSoD(unittest.TestCase):
         self.assertIn("calculator_id", src)
         self.assertIn("Maker-Checker SoD violation", src)
 
-    def test_calculator_recorded_on_calculate(self):
-        src = inspect.getsource(FixPayrollPeriod.action_calculate)
-        self.assertIn("rec.calculator_id = self.env.user", src)
+    # test_calculator_recorded_on_calculate (a source-text assertion) was
+    # retired in the A09 P0 fix: calculate now stamps the calculator through
+    # the guard. The behaviour is asserted live, as a non-admin officer, in
+    # test_a09_p0_payroll_controls.py::test_calculate_stamps_the_officer and
+    # test_payroll_orm.py::test_full_cycle_lock_calculate_approve_pay_post.
 
 
 class TestDoubleEntryGLPosting(unittest.TestCase):

@@ -57,10 +57,8 @@ def attendance_summary(env, date_from=None, date_to=None, **params):
     today = datetime.date.today()
     start = date_from or str(today.replace(day=1))
     end = date_to or str(today)
-    records = (
-        env["fix.attendance.record"]
-        .sudo()
-        .search([("check_in", ">=", start + " 00:00:00"), ("check_in", "<=", end + " 23:59:59")])
+    records = env["fix.attendance.record"].search(
+        [("check_in", ">=", start + " 00:00:00"), ("check_in", "<=", end + " 23:59:59")]
     )
     rows = {}
     for rec in records:
@@ -139,7 +137,7 @@ def overtime_analysis(env, date_from=None, date_to=None, **params):
 
 def leave_utilisation(env, date_from=None, date_to=None, **params):
     """Leave utilisation: requested vs approved days by leave type."""
-    requests = env["fix.leave.request"].sudo().search([("state", "!=", "draft")])
+    requests = env["fix.leave.request"].search([("state", "!=", "draft")])
     groups = {}
     for req in requests:
         key = req.leave_type_id.name
@@ -190,11 +188,9 @@ def roster_vs_actual(env, date_from=None, date_to=None, **params):
     today = datetime.date.today()
     start = date_from or str(today - datetime.timedelta(days=30))
     end = date_to or str(today)
-    slots = env["fix.roster.slot"].sudo().search([("date", ">=", start), ("date", "<=", end)])
-    records = (
-        env["fix.attendance.record"]
-        .sudo()
-        .search([("check_in", ">=", start + " 00:00:00"), ("check_in", "<=", end + " 23:59:59")])
+    slots = env["fix.roster.slot"].search([("date", ">=", start), ("date", "<=", end)])
+    records = env["fix.attendance.record"].search(
+        [("check_in", ">=", start + " 00:00:00"), ("check_in", "<=", end + " 23:59:59")]
     )
     # Count punches per EMPLOYEE per day: a roster slot is one employee's day,
     # so a company-wide daily count would mark every slot uncovered.
@@ -269,28 +265,24 @@ REPORTS = {
 
 def kpis(env):
     today = datetime.date.today()
-    records = (
-        env["fix.attendance.record"]
-        .sudo()
-        .search(
-            [
-                ("check_in", ">=", str(today) + " 00:00:00"),
-                ("check_in", "<=", str(today) + " 23:59:59"),
-            ]
-        )
+    records = env["fix.attendance.record"].search(
+        [
+            ("check_in", ">=", str(today) + " 00:00:00"),
+            ("check_in", "<=", str(today) + " 23:59:59"),
+        ]
     )
-    flagged = env["fix.attendance.record"].sudo().search([("approval_state", "=", "pending")])
-    rosters = env["fix.roster.slot"].sudo().search([("date", "=", str(today))])
-    leave = env["fix.leave.request"].sudo().search([("state", "in", ("submitted",))])
+    flagged = env["fix.attendance.record"].search([("approval_state", "=", "pending")])
+    rosters = env["fix.roster.slot"].search([("date", "=", str(today))])
+    leave = env["fix.leave.request"].search([("state", "in", ("submitted",))])
     geo = len([r for r in records if r.source in ("mobile", "mobile_offline")])
-    public_holidays = (
-        env["fix.hr.holiday"].sudo().search([("date", ">=", str(today.replace(month=1, day=1)))])
+    public_holidays = env["fix.hr.holiday"].search(
+        [("date", ">=", str(today.replace(month=1, day=1)))]
     )
     return {
         "attendance_today": len(records),
         "exceptions_pending": len(flagged),
         "overtime_preapproved": len(
-            env["fix.attendance.record"].sudo().search([("approval_state", "=", "approved")])
+            env["fix.attendance.record"].search([("approval_state", "=", "approved")])
         ),
         "roster_coverage": round(
             (len(rosters) - len(rosters.filtered(lambda r: r.on_leave))) / len(rosters) * 100.0, 1

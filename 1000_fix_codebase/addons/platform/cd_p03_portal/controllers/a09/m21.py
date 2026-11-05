@@ -86,7 +86,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _employees(env):
-    return env["hr.employee"].sudo().search([])
+    return env["hr.employee"].search([])
 
 
 def headcount_movement(env, date_from=None, date_to=None, **params):
@@ -96,28 +96,20 @@ def headcount_movement(env, date_from=None, date_to=None, **params):
     start = date_from or str(today.replace(month=1, day=1))
     end = date_to or str(today)
     employees = _employees(env)
-    contracts = env["fix.employment.contract"].sudo().search([])
-    movement = (
-        env["fix.hr.transfer"]
-        .sudo()
-        .search(
-            [
-                ("state", "=", "applied"),
-                ("effective_date", ">=", start),
-                ("effective_date", "<=", end),
-            ]
-        )
+    contracts = env["fix.employment.contract"].search([])
+    movement = env["fix.hr.transfer"].search(
+        [
+            ("state", "=", "applied"),
+            ("effective_date", ">=", start),
+            ("effective_date", "<=", end),
+        ]
     )
-    exits = (
-        env["fix.hr.exit"]
-        .sudo()
-        .search(
-            [
-                ("state", "in", ("cleared", "settled")),
-                ("last_working_day", ">=", start),
-                ("last_working_day", "<=", end),
-            ]
-        )
+    exits = env["fix.hr.exit"].search(
+        [
+            ("state", "in", ("cleared", "settled")),
+            ("last_working_day", ">=", start),
+            ("last_working_day", "<=", end),
+        ]
     )
     rows = []
     branches = {}
@@ -190,10 +182,8 @@ def attrition_analysis(env, date_from=None, date_to=None, **params):
     """Attrition YTD by exit type and branch."""
     today = datetime.date.today()
     year_start = today.replace(month=1, day=1)
-    exits = (
-        env["fix.hr.exit"]
-        .sudo()
-        .search([("state", "in", ("cleared", "settled")), ("last_working_day", ">=", year_start)])
+    exits = env["fix.hr.exit"].search(
+        [("state", "in", ("cleared", "settled")), ("last_working_day", ">=", year_start)]
     )
     head = len(_employees(env))
     groups = {}
@@ -231,10 +221,8 @@ def attrition_analysis(env, date_from=None, date_to=None, **params):
 def probation_conversion(env, date_from=None, date_to=None, **params):
     """Probation contracts and their conversion window (next 90 days)."""
     today = datetime.date.today()
-    contracts = (
-        env["fix.employment.contract"]
-        .sudo()
-        .search([("contract_type", "=", "probation"), ("state", "=", "active")])
+    contracts = env["fix.employment.contract"].search(
+        [("contract_type", "=", "probation"), ("state", "=", "active")]
     )
     rows = []
     for contract in contracts:
@@ -273,7 +261,7 @@ def probation_conversion(env, date_from=None, date_to=None, **params):
 
 def establishment_register(env, date_from=None, date_to=None, **params):
     """Establishment register: sanctioned positions vs heads per branch."""
-    positions = env["fix.org.position"].sudo().search([])
+    positions = env["fix.org.position"].search([])
     employees = _employees(env)
     rows = []
     for position in positions:
@@ -348,22 +336,16 @@ REPORTS = {
 def kpis(env):
     employees = _employees(env)
     today = datetime.date.today()
-    positions = env["fix.org.position"].sudo().search([])
-    contracts = (
-        env["fix.employment.contract"]
-        .sudo()
-        .search([("contract_type", "=", "probation"), ("state", "=", "active")])
+    positions = env["fix.org.position"].search([])
+    contracts = env["fix.employment.contract"].search(
+        [("contract_type", "=", "probation"), ("state", "=", "active")]
     )
-    documents = env["fix.hr.document"].sudo().search([("doc_type", "=", "service_book")])
-    exits = (
-        env["fix.hr.exit"]
-        .sudo()
-        .search(
-            [
-                ("state", "in", ("cleared", "settled")),
-                ("last_working_day", ">=", today.replace(month=1, day=1)),
-            ]
-        )
+    documents = env["fix.hr.document"].search([("doc_type", "=", "service_book")])
+    exits = env["fix.hr.exit"].search(
+        [
+            ("state", "in", ("cleared", "settled")),
+            ("last_working_day", ">=", today.replace(month=1, day=1)),
+        ]
     )
     horizon = today + datetime.timedelta(days=30)
     probation_due = len(

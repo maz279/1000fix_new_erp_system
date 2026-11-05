@@ -2,20 +2,20 @@
     "schema":  "1000fix-erp/gate-g5/1",
     "gate":  "G5",
     "milestone":  "MS-07",
-    "ranAtUtc":  "2026-10-23T09:35:35.2012567Z",
+    "ranAtUtc":  "2026-11-04T15:29:07.4930008Z",
     "summary":  {
-                    "pass":  7,
+                    "pass":  5,
                     "condition":  3,
-                    "fail":  0,
+                    "fail":  2,
                     "total":  10,
-                    "verdict":  "CONDITION"
+                    "verdict":  "FAIL"
                 },
     "criteria":  [
                      {
                          "id":  "G5-1",
                          "title":  "T-6 entry: fitness clean",
-                         "status":  "PASS",
-                         "evidence":  "fitness runner executed in this gate run: exit 0, 0 blocking failure(s) parsed from its summary line"
+                         "status":  "FAIL",
+                         "evidence":  "fitness runner executed in this gate run: exit 1, 8 blocking failure(s) parsed from its summary line"
                      },
                      {
                          "id":  "G5-2",
@@ -33,13 +33,13 @@
                          "id":  "G5-4",
                          "title":  "Certification enforced at dispatch (FR-LMS-039)",
                          "status":  "PASS",
-                         "evidence":  "cd_competency tests exit 0, 19 passed; dispatch_eligibility() present=True; \u0027assignment blocked\u0027 error present=True"
+                         "evidence":  "cd_competency tests exit 0, 21 passed; dispatch_eligibility() present=True; \u0027assignment blocked\u0027 error present=True"
                      },
                      {
                          "id":  "G5-5",
                          "title":  "Journeys 6, 13, 14 automated",
-                         "status":  "PASS",
-                         "evidence":  "journey suites executed (grep-only previously): exit 0, 16 passed - J6 alert\u003eticket\u003eremote session\u003eSLA report, J13 lock\u003ecalc\u003eapprove\u003eBEFTN\u003epayslip\u003epost, J14 complaint\u003eNCR\u003eCAPA\u003everify\u003eclose; nightly orchestration EXECUTION is CI-side and not measured here"
+                         "status":  "FAIL",
+                         "evidence":  "journey suites executed (grep-only previously): exit 1, 15 passed - J6 alert\u003eticket\u003eremote session\u003eSLA report, J13 lock\u003ecalc\u003eapprove\u003eBEFTN\u003epayslip\u003epost, J14 complaint\u003eNCR\u003eCAPA\u003everify\u003eclose; nightly orchestration EXECUTION is CI-side and not measured here"
                      },
                      {
                          "id":  "G5-6",
@@ -51,7 +51,7 @@
                          "id":  "G5-7",
                          "title":  "MSP SLA reporting against contract terms",
                          "status":  "PASS",
-                         "evidence":  "cd_msp_contract suite executed (grep-only previously): exit 0, 11 passed - monthly report window, quiet-month full SLA attainment and bilingual regeneration are tested on M08\u0027s contract engine; production SLA attainment needs live MSP volume"
+                         "evidence":  "cd_msp_contract suite executed (grep-only previously): exit 0, 105 passed - monthly report window, quiet-month full SLA attainment and bilingual regeneration are tested on M08\u0027s contract engine; production SLA attainment needs live MSP volume"
                      },
                      {
                          "id":  "G5-8",
@@ -69,7 +69,7 @@
                          "id":  "G5-10",
                          "title":  "All modules shipped + installed",
                          "status":  "CONDITION",
-                         "evidence":  "71 manifests; FF-23: tests-present: OK - 71 modules, all have tests/; installation on fix_dev: UNMEASURED (not probed by this gate)"
+                         "evidence":  "79 manifests; FF-23: tests-present: OK - 79 modules, all have tests/; installation on fix_dev: UNMEASURED (not probed by this gate)"
                      }
                  ]
 }

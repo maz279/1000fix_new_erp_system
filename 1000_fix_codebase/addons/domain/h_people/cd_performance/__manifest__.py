@@ -31,6 +31,7 @@ CD-M57-01 (P08-M04):
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_a09_privacy_rules.xml",
         "data/perf_ops_sequences.xml",
         "views/fix_performance_views.xml",
     ],

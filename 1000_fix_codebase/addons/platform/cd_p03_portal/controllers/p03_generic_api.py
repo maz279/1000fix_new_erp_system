@@ -159,7 +159,10 @@ class P03GenericApiController(http.Controller):
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # OU record rules stay enforced for every OTHER surface; writes
             # below keep the calling user's context (SoD/permissions apply).
-            rec_model = env[model].sudo()
+            # A surface marked "rules" (A09 people data) reads as the caller,
+            # under their record rules: an employee lists their own contract,
+            # never a colleague's (A09 audit M21-5).
+            rec_model = env[model] if conf.get("rules") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
@@ -461,7 +464,12 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            rec = env[model].sudo().browse(int(record_id)).exists() if record_id else None
+            reader = env[model] if conf.get("rules") else env[model].sudo()
+            rec = reader.browse(int(record_id)).exists() if record_id else None
+            if rec and conf.get("rules"):
+                # opening a record by id must not step around the rules the
+                # list applies (A09 audit M21-5: another company's NID by id)
+                rec.check_access("read")
             out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
             if rec:
@@ -551,7 +559,8 @@ class P03GenericApiController(http.Controller):
         out_fields = self._form_field_meta(env, comodel, lines.get("fields"))
         rows = []
         if record_id:
-            rec = env[model].sudo().browse(int(record_id)).exists()
+            reader = env[model] if SURFACES.get(model, {}).get("rules") else env[model].sudo()
+            rec = reader.browse(int(record_id)).exists()
             if rec:
                 for child in rec[field_name]:
                     rows.append(self._form_record(child, out_fields))

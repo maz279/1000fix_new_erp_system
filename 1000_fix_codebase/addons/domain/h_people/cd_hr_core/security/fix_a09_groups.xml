@@ -18,7 +18,13 @@
     <record id="group_hr_officer" model="res.groups">
         <field name="name">HR Officer</field>
         <field name="privilege_id" ref="privilege_hr_officer"/>
-        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <!-- A09 audit M21-2: the role owns the employee master, so it must
+             hold Odoo's own employee-officer group. Without it every create,
+             rename or master update failed on resource.resource and
+             hr.employee.version, and only the administrator could run M21.
+             Plain employees keep READ only (cd_employee_core ACL); the
+             sensitive master fields are restricted to this group. -->
+        <field name="implied_ids" eval="[(4, ref('base.group_user')), (4, ref('hr.group_hr_user'))]"/>
         <field name="comment">Maintains positions, transfers, exits, employee documents and leave policy.</field>
         <!-- the back office keeps working: the administrator holds the role -->
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>

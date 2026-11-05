@@ -57,10 +57,10 @@
           "type": "number"
         },
         "total_debit": {
-          "description": "Type not statically derivable from `total_debit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:458)."
+          "description": "Type not statically derivable from `total_debit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:689)."
         },
         "total_credit": {
-          "description": "Type not statically derivable from `total_credit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:458)."
+          "description": "Type not statically derivable from `total_credit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:689)."
         }
       },
       "additionalProperties": false

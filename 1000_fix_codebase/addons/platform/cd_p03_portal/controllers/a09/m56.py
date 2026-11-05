@@ -1,7 +1,17 @@
 # A09 · M56 Payroll & Statutory — surfaces, packs and KPIs over payroll periods,
 # payslips, BEFTN batches, salary structures, bonus runs, certificates,
 # quarterly withholding returns and off-cycle payments.
+#
+# A09 workflow audit (2026-11-03), P0 A6: every report and KPI here read
+# `sudo().search([])` - a plain employee read colleagues' basic, gross and
+# net through the salary register, and an officer of one company read
+# another company's payslips. Salary data is now read as the caller, only by
+# the payroll groups, and only in the caller's allowed companies.
 import datetime
+
+from odoo.exceptions import AccessError
+
+PAYROLL_GROUP = "cd_payroll_bd.group_payroll_officer"  # the manager implies it
 
 SURFACES = {
     "fix.payroll.period": {
@@ -54,6 +64,14 @@ SURFACES = {
 }
 
 
+def _payroll(env, model, domain=(), **kw):
+    """`model` records the caller may see as payroll data: the payroll groups
+    only, the caller's allowed companies, the caller's own record rules."""
+    if not env.user.has_group(PAYROLL_GROUP):
+        raise AccessError("Payroll figures are restricted to Payroll Officers and Managers.")
+    return env[model].search([("company_id", "in", env.companies.ids), *domain], **kw)
+
+
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     return {
         "title": title,
@@ -68,7 +86,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def salary_register(env, date_from=None, date_to=None, **params):
     """Salary register: every payslip in the period with gross and net."""
-    slips = env["fix.payslip"].sudo().search([])
+    slips = _payroll(env, "fix.payslip")
     rows = []
     for slip in slips:
         rows.append(
@@ -110,7 +128,7 @@ def salary_register(env, date_from=None, date_to=None, **params):
 
 def payroll_cost_allocation(env, date_from=None, date_to=None, **params):
     """Payroll cost allocation by branch: gross, tax and net per branch."""
-    slips = env["fix.payslip"].sudo().search([])
+    slips = _payroll(env, "fix.payslip")
     groups = {}
     for slip in slips:
         branch = (
@@ -165,7 +183,7 @@ def payroll_cost_allocation(env, date_from=None, date_to=None, **params):
 
 def tax_deduction_summary(env, date_from=None, date_to=None, **params):
     """Tax deduction summary by period."""
-    slips = env["fix.payslip"].sudo().search([])
+    slips = _payroll(env, "fix.payslip")
     groups = {}
     for slip in slips:
         key = slip.period_id.name
@@ -209,7 +227,7 @@ def tax_deduction_summary(env, date_from=None, date_to=None, **params):
 
 def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
     """PF and gratuity provisions from the payslips and the gratuity action."""
-    slips = env["fix.payslip"].sudo().search([])
+    slips = _payroll(env, "fix.payslip")
     rows = []
     for slip in slips:
         pf_emp = float(getattr(slip, "pf_employee", 0.0) or 0.0)
@@ -250,7 +268,7 @@ def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
 
 def payroll_variance(env, date_from=None, date_to=None, **params):
     """Payroll variance: latest two periods compared per employee."""
-    periods = env["fix.payroll.period"].sudo().search([], order="period_start desc", limit=2)
+    periods = _payroll(env, "fix.payroll.period", order="period_start desc", limit=2)
     if len(periods) < 2:
         return _pack(
             "Payroll Variance — needs two periods",
@@ -262,12 +280,10 @@ def payroll_variance(env, date_from=None, date_to=None, **params):
         )
     current, previous = periods[0], periods[1]
     cur_slips = {
-        s.employee_id.id: s
-        for s in env["fix.payslip"].sudo().search([("period_id", "=", current.id)])
+        s.employee_id.id: s for s in _payroll(env, "fix.payslip", [("period_id", "=", current.id)])
     }
     prev_slips = {
-        s.employee_id.id: s
-        for s in env["fix.payslip"].sudo().search([("period_id", "=", previous.id)])
+        s.employee_id.id: s for s in _payroll(env, "fix.payslip", [("period_id", "=", previous.id)])
     }
     rows = []
     for emp_id in sorted(set(cur_slips) | set(prev_slips)):
@@ -321,18 +337,20 @@ REPORTS = {
 
 
 def kpis(env):
+    # an AccessError for a non-payroll caller withholds the M56 figures
+    # (a09.kpis), it never computes them
     today = datetime.date.today()
-    periods = env["fix.payroll.period"].sudo().search([], order="period_start desc", limit=1)
+    periods = _payroll(env, "fix.payroll.period", order="period_start desc", limit=1)
     latest = periods[:1]
-    slips = env["fix.payslip"].sudo().search([])
+    slips = _payroll(env, "fix.payslip")
     month_start = today.replace(day=1)
     tax_mtd = sum(
         float(getattr(s, "tax_withheld", 0.0) or 0.0)
         for s in slips
         if s.period_id.period_start and s.period_id.period_start >= month_start
     )
-    bonus = env["fix.payroll.bonus.run"].sudo().search([("state", "!=", "paid")])
-    corrections = env["fix.payroll.offcycle"].sudo().search([("state", "!=", "paid")])
+    bonus = _payroll(env, "fix.payroll.bonus.run", [("state", "!=", "paid")])
+    corrections = _payroll(env, "fix.payroll.offcycle", [("state", "!=", "paid")])
     return {
         "payroll_cycle": latest.name if latest else "—",
         "gross_payroll": round(

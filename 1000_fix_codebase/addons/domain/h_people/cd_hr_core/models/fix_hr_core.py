@@ -26,6 +26,12 @@ IDP_DEPROVISIONED = "identity.deprovisioned"
 IDP_DEPROVISION_FAILED = "identity.deprovision_failed"
 IDENTITY_TOPIC = "fix.events.identity"
 IDENTITY_CONSUMER_GROUP = "hr-core-identity"
+# A09 audit M21-1/M21-4: every employee could read (and, through the old
+# cd_employee_core ACL, rewrite) a colleague's NID, bank account, wage and
+# medical restrictions. These master fields are readable and writable only by
+# the HR employee officer group; payroll and the attendance registers read
+# them through sudo() inside their own group-checked runs.
+HR_PRIVATE = "hr.group_hr_user"
 
 
 class HrEmployeeCdCoreExt(models.Model):
@@ -37,7 +43,9 @@ class HrEmployeeCdCoreExt(models.Model):
     identity store only.
     """
 
-    _inherit = "hr.employee"
+    # two parents: _name keeps this an extension of hr.employee
+    _name = "hr.employee"
+    _inherit = ["hr.employee", "fix.guarded.mixin"]
 
     employee_code = fields.Char(
         string="Employee Code",
@@ -56,17 +64,23 @@ class HrEmployeeCdCoreExt(models.Model):
     biometric_id = fields.Char(
         string="Biometric Device ID", help="Punch device PIN for branch attendance machine"
     )
-    spouse_name = fields.Char(string="Spouse Legal Name", help="Spouse legal name if married")
-    private_district = fields.Char(string="Present District", help="Present Residential District")
+    spouse_name = fields.Char(
+        string="Spouse Legal Name", help="Spouse legal name if married", groups=HR_PRIVATE
+    )
+    private_district = fields.Char(
+        string="Present District", help="Present Residential District", groups=HR_PRIVATE
+    )
 
     # Statutory Identifiers & Tax Compliance (ITA 2023 Sections 261 & 264 PSR)
     birth_reg_number = fields.Char(
         string="17-Digit Birth Registration Number",
         help="Birth Registration Certificate number (BRIS)",
+        groups=HR_PRIVATE,
     )
     psr_ack_number = fields.Char(
         string="Tax Return Ack No (PSR)",
         help="Proof of Submission of Return (Section 264, Income Tax Act 2023)",
+        groups=HR_PRIVATE,
     )
     psr_status = fields.Selection(
         [
@@ -78,12 +92,16 @@ class HrEmployeeCdCoreExt(models.Model):
         string="PSR Compliance Status",
         default="not_submitted",
         help="ITA 2023 s.264 Proof of Submission of Return verification state",
+        groups=HR_PRIVATE,
     )
-    psr_tax_year = fields.Char(string="PSR Assessment Year", help="e.g. 2026-2027")
-    psr_verified_on = fields.Date(string="PSR Verified On")
+    psr_tax_year = fields.Char(
+        string="PSR Assessment Year", help="e.g. 2026-2027", groups=HR_PRIVATE
+    )
+    psr_verified_on = fields.Date(string="PSR Verified On", groups=HR_PRIVATE)
     psr_qr_payload = fields.Char(
         string="PSR NBR Verification Reference",
         help="NBR online verification reference or QR payload",
+        groups=HR_PRIVATE,
     )
     form7_last_event_date = fields.Date(
         string="Form 7 Last Event Date",
@@ -106,6 +124,7 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Taxpayer Slabs Category",
         default="general",
         help="Annual tax-free income ceiling under Finance Act",
+        groups=HR_PRIVATE,
     )
     minimum_tax_location = fields.Selection(
         [
@@ -116,16 +135,22 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Minimum Tax Area",
         default="dhaka_chattogram",
         help="Statutory minimum annual tax floor",
+        groups=HR_PRIVATE,
     )
     has_disabled_child = fields.Boolean(
         string="Parent of Disabled Child",
         help="Additional BDT 50,000 exemption per disabled child under Finance Act",
+        groups=HR_PRIVATE,
     )
     passport_number = fields.Char(
-        string="International Passport Number", help="International Passport Number"
+        string="International Passport Number",
+        help="International Passport Number",
+        groups=HR_PRIVATE,
     )
     driving_license_no = fields.Char(
-        string="BRTA Driving License Number", help="Driving license number for field mobility"
+        string="BRTA Driving License Number",
+        help="Driving license number for field mobility",
+        groups=HR_PRIVATE,
     )
     driving_license_type = fields.Selection(
         [
@@ -141,6 +166,7 @@ class HrEmployeeCdCoreExt(models.Model):
     police_clearance_ref = fields.Char(
         string="Police Clearance Ref (PCC)",
         help="Police clearance certificate reference for in-home service safety",
+        groups=HR_PRIVATE,
     )
 
     # Organizational Hierarchy, Classification & Job Band
@@ -247,7 +273,7 @@ class HrEmployeeCdCoreExt(models.Model):
     prev_start_date = fields.Date(string="Previous Employment Start")
     prev_end_date = fields.Date(string="Previous Employment End")
     prev_experience_years = fields.Float(string="Total Prior Experience (Years)")
-    prev_last_salary = fields.Float(string="Last Drawn Gross Salary (BDT)")
+    prev_last_salary = fields.Float(string="Last Drawn Gross Salary (BDT)", groups=HR_PRIVATE)
     prev_reason_leaving = fields.Selection(
         [
             ("career_growth", "Career Growth"),
@@ -260,7 +286,7 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Separation Reason",
     )
     prev_supervisor_name = fields.Char(string="Previous Supervisor Name")
-    prev_supervisor_phone = fields.Char(string="Supervisor Contact Mobile")
+    prev_supervisor_phone = fields.Char(string="Supervisor Contact Mobile", groups=HR_PRIVATE)
     prev_reference_status = fields.Selection(
         [
             ("verified_positive", "Verified Positive"),
@@ -312,17 +338,27 @@ class HrEmployeeCdCoreExt(models.Model):
     )
 
     # Compensation Breakdown & Allowances (Monthly BDT)
-    wage = fields.Monetary(string="Monthly Gross Salary", currency_field="currency_id")
-    basic_wage = fields.Monetary(string="Monthly Basic Wage", currency_field="currency_id")
-    house_rent = fields.Monetary(string="House Rent Allowance", currency_field="currency_id")
-    medical_allowance = fields.Monetary(string="Medical Allowance", currency_field="currency_id")
+    wage = fields.Monetary(
+        string="Monthly Gross Salary", currency_field="currency_id", groups=HR_PRIVATE
+    )
+    basic_wage = fields.Monetary(
+        string="Monthly Basic Wage", currency_field="currency_id", groups=HR_PRIVATE
+    )
+    house_rent = fields.Monetary(
+        string="House Rent Allowance", currency_field="currency_id", groups=HR_PRIVATE
+    )
+    medical_allowance = fields.Monetary(
+        string="Medical Allowance", currency_field="currency_id", groups=HR_PRIVATE
+    )
     conveyance_allowance = fields.Monetary(
-        string="Conveyance Allowance", currency_field="currency_id"
+        string="Conveyance Allowance", currency_field="currency_id", groups=HR_PRIVATE
     )
     technical_allowance = fields.Monetary(
-        string="Technical Skill / OEM Allowance", currency_field="currency_id"
+        string="Technical Skill / OEM Allowance", currency_field="currency_id", groups=HR_PRIVATE
     )
-    pf_member = fields.Boolean(string="Recognized Provident Fund (RPF) Member", default=True)
+    pf_member = fields.Boolean(
+        string="Recognized Provident Fund (RPF) Member", default=True, groups=HR_PRIVATE
+    )
 
     # Occupational Health & Medical Fitness (Workshop & Field Safety)
     color_blindness = fields.Selection(
@@ -334,6 +370,7 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Color Vision Test Status",
         default="normal_pass",
+        groups=HR_PRIVATE,
     )
     medical_fitness = fields.Selection(
         [
@@ -344,16 +381,25 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Medical Fitness Verdict",
         default="fit_duty",
+        groups=HR_PRIVATE,
     )
     work_restrictions = fields.Char(
-        string="Physical Work Restrictions", help="e.g. No outdoor ladder work above 3m"
+        string="Physical Work Restrictions",
+        help="e.g. No outdoor ladder work above 3m",
+        groups=HR_PRIVATE,
     )
-    tetanus_vaccine_date = fields.Date(string="Tetanus Toxoid (TT) Vaccination Date")
-    tetanus_expiry_date = fields.Date(string="Tetanus Booster Expiration Date")
+    tetanus_vaccine_date = fields.Date(
+        string="Tetanus Toxoid (TT) Vaccination Date", groups=HR_PRIVATE
+    )
+    tetanus_expiry_date = fields.Date(string="Tetanus Booster Expiration Date", groups=HR_PRIVATE)
     chemical_allergies = fields.Char(
-        string="Chemical / Solvent Allergies", help="e.g. IPA alcohol, rosin flux, R32 refrigerant"
+        string="Chemical / Solvent Allergies",
+        help="e.g. IPA alcohol, rosin flux, R32 refrigerant",
+        groups=HR_PRIVATE,
     )
-    insurance_policy_no = fields.Char(string="Corporate Group Insurance Policy No")
+    insurance_policy_no = fields.Char(
+        string="Corporate Group Insurance Policy No", groups=HR_PRIVATE
+    )
 
     # Secondary Emergency Contact & Nominee Allocation
     emergency_contact_sec = fields.Char(string="Secondary Emergency Contact Person")
@@ -371,7 +417,7 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Secondary Contact Relationship",
     )
     emergency_phone_sec = fields.Char(string="Secondary Emergency Phone")
-    nominee_name = fields.Char(string="Primary Statutory Nominee Name")
+    nominee_name = fields.Char(string="Primary Statutory Nominee Name", groups=HR_PRIVATE)
     nominee_relation = fields.Selection(
         [
             ("spouse", "Spouse"),
@@ -382,10 +428,15 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Nominee Relationship",
         default="spouse",
+        groups=HR_PRIVATE,
     )
-    nominee_nid = fields.Char(string="Nominee National ID / Birth Reg")
-    nominee_pct = fields.Float(string="Nominee Share % (BLA s.19 & 131)", default=100.0)
-    guardian_name = fields.Char(string="Legal Guardian Name (if Nominee is Minor)")
+    nominee_nid = fields.Char(string="Nominee National ID / Birth Reg", groups=HR_PRIVATE)
+    nominee_pct = fields.Float(
+        string="Nominee Share % (BLA s.19 & 131)", default=100.0, groups=HR_PRIVATE
+    )
+    guardian_name = fields.Char(
+        string="Legal Guardian Name (if Nominee is Minor)", groups=HR_PRIVATE
+    )
 
     # Document Dossier Compliance Checklist
     doc_nid_verified = fields.Boolean(string="NID Smart Card Verified", default=True)
@@ -404,28 +455,46 @@ class HrEmployeeCdCoreExt(models.Model):
     doc_police_pcc_cleared = fields.Boolean(string="Police Clearance Certificate (PCC) Cleared")
 
     # Physical Scanned Document File Attachments (BLA 2006, ISO 9001:2015 Audit Vault)
-    doc_nid_file = fields.Binary(string="National ID Smart Card Scan", attachment=True)
-    doc_nid_filename = fields.Char(string="NID File Name")
-    doc_tin_file = fields.Binary(string="12-digit e-TIN Certificate Scan", attachment=True)
-    doc_tin_filename = fields.Char(string="TIN File Name")
-    doc_psr_file = fields.Binary(string="Tax Return Acknowledgement (PSR) Scan", attachment=True)
-    doc_psr_filename = fields.Char(string="PSR File Name")
-    doc_appointment_file = fields.Binary(string="Signed Appointment Letter Scan", attachment=True)
-    doc_appointment_filename = fields.Char(string="Appointment File Name")
-    doc_service_book_file = fields.Binary(string="Form 7 Service Book Pages Scan", attachment=True)
-    doc_service_book_filename = fields.Char(string="Service Book File Name")
-    doc_nda_file = fields.Binary(string="Signed NDA & Code of Conduct Scan", attachment=True)
-    doc_nda_filename = fields.Char(string="NDA File Name")
-    doc_medical_file = fields.Binary(string="Medical Fitness Certificate Scan", attachment=True)
-    doc_medical_filename = fields.Char(string="Medical File Name")
-    doc_police_pcc_file = fields.Binary(
-        string="Police Clearance Certificate (PCC) Scan", attachment=True
+    doc_nid_file = fields.Binary(
+        string="National ID Smart Card Scan", attachment=True, groups=HR_PRIVATE
     )
-    doc_police_pcc_filename = fields.Char(string="PCC File Name")
-    doc_academic_file = fields.Binary(string="Highest Academic Certificate Scan", attachment=True)
-    doc_academic_filename = fields.Char(string="Academic File Name")
-    doc_nominee_nid_file = fields.Binary(string="Nominee NID & Photo Scan", attachment=True)
-    doc_nominee_nid_filename = fields.Char(string="Nominee File Name")
+    doc_nid_filename = fields.Char(string="NID File Name", groups=HR_PRIVATE)
+    doc_tin_file = fields.Binary(
+        string="12-digit e-TIN Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_tin_filename = fields.Char(string="TIN File Name", groups=HR_PRIVATE)
+    doc_psr_file = fields.Binary(
+        string="Tax Return Acknowledgement (PSR) Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_psr_filename = fields.Char(string="PSR File Name", groups=HR_PRIVATE)
+    doc_appointment_file = fields.Binary(
+        string="Signed Appointment Letter Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_appointment_filename = fields.Char(string="Appointment File Name", groups=HR_PRIVATE)
+    doc_service_book_file = fields.Binary(
+        string="Form 7 Service Book Pages Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_service_book_filename = fields.Char(string="Service Book File Name", groups=HR_PRIVATE)
+    doc_nda_file = fields.Binary(
+        string="Signed NDA & Code of Conduct Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_nda_filename = fields.Char(string="NDA File Name", groups=HR_PRIVATE)
+    doc_medical_file = fields.Binary(
+        string="Medical Fitness Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_medical_filename = fields.Char(string="Medical File Name", groups=HR_PRIVATE)
+    doc_police_pcc_file = fields.Binary(
+        string="Police Clearance Certificate (PCC) Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_police_pcc_filename = fields.Char(string="PCC File Name", groups=HR_PRIVATE)
+    doc_academic_file = fields.Binary(
+        string="Highest Academic Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_academic_filename = fields.Char(string="Academic File Name", groups=HR_PRIVATE)
+    doc_nominee_nid_file = fields.Binary(
+        string="Nominee NID & Photo Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_nominee_nid_filename = fields.Char(string="Nominee File Name", groups=HR_PRIVATE)
 
     # Sub-record Relational Links
     education_line_ids = fields.One2many(
@@ -457,6 +526,7 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Blood Group",
         help="Blood Group (Mandatory for field technicians and occupational health)",
+        groups=HR_PRIVATE,
     )
     religion = fields.Selection(
         [
@@ -468,21 +538,27 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Religion",
         help="Religion (Required for statutory festival holiday bonus entitlement rules)",
+        groups=HR_PRIVATE,
     )
     nid_number = fields.Char(
         string="National ID (NID / Smart Card)",
         help="10-digit smart card or 17-digit national identity number",
+        groups=HR_PRIVATE,
     )
     tin_number = fields.Char(
         string="e-TIN Number",
         help="12-digit Taxpayer Identification Number for NBR withholding (Form 23)",
+        groups=HR_PRIVATE,
     )
     tax_zone = fields.Char(
         string="NBR Tax Zone",
         help="National Board of Revenue tax circle zone (e.g. Zone-01, Dhaka)",
+        groups=HR_PRIVATE,
     )
     tax_circle = fields.Char(
-        string="NBR Tax Circle", help="National Board of Revenue tax circle (e.g. Circle-15)"
+        string="NBR Tax Circle",
+        help="National Board of Revenue tax circle (e.g. Circle-15)",
+        groups=HR_PRIVATE,
     )
     service_book_number = fields.Char(
         string="Service Book Ref",
@@ -491,9 +567,13 @@ class HrEmployeeCdCoreExt(models.Model):
 
     # Address & Residence (Present vs Permanent)
     permanent_address = fields.Text(
-        string="Permanent Address", help="Permanent Address (Village/Road, Post Office, Thana)"
+        string="Permanent Address",
+        help="Permanent Address (Village/Road, Post Office, Thana)",
+        groups=HR_PRIVATE,
     )
-    permanent_district = fields.Char(string="Permanent District", help="Permanent District")
+    permanent_district = fields.Char(
+        string="Permanent District", help="Permanent District", groups=HR_PRIVATE
+    )
     permanent_division = fields.Selection(
         [
             ("dhaka", "Dhaka"),
@@ -507,6 +587,7 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Permanent Division",
         help="Permanent Division",
+        groups=HR_PRIVATE,
     )
 
     # Emergency Contact Details (BLA Form 7 next-of-kin)
@@ -525,20 +606,26 @@ class HrEmployeeCdCoreExt(models.Model):
         help="Emergency Contact Relationship",
     )
     emergency_contact_address = fields.Text(
-        string="Emergency Contact Address", help="Emergency Contact Address"
+        string="Emergency Contact Address", help="Emergency Contact Address", groups=HR_PRIVATE
     )
     emergency_phone_alt = fields.Char(
         string="Emergency Alternative Phone", help="Alternative Emergency Phone"
     )
 
     # Payroll, Banking & MFS (Bangladesh Electronic Fund Transfer Network & Mobile Wallets)
-    bank_name = fields.Char(string="Bank Name", help="Scheduled Commercial Bank in Bangladesh")
-    bank_branch_name = fields.Char(string="Bank Branch", help="Bank branch name")
+    bank_name = fields.Char(
+        string="Bank Name", help="Scheduled Commercial Bank in Bangladesh", groups=HR_PRIVATE
+    )
+    bank_branch_name = fields.Char(string="Bank Branch", help="Bank branch name", groups=HR_PRIVATE)
     routing_number = fields.Char(
-        string="BEFTN Routing Number", help="9-digit Bangladesh Bank BEFTN routing code"
+        string="BEFTN Routing Number",
+        help="9-digit Bangladesh Bank BEFTN routing code",
+        groups=HR_PRIVATE,
     )
     bank_account_number = fields.Char(
-        string="Bank Account Number", help="Savings / Current bank account number"
+        string="Bank Account Number",
+        help="Savings / Current bank account number",
+        groups=HR_PRIVATE,
     )
     mfs_provider = fields.Selection(
         [
@@ -550,9 +637,12 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="MFS Provider",
         help="Mobile Financial Services wallet provider for daily allowances & field expenses",
+        groups=HR_PRIVATE,
     )
     mfs_account_number = fields.Char(
-        string="MFS Account Number", help="11-digit mobile wallet number (01XXXXXXXXX)"
+        string="MFS Account Number",
+        help="11-digit mobile wallet number (01XXXXXXXXX)",
+        groups=HR_PRIVATE,
     )
     overtime_eligible = fields.Boolean(
         string="Overtime Eligible",
@@ -719,6 +809,20 @@ class HrEmployeeCdCoreExt(models.Model):
             )
         return rows
 
+    def _fix_guarded_fields(self) -> set:
+        # A09 audit M21-6: a user who could write the master marked a leaver
+        # "deprovisioned" (KPI-090 green with the account still live) or bound
+        # a colleague to a Keycloak id of their choosing. Only the leaver path,
+        # the HR manager's confirmation and the identity-provider consumer
+        # change these.
+        return super()._fix_guarded_fields() | {
+            "left_at",
+            "keycloak_deprovision_status",
+            "keycloak_deprovisioned_at",
+            "keycloak_deprovision_confirmed_by",
+            "keycloak_user_id",
+        }
+
     def _compute_contract_count(self):
         for rec in self:
             rec.contract_count = self.env["fix.employment.contract"].search_count(
@@ -739,7 +843,7 @@ class HrEmployeeCdCoreExt(models.Model):
         consumes to remove the Keycloak account) starts the KPI-090 clock:
         the time is recorded and deprovisioning is REQUESTED (pending)."""
         super()._emit_leaver()
-        self.write(
+        self._guarded().write(
             {
                 "left_at": fields.Datetime.now(),
                 "keycloak_deprovision_status": "pending",
@@ -767,7 +871,7 @@ class HrEmployeeCdCoreExt(models.Model):
                     "%s has no Keycloak deprovisioning to confirm (status: %s) - it is "
                     "requested by the leaver event" % (rec.name, rec.keycloak_deprovision_status)
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "keycloak_deprovision_status": "deprovisioned",
                     "keycloak_deprovisioned_at": now,
@@ -804,6 +908,13 @@ class HrEmployeeCdCoreExt(models.Model):
         control. Idempotent: a re-delivered or late event never changes a confirmed
         removal. Returns the employee updated (empty when nothing applied).
         """
+        # A09 audit M21-6: public, so any user could call it over JSON-RPC and
+        # mark a leaver deprovisioned. Only the identity consumer (the cron,
+        # superuser) applies the provider's outcome.
+        if not self.env.su:
+            raise AccessError(
+                "Identity-provider outcomes are applied by the identity consumer only"
+            )
         event = normalize_bus_event(raw_event)
         if event["event_type"] not in (
             IDP_PROVISIONED,
@@ -883,6 +994,10 @@ class HrEmployeeCdCoreExt(models.Model):
     @api.model
     def drain_identity_lifecycle_events(self, limit=50):
         """Consume M29's identity outcomes through fix_events (FF-28) - the cron's job."""
+        if not self.env.su:
+            raise AccessError(
+                "Identity-provider outcomes are applied by the identity consumer only"
+            )
         manager = get_migration_manager()
         manager.register_group(IDENTITY_CONSUMER_GROUP)
         applied = []
@@ -1188,7 +1303,7 @@ class FixEmploymentContract(models.Model):
                 ).days
                 if span > cap_months:
                     raise ValidationError(
-                        "Probation exceeds the 6-month statutory cap " "(Labour Rules 2021 r.25)"
+                        "Probation exceeds the 6-month statutory cap (Labour Rules 2021 r.25)"
                     )
             if rec.weekly_hours > 48:
                 raise ValidationError("s.102: weekly hours may not exceed 48")

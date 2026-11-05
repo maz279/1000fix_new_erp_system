@@ -1,8 +1,32 @@
 # fix_payroll_ops — M56: salary structures, festival bonus runs, tax
 # certificates, quarterly withholding returns and off-cycle payments.
 # Periods, payslips and BEFTN batches live in fix_payroll.py.
+#
+# A09 workflow audit (2026-11-03), P0 A4: each document here was a set of
+# plain-writable state flags. An officer created and approved his own
+# BDT 5,000,000 off-cycle payment, then changed its amount and payee; wrote
+# 'paid' directly; "trustee-approved" WPPF himself and rewrote the profit.
+# Every document now carries fix.payroll.state.lock: state, the actor stamps
+# and the computed amounts change only in a transition, and what was approved
+# freezes. Approval needs the Payroll Manager role and a second person.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+
+PAYROLL_MANAGER = "cd_payroll_bd.group_payroll_manager"
+
+
+def check_payroll_approver(records, what, makers):
+    """Approval of `what`: the Payroll Manager role, and an approver who is
+    none of the users `makers(rec)` returns (preparer, calculator)."""
+    user = records.env.user
+    if not user.has_group(PAYROLL_MANAGER):
+        raise AccessError("Only a Payroll Manager can approve %s." % what)
+    for rec in records:
+        if user in makers(rec):
+            raise UserError(
+                "Maker-Checker SoD violation: %s %s was prepared or calculated by %s, who "
+                "cannot also approve it." % (rec._description, rec.display_name, user.name)
+            )
 
 
 class FixPayrollStructure(models.Model):
@@ -35,6 +59,7 @@ class FixPayrollStructure(models.Model):
 class FixFestivalBonusRun(models.Model):
     _name = "fix.payroll.bonus.run"
     _description = "Festival Bonus Run"
+    _inherit = ["fix.payroll.state.lock"]
     _order = "bonus_date desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -69,6 +94,28 @@ class FixFestivalBonusRun(models.Model):
         required=True,
         default="draft",
     )
+    prepared_by_id = fields.Many2one(
+        "res.users", string="Prepared By", readonly=True, default=lambda self: self.env.user
+    )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
+    approved_on = fields.Datetime(string="Approved On", readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "prepared_by_id",
+            "approved_by_id",
+            "approved_on",
+            "employee_count",
+            "total_amount",
+        }
+
+    def _payroll_state_locked_fields(self) -> set:
+        locked = super()._payroll_state_locked_fields()
+        if self.state != "draft":
+            locked |= {"festival", "bonus_date", "basis", "multiplier", "company_id"}
+            locked |= {"operating_unit_id", "currency_id"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -80,21 +127,29 @@ class FixFestivalBonusRun(models.Model):
         return super().create(vals_list)
 
     def action_approve(self):
+        check_payroll_approver(self, "a festival bonus run", lambda rec: rec.prepared_by_id)
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Approve a draft bonus run")
-            rec.state = "approved"
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.user.id,
+                    "approved_on": fields.Datetime.now(),
+                }
+            )
 
     def action_pay(self):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Pay an approved bonus run")
-            rec.state = "paid"
+            rec._guarded().write({"state": "paid"})
 
 
 class FixPayrollCertificate(models.Model):
     _name = "fix.payroll.certificate"
     _description = "Tax / Salary Certificate"
+    _inherit = ["fix.payroll.state.lock"]
     _order = "fiscal_year desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -112,7 +167,8 @@ class FixPayrollCertificate(models.Model):
         default="salary",
     )
     fiscal_year = fields.Char(required=True)
-    issued_on = fields.Date(default=fields.Date.context_today)
+    # stamped by action_issue: a draft certificate has not been issued
+    issued_on = fields.Date(readonly=True)
     amount = fields.Monetary(currency_field="currency_id", string="Annual Figure")
     total_gross = fields.Monetary(currency_field="currency_id", string="Total Gross Salary")
     total_basic = fields.Monetary(currency_field="currency_id", string="Total Basic Salary")
@@ -134,9 +190,32 @@ class FixPayrollCertificate(models.Model):
     )
     reference = fields.Char()
 
+    def _fix_guarded_fields(self) -> set:
+        # the figures come from the payslips, never typed (A09 probe T4: a
+        # certificate was issued with a typed gross of 9,999,999)
+        return super()._fix_guarded_fields() | {
+            "state",
+            "issued_on",
+            "amount",
+            "total_gross",
+            "total_basic",
+            "total_allowances",
+            "total_tax_withheld",
+            "total_pf_deducted",
+        }
+
+    def _payroll_state_locked_fields(self) -> set:
+        locked = super()._payroll_state_locked_fields()
+        if self.state == "issued":
+            locked |= {"employee_id", "certificate_type", "fiscal_year", "company_id"}
+            locked |= {"currency_id", "challan_refs", "reference"}
+        return locked
+
     def action_compute_from_payslips(self):
         """Aggregate fiscal year payslips for the employee (ITA 2023 s.108/114 certificate)."""
         for rec in self:
+            if rec.state == "issued":
+                raise UserError("Certificate %s is issued - its figures are final." % rec.name)
             slips = self.env["fix.payslip"].search(
                 [
                     ("employee_id", "=", rec.employee_id.id),
@@ -146,9 +225,11 @@ class FixPayrollCertificate(models.Model):
             gross = sum(slips.mapped("gross"))
             basic = sum(slips.mapped("basic"))
             allow = sum(slips.mapped("allowances_total"))
-            tax = sum(slips.mapped("income_tax"))
+            # the payslip's withheld tax (it read a non-existent `income_tax`
+            # and crashed, A09 probe T1)
+            tax = sum(slips.mapped("tax_withheld"))
             pf = sum(slips.mapped("pf_employee"))
-            rec.write(
+            rec._guarded().write(
                 {
                     "total_gross": gross,
                     "total_basic": basic,
@@ -161,9 +242,11 @@ class FixPayrollCertificate(models.Model):
 
     def action_issue(self):
         for rec in self:
-            if not rec.total_gross and not rec.amount:
-                rec.action_compute_from_payslips()
-            rec.state = "issued"
+            if rec.state != "draft":
+                raise UserError("Issue a draft certificate")
+            # always from the payslips at the moment of issue
+            rec.action_compute_from_payslips()
+            rec._guarded().write({"state": "issued", "issued_on": fields.Date.context_today(self)})
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -178,6 +261,7 @@ class FixPayrollCertificate(models.Model):
 class FixWithholdingReturn(models.Model):
     _name = "fix.payroll.return"
     _description = "Quarterly Withholding Return"
+    _inherit = ["fix.payroll.state.lock"]
     _order = "period desc"
 
     name = fields.Char(required=True, default="New")
@@ -195,11 +279,22 @@ class FixWithholdingReturn(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     total_tax = fields.Monetary(currency_field="currency_id", string="Tax Withheld")
-    filed_on = fields.Date()
+    filed_on = fields.Date(readonly=True)
     acknowledgement = fields.Char(string="NBR Acknowledgement")
     state = fields.Selection(
         [("draft", "Draft"), ("filed", "Filed")], required=True, default="draft"
     )
+
+    def _fix_guarded_fields(self) -> set:
+        # the totals come from the payslips (action_reconcile_payslips)
+        return super()._fix_guarded_fields() | {"state", "filed_on", "employee_count", "total_tax"}
+
+    def _payroll_state_locked_fields(self) -> set:
+        locked = super()._payroll_state_locked_fields()
+        if self.state == "filed":
+            locked |= {"period", "period_start", "period_end", "challan_number"}
+            locked |= {"challan_date", "tax_zone", "acknowledgement", "company_id"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -213,16 +308,19 @@ class FixWithholdingReturn(models.Model):
     def action_reconcile_payslips(self):
         """Reconcile quarterly/monthly payslip TDS totals against withholding return."""
         for rec in self:
-            domain = [("company_id", "=", rec.company_id.id), ("income_tax", ">", 0)]
+            if rec.state == "filed":
+                raise UserError("Return %s is filed - its totals are final." % rec.name)
+            # `tax_withheld` is the payslip's field (`income_tax` crashed, A09 T2)
+            domain = [("company_id", "=", rec.company_id.id), ("tax_withheld", ">", 0)]
             if rec.period_start:
                 domain.append(("period_id.period_start", ">=", rec.period_start))
             if rec.period_end:
                 domain.append(("period_id.period_end", "<=", rec.period_end))
             slips = self.env["fix.payslip"].search(domain)
-            rec.write(
+            rec._guarded().write(
                 {
                     "employee_count": len(slips.mapped("employee_id")),
-                    "total_tax": sum(slips.mapped("income_tax")),
+                    "total_tax": sum(slips.mapped("tax_withheld")),
                 }
             )
 
@@ -230,13 +328,13 @@ class FixWithholdingReturn(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("File a draft return")
-            rec.state = "filed"
-            rec.filed_on = fields.Date.context_today(self)
+            rec._guarded().write({"state": "filed", "filed_on": fields.Date.context_today(self)})
 
 
 class FixOffcyclePayment(models.Model):
     _name = "fix.payroll.offcycle"
     _description = "Off-Cycle Payment"
+    _inherit = ["fix.payroll.state.lock"]
     _order = "payment_date desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -270,6 +368,27 @@ class FixOffcyclePayment(models.Model):
         required=True,
         default="draft",
     )
+    prepared_by_id = fields.Many2one(
+        "res.users", string="Prepared By", readonly=True, default=lambda self: self.env.user
+    )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
+    approved_on = fields.Datetime(string="Approved On", readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "prepared_by_id",
+            "approved_by_id",
+            "approved_on",
+        }
+
+    def _payroll_state_locked_fields(self) -> set:
+        # what was approved is what is paid: amount AND payee (A09 probe O4)
+        locked = super()._payroll_state_locked_fields()
+        if self.state != "draft":
+            locked |= {"employee_id", "amount", "currency_id", "payment_type"}
+            locked |= {"payment_date", "company_id"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -281,16 +400,23 @@ class FixOffcyclePayment(models.Model):
         return super().create(vals_list)
 
     def action_approve(self):
+        check_payroll_approver(self, "an off-cycle payment", lambda rec: rec.prepared_by_id)
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Approve a draft off-cycle payment")
-            rec.state = "approved"
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.user.id,
+                    "approved_on": fields.Datetime.now(),
+                }
+            )
 
     def action_pay(self):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Pay an approved off-cycle payment")
-            rec.state = "paid"
+            rec._guarded().write({"state": "paid"})
 
 
 class FixWppfAllocation(models.Model):
@@ -304,6 +430,7 @@ class FixWppfAllocation(models.Model):
 
     _name = "fix.wppf.allocation"
     _description = "WPPF 5% Profit Participation Allocation (BLA Ch. XV)"
+    _inherit = ["fix.payroll.state.lock"]
     _order = "fiscal_year desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -380,6 +507,42 @@ class FixWppfAllocation(models.Model):
         default="draft",
         required=True,
     )
+    prepared_by_id = fields.Many2one(
+        "res.users", string="Prepared By", readonly=True, default=lambda self: self.env.user
+    )
+    calculated_by_id = fields.Many2one("res.users", string="Calculated By", readonly=True)
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
+    approved_on = fields.Datetime(string="Approved On", readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "prepared_by_id",
+            "calculated_by_id",
+            "approved_by_id",
+            "approved_on",
+            "total_wppf_pool",
+            "participatory_fund_amount",
+            "welfare_fund_amount",
+            "welfare_foundation_amount",
+            "equal_distribution_pool",
+            "investment_pool_share",
+            "per_worker_equal_share",
+            "distribution_due_date",
+        }
+
+    def _payroll_state_locked_fields(self) -> set:
+        # the profit and headcount the pool was calculated from freeze with
+        # the calculation (A09 probe W4); the trustee resolution with approval
+        locked = super()._payroll_state_locked_fields()
+        if self.state != "draft":
+            locked |= {"net_profit", "eligible_workers_count", "fiscal_year"}
+            locked |= {"fiscal_year_end_date", "company_id", "currency_id"}
+        if self.state in ("approved", "posted"):
+            locked |= {"trustee_board_resolution_ref"}
+        if self.state == "posted":
+            locked |= {"bwwf_challan_ref"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -421,17 +584,25 @@ class FixWppfAllocation(models.Model):
 
     def action_calculate(self):
         for rec in self:
+            if rec.state != "draft":
+                raise UserError("Calculate a draft WPPF allocation.")
             if rec.net_profit <= 0:
                 raise UserError("Net profit must be positive to compute WPPF 5% allocation.")
+            rec = rec._guarded()
             if not rec.eligible_workers_count:
                 cnt = self.env["hr.employee"].search_count(
                     [("company_id", "=", rec.company_id.id), ("active", "=", True)]
                 )
-                rec.eligible_workers_count = max(cnt, 1)
+                rec.write({"eligible_workers_count": max(cnt, 1)})
             rec._compute_wppf_split()
-            rec.state = "calculated"
+            rec.write({"state": "calculated", "calculated_by_id": self.env.user.id})
 
     def action_approve(self):
+        check_payroll_approver(
+            self,
+            "a WPPF allocation",
+            lambda rec: rec.prepared_by_id | rec.calculated_by_id,
+        )
         for rec in self:
             if rec.state != "calculated":
                 raise UserError("Calculate WPPF allocation before Trustee Board approval.")
@@ -439,7 +610,13 @@ class FixWppfAllocation(models.Model):
                 raise UserError(
                     "Board of Trustees resolution reference is required to approve WPPF allocation."
                 )
-            rec.state = "approved"
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.user.id,
+                    "approved_on": fields.Datetime.now(),
+                }
+            )
 
     def action_post(self):
         for rec in self:
@@ -449,4 +626,4 @@ class FixWppfAllocation(models.Model):
                 raise UserError(
                     "BWWF 10% Government Welfare Foundation deposit challan reference is required before posting."
                 )
-            rec.state = "posted"
+            rec._guarded().write({"state": "posted"})
