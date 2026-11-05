@@ -1,6 +1,11 @@
 """M55 AUT-WFM-02: approval of flagged mobile clock-ins on the live ORM
 (``odoo_env``: fix_test, rolled back after every test).
 
+These run as the SUPERUSER, who decides a record directly (data repair). Who
+may decide as a person - the line manager, then the attendance officers, never
+the requester or the employee - is tested as non-admin users in
+test_a09_attendance_controls.py.
+
 Working time is hand-computed against BLA 2006 (8h standard day, s.100)."""
 
 import json
@@ -8,7 +13,7 @@ from contextlib import contextmanager
 from datetime import date, datetime
 
 import pytest
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import UserError
 
 
 @contextmanager
@@ -48,15 +53,16 @@ def _events(env, event_type, rec):
 
 def test_an_attendance_officer_approves_a_flagged_clock_in(odoo_env, emp):
     rec = _clock(odoo_env, emp, date(2026, 1, 12))
-    # 10h: 10 worked, 2 overtime beyond the 8h day - counted once approved too
-    assert (rec.worked_hours, rec.overtime_hours) == (10.0, 2.0)
+    # 10h: 10 worked, 2 recorded overtime beyond the 8h day; none payable
+    # without an approved overtime request (BRU-WFM-02)
+    assert (rec.worked_hours, rec.recorded_overtime_hours, rec.overtime_hours) == (10.0, 2.0, 0.0)
     rec.action_approve()
     assert (rec.approval_state, rec.approved_by, bool(rec.approved_at)) == (
         "approved",
         odoo_env.user,
         True,
     )
-    assert (rec.worked_hours, rec.overtime_hours) == (10.0, 2.0)
+    assert (rec.worked_hours, rec.recorded_overtime_hours) == (10.0, 2.0)
     assert "Flagged clock-in approved" in rec.message_ids.mapped("body")[0]
     assert _events(odoo_env, "attendance.approved", rec) == [
         {"employee": "Flagged Tech", "reason": "position outside the geofence"}
@@ -98,21 +104,36 @@ def test_only_pending_clock_ins_are_decided(odoo_env, emp):
         done.action_reject()
 
 
-def test_only_attendance_officers_decide(odoo_env, emp):
+def test_a_person_decides_only_a_routed_record(odoo_env, emp):
+    """Even an attendance officer does not decide a record directly: it is
+    routed first, and then only the task's assignee decides."""
     rec = _clock(odoo_env, emp, date(2026, 1, 19))
-    clerk = (
+    officer = (
         odoo_env["res.users"]
         .with_context(no_reset_password=True)
-        .create({"name": "Desk Clerk", "login": "clerk@attendance.test"})
+        .create(
+            {
+                "name": "Desk Officer",
+                "login": "officer@attendance.test",
+                "group_ids": [
+                    (4, odoo_env.ref("base.group_user").id),
+                    (4, odoo_env.ref("hr_attendance.group_hr_attendance_user").id),
+                ],
+            }
+        )
     )
-    for action in ("action_approve", "action_reject"):
-        with _refused(odoo_env, AccessError, "Only an attendance officer"):
-            getattr(rec.with_user(clerk), action)()
+    with _refused(odoo_env, UserError, "has not been routed"):
+        rec.with_user(officer).action_approve()
     assert rec.approval_state == "pending"
-    officer_group = odoo_env.ref("hr_attendance.group_hr_attendance_user")
-    clerk.group_ids = [(4, officer_group.id)]
-    rec.with_user(clerk).action_approve()
-    assert (rec.approval_state, rec.approved_by) == ("approved", clerk)
+    rec.action_request_regularisation()
+    task = (
+        odoo_env["fix.workflow.task"]
+        .search([("res_model", "=", "fix.attendance.regularisation"), ("state", "=", "pending")])
+        .filtered(lambda t: t.assigned_user_id == officer)
+    )
+    assert task
+    rec.with_user(officer).action_approve()
+    assert (rec.approval_state, rec.approved_by) == ("approved", officer)
 
 
 def test_pending_in_period_bounds_and_company(odoo_env, emp):

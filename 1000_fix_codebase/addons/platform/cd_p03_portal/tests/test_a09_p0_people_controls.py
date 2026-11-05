@@ -141,9 +141,59 @@ def test_a2_hr_officer_creates_and_maintains_the_master(x):
 
 
 def test_a2_recruiter_completes_a_hire(x):
-    recruiter = _user(x.env, "cd_talent.group_talent")
-    cand = x.env(user=recruiter.id)["fix.candidate"].create({"name": "A09 P0 Candidate"})
-    cand.action_hire()
+    """A2 on the proper path. The A09 M58 build closed the walk-in hire
+    (M58-F1), so the candidate is on an open, approved requisition with an
+    accepted offer, a positive interview and verified NID and reference
+    checks. The Recruitment Officer holds no hr.employee create and still
+    completes the hire: the employee is created as a controlled step."""
+    env = x.env
+    recruiter = _user(env, "cd_talent.group_talent")
+    assert not env(user=recruiter.id)["hr.employee"].has_access("create")
+    # The approvals, clearances and acceptance are other roles' steps
+    # (cd_talent/tests/test_a09_talent_controls.py walks them): their
+    # outcomes are recorded here by the superuser.
+    position = env["fix.org.position"].create({"name": "A09 P0 Position"})
+    req = env["fix.job.requisition"].create(
+        {"name": "A09 P0 Requisition", "position_id": position.id, "openings": 1}
+    )
+    req.write({"state": "open", "approval_state": "approved", "approved_openings": 1})
+    cand = env["fix.candidate"].create(
+        {
+            "name": "A09 P0 Candidate",
+            "requisition_id": req.id,
+            "consent_given": True,
+            "date_of_birth": "1998-03-01",
+            "state": "offered",
+        }
+    )
+    env["fix.talent.interview"].create(
+        {
+            "candidate_id": cand.id,
+            "scheduled_on": fields.Datetime.now(),
+            "interviewer_id": _employee(env).id,
+            "recommendation": "yes",
+            "state": "done",
+        }
+    )
+    for kind in ("nid", "reference"):
+        env["fix.talent.check"].create(
+            {
+                "candidate_id": cand.id,
+                "check_type": kind,
+                "result": "clear",
+                "verified_by_id": env.ref("base.user_admin").id,
+            }
+        )
+    env["fix.talent.offer"].create(
+        {
+            "candidate_id": cand.id,
+            "gross_salary": 30000,
+            "basic_salary": 18000,
+            "joining_date": fields.Date.add(fields.Date.today(), days=30),
+            "state": "accepted",
+        }
+    )
+    cand.with_user(recruiter).action_hire()
     assert cand.state == "hired" and cand.employee_id
 
 

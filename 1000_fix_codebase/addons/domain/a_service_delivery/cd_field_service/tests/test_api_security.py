@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from odoo import http
+from odoo.addons.cd_competency.tests.certify import certify_for_dispatch
 from odoo.addons.cd_field_service.controllers import evidence_api, offline_sync_api
 from odoo.addons.cd_field_service.controllers.evidence_api import OfflineEvidenceApiController
 from odoo.addons.cd_field_service.controllers.offline_sync_api import OfflineSyncApiController
@@ -91,6 +92,9 @@ def world(odoo_env):
     clerk_user = users.create({"name": "Clerk", "login": "clerk@sec.test"})
     tech_a = env["hr.employee"].create({"name": "Tech A", "user_id": tech_a_user.id})
     tech_b = env["hr.employee"].create({"name": "Tech B", "user_id": tech_b_user.id})
+    # A09 C4/M22: starting work needs a device-scoped certification
+    for tech in (tech_a, tech_b):
+        certify_for_dispatch(env, tech)
     zone = env["fix.zone"].create({"name": "Sec Zone", "code": "SECZ"})
     fo_vals = {"order_id": so.id, "zone_id": zone.id, "operating_unit_id": ou.id}
     fo_a = env["fix.field.order"].create(dict(fo_vals, technician_id=tech_a.id, state="arrived"))

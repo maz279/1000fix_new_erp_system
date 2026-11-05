@@ -32,11 +32,15 @@
     "payload": {
       "type": "object",
       "required": [
-        "period"
+        "period",
+        "reason"
       ],
       "properties": {
         "period": {
           "type": "string"
+        },
+        "reason": {
+          "type": "null"
         }
       },
       "additionalProperties": false

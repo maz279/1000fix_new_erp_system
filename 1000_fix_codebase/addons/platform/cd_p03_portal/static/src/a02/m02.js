@@ -94,6 +94,9 @@ export const SCREENS = {
     /* A02 audit M02-13: the actions the dispatch board does not offer.
      * The server checks who may run each one (dispatcher / assigned technician). */
     actions: [
+      /* A09 M22-F3: decided in the Certification Override Approver's inbox,
+       * never by the dispatcher who asks. */
+      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver' },
       { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
     ] },
   'M02-sla-risk': { kind: 'model_list', model: 'fix.field.order', create: false,
@@ -101,7 +104,10 @@ export const SCREENS = {
     domain: [['state', 'in', ['pending_dispatch', 'dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']], ['sla_deadline', '!=', false]] },
   'M02-wo': { kind: 'model_list', model: 'fix.work.order',
     cols: ['name', 'order_id', 'technician_id', 'sequence', 'state', 'start_time', 'end_time', 'duration_hours'],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [
+      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver' }
+    ] },
   'M02-record': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'technician_id', 'zone_id', 'scheduled_start', 'state',
       'dispatched_at', 'arrived_at', 'actual_travel_minutes', 'on_time_arrival', 'completed_at', 'onsite_payment_state'],

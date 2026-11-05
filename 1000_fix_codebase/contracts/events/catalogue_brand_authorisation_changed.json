@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "catalogue.brand_authorisation_changed",
-  "description": "Published by cd_catalogue through libs.py.fix_events.publish() (1 call site(s)); A04 audit 2026-11-04 (C8/C10).",
+  "description": "Published by cd_catalogue through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,9 +32,9 @@
     "payload": {
       "type": "object",
       "required": [
-        "authorised",
         "brand",
         "change",
+        "authorised",
         "expiry"
       ],
       "properties": {
@@ -42,7 +42,7 @@
           "type": "string"
         },
         "change": {
-          "type": "string"
+          "description": "Type not statically derivable from `change` (addons/platform/cd_catalogue/models/fix_brand.py:199)."
         },
         "authorised": {
           "type": "boolean"
@@ -61,5 +61,5 @@
   "x-publishers": [
     "addons/platform/cd_catalogue/models/fix_brand.py"
   ],
-  "x-derived-from": "publish() call (hand-written for the A04 C2-C13 pass)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

@@ -7,6 +7,7 @@ from . import (
     fix_a04_bond_consumer,
     fix_a04_storefront_consumer,
     fix_cash_position,
+    fix_payroll_treasury,
     gateway_settlement,
     imprest,
 )

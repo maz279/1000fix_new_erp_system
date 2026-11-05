@@ -33,15 +33,28 @@
       "type": "object",
       "required": [
         "period",
+        "company_id",
+        "move_id",
+        "period_end",
         "gross",
         "net",
         "tax",
         "pf",
         "total_debit",
-        "total_credit"
+        "total_credit",
+        "by_operating_unit"
       ],
       "properties": {
         "period": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "move_id": {
+          "type": "integer"
+        },
+        "period_end": {
           "type": "string"
         },
         "gross": {
@@ -57,10 +70,13 @@
           "type": "number"
         },
         "total_debit": {
-          "description": "Type not statically derivable from `total_debit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:689)."
+          "description": "Type not statically derivable from `total_debit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:1349)."
         },
         "total_credit": {
-          "description": "Type not statically derivable from `total_credit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:689)."
+          "description": "Type not statically derivable from `total_credit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:1349)."
+        },
+        "by_operating_unit": {
+          "type": "array"
         }
       },
       "additionalProperties": false

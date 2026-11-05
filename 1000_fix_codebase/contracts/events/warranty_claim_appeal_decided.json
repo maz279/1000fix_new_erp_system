@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "warranty_claim.appeal_decided",
-  "description": "A claim appeal was decided by a Claim Decision Officer; an upheld appeal re-submits the claim to the brand (A04 M09-8).",
+  "description": "Published by cd_warranty_claims through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -34,7 +34,8 @@
       "required": [
         "claim_no",
         "appeal",
-        "decision"
+        "decision",
+        "claim_state"
       ],
       "properties": {
         "claim_no": {
@@ -44,7 +45,7 @@
           "type": "string"
         },
         "decision": {
-          "type": "string"
+          "description": "Type not statically derivable from `decision` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_ops.py:369)."
         },
         "claim_state": {
           "type": "string"
@@ -57,5 +58,5 @@
   "x-publishers": [
     "addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_ops.py"
   ],
-  "x-derived-from": "A04 C2-C13 build (2026-11-04), hand-written from the publish() call"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

@@ -38,7 +38,10 @@
       ],
       "properties": {
         "seller": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "seller_id": {
           "type": "integer"

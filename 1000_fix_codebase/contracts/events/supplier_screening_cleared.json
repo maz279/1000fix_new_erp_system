@@ -44,7 +44,7 @@
           "type": "string"
         },
         "by": {
-          "description": "Type not statically derivable from `self.env.uid` (addons/domain/e_supply_chain/cd_vendor_portal/models/fix_supplier.py:1619)."
+          "description": "Type not statically derivable from `self.env.uid` (addons/domain/e_supply_chain/cd_vendor_portal/models/fix_supplier.py:1644)."
         }
       },
       "additionalProperties": false

@@ -33,6 +33,7 @@
       "type": "object",
       "required": [
         "gross",
+        "rate",
         "commission"
       ],
       "properties": {
@@ -48,17 +49,20 @@
         "commission": {
           "type": "number"
         },
+        "order_id": {
+          "type": "integer"
+        },
         "seller_id": {
-          "type": [
-            "integer",
-            "boolean"
-          ]
+          "type": "integer"
         },
         "seller_partner_id": {
           "type": [
             "integer",
             "boolean"
           ]
+        },
+        "seller_tier": {
+          "type": "string"
         },
         "order": {
           "type": "string"
@@ -68,12 +72,6 @@
             "string",
             "boolean"
           ]
-        },
-        "order_id": {
-          "type": "integer"
-        },
-        "seller_tier": {
-          "type": "string"
         },
         "payout_available_date": {
           "type": "string"

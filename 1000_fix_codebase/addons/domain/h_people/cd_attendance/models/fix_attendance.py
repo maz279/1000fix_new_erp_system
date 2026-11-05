@@ -1,5 +1,29 @@
 # fix_attendance — M55: records, roster, INT-041 biometric devices, the attendance lock (P08-M02 / R06-M02).
-from datetime import timedelta
+#
+# A09 workflow audit (M55-2..M55-6, M55-8, M55-10, M55-12): the employee
+# approved his own flagged clock-in by writing `approval_state`, typed manual,
+# "mobile" and "biometric" rows for himself and colleagues that were paid,
+# stretched an approved 8 h day to 14 h, and was paid overtime nobody approved;
+# a lock could be born 'locked' over pending clock-ins, records could be
+# re-dated into a locked month, and the supervisor unlocked a paid month with
+# no reason. What holds now:
+#
+#   * capture: biometric rows come only from a registered, active device
+#     (action_ingest_punch, replays de-duplicated); mobile rows only from the
+#     technician API (superuser, evaluated); everything a user types is
+#     'manual', needs a reason and is born PENDING;
+#   * approval: the workflow fields are guarded (fix.guarded.mixin); a pending
+#     record is decided through a routed regularisation (line manager first,
+#     then the attendance officers; requester, creator and subject never
+#     decide); a decided record whose hours change goes back to pending;
+#   * valuation: per employee-day, so a split shift keeps its overtime;
+#     PAYABLE overtime = min(recorded excess, approved overtime request, the
+#     s.108 daily cap) and 0 for an employee not overtime-eligible;
+#   * the lock: guarded state, the past-period and pending checks (company-wide,
+#     as superuser) wherever the state becomes 'locked', one lock per period,
+#     new dates checked as well as old, unlock by a separate role with a reason
+#     and never once payroll has taken the period.
+from datetime import date, datetime, time, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -8,20 +32,55 @@ from libs.py.fix_events import publish
 
 # Bangladesh Labour Act 2006 (and 2013, 2018, 2026 amendments) Working-Time Standards:
 STANDARD_DAY_HOURS = 8.0  # s. 100 BLA 2006: standard daily hours
-MAX_DAILY_HOURS = 10.0  # s. 102 / s. 108 BLA 2006: daily ceiling with overtime
-MAX_DAILY_OT_HOURS = 2.0  # s. 108 BLA 2006: maximum daily overtime hours
+MAX_DAILY_HOURS = 10.0  # s. 100 / s. 108 BLA 2006: daily ceiling with overtime
+MAX_DAILY_OT_HOURS = 2.0  # s. 100 / s. 108 BLA 2006: at most 2 h overtime a day
 STANDARD_WEEKLY_HOURS = 48.0  # s. 102 BLA 2006: normal weekly limit
-MAX_WEEKLY_HOURS = 60.0  # s. 102 BLA 2006: weekly ceiling with overtime
-MAX_WEEKLY_OT_HOURS = 12.0  # s. 108 BLA 2006: maximum weekly overtime hours
+# s.102 allows up to 60 h with overtime (average 56 h over a year); the
+# module spec (BRU-WFM-05) says 48 h. The ceiling the checks use is a company
+# setting (res.company.fix_att_max_weekly_hours, default 60.0 as coded before
+# the audit) until the business rules on it (A09 report §7.4).
+MAX_WEEKLY_HOURS = 60.0
 OT_DIVISOR_HOURS = 208.0  # BLR 2015 formula: 208-hour monthly divisor shared with M56
-MIN_SHIFT_REST_HOURS = (
-    11.0  # s. 101 / s. 105 BLA 2006: minimum rest between shifts (spreadover 11-12h)
-)
+# The module's own rest-between-shifts rule. It is NOT BLA s.101 (which is
+# the rest/meal interval inside a day) - a company setting, default 11.0 h as
+# coded before the audit (res.company.fix_att_min_rest_hours).
+MIN_SHIFT_REST_HOURS = 11.0
 OVERTIME_RATE_MULTIPLIER = 2.0  # s. 108 BLA 2006: overtime paid at twice ordinary wage rate
+# BLA 2006 s.109: no woman works between 10 p.m. and 6 a.m. without her consent.
+NIGHT_START_HOUR = 22.0
+NIGHT_END_HOUR = 6.0
 
-# M55 AUT-WFM-02: flagged mobile clock-ins are decided by the attendance officers
-# (hr_attendance "Officer: Manage all attendances", implied by its Administrator).
+# M55 AUT-WFM-02: flagged clock-ins are decided by the line manager first, then
+# the attendance officers (hr_attendance "Officer: Manage all attendances").
 APPROVER_GROUP = "hr_attendance.group_hr_attendance_user"
+SUPERVISOR_GROUP = "cd_attendance.group_attendance_supervisor"
+LOCK_MANAGER_GROUP = "cd_attendance.group_attendance_lock_manager"
+PAYABLE_STATES = ("not_required", "approved")
+# payroll states in which a period has taken the attendance (cd_payroll_bd)
+PAYROLL_OPEN_STATES = ("draft",)
+# FR-WFM-052: once payroll has PAID a period, a correction is carried forward
+# as an approved adjustment into the next payroll; while the run is between
+# verification and payment the period stays shut (the slips would diverge).
+PAYROLL_PAID_STATES = ("paid", "posted")
+
+
+def _day_bounds(day):
+    start = datetime.combine(day, time.min)
+    return start, start + timedelta(days=1)
+
+
+def _locked_lock(env, company, day):
+    """The LOCKED lock of `company` covering `day` (superuser: every OU)."""
+    if not day:
+        return env["fix.attendance.lock"]
+    domain = [
+        ("state", "=", "locked"),
+        ("period_start", "<=", day),
+        ("period_end", ">=", day),
+    ]
+    if company:
+        domain.append(("company_id", "=", company.id))
+    return env["fix.attendance.lock"].sudo().search(domain, limit=1)
 
 
 class FixShiftTemplate(models.Model):
@@ -44,13 +103,25 @@ class FixShiftTemplate(models.Model):
             if not (0 <= rec.start_hour < 24 and 0 <= rec.end_hour < 24):
                 raise ValidationError("Shift hours must be within 0-24")
 
+    def _fix_duration(self):
+        self.ensure_one()
+        span = self.end_hour - self.start_hour
+        return span if span > 0 else span + 24.0
+
+    def _fix_covers_night(self):
+        """True when any part of the shift falls in 22:00-06:00 (s.109)."""
+        self.ensure_one()
+        if self.end_hour <= self.start_hour:  # crosses midnight
+            return True
+        return self.start_hour < NIGHT_END_HOUR or self.end_hour > NIGHT_START_HOUR
+
 
 class FixRosterSlot(models.Model):
     """The roster — the real answer to 'is this technician available?'."""
 
     _name = "fix.roster.slot"
     _description = "Roster Slot"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "date, employee_id"
     _rec_name = "display_label"
 
@@ -62,8 +133,15 @@ class FixRosterSlot(models.Model):
     date = fields.Date(required=True, index=True)
     shift_id = fields.Many2one("fix.shift.template", string="Shift", required=True)
     branch_id = fields.Many2one("fix.branch", string="Branch")
-    on_leave = fields.Boolean(help="Set when an approved fix.leave.request covers this date")
+    on_leave = fields.Boolean(
+        readonly=True,
+        help="Set by the leave workflow when an approved fix.leave.request covers this date",
+    )
     display_label = fields.Char(compute="_compute_label")
+
+    def _fix_guarded_fields(self) -> set:
+        # M55-10: nothing set this flag, and a supervisor could type it
+        return super()._fix_guarded_fields() | {"on_leave"}
 
     @api.depends("employee_id", "date")
     def _compute_label(self):
@@ -72,6 +150,65 @@ class FixRosterSlot(models.Model):
                 rec.employee_id.name if rec.employee_id else "",
                 rec.date or "",
             )
+
+    @api.constrains("employee_id", "date", "shift_id")
+    def _check_daily_schedule(self):
+        # E3: day + night shift on one day = 16 h scheduled (s.100: 10 h a day)
+        Rule = self.env["fix.working.time.rule"]
+        for rec in self:
+            day = self.sudo().search(
+                [("employee_id", "=", rec.employee_id.id), ("date", "=", rec.date)]
+            )
+            hours = sum(s.shift_id._fix_duration() for s in day)
+            cap = Rule._fix_values_for(rec.company_id, rec.date)["daily_max_hours"]
+            if cap and hours > cap:
+                raise ValidationError(
+                    "%s would be rostered %.1f h on %s (BLA s.100: at most %.0f h a day "
+                    "with overtime)." % (rec.employee_id.name, hours, rec.date, cap)
+                )
+
+    @api.constrains("employee_id", "date", "shift_id")
+    def _check_women_night_work(self):
+        # BRU-WFM-06 / BLA s.109: a woman works 22:00-06:00 only with her consent
+        Consent = self.env["fix.night.work.consent"].sudo()
+        for rec in self:
+            emp = rec.employee_id.sudo()
+            if emp.sex != "female" or not rec.shift_id._fix_covers_night():
+                continue
+            if not Consent._fix_covering(emp, rec.date):
+                raise ValidationError(
+                    "%s cannot be rostered on %s (%s) between 10 p.m. and 6 a.m. without her "
+                    "recorded consent (BLA s.109)." % (emp.name, rec.date, rec.shift_id.name)
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        slots = super().create(vals_list)
+        slots._fix_sync_on_leave()
+        return slots
+
+    def write(self, vals):
+        res = super().write(vals)
+        if {"employee_id", "date"} & set(vals):
+            self._fix_sync_on_leave()
+        return res
+
+    def _fix_sync_on_leave(self):
+        """on_leave = an APPROVED leave covers the slot's date (M55-10)."""
+        Leave = self.env["fix.leave.request"].sudo()
+        for slot in self.sudo():
+            covered = bool(
+                Leave.search_count(
+                    [
+                        ("employee_id", "=", slot.employee_id.id),
+                        ("state", "=", "approved"),
+                        ("date_from", "<=", slot.date),
+                        ("date_to", ">=", slot.date),
+                    ]
+                )
+            )
+            if slot.on_leave != covered:
+                slot._guarded().write({"on_leave": covered})
 
 
 class FixBiometricDevice(models.Model):
@@ -119,6 +256,11 @@ class FixBiometricDevice(models.Model):
     ):
         """Ingests punch from this INT-041 device with S3 biometric residency routing.
 
+        M55-8: only a registered, ACTIVE, online device of the employee's
+        company ingests; the caller is the device integration (attendance
+        supervisor or superuser); a replayed punch returns the record it
+        already created instead of a second one.
+
         Args:
             employee_id: int (hr.employee ID) or hr.employee record
             check_time: datetime or str
@@ -126,17 +268,43 @@ class FixBiometricDevice(models.Model):
             biometric_template: optional raw template string/bytes (routed to Z4)
         """
         self.ensure_one()
-        emp = self.env["hr.employee"].browse(
-            employee_id.id if hasattr(employee_id, "id") else employee_id
+        if not (self.env.su or self.env.user.has_group(SUPERVISOR_GROUP)):
+            raise AccessError(
+                "Punches are ingested by the biometric integration (Attendance Supervisor), "
+                "not by employees."
+            )
+        device = self.sudo()
+        if not device.active or device.status == "offline":
+            raise UserError(
+                "Device %s is %s: an inactive or offline terminal cannot ingest punches."
+                % (device.device_id, "inactive" if not device.active else "offline")
+            )
+        emp = (
+            self.env["hr.employee"]
+            .sudo()
+            .browse(employee_id.id if hasattr(employee_id, "id") else employee_id)
         )
         if not emp.exists():
             raise UserError("Invalid employee reference for biometric ingest: %s" % employee_id)
+        if emp.company_id and emp.company_id != device.company_id:
+            raise UserError(
+                "Device %s belongs to %s; %s works for %s."
+                % (device.device_id, device.company_id.name, emp.name, emp.company_id.name)
+            )
+
+        # BRU-WFM-08 / T-02 (PDPA 2026): no biometric processing without the
+        # employee's specific consent; the alternatives (mobile, manual) stay open.
+        check_dt = fields.Datetime.to_datetime(check_time)
+        if not self.env["fix.biometric.consent"]._fix_has_consent(emp, check_dt.date()):
+            raise UserError(
+                "%s has no recorded consent to biometric processing (BRU-WFM-08): the punch "
+                "is not ingested. Record it through another capture method (mobile or a "
+                "manual entry with a reason), or record the employee's consent first." % emp.name
+            )
 
         # S3 Residency Routing: raw template routed strictly to fix.identity.document (Z4 storage).
         # `document_number` is the document's residency-classified field: the
         # residency.mixin sends its value to Z4 and stores only the pointer.
-        # (The former `document_data` / `name` keys are not fields of the
-        # model, so every template ingest crashed with "Invalid field".)
         if biometric_template:
             partner = emp.partner_id or (emp.user_id.partner_id if emp.user_id else None)
             if partner:
@@ -149,54 +317,43 @@ class FixBiometricDevice(models.Model):
                     }
                 )
 
-        check_dt = fields.Datetime.to_datetime(check_time)
-        check_date = check_dt.date()
-
-        # Lock check
-        lock = self.env["fix.attendance.lock"].search(
-            [
-                ("state", "=", "locked"),
-                ("period_start", "<=", check_date),
-                ("period_end", ">=", check_date),
-            ],
-            limit=1,
-        )
+        lock = _locked_lock(self.env, device.company_id, check_dt.date())
         if lock:
             raise UserError("Attendance period %s is locked — biometric punch rejected" % lock.name)
 
-        Record = self.env["fix.attendance.record"]
+        Record = self.env["fix.attendance.record"].sudo()._guarded()
+        base = {
+            "employee_id": emp.id,
+            "source": "biometric",
+            "device_ref": device.device_id,
+            "device_id": device.id,
+            "company_id": device.company_id.id,
+        }
         if punch_type == "check_in":
-            rec = Record.create(
-                {
-                    "employee_id": emp.id,
-                    "check_in": check_dt,
-                    "source": "biometric",
-                    "device_ref": self.device_id,
-                    "company_id": self.company_id.id,
-                }
+            rec = Record.search(
+                [("employee_id", "=", emp.id), ("check_in", "=", check_dt)], limit=1
             )
+            if not rec:  # a replay of the same punch is the same record (T-05)
+                rec = Record.create({**base, "check_in": check_dt})
         else:
             rec = Record.search(
-                [("employee_id", "=", emp.id), ("check_out", "=", False)],
+                [("employee_id", "=", emp.id), ("check_out", "=", check_dt)], limit=1
+            ) or Record.search(
+                [
+                    ("employee_id", "=", emp.id),
+                    ("check_out", "=", False),
+                    ("check_in", "<=", check_dt),
+                ],
                 order="check_in desc",
                 limit=1,
             )
-            if rec:
+            if rec and not rec.check_out:
                 rec.write({"check_out": check_dt})
-            else:
-                rec = Record.create(
-                    {
-                        "employee_id": emp.id,
-                        "check_in": check_dt,
-                        "check_out": check_dt,
-                        "source": "biometric",
-                        "device_ref": self.device_id,
-                        "company_id": self.company_id.id,
-                    }
-                )
+            elif not rec:
+                rec = Record.create({**base, "check_in": check_dt, "check_out": check_dt})
 
-        self.last_sync_at = fields.Datetime.now()
-        return rec
+        device.last_sync_at = fields.Datetime.now()
+        return rec.with_env(self.env)
 
 
 class FixAttendanceRecord(models.Model):
@@ -204,7 +361,7 @@ class FixAttendanceRecord(models.Model):
 
     _name = "fix.attendance.record"
     _description = "Attendance Record"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "check_in desc"
     _rec_name = "display_label"
 
@@ -222,13 +379,21 @@ class FixAttendanceRecord(models.Model):
             ("mobile_offline", "Mobile (Offline Journal)"),
             ("manual", "Manual"),
         ],
-        default="biometric",
+        # M55-3/8: what a user types is a manual entry; biometric and mobile
+        # rows are written only by the device ingest and the technician API
+        default="manual",
         required=True,
     )
     device_ref = fields.Char(
         string="Device Reference",
         help="INT-041 device id. The biometric TEMPLATE never lands here - "
         "S3 residency data routes through fix.identity.document",
+    )
+    device_id = fields.Many2one(
+        "fix.biometric.device", string="Registered Device", readonly=True, index=True
+    )
+    manual_reason = fields.Char(
+        string="Reason for Manual Entry", help="BRU-WFM-11: a manual entry states why."
     )
     geo_lat = fields.Float(string="Latitude (P02 geofence)")
     geo_long = fields.Float(string="Longitude (P02 geofence)")
@@ -262,13 +427,38 @@ class FixAttendanceRecord(models.Model):
         required=True,
         index=True,
         tracking=True,
+        readonly=True,
     )
     approval_reason = fields.Char(string="Flag Reason", readonly=True)
     approved_by = fields.Many2one("res.users", string="Decided By", readonly=True, tracking=True)
     approved_at = fields.Datetime(string="Decided At", readonly=True)
+    regularisation_ids = fields.One2many(
+        "fix.attendance.regularisation", "record_id", string="Regularisations", readonly=True
+    )
+    retro_change = fields.Boolean(
+        string="Changed After a Lock",
+        readonly=True,
+        help="Created or changed while its period was re-opened after a lock: payroll "
+        "must carry the difference (FR-WFM-052).",
+    )
     worked_hours = fields.Float(compute="_compute_hours", store=True)
+    recorded_overtime_hours = fields.Float(
+        string="Recorded Overtime",
+        compute="_compute_hours",
+        store=True,
+        help="Hours worked beyond the statutory 8-hour day (s.100), counted per employee "
+        "and day across every punch.",
+    )
     overtime_hours = fields.Float(
-        compute="_compute_hours", store=True, help="Hours beyond the statutory 8/day (s. 100/108)"
+        string="Payable Overtime",
+        compute="_compute_hours",
+        store=True,
+        help="BRU-WFM-02: the recorded overtime that an APPROVED overtime request covers, "
+        "at most 2 h a day (s.100/108), and none for an employee not eligible (s.108). "
+        "This is what payroll pays.",
+    )
+    unapproved_overtime_hours = fields.Float(
+        string="Unapproved Overtime", compute="_compute_hours", store=True
     )
     week_start = fields.Date(
         string="ISO Week Start", compute="_compute_hours", store=True, index=True
@@ -276,10 +466,18 @@ class FixAttendanceRecord(models.Model):
     is_rest_day = fields.Boolean(
         string="Weekly Rest Day Call-In",
         default=False,
-        help="BLA s.103/108: work performed on scheduled weekly rest day",
+        readonly=True,
+        help="BLA s.103/108: work performed on the scheduled weekly rest day. Set by the "
+        "attendance supervisor (action_mark_rest_day), never by the employee.",
     )
     rest_day_hours = fields.Float(
         string="Rest-Day Worked Hours", compute="_compute_hours", store=True
+    )
+    holiday_hours = fields.Float(
+        string="Public-Holiday Hours",
+        compute="_compute_hours",
+        store=True,
+        help="FR-WFM-020: hours worked on a confirmed public holiday of the calendar.",
     )
     weekly_worked_hours = fields.Float(
         string="Weekly Worked Hours", compute="_compute_weekly_totals"
@@ -296,8 +494,11 @@ class FixAttendanceRecord(models.Model):
         [
             ("compliant", "Compliant"),
             ("daily_limit_exceeded", "Daily Limit Exceeded (>10h)"),
-            ("rest_interval_violation", "Rest Interval Violation (<11h)"),
-            ("weekly_limit_exceeded", "Weekly Limit Exceeded (>60h)"),
+            ("rest_break_missing", "No s.101 Rest/Meal Interval"),
+            ("spread_over_exceeded", "s.105 Spread-Over Exceeded"),
+            ("rest_interval_violation", "Rest Between Shifts Below Company Minimum"),
+            ("weekly_limit_exceeded", "Weekly Limit Exceeded"),
+            ("annual_average_exceeded", "s.102 Annual Average Exceeded"),
         ],
         default="compliant",
         compute="_compute_compliance",
@@ -307,51 +508,199 @@ class FixAttendanceRecord(models.Model):
     statutory_notes = fields.Char(
         string="Compliance Notes", compute="_compute_compliance", store=True
     )
+    # T-08: the working-time rule version the record is valued and checked with
+    wt_rule_id = fields.Many2one(
+        "fix.working.time.rule",
+        string="Working-Time Rule Version",
+        compute="_compute_wt_rule",
+        store=True,
+        index=True,
+    )
 
-    @api.depends("check_in", "check_out", "approval_state", "is_rest_day")
+    # fields only a transition writes (M55-2, M55-3, M55-8, D5)
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "approval_state",
+            "approved_by",
+            "approved_at",
+            "approval_reason",
+            "geofence_result",
+            "source",
+            "device_ref",
+            "device_id",
+            "is_rest_day",
+            "retro_change",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields() | {"geo_lat", "geo_long", "accuracy_m"}
+        if self and self.approval_state == "rejected":
+            locked |= {"check_in", "check_out", "employee_id"}
+        if self:
+            locked |= {"employee_id", "manual_reason"}
+        return locked
+
+    # ---- valuation ------------------------------------------------------------
+    def _fix_day_key(self):
+        self.ensure_one()
+        if not (self.employee_id and self.check_in):
+            return None
+        return (self.employee_id.id, self.check_in.date())
+
+    def _fix_day_records(self, key):
+        """Every stored record of the employee-day (superuser: valuation must
+        not depend on what the caller may read)."""
+        emp_id, day = key
+        start, end = _day_bounds(day)
+        return (
+            self.env["fix.attendance.record"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "=", emp_id),
+                    ("check_in", ">=", start),
+                    ("check_in", "<", end),
+                ]
+            )
+        )
+
+    def _fix_value_day(self, items, emp, day, company):
+        """items: [(token, check_in, check_out, state, rest_day)] of one day.
+
+        Returns {token: (worked, recorded_ot, payable_ot, rest, holiday)}."""
+        rows = sorted(
+            (
+                (ci, token, (co - ci).total_seconds() / 3600.0, state, rest)
+                for token, ci, co, state, rest in items
+                if ci and co and co > ci and state != "rejected"
+            ),
+            key=lambda r: (r[0], str(r[1])),
+        )
+        rest_day = any(r[4] for r in rows)
+        holiday = bool(
+            company
+            and self.env["fix.hr.holiday"]
+            .sudo()
+            .search_count(
+                [("date", "=", day), ("company_id", "=", company.id), ("tentative", "=", False)]
+            )
+        )
+        eligible = (
+            bool(emp.sudo().overtime_eligible) if "overtime_eligible" in emp._fields else True
+        )
+        approved = 0.0
+        if eligible:
+            approved = sum(
+                self.env["fix.overtime.request"]
+                .sudo()
+                .search(
+                    [("employee_id", "=", emp.id), ("date", "=", day), ("state", "=", "approved")]
+                )
+                .mapped("approved_hours")
+            )
+        # T-07: the caps of the rule version in force that day
+        rule = self.env["fix.working.time.rule"]._fix_values_for(company, day)
+        cap = rule["daily_max_hours"] if rest_day else rule["daily_ot_cap_hours"]
+        payable_left = min(approved, cap)
+        out = {}
+        cum = 0.0
+        for _ci, token, span, state, _rest in rows:
+            before, cum = cum, cum + span
+            if rest_day:
+                recorded = span
+            else:
+                recorded = max(cum - STANDARD_DAY_HOURS, 0.0) - max(
+                    before - STANDARD_DAY_HOURS, 0.0
+                )
+            payable = 0.0
+            if state in PAYABLE_STATES and payable_left > 0:
+                payable = min(recorded, payable_left)
+                payable_left -= payable
+            out[token] = (
+                round(span, 2),
+                round(recorded, 2),
+                round(payable, 2),
+                round(span, 2) if rest_day else 0.0,
+                round(span, 2) if holiday else 0.0,
+            )
+        return out
+
+    @api.depends("check_in", "check_out", "approval_state", "is_rest_day", "employee_id")
     def _compute_hours(self):
+        values = {}
         for rec in self:
             if rec.check_in:
                 cdate = rec.check_in.date()
                 rec.week_start = cdate - timedelta(days=cdate.weekday())
             else:
                 rec.week_start = False
-            # a REJECTED clock-in is no worked time (and no overtime for M56)
-            if rec.check_in and rec.check_out and rec.approval_state != "rejected":
-                span = (rec.check_out - rec.check_in).total_seconds() / 3600
-                rec.worked_hours = round(span, 2)
-                if rec.is_rest_day:
-                    rec.rest_day_hours = round(span, 2)
-                    rec.overtime_hours = round(span, 2)
-                else:
-                    rec.rest_day_hours = 0.0
-                    rec.overtime_hours = round(max(span - STANDARD_DAY_HOURS, 0), 2)
-            else:
-                rec.worked_hours = 0.0
-                rec.overtime_hours = 0.0
-                rec.rest_day_hours = 0.0
+            key = rec._fix_day_key()
+            result = None
+            if key:
+                if rec.id and isinstance(rec.id, int):
+                    if key not in values:
+                        day = rec._fix_day_records(key)
+                        items = [
+                            (r.id, r.check_in, r.check_out, r.approval_state, r.is_rest_day)
+                            for r in day
+                            if r.id not in self.ids
+                        ] + [
+                            (r.id, r.check_in, r.check_out, r.approval_state, r.is_rest_day)
+                            for r in self
+                            if r.id and r._fix_day_key() == key
+                        ]
+                        values[key] = rec._fix_value_day(
+                            items, rec.employee_id, key[1], rec.company_id
+                        )
+                    result = values[key].get(rec.id)
+                else:  # an unsaved form: value it with the stored records of its day
+                    day = rec._fix_day_records(key)
+                    items = [
+                        (r.id, r.check_in, r.check_out, r.approval_state, r.is_rest_day)
+                        for r in day
+                        if r.id != rec._origin.id
+                    ] + [("new", rec.check_in, rec.check_out, rec.approval_state, rec.is_rest_day)]
+                    result = rec._fix_value_day(items, rec.employee_id, key[1], rec.company_id).get(
+                        "new"
+                    )
+            worked, recorded, payable, rest, holiday = result or (0.0, 0.0, 0.0, 0.0, 0.0)
+            rec.worked_hours = worked
+            rec.recorded_overtime_hours = recorded
+            rec.overtime_hours = payable
+            rec.unapproved_overtime_hours = round(recorded - payable, 2)
+            rec.rest_day_hours = rest
+            rec.holiday_hours = holiday
+
+    def _fix_company(self):
+        return self.company_id or self.env.company
 
     @api.depends(
         "worked_hours",
-        "overtime_hours",
+        "recorded_overtime_hours",
         "rest_day_hours",
         "week_start",
         "employee_id",
         "approval_state",
     )
     def _compute_weekly_totals(self):
+        Rule = self.env["fix.working.time.rule"]
         for rec in self:
+            day = rec.week_start or (rec.check_in and rec.check_in.date())
+            limit = (
+                Rule._fix_values_for(rec._fix_company(), day)["weekly_limit_hours"]
+                or MAX_WEEKLY_HOURS
+            )
+            ot_cap = max(limit - STANDARD_WEEKLY_HOURS, 0.0)
             if not rec.employee_id or not rec.week_start:
                 rec.weekly_worked_hours = rec.worked_hours or 0.0
-                rec.weekly_ot_hours = rec.overtime_hours or 0.0
+                rec.weekly_ot_hours = rec.recorded_overtime_hours or 0.0
                 rec.weekly_ot_limit_exceeded = (
-                    rec.weekly_ot_hours > MAX_WEEKLY_OT_HOURS
-                    or rec.weekly_worked_hours > MAX_WEEKLY_HOURS
+                    rec.weekly_ot_hours > ot_cap or rec.weekly_worked_hours > limit
                 )
                 continue
             w_start_dt = fields.Datetime.to_datetime(rec.week_start)
             w_end_dt = fields.Datetime.to_datetime(rec.week_start + timedelta(days=7))
-            siblings = self.search(
+            siblings = self.sudo().search(
                 [
                     ("employee_id", "=", rec.employee_id.id),
                     ("approval_state", "!=", "rejected"),
@@ -362,81 +711,209 @@ class FixAttendanceRecord(models.Model):
             if rec.id and rec not in siblings:
                 siblings |= rec
             w_worked = round(sum(siblings.mapped("worked_hours")), 2)
-            w_daily_ot = round(sum(siblings.mapped("overtime_hours")), 2)
+            w_daily_ot = round(sum(siblings.mapped("recorded_overtime_hours")), 2)
             if not rec.id and rec.approval_state != "rejected":
                 w_worked = round(w_worked + (rec.worked_hours or 0.0), 2)
-                w_daily_ot = round(w_daily_ot + (rec.overtime_hours or 0.0), 2)
+                w_daily_ot = round(w_daily_ot + (rec.recorded_overtime_hours or 0.0), 2)
             w_excess_ot = round(max(w_worked - STANDARD_WEEKLY_HOURS, 0.0), 2)
             rec.weekly_worked_hours = w_worked
             rec.weekly_ot_hours = max(w_daily_ot, w_excess_ot)
-            rec.weekly_ot_limit_exceeded = (
-                rec.weekly_ot_hours > MAX_WEEKLY_OT_HOURS or w_worked > MAX_WEEKLY_HOURS
+            rec.weekly_ot_limit_exceeded = rec.weekly_ot_hours > ot_cap or w_worked > limit
+
+    @api.depends("check_in", "company_id")
+    def _compute_wt_rule(self):
+        Rule = self.env["fix.working.time.rule"]
+        for rec in self:
+            rec.wt_rule_id = (
+                Rule._fix_rule_for(rec._fix_company(), rec.check_in.date())
+                if rec.check_in
+                else False
             )
 
-    @api.depends("worked_hours", "overtime_hours", "employee_id", "check_in", "check_out")
+    # ---- working-time checks (T-07; BLA s.100, s.101, s.102, s.105) ---------------
+    def _fix_wt_intervals(self):
+        """[(check_in, check_out)] worked that employee-day, this record's own
+        (possibly unsaved) values included; rejected records are no work."""
+        self.ensure_one()
+        key = self._fix_day_key()
+        if not key:
+            return []
+        out = [
+            (r.check_in, r.check_out)
+            for r in self._fix_day_records(key)
+            if r.id != self._origin.id
+            and r.approval_state != "rejected"
+            and r.check_out
+            and r.check_out > r.check_in
+        ]
+        if self.approval_state != "rejected" and self.check_out and self.check_out > self.check_in:
+            out.append((self.check_in, self.check_out))
+        return sorted(out)
+
+    def _fix_wt_breaches(self):
+        """[(code, mode, note)] of every working-time rule this record's day
+        breaks, in priority order, under the rule version in force that day."""
+        self.ensure_one()
+        if not (self.check_in and self.employee_id):
+            return []
+        company = self._fix_company()
+        day = self.check_in.date()
+        rule = self.env["fix.working.time.rule"]._fix_values_for(company, day)
+        # the version is recorded on the record (wt_rule_id, T-08), not in the note
+        tag = ""
+        out = []
+        intervals = self._fix_wt_intervals()
+        day_worked = sum((co - ci).total_seconds() / 3600.0 for ci, co in intervals)
+        if rule["daily_max_hours"] and day_worked > rule["daily_max_hours"] + 1e-6:
+            # M55-4 / A6: the limit is per employee-DAY, not per punch
+            out.append(
+                (
+                    "daily_limit_exceeded",
+                    "label",
+                    "BLA 2006 s.100/108 breach: %.2fh worked that day exceeds the %.1fh daily "
+                    "limit%s" % (day_worked, rule["daily_max_hours"], tag),
+                )
+            )
+        # s.101: no stretch longer than N h without an interval of M minutes
+        for after, minutes in (
+            (rule["rest_interval_after_hours"], rule["rest_interval_minutes"]),
+            (rule["rest_interval_after_hours_2"], rule["rest_interval_minutes_2"]),
+        ):
+            if not (after and minutes and intervals):
+                continue
+            gap = timedelta(minutes=minutes)
+            longest, s_start, s_end = 0.0, intervals[0][0], intervals[0][1]
+            for ci, co in intervals[1:]:
+                if ci - s_end < gap:
+                    s_end = max(s_end, co)
+                    continue
+                longest = max(longest, (s_end - s_start).total_seconds() / 3600.0)
+                s_start, s_end = ci, co
+            longest = max(longest, (s_end - s_start).total_seconds() / 3600.0)
+            if longest > after + 1e-6:
+                out.append(
+                    (
+                        "rest_break_missing",
+                        rule["rest_interval_mode"],
+                        "BLA s.101: %.2fh worked without an interval of %d minutes (needed "
+                        "after %.1fh)%s" % (longest, minutes, after, tag),
+                    )
+                )
+                break
+        # s.105: spread-over, first check-in to last check-out of the day
+        if rule["spread_over_max_hours"] and intervals:
+            spread = (max(co for _ci, co in intervals) - intervals[0][0]).total_seconds() / 3600.0
+            if spread > rule["spread_over_max_hours"] + 1e-6:
+                out.append(
+                    (
+                        "spread_over_exceeded",
+                        rule["spread_over_mode"],
+                        "BLA s.105: the day spreads over %.2fh, above %.1fh%s"
+                        % (spread, rule["spread_over_max_hours"], tag),
+                    )
+                )
+        # the company's rest between shifts
+        if rule["min_rest_hours"]:
+            prev = self.sudo().search(
+                [
+                    ("employee_id", "=", self.employee_id.id),
+                    ("id", "!=", self._origin.id or 0),
+                    ("approval_state", "!=", "rejected"),
+                    ("check_out", "<=", self.check_in),
+                ],
+                order="check_out desc",
+                limit=1,
+            )
+            if prev and prev.check_out and prev.check_in.date() != day:
+                rest_span = (self.check_in - prev.check_out).total_seconds() / 3600
+                if 0 < rest_span < rule["min_rest_hours"]:
+                    out.append(
+                        (
+                            "rest_interval_violation",
+                            rule["short_rest_mode"],
+                            "%.2fh rest between shifts is under the company minimum of %.1fh%s"
+                            % (rest_span, rule["min_rest_hours"], tag),
+                        )
+                    )
+        # the weekly limit (label)
+        w_start = day - timedelta(days=day.weekday())
+        siblings = self.sudo().search(
+            [
+                ("employee_id", "=", self.employee_id.id),
+                ("approval_state", "!=", "rejected"),
+                ("check_in", ">=", fields.Datetime.to_datetime(w_start)),
+                ("check_in", "<", fields.Datetime.to_datetime(w_start + timedelta(days=7))),
+            ]
+        )
+        own = (self.worked_hours or 0.0) if self.approval_state != "rejected" else 0.0
+        w_worked = round(sum(r.worked_hours for r in siblings if r.id != self._origin.id) + own, 2)
+        weekly_limit = rule["weekly_limit_hours"] or MAX_WEEKLY_HOURS
+        if w_worked > weekly_limit:
+            out.append(
+                (
+                    "weekly_limit_exceeded",
+                    "label",
+                    "%.2fh worked in the week exceeds the weekly limit of %.1fh "
+                    "(BLA s.102: 48h, 60h with overtime)%s" % (w_worked, weekly_limit, tag),
+                )
+            )
+        # s.102: the calendar year's hours against the average a week
+        if rule["annual_avg_weekly_hours"]:
+            y_start, y_end = date(day.year, 1, 1), date(day.year + 1, 1, 1)
+            year = self.sudo().search(
+                [
+                    ("employee_id", "=", self.employee_id.id),
+                    ("approval_state", "!=", "rejected"),
+                    ("id", "!=", self._origin.id or 0),
+                    ("check_in", ">=", fields.Datetime.to_datetime(y_start)),
+                    ("check_in", "<", fields.Datetime.to_datetime(y_end)),
+                ]
+            )
+            total = sum(year.mapped("worked_hours")) + own
+            ceiling = rule["annual_avg_weekly_hours"] * (y_end - y_start).days / 7.0
+            if total > ceiling + 1e-6:
+                out.append(
+                    (
+                        "annual_average_exceeded",
+                        rule["annual_average_mode"],
+                        "BLA s.102: %.1fh worked in %d exceeds an average of %.1fh a week "
+                        "(%.1fh for the year)%s"
+                        % (total, day.year, rule["annual_avg_weekly_hours"], ceiling, tag),
+                    )
+                )
+        return out
+
+    @api.depends("worked_hours", "employee_id", "check_in", "check_out", "approval_state")
     def _compute_compliance(self):
         for rec in self:
-            status = "compliant"
+            breaches = rec._fix_wt_breaches()
+            if breaches:
+                rec.compliance_status = breaches[0][0]
+                rec.statutory_notes = "; ".join(note for _c, _m, note in breaches)[:500]
+                continue
+            rec.compliance_status = "compliant"
             notes = "Standard shift compliant per BLA 2006"
-            if rec.worked_hours > MAX_DAILY_HOURS:
-                status = "daily_limit_exceeded"
-                notes = (
-                    "BLA 2006 s.102/108 breach: %.2fh worked exceeds 10.0h daily limit"
-                    % rec.worked_hours
-                )
-            elif rec.check_in and rec.employee_id:
-                # Check consecutive rest from previous check_out for this employee
-                prev = self.search(
-                    [
-                        ("employee_id", "=", rec.employee_id.id),
-                        ("id", "!=", rec.id or 0),
-                        ("check_out", "<=", rec.check_in),
-                    ],
-                    order="check_out desc",
-                    limit=1,
-                )
-                if prev and prev.check_out:
-                    rest_span = (rec.check_in - prev.check_out).total_seconds() / 3600
-                    if 0 < rest_span < MIN_SHIFT_REST_HOURS:
-                        status = "rest_interval_violation"
-                        notes = (
-                            "BLA 2006 s.101/105 breach: %.2fh rest between shifts is under statutory 11.0h"
-                            % rest_span
-                        )
-                if status == "compliant":
-                    cdate = rec.check_in.date()
-                    w_start = cdate - timedelta(days=cdate.weekday())
-                    siblings = self.search(
-                        [
-                            ("employee_id", "=", rec.employee_id.id),
-                            ("approval_state", "!=", "rejected"),
-                            ("check_in", ">=", fields.Datetime.to_datetime(w_start)),
-                            (
-                                "check_in",
-                                "<",
-                                fields.Datetime.to_datetime(w_start + timedelta(days=7)),
-                            ),
-                        ]
-                    )
-                    w_worked = round(sum(siblings.mapped("worked_hours")), 2)
-                    w_ot = max(
-                        round(sum(siblings.mapped("overtime_hours")), 2),
-                        round(max(w_worked - STANDARD_WEEKLY_HOURS, 0.0), 2),
-                    )
-                    if w_worked > MAX_WEEKLY_HOURS:
-                        status = "weekly_limit_exceeded"
-                        notes = (
-                            "BLA 2006 s.102 breach: %.2fh worked in week exceeds 60.0h weekly limit"
-                            % w_worked
-                        )
-                    elif w_ot > MAX_WEEKLY_OT_HOURS:
-                        status = "weekly_limit_exceeded"
-                        notes = (
-                            "BLA 2006 s.108 breach: %.2fh overtime in week exceeds 12.0h weekly OT cap"
-                            % w_ot
-                        )
-            rec.compliance_status = status
+            weekly = rec.weekly_worked_hours if rec.check_in and rec.employee_id else 0.0
+            if (weekly or 0.0) > STANDARD_WEEKLY_HOURS:
+                notes = "%.2fh in the week: above the 48h ordinary week (BLA s.102)" % weekly
             rec.statutory_notes = notes
+
+    def _fix_assert_wt_blocks(self):
+        """A rule version set to BLOCK refuses the attendance that breaks it,
+        whatever its source: a block is the business's ruling."""
+        for rec in self.sudo():
+            if not rec.check_out or rec.approval_state == "rejected":
+                continue
+            blocked = [note for _c, mode, note in rec._fix_wt_breaches() if mode == "block"]
+            if blocked:
+                raise ValidationError(
+                    "%s is refused by the working-time rules in force (%s): %s"
+                    % (
+                        rec.display_label,
+                        rec.wt_rule_id.name or "default rules",
+                        "; ".join(blocked),
+                    )
+                )
 
     @api.depends("employee_id", "check_in")
     def _compute_label(self):
@@ -446,103 +923,344 @@ class FixAttendanceRecord(models.Model):
                 rec.check_in or "",
             )
 
+    # ---- integrity -------------------------------------------------------------
+    @api.constrains("check_in", "check_out", "employee_id")
+    def _check_no_overlap(self):
+        # A6: duplicated punches over the same hours (live: 190 overlapping pairs)
+        for rec in self:
+            if rec.check_out and rec.check_out < rec.check_in:
+                raise ValidationError("Check-out cannot precede check-in.")
+            end = rec.check_out or rec.check_in
+            candidates = self.sudo().search(
+                [
+                    ("id", "!=", rec.id),
+                    ("employee_id", "=", rec.employee_id.id),
+                    ("check_in", "<=", end),
+                    ("check_in", ">=", rec.check_in - timedelta(days=2)),
+                ]
+            )
+            other = candidates.filtered(
+                lambda o, s=rec.check_in, e=end, co=rec.check_out: (
+                    (o.check_in < e and (o.check_out or o.check_in) > s)
+                    or (o.check_in == s and (not co or not o.check_out) and o.check_out != s)
+                    or (o.check_in == s and o.check_out == co and e > s)
+                )
+            )[:1]
+            if other:
+                raise ValidationError(
+                    "%s already has attendance %s to %s overlapping %s to %s."
+                    % (
+                        rec.employee_id.name,
+                        other.check_in,
+                        other.check_out or "open",
+                        rec.check_in,
+                        rec.check_out or "open",
+                    )
+                )
+
+    def _fix_assert_period_open(self, company, day, verb):
+        lock = _locked_lock(self.env, company, day)
+        if lock:
+            raise UserError("Cannot %s attendance in locked period %s" % (verb, lock.name))
+
+    def _fix_reopened(self, company, day):
+        if not day:
+            return False
+        return bool(
+            self.env["fix.attendance.lock"]
+            .sudo()
+            .search_count(
+                [
+                    ("state", "=", "unlocked"),
+                    ("company_id", "=", company.id),
+                    ("period_start", "<=", day),
+                    ("period_end", ">=", day),
+                ]
+            )
+        )
+
+    def _fix_recompute_days(self, keys):
+        """Re-value every record of the given employee-days (split shifts,
+        overtime approvals and holidays change the siblings' figures)."""
+        recs = self.env["fix.attendance.record"]
+        for key in {k for k in keys if k}:
+            recs |= self._fix_day_records(key)
+        recs = recs.sudo()
+        if not recs:
+            return
+        for name in (
+            "worked_hours",
+            "recorded_overtime_hours",
+            "overtime_hours",
+            "unapproved_overtime_hours",
+            "rest_day_hours",
+            "holiday_hours",
+            "week_start",
+            "compliance_status",
+            "statutory_notes",
+        ):
+            self.env.add_to_compute(self._fields[name], recs)
+        recs.flush_recordset()
+
     @api.model_create_multi
     def create(self, vals_list):
+        trusted = self._fix_guard_open()
         for vals in vals_list:
             cin = vals.get("check_in")
+            company = self.env["res.company"].browse(vals.get("company_id")) or self.env.company
             if cin:
-                cdate = fields.Datetime.to_datetime(cin).date()
-                lock = self.env["fix.attendance.lock"].search(
-                    [
-                        ("state", "=", "locked"),
-                        ("period_start", "<=", cdate),
-                        ("period_end", ">=", cdate),
-                    ],
-                    limit=1,
+                self._fix_assert_period_open(
+                    company, fields.Datetime.to_datetime(cin).date(), "create"
                 )
-                if lock:
-                    raise UserError(
-                        "Cannot create attendance record in locked period %s" % lock.name
-                    )
-        return super().create(vals_list)
+            if not trusted and not (vals.get("manual_reason") or "").strip():
+                raise UserError(
+                    "A manual attendance entry states its reason (BRU-WFM-11); it is then "
+                    "approved by the line manager or an attendance officer."
+                )
+        recs = super().create(vals_list)
+        if not trusted:
+            name = self.env.user.name
+            for rec in recs:
+                # BRU-WFM-11: a manual entry is pending until someone else decides it
+                rec._guarded().write(
+                    {
+                        "approval_state": "pending",
+                        "approval_reason": "Manual entry by %s: %s" % (name, rec.manual_reason),
+                    }
+                )
+        for rec in recs.sudo():
+            if rec._fix_reopened(rec.company_id, rec.check_in.date()):
+                rec._guarded().write({"retro_change": True})
+        self._fix_recompute_days([r._fix_day_key() for r in recs])
+        recs._fix_assert_wt_blocks()
+        return recs
 
     def write(self, vals):
-        # P08-M02-T05: the lock. Payroll calculates on LOCKED periods only -
-        # an edit after the lock is a payroll error, not a convenience.
-        if set(vals) - {"message_follower_ids", "activity_ids", "message_ids"}:
-            lock = self.env["fix.attendance.lock"].search([("state", "=", "locked")])
-            for rec in self:
-                for period_lock in lock:
-                    if period_lock.period_start <= rec.check_in.date() <= period_lock.period_end:
-                        raise UserError(
-                            "Attendance %s is locked in period %s - unlock "
-                            "before editing" % (rec.display_label, period_lock.name)
-                        )
-        return super().write(vals)
+        content = set(vals) - {"message_follower_ids", "activity_ids", "message_ids"}
+        if not content or not self:
+            return super().write(vals)
+        trusted = self._fix_guard_open()
+        hours = {"check_in", "check_out", "employee_id"} & set(vals)
+        new_cin = (
+            fields.Datetime.to_datetime(vals["check_in"]).date() if vals.get("check_in") else None
+        )
+        old_keys = []
+        changed = self.browse()
+        for rec in self:
+            if not rec.check_in:  # an unsaved record (the form's onchange)
+                continue
+            old_keys.append(rec._fix_day_key())
+            # P08-M02-T05: the lock. Payroll calculates on LOCKED periods only;
+            # the NEW date is checked too (C7: a record re-dated into January).
+            rec._fix_assert_period_open(rec.company_id, rec.check_in.date(), "edit")
+            if new_cin:
+                rec._fix_assert_period_open(rec.company_id, new_cin, "move")
+            if not trusted and hours:
+                differs = [n for n in hours if rec._fix_guard_differs(n, vals[n], rec[n])]
+                if not differs:
+                    continue
+                if "employee_id" in differs:
+                    raise UserError(
+                        "Attendance is not moved to another employee: record it for them."
+                    )
+                if rec.approval_state == "rejected":
+                    raise UserError(
+                        "%s was rejected; a rejected clock-in is not re-opened by editing it."
+                        % rec.display_label
+                    )
+                changed |= rec
+        res = super().write(vals)
+        if changed:
+            name = self.env.user.name
+            for rec in changed:
+                # a decided record whose hours change is no longer what was decided
+                rec.regularisation_ids.sudo()._fix_void("the hours changed after it was raised")
+                rec._guarded().write(
+                    {
+                        "approval_state": "pending",
+                        "approval_reason": "Regularisation: hours changed by %s" % name,
+                        "approved_by": False,
+                        "approved_at": False,
+                    }
+                )
+        for rec in self.sudo():
+            if (
+                rec.check_in
+                and not rec.retro_change
+                and rec._fix_reopened(rec.company_id, rec.check_in.date())
+            ):
+                rec._guarded().write({"retro_change": True})
+        if {"check_in", "check_out", "employee_id", "approval_state", "is_rest_day"} & set(vals):
+            self._fix_recompute_days(old_keys + [r._fix_day_key() for r in self if r.check_in])
+        if hours:
+            self._fix_assert_wt_blocks()
+        return res
 
     def unlink(self):
+        keys = []
         for rec in self:
             # check_in is required (NOT NULL): every stored record has one.
-            cdate = rec.check_in.date()
-            lock = self.env["fix.attendance.lock"].search(
-                [
-                    ("state", "=", "locked"),
-                    ("period_start", "<=", cdate),
-                    ("period_end", ">=", cdate),
-                ],
-                limit=1,
+            rec._fix_assert_period_open(rec.company_id, rec.check_in.date(), "delete")
+            keys.append(rec._fix_day_key())
+        res = super().unlink()
+        self.env["fix.attendance.record"]._fix_recompute_days(keys)
+        return res
+
+    # --- AUT-WFM-02: deciding a pending record ------------------------------------
+    def _fix_open_regularisation(self):
+        self.ensure_one()
+        return self.sudo().regularisation_ids.filtered(lambda r: r.state == "open")[:1]
+
+    def action_request_regularisation(self, note=None):
+        """Route every pending record to its decider: the line manager first,
+        then the attendance officers. The requester, the record's creator and
+        the employee never decide it."""
+        Reg = self.env["fix.attendance.regularisation"].sudo()
+        for rec in self:
+            if rec.approval_state != "pending":
+                raise UserError("%s is not pending approval." % rec.display_label)
+            if rec._fix_open_regularisation():
+                raise UserError("%s is already awaiting a decision." % rec.display_label)
+            reg = Reg.create(
+                {
+                    "record_id": rec.id,
+                    "reason": "; ".join(p for p in (rec.approval_reason, note) if p),
+                }
             )
-            if lock:
-                raise UserError("Cannot delete attendance record in locked period %s" % lock.name)
-        return super().unlink()
+            # as superuser in the caller's name: the caller is the requester
+            # (excluded from deciding) but holds no write on the regularisation
+            reg.action_request_approval()
+        return True
 
-    # --- AUT-WFM-02 approval of flagged clock-ins ------------------------------
-
-    def _check_approver(self):
-        if not self.env.user.has_group(APPROVER_GROUP):
-            raise AccessError(
-                "Only an attendance officer may approve or reject a flagged clock-in (M55 AUT-WFM-02)"
-            )
-
-    def _decide(self, state, note):
-        self._check_approver()
+    def _fix_decide_direct(self, state, note):
+        """Superuser only (data repair, legacy imports): decide without routing."""
         for rec in self:
             if rec.approval_state != "pending":
                 raise UserError(
                     "Attendance %s is not pending approval (it is %s)"
                     % (rec.display_label, rec.approval_state)
                 )
-            rec.write(
-                {
-                    "approval_state": state,
-                    "approved_by": self.env.uid,
-                    "approved_at": fields.Datetime.now(),
-                }
-            )
-            rec.message_post(body=note)
-            # Literal event types: the registry (FF / contracts check) needs the
-            # name in the producer module - a composed f-string cannot be registered.
-            event_type = "attendance.approved" if state == "approved" else "attendance.rejected"
+            rec.regularisation_ids._fix_void("decided directly by the superuser")
+            rec._fix_apply_decision(state, self.env.user, note)
+
+    def _fix_apply_decision(self, state, user, note):
+        self.ensure_one()
+        self._guarded().write(
+            {"approval_state": state, "approved_by": user.id, "approved_at": fields.Datetime.now()}
+        )
+        self.message_post(body=note)
+        if state == "approved":
             publish(
                 self.env,
-                event_type,
+                "attendance.approved",
                 "fix.attendance.record",
-                rec.id,
-                {"employee": rec.employee_id.name, "reason": rec.approval_reason},
+                self.id,
+                {"employee": self.employee_id.name, "reason": self.approval_reason},
+            )
+        else:
+            publish(
+                self.env,
+                "attendance.rejected",
+                "fix.attendance.record",
+                self.id,
+                {"employee": self.employee_id.name, "reason": self.approval_reason},
             )
 
     def action_approve(self):
-        """Accept a flagged clock-in: it counts as worked time."""
-        self._decide("approved", "Flagged clock-in approved")
+        """Accept a pending record: it counts as worked time. Decided from the
+        approver's task (the workspace button decides the caller's own task)."""
+        if self.env.su:
+            return self._fix_decide_direct("approved", "Flagged clock-in approved")
+        for rec in self:
+            reg = rec._fix_open_regularisation()
+            if not reg:
+                raise UserError(
+                    "%s has not been routed for a decision: use Request Approval."
+                    % rec.display_label
+                )
+            reg.with_env(self.env).action_inbox_approve()
+        return True
 
     def action_reject(self, reason=""):
-        """Refuse a flagged clock-in: it stays recorded but is no worked time."""
-        self._decide("rejected", "Flagged clock-in rejected: %s" % (reason or "no reason given"))
+        """Refuse a pending record: it stays recorded but is no worked time."""
+        if self.env.su:
+            return self._fix_decide_direct(
+                "rejected", "Flagged clock-in rejected: %s" % (reason or "no reason given")
+            )
+        if not (reason or "").strip():
+            raise UserError("State why this attendance is rejected.")
+        for rec in self:
+            reg = rec._fix_open_regularisation()
+            if not reg:
+                raise UserError(
+                    "%s has not been routed for a decision: use Request Approval."
+                    % rec.display_label
+                )
+            reg.with_env(self.env).action_inbox_reject(reason=reason)
+        return True
+
+    @api.model
+    def cron_route_pending_attendance(self):
+        """AUT-WFM-05: every pending record without an open regularisation is
+        routed (idempotent; a record nobody can decide is left and retried)."""
+        self = self.sudo()
+        pending = self.search([("approval_state", "=", "pending")])
+        routed = 0
+        for rec in pending:
+            if rec._fix_open_regularisation():
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    rec.action_request_regularisation()
+                routed += 1
+            except UserError:
+                continue
+        return routed
+
+    def _fix_assert_supervisor(self):
+        if not (self.env.su or self.env.user.has_group(SUPERVISOR_GROUP)):
+            raise AccessError("Only an Attendance Supervisor marks a weekly rest day.")
+        mine = self.filtered(lambda r: r.employee_id.sudo().user_id == self.env.user)
+        if mine and not self.env.su:
+            raise UserError("You do not mark your own attendance as a rest-day call-in.")
+
+    def action_mark_rest_day(self):
+        """BLA s.103: the supervisor records that this was the weekly rest day."""
+        self._fix_assert_supervisor()
+        for rec in self:
+            rec._fix_assert_period_open(rec.company_id, rec.check_in.date(), "edit")
+            rec._guarded().write({"is_rest_day": True})
+        self._fix_recompute_days([r._fix_day_key() for r in self])
+        return True
+
+    def action_clear_rest_day(self):
+        self._fix_assert_supervisor()
+        for rec in self:
+            rec._fix_assert_period_open(rec.company_id, rec.check_in.date(), "edit")
+            rec._guarded().write({"is_rest_day": False})
+        self._fix_recompute_days([r._fix_day_key() for r in self])
+        return True
+
+    @api.model
+    def _fix_revalue_open_periods(self):
+        """Data hook (upgrade, idempotent): re-value every record outside a
+        locked period under the per-day, approved-overtime rules. A locked
+        period keeps the figures it was locked and paid with."""
+        Record = self.sudo()
+        keys = set()
+        for rec in Record.search([]):
+            if not _locked_lock(self.env, rec.company_id, rec.check_in.date()):
+                keys.add(rec._fix_day_key())
+        Record._fix_recompute_days(keys)
+        return len(keys)
 
     @api.model
     def pending_in_period(self, period_start, period_end, company=None):
         """Flagged clock-ins of [period_start, period_end] still pending approval
-        (BRU-WFM-01: a period is locked and paid only on VERIFIED attendance)."""
+        (BRU-WFM-01: a period is locked and paid only on VERIFIED attendance).
+
+        Searched as superuser: a caller who cannot see a pending record (another
+        operating unit) must not lock or pay over it (C8)."""
         domain = [
             ("approval_state", "=", "pending"),
             ("check_in", ">=", fields.Datetime.to_datetime(period_start)),
@@ -550,13 +1268,20 @@ class FixAttendanceRecord(models.Model):
         ]
         if company:
             domain.append(("company_id", "=", company.id))
-        return self.search(domain, order="check_in")
+        return self.sudo().search(domain, order="check_in")
 
     def action_checkout(self):
         for rec in self:
             if rec.check_out:
                 raise UserError("Already checked out")
-            rec.check_out = fields.Datetime.now()
+            if not (
+                self.env.su
+                or rec.employee_id.sudo().user_id == self.env.user
+                or self.env.user.has_group(SUPERVISOR_GROUP)
+            ):
+                raise AccessError("Only the employee clocks out of their own attendance.")
+            # the clock-out is the current time, not a typed one
+            rec._guarded().write({"check_out": fields.Datetime.now()})
             publish(
                 self.env,
                 "attendance.checked_out",
@@ -575,7 +1300,7 @@ class FixAttendanceLock(models.Model):
 
     _name = "fix.attendance.lock"
     _description = "Attendance Lock"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period_start desc"
 
     company_id = fields.Many2one(
@@ -590,11 +1315,79 @@ class FixAttendanceLock(models.Model):
         default="draft",
         required=True,
         tracking=True,
+        readonly=True,
+    )
+    locked_by_id = fields.Many2one("res.users", string="Locked By", readonly=True)
+    locked_at = fields.Datetime(readonly=True)
+    unlocked_by_id = fields.Many2one("res.users", string="Re-opened By", readonly=True)
+    unlocked_at = fields.Datetime(string="Re-opened At", readonly=True)
+    unlock_reason = fields.Text(string="Reason for Re-opening", readonly=True)
+    unlock_count = fields.Integer(readonly=True)
+    retro_flag = fields.Boolean(
+        string="Re-locked After a Re-opening",
+        readonly=True,
+        help="The period was re-opened and locked again: records flagged 'Changed After a "
+        "Lock' carry differences payroll must pick up (FR-WFM-052).",
+    )
+    payroll_paid = fields.Boolean(
+        string="Re-opened After Payment",
+        readonly=True,
+        help="Re-opened after payroll paid the period: every change becomes a forward "
+        "adjustment (fix.attendance.adjustment) for the next payroll (FR-WFM-052).",
+    )
+    baseline_taken = fields.Boolean(
+        string="Paid Figures Recorded",
+        readonly=True,
+        help="What payroll paid for each employee-day was recorded at the first re-opening "
+        "after payment; corrections are measured against it.",
     )
 
-    def action_lock(self):
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "locked_by_id",
+            "locked_at",
+            "unlocked_by_id",
+            "unlocked_at",
+            "unlock_reason",
+            "unlock_count",
+            "retro_flag",
+            "payroll_paid",
+            "baseline_taken",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= {"period_start", "period_end", "company_id", "operating_unit_id"}
+        return locked
+
+    @api.constrains("period_start", "period_end", "company_id")
+    def _check_one_lock_per_period(self):
+        # C10: duplicate locks for one period (live: two September locks)
         for rec in self:
-            if rec.period_end >= fields.Date.today():
+            if rec.period_end < rec.period_start:
+                raise ValidationError("A lock period cannot end before it starts.")
+            other = self.sudo().search(
+                [
+                    ("id", "!=", rec.id),
+                    ("company_id", "=", rec.company_id.id),
+                    ("period_start", "<=", rec.period_end),
+                    ("period_end", ">=", rec.period_start),
+                ],
+                limit=1,
+            )
+            if other:
+                raise ValidationError(
+                    "%s already covers %s to %s for %s: one lock per period."
+                    % (other.name, other.period_start, other.period_end, rec.company_id.name)
+                )
+
+    def _fix_check_lockable(self, require_past=True):
+        """The gate, wherever the state becomes 'locked' (P4). A trusted data
+        load may lock a running period, but never over pending clock-ins."""
+        for rec in self:
+            if require_past and rec.period_end >= fields.Date.today():
                 raise UserError("Only a fully PAST period may be locked")
             # BRU-WFM-01: lock VERIFIED attendance only - a pending clock-in could
             # never be decided afterwards (locked records are immutable)
@@ -607,17 +1400,122 @@ class FixAttendanceLock(models.Model):
                     "reject them before locking: %s"
                     % (rec.name, len(pending), ", ".join(pending.mapped("display_label")))
                 )
-            rec.state = "locked"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        locks = super().create(vals_list)
+        # a trusted caller (data load) creating a lock already 'locked' passes
+        # the same gate as action_lock (C3: born locked over pending clock-ins)
+        locks.filtered(lambda r: r.state == "locked")._fix_check_lockable(require_past=False)
+        return locks
+
+    def write(self, vals):
+        if self and vals.get("state") == "locked" and self._fix_guard_open():
+            self.filtered(lambda r: r.state != "locked" and r.period_end)._fix_check_lockable(
+                require_past=False
+            )
+        if (
+            self
+            and {"period_start", "period_end", "company_id"} & set(vals)
+            and self.filtered(lambda r: r.state != "draft" and r.period_start)
+        ):
+            raise UserError("A lock's period is fixed once it has been locked.")
+        return super().write(vals)
+
+    def action_lock(self):
+        if not (self.env.su or self.env.user.has_group(SUPERVISOR_GROUP)):
+            raise AccessError("Only an Attendance Supervisor locks an attendance period.")
+        for rec in self:
+            if rec.state == "locked":
+                raise UserError("%s is already locked." % rec.name)
+            rec._fix_check_lockable()
+            vals = {
+                "state": "locked",
+                "locked_by_id": self.env.user.id,
+                "locked_at": fields.Datetime.now(),
+            }
+            if rec.state == "unlocked":
+                vals["retro_flag"] = True
+            rec._guarded().write(vals)
             publish(
                 self.env, "attendance.locked", "fix.attendance.lock", rec.id, {"period": rec.name}
             )
 
-    def action_unlock(self):
-        """Re-opening records WHY (audit): payroll recalculations only."""
+    def _fix_payroll_taken(self):
+        """Payroll periods of the lock's company that have taken this
+        attendance (verified the lock, calculated, approved or paid)."""
+        self.ensure_one()
+        if "fix.payroll.period" not in self.env:
+            return self.env["res.company"]
+        Period = self.env["fix.payroll.period"].sudo()
+        domain = [
+            ("period_start", "<=", self.period_end),
+            ("period_end", ">=", self.period_start),
+            ("state", "not in", PAYROLL_OPEN_STATES),
+        ]
+        if "company_id" in Period._fields:
+            domain.append(("company_id", "=", self.company_id.id))
+        return Period.search(domain)
+
+    def _fix_after_reopen(self):
+        """Hook (fix_attendance_adjustment): record what payroll paid."""
+        return True
+
+    def action_unlock(self, reason=None):
+        """Re-open a locked period: a separate role (SOD-28) and a reason.
+        Never while payroll is between verification and payment (C4, C5, C6);
+        after payment, every change becomes a forward adjustment (FR-WFM-052)."""
+        if not (self.env.su or self.env.user.has_group(LOCK_MANAGER_GROUP)):
+            raise AccessError(
+                "Only an Attendance Lock Manager re-opens a locked period (SOD-28): the "
+                "supervisor who maintains rosters and devices does not."
+            )
+        if not (reason or "").strip():
+            raise UserError("State why the attendance period is re-opened.")
         for rec in self:
-            rec.state = "unlocked"
+            if rec.state != "locked":
+                raise UserError(
+                    "Only a locked period is re-opened (%s is %s)." % (rec.name, rec.state)
+                )
+            taken = rec._fix_payroll_taken()
+            running = taken.filtered(lambda p: p.state not in PAYROLL_PAID_STATES)
+            if running:
+                raise UserError(
+                    "%s cannot be re-opened: payroll %s has already taken it (%s) and has not "
+                    "paid it yet. Once it is paid, a correction is carried into the next "
+                    "period as an approved adjustment."
+                    % (
+                        rec.name,
+                        ", ".join(running.mapped("name")),
+                        ", ".join(running.mapped("state")),
+                    )
+                )
+            paid = bool(taken)
+            rec._guarded().write(
+                {
+                    "state": "unlocked",
+                    "unlocked_by_id": self.env.user.id,
+                    "unlocked_at": fields.Datetime.now(),
+                    "unlock_reason": reason,
+                    "unlock_count": rec.unlock_count + 1,
+                    "payroll_paid": paid or rec.payroll_paid,
+                }
+            )
+            if paid:
+                rec._fix_after_reopen()
+            rec.message_post(
+                body="Re-opened: %s%s"
+                % (
+                    reason,
+                    " (after payment: changes become forward adjustments)" if paid else "",
+                )
+            )
             publish(
-                self.env, "attendance.unlocked", "fix.attendance.lock", rec.id, {"period": rec.name}
+                self.env,
+                "attendance.unlocked",
+                "fix.attendance.lock",
+                rec.id,
+                {"period": rec.name, "reason": reason},
             )
 
     def action_export_form10_overtime_register(self):
@@ -631,18 +1529,26 @@ class FixAttendanceLock(models.Model):
         # is HR/payroll data (A09 audit M21-4): the attendance supervisor's run
         # reads contracts and wages through sudo, so the run itself is the
         # supervisor's only.
-        if not (
-            self.env.su or self.env.user.has_group("cd_attendance.group_attendance_supervisor")
-        ):
+        if not (self.env.su or self.env.user.has_group(SUPERVISOR_GROUP)):
             raise AccessError("Only an Attendance Supervisor may export the Form 10 register.")
-        records = self.env["fix.attendance.record"].search(
-            [
-                ("company_id", "=", self.company_id.id),
-                ("approval_state", "!=", "rejected"),
-                ("check_in", ">=", fields.Datetime.to_datetime(self.period_start)),
-                ("check_in", "<", fields.Datetime.to_datetime(self.period_end + timedelta(days=1))),
-            ],
-            order="employee_id, check_in",
+        # C11: the register carries PAYABLE overtime (approved, capped), from
+        # decided records only
+        records = (
+            self.env["fix.attendance.record"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("approval_state", "in", PAYABLE_STATES),
+                    ("check_in", ">=", fields.Datetime.to_datetime(self.period_start)),
+                    (
+                        "check_in",
+                        "<",
+                        fields.Datetime.to_datetime(self.period_end + timedelta(days=1)),
+                    ),
+                ],
+                order="employee_id, check_in",
+            )
         )
         by_emp = {}
         for att in records:
@@ -723,32 +1629,74 @@ class FixWorkOrderAvailabilityExt(models.Model):
 
     def action_check_technician_availability(self):
         # Every record is checked: an early `return True` inside the loop used
-        # to wave the rest of a multi-record call through unchecked.
+        # to wave the rest of a multi-record call through unchecked. The roster,
+        # leave and attendance are read as superuser: a dispatcher who cannot
+        # read a technician's attendance must not be told he is available.
         for rec in self:
             if not rec.technician_id:
                 continue
-            day = fields.Date.today()
-            slot = self.env["fix.roster.slot"].search(
-                [("employee_id", "=", rec.technician_id.id), ("date", "=", day)], limit=1
-            )
+            # the night-consent recheck (_fix_recheck_night_consent) decides on
+            # the context date; reading the UTC clock here let a withdrawn
+            # night consent pass after 18:00 UTC (00:00-06:00 Dhaka) — the two
+            # frames must agree, or the M55 control fails open six hours a day.
+            day = fields.Date.context_today(rec)
+            domain = [("employee_id", "=", rec.technician_id.id), ("date", "=", day)]
+            company = rec.technician_id.sudo().company_id or self.env.company
+            if company.fix_roster_dispatch_published_only:
+                # BRU-WFM-12 (company setting): dispatch reads the PUBLISHED roster only
+                domain.append(("state", "=", "published"))
+            slot = self.env["fix.roster.slot"].sudo().search(domain, limit=1)
             if not slot:
                 raise UserError(
                     "M55 availability: %s has no roster slot for %s — "
                     "assign from the roster, not the calendar" % (rec.technician_id.name, day)
                 )
-            if slot.on_leave:
+            on_leave = slot.on_leave or self.env["fix.leave.request"].sudo().search_count(
+                [
+                    ("employee_id", "=", rec.technician_id.id),
+                    ("state", "=", "approved"),
+                    ("date_from", "<=", day),
+                    ("date_to", ">=", day),
+                ]
+            )
+            if on_leave:
                 raise UserError(
                     "M55 availability: %s is on approved leave for %s"
                     % (rec.technician_id.name, day)
                 )
-            rejected_punch = self.env["fix.attendance.record"].search(
+            if slot.night_consent_flag:
+                raise UserError(
+                    "M55 availability: %s withdrew her night-work consent (BLA s.109); the "
+                    "%s slot of %s is awaiting removal."
+                    % (rec.technician_id.name, slot.shift_id.name, day)
+                )
+            # BRU-WFM-15: a suspended employee is not dispatched (read live)
+            if "fix.hr.disciplinary.case" in self.env and self.env[
+                "fix.hr.disciplinary.case"
+            ].sudo().search_count(
                 [
                     ("employee_id", "=", rec.technician_id.id),
-                    ("check_in", ">=", fields.Datetime.to_datetime(day)),
-                    ("check_in", "<", fields.Datetime.to_datetime(day + timedelta(days=1))),
-                    ("approval_state", "=", "rejected"),
-                ],
-                limit=1,
+                    ("suspended", "=", True),
+                    ("suspended_from", "<=", day),
+                    ("suspended_until", ">=", day),
+                ]
+            ):
+                raise UserError(
+                    "M55 availability: %s is suspended on %s (BLA s.23/24)"
+                    % (rec.technician_id.name, day)
+                )
+            rejected_punch = (
+                self.env["fix.attendance.record"]
+                .sudo()
+                .search(
+                    [
+                        ("employee_id", "=", rec.technician_id.id),
+                        ("check_in", ">=", fields.Datetime.to_datetime(day)),
+                        ("check_in", "<", fields.Datetime.to_datetime(day + timedelta(days=1))),
+                        ("approval_state", "=", "rejected"),
+                    ],
+                    limit=1,
+                )
             )
             if rejected_punch:
                 raise UserError(

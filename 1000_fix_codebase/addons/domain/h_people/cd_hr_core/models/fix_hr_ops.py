@@ -719,7 +719,7 @@ class FixHrDependant(models.Model):
         default="spouse",
     )
     date_of_birth = fields.Date()
-    nid = fields.Char(string="NID")
+    # nid: held in the Bangladesh-resident store (fix_hr_identity_residency.py)
     is_nominee = fields.Boolean(string="Nominee")
     nominee_pct = fields.Float(string="Nominee Share %")
     guardian_name = fields.Char(string="Legal Guardian Name (if Minor)")

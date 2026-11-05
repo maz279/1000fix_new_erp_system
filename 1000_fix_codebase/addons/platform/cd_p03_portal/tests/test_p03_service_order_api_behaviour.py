@@ -655,7 +655,12 @@ def test_sudo_reads_are_fenced_to_the_users_companies(world):
 def _rostered(w, employee):
     shift = w.env["fix.shift.template"].create({"name": "Day", "start_hour": 9, "end_hour": 18})
     w.env["fix.roster.slot"].create(
-        {"employee_id": employee.id, "date": fields.Date.today(), "shift_id": shift.id}
+        {
+            "employee_id": employee.id,
+            # the M55 availability check reads the context date (Asia/Dhaka)
+            "date": fields.Date.context_today(w.env["fix.roster.slot"]),
+            "shift_id": shift.id,
+        }
     )
 
 
@@ -700,14 +705,11 @@ def test_dispatch_creates_and_assigns_the_work_order(ctrl, world):
 
 def test_dispatch_reuses_the_existing_work_order(ctrl, world):
     _rostered(world, world.tech)
+    # A09 C4: the technician holds the certification; a waiver is a routed
+    # record now (M22-F3), not a flag set on the work order
+    _certified(world, world.tech)
     order = _order(world, "approved")
-    existing = world.env["fix.work.order"].create(
-        {
-            "order_id": order.id,
-            "certification_waiver": True,
-            "certification_waiver_reason": "Supervisor override",
-        }
-    )
+    existing = world.env["fix.work.order"].create({"order_id": order.id})
     result = ctrl.assign_dispatch(order_id=order.id, technician="Probe Technician")
     assert result["success"] is True
     assert order.work_order_ids == existing
@@ -746,8 +748,9 @@ def test_dispatch_failure_outside_the_gates_is_not_flagged_as_gate(ctrl, world):
 def test_dispatch_without_a_name_takes_the_first_employee(ctrl, world):
     first = world.env["hr.employee"].search([], limit=1)
     _rostered(world, first)
+    _certified(world, first)
     order = _order(world, "approved")
-    world.env["fix.work.order"].create({"order_id": order.id, "certification_waiver": True})
+    world.env["fix.work.order"].create({"order_id": order.id})
     result = ctrl.assign_dispatch(order_id=order.id)
     assert result["success"] is True
     assert result["technician"] == first.name

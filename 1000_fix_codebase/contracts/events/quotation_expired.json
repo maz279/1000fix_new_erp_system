@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "quotation.expired",
-  "description": "Published by cd_quotation through libs.py.fix_events.publish() (A04 C2-C13 build 2026-11-04); payload derived from the publishing code.",
+  "description": "Published by cd_quotation through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -31,34 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "version",
-        "grand_total",
-        "quotation",
-        "quote_type",
-        "customer_id"
-      ],
-      "properties": {
-        "version": {
-          "type": "integer"
-        },
-        "grand_total": {
-          "type": "number"
-        },
-        "quotation": {
-          "type": "string"
-        },
-        "quote_type": {
-          "type": "string"
-        },
-        "customer_id": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`rec._event_payload()`, addons/domain/c_commercial/cd_quotation/models/fix_quote_ops.py:910); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_quotation",

@@ -5,6 +5,7 @@ from . import fix_tax_master
 from . import fix_tax_returns
 from . import fix_tax_compliance
 from . import fix_tax_returns_a08
+from . import fix_salary_tds
 from . import fix_withholding_report
 from . import return_logic
 from . import statutory_format

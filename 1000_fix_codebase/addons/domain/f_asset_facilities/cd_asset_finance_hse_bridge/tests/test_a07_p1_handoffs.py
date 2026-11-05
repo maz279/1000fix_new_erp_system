@@ -88,6 +88,7 @@ def c(odoo_env):
     x.clerk = _user(env, "a07p1_brg_clerk", x.co, x.ou)
     x.acct = _user(env, "a07p1_brg_acct", x.co, x.ou, ACCOUNTANT)
     x.hse = _user(env, "a07p1_brg_hse", x.co, x.ou, HSE)
+    x.hse2 = _user(env, "a07p1_brg_hse2", x.co, x.ou, HSE)
     x.fm = _user(env, "a07p1_brg_fm", x.co, x.ou, FM, employee=True)
     x.site = env["fix.site"].create(
         {
@@ -627,8 +628,17 @@ def test_unfit_safety_equipment_raises_one_open_hazard_per_item(c):
     hazard = Hazard.search([("site_safety_id", "=", item.id)])
     assert len(hazard) == 1 and hazard.state == "open" and "EXT-7" in hazard.name
     assert hazard.company_id == c.co and hazard.operating_unit_id == c.ou
-    # closed by HSE -> the next lapse opens a new one
-    hazard.with_user(c.hse).action_close()
+    # closed by HSE -> the next lapse opens a new one. A09 M62 (merged): a
+    # hazard is scored and controlled first, then closed by a second officer.
+    hazard.sudo().write(
+        {
+            "controls": "Extinguisher replaced; monthly checks rescheduled.",
+            "residual_likelihood": 1,
+            "residual_severity": 1,
+        }
+    )
+    hazard.with_user(c.hse).action_control()
+    hazard.with_user(c.hse2).action_close()
     item.sudo()._guarded().write({"next_check": c.today - timedelta(days=1)})
     c.env["fix.site.safety"].cron_safety_due()
     _deliver(c, "consumer_site_safety_equipment_unfit", "site.safety_equipment_unfit", item)

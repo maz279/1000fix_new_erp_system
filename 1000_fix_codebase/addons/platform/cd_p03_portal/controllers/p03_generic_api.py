@@ -12,6 +12,7 @@
 # are the SAME methods the Odoo forms would call. Internal-user only (NVR-22).
 import logging
 
+import psycopg2
 from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
@@ -240,6 +241,8 @@ class P03GenericApiController(http.Controller):
             }
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise  # http.py retries a read-only route on a read/write cursor
         except Exception:
             _logger.exception("p03 model_records failed for %s", model)
             return {"error": _FAILED}
@@ -274,6 +277,8 @@ class P03GenericApiController(http.Controller):
             return out
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise  # http.py retries a read-only route on a read/write cursor
         except Exception:
             _logger.exception("p03 model_report %s.%s failed", module, report)
             return {"error": _FAILED}
@@ -525,6 +530,10 @@ class P03GenericApiController(http.Controller):
             }
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            # a read that must write (A09 identity read log) on the read-only
+            # cursor: http.py retries the route on a read/write cursor
+            raise
         except Exception:
             _logger.exception("p03 model_form failed for %s", model)
             return {"error": "The form data could not be loaded — see the server log."}

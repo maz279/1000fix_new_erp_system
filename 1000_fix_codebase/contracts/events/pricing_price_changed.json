@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "pricing.price_changed",
-  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (1 call site(s)); A04 audit 2026-11-04 (C8/C10).",
+  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,29 +32,32 @@
     "payload": {
       "type": "object",
       "required": [
-        "approved_by_id",
-        "change_type",
-        "new_value",
-        "old_value",
-        "product_code",
+        "target_model",
         "target_id",
-        "target_model"
+        "product_code",
+        "change_type",
+        "old_value",
+        "new_value",
+        "approved_by_id"
       ],
       "properties": {
         "target_model": {
-          "type": "string"
+          "description": "Type not statically derivable from `target._name` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
         },
         "target_id": {
           "type": "integer"
         },
         "product_code": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "change_type": {
           "type": "string"
         },
         "old_value": {
-          "type": "number"
+          "description": "Type not statically derivable from `old` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
         },
         "new_value": {
           "type": [
@@ -63,7 +66,7 @@
           ]
         },
         "approved_by_id": {
-          "type": "integer"
+          "description": "Type not statically derivable from `self.env.uid` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
         }
       },
       "additionalProperties": false
@@ -73,5 +76,5 @@
   "x-publishers": [
     "addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py"
   ],
-  "x-derived-from": "publish() call (hand-written for the A04 C2-C13 pass)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

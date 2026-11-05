@@ -27,6 +27,23 @@ def _clock(env, emp, day, hours, state):
     )
 
 
+def _approved_overtime(env, emp, day, hours):
+    """M55 (D4): overtime is payable only against an approved overtime request
+    (superuser fixture: the routed approval is M55's to prove)."""
+    req = env["fix.overtime.request"].create(
+        {
+            "employee_id": emp.id,
+            "company_id": emp.company_id.id,
+            "date": date(2026, 1, day),
+            "hours": hours,
+            "reason": "Customer site call-out approved before the work",
+        }
+    )
+    req.write({"state": "submitted"})
+    req.action_approve()
+    return req
+
+
 @pytest.fixture
 def run(odoo_env):
     env = odoo_env
@@ -53,7 +70,11 @@ def run(odoo_env):
 def test_payroll_refuses_a_period_with_pending_clock_ins_naming_them(run):
     env, emp, lock, period = run
     pending = _clock(env, emp, 20, 10, "pending")
-    lock.state = "locked"  # a lock written around action_lock's own pending check (legacy data)
+    # M55 now refuses a lock over a pending clock-in (C3), so the legacy row a
+    # lock taken around that check left behind is played by SQL: payroll's own
+    # gate must still refuse it.
+    env.cr.execute("UPDATE fix_attendance_lock SET state = 'locked' WHERE id = %s", (lock.id,))
+    lock.invalidate_recordset()
     with pytest.raises(UserError) as err, env.cr.savepoint():
         period.action_verify_attendance_locked()
     assert str(err.value) == (
@@ -69,6 +90,8 @@ def test_rejected_clock_ins_are_not_paid_overtime(run):
     rejected = _clock(env, emp, 11, 12, "pending")  # would be 4h overtime
     approved.action_approve()
     rejected.action_reject(reason="Not on site")
+    _approved_overtime(env, emp, 10, 2.0)
+    _approved_overtime(env, emp, 11, 2.0)  # approved OT, but the clock-in was rejected
     lock.action_lock()
     period.action_verify_attendance_locked()
     period.action_calculate()

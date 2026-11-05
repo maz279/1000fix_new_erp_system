@@ -37,7 +37,10 @@
         "decision",
         "requested_amount",
         "approved_amount",
-        "brand_id"
+        "brand_id",
+        "company_id",
+        "currency",
+        "source"
       ],
       "properties": {
         "claim_no": {
@@ -47,18 +50,13 @@
           "type": "boolean"
         },
         "decision": {
-          "type": "string",
-          "enum": [
-            "approve",
-            "partial",
-            "reject"
-          ]
+          "description": "Type not statically derivable from `decision` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
         },
         "requested_amount": {
           "type": "number"
         },
         "approved_amount": {
-          "type": "number"
+          "description": "Type not statically derivable from `amount` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
         },
         "brand_id": {
           "type": "integer"
@@ -67,14 +65,13 @@
           "type": "integer"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "source": {
-          "type": "string",
-          "enum": [
-            "officer",
-            "brand_api"
-          ]
+          "description": "Type not statically derivable from `source` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:1096)."
         }
       },
       "additionalProperties": false

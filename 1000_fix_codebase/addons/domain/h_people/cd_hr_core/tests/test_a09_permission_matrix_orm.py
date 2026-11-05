@@ -19,6 +19,15 @@ SELF_SERVICE = [
     "fix.hse.roadcheck",
     "fix.leave.request",
     "fix.attendance.record",
+    # A09 P0-b (FR-HCM-042): an employee raises a change of their own bank or
+    # identity details; HR decides it (record rule: own requests only).
+    "fix.hr.master.change",
+    # A09 round 2 (BRU-TAO-07): a panelist writes only their own draft
+    # evaluation (global rule); results stay hidden until the panel is complete.
+    "fix.talent.evaluation",
+    # A09 round 2: the owner of an onboarding task completes it with evidence
+    # (global rule: own tasks only); mandatory tasks are never cancelled.
+    "fix.onboarding.task",
 ]
 
 # Models a plain internal user must NOT be able to write, grouped by why.
@@ -38,6 +47,7 @@ MASTER_DATA = [
     "fix.hr.transfer",
     "fix.hr.exit",
     "fix.hr.document",
+    "fix.hr.disciplinary.case",
     "fix.leave.type",
     "fix.competency",
     "fix.device.category",

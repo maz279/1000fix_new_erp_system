@@ -33,6 +33,7 @@
       "type": "object",
       "required": [
         "employee",
+        "employee_id",
         "competency"
       ],
       "properties": {
@@ -41,6 +42,9 @@
             "string",
             "boolean"
           ]
+        },
+        "employee_id": {
+          "type": "integer"
         },
         "competency": {
           "type": "string"

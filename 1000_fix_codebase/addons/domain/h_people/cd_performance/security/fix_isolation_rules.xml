@@ -19,6 +19,39 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_compensation_proposal_company" model="ir.rule">
+        <field name="name">fix.compensation.proposal: allowed companies</field>
+        <field name="model_id" ref="model_fix_compensation_proposal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_compensation_proposal_operating_unit" model="ir.rule">
+        <field name="name">fix.compensation.proposal: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_compensation_proposal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_clawback_company" model="ir.rule">
+        <field name="name">fix.incentive.clawback: allowed companies</field>
+        <field name="model_id" ref="model_fix_incentive_clawback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_clawback_operating_unit" model="ir.rule">
+        <field name="name">fix.incentive.clawback: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_incentive_clawback"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_dispute_company" model="ir.rule">
+        <field name="name">fix.incentive.dispute: allowed companies</field>
+        <field name="model_id" ref="model_fix_incentive_dispute"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_dispute_operating_unit" model="ir.rule">
+        <field name="name">fix.incentive.dispute: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_incentive_dispute"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_incentive_line_company" model="ir.rule">
         <field name="name">fix.incentive.line: allowed companies</field>
         <field name="model_id" ref="model_fix_incentive_line"/>
@@ -38,6 +71,28 @@
     <record id="rule_fix_incentive_run_operating_unit" model="ir.rule">
         <field name="name">fix.incentive.run: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_incentive_run"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_scheme_company" model="ir.rule">
+        <field name="name">fix.incentive.scheme: allowed companies</field>
+        <field name="model_id" ref="model_fix_incentive_scheme"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_scheme_operating_unit" model="ir.rule">
+        <field name="name">fix.incentive.scheme: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_incentive_scheme"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_scheme_version_company" model="ir.rule">
+        <field name="name">fix.incentive.scheme.version: allowed companies</field>
+        <field name="model_id" ref="model_fix_incentive_scheme_version"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_scheme_version_operating_unit" model="ir.rule">
+        <field name="name">fix.incentive.scheme.version: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_incentive_scheme_version"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

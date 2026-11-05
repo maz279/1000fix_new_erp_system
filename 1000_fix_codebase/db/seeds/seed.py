@@ -2536,7 +2536,6 @@ def main() -> int:
                     "name": f"SEED-HSE-{i+1:03d}",
                     "branch_id": brn[i],
                     "inspected_on": "2026-09-20",
-                    "state": ["done", "follow_up"][i],
                 },
             )
         print("seed: asset + facility anchors (idempotent)")
@@ -2673,7 +2672,10 @@ def main() -> int:
         )
         print("seed: finance anchors (idempotent)")
 
-        # People (talent, training, performance, payroll-out)
+        # People (talent, training, performance, payroll-out). A09: workflow
+        # states (requisition, candidate, enrolment, inspection) move only
+        # through their transitions, so the seed creates the rows in their
+        # first state and never types one.
         for i in range(3):
             ensure(
                 "fix.job.requisition",
@@ -2681,13 +2683,12 @@ def main() -> int:
                 {
                     "name": f"Seed Requisition {i+1}",
                     "openings": i + 1,
-                    "state": ["open", "hired", "closed"][i],
                 },
             )
             ensure(
                 "fix.candidate",
                 [("name", "=", f"Seed Candidate {i+1}")],
-                {"name": f"Seed Candidate {i+1}", "state": ["applied", "interview", "hired"][i]},
+                {"name": f"Seed Candidate {i+1}"},
             )
             crs = c.call("fix.training.course", "search", [], limit=3) or [1]
             ensure(
@@ -2696,7 +2697,6 @@ def main() -> int:
                 {
                     "course_id": crs[i],
                     "employee_id": emp[i],
-                    "state": ["enrolled", "passed", "failed"][i],
                 },
             )
             ensure(

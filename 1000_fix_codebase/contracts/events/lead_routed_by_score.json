@@ -48,7 +48,7 @@
           "type": "string"
         },
         "basis": {
-          "description": "Type not statically derivable from `hot[0].lead_score_basis` (addons/domain/b_customer_engagement/cd_crm_ext/models/fix_lead_scoring.py:440)."
+          "description": "Type not statically derivable from `hot[0].lead_score_basis` (addons/domain/b_customer_engagement/cd_crm_ext/models/fix_lead_scoring.py:448)."
         }
       },
       "additionalProperties": false

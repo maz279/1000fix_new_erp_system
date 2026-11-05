@@ -10,6 +10,14 @@
 # (the superuser is trusted by the guards and would hide a gap); the
 # superuser only builds the fixture and, where labelled, plays a tampered
 # database row. Live ORM, rolled back (`odoo_env`).
+#
+# A09 M56 build (C1, SOD-29): approval is now a routed M63 request, decided
+# from the approver's inbox task (`decide`), and the bank release belongs to a
+# Payroll Disbursement Releaser. Where a test below called `action_approve`
+# directly as the approving manager, it now goes through the inbox; where it
+# asserted that a direct approval was refused for lack of the role, it now
+# asserts the stronger rule: nobody approves directly, and the request never
+# reaches the preparer. Every attack the P0 suite made is still made.
 import itertools
 from datetime import date
 from types import SimpleNamespace
@@ -19,7 +27,7 @@ import pytest
 from odoo import Command
 from odoo.addons.cd_p03_portal.controllers import a09 as a09ctl
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import UserError
 
 pytestmark = [pytest.mark.financial]
 
@@ -28,6 +36,7 @@ CO_ACC, CO_ROUTING = "2051234567", "175261726"
 KARIM_ACC, KARIM_ROUTING = "1501203345001", "060274689"
 NASRIN_ACC, NASRIN_ROUTING = "2702150098761", "090261725"
 ATTACKER_ACC, ATTACKER_ROUTING = "9999000011112222", "090261725"
+RESOLUTION_PDF = "JVBERi0xLjQKJcOkw7zDtsOfCg=="  # a stand-in signed resolution (PDF header)
 _SEQ = itertools.count(1)
 
 
@@ -85,6 +94,7 @@ def w(odoo_env):
     s.officer = user("p0officer", "cd_payroll_bd.group_payroll_officer")
     s.manager = user("p0manager", "cd_payroll_bd.group_payroll_manager")
     s.manager2 = user("p0manager2", "cd_payroll_bd.group_payroll_manager")
+    s.releaser = user("p0releaser", "cd_payroll_bd.group_payroll_release")
 
     def emp(name, basic, acc=None, routing=None):
         """HR's fixture: the employee, an active contract and, when given,
@@ -128,10 +138,46 @@ def calculated(w):
     return p
 
 
+def routed_to(w, rec):
+    """The users the engine opened an inbox task for."""
+    return (
+        w.env["fix.workflow.task"]
+        .sudo()
+        .search([("request_id", "=", rec.approval_request_id.id), ("state", "=", "pending")])
+        .mapped("assigned_user_id")
+    )
+
+
+def decide(w, rec, approver):
+    """`approver` approves `rec` from their own inbox task."""
+    task = (
+        w.env["fix.workflow.task"]
+        .sudo()
+        .search(
+            [
+                ("request_id", "=", rec.approval_request_id.id),
+                ("assigned_user_id", "=", approver.id),
+                ("state", "=", "pending"),
+            ]
+        )
+    )
+    assert task, "no inbox task for %s" % approver.name
+    w.as_(approver)["fix.workflow.task"].browse(task.id).action_approve()
+    rec.invalidate_recordset()
+
+
 def approved(w):
     p = calculated(w)
-    w.as_(w.manager)["fix.payroll.period"].browse(p.id).action_approve()
+    p.action_request_approval()
+    decide(w, p, w.manager)
     return w.as_(w.officer)["fix.payroll.period"].browse(p.id)
+
+
+def paid(w):
+    p = approved(w)
+    w.as_(w.releaser)["fix.payroll.period"].browse(p.id).action_pay()
+    p.invalidate_recordset()
+    return p
 
 
 def slip_of(period, employee):
@@ -209,8 +255,13 @@ def test_manager_cannot_forge_the_calculator_to_self_approve(w):
     p.action_calculate()
     with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
         p.write({"calculator_id": w.officer.id})
-    with pytest.raises(UserError, match="Maker-Checker SoD"), w.env.cr.savepoint():
+    # nobody approves directly any more: approval is decided from an inbox task
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         p.action_approve()
+    # and the request the calculating manager raises never reaches him
+    p.write({"company_account_no": CO_ACC, "company_routing_no": CO_ROUTING})
+    p.action_request_approval()
+    assert routed_to(w, p) == w.manager2
     assert p.state == "calculated"
 
 
@@ -250,8 +301,8 @@ def test_salary_diversion_after_approval_is_refused_and_the_file_pays_the_master
         values={"bank_account_no": ATTACKER_ACC},
     )
     assert "error" in res, res
-    # a second manager releases the file: it pays the registered account only
-    w.as_(w.manager2)["fix.payroll.period"].browse(p.id).action_pay()
+    # the releaser (SOD-29) sends the file: it pays the registered account only
+    w.as_(w.releaser)["fix.payroll.period"].browse(p.id).action_pay()
     p.invalidate_recordset()
     content = p.beftn_batch_id.file_content
     assert p.state == "paid" and KARIM_ACC in content and ATTACKER_ACC not in content
@@ -300,7 +351,7 @@ def test_beftn_refuses_when_the_slips_no_longer_match_the_approval(w):
     # a tampered row (superuser plays the database write the guard stops)
     slip_of(p, w.karim).sudo().write({"bank_account_no": ATTACKER_ACC})
     with pytest.raises(UserError, match="does not match its approval"), w.env.cr.savepoint():
-        w.as_(w.manager2)["fix.payroll.period"].browse(p.id).action_pay()
+        w.as_(w.releaser)["fix.payroll.period"].browse(p.id).action_pay()
     p.invalidate_recordset()
     assert p.state == "approved" and not p.beftn_batch_id
 
@@ -309,13 +360,12 @@ def test_beftn_refuses_when_an_approved_amount_changed(w):
     p = approved(w)
     slip_of(p, w.nasrin).sudo().write({"basic": 600000.0})  # tampered row
     with pytest.raises(UserError, match="does not match its approval"), w.env.cr.savepoint():
-        w.as_(w.manager2)["fix.payroll.period"].browse(p.id).action_pay()
+        w.as_(w.releaser)["fix.payroll.period"].browse(p.id).action_pay()
 
 
 def test_submitted_batch_is_immutable_and_never_regenerated(w):
-    p = approved(w)
-    w.as_(w.manager2)["fix.payroll.period"].browse(p.id).action_pay()
-    batch = w.as_(w.manager2)["fix.beftn.batch"].browse(p.beftn_batch_id.id)
+    p = paid(w)
+    batch = w.as_(w.releaser)["fix.beftn.batch"].browse(p.beftn_batch_id.id)
     original = batch.file_content
     with pytest.raises(UserError, match="never regenerated"), w.env.cr.savepoint():
         batch.action_generate_beftn_file()
@@ -323,7 +373,7 @@ def test_submitted_batch_is_immutable_and_never_regenerated(w):
         with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
             batch.write(vals)
     res = p03(
-        w.as_(w.manager2),
+        w.as_(w.releaser),
         "model_write",
         model="fix.beftn.batch",
         record_id=batch.id,
@@ -353,8 +403,8 @@ def test_offcycle_self_approval_is_refused(w):
         }
     )
     assert oc.prepared_by_id == w.officer
-    # an officer is not an approver
-    with pytest.raises(AccessError, match="Payroll Manager"), w.env.cr.savepoint():
+    # nobody approves directly, neither by the ORM nor through the workspace
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         oc.action_approve()
     res = p03(
         w.as_(w.officer),
@@ -364,6 +414,9 @@ def test_offcycle_self_approval_is_refused(w):
         method="action_approve",
     )
     assert not res["success"], res
+    # the officer's request goes to the Payroll Managers, never to the officer
+    oc.action_request_approval()
+    assert routed_to(w, oc) == w.manager | w.manager2
     # nor is the manager who prepared it
     own = w.as_(w.manager)["fix.payroll.offcycle"].create(
         {
@@ -373,8 +426,10 @@ def test_offcycle_self_approval_is_refused(w):
             "company_id": w.co.id,
         }
     )
-    with pytest.raises(UserError, match="Maker-Checker SoD"), w.env.cr.savepoint():
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         own.action_approve()
+    own.action_request_approval()
+    assert routed_to(w, own) == w.manager2
     # state and the preparer stamp are not typed
     with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
         oc.write({"state": "approved"})
@@ -401,7 +456,8 @@ def test_offcycle_amount_and_payee_freeze_at_approval(w):
         }
     )
     oc.write({"amount": 1200.0})  # a draft is still the preparer's to correct
-    w.as_(w.manager)["fix.payroll.offcycle"].browse(oc.id).action_approve()
+    oc.action_request_approval()
+    decide(w, oc, w.manager)
     assert oc.state == "approved" and oc.approved_by_id == w.manager
     for vals in ({"amount": 900_000.0}, {"employee_id": w.nasrin.id}):
         with pytest.raises(UserError, match="can no longer be changed"), w.env.cr.savepoint():
@@ -414,16 +470,21 @@ def test_bonus_run_needs_a_second_payroll_manager(w):
     run = w.as_(w.officer)["fix.payroll.bonus.run"].create(
         {"festival": "eid_ul_fitr", "basis": "gross", "multiplier": 3.0, "company_id": w.co.id}
     )
-    with pytest.raises(AccessError, match="Payroll Manager"), w.env.cr.savepoint():
+    run.action_compute()
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         run.action_approve()
     with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
         run.write({"state": "paid", "total_amount": 1.0})
     own = w.as_(w.manager)["fix.payroll.bonus.run"].create(
         {"festival": "durga_puja", "company_id": w.co.id}
     )
-    with pytest.raises(UserError, match="Maker-Checker SoD"), w.env.cr.savepoint():
+    own.action_compute()
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         own.action_approve()
-    w.as_(w.manager)["fix.payroll.bonus.run"].browse(run.id).action_approve()
+    own.action_request_approval()
+    assert routed_to(w, own) == w.manager2
+    run.action_request_approval()
+    decide(w, run, w.manager)
     assert run.state == "approved" and run.approved_by_id == w.manager
     with pytest.raises(UserError, match="can no longer be changed"), w.env.cr.savepoint():
         run.write({"multiplier": 10.0})
@@ -435,18 +496,22 @@ def test_wppf_needs_a_second_payroll_manager_and_freezes_the_profit(w):
             "fiscal_year": "2025-2026",
             "net_profit": 10_000_000.0,
             "company_id": w.co.id,
-            "trustee_board_resolution_ref": "typed-by-officer",
+            "trustee_board_resolution_ref": "TRUSTEE/2026/01",
+            "trustee_resolution_file": RESOLUTION_PDF,
+            "audited_statement_file": RESOLUTION_PDF,
+            "audit_report_ref": "AUDIT/FY26/01",
         }
     )
     a.action_calculate()
     assert a.calculated_by_id == w.officer
-    with pytest.raises(AccessError, match="Payroll Manager"), w.env.cr.savepoint():
+    with pytest.raises(UserError, match="approver's inbox"), w.env.cr.savepoint():
         a.action_approve()
     with pytest.raises(UserError, match="can no longer be changed"), w.env.cr.savepoint():
         a.write({"net_profit": 1000.0})
     with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
         a.write({"total_wppf_pool": 50.0})
-    w.as_(w.manager)["fix.wppf.allocation"].browse(a.id).action_approve()
+    a.action_request_approval()
+    decide(w, a, w.manager)
     assert a.state == "approved" and a.total_wppf_pool == 500000.0
     # a manager who calculated it may not approve it
     b = w.as_(w.manager)["fix.wppf.allocation"].create(
@@ -455,15 +520,18 @@ def test_wppf_needs_a_second_payroll_manager_and_freezes_the_profit(w):
             "net_profit": 1_000_000.0,
             "company_id": w.co.id,
             "trustee_board_resolution_ref": "R",
+            "trustee_resolution_file": RESOLUTION_PDF,
+            "audited_statement_file": RESOLUTION_PDF,
+            "audit_report_ref": "AUDIT/FY27/01",
         }
     )
     b.action_calculate()
-    with pytest.raises(UserError, match="Maker-Checker SoD"), w.env.cr.savepoint():
-        b.action_approve()
+    b.action_request_approval()
+    assert routed_to(w, b) == w.manager2
 
 
 def test_certificate_figures_come_from_the_payslips_never_typed(w):
-    calculated(w)
+    paid(w)  # a certificate reports the fiscal year's PAID slips
     C = w.as_(w.officer)["fix.payroll.certificate"]
     with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
         C.create(
@@ -494,7 +562,7 @@ def test_certificate_figures_come_from_the_payslips_never_typed(w):
 
 
 def test_return_totals_come_from_the_payslips(w):
-    calculated(w)
+    paid(w)  # a return reports the period's PAID slips
     r = w.as_(w.officer)["fix.payroll.return"].create(
         {"period": "Q3-2025-26", "period_start": PS, "period_end": PE, "company_id": w.co.id}
     )
