@@ -45,7 +45,7 @@ export const MODULE = {
       { id: 'M30-dofa-bands', en: 'Ladder Bands', bn: 'ল্যাডার ব্যান্ড', t: 'g' }
     ]}
   ],
-  reports: ['Branch Registry', 'Feature Flag Rollout', 'Config Parameter Inventory', 'Calendar Coverage'],
+  reports: ['Branch Registry', 'Feature Flag Rollout', 'Config Parameter Inventory', 'Calendar Coverage', 'DOFA Coverage'],
   forms: ['Branch', 'Config Parameter', 'Feature Flag', 'Announcement', 'Authority Ladder'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
@@ -331,6 +331,7 @@ export const SCREENS = {
 export const REPORT_ROUTES = {
   open_dofa_rulings: 'open_dofa_rulings',
   'DOFA Coverage': 'M30-dofa-coverage',
+  'M30:DOFA Coverage': 'M30-dofa-coverage',
   'M30:Config Change Log': 'M30-drift',
   'M30:Job Success Rate': 'M30-rpt-jobs',
   'M30:Environment Inventory': 'M30-env',
