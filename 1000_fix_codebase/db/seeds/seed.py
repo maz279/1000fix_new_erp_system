@@ -19,6 +19,7 @@ an already-seeded database (exit 2) - re-seed with -Target reset.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import random
@@ -201,6 +202,7 @@ class Client:
 
 
 QC_LOGIN = "seed.qc@1000fix.local"
+T4_LOGIN = "seed.dofa.t4@1000fix.local"  # appoint_approvers.py: password = login
 ROOT = Path(__file__).resolve().parents[2]
 ODOO_CONF = "infra/odoo-conf/local.resolved.conf"
 
@@ -536,6 +538,101 @@ def main() -> int:
     )
     print(f"seed: {len(device_ids)} devices")
 
+    # The M63 approval groups: with nobody appointed every routed request is
+    # refused with "No one can approve" (db/seeds/appoint_approvers.py). Run
+    # BEFORE the warranty cover below — the officer it appoints verifies that
+    # cover — and before the anchors, which decide as the appointed approvers.
+    appoint = (Path(__file__).parent / "appoint_approvers.py").read_text(encoding="utf-8")
+    run_in_shell(args.db, appoint, "appoint-approvers:")
+
+    # Three devices carry ACTIVE manufacturer cover from the start: the
+    # warranty-category jobs created below (the one origin an OEM claim
+    # may recover, M09-5/C6) must pass BRU-SRM-02's gate, which decides
+    # on the live cover dates, not on warranty_status (that value is
+    # frozen at its last recompute). Cover is born PENDING (A02 M01-W1);
+    # only a Warranty Officer — never the registrant — verifies the
+    # attached proof and moves it to ACTIVE. The P09 warranty anchors
+    # later in this run key the same (device, manufacturer) pair, so no
+    # duplicate cover is added there.
+    officer_login = "seed.warranty.officer@1000fix.local"
+    officer = Client()
+    officer.login(args.db, officer_login, officer_login)
+    for did in device_ids[:3]:
+        wid = c.first(
+            "fix.warranty",
+            [("device_id", "=", did), ("warranty_type", "=", "manufacturer")],
+        )
+        if not wid:
+            wid = c.call(
+                "fix.warranty",
+                "create",
+                {
+                    "device_id": did,
+                    "warranty_type": "manufacturer",
+                    "start_date": "2025-10-01",
+                    "end_date": "2027-10-01",
+                },
+            )
+        rec = c.call(
+            "fix.warranty", "read", [wid], ["status", "proof_document_id", "approval_request_id"]
+        )[0]
+        if rec["status"] == "active":
+            continue  # a --force rerun: already verified
+        if not rec["proof_document_id"]:
+            c.call(
+                "fix.document",
+                "attach",
+                f"seed-proof-{did}.jpg",
+                base64.b64encode(b"seed purchase receipt (synthetic proof)").decode("ascii"),
+                "other",
+                "fix.warranty",
+                wid,
+            )
+            # attach returns a recordset, which the JSON layer stringifies;
+            # find the filed document by its target instead.
+            doc = c.first(
+                "fix.document", [("res_model", "=", "fix.warranty"), ("res_id", "=", wid)]
+            )
+            if not doc:
+                raise RuntimeError(f"seed: proof document for warranty {wid} was not filed")
+            c.call("fix.warranty", "write", [wid], {"proof_document_id": doc})
+        # Verification is itself a routed M63 approval (A02 audit B1): the
+        # registrar requests, an officer — never the registrar or requester —
+        # verifies from the inbox, and the engine applies action_verify in
+        # the approver's environment.
+        req = rec["approval_request_id"]
+        if not req:
+            c.call(
+                "fix.warranty",
+                "action_request_approval",
+                [wid],
+                justification="Seed: purchase proof filed at registration",
+            )
+            req = c.call("fix.warranty", "read", [wid], ["approval_request_id"])[0][
+                "approval_request_id"
+            ]
+        if not req:
+            raise RuntimeError(f"seed: warranty {wid} opened no approval request")
+        officer_uid = c.call("res.users", "search", [("login", "=", officer_login)], limit=1)
+        if not officer_uid:
+            raise RuntimeError(f"seed: approver {officer_login} not found")
+        task = c.call(
+            "fix.workflow.task",
+            "search",
+            [
+                ("request_id", "=", req),
+                ("state", "=", "pending"),
+                ("assigned_user_id", "=", officer_uid),
+            ],
+            limit=1,
+        )
+        if not task:
+            raise RuntimeError(f"seed: warranty {wid} request {req} has no pending officer task")
+        officer.call("fix.workflow.task", "action_approve", task, comment="Seed: proof verified")
+        st = c.call("fix.warranty", "read", [wid], ["status"])[0]["status"]
+        if st != "active":
+            raise RuntimeError(f"seed: warranty {wid} still {st} after officer approval")
+
     # 60 SLA policies (reuse by unique code) ----------------------------------
     sla_vals = []
     for i in range(60):
@@ -585,6 +682,30 @@ def main() -> int:
                 }
             )
             i += 1
+    # A04 M09-5 / C6: three WARRANTY jobs walk the same legal path to
+    # CLOSED with an approved estimate — the only origin a fix.warranty
+    # claim may recover (a standard job claimed again is double
+    # recovery). Closing a warranty job auto-raises its OEM claim
+    # (AUT-018), so the claims anchor later verifies the intake instead
+    # of hand-creating rows the model refuses.
+    wc_have = c.call(
+        "fix.service.order",
+        "search_count",
+        [("fault_description", "in", FAULTS), ("order_category", "=", "warranty")],
+    )
+    for j in range(3 - wc_have):
+        orders.append(
+            {
+                "target": "closed",
+                "vals": {
+                    "customer_id": rng.choice(customers),
+                    "device_id": device_ids[j % 3],
+                    "branch_id": branch_ids[j % len(branch_ids)],
+                    "fault_description": rng.choice(FAULTS),
+                    "order_category": "warranty",
+                },
+            }
+        )
     if orders:
         order_ids += c.call("fix.service.order", "create", [o["vals"] for o in orders])
     targets_all = [r["state"] for r in existing] + [o["target"] for o in orders]
@@ -688,12 +809,6 @@ def main() -> int:
     print(f"seed: 300 service orders, state-complete: {counts}")
     outbox = c.call("fix.event.outbox", "search_count", [])
     print(f"seed: outbox carries {outbox} events (AS-08) - dispatcher drain is a separate step")
-
-    # The M63 approval groups: with nobody appointed every routed request is
-    # refused with "No one can approve" (db/seeds/appoint_approvers.py). Done
-    # here because the anchors below decide as the appointed approvers.
-    appoint = (Path(__file__).parent / "appoint_approvers.py").read_text(encoding="utf-8")
-    run_in_shell(args.db, appoint, "appoint-approvers:")
 
     # --- Phase 8 estate: employment contracts, roster, attendance, payroll,
     # certifications, NCRs, MSP contracts (P08 seed extension).
@@ -1242,8 +1357,10 @@ def main() -> int:
         seed_customers = c.call(
             "res.partner", "search", [("email", "like", "seed.customer%")], limit=10
         )
+        paid_order_ids: list[int] = []  # paid storefront orders (see carts below)
         if seed_customers:
             # 5 marketplace sellers (party-role on M33)
+            t4 = None  # lazy: the DOFA Tier 4 inbox client (appoint_approvers)
             for i in range(5):
                 sname = f"Seed Seller {i+1}"
                 if not c.first("fix.marketplace.seller", [("name", "=", sname)]):
@@ -1258,11 +1375,72 @@ def main() -> int:
                             "partner_id": seed_customers[i],
                         },
                     )
-                    # BRU-ECM-01: only a CFO-approved, KYC-verified seller quotes;
-                    # the sign-offs are the actions, not a typed status
+                    # BRU-ECM-01: only a CFO-approved, KYC-verified seller
+                    # quotes; the sign-offs are the actions, not a typed
+                    # status. The legitimate pipeline (M12-1): the operator
+                    # submits the KYC pack, compliance verifies it, and the
+                    # CFO sign-off is REQUESTED and applied from a DOFA Tier 4
+                    # holder's inbox -- action_cfo_approve is the M63 apply
+                    # method and refuses direct calls. The admin running this
+                    # seed is the seller's creator, requester and KYC
+                    # reviewer, so routing (which excludes all three) lands
+                    # on the synthetic Tier 4 approver appointed above.
                     if rng.random() < 0.6:
-                        c.call("fix.marketplace.seller", "action_cfo_approve", [seller])
+                        c.call(
+                            "fix.marketplace.seller",
+                            "action_submit_kyc",
+                            [seller],
+                            nid_number="1990123456789",
+                        )
                         c.call("fix.marketplace.seller", "action_verify_kyc", [seller])
+                        c.call(
+                            "fix.marketplace.seller",
+                            "action_request_approval",
+                            [seller],
+                            justification="Seed: KYC verified, references checked",
+                        )
+                        req = c.call(
+                            "fix.marketplace.seller",
+                            "read",
+                            [seller],
+                            ["approval_request_id"],
+                        )[0]["approval_request_id"]
+                        if not req:
+                            raise RuntimeError(f"seed: no approval request routed for {sname}")
+                        uid = c.call("res.users", "search", [("login", "=", T4_LOGIN)], limit=1)
+                        if not uid:
+                            raise RuntimeError(
+                                f"seed: {T4_LOGIN} not appointed (appoint_approvers.py)"
+                            )
+                        task = c.call(
+                            "fix.workflow.task",
+                            "search",
+                            [
+                                ("request_id", "=", req[0]),
+                                ("state", "=", "pending"),
+                                ("assigned_user_id", "=", uid[0]),
+                            ],
+                            limit=1,
+                        )
+                        if not task:
+                            raise RuntimeError(
+                                f"seed: {T4_LOGIN} received no inbox task for {sname}"
+                            )
+                        if t4 is None:
+                            t4 = Client()
+                            t4.login(args.db, T4_LOGIN, T4_LOGIN)
+                        t4.call(
+                            "fix.workflow.task",
+                            "action_approve",
+                            task,
+                            comment="Seed: CFO approval (BRU-ECM-01)",
+                        )
+                        if not c.call("fix.marketplace.seller", "read", [seller], ["cfo_approved"])[
+                            0
+                        ]["cfo_approved"]:
+                            raise RuntimeError(
+                                f"seed: {sname} CFO approval did not apply from the inbox"
+                            )
             print("seed: marketplace sellers (idempotent)")
 
             # 5 marketplace orders (journey 7 states)
@@ -1349,6 +1527,52 @@ def main() -> int:
                             },
                         )
             print("seed: storefront carts (idempotent)")
+
+            # A04 build (M38-9): a return needs the PAID storefront order it
+            # returns. Two carts check out through the service method (the
+            # server prices the order; branch pickup needs no address), and
+            # their payments are confirmed the payment officer's way: against
+            # a confirmed M20 receipt of the exact total. Admin holds the
+            # payment-officer role (module data).
+            for i in range(2):
+                cart_id = c.first("fix.storefront.cart", [("name", "=", f"SEED-CART-{i+1:03d}")])
+                if not cart_id:
+                    continue
+                rec = c.call("fix.storefront.cart", "read", [cart_id], ["order_id"])[0]
+                if rec["order_id"]:
+                    paid_order_ids.append(rec["order_id"][0])
+                    continue
+                c.call(
+                    "fix.storefront.cart",
+                    "action_place_order",
+                    [cart_id],
+                    shipping_method="branch_pickup",
+                    payment_rail="bkash",
+                )
+                # action_place_order returns a recordset, which the JSON
+                # layer stringifies; find the order through its cart.
+                order = c.call("fix.storefront.cart", "read", [cart_id], ["order_id"])[0][
+                    "order_id"
+                ][0]
+                total = c.call("fix.storefront.order", "read", [order], ["total_amount"])[0][
+                    "total_amount"
+                ]
+                ref = f"SEED-TRX-{i+1:03d}"
+                if not c.first("fix.ar.receipt", [("reference", "=", ref)]):
+                    c.call(
+                        "fix.ar.receipt",
+                        "create",
+                        {
+                            "customer_id": seed_customers[i],
+                            "amount": total,
+                            "method": "bkash",
+                            "reference": ref,
+                            "state": "confirmed",
+                        },
+                    )
+                c.call("fix.storefront.order", "action_confirm_payment", [order], payment_ref=ref)
+                paid_order_ids.append(order)
+            print(f"seed: {len(paid_order_ids)} paid storefront orders")
 
             # 3 partners (referral type)
             for i in range(3):
@@ -1643,7 +1867,6 @@ def main() -> int:
         brn = c.call("fix.branch", "search", [], limit=5) or [1]
         ord_ids = c.call("fix.service.order", "search", [], limit=5) or [1]
         dev_ids = c.call("fix.device", "search", [], limit=5) or [1]
-        brd = c.call("fix.brand", "search", [], limit=3) or [1]
         ste = c.call("fix.site", "search", [], limit=3) or [1]
         prj = c.call("fix.project", "search", [], limit=3) or [1]
         veh = c.call("fleet.vehicle", "search", [], limit=3)
@@ -1705,11 +1928,22 @@ def main() -> int:
                 [("name", "=", f"Seed Allocation {i+1}")],
                 {"name": f"Seed Allocation {i+1}"},
             )
-            ensure(
-                "fix.price.explanation",
-                [("name", "=", f"Seed Explanation {i+1}")],
-                {"name": f"Seed Explanation {i+1}"},
-            )
+            # BRU-PRC-02: the price explanation trail is written by the
+            # pricing engine when it prices, never by hand. The filler rows
+            # this seed used to create are refused at create; instead the
+            # seeded dynamic rules are exercised through their engine method
+            # (calculate_and_explain writes the trail itself, as sudo).
+            if not c.call("fix.price.explanation", "search_count", []):
+                for rname in ("Demand Surge +15%", "Off-Peak -10%", "Clearance -25%"):
+                    rid = c.first("fix.dynamic.price.rule", [("name", "=", rname)])
+                    if rid:
+                        c.call(
+                            "fix.dynamic.price.rule",
+                            "calculate_and_explain",
+                            [rid],
+                            1000.0,
+                            context_info="Seed dispatch pricing",
+                        )
             ensure(
                 "fix.vat.treatment",
                 [("code", "=", f"SEED-VT-{i+1}")],
@@ -1926,22 +2160,27 @@ def main() -> int:
                     "end_date": ["2027-10-01", "2026-10-01"][i % 2],
                 },
             )
-        for i in range(3):
-            ensure(
-                "fix.warranty.claim",
-                [("claim_no", "=", f"SEED-WC-{i+1:03d}")],
-                {
-                    "claim_no": f"SEED-WC-{i+1:03d}",
-                    "brand_id": brd[i],
-                    "service_order_id": ord_ids[i],
-                    "claim_amount": round(rng.uniform(500, 5000), 2),
-                    # A04 build (M09-5 / C6): a claim is raised from a CLOSED
-                    # warranty job for its approved estimate, and its state
-                    # moves only through submit / propose / decide; the seed
-                    # leaves the ladder to the workshop.
-                    "operating_unit_id": ou[0],
-                },
+        # A04 build (M09-5 / C6): a claim is raised only from a CLOSED
+        # warranty job for its approved estimate. The three warranty jobs
+        # in the order pipeline above closed through action_close, which
+        # raised their OEM claims itself (AUT-018 intake: one claim per
+        # job, amount = the approved estimate, brand from the device).
+        # Hand-creating a claim — or typing its amount — is refused by
+        # the model, so this anchor verifies the intake did its work.
+        wc_ids = c.call(
+            "fix.service.order",
+            "search",
+            [("order_category", "=", "warranty"), ("state", "=", "closed")],
+            limit=3,
+        )
+        wc_claims = c.call("fix.warranty.claim", "search", [("service_order_id", "in", wc_ids)])
+        if wc_ids and len(wc_claims) < len(wc_ids):
+            raise RuntimeError(
+                f"seed: {len(wc_ids)} closed warranty jobs carry {len(wc_claims)} OEM "
+                "claims — the AUT-018 intake failed at close (check the device "
+                "brand and the approved estimate)"
             )
+        print(f"seed: {len(wc_claims)} OEM warranty claims raised by closed jobs")
         print("seed: service-delivery anchors (idempotent)")
 
         # CX + commercial
@@ -2045,13 +2284,17 @@ def main() -> int:
                 },
             )
         fxp = c.call("fix.partner", "search", [], limit=3) or [1]
-        for i in range(2):
+        for i in range(min(2, len(paid_order_ids))):
             ensure(
                 "fix.storefront.return",
                 [("name", "=", f"SEED-RET-{i+1:03d}")],
                 {
                     "name": f"SEED-RET-{i+1:03d}",
                     "customer_id": cust[i],
+                    # A04 build (M38-9): a return is raised on the PAID
+                    # storefront order it returns (same customer, inside
+                    # the window); there is no order-less return.
+                    "order_id": paid_order_ids[i],
                     "reason": ["defective", "changed_mind"][i],
                     # A04 build: a refund is executed through the payment
                     # rails once the return is approved; the seed stops at
@@ -2631,7 +2874,10 @@ def main() -> int:
                     "contract_id": ctr[0],
                     "device_id": dev_ids[i],
                     "scheduled_date": f"2026-10-0{i+5}",
-                    "state": ["scheduled", "completed"][i],
+                    # A04 build: a visit's state changes only through its
+                    # workflow actions (approve, launch, post, close), so a
+                    # seeded visit is born scheduled — completed arrives from
+                    # the work, never from a typed state.
                 },
             )
         for i in range(3):
@@ -2785,7 +3031,10 @@ def main() -> int:
                 {
                     "partner_id": cust[i],
                     "channel": "sms",
-                    "state": "granted",
+                    # A04 build: consent state is guarded history (a granted
+                    # row rewritten proves nothing) — rows are BORN granted
+                    # (the field default) with their proof and the notice
+                    # version presented at capture; withdrawal is an action.
                     "source": "web",
                     "proof": f"SEED-CONSENT-{i + 1}",
                     "notice_version_id": notice,
@@ -2862,7 +3111,9 @@ def main() -> int:
             {
                 "name": "Seed Envelope 1",
                 "document_id": doc[0],
-                "state": "sent",
+                # A04 build: an envelope's state is guarded (evidence_hash,
+                # completed_at with it); it is born a draft and leaves only
+                # through Send, which seals it. The seed keeps the draft.
                 "operating_unit_id": ou[0],
             },
         )
