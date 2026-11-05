@@ -33,11 +33,19 @@ management-system patterns:
         "cd_event_outbox",
         "cd_service_order",
         "cd_cx_feedback",
+        "cd_document_core",
+        # A10 P1-6 (M23-8): fix.qms.review inherits fix.approvable.mixin —
+        # the management review closure routes through M63 to Tier 5
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_qms_groups.xml",
         "security/ir.model.access.csv",
         "data/qms_ops_sequences.xml",
+        # A10 S6 (M23-12): the M42 supplier-CAR hand-off — supplier.car.raised
+        # arrives through the relay and raises the QMS NCR for majors.
+        "data/fix_qms_consumers.xml",
         "views/fix_qms_views.xml",
     ],
     "installable": True,

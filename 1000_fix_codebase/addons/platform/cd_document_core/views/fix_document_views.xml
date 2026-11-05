@@ -8,6 +8,10 @@
             <list string="Documents">
                 <field name="name"/>
                 <field name="document_type"/>
+                <field name="version" optional="show"/>
+                <field name="control_state" optional="show" widget="badge"
+                       decoration-success="control_state == 'published'"
+                       decoration-muted="control_state == 'superseded'"/>
                 <field name="retention_class_id"/>
                 <field name="retention_expires"/>
                 <field name="legal_hold" widget="boolean_toggle"/>
@@ -34,6 +38,14 @@
                             class="btn-danger" invisible="legal_hold"/>
                     <button name="action_release_hold" string="Release Legal Hold" type="object"
                             invisible="not legal_hold"/>
+                    <button name="action_submit_review" string="Submit for Approval" type="object"
+                            invisible="not is_controlled or control_state != 'draft'"/>
+                    <button name="action_publish" string="Publish" type="object"
+                            invisible="not is_controlled or control_state != 'approved'"/>
+                    <button name="action_new_revision" string="New Revision" type="object"
+                            invisible="not is_controlled or control_state != 'published'"/>
+                    <button name="action_dispose" string="Dispose" type="object"
+                            class="btn-danger" invisible="state not in ('expired', 'pending_destruction')"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -48,8 +60,24 @@
                         <group string="Retention &amp; Legal Hold">
                             <field name="retention_class_id"/>
                             <field name="retention_expires"/>
-                            <field name="legal_hold" widget="boolean_toggle"/>
+                            <field name="legal_hold" widget="boolean_toggle" readonly="1"/>
                             <field name="legal_hold_reason" invisible="not legal_hold"/>
+                            <field name="signature_locked" widget="boolean_toggle" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Controlled Document (ISO 9001 7.5.3)">
+                        <group>
+                            <field name="is_controlled" readonly="control_state != 'draft'"/>
+                            <field name="control_state" readonly="1"/>
+                            <field name="version"/>
+                            <field name="is_current" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="approved_by_id"/>
+                            <field name="approved_on"/>
+                            <field name="published_on"/>
+                            <field name="previous_version_id"/>
+                            <field name="superseded_by_id"/>
                         </group>
                     </group>
                     <group string="Mayan EDMS Volume Store (Dual-Store Policy)">
@@ -109,4 +137,54 @@
 
     <menuitem id="menu_fix_document_template" name="Templates" parent="menu_fix_document_root"
               action="action_fix_document_template" sequence="20"/>
+
+    <record id="view_fix_legal_hold_tree" model="ir.ui.view">
+        <field name="name">fix.legal.hold.tree</field>
+        <field name="model">fix.legal.hold</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'released'">
+                <field name="matter_ref"/>
+                <field name="document_id"/>
+                <field name="placed_by_id"/>
+                <field name="placed_on"/>
+                <field name="state" widget="badge"/>
+                <field name="released_by_id" optional="show"/>
+                <field name="released_on" optional="show"/>
+                <field name="release_reason" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_legal_hold" model="ir.actions.act_window">
+        <field name="name">Legal Holds</field>
+        <field name="res_model">fix.legal.hold</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_legal_hold" name="Legal Holds" parent="menu_fix_document_root"
+              action="action_fix_legal_hold" sequence="30"/>
+
+    <record id="view_fix_disposal_record_tree" model="ir.ui.view">
+        <field name="name">fix.disposal.record.tree</field>
+        <field name="model">fix.disposal.record</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="document_id"/>
+                <field name="method"/>
+                <field name="disposed_on"/>
+                <field name="performed_by_id"/>
+                <field name="certificate_doc_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_disposal_record" model="ir.actions.act_window">
+        <field name="name">Disposal Register</field>
+        <field name="res_model">fix.disposal.record</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_disposal_record" name="Disposal Register" parent="menu_fix_document_root"
+              action="action_fix_disposal_record" sequence="40"/>
 </odoo>

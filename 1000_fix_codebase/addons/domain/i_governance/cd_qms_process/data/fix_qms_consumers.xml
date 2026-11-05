@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 S6 (M23-12, the M42 hand-off): a MAJOR/CRITICAL supplier CAR raised
+  in the vendor portal becomes an NCR here through the event relay — the
+  vendor portal has no dependency on the governance stack, so the hand-off
+  is the supplier.car.raised event it publishes on every CAR.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_supplier_car_raised_ncr" model="fix.event.consumer">
+            <field name="name">M23: raise the NCR for a major/critical supplier CAR</field>
+            <field name="event_type">supplier.car.raised</field>
+            <field name="model">fix.ncr</field>
+            <field name="method">consume_supplier_car_raised</field>
+            <field name="module">cd_qms_process</field>
+        </record>
+
+    </data>
+</odoo>

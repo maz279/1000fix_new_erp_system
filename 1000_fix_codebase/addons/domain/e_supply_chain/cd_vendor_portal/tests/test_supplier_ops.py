@@ -128,6 +128,11 @@ def test_car_lifecycle_and_overdue(ctx):
         car.action_action()
     car.action_plan = "Supplier to re-plan dispatch"
     car.action_action()
+    # A10 S6 (M23-12): a MAJOR CAR closes on its root cause — the audit
+    # closed a critical one with neither root cause nor NCR.
+    with pytest.raises(UserError, match="root cause"), env.cr.savepoint():
+        car.action_close()
+    car.root_cause = "Dispatch planner left after the vendor change; no handover"
     car.action_close()
     assert car.state == "closed"
     assert car.is_overdue is False

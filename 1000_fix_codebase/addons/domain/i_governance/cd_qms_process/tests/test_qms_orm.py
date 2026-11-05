@@ -111,10 +111,16 @@ class TestNcrCapa:
         capa.action_implement()
         capa.action_verify("Verified on 20 devices")
         assert (capa.state, capa.verification_note) == ("verified", "Verified on 20 devices")
-        assert _events(odoo_env, "capa.verified", capa.id) == [{"ncr": ncr.name}]
+        # A10 Q1: the verdict travels on the event (an ineffective verdict
+        # reopens the CAPA and must reach the consumers the same way)
+        assert _events(odoo_env, "capa.verified", capa.id) == [{"ncr": ncr.name, "effective": True}]
 
         # Regression: closing a CRITICAL NCR read `rec.capa` (no such field)
         # and raised AttributeError instead of applying the CON-11 gate.
+        # A10 Q2: the disposition and containment come first — an NCR closed
+        # without its ISO 9001 8.7 record is the defect this gate removes.
+        ncr.action_dispose("scrap", "Board scrapped under MRB review")
+        ncr.containment = "Affected batch quarantined at the bench"
         with (
             pytest.raises(UserError, match="CRITICAL NCR closes only through a VERIFIED"),
             odoo_env.cr.savepoint(),
@@ -125,12 +131,19 @@ class TestNcrCapa:
         assert ncr.state == "closed"
         assert _events(odoo_env, "ncr.closed", ncr.id) == [{"ncr": ncr.name}]
 
-    def test_minor_capa_and_ncr_close_directly(self, odoo_env, owner):
+    def test_minor_capa_and_ncr_close_after_disposition(self, odoo_env, owner):
         ncr = _ncr(odoo_env)
         ncr.action_set_root_cause("Operator slip")
         capa = ncr.action_open_capa("Coach operator", owner_id=owner.id)
         capa.action_implement()  # minor: preventive optional
         assert capa.state == "implemented"
+        # A10 Q2: even a MINOR NCR closes with its disposition recorded
+        with (
+            pytest.raises(UserError, match="Record the disposition"),
+            odoo_env.cr.savepoint(),
+        ):
+            ncr.action_close()
+        ncr.action_dispose("rework", "Reworked and re-checked")
         ncr.action_close()
         assert ncr.state == "closed"
 
@@ -165,6 +178,8 @@ class TestInternalAudit:
     def test_major_systems_finding_is_traced(self, odoo_env, owner):
         audit = self._audit(odoo_env, owner)
         _ncr(odoo_env, "major", audit_id=audit.id, root_cause="SYSTEM: ERP allowed skipping QC")
+        # A10 Q3: reporting needs the executed checklist evidence
+        audit.action_execute('{"checklist": "9.2", "ok": 4, "nc": 1}')
         audit.action_report()
         assert _events(odoo_env, "audit.reported", audit.id)[0]["systems_traced"] is True
 
@@ -213,7 +228,10 @@ class TestStubClosures:
         )
 
     @pytest.mark.parametrize(
-        ("severity", "ncr_severity"), [("minor", "major"), ("critical", "critical")]
+        ("severity", "ncr_severity"),
+        # A10 S6 (M23-12): severity carries across 1:1 — it used to flatten
+        # every non-critical complaint into a MAJOR NCR.
+        [("minor", "minor"), ("major", "major"), ("critical", "critical")],
     )
     def test_complaint_links_a_real_ncr(self, odoo_env, severity, ncr_severity):
         complaint = self._complaint(odoo_env, severity)
@@ -227,7 +245,7 @@ class TestStubClosures:
         assert complaint.state == "ncr_raised"
         assert complaint.ncr_stub_ref == "NCR-STUB-CLOSED/%s->%s" % (complaint.id, ncr.name)
         assert _events(odoo_env, "complaint.ncr_linked", complaint.id) == [
-            {"ncr": ncr.name, "stub": False}
+            {"ncr": ncr.name, "severity": ncr_severity, "stub": False}
         ]
 
     def test_complaint_without_stub_ref_is_not_backfilled(self, odoo_env, monkeypatch):
@@ -241,3 +259,82 @@ class TestStubClosures:
         complaint.action_raise_ncr()
         assert complaint.ncr_id
         assert complaint.ncr_stub_ref is False
+
+
+class TestRegisterControls:
+    """A10 S6 (M23-9/M23-16, the R1 stragglers): the four framework registers
+    — policy, process, checklist, gate — were bare models whose state was a
+    typed form input and whose actions flipped it for anyone."""
+
+    def _user(self, env, name, groups=()):
+        return (
+            env["res.users"]
+            .with_context(no_reset_password=True)
+            .create(
+                {
+                    "name": name,
+                    "login": "qms.reg.%s@a10.test" % name.replace(" ", ".").lower(),
+                    "group_ids": [
+                        (6, 0, [env.ref("base.group_user").id] + [env.ref(x).id for x in groups])
+                    ],
+                }
+            )
+        )
+
+    def test_policy_approval_is_the_quality_managers_act(self, odoo_env):
+        env = odoo_env
+        policy = env["fix.qms.policy"].create(
+            {"name": "Quality Policy 2026", "year": "2026", "policy_text": "We fix it right."}
+        )
+        clerk = self._user(env, "Reg Clerk")
+        qm = self._user(env, "Reg QM", ("cd_qms_process.group_qms_quality_manager",))
+        with (
+            pytest.raises(UserError, match="changes only through its workflow"),
+            env.cr.savepoint(),
+        ):
+            policy.with_user(clerk).write({"state": "approved"})
+        with pytest.raises(UserError, match="Only the Quality Manager"), env.cr.savepoint():
+            policy.with_user(clerk).action_approve()
+        with pytest.raises(UserError, match="no policy text"), env.cr.savepoint():
+            env["fix.qms.policy"].create({"name": "Empty", "year": "2026"}).action_approve()
+        policy.with_user(qm).action_approve()
+        assert policy.state == "approved"
+        # M23-9: approved text edited in place
+        with (
+            pytest.raises(UserError, match="cannot be edited in place"),
+            env.cr.savepoint(),
+        ):
+            policy.with_user(qm).write({"policy_text": "We fix it fast."})
+        with pytest.raises(UserError, match="approval starts from a draft"), env.cr.savepoint():
+            policy.action_approve()  # su passes the gate; the state refuses
+
+    def test_register_states_move_only_through_the_quality_manager(self, odoo_env):
+        env = odoo_env
+        clerk = self._user(env, "Reg Clerk Two")
+        qm = self._user(env, "Reg QM Two", ("cd_qms_process.group_qms_quality_manager",))
+        process = env["fix.qms.process"].create({"name": "Bench repair", "code": "PR-BENCH"})
+        checklist = env["fix.qms.checklist"].create({"name": "QC bench checklist"})
+        gate = env["fix.qms.gate"].create({"name": "Pre-dispatch gate", "code": "GATE-1"})
+        for rec, action in (
+            (process, "action_retire"),
+            (checklist, "action_publish"),
+            (gate, "action_retire"),
+        ):
+            with (
+                pytest.raises(UserError, match="changes only through its workflow"),
+                env.cr.savepoint(),
+            ):
+                rec.with_user(clerk).write({"state": "retired"})
+            with pytest.raises(UserError, match="Only the Quality Manager"), env.cr.savepoint():
+                getattr(rec.with_user(clerk), action)()
+        checklist.with_user(qm).action_publish()
+        assert checklist.state == "published"
+        checklist.with_user(qm).action_retire()
+        assert checklist.state == "retired"
+        with pytest.raises(UserError, match="only a published checklist"), env.cr.savepoint():
+            checklist.action_retire()
+        process.with_user(qm).action_retire()
+        gate.with_user(qm).action_retire()
+        assert (process.state, gate.state) == ("retired", "retired")
+        with pytest.raises(UserError, match="already retired"), env.cr.savepoint():
+            process.action_retire()

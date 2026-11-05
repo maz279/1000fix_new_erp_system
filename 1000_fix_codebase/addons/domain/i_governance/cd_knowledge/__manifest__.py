@@ -13,11 +13,23 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Knowledge Management & Technical Library",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        # A10 P1-7 (M61-4): the recipient lines name a duty officer
+        # (hr.employee) and a recall closes only under the Quality Manager.
+        "cd_employee_core",
+        "cd_qms_process",
+    ],
     "data": [
+        "security/fix_knowledge_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/knowledge_ops_sequences.xml",
+        "data/fix_knowledge_consumers.xml",
+        "data/fix_knowledge_cron.xml",
         "views/cd_knowledge_views.xml",
     ],
     "installable": True,

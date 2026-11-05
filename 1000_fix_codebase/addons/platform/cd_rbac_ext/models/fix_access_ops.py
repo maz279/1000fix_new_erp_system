@@ -85,7 +85,12 @@ class FixAccessRequest(models.Model):
             )
 
     def action_grant(self):
-        """Real effect: the role's Odoo group is added to (or removed from) the user."""
+        """Real effect: the role's Odoo group is added to (or removed from)
+        the user — checked against the SoD register first (A10 P1-3,
+        M60-5). A conflicting combination is refused unless the request
+        itself is a valid waiver: an approver who is not the beneficiary,
+        an expiry and a reason; a block control is refused outright."""
+        Sod = self.env["fix.sod.control"]
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Only an approved request can be granted")
@@ -97,9 +102,48 @@ class FixAccessRequest(models.Model):
             if rec.request_type == "revoke":
                 rec.user_id.write({"group_ids": [(3, group.id)]})
                 rec.state = "revoked"
-            else:
-                rec.user_id.write({"group_ids": [(4, group.id)]})
-                rec.state = "granted"
+                continue
+            waived = Sod.check_role_set(
+                Sod._user_role_ids(rec.user_id) | {rec.role_id.id},
+                waiver={
+                    "approver_id": rec.approver_id.id,
+                    "user_id": rec.user_id.id,
+                    "valid_until": rec.valid_until,
+                    "reason": rec.decision_note or rec.reason,
+                },
+            )
+            rec.user_id.write({"group_ids": [(4, group.id)]})
+            rec.state = "granted"
+            for control in waived:
+                rec.message_post(
+                    body="SoD waiver applied — control %s (%s) accepted by %s, "
+                    "expires %s."
+                    % (control.code, control.name, rec.approver_id.name, rec.valid_until)
+                )
+
+    @api.model
+    def cron_revoke_expired(self):
+        """Daily (A10 P1-3): a waiver or elevation is only as real as its
+        expiry. A granted request past its valid_until loses the group and
+        is revoked — the chatter is the log."""
+        today = fields.Date.today()
+        stale = self.search(
+            [
+                ("state", "=", "granted"),
+                ("valid_until", "!=", False),
+                ("valid_until", "<", today),
+            ]
+        )
+        for rec in stale:
+            group = rec.role_id.group_id
+            if group:
+                rec.user_id.sudo().write({"group_ids": [(3, group.id)]})
+            rec.write({"state": "revoked"})
+            rec.message_post(
+                body="Expired on %s — the access and its SoD waiver ended with "
+                "it (role %s)." % (rec.valid_until, rec.role_id.code)
+            )
+        return len(stale)
 
 
 class FixSodTest(models.Model):

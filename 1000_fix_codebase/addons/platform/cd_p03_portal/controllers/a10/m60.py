@@ -7,22 +7,45 @@ SURFACES = {
     "fix.risk.register": {
         "order": "id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_accept_residual", "action_close", "action_reopen"},
     },
-    "fix.control": {"order": "control_code", "limit": 400, "actions": set()},
+    # P1-5: the stated appetite — the Compliance Officer maintains it, everyone
+    # reads it (the above-appetite flag and the KPI are driven by these rows).
+    "fix.risk.appetite": {"order": "category", "limit": 100, "actions": set()},
+    "fix.control": {
+        "order": "control_code",
+        "limit": 400,
+        "actions": {"action_activate", "action_retire"},
+    },
     "fix.grc.control.test": {"order": "tested_on desc, id desc", "limit": 400, "actions": set()},
     "fix.grc.sod.rule": {
         "order": "name",
         "limit": 300,
         "actions": {"action_waive"},
     },
-    "fix.grc.authority": {"order": "amount_limit desc", "limit": 200, "actions": set()},
-    "fix.compliance.obligation": {"order": "clause_reference", "limit": 400, "actions": set()},
-    "fix.grc.licence": {"order": "valid_to", "limit": 300, "actions": set()},
+    # P1-4: a derived view — the rebuild is its only write path, and it is the
+    # Delegated Authority Owner's (CFO) act (the model gates the group too).
+    "fix.grc.authority": {
+        "order": "amount_limit desc",
+        "limit": 200,
+        "actions": {"action_rebuild"},
+    },
+    "fix.compliance.obligation": {
+        "order": "clause_reference",
+        "limit": 400,
+        # A10 S6: the assessment is the Compliance Officer's act — the typed
+        # input that defaulted every clause to "compliant" is gone.
+        "actions": {"action_assess"},
+    },
+    "fix.grc.licence": {
+        "order": "valid_to",
+        "limit": 300,
+        "actions": {"action_suspend", "action_reinstate"},
+    },
     "fix.grc.policy": {
         "order": "code",
         "limit": 300,
-        "actions": {"action_approve"},
+        "actions": {"action_approve", "action_retire"},
     },
     "fix.grc.legal": {
         "order": "opened_on desc, id desc",
@@ -32,14 +55,27 @@ SURFACES = {
     "fix.grc.pdpa": {
         "order": "received_on desc, id desc",
         "limit": 300,
-        "actions": {"action_fulfil"},
+        "actions": {"action_fulfil", "action_refuse"},
     },
+    # W1: the list itself is rule-filtered — an investigator sees only the
+    # reports assigned to them, intake sees the register. The ACL alone
+    # would have shown every report to both roles.
     "fix.grc.whistle": {
         "order": "reported_on desc, id desc",
         "limit": 300,
-        "actions": {"action_investigate"},
+        "rules": True,
+        "actions": {
+            "action_assign_investigator",
+            "action_investigate",
+            "action_close",
+            "action_reveal_reporter",
+        },
     },
-    "fix.compliance.framework": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.compliance.framework": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_activate", "action_archive"},
+    },
 }
 
 
@@ -56,8 +92,9 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def risk_heat_map(env, date_from=None, date_to=None, **params):
-    """Risk heat map: the register grouped by likelihood × impact."""
-    risks = env["fix.risk.register"].sudo().search([])
+    """Risk heat map: the register grouped by likelihood × impact, measured
+    against the stated appetite (A10 P1-5)."""
+    risks = env["fix.risk.register"].search([])
     rows = []
     for risk in risks:
         rows.append(
@@ -74,13 +111,18 @@ def risk_heat_map(env, date_from=None, date_to=None, **params):
                     if (risk.risk_score or 0) >= 8
                     else "Low"
                 ),
+                "appetite": str(risk.appetite_limit) if risk.appetite_stated else "—",
+                "above": "Yes" if risk.above_appetite else "No",
             }
         )
     rows.sort(key=lambda r: -r["score"])
     high = len([r for r in rows if r["band"] == "High"])
+    above = len([r for r in rows if r["above"] == "Yes"])
+    stated = len(env["fix.risk.appetite"].search([]))
     return _pack(
-        "Risk Heat Map — %d risk(s), %d in the High band (score 15+)" % (len(rows), high),
-        ["risk", "category", "likelihood", "impact", "score", "band"],
+        "Risk Heat Map — %d risk(s), %d in the High band (score 15+), %d above the "
+        "stated appetite" % (len(rows), high, above),
+        ["risk", "category", "likelihood", "impact", "score", "band", "appetite", "above"],
         {
             "risk": "Risk",
             "category": "Category",
@@ -88,12 +130,18 @@ def risk_heat_map(env, date_from=None, date_to=None, **params):
             "impact": "Impact",
             "score": "Inherent Score",
             "band": "Band",
+            "appetite": "Appetite (max residual)",
+            "above": "Above Appetite",
         },
         rows,
         [
-            "The register computes inherent score as likelihood × impact (1-5 each, so 1-25). "
-            "There is no appetite field on the model, so the band is the declared score rule "
-            "(High 15+, Medium 8-14, Low below 8) — not a stored appetite."
+            "The register computes inherent score as likelihood × impact (1-5 each, so 1-25); "
+            "the band is the declared score rule (High 15+, Medium 8-14, Low below 8).",
+            "The appetite is the per-category maximum residual stated on the Risk Appetite "
+            "register (A10 P1-5): a risk is above it when its residual score — or its inherent "
+            "score, while the residual is unassessed — exceeds the stated ceiling. A category "
+            "with no stated appetite shows '—' and bounds nothing (%d of the 6 categories are "
+            "currently unstated)." % (6 - stated),
         ],
         empty="No risks recorded.",
     )
@@ -101,8 +149,8 @@ def risk_heat_map(env, date_from=None, date_to=None, **params):
 
 def control_deficiency(env, date_from=None, date_to=None, **params):
     """Control deficiency log: controls whose latest test was not effective."""
-    controls = env["fix.control"].sudo().search([])
-    tests = env["fix.grc.control.test"].sudo().search([], order="tested_on desc")
+    controls = env["fix.control"].search([])
+    tests = env["fix.grc.control.test"].search([], order="tested_on desc")
     rows = []
     for control in controls:
         control_tests = tests.filtered(lambda t, c=control.id: t.control_id.id == c)
@@ -119,13 +167,14 @@ def control_deficiency(env, date_from=None, date_to=None, **params):
                 "tested": str(latest.tested_on),
                 "exceptions": latest.exceptions,
                 "result": dict(latest._fields["result"].selection).get(latest.result),
-                "owner": control.risk_id.name[:40] if control.risk_id else "—",
+                "owner": control.owner_id.name[:40] if control.owner_id else "—",
+                "risk": control.risk_id.name[:40] if control.risk_id else "—",
             }
         )
     rows.sort(key=lambda r: r["tested"], reverse=True)
     return _pack(
         "Control Deficiency Log",
-        ["control", "name", "frequency", "tested", "exceptions", "result", "owner"],
+        ["control", "name", "frequency", "tested", "exceptions", "result", "owner", "risk"],
         {
             "control": "Control Code",
             "name": "Control",
@@ -133,12 +182,15 @@ def control_deficiency(env, date_from=None, date_to=None, **params):
             "tested": "Last Tested",
             "exceptions": "Exceptions",
             "result": "Result",
-            "owner": "Risk Addressed",
+            "owner": "Control Owner",
+            "risk": "Risk Addressed",
         },
         rows,
         [
             "Only controls with a latest test result of partially effective or ineffective are "
-            "deficiencies; untested controls are not counted as effective."
+            "deficiencies; untested controls are not counted as effective.",
+            "A failed test raises an NCR (source: Control Test) and a CAPA owned by the control "
+            "owner — the deficiency does not wait for someone to notice it (A10 P1-5, M60-9).",
         ],
         empty="No control deficiencies recorded.",
     )
@@ -146,7 +198,7 @@ def control_deficiency(env, date_from=None, date_to=None, **params):
 
 def licence_expiry(env, date_from=None, date_to=None, **params):
     """Corporate licence expiry register."""
-    licences = env["fix.grc.licence"].sudo().search([])
+    licences = env["fix.grc.licence"].search([])
     today = datetime.date.today()
     rows = []
     for lic in licences:
@@ -184,7 +236,7 @@ def licence_expiry(env, date_from=None, date_to=None, **params):
 
 def attestation_status(env, date_from=None, date_to=None, **params):
     """Policy attestation status: policies requiring attestation and their state."""
-    policies = env["fix.grc.policy"].sudo().search([])
+    policies = env["fix.grc.policy"].search([])
     rows = []
     for policy in policies:
         rows.append(
@@ -234,12 +286,15 @@ def _ineffective_latest(env, controls, tests):
 
 def board_risk_pack(env, date_from=None, date_to=None, **params):
     """Board risk pack: the live risk/control/compliance signals."""
-    risks = env["fix.risk.register"].sudo().search([])
-    controls = env["fix.control"].sudo().search([])
-    tests = env["fix.grc.control.test"].sudo().search([], order="tested_on desc")
-    licences = env["fix.grc.licence"].sudo().search([])
-    legal = env["fix.grc.legal"].sudo().search([])
-    pdpa = env["fix.grc.pdpa"].sudo().search([])
+    risks = env["fix.risk.register"].search([])
+    controls = env["fix.control"].search([])
+    tests = env["fix.grc.control.test"].search([], order="tested_on desc")
+    licences = env["fix.grc.licence"].search([])
+    # A10 S6: the legal register's read is gated on the legal group, but the
+    # board is an internal-user surface — it keeps sudo and is SCOPED to the
+    # caller's companies instead of reading every company's matters.
+    legal = env["fix.grc.legal"].sudo().search([("company_id", "in", env.companies.ids)])
+    pdpa = env["fix.grc.pdpa"].search([])
     rows = [
         {
             "section": "Risk",
@@ -252,6 +307,12 @@ def board_risk_pack(env, date_from=None, date_to=None, **params):
             "metric": "High-likelihood risks",
             "value": len(risks.filtered(lambda r: r.likelihood in ("4", "5"))),
             "detail": "likelihood 4-5",
+        },
+        {
+            "section": "Risk",
+            "metric": "Risks above stated appetite",
+            "value": len(risks.filtered(lambda r: r.above_appetite)),
+            "detail": "residual (or inherent, if unassessed) vs the stated appetite",
         },
         {
             "section": "Control",
@@ -304,14 +365,22 @@ REPORTS = {
 
 
 def kpis(env):
-    risks = env["fix.risk.register"].sudo().search([])
-    controls = env["fix.control"].sudo().search([])
-    licences = env["fix.grc.licence"].sudo().search([])
-    legal = env["fix.grc.legal"].sudo().search([])
-    pdpa = env["fix.grc.pdpa"].sudo().search([])
-    policies = env["fix.grc.policy"].sudo().search([])
+    risks = env["fix.risk.register"].search([])
+    controls = env["fix.control"].search([])
+    licences = env["fix.grc.licence"].search([])
+    # A10 S6: the legal register's read is gated on the legal group, but the
+    # board is an internal-user surface — it keeps sudo and is SCOPED to the
+    # caller's companies instead of reading every company's matters.
+    legal = env["fix.grc.legal"].sudo().search([("company_id", "in", env.companies.ids)])
+    pdpa = env["fix.grc.pdpa"].search([])
+    policies = env["fix.grc.policy"].search([])
     today = datetime.date.today()
-    above_appetite = len([r for r in risks if (r.risk_score or 0) >= 15])
+    # P1-5 (M60-7): 'above appetite' is measured against the appetite the
+    # Compliance Officer stated per category (fix.risk.appetite) — no more
+    # hardcoded score-15 rule. A category with no stated appetite bounds
+    # nothing: its risks are not counted as above (nor as within) an
+    # appetite nobody stated.
+    above_appetite = len(risks.filtered(lambda r: r.above_appetite))
     return {
         "risks_above_appetite": above_appetite,
         "control_tests_due": len(

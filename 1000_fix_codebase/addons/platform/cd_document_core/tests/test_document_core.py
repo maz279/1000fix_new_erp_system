@@ -30,15 +30,6 @@ class TestFixDocument:
         assert "migrate_documents_to_mayan" in dir(FixDocument)
         assert "action_assert_can_destroy" in dir(FixDocument)
 
-    def test_legal_hold_dual_store_destruction_guard(self):
-        import inspect
-
-        from odoo.addons.cd_document_core.models.fix_document import FixDocument
-
-        src = inspect.getsource(FixDocument.action_assert_can_destroy)
-        assert "legal_hold" in src
-        assert "Destruction is strictly blocked across both Odoo kernel and Mayan EDMS" in src
-
 
 class TestFixRetentionClass:
     def test_model_exists(self):

@@ -1,6 +1,6 @@
 /** @odoo-module **/
 /* A10 · Governance, Risk & Quality — M60 Governance, Risk & Compliance.
- * Registry-faithful: 4 groups / 12 screens / 5 reports / 5 forms / freg 70. */
+ * Registry-faithful: 4 groups / 13 screens / 5 reports / 6 forms / freg 70. */
 
 export const MODULE = {
   area: 'A10', code: 'M60', en: 'Governance, Risk & Compliance', title: 'M60 · Governance, Risk & Compliance',
@@ -20,6 +20,7 @@ export const MODULE = {
     ]},
     { en: 'Risk', screens: [
       { id: 'M60-register', en: 'Enterprise Risk Register', bn: 'ঝুঁকি রেজিস্টার', t: 'g' },
+      { id: 'M60-appetite-set', en: 'Risk Appetite', bn: 'ঝুঁকি ক্ষমতা নির্ধারণ', t: 'g' },
       { id: 'M60-appetite', en: 'Appetite & Aggregation', bn: 'ঝুঁকি ক্ষমতা', t: 'r' }
     ]},
     { en: 'Controls', screens: [
@@ -40,7 +41,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Risk Heat Map', 'Control Deficiency Log', 'Licence Expiry Register', 'Attestation Status', 'Board Risk Pack'],
-  forms: ['Risk', 'Control Test', 'Licence', 'Policy', 'Whistleblow Report'],
+  forms: ['Risk', 'Risk Appetite', 'Control Test', 'Licence', 'Policy', 'Whistleblow Report'],
   cross: ['M23 QMS', 'M51 Tax', 'M24 Documents', 'M19 GL'],
   freg: { src: 70, sub: [
     ['1', 'Risk Register', 12, { model: 'fix.risk.register', cols: ['name', 'category', 'risk_score', 'residual_band', 'state'], screens: ['M60-register', 'M60-appetite'] }],
@@ -56,33 +57,70 @@ export const MODULE = {
 
 export const SCREENS = {
   'M60-register': { kind: 'model_list', model: 'fix.risk.register', stateField: 'state',
-    cols: ['name', 'category', 'likelihood', 'impact', 'risk_score', 'owner_id', 'review_date', 'state', 'residual_score', 'residual_band', 'residual_accepted_by_id'] },
+    cols: ['name', 'category', 'likelihood', 'impact', 'risk_score', 'owner_id', 'review_date', 'state', 'residual_score', 'residual_band', 'above_appetite', 'residual_accepted_by_id'],
+    actions: [
+      { m: 'action_accept_residual', l: 'Accept Residual',
+        asks: [{ label: 'Why is this residual acceptable? (routed to the Delegated Authority Owner when it is above the stated appetite)', kwarg: 'justification' }] },
+      { m: 'action_close', l: 'Close Risk' },
+      { m: 'action_reopen', l: 'Reopen Risk' }
+    ] },
+  'M60-appetite-set': { kind: 'model_list', model: 'fix.risk.appetite',
+    cols: ['category', 'max_residual_score', 'company_id', 'note'] },
   'M60-appetite': { kind: 'table_report', module: 'M60', report: 'risk_heat_map', title: 'Appetite & Aggregation', period: false },
   'M60-framework': { kind: 'model_list', model: 'fix.control',
-    cols: ['control_code', 'name', 'control_type', 'frequency', 'risk_id', 'last_tested', 'test_result'] },
+    cols: ['control_code', 'name', 'control_type', 'frequency', 'risk_id', 'owner_id', 'last_tested', 'test_result'],
+    actions: [{ m: 'action_activate', l: 'Activate' }, { m: 'action_retire', l: 'Retire' }] },
   'M60-testing': { kind: 'model_list', model: 'fix.grc.control.test', stateField: 'result',
     cols: ['name', 'control_id', 'tested_on', 'tester_id', 'sample_size', 'exceptions', 'result'] },
   'M60-sod': { kind: 'model_list', model: 'fix.grc.sod.rule', stateField: 'state',
     cols: ['name', 'role_a', 'role_b', 'conflict_area', 'severity', 'state'],
-    actions: [{ m: 'action_waive', l: 'Waive Rule' }] },
+    actions: [{ m: 'action_waive', l: 'Waive Rule',
+      asks: [{ label: 'Why is the rule waived? The compensating control is part of the record', kwarg: 'reason' }] }] },
   'M60-authority': { kind: 'model_list', model: 'fix.grc.authority',
-    cols: ['name', 'role_title', 'amount_limit', 'authority_scope', 'delegate_to', 'effective_from'] },
+    cols: ['name', 'role_title', 'amount_limit', 'authority_scope', 'source', 'synced_at', 'effective_from'],
+    actions: [{ m: 'action_rebuild', l: 'Rebuild Register' }] },
   'M60-obligations': { kind: 'model_list', model: 'fix.compliance.obligation',
-    cols: ['name', 'framework_id', 'clause_reference', 'mandatory', 'compliance_status'] },
+    cols: ['name', 'framework_id', 'clause_reference', 'mandatory', 'compliance_status'],
+    actions: [
+      { m: 'action_assess', l: 'Assess Compliance (Officer)',
+        asks: [
+          { label: 'Verdict: compliant, partially_compliant, non_compliant or not_applicable', kwarg: 'status' },
+          { label: 'Assessment note (optional)', kwarg: 'notes', optional: true }
+        ] }
+    ] },
   'M60-licences': { kind: 'model_list', model: 'fix.grc.licence', stateField: 'state',
-    cols: ['name', 'licence_type', 'number', 'authority', 'valid_to', 'responsible_id', 'state'] },
+    cols: ['name', 'licence_type', 'number', 'authority', 'valid_to', 'responsible_id', 'state'],
+    actions: [
+      { m: 'action_suspend', l: 'Suspend',
+        asks: [{ label: 'Why is the licence suspended? The reason is the record', kwarg: 'reason' }] },
+      { m: 'action_reinstate', l: 'Reinstate' }
+    ] },
   'M60-policies': { kind: 'model_list', model: 'fix.grc.policy', stateField: 'state',
     cols: ['code', 'name', 'policy_type', 'version', 'owner_id', 'review_due', 'attestation_required', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve Policy' }] },
+    actions: [{ m: 'action_approve', l: 'Approve Policy' }, { m: 'action_retire', l: 'Retire Policy' }] },
   'M60-legal': { kind: 'model_list', model: 'fix.grc.legal', stateField: 'state',
     cols: ['name', 'matter_type', 'counterparty', 'opened_on', 'counsel', 'exposure', 'state'],
-    actions: [{ m: 'action_close', l: 'Close Matter' }] },
+    actions: [{ m: 'action_close', l: 'Close Matter',
+      asks: [{ label: 'Outcome (settled / withdrawn / dismissed / won / lost)', kwarg: 'outcome' },
+             { label: 'Closing note (settlement terms or judgment reference)', kwarg: 'close_note' }] }] },
   'M60-pdpa': { kind: 'model_list', model: 'fix.grc.pdpa', stateField: 'outcome',
     cols: ['name', 'request_type', 'subject_name', 'received_on', 'due_on', 'outcome'],
-    actions: [{ m: 'action_fulfil', l: 'Mark Fulfilled' }] },
+    actions: [
+      { m: 'action_fulfil', l: 'Mark Fulfilled' },
+      { m: 'action_refuse', l: 'Refuse Request',
+        asks: [{ label: 'Refusal ground (PDPA refusals answer to the law)', kwarg: 'reason' }] }
+    ] },
   'M60-whistle': { kind: 'model_list', model: 'fix.grc.whistle', stateField: 'state',
     cols: ['name', 'channel', 'category', 'reported_on', 'anonymous', 'state'],
-    actions: [{ m: 'action_investigate', l: 'Investigate' }] },
+    actions: [
+      { m: 'action_assign_investigator', l: 'Assign Investigator',
+        asks: [{ label: 'Investigator employee ID', kwarg: 'investigator_id', number: true }] },
+      { m: 'action_investigate', l: 'Start Investigation' },
+      { m: 'action_close', l: 'Close Report',
+        ask: 'Finding (substantiated / unsubstantiated / unfounded / policy_gap)', kwarg: 'finding' },
+      { m: 'action_reveal_reporter', l: 'Reveal Reporter',
+        ask: 'Reason for revealing the reporter identity (logged)', kwarg: 'reason' }
+    ] },
 
   /* Report chips -> their own computed pack */
   'M60-rpt-heat': { kind: 'table_report', module: 'M60', report: 'risk_heat_map', title: 'Risk Heat Map', period: false },
@@ -98,20 +136,44 @@ export const SCREENS = {
     title: 'Risk',
     back: 'M60-register',
     status: { field: 'state', labels: {
-      draft: 'Draft', assessed: 'Assessed', mitigated: 'Mitigated', closed: 'Closed' } },
+      open: 'Open', mitigating: 'Mitigating', accepted: 'Residual Accepted', closed: 'Closed' } },
     sections: [
-      { title: 'Enterprise Risk', note: 'Inherent score is likelihood × impact (1–5 each); category drives the register view.',
+      { title: 'Enterprise Risk', note: 'Inherent score is likelihood × impact (1–5 each); category drives the register view. The state and the acceptance record change only through the register actions (R1).',
         fields: [
           { name: 'name', required: true, label: 'Risk Description' },
           { name: 'category', required: true, label: 'Category' },
           { name: 'likelihood', required: true, label: 'Likelihood (1-5)' },
           { name: 'impact', required: true, label: 'Impact (1-5)' },
           { name: 'owner_id', label: 'Risk Owner' },
-          { name: 'review_date', label: 'Next Review Date' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'review_date', label: 'Next Review Date' }
         ] },
-      { title: 'Treatment', fields: [
-          { name: 'mitigation', type: 'text', label: 'Mitigation & Treatment Strategy' }
+      { title: 'Treatment', note: 'A residual below the inherent score must be grounded in linked ACTIVE controls (an ineffective control grounds nothing), and may not exceed the inherent score. Within the stated appetite the Risk Owner accepts; above it the acceptance is routed through M63 to the Delegated Authority Owner, who is stamped as the acceptor (P1-5).',
+        fields: [
+          { name: 'mitigation', type: 'text', label: 'Mitigation & Treatment Strategy' },
+          { name: 'residual_likelihood', label: 'Residual Likelihood (1-5)' },
+          { name: 'residual_impact', label: 'Residual Impact (1-5)' },
+          { name: 'appetite_limit', readonly: true, label: 'Category Appetite (max residual)' },
+          { name: 'above_appetite', readonly: true, label: 'Above Appetite (routes through M63)' },
+          { name: 'control_deficient', readonly: true, label: 'Deficient Control (latest test not fully effective)' },
+          { name: 'approval_state', readonly: true, label: 'M63 Approval (pending/approved by the routed decision)' },
+          { name: 'residual_accepted_by_id', readonly: true, label: 'Residual Accepted By (Accept Residual action)' },
+          { name: 'residual_accepted_on', readonly: true, label: 'Residual Accepted On' }
+        ] }
+    ]
+  },
+
+  'M60-form-appetite': {
+    kind: 'model_form',
+    model: 'fix.risk.appetite',
+    title: 'Risk Appetite',
+    back: 'M60-appetite-set',
+    sections: [
+      { title: 'Risk Appetite', note: 'The maximum residual score tolerated for one category — one statement per category and company, maintained by the Compliance Officer. A residual above it is accepted only through M63 by someone other than the risk owner; a category with no statement bounds nothing (P1-5).',
+        fields: [
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'category', required: true, label: 'Category' },
+          { name: 'max_residual_score', required: true, label: 'Maximum Residual Score (1-25)' },
+          { name: 'note', type: 'text', label: 'Appetite Statement' }
         ] }
     ]
   },
@@ -125,7 +187,7 @@ export const SCREENS = {
       effective: 'Effective', partially_effective: 'Partially Effective',
       ineffective: 'Ineffective' } },
     sections: [
-      { title: 'Control Test', note: 'Sample size and exceptions; the result is the test conclusion the deficiency log reads.',
+      { title: 'Control Test', note: 'The tester is stamped from your session (you may name a third-party tester) and may not be the control’s owner. The result stamps the control’s assessment record; a result short of Effective raises the deficiency (an NCR) and a CAPA owned by the control owner (P1-5).',
         fields: [
           { name: 'control_id', required: true, label: 'Control' },
           { name: 'tested_on', required: true, label: 'Tested On' },
@@ -154,8 +216,7 @@ export const SCREENS = {
           { name: 'authority', label: 'Issuing Authority' },
           { name: 'issued_on', label: 'Issued On' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'responsible_id', label: 'Responsible' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'responsible_id', label: 'Responsible' }
         ] }
     ]
   },
@@ -177,7 +238,7 @@ export const SCREENS = {
           { name: 'owner_id', label: 'Policy Owner' },
           { name: 'review_due', label: 'Review Due' },
           { name: 'attestation_required', label: 'Attestation Required' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'approved_on', readonly: true, label: 'Approved On (Approve Policy action)' }
         ] }
     ]
   },
@@ -191,17 +252,24 @@ export const SCREENS = {
       received: 'Received', investigating: 'Investigating', substantiated: 'Substantiated',
       unsubstantiated: 'Unsubstantiated', closed: 'Closed' } },
     sections: [
-      { title: 'Report', note: 'Channel and category; the summary is the reporter\'s account, kept as received.',
+      { title: 'Report', note: 'Intake files the report; the facts are kept as received (W1). The investigator is assigned by the Audit Committee through the Assign Investigator action.',
         fields: [
           { name: 'channel', required: true, label: 'Channel' },
           { name: 'category', required: true, label: 'Category' },
           { name: 'reported_on', required: true, label: 'Reported On' },
-          { name: 'anonymous', label: 'Anonymous' },
-          { name: 'investigator_id', label: 'Investigator' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'anonymous', label: 'Anonymous' }
         ] },
       { title: 'Account', fields: [
           { name: 'summary', required: true, type: 'text', label: 'Summary' }
+        ] },
+      { title: 'Investigation', note: 'Working notes stay editable until closure; the finding, second reviewer and reveal count change only through the workflow actions.',
+        fields: [
+          { name: 'investigator_id', readonly: true, label: 'Investigator (assigned)' },
+          { name: 'investigation_notes', type: 'text', label: 'Investigation Notes' },
+          { name: 'finding', readonly: true, label: 'Finding (Close Report action)' },
+          { name: 'follow_up', readonly: true, label: 'Follow-up Action' },
+          { name: 'reviewer_id', readonly: true, label: 'Second Reviewer (stamped)' },
+          { name: 'revealed_count', readonly: true, label: 'Identity Reveals (logged)' }
         ] }
     ]
   },
@@ -213,7 +281,7 @@ export const SCREENS = {
     back: 'M60-sod',
     status: { field: 'state', labels: { active: 'Active', waived: 'Waived' } },
     sections: [
-      { title: 'Segregation of Duties', note: 'Two incompatible roles and the compensating control that allows an exception.',
+      { title: 'Segregation of Duties', note: 'Two incompatible roles (picked from the reconciled register M29 checks on every grant) and the compensating control that allows an exception.',
         fields: [
           { name: 'name', required: true, label: 'Rule' },
           { name: 'role_a', required: true, label: 'First Role' },
@@ -221,7 +289,8 @@ export const SCREENS = {
           { name: 'conflict_area', label: 'Process Area' },
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'compensating_control', label: 'Compensating Control' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'waived_by_id', readonly: true, label: 'Waived By (Waive Rule action)' },
+          { name: 'waived_on', readonly: true, label: 'Waived On' }
         ] }
     ]
   },
@@ -241,7 +310,9 @@ export const SCREENS = {
           { name: 'opened_on', required: true, label: 'Opened On' },
           { name: 'counsel', label: 'External Counsel' },
           { name: 'exposure', label: 'Exposure' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'outcome', readonly: true, label: 'Outcome (Close Matter action)' },
+          { name: 'close_note', readonly: true, label: 'Closing Note' },
+          { name: 'closed_on', readonly: true, label: 'Closed On' }
         ] }
     ]
   },
@@ -254,16 +325,17 @@ export const SCREENS = {
     title: "Internal Control",
     back: 'M60-framework',
     sections: [
-      { title: "Internal Control", note: "A control in the framework: the risk it addresses, its owner and its test frequency.",
+      { title: "Internal Control", note: "A control in the framework: the risk it addresses, its accountable owner and its test frequency. The assessment record is stamped by the control tests — nothing is typed here (P1-5).",
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'name', required: true, label: "Control Title" },
           { name: 'control_type', required: true, label: "Control Type" },
           { name: 'frequency', required: true, label: "Frequency" },
-          { name: 'state', required: true, label: "State" },
           { name: 'control_code', label: "Control Code (e.g. CTL-SEC-01)" },
           { name: 'risk_id', label: "Risk Addressed" },
-          { name: 'last_tested', label: "Last Assessment Date" }
+          { name: 'owner_id', label: "Control Owner (accountable; may not test their own control)" },
+          { name: 'last_tested', readonly: true, label: "Last Assessment Date (stamped by the test)" },
+          { name: 'test_result', readonly: true, label: "Test Result (stamped by the test)" }
         ] }
     ]
   },
@@ -273,16 +345,19 @@ export const SCREENS = {
     title: "Delegated Authority",
     back: 'M60-authority',
     sections: [
-      { title: "Delegated Authority", note: "A delegation of authority: who may commit what value, to which limit.",
+      { title: "Delegated Authority (derived)", note: "One enforced authority limit, read from the DOFA ladder in force or the M63 approval matrix. Every field is a view onto machinery that actually refuses a document above the limit — change the ladder (M30) or the matrix (M63), then rebuild this register; nothing is typed here (P1-4).",
         fields: [
-          { name: 'name', required: true, label: "Name" },
-          { name: 'company_id', required: true, label: "Company" },
-          { name: 'role_title', required: true, label: "Role / Position" },
-          { name: 'currency_id', required: true, label: "Currency" },
-          { name: 'effective_from', required: true, label: "Effective From" },
-          { name: 'amount_limit', label: "Authority Limit" },
-          { name: 'authority_scope', label: "Scope" },
-          { name: 'delegate_to', label: "May Delegate To" }
+          { name: 'name', readonly: true, label: "Name" },
+          { name: 'company_id', readonly: true, label: "Company" },
+          { name: 'role_title', readonly: true, label: "Role / Position" },
+          { name: 'currency_id', readonly: true, label: "Currency" },
+          { name: 'effective_from', readonly: true, label: "Effective From" },
+          { name: 'amount_limit', readonly: true, label: "Authority Limit" },
+          { name: 'authority_scope', readonly: true, label: "Scope" },
+          { name: 'delegate_to', readonly: true, label: "May Delegate To" },
+          { name: 'source', readonly: true, label: "Enforced Source" },
+          { name: 'source_ref', readonly: true, label: "Source Record" },
+          { name: 'synced_at', readonly: true, label: "Rebuilt At" }
         ] }
     ]
   },
@@ -298,9 +373,10 @@ export const SCREENS = {
           { name: 'framework_id', required: true, label: "Compliance Framework" },
           { name: 'name', required: true, label: "Requirement Title" },
           { name: 'clause_reference', required: true, label: "Clause / Section Reference" },
-          { name: 'compliance_status', required: true, label: "Compliance Status" },
+          { name: 'compliance_status', readonly: true, label: "Compliance Status (Assess Compliance sets it — an obligation is compliant only once assessed)" },
           { name: 'mandatory', label: "Mandatory Statutory Requirement" },
           { name: 'evidence_doc_id', label: "Compliance Evidence (M24 Document)" },
+          { name: 'next_review_date', label: "Next Review Due (the clock nags daily once due)" },
           { name: 'notes', type: 'text', label: "Audit & Assessment Notes" }
         ] }
     ]
@@ -318,8 +394,7 @@ export const SCREENS = {
           { name: 'request_type', required: true, label: "Request Type" },
           { name: 'subject_name', required: true, label: "Data Subject" },
           { name: 'received_on', required: true, label: "Received On" },
-          { name: 'outcome', required: true, label: "Outcome" },
-          { name: 'due_on', label: "SLA Due" },
+          { name: 'due_on', readonly: true, label: "SLA Due (derived: received + 30 days)" },
           { name: 'handled_by_id', label: "Handled By" }
         ] }
     ]
@@ -328,7 +403,8 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M60-compliance-framework': { kind: 'model_list', model: 'fix.compliance.framework', stateField: 'state',
-    cols: ['name', 'code', 'state', 'active', 'company_id', 'operating_unit_id', 'standard_edition'] },
+    cols: ['name', 'code', 'state', 'active', 'company_id', 'operating_unit_id', 'standard_edition'],
+    actions: [{ m: 'action_activate', l: 'Enforce' }, { m: 'action_archive', l: 'Archive' }] },
 
   'M60-form-compliance-framework': {
     kind: 'model_form',
@@ -341,7 +417,6 @@ export const SCREENS = {
         fields: [
           { name: 'name', required: true, label: "Framework Name" },
           { name: 'code', required: true, label: "Framework Identifier" },
-          { name: 'state', required: true, label: "State" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'active', label: "Active" },
           { name: 'operating_unit_id', label: "Operating Unit" },
@@ -362,6 +437,7 @@ export const REPORT_ROUTES = {
 
 export const FORM_MODELS = {
   'M60:Risk': 'fix.risk.register',
+  'M60:Risk Appetite': 'fix.risk.appetite',
   'M60:Control Test': 'fix.grc.control.test',
   'M60:Licence': 'fix.grc.licence',
   'M60:Policy': 'fix.grc.policy',
@@ -385,6 +461,7 @@ export const FORM_CHIPS = {
     'fix.compliance.obligation': 'M60-form-obligation',
     'fix.grc.pdpa': 'M60-form-pdpa',
     'fix.risk.register': 'M60-form-risk',
+    'fix.risk.appetite': 'M60-form-appetite',
     'fix.grc.control.test': 'M60-form-test',
     'fix.grc.licence': 'M60-form-licence',
     'fix.grc.policy': 'M60-form-policy',
@@ -400,6 +477,7 @@ export const FORM_CHIPS = {
     'M60-pdpa': 'M60-form-pdpa',
     'M60-register': 'M60-form-risk',
     'M60-appetite': 'M60-form-risk',
+    'M60-appetite-set': 'M60-form-appetite',
     'M60-testing': 'M60-form-test',
     'M60-licences': 'M60-form-licence',
     'M60-policies': 'M60-form-policy',

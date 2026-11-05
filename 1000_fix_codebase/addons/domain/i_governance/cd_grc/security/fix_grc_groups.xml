@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 role groups (W1/W2 + M60-13, 2026-11-04; workflow audit P0).
+
+     Before these groups every internal user (base.group_user) could read
+     every whistleblowing report — with the reporter's account — close legal
+     matters with no outcome, and edit every governance register. The audit
+     (A10_Workflow_and_Approval_Report §6 W1/W2, M60-13) requires the
+     confidentiality allow-lists:
+
+     - Whistleblowing Intake (Audit Committee): files a report on behalf of
+       the reporter and assigns the investigator — never themself.
+     - Whistle Investigator: reads and works ONLY the reports assigned to
+       them (record rule); revealing the reporter identity is a separate,
+       logged step (fix.pii.access.log).
+     - Legal Counsel: the only group that writes or closes fix.grc.legal.
+     - Compliance Officer: owns obligations, licences, policies, the SoD
+       register and control tests (M60-13).
+     - Risk Owner: accepts residual risks and closes risks on the
+       enterprise register (A10 R1, M60-7).
+     - Control Testing Officer: records control tests, cannot test a
+       control they own.
+     - Delegated Authority Owner (CFO): the single DoA register (P1-4).
+
+     The dev admin is a member so daily work keeps running; the
+     segregation-of-duties checks still apply to it. Appointing the real
+     holders is business decision B1 (report §7). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_grc" model="res.groups.privilege">
+            <field name="name">Governance, Risk &amp; Compliance</field>
+            <field name="description">Whistleblowing, legal matters, compliance registers and control testing (M60, ISO 9001 9.3 / PDPA s.8).</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="group_grc_whistle_intake" model="res.groups">
+            <field name="name">Whistleblowing Intake (Audit Committee)</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Files whistle reports on behalf of a reporter and assigns the investigator. Reads every report; may never investigate one themself (assignment refuses self).</field>
+        </record>
+
+        <record id="group_grc_whistle_investigator" model="res.groups">
+            <field name="name">Whistle Investigator</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Reads and works only the whistle reports assigned to them (record rule). Revealing the reporter's identity is a separate, logged action.</field>
+        </record>
+
+        <record id="group_grc_legal" model="res.groups">
+            <field name="name">Legal Counsel</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Opens, works and closes legal matters (fix.grc.legal). Closure requires the recorded outcome (W2).</field>
+        </record>
+
+        <record id="group_grc_officer" model="res.groups">
+            <field name="name">Compliance Officer</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Owns compliance obligations, licences, policies, the SoD rule register and PDPA requests (M60-13).</field>
+        </record>
+
+        <record id="group_grc_risk_owner" model="res.groups">
+            <field name="name">Risk Owner</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Accepts residual risks and closes risks on the enterprise register (A10 R1, M60-7).</field>
+        </record>
+
+        <record id="group_grc_control_tester" model="res.groups">
+            <field name="name">Control Testing Officer</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Records control tests; may not record the test of a control they own (M60-9).</field>
+        </record>
+
+        <record id="group_grc_dofa_admin" model="res.groups">
+            <field name="name">Delegated Authority Owner (CFO)</field>
+            <field name="privilege_id" ref="privilege_grc"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Maintains the single delegated-authority register read from the DOFA tiers (P1-4, M60-6).</field>
+        </record>
+
+    </data>
+</odoo>

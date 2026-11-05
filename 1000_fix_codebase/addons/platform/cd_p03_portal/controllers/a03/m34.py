@@ -30,6 +30,9 @@ SURFACES = {
             "action_raise_ncr",
             "action_record_root_cause",
             "action_verify_root_cause",
+            # A10 S6 (M23-12): the Quality Manager links the REAL CAPA — the
+            # one raised from this complaint's own NCR. The field is guarded.
+            "action_link_capa",
             "action_open_capa",
             "action_request_verification",
             # R7: the concession is decided from the M63 inbox.

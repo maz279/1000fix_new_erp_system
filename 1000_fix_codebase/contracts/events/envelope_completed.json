@@ -32,10 +32,17 @@
     "payload": {
       "type": "object",
       "required": [
-        "evidence_hash"
+        "evidence_hash",
+        "certificate"
       ],
       "properties": {
         "evidence_hash": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "certificate": {
           "type": [
             "string",
             "boolean"

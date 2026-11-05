@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 role groups (Q1–Q3, 2026-11-04; workflow audit P0).
+
+     Before these groups every internal user could verify their own CAPA,
+     authorise their own use-as-is concession, mark an unexecuted audit
+     reported, and flip a failed certification to passed (A10
+     Workflow_and_Approval_Report §6 Q1–Q3, M23-1..-6). The quality
+     decisions now belong to named roles:
+
+     - Quality Manager: the effectiveness verdict (never owner/implementer),
+       the use-as-is concession (ISO 9001 8.7.1 authority), the
+       certification record (with the certificate document attached).
+     - QMS Auditor: executes checklists in the field and reports — never on
+       a process they own (ISO 9001 9.2 objectivity).
+
+     The dev admin is a member so daily work keeps running. Appointing the
+     real holders is business decision B2 (report §7). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_qms" model="res.groups.privilege">
+            <field name="name">Quality Management</field>
+            <field name="description">NCR/CAPA verdicts, the audit programme and the certification record (M23, ISO 9001 8.7 / 9.2 / 10.2).</field>
+            <field name="sequence">61</field>
+        </record>
+
+        <record id="group_qms_quality_manager" model="res.groups">
+            <field name="name">Quality Manager</field>
+            <field name="privilege_id" ref="privilege_qms"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Verifies CAPA effectiveness (never as owner/implementer), authorises use-as-is concessions, and records certification results with the certificate document attached (A10 Q1–Q3).</field>
+        </record>
+
+        <record id="group_qms_auditor" model="res.groups">
+            <field name="name">QMS Auditor</field>
+            <field name="privilege_id" ref="privilege_qms"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Executes audit checklists in the field (P11) and reports the findings; may not audit a process they own (ISO 9001 9.2).</field>
+        </record>
+
+    </data>
+</odoo>

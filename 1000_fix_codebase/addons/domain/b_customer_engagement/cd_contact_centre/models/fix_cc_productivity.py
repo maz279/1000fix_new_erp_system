@@ -36,7 +36,7 @@
 # (frequency over normalised, scrubbed utterances) and says so, because
 # labelling n-gram counting as AI would misrepresent what the estate does.
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 
 class FixCcScript(models.Model):
@@ -277,14 +277,26 @@ class FixCcKnowledgeBinding(models.Model):
     queue_id = fields.Many2one("fix.cc.queue", string="Queue")
     article_ref = fields.Char(
         required=True,
-        help="The M61 knowledge article reference. A Char rather than a "
-        "Many2one because M27 must not hard-depend on the governance stack "
-        "to put a link in front of an agent; resolve_article() resolves it "
-        "when M61 is installed and says so when it is not.",
+        help="The M61 knowledge article reference (its article_code, or its "
+        "name). A Char rather than a Many2one because M27 must not "
+        "hard-depend on the governance stack to put a link in front of an "
+        "agent; resolve_article() resolves it when M61 is installed and "
+        "says so when it is not.",
     )
     display_label = fields.Char(compute="_compute_display_label", store=True)
     note = fields.Char(help="Why this article, for the reviewer.")
     active = fields.Boolean(default=True)
+    # A10 S6 (the M61 -> M27 hand-off): what the binding last heard from the
+    # knowledge module, stamped by the knowledge.published consumer — so the
+    # agent desktop can tell a binding whose article moved on from one that
+    # still points at the version in the field.
+    synced_version = fields.Integer(
+        string="Synced Version",
+        copy=False,
+        help="The article version this binding last synced to (A10 S6).",
+    )
+    synced_content_hash = fields.Char(string="Synced Hash", copy=False)
+    synced_on = fields.Datetime(string="Synced On", copy=False)
 
     @api.depends("intent", "article_ref", "queue_id")
     def _compute_display_label(self):
@@ -303,10 +315,7 @@ class FixCcKnowledgeBinding(models.Model):
                 "found": False,
                 "note": "The knowledge module is not installed in this database.",
             }
-        article = Article.sudo().search(
-            ["|", ("name", "=", self.article_ref), ("id", "=", self._safe_int(self.article_ref))],
-            limit=1,
-        )
+        article = Article.sudo().search(self._article_domain(self.article_ref), limit=1)
         if not article:
             return {
                 "found": False,
@@ -315,11 +324,73 @@ class FixCcKnowledgeBinding(models.Model):
         return {"found": True, "article_id": article.id, "name": article.name}
 
     @api.model
+    def _article_domain(self, ref):
+        """A binding names its article by article_code, by name, or by id
+        (A10 S6 — the code is the reference the field actually uses)."""
+        return [
+            "|",
+            "|",
+            ("article_code", "=", ref),
+            ("name", "=", ref),
+            ("id", "=", self._safe_int(ref)),
+        ]
+
+    @api.model
     def _safe_int(self, value):
         try:
             return int(value)
         except (TypeError, ValueError):
             return 0
+
+    @api.model
+    def consume_knowledge_published(self, event: dict) -> dict:
+        """A10 S6 (the M61 -> M27 hand-off): when the knowledge module
+        publishes an article, the bindings that point at it learn the
+        version now in the field — and bindings whose article no longer
+        resolves to a PUBLISHED article retire themselves, so an agent is
+        never offered a dead link. Runs from the event relay only."""
+        if not self.env.su:
+            raise AccessError("Knowledge binding consumers run only from the event relay (A10 S6).")
+        payload = event.get("payload") or {}
+        refs = sorted(
+            {
+                ref
+                for ref in (
+                    str(payload.get("code") or "").strip(),
+                    str(payload.get("title") or "").strip(),
+                )
+                if ref
+            }
+        )
+        refreshed = self
+        if refs:
+            refreshed = self.search([("article_ref", "in", refs)])
+            refreshed.write(
+                {
+                    "synced_version": payload.get("version") or 0,
+                    "synced_content_hash": payload.get("content_hash") or "",
+                    "synced_on": fields.Datetime.now(),
+                }
+            )
+        retired = self
+        Article = self.env.get("fix.knowledge.article")
+        if Article is not None:
+            for binding in self.search([("active", "=", True)]):
+                article = Article.sudo().search(self._article_domain(binding.article_ref), limit=1)
+                if not article or article.state != "published":
+                    binding.write(
+                        {
+                            "active": False,
+                            "note": "Retired (A10 S6): reference %r no longer "
+                            "resolves to a published knowledge article." % binding.article_ref,
+                        }
+                    )
+                    retired |= binding
+        return {
+            "refreshed": len(refreshed),
+            "retired": len(retired),
+            "knowledge_module": Article is not None,
+        }
 
     @api.model
     def for_conversation(self, conversation):

@@ -1278,13 +1278,8 @@ class FixSupplierScorecard(models.Model):
                 }
             )
         )
-        publish(
-            self.env,
-            "supplier.car.raised",
-            "fix.supplier.car",
-            car.id,
-            {"supplier_id": self.supplier_id.id, "reason": "two D grades", "car": car.name},
-        )
+        # supplier.car.raised is published by the CAR's own create (A10 S6):
+        # one event per CAR, whatever raised it.
         return car
 
 
@@ -1344,7 +1339,28 @@ class FixSupplierCar(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.supplier.car") or "SCAR/New"
                 )
-        return super().create(vals_list)
+        recs = super().create(vals_list)
+        # A10 S6 (M23-12, the M42 hand-off): every CAR announces itself with
+        # what it is — the QMS consumer in cd_qms_process raises the NCR for
+        # the majors. The vendor portal does not depend on the governance
+        # stack; the hand-off is this event, nothing else.
+        for rec in recs:
+            publish(
+                self.env,
+                "supplier.car.raised",
+                "fix.supplier.car",
+                rec.id,
+                {
+                    "car": rec.name,
+                    "supplier_id": rec.supplier_id.id,
+                    "supplier": rec.supplier_id.name or "",
+                    "issue": rec.issue or "",
+                    "severity": rec.severity or "",
+                    "due": str(rec.due_date or ""),
+                },
+                metadata={"module": "cd_vendor_portal", "reason": "A10 S6 CAR -> NCR hand-off"},
+            )
+        return recs
 
     def action_action(self):
         _require(self.env, "Marking a CAR actioned", GROUP_STEWARD)
@@ -1356,12 +1372,21 @@ class FixSupplierCar(models.Model):
             rec._guarded().write({"state": "actioned"})
 
     def action_close(self):
-        """Verification and closure by someone other than the raiser."""
+        """Verification and closure by someone other than the raiser.
+
+        A10 S6 (M23-12): a MAJOR/CRITICAL CAR closes on its root cause —
+        the audit closed a CRITICAL CAR with neither a root cause nor an
+        NCR anywhere in the QMS."""
         _require(self.env, "Closing a CAR", GROUP_STEWARD, GROUP_APPROVER)
         for rec in self:
             if rec.state != "actioned":
                 raise UserError("Close an actioned CAR")
             _not_by(self.env, rec.create_uid, "raised this CAR")
+            if rec.severity in ("major", "critical") and not (rec.root_cause or "").strip():
+                raise UserError(
+                    "A %s CAR closes on its root cause — state what went wrong "
+                    "before closing %s (A10 S6)." % (rec.severity.upper(), rec.name)
+                )
             rec._guarded().write(
                 {
                     "state": "closed",

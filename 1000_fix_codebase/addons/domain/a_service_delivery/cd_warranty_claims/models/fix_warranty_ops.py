@@ -29,6 +29,7 @@ class FixWarrantyTransfer(models.Model):
 class FixWarrantyRecall(models.Model):
     _name = "fix.warranty.recall"
     _description = "Warranty Recall Campaign"
+    _inherit = ["mail.thread"]
     _order = "launched_on desc, id desc"
 
     name = fields.Char(required=True)
@@ -48,8 +49,23 @@ class FixWarrantyRecall(models.Model):
         ],
         required=True,
         default="planned",
+        tracking=True,
     )
     note = fields.Char()
+    # A10 P1-7 (M61-4): the campaign a distributed recall bulletin becomes.
+    # Set only by the event relay's consumer; manual campaigns keep it empty.
+    bulletin_id = fields.Many2one(
+        "fix.knowledge.bulletin",
+        string="Source Bulletin",
+        index=True,
+        ondelete="set null",
+        copy=False,
+    )
+
+    _one_campaign_per_bulletin = models.Constraint(
+        "UNIQUE (bulletin_id)",
+        "One recall campaign per bulletin (A10 P1-7).",
+    )
 
 
 class FixClaimAppeal(models.Model):

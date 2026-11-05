@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 role groups (D2 / P1-1, 2026-11-05; workflow audit P0).
+
+     Before these groups the document kernel had no roles at all: every
+     internal user could release a litigation hold, expire and destroy a
+     document inside retention, approve their own controlled document and
+     re-activate a superseded version (A10 Workflow_and_Approval_Report
+     §6 D2/P1-1, findings M24-5..-9). The decisions now belong to named
+     roles:
+
+     - Document Controller: approves a controlled document for publication
+       (never its own author, BRU-DMS-10; routed through M63).
+     - Records Officer (Legal/Records): places and releases legal holds
+       with the matter reference on file, and disposes expired documents
+       onto the permanent register.
+
+     The dev admin is a member so daily work keeps running. Appointing the
+     real holders is business decision B2 (report §7). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_documents" model="res.groups.privilege">
+            <field name="name">Documents &amp; Records</field>
+            <field name="description">Controlled documents, legal holds, retention and defensible disposal (M24, ISO 9001 7.5).</field>
+            <field name="sequence">62</field>
+        </record>
+
+        <record id="group_document_controller" model="res.groups">
+            <field name="name">Document Controller</field>
+            <field name="privilege_id" ref="privilege_documents"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves controlled documents for publication through M63 — never a document they authored themselves (BRU-DMS-10, ISO 9001 7.5.3).</field>
+        </record>
+
+        <record id="group_document_records" model="res.groups">
+            <field name="name">Records Officer (Legal/Records)</field>
+            <field name="privilege_id" ref="privilege_documents"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Places and releases legal holds with the matter reference on file, and disposes retention-expired documents onto the permanent disposal register (M24-6/-7).</field>
+        </record>
+
+    </data>
+</odoo>

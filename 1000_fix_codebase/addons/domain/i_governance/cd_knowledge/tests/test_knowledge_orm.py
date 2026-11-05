@@ -39,8 +39,16 @@ def test_publish_bumps_version_and_announces(odoo_env):
     events = odoo_env["fix.event.outbox"].search(
         [("event_type", "=", "knowledge.published"), ("aggregate_id", "=", art.id)]
     )
+    # K1/M61-3: the payload carries the version and the content hash the
+    # offline delta sync keys on.
     assert [json.loads(e.payload) for e in events] == [
-        {"title": "Zeltrix Z14 no power", "category": "troubleshooting", "code": "KB-HW-777"}
+        {
+            "title": "Zeltrix Z14 no power",
+            "category": "troubleshooting",
+            "code": "KB-HW-777",
+            "version": 2,
+            "content_hash": art.content_hash,
+        }
     ]
 
 
@@ -74,7 +82,23 @@ def test_offline_manual_filters_and_fallbacks(odoo_env):
         "version": 2,
     }
     assert model.get_offline_manuals(brand=BRAND, version_after=2) == []
-    published.action_publish()  # version 3
+    # K1 (M61-3): editing published content is a REVISION, not a republish —
+    # the version rises and the event re-delivers it to the offline devices.
+    author = (
+        odoo_env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "K1 Sync Author",
+                "login": "k1.sync.author@a10.test",
+                "group_ids": [(6, 0, [odoo_env.ref("base.group_user").id])],
+            }
+        )
+    )
+    published.with_user(author).write(
+        {"content": "<p>Check the 19V rail, the charging IC and the fuse</p>"}
+    )
+    assert published.version == 3  # the write itself bumped it
     assert [m["id"] for m in model.get_offline_manuals(brand=BRAND, version_after=2)] == [
         published.id
     ]

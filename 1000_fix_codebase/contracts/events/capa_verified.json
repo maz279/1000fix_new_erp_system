@@ -32,11 +32,15 @@
     "payload": {
       "type": "object",
       "required": [
-        "ncr"
+        "ncr",
+        "effective"
       ],
       "properties": {
         "ncr": {
           "type": "string"
+        },
+        "effective": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

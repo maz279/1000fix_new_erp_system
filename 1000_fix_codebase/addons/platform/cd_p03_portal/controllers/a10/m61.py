@@ -6,18 +6,23 @@ SURFACES = {
     "fix.knowledge.article": {
         "order": "write_date desc, id desc",
         "limit": 500,
-        "actions": {"action_publish"},
+        "actions": {"action_publish", "action_archive"},
     },
     "fix.knowledge.tree": {
         "order": "name",
         "limit": 300,
-        "actions": {"action_publish"},
+        "actions": {"action_publish", "action_archive"},
     },
     "fix.knowledge.media": {"order": "name", "limit": 300, "actions": set()},
     "fix.knowledge.bulletin": {
         "order": "issued_on desc, id desc",
         "limit": 300,
-        "actions": {"action_distribute"},
+        "actions": {"action_distribute", "action_acknowledge", "action_close"},
+    },
+    "fix.knowledge.bulletin.recipient": {
+        "order": "bulletin_id desc, id desc",
+        "limit": 400,
+        "actions": set(),
     },
 }
 
@@ -36,7 +41,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def coverage_analysis(env, date_from=None, date_to=None, **params):
     """Coverage analysis: articles by category and brand."""
-    articles = env["fix.knowledge.article"].sudo().search([])
+    articles = env["fix.knowledge.article"].search([])
     groups = {}
     for art in articles:
         key = (
@@ -61,7 +66,7 @@ def coverage_analysis(env, date_from=None, date_to=None, **params):
 
 def usage_usefulness(env, date_from=None, date_to=None, **params):
     """Article usage and usefulness from the article's view/helpful counters."""
-    articles = env["fix.knowledge.article"].sudo().search([])
+    articles = env["fix.knowledge.article"].search([])
     rows = []
     for art in articles:
         views = art.views or 0
@@ -102,8 +107,8 @@ def usage_usefulness(env, date_from=None, date_to=None, **params):
 def gap_report(env, date_from=None, date_to=None, **params):
     """Gap report by brand/model: service orders by the device's brand and model
     compared with published articles for the same combination."""
-    articles = env["fix.knowledge.article"].sudo().search([("state", "=", "published")])
-    orders = env["fix.service.order"].sudo().search([])
+    articles = env["fix.knowledge.article"].search([("state", "=", "published")])
+    orders = env["fix.service.order"].search([])
     groups = {}
     for order in orders:
         device = getattr(order, "device_id", False)
@@ -163,7 +168,7 @@ def gap_report(env, date_from=None, date_to=None, **params):
 def contribution_leaderboard(env, date_from=None, date_to=None, **params):
     """Contribution leaderboard by creator (the article model carries no author
     field, so the creating user is the honest basis)."""
-    articles = env["fix.knowledge.article"].sudo().search([])
+    articles = env["fix.knowledge.article"].search([])
     groups = {}
     for art in articles:
         key = art.create_uid.name if art.create_uid else "—"
@@ -198,30 +203,126 @@ def contribution_leaderboard(env, date_from=None, date_to=None, **params):
     )
 
 
+def recall_routing(env, date_from=None, date_to=None, **params):
+    """Recall routing (A10 P1-7, M61-4): every safety recall with what it
+    covers, which branches hold it, who acknowledged, and the M09 campaign it
+    became. Counts come from the recipient lines and the campaign link, not
+    from a status word."""
+    bulletins = env["fix.knowledge.bulletin"].search([("bulletin_type", "=", "recall")])
+    campaign_model = env.get("fix.warranty.recall")
+    rows = []
+    for b in bulletins:
+        campaign = (
+            campaign_model.search([("bulletin_id", "=", b.id)], limit=1)
+            if campaign_model
+            else False
+        )
+        pending = b.recipient_ids.filtered(lambda r: not r.acknowledged_on)
+        rows.append(
+            {
+                "bulletin": b.name,
+                "severity": dict(b._fields["severity"].selection).get(b.severity),
+                "state": dict(b._fields["state"].selection).get(b.state, b.state),
+                "scope": " / ".join(x for x in [b.affected_models or "", b.serial_scope or ""] if x)
+                or "—",
+                "branches": len(b.recipient_ids),
+                "acknowledged": len(b.recipient_ids) - len(pending),
+                "pending": ", ".join(pending.mapped("branch_id.name")) or "—",
+                "campaign": campaign.name if campaign else "—",
+            }
+        )
+    rows.sort(key=lambda r: r["bulletin"])
+    return _pack(
+        "Recall Routing — %d safety recall(s)" % len(rows),
+        [
+            "bulletin",
+            "severity",
+            "state",
+            "scope",
+            "branches",
+            "acknowledged",
+            "pending",
+            "campaign",
+        ],
+        {
+            "bulletin": "Bulletin",
+            "severity": "Severity",
+            "state": "State",
+            "scope": "Affected Models / Serials",
+            "branches": "Recipient Branches",
+            "acknowledged": "Acknowledged",
+            "pending": "Pending Branches",
+            "campaign": "M09 Campaign",
+        },
+        rows,
+        [
+            "A10 P1-7: a recall distributes only over what it recalls (models or "
+            "serials) to named branches; each branch acknowledges its own line, and "
+            "the Quality Manager closes it once every branch has answered.",
+            "Distribution hands the recall to M09 as an active warranty recall "
+            "campaign and flags M01's open orders on the affected models (event "
+            "bulletin.distributed). The campaign column reads that link — '—' means "
+            "no campaign yet, not one nobody recorded.",
+        ],
+        empty="No safety recalls recorded.",
+    )
+
+
 REPORTS = {
     "coverage_analysis": coverage_analysis,
     "usage_usefulness": usage_usefulness,
     "gap_report": gap_report,
     "contribution_leaderboard": contribution_leaderboard,
+    "recall_routing": recall_routing,
 }
 
 
 def kpis(env):
-    articles = env["fix.knowledge.article"].sudo().search([])
+    # A10 S6 (M61-7): every tile measures what its label says. The old tiles
+    # counted DRAFT articles as "reviews due", offline-available articles as
+    # "techs synced" (the flag lives on articles, no device is ever counted),
+    # and published/total as "coverage of top faults" — three labels, three
+    # invented figures. Coverage is now the gap report's own join: of the
+    # brand/model combinations the service orders actually saw, how many have
+    # a published article.
+    articles = env["fix.knowledge.article"].search([])
     published = articles.filtered(lambda a: a.state == "published")
-    bulletins = env["fix.knowledge.bulletin"].sudo().search([])
+    bulletins = env["fix.knowledge.bulletin"].search([])
     today = datetime.date.today()
     month_start = today.replace(day=1)
     views = sum(a.views or 0 for a in articles)
     helpful = sum(a.helpful_votes or 0 for a in articles)
+    combos = {}
+    for order in env["fix.service.order"].search([]):
+        device = getattr(order, "device_id", False)
+        brand = (
+            device.brand_id.name if device and getattr(device, "brand_id", False) else "Unspecified"
+        )
+        model = (
+            device.device_model_id.name
+            if device and getattr(device, "device_model_id", False)
+            else "—"
+        )
+        combos[(brand, model)] = combos.get((brand, model), 0) + 1
+    covered = [
+        key
+        for key in combos
+        if published.filtered(
+            lambda a, b=key[0], m=key[1]: (a.device_brand or "") == b
+            and (not a.device_model or a.device_model == m)
+        )
+    ]
+    # the offline pack is the model's own offline domain — published content
+    # flagged for the technician app's SQLite store.
+    offline_articles = env["fix.knowledge.article"].search_count(
+        [("state", "=", "published"), ("offline_available", "=", True)]
+    )
     return {
         "articles": len(articles),
-        "coverage_top_faults": round(len(published) / len(articles) * 100.0, 1)
-        if articles
-        else 0.0,
-        "offline_synced_techs": len(articles.filtered(lambda a: a.offline_available)),
+        "coverage_serviced": round(len(covered) / len(combos) * 100.0, 1) if combos else 0.0,
+        "offline_articles": offline_articles,
         "usefulness_score": round(helpful / views * 100.0, 1) if views else 0.0,
-        "reviews_due": len(articles.filtered(lambda a: a.state == "draft")),
+        "reviews_due": len(published.filtered(lambda a: a.review_due and a.review_due <= today)),
         "brand_bulletins_mtd": len(
             bulletins.filtered(lambda b: b.issued_on and b.issued_on >= month_start)
         ),

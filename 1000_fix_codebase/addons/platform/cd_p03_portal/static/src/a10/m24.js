@@ -52,29 +52,36 @@ export const SCREENS = {
     cols: ['name', 'name_bn', 'version', 'is_current', 'document_type', 'retention_class_id', 'retention_expires', 'legal_hold'] },
   'M24-search': { kind: 'table_report', module: 'M24', report: 'access_audit', title: 'Bilingual Full-Text + OCR', period: false },
   'M24-controlled': { kind: 'model_list', model: 'fix.document',
-    cols: ['name', 'version', 'is_current', 'document_type', 'template_id', 'retention_class_id', 'active'],
+    cols: ['name', 'version', 'control_state', 'is_current', 'document_type', 'approved_by_id', 'published_on'],
     actions: [
-      { m: 'action_legal_hold', l: 'Place Legal Hold' },
-      { m: 'action_release_hold', l: 'Release Hold' }
+      { m: 'action_submit_review', l: 'Submit for Approval', asks: [{ label: 'Justification', kwarg: 'justification' }] },
+      { m: 'action_publish', l: 'Publish Approved Version' },
+      { m: 'action_new_revision', l: 'Start New Revision' }
     ] },
   'M24-generation': { kind: 'model_list', model: 'fix.document.template',
-    cols: ['name', 'document_type', 'active'] },
+    cols: ['name', 'document_type', 'requires_approval'] },
   'M24-envelopes': { kind: 'model_list', model: 'fix.esignature.envelope', stateField: 'state',
-    cols: ['name', 'document_id', 'state', 'completed_at'],
-    actions: [{ m: 'action_send', l: 'Send Envelope' }] },
-  'M24-audit': { kind: 'model_list', create: false, model: 'fix.esignature.signer',
-    cols: ['envelope_id', 'sequence', 'signer_name', 'role_label'] },
-  'M24-retention': { kind: 'model_list', model: 'fix.retention.class',
-    cols: ['name', 'retention_years', 'active'] },
-  'M24-holds': { kind: 'model_list', model: 'fix.document',
-    cols: ['name', 'legal_hold', 'legal_hold_reason'],
+    cols: ['name', 'document_id', 'state', 'deadline', 'completed_at'],
     actions: [
-      { m: 'action_legal_hold', l: 'Place Legal Hold' },
-      { m: 'action_release_hold', l: 'Release Hold' }
+      { m: 'action_send', l: 'Send Envelope' },
+      { m: 'action_check_complete', l: 'Check Complete' },
+      { m: 'action_void', l: 'Void', asks: [{ label: 'Why is the envelope voided?', kwarg: 'reason' }] }
     ] },
-  'M24-disposal': { kind: 'model_list', model: 'fix.document',
-    cols: ['name', 'retention_class_id', 'retention_expires', 'legal_hold'],
-    actions: [{ m: 'action_assert_can_destroy', l: 'Assert Destroyable' }] },
+  'M24-audit': { kind: 'model_list', create: false, model: 'fix.esignature.signer',
+    cols: ['envelope_id', 'sequence', 'signer_name', 'role_label', 'signed_at', 'signature_provider', 'auth_method'],
+    actions: [
+      { m: 'action_sign', l: 'Sign (own login)', asks: [{ label: 'Signature provider reference (optional)', kwarg: 'provider' }] },
+      { m: 'action_decline', l: 'Decline', asks: [{ label: 'Reason for refusing', kwarg: 'reason' }] }
+    ] },
+  'M24-retention': { kind: 'model_list', model: 'fix.retention.class',
+    cols: ['name', 'retention_years', 'expiry_action'] },
+  'M24-holds': { kind: 'model_list', create: false, model: 'fix.legal.hold',
+    cols: ['matter_ref', 'document_id', 'placed_by_id', 'placed_on', 'state', 'released_on'],
+    actions: [
+      { m: 'action_release', l: 'Release Hold', asks: [{ label: 'Why is the hold released?', kwarg: 'reason' }] }
+    ] },
+  'M24-disposal': { kind: 'model_list', create: false, model: 'fix.disposal.record',
+    cols: ['name', 'document_id', 'method', 'disposed_on', 'performed_by_id', 'certificate_doc_id'] },
 
   /* Report chips -> their own computed pack */
   'M24-rpt-retention': { kind: 'table_report', module: 'M24', report: 'retention_compliance', title: 'Retention Compliance', period: false },
@@ -95,6 +102,7 @@ export const SCREENS = {
           { name: 'name_bn', label: 'Name (Bengali)' },
           { name: 'document_type', required: true, label: 'Document Type' },
           { name: 'retention_class_id', label: 'Retention Class' },
+          { name: 'is_controlled', label: 'Controlled document (draft → review → approval → publication)' },
           { name: 'description', type: 'text', label: 'Description' }
         ] }
     ]
@@ -106,14 +114,13 @@ export const SCREENS = {
     title: 'Signature Envelope',
     back: 'M24-envelopes',
     status: { field: 'state', labels: {
-      draft: 'Draft', sent: 'Sent', completed: 'Completed', declined: 'Declined' } },
+      draft: 'Draft', sent: 'Sent', partially_signed: 'Partially Signed', completed: 'Completed', declined: 'Declined', expired: 'Expired', voided: 'Voided' } },
     sections: [
-      { title: 'Envelope', note: 'An envelope binds one document to its signers; sending it starts the signature process and the evidence hash is recorded on completion.',
+      { title: 'Envelope', note: 'An envelope binds one document to its signers. Sending it seals the evidence hash over the document bytes, locks the file and opens the signing window; each signer signs with their own login and completion files a certificate.',
         fields: [
           { name: 'name', required: true, label: 'Subject' },
           { name: 'document_id', required: true, label: 'Document' },
-          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
         ] }
     ]
   },
@@ -182,9 +189,7 @@ export const FORM_CHIPS = {
     'M24-controlled': 'M24-form-document',
     'M24-generation': 'M24-form-template',
     'M24-envelopes': 'M24-form-envelope',
-    'M24-retention': 'M24-form-retention',
-    'M24-holds': 'M24-form-document',
-    'M24-disposal': 'M24-form-document'
+    'M24-retention': 'M24-form-retention'
   }
 };
 
