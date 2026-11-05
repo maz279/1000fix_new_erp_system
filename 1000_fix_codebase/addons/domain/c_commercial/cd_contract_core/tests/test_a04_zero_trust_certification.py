@@ -399,7 +399,9 @@ class TestM11Pricing:
         )
         f.with_user(director).action_request_override_approval()
         assert director not in assigned(f), "never routed to the raiser"
-        with pytest.raises(UserError, match="inbox"):
+        # the a04 C4 control refuses the direct press with its segregation
+        # check (the routed inbox decision remains the only working path)
+        with pytest.raises(UserError, match="Segregation of duties"):
             f.with_user(director).action_approve_dofa_override()
         approve_via_inbox(f, peer)
         assert f.dofa_override_approved and f.dofa_override_user_id == peer
@@ -416,7 +418,7 @@ class TestM11Pricing:
         _approver(env, 4, "a04.floor.t4@example.com")  # the call's real owner
         f.with_user(weak).action_request_override_approval()
         assert weak not in assigned(f), "a Tier 2 holder is never routed a Tier 4 call"
-        with pytest.raises(UserError, match="inbox"):
+        with pytest.raises(UserError, match="DOFA authority insufficient"):
             f.with_user(weak).action_approve_dofa_override()
 
     def test_flaw_11_2_proper_approver_unlocks_only_that_price(self, env, floor):
