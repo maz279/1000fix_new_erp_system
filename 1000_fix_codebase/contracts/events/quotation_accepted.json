@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "quotation.accepted",
-  "description": "Published by cd_quotation through libs.py.fix_events.publish() (2 call site(s): the estimate quote and fix.quotation); payload derived from the publishing code.",
+  "description": "Published by cd_quotation through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -31,37 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "version",
-        "grand_total"
-      ],
-      "properties": {
-        "version": {
-          "type": "integer"
-        },
-        "grand_total": {
-          "type": "number"
-        },
-        "quotation": {
-          "type": "string"
-        },
-        "quote_type": {
-          "type": "string"
-        },
-        "customer_id": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "acceptance_method": {
-          "type": "string"
-        },
-        "evidence_hash": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`payload`, addons/domain/c_commercial/cd_quotation/models/fix_quote_ops.py:716); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_quotation",

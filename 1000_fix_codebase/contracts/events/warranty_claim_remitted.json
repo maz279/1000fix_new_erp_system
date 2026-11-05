@@ -36,7 +36,9 @@
         "bank_ref",
         "expected",
         "received",
-        "mismatch"
+        "received_total",
+        "mismatch",
+        "settled"
       ],
       "properties": {
         "claim_no": {
@@ -51,11 +53,11 @@
         "received": {
           "type": "number"
         },
-        "mismatch": {
-          "type": "boolean"
-        },
         "received_total": {
           "type": "number"
+        },
+        "mismatch": {
+          "type": "boolean"
         },
         "settled": {
           "type": "boolean"

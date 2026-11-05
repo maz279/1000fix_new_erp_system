@@ -125,6 +125,34 @@ def w(odoo_env):
             "license_expiry": x.today + timedelta(days=300),
         }
     )
+    # M22/FR-LMS-039 (merged with A09): dispatch now refuses a technician who
+    # holds no valid dispatch-gating certification (fail-closed), and the
+    # booked fix.vehicle.assignment carries technician_id, which BRU-HSE-07
+    # gates on the employee's driving licence. These suites gate on M46
+    # vehicles, so the crew is set up legitimately: one unscoped gating
+    # competency held by each technician and a Light licence each — the real
+    # eligibility, licence and vehicle gates all stay live.
+    comp = env["fix.competency"].create(
+        {"code": "A7P0D", "name": "A07 P0 Bridge dispatch", "device_type": "smartphone"}
+    )
+    for _e in (x.ea, x.eb):
+        env["fix.certification"].create(
+            {
+                "employee_id": _e.id,
+                "competency_id": comp.id,
+                "issued_on": x.today - timedelta(days=30),
+                "expires_on": x.today + timedelta(days=300),
+            }
+        )
+        env["fix.driver"].create(
+            {
+                "name": _e.name,
+                "employee_id": _e.id,
+                "license_no": "DL-%d" % _e.id,
+                "license_class": "Light",
+                "license_expiry": x.today + timedelta(days=300),
+            }
+        )
     return x
 
 
@@ -193,9 +221,11 @@ def test_changing_the_van_after_dispatch_is_gated(w):
     # an unforgeable token: a context key from RPC does not skip the gate
     assert refused(
         w.env,
-        lambda: rec.with_user(w.ua)
-        .with_context(fix_vehicle_sync_deferred=True)
-        .write({"vehicle_id": w.bad.id}),
+        lambda: (
+            rec.with_user(w.ua)
+            .with_context(fix_vehicle_sync_deferred=True)
+            .write({"vehicle_id": w.bad.id})
+        ),
     )
     other = w.vehicle("A07P0D-OTHER")
     rec.with_user(w.ud).write({"vehicle_id": other.id})

@@ -30,6 +30,12 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_attendance_regularisation_operating_unit" model="ir.rule">
+        <field name="name">fix.attendance.regularisation: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_attendance_regularisation"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_biometric_device_company" model="ir.rule">
         <field name="name">fix.biometric.device: allowed companies</field>
         <field name="model_id" ref="model_fix_biometric_device"/>
@@ -40,6 +46,11 @@
         <field name="model_id" ref="model_fix_biometric_device"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_biometric_punch_event_company" model="ir.rule">
+        <field name="name">fix.biometric.punch.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_biometric_punch_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_hr_holiday_company" model="ir.rule">
         <field name="name">fix.hr.holiday: allowed companies</field>
@@ -54,6 +65,23 @@
     <record id="rule_fix_hr_oncall_operating_unit" model="ir.rule">
         <field name="name">fix.hr.oncall: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_hr_oncall"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_overtime_request_operating_unit" model="ir.rule">
+        <field name="name">fix.overtime.request: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_overtime_request"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_roster_notice_company" model="ir.rule">
+        <field name="name">fix.roster.notice: allowed companies</field>
+        <field name="model_id" ref="model_fix_roster_notice"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_roster_publication_operating_unit" model="ir.rule">
+        <field name="name">fix.roster.publication: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_roster_publication"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

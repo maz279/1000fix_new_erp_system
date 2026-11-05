@@ -19,6 +19,77 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_beftn_return_company" model="ir.rule">
+        <field name="name">fix.beftn.return: allowed companies</field>
+        <field name="model_id" ref="model_fix_beftn_return"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_beftn_return_operating_unit" model="ir.rule">
+        <field name="name">fix.beftn.return: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_beftn_return"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_beftn_return_line_company" model="ir.rule">
+        <field name="name">fix.beftn.return.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_beftn_return_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_beftn_return_line_operating_unit" model="ir.rule">
+        <field name="name">fix.beftn.return.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_beftn_return_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_disbursement_company" model="ir.rule">
+        <field name="name">fix.mfs.disbursement: allowed companies</field>
+        <field name="model_id" ref="model_fix_mfs_disbursement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_disbursement_operating_unit" model="ir.rule">
+        <field name="name">fix.mfs.disbursement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_mfs_disbursement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_return_company" model="ir.rule">
+        <field name="name">fix.mfs.return: allowed companies</field>
+        <field name="model_id" ref="model_fix_mfs_return"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_return_operating_unit" model="ir.rule">
+        <field name="name">fix.mfs.return: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_mfs_return"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_return_line_company" model="ir.rule">
+        <field name="name">fix.mfs.return.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_mfs_return_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mfs_return_line_operating_unit" model="ir.rule">
+        <field name="name">fix.mfs.return.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_mfs_return_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_bank_check_company" model="ir.rule">
+        <field name="name">fix.payroll.bank.check: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_bank_check"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_bank_check_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.bank.check: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_bank_check"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_bonus_line_company" model="ir.rule">
+        <field name="name">fix.payroll.bonus.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_bonus_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_payroll_bonus_run_company" model="ir.rule">
         <field name="name">fix.payroll.bonus.run: allowed companies</field>
         <field name="model_id" ref="model_fix_payroll_bonus_run"/>
@@ -34,6 +105,28 @@
         <field name="name">fix.payroll.certificate: allowed companies</field>
         <field name="model_id" ref="model_fix_payroll_certificate"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_gratuity_accrual_company" model="ir.rule">
+        <field name="name">fix.payroll.gratuity.accrual: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_gratuity_accrual"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_gratuity_accrual_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.gratuity.accrual: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_gratuity_accrual"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_nominee_account_company" model="ir.rule">
+        <field name="name">fix.payroll.nominee.account: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_nominee_account"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_nominee_account_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.nominee.account: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_nominee_account"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_payroll_offcycle_company" model="ir.rule">
         <field name="name">fix.payroll.offcycle: allowed companies</field>
@@ -51,6 +144,28 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_payroll_recovery_company" model="ir.rule">
+        <field name="name">fix.payroll.recovery: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_recovery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_recovery_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.recovery: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_recovery"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_recovery_line_company" model="ir.rule">
+        <field name="name">fix.payroll.recovery.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_recovery_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_recovery_line_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.recovery.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_recovery_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_payroll_return_company" model="ir.rule">
         <field name="name">fix.payroll.return: allowed companies</field>
         <field name="model_id" ref="model_fix_payroll_return"/>
@@ -60,6 +175,17 @@
         <field name="name">fix.payroll.structure: allowed companies</field>
         <field name="model_id" ref="model_fix_payroll_structure"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_variance_company" model="ir.rule">
+        <field name="name">fix.payroll.variance: allowed companies</field>
+        <field name="model_id" ref="model_fix_payroll_variance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payroll_variance_operating_unit" model="ir.rule">
+        <field name="name">fix.payroll.variance: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payroll_variance"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_payslip_company" model="ir.rule">
         <field name="name">fix.payslip: allowed companies</field>
@@ -72,9 +198,31 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_statutory_pack_company" model="ir.rule">
+        <field name="name">fix.statutory.pack: allowed companies</field>
+        <field name="model_id" ref="model_fix_statutory_pack"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_statutory_pack_operating_unit" model="ir.rule">
+        <field name="name">fix.statutory.pack: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_statutory_pack"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_wppf_allocation_company" model="ir.rule">
         <field name="name">fix.wppf.allocation: allowed companies</field>
         <field name="model_id" ref="model_fix_wppf_allocation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wppf_beneficiary_company" model="ir.rule">
+        <field name="name">fix.wppf.beneficiary: allowed companies</field>
+        <field name="model_id" ref="model_fix_wppf_beneficiary"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wppf_beneficiary_operating_unit" model="ir.rule">
+        <field name="name">fix.wppf.beneficiary: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wppf_beneficiary"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
 </odoo>

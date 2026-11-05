@@ -33,10 +33,14 @@
       "type": "object",
       "required": [
         "ncr",
+        "severity",
         "stub"
       ],
       "properties": {
         "ncr": {
+          "type": "string"
+        },
+        "severity": {
           "type": "string"
         },
         "stub": {

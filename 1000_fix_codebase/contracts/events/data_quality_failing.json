@@ -34,17 +34,21 @@
       "required": [
         "entity",
         "result",
-        "threshold"
+        "threshold",
+        "measured"
       ],
       "properties": {
         "entity": {
           "type": "string"
         },
         "result": {
-          "description": "Type not statically derivable from `result_pct` (addons/domain/j_data_analytics/cd_metric_registry/models/fix_metric_registry.py:149)."
+          "description": "Type not statically derivable from `result_pct` (addons/domain/j_data_analytics/cd_metric_registry/models/fix_metric_registry.py:370)."
         },
         "threshold": {
           "type": "number"
+        },
+        "measured": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

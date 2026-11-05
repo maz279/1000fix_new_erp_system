@@ -37,8 +37,11 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
-        # A04 report C7: consumer of the storefront refund hand-off.
+        # A04 report C7: consumers of the storefront refund and bond
+        # encashment hand-offs.
         "data/fix_a04_consumers.xml",
+        # A09 Update 3/4: payroll payments reach treasury (M50).
+        "data/fix_payroll_treasury_consumers.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

@@ -41,10 +41,10 @@
           "type": "integer"
         },
         "days_overdue": {
-          "description": "Type not statically derivable from `overdue` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:264)."
+          "description": "Type not statically derivable from `overdue` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:351)."
         },
         "step": {
-          "type": "string"
+          "description": "Type not statically derivable from `'service_lock' if step == 'escalate' else step` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:351)."
         }
       },
       "additionalProperties": false

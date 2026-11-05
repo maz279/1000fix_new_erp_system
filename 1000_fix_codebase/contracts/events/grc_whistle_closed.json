@@ -45,7 +45,7 @@
           "type": "string"
         },
         "finding": {
-          "description": "Type not statically derivable from `finding` (addons/domain/i_governance/cd_grc/models/fix_grc_ops.py:791)."
+          "description": "Type not statically derivable from `finding` (addons/domain/i_governance/cd_grc/models/fix_grc_ops.py:1118)."
         },
         "follow_up": {
           "type": "string"

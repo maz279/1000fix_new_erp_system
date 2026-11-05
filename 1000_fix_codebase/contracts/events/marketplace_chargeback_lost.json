@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "marketplace.chargeback_lost",
-  "description": "A marketplace chargeback was lost or accepted: the amount is to be recovered from the seller (consumer: the M53 bridge, C7).",
+  "description": "Published by cd_marketplace through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -35,7 +35,10 @@
         "chargeback",
         "order_id",
         "seller_id",
+        "seller_partner_id",
+        "customer_id",
         "amount",
+        "currency",
         "outcome"
       ],
       "properties": {
@@ -46,26 +49,31 @@
           "type": "integer"
         },
         "seller_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "seller_partner_id": {
           "type": "integer"
         },
         "customer_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "amount": {
           "type": "number"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "outcome": {
-          "type": "string",
-          "enum": [
-            "lost",
-            "accepted"
-          ]
+          "description": "Type not statically derivable from `state` (addons/domain/d_circular/cd_marketplace/models/fix_marketplace_chargeback.py:198)."
         }
       },
       "additionalProperties": false
@@ -75,5 +83,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_marketplace/models/fix_marketplace_chargeback.py"
   ],
-  "x-derived-from": "A04 C2-C13 build (2026-11-04), hand-written from the publish() call"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M21 automation (A09 workflow audit C3, C5, P10): the audit found no
+     probation, contract-expiry, last-working-day or settlement-due cron, and
+     no in-ERP consumer of employee.left. A cron method without its ir.cron
+     never runs; each one here is asserted by a deployment test. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_m21_probation_review" model="ir.cron">
+            <field name="name">M21: probation review (deemed permanent at s.4(8) end; 14-day alert)</field>
+            <field name="model_id" ref="model_fix_employment_contract"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_probation_review()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m21_contract_expiry" model="ir.cron">
+            <field name="name">M21: contract expiry (90/60/30-day alerts, expire, activate due versions)</field>
+            <field name="model_id" ref="model_fix_employment_contract"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_contract_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m21_last_working_day" model="ir.cron">
+            <field name="name">M21: record leavers on their last working day (employee.left)</field>
+            <field name="model_id" ref="model_fix_hr_exit"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_process_last_working_days()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m21_settlement_due" model="ir.cron">
+            <field name="name">M21: flag final settlements past the s.30 / s.123(2) limit</field>
+            <field name="model_id" ref="model_fix_hr_exit"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_flag_overdue_settlements()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m21_disciplinary_deadlines" model="ir.cron">
+            <field name="name">M21: disciplinary deadlines (60-day suspension end, late enquiries)</field>
+            <field name="model_id" ref="model_fix_hr_disciplinary_case"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_disciplinary_deadlines()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- C3: employee.left revokes the leaver's Odoo access in-process
+             (the relay cron delivers it once; M29's service removes Keycloak). -->
+        <record id="event_consumer_employee_left_access" model="fix.event.consumer">
+            <field name="name">M21: revoke the leaver's Odoo login on employee.left</field>
+            <field name="event_type">employee.left</field>
+            <field name="model">hr.employee</field>
+            <field name="method">consume_employee_left</field>
+            <field name="module">cd_hr_core</field>
+        </record>
+        <!-- C3: employee.moved opens one mover access review (JML mover);
+             access is re-certified by a person, never changed automatically. -->
+        <record id="event_consumer_employee_moved_review" model="fix.event.consumer">
+            <field name="name">M21: open a mover access review on employee.moved</field>
+            <field name="event_type">employee.moved</field>
+            <field name="model">hr.employee</field>
+            <field name="method">consume_employee_moved</field>
+            <field name="module">cd_hr_core</field>
+        </record>
+
+        <!-- A09 round 2 -->
+        <!-- C3: employee.role_changed opens one role access review. The role to
+             group mapping (fix.role.group_id) is not ruled, so access is
+             re-certified by a person, never changed automatically. -->
+        <record id="event_consumer_employee_role_changed_review" model="fix.event.consumer">
+            <field name="name">M21: open a role-change access review on employee.role_changed</field>
+            <field name="event_type">employee.role_changed</field>
+            <field name="model">hr.employee</field>
+            <field name="method">consume_employee_role_changed</field>
+            <field name="module">cd_hr_core</field>
+        </record>
+        <!-- BLA s.27(3A): unanswered notices move the absence case on and
+             route the deemed-resignation decision. -->
+        <record id="ir_cron_m21_abandonment_timeline" model="ir.cron">
+            <field name="name">M21: absence without leave timeline (s.27(3A) notices and decision)</field>
+            <field name="model_id" ref="model_fix_hr_abandonment"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_abandonment_timeline()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-HCM-06: rows the upgrade could not move (store down then). -->
+        <record id="ir_cron_m21_identity_residency" model="ir.cron">
+            <field name="name">M21: move clear NID / birth registration / e-TIN to the resident store</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_identity_residency_move()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+
+    <!-- The HMAC key of the identity hashes, created once (never rotated by code). -->
+    <function model="hr.employee" name="_fix_identity_ensure_hash_key"/>
+
+    <!-- Every upgrade: re-derive the dossier flags from the verified
+         documents (rows saved before they became computed kept "True"). -->
+    <function model="hr.employee" name="_fix_recompute_evidence_flags"/>
+</odoo>

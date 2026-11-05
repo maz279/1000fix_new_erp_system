@@ -31,27 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "product_tmpl_id",
-        "item_type",
-        "brand_id"
-      ],
-      "properties": {
-        "product_tmpl_id": {
-          "type": "integer"
-        },
-        "item_type": {
-          "type": "string"
-        },
-        "brand_id": {
-          "type": [
-            "integer",
-            "boolean",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`rec._payload()`, addons/platform/cd_catalogue/models/fix_catalogue_item.py:383); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_catalogue",

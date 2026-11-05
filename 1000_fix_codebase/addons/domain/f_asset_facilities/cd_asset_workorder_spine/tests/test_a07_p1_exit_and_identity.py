@@ -32,9 +32,13 @@ def c(odoo_env):
 
 
 def _exit(c, employee=None):
+    # A09 M21 (merged): clearing runs from a confirmed notice, so the exit
+    # carries a served statutory notice (BLA s.27 resignation, 30 days).
     return c.env["fix.hr.exit"].create(
         {
             "employee_id": (employee or c.emp).id,
+            "notice_date": c.today - timedelta(days=40),
+            "last_working_day": c.today + timedelta(days=5),
             "clearance_it": True,
             "clearance_finance": True,
             "clearance_hr": True,
@@ -77,6 +81,8 @@ def test_exit_clearance_refuses_while_equipment_custody_is_open(c):
     _refused(c.env, ex.action_clear, match=r"A7SPX-EQ1.*%s" % issue.name)
     assert ex.state == "draft"
     issue.action_return(condition="good")
+    # A09 M21 (merged): an exit is cleared from its confirmed notice, not draft.
+    ex.action_confirm_notice()
     ex.action_clear()
     assert ex.state == "cleared"
 
@@ -124,12 +130,16 @@ def test_exit_clearance_names_open_bookings_and_driven_vehicles(c):
     if "driver_employee_id" in van._fields:
         van.write({"driver_employee_id": False})
     booking.unlink()
+    # A09 M21 (merged): an exit is cleared from its confirmed notice, not draft.
+    ex.action_confirm_notice()
     ex.action_clear()
     assert ex.state == "cleared"
 
 
 def test_an_employee_holding_nothing_clears_as_before(c):
     ex = _exit(c)
+    # A09 M21 (merged): an exit is cleared from its confirmed notice, not draft.
+    ex.action_confirm_notice()
     ex.action_clear()
     assert ex.state == "cleared"
 

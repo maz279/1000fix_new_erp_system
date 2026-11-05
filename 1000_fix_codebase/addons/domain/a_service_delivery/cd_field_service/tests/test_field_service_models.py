@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_competency.tests.certify import certify_for_dispatch, licence_for_driving
 from odoo.exceptions import UserError
 from psycopg2 import IntegrityError
 
@@ -48,6 +49,10 @@ def fs(odoo_env):
     zone = env["fix.zone"].create({"name": "FS Zone", "code": "FSMZ"})
     tech = env["hr.employee"].create({"name": "FS Tech"})
     tech2 = env["hr.employee"].create({"name": "FS Tech Two"})
+    # A09 C4: dispatch needs a device-scoped certification
+    for technician in (tech, tech2):
+        certify_for_dispatch(env, technician)
+        licence_for_driving(env, technician)  # dispatch by van checks it
     return SimpleNamespace(env=env, ou=ou, so=so, zone=zone, tech=tech, tech2=tech2)
 
 

@@ -47,7 +47,7 @@
           "type": "number"
         },
         "reason": {
-          "description": "Type not statically derivable from `reason[:500]` (addons/domain/g_finance/cd_billing_engine/models/fix_billing_engine.py:479)."
+          "description": "Type not statically derivable from `reason[:500]` (addons/domain/g_finance/cd_billing_engine/models/fix_billing_engine.py:481)."
         }
       },
       "additionalProperties": false

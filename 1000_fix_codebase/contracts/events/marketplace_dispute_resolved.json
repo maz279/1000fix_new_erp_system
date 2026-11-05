@@ -34,8 +34,15 @@
       "required": [
         "dispute",
         "order",
+        "order_id",
         "seller",
+        "seller_id",
+        "seller_partner_id",
+        "customer_id",
         "resolution",
+        "disputed_amount",
+        "refund_amount",
+        "currency",
         "payout_unlocked"
       ],
       "properties": {
@@ -45,17 +52,11 @@
         "order": {
           "type": "string"
         },
-        "seller": {
-          "type": "string"
-        },
-        "resolution": {
-          "type": "string"
-        },
-        "payout_unlocked": {
-          "type": "boolean"
-        },
         "order_id": {
           "type": "integer"
+        },
+        "seller": {
+          "type": "string"
         },
         "seller_id": {
           "type": "integer"
@@ -66,6 +67,13 @@
         "customer_id": {
           "type": "integer"
         },
+        "resolution": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
         "disputed_amount": {
           "type": "number"
         },
@@ -73,7 +81,13 @@
           "type": "number"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "payout_unlocked": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

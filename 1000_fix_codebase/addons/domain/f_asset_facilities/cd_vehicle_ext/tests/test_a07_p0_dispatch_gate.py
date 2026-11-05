@@ -309,10 +309,11 @@ def test_write_cannot_repoint_to_a_blocked_vehicle(w):
     assert refused(w.env, lambda: a.with_user(w.clerk).write({"vehicle_id": bad.id}))
     suspended = w.driver("A07P0 Susp", state="suspended")
     assert refused(w.env, lambda: a.with_user(w.clerk).write({"driver_id": suspended.id}))
-    # a field outside the gate still saves
-    emp = w.env["hr.employee"].create({"name": "A07P0 Tech"})
-    a.with_user(w.clerk).write({"technician_id": emp.id})
-    assert a.technician_id == emp
+    # a field outside the vehicle gate still saves; BRU-HSE-07 (merged with
+    # A09) still demands the repointed technician hold a valid licence.
+    tech = w.driver("A07P0 Tech", license_class="Light")
+    a.with_user(w.clerk).write({"technician_id": tech.employee_id.id})
+    assert a.technician_id == tech.employee_id
 
 
 def test_write_cannot_double_book_a_day(w):

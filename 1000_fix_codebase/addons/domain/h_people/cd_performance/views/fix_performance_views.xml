@@ -29,8 +29,12 @@
                 <header>
                     <button name="action_compute" type="object" string="Compute"
                             class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_apply" type="object"
-                            string="Apply to Payroll"
+                    <!-- A09 I4: approval is routed (M63); payroll picks the
+                         approved lines up, M57 never writes the payslip. -->
+                    <button name="action_request_approval" type="object"
+                            string="Request Approval"
+                            invisible="state != 'computed' or approval_state == 'pending'"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft"
                             invisible="state != 'computed'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
@@ -38,7 +42,8 @@
                     <group>
                         <group>
                             <field name="period"/>
-                            <field name="band_base" groups="base.group_system"/>
+                            <field name="band_base" groups="cd_performance.group_performance_officer,cd_performance.group_incentive_approver"/>
+                            <field name="approval_state"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                         <group>
@@ -74,8 +79,8 @@
             <list>
                 <field name="grade"/>
                 <field name="name"/>
-                <field name="range_min" groups="base.group_system"/>
-                <field name="range_max" groups="base.group_system"/>
+                <field name="range_min" groups="cd_performance.group_compensation"/>
+                <field name="range_max" groups="cd_performance.group_compensation"/>
             </list>
         </field>
     </record>

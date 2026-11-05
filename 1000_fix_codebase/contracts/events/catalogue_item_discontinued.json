@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "catalogue.item_discontinued",
-  "description": "Published by cd_catalogue through libs.py.fix_events.publish() (1 call site(s)); A04 audit 2026-11-04 (C8/C10).",
+  "description": "Published by cd_catalogue through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -31,45 +31,13 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "brand_id",
-        "end_of_support",
-        "item_type",
-        "product_tmpl_id",
-        "successor_id"
-      ],
-      "properties": {
-        "product_tmpl_id": {
-          "type": "integer"
-        },
-        "item_type": {
-          "type": "string"
-        },
-        "brand_id": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "successor_id": {
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "end_of_support": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`dict(rec._payload(), successor_id=successor.id or None, end_of_support=fields.Date.to_string(end) if`, addons/platform/cd_catalogue/models/fix_catalogue_item.py:663); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_catalogue",
   "x-publishers": [
     "addons/platform/cd_catalogue/models/fix_catalogue_item.py"
   ],
-  "x-derived-from": "publish() call (hand-written for the A04 C2-C13 pass)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

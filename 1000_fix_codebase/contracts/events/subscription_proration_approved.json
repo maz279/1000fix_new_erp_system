@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "subscription.proration_approved",
-  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code (A04 C2-C13 build, 2026-11-04).",
+  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -66,6 +66,7 @@
         "charge_id": {
           "type": [
             "integer",
+            "boolean",
             "null"
           ]
         }

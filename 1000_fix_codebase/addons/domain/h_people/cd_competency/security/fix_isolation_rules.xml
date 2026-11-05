@@ -24,6 +24,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_certification_waiver_company" model="ir.rule">
+        <field name="name">fix.certification.waiver: allowed companies</field>
+        <field name="model_id" ref="model_fix_certification_waiver"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_competency_company" model="ir.rule">
         <field name="name">fix.competency: allowed companies</field>
         <field name="model_id" ref="model_fix_competency"/>
@@ -54,6 +59,28 @@
         <field name="name">fix.ojt.record: allowed companies</field>
         <field name="model_id" ref="model_fix_ojt_record"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_budget_company" model="ir.rule">
+        <field name="name">fix.training.budget: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_budget"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_budget_operating_unit" model="ir.rule">
+        <field name="name">fix.training.budget: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_training_budget"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_training_budget_exception_company" model="ir.rule">
+        <field name="name">fix.training.budget.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_budget_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_budget_exception_operating_unit" model="ir.rule">
+        <field name="name">fix.training.budget.exception: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_training_budget_exception"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_training_course_company" model="ir.rule">
         <field name="name">fix.training.course: allowed companies</field>

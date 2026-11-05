@@ -24,6 +24,39 @@
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
+    <!-- A09 workflow audit M22-F3/F4/F6 (build brief §6.11): the operational
+         role prepared AND decided certifications, waivers and ISO evidence.
+         The deciders are separate roles. Holders are a business decision
+         (A09 report §7.1): superuser and administrator only until appointed;
+         the engine never routes a decision to its requester, its preparer or
+         the technician it is about. -->
+    <record id="group_certification_verifier" model="res.groups">
+        <field name="name">Certification &amp; Evidence Verifier</field>
+        <field name="privilege_id" ref="privilege_training"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Decides routed certification grants (BRU-LMS-04/06), reinstates suspended certificates and accepts ISO / brand audit evidence. Never for their own or for what they prepared.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_dispatch_override" model="res.groups">
+        <field name="name">Certification Override Approver</field>
+        <field name="privilege_id" ref="privilege_training"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Decides routed certification waivers: one technician on one job, with a reason (BRU-LMS-02, FR-LMS-040). The spec's Operations Director authority.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- BRU-LMS-10 (A09 round 2): an enrolment past the year's training
+         budget needs this role's routed approval (the CFO's authority in the
+         spec). Never the Training Manager who asks. -->
+    <record id="group_training_budget_approver" model="res.groups">
+        <field name="name">Training Budget Approver</field>
+        <field name="privilege_id" ref="privilege_training"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Sets the yearly training budget and decides routed over-budget enrolment requests (BRU-LMS-10). Never a request they raised or one for themself.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
     <!-- an HR Manager inherits the role, so existing manager accounts are
          unaffected by the tightening -->
     <record id="hr.group_hr_manager" model="res.groups">

@@ -20,7 +20,7 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
 - payslip.pdf — the Bengali payslip (TR-07's named failure mode)
 - GL posting to M19 on approval; approval SoD negative-tested
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Payroll",
@@ -38,7 +38,10 @@ CD-M56-01 (P08-M03) — the only P0 module in Category H:
         "security/fix_payroll_security.xml",
         "security/ir.model.access.csv",
         "data/payroll_ops_sequences.xml",
+        "data/fix_payroll_a09_data.xml",
+        "data/fix_payroll_r2_data.xml",
         "views/fix_payroll_views.xml",
+        "report/report_payslip_bn.xml",
     ],
     "installable": True,
     "application": True,

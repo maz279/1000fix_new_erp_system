@@ -23,7 +23,8 @@
             <form string="HSE Incident">
                 <header>
                     <button name="action_investigate" string="Investigate" type="object" invisible="state != 'reported'" class="btn-primary"/>
-                    <button name="action_close" string="Close Incident" type="object" invisible="state != 'investigating'" class="btn-success"/>
+                    <button name="action_record_action_taken" string="Record Action Taken" type="object" invisible="state != 'investigating'" class="btn-primary"/>
+                    <button name="action_close" string="Close Incident" type="object" invisible="state != 'action_taken'" class="btn-success"/>
                     <field name="state" widget="statusbar" statusbar_visible="reported,investigating,action_taken,closed"/>
                 </header>
                 <sheet>
@@ -49,8 +50,32 @@
                         <page string="Description">
                             <field name="description"/>
                         </page>
-                        <page string="Corrective Actions">
-                            <field name="corrective_action"/>
+                        <page string="Investigation">
+                            <field name="investigation_findings"/>
+                            <field name="investigation_member_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id"/>
+                                    <field name="role"/>
+                                </list>
+                            </field>
+                            <field name="root_cause_ids">
+                                <list editable="bottom">
+                                    <field name="category"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="CAPA">
+                            <field name="capa_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="action_type"/>
+                                    <field name="owner_id"/>
+                                    <field name="due_date"/>
+                                    <field name="verified_by_id"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
@@ -89,7 +114,7 @@
         <field name="arch" type="xml">
             <form string="Safety Inspection">
                 <header>
-                    <button name="action_complete" string="Complete Inspection" type="object" invisible="state != 'scheduled'" class="btn-primary"/>
+                    <button name="action_complete" string="Complete Inspection" type="object" invisible="state == 'done'" class="btn-primary"/>
                     <field name="state" widget="statusbar" statusbar_visible="scheduled,done,follow_up"/>
                 </header>
                 <sheet>
@@ -156,8 +181,8 @@
         <field name="arch" type="xml">
             <form string="Statutory Safety Committee">
                 <header>
-                    <button name="action_record_meeting" string="Record Meeting" type="object" class="btn-primary"/>
-                    <field name="state" widget="statusbar" statusbar_visible="active,review_needed,dissolved"/>
+                    <button name="action_activate" string="Constitute" type="object" invisible="state not in ('draft', 'review_needed')" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,review_needed,dissolved"/>
                 </header>
                 <sheet>
                     <div class="oe_title">

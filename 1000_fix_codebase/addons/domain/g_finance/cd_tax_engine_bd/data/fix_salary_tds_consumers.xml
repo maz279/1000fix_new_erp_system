@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M51 intake of the salary TDS payroll withheld (ITA 2023 s.86), from
+  payroll.posted (A09 M56-17). See models/fix_salary_tds.py.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_payroll_posted_salary_tds" model="fix.event.consumer">
+            <field name="name">M51: a posted payroll run's withheld salary TDS becomes one s.86 row per operating unit</field>
+            <field name="event_type">payroll.posted</field>
+            <field name="model">fix.salary.tds</field>
+            <field name="method">consume_payroll_posted</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+        <record id="consumer_payroll_bonus_posted_salary_tds" model="fix.event.consumer">
+            <field name="name">M51: a posted festival bonus run's withheld TDS becomes one s.86 row per operating unit</field>
+            <field name="event_type">payroll.bonus_posted</field>
+            <field name="model">fix.salary.tds</field>
+            <field name="method">consume_payroll_bonus_posted</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+    </data>
+</odoo>

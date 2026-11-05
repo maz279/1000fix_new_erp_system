@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "subscription.autopay_succeeded",
-  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code (A04 C2-C13 build, 2026-11-04).",
+  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -50,13 +50,19 @@
           "type": "integer"
         },
         "invoice_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "amount": {
           "type": "number"
         },
         "provider_ref": {
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

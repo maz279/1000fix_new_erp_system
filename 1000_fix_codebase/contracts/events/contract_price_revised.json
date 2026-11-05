@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "contract.price_revised",
-  "description": "Published by cd_contract_core through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_contract_core through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -42,13 +42,16 @@
           "type": "string"
         },
         "old_annual_value": {
-          "type": "number"
+          "description": "Type not statically derivable at every publish site."
         },
         "new_annual_value": {
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false
@@ -56,7 +59,8 @@
   },
   "x-owner-module": "cd_contract_core",
   "x-publishers": [
-    "addons/domain/c_commercial/cd_contract_core/models/fix_contract.py"
+    "addons/domain/c_commercial/cd_contract_core/models/fix_contract.py",
+    "addons/domain/c_commercial/cd_contract_core/models/fix_contract_ops.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

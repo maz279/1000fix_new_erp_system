@@ -40,7 +40,10 @@
       ],
       "properties": {
         "rma_number": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "customer": {
           "type": [
@@ -69,7 +72,7 @@
   },
   "x-owner-module": "cd_storefront",
   "x-publishers": [
-    "addons/domain/b_customer_engagement/cd_storefront/models/fix_storefront.py"
+    "addons/domain/b_customer_engagement/cd_storefront/models/fix_storefront_refund.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

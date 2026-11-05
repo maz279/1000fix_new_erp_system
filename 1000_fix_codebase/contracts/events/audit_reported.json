@@ -44,7 +44,7 @@
           "type": "integer"
         },
         "systems_traced": {
-          "description": "Type not statically derivable from `rec.nccr_systems_traced()` (addons/domain/i_governance/cd_qms_process/models/fix_qms.py:500)."
+          "description": "Type not statically derivable from `rec.nccr_systems_traced()` (addons/domain/i_governance/cd_qms_process/models/fix_qms.py:490)."
         }
       },
       "additionalProperties": false

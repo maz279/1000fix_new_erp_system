@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M55 leave controls (A09 workflow audit P0-b, P1, P2): record rules, crons and
+     seed rules for the leave lifecycle. Owned by the leave work package. -->
+<odoo>
+    <!-- A09 audit M55-1 / P6: every employee read and wrote every colleague's leave.
+         GLOBAL rules (see fix_a09_privacy_rules.xml for why): an employee reads
+         their own and their direct reports' leave; the HR and payroll roles read
+         every row the company rules allow. -->
+    <record id="rule_leave_request_own" model="ir.rule">
+        <field name="name">fix.leave.request: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_leave_request"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_leave_accrual_own" model="ir.rule">
+        <field name="name">fix.leave.accrual: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_leave_accrual"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_leave_accrual_company" model="ir.rule">
+        <field name="name">fix.leave.accrual: allowed companies</field>
+        <field name="model_id" ref="model_fix_leave_accrual"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- C5 / P10: BLA s.117 annual leave accrual, idempotent, as superuser -->
+    <record id="cron_accrue_annual_leave" model="ir.cron">
+        <field name="name">M55: annual leave accrual (BLA s.117, 1 day per 18 worked)</field>
+        <field name="model_id" ref="model_fix_leave_accrual"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_accrue_annual_leave()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- seed rules on the statutory types: sick needs a certificate (s.116),
+         maternity runs in continuous weeks (holidays inside it are charged) -->
+    <function model="fix.leave.type" name="_fix_seed_leave_rules"/>
+</odoo>

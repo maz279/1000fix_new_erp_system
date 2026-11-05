@@ -32,7 +32,7 @@
     "payload": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Payload built dynamically (`est._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_estimate.py:489); its keys are not statically derivable."
+      "description": "Payload built dynamically (`est._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_estimate.py:501); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_service_order",

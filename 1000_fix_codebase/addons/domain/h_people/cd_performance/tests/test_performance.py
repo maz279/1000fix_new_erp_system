@@ -1,12 +1,9 @@
-# cd_performance tests — P08-M04, R06-M01 (CD-M57-01).
-import inspect
+# cd_performance tests — P08-M04, R06-M01 (CD-M57-01): the pure scoring and
+# banding functions.
 import unittest
 
 from odoo.addons.cd_performance.models.fix_performance import (
     WEIGHTS,
-    FixCompensationBand,
-    FixIncentiveRun,
-    FixPerformanceScorecard,
     composite_score,
     incentive_amount,
     rework_clawback_penalty,
@@ -108,42 +105,11 @@ class TestIncentiveCoverage100Pct(unittest.TestCase):
             else:
                 self.assertEqual(amount, 0.0)
 
-    def test_incentive_engine_feeds_payroll_event(self):
-        src_apply = inspect.getsource(FixIncentiveRun.action_apply)
-        self.assertIn("incentive.granted", src_apply)
-        self.assertIn("applied", src_apply)
 
-    def test_scorecard_published_event(self):
-        src_pub = inspect.getsource(FixPerformanceScorecard.action_publish)
-        self.assertIn("scorecard.published", src_pub)
-
-
-class TestT5FieldLevelPermissions(unittest.TestCase):
-    """Compensation banding with T5 field-level permissions negative-tested (R06-M01-T05)."""
-
-    def test_compensation_band_ranges_protected_by_group_system(self):
-        for field_name in ("range_min", "range_mid", "range_max"):
-            field_def = getattr(FixCompensationBand, field_name, None)
-            self.assertIsNotNone(field_def, f"Field {field_name} missing on FixCompensationBand")
-            self.assertEqual(
-                getattr(field_def, "groups", None),
-                "base.group_system",
-                f"Field {field_name} must be restricted to base.group_system (T5)",
-            )
-
-    def test_incentive_run_band_base_protected_by_group_system(self):
-        field_def = getattr(FixIncentiveRun, "band_base", None)
-        self.assertIsNotNone(field_def, "Field band_base missing on FixIncentiveRun")
-        self.assertEqual(
-            getattr(field_def, "groups", None),
-            "base.group_system",
-            "Field band_base must be restricted to base.group_system (T5)",
-        )
-
-    def test_band_range_validation_ordering(self):
-        src = inspect.getsource(FixCompensationBand._check_range)
-        self.assertIn("rec.range_min <= rec.range_mid <= rec.range_max", src)
-
+# A09 B6: the inspect.getsource greps and the `groups` attribute checks that
+# stood here passed with the controls deleted. The controls are now proved
+# behaviourally, as non-admin users, in test_a09_m57_controls.py (band ranges
+# for the Compensation Manager only, the routed incentive approval, events).
 
 if __name__ == "__main__":
     unittest.main()

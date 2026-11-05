@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tender_bond.claimed",
-  "description": "Published by cd_quotation through libs.py.fix_events.publish() (A04 C2-C13 build 2026-11-04); payload derived from the publishing code.",
+  "description": "Published by cd_quotation through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -42,7 +42,10 @@
       ],
       "properties": {
         "bond": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "tender": {
           "type": "string"
@@ -54,13 +57,22 @@
           "type": "number"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "bank": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "guarantee_no": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

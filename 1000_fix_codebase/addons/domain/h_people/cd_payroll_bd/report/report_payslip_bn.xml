@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_payroll_bd - the Bengali payslip (বেতন বিবরণী), FR-PAY-050, TR-07.
+
+  The manifest has promised "payslip.pdf - the Bengali payslip" since P08-M03;
+  there was no report (A09 audit M56 §1.2 step 10). The template only READS
+  the payslip: every figure is the stored, frozen slip, and the report action
+  runs under the reader's own access, so an employee prints their own
+  published slip and nobody else's (rule_fix_payslip_own_published).
+  Identifiers stay ASCII (BN-007); labels are bilingual.
+-->
+<odoo>
+    <!-- the report action is action_report_payslip_bn in views/fix_payroll_views.xml -->
+    <template id="report_payslip_bn">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="slip">
+                <div class="article" t-att-data-oe-model="slip._name" t-att-data-oe-id="slip.id">
+                    <div class="page">
+                        <h3>বেতন বিবরণী / Payslip</h3>
+                        <p>
+                            <span>কর্মচারী / Employee:</span> <span t-field="slip.employee_id.name"/><br/>
+                            <span>বেতনকাল / Period:</span> <span t-field="slip.period_id.name"/>
+                            (<span t-field="slip.period_id.period_start"/> - <span t-field="slip.period_id.period_end"/>)<br/>
+                            <span>প্রদত্ত দিন / Paid days:</span> <span t-esc="slip.paid_days or ''"/> / <span t-esc="slip.period_days or ''"/>
+                        </p>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr><td>মূল বেতন / Basic</td><td class="text-end"><span t-field="slip.basic"/></td></tr>
+                                <tr><td>ভাতা / Allowances</td><td class="text-end"><span t-field="slip.allowances_total"/></td></tr>
+                                <tr><td>অধিকাল ভাতা / Overtime</td><td class="text-end"><span t-field="slip.overtime"/></td></tr>
+                                <tr><td>প্রণোদনা / Incentive</td><td class="text-end"><span t-field="slip.incentive"/></td></tr>
+                                <tr><td><strong>মোট বেতন / Gross</strong></td><td class="text-end"><strong><span t-field="slip.gross"/></strong></td></tr>
+                                <tr><td>ভবিষ্য তহবিল কর্তন / Provident fund</td><td class="text-end"><span t-field="slip.pf_employee"/></td></tr>
+                                <tr><td>উৎসে কর্তিত আয়কর / Income tax withheld</td><td class="text-end"><span t-field="slip.tax_withheld"/></td></tr>
+                                <tr><td><strong>নিট প্রদেয় / Net pay</strong></td><td class="text-end"><strong><span t-field="slip.net"/></strong></td></tr>
+                            </tbody>
+                        </table>
+                        <p>
+                            <span>ব্যাংক হিসাব / Account:</span> <span t-esc="slip.bank_account_no or ''"/>
+                            (<span t-esc="slip.routing_no or ''"/>)<br/>
+                            <span>প্রকাশিত / Published:</span> <span t-field="slip.published_on"/><br/>
+                            <small>Digest: <span t-esc="slip.published_digest or ''"/></small>
+                        </p>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

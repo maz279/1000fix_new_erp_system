@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "storefront.order_cancelled",
-  "description": "Published by cd_storefront through libs.py.fix_events.publish() (1 call site(s)). A storefront order cancelled before dispatch; refund_due > 0 when it had been paid (the refund instruction for M20).",
+  "description": "Published by cd_storefront through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -56,17 +56,24 @@
           "type": "number"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "rail": {
           "type": "string"
         },
         "payment_ref": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "receipt_id": {
           "type": [
             "integer",
+            "boolean",
             "null"
           ]
         },
@@ -81,5 +88,5 @@
   "x-publishers": [
     "addons/domain/b_customer_engagement/cd_storefront/models/fix_storefront.py"
   ],
-  "x-derived-from": "A04 build (2026-11-04), written by hand from the publish() call"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 round 2, M57: the settings the incentive controls read, and the
+     incentive scheme seeded from the figures the code used.
+
+     Decisions policy (A09 build brief §3): no repository source rules these
+     figures, so each is a setting holding today's behaviour (or 0, "off"),
+     listed under Decisions in the build report. noupdate: a value a person
+     sets is never overwritten by an upgrade. -->
+<odoo>
+    <data noupdate="1">
+        <!-- BRU-PIC-07: compute only after the M55 attendance lock. "1" =
+             enforced (the code's default when the key is absent). -->
+        <record id="param_incentive_requires_attendance_lock" model="ir.config_parameter">
+            <field name="key">cd_performance.incentive_requires_attendance_lock</field>
+            <field name="value">1</field>
+        </record>
+        <!-- BRU-PIC-12: days to dispute a computed line. No figure in any
+             source: 0 = no window (today's behaviour). -->
+        <record id="param_incentive_dispute_days" model="ir.config_parameter">
+            <field name="key">cd_performance.incentive_dispute_days</field>
+            <field name="value">0</field>
+        </record>
+        <!-- BRU-PIC-11: a rework or credit within this many days of an order's
+             completion claws back its share of a paid incentive. No figure in
+             any source: 0 = no clawback (today's behaviour). -->
+        <record id="param_incentive_clawback_days" model="ir.config_parameter">
+            <field name="key">cd_performance.incentive_clawback_days</field>
+            <field name="value">0</field>
+        </record>
+
+        <record id="seq_fix_compensation_proposal" model="ir.sequence">
+            <field name="name">Compensation Proposal</field>
+            <field name="code">fix.compensation.proposal</field>
+            <field name="prefix">CMP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <!-- BRU-PIC-01/02: version 1 carries the figures incentive_amount()
+             used (15/8/4 % at scores 0.90/0.75/0.60). They are AS CODED and
+             UNSOURCED, so the version is a DRAFT: the HR Director and the CFO
+             set the band base and approve it (or replace it) before any run
+             computes. No eligibility minimum and no long-leave proration are
+             ruled (0). -->
+        <record id="scheme_technician" model="fix.incentive.scheme">
+            <field name="name">Technician Incentive Scheme</field>
+            <field name="code">TECH</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="description">Monthly technician incentive banded on the composite scorecard score (M57).</field>
+        </record>
+        <record id="scheme_technician_v1" model="fix.incentive.scheme.version">
+            <field name="scheme_id" ref="scheme_technician"/>
+            <field name="version_no">1</field>
+            <field name="date_from">2026-01-01</field>
+            <field name="basis">As coded, unsourced: the rates and cut-offs incentive_amount() used before A09 round 2. No board minute or policy in the repository rules them.</field>
+            <field name="band_base">0</field>
+            <field name="cut_top">0.90</field>
+            <field name="cut_mid">0.75</field>
+            <field name="cut_low">0.60</field>
+            <field name="rate_top">15.0</field>
+            <field name="rate_mid">8.0</field>
+            <field name="rate_low">4.0</field>
+            <field name="min_service_days">0</field>
+            <field name="long_leave_days">0</field>
+            <field name="state">draft</field>
+        </record>
+    </data>
+</odoo>

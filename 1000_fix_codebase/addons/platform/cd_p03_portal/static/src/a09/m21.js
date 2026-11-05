@@ -31,6 +31,9 @@ export const MODULE = {
       { id: 'M21-hire', en: 'Hire / Onboard', bn: 'নিয়োগ', t: 'g' },
       { id: 'M21-transfer', en: 'Transfer / Promote', bn: 'স্থানান্তর ও পদোন্নতি', t: 'g' },
       { id: 'M21-exit', en: 'Exit & Settlement', bn: 'প্রস্থান', t: 'g' },
+      { id: 'M21-master-change', en: 'Master Changes', bn: 'তথ্য পরিবর্তন', t: 'g' },
+      { id: 'M21-disciplinary', en: 'Disciplinary', bn: 'শৃঙ্খলা', t: 'g' },
+      { id: 'M21-abandonment', en: 'Absence Without Leave (s.27(3A))', bn: 'বিনা ছুটিতে অনুপস্থিতি', t: 'g' },
       { id: 'M21-movement', en: 'Movement History', bn: 'চলাচলের ইতিহাস', t: 'r' }
     ]},
     { en: 'Documents', screens: [
@@ -40,9 +43,15 @@ export const MODULE = {
     ]},
     { en: 'Self-Service', screens: [
       { id: 'M21-ess', en: 'ESS / MSS', bn: 'স্ব-সেবা', t: 'r' }
+    ]},
+    /* A09 round 2: the identity read log (HR Manager) and the read-only
+     * clean-up findings the business decides from. */
+    { en: 'Governance', screens: [
+      { id: 'M21-rpt-identity-log', en: 'Identity Read Log', bn: 'পরিচয় তথ্য পাঠের লগ', t: 'r' },
+      { id: 'M21-rpt-cleanup', en: 'Data Clean-up Findings', bn: 'তথ্য পরিচ্ছন্নতা', t: 'r' }
     ]}
   ],
-  reports: ['Headcount & Movement', 'Attrition Analysis', 'Probation Conversion', 'Establishment Register', 'Org Distribution'],
+  reports: ['Headcount & Movement', 'Attrition Analysis', 'Probation Conversion', 'Establishment Register', 'Org Distribution', 'Form 6(a) Register', 'Identity Read Log', 'Data Clean-up Findings'],
   forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
@@ -60,41 +69,101 @@ export const MODULE = {
 export const SCREENS = {
   'M21-directory': { kind: 'model_list', model: 'hr.employee',
     cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'job_title', 'work_email', 'active'],
+    /* A09 P0-b: Form 6(a) is a report pack (M21-rpt-form6a): the action
+     * returned a list the endpoint dropped. Leaver and KPI-090 confirmation
+     * are on screen (HR / HR manager only, server-checked). */
     actions: [
       { m: 'action_generate_form6_appointment', l: 'Generate Form 6 Appointment' },
       { m: 'action_generate_form7_service_book', l: 'Generate Form 7 Service Book' },
-      { m: 'action_export_form6a_register', l: 'Export Form 6(a) Register' }
+      { m: 'action_generate_id_card', l: 'Issue ID Card' },
+      { m: 'action_record_psr_submission', l: 'Record PSR Submission' },
+      { m: 'action_verify_psr', l: 'Verify PSR (second person)' },
+      { m: 'action_mark_psr_exempt', l: 'Mark PSR Exempt' },
+      { m: 'action_mark_left', l: 'Record Leaver' },
+      { m: 'action_confirm_keycloak_deprovisioned', l: 'Confirm Keycloak Deprovisioned' }
     ] },
   'M21-orgchart': { kind: 'table_report', module: 'M21', report: 'org_distribution', title: 'Org Distribution', period: true },
   'M21-positions': { kind: 'model_list', model: 'fix.org.position',
-    cols: ['name', 'parent_id', 'grade', 'operating_unit_id', 'company_id'] },
+    cols: ['name', 'parent_id', 'grade', 'headcount', 'filled_count', 'vacant_count', 'operating_unit_id', 'company_id'] },
   'M21-hire': { kind: 'model_list', model: 'fix.employment.contract', stateField: 'state',
-    cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'basic_monthly', 'legal_signoff_state', 'state'],
+    cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'date_end', 'basic_monthly', 'legal_signoff_state', 'approval_state', 'state'],
+    /* The legal sign-off is decided in Legal Counsel's approval inbox (M63);
+     * a contract ends through its exit, never by a Terminate button. */
     actions: [
-      { m: 'action_request_legal_signoff', l: 'Request Legal Signoff' },
-      { m: 'action_approve_legal_signoff', l: 'Approve Legal Signoff' },
-      { m: 'action_activate', l: 'Activate' },
-      { m: 'action_terminate', l: 'Terminate' }
+      { m: 'action_request_legal_signoff', l: 'Request Legal Signoff', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Signoff Request', states: ['draft'] },
+      { m: 'action_activate', l: 'Activate', states: ['draft'] },
+      { m: 'action_new_version', l: 'New Version', states: ['active'] },
+      { m: 'action_confirm_probation', l: 'Confirm Probation', states: ['active'] },
+      { m: 'action_extend_probation', l: 'Extend Probation (skilled)', states: ['active'] },
+      { m: 'action_generate_contract_document', l: 'Generate Contract Document' }
     ] },
   'M21-transfer': { kind: 'model_list', model: 'fix.hr.transfer', stateField: 'state',
     cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'from_position_id', 'to_position_id', 'state'],
+    /* Each step is its owner's (line manager, destination manager,
+     * evaluator, HR, Finance); the executive decision is routed (M63). */
     actions: [
-      { m: 'action_approve', l: 'Approve' },
-      { m: 'action_apply', l: 'Apply Movement' },
+      { m: 'action_recommend', l: 'Recommend', states: ['draft'] },
+      { m: 'action_concur', l: 'Concur', states: ['recommended'] },
+      { m: 'action_tech_eval', l: 'Technical Evaluation', states: ['recommended', 'concurred'] },
+      { m: 'action_hr_audit', l: 'HR Audit', states: ['concurred', 'tech_evaluated'] },
+      { m: 'action_finance_approve', l: 'Finance Clearance', states: ['hr_audited'] },
+      { m: 'action_request_approval', l: 'Request Executive Approval', states: ['hr_audited', 'finance_approved'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['hr_audited', 'finance_approved'] },
+      { m: 'action_tick_open_jobs', l: 'Open Jobs Audited', states: ['approved'] },
+      { m: 'action_tick_toolkit', l: 'Tool Kit Returned', states: ['approved'] },
+      { m: 'action_tick_spare_parts', l: 'Spare Parts Reconciled', states: ['approved'] },
+      { m: 'action_tick_storekeeper', l: 'Storekeeper Cleared', states: ['approved'] },
+      { m: 'action_tick_imprest', l: 'Imprest Settled', states: ['approved'] },
+      { m: 'action_clear_handover', l: 'Clear Handover', states: ['approved'] },
+      { m: 'action_apply', l: 'Apply Movement', states: ['handover_cleared'] },
+      { m: 'action_reset_draft', l: 'Reset to Draft' },
       { m: 'action_cancel', l: 'Cancel' }
     ] },
   'M21-exit': { kind: 'model_list', model: 'fix.hr.exit', stateField: 'state',
-    cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'clearance_it', 'clearance_finance', 'settlement_amount', 'state'],
+    cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'clearance_it', 'clearance_finance', 'clearance_hr', 'clearance_assets', 'settlement_amount', 'settlement_due_date', 'approval_state', 'state'],
+    /* Each clearance tick has one owner (IT, Finance, HR, Assets). The
+     * settlement figure is payroll's (I1) and Finance approves it from the
+     * approval inbox; there is no Settle button. */
     actions: [
-      { m: 'action_clear', l: 'Clear' },
-      { m: 'action_settle', l: 'Settle' },
-      { m: 'action_cancel', l: 'Cancel' }
+      { m: 'action_confirm_notice', l: 'Confirm Exit & Notice', states: ['draft'] },
+      { m: 'action_clear_it', l: 'IT Clearance', states: ['notice'] },
+      { m: 'action_clear_finance', l: 'Finance Clearance', states: ['notice'] },
+      { m: 'action_clear_hr', l: 'HR Clearance', states: ['notice'] },
+      { m: 'action_clear_assets', l: 'Assets Clearance', states: ['notice'] },
+      { m: 'action_clear', l: 'Complete Clearance', states: ['notice'] },
+      { m: 'action_compute_settlement', l: 'Compute Settlement (Payroll)', states: ['cleared'] },
+      { m: 'action_request_approval', l: 'Route Settlement to Finance', states: ['cleared'] },
+      { m: 'action_recall_approval', l: 'Recall Settlement Request', states: ['cleared'] },
+      { m: 'action_create_settlement_payment', l: 'Create Settlement Payment (Payroll)', states: ['settled'] },
+      { m: 'action_issue_service_certificate', l: 'Issue Service Certificate (s.31)', states: ['cleared', 'settled'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'notice'] }
+    ] },
+  /* BLA s.27(3A): HR serves the notice; the cron opens the self-defence
+   * window and routes the deemed resignation to the executive's inbox. */
+  'M21-abandonment': { kind: 'model_list', model: 'fix.hr.abandonment', stateField: 'state',
+    cols: ['name', 'employee_id', 'absence_start_date', 'absent_days', 'notice_date', 'reply_due', 'hearing_due', 'approval_state', 'exit_id', 'state'],
+    actions: [
+      { m: 'action_issue_notice', l: 'Serve s.27(3A) Notice', states: ['draft'] },
+      { m: 'action_record_explanation', l: 'Record Explanation / Rejoined', states: ['noticed', 'hearing', 'decision'] },
+      { m: 'action_request_approval', l: 'Request Decision', states: ['hearing'] },
+      { m: 'action_recall_approval', l: 'Recall Decision Request', states: ['decision'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'noticed', 'hearing', 'decision'] }
     ] },
   'M21-movement': { kind: 'table_report', module: 'M21', report: 'headcount_movement', title: 'Movement History', period: true },
   'M21-appointment': { kind: 'model_list', model: 'fix.hr.document',
-    cols: ['name', 'employee_id', 'doc_type', 'reference', 'issued_on', 'acknowledged'] },
+    cols: ['name', 'employee_id', 'doc_type', 'reference', 'issued_on', 'generated', 'verified', 'acknowledged'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (second person)' },
+      { m: 'action_unverify', l: 'Withdraw Verification' },
+      { m: 'action_acknowledge', l: 'Acknowledge (the employee)' }
+    ] },
   'M21-servicebook': { kind: 'model_list', model: 'fix.hr.document',
-    cols: ['name', 'employee_id', 'reference', 'issued_on', 'acknowledged', 'notes'] },
+    cols: ['name', 'employee_id', 'reference', 'issued_on', 'verified', 'acknowledged', 'notes'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (second person)' },
+      { m: 'action_acknowledge', l: 'Acknowledge (the employee)' }
+    ] },
   'M21-nominees': { kind: 'model_list', model: 'fix.hr.dependant',
     cols: ['employee_id', 'name', 'relation', 'date_of_birth', 'is_nominee', 'nominee_pct'] },
   'M21-ess': { kind: 'table_report', module: 'M21', report: 'probation_conversion', title: 'ESS / MSS — Probation Conversions Due', period: true },
@@ -104,6 +173,9 @@ export const SCREENS = {
   'M21-rpt-attrition': { kind: 'table_report', module: 'M21', report: 'attrition_analysis', title: 'Attrition Analysis', period: true },
   'M21-rpt-probation': { kind: 'table_report', module: 'M21', report: 'probation_conversion', title: 'Probation Conversion', period: true },
   'M21-rpt-establishment': { kind: 'table_report', module: 'M21', report: 'establishment_register', title: 'Establishment Register', period: true },
+  'M21-rpt-form6a': { kind: 'table_report', module: 'M21', report: 'form6a_register', title: 'Form 6(a) Worker Register (BLR r.20)', period: false },
+  'M21-rpt-identity-log': { kind: 'table_report', module: 'M21', report: 'identity_access_log', title: 'Identity Read Log (BRU-HCM-07, HR Manager)', period: true },
+  'M21-rpt-cleanup': { kind: 'table_report', module: 'M21', report: 'data_cleanup', title: 'Data Clean-up Findings (read-only)', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M21-form-employee': {
@@ -186,9 +258,9 @@ export const SCREENS = {
           { name: 'birth_reg_number', label: 'Birth Registration Number (17-digit BRIS)' },
           { name: 'service_book_number', label: 'Form 7 Service Book Register No' },
           { name: 'form7_last_event_date', label: 'Form 7 Last Change Event Date' },
-          { name: 'form7_endorsed_on', label: 'Form 7 Last Endorsed Date' },
-          { name: 'form7_update_due_date', label: 'Form 7 15-Day Update Due Date' },
-          { name: 'form7_update_overdue', label: 'Form 7 Update Overdue' },
+          { name: 'form7_endorsed_on', label: 'Form 7 Last Endorsed Date', readonly: true },
+          { name: 'form7_update_due_date', label: 'Form 7 15-Day Update Due Date', readonly: true },
+          { name: 'form7_update_overdue', label: 'Form 7 Update Overdue', readonly: true },
           { name: 'passport_number', label: 'International Passport Number' }
         ]
       },
@@ -201,9 +273,9 @@ export const SCREENS = {
           { name: 'tax_zone', label: 'NBR Tax Zone' },
           { name: 'tax_circle', label: 'NBR Tax Circle' },
           { name: 'psr_ack_number', label: 'Return Ack No (PSR / Form 23)' },
-          { name: 'psr_status', label: 'PSR Compliance Status (ITA s.264)' },
+          { name: 'psr_status', label: 'PSR Compliance Status (ITA s.264)', readonly: true },
           { name: 'psr_tax_year', label: 'PSR Assessment Year' },
-          { name: 'psr_verified_on', label: 'PSR Verification Date' },
+          { name: 'psr_verified_on', label: 'PSR Verification Date', readonly: true },
           { name: 'psr_qr_payload', label: 'PSR Verification QR / URL' },
           { name: 'taxpayer_category', label: 'Taxpayer Slab Category' },
           { name: 'minimum_tax_location', label: 'Minimum Tax Liability Area' },
@@ -269,7 +341,7 @@ export const SCREENS = {
         note: 'Keycloak Identity Provider UUID and automated deprovisioning status (KPI-090).',
         fields: [
           { name: 'keycloak_id', label: 'Keycloak IdP UUID' },
-          { name: 'keycloak_deprovision_status', label: 'IdP Deprovision Status (KPI-090)' }
+          { name: 'keycloak_deprovision_status', label: 'IdP Deprovision Status (KPI-090)', readonly: true }
         ]
       },
 
@@ -296,7 +368,7 @@ export const SCREENS = {
           { name: 'gpa_score', label: 'Secured GPA / Score' },
           { name: 'roll_number', label: 'Academic Roll Number' },
           { name: 'registration_no', label: 'Board Registration Number' },
-          { name: 'academic_verified', label: 'Verification Audit Status' }
+          { name: 'academic_verified', label: 'Verification Audit Status', readonly: true }
         ]
       },
 
@@ -323,7 +395,7 @@ export const SCREENS = {
           { name: 'prev_reason_leaving', label: 'Separation Reason' },
           { name: 'prev_supervisor_name', label: 'Previous Supervisor Name' },
           { name: 'prev_supervisor_phone', label: 'Supervisor Contact Mobile' },
-          { name: 'prev_reference_status', label: 'Reference Check Signoff' }
+          { name: 'prev_reference_status', label: 'Reference Check Signoff', readonly: true }
         ]
       },
 
@@ -356,7 +428,7 @@ export const SCREENS = {
         note: 'Precision calibration custody and anti-extraction confidentiality compliance.',
         fields: [
           { name: 'toolkit_custody_ref', label: 'Assigned Tool Kit Barcode Ref' },
-          { name: 'customer_nda_signed', label: 'Customer Data Confidentiality Undertaking (NDA)' }
+          { name: 'customer_nda_signed', label: 'Customer Data Confidentiality Undertaking (NDA)', readonly: true }
         ]
       },
 
@@ -480,11 +552,11 @@ export const SCREENS = {
         note: 'Upload scanned copies of government identification and tax registration certificates.',
         fields: [
           { name: 'doc_nid_file', label: 'National ID Smart Card (Scanned File)', type: 'file' },
-          { name: 'doc_nid_verified', label: 'National ID Smart Card Verified' },
+          { name: 'doc_nid_verified', label: 'National ID Smart Card Verified', readonly: true },
           { name: 'doc_tin_file', label: '12-digit e-TIN Certificate (Scanned File)', type: 'file' },
-          { name: 'doc_tin_verified', label: '12-digit e-TIN Certificate Verified' },
+          { name: 'doc_tin_verified', label: '12-digit e-TIN Certificate Verified', readonly: true },
           { name: 'doc_psr_file', label: 'Tax Return Submission Ack (PSR Scan)', type: 'file' },
-          { name: 'doc_psr_verified', label: 'Tax Return Submission Ack (PSR) Verified' }
+          { name: 'doc_psr_verified', label: 'Tax Return Submission Ack (PSR) Verified', readonly: true }
         ]
       },
       {
@@ -493,11 +565,11 @@ export const SCREENS = {
         note: 'Signed appointment letter, Form 7 service book register, and employee confidentiality agreements.',
         fields: [
           { name: 'doc_appointment_file', label: 'Signed Appointment Letter (Scanned File)', type: 'file' },
-          { name: 'doc_appointment_signed', label: 'Signed Appointment Letter on File' },
+          { name: 'doc_appointment_signed', label: 'Signed Appointment Letter on File', readonly: true },
           { name: 'doc_service_book_file', label: 'Form 7 Service Book Pages (Scanned File)', type: 'file' },
-          { name: 'doc_service_book_scanned', label: 'Form 7 Service Book Pages Scanned' },
+          { name: 'doc_service_book_scanned', label: 'Form 7 Service Book Pages Scanned', readonly: true },
           { name: 'doc_nda_file', label: 'Signed NDA & Code of Conduct (Scanned File)', type: 'file' },
-          { name: 'doc_nda_signed', label: 'Signed NDA & Code of Conduct on File' }
+          { name: 'doc_nda_signed', label: 'Signed NDA & Code of Conduct on File', readonly: true }
         ]
       },
       {
@@ -506,9 +578,9 @@ export const SCREENS = {
         note: 'Medical fitness certifications and police clearance certificates.',
         fields: [
           { name: 'doc_medical_file', label: 'Medical Fitness Certificate (Scanned File)', type: 'file' },
-          { name: 'doc_medical_fit_certified', label: 'Medical Fitness Certificate Signed' },
+          { name: 'doc_medical_fit_certified', label: 'Medical Fitness Certificate Signed', readonly: true },
           { name: 'doc_police_pcc_file', label: 'Police Clearance Certificate (PCC Scan)', type: 'file' },
-          { name: 'doc_police_pcc_cleared', label: 'Police Clearance Certificate (PCC) Cleared' }
+          { name: 'doc_police_pcc_cleared', label: 'Police Clearance Certificate (PCC) Cleared', readonly: true }
         ]
       },
       {
@@ -528,7 +600,8 @@ export const SCREENS = {
     title: 'Hire / Employment Contract',
     back: 'M21-hire',
     status: { field: 'state', labels: {
-      draft: 'Draft', active: 'Active', expired: 'Expired', terminated: 'Terminated' } },
+      draft: 'Draft', active: 'Active', expired: 'Expired', terminated: 'Terminated',
+      superseded: 'Superseded' } },
     tabs: [
       { id: 'terms', label: 'Employment Terms', bn: 'নিয়োগের শর্তাবলী', icon: '📄', badge: '5' },
       { id: 'compensation', label: 'Remuneration & Hours', bn: 'বেতন ও কর্মঘণ্টা', icon: '⏱️', badge: '4' },
@@ -543,8 +616,13 @@ export const SCREENS = {
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'contract_type', required: true, label: 'Contract Type' },
           { name: 'joining_date', required: true, label: 'Joining Date' },
+          { name: 'probation_class', label: 'Probation Class (BLA s.4(8): 6 / 3 / 3+3 months)' },
           { name: 'probation_end', label: 'Probation End Date' },
-          { name: 'operating_unit_id', label: 'Branch / Operating Unit' }
+          { name: 'date_end', label: 'Contract End Date (fixed term)' },
+          { name: 'effective_date', label: 'Version Terms Effective From' },
+          { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
+          { name: 'probation_decision', label: 'Probation Decision', readonly: true },
+          { name: 'previous_contract_id', label: 'Previous Version', readonly: true }
         ]
       },
       {
@@ -560,7 +638,7 @@ export const SCREENS = {
           { name: 'other_allowance', label: 'Other Monthly Allowance (BDT)' },
           { name: 'weekly_hours', required: true, label: 'Weekly Hours (Max 48 s.102)' },
           { name: 'currency_id', label: 'Currency' },
-          { name: 'state', required: true, label: 'Contract State' }
+          { name: 'state', required: true, label: 'Contract State', readonly: true }
         ]
       },
       {
@@ -570,8 +648,10 @@ export const SCREENS = {
         fields: [
           { name: 'template_id', label: 'M24 Form 6 Contract Template' },
           { name: 'statutory_density_score', label: 'Statutory Density Score (%)' },
-          { name: 'legal_signoff_state', label: 'Legal Counsel Signoff State' },
-          { name: 'signed_by_legal_counsel', label: 'Approved Legal Counsel' }
+          { name: 'legal_signoff_state', label: 'Legal Counsel Signoff State', readonly: true },
+          { name: 'signed_by_legal_counsel', label: 'Approved Legal Counsel', readonly: true },
+          { name: 'legal_signoff_on', label: 'Signed Off On', readonly: true },
+          { name: 'approval_state', label: 'Routed Approval (M63)', readonly: true }
         ]
       }
     ]
@@ -621,12 +701,12 @@ export const SCREENS = {
           { name: 'movement_category', required: true, label: 'Movement Category' },
           { name: 'movement_nature', required: true, label: 'Movement Nature' },
           { name: 'deputation_months', label: 'Deputation Duration (Months)' },
-          { name: 'initiator_user_id', label: 'Requisition Initiated By' },
+          { name: 'initiator_user_id', label: 'Requisition Initiated By', readonly: true },
           { name: 'requisition_date', label: 'Requisition Date' },
           { name: 'release_date', label: 'Proposed Release Date' },
           { name: 'effective_date', required: true, label: 'Effective / Joining Date' },
           { name: 'reason', label: 'Operational Justification' },
-          { name: 'state', required: true, label: 'Workflow State' }
+          { name: 'state', required: true, label: 'Workflow State', readonly: true }
         ]
       },
 
@@ -718,7 +798,7 @@ export const SCREENS = {
         title: 'Customer RMA & Open Job Card Clearance',
         note: 'Reconciliation and transfer of open repair tickets to prevent customer SLA breach.',
         fields: [
-          { name: 'open_jobs_audited', label: 'Open Customer Service Orders Audited' },
+          { name: 'open_jobs_audited', label: 'Open Customer Service Orders Audited', readonly: true },
           { name: 'open_jobs_transferred_count', label: 'Open RMA / Job Cards Transferred Count' },
           { name: 'open_jobs_reassignment_ref', label: 'Open Jobs Reassignment Docket Ref' }
         ]
@@ -729,7 +809,7 @@ export const SCREENS = {
         note: 'Return of micro-soldering stations, oscilloscopes, and specialized tool kits.',
         fields: [
           { name: 'toolkit_custody_ref', label: 'Tool Kit Custody Inventory Tag Ref' },
-          { name: 'toolkit_returned', label: 'Micro-soldering Tool Kit Returned' },
+          { name: 'toolkit_returned', label: 'Micro-soldering Tool Kit Returned', readonly: true },
           { name: 'toolkit_challan_no', label: 'Tool Kit Return Challan Number' }
         ]
       },
@@ -738,12 +818,12 @@ export const SCREENS = {
         title: 'Spare Parts & Accounts Clearance',
         note: 'Van stock spare parts inventory reconciliation and branch imprest settlement.',
         fields: [
-          { name: 'spare_parts_reconciled', label: 'Transit Spare Parts Reconciled' },
+          { name: 'spare_parts_reconciled', label: 'Transit Spare Parts Reconciled', readonly: true },
           { name: 'spare_parts_variance_value', label: 'Transit Spare Parts Discrepancy Value' },
           { name: 'clearance_mrn_no', label: 'Material Return Note (MRN) Number' },
-          { name: 'storekeeper_cleared', label: 'Branch Storekeeper Clearance Signed' },
+          { name: 'storekeeper_cleared', label: 'Branch Storekeeper Clearance Signed', readonly: true },
           { name: 'storekeeper_id', label: 'Origin Branch Storekeeper' },
-          { name: 'imprest_cash_settled', label: 'Branch Imprest Cash Settled' }
+          { name: 'imprest_cash_settled', label: 'Branch Imprest Cash Settled', readonly: true }
         ]
       },
 
@@ -778,12 +858,12 @@ export const SCREENS = {
         title: 'Branch & Operational Recommendation',
         note: 'Recommendation and concurrence signoffs by releasing and receiving branch heads.',
         fields: [
-          { name: 'origin_manager_approval', label: 'Origin Branch Recommendation' },
-          { name: 'origin_manager_id', label: 'Origin Recommending Manager' },
-          { name: 'origin_manager_date', label: 'Recommendation Date' },
-          { name: 'destination_manager_approval', label: 'Destination Branch Concurrence' },
-          { name: 'destination_manager_id', label: 'Destination Receiving Manager' },
-          { name: 'destination_manager_date', label: 'Concurrence Date' }
+          { name: 'origin_manager_approval', label: 'Origin Branch Recommendation', readonly: true },
+          { name: 'origin_manager_id', label: 'Origin Recommending Manager', readonly: true },
+          { name: 'origin_manager_date', label: 'Recommendation Date', readonly: true },
+          { name: 'destination_manager_approval', label: 'Destination Branch Concurrence', readonly: true },
+          { name: 'destination_manager_id', label: 'Destination Receiving Manager', readonly: true },
+          { name: 'destination_manager_date', label: 'Concurrence Date', readonly: true }
         ]
       },
       {
@@ -791,19 +871,19 @@ export const SCREENS = {
         title: 'Technical, Compliance & Executive Signoff',
         note: 'Multi-tier verification by Technical Board, HR Audit, Finance CFO, and Executive MD.',
         fields: [
-          { name: 'tech_head_approval', label: 'Technical Board Evaluation' },
-          { name: 'tech_head_id', label: 'Technical Evaluation Head' },
-          { name: 'tech_head_date', label: 'Technical Signoff Date' },
-          { name: 'hr_head_approval', label: 'HR Compliance & Legal Audit' },
-          { name: 'hr_head_id', label: 'HR Operations Lead' },
-          { name: 'hr_head_date', label: 'HR Audit Date' },
-          { name: 'finance_head_approval', label: 'Finance & Budget Clearance' },
-          { name: 'finance_head_id', label: 'Financial Controller' },
-          { name: 'finance_head_date', label: 'Finance Clearance Date' },
-          { name: 'executive_approval', label: 'Executive Management Approval' },
-          { name: 'executive_id', label: 'Managing Director / Executive Head' },
-          { name: 'executive_date', label: 'Executive Signoff Date' },
-          { name: 'rejection_reason', label: 'Rejection or Audit Discrepancy Remarks' }
+          { name: 'tech_head_approval', label: 'Technical Board Evaluation', readonly: true },
+          { name: 'tech_head_id', label: 'Technical Evaluation Head', readonly: true },
+          { name: 'tech_head_date', label: 'Technical Signoff Date', readonly: true },
+          { name: 'hr_head_approval', label: 'HR Compliance & Legal Audit', readonly: true },
+          { name: 'hr_head_id', label: 'HR Operations Lead', readonly: true },
+          { name: 'hr_head_date', label: 'HR Audit Date', readonly: true },
+          { name: 'finance_head_approval', label: 'Finance & Budget Clearance', readonly: true },
+          { name: 'finance_head_id', label: 'Financial Controller', readonly: true },
+          { name: 'finance_head_date', label: 'Finance Clearance Date', readonly: true },
+          { name: 'executive_approval', label: 'Executive Management Approval', readonly: true },
+          { name: 'executive_id', label: 'Managing Director / Executive Head', readonly: true },
+          { name: 'executive_date', label: 'Executive Signoff Date', readonly: true },
+          { name: 'rejection_reason', label: 'Rejection or Audit Discrepancy Remarks', readonly: true }
         ]
       },
 
@@ -838,7 +918,7 @@ export const SCREENS = {
     title: 'Exit & Final Settlement',
     back: 'M21-exit',
     status: { field: 'state', labels: {
-      draft: 'Draft', cleared: 'Cleared', settled: 'Settled', cancelled: 'Cancelled' } },
+      draft: 'Draft', notice: 'Notice Confirmed', cleared: 'Cleared', settled: 'Settled', cancelled: 'Cancelled' } },
     tabs: [
       { id: 'separation', label: 'Separation Notice', bn: 'প্রস্থান নোটিশ', icon: '🚪', badge: '6' },
       { id: 'clearance', label: 'Clearance Checklist', bn: 'ছাড়পত্র যাচাই', icon: '📋', badge: '4' },
@@ -850,13 +930,22 @@ export const SCREENS = {
         title: 'Separation Particulars',
         note: 'Resignation, termination, or retirement details under BLA 2006 Chapter II.',
         fields: [
-          { name: 'name', label: 'Exit Reference' },
+          { name: 'name', label: 'Exit Reference', readonly: true },
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'exit_type', required: true, label: 'Exit Type' },
           { name: 'notice_date', label: 'Notice Submission Date' },
-          { name: 'last_working_day', required: true, label: 'Last Working Day' },
+          { name: 'notice_required_days', label: 'Statutory Notice (days)', readonly: true },
+          { name: 'notice_served_days', label: 'Notice Served (days)', readonly: true },
+          { name: 'notice_basis', label: 'Statutory Basis', readonly: true },
+          { name: 'notice_shortfall_treatment', label: 'Notice Shortfall Treatment' },
+          { name: 'chief_inspector_notified_on', label: 'Retrenchment: Chief Inspector / CBA Copy Sent' },
+          { name: 'disciplinary_case_id', label: 'Disciplinary Case (dismissal)' },
+          { name: 'abandonment_id', label: 'Absence Case (s.27(3A))', readonly: true },
+          { name: 'death_at_work', label: 'Death at Work / Work Accident (s.19: 45 days)' },
+          { name: 'death_certificate_file', label: 'Death Certificate', type: 'file' },
+          { name: 'last_working_day', required: true, label: 'Last Working Day (date of death for s.19)' },
           { name: 'reason', label: 'Separation Reason' },
-          { name: 'state', required: true, label: 'Workflow State' }
+          { name: 'state', required: true, label: 'Workflow State', readonly: true }
         ]
       },
       {
@@ -864,10 +953,10 @@ export const SCREENS = {
         title: 'Departmental Clearance Checklist',
         note: 'All clearance gates and physical asset return receipt must be signed off before processing final separation wages.',
         fields: [
-          { name: 'clearance_it', label: 'IT Assets & System Access Deprovisioned' },
-          { name: 'clearance_finance', label: 'Finance & Advances Dues Cleared' },
-          { name: 'clearance_hr', label: 'HR Documents & Service Book Handed Over' },
-          { name: 'clearance_assets', label: 'Physical Tools & Uniform Returned' },
+          { name: 'clearance_it', label: 'IT Assets & System Access Deprovisioned', readonly: true },
+          { name: 'clearance_finance', label: 'Finance & Advances Dues Cleared', readonly: true },
+          { name: 'clearance_hr', label: 'HR Documents & Service Book Handed Over', readonly: true },
+          { name: 'clearance_assets', label: 'Physical Tools & Uniform Returned', readonly: true },
           { name: 'asset_return_receipt_no', label: 'Asset Return Receipt / MRN No' },
           { name: 'asset_return_receipt_file', label: 'Signed Asset Return Receipt Scan', type: 'file' }
         ]
@@ -877,7 +966,14 @@ export const SCREENS = {
         title: 'Final Settlement & Gratuity Calculation',
         note: 'Gratuity, unavailed earned leave encashment (s. 118) and final salary dues.',
         fields: [
-          { name: 'settlement_amount', label: 'Total Net Settlement Amount (BDT)' },
+          { name: 'settlement_amount', label: 'Total Net Settlement Amount (BDT, computed by payroll)', readonly: true },
+          { name: 'settlement_basis', label: 'Settlement Basis (payroll)', readonly: true },
+          { name: 'settlement_due_date', label: 'Dues Payable By (s.30 / s.123(2))', readonly: true },
+          { name: 'settlement_overdue', label: 'Settlement Overdue', readonly: true },
+          { name: 'approval_state', label: 'Finance Approval (M63)', readonly: true },
+          { name: 'settled_on', label: 'Settled On', readonly: true },
+          { name: 'nominee_payout_lines', label: 'Nominee Split (s.19, pinned)', readonly: true },
+          { name: 'service_certificate_id', label: 'Service Certificate (s.31)', readonly: true },
           { name: 'currency_id', label: 'Currency' }
         ]
       }
@@ -923,8 +1019,8 @@ export const SCREENS = {
         title: 'Audit Verification & Employee Acknowledgement',
         note: 'Statutory verification signoff under Bangladesh Labour Act 2006.',
         fields: [
-          { name: 'verified', label: 'Verified by HR Compliance' },
-          { name: 'acknowledged', label: 'Acknowledged by Employee' }
+          { name: 'verified', label: 'Verified by HR Compliance', readonly: true },
+          { name: 'acknowledged', label: 'Acknowledged by Employee', readonly: true }
         ]
       }
     ]
@@ -983,7 +1079,8 @@ export const SCREENS = {
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'name', required: true, label: "Position Title" },
-          { name: 'grade', label: "Corporate Grade / Band" }
+          { name: 'grade', label: "Corporate Grade / Band" },
+          { name: 'headcount', label: "Sanctioned Headcount (no dual occupancy beyond it)" }
         ]
       },
       {
@@ -1038,9 +1135,202 @@ export const SCREENS = {
   },
 
   'M21-education': { kind: 'model_list', model: 'fix.hr.education',
-    cols: ['employee_id', 'degree_level', 'degree_title', 'major_group', 'board_university', 'passing_year', 'gpa_score', 'is_verified'] },
+    cols: ['employee_id', 'degree_level', 'degree_title', 'major_group', 'board_university', 'passing_year', 'gpa_score', 'is_verified'],
+    actions: [
+      { m: 'action_verify_online', l: 'Verified Online (second person)' },
+      { m: 'action_verify_physical', l: 'Verified Physical Certificate' },
+      { m: 'action_flag_discrepancy', l: 'Flag Discrepancy' }
+    ] },
   'M21-experience': { kind: 'model_list', model: 'fix.hr.experience',
-    cols: ['employee_id', 'company_name', 'industry_type', 'designation_held', 'start_date', 'end_date', 'experience_years', 'reference_status'] },
+    cols: ['employee_id', 'company_name', 'industry_type', 'designation_held', 'start_date', 'end_date', 'experience_years', 'reference_status'],
+    actions: [
+      { m: 'action_reference_positive', l: 'Reference: Positive' },
+      { m: 'action_reference_neutral', l: 'Reference: Neutral' },
+      { m: 'action_reference_negative', l: 'Reference: Negative' },
+      { m: 'action_reference_unreachable', l: 'Reference: Unreachable' }
+    ] },
+
+  /* A09 P0-b: the sensitive master change (bank, MFS, NID, e-TIN) and the
+   * disciplinary case. Their surfaces join controllers/a09/m21.py once the
+   * write whitelist is regenerated (coordinator). */
+  'M21-master-change': { kind: 'model_list', model: 'fix.hr.master.change', stateField: 'state',
+    cols: ['name', 'employee_id', 'reason', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval', states: ['draft'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'submitted'] }
+    ] },
+  'M21-disciplinary': { kind: 'model_list', model: 'fix.hr.disciplinary.case', stateField: 'state',
+    cols: ['name', 'employee_id', 'misconduct_category', 'charge_date', 'explanation_due', 'enquiry_due', 'suspended', 'outcome', 'state'],
+    actions: [
+      { m: 'action_charge', l: 'Serve Charge', states: ['draft'] },
+      { m: 'action_record_explanation', l: 'Record Explanation', states: ['charged'] },
+      { m: 'action_hold_hearing', l: 'Hold Hearing', states: ['charged', 'explained'] },
+      { m: 'action_start_enquiry', l: 'Start Enquiry', states: ['hearing'] },
+      { m: 'action_conclude_enquiry', l: 'Conclude Enquiry', states: ['enquiry'] },
+      { m: 'action_request_approval', l: 'Request Decision', states: ['concluded'] },
+      { m: 'action_suspend', l: 'Suspend (max 60 days)', states: ['charged', 'explained', 'hearing', 'enquiry'] },
+      { m: 'action_end_suspension', l: 'End Suspension' },
+      { m: 'action_withdraw', l: 'Withdraw Case' }
+    ] },
+  'M21-form-master-change': {
+    kind: 'model_form',
+    model: 'fix.hr.master.change',
+    title: 'Employee Master Change',
+    back: 'M21-master-change',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', applied: 'Applied', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'request', label: 'Request', bn: 'অনুরোধ', icon: '📝', badge: '3' },
+      { id: 'banking', label: 'Bank & MFS', bn: 'ব্যাংক ও এমএফএস', icon: '🏦', badge: '6' },
+      { id: 'identity', label: 'Identity & Eligibility', bn: 'পরিচয় ও যোগ্যতা', icon: '🪪', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'request',
+        title: 'Change Request',
+        note: 'Maker-checker (FR-HCM-042): another HR officer decides it from the approval inbox; the requester and the employee never do.',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'reason', required: true, label: 'Reason for the Change' },
+          { name: 'evidence_file', label: 'Evidence (cheque leaf, NID, TIN)', type: 'file' },
+          { name: 'approval_state', label: 'Approval (M63)', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      },
+      {
+        tab: 'banking',
+        title: 'Proposed Salary Channel',
+        note: 'BEFTN routing 9 digits; MFS 01XXXXXXXXX. Leave a field empty to keep it.',
+        fields: [
+          { name: 'proposed_bank_name', label: 'Bank Name' },
+          { name: 'proposed_bank_branch_name', label: 'Branch' },
+          { name: 'proposed_routing_number', label: 'BEFTN Routing (9 digits)' },
+          { name: 'proposed_bank_account_number', label: 'Bank Account Number' },
+          { name: 'proposed_mfs_provider', label: 'MFS Provider' },
+          { name: 'proposed_mfs_account_number', label: 'MFS Wallet Number' }
+        ]
+      },
+      {
+        tab: 'identity',
+        title: 'Proposed Identity & Eligibility',
+        note: 'NID 10, 13 or 17 digits; e-TIN 12 digits; overtime eligibility under BLA s.108.',
+        fields: [
+          { name: 'proposed_nid_number', label: 'NID' },
+          { name: 'proposed_tin_number', label: 'e-TIN' },
+          { name: 'proposed_overtime_eligible', label: 'Overtime Eligibility' }
+        ]
+      }
+    ]
+  },
+  'M21-form-abandonment': {
+    kind: 'model_form',
+    model: 'fix.hr.abandonment',
+    title: 'Absence Without Leave (BLA s.27(3A))',
+    back: 'M21-abandonment',
+    status: { field: 'state', labels: {
+      draft: 'Draft', noticed: 'Notice Served', hearing: 'Self-Defence Window', decision: 'Awaiting Decision',
+      deemed: 'Deemed Resigned', explained: 'Explained / Rejoined', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'absence', label: 'Absence & Notices', bn: 'অনুপস্থিতি ও নোটিশ', icon: '📅', badge: '9' },
+      { id: 'decision', label: 'Explanation & Decision', bn: 'জবাব ও সিদ্ধান্ত', icon: '⚖️', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'absence',
+        title: 'Absence and the s.27(3A) Timeline',
+        note: 'More than 10 days absent without leave: a notice gives 10 days to explain or rejoin, then 7 more days for self-defence (company settings).',
+        fields: [
+          { name: 'name', label: 'Case Reference', readonly: true },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'absence_start_date', required: true, label: 'First Day of Absence' },
+          { name: 'absent_days', label: 'Days Absent', readonly: true },
+          { name: 'notes', label: 'Attempts to Contact' },
+          { name: 'notice_date', label: 'Notice Served On', readonly: true },
+          { name: 'reply_due', label: 'Explanation Due', readonly: true },
+          { name: 'hearing_notice_date', label: 'Second Notice On', readonly: true },
+          { name: 'hearing_due', label: 'Self-Defence Due', readonly: true }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Explanation and the Routed Decision',
+        note: 'The deemed resignation is decided from the executive approval inbox; the case officer and the worker never decide it. It opens the abandonment exit.',
+        fields: [
+          { name: 'explanation', label: 'Worker Explanation / Rejoining' },
+          { name: 'explanation_received_on', label: 'Explanation Received On', readonly: true },
+          { name: 'approval_state', label: 'Decision Approval (M63)', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'exit_id', label: 'Exit Opened', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+  'M21-form-disciplinary': {
+    kind: 'model_form',
+    model: 'fix.hr.disciplinary.case',
+    title: 'Disciplinary Case (BLA s.23/24)',
+    back: 'M21-disciplinary',
+    status: { field: 'state', labels: {
+      draft: 'Draft', charged: 'Charge Served', explained: 'Explanation Received', hearing: 'Hearing Held',
+      enquiry: 'Enquiry', concluded: 'Enquiry Concluded', decided: 'Decided', cancelled: 'Withdrawn' } },
+    tabs: [
+      { id: 'charge', label: 'Charge & Explanation', bn: 'অভিযোগ ও জবাব', icon: '📄', badge: '7' },
+      { id: 'enquiry', label: 'Hearing & Enquiry', bn: 'শুনানি ও তদন্ত', icon: '⚖️', badge: '7' },
+      { id: 'decision', label: 'Decision & Suspension', bn: 'সিদ্ধান্ত ও সাময়িক বরখাস্ত', icon: '✍️', badge: '9' }
+    ],
+    sections: [
+      {
+        tab: 'charge',
+        title: 'Written Charge (s.24)',
+        note: 'The worker has at least 7 days to explain before the hearing.',
+        fields: [
+          { name: 'name', label: 'Case Reference', readonly: true },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'misconduct_category', required: true, label: 'Misconduct (s.23(4))' },
+          { name: 'allegation', required: true, label: 'Written Allegation' },
+          { name: 'charge_date', label: 'Charge Served On' },
+          { name: 'reply_days', label: 'Days to Explain (minimum 7)' },
+          { name: 'explanation_due', label: 'Explanation Due', readonly: true },
+          { name: 'explanation', label: "Worker's Explanation" },
+          { name: 'explanation_received_on', label: 'Explanation Received On' }
+        ]
+      },
+      {
+        tab: 'enquiry',
+        title: 'Hearing & Enquiry Committee',
+        note: 'Equal employer and worker representatives; the enquiry concludes within 60 days.',
+        fields: [
+          { name: 'hearing_date', label: 'Hearing Date' },
+          { name: 'hearing_notes', label: 'Hearing Notes' },
+          { name: 'employer_rep_ids', label: 'Employer Representatives' },
+          { name: 'worker_rep_ids', label: 'Worker Representatives' },
+          { name: 'enquiry_started_on', label: 'Enquiry Started', readonly: true },
+          { name: 'enquiry_due', label: 'Enquiry Due (60 days)', readonly: true },
+          { name: 'findings', label: 'Findings' },
+          { name: 'proposed_outcome', label: 'Proposed Outcome' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Decision & Suspension',
+        note: 'The decision is the employer approver\'s (approval inbox). Suspension pending enquiry lasts at most 60 days.',
+        fields: [
+          { name: 'approval_state', label: 'Decision Approval (M63)', readonly: true },
+          { name: 'outcome', label: 'Outcome', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'suspended', label: 'Suspended', readonly: true },
+          { name: 'suspended_from', label: 'Suspended From', readonly: true },
+          { name: 'suspended_until', label: 'Suspended Until', readonly: true },
+          { name: 'subsistence_pct', label: 'Subsistence Allowance %', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
   'M21-form-education': {
     kind: 'model_form',
     model: 'fix.hr.education',
@@ -1072,7 +1362,7 @@ export const SCREENS = {
           { name: 'gpa_score', required: true, label: 'GPA / Score' },
           { name: 'roll_number', label: 'Roll Number' },
           { name: 'registration_no', label: 'Registration Number' },
-          { name: 'is_verified', label: 'Verification Status' },
+          { name: 'is_verified', label: 'Verification Status', readonly: true },
           { name: 'certificate_file', label: 'Academic Certificate (Scanned File)', type: 'file' },
           { name: 'certificate_filename', label: 'Certificate Filename' }
         ]
@@ -1109,7 +1399,7 @@ export const SCREENS = {
           { name: 'reason_for_leaving', label: 'Separation Reason' },
           { name: 'supervisor_name', label: 'Supervisor Name' },
           { name: 'supervisor_phone', label: 'Supervisor Phone' },
-          { name: 'reference_status', label: 'Reference Verification Status' },
+          { name: 'reference_status', label: 'Reference Verification Status', readonly: true },
           { name: 'experience_letter_file', label: 'Experience / Release Letter (Scanned File)', type: 'file' },
           { name: 'experience_letter_filename', label: 'Release Letter Filename' }
         ]
@@ -1123,6 +1413,9 @@ export const REPORT_ROUTES = {
   'M21:Attrition Analysis': 'M21-rpt-attrition',
   'M21:Probation Conversion': 'M21-rpt-probation',
   'M21:Establishment Register': 'M21-rpt-establishment',
+  'M21:Form 6(a) Register': 'M21-rpt-form6a',
+  'M21:Identity Read Log': 'M21-rpt-identity-log',
+  'M21:Data Clean-up Findings': 'M21-rpt-cleanup',
   'M21:Org Distribution': 'M21-orgchart'
 };
 
@@ -1153,7 +1446,10 @@ export const FORM_CHIPS = {
     'fix.hr.document': 'M21-form-document',
     'fix.hr.dependant': 'M21-form-dependant',
     'fix.hr.education': 'M21-form-education',
-    'fix.hr.experience': 'M21-form-experience'
+    'fix.hr.experience': 'M21-form-experience',
+    'fix.hr.master.change': 'M21-form-master-change',
+    'fix.hr.disciplinary.case': 'M21-form-disciplinary',
+    'fix.hr.abandonment': 'M21-form-abandonment'
   },
   'M21:__by_screen__': {
     'M21-leave-type': 'M21-form-leave-type',
@@ -1166,7 +1462,10 @@ export const FORM_CHIPS = {
     'M21-servicebook': 'M21-form-document',
     'M21-nominees': 'M21-form-dependant',
     'M21-education': 'M21-form-education',
-    'M21-experience': 'M21-form-experience'
+    'M21-experience': 'M21-form-experience',
+    'M21-master-change': 'M21-form-master-change',
+    'M21-disciplinary': 'M21-form-disciplinary',
+    'M21-abandonment': 'M21-form-abandonment'
   }
 };
 

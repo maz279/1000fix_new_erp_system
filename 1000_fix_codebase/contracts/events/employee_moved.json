@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "employee.moved",
-  "description": "Published by cd_hr_core through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_hr_core through libs.py.fix_events.publish() (3 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -100,6 +100,7 @@
   "x-owner-module": "cd_hr_core",
   "x-publishers": [
     "addons/domain/h_people/cd_hr_core/models/fix_hr_core.py",
+    "addons/domain/h_people/cd_hr_core/models/fix_hr_movement_controls.py",
     "addons/domain/h_people/cd_hr_core/models/fix_hr_ops.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"

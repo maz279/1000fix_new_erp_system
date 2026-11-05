@@ -42,7 +42,7 @@
           "type": "string"
         },
         "tier": {
-          "description": "Type not statically derivable from `tier or None` (addons/domain/i_governance/cd_workflow_engine/models/fix_approval_engine.py:656)."
+          "description": "Type not statically derivable from `tier or None` (addons/domain/i_governance/cd_workflow_engine/models/fix_approval_engine.py:750)."
         },
         "amount": {
           "type": "number"

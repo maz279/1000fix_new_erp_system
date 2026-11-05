@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "partner.deal_expiring",
-  "description": "Published by cd_partner through libs.py.fix_events.publish() (1 call site(s)). A protected deal registration within 30 days of the end of its protection (BRU-PCM-09), published once.",
+  "description": "Published by cd_partner through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -39,14 +39,21 @@
       ],
       "properties": {
         "deal": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "partner_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "customer_id": {
           "type": [
             "integer",
+            "boolean",
             "null"
           ]
         },
@@ -61,5 +68,5 @@
   "x-publishers": [
     "addons/domain/b_customer_engagement/cd_partner/models/fix_partner_ops.py"
   ],
-  "x-derived-from": "A04 build (2026-11-04), written by hand from the publish() call"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

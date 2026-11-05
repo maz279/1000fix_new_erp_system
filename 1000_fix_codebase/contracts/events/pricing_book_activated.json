@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "pricing.book_activated",
-  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (1 call site(s)); A04 audit 2026-11-04 (C8/C10).",
+  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,12 +32,12 @@
     "payload": {
       "type": "object",
       "required": [
-        "approved_by_id",
-        "book_code",
         "book_id",
+        "book_code",
+        "version",
         "effective_from",
-        "superseded_ids",
-        "version"
+        "approved_by_id",
+        "superseded_ids"
       ],
       "properties": {
         "book_id": {
@@ -55,14 +55,12 @@
         "approved_by_id": {
           "type": [
             "integer",
+            "boolean",
             "null"
           ]
         },
         "superseded_ids": {
-          "type": "array",
-          "items": {
-            "type": "integer"
-          }
+          "type": "array"
         }
       },
       "additionalProperties": false
@@ -72,5 +70,5 @@
   "x-publishers": [
     "addons/domain/c_commercial/cd_rate_card/models/fix_pricing_ops.py"
   ],
-  "x-derived-from": "publish() call (hand-written for the A04 C2-C13 pass)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

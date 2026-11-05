@@ -61,15 +61,23 @@ def _shift(env):
     return shift
 
 
-def _certify(env, employee):
+def _certify(env, employee, device_type="smartphone"):
     """Give an employee an ACTIVE certification in a dispatch-gating
-    competency — the M22 work-order gate (FR-LMS-039) refuses technicians
-    without one, so every technician referenced by a work order needs it."""
+    competency scoped to the job's device type — the M22 gate (FR-LMS-039,
+    A09 C4) refuses technicians without one and fails closed for a device type
+    no gating competency covers. The fixture's device model is a smartphone."""
     Competency = env["fix.competency"]
-    comp = Competency.search([("required_for_dispatch", "=", True)], limit=1)
+    comp = Competency.search([("required_for_dispatch", "=", True)]).filtered(
+        lambda c: device_type in (c.device_type or "").replace(" ", "").split(",")
+    )[:1]
     if not comp:
         comp = Competency.create(
-            {"name": "FX Gating Competency", "code": "FXG", "required_for_dispatch": True}
+            {
+                "name": "FX Gating Competency",
+                "code": "FXG",
+                "device_type": device_type,
+                "required_for_dispatch": True,
+            }
         )
     existing = env["fix.certification"].search(
         [("employee_id", "=", employee.id), ("competency_id", "=", comp.id)], limit=1
@@ -126,6 +134,7 @@ def _field_order(fx, **vals):
 
 
 def test_journey_stamps_and_actual_travel_minutes(fx):
+    _certify(fx.env, fx.tech)  # A09 C4: dispatch needs a device-scoped certification
     fo = _field_order(fx, scheduled_start=fields.Datetime.now() + timedelta(hours=2))
     fo.action_request_dispatch()
     fo.action_dispatch(technician_id=fx.tech.id)
@@ -147,6 +156,7 @@ def test_journey_stamps_and_actual_travel_minutes(fx):
 
 
 def test_late_arrival_flags_on_time_false(fx):
+    _certify(fx.env, fx.tech)  # A09 C4: dispatch needs a device-scoped certification
     fo = _field_order(fx, scheduled_start=fields.Datetime.now() - timedelta(hours=1))
     fo.action_request_dispatch()
     fo.action_dispatch(technician_id=fx.tech.id)

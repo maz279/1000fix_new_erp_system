@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "quotation.superseded",
-  "description": "Published by cd_quotation through libs.py.fix_events.publish() (A04 C2-C13 build 2026-11-04); payload derived from the publishing code.",
+  "description": "Published by cd_quotation through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -44,7 +44,7 @@
           "type": "integer"
         },
         "new_version": {
-          "type": "integer"
+          "description": "Type not statically derivable from `new.version` (addons/domain/c_commercial/cd_quotation/models/fix_quote_ops.py:888)."
         }
       },
       "additionalProperties": false

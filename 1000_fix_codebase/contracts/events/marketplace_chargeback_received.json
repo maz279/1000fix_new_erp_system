@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "marketplace.chargeback_received",
-  "description": "A customer chargeback against a marketplace sale was received; the seller's payout is held while it is open (A04 P2, M12).",
+  "description": "Published by cd_marketplace through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -34,7 +34,11 @@
       "required": [
         "chargeback",
         "order_id",
-        "amount"
+        "seller_id",
+        "amount",
+        "currency",
+        "gateway_ref",
+        "respond_by"
       ],
       "properties": {
         "chargeback": {
@@ -44,13 +48,19 @@
           "type": "integer"
         },
         "seller_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "amount": {
           "type": "number"
         },
         "currency": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "gateway_ref": {
           "type": "string"
@@ -66,5 +76,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_marketplace/models/fix_marketplace_chargeback.py"
   ],
-  "x-derived-from": "A04 C2-C13 build (2026-11-04), hand-written from the publish() call"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

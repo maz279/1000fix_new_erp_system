@@ -33,18 +33,36 @@
       "type": "object",
       "required": [
         "period",
+        "company_id",
         "batch_id",
+        "amount",
+        "mfs_amount",
         "settlement"
       ],
       "properties": {
         "period": {
           "type": "string"
         },
-        "batch_id": {
+        "company_id": {
           "type": "integer"
         },
+        "batch_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "mfs_amount": {
+          "type": "number"
+        },
         "settlement": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

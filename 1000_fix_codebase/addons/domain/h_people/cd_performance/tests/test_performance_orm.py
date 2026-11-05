@@ -1,6 +1,8 @@
-# cd_performance live-ORM tests — P08-M04 (CD-M57-01): scorecards and the
-# banded incentive run that feeds payroll (it pays people: every figure is
-# hand-computed from WEIGHTS 0.35/0.30/0.20/-0.15 and bands 15/8/4/0 %).
+# cd_performance live-ORM tests — P08-M04 (CD-M57-01): scorecard arithmetic and
+# the banded incentive run (it pays people: every figure is hand-computed from
+# WEIGHTS 0.40/0.25/0.20 (+0.15 salvage) -0.15 rework and bands 15/8/4/0 %).
+# The superuser builds typed scorecards here only to pin the arithmetic; real
+# scorecards are computed from service orders (test_a09_m57_controls.py).
 import json
 
 import pytest
@@ -27,6 +29,16 @@ def _scorecard(env, name, period, ftf, sla, csat, rework):
     )
 
 
+def _approved_scheme(env, date_from="2026-01-01"):
+    """A scheme with an approved version (the superuser stands in for the HR
+    Director and the CFO; test_a09_m57_round2.py proves the routed flow)."""
+    scheme = env["fix.incentive.scheme"].create({"name": "ORM scheme", "code": "ORM"})
+    env["fix.incentive.scheme.version"].create(
+        {"scheme_id": scheme.id, "date_from": date_from, "band_base": 20000.0, "state": "approved"}
+    )
+    return scheme
+
+
 def test_scorecard_composite_and_publication(odoo_env):
     # Normalized 3-factor: (0.40 x 0.9 + 0.25 x 0.8 + 0.20 x 0.7) / 0.85 - 0.15 x 0.1
     # = (0.36 + 0.20 + 0.14) / 0.85 - 0.015 = 0.70 / 0.85 - 0.015 = 0.8085
@@ -38,36 +50,32 @@ def test_scorecard_composite_and_publication(odoo_env):
     ]
 
 
-def test_incentive_run_computes_banded_lines_and_feeds_payroll(odoo_env):
+def test_incentive_run_computes_banded_lines_for_payroll(odoo_env):
+    """The run computes banded lines from PUBLISHED scorecards. It no longer
+    applies anything to payroll (A09 I4): approval is routed, and payroll
+    picks approved lines up (test_a09_m57_controls.py proves both)."""
+    odoo_env["ir.config_parameter"].sudo().set_param(
+        "cd_performance.incentive_requires_attendance_lock", "0"
+    )
     top = _scorecard(odoo_env, "Tech Arif", "2026-09", 1, 1, 1, 0)  # 1.00 -> 15% top band!
     mid = _scorecard(odoo_env, "Tech Bina", "2026-09", 0.8, 0.8, 0.8, 0.0)  # 0.80 -> 8% band
     low = _scorecard(odoo_env, "Tech Chan", "2026-09", 0.5, 0.5, 0.5, 0.5)  # 0.425 -> 0%
-    _scorecard(odoo_env, "Other Month", "2026-08", 1, 1, 1, 0)
-    run = odoo_env["fix.incentive.run"].create({"period": "2026-09", "band_base": 20000.0})
-    with pytest.raises(UserError, match="Compute before applying"), odoo_env.cr.savepoint():
-        run.action_apply()
+    _scorecard(odoo_env, "Other Month", "2026-08", 1, 1, 1, 0).action_publish()
+    unpublished = _scorecard(odoo_env, "Tech Draft", "2026-09", 1, 1, 1, 0)
+    (top | mid | low).action_publish()
+    run = odoo_env["fix.incentive.run"].create(
+        {"period": "2026-09", "scheme_id": _approved_scheme(odoo_env).id}
+    )
+    assert not hasattr(run, "action_apply")
     run.action_compute()
     assert run.state == "computed"
     amounts = {line.scorecard_id: line.amount for line in run.line_ids}
-    # 20,000 x 15% = 3,000; x 8% = 1,600; x 0% = 0
+    # 20,000 x 15% = 3,000; x 8% = 1,600; x 0% = 0; the draft card is not paid
     assert amounts == {top: 3000.00, mid: 1600.00, low: 0.00}
+    assert unpublished not in run.line_ids.scorecard_id
     assert run.total == 4600.00
     with pytest.raises(UserError, match="Compute runs from draft only"), odoo_env.cr.savepoint():
         run.action_compute()
-
-    run.action_apply()
-    assert run.state == "applied"
-    granted = {
-        line.employee_id.name: _events(odoo_env, "incentive.granted", line.id)
-        for line in run.line_ids
-    }
-    assert granted["Tech Arif"] == [
-        {"employee": "Tech Arif", "period": "2026-09", "amount": 3000.0}
-    ]
-    assert granted["Tech Bina"] == [
-        {"employee": "Tech Bina", "period": "2026-09", "amount": 1600.0}
-    ]
-    assert granted["Tech Chan"] == [{"employee": "Tech Chan", "period": "2026-09", "amount": 0.0}]
 
 
 def test_scorecard_salvage_and_30d_rework_clawback(odoo_env):
@@ -92,8 +100,16 @@ def test_scorecard_salvage_and_30d_rework_clawback(odoo_env):
 
 
 def test_incentive_run_needs_scorecards(odoo_env):
-    run = odoo_env["fix.incentive.run"].create({"period": "1999-01", "band_base": 20000.0})
-    with pytest.raises(UserError, match="No scorecards for 1999-01"), odoo_env.cr.savepoint():
+    odoo_env["ir.config_parameter"].sudo().set_param(
+        "cd_performance.incentive_requires_attendance_lock", "0"
+    )
+    run = odoo_env["fix.incentive.run"].create(
+        {"period": "1999-01", "scheme_id": _approved_scheme(odoo_env, "1999-01-01").id}
+    )
+    with (
+        pytest.raises(UserError, match="No published scorecards for 1999-01"),
+        odoo_env.cr.savepoint(),
+    ):
         run.action_compute()
     assert run.state == "draft"
 
