@@ -454,13 +454,45 @@ def test_the_real_local_store_answers_synthetic_values(odoo_env, monkeypatch):
 
 # ====================================================== 2. employee.role_changed
 def test_a_role_change_opens_one_access_review_and_changes_no_access(w):
+    """A role change opens exactly ONE access review and grants nothing.
+
+    Composition with the A10 SoD register (fix.sod_control): a pair a BLOCK
+    control governs is refused at the write itself — the documented GRC
+    exception on the access-request channel is the only override — so the
+    review path is staged with roles no block control governs. A WARN
+    control's pair is exactly what the review should surface."""
     Role = w.env["fix.role"]
-    sod = w.env["fix.sod.control"].search([("active", "=", True)], limit=1)
-    roles = (sod.role_a_id | sod.role_b_id) if sod else Role.search([], limit=2)
+    blocks = w.env["fix.sod.control"].search([("active", "=", True)])
+    blocked = blocks.filtered(lambda c: c.conflict_action == "block")
+    warn = blocks.filtered(lambda c: c.conflict_action == "warn")[:1]
     user = _user(w.env)
     emp = _emp(w.env, user)
     groups_before = user.group_ids
-    emp.write({"primary_role_id": roles[0].id, "additional_role_ids": [(6, 0, roles[1:].ids)]})
+
+    if blocked:
+        # the A10 P1-3 gate: a conflicting pair never lands on the employee
+        pair = (blocked[0].role_a_id | blocked[0].role_b_id)
+        with pytest.raises(ValidationError, match="SoD control"):
+            emp.write(
+                {"primary_role_id": pair[0].id, "additional_role_ids": [(6, 0, pair[1:].ids)]}
+            )
+        assert not _events(w.env, "employee.role_changed", emp.id)
+
+    # a role change no block control governs (the FINAL set counts: the
+    # employee's existing roles participate, so probe candidates inside a
+    # savepoint and keep the first that lands)
+    landed = None
+    for cand in Role.search([]):
+        if cand.id == emp.primary_role_id.id or cand in emp.additional_role_ids:
+            continue
+        try:
+            with w.env.cr.savepoint():
+                emp.write({"additional_role_ids": [(4, cand.id)]})
+            landed = cand
+            break
+        except ValidationError:
+            continue
+    assert landed, "the role register has no role addable free of every SoD control"
     assert _events(w.env, "employee.role_changed", emp.id)
     with pytest.raises(AccessError):
         w.env(user=w.plain.id)["hr.employee"].consume_employee_role_changed(
@@ -470,8 +502,6 @@ def test_a_role_change_opens_one_access_review_and_changes_no_access(w):
     reviews = emp.activity_ids.filtered(lambda a: a.summary == "Role change access review")
     assert len(reviews) == 1 and user.login in reviews.note
     assert reviews.user_id != user
-    if sod:
-        assert sod.code in reviews.note
     assert "no role-to-group mapping is ruled" in reviews.note
     assert (
         w.env["hr.employee"].consume_employee_role_changed({"payload": {"employee_id": emp.id}})

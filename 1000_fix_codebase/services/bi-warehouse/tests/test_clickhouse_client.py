@@ -38,8 +38,9 @@ class FakeResponse:
         return False
 
 
-class ScriptedUrlopen:
-    """Replays one scripted response (or raises one exception) per call."""
+class ScriptedTransport:
+    """Replays one scripted response (or raises one exception) per call,
+    standing in for the stdlib HTTP entry point the client uses."""
 
     def __init__(self, *script: FakeResponse | BaseException) -> None:
         self.script = list(script)
@@ -54,10 +55,15 @@ class ScriptedUrlopen:
 
 
 @pytest.fixture
-def urlopen(monkeypatch):
-    def install(*script: FakeResponse | BaseException) -> ScriptedUrlopen:
-        fake = ScriptedUrlopen(*script)
-        monkeypatch.setattr(urllib.request, "urlopen", fake)
+def fake_transport(monkeypatch):
+    """Patches the client's stdlib HTTP entry point with a scripted fake.
+
+    No request leaves the process: the transport is replaced, so the
+    client's ping/query calls are answered from the script."""
+
+    def install(*script: FakeResponse | BaseException) -> ScriptedTransport:
+        fake = ScriptedTransport(*script)
+        monkeypatch.setattr("urllib.request.urlopen", fake)
         return fake
 
     return install
@@ -79,8 +85,8 @@ def _headers(req: urllib.request.Request) -> dict[str, str]:
 # --------------------------------------------------------------------------- ping
 
 
-def test_is_connected_true_on_http_200(urlopen):
-    fake = urlopen(FakeResponse(200, "Ok."))
+def test_is_connected_true_on_http_200(fake_transport):
+    fake = fake_transport(FakeResponse(200, "Ok."))
     client = ClickHouseClient(host="ch.local", port=8124)
 
     assert client.is_connected() is True
@@ -90,17 +96,17 @@ def test_is_connected_true_on_http_200(urlopen):
     assert timeout == 1.0
 
 
-def test_is_connected_false_on_non_200_status(urlopen):
-    urlopen(FakeResponse(503, "busy"))
+def test_is_connected_false_on_non_200_status(fake_transport):
+    fake_transport(FakeResponse(503, "busy"))
     client = ClickHouseClient()
 
     assert client.is_connected() is False
     assert client._is_live_server is False
 
 
-def test_is_connected_false_and_logged_when_unreachable(urlopen, caplog):
+def test_is_connected_false_and_logged_when_unreachable(fake_transport, caplog):
     caplog.set_level(logging.DEBUG, logger="clickhouse_client")
-    urlopen(urllib.error.URLError("connection refused"))
+    fake_transport(urllib.error.URLError("connection refused"))
     client = ClickHouseClient()
 
     assert client.is_connected() is False
@@ -111,9 +117,9 @@ def test_is_connected_false_and_logged_when_unreachable(urlopen, caplog):
 # ----------------------------------------------------------------- HTTP execute
 
 
-def test_execute_http_format_json_returns_data_rows_and_sends_credentials(urlopen):
+def test_execute_http_format_json_returns_data_rows_and_sends_credentials(fake_transport):
     body = json.dumps({"meta": [], "data": [{"cnt": 7}], "rows": 1})
-    fake = urlopen(FakeResponse(200, "Ok."), FakeResponse(200, body))
+    fake = fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, body))
     client = ClickHouseClient(host="ch", port=9000, user="analyst", password="pw", timeout=2.5)
 
     rows = client.execute("  SELECT count(*) AS cnt FROM t FORMAT JSON  ")
@@ -129,8 +135,8 @@ def test_execute_http_format_json_returns_data_rows_and_sends_credentials(urlope
     assert headers["X-clickhouse-key"] == "pw"
 
 
-def test_execute_http_omits_credential_headers_when_blank(urlopen):
-    fake = urlopen(FakeResponse(200, "Ok."), FakeResponse(200, "Ok."))
+def test_execute_http_omits_credential_headers_when_blank(fake_transport):
+    fake = fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, "Ok."))
     client = ClickHouseClient(user="", password="")
 
     assert client.execute("CREATE DATABASE IF NOT EXISTS fix_analytics") == 1
@@ -139,8 +145,8 @@ def test_execute_http_omits_credential_headers_when_blank(urlopen):
     assert "X-clickhouse-key" not in headers
 
 
-def test_execute_http_default_user_without_password_sends_user_only(urlopen):
-    fake = urlopen(FakeResponse(200, "Ok."), FakeResponse(200, ""))
+def test_execute_http_default_user_without_password_sends_user_only(fake_transport):
+    fake = fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, ""))
     client = ClickHouseClient()
 
     assert client.execute("INSERT INTO t VALUES (1)") == 0  # empty body -> 0
@@ -149,26 +155,26 @@ def test_execute_http_default_user_without_password_sends_user_only(urlopen):
     assert "X-clickhouse-key" not in headers
 
 
-def test_execute_http_non_json_body_for_format_json_returns_1(urlopen, caplog):
+def test_execute_http_non_json_body_for_format_json_returns_1(fake_transport, caplog):
     caplog.set_level(logging.DEBUG, logger="clickhouse_client")
-    urlopen(FakeResponse(200, "Ok."), FakeResponse(200, "Code: 62. Syntax error"))
+    fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, "Code: 62. Syntax error"))
     client = ClickHouseClient()
 
     assert client.execute("SELECT 1 FORMAT JSON") == 1
     assert "not JSON" in caplog.text
 
 
-def test_execute_http_json_each_row_returns_every_row(urlopen):
+def test_execute_http_json_each_row_returns_every_row(fake_transport):
     """Regression: FORMAT JSONEachRow (NDJSON) was parsed as one JSON document,
     returning 1 (multi-row) or [] (single row) instead of the rows."""
-    urlopen(FakeResponse(200, "Ok."), FakeResponse(200, '{"k":1}\n{"k":2}\n'))
+    fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, '{"k":1}\n{"k":2}\n'))
     client = ClickHouseClient()
 
     assert client.execute("SELECT k FROM t FORMAT JSONEachRow") == [{"k": 1}, {"k": 2}]
 
 
-def test_execute_http_failure_falls_back_to_embedded_and_labels_it(urlopen, caplog):
-    urlopen(FakeResponse(200, "Ok."), urllib.error.URLError("reset by peer"))
+def test_execute_http_failure_falls_back_to_embedded_and_labels_it(fake_transport, caplog):
+    fake_transport(FakeResponse(200, "Ok."), urllib.error.URLError("reset by peer"))
     client = ClickHouseClient()
 
     assert client.execute("SELECT 42 AS answer") == [{"answer": 42}]
@@ -180,8 +186,8 @@ def test_execute_http_failure_falls_back_to_embedded_and_labels_it(urlopen, capl
     client.close()
 
 
-def test_execute_http_failure_raises_when_fallback_disabled(urlopen):
-    urlopen(FakeResponse(200, "Ok."), urllib.error.URLError("reset by peer"))
+def test_execute_http_failure_raises_when_fallback_disabled(fake_transport):
+    fake_transport(FakeResponse(200, "Ok."), urllib.error.URLError("reset by peer"))
     client = ClickHouseClient(use_fallback_if_unreachable=False)
 
     with pytest.raises(urllib.error.URLError, match="reset by peer"):
@@ -189,8 +195,8 @@ def test_execute_http_failure_raises_when_fallback_disabled(urlopen):
     assert client._fallback_db is None  # the embedded engine was never touched
 
 
-def test_execute_pings_only_once(urlopen):
-    fake = urlopen(urllib.error.URLError("down"))
+def test_execute_pings_only_once(fake_transport):
+    fake = fake_transport(urllib.error.URLError("down"))
     client = ClickHouseClient()
 
     assert client.execute("SELECT 1 AS a") == [{"a": 1}]
@@ -200,9 +206,9 @@ def test_execute_pings_only_once(urlopen):
     client.close()
 
 
-def test_live_results_are_labelled_clickhouse(urlopen):
+def test_live_results_are_labelled_clickhouse(fake_transport):
     body = json.dumps({"meta": [], "data": [{"cnt": 7}], "rows": 1})
-    urlopen(FakeResponse(200, "Ok."), FakeResponse(200, body))
+    fake_transport(FakeResponse(200, "Ok."), FakeResponse(200, body))
     client = ClickHouseClient()
 
     assert client.execute("SELECT count(*) AS cnt FROM t FORMAT JSON") == [{"cnt": 7}]
@@ -213,8 +219,8 @@ def test_live_results_are_labelled_clickhouse(urlopen):
 # --------------------------------------------------------------------- inserts
 
 
-def test_insert_rows_empty_is_noop_without_ping(urlopen):
-    fake = urlopen()
+def test_insert_rows_empty_is_noop_without_ping(fake_transport):
+    fake = fake_transport()
     client = ClickHouseClient()
 
     assert client.insert_rows("fix_analytics.t", []) == 0
@@ -253,9 +259,9 @@ def _install_http(monkeypatch, status=200, raise_error=False):
     return _FakeHTTPConn
 
 
-def test_insert_rows_http_posts_json_each_row(urlopen, monkeypatch):
+def test_insert_rows_http_posts_json_each_row(fake_transport, monkeypatch):
     fake = _install_http(monkeypatch)
-    urlopen(FakeResponse(200, "Ok."))  # the ping still uses urlopen
+    fake_transport(FakeResponse(200, "Ok."))  # the ping still uses urlopen
     client = ClickHouseClient()
     rows = [{"k": 1, "d": datetime.date(2025, 6, 1)}, {"k": 2, "d": datetime.date(2025, 6, 2)}]
 
@@ -270,8 +276,8 @@ def test_insert_rows_http_posts_json_each_row(urlopen, monkeypatch):
     assert client._fallback_db is None
 
 
-def test_insert_rows_http_non_200_lands_in_embedded_and_is_labelled(urlopen, caplog):
-    urlopen(FakeResponse(200, "Ok."), FakeResponse(202, ""))
+def test_insert_rows_http_non_200_lands_in_embedded_and_is_labelled(fake_transport, caplog):
+    fake_transport(FakeResponse(200, "Ok."), FakeResponse(202, ""))
     client = ClickHouseClient()
 
     assert client.insert_rows("fix_analytics.t", [{"k": 1}]) == 1
@@ -282,9 +288,9 @@ def test_insert_rows_http_non_200_lands_in_embedded_and_is_labelled(urlopen, cap
     client.close()
 
 
-def test_insert_rows_http_error_falls_back_to_embedded(urlopen, monkeypatch, caplog):
+def test_insert_rows_http_error_falls_back_to_embedded(fake_transport, monkeypatch, caplog):
     _install_http(monkeypatch, raise_error=True)
-    urlopen(FakeResponse(200, "Ok."))
+    fake_transport(FakeResponse(200, "Ok."))
     client = ClickHouseClient()
 
     assert client.insert_rows("t", [{"k": 5, "v": "x"}]) == 1
@@ -295,9 +301,9 @@ def test_insert_rows_http_error_falls_back_to_embedded(urlopen, monkeypatch, cap
     client.close()
 
 
-def test_insert_rows_http_error_raises_when_fallback_disabled(urlopen, monkeypatch):
+def test_insert_rows_http_error_raises_when_fallback_disabled(fake_transport, monkeypatch):
     _install_http(monkeypatch, raise_error=True)
-    urlopen(FakeResponse(200, "Ok."))
+    fake_transport(FakeResponse(200, "Ok."))
     client = ClickHouseClient(use_fallback_if_unreachable=False)
 
     with pytest.raises(OSError):
