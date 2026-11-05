@@ -202,8 +202,12 @@ export const SCREENS = {
     title: 'Security Incident',
     back: 'M29-incidents',
     status: { field: 'state', labels: { open: 'Open', contained: 'Contained', closed: 'Closed' } },
+    tabs: [
+      { id: 'facts', label: '1. Incident Facts', bn: '১. ঘটনার তথ্য', icon: '🚨', badge: '6' },
+      { id: 'narrative', label: '2. Narrative & Closure', bn: '২. বিবরণ ও সমাপ্তি', icon: '📝', badge: '4' }
+    ],
     sections: [
-      { title: 'Incident', note: 'Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data-leak needs the breach assessment. Severity is set by the Set Severity action under two-person control — a second person must confirm — so it is never typed here.',
+      { tab: 'facts', title: 'Incident', note: 'Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data-leak needs the breach assessment. Severity is set by the Set Severity action under two-person control — a second person must confirm — so it is never typed here.',
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'category', required: true, label: 'Category' },
@@ -212,7 +216,8 @@ export const SCREENS = {
           { name: 'affected_user_id', label: 'Affected User' },
           { name: 'session_id', label: 'Related Privileged Session' }
         ] },
-      { title: 'Narrative', fields: [
+      { tab: 'narrative', title: 'Narrative', note: 'The containment note gates Contained; the root cause (and, for a data leak, the breach assessment) gates Closed.',
+        fields: [
           { name: 'description', type: 'text', label: 'What happened' },
           { name: 'containment', type: 'text', label: 'Containment' },
           { name: 'root_cause', type: 'text', label: 'Root cause (required to close)' },

@@ -164,12 +164,19 @@ export const SCREENS = {
     title: 'Event Subscription',
     back: 'M28-topics',
     status: { field: 'state', labels: { active: 'Active', paused: 'Paused', failing: 'Failing' } },
+    tabs: [
+      { id: 'binding', label: '1. Binding', bn: '১. বাইন্ডিং', icon: '🔗', badge: '3' },
+      { id: 'secret', label: '2. Delivery Security', bn: '২. ডেলিভারি সিকিউরিটি', icon: '🔐', badge: '1' }
+    ],
     sections: [
-      { title: 'Subscription', note: 'A webhook binding: every event on the topic is delivered to the consumer URL. The URL must be https and on the integration allow-list (fix.integration.webhook_allowlist), and the signing secret is referenced by vault:// alias only.',
+      { tab: 'binding', title: 'Subscription Binding', note: 'A webhook binding: every event on the topic is delivered to the consumer URL. The URL must be https and on the integration allow-list (fix.integration.webhook_allowlist).',
         fields: [
           { name: 'consumer_id', required: true, label: 'Consumer' },
           { name: 'topic_id', required: true, label: 'Topic' },
-          { name: 'endpoint_url', required: true, label: 'Endpoint URL' },
+          { name: 'endpoint_url', required: true, label: 'Endpoint URL' }
+        ] },
+      { tab: 'secret', title: 'Delivery Security', note: 'The signing secret is referenced by vault:// alias only — the value itself never enters this model.',
+        fields: [
           { name: 'secret_ref', required: true, label: 'Signing Secret Reference (vault://)' }
         ] }
     ]
@@ -180,14 +187,21 @@ export const SCREENS = {
     model: 'fix.connector.credential',
     title: 'Connector Credential',
     back: 'M28-external',
+    tabs: [
+      { id: 'identity', label: '1. Credential', bn: '১. ক্রেডেনশিয়াল', icon: '🪪', badge: '3' },
+      { id: 'secret', label: '2. Vault & Expiry', bn: '২. ভল্ট ও মেয়াদ', icon: '🔐', badge: '2' }
+    ],
     sections: [
-      { title: 'Credential', note: 'Only the vault reference is stored. The secret value lives in the vault and is never written to this model (SEC-101).',
+      { tab: 'identity', title: 'Credential Identity', note: 'Only the vault reference is stored. The secret value lives in the vault and is never written to this model (SEC-101).',
         fields: [
           { name: 'name', required: true, label: 'Credential Name' },
           { name: 'auth_type', required: true, label: 'Auth Type' },
-          { name: 'secret_ref', required: true, label: 'Vault Reference' },
-          { name: 'expires_on', label: 'Expires On' },
           { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'secret', title: 'Vault Reference & Expiry', note: 'Rotation goes through the Rotate Key action, which versions the vault entry — never by editing the reference by hand.',
+        fields: [
+          { name: 'secret_ref', required: true, label: 'Vault Reference' },
+          { name: 'expires_on', label: 'Expires On' }
         ] }
     ]
   },

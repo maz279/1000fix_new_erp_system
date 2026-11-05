@@ -46,7 +46,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Branch Registry', 'Feature Flag Rollout', 'Config Parameter Inventory', 'Calendar Coverage', 'DOFA Coverage'],
-  forms: ['Branch', 'Config Parameter', 'Feature Flag', 'Announcement', 'Authority Ladder'],
+  forms: ['Branch', 'Feature Flag', 'Announcement', 'Authority Ladder'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
     ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'] }],
@@ -345,7 +345,11 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M30:Authority Ladder': 'fix.dofa.ladder',
   'M30:Branch': 'fix.branch',
-  'M30:Config Parameter': 'ir.config_parameter',
+  // No 'Config Parameter' entry: the Parameter Registry is a governed
+  // read-only register (M30 WRITABLE = () for ir.config_parameter, grid
+  // create:false) — a create chip could only fall back to a native Odoo
+  // dialog that blocks the workspace. The registry screen + Config Drift
+  // Review own the function (A12 sweep 2026-11-05).
   'M30:Feature Flag': 'fix.feature.flag',
   'M30:Announcement': 'fix.platform.announcement'
 };
@@ -353,7 +357,6 @@ export const FORM_MODELS = {
 export const FORM_CHIPS = {
   'M30:Authority Ladder': 'M30-form-dofa-ladder',
   'M30:Branch': 'M30-form-branch',
-  'M30:Config Parameter': 'M30-form-config',
   'M30:Feature Flag': 'M30-form-flag',
   'M30:Announcement': 'M30-form-announcement',
   'M30:__by_model__': {

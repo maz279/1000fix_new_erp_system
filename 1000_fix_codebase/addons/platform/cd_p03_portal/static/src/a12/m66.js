@@ -134,8 +134,12 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', approved: 'Approved', implemented: 'Implemented', reviewed: 'Reviewed',
       rolled_back: 'Rolled Back', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'change', label: '1. Change', bn: '১. পরিবর্তন', icon: '🔁', badge: '9' },
+      { id: 'plans', label: '2. Plans', bn: '২. পরিকল্পনা', icon: '📋', badge: '3' }
+    ],
     sections: [
-      { title: 'Change', note: 'Draft → submit (routed approval: standard pre-approved, normal → Change Manager, emergency/high-risk → CAB) → approved → implemented → reviewed. Editing the approved snapshot voids the approval.',
+      { tab: 'change', title: 'Change', note: 'Draft → submit (routed approval: standard pre-approved, normal → Change Manager, emergency/high-risk → CAB) → approved → implemented → reviewed. Editing the approved snapshot voids the approval.',
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'change_type', required: true, label: 'Change Type' },
@@ -147,7 +151,7 @@ export const SCREENS = {
           { name: 'planned_on', required: true, label: 'Planned On' },
           { name: 'change_window_hours', label: 'Change Window (hours)' }
         ] },
-      { title: 'Plans', note: 'Implementation and test plans are required at submit; the rollback plan for any non-standard change.',
+      { tab: 'plans', title: 'Plans', note: 'Implementation and test plans are required at submit; the rollback plan for any non-standard change.',
         fields: [
           { name: 'implementation_plan', type: 'text', label: 'Implementation Plan' },
           { name: 'test_plan', type: 'text', label: 'Test Plan' },
@@ -248,18 +252,25 @@ export const SCREENS = {
     model: 'fix.itsm.ci',
     title: "Configuration Item",
     back: 'M66-cmdb',
+    tabs: [
+      { id: 'identity', label: '1. Identity & Class', bn: '১. পরিচয় ও শ্রেণি', icon: '🪪', badge: '5' },
+      { id: 'context', label: '2. Environment & Dependencies', bn: '২. পরিবেশ ও নির্ভরতা', icon: '🧩', badge: '5' }
+    ],
     sections: [
-      { title: "Configuration Item", note: "A CMDB configuration item: its stable key, class, environment and what it depends on. Nothing runs in service on a retired asset (M66-13).",
+      { tab: 'identity', title: "Configuration Item", note: "A CMDB configuration item: its stable key, class and criticality. Nothing runs in service on a retired asset (M66-13).",
         fields: [
           { name: 'name', required: true, label: "CI Name" },
           { name: 'ci_key', required: true, label: "CI Key" },
           { name: 'ci_class', required: true, label: "CI Class" },
+          { name: 'criticality', required: true, label: "Criticality" },
+          { name: 'life_status', required: true, label: "Life Status" }
+        ] },
+      { tab: 'context', title: "Environment & Dependencies", note: "Where the CI runs, who owns it, what it depends on and the support window it carries.",
+        fields: [
           { name: 'environment_id', label: "Environment" },
           { name: 'owner_id', label: "Owner" },
           { name: 'depends_on', label: "Depends On" },
-          { name: 'criticality', required: true, label: "Criticality" },
           { name: 'support_hours', required: true, label: "Support Hours" },
-          { name: 'life_status', required: true, label: "Life Status" },
           { name: 'asset_id', label: "Linked Asset" }
         ] }
     ]
