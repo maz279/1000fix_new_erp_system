@@ -5,7 +5,7 @@
     "description": """
 CD-M40-01 (P10) — Partner, Channel & Franchise.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Partner, Channel & Franchise",

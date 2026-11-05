@@ -20,7 +20,7 @@ CD-M39-01 + M53's W4 slice (P07-M03):
   liability / Cr revenue)
 - Events: subscription.charged/cancelled, revenue.recognized (AS-08)
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Subscriptions",

@@ -25,6 +25,9 @@ ACCOUNT_ROLES = {
     "outgoing_clearing": "Outgoing payments clearing (default debit of a payment)",
     "interest_expense": "Interest expense on bank facilities",
     "bank_charges": "Bank charges expense",
+    # A04 hand-off closure (2026-11-05): the tender-bond encashment leg — the
+    # procuring entity encashed a bank guarantee, a realised loss.
+    "bond_encashment_loss": "Bank guarantee encashment loss (tender bonds, PPR r.25)",
 }
 
 

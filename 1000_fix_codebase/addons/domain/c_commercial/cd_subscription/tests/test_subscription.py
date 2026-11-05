@@ -134,16 +134,26 @@ class TestConsolidated400DeviceDemo(unittest.TestCase):
 
 class TestDunningAndRefunds(unittest.TestCase):
     def test_dunning_ladder_source(self):
-        """Verifies reminder, final notice, and service hold escalation ladder."""
+        """Verifies reminder, final notice, and service hold escalation ladder,
+        on the unpaid-issued-invoice basis (A04 hand-off closure, 2026-11-05)."""
         self.assertIn("def action_trigger_dunning", SOURCE)
         self.assertIn("subscription.dunning_escalated", SOURCE)
-        self.assertIn('sub.write({"state": "hold"', SOURCE)
+        self.assertIn("_fix_overdue_unpaid", SOURCE)
+        self.assertIn('step, state = "escalate", "hold"', SOURCE)
         self.assertIn("def action_reinstate", SOURCE)
 
     def test_refund_approval_threshold(self):
         """Refunds > BDT 25,000 require managerial SoD approval."""
         self.assertIn("def action_request_refund", SOURCE)
         self.assertIn("requires_manager_approval", SOURCE)
+        self.assertIn("FINANCE_MANAGER", SOURCE)
+
+    def test_subscription_substrate_is_guarded(self):
+        """A04 hand-off closure: state/dunning/refund stamps are guarded, and a
+        mid-term price change runs only through an approved proration."""
+        self.assertIn('"fix.guarded.mixin"', SOURCE)
+        self.assertIn("COMMERCIAL_TERM_FIELDS", SOURCE)
+        self.assertIn("approved plan change", SOURCE)
 
 
 class TestRevRecEngine100PercentCoverage(unittest.TestCase):

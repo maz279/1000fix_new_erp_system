@@ -186,7 +186,7 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: "Draft", active: "Active", suspended: "Suspended", closed: "Closed" } },
     sections: [
       { title: "Subscription",
-        note: "A recurring contract: plan, billing cycle, amount and the next invoice date. Days overdue and the dunning step are computed.",
+        note: "A recurring contract: plan, billing cycle, amount and the next invoice date. The state, dunning ladder and refund figures change only through the lifecycle actions; a mid-term price or plan change goes through an approved proration.",
         fields: [
           { name: 'name', required: true, label: "Subscription" },
           { name: 'customer_id', required: true, label: "Customer" },
@@ -197,8 +197,7 @@ export const SCREENS = {
           { name: 'start_date', required: true, label: "Start Date" },
           { name: 'next_invoice_date', required: true, label: "Next Invoice" },
           { name: 'grace_period_days', label: "Grace Period (days)" },
-          { name: 'consolidated', label: "Consolidated Billing" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'consolidated', label: "Consolidated Billing" }
         ] }
     ]
   },

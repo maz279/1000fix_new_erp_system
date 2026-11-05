@@ -61,12 +61,16 @@ def world(odoo_env):
     )
 
 
-def _referral(world, profile, name, state="submitted", commission=0.0):
+def _referral(world, profile, name, state="submitted", commission=0.0, referred=None):
+    # A04 hand-off closure, ref_02: one OPEN referral per customer and one
+    # commission per (partner, customer) — staging uses a distinct customer
+    # per referral unless a test says otherwise.
+    referred = referred or world.env["res.partner"].create({"name": "Referred %s" % name})
     return world.env["fix.referral"].create(
         {
             "partner_id": profile.id,
             "name": name,
-            "referred_partner_id": world.customer.id,
+            "referred_partner_id": referred.id,
             "state": state,
             "commission_amount": commission,
         }
@@ -168,10 +172,117 @@ def test_internal_staff_may_open_any_profile(world):
     assert commissions["commissions"]["earned_total_bdt"] == "0.00"
 
 
+# --- A04 hand-off closure: duplicate / self-referral gate (ref_02) ----------
+
+
+def test_a_partner_cannot_refer_themselves(world):
+    """AS-09, now enforced: the referring partner's own res.partner is not a
+    valid referred customer."""
+    with pytest.raises(UserError, match="cannot refer themselves"), world.env.cr.savepoint():
+        world.env["fix.referral"].create(
+            {
+                "partner_id": world.rafi_profile.id,
+                "name": "REF-SELF",
+                "referred_partner_id": world.rafi.partner_id.id,
+            }
+        )
+
+
+def test_one_open_referral_per_customer_first_in_wins(world):
+    Referral = world.env["fix.referral"]
+    Referral.create(
+        {
+            "partner_id": world.rafi_profile.id,
+            "name": "REF-FIRST",
+            "referred_partner_id": world.customer.id,
+        }
+    )
+    # a second partner piling on the same customer
+    with pytest.raises(UserError, match="already has an open referral"), world.env.cr.savepoint():
+        Referral.create(
+            {
+                "partner_id": world.nadia_profile.id,
+                "name": "REF-SECOND",
+                "referred_partner_id": world.customer.id,
+            }
+        )
+    # the same partner doubling their own submitted referral
+    with pytest.raises(UserError, match="already has an open referral"), world.env.cr.savepoint():
+        Referral.create(
+            {
+                "partner_id": world.rafi_profile.id,
+                "name": "REF-SECOND-OWN",
+                "referred_partner_id": world.customer.id,
+            }
+        )
+
+
+def test_one_commission_per_partner_and_customer_ever(world):
+    """A commissioned referral cannot be repeated on the same customer by the
+    same partner — the second commission is double pay (M40 ref_02)."""
+    Referral = world.env["fix.referral"]
+    Referral.create(
+        {
+            "partner_id": world.rafi_profile.id,
+            "name": "REF-PAID",
+            "referred_partner_id": world.customer.id,
+            "state": "commissioned",
+            "commission_amount": 500.0,
+        }
+    )
+    with pytest.raises(UserError, match="one commission per customer"), world.env.cr.savepoint():
+        Referral.create(
+            {
+                "partner_id": world.rafi_profile.id,
+                "name": "REF-AGAIN",
+                "referred_partner_id": world.customer.id,
+            }
+        )
+    # a different customer is fine
+    other = world.env["res.partner"].create({"name": "Referred Customer Next"})
+    assert Referral.create(
+        {
+            "partner_id": world.rafi_profile.id,
+            "name": "REF-OK",
+            "referred_partner_id": other.id,
+        }
+    )
+
+
+def test_repointing_an_existing_referral_reruns_the_gate(world):
+    """write() on the attribution pair hits the same duplicate/self gate."""
+    Referral = world.env["fix.referral"]
+    ref = Referral.create(
+        {
+            "partner_id": world.rafi_profile.id,
+            "name": "REF-REPOINT",
+            "referred_partner_id": world.customer.id,
+        }
+    )
+    other = world.env["res.partner"].create({"name": "Referred Customer Two"})
+    ref.write({"referred_partner_id": other.id})  # to a free customer: allowed
+    with pytest.raises(UserError, match="cannot refer themselves"), world.env.cr.savepoint():
+        ref.write({"referred_partner_id": world.rafi.partner_id.id})
+
+
+def test_the_portal_submits_through_the_gate(world):
+    """The P12 partner's own submission path meets the same server-side gate
+    (partner_api AS-09)."""
+    with _as(world.env, world.rafi) as ctrl:
+        first = ctrl.referrals(referred_name="REF-P1", referred_partner_id=world.customer.id)
+        assert first["referral"]["state"] == "submitted"
+    with _as(world.env, world.nadia) as ctrl:
+        dup = ctrl.referrals(referred_name="REF-P2", referred_partner_id=world.customer.id)
+    assert dup["error"]["code"] == "referral_rejected"
+    assert "open referral" in dup["error"]["message"]
+
+
 def test_referral_tracking_shows_the_referred_party_to_the_portal_partner(world):
     """Regression: the referred customer's name was read under the portal
-    partner rule, which hides other customers' partner rows - AccessError."""
-    _referral(world, world.rafi_profile, "REF-TRACK-1")
+    partner rule, which hides other customers' partner rows - AccessError.
+    (Nadia's referral names a different customer: one open referral per
+    customer, ref_02.)"""
+    _referral(world, world.rafi_profile, "REF-TRACK-1", referred=world.customer)
     _referral(world, world.nadia_profile, "REF-NADIA-1")
     with _as(world.env, world.rafi) as ctrl:
         res = ctrl.referrals()
@@ -212,8 +323,17 @@ def test_a_refused_referral_leaves_no_row(world):
 
 
 def test_commission_statement(world):
+    # one commission per (partner, customer): each referral names a distinct
+    # customer (ref_02); the newest line's customer is the tracked one
     _referral(world, world.rafi_profile, "REF-C-1", state="commissioned", commission=500.0)
-    _referral(world, world.rafi_profile, "REF-C-2", state="commissioned", commission=1250.5)
+    _referral(
+        world,
+        world.rafi_profile,
+        "REF-C-2",
+        state="commissioned",
+        commission=1250.5,
+        referred=world.customer,
+    )
     _referral(world, world.rafi_profile, "REF-C-3")
     with _as(world.env, world.rafi) as ctrl:
         res = ctrl.commissions()["commissions"]

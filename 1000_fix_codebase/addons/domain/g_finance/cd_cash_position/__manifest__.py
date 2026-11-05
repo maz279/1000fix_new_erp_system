@@ -19,7 +19,7 @@ account.journal + res.partner.bank), cash-in-transit, rider COD settlement
 with three-way match, facilities & covenants, recurring cash items, and the
 computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",

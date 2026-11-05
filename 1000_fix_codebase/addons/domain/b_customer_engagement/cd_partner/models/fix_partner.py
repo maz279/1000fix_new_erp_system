@@ -678,9 +678,53 @@ class FixReferral(models.Model):
     # A04 audit C1 (M40-7): what a portal partner may say when submitting a
     # referral. The state, the referred revenue and the commission are the
     # company's to establish, because M53's accrual posts the GL entry from
-    # them; a P12 partner set its own referral to commissioned on a
-    # BDT 5,000,000 base.
+    # them; a P12 partner set its own referral to commissioned on a BDT
+    # 5,000,000 base.
     _PORTAL_REFERRAL_FIELDS = frozenset({"name", "partner_id", "referred_partner_id"})
+
+    # A04 hand-off closure, ref_02 (2026-11-05): the model now really gates
+    # duplicate and self-referrals server-side, as partner_api's AS-09 note
+    # always claimed. BUSINESS DEFAULT to confirm (§7.5): a referred customer
+    # may hold ONE open (submitted/converted) referral estate-wide — first in
+    # wins, like a deal registration — and one partner earns on a customer at
+    # most once (a second referral of the same customer by the same partner
+    # is refused whatever the state of the first).
+    def _referral_reject_dup_and_self(self, vals, skip_id=0):
+        referred_id = vals.get("referred_partner_id") or 0
+        partner_id = vals.get("partner_id") or 0
+        if not referred_id or not partner_id:
+            return
+        own = self.env["fix.partner"].browse(partner_id)
+        referred = self.env["res.partner"].browse(referred_id)
+        if own.partner_id and own.partner_id.id == referred_id:
+            raise UserError(
+                "%s cannot refer themselves: a referral names a different customer."
+                % (own.name or "A partner")
+            )
+        open_dup = self.sudo().search_count(
+            [
+                ("referred_partner_id", "=", referred_id),
+                ("state", "in", ("submitted", "converted")),
+                ("id", "!=", skip_id),
+            ]
+        )
+        if open_dup:
+            raise UserError(
+                "%s already has an open referral — convert or close it before raising another."
+                % (referred.name or "That customer")
+            )
+        own_dup = self.sudo().search_count(
+            [
+                ("partner_id", "=", partner_id),
+                ("referred_partner_id", "=", referred_id),
+                ("id", "!=", skip_id),
+            ]
+        )
+        if own_dup:
+            raise UserError(
+                "%s has already referred %s: one commission per customer."
+                % (own.name or "That partner", referred.name or "that customer")
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -692,7 +736,22 @@ class FixReferral(models.Model):
                         "A partner submits who was referred; %s are set by the company."
                         % ", ".join(sorted(extra))
                     )
+        for vals in vals_list:
+            self._referral_reject_dup_and_self(vals)
         return super().create(vals_list)
+
+    def write(self, vals):
+        # re-pointing an existing referral's attribution runs the same gate
+        if self and ("partner_id" in vals or "referred_partner_id" in vals):
+            for rec in self:
+                check = {
+                    "partner_id": vals.get("partner_id", rec.partner_id.id),
+                    "referred_partner_id": vals.get(
+                        "referred_partner_id", rec.referred_partner_id.id
+                    ),
+                }
+                self._referral_reject_dup_and_self(check, skip_id=rec.id)
+        return super().write(vals)
 
     def _fix_require_internal(self, what):
         if self.env.user.share and not self.env.su:
