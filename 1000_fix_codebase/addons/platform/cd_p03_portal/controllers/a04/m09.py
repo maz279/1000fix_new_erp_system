@@ -2,9 +2,7 @@
 # fix.warranty (55) / .claim (3) / .evidence / .product / .provision and the
 # new transfer, recall and appeal models. Every cycle/latency figure is read
 # from recorded timestamps; an unmeasurable ratio stays declared.
-import datetime
-
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -12,10 +10,25 @@ from ..p03_service_order_api import _require_internal
 SURFACES = {
     # fix.warranty is owned by M01 (a02 surface) — read through the merged
     # registry; not declared twice.
+    # A04 workflow audit (2026-11-03) M09-11: every surface declared
+    # `actions: set()`, so the only path the workspace offered was editing
+    # `state`. The lifecycles are whitelisted; each method checks its own
+    # role, state and segregation of duties (cd_warranty_claims).
     "fix.warranty.claim": {
         "order": "created_at desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_assemble_workshop_evidence_pack",
+            "action_refresh_amount",
+            "action_submit",
+            "action_mark_in_review",
+            "action_propose_approve",
+            "action_propose_partial",
+            "action_propose_reject",
+            "action_recall_approval",
+            "action_close",
+            "action_confirm_device_recheck",
+        },
     },
     "fix.warranty.evidence": {
         "order": "id desc",
@@ -31,21 +44,22 @@ SURFACES = {
     "fix.warranty.transfer": {
         "order": "effective_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_approve", "action_effect", "action_void"},
     },
     "fix.warranty.recall": {
         "order": "launched_on desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_launch", "action_complete", "action_cancel"},
     },
     "fix.claim.appeal": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_uphold", "action_reject_appeal"},
     },
 }
 
-DECIDED = ("approved", "rejected", "remitted")
+DECIDED = ("approved", "partially_approved", "rejected", "remitted", "closed")
+RECOVERED = ("approved", "partially_approved", "remitted", "closed")
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -61,12 +75,19 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _claims(env):
-    return env["fix.warranty.claim"].sudo().search([])
+    # A04 M09-14: read in the user's environment, so the operating-unit
+    # isolation rule applies to the packs and KPIs too (it used sudo()).
+    return env["fix.warranty.claim"].search([])
+
+
+def _today(env):
+    # A04 M09-14: the business date (Asia/Dhaka), not the host's.
+    return fields.Date.context_today(env["fix.warranty.claim"])
 
 
 def claim_ageing_by_brand(env, date_from=None, date_to=None, **params):
     claims = _claims(env)
-    today = datetime.date.today()
+    today = _today(env)
     by_brand = {}
     for claim in claims:
         brand = claim.brand_id
@@ -234,7 +255,7 @@ def evidence_completeness(env, date_from=None, date_to=None, **params):
 
 def loss_ratio(env, date_from=None, date_to=None, **params):
     claims = _claims(env)
-    products = env["fix.warranty.product"].sudo().search([])
+    products = env["fix.warranty.product"].search([])
     claimed = sum(claims.mapped("claim_amount"))
     remitted = sum(claims.mapped("remittance_amount"))
     exposure = sum((p.claim_limit or 0.0) for p in products)
@@ -267,7 +288,7 @@ def loss_ratio(env, date_from=None, date_to=None, **params):
 
 
 def recall_coverage(env, date_from=None, date_to=None, **params):
-    recalls = env["fix.warranty.recall"].sudo().search([])
+    recalls = env["fix.warranty.recall"].search([])
     rows = []
     for recall in recalls:
         coverage = (
@@ -307,8 +328,8 @@ def recall_coverage(env, date_from=None, date_to=None, **params):
 
 
 def warranty_validation(env, date_from=None, date_to=None, **params):
-    warranties = env["fix.warranty"].sudo().search([])
-    today = datetime.date.today()
+    warranties = env["fix.warranty"].search([])
+    today = _today(env)
     rows = []
     for warranty in warranties:
         days_left = (warranty.end_date - today).days if warranty.end_date else None
@@ -392,7 +413,7 @@ def brand_claim_stats(env, date_from=None, date_to=None, **params):
             },
         )
         row["claims"] += 1
-        if claim.state in ("approved", "remitted"):
+        if claim.state in RECOVERED and claim.approved_amount:
             row["approved"] += 1
         if claim.state == "rejected":
             row["rejected"] += 1
@@ -433,10 +454,12 @@ def brand_claim_stats(env, date_from=None, date_to=None, **params):
 
 
 def claim_reconciliation(env, date_from=None, date_to=None, **params):
-    claims = _claims(env).filtered(lambda c: c.state in ("approved", "remitted"))
+    claims = _claims(env).filtered(lambda c: c.state in RECOVERED and c.approved_amount)
     rows = []
     for claim in claims:
-        claimed = claim.claim_amount or 0.0
+        # reconciled against what the OEM APPROVED (a partial approval is not
+        # a short payment)
+        claimed = claim.approved_amount or 0.0
         remitted = claim.remittance_amount or 0.0
         rows.append(
             {
@@ -455,9 +478,9 @@ def claim_reconciliation(env, date_from=None, date_to=None, **params):
         {
             "claim": "Claim",
             "brand": "Brand",
-            "claimed": "Claimed",
+            "claimed": "Approved",
             "remitted": "Remitted",
-            "difference": "Remitted − Claimed",
+            "difference": "Remitted − Approved",
             "state": "State",
         },
         rows,
@@ -528,22 +551,22 @@ REPORTS = {
 
 def kpis(env):
     claims = _claims(env)
-    today = datetime.date.today()
+    today = _today(env)
     month_start = today.replace(day=1)
     mtd = claims.filtered(lambda c: c.created_at and c.created_at.date() >= month_start)
     decided = claims.filtered(lambda c: c.state in DECIDED)
-    approved = claims.filtered(lambda c: c.state in ("approved", "remitted"))
+    approved = claims.filtered(lambda c: c.state in RECOVERED and c.approved_amount)
     with_both = claims.filtered(lambda c: c.submitted_at and c.decided_at)
     cycle_days = [(c.decided_at - c.submitted_at).total_seconds() / 86400.0 for c in with_both]
     leakage = sum(
-        (c.claim_amount or 0.0) - (c.remittance_amount or 0.0)
+        (c.approved_amount or 0.0) - (c.remittance_amount or 0.0)
         for c in approved
         if c.remittance_amount
     )
     under_72h = claims.filtered(
         lambda c: c.submission_latency_hours is not None and c.submission_latency_hours <= 72
     )
-    appeals = env["fix.claim.appeal"].sudo().search([("decision", "=", "pending")])
+    appeals = env["fix.claim.appeal"].search([("decision", "=", "pending")])
     return {
         "claims_submitted_mtd": len(mtd.filtered(lambda c: c.state != "draft")),
         "first_submission_approval": round(len(approved) / len(decided) * 100.0, 1)

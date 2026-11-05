@@ -19,6 +19,17 @@ from . import rev_rec_engine
 
 TWO = Decimal("0.01")
 
+FINANCE_MANAGER = "account.group_account_manager"
+
+# A04 hand-off closure (2026-11-05, report §7.10): the subscription substrate
+# itself — the model the C2-C13 build left to A08. A mid-term price or plan
+# change is a contract modification: it lands ONLY through an approved
+# fix.subscription.proration (fix_subscription_ops.create_for_plan_change ->
+# DOFA/M63 -> _proration_apply_to_subscription, which writes under sudo).
+# Everything else — a plain ORM write, the workspace form, /p03/model/write —
+# is refused at the substrate.
+COMMERCIAL_TERM_FIELDS = frozenset({"plan", "recurring_amount"})
+
 
 class FixSubscription(models.Model):
     """A recurring subscription on OCA contract's pattern, billing through
@@ -26,7 +37,7 @@ class FixSubscription(models.Model):
 
     _name = "fix.subscription"
     _description = "Subscription"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "next_invoice_date, id desc"
 
     company_id = fields.Many2one(
@@ -68,6 +79,7 @@ class FixSubscription(models.Model):
         ],
         default="active",
         required=True,
+        readonly=True,
         tracking=True,
     )
     dunning_step = fields.Selection(
@@ -79,10 +91,11 @@ class FixSubscription(models.Model):
         ],
         default="none",
         required=True,
+        readonly=True,
         tracking=True,
     )
     grace_period_days = fields.Integer(default=15, help="Days before hold escalation")
-    days_overdue = fields.Integer(default=0)
+    days_overdue = fields.Integer(default=0, readonly=True)
     start_date = fields.Date(default=fields.Date.today, required=True)
     next_invoice_date = fields.Date(required=True, default=fields.Date.today)
     consolidated = fields.Boolean(
@@ -121,6 +134,48 @@ class FixSubscription(models.Model):
         for sub in self:
             if sub.recurring_amount < 0:
                 raise UserError("The recurring amount cannot be negative")
+
+    # ---- guard (A04 hand-off closure, 2026-11-05) -------------------------
+    def _fix_guarded_fields(self) -> set:
+        """Only a lifecycle transition may move these: the state and dunning
+        ladder, and the refund figures the M53 slice reports from."""
+        return super()._fix_guarded_fields() | {
+            "state",
+            "dunning_step",
+            "days_overdue",
+            "last_refund_amount",
+            "last_refund_earned",
+            "refund_requires_approval",
+            "refund_credit_note_id",
+        }
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            terms = COMMERCIAL_TERM_FIELDS & set(vals)
+            for rec in self:
+                changed = [n for n in terms if rec._fix_guard_differs(n, vals[n], rec[n])]
+                if changed:
+                    raise UserError(
+                        "%s of subscription %s changes only through an approved plan change: "
+                        "raise a fix.subscription.proration (workspace: Subscription Plan "
+                        "Changes), and the DOFA tier the credit routes to applies it."
+                        % (", ".join(sorted(changed)), rec.name)
+                    )
+            if "contract_value" in vals:
+                # A price reallocation under IFRS 15 is a contract
+                # modification once the obligations are scheduled.
+                for rec in self:
+                    if rec.obligation_ids.filtered(
+                        lambda o: o.state in ("scheduled", "satisfied")
+                    ) and rec._fix_guard_differs(
+                        "contract_value", vals["contract_value"], rec.contract_value
+                    ):
+                        raise UserError(
+                            "The transaction price of %s is scheduled: a change is a contract "
+                            "modification — cancel and re-create the affected obligations."
+                            % rec.name
+                        )
+        return super().write(vals)
 
     def _cycle_days(self) -> int:
         return {"monthly": 30, "quarterly": 91, "annual": 365}[self.billing_cycle]
@@ -220,11 +275,21 @@ class FixSubscription(models.Model):
         return created_schedules
 
     def action_trigger_dunning(self, as_of=None):
-        """Automated 3-stage dunning workflow (FLAW-39.2).
+        """Automated 3-stage dunning workflow (FLAW-39.2), chasing the UNPAID
+        ISSUED INVOICE — not the billing calendar (A04 report M39-2: an unpaid
+        invoice was never chased because billing rolls next_invoice_date
+        forward, and a customer who was never billed got suspended).
 
         Stage 1 (day 3 to day 7): reminder notice + SMS.
         Stage 2 (day 8 to grace expiry): final notice + formal email.
         Stage 3 (past grace): service-order lock and entitlement suspension.
+
+        The overdue basis is fix.subscription.charge._fix_overdue_unpaid: the
+        charges whose ISSUED invoice is past its payment-terms due date with
+        money still owed. A subscription with nothing issued-and-overdue is
+        never dunned — a missed billing run (auto-billing ships OFF) is a
+        Finance omission, not customer non-payment — and a stale past_due/hold
+        from the old calendar basis self-heals back to active.
 
         `grace_period_days` is the escalation boundary and is configurable per
         subscription. The first implementation of this ladder hard-coded the
@@ -234,76 +299,110 @@ class FixSubscription(models.Model):
         suspended (A04 audit, 2026-10-31).
         """
         as_of = as_of or fields.Date.today()
+        Charge = self.env["fix.subscription.charge"]
         for sub in self:
             if sub.state in ("cancelled", "churned"):
                 continue
-            if sub.next_invoice_date and as_of > sub.next_invoice_date:
-                overdue = (as_of - sub.next_invoice_date).days
-                sub.days_overdue = overdue
-                grace = sub.grace_period_days or 15
-                # A grace period shorter than the reminder band collapses the
-                # band rather than delaying escalation past what was agreed.
-                reminder_until = min(7, grace)
-                if overdue < 3:
-                    continue
-                elif overdue <= reminder_until:
-                    sub.write({"state": "past_due", "dunning_step": "reminder"})
+            overdue_charges = Charge._fix_overdue_unpaid(subscription=sub, as_of=as_of)
+            if not overdue_charges:
+                # Nothing issued and unpaid past due. Restore a subscription
+                # the old calendar-basis ladder had suspended (the payment was
+                # recorded, or the hold was a missed billing run reading as
+                # non-payment); leave a healthy one untouched.
+                if sub.state in ("past_due", "hold"):
+                    sub._guarded().write(
+                        {"state": "active", "dunning_step": "none", "days_overdue": 0}
+                    )
                     publish(
                         self.env,
-                        "subscription.dunning_reminder_sms",
+                        "subscription.reinstated",
                         "fix.subscription",
                         sub.id,
-                        {
-                            "customer_id": sub.customer_id.id,
-                            "days_overdue": overdue,
-                            "step": "reminder",
-                        },
+                        {"customer_id": sub.customer_id.id},
                     )
-                elif overdue <= grace:
-                    sub.write({"state": "past_due", "dunning_step": "final"})
-                    publish(
-                        self.env,
-                        "subscription.dunning_final_email",
-                        "fix.subscription",
-                        sub.id,
-                        {
-                            "customer_id": sub.customer_id.id,
-                            "days_overdue": overdue,
-                            "step": "final",
-                        },
-                    )
-                else:
-                    # Past the agreed grace period: service-order lock and
-                    # entitlement suspension.
-                    sub.write({"state": "hold", "dunning_step": "escalate"})
-                    publish(
-                        self.env,
-                        "subscription.service_order_locked",
-                        "fix.subscription",
-                        sub.id,
-                        {
-                            "customer_id": sub.customer_id.id,
-                            "days_overdue": overdue,
-                            "step": "service_lock",
-                        },
-                    )
-                publish(
-                    self.env,
-                    "subscription.dunning_escalated",
-                    "fix.subscription",
-                    sub.id,
-                    {
-                        "customer_id": sub.customer_id.id,
-                        "dunning_step": sub.dunning_step,
-                        "days_overdue": overdue,
-                        "state": sub.state,
-                    },
-                )
+                elif sub.days_overdue or sub.dunning_step != "none":
+                    sub._guarded().write({"dunning_step": "none", "days_overdue": 0})
+                continue
+            # days past due measured against THIS run's as_of (the charge's
+            # stored-view days_past_due is today-based, an audit basis)
+            overdue = max(
+                (as_of - c.invoice_due_date).days for c in overdue_charges if c.invoice_due_date
+            )
+            grace = sub.grace_period_days or 15
+            # A grace period shorter than the reminder band collapses the
+            # band rather than delaying escalation past what was agreed.
+            reminder_until = min(7, grace)
+            if overdue < 3:
+                if sub.days_overdue != overdue:
+                    sub._guarded().write({"days_overdue": overdue})
+                continue
+            if overdue <= reminder_until:
+                step, state = "reminder", "past_due"
+                step_event = "subscription.dunning_reminder_sms"
+            elif overdue <= grace:
+                step, state = "final", "past_due"
+                step_event = "subscription.dunning_final_email"
+            else:
+                # Past the agreed grace period: service-order lock and
+                # entitlement suspension.
+                step, state = "escalate", "hold"
+                step_event = "subscription.service_order_locked"
+            sub._guarded().write({"state": state, "dunning_step": step, "days_overdue": overdue})
+            publish(
+                self.env,
+                step_event,
+                "fix.subscription",
+                sub.id,
+                {
+                    "customer_id": sub.customer_id.id,
+                    "days_overdue": overdue,
+                    "step": "service_lock" if step == "escalate" else step,
+                },
+            )
+            publish(
+                self.env,
+                "subscription.dunning_escalated",
+                "fix.subscription",
+                sub.id,
+                {
+                    "customer_id": sub.customer_id.id,
+                    "dunning_step": sub.dunning_step,
+                    "days_overdue": overdue,
+                    "state": sub.state,
+                },
+            )
 
     def action_reinstate(self):
-        """Reinstate subscription after payment receipt."""
+        """Reinstate subscription after payment receipt (A04 report M39-4/5:
+        the method revived a CANCELLED subscription and lifted a service hold
+        with no payment at all).
+
+        Two gates, both enforced here:
+        - only a suspended ladder state (past_due / hold / paused) reinstates;
+          a cancelled or churned subscription is closed — re-sell it;
+        - nothing ISSUED may remain unpaid past its due date: the payment is
+          recorded in M20 first, and the dunning basis
+          (fix.subscription.charge._fix_overdue_unpaid) must come back empty.
+        """
+        Charge = self.env["fix.subscription.charge"]
         for sub in self:
-            sub.write(
+            if sub.state not in ("past_due", "hold", "paused"):
+                raise UserError(
+                    "Subscription %s is %s: reinstatement restores a past-due, suspended "
+                    "or paused service after payment — it does not revive a closed one."
+                    % (sub.name, sub.state)
+                )
+            unpaid = Charge._fix_overdue_unpaid(
+                subscription=sub, as_of=fields.Date.context_today(sub)
+            )
+            if unpaid:
+                worst = max(unpaid.mapped("days_past_due"))
+                raise UserError(
+                    "Subscription %s: %d issued invoice(s) are still unpaid past their "
+                    "due date (oldest %d day(s)). Record the payment in M20 before "
+                    "reinstating service." % (sub.name, len(unpaid), worst)
+                )
+            sub._guarded().write(
                 {
                     "state": "active",
                     "dunning_step": "none",
@@ -322,7 +421,7 @@ class FixSubscription(models.Model):
 
     def action_cancel(self):
         for sub in self:
-            sub.state = "cancelled"
+            sub._guarded().write({"state": "cancelled"})
             # T03: subscription dunning stops on cancellation — outstanding
             # balances ride the M20 collections ladder instead
             publish(self.env, "subscription.cancelled", "fix.subscription", sub.id, {})
@@ -331,11 +430,22 @@ class FixSubscription(models.Model):
         """Prorated mid-cycle cancellation and credit note flow.
         Calculates earned vs unearned revenue and enforces BDT 25,000 approval threshold.
 
+        A04 hand-off closure (2026-11-05, report §7.10 M39 GAPs):
+        - the cancellation date must fall inside the current cycle and not in
+          the future (a date back before the cycle start used to refund a
+          fully-earned cycle);
+        - a refund over the BDT 25,000 manager line (rev_rec_engine) is
+          authorised by an Accounting Manager acting user — the
+          refund_requires_approval flag used to be consumed by nothing while
+          the subscription was already cancelled, and the figures are now
+          guarded against a post-approval rewrite.
+
         A08 M53: the figures are kept on the subscription; the cycle's issued
         invoice gets a DRAFT credit note for the unearned share (gross of VAT
         pro rata) that runs M20's approval ladder; the performance
         obligations recognise up to the cancellation date and stop."""
         cancellation_date = cancellation_date or fields.Date.today()
+        today = fields.Date.context_today(self)
         results = []
         for sub in self:
             if sub.state in ("cancelled", "churned"):
@@ -344,6 +454,17 @@ class FixSubscription(models.Model):
             cycle_days = sub._cycle_days()
             start = sub.next_invoice_date - timedelta(days=cycle_days)
             end = sub.next_invoice_date
+            if cancellation_date < start:
+                raise UserError(
+                    "Subscription %s: the cancellation date %s is before the current "
+                    "cycle starts (%s) — a backdated cancellation cannot refund a cycle "
+                    "the customer already consumed." % (sub.name, cancellation_date, start)
+                )
+            if cancellation_date > today:
+                raise UserError(
+                    "Subscription %s: the cancellation date %s is in the future."
+                    % (sub.name, cancellation_date)
+                )
             res = rev_rec_engine.compute_cancellation_refund(
                 total_amount=sub.recurring_amount,
                 start_date=start,
@@ -351,9 +472,17 @@ class FixSubscription(models.Model):
                 cancellation_date=cancellation_date,
                 cancellation_fee_pct=fee_pct,
             )
-            sub.state = "cancelled"
-            sub.write(
+            if res.requires_manager_approval and not (
+                self.env.su or self.env.user.has_group(FINANCE_MANAGER)
+            ):
+                raise UserError(
+                    "The refund on %s is BDT %.2f, over the BDT 25,000 manager line: an "
+                    "Accounting Manager authorises the cancellation (the credit note "
+                    "still runs M20's approval ladder)." % (sub.name, res.net_refund_payable)
+                )
+            sub._guarded().write(
                 {
+                    "state": "cancelled",
                     "last_refund_amount": float(res.net_refund_payable),
                     "last_refund_earned": float(res.earned_revenue),
                     "refund_requires_approval": res.requires_manager_approval,

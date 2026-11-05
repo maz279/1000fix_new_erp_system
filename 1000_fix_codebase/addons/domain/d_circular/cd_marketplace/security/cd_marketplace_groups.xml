@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M12 marketplace roles (A04 workflow audit 2026-11-03, M12-1/-3/-10, §7.1;
+     C2-C13 build 2026-11-04).
+
+     Any internal clerk verified KYC (which also ticked CFO approval for him),
+     CFO-approved sellers, published listings, ruled disputes and released
+     payouts. Plain internal users now READ the marketplace; the work goes to:
+
+     - Marketplace Operator: orders, quote selection, the job lifecycle,
+       listing submission, dispute intake and investigation, chargebacks and
+       the payout release once escrow and the payout lock allow it.
+     - Marketplace Compliance Reviewer: verifies or rejects seller KYC and
+       approves listings from the approval inbox (never the submitter).
+     - Marketplace Dispute Arbitrator (§7.1 "dispute arbitrator"): rules a
+       dispute from the approval inbox; never the seller, the person who
+       raised it or the one who proposed the ruling.
+
+     Seller CFO approval (§7.1 "CFO (sellers)", BRU-ECM-01) is decided by the
+     DOFA Tier 4 holders (CFO / CCO / COO), the estate's CFO group, from the
+     approval inbox, and never by the KYC reviewer.
+
+     Compliance and the arbitrator imply the operator. The dev admin is a
+     member of every role so the work keeps running; segregation of duties
+     still applies to him. Who holds each role is a business appointment. -->
+<odoo>
+    <record id="privilege_marketplace_ops" model="res.groups.privilege">
+        <field name="name">1000FiX Marketplace Operations</field>
+        <field name="description">Marketplace orders, sellers, listings, disputes and payouts (M12).</field>
+        <field name="sequence">62</field>
+    </record>
+
+    <record id="group_marketplace_operator" model="res.groups">
+        <field name="name">Marketplace Operator</field>
+        <field name="privilege_id" ref="privilege_marketplace_ops"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        <field name="comment">Runs marketplace orders, selects quotes, moves jobs, submits listings, takes in disputes and chargebacks and releases payouts the escrow and payout lock allow.</field>
+    </record>
+
+    <record id="group_marketplace_compliance" model="res.groups">
+        <field name="name">Marketplace Compliance Reviewer</field>
+        <field name="privilege_id" ref="privilege_marketplace_ops"/>
+        <field name="implied_ids" eval="[(4, ref('group_marketplace_operator'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        <field name="comment">Verifies or rejects seller KYC and approves listings submitted by someone else.</field>
+    </record>
+
+    <record id="group_marketplace_arbitrator" model="res.groups">
+        <field name="name">Marketplace Dispute Arbitrator</field>
+        <field name="privilege_id" ref="privilege_marketplace_ops"/>
+        <field name="implied_ids" eval="[(4, ref('group_marketplace_operator'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        <field name="comment">Rules marketplace disputes from the approval inbox; never on a dispute he raised or whose ruling he proposed, and never for his own seller account.</field>
+    </record>
+</odoo>

@@ -12,13 +12,38 @@
 #   answered exactly like a non-existent order.
 # - returns: ``auth="user"`` + order ownership; the refund amount is computed
 #   (capped) by the server.
+#
+# - payment callback (A04 audit M38-2): the gateway's server-to-server notice.
+#   Public, but honoured only with a valid HMAC-SHA256 signature made with the
+#   rail's shared secret (ir.config_parameter ``cd_storefront.gateway_secret.<rail>``).
+#   With no secret configured the callback is refused: a payment is never
+#   confirmed on an unsigned or unverifiable message.
+import hashlib
+import hmac
+import json
 import logging
 import math
 
 from odoo import SUPERUSER_ID, http
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+GATEWAY_SECRET_PARAM = "cd_storefront.gateway_secret.%s"  # noqa: S105 - a parameter key, not a secret
+GATEWAY_RAILS = ("bkash", "nagad", "sslcommerz")
+
+
+def gateway_signature(secret, order_name, trx_id, amount):
+    """The signature a gateway callback must carry: HMAC-SHA256 (hex) of
+    ``<order>|<trx_id>|<amount with 2 decimals>`` under the rail's secret."""
+    try:
+        amount_txt = "%.2f" % float(amount)
+    except (TypeError, ValueError):
+        amount_txt = str(amount)
+    message = "%s|%s|%s" % (order_name, trx_id, amount_txt)
+    return hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+
 
 SESSION_CART_KEY = "storefront_cart_id"
 SESSION_ORDERS_KEY = "storefront_order_ids"
@@ -230,14 +255,19 @@ class StorefrontApiController(http.Controller):
             if existing_line:
                 existing_line.write({"quantity": existing_line.quantity + qty})
             else:
-                env["fix.storefront.cart.line"].create(
-                    {
-                        "cart_id": cart.id,
-                        "product_id": product.id,
-                        "quantity": qty,
-                        "unit_price": product.list_price,
-                    }
-                )
+                try:
+                    # A04 audit: the M37 lifecycle / M11 floor sale check
+                    with env.cr.savepoint():
+                        env["fix.storefront.cart.line"].create(
+                            {
+                                "cart_id": cart.id,
+                                "product_id": product.id,
+                                "quantity": qty,
+                                "unit_price": product.list_price,
+                            }
+                        )
+                except UserError as exc:
+                    return _error("PRODUCT_NOT_SELLABLE", str(exc))
 
         return _cart_payload(cart)
 
@@ -402,17 +432,23 @@ class StorefrontApiController(http.Controller):
                 )
             refund_amt = currency.round(requested)
 
-        ret = return_model.create(
-            {
-                "order_id": order.id,
-                "cart_id": order.cart_id.id if order.cart_id else False,
-                "customer_id": order.customer_id.id,
-                "currency_id": currency.id,
-                "reason": reason,
-                "refund_amount": refund_amt,
-                "state": "requested",
-            }
-        )
+        try:
+            # A04 audit M38-9: the model refuses a return outside the return
+            # window (and re-checks the cap); say so instead of a server error.
+            with env.cr.savepoint():
+                ret = return_model.create(
+                    {
+                        "order_id": order.id,
+                        "cart_id": order.cart_id.id if order.cart_id else False,
+                        "customer_id": order.customer_id.id,
+                        "currency_id": currency.id,
+                        "reason": reason,
+                        "refund_amount": refund_amt,
+                        "state": "requested",
+                    }
+                )
+        except (UserError, ValidationError) as exc:
+            return _error("RETURN_NOT_ALLOWED", str(exc))
 
         return {
             "rma_id": ret.id,
@@ -422,3 +458,58 @@ class StorefrontApiController(http.Controller):
             "reason": ret.reason,
             "refund_bdt": _fmt_bdt(ret.refund_amount),
         }
+
+    @http.route(
+        "/storefront/payment/callback/<string:rail>",
+        type="http",
+        auth="public",
+        methods=["POST"],
+        csrf=False,
+    )
+    def payment_callback(self, rail, **kwargs):
+        """The gateway's server-to-server payment notice (bKash / Nagad /
+        SSLCOMMERZ IPN). See handle_gateway_callback."""
+        payload = {k: v for k, v in kwargs.items() if k != "rail"}
+        if not payload:
+            try:
+                payload = json.loads(request.httprequest.get_data() or b"{}") or {}
+            except ValueError:
+                payload = {}
+        body, status = handle_gateway_callback(_su_env(), rail, payload)
+        return request.make_json_response(body, status=status)
+
+
+def handle_gateway_callback(env, rail, payload):
+    """Confirm a storefront payment from a signed gateway notice.
+
+    Returns ``(body, http_status)``. A04 audit M38-2: the only way a payment
+    is confirmed without an M20 receipt. The notice must name the order, the
+    gateway's transaction id and the amount captured, signed with the rail's
+    shared secret; the order is confirmed only when the rail is its own and
+    the amount is its total, and a transaction id pays one order."""
+    if rail not in GATEWAY_RAILS:
+        return {"error": "UNKNOWN_RAIL"}, 404
+    if not isinstance(payload, dict):
+        return {"error": "BAD_REQUEST"}, 400
+    secret = env["ir.config_parameter"].sudo().get_param(GATEWAY_SECRET_PARAM % rail)
+    if not secret:
+        _logger.warning("Storefront %s callback refused: no gateway secret configured", rail)
+        return {"error": "GATEWAY_NOT_CONFIGURED"}, 503
+    order_name = str(payload.get("order") or "").strip()
+    trx_id = str(payload.get("trx_id") or "").strip()
+    amount = payload.get("amount")
+    signature = str(payload.get("signature") or "")
+    if not (order_name and trx_id and amount not in (None, "")):
+        return {"error": "BAD_REQUEST"}, 400
+    expected = gateway_signature(secret, order_name, trx_id, amount)
+    if not hmac.compare_digest(expected, signature):
+        _logger.warning("Storefront %s callback for %s: bad signature", rail, order_name)
+        return {"error": "BAD_SIGNATURE"}, 403
+    try:
+        with env.cr.savepoint():
+            order = env["fix.storefront.order"]._sf_gateway_confirm(
+                rail, order_name, trx_id, amount
+            )
+    except (UserError, ValidationError) as exc:
+        return {"error": "PAYMENT_REFUSED", "message": str(exc)}, 409
+    return {"status": order.state, "order": order.name}, 200

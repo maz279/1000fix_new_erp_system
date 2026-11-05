@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 report §6 C7 money legs that land in treasury:
+     - the storefront refund hand-off: an approved return refunds the
+       customer's money back the way it came (a pending M50 instruction on
+       the order's rail, treasury releases it), or a draft M20 credit note
+       against the order's invoice when one exists (Mushak 6.7);
+     - the tender-bond encashment hand-off (2026-11-05): an encashed bank
+       guarantee posts its loss to the GL. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a04_storefront_refund_approved" model="fix.event.consumer">
+            <field name="name">M50/M20: an approved storefront refund raises its money-back document</field>
+            <field name="event_type">storefront.refund_approved</field>
+            <field name="model">fix.a04.storefront.consumers</field>
+            <field name="method">consume_storefront_refund_approved</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+
+        <!-- A04 hand-off closure (2026-11-05): the encashed bank guarantee
+             reaches the books - Dr guarantee encashment loss / Cr outgoing
+             clearing, accounts from the treasury roles (fail closed). -->
+        <record id="consumer_a04_tender_bond_claimed" model="fix.event.consumer">
+            <field name="name">M50: an encashed tender bond posts its loss to the GL</field>
+            <field name="event_type">tender_bond.claimed</field>
+            <field name="model">fix.a04.bond.consumers</field>
+            <field name="method">consume_tender_bond_claimed</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+
+    </data>
+</odoo>

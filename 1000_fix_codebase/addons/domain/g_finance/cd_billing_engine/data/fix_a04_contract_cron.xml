@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 report C10 (build 2026-11-04): the contract billing walker.
+
+  fix.contract carried _fix_billing_schedule() and mark_billed_through()
+  with nothing between them and M20 - no contract period ever reached the AR
+  ledger. This job walks every in-force contract's due, unbilled periods
+  into DRAFT invoices (one per period, idempotent) and advances the
+  billed-through date. It is OFF until Finance sets
+  cd_billing_engine.contract_auto_billing = 1: it raises invoices, so the
+  switch is a Finance decision per environment (the M39 precedent).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_contract_billing" model="ir.cron">
+            <field name="name">C10: contract billing walker (switch: cd_billing_engine.contract_auto_billing)</field>
+            <field name="model_id" ref="model_fix_contract_billing_period"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_bill_contracts()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

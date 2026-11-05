@@ -4,6 +4,8 @@ from . import (
     cheque,
     cod_settlement,
     facility,
+    fix_a04_bond_consumer,
+    fix_a04_storefront_consumer,
     fix_cash_position,
     gateway_settlement,
     imprest,

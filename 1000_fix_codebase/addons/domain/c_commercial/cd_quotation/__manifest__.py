@@ -13,6 +13,13 @@ CD-M36-02/03: quotation and estimation.
   commercial director); a pending approval BLOCKS quoting
 - Tender management (CD-M36-05) is a seam (tender_ref) consumed by the P04
   corporate portal in Phase 7
+- A04 C2-C13 build (2026-11-04): fix.quotation lifecycle (value-band M63
+  approval, issue, customer acceptance by OTP / provider e-signature /
+  signed copy, decline, revise, expiry cron, hand-off to the M01 order or an
+  M08 contract); tenders with bid / no-bid, compliance matrix, bid security
+  gate and a Tender Committee award that creates the M08 contract; bank
+  guarantees with routed DOFA release / claim and an expiry cron; roles
+  (Quotation Author, Bid Coordinator, Tender Committee, Commercial Manager)
 """,
     "version": "19.0.1.0.0",
     "license": "LGPL-3",
@@ -27,8 +34,11 @@ CD-M36-02/03: quotation and estimation.
         "cd_workflow_engine",
     ],
     "data": [
+        "security/cd_quotation_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
+        "data/ir_cron.xml",
         "views/fix_quotation_views.xml",
     ],
     "installable": True,

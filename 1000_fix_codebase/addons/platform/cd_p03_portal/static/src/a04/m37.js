@@ -77,7 +77,19 @@ export const SCREENS = {
   'M37-hierarchy': { kind: 'table_report', module: 'M37', report: 'catalogue_hierarchy', title: 'Catalogue Hierarchy', period: true },
   'M37-services': { kind: 'model_list', model: 'fix.catalogue.item', create: false,
     cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'],
-    stateField: 'state' },
+    stateField: 'state',
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
   'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line', create: false,
     cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note", "create_uid"] },
   'M37-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Variance', period: true },
@@ -86,17 +98,42 @@ export const SCREENS = {
   'M37-kits': { kind: 'model_list', model: 'fix.service.kit', create: true,
     cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'] },
   'M37-brandmodel': { kind: 'model_list', model: 'fix.brand', create: false,
-    cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'] },
+    cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'],
+    // A04 audit 2026-11-04 (M37-7): an authorisation is requested with its
+    // evidence and decided by a Catalogue Publisher from the M63 inbox.
+    actions: [
+      { m: 'action_request_authorisation', l: 'Request Authorisation (evidence staged on the form)' },
+      { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
+      { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
+    ] },
   'M37-fault': { kind: 'model_list', model: 'fix.fault.code', create: false,
     cols: ["name", "code", "create_date", "active", "category", "default_severity", "create_uid"] },
   'M37-parts-id': { kind: 'model_list', model: 'fix.rbom.line', create: false,
     cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note", "create_uid"] },
   'M37-contract-tpl': { kind: 'model_list', model: 'fix.contract.template', create: true,
     cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'],
-    stateField: 'contract_type' },
+    stateField: 'contract_type',
+    // A04 audit 2026-11-04 (M08 template sign-off): Legal signs the wording
+    // off (someone other than its author) and can withdraw it.
+    actions: [
+      { m: 'action_legal_signoff', l: 'Legal Sign-off (Contract Legal Reviewer)' },
+      { m: 'action_withdraw_signoff', l: 'Withdraw Legal Sign-off' }
+    ] },
   'M37-protection': { kind: 'model_list', model: 'fix.catalogue.item', create: true,
     cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'],
-    stateField: 'state' },
+    stateField: 'state',
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
   'M37-rental-sku': { kind: 'model_list', model: 'fix.rental.sku', create: false,
     cols: ['name', 'catalogue_item_id', 'daily_rate', 'weekly_rate', 'monthly_rate', 'security_deposit', 'max_rental_days', 'active'] },
   'M37-approval': { kind: 'table_report', module: 'M37', report: 'approval_queue', title: 'Catalogue Approval Queue', period: false },
@@ -113,8 +150,20 @@ export const SCREENS = {
   'M37-rpt-bilingual': { kind: 'table_report', module: 'M37', report: 'bilingual_gaps', title: 'Bilingual Content Gaps', period: false },
 
   'M37-items': { kind: 'model_list', model: 'fix.catalogue.item', stateField: 'state',
-    cols: ['product_tmpl_id', 'item_type', 'brand_id', 'category_id', 'state', 'is_published',
-      'is_warranty_eligible', 'active'] },
+    cols: ['product_tmpl_id', 'item_type', 'brand_id', 'category_id', 'state', 'approval_state', 'is_published',
+      'is_warranty_eligible', 'active'],
+    // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
+    // from a Catalogue Publisher's M63 inbox (approver != author), never here.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_publish', l: 'Publish (Catalogue Publisher)' },
+      { m: 'action_unpublish', l: 'Withdraw from the Web' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
   'M37-form-item': {
     kind: 'model_form',
     model: 'fix.catalogue.item',
@@ -152,11 +201,21 @@ export const SCREENS = {
         note: 'NBR compliance for spare parts imports and VAT assessment.',
         fields: [] },
       { tab: 'lifecycle', title: 'Publication Gates & Authorization Controls',
+        note: 'The lifecycle moves only through its actions: Submit, approval by a Catalogue Publisher other than the author (M63 inbox), Publish, Restrict, Discontinue, Revise. Only an Active item is sold (BRU-CAT-14).',
         fields: [
-          { name: 'state', required: true, label: 'Catalogue Lifecycle State' },
-          { name: 'is_published', label: 'Published in Public Portal' },
+          { name: 'state', label: 'Catalogue Lifecycle State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'submitted_by', label: 'Submitted By', readonly: true },
+          { name: 'approved_by', label: 'Approved By', readonly: true },
+          { name: 'is_published', label: 'Published in Public Portal', readonly: true },
+          { name: 'is_sellable', label: 'Sellable Now', readonly: true },
           { name: 'is_warranty_eligible', label: 'Manufacturer Warranty Eligible' },
           { name: 'requires_brand_authorisation', label: 'Requires Brand Authorized Technician' },
+          { name: 'proposed_successor_id', label: 'Successor (staged for Discontinue)' },
+          { name: 'proposed_end_of_support', label: 'End of Support (staged for Discontinue)' },
+          { name: 'successor_id', label: 'Successor Item', readonly: true },
+          { name: 'end_of_support_date', label: 'End of Support', readonly: true },
+          { name: 'rejection_reason', label: 'Returned Because', type: 'text', readonly: true },
           { name: 'active', label: 'Active Record Status' }
         ] },
       { tab: 'vault', title: 'Datasheet & Schematics Vault',
@@ -183,7 +242,7 @@ export const SCREENS = {
         { name: 'description_bn', label: 'Description (Bengali)' },
         { name: 'item_type', label: 'Item Type', required: true },
         { name: 'standard_labour_time', label: 'Standard Labour Time (hours)' },
-        { name: 'state', label: 'Lifecycle State', required: true },
+        { name: 'state', label: 'Lifecycle State', readonly: true },
         { name: 'srt_observed_minutes', label: 'Observed Repair Minutes' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
@@ -204,7 +263,7 @@ export const SCREENS = {
         { name: 'is_out_of_scope', label: 'Is Out Of Scope' },
         { name: 'requires_brand_authorisation', label: 'Requires Brand Authorisation' },
         { name: 'active', label: 'Active' },
-        { name: 'is_published', label: 'Published on the Web' }
+        { name: 'is_published', label: 'Published on the Web', readonly: true }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },
@@ -292,7 +351,7 @@ export const SCREENS = {
         { name: 'description_bn', label: 'Description (Bengali)' },
         { name: 'item_type', label: 'Item Type', required: true },
         { name: 'standard_labour_time', label: 'Standard Labour Time (hours)' },
-        { name: 'state', label: 'Lifecycle State', required: true },
+        { name: 'state', label: 'Lifecycle State', readonly: true },
         { name: 'srt_observed_minutes', label: 'Observed Repair Minutes' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
@@ -313,7 +372,7 @@ export const SCREENS = {
         { name: 'is_out_of_scope', label: 'Is Out Of Scope' },
         { name: 'requires_brand_authorisation', label: 'Requires Brand Authorisation' },
         { name: 'active', label: 'Active' },
-        { name: 'is_published', label: 'Published on the Web' }
+        { name: 'is_published', label: 'Published on the Web', readonly: true }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },
@@ -470,7 +529,14 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M37-brand': { kind: 'model_list', model: 'fix.brand',
-    cols: ['name', 'code', 'active', 'name_bn', 'website', 'support_url', 'authorised'] },
+    cols: ['name', 'code', 'active', 'name_bn', 'website', 'support_url', 'authorised', 'authorisation_expiry', 'approval_state'],
+    // A04 audit 2026-11-04 (M37-7): an authorisation is requested with its
+    // evidence and decided by a Catalogue Publisher from the M63 inbox.
+    actions: [
+      { m: 'action_request_authorisation', l: 'Request Authorisation (evidence staged on the form)' },
+      { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
+      { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
+    ] },
   'M37-refurb-grade': { kind: 'model_list', model: 'fix.refurb.grade',
     cols: ['name', 'code', 'active', 'sequence', 'name_bn', 'currency_id', 'price_multiplier'] },
 
@@ -521,10 +587,17 @@ export const SCREENS = {
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true },
-        { name: 'authorisation_expiry', label: 'Authorisation Expiry' }
+        { name: 'authorisation_expiry', label: 'Authorisation Expiry', readonly: true }
       ] },
-      { tab: 'flags', title: '6. Status Flags', fields: [
-        { name: 'authorised', label: '1000FiX Authorised' },
+      { tab: 'flags', title: '6. Status Flags',
+        note: 'Brand authorisation is a decision: stage the brand letter or agreement reference and its expiry, then Request Authorisation; a Catalogue Publisher who did not request it decides from the M63 inbox. It lapses on its expiry (nightly job).',
+        fields: [
+        { name: 'authorised', label: '1000FiX Authorised', readonly: true },
+        { name: 'authorisation_reference', label: 'Authorisation Reference', readonly: true },
+        { name: 'authorised_by', label: 'Authorised By', readonly: true },
+        { name: 'proposed_authorisation_reference', label: 'Evidence Reference (staged)' },
+        { name: 'proposed_authorisation_expiry', label: 'Proposed Expiry (staged)' },
+        { name: 'approval_state', label: 'Approval', readonly: true },
         { name: 'active', label: 'Active' }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [

@@ -21,7 +21,16 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
+# A04 integration (2026-11-04): M08 activates a contract, and M36 accepts a
+# quote, on a COMPLETED envelope. A04's C2 guard on the envelope state,
+# evidence and signatures landed as part of the M24 evidence rebuild below
+# (guard mixin, sealed-once-sent fields, the deadline and the completion
+# certificate).
 SEND_SECONDS = 3 * 24 * 3600  # default signing window: three days
+# what a signer's guard seals (A04): the signature itself, and once the
+# envelope has left draft, the signer's identity and place in the sequence
+SIGNER_GUARDED = {"signed_at", "signature_provider"}
+SIGNER_SEALED = {"envelope_id", "sequence", "partner_id"}
 
 
 def _attachment_bytes(document) -> bytes:
@@ -95,14 +104,15 @@ class FixEsignatureEnvelope(models.Model):
         # list are what was sent. Only the note fields stay editable.
         locked = super()._fix_form_locked_fields()
         if self and all(rec.state != "draft" for rec in self):
-            locked |= {"name", "document_id", "operating_unit_id"}
+            locked |= {"name", "document_id", "operating_unit_id", "signer_ids"}
         return locked
 
     def write(self, vals):
         # The signers travel with the envelope: once out of draft, re-pointing
-        # the envelope at another document or subject is a forgery (M24-2/-3).
+        # the envelope at another document or subject is a forgery (M24-2/-3,
+        # A04's sealed-once-sent list).
         if self and not self._fix_guard_open():
-            touched = {"name", "document_id", "operating_unit_id"} & set(vals)
+            touched = {"name", "document_id", "operating_unit_id", "signer_ids"} & set(vals)
             if touched:
                 for rec in self:
                     offenders = [n for n in touched if rec._fix_guard_differs(n, vals[n], rec[n])]
@@ -157,8 +167,7 @@ class FixEsignatureEnvelope(models.Model):
                 )
             if not _attachment_bytes(doc):
                 raise UserError(
-                    "'%s' has no file to sign — an envelope seals bytes, not a name."
-                    % doc.name
+                    "'%s' has no file to sign — an envelope seals bytes, not a name." % doc.name
                 )
 
     # ------------------------------------------------------------ lifecycle
@@ -217,46 +226,59 @@ class FixEsignatureEnvelope(models.Model):
             if not all(s.signed_at for s in envelope.signer_ids):
                 raise UserError(
                     "Every signer must sign before %s completes — %d of %d have."
-                    % (envelope.name, len(envelope.signer_ids.filtered("signed_at")), len(envelope.signer_ids))
+                    % (
+                        envelope.name,
+                        len(envelope.signer_ids.filtered("signed_at")),
+                        len(envelope.signer_ids),
+                    )
                 )
             if envelope._compute_evidence() != envelope.evidence_hash:
                 raise UserError(
                     "The document or signer list of %s changed after it was sent — the "
-                    "sealed evidence no longer matches. Void it and start again."
-                    % envelope.name
+                    "sealed evidence no longer matches. Void it and start again." % envelope.name
                 )
             now = fields.Datetime.now()
             # the certificate files through the service env: the sender who
             # checks completion is not granted the attachment store
-            certificate = self.env["fix.document"].sudo().attach(
-                name="Signature Certificate — %s" % envelope.name,
-                datas=base64.b64encode(
-                    json.dumps(
-                        {
-                            "envelope": envelope.name,
-                            "document": envelope.document_id.name,
-                            "evidence_hash": envelope.evidence_hash,
-                            "signers": [
-                                {
-                                    "signer": s.partner_id.name,
-                                    "sequence": s.sequence,
-                                    "signed_at": s.signed_at.isoformat() if s.signed_at else None,
-                                    "provider": s.signature_provider,
-                                    "auth_method": s.auth_method,
-                                }
-                                for s in envelope.signer_ids.sorted("sequence")
-                            ],
-                            "completed_at": now.isoformat(),
-                        },
-                        sort_keys=True,
-                    ).encode("utf-8")
-                ),
-                document_type="signature_certificate",
-                res_model="fix.esignature.envelope",
-                res_id=envelope.id,
+            certificate = (
+                self.env["fix.document"]
+                .sudo()
+                .attach(
+                    name="Signature Certificate — %s" % envelope.name,
+                    datas=base64.b64encode(
+                        json.dumps(
+                            {
+                                "envelope": envelope.name,
+                                "document": envelope.document_id.name,
+                                "evidence_hash": envelope.evidence_hash,
+                                "signers": [
+                                    {
+                                        "signer": s.partner_id.name,
+                                        "sequence": s.sequence,
+                                        "signed_at": s.signed_at.isoformat()
+                                        if s.signed_at
+                                        else None,
+                                        "provider": s.signature_provider,
+                                        "auth_method": s.auth_method,
+                                    }
+                                    for s in envelope.signer_ids.sorted("sequence")
+                                ],
+                                "completed_at": now.isoformat(),
+                            },
+                            sort_keys=True,
+                        ).encode("utf-8")
+                    ),
+                    document_type="signature_certificate",
+                    res_model="fix.esignature.envelope",
+                    res_id=envelope.id,
+                )
             )
             envelope._guarded().write(
-                {"state": "completed", "completed_at": now, "completion_certificate_id": certificate.id}
+                {
+                    "state": "completed",
+                    "completed_at": now,
+                    "completion_certificate_id": certificate.id,
+                }
             )
             publish(
                 self.env,
@@ -283,7 +305,9 @@ class FixEsignatureEnvelope(models.Model):
                     % (envelope.name, envelope.state)
                 )
             if not reason or not reason.strip():
-                raise UserError("State why the envelope is voided — the void is part of the record.")
+                raise UserError(
+                    "State why the envelope is voided — the void is part of the record."
+                )
             was_sent = envelope.state in ("sent", "partially_signed")
             envelope._guarded().write({"state": "voided", "void_reason": reason.strip()})
             if was_sent:
@@ -324,9 +348,7 @@ class FixEsignatureSigner(models.Model):
         string="Signs As", help="e.g. Customer, Branch Manager, Vendor Authorised Person"
     )
     signed_at = fields.Datetime(readonly=True)
-    signature_provider = fields.Char(
-        readonly=True, help="The L6 provider's signature reference"
-    )
+    signature_provider = fields.Char(readonly=True, help="The L6 provider's signature reference")
     auth_method = fields.Char(
         readonly=True, help="How the signer authenticated (session, OTP, provider callback)"
     )
@@ -344,9 +366,37 @@ class FixEsignatureSigner(models.Model):
     def write(self, vals):
         if self and not self._fix_guard_open() and "envelope_id" in vals:
             for signer in self:
-                if signer._fix_guard_differs("envelope_id", vals["envelope_id"], signer.envelope_id):
+                if signer._fix_guard_differs(
+                    "envelope_id", vals["envelope_id"], signer.envelope_id
+                ):
                     self._fix_guard_refuse(["envelope_id"])
         return super().write(vals)
+
+    def _fix_guarded_fields(self) -> set:
+        guarded = super()._fix_guarded_fields() | SIGNER_GUARDED
+        if any(s.envelope_id.state != "draft" for s in self):
+            guarded |= SIGNER_SEALED
+        return guarded
+
+    def _esign_provider_record_signature(self, signature_ref, signed_at=None):
+        """The provider integration records a completed signature (trusted
+        service: called with sudo() after verifying the provider's callback),
+        then the envelope re-checks completion."""
+        if not self.env.su:
+            raise UserError("A signature is recorded by the e-signature provider only.")
+        for signer in self:
+            if signer.envelope_id.state not in ("sent", "partially_signed"):
+                raise UserError("Envelope %s is not out for signature." % signer.envelope_id.name)
+            if signer.signed_at:
+                raise UserError("%s has already signed." % (signer.signer_name or signer.id))
+            signer._guarded().write(
+                {
+                    "signed_at": signed_at or fields.Datetime.now(),
+                    "signature_provider": signature_ref,
+                }
+            )
+        self.envelope_id.action_check_complete()
+        return True
 
     @api.constrains("sequence")
     def _check_order(self):
@@ -394,7 +444,8 @@ class FixEsignatureSigner(models.Model):
             if not self.env.su and self.env.user.partner_id != signer.partner_id:
                 raise UserError(
                     "%s signs for themself — the signature of %s belongs to %s's own "
-                    "login (A10 D1)." % (signer.partner_id.name, envelope.name, signer.partner_id.name)
+                    "login (A10 D1)."
+                    % (signer.partner_id.name, envelope.name, signer.partner_id.name)
                 )
             if envelope.state not in ("sent", "partially_signed"):
                 raise UserError(
@@ -406,12 +457,15 @@ class FixEsignatureSigner(models.Model):
                     "The signing window for %s closed on %s." % (envelope.name, envelope.deadline)
                 )
             if signer.signed_at:
-                raise UserError("%s has already signed %s." % (signer.partner_id.name, envelope.name))
+                raise UserError(
+                    "%s has already signed %s." % (signer.partner_id.name, envelope.name)
+                )
             turn = envelope._next_signer()
             if turn and turn != signer:
                 raise UserError(
                     "The signing order is sequential — %s signs first (position %d; %s "
-                    "is at %d)." % (turn.partner_id.name, turn.sequence, signer.partner_id.name, signer.sequence)
+                    "is at %d)."
+                    % (turn.partner_id.name, turn.sequence, signer.partner_id.name, signer.sequence)
                 )
             signer._guarded().write(
                 {
@@ -451,7 +505,5 @@ class FixEsignatureSigner(models.Model):
                 raise UserError("State the reason — a refusal without grounds is not a record.")
             envelope._guarded().write({"state": "declined", "decline_reason": reason.strip()})
             envelope.document_id._guarded().write({"signature_locked": False})
-            envelope.message_post(
-                body="%s declined: %s" % (signer.partner_id.name, reason.strip())
-            )
+            envelope.message_post(body="%s declined: %s" % (signer.partner_id.name, reason.strip()))
         return True

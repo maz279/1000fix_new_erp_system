@@ -18,16 +18,19 @@ Owns:
 
 AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Catalogue",
     "depends": ["base", "mail", "product", "cd_entity_config", "cd_rbac_ext", "cd_event_outbox"],
     "data": [
+        # A04 audit (2026-11-04): the catalogue roles, before the ACLs naming them
+        "security/cd_catalogue_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/fix_refurb_grades.xml",
         "data/fix_brand_data.xml",
+        "data/ir_cron.xml",
         "views/fix_catalogue_views.xml",
         "views/fix_catalogue_workspace_views.xml",
     ],

@@ -1,7 +1,12 @@
 # fix.rental.sku — rental SKU model for M13 (P03-M06-T03).
 # Built in the kernel so M13 (Phase 9, circular business) composes rather
 # than duplicates.
-from odoo import fields, models
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
+
+from .catalogue_roles import ROLE_OFFICER, require_role
+
+RATE_FIELDS = ("daily_rate", "weekly_rate", "monthly_rate", "security_deposit")
 
 
 class FixRentalSku(models.Model):
@@ -26,7 +31,9 @@ class FixRentalSku(models.Model):
         "fix.catalogue.item",
         string="Catalogue Item",
         required=True,
-        ondelete="cascade",
+        # A04 audit (2026-11-04) M37-3: deleting the item cascaded its rental
+        # SKUs away; a referenced item is now kept (BRU-CAT-03).
+        ondelete="restrict",
         index=True,
         help="The catalogue item this rental SKU wraps",
     )
@@ -54,3 +61,35 @@ class FixRentalSku(models.Model):
         default=True, help="Whether the item must be inspected on return (M01 QC path)"
     )
     active = fields.Boolean(default=True)
+
+    # A04 audit M37-6 (rs_01): a negative rate or deposit was accepted, which
+    # pays the customer to rent and refunds a deposit never taken.
+    _rates_not_negative = models.Constraint(
+        "CHECK (COALESCE(daily_rate, 0) >= 0 AND COALESCE(weekly_rate, 0) >= 0 "
+        "AND COALESCE(monthly_rate, 0) >= 0 AND COALESCE(security_deposit, 0) >= 0 "
+        "AND COALESCE(max_rental_days, 0) >= 0)",
+        "Rental rates, deposit and maximum duration cannot be negative.",
+    )
+
+    @staticmethod
+    def _check_rate_vals(vals):
+        # Before the INSERT/UPDATE: a ValidationError, not the CHECK's
+        # IntegrityError.
+        bad = [f for f in (*RATE_FIELDS, "max_rental_days") if (vals.get(f) or 0) < 0]
+        if bad:
+            raise ValidationError(
+                "Rental rates, deposit and maximum duration cannot be negative (%s)."
+                % ", ".join(bad)
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a rental SKU")
+        for vals in vals_list:
+            self._check_rate_vals(vals)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a rental SKU")
+        self._check_rate_vals(vals)
+        return super().write(vals)

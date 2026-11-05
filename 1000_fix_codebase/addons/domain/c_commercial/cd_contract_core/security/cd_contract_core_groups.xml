@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M08 contract roles (A04 workflow audit 2026-11-03 §7.1; C2-C13 build 2026-11-04).
+
+     M08 had no role at all: every internal user created, edited, "activated"
+     and terminated contracts, and a BDT 50M contract was activated by the
+     user who created it. The spec's roles:
+
+     - Contract Officer: drafts contracts, submits them for the value
+       approval, attaches the signature envelope, activates a signed
+       contract, raises amendments, renewals and termination notices,
+       dispatches PM visits. Plain internal users keep read access only.
+     - Contract Manager (the contract approver for decisions with no
+       amount): approves scope amendments, executes approved terminations,
+       resumes a suspended contract, skips a PM visit. Implies Officer.
+     - Contract Legal Reviewer: reviews contracts above the legal threshold
+       and signs off template wording; never their own.
+
+     The contract VALUE, priced amendments and terminations are approved by
+     the DOFA tier holders (cd_entity_config.group_dofa_tier_*), routed
+     through the M63 inbox; the stamp-duty exemption by Finance
+     (account.group_account_manager). The dev admin is a member of each role
+     so daily work keeps running; segregation of duties still applies to
+     them. Who else holds the roles is a business appointment (§7 decision 1). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_contract" model="res.groups.privilege">
+            <field name="name">Contracts &amp; AMC</field>
+            <field name="description">Service contracts, entitlements, amendments, renewals and terminations (M08).</field>
+            <field name="sequence">8</field>
+        </record>
+
+        <record id="group_contract_officer" model="res.groups">
+            <field name="name">Contract Officer</field>
+            <field name="privilege_id" ref="privilege_contract"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Drafts and submits contracts, attaches the e-signature envelope, activates a signed and approved contract, raises amendments, renewals and termination notices, dispatches PM visits.</field>
+        </record>
+
+        <record id="group_contract_manager" model="res.groups">
+            <field name="name">Contract Manager</field>
+            <field name="privilege_id" ref="privilege_contract"/>
+            <field name="implied_ids" eval="[(4, ref('group_contract_officer'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves scope amendments raised by others, executes approved terminations and suspensions, resumes a suspended contract, skips a PM visit.</field>
+        </record>
+
+        <record id="group_contract_legal" model="res.groups">
+            <field name="name">Contract Legal Reviewer</field>
+            <field name="privilege_id" ref="privilege_contract"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Reviews contracts above the legal-review threshold and signs off contract template wording they neither authored nor last edited.</field>
+        </record>
+
+    </data>
+</odoo>

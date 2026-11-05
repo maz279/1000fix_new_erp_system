@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 C10 (2026-11-04, M12-12): the 48-hour dispute SLA was a deadline
+     nothing acted on. Every open dispute past it is escalated once to
+     executive arbitration (idempotent through escalated_at). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_marketplace_dispute_sla" model="ir.cron">
+            <field name="name">Marketplace: escalate disputes past the 48h SLA</field>
+            <field name="model_id" ref="model_fix_marketplace_dispute"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispute_sla_escalation()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

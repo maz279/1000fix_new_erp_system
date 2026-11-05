@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "quotation.accepted",
-  "description": "Published by cd_quotation through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_quotation through libs.py.fix_events.publish() (2 call site(s): the estimate quote and fix.quotation); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -41,6 +41,24 @@
         },
         "grand_total": {
           "type": "number"
+        },
+        "quotation": {
+          "type": "string"
+        },
+        "quote_type": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "acceptance_method": {
+          "type": "string"
+        },
+        "evidence_hash": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -48,7 +66,8 @@
   },
   "x-owner-module": "cd_quotation",
   "x-publishers": [
-    "addons/domain/c_commercial/cd_quotation/models/fix_quotation.py"
+    "addons/domain/c_commercial/cd_quotation/models/fix_quotation.py",
+    "addons/domain/c_commercial/cd_quotation/models/fix_quote_ops.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "contract.amended",
+  "description": "Published by cd_contract_core through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code (A04 C2-C13 build, 2026-11-04).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "contract.amended"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_contract_core"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "code",
+        "amendment_id",
+        "kind",
+        "version",
+        "value_before",
+        "value_after",
+        "effective_from"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "amendment_id": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "value_before": {
+          "type": "number"
+        },
+        "value_after": {
+          "type": "number"
+        },
+        "effective_from": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_contract_core",
+  "x-publishers": [
+    "addons/domain/c_commercial/cd_contract_core/models/fix_contract_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

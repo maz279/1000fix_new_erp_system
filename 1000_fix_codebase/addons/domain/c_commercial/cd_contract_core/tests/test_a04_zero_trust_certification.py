@@ -226,12 +226,46 @@ class TestM08Contract:
         )
         assert c.stamp_act_article == "art_5"
 
-    def test_flaw_08_3_termination_carries_dofa_fields(self, env, contract):
-        """FLAW-08.3: FixContractTermination was a passive stub."""
-        model = env["fix.contract.termination"]
-        for f in ("dofa_tier", "dofa_approved"):
-            assert f in model._fields, "termination still lacks %s" % f
-        assert hasattr(model, "action_dofa_approve")
+    def test_flaw_08_3_termination_dofa_is_derived_and_enforced(self, env, contract):
+        """FLAW-08.3: FixContractTermination was a passive stub, and this test
+        only checked that its DOFA fields EXISTED (A04 audit C13). It now
+        checks the behaviour, as a non-admin user: the tier follows the amount
+        (a chosen tier is ignored), the raiser cannot approve it, and nothing
+        executes without a DOFA approval."""
+        today = odoo_fields.Date.context_today(env["fix.contract"])
+        k = contract(date_start=today - timedelta(days=5), date_end=today + timedelta(days=300))
+        k.action_activate()
+        officer = env["res.users"].create(
+            {
+                "name": "A04 cert officer",
+                "login": "a04cert_officer_0803",
+                "group_ids": [
+                    (4, env.ref("base.group_user").id),
+                    (4, env.ref("cd_contract_core.group_contract_officer").id),
+                    (4, env.ref("cd_entity_config.group_dofa_tier_5").id),
+                ],
+            }
+        )
+        t = (
+            env["fix.contract.termination"]
+            .with_user(officer)
+            .create(
+                {
+                    "name": "cert exit",
+                    "contract_id": k.id,
+                    "reason": "cert",
+                    "effective_date": odoo_fields.Date.context_today(k),
+                    "penalty_amount": 5_000_000.0,
+                    "dofa_tier": "tier_1",
+                }
+            )
+        )
+        assert t.dofa_tier_required == "tier_5", "the tier is derived from the amount"
+        with pytest.raises(UserError):
+            t.action_dofa_approve()  # routed through M63; never the raiser's button
+        with pytest.raises(UserError):
+            t.sudo().action_execute_termination()  # not approved
+        assert not t.dofa_approved and k.state == "active"
 
 
 def _any_device(env):
@@ -348,6 +382,8 @@ class TestM11Pricing:
         direct press is refused; a peer Tier 3 decides from the inbox)."""
         peer = _approver(env, 3, "a04.floor.t3.peer@example.com")
         director = _approver(env, 3, "a04.floor.t3.self@example.com")
+        # A04 B3 (M11): only a Pricing Officer creates a floor.
+        director.write({"group_ids": [(4, env.ref("cd_rate_card.group_pricing_officer").id)]})
         f = (
             env["fix.price.floor"]
             .with_user(director)
@@ -390,8 +426,11 @@ class TestM11Pricing:
             dofa_justification="Matched a competitor quote.",
         )
         mgr = _approver(env, 2, "a04.floor.t2.ok@example.com")
-        f.action_request_override_approval()
-        approve_via_inbox(f, mgr)
+        requester = _approver(env, 1, "a04.floor.requester@example.com")
+        requester.write({"group_ids": [(4, env.ref("cd_rate_card.group_pricing_officer").id)]})
+        # A04 B3 (M11): the override is a routed DOFA approval (M63 inbox).
+        approve_via_inbox(f, mgr, requester=requester)
+        f.invalidate_recordset()
         assert f.dofa_override_approved and f.dofa_override_user_id == mgr
         # the approved price is allowed...
         assert f.validate_price_against_floor(900.0) is True
@@ -597,14 +636,42 @@ class TestM39Subscription:
 
         return _make
 
+    @staticmethod
+    def _issued_unpaid(s, invoice_date, terms_days=7):
+        """A04 hand-off closure (2026-11-05): the ladder chases the UNPAID
+        ISSUED INVOICE, so the certification stages one — the customer's terms
+        are `terms_days`, the cycle invoice is issued and never paid."""
+        existing = (
+            s.env["fix.credit.profile"]
+            .sudo()
+            .search(
+                [("customer_id", "=", s.customer_id.id), ("company_id", "=", s.company_id.id)],
+                limit=1,
+            )
+        )
+        if not existing:
+            s.env["fix.credit.profile"].create(
+                {
+                    "customer_id": s.customer_id.id,
+                    "company_id": s.company_id.id,
+                    "payment_terms_days": terms_days,
+                }
+            )
+        s.action_generate_charge()
+        (charge,) = s.charge_ids
+        charge.invoice_id.sudo().write({"invoice_date": invoice_date, "state": "issued"})
+        s.env.flush_all()
+        s.env.invalidate_all()
+        return s
+
     @pytest.mark.parametrize(
         ("as_of", "overdue", "state", "step"),
         [
-            (date(2026, 2, 5), 5, "past_due", "reminder"),
-            (date(2026, 2, 7), 7, "past_due", "reminder"),  # L1 boundary
-            (date(2026, 2, 8), 8, "past_due", "final"),
-            (date(2026, 2, 15), 15, "past_due", "final"),  # grace boundary
-            (date(2026, 2, 16), 16, "hold", "escalate"),
+            (date(2026, 2, 10), 3, "past_due", "reminder"),
+            (date(2026, 2, 14), 7, "past_due", "reminder"),  # L1 boundary
+            (date(2026, 2, 15), 8, "past_due", "final"),
+            (date(2026, 2, 22), 15, "past_due", "final"),  # grace boundary
+            (date(2026, 2, 23), 16, "hold", "escalate"),
         ],
     )
     def test_flaw_39_2_dunning_ladder_stages(self, sub, as_of, overdue, state, step):
@@ -615,27 +682,36 @@ class TestM39Subscription:
 
         A mutation check on 2026-11-01 showed the certification suite did not
         catch that regression, because it only inspected the field default.
-        These assert the ladder's behaviour at every boundary.
+        These assert the ladder's behaviour at every boundary, measured on the
+        unpaid issued invoice (Jan 31 + 7-day terms = due Feb 7).
         """
-        s = sub()
+        s = self._issued_unpaid(sub(), date(2026, 1, 31))
         s.action_trigger_dunning(as_of=as_of)
         assert (s.days_overdue, s.state, s.dunning_step) == (overdue, state, step)
 
     def test_flaw_39_2_a_shorter_grace_escalates_sooner(self, sub):
         """The grace period is the customer's agreed term, so a 10-day
         grace must escalate on day 11 rather than wait for a hard-coded 14."""
-        s = sub(grace_period_days=10)
-        s.action_trigger_dunning(as_of=date(2026, 2, 11))
+        s = self._issued_unpaid(sub(grace_period_days=10), date(2026, 1, 31))
+        s.action_trigger_dunning(as_of=date(2026, 2, 18))  # 11 days past Feb 7
         assert (s.state, s.dunning_step) == ("hold", "escalate")
 
     def test_flaw_39_2_a_longer_grace_is_honoured(self, sub):
         """...and a 20-day grace must NOT be truncated to 13."""
-        s = sub(grace_period_days=20)
-        s.action_trigger_dunning(as_of=date(2026, 2, 18))
+        s = self._issued_unpaid(sub(grace_period_days=20), date(2026, 1, 31))
+        s.action_trigger_dunning(as_of=date(2026, 2, 18))  # 11 days past due
         assert (s.state, s.dunning_step) == ("past_due", "final")
-        s2 = sub(grace_period_days=20)
-        s2.action_trigger_dunning(as_of=date(2026, 2, 21))
+        s2 = self._issued_unpaid(sub(grace_period_days=20), date(2026, 1, 31))
+        s2.action_trigger_dunning(as_of=date(2026, 2, 28))  # 21 days past due
         assert (s2.state, s2.dunning_step) == ("hold", "escalate")
+
+    def test_flaw_39_2_a_never_billed_customer_is_never_dunned(self, sub):
+        """A04 report M39-2: a missed billing run is a Finance omission, not
+        customer non-payment — the calendar basis suspended a never-billed
+        customer."""
+        s = sub(next_invoice_date=date(2026, 1, 1))
+        s.action_trigger_dunning(as_of=date(2026, 6, 1))
+        assert (s.state, s.dunning_step, s.days_overdue) == ("active", "none", 0)
 
 
 # ==========================================================================
@@ -1337,7 +1413,8 @@ class TestA04BusinessRules:
                     "grace_period_days": grace,
                 }
             )
-            sub.action_trigger_dunning(as_of=date(2026, 1, 31) + timedelta(days=overdue))
+            TestM39Subscription._issued_unpaid(sub, date(2026, 1, 31))
+            sub.action_trigger_dunning(as_of=date(2026, 2, 7) + timedelta(days=overdue))
             assert sub.dunning_step == expected_step, "%d days overdue -> %s, expected %s" % (
                 overdue,
                 sub.dunning_step,

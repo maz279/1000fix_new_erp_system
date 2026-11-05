@@ -26,6 +26,30 @@ SURFACES = {
             "action_request_refund",
             "action_allocate_price",
         },
+        # A04 hand-off closure (2026-11-05): what the subscription form may
+        # set through /p03/model/write. The state, dunning ladder and refund
+        # stamps are model-readonly and guarded on fix.subscription; a
+        # mid-term price or plan change runs through an approved proration,
+        # never the form.
+        "writable": frozenset(
+            {
+                "name",
+                "customer_id",
+                "contract_id",
+                "plan",
+                "billing_cycle",
+                "recurring_amount",
+                "start_date",
+                "next_invoice_date",
+                "grace_period_days",
+                "consolidated",
+                "currency_id",
+                "company_id",
+                "operating_unit_id",
+                "contract_value",
+                "contract_end_date",
+            }
+        ),
     },
     "fix.warranty.provision": {
         "order": "period desc, id desc",

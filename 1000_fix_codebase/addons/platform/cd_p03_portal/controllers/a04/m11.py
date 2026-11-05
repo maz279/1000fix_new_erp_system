@@ -11,20 +11,25 @@ from odoo.http import request
 from ..p03_service_order_api import _require_internal
 
 SURFACES = {
+    # A04 audit (2026-11-04) C3/D2: every M11 surface declared `actions:
+    # set()`, so the only way to run a lifecycle from the workspace was to
+    # type its state. Each now exposes its transitions; releases are decided
+    # from the releaser's M63 inbox, never here.
     "fix.rate.card": {
         "order": "line_type, product_code",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_request_release", "action_request_change", "action_request_retire"},
     },
     "fix.dynamic.price.rule": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_disable", "action_enable"},
     },
     "fix.price.explanation": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # append-only: the one action re-derives the price, it writes nothing
+        "actions": {"action_reconstruct"},
     },
     "fix.discount.approval": {
         "order": "create_date desc, id desc",
@@ -36,32 +41,43 @@ SURFACES = {
     "fix.price.book": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_retire"},
     },
     "fix.price.version": {
         "order": "book_id, effective_from desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_submit", "action_recall_approval"},
     },
     "fix.price.floor": {
         "order": "name",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_request_floor_change",
+            "action_request_retire",
+        },
     },
     "fix.promotion": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_submit", "action_recall_approval", "action_end"},
     },
     "fix.price.simulation": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_compute"},
     },
     "fix.discount.policy": {
         "order": "min_pct",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_submit", "action_recall_approval", "action_retire"},
+    },
+    # A04 audit (2026-11-04) M11-5: the one way a live rate or floor changes.
+    "fix.price.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_recall_approval", "action_cancel"},
     },
 }
 

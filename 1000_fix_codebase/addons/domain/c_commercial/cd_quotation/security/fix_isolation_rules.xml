@@ -24,9 +24,26 @@
         <field name="model_id" ref="model_fix_quotation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_quotation_operating_unit" model="ir.rule">
+        <field name="name">fix.quotation: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_quotation"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_tender_company" model="ir.rule">
         <field name="name">fix.tender: allowed companies</field>
         <field name="model_id" ref="model_fix_tender"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tender_operating_unit" model="ir.rule">
+        <field name="name">fix.tender: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tender"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tender_variation_company" model="ir.rule">
+        <field name="name">fix.tender.variation: allowed companies</field>
+        <field name="model_id" ref="model_fix_tender_variation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

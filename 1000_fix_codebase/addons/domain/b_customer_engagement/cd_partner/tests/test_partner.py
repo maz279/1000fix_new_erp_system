@@ -3,34 +3,64 @@
 import inspect
 import unittest
 
-from odoo.addons.cd_partner.models.fix_partner import FixPartner, FixReferral
+import pytest
+from odoo.addons.cd_partner.models.fix_partner import FixReferral
+from odoo.exceptions import UserError
 
 
-class TestPartnerIsPartyRole(unittest.TestCase):
-    def test_links_to_party_master(self):
-        self.assertTrue(hasattr(FixPartner, "partner_id"))
+# A04 audit C13 (2026-11-04): the fix.partner checks here were source-text
+# and attribute-existence tests ("partner.onboarded" appears in the class,
+# the class has a contract_id), which passed while a state write onboarded
+# anyone. They are now behaviour tests as a non-admin user, below; the
+# lifecycles are proved in test_a04_c2_c13_partner.py. The fix.referral
+# checks (A08) are unchanged.
+@pytest.fixture
+def channel(odoo_env):
+    env = odoo_env
+    users = env["res.users"].with_context(no_reset_password=True)
+    officer = users.create(
+        {
+            "name": "M40 Unit Officer",
+            "login": "m40.unit.officer@a04.test",
+            "group_ids": [(6, 0, [env.ref("cd_partner.group_fix_channel_officer").id])],
+        }
+    )
+    manager = users.create(
+        {
+            "name": "M40 Unit Manager",
+            "login": "m40.unit.manager@a04.test",
+            "group_ids": [(6, 0, [env.ref("cd_partner.group_fix_channel_manager").id])],
+        }
+    )
+    party = env["res.partner"].create({"name": "M40 Unit Party"})
+    return env, officer, manager, party
 
-    def test_partner_types(self):
-        src = inspect.getsource(FixPartner)
-        for pt in ("referral", "reseller", "franchise", "alliance"):
-            self.assertIn(pt, src)
 
-    def test_commission_rate_tracked(self):
-        self.assertTrue(hasattr(FixPartner, "commission_rate"))
+def test_a_partner_is_a_role_on_an_m33_party(channel):
+    env, officer, _manager, party = channel
+    p = env["fix.partner"].with_user(officer).create({"name": "Unit", "partner_id": party.id})
+    assert (p.partner_id, p.partner_type, p.state, p.commission_rate) == (
+        party,
+        "referral",
+        "prospective",
+        0.05,
+    )
 
-    def test_territory_tracked(self):
-        self.assertTrue(hasattr(FixPartner, "territory"))
 
-    def test_contract_link(self):
-        self.assertTrue(hasattr(FixPartner, "contract_id"))
-
-    def test_onboard_event(self):
-        self.assertIn("partner.onboarded", inspect.getsource(FixPartner))
-
-    def test_state_lifecycle(self):
-        src = inspect.getsource(FixPartner)
-        for s in ("prospective", "onboarded", "suspended"):
-            self.assertIn(s, src)
+def test_onboarding_is_a_second_persons_decision_and_is_published(channel):
+    env, officer, manager, party = channel
+    p = (
+        env["fix.partner"]
+        .with_user(officer)
+        .create({"name": "Unit", "partner_id": party.id, "territory": "Mirpur"})
+    )
+    with pytest.raises(UserError):
+        p.with_user(officer).action_onboard()
+    p.with_user(manager).action_onboard()
+    assert p.state == "onboarded"
+    assert env["fix.event.outbox"].search_count(
+        [("event_type", "=", "partner.onboarded"), ("aggregate_id", "=", p.id)]
+    )
 
 
 class TestReferral(unittest.TestCase):

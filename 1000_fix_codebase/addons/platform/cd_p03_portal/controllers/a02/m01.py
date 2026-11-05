@@ -87,6 +87,12 @@ SURFACES = {
             "action_send_customer_otp",
             "action_verify_customer_otp",
             "action_record_signed_approval",
+            # A04 audit M36-2 (eq_08): the M36 quotation lifecycle on the
+            # estimate; quotation_state is no longer writable.
+            "action_quote",
+            "action_negotiate",
+            "action_accept",
+            "action_decline",
         },
     },
     "fix.qc.checklist": {

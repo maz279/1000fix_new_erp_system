@@ -19,7 +19,7 @@ account.journal + res.partner.bank), cash-in-transit, rider COD settlement
 with three-way match, facilities & covenants, recurring cash items, and the
 computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -37,6 +37,8 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        # A04 report C7: consumer of the storefront refund hand-off.
+        "data/fix_a04_consumers.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

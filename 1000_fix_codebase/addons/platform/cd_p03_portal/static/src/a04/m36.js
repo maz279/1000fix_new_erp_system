@@ -36,7 +36,8 @@ export const MODULE = {
     { en: 'Tenders', screens: [
       { id: 'M36-tenders', en: 'Tenders & Bids', bn: 'দরপত্র', t: 'g' },
       { id: 'M36-compliance', en: 'Compliance Matrix', bn: 'কমপ্লায়েন্স ম্যাট্রিক্স', t: 'f' },
-      { id: 'M36-bonds', en: 'Bid Bonds', bn: 'বিড বন্ড', t: 'g' }
+      { id: 'M36-bonds', en: 'Bid Bonds', bn: 'বিড বন্ড', t: 'g' },
+      { id: 'M36-variations', en: 'Variation Orders', bn: 'ভেরিয়েশন অর্ডার', t: 'g' }
     ]}
   ],
   reports: ['Quote Conversion by Channel', 'Approval Cycle Time', 'Decline Reasons Pareto', 'Tender Win/Loss', 'Margin on Approved Quotes'],
@@ -66,11 +67,42 @@ export const SCREENS = {
   'M36-internal': { kind: 'model_list', model: 'fix.quote.review', create: false,
     cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at", "create_uid"] },
   'M36-declined': { kind: 'table_report', module: 'M36', report: 'decline_pareto', title: 'Decline Pareto', period: true },
-  'M36-tenders': { kind: 'model_list', model: 'fix.tender', create: false,
-    cols: ["name", "state", "currency_id", "create_date", "company_id", "client_name", "due_date"] },
+  // A04 audit M36-7 (C2-C13 build 2026-11-04): a tender moves only through
+  // these. The bid decision and the award are the Tender Committee's; a win
+  // is approved from the M63 inbox by a member who did not prepare the bid.
+  'M36-tenders': { kind: 'model_list', model: 'fix.tender', create: false, stateField: 'state',
+    cols: ["name", "state", "client_name", "due_date", "compliance_pct", "bid_decision", "approval_state"],
+    actions: [
+      { m: 'action_decide_bid', l: 'Decide: Bid (Tender Committee)', ask: 'Basis of the bid decision (scores are on the form)', kwarg: 'reason', states: ['draft'] },
+      { m: 'action_decide_no_bid', l: 'Decide: No Bid (Tender Committee)', ask: 'Why not bid?', kwarg: 'reason', states: ['draft'] },
+      { m: 'action_submit', l: 'Submit Bid', states: ['draft'] },
+      { m: 'action_request_award', l: 'Request Award Approval (award ref and value staged on the form)', ask: 'Justification for the award', kwarg: 'justification', states: ['submitted'] },
+      { m: 'action_recall_approval', l: 'Recall Award Request', states: ['submitted'] },
+      { m: 'action_record_loss', l: 'Record Loss', ask: 'Loss reason', kwarg: 'reason', states: ['submitted'] },
+      { m: 'action_create_contract', l: 'Create Contract (retry)', states: ['won'] },
+      { m: 'action_cancel', l: 'Cancel Tender', ask: 'Why is the tender withdrawn?', kwarg: 'reason', states: ['draft', 'submitted'] }
+    ] },
   'M36-compliance': { kind: 'table_report', module: 'M36', report: 'tender_compliance', title: 'Tender Compliance', period: true },
-  'M36-bonds': { kind: 'model_list', model: 'fix.tender.bond', create: false,
-    cols: ["state", "amount", "currency_id", "create_date", "tender_id", "bond_type", "bank"] },
+  // Report §6 P2 M36 (variation cap): within the cumulative cap the Tender
+  // Committee decides a variation; beyond it the Commercial Manager.
+  'M36-variations': { kind: 'model_list', model: 'fix.tender.variation', stateField: 'state',
+    cols: ['name', 'tender_id', 'amount', 'cumulative_pct', 'within_cap', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_request', l: 'Request Approval', ask: 'Justification for the variation', kwarg: 'justification', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Request', states: ['draft'] },
+      { m: 'action_cancel', l: 'Withdraw Variation', ask: 'Why is it withdrawn?', kwarg: 'reason', states: ['draft'] }
+    ] },
+  // A04 audit M36-8: a guarantee is activated with the bank's evidence and
+  // released or claimed only by a routed DOFA decision on its amount.
+  'M36-bonds': { kind: 'model_list', model: 'fix.tender.bond', create: false, stateField: 'state',
+    cols: ["name", "state", "amount", "tender_id", "bond_type", "bank", "expires_on", "is_expiring_soon", "approval_state"],
+    actions: [
+      { m: 'action_activate', l: 'Activate (guarantee issued)', states: ['draft'] },
+      { m: 'action_release', l: 'Request Release (after the award)', ask: 'Bank discharge / return reference', kwarg: 'release_ref', states: ['active'] },
+      { m: 'action_claim', l: 'Record Encashment (claim)', ask: 'Why was the guarantee encashed?', kwarg: 'reason', states: ['active'] },
+      { m: 'action_extend', l: 'Record Extension', ask: 'New expiry date (YYYY-MM-DD)', kwarg: 'expires_on', states: ['active'] },
+      { m: 'action_recall_approval', l: 'Recall Release / Claim Request', states: ['active'] }
+    ] },
 
 
   /* Report screens */
@@ -80,12 +112,36 @@ export const SCREENS = {
   'M36-rpt-tender': { kind: 'table_report', module: 'M36', report: 'tender_winloss', title: 'Tender Win/Loss', period: false },
   'M36-rpt-margin': { kind: 'table_report', module: 'M36', report: 'margin_approved', title: 'Margin on Approved Quotes', period: false },
 
+  // A04 audit M36-2: the estimate's quotation moves only through these
+  // (approved estimate, no pending discount, acceptance within validity).
   'M36-estimates': { kind: 'model_list', model: 'fix.estimate', stateField: 'state',
-    cols: ['order_id', 'version', 'state', 'grand_total', 'discount', 'expiry_date', 'approved_by'] },
+    cols: ['order_id', 'version', 'state', 'grand_total', 'discount', 'expiry_date', 'approved_by', 'quotation_state'],
+    actions: [
+      { m: 'action_quote', l: 'Quote to Customer', states: ['approved'] },
+      { m: 'action_negotiate', l: 'Customer Counter (negotiating)', states: ['approved'] },
+      { m: 'action_accept', l: 'Record Acceptance (within validity)', states: ['approved'] },
+      { m: 'action_decline', l: 'Record Decline', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['approved'] }
+    ] },
   'M36-buildup': { kind: 'model_list', create: false, model: 'fix.estimate.line',
     cols: ['estimate_id', 'description', 'quantity', 'unit_price', 'line_total'] },
+  // A04 audit M36-1 (C2-C13 build 2026-11-04): the quotation moves only
+  // through these. Approval comes from the M63 inbox (value band, never the
+  // author); acceptance from the customer's code, the provider's e-signature
+  // callback, or a signed copy recorded by someone other than the author.
   'M36-quotes': { kind: 'model_list', model: 'fix.quotation', stateField: 'state',
-    cols: ['name', 'customer_id', 'version', 'value', 'margin_pct', 'valid_until', 'state'] },
+    cols: ['name', 'customer_id', 'version', 'value', 'margin_pct', 'valid_until', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
+      { m: 'action_send', l: 'Issue to Customer', states: ['approved'] },
+      { m: 'action_send_acceptance_otp', l: 'Send Acceptance Code', states: ['sent'] },
+      { m: 'action_verify_acceptance_otp', l: 'Verify Acceptance Code', ask: 'Code the customer read out', kwarg: 'otp', states: ['sent'] },
+      { m: 'action_record_signed_acceptance', l: 'Record Signed Acceptance (attached on the form)', states: ['sent'] },
+      { m: 'action_decline', l: 'Record Decline (reason code on the form)', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['sent'] },
+      { m: 'action_revise', l: 'Revise (new version)', states: ['sent', 'expired', 'declined'] },
+      { m: 'action_convert', l: 'Convert (retry hand-off)', states: ['accepted'] },
+      { m: 'action_cancel', l: 'Cancel Quotation', ask: 'Why is it withdrawn?', kwarg: 'reason', states: ['draft', 'approved', 'sent'] }
+    ] },
   'M36-form-estimate': {
 
     lines: {
@@ -131,7 +187,7 @@ export const SCREENS = {
         { name: 'state', label: 'State', readonly: true },
         { name: 'customer_approval_ref', label: 'Customer Approval Ref', readonly: true },
         { name: 'dofa_tier_required', label: 'DOFA Discount Tier', readonly: true },
-        { name: 'quotation_state', label: 'Quotation State' },
+        { name: 'quotation_state', label: 'Quotation State', readonly: true },
         { name: 'valid_days', label: 'Valid Days' },
         { name: 'tender_ref', label: 'Tender Reference' }
       ] },
@@ -183,28 +239,34 @@ export const SCREENS = {
     back: 'M36-quotes',
     status: { field: 'state' },
     tabs: [
-      { id: 'header', label: '1. Proposal Header', bn: '১. প্রস্তাবনা পরিচিতি', icon: '📄', badge: '6' },
-      { id: 'pricing', label: '2. Cost, Margins & SRT', bn: '২. খরচ ও মার্জিন', icon: '💵', badge: '6' },
+      { id: 'header', label: '1. Proposal Header', bn: '১. প্রস্তাবনা পরিচিতি', icon: '📄', badge: '9' },
+      { id: 'pricing', label: '2. Cost, Margins & SRT', bn: '২. খরচ ও মার্জিন', icon: '💵', badge: '7' },
       { id: 'statutory', label: '3. Withholding Tax (TDS)', bn: '৩. উৎসে কর কর্তন', icon: '⚖️', badge: '4' },
-      { id: 'esign', label: '4. e-Signature & Customer', bn: '৪. ডিজিটাল স্বাক্ষর', icon: '✍️', badge: '3' },
-      { id: 'tenders', label: '5. Public Tender & e-GP', bn: '৫. দরপত্র ও বন্ড', icon: '🏛️', badge: '2' },
-      { id: 'vault', label: '6. Document Vault', bn: '৬. নথিপত্র', icon: '📁', badge: '2' }
+      { id: 'approval', label: '4. Internal Approval', bn: '৪. অভ্যন্তরীণ অনুমোদন', icon: '✅', badge: '5' },
+      { id: 'esign', label: '5. Customer Acceptance', bn: '৫. গ্রাহক সম্মতি', icon: '✍️', badge: '10' },
+      { id: 'handoff', label: '6. Contract & Order Hand-off', bn: '৬. চুক্তি ও অর্ডার', icon: '🔗', badge: '6' },
+      { id: 'vault', label: '7. Document Vault', bn: '৭. নথিপত্র', icon: '📁', badge: '0' }
     ],
     sections: [
       { tab: 'header', title: 'Proposal Identity & Version Tracking',
-        note: 'Version-controlled commercial proposal generated over service estimate or tender specification.',
+        note: 'Number, version and status are set by the lifecycle (Submit, Issue, Revise); an issued version never changes.',
         fields: [
           { name: 'name', label: 'Quotation Reference (auto)', readonly: true },
           { name: 'customer_id', required: true, label: 'Customer' },
           { name: 'estimate_id', label: 'Originating Technical Estimate (M01)' },
-          { name: 'version', required: true, label: 'Quotation Version Code' },
+          { name: 'quote_type', required: true, label: 'Converts Into' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'version', label: 'Quotation Version', readonly: true },
+          { name: 'parent_version_id', label: 'Previous Version', readonly: true },
           { name: 'valid_until', label: 'Validity Expiration Date' },
-          { name: 'state', required: true, label: 'Lifecycle Status' }
+          { name: 'state', label: 'Lifecycle Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
+        note: 'Linked to an estimate, the value is the estimate total. Without a direct cost the margin is unknown.',
         fields: [
           { name: 'value', required: true, label: 'Quotation Subtotal (BDT)' },
           { name: 'cost_amount', label: 'Direct Labor & Parts Cost (BDT)' },
+          { name: 'margin_known', label: 'Margin Known (cost recorded)', readonly: true },
           { name: 'pretax_margin_bdt', label: 'Pre-Tax Operational Margin (BDT)', readonly: true },
           { name: 'margin_pct', label: 'Gross Margin (%)', readonly: true },
           { name: 'vat_rate', label: 'Standard VAT Rate (%)' },
@@ -218,15 +280,39 @@ export const SCREENS = {
           { name: 'net_cash_margin_bdt', label: 'Net Cash Margin After-Tax (BDT)', readonly: true },
           { name: 'net_cash_margin_pct', label: 'Net Cash Margin (%)', readonly: true }
         ] },
-      { tab: 'esign', title: 'Customer Acceptance & E-Signature Audit',
+      { tab: 'approval', title: 'Value-Band Approval (BRU-QTE-06/07/09)',
+        note: 'Submit routes the quotation to a holder of its value band who is not its author; any change after approval sends it back for re-approval.',
         fields: [
-          { name: 'esign_state', required: true, label: 'Digital Signature Status' },
-          { name: 'signed_at', readonly: true, label: 'Signed Timestamp' },
-          { name: 'decline_reason', label: 'Customer Decline Rationale' }
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'dofa_tier_required', label: 'Approval Band', readonly: true },
+          { name: 'dofa_justification', label: 'Business Justification', type: 'text' },
+          { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
+          { name: 'approved_at', label: 'Approved At', readonly: true }
         ] },
-      { tab: 'tenders', title: 'Public Procurement & Tender Bond Linkage',
-        note: 'Links corporate quotation to public tender and bank guarantee tracking.',
-        fields: [] },
+      { tab: 'esign', title: 'Customer Acceptance & Evidence Pack',
+        note: 'Acceptance is a verified customer code, the e-signature provider callback, or a signed copy recorded by someone other than the author, within validity.',
+        fields: [
+          { name: 'sent_at', label: 'Issued At', readonly: true },
+          { name: 'esign_state', label: 'Digital Signature Status', readonly: true },
+          { name: 'signed_at', readonly: true, label: 'Signed Timestamp' },
+          { name: 'signed_attachment_id', label: 'Signed Quotation (for Record Signed Acceptance)' },
+          { name: 'acceptance_method', label: 'Acceptance Method', readonly: true },
+          { name: 'acceptance_ref', label: 'Acceptance Reference', readonly: true },
+          { name: 'accepted_at', label: 'Accepted At', readonly: true },
+          { name: 'evidence_hash', label: 'Evidence Hash (SHA-256)', readonly: true },
+          { name: 'decline_reason_code', label: 'Decline Reason (governed list)' },
+          { name: 'decline_reason', label: 'Customer Decline Rationale', readonly: true }
+        ] },
+      { tab: 'handoff', title: 'What the Accepted Quotation Becomes',
+        note: 'On acceptance a service quotation releases its M01 order; a contract quotation creates an M08 draft contract.',
+        fields: [
+          { name: 'contract_family', label: 'Contract Family' },
+          { name: 'contract_months', label: 'Contract Term (months)' },
+          { name: 'contract_start', label: 'Contract Start' },
+          { name: 'service_order_id', label: 'Service Order', readonly: true },
+          { name: 'converted_ref', label: 'Converted Into', readonly: true },
+          { name: 'converted_at', label: 'Converted At', readonly: true }
+        ] },
       { tab: 'vault', title: 'Commercial Proposal Vault',
         note: 'Detailed bill of quantities, tender compliance sheets, and signed purchase orders.',
         fields: [] }
@@ -234,26 +320,79 @@ export const SCREENS = {
   },
 
   'M36-form-tender': {
+    lines: {
+      field: 'requirement_ids',
+      title: 'Compliance Matrix',
+      note: 'Every mandatory requirement must be complied with (against its evidence document) or not applicable before the bid is submitted (BRU-QTE-15). Frozen once submitted.',
+      fields: [
+        { name: 'clause_ref', label: 'Clause' },
+        { name: 'requirement', label: 'Requirement', required: true },
+        { name: 'mandatory', label: 'Mandatory' },
+        { name: 'state', label: 'Status', required: true },
+        { name: 'evidence_ref', label: 'Evidence Document Ref' },
+        { name: 'response', label: 'Response' }
+      ]
+    },
     kind: 'model_form',
     model: 'fix.tender',
     title: 'Public / Institutional Tender Bid',
     back: 'M36-tenders',
     status: { field: 'state' },
     tabs: [
-      { id: 'tender_header', label: '1. Tender Bid Info', bn: '১. দরপত্রের তথ্য', icon: '📑', badge: '4' },
-      { id: 'bond_compliance', label: '2. Bond & Compliance', bn: '২. বন্ড ও সম্মতি', icon: '🛡️', badge: '3' },
-      { id: 'status', label: '3. Tender Outcome', bn: '৩. দরপত্রের ফলাফল', icon: '🏁', badge: '1' }
+      { id: 'tender_header', label: '1. Tender Bid Info', bn: '১. দরপত্রের তথ্য', icon: '📑', badge: '8' },
+      { id: 'decision', label: '2. Bid / No-Bid', bn: '২. বিড সিদ্ধান্ত', icon: '⚖️', badge: '9' },
+      { id: 'bond_compliance', label: '3. Bond & Compliance', bn: '৩. বন্ড ও সম্মতি', icon: '🛡️', badge: '5' },
+      { id: 'status', label: '4. Tender Outcome', bn: '৪. দরপত্রের ফলাফল', icon: '🏁', badge: '12' }
     ],
     sections: [
-      { tab: 'tender_header', title: 'Tender Identification', note: 'Public Procurement Act (PPA 2006) tender bid details.',
+      { tab: 'tender_header', title: 'Tender Identification', note: 'Public Procurement Act (PPA 2006) tender bid details. Frozen once the bid is submitted.',
         fields: [
-          { name: 'name', required: true, label: 'Tender Reference / ID' },
-          ] },
-      { tab: 'bond_compliance', title: 'Bank Guarantee & Technical Compliance', fields: [
-          { name: 'compliance_pct', label: 'Technical Spec Compliance %' }
+          { name: 'name', required: true, label: 'Tender Name' },
+          { name: 'reference', label: 'Tender ID / e-GP Ref' },
+          { name: 'client_name', required: true, label: 'Tendering Client' },
+          { name: 'client_id', label: 'Procuring Entity (contract party)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'due_date', required: true, label: 'Submission Deadline' },
+          { name: 'estimated_value', label: 'Official Estimated Value' },
+          { name: 'bid_value', label: 'Bid Price Lodged' },
+          { name: 'state', label: 'Bid Lifecycle State', readonly: true }
         ] },
-      { tab: 'status', title: 'Tender Award State', fields: [
-          { name: 'state', required: true, label: 'Bid Lifecycle State' }
+      { tab: 'decision', title: 'Bid / No-Bid Decision (FR-QTE-044)', note: 'Score 1-5; the Tender Committee decides, never the person who registered the tender.',
+        fields: [
+          { name: 'score_fit', label: 'Fit' },
+          { name: 'score_capacity', label: 'Capacity' },
+          { name: 'score_competition', label: 'Competition' },
+          { name: 'score_margin', label: 'Margin' },
+          { name: 'score_risk', label: 'Risk' },
+          { name: 'bid_score', label: 'Bid Score (avg)', readonly: true },
+          { name: 'bid_decision', label: 'Decision', readonly: true },
+          { name: 'bid_decision_by', label: 'Decided By', readonly: true },
+          { name: 'bid_decision_reason', label: 'Basis', readonly: true }
+        ] },
+      { tab: 'bond_compliance', title: 'Bank Guarantee & Technical Compliance', note: 'The bid security must cover the bid validity plus 28 days and stay within 3% of the estimated value (PPR 2008 r.25).',
+        fields: [
+          { name: 'bonds_required', label: 'Bid Security Required' },
+          { name: 'bid_security_amount', label: 'Bid Security Required (BDT)' },
+          { name: 'bid_validity_days', label: 'Bid Validity (days)' },
+          { name: 'compliance_pct', label: 'Compliance % (computed)', readonly: true },
+          { name: 'open_mandatory_count', label: 'Open Mandatory Items', readonly: true }
+        ] },
+      { tab: 'status', title: 'Award & Contract', note: 'Stage the award letter and value, then Request Award: a Tender Committee member who did not prepare the bid approves it, and the M08 contract is created.',
+        fields: [
+          { name: 'award_ref', label: 'Notification of Award Ref' },
+          { name: 'awarded_value', label: 'Awarded Value' },
+          { name: 'award_variation_pct', label: 'Award vs Bid (%)', readonly: true },
+          { name: 'contract_value', label: 'Contract Value (with variations)', readonly: true },
+          { name: 'contract_family', label: 'Contract Family' },
+          { name: 'contract_months', label: 'Contract Term (months)' },
+          { name: 'performance_security_pct', label: 'Performance Security (%)' },
+          { name: 'approval_state', label: 'Award Approval', readonly: true },
+          { name: 'awarded_by', label: 'Award Approved By', readonly: true },
+          { name: 'award_date', label: 'Award Date', readonly: true },
+          { name: 'converted_ref', label: 'Contract', readonly: true },
+          { name: 'awarded_to', label: 'Awarded To (on a loss)' },
+          { name: 'winning_value', label: 'Winning Value (on a loss)' },
+          { name: 'loss_reason', label: 'Loss Reason', readonly: true }
         ] }
     ]
   },
@@ -321,16 +460,26 @@ export const SCREENS = {
       { id: 'docs', label: '7. Documents', bn: '৭. নথি ও প্রমাণক' }
     ],
     sections: [
-      { tab: 'general', title: '1. General', fields: [
+      { tab: 'general', title: '1. General', note: 'What the bank issued is frozen once the guarantee is active; release and encashment are approved on the amount (DOFA).', fields: [
         { name: 'bond_type', label: 'Bond Type', required: true },
         { name: 'bank', label: 'Bank' },
-        { name: 'state', label: 'State', required: true }
+        { name: 'guarantee_no', label: 'Bank Guarantee No.' },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'requested_action', label: 'Pending Request', readonly: true },
+        { name: 'approval_state', label: 'Approval', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'amount', label: 'Amount' }
+        { name: 'amount', label: 'Amount' },
+        { name: 'dofa_tier_required', label: 'Approval Tier', readonly: true },
+        { name: 'release_ref', label: 'Bank Discharge Ref', readonly: true },
+        { name: 'claim_reason', label: 'Encashment Reason', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
-        { name: 'expires_on', label: 'Expires On' }
+        { name: 'issued_on', label: 'Issued On' },
+        { name: 'expires_on', label: 'Expires On' },
+        { name: 'days_to_expiry', label: 'Days to Expiry', readonly: true },
+        { name: 'released_at', label: 'Released At', readonly: true },
+        { name: 'claimed_at', label: 'Claimed At', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'tender_id', label: 'Tender', required: true },
@@ -348,6 +497,30 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
 
+  'M36-form-variation': { kind: 'model_form', model: 'fix.tender.variation',
+    title: 'Variation Order', back: 'M36-variations',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Variation', bn: '১. ভেরিয়েশন' },
+      { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Variation Order', note: 'Frozen once requested. The cumulative variation decides who approves it (cap: cd_quotation.variation_cap_pct).', fields: [
+        { name: 'name', label: 'Variation Ref', required: true },
+        { name: 'tender_id', label: 'Tender (won)', required: true },
+        { name: 'amount', label: 'Change to Contract Value' },
+        { name: 'reason', label: 'Reason', type: 'text', required: true }
+      ] },
+      { tab: 'decision', title: 'Decision', fields: [
+        { name: 'cumulative_pct', label: 'Cumulative Variation (%)', readonly: true },
+        { name: 'within_cap', label: 'Within Cap', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'approved_by', label: 'Approved By', readonly: true },
+        { name: 'approved_at', label: 'Approved At', readonly: true }
+      ] }
+    ] },
+
   'M36-form-review': { kind: 'model_form', model: 'fix.quote.review',
     title: 'Quotation Review', back: 'M36-internal',
     status: { field: 'decision' },
@@ -359,16 +532,19 @@ export const SCREENS = {
       { id: 'docs', label: '5. Documents', bn: '৫. নথি ও প্রমাণক' }
     ],
     sections: [
-      { tab: 'general', title: '1. General', fields: [
-        { name: 'decision', label: 'Decision', required: true },
-        { name: 'notes', label: 'Notes' }
+      { tab: 'general', title: '1. General', note: 'Written by the approver decision in the M63 inbox; the log cannot be typed or edited.', fields: [
+        { name: 'decision', label: 'Decision', readonly: true },
+        { name: 'notes', label: 'Notes', readonly: true },
+        { name: 'version', label: 'Version Reviewed', readonly: true },
+        { name: 'value_reviewed', label: 'Value Reviewed', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
-        { name: 'reviewed_at', label: 'Reviewed At', required: true }
+        { name: 'reviewed_at', label: 'Reviewed At', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
-        { name: 'quotation_id', label: 'Quotation', required: true },
-        { name: 'reviewer_id', label: 'Reviewer' }
+        { name: 'quotation_id', label: 'Quotation', readonly: true },
+        { name: 'reviewer_id', label: 'Reviewer', readonly: true },
+        { name: 'on_behalf_of_id', label: 'On Behalf Of', readonly: true }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },
@@ -406,7 +582,8 @@ export const FORM_CHIPS = {
     'fix.tender': 'M36-form-tender',
     'fix.counter.sale': 'M36-form-counter',
     'fix.tender.bond': 'M36-form-bond',
-    'fix.quote.review': 'M36-form-review'
+    'fix.quote.review': 'M36-form-review',
+    'fix.tender.variation': 'M36-form-variation'
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
@@ -415,7 +592,8 @@ export const FORM_CHIPS = {
     'M36-loop': 'M36-form-review',
     'M36-declined': 'M36-form-quotation',
     'M36-tenders': 'M36-form-tender',
-    'M36-bonds': 'M36-form-bond'
+    'M36-bonds': 'M36-form-bond',
+    'M36-variations': 'M36-form-variation'
   }
 };
 

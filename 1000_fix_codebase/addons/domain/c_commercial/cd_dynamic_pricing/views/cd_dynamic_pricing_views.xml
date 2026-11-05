@@ -32,7 +32,7 @@
                             <field name="rule_type"/>
                             <field name="rate_card_id"/>
                             <field name="channel"/>
-                            <field name="active"/>
+                            <field name="active" readonly="1"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="operating_unit_id"/>
                         </group>

@@ -66,8 +66,21 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  // A04 build (2026-11-04) C3: the contract lifecycle runs by its actions.
+  // The value is approved from the DOFA holder's M63 inbox (never here);
+  // Legal and Finance decide only what they did not raise.
   'M08-contracts': { kind: 'model_list', model: 'fix.contract', stateField: 'state',
-    cols: ['name', 'customer_id', 'family', 'date_start', 'date_end', 'annual_value', 'auto_renew', 'state'] },
+    cols: ['name', 'customer_id', 'family', 'date_start', 'date_end', 'annual_value', 'auto_renew', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Submit for Value Approval (DOFA)', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending_approval'] },
+      { m: 'action_legal_review', l: 'Legal Review (Legal Reviewer)', states: ['pending_approval'], ask: 'Legal review note', kwarg: 'note' },
+      { m: 'action_approve_stamp_exemption', l: 'Approve Stamp-Duty Exemption (Finance)', states: ['draft', 'pending_approval', 'pending_signature'] },
+      { m: 'action_reset_to_draft', l: 'Reset to Draft', states: ['pending_approval', 'pending_signature'] },
+      { m: 'action_activate', l: 'Activate (signed envelope required)', states: ['pending_signature'] },
+      { m: 'action_renew', l: 'Draft Renewal Term', states: ['active', 'expiring', 'expired'] },
+      { m: 'action_resume', l: 'Resume (Contract Manager)', states: ['suspended'] }
+    ] },
   'M08-families': { kind: 'table_report', module: 'M08', report: 'contract_families', title: 'Contract Product Families', period: false },
   'M08-master': { kind: 'model_list', model: 'fix.contract', stateField: 'state',
     domain: [['state', '=', 'active']],
@@ -78,12 +91,29 @@ export const SCREENS = {
   'M08-balance': { kind: 'table_report', module: 'M08', report: 'entitlement_balance', title: 'Balances, Carry-Over, Top-Up', period: false },
   'M08-sla': { kind: 'table_report', module: 'M08', report: 'sla_credit_register', title: 'Contract SLA & Credits', period: false },
   'M08-pm': { kind: 'model_list', model: 'fix.contract.pm.visit', stateField: 'state',
-    cols: ['contract_id', 'device_id', 'scheduled_date', 'service_order_id', 'state'] },
+    cols: ['contract_id', 'device_id', 'scheduled_date', 'service_order_id', 'state'],
+    actions: [
+      { m: 'action_create_service_order', l: 'Dispatch (open the service order)', states: ['scheduled'] },
+      { m: 'action_complete', l: 'Complete (order delivered)', states: ['dispatched'] },
+      { m: 'action_skip', l: 'Skip Visit (Contract Manager)', states: ['scheduled'], ask: 'Why is this visit skipped?', kwarg: 'reason' }
+    ] },
   'M08-auto-work': { kind: 'table_report', module: 'M08', report: 'contract_driven_work', title: 'Contract-Driven Work', period: false },
+  // An amendment applies itself once approved (from the M63 inbox) and
+  // versions the contract; a billed period cannot be amended.
   'M08-amend': { kind: 'model_list', model: 'fix.contract.amendment', stateField: 'state',
-    cols: ['name', 'contract_id', 'kind', 'delta_value', 'effective_from', 'state'] },
+    cols: ['name', 'contract_id', 'kind', 'delta_value', 'effective_from', 'version_no', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Submit for Approval', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['submitted'] },
+      { m: 'action_cancel', l: 'Cancel Amendment', states: ['draft', 'submitted', 'approved'] }
+    ] },
   'M08-renewals': { kind: 'model_list', model: 'fix.contract.renewal', stateField: 'state',
-    cols: ['name', 'contract_id', 'proposed_start', 'proposed_end', 'propo_value', 'risk', 'state'] },
+    cols: ['name', 'contract_id', 'proposed_start', 'proposed_end', 'propo_value', 'risk', 'state', 'renewal_contract_id'],
+    actions: [
+      { m: 'action_quote', l: 'Issue Renewal Quote', states: ['draft'] },
+      { m: 'action_mark_won', l: 'Won: Draft the Next Term', states: ['quoted'] },
+      { m: 'action_mark_lost', l: 'Lost', states: ['draft', 'quoted'] }
+    ] },
   // Stamp Act 1899 Schedule I. A DRAFT row is not in force - until Finance
   // confirms a rate against the current Finance Act the instrument stays
   // chargeable, so an empty or unconfirmed table never waives duty.
@@ -132,8 +162,16 @@ export const SCREENS = {
       { m: 'action_confirm', label: 'Confirm Rate' },
       { m: 'action_reset_to_draft', label: 'Withdraw' }
     ] },
+  // The DOFA tier is derived from the unexpired value plus the penalty and
+  // approved from the tier holder's M63 inbox; the penalty is pinned.
   'M08-termination': { kind: 'model_list', model: 'fix.contract.termination', stateField: 'state',
-    cols: ['name', 'contract_id', 'kind', 'reason', 'effective_date', 'notice_ok', 'state'] },
+    cols: ['name', 'contract_id', 'kind', 'reason', 'effective_date', 'penalty_amount', 'dofa_tier_required', 'notice_ok', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Submit for DOFA Approval', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['submitted'] },
+      { m: 'action_execute_termination', l: 'Execute (Contract Manager)', states: ['approved'] },
+      { m: 'action_cancel', l: 'Cancel Notice', states: ['draft', 'submitted', 'approved'] }
+    ] },
   'M08-churn': { kind: 'table_report', module: 'M08', report: 'churn_risk', title: 'Churn & Win-Back', period: false },
   'M08-pricing': { kind: 'table_report', module: 'M08', report: 'contract_pricing', title: 'Contract Pricing Link', period: false },
   'M08-profit': { kind: 'table_report', module: 'M08', report: 'contract_pnl', title: 'Profitability & Alerts', period: false },
@@ -156,8 +194,8 @@ export const SCREENS = {
         { name: 'entitlement_type', label: 'Entitlement', required: true },
         { name: 'device_id', label: 'Device' },
         { name: 'quantity_included', label: 'Included', required: true },
-        { name: 'quantity_consumed', label: 'Consumed' },
-        { name: 'quantity_remaining', label: 'Remaining' }
+        { name: 'quantity_consumed', label: 'Consumed', readonly: true },
+        { name: 'quantity_remaining', label: 'Remaining', readonly: true }
       ]
     },
     kind: 'model_form',
@@ -183,7 +221,8 @@ export const SCREENS = {
           { name: 'family', required: true, label: 'Product Family' },
           { name: 'company_id', required: true, label: 'Operating Company' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'Lifecycle Status' }
+          { name: 'state', label: 'Lifecycle Status', readonly: true },
+          { name: 'template_id', label: 'Contract Template (Legal-signed)' }
         ] },
       { tab: 'financial', title: 'Commercial Value, Delivery Cost & Margins',
         fields: [
@@ -192,7 +231,9 @@ export const SCREENS = {
           { name: 'contract_margin_bdt', label: 'Gross Contract Margin (BDT)', readonly: true },
           { name: 'contract_margin_pct', label: 'Gross Margin (%)', readonly: true },
           { name: 'escalation_pct', label: 'Annual Escalation Rate (%)' },
-          { name: 'currency_id', label: 'Currency' }
+          { name: 'currency_id', label: 'Currency' },
+          { name: 'amendment_version', label: 'Amendment Version', readonly: true },
+          { name: 'billed_through_date', label: 'Billed Through', readonly: true }
         ] },
       { tab: 'sla_visits', title: 'Service Commitments & PM Visits',
         fields: [
@@ -207,12 +248,21 @@ export const SCREENS = {
           { name: 'stamp_duty_cert_no', label: 'Stamp Duty Certificate Number' },
           { name: 'stamp_duty_amount', label: 'Stamp Duty Amount Paid (BDT)' },
           { name: 'stamp_act_article', label: 'Stamp Act Article (Schedule I)' },
-          { name: 'has_signed_contract_doc', label: 'Signed Contract PDF Verified' }
+          { name: 'stamp_duty_applicable', label: 'Chargeable Under Schedule I' },
+          { name: 'stamp_duty_exemption_reason', label: 'Non-Chargeable Reason' },
+          { name: 'stamp_exemption_approved_by', label: 'Exemption Approved By (Finance)', readonly: true },
+          { name: 'has_signed_contract_doc', label: 'Signed Contract PDF Verified', readonly: true }
         ] },
       { tab: 'governance', title: 'OCA Architecture & E-Signature Governance',
         fields: [
-          { name: 'oca_contract_id', label: 'OCA Contract Reference' },
-          { name: 'esignature_envelope_id', label: 'Kernel E-Signature Envelope (M24)' }
+          { name: 'oca_contract_id', label: 'OCA Contract Reference', readonly: true },
+          { name: 'esignature_envelope_id', label: 'Kernel E-Signature Envelope (M24)' },
+          { name: 'dofa_tier_required', label: 'DOFA Tier (from the value)', readonly: true },
+          { name: 'approval_state', label: 'Value Approval', readonly: true },
+          { name: 'dofa_approved_by', label: 'Value Approved By', readonly: true },
+          { name: 'legal_review_required', label: 'Legal Review Required', readonly: true },
+          { name: 'legal_reviewed_by', label: 'Legal Review By', readonly: true },
+          { name: 'activated_by', label: 'Activated By', readonly: true }
         ] },
       { tab: 'vault', title: 'Legal & Contract Document Vault',
         note: 'Archived physical copies, bilateral agreements, and verified digital signatures.',
@@ -242,10 +292,16 @@ export const SCREENS = {
       { tab: 'financial_impact', title: 'Financial Value & Variation Scope', note: 'Financial impact applied upon final approval.',
         fields: [
           { name: 'delta_value', label: 'Value Change (BDT)' },
+          { name: 'new_date_end', label: 'New Term End (term change)' },
           { name: 'note', label: 'Variation Narrative / Justification', type: 'text' }
         ] },
       { tab: 'governance', title: 'Governance & Lifecycle State', fields: [
-          { name: 'state', required: true, label: 'Lifecycle State' }
+          { name: 'state', label: 'Lifecycle State', readonly: true },
+          { name: 'dofa_tier_required', label: 'DOFA Tier (from the change)', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'version_no', label: 'Contract Version', readonly: true },
+          { name: 'value_before', label: 'Value Before', readonly: true },
+          { name: 'value_after', label: 'Value After', readonly: true }
         ] }
     ]
   },
@@ -262,7 +318,7 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'entitlement_type', label: 'Entitlement Type', required: true },
         { name: 'quantity_included', label: 'Included', required: true },
-        { name: 'quantity_consumed', label: 'Consumed' },
+        { name: 'quantity_consumed', label: 'Consumed', readonly: true },
         { name: 'quantity_remaining', label: 'Remaining', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
@@ -296,7 +352,8 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Renewal Name', required: true },
         { name: 'risk', label: 'Risk', required: true },
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'renewal_contract_id', label: 'Next Term', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'propo_value', label: 'Proposed Value' }
@@ -330,7 +387,8 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: '1. General', fields: [
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'skip_reason', label: 'Skip Reason', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'scheduled_date', label: 'Scheduled Date', required: true }
@@ -370,13 +428,16 @@ export const SCREENS = {
         ] },
       { tab: 'timeline', title: 'Statutory Notice & Effective Timing', fields: [
           { name: 'effective_date', required: true, label: 'Effective Date' },
-          { name: 'notice_ok', label: 'Notice Period Satisfied' }
+          { name: 'penalty_amount', label: 'Penalty / Break Fee (BDT)' },
+          { name: 'notice_ok', label: 'Notice Period Satisfied (computed)', readonly: true }
         ] },
       { tab: 'dofa_governance', title: 'DOFA Approval & Execution Gate', note: 'Mandatory tier escalation under financial delegation rules.',
         fields: [
-          { name: 'dofa_tier', label: 'DOFA Escalation Tier' },
-          { name: 'dofa_approved', label: 'DOFA Sign-off Completed' },
-          { name: 'state', required: true, label: 'Execution State' }
+          { name: 'dofa_tier', label: 'DOFA Tier (derived from the amount)', readonly: true },
+          { name: 'dofa_justification', label: 'DOFA Justification', type: 'text' },
+          { name: 'dofa_approved', label: 'DOFA Sign-off Completed', readonly: true },
+          { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
+          { name: 'state', label: 'Execution State', readonly: true }
         ] }
     ]
   }

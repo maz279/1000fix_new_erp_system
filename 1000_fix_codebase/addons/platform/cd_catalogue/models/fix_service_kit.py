@@ -4,6 +4,12 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .catalogue_roles import ROLE_OFFICER, require_role
+
+# The help text has always said a kit sits on a bundle or a service item; a
+# kit on a spare part made the part explode into itself (A04 audit M37-4).
+KIT_ITEM_TYPES = ("bundle", "service", "inspection", "protection")
+
 
 class FixServiceKit(models.Model):
     """A service kit: a bundle of parts + labour + time.
@@ -30,9 +36,11 @@ class FixServiceKit(models.Model):
         "fix.catalogue.item",
         string="Catalogue Item",
         required=True,
-        ondelete="cascade",
+        # A04 audit (2026-11-04) M37-3: deleting the item cascaded its kits
+        # away; a referenced item is now kept (BRU-CAT-03).
+        ondelete="restrict",
         index=True,
-        help="The parent catalogue item — must be type 'bundle' or 'service'",
+        help="The parent catalogue item — a bundle, service, inspection or protection item",
     )
     component_ids = fields.One2many(
         "fix.service.kit.component",
@@ -113,13 +121,37 @@ class FixServiceKit(models.Model):
                 (c.standard_cost or 0.0) > 0.0 or (c.time_allocation or 0.0) > 0.0 for c in comps
             )
 
+    @api.constrains("catalogue_item_id")
+    def _check_item_type(self):
+        for kit in self:
+            if kit.catalogue_item_id.item_type not in KIT_ITEM_TYPES:
+                raise ValidationError(
+                    "A service kit sits on a bundle, service, inspection or protection item, "
+                    "not on a %s item (%s)."
+                    % (
+                        dict(kit.catalogue_item_id._fields["item_type"].selection).get(
+                            kit.catalogue_item_id.item_type
+                        ),
+                        kit.catalogue_item_id.name,
+                    )
+                )
+
     @api.model_create_multi
     def create(self, vals_list):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a service kit")
         kits = super().create(vals_list)
         # @api.constrains only fires for fields present in the vals: a kit
         # created without a component_ids key would bypass the invariant.
         kits._check_has_components()
         return kits
+
+    def write(self, vals):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a service kit")
+        return super().write(vals)
+
+    def unlink(self):
+        require_role(self.env, (ROLE_OFFICER,), "Deleting a service kit")
+        return super().unlink()
 
 
 class FixServiceKitComponent(models.Model):
@@ -189,6 +221,30 @@ class FixServiceKitComponent(models.Model):
                     "A kit component needs a positive quantity (kit '%s')."
                     % (comp.kit_id.name or "?")
                 )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a service kit")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_role(self.env, (ROLE_OFFICER,), "Changing a service kit")
+        return super().write(vals)
+
+    def unlink(self):
+        """A04 audit M37-4 (kit_02): the one-component invariant was checked
+        only when the kit was written, so deleting the components directly
+        left an empty kit. A kit losing its last component is refused; a kit
+        deleted with its components is not (that path never calls this)."""
+        require_role(self.env, (ROLE_OFFICER,), "Changing a service kit")
+        kits = self.mapped("kit_id")
+        for kit in kits:
+            if not (kit.component_ids - self):
+                raise ValidationError(
+                    "Service kit '%s' must have at least one component; add its "
+                    "replacement before removing the last one." % kit.name
+                )
+        return super().unlink()
 
     @api.depends("quantity", "standard_cost")
     def _compute_subtotal_cost(self):

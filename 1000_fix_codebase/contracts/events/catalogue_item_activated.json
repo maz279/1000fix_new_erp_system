@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "catalogue.item_activated",
+  "description": "Published by cd_catalogue through libs.py.fix_events.publish() (1 call site(s)); A04 audit 2026-11-04 (C8/C10).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "catalogue.item_activated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_catalogue"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "approved_by_id",
+        "brand_id",
+        "item_type",
+        "product_tmpl_id"
+      ],
+      "properties": {
+        "product_tmpl_id": {
+          "type": "integer"
+        },
+        "item_type": {
+          "type": "string"
+        },
+        "brand_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "approved_by_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_catalogue",
+  "x-publishers": [
+    "addons/platform/cd_catalogue/models/fix_catalogue_item.py"
+  ],
+  "x-derived-from": "publish() call (hand-written for the A04 C2-C13 pass)"
+}

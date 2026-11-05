@@ -16,11 +16,26 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
+    # A04 workflow audit (2026-11-03) D2: every M36 surface declared
+    # `actions: set()`, so the only workspace path was typing state. The
+    # lifecycles now run through these, under each model's own checks.
     "fix.quotation": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_submit",
+            "action_recall_approval",
+            "action_send",
+            "action_send_acceptance_otp",
+            "action_verify_acceptance_otp",
+            "action_record_signed_acceptance",
+            "action_decline",
+            "action_cancel",
+            "action_revise",
+            "action_convert",
+        },
     },
+    # Written only by the approval engine's decision (append-only log).
     "fix.quote.review": {
         "order": "reviewed_at desc, id desc",
         "limit": 300,
@@ -29,12 +44,34 @@ SURFACES = {
     "fix.tender": {
         "order": "due_date, id",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_decide_bid",
+            "action_decide_no_bid",
+            "action_submit",
+            "action_request_award",
+            "action_recall_approval",
+            "action_record_outcome",
+            "action_record_loss",
+            "action_cancel",
+            "action_create_contract",
+        },
+    },
+    # Variation orders on an awarded tender (report §6 P2 M36, variation cap).
+    "fix.tender.variation": {
+        "order": "tender_id, id",
+        "limit": 200,
+        "actions": {"action_request", "action_recall_approval", "action_cancel"},
     },
     "fix.tender.bond": {
         "order": "expires_on, id",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_activate",
+            "action_release",
+            "action_claim",
+            "action_extend",
+            "action_recall_approval",
+        },
     },
 }
 
@@ -57,7 +94,16 @@ def _quotes(env):
 
 def quote_conversion(env, date_from=None, date_to=None, **params):
     quotes = _quotes(env)
-    states = ["draft", "sent", "accepted", "declined", "expired"]
+    states = [
+        "draft",
+        "approved",
+        "sent",
+        "accepted",
+        "declined",
+        "expired",
+        "cancelled",
+        "superseded",
+    ]
     rows = []
     for state in states:
         mine = quotes.filtered(lambda q, s=state: q.state == s)
@@ -171,7 +217,7 @@ def decline_pareto(env, date_from=None, date_to=None, **params):
 
 def tender_winloss(env, date_from=None, date_to=None, **params):
     tenders = env["fix.tender"].sudo().search([])
-    states = ["draft", "submitted", "won", "lost", "cancelled"]
+    states = ["draft", "no_bid", "submitted", "won", "lost", "cancelled"]
     rows = []
     for state in states:
         mine = tenders.filtered(lambda t, s=state: t.state == s)
@@ -218,7 +264,8 @@ def margin_approved(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: r["margin_pct"])
-    margins = [r["margin_pct"] for r in rows if r["margin_pct"]]
+    # A quote with no recorded cost has an unknown margin, not 0% or 100%.
+    margins = [round(q.margin_pct, 1) for q in quotes if q.margin_known]
     return _pack(
         "Margin on Approved Quotes",
         ["quotation", "customer", "value", "margin_pct", "signed"],
@@ -231,7 +278,7 @@ def margin_approved(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Margin is the value recorded on the quotation at approval time. "
+            "Margin is computed from the quotation's value and recorded direct cost. "
             "Average margin: %.1f%%." % (sum(margins) / len(margins))
             if margins
             else "No accepted quotation carries a margin yet."
@@ -340,7 +387,7 @@ def kpis(env):
         if len(stamps) >= 2:
             cycles.append((max(stamps) - min(stamps)).total_seconds() / 3600.0)
     return {
-        "quotes_open": len(quotes.filtered(lambda q: q.state in ("draft", "sent"))),
+        "quotes_open": len(quotes.filtered(lambda q: q.state in ("draft", "approved", "sent"))),
         "conversion": round(accepted / len(quotes) * 100.0, 1) if quotes else None,
         "awaiting_customer": len(quotes.filtered(lambda q: q.state == "sent")),
         "avg_turnaround": round(sum(cycles) / len(cycles), 1) if cycles else None,

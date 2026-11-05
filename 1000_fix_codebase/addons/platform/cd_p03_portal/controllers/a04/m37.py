@@ -11,10 +11,22 @@ from odoo.http import request
 from ..p03_service_order_api import _require_internal
 
 SURFACES = {
+    # A04 audit (2026-11-04) M37-1/M37-9: the item lifecycle and the brand
+    # authorisation run from the workspace; approval is decided from the
+    # publisher's M63 inbox, never here.
     "fix.catalogue.item": {
         "order": "item_type, product_tmpl_id",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_submit",
+            "action_recall_approval",
+            "action_publish",
+            "action_unpublish",
+            "action_restrict",
+            "action_lift_restriction",
+            "action_discontinue",
+            "action_revise",
+        },
     },
     # fix.fault.code is declared by M01 (a02) — single owner, served via the merge.
     "fix.service.kit": {
@@ -38,7 +50,9 @@ SURFACES = {
     "fix.contract.template": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        # A04 audit (2026-11-04): Legal sign-off is an attributable, SoD-checked
+        # action on the model (cd_contract_core); the reviewer fields are guarded.
+        "actions": {"action_legal_signoff", "action_withdraw_signoff"},
     },
     "product.category": {
         "order": "complete_name",
@@ -46,7 +60,15 @@ SURFACES = {
         "actions": set(),
     },
     "fix.refurb.grade": {"order": "id desc", "limit": 400, "actions": set()},
-    "fix.brand": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.brand": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_request_authorisation",
+            "action_recall_approval",
+            "action_revoke_authorisation",
+        },
+    },
 }
 
 
@@ -245,7 +267,7 @@ def item_margin(env, date_from=None, date_to=None, **params):
 
 
 def deprecated_items(env, date_from=None, date_to=None, **params):
-    items = _items(env).filtered(lambda i: i.state == "deprecated" or not i.active)
+    items = _items(env).filtered(lambda i: i.state in ("deprecated", "obsolete") or not i.active)
     rows = []
     for item in items:
         rows.append(
@@ -384,7 +406,9 @@ def catalogue_hierarchy(env, date_from=None, date_to=None, **params):
 
 
 def approval_queue(env, date_from=None, date_to=None, **params):
-    items = _items(env).filtered(lambda i: i.state in ("draft", "approved"))
+    # A04 audit (2026-11-04): the queue is what awaits a publisher's decision
+    # (In Review), not every draft and active item.
+    items = _items(env).filtered(lambda i: i.state == "in_review")
     rows = []
     for item in items:
         rows.append(
@@ -394,22 +418,24 @@ def approval_queue(env, date_from=None, date_to=None, **params):
                 "state": item.state,
                 "bilingual": "✓" if (item.name_bn or "").strip() else "✗",
                 "brand": item.brand_id.name or "—",
+                "submitted_by": item.submitted_by.name or "—",
             }
         )
     return _pack(
-        "Approval Queue — items awaiting publication",
-        ["item", "type", "state", "bilingual", "brand"],
+        "Approval Queue — items awaiting a publisher",
+        ["item", "type", "state", "bilingual", "brand", "submitted_by"],
         {
             "item": "Item",
             "type": "Type",
             "state": "State",
             "bilingual": "Bengali Name",
             "brand": "Brand",
+            "submitted_by": "Submitted By",
         },
         rows[:200],
         [
-            "Draft and approved items are candidates for publication; the bilingual "
-            "column shows whether the Bengali name is present."
+            "Items In Review await a Catalogue Publisher who neither authored nor "
+            "submitted them; the decision is taken from the M63 approval inbox."
         ],
         empty="No catalogue items awaiting approval.",
     )
@@ -417,7 +443,7 @@ def approval_queue(env, date_from=None, date_to=None, **params):
 
 def lifecycle_summary(env, date_from=None, date_to=None, **params):
     items = _items(env)
-    states = ["draft", "approved", "published", "deprecated"]
+    states = [key for key, _label in env["fix.catalogue.item"]._fields["state"].selection]
     rows = []
     for state in states:
         mine = items.filtered(lambda i, s=state: i.state == s)
@@ -494,7 +520,9 @@ def kpis(env):
     fault_codes = env["fix.fault.code"].sudo().search_count([])
     published = len(items.filtered(lambda i: i.is_published))
     bilingual = len(items.filtered(lambda i: (i.name_bn or "").strip()))
-    deprecated = len(items.filtered(lambda i: i.state == "deprecated" or not i.active))
+    deprecated = len(
+        items.filtered(lambda i: i.state in ("deprecated", "obsolete") or not i.active)
+    )
     services = items.filtered(lambda i: i.item_type == "service")
     with_rbom = len(env["fix.rbom.line"].sudo().search([]).mapped("item_id"))
     today = datetime.date.today()
@@ -502,10 +530,16 @@ def kpis(env):
     new_skus = len(items.filtered(lambda i: i.create_date and i.create_date.date() >= month_start))
     device_models = env["fix.device.model"].sudo().search_count([])
     return {
-        "active_items": len(items.filtered(lambda i: i.active and i.state != "deprecated")),
+        # A04 audit (2026-11-04): Active means approved (sellable), not merely
+        # "not discontinued"; Pending means awaiting a publisher (In Review).
+        "active_items": len(
+            items.filtered(
+                lambda i: i.active and i.state in ("approved", "published", "restricted")
+            )
+        ),
         "rbom_coverage": round(with_rbom / len(services) * 100.0, 1) if services else None,
         "new_skus_mtd": new_skus,
-        "pending_approval": len(items.filtered(lambda i: i.state in ("draft", "approved"))),
+        "pending_approval": len(items.filtered(lambda i: i.state == "in_review")),
         "model_compatibility": device_models,
         "bilingual_content": round(bilingual / len(items) * 100.0, 1) if items else None,
         # measured extras (not in the registry strip)

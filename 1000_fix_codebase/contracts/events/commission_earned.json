@@ -68,6 +68,15 @@
             "string",
             "boolean"
           ]
+        },
+        "order_id": {
+          "type": "integer"
+        },
+        "seller_tier": {
+          "type": "string"
+        },
+        "payout_available_date": {
+          "type": "string"
         }
       },
       "additionalProperties": false

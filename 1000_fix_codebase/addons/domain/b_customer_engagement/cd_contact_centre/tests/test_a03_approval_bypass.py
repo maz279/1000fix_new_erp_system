@@ -599,7 +599,8 @@ class TestDiscountApproval:
                 {
                     "quotation_id": estimate.id,
                     "operating_unit_id": env["operating.unit"].search([], limit=1).id,
-                    "discount_pct": 8.0,
+                    # A04 build: the single M11 ladder gives the agent 10%.
+                    "discount_pct": 15.0,
                     "justification": "Loyal customer",
                 }
             )

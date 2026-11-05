@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 workflow audit C10 (2026-11-04). Daily, as the superuser, idempotent,
+  writing through the guard's transition token.
+  - Brand authorisations (BRU-PCM-07/08): an active authorisation lapses to
+    expired once its validity ends; partner.authorisation_expiring is
+    published once, 30 days before.
+  - Deal registrations (BRU-PCM-09): a protected deal not won within its
+    90-day protection expires; partner.deal_expiring is published once,
+    30 days before.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_partner_authorisation_expiry" model="ir.cron">
+            <field name="name">Partners: expire and warn brand authorisations</field>
+            <field name="model_id" ref="model_fix_partner_authorisation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_authorisation_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_partner_deal_expiry" model="ir.cron">
+            <field name="name">Partners: expire and warn protected deal registrations</field>
+            <field name="model_id" ref="model_fix_partner_deal"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_deal_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

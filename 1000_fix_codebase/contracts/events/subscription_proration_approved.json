@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "subscription.proration_approved",
+  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code (A04 C2-C13 build, 2026-11-04).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "subscription.proration_approved"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_subscription"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "subscription_id",
+        "customer_id",
+        "change_type",
+        "amount",
+        "old_amount",
+        "new_amount",
+        "effective_date",
+        "charge_id"
+      ],
+      "properties": {
+        "subscription_id": {
+          "type": "integer"
+        },
+        "customer_id": {
+          "type": "integer"
+        },
+        "change_type": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "old_amount": {
+          "type": "number"
+        },
+        "new_amount": {
+          "type": "number"
+        },
+        "effective_date": {
+          "type": "string"
+        },
+        "charge_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_subscription",
+  "x-publishers": [
+    "addons/domain/c_commercial/cd_subscription/models/fix_subscription_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

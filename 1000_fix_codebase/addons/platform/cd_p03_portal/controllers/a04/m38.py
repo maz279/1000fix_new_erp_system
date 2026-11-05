@@ -9,6 +9,21 @@ from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 
+# A04 workflow audit (2026-11-04) C3/D2: every M38 surface declared
+# `actions: set()`, so the workspace could only edit the state. The lifecycle
+# now runs from these actions; the server checks the role, the state, the
+# proof (gateway or M20 receipt, consignment POD, M20 credit note) and the
+# segregation of duties for each. The refund itself is approved from the M63
+# inbox (Request Refund Approval), never by pressing Approve here.
+_REFUND_ACTIONS = {
+    "action_approve",
+    "action_receive_and_inspect",
+    "action_request_approval",
+    "action_recall_approval",
+    "action_reject",
+    "action_record_credit_note",
+}
+
 SURFACES = {
     "fix.storefront.cart": {
         "order": "create_date desc, id desc",
@@ -18,25 +33,36 @@ SURFACES = {
     "fix.storefront.order": {
         "order": "order_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_confirm_payment",
+            "action_dispatch",
+            "action_deliver",
+            "action_cancel",
+        },
     },
     "fix.storefront.rma": {
         "order": "requested_on desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": set(_REFUND_ACTIONS),
     },
     "fix.storefront.slot": {
         "order": "slot_date, start_hour",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_close", "action_reopen"},
     },
+    # fix.graded.stock is mastered by M15 (cd_inventory); its lifecycle and
+    # guard are M15's. The storefront reserves and sells it from the order.
     "fix.graded.stock": {
         "order": "id desc",
         "limit": 300,
         "actions": set(),
     },
     # fix.promotion is owned by M11 (a04) — read through the merged registry.
-    "fix.storefront.return": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.storefront.return": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": set(_REFUND_ACTIONS),
+    },
 }
 
 
@@ -326,18 +352,50 @@ def payment_method_mix(env, date_from=None, date_to=None, **params):
     )
 
 
+def _refurb_lines(env, since=None):
+    """Order lines that sold a graded refurb item, on orders not cancelled.
+    A04 audit (2026-11-04) P2: order lines now carry the graded stock they
+    sold, so refurb GMV is measured instead of declared a gap."""
+    lines = (
+        env["fix.storefront.order.line"]
+        .sudo()
+        .search([("graded_stock_id", "!=", False), ("order_id.state", "!=", "cancelled")])
+    )
+    if since:
+        lines = lines.filtered(
+            lambda ln: ln.order_id.order_date and ln.order_id.order_date.date() >= since
+        )
+    return lines
+
+
 def refurb_gmv(env, date_from=None, date_to=None, **params):
+    rows = {}
+    for line in _refurb_lines(env):
+        grade = line.graded_stock_id.grade_id.display_name or "Ungraded"
+        row = rows.setdefault(grade, {"grade": grade, "orders": set(), "gmv": 0.0})
+        row["orders"].add(line.order_id.id)
+        row["gmv"] += line.subtotal or 0.0
+    out = [
+        {"grade": r["grade"], "orders": len(r["orders"]), "gmv": round(r["gmv"], 2)}
+        for r in sorted(rows.values(), key=lambda r: r["grade"])
+    ]
     return _pack(
         "Refurb GMV by Grade",
         ["grade", "orders", "gmv"],
         {"grade": "Refurb Grade", "orders": "Orders", "gmv": "GMV"},
-        [],
+        out,
         [
-            "The storefront order carries no refurb-grade link (graded stock is not "
-            "referenced by order lines in the data model). Declared gap — no GMV is "
-            "attributed to a grade."
+            "Order lines that sold a graded refurb item (M15 graded stock), on orders "
+            "not cancelled, valued at the line subtotal."
         ],
-        empty="Refurb GMV by grade needs an order↔graded-stock link (declared gap).",
+        totals={
+            "grade": "Total",
+            "orders": sum(r["orders"] for r in out),
+            "gmv": round(sum(r["gmv"] for r in out), 2),
+        }
+        if out
+        else None,
+        empty="No graded refurb item has been sold through the storefront yet.",
     )
 
 
@@ -370,14 +428,18 @@ def kpis(env):
         "conversion": round(ordered / total * 100.0, 1) if total else None,
         "cart_abandon": round(len(open_carts) / total * 100.0, 1) if total else None,
         "bkash_share": round(bkash / ordered * 100.0, 1) if ordered else None,
-        "refurb_gmv_mtd": None,  # no order↔grade link (declared gap)
+        "refurb_gmv_mtd": round(sum(_refurb_lines(env, since=month_start).mapped("subtotal")), 2),
         "rma_rate": round(len(rmas) / ordered * 100.0, 1) if ordered else None,
         # measured extras
         "carts_open": len(open_carts),
         "orders": ordered,
         "gmv": round(sum(orders.mapped("total_amount")), 2),
         "abandoned_value": round(sum(open_carts.mapped("total")), 2),
-        "rma_open": len(rmas.filtered(lambda r: r.state in ("requested", "approved", "received"))),
+        "rma_open": len(
+            rmas.filtered(
+                lambda r: r.state in ("requested", "approved", "received", "refund_approved")
+            )
+        ),
     }
 
 

@@ -1,5 +1,7 @@
 /** @odoo-module **/
 /* A04 · Commercial & Revenue — M38 E-Commerce Storefront (v2 rebuild).
+ * A04 audit (2026-11-04): workflow fields are read-only; the lifecycle runs
+ * from the list actions.
  * Registry-faithful: 4 groups / 11 screens / 6 reports / 4 forms / freg 92.
  * Carts, storefront orders and graded stock are real; RMA and slots are new.
  * Payment mix comes from the order's payment rail; refurb GMV by grade is a
@@ -29,7 +31,8 @@ export const MODULE = {
     { en: 'Cart & Checkout', screens: [
       { id: 'M38-carts', en: 'Carts & Abandonment', bn: 'কার্ট', t: 'g' },
       { id: 'M38-checkout', en: 'Checkout & Payment Orchestration', bn: 'চেকআউট', t: 'c' },
-      { id: 'M38-delivery', en: 'Delivery Options', bn: 'ডেলিভারি', t: 'g' }
+      { id: 'M38-delivery', en: 'Delivery Options', bn: 'ডেলিভারি', t: 'g' },
+      { id: 'M38-slots', en: 'Delivery Slots', bn: 'ডেলিভারি স্লট', t: 'g' }
     ]},
     { en: 'Orders', screens: [
       { id: 'M38-orders', en: 'Online Orders', bn: 'অনলাইন অর্ডার', t: 'g' },
@@ -66,10 +69,30 @@ export const SCREENS = {
     cols: ['name', 'customer_id', 'state', 'total', 'order_id'] },
   'M38-checkout': { kind: 'table_report', module: 'M38', report: 'checkout_conversion', title: 'Checkout & Payment Orchestration', period: false },
   'M38-delivery': { kind: 'table_report', module: 'M38', report: 'delivery_performance', title: 'Delivery Options', period: false },
-  'M38-orders': { kind: 'model_list', model: 'fix.storefront.order', stateField: 'state',
-    cols: ['name', 'customer_id', 'order_date', 'payment_rail', 'total_amount', 'shipping_method', 'state'] },
+  /* A04 audit (2026-11-04) C3: the order lifecycle runs from these buttons;
+   * the status, the payment and the total are read-only on the form. The
+   * server checks the role, the M20 receipt (or the signed gateway callback),
+   * the consignment and its POD for each. */
+  'M38-orders': { kind: 'model_list', create: false, model: 'fix.storefront.order', stateField: 'state',
+    cols: ['name', 'customer_id', 'order_date', 'payment_rail', 'total_amount', 'shipping_method', 'delivery_sla_status', 'state'],
+    actions: [
+      { m: 'action_confirm_payment', l: 'Confirm Payment (M20 Receipt)', ask: 'M20 receipt number or reference', kwarg: 'payment_ref', states: ['draft', 'pending_payment'] },
+      { m: 'action_dispatch', l: 'Dispatch on Consignment', ask: 'M03 consignment reference (blank for branch pickup)', kwarg: 'carrier_consignment_id', states: ['pending_payment', 'paid'] },
+      { m: 'action_deliver', l: 'Mark Delivered (needs POD)', states: ['dispatched'] },
+      { m: 'action_cancel', l: 'Cancel Order', ask: 'Reason for cancelling', kwarg: 'reason', states: ['draft', 'pending_payment', 'paid'] }
+    ] },
+  /* A04 audit M38-5/13: the refund is approved from the M63 inbox (Request
+   * Refund Approval); the approver holds the DOFA tier and did not raise it. */
   'M38-returns': { kind: 'model_list', model: 'fix.storefront.rma', stateField: 'state',
-    cols: ['name', 'customer_id', 'order_id', 'reason', 'refund_amount', 'state'] },
+    cols: ['name', 'customer_id', 'order_id', 'reason', 'refund_amount', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Authorise Return', states: ['requested'] },
+      { m: 'action_receive_and_inspect', l: 'Receive & Inspect', ask: 'Inspection result: grade_a, grade_b or scrap', kwarg: 'condition', states: ['approved'] },
+      { m: 'action_request_approval', l: 'Request Refund Approval', ask: 'Justification for the refund', kwarg: 'justification', states: ['received'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['received'] },
+      { m: 'action_reject', l: 'Reject Return', ask: 'Reason for rejecting', kwarg: 'reason', states: ['requested', 'approved', 'received'] },
+      { m: 'action_record_credit_note', l: 'Record M20 Credit Note', ask: 'M20 credit note number (Mushak 6.7)', kwarg: 'credit_note', states: ['refund_approved'] }
+    ] },
   'M38-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state',
     cols: ['device_id', 'grade_id', 'acquisition_cost', 'state'] },
   // Promotions are MASTERED in M11 (Pricing & Rate Cards). This is the
@@ -80,6 +103,12 @@ export const SCREENS = {
     create: false,
     domain: [['channel', 'in', ['online', 'both']]],
     cols: ['code', 'name', 'discount_type', 'value', 'state'] },
+  'M38-slots': { kind: 'model_list', model: 'fix.storefront.slot', stateField: 'state',
+    cols: ['name', 'slot_type', 'slot_date', 'start_hour', 'end_hour', 'capacity', 'booked', 'state'],
+    actions: [
+      { m: 'action_close', l: 'Close Slot', states: ['open', 'full'] },
+      { m: 'action_reopen', l: 'Reopen Slot', states: ['closed'] }
+    ] },
   'M38-recovery': { kind: 'table_report', module: 'M38', report: 'abandonment_recovery', title: 'Abandoned-Cart Recovery', period: false },
 
   /* Report chips -> their own computed pack */
@@ -95,12 +124,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Order Lines',
-      note: 'Subtotal per line; the order total is their sum.',
+      note: 'The lines are what the customer bought, at the price the server set at placement; they cannot be edited.',
       fields: [
-        { name: 'product_id', label: 'Product', required: true },
-        { name: 'quantity', label: 'Qty', required: true },
-        { name: 'unit_price', label: 'Unit Price', required: true },
-        { name: 'subtotal', label: 'Subtotal' }
+        { name: 'product_id', label: 'Product', readonly: true },
+        { name: 'graded_stock_id', label: 'Refurbished Item', readonly: true },
+        { name: 'quantity', label: 'Qty', readonly: true },
+        { name: 'unit_price', label: 'Unit Price', readonly: true },
+        { name: 'subtotal', label: 'Subtotal', readonly: true }
       ]
     },
     kind: 'model_form',
@@ -121,10 +151,10 @@ export const SCREENS = {
         note: 'Customer order placed via public website or storefront portal with instant gateway confirmation.',
         fields: [
           { name: 'name', readonly: true, label: 'Order Reference (auto)' },
-          { name: 'customer_id', required: true, label: 'Customer Record' },
-          { name: 'order_date', required: true, label: 'Order Placed Date/Time' },
-          { name: 'total_amount', required: true, label: 'Order Grand Total (BDT)' },
-          { name: 'state', required: true, label: 'Fulfillment Status' }
+          { name: 'customer_id', readonly: true, label: 'Customer Record' },
+          { name: 'order_date', readonly: true, label: 'Order Placed Date/Time' },
+          { name: 'total_amount', readonly: true, label: 'Order Grand Total (BDT)' },
+          { name: 'state', readonly: true, label: 'Fulfillment Status' }
         ] },
       { tab: 'items', title: 'Cart Line Items & Warranty Packages',
         fields: [
@@ -133,19 +163,29 @@ export const SCREENS = {
       { tab: 'payment_logistics', title: 'Payment Gateways & Delivery SLA Countdown',
         note: 'Compliance with Bangladesh Digital Commerce Operational Guidelines 2021 (maximum 48h/72h delivery SLA).',
         fields: [
-          { name: 'payment_rail', required: true, label: 'Payment Method (bKash / Nagad / SSL)' },
-          { name: 'payment_ref', label: 'Payment Gateway Transaction ID (TrxID)' },
-          { name: 'payment_date', label: 'Payment Confirmation Date' },
+          { name: 'payment_rail', readonly: true, label: 'Payment Method (bKash / Nagad / SSL)' },
+          { name: 'payment_ref', readonly: true, label: 'Payment Gateway Transaction ID (TrxID)' },
+          { name: 'payment_date', readonly: true, label: 'Payment Confirmation Date' },
+          { name: 'payment_source', readonly: true, label: 'Payment Proof' },
+          { name: 'amount_paid', readonly: true, label: 'Amount Paid (BDT)' },
           { name: 'shipping_method', required: true, label: 'Logistics SLA Tier' },
+          { name: 'carrier_consignment_id', readonly: true, label: 'M03 Consignment' },
+          { name: 'slot_id', readonly: true, label: 'Delivery Slot' },
+          { name: 'delivered_at', readonly: true, label: 'Delivered At (POD)' },
+          { name: 'return_deadline', readonly: true, label: 'Returnable Until' },
           { name: 'delivery_due_date', label: 'Statutory Delivery Due Date', readonly: true },
           { name: 'delivery_sla_status', label: 'SLA Status', readonly: true }
         ] },
       { tab: 'tax_invoice', title: 'NBR Mushak 6.3 Tax Invoice Generation',
-        note: 'Automatic fiscal VAT invoice generated on payment confirmation.',
-        fields: [] },
+        note: 'The payment is proved by its M20 receipt or the signed gateway callback; the Mushak 6.3 invoice is raised by M20 from storefront.payment_confirmed.',
+        fields: [
+          { name: 'payment_receipt_id', readonly: true, label: 'M20 Receipt' }
+        ] },
       { tab: 'reverse_rma', title: 'Customer Returns & Mushak 6.7 Credit Notes',
-        note: 'RMA inspection and automatic Mushak 6.7 credit note issuance on refund approval.',
-        fields: [] },
+        note: 'Returns run from the Returns screens; an approved refund completes on its M20 Mushak 6.7 credit note. A cancelled paid order shows the refund sent to finance.',
+        fields: [
+          { name: 'refund_due', readonly: true, label: 'Refund Due on Cancellation (BDT)' }
+        ] },
       { tab: 'vault', title: 'Storefront Order Vault',
         note: 'Customer proof of payment, digital receipts, courier air waybills, and inspection logs.',
         fields: [] }
@@ -166,23 +206,40 @@ export const SCREENS = {
     sections: [
       { tab: 'rma_header', title: 'Return Authorization Request', note: 'Consumer return under Digital Commerce Guidelines 2021.',
         fields: [
-          { name: 'name', required: true, label: 'RMA Tracking Number' },
+          { name: 'name', readonly: true, label: 'RMA Tracking Number (auto)' },
           { name: 'customer_id', required: true, label: 'Customer' },
-          { name: 'order_id', label: 'Storefront Order Reference' },
+          { name: 'order_id', required: true, label: 'Storefront Order Reference' },
           { name: 'reason', required: true, label: 'Return Grounds' }
         ] },
       { tab: 'inspection_refund', title: 'Technical Inspection & NBR Credit Note', fields: [
           { name: 'requested_on', required: true, label: 'Date Requested' },
-          { name: 'refund_amount', label: 'Approved Refund Amount (BDT)' },
+          { name: 'refund_amount', label: 'Refund Requested (BDT, capped at the amount paid)' },
+          { name: 'inspected_condition', readonly: true, label: 'Inspection Result' },
+          { name: 'disposition', readonly: true, label: 'Disposition' },
+          { name: 'dofa_tier_required', readonly: true, label: 'DOFA Tier Required' },
+          { name: 'dofa_justification', label: 'Refund Justification', type: 'text' },
+          { name: 'approval_state', readonly: true, label: 'Refund Approval' },
+          { name: 'credit_note_ref', readonly: true, label: 'M20 Credit Note (Mushak 6.7)' }
           ] },
       { tab: 'resolution', title: 'Settlement Status', fields: [
-          { name: 'state', required: true, label: 'RMA Lifecycle State' },
-          { name: 'note', label: 'Inspection / Rejection Notes', type: 'text' }
+          { name: 'state', readonly: true, label: 'RMA Lifecycle State' },
+          { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' },
+          { name: 'note', label: 'Notes', type: 'text' }
         ] }
     ]
   },
   'M38-form-delivery-slot': { kind: 'model_form', model: 'fix.storefront.slot',
     title: 'Delivery Slot', back: 'M38-delivery',
+    lines: {
+      field: 'order_ids',
+      title: 'Booked Orders',
+      note: 'The slot bookings are its orders (A04 audit M38-8); they are booked at checkout, never typed here.',
+      fields: [
+        { name: 'name', label: 'Order', readonly: true },
+        { name: 'customer_id', label: 'Customer', readonly: true },
+        { name: 'state', label: 'Status', readonly: true }
+      ]
+    },
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -198,8 +255,8 @@ export const SCREENS = {
         { name: 'start_hour', label: 'Start Hour', required: true },
         { name: 'end_hour', label: 'End Hour', required: true },
         { name: 'capacity', label: 'Capacity', required: true },
-        { name: 'booked', label: 'Booked' },
-        { name: 'state', label: 'State', required: true }
+        { name: 'booked', label: 'Booked (its orders)', readonly: true },
+        { name: 'state', label: 'State', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'slot_date', label: 'Date', required: true }
@@ -235,7 +292,7 @@ export const SCREENS = {
         { name: 'tradein_id', label: 'Originating Trade-In ID' },
         { name: 'tradein_ref', label: 'Originating Trade-In Ref' },
         { name: 'inventory_valuation', label: 'Inventory Valuation', readonly: true },
-        { name: 'state', label: 'Inventory Status', required: true }
+        { name: 'state', label: 'Inventory Status (reserved and sold by orders)', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'acquisition_cost', label: 'Acquisition Cost (Trade-In)', required: true },
@@ -265,7 +322,15 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
   'M38-storefront-return': { kind: 'model_list', model: 'fix.storefront.return', stateField: 'state',
-    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'cart_id', 'order_id', 'customer_id'] },
+    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'cart_id', 'order_id', 'customer_id', 'refund_amount', 'approval_state'],
+    actions: [
+      { m: 'action_approve', l: 'Authorise Return', states: ['requested'] },
+      { m: 'action_receive_and_inspect', l: 'Receive & Inspect', ask: 'Inspection result: grade_a, grade_b or scrap', kwarg: 'condition', states: ['approved'] },
+      { m: 'action_request_approval', l: 'Request Refund Approval', ask: 'Justification for the refund', kwarg: 'justification', states: ['received'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['received'] },
+      { m: 'action_reject', l: 'Reject Return', ask: 'Reason for rejecting', kwarg: 'reason', states: ['requested', 'approved', 'received'] },
+      { m: 'action_record_credit_note', l: 'Record M20 Credit Note', ask: 'M20 credit note number (Mushak 6.7)', kwarg: 'credit_note', states: ['refund_approved'] }
+    ] },
 
   'M38-form-storefront-return': { kind: 'model_form', model: 'fix.storefront.return',
     title: 'Storefront Return', back: 'M38-storefront-return',
@@ -281,14 +346,18 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: '1. General', fields: [
-        { name: 'name', label: 'RMA Number', required: true },
+        { name: 'name', label: 'RMA Number', readonly: true },
         { name: 'reason', label: 'Reason', required: true },
-        { name: 'inspected_condition', label: 'Inspection Result' },
+        { name: 'inspected_condition', label: 'Inspection Result', readonly: true },
+        { name: 'disposition', label: 'Disposition', readonly: true },
         { name: 'credit_note_ref', label: 'NBR Mushak 6.7 Credit Note Ref', readonly: true },
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'refund_amount', label: 'Refund Amount' }
+        { name: 'refund_amount', label: 'Refund Requested (capped at the amount paid)' },
+        { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+        { name: 'dofa_justification', label: 'Refund Justification', type: 'text' },
+        { name: 'approval_state', label: 'Refund Approval', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true }
@@ -354,7 +423,8 @@ export const FORM_CHIPS = {
     'M38-promos': 'M11-form-promo',
     'M38-orders': 'M38-form-order',
     'M38-returns': 'M38-form-rma',
-    'M38-delivery': 'M38-form-delivery-slot'
+    'M38-delivery': 'M38-form-delivery-slot',
+    'M38-slots': 'M38-form-delivery-slot'
   }
 };
 

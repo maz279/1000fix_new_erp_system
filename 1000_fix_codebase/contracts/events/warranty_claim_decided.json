@@ -33,7 +33,11 @@
       "type": "object",
       "required": [
         "claim_no",
-        "approved"
+        "approved",
+        "decision",
+        "requested_amount",
+        "approved_amount",
+        "brand_id"
       ],
       "properties": {
         "claim_no": {
@@ -41,6 +45,36 @@
         },
         "approved": {
           "type": "boolean"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "partial",
+            "reject"
+          ]
+        },
+        "requested_amount": {
+          "type": "number"
+        },
+        "approved_amount": {
+          "type": "number"
+        },
+        "brand_id": {
+          "type": "integer"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "officer",
+            "brand_api"
+          ]
         }
       },
       "additionalProperties": false

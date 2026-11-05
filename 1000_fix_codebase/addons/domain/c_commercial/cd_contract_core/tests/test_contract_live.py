@@ -326,7 +326,10 @@ def test_managed_contract_visits_monthly(ctx):
 def test_pm_visit_opens_an_amc_service_order_once(ctx):
     device = ctx.devices[0]
     device.branch_id = _isolated_branch(ctx.env, ctx.ou, "Dhaka HQ")
-    contract = _contract(ctx, code=f"AMC-{TAG}-77", covered_device_ids=[(6, 0, device.ids)])
+    # A04 build (2026-11-04): only a contract in force dispatches its visits.
+    contract = _contract(
+        ctx, code=f"AMC-{TAG}-77", state="active", covered_device_ids=[(6, 0, device.ids)]
+    )
     visit = ctx.env["fix.contract.pm.visit"].create(
         {"contract_id": contract.id, "device_id": device.id, "scheduled_date": date(2026, 4, 1)}
     )
@@ -347,7 +350,9 @@ def test_pm_visit_opens_an_amc_service_order_once(ctx):
 def test_non_amc_pm_visit_is_a_standard_order(ctx):
     device = ctx.devices[1]
     device.branch_id = _isolated_branch(ctx.env, ctx.ou, "Ctg Hub")
-    contract = _contract(ctx, family="rental", covered_device_ids=[(6, 0, device.ids)])
+    contract = _contract(
+        ctx, family="rental", state="active", covered_device_ids=[(6, 0, device.ids)]
+    )
     visit = ctx.env["fix.contract.pm.visit"].create(
         {"contract_id": contract.id, "device_id": device.id, "scheduled_date": date(2026, 7, 1)}
     )
@@ -381,7 +386,13 @@ def test_renewal_escalates_and_carries_entitlements(ctx):
         (e.entitlement_type, e.quantity_included, e.quantity_consumed, e.quantity_remaining)
         for e in renewal.entitlement_ids
     ] == [("visits", 4.0, 0.0, 4.0)]
-    assert contract.state == "expired"
+    # A04 build (2026-11-04) M08-10: the running term keeps its cover until
+    # it ends (it used to expire at once, mid-term); the renewal is announced
+    # when the new term is activated, not when it is drafted.
+    assert contract.state == "active" and renewal.renewed_from_id == contract
+    assert not _events(ctx.env, "contract.renewed", "fix.contract", renewal.id)
+    renewal.write({"stamp_duty_cert_no": "SD-R-%s" % TAG, "has_signed_contract_doc": True})
+    renewal.action_activate()
     assert _events(ctx.env, "contract.renewed", "fix.contract", renewal.id) == [
         {"old_code": contract.code, "new_code": renewal.code, "new_value": 132000.0}
     ]
@@ -400,7 +411,7 @@ def test_renewing_several_contracts_renews_each(ctx):
     renewals = contracts.action_renew()
     assert len(renewals) == 2
     assert sorted(renewals.mapped("annual_value")) == [50000.0, 120000.0]
-    assert set(contracts.mapped("state")) == {"expired"}
+    assert set(contracts.mapped("state")) == {"active", "expiring"}  # cover kept
 
 
 def test_draft_contract_cannot_renew(ctx):
@@ -428,24 +439,23 @@ def test_expiring_ladder_publishes_each_window(ctx):
             **extra,
         )
 
-    in_10 = make("in 10 days", 10)  # inside 90, 60, 30 and 15
-    in_45 = make("in 45 days", 45)  # inside 90 and 60
+    # A04 build (2026-11-04) M08-9: the job is daily and idempotent, so a
+    # contract announces the window it is in, once (it used to announce every
+    # window it fell inside, every run).
+    assert baseline >= 0
+    in_10 = make("in 10 days", 10)  # inside the 15-day window
+    in_45 = make("in 45 days", 45)  # inside the 60-day window
     make("in 100 days", 100)  # outside every window
     make("ends today", 0)  # date_end must be strictly in the future
     make("no auto-renew", 10, auto_renew=False)
     make("draft", 10, state="draft")
-    assert ctx.env["fix.contract"].cron_expiring_contracts() == baseline + 6
+    assert ctx.env["fix.contract"].cron_expiring_contracts() == 2
+    assert ctx.env["fix.contract"].cron_expiring_contracts() == 0
     assert [
         e["window_days"] for e in _events(ctx.env, "contract.expiring", "fix.contract", in_10.id)
-    ] == [
-        90,
-        60,
-        30,
-        15,
-    ]
+    ] == [15]
     events_45 = _events(ctx.env, "contract.expiring", "fix.contract", in_45.id)
     assert events_45 == [
-        {"code": in_45.code, "window_days": 90, "date_end": str(today + timedelta(days=45))},
         {"code": in_45.code, "window_days": 60, "date_end": str(today + timedelta(days=45))},
     ]
 
@@ -467,7 +477,7 @@ def test_remaining_compute_and_unlimited_sentinel(ctx):
 
 
 def test_consume_draws_down_until_exhausted(ctx):
-    ent = _entitlement(ctx, _contract(ctx), quantity_included=5.0)
+    ent = _entitlement(ctx, _contract(ctx, state="active"), quantity_included=5.0)
     assert ent.consume(2.0, "SO000101") is True
     assert (ent.quantity_consumed, ent.quantity_remaining) == (2.0, 3.0)
     assert ent.consume(4.0, "SO000102") is False  # 3 left < 4 asked: never negative
@@ -481,7 +491,7 @@ def test_consume_draws_down_until_exhausted(ctx):
 
 
 def test_consume_unlimited_always_succeeds(ctx):
-    ent = _entitlement(ctx, _contract(ctx), quantity_included=0.0)
+    ent = _entitlement(ctx, _contract(ctx, state="active"), quantity_included=0.0)
     assert ent.consume(7.0, "SO9") is True
     assert ent.quantity_consumed == 7.0
     assert ent.quantity_remaining == -1

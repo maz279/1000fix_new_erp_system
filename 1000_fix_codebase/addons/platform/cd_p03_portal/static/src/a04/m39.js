@@ -58,14 +58,33 @@ export const MODULE = {
 export const SCREENS = {
   /* ---- registry screens restored (A04 zero-trust audit 2026-10-31): nav ids that dead-ended ---- */
   'M39-plans': { kind: 'table_report', module: 'M39', report: 'plan_mix', title: 'Plan Mix', period: true },
+  // A04 build (2026-11-04): usage locks once billed (state), a charge is
+  // frozen once invoiced, a proration is COMPUTED from the billed cycle and
+  // approved from the M63 inbox, and a mandate activates only on the
+  // customer's recorded consent (OTP, or a signed form verified by another
+  // officer).
   'M39-usage': { kind: 'model_list', model: 'fix.subscription.usage', create: false,
-    cols: ["subscription_id", "currency_id", "create_date", "period_start", "period_end", "metric", "quantity"] },
+    cols: ["subscription_id", "currency_id", "create_date", "period_start", "period_end", "metric", "quantity", "overage_charge", "state", "charge_id"] },
   'M39-runs': { kind: 'model_list', model: 'fix.subscription.charge', create: false,
-    cols: ["customer_id", "subscription_id", "amount", "currency_id", "create_date", "company_id", "operating_unit_id"] },
+    cols: ["customer_id", "subscription_id", "amount", "overage_amount", "currency_id", "create_date", "invoice_state", "days_past_due", "company_id", "operating_unit_id"] },
   'M39-proration': { kind: 'model_list', model: 'fix.subscription.proration', create: false,
-    cols: ["name", "subscription_id", "state", "amount", "currency_id", "create_date", "change_type"] },
+    stateField: 'state',
+    cols: ["name", "subscription_id", "state", "old_amount", "new_amount", "amount", "currency_id", "create_date", "change_type", "approval_state"],
+    actions: [
+      { m: 'action_request_approval', l: 'Submit Plan Change for Approval', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending'] },
+      { m: 'action_void', l: 'Void', states: ['draft', 'pending'] }
+    ] },
   'M39-autopay': { kind: 'model_list', model: 'fix.subscription.autopay', create: false,
-    cols: ["subscription_id", "state", "create_date", "method", "mandate_ref", "last_attempt_at", "last_result"] },
+    stateField: 'state',
+    cols: ["subscription_id", "state", "create_date", "method", "mandate_ref", "max_amount", "consent_channel", "consent_at", "last_attempt_at", "last_result", "failure_count"],
+    actions: [
+      { m: 'action_send_consent_otp', l: 'Send Consent Code to the Customer', states: ['draft'] },
+      { m: 'action_verify_consent_otp', l: 'Verify Consent Code', states: ['draft'], ask: 'The code the customer reads back', kwarg: 'otp' },
+      { m: 'action_verify_signed_form', l: 'Verify Signed Mandate Form (another officer)', states: ['draft'] },
+      { m: 'action_activate', l: 'Activate Mandate', states: ['draft'] },
+      { m: 'action_revoke', l: 'Revoke Mandate', states: ['draft', 'active', 'suspended'], ask: 'Why is the mandate revoked?', kwarg: 'reason' }
+    ] },
   'M39-dunning': { kind: 'table_report', module: 'M39', report: 'dunning_ladder', title: 'Dunning Ladder', period: true },
   'M39-mrr': { kind: 'table_report', module: 'M39', report: 'mrr_waterfall', title: 'MRR Waterfall', period: true },
   'M39-cohorts': { kind: 'table_report', module: 'M39', report: 'churn_nrr_cohorts', title: 'Churn & NRR Cohorts', period: true },
@@ -123,7 +142,7 @@ export const SCREENS = {
           { name: 'contract_id', label: 'Master Contract Reference (M08)' },
           { name: 'company_id', required: true, label: 'Company' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'Subscription Status' },
+          { name: 'state', label: 'Subscription Status', readonly: true },
           { name: 'consolidated', label: 'Roll into Consolidated Corporate Bill' }
         ] },
       { tab: 'billing', title: 'Recurring Tariff, Billing Cycles & Dates',
@@ -158,6 +177,20 @@ export const SCREENS = {
 
   'M39-form-schedule': { kind: 'model_form', model: 'fix.subscription.charge',
     title: 'Billing Schedule', back: 'M39-runs',
+    // A04 build (2026-11-04): the usage readings billed on this cycle (locked).
+    lines: {
+      field: 'usage_ids',
+      title: 'Usage billed on this cycle',
+      note: 'The overage of each reading is added to the cycle charge and the reading locks.',
+      fields: [
+        { name: 'metric', label: 'Metric', readonly: true },
+        { name: 'period_start', label: 'From', readonly: true },
+        { name: 'period_end', label: 'To', readonly: true },
+        { name: 'quantity', label: 'Used', readonly: true },
+        { name: 'committed', label: 'Committed', readonly: true },
+        { name: 'overage_charge', label: 'Overage (BDT)', readonly: true }
+      ]
+    },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
@@ -172,7 +205,10 @@ export const SCREENS = {
         { name: 'invoice_state', label: 'Invoice State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'amount', label: 'Amount', required: true }
+        { name: 'amount', label: 'Amount', required: true },
+        { name: 'overage_amount', label: 'Usage Overage Billed', readonly: true },
+        { name: 'invoice_due_date', label: 'Invoice Due', readonly: true },
+        { name: 'days_past_due', label: 'Days Past Due', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'period_start', label: 'Period Start', required: true },
@@ -216,13 +252,20 @@ export const SCREENS = {
           { name: 'change_type', required: true, label: 'Change Event Type' }
         ] },
       { tab: 'tier_transition', title: 'Plan Migration Mapping', fields: [
-          { name: 'from_plan', label: 'From Plan' },
-          { name: 'to_plan', label: 'To Plan' }
+          { name: 'from_plan', label: 'From Plan', readonly: true },
+          { name: 'to_plan', label: 'To Plan' },
+          { name: 'old_amount', label: 'Recurring Amount in Force', readonly: true },
+          { name: 'new_amount', label: 'New Recurring Amount' }
         ] },
-      { tab: 'financial_effective', title: 'Mid-Cycle Adjustment Value', fields: [
-          { name: 'amount', label: 'Net Adjustment Amount (BDT)' },
+      { tab: 'financial_effective', title: 'Mid-Cycle Adjustment Value',
+        note: 'Computed from the billed cycle: (new - old) x unused days / cycle days. A credit is approved under DOFA.',
+        fields: [
+          { name: 'amount', label: 'Net Adjustment Amount (BDT, computed)', readonly: true },
+          { name: 'days_remaining', label: 'Unused Days of the Billed Cycle', readonly: true },
           { name: 'effective_date', required: true, label: 'Effective Cut-off Date' },
-          { name: 'state', required: true, label: 'Billing Settlement State' }
+          { name: 'dofa_tier_required', label: 'DOFA Tier (credit)', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'state', label: 'Billing Settlement State', readonly: true }
         ] }
     ]
   },
@@ -244,10 +287,10 @@ export const SCREENS = {
         { name: 'name', label: 'Subscription', required: true },
         { name: 'plan', label: 'Plan', required: true },
         { name: 'billing_cycle', label: 'Billing Cycle', required: true },
-        { name: 'state', label: 'State', required: true },
-        { name: 'dunning_step', label: 'Dunning Step', required: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'dunning_step', label: 'Dunning Step', readonly: true },
         { name: 'grace_period_days', label: 'Grace Period (days)' },
-        { name: 'days_overdue', label: 'Days Overdue' },
+        { name: 'days_overdue', label: 'Days Overdue', readonly: true },
         { name: 'last_refund_earned', label: 'Earned at Cancellation', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
@@ -304,7 +347,9 @@ export const SCREENS = {
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'overage_charge', label: 'Overage Charge (computed)', readonly: true },
-        { name: 'overage_rate', label: 'Overage Rate (BDT/unit)' }
+        { name: 'overage_rate', label: 'Overage Rate (BDT/unit)' },
+        { name: 'state', label: 'Billing State', readonly: true },
+        { name: 'charge_id', label: 'Billed On', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'period_start', label: 'Period Start', required: true },
@@ -325,6 +370,20 @@ export const SCREENS = {
 
   'M39-form-autopay': { kind: 'model_form', model: 'fix.subscription.autopay',
     title: 'Autopay Mandate', back: 'M39-autopay',
+    // A04 build (2026-11-04): every collection request and the gateway's answer.
+    lines: {
+      field: 'attempt_ids',
+      title: 'Collection attempts',
+      note: 'Raised by the daily autopay job; the result is recorded by the payment gateway only.',
+      fields: [
+        { name: 'requested_at', label: 'Requested', readonly: true },
+        { name: 'charge_id', label: 'Cycle Charge', readonly: true },
+        { name: 'amount', label: 'Amount', readonly: true },
+        { name: 'state', label: 'Result', readonly: true },
+        { name: 'provider_ref', label: 'Provider Ref', readonly: true },
+        { name: 'reason', label: 'Reason', readonly: true }
+      ]
+    },
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -337,11 +396,22 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'method', label: 'Method', required: true },
         { name: 'mandate_ref', label: 'Mandate Reference' },
-        { name: 'state', label: 'State', required: true },
-        { name: 'last_result', label: 'Last Result', required: true, readonly: true }
+        { name: 'max_amount', label: 'Collection Limit (BDT)', required: true },
+        { name: 'consent_channel', label: 'Consent Channel', required: true },
+        { name: 'consent_phone', label: 'Consenting Phone' },
+        { name: 'consent_signatory', label: 'Account Holder' },
+        { name: 'consent_document_id', label: 'Signed Mandate Form' },
+        { name: 'consent_at', label: 'Consent Recorded', readonly: true },
+        { name: 'consent_evidence', label: 'Consent Evidence', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'last_result', label: 'Last Result', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
-        { name: 'last_attempt_at', label: 'Last Attempt', readonly: true }
+        { name: 'valid_from', label: 'Valid From' },
+        { name: 'valid_until', label: 'Valid Until' },
+        { name: 'last_attempt_at', label: 'Last Attempt', readonly: true },
+        { name: 'failure_count', label: 'Failed Collections', readonly: true },
+        { name: 'next_retry_on', label: 'Next Retry', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'subscription_id', label: 'Subscription', required: true }

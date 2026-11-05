@@ -244,3 +244,67 @@ def test_signing_order_sequences_must_be_unique(odoo_env):
             {"envelope_id": envelope.id, "partner_id": other.id, "sequence": 10}
         )
     assert len(envelope.signer_ids) == 1
+
+
+# --- A04 integration (2026-11-04): a completed signature cannot be typed ------
+def _clerk(env):
+    return env["res.users"].create(
+        {
+            "name": "M24 Clerk",
+            "login": "m24_guard_clerk",
+            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+        }
+    )
+
+
+def test_a_user_cannot_type_a_completed_envelope_or_a_signature(odoo_env):
+    clerk = _clerk(odoo_env)
+    envelope = _envelope(odoo_env, signers=[("Customer", 10)])
+    as_clerk = envelope.with_user(clerk)
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        as_clerk.write({"state": "completed"})
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        as_clerk.write({"evidence_hash": "forged", "completed_at": fields.Datetime.now()})
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        odoo_env["fix.esignature.envelope"].with_user(clerk).create(
+            {
+                "name": "Forged",
+                "document_id": envelope.document_id.id,
+                "operating_unit_id": envelope.operating_unit_id.id,
+                "state": "completed",
+            }
+        )
+    as_clerk.action_send()  # the transition itself works for a plain user
+    signer = envelope.signer_ids.with_user(clerk)
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        signer.write({"signed_at": fields.Datetime.now(), "signature_provider": "TYPED"})
+    with _rejects(odoo_env, UserError, match="provider only"):
+        signer._esign_provider_record_signature("TYPED")
+    assert envelope.state == "sent" and not envelope.signer_ids.signed_at
+
+
+def test_a_sent_envelope_is_sealed(odoo_env):
+    clerk = _clerk(odoo_env)
+    envelope = _envelope(odoo_env, signers=[("Customer", 10)])
+    envelope.with_user(clerk).action_send()
+    other = odoo_env["res.partner"].create({"name": "Late Signer"})
+    with _rejects(odoo_env, UserError, match="while the envelope is a draft"):
+        odoo_env["fix.esignature.signer"].with_user(clerk).create(
+            {"envelope_id": envelope.id, "partner_id": other.id, "sequence": 20}
+        )
+    with _rejects(odoo_env, UserError, match="while the envelope is a draft"):
+        envelope.signer_ids.with_user(clerk).unlink()
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        envelope.signer_ids.with_user(clerk).write({"partner_id": other.id})
+    with _rejects(odoo_env, UserError, match="Only a draft envelope"):
+        envelope.with_user(clerk).action_send()
+
+
+def test_the_provider_records_the_signature_and_completes(odoo_env):
+    envelope = _envelope(odoo_env, signers=[("Customer", 10)])
+    envelope.action_send()
+    envelope.signer_ids.sudo()._esign_provider_record_signature("L6-SIG-1")
+    assert envelope.state == "completed" and envelope.completed_at
+    assert envelope.signer_ids.signature_provider == "L6-SIG-1"
+    with _rejects(odoo_env, UserError, match="not out for signature"):
+        envelope.signer_ids.sudo()._esign_provider_record_signature("L6-SIG-2")

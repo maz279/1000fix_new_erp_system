@@ -30,6 +30,9 @@ STEWARD = "cd_party_master.group_party_data_steward"
 LM = "cd_party_master.group_party_registration_lm"
 ADMIN = "cd_party_master.group_party_registration_admin"
 CONTACTS = "base.group_partner_manager"
+# A04 audit (2026-11-04) M40: fix.partner is written by the channel roles only.
+CHANNEL_OFFICER = "cd_partner.group_fix_channel_officer"
+CHANNEL_MANAGER = "cd_partner.group_fix_channel_manager"
 ACCOUNTANT = "account.group_account_user"
 POLICY = "cd_party_master.draft_party_policy"
 GATE = "cannot be used for"
@@ -261,12 +264,15 @@ class TestMergeRepointsAndReversal:
             assert env[model].sudo().consume_party_merged(event) == 0, model
         assert len(_logs(env, world["merge"])) == before
 
-    def test_the_reversal_restores_what_still_points_at_the_survivor(self, env, world, people):
+    def test_the_reversal_restores_what_still_points_at_the_survivor(
+        self, env, world, people, make_user
+    ):
         _execute(world["merge"], people)
         _relay(env)
-        # After the merge, someone re-points the business-partner record to a
-        # third party: the reversal must not undo that decision.
-        world["biz_partner"].with_user(people["clerk"]).write({"partner_id": world["third"].id})
+        # After the merge, a channel officer re-points the business-partner
+        # record to a third party: the reversal must not undo that decision.
+        officer = make_user(CONTACTS, CHANNEL_OFFICER)
+        world["biz_partner"].with_user(officer).write({"partner_id": world["third"].id})
         world["merge"].with_user(people["steward"]).action_reverse()
         _relay(env)
         victim = world["victim"]
@@ -626,8 +632,10 @@ def parties(env):
 
 @pytest.fixture
 def sites(env, make_user):
-    """Each W5 call site, as a callable taking the party, run by a plain user."""
+    """Each W5 call site, as a callable taking the party, run by a plain user
+    (partner onboarding by a channel manager: the A04 M40 role, not the gate)."""
     clerk = make_user(CONTACTS)
+    channel_manager = make_user(CONTACTS, CHANNEL_MANAGER)
     accountant = make_user(ACCOUNTANT)
     ou = _ou(env)
     branch = env["fix.branch"].search([], limit=1) or env["fix.branch"].create(
@@ -712,7 +720,7 @@ def sites(env, make_user):
         biz = env["fix.partner"].create(
             {"name": "W5 Referral", "partner_id": partner.id, "partner_type": "referral"}
         )
-        biz.with_user(clerk).action_onboard()
+        biz.with_user(channel_manager).action_onboard()
 
     def invoice(partner):
         inv = env["fix.ar.invoice"].create_manual_invoice(

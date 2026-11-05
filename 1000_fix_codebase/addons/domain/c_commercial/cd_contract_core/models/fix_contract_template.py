@@ -2,13 +2,19 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+LEGAL = "cd_contract_core.group_contract_legal"
+TERMS_FIELDS = ("standard_terms", "terms_bn")
+
 
 class FixContractTemplate(models.Model):
     """Statutory Contract Template Master for Commercial Contracts and SLA Packages."""
 
     _name = "fix.contract.template"
     _description = "Contract Template"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    # A04 build (2026-11-04) M08-15: the author signed off his own one-letter
+    # template "as Legal". The sign-off is now a Legal reviewer's, never the
+    # author's or the last editor's, and editing signed wording withdraws it.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "name"
 
     company_id = fields.Many2one(
@@ -77,9 +83,47 @@ class FixContractTemplate(models.Model):
         string="Terms Are Draft",
         default=True,
         tracking=True,
+        readonly=True,
         help="Seeded wording is a starting point for Legal, not approved "
         "terms. Cleared automatically when Legal signs off.",
     )
+    terms_last_edited_by = fields.Many2one(
+        "res.users",
+        string="Wording Last Edited By",
+        readonly=True,
+        copy=False,
+        help="Whoever last changed the wording cannot be the Legal reviewer who signs it.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "legal_reviewed_by",
+            "legal_reviewed_on",
+            "terms_are_draft",
+            "terms_last_edited_by",
+        }
+
+    def write(self, vals):
+        edited = set(vals) & set(TERMS_FIELDS)
+        moved = (
+            self.filtered(lambda r: any(r._fix_guard_differs(n, vals[n], r[n]) for n in edited))
+            if edited and not self._fix_guard_open()
+            else self.browse()
+        )
+        result = super().write(vals)
+        if moved:
+            signed = moved.filtered("legal_reviewed_by")
+            moved._guarded().write(
+                {
+                    "terms_last_edited_by": self.env.uid,
+                    "legal_reviewed_by": False,
+                    "legal_reviewed_on": False,
+                    "terms_are_draft": True,
+                }
+            )
+            for rec in signed:
+                rec.message_post(body="Wording changed after sign-off: Legal sign-off withdrawn.")
+        return result
 
     @api.depends("standard_terms", "terms_bn", "legal_reviewed_by")
     def _compute_is_publishable(self):
@@ -94,15 +138,25 @@ class FixContractTemplate(models.Model):
             rec.is_publishable = not missing
             rec.publish_blocker = ("Awaiting: " + ", ".join(missing)) if missing else False
 
+    def _require_legal(self, what):
+        if not (self.env.su or self.env.user.has_group(LEGAL)):
+            raise UserError("%s is for a Contract Legal Reviewer." % what)
+
     def action_legal_signoff(self):
         """Legal accepts this wording. Attributable, and reversible."""
+        self._require_legal("Signing off contract wording")
         for rec in self:
             if not (rec.standard_terms or "").strip() or not (rec.terms_bn or "").strip():
                 raise UserError(
                     "Both the English and Bengali terms must be authored "
                     "before Legal can sign off template '%s'." % rec.name
                 )
-            rec.write(
+            if not self.env.su and self.env.user in (rec.create_uid | rec.terms_last_edited_by):
+                raise UserError(
+                    "Segregation of duties: you authored or last edited the wording of "
+                    "template '%s', so another Legal reviewer must sign it off." % rec.name
+                )
+            rec.sudo()._guarded().write(
                 {
                     "legal_reviewed_by": self.env.user.id,
                     "legal_reviewed_on": fields.Datetime.now(),
@@ -114,8 +168,9 @@ class FixContractTemplate(models.Model):
 
     def action_withdraw_signoff(self):
         """Pull a template out of use - it stops being issuable at once."""
+        self._require_legal("Withdrawing a contract sign-off")
         for rec in self:
-            rec.write(
+            rec.sudo()._guarded().write(
                 {"legal_reviewed_by": False, "legal_reviewed_on": False, "terms_are_draft": True}
             )
             rec.message_post(body="Legal sign-off withdrawn by %s." % self.env.user.name)

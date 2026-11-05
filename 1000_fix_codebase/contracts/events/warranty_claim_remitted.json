@@ -53,6 +53,12 @@
         },
         "mismatch": {
           "type": "boolean"
+        },
+        "received_total": {
+          "type": "number"
+        },
+        "settled": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

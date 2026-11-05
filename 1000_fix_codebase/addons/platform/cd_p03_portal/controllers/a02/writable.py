@@ -234,7 +234,6 @@ WRITABLE = {
             "operating_unit_id",
             "order_id",
             "parts_total",
-            "quotation_state",
             "signed_estimate_attachment_id",
             "tender_ref",
             "valid_days",

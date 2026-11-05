@@ -16,7 +16,7 @@ CD-M09-01..05: the warranty and claims engine.
   diagnostic, parts, serial, technician certification, purchase proof
 - Events: warranty_claim.submitted/decided/remitted (AS-08)
 """,
-    "version": "19.0.2.0.0",
+    "version": "19.0.2.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Warranty",
@@ -33,13 +33,18 @@ CD-M09-01..05: the warranty and claims engine.
         # A10 P1-7 (M61-4): a distributed safety recall bulletin becomes an
         # M09 recall campaign (fix.warranty.recall.bulletin_id).
         "cd_knowledge",
+        # A04 C4/C9: the routed claim decision (fix.approvable.mixin, M63).
+        # Already loaded before this module (cd_service_order depends on it).
+        "cd_workflow_engine",
     ],
     "data": [
+        "security/cd_warranty_claims_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/ir_cron_aut018.xml",
         "data/fix_recall_consumers.xml",
+        "data/ir_cron.xml",
         "views/fix_warranty_claims_views.xml",
     ],
     "installable": True,

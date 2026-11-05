@@ -206,8 +206,10 @@ def test_explicit_references_are_kept_and_defaults_generated(world):
             "shipping_address": "Mirpur",
         }
     )
+    # A04 audit M38-9: a return names the paid order it returns
+    paid = _placed(world, state="paid")
     rma = env["fix.storefront.return"].create(
-        {"name": "RMA/MANUAL/1", "customer_id": world.alice.partner_id.id}
+        {"name": "RMA/MANUAL/1", "customer_id": world.alice.partner_id.id, "order_id": paid.id}
     )
     assert (named.name, order.name, rma.name) == ("CART/MANUAL/1", "SO/MANUAL/1", "RMA/MANUAL/1")
     assert generated.name.startswith("CART/")
@@ -217,9 +219,9 @@ def test_generated_references_are_unique_within_one_second(world):
     """Regression: with no ir.sequence the models fell back to a second-resolution
     timestamp, so back-to-back orders shared one reference."""
     first, second = _placed(world), _placed(world)
-    rmas = world.env["fix.storefront.return"].create(
-        [{"customer_id": world.alice.partner_id.id}, {"customer_id": world.alice.partner_id.id}]
-    )
+    paid = _placed(world, state="paid")
+    vals = {"customer_id": world.alice.partner_id.id, "order_id": paid.id}
+    rmas = world.env["fix.storefront.return"].create([dict(vals), dict(vals)])
     assert first.name != second.name
     assert first.name.startswith("SF/")
     assert len(set(rmas.mapped("name"))) == 2
@@ -265,6 +267,10 @@ def test_payment_dispatch_and_delivery_lifecycle(world):
     )
     order.action_dispatch(carrier_consignment_id=consignment.id)
     assert (order.state, order.carrier_consignment_id) == ("dispatched", consignment)
+    # A04 audit M38-11: delivered on the consignment's proof of delivery
+    with pytest.raises(UserError, match="proof of delivery"), world.env.cr.savepoint():
+        order.action_deliver()
+    consignment.write({"state": "delivered"})  # the M03 POD (its own suite)
     order.action_deliver()
     assert order.state == "delivered"
     with pytest.raises(UserError, match="paid before dispatch"), world.env.cr.savepoint():
@@ -295,10 +301,19 @@ def test_dispatch_deliver_and_cancel_guards(world):
     assert unpaid.state == "pending_payment"
     cod = _placed(world)
     cod.payment_rail = "cod"
-    cod.action_dispatch()  # cash is collected at the door
+    with pytest.raises(UserError, match="consignment"), world.env.cr.savepoint():
+        cod.action_dispatch()  # A04 audit M38-11: it leaves on its consignment
+    consignment = world.env["fix.consignment"].create(
+        {
+            "operating_unit_id": world.env["operating.unit"].search([], limit=1).id,
+            "scheduled_date": fields.Datetime.now(),
+        }
+    )
+    cod.action_dispatch(carrier_consignment_id=consignment.id)  # cash at the door
     assert cod.state == "dispatched"
     with pytest.raises(UserError, match="no longer be cancelled"), world.env.cr.savepoint():
         cod.action_cancel()
+    consignment.write({"state": "delivered"})
     cod.action_deliver()
     with pytest.raises(UserError, match="no longer be cancelled"), world.env.cr.savepoint():
         cod.action_cancel()
@@ -322,6 +337,10 @@ def test_home_delivery_needs_a_real_address(world):
 
 
 def test_return_refund_requires_receipt_and_inspection(world):
+    """The return lifecycle up to the refund approval. A04 audit M38-5: the
+    refund is then approved from the M63 inbox by a refund approver holding
+    the DOFA tier (test_a04_c2_c13_storefront.py), never by the superuser
+    pressing a button: action_dofa_approve checks the tier of whoever acts."""
     order = _placed(world, state="delivered")
     rma = world.env["fix.storefront.return"].create(
         {
@@ -342,9 +361,9 @@ def test_return_refund_requires_receipt_and_inspection(world):
         rma.action_receive_and_inspect()  # never a default grade
     rma.action_receive_and_inspect(condition="grade_b")
     assert (rma.state, rma.inspected_condition) == ("received", "grade_b")
-    rma.action_approve_refund()
-    assert rma.state == "refunded"
+    assert rma.refund_amount == 1250.0  # a defect is refunded at any grade
+    assert rma.dofa_tier_required == "tier_2"  # BDT 1,250: above the Tier-1 band
     events = world.env["fix.event.outbox"].search(
         [("event_type", "=", "storefront.refund_processed"), ("aggregate_id", "=", rma.id)]
     )
-    assert len(events) == 1
+    assert not events  # nothing is "refunded" before the approval and the credit note

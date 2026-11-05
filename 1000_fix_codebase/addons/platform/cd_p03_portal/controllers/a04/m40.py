@@ -9,37 +9,72 @@ from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 
+# A04 workflow audit (2026-11-04) C3/D2: every M40 surface declared
+# `actions: set()`, so the workspace could only edit the state. The
+# lifecycles now run from these actions; the server checks the role, the
+# state, the evidence (KYC documents, certificate, approved audit) and the
+# segregation of duties of each. The rebate payout is approved from the M63
+# inbox (Request Payout Approval), never by pressing Approve here.
 SURFACES = {
     "fix.partner": {
         "order": "partner_type, name",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_submit_onboarding",
+            "action_verify_kyc",
+            "action_onboard",
+            "action_return_to_prospect",
+            "action_suspend",
+            "action_reinstate",
+            "action_set_commission_rate",
+            "action_request_erasure",
+            "action_execute_erasure",
+        },
     },
     # fix.referral is owned by M53 (a08 surface) — read through the merge.
     "fix.partner.authorisation": {
         "order": "valid_to, id",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_activate", "action_revoke"},
     },
     "fix.partner.deal": {
         "order": "registered_on desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_approve", "action_decline", "action_mark_won", "action_mark_lost"},
     },
     "fix.partner.rebate": {
         "order": "period desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_accrue",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_record_payout",
+            "action_cancel",
+        },
     },
     "fix.partner.franchise": {
         "order": "start_date, id",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_activate", "action_terminate"},
     },
     "fix.partner.conflict": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_mediate",
+            "action_rule_partner_a",
+            "action_rule_partner_b",
+            "action_rule_split",
+            "action_rule_direct",
+            "action_close",
+        },
+    },
+    # A04 audit M40-2: the technical audit behind the 85% rebate gate.
+    "fix.partner.audit": {
+        "order": "audit_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_approve", "action_reject"},
     },
 }
 

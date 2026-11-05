@@ -129,7 +129,7 @@ def test_dashboard_unknown_or_malformed_seller_id(api, seller_id):
 def test_dashboard_for_internal_user_by_seller_id(odoo_env, api):
     """Regression: the dashboard read `seller.kyc_ref`, a field the model
     does not have, so every seller dashboard call raised AttributeError."""
-    seller = _seller(odoo_env, name="Dash Seller")
+    seller = _seller(odoo_env, name="Dash Seller", verified=False)
     seller.write({"rating": 4.6, "total_jobs": 12})
     seller.action_submit_kyc()
     result = api.dashboard(seller_id=str(seller.id))
@@ -424,3 +424,14 @@ def test_disputes_lists_own_disputes_with_sla(odoo_env, api):
         ],
         "total": 1,
     }
+
+
+def test_the_openapi_contract_lists_the_seller_operations():
+    """Moved from the retired source-inspection suite (test_seller_api.py)."""
+    import json
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[5]
+    spec = json.loads((repo / "contracts" / "openapi" / "w4-portals.json").read_text("utf-8"))
+    for path in ("/seller/dashboard", "/seller/orders", "/seller/quotes", "/seller/scorecard"):
+        assert path in spec["paths"]

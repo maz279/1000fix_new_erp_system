@@ -2,9 +2,15 @@
 #
 # Claim submission status, decision capture and remittance
 # reconciliation for the brands 1000FiX recovers warranty costs from.
-# Decisions ride fix.warranty.claim.action_decide (SoD-11 companion lives
-# with the callers); reconciliation surfaces FLAGGED mismatches, never
+# Decisions ride fix.warranty.claim.action_decide (the brand's OWN decision,
+# recorded with the brand user as decider; partial approvals carry
+# approved_amount); reconciliation surfaces FLAGGED mismatches, never
 # auto-adjusts (T08).
+#
+# A04 workflow audit (2026-11-03) M09-4: the paying brand recorded its own
+# remittance, which settled the claim. A brand now posts a remittance ADVICE;
+# the claim is settled only when a Claim Decision Officer records the money
+# received against a bank reference (fix.warranty.claim.action_record_remittance).
 #
 # Security model (R01 re-audit 2026-10-22, same model as the P02 technician API):
 # - every route is ``auth="bearer"``: an Odoo API key in ``Authorization: Bearer``
@@ -69,9 +75,22 @@ def _brand_claim(brand, claim_id):
 
 
 def _variance(claim):
-    mismatch = abs(claim.remittance_amount - claim.claim_amount) > 0.01
-    diff = round(claim.remittance_amount - claim.claim_amount, 2)
+    """Received against what the OEM APPROVED (a partial approval is not a
+    short payment)."""
+    mismatch = abs(claim.remittance_amount - claim.approved_amount) > 0.01
+    diff = round(claim.remittance_amount - claim.approved_amount, 2)
     return mismatch, _fmt_bdt(diff) if mismatch else "0.00"
+
+
+def _amount(kwargs):
+    """An optional approved_amount parameter (partial approval), or None."""
+    raw = kwargs.get("approved_amount")
+    if raw in (None, "", False):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 class BrandApiController(http.Controller):
@@ -100,6 +119,7 @@ class BrandApiController(http.Controller):
                 "claim_no": c.claim_no,
                 "state": c.state,
                 "amount_bdt": _fmt_bdt(c.claim_amount),
+                "approved_bdt": _fmt_bdt(c.approved_amount),
                 "submitted_at": str(c.submitted_at or "") or None,
                 "decided_at": str(c.decided_at or "") or None,
                 "rejection_reason": c.rejection_reason or "",
@@ -121,7 +141,12 @@ class BrandApiController(http.Controller):
             # isolation: another brand's claim "does not exist"
             return _error("no_claim", "Claim not found for this brand")
         try:
-            claim.action_decide(approved=(decision == "approve"), reason=kwargs.get("reason", ""))
+            claim.action_decide(
+                approved=(decision == "approve"),
+                reason=kwargs.get("reason", ""),
+                approved_amount=_amount(kwargs),
+                decided_by_id=request.env.user.id,
+            )
         except (UserError, ValidationError) as exc:
             return _error("decision_rejected", str(exc))
         return {"claim": {"id": claim.id, "claim_no": claim.claim_no, "state": claim.state}}
@@ -147,7 +172,10 @@ class BrandApiController(http.Controller):
                 "amount_bdt": _fmt_bdt(claim.claim_amount),
                 "remitted_bdt": _fmt_bdt(claim.remittance_amount),
                 "decision": {
-                    "approved": claim.state in ("approved", "remitted"),
+                    "approved": claim.state
+                    in ("approved", "partially_approved", "remitted", "closed")
+                    and bool(claim.approved_amount),
+                    "approved_bdt": _fmt_bdt(claim.approved_amount),
                     "reason": claim.rejection_reason or "",
                     "decided_at": str(claim.decided_at or "") or None,
                 },
@@ -175,9 +203,16 @@ class BrandApiController(http.Controller):
         reason = kwargs.get("reason", "")
         try:
             if event_type == "claim.approved" or decision == "approve":
-                claim.action_decide(approved=True, reason=reason)
+                claim.action_decide(
+                    approved=True,
+                    reason=reason,
+                    approved_amount=_amount(kwargs),
+                    decided_by_id=request.env.user.id,
+                )
             elif event_type == "claim.rejected" or decision == "reject":
-                claim.action_decide(approved=False, reason=reason)
+                claim.action_decide(
+                    approved=False, reason=reason, decided_by_id=request.env.user.id
+                )
             elif event_type == "claim.in_review":
                 claim.action_mark_in_review()
         except (UserError, ValidationError) as exc:
@@ -201,17 +236,29 @@ class BrandApiController(http.Controller):
         if kwargs.get("bank_ref") and kwargs.get("claim_id"):
             return self._record_remittance(brand, **kwargs)
         claims = _su_env()["fix.warranty.claim"].search(
-            [("brand_id", "=", brand.id), ("state", "in", ("approved", "remitted"))], limit=100
+            [
+                ("brand_id", "=", brand.id),
+                ("state", "in", ("approved", "partially_approved", "remitted")),
+            ],
+            limit=100,
         )
         result = []
         for c in claims:
-            mismatch, variance = _variance(c) if c.state == "remitted" else (False, "0.00")
+            if c.state == "remitted" or c.remittance_amount:
+                mismatch, variance = _variance(c)  # money received vs approved
+            elif c.remittance_advice_amount:
+                diff = round(c.remittance_advice_amount - c.approved_amount, 2)
+                mismatch = abs(diff) > 0.01  # the brand's advice vs approved
+                variance = _fmt_bdt(diff) if mismatch else "0.00"
+            else:
+                mismatch, variance = False, "0.00"
             result.append(
                 {
                     "claim_no": c.claim_no,
                     "state": c.state,
-                    "expected_bdt": _fmt_bdt(c.claim_amount),
+                    "expected_bdt": _fmt_bdt(c.approved_amount),
                     "received_bdt": _fmt_bdt(c.remittance_amount),
+                    "advised_bdt": _fmt_bdt(c.remittance_advice_amount),
                     "mismatch": mismatch,
                     "variance_bdt": variance,
                 }
@@ -227,17 +274,21 @@ class BrandApiController(http.Controller):
         except (TypeError, ValueError):
             return _error("invalid_amount", "amount must be a number")
         try:
-            claim.action_record_remittance(amount, str(kwargs.get("bank_ref", "")))
+            # An ADVICE: the brand's word, not money received (M09-4).
+            claim.action_record_remittance_advice(amount, str(kwargs.get("bank_ref", "")))
         except (UserError, ValidationError) as exc:
             return _error("remittance_rejected", str(exc))
-        mismatch, variance = _variance(claim)
+        advised_diff = round(amount - claim.approved_amount, 2)
+        mismatch = abs(advised_diff) > 0.01
         return {
             "remittance": {
                 "claim_no": claim.claim_no,
                 "state": claim.state,
-                "expected_bdt": _fmt_bdt(claim.claim_amount),
+                "expected_bdt": _fmt_bdt(claim.approved_amount),
+                "advised_bdt": _fmt_bdt(claim.remittance_advice_amount),
                 "received_bdt": _fmt_bdt(claim.remittance_amount),
                 "mismatch": mismatch,  # flagged, never adjusted
-                "variance_bdt": variance,
+                "variance_bdt": _fmt_bdt(advised_diff) if mismatch else "0.00",
+                "status": "advice_noted",
             }
         }

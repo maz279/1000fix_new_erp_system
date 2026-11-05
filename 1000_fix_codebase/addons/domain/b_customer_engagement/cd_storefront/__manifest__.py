@@ -18,12 +18,21 @@ CD-M38-02 (P10) — E-Commerce & Digital Storefront.
         "cd_party_master",
         "cd_event_outbox",
         "cd_consignment",
+        # A04 audit (2026-11-04): payment is confirmed against an M20 receipt
+        # (cd_billing_engine), graded refurb stock is reserved and sold (M15
+        # cd_inventory), and the refund is a routed M63 approval
+        # (cd_workflow_engine). All three load before this module on fix_dev.
+        "cd_billing_engine",
+        "cd_inventory",
+        "cd_workflow_engine",
     ],
     "data": [
+        "security/cd_storefront_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/fix_storefront_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        "data/ir_cron.xml",
         "views/cd_storefront_views.xml",
     ],
     "installable": True,
