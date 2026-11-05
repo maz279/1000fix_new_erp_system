@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_mdm_core numbering and A12 event consumers (FF-48).
+
+  * seq_fix_mdm_change_request: the change request's default reference drew
+    from ir.sequence code "fix.mdm.change.request" but no sequence shipped,
+    so every request was numbered "NEW" (M64-4).
+  * The consumers: every event this module PUBLISHES (mdm.change_requested,
+    mdm.change_approved, mdm.change_rejected, mdm.quality_audited) has a
+    fix.event.consumer record that lands it in the record's chatter, so the
+    governance trail is visible where the record is read. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="seq_fix_mdm_change_request" model="ir.sequence">
+            <field name="name">MDM Change Request</field>
+            <field name="code">fix.mdm.change.request</field>
+            <field name="prefix">MDM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="consumer_mdm_change_requested" model="fix.event.consumer">
+            <field name="name">M64: change-request raised lands in the chatter</field>
+            <field name="event_type">mdm.change_requested</field>
+            <field name="model">fix.mdm.change.request</field>
+            <field name="method">consume_mdm_change_requested</field>
+            <field name="module">cd_mdm_core</field>
+        </record>
+
+        <record id="consumer_mdm_change_approved" model="fix.event.consumer">
+            <field name="name">M64: change-request approval lands in the chatter</field>
+            <field name="event_type">mdm.change_approved</field>
+            <field name="model">fix.mdm.change.request</field>
+            <field name="method">consume_mdm_change_decided</field>
+            <field name="module">cd_mdm_core</field>
+        </record>
+
+        <record id="consumer_mdm_change_rejected" model="fix.event.consumer">
+            <field name="name">M64: change-request rejection lands in the chatter</field>
+            <field name="event_type">mdm.change_rejected</field>
+            <field name="model">fix.mdm.change.request</field>
+            <field name="method">consume_mdm_change_decided</field>
+            <field name="module">cd_mdm_core</field>
+        </record>
+
+        <record id="consumer_mdm_quality_audited" model="fix.event.consumer">
+            <field name="name">M64: domain quality audit lands in the chatter</field>
+            <field name="event_type">mdm.quality_audited</field>
+            <field name="model">fix.mdm.stewardship</field>
+            <field name="method">consume_mdm_quality_audited</field>
+            <field name="module">cd_mdm_core</field>
+        </record>
+
+    </data>
+</odoo>

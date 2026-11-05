@@ -4,7 +4,7 @@
   Every role maps to a Keycloak realm role, has assigned data isolation tiers,
   and is subject to negative permission testing (DoD-07).
 -->
-<odoo noupdate="1">
+<odoo>
 
     <!-- Executive & Management (R-01 .. R-05) -->
     <record id="role_r01" model="fix.role">

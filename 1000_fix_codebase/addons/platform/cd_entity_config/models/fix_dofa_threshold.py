@@ -21,14 +21,46 @@
 # The code keeps its Python list as the fallback, so behaviour is unchanged
 # until somebody actually rules. Removing the fallback would have made this a
 # behaviour change disguised as a refactor.
+#
+# A12 workflow audit (2026-11-04) X3 / M30-1, M30-2, M30-5, M30-14: the
+# ruling step was forgeable. One Tier-4 user switched off every DOFA approval
+# on a model alone (bands all at tier 0, authority "x"); `in_force` was a
+# plain Boolean; two ladders could be in force at once; bands of an in-force
+# ladder changed with no re-ruling; `ruled_by` could be retyped. Now:
+#   * in_force / ruled_by / ruled_at / ruling_reference are SYSTEM-SET
+#     (fix.guarded.mixin) — only action_put_in_force writes them;
+#   * a ruling needs TWO DIFFERENT authority holders, one Tier 4 and one
+#     Tier 5, and records both;
+#   * a partial UNIQUE index allows at most one ladder in force per
+#     (target_model, company_id) — the DB, not a search-then-unset race;
+#   * bands are LOCKED once the ladder is in force (a change is a new
+#     version, ruled again) — which also ends the stale stored-tier drift;
+#   * the target must exist and inherit fix.dofa.mixin.
 import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_dofa import DOFA_TIERS
+from .fix_dofa import DOFA_TIERS, TIER_GROUP
 
 _logger = logging.getLogger(__name__)
+
+TIER4_GROUP = TIER_GROUP["tier_4"]
+TIER5_GROUP = TIER_GROUP["tier_5"]
+
+
+def _target_is_dofa_governed(env, target) -> bool:
+    """True when `target` names a model that actually carries the DOFA mixin.
+
+    A ladder for anything else governs nothing: it would sit "in force" in the
+    Open DOFA Rulings report while the 18 real DOFA models kept their coded
+    defaults (A12 M30-5). Checked with issubclass on the registry classes, so
+    an inherited mixin anywhere in the MRO counts.
+    """
+    target = (target or "").strip()
+    if not target or target not in env:
+        return False
+    return issubclass(type(env[target]), type(env["fix.dofa.mixin"]))
 
 
 class FixDofaThreshold(models.Model):
@@ -80,6 +112,37 @@ class FixDofaThreshold(models.Model):
                 labels.get(rec.tier, rec.tier or "—"),
             )
 
+    # ---- band lock (A12 M30-2 / M30-14) ----------------------------------
+    # The bands of a ladder in force ARE the ruling: a second Tier-4 used to
+    # lower the in-force band with no re-ruling, and the stored tier on
+    # existing records went stale with it. Locked bands make both impossible:
+    # a change is a new ladder (a new version), ruled again by two people.
+    def _assert_bands_editable(self, extra_ladder_ids=()):
+        Ladder = self.env["fix.dofa.ladder"]
+        ladders = self.mapped("ladder_id") | Ladder.browse([int(i) for i in extra_ladder_ids if i])
+        locked = ladders.filtered(lambda lad: lad.in_force)
+        if locked and not self.env.su:
+            raise UserError(
+                "The bands of a DOFA ladder in force are the ruling itself "
+                "(%s). They cannot be edited; create a NEW ladder for %s with "
+                "the amended bands and rule that instead."
+                % (" ,".join(locked.mapped("name")), " ,".join(locked.mapped("target_model")))
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self._assert_bands_editable(v.get("ladder_id") for v in vals_list)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        # A band moved to another ladder may not leave (or enter) a ruling.
+        self._assert_bands_editable([vals.get("ladder_id")] if "ladder_id" in vals else ())
+        return super().write(vals)
+
+    def unlink(self):
+        self._assert_bands_editable()
+        return super().unlink()
+
 
 class FixDofaLadder(models.Model):
     """A named, versioned threshold ladder for one model's authority field.
@@ -91,7 +154,7 @@ class FixDofaLadder(models.Model):
 
     _name = "fix.dofa.ladder"
     _description = "DOFA Threshold Ladder"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "target_model, basis"
 
     name = fields.Char(required=True)
@@ -99,7 +162,8 @@ class FixDofaLadder(models.Model):
         required=True,
         index=True,
         help="The model whose authority this ladder governs, e.g. "
-        "fix.loyalty.ledger or fix.complaint.",
+        "fix.loyalty.ledger or fix.complaint. It must carry fix.dofa.mixin — "
+        "a ladder for anything else governs nothing.",
     )
     basis = fields.Selection(
         [
@@ -117,7 +181,8 @@ class FixDofaLadder(models.Model):
         default=False,
         tracking=True,
         help="Exactly one ladder per target model may be in force. Switching "
-        "which one is the RULING, and it is tracked on this record.",
+        "which one is the RULING, and it is tracked on this record. "
+        "System-set: only action_put_in_force may change it.",
     )
     matches_implementation = fields.Boolean(
         string="Matches Current Code",
@@ -131,6 +196,16 @@ class FixDofaLadder(models.Model):
         "from the code it claims to describe.",
     )
     ruled_by = fields.Many2one("res.users", readonly=True, string="Ruled By")
+    countersigned_by = fields.Many2one(
+        "res.users",
+        string="Countersigned By",
+        copy=False,
+        tracking=True,
+        help="The SECOND authority holder who countersigned the ruling: the "
+        "other of a Tier 4 / Tier 5 pair, a different person from whoever "
+        "rules. Choose them here, then run 'Put In Force' with the ruling "
+        "reference.",
+    )
     ruled_at = fields.Datetime(readonly=True)
     ruling_reference = fields.Char(
         help="The minute, memo or approval that authorises this ladder. A "
@@ -145,6 +220,32 @@ class FixDofaLadder(models.Model):
         "UNIQUE (target_model, basis, company_id)",
         "One ladder per target model, basis and company.",
     )
+
+    # A12 M30-2 / d06: two ladders were left in force for one model and the
+    # UNRULED one won on basis order. A partial unique index makes "exactly
+    # one in force" a database fact instead of a search-then-unset race.
+    _in_force_unique = models.UniqueIndex(
+        "(target_model, company_id) WHERE in_force",
+        "Only one DOFA ladder per target model and company may be in force — "
+        "which one applies is a ruling, not a race.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # The ruling stamp is evidence. Only action_put_in_force — with its
+        # two-authority check — may write it (A12 M30-2 / d05, d08).
+        return super()._fix_guarded_fields() | {
+            "in_force",
+            "ruled_by",
+            "ruled_at",
+            "ruling_reference",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        # A ladder in force is the ruling: its target and basis are frozen too.
+        locked = super()._fix_form_locked_fields()
+        if self and self[:1].in_force:
+            return locked | {"target_model", "basis", "countersigned_by"}
+        return locked
 
     @api.depends("target_model", "threshold_ids.upper_bound", "threshold_ids.tier")
     def _compute_matches_implementation(self):
@@ -202,12 +303,80 @@ class FixDofaLadder(models.Model):
             if len(set(bounds)) != len(bounds):
                 raise ValidationError("Ladder '%s' has duplicate bounds." % rec.name)
 
-    def action_put_in_force(self, reference=""):
+    @api.constrains("target_model")
+    def _check_target_model(self):
+        """A ladder may only govern a model that actually reads it (M30-5).
+
+        `fix.access.request` and a non-existent model were both accepted and
+        shown "in force" while governing nothing. Models not in THIS registry
+        are skipped rather than refused: the ladder data loads with the T0
+        config module, before the domain models that depend on it exist (the
+        same partial-registry reason _compute_matches_implementation skips).
+        The ruling gate (action_put_in_force) refuses an unknown target
+        absolutely — nothing that is not real can ever be ruled.
+        """
+        for rec in self:
+            target = (rec.target_model or "").strip()
+            if not target or target not in self.env:
+                continue
+            if not _target_is_dofa_governed(self.env, target):
+                raise ValidationError(
+                    "'%s' does not carry fix.dofa.mixin, so a DOFA ladder "
+                    "cannot govern it. Ladders rule the models that actually "
+                    "read them." % target
+                )
+
+    def write(self, vals):
+        # countersigned_by is chosen while the ladder is a DRAFT; once in
+        # force it is evidence of who the second signatory was, and stays.
+        if (
+            "countersigned_by" in vals
+            and not self._fix_guard_open()
+            and any(rec.in_force for rec in self)
+        ):
+            self._fix_guard_refuse(["countersigned_by"])
+        return super().write(vals)
+
+    def unlink(self):
+        # A ruling on record is superseded, never erased: deleting the
+        # in-force ladder would silently return the model to its coded
+        # default with no trace of who changed the authority. (The bands
+        # cascade with a draft ladder at the DB level, which is fine — a
+        # draft governs nothing.)
+        locked = self.filtered("in_force")
+        if locked and not self.env.su:
+            raise UserError(
+                "A ladder in force is the ruling on record for %s. It cannot "
+                "be deleted; rule a new ladder to supersede it."
+                % ", ".join(locked.mapped("target_model"))
+            )
+        return super().unlink()
+
+    def _ruling_countersigner(self, countersigned_by=None):
+        """Resolve the second signatory: an explicit argument (the workspace
+        action's kwargs), else the record's countersigned_by field."""
+        counter = countersigned_by or self.countersigned_by
+        if counter:
+            return self.env["res.users"].browse(int(counter)).exists()
+        return self.env["res.users"]
+
+    def action_put_in_force(self, reference="", countersigned_by=None):
         """Make this ladder the one in force. THIS is the ruling.
 
         Deliberately requires a reference: a change to who may approve what,
         with nothing recorded about who authorised the change, is not an
         improvement on a hard-coded list.
+
+        A12 X3 / M30-1: it also requires TWO DIFFERENT authority holders —
+        one Tier 4 and one Tier 5. One unsupervised Tier-4 user could switch
+        off every DOFA approval on a model alone; now the acting user holds
+        Tier 4 (Tier 5 implies it), a DIFFERENT user countersigns, and at
+        least one of the pair holds Tier 5. Both are recorded on the record.
+
+        The superuser is exempt from the two-person check, as it is by every
+        guard in this codebase (fix.guardedMixin._fix_guard_open): the
+        workspace and the ORM never rule as su, and whoever holds the
+        database can rewrite the table directly anyway.
         """
         for rec in self:
             if not (reference or rec.ruling_reference or "").strip():
@@ -221,6 +390,48 @@ class FixDofaLadder(models.Model):
                     "Ladder '%s' defines no bands, so it would grant no "
                     "authority at all." % rec.name
                 )
+            if not _target_is_dofa_governed(self.env, rec.target_model):
+                raise UserError(
+                    "'%s' is not a model governed by DOFA (it does not exist "
+                    "or does not carry fix.dofa.mixin), so this ladder can "
+                    "never apply. Ladders rule the models that read them."
+                    % (rec.target_model or "—")
+                )
+            counter = rec._ruling_countersigner(countersigned_by)
+            if not self.env.su:
+                acting = self.env.user
+                if not acting.has_group(TIER4_GROUP):
+                    raise UserError(
+                        "A DOFA ruling is Tier 4 / Tier 5 authority. You do "
+                        "not hold that approval authority."
+                    )
+                if not counter:
+                    raise UserError(
+                        "A DOFA ruling needs TWO authority holders: name the "
+                        "countersigning Tier 4 / Tier 5 user (a different "
+                        "person) in 'Countersigned By' before putting the "
+                        "ladder in force."
+                    )
+                if counter == acting:
+                    raise UserError(
+                        "A DOFA ruling needs two DIFFERENT people: the "
+                        "countersigner must not be the user who rules."
+                    )
+                if not counter.has_group(TIER4_GROUP):
+                    raise UserError(
+                        "%s does not hold DOFA Tier 4 / Tier 5 authority, so "
+                        "they cannot countersign a ruling." % counter.name
+                    )
+                if not (acting.has_group(TIER5_GROUP) or counter.has_group(TIER5_GROUP)):
+                    raise UserError(
+                        "A DOFA ruling needs one Tier 4 holder AND one Tier 5 "
+                        "holder — two different people. Neither of you holds "
+                        "Tier 5."
+                    )
+            # Retire the ruling sibling FIRST, then rule: the unique index on
+            # (target_model, company_id) WHERE in_force is satisfied at every
+            # statement, and a concurrent ruling loses to the database rather
+            # than to whichever search ran last.
             siblings = self.sudo().search(
                 [
                     ("target_model", "=", rec.target_model),
@@ -229,22 +440,24 @@ class FixDofaLadder(models.Model):
                     ("id", "!=", rec.id),
                 ]
             )
-            siblings.write({"in_force": False})
-            rec.write(
+            siblings._guarded().write({"in_force": False})
+            rec._guarded().write(
                 {
                     "in_force": True,
                     "ruled_by": self.env.user.id,
                     "ruled_at": fields.Datetime.now(),
                     "ruling_reference": reference or rec.ruling_reference,
+                    "countersigned_by": counter.id or False,
                 }
             )
             rec.message_post(
-                body="DOFA ladder for %s put in force on the %s basis by %s. "
-                "Authority: %s. Superseded: %s."
+                body="DOFA ladder for %s put in force on the %s basis by %s, "
+                "countersigned by %s. Authority: %s. Superseded: %s."
                 % (
                     rec.target_model,
                     dict(rec._fields["basis"].selection)[rec.basis],
                     self.env.user.name,
+                    counter.name or "—",
                     rec.ruling_reference,
                     ", ".join(siblings.mapped("name")) or "none",
                 )

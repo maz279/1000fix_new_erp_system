@@ -56,11 +56,22 @@ def approve_draft_request(odoo_env):
     """An endpoint whose live ORM call raises: approving a draft MDM request."""
     partner = odoo_env["res.partner"].create({"name": "RPC Probe"})
     change = odoo_env["fix.mdm.change.request"].create(
-        {"title": "probe", "model_name": "res.partner", "record_id": partner.id}
+        {
+            "title": "probe",
+            "model_name": "res.partner",
+            "record_id": partner.id,
+            # A12 P1-2: a change request without proposed values is refused at
+            # create ("proposes nothing"), so the probe carries a minimal one.
+            "proposed_changes": '{"phone": "01700000000"}',
+        }
     )
 
     def endpoint(**_params):
-        change.action_approve()
+        # sudo: the A12 routing assert (which the A03 control suite sweeps
+        # with) fires first for a normal caller; the exact state-gate message
+        # this contract pins is reachable for superuser code, which the
+        # assert deliberately lets through.
+        change.sudo().action_approve()
 
     return endpoint
 

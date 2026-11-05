@@ -1,32 +1,48 @@
 # cd_rbac_ext — M29 Identity, Access & Information Security (P03-M02, CD-M29-nn).
-# The field-level permission engine, the six isolation tiers, 53 roles,
-# 61 SoD controls, OIDC federation, step-up auth, access lifecycle.
+# The isolation tiers, 53 roles mapped to real permission groups (A12 R1),
+# 61 SoD controls enforced at every grant path (A12 R2), the access request
+# two-person approval (A12 X1), the employee.left leaver consumer (A12 X2),
+# the M29 crons (A12 R3), the system-written audit trail (A12 R5).
 {
     "name": "1000FiX RBAC Extension",
-    "summary": "Field-level permissions, six isolation tiers (T0-T5), 53 roles, 61 SoD controls, OIDC federation",
+    "summary": "Six isolation tiers (T0-T5), 53 roles mapped to permission groups, 61 SoD controls enforced at grant, access lifecycle",
     "description": """
 CD-M29-nn: the M29 RBAC extension.
 
 Owns:
-- fix.role (53 roles per the reconciled register, mapped to Keycloak realm roles)
+- fix.role (53 roles per the reconciled register, mapped to the estate's
+  permission groups — data/fix_role_group_map.xml, A12 R1)
 - fix.isolation.tier (T0 public ... T5 residency-classified, as record rules)
-- fix.sod.control (61 segregation-of-duties controls from SP-006)
-- fix.field.rule (the field-level permission engine — security/<module>_field_rules.xml)
-- fix.access.log (privileged session recording, NFR-070/SC-010)
+- fix.sod.control (61 segregation-of-duties controls from SP-006, enforced
+  at every grant path — A12 R2)
+- fix.field.rule (the field-rule REGISTER: it records the intended field
+  visibility/masking; no runtime engine reads it — stated honestly)
+- fix.access.request (X1: operational two-person approval, SoD gate at
+  grant, sudo service provisioning)
+- fix.jml.event (X2: consumes employee.left — deactivates the user, removes
+  ALL groups, unassigns ITSM assets, audits)
+- access certification, privileged sessions (R3 crons: elevation expiry,
+  close-out, session timeout), encryption keys (custodian-only, real
+  rotation), the hash-chained security audit trail (R5) and incidents.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Security",
-    "depends": ["base", "mail", "cd_entity_config"],
+    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox"],
     "data": [
         "security/fix_isolation_rules.xml",
-        "security/ir.model.access.csv",
         "security/cd_rbac_ext_security.xml",
+        # the groups XML must load BEFORE the ACL CSV: the CSV grants rows to
+        # group_access_approver / group_key_custodian defined there
         "security/fix_role_groups.xml",
+        "security/ir.model.access.csv",
         "data/fix_isolation_tiers.xml",
         "data/fix_roles.xml",
+        "data/fix_role_group_map.xml",
         "data/fix_sod_controls.xml",
+        "data/fix_event_consumers.xml",
+        "data/fix_a12_crons.xml",
         "data/access_ops_sequences.xml",
         "data/security_ops_sequences.xml",
         "views/fix_rbac_views.xml",

@@ -96,7 +96,8 @@ export const SCREENS = {
   'M29-residency': { kind: 'model_list', model: 'fix.z4.access.audit', create: false,
     cols: ['user_id', 'access_time', 'access_type', 'case_id'] },
   'M29-keys': { kind: 'model_list', model: 'fix.encryption.key', stateField: 'state',
-    cols: ['code', 'name', 'purpose', 'algorithm', 'vault_ref', 'last_rotated_on', 'next_rotation_on', 'state'] },
+    cols: ['code', 'name', 'purpose', 'algorithm', 'vault_ref', 'last_rotated_on', 'next_rotation_on', 'state'],
+    actions: [{ m: 'action_rotate', l: 'Rotate' }] },
 
   /* ---- Monitoring ---- */
   // Append-only: entries are written by the system, never typed (+ New suppressed).
@@ -107,7 +108,7 @@ export const SCREENS = {
     actions: [{ m: 'action_close', l: 'Close Session' }] },
   'M29-incidents': { kind: 'model_list', model: 'fix.security.incident', stateField: 'state',
     cols: ['name', 'title', 'category', 'severity', 'detected_at', 'affected_user_id', 'state'],
-    actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' }] },
+    actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' }, { m: 'action_set_severity', l: 'Set Severity' }] },
   'M29-sod': { kind: 'model_list', model: 'fix.sod.control',
     cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action', 'active'] },
   'M29-sodtests': { kind: 'model_list', model: 'fix.sod.test', stateField: 'result',
@@ -146,14 +147,13 @@ export const SCREENS = {
     back: 'M29-jml',
     status: { field: 'state', labels: { pending: 'Pending', applied: 'Applied', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner or mover grants the Odoo group mapped to the chosen role; applying a leaver revokes every group any business role maps to. The result note records what actually changed.',
+      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner or mover grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination); applying a leaver removes ALL groups and deactivates the user. The state moves only through the Apply / Cancel actions.',
         fields: [
           { name: 'event_type', required: true, label: 'Event Type' },
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'user_id', label: 'Portal User' },
           { name: 'role_id', label: 'Role to Apply' },
-          { name: 'effective_on', required: true, label: 'Effective On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'effective_on', required: true, label: 'Effective On' }
         ] }
     ]
   },
@@ -165,13 +165,12 @@ export const SCREENS = {
     back: 'M29-cert',
     status: { field: 'decision', labels: { pending: 'Pending', certified: 'Certified', revoked: 'Revoked' } },
     sections: [
-      { title: 'Certification', note: 'One line per user and role held. Certifying confirms the access is still needed; revoking removes the Odoo group mapped to that role from the user — a real change.',
+      { title: 'Certification', note: 'One line per user and role held. Certifying confirms the access is still needed; revoking removes the role\'s Odoo groups from the user — a real change. The decision comes from the Certify / Revoke actions, and only the reviewer (never the user under review) may make it. Unconfirmed lines past their due date are revoked by the close-out cron.',
         fields: [
           { name: 'period', required: true, label: 'Period' },
           { name: 'user_id', required: true, label: 'User Under Review' },
           { name: 'role_id', required: true, label: 'Role Held' },
           { name: 'reviewer_id', label: 'Reviewer' },
-          { name: 'decision', required: true, label: 'Decision' },
           { name: 'note', label: 'Note' }
         ] }
     ]
@@ -184,7 +183,7 @@ export const SCREENS = {
     back: 'M29-keys',
     status: { field: 'state', labels: { active: 'Active', rotating: 'Rotating', retired: 'Retired' } },
     sections: [
-      { title: 'Key', note: 'This register stores a VAULT REFERENCE only — key material is never entered into or stored by this database (SEC-101). The reference must start with vault:// or the save is refused.',
+      { title: 'Key', note: 'This register stores a VAULT REFERENCE only — key material is never entered into or stored by this database (SEC-101). The reference must start with vault:// or the save is refused. State and the rotation dates are set by the Rotate action (custodian only) — never typed.',
         fields: [
           { name: 'code', required: true, label: 'Key Code' },
           { name: 'name', required: true, label: 'Key Name' },
@@ -192,10 +191,7 @@ export const SCREENS = {
           { name: 'algorithm', required: true, label: 'Algorithm' },
           { name: 'vault_ref', required: true, label: 'Vault Reference' },
           { name: 'rotations_per_year', label: 'Rotations / Year' },
-          { name: 'last_rotated_on', label: 'Last Rotated' },
-          { name: 'next_rotation_on', label: 'Next Rotation' },
-          { name: 'custodian_id', label: 'Custodian' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'custodian_id', label: 'Custodian' }
         ] }
     ]
   },
@@ -207,20 +203,20 @@ export const SCREENS = {
     back: 'M29-incidents',
     status: { field: 'state', labels: { open: 'Open', contained: 'Contained', closed: 'Closed' } },
     sections: [
-      { title: 'Incident', note: 'Open → contained (the containment note is required) → closed. A closed incident stamps the resolution time.',
+      { title: 'Incident', note: 'Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data-leak needs the breach assessment. Severity is set by the Set Severity action under two-person control — a second person must confirm — so it is never typed here.',
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'category', required: true, label: 'Category' },
-          { name: 'severity', required: true, label: 'Severity' },
           { name: 'detected_at', required: true, label: 'Detected At' },
           { name: 'detected_by_id', label: 'Detected By' },
           { name: 'affected_user_id', label: 'Affected User' },
-          { name: 'session_id', label: 'Related Privileged Session' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'session_id', label: 'Related Privileged Session' }
         ] },
       { title: 'Narrative', fields: [
           { name: 'description', type: 'text', label: 'What happened' },
-          { name: 'containment', type: 'text', label: 'Containment' }
+          { name: 'containment', type: 'text', label: 'Containment' },
+          { name: 'root_cause', type: 'text', label: 'Root cause (required to close)' },
+          { name: 'breach_assessment', type: 'text', label: 'Breach assessment (required to close a data leak)' }
         ] }
     ]
   },
@@ -330,14 +326,13 @@ export const SCREENS = {
       submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected',
       granted: 'Granted', revoked: 'Revoked' } },
     sections: [
-      { title: 'Request', note: 'Submitted → approved → granted. Granting writes the role\'s Odoo group onto the user (a real change); a revoke removes it. A temporary elevation must state its valid-until date.',
+      { title: 'Request', note: 'Submitted → approved → granted. Granting writes the role\'s Odoo groups onto the user (a real change); a revoke removes them. The decision is made by the Approve / Reject actions — never typed (X1: the requester and the beneficiary cannot decide their own request).',
         fields: [
           { name: 'request_type', required: true, label: 'Request Type' },
           { name: 'user_id', required: true, label: 'User' },
           { name: 'role_id', required: true, label: 'Role' },
           { name: 'requested_on', required: true, label: 'Requested On' },
-          { name: 'valid_until', label: 'Valid Until' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'valid_until', label: 'Valid Until' }
         ] },
       { title: 'Justification', fields: [
           { name: 'reason', required: true, type: 'text', label: 'Reason' }
@@ -352,15 +347,14 @@ export const SCREENS = {
     back: 'M29-sessions',
     status: { field: 'state', labels: { open: 'Open', closed: 'Closed' } },
     sections: [
-      { title: 'Session', note: 'Opened before sudo/admin work; closing measures the duration from the timestamps. Every privileged session must carry a reason.',
+      { title: 'Session', note: 'Opened before sudo/admin work; closing measures the duration from the timestamps. Every privileged session must carry a reason. State changes only through the Close Session action (your own session) or the timeout cron.',
         fields: [
           { name: 'user_id', required: true, label: 'User' },
           { name: 'access_kind', required: true, label: 'Access Kind' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'ticket_ref', label: 'Ticket / Change Ref' },
           { name: 'started_at', label: 'Started At' },
-          { name: 'actions_count', label: 'Actions Performed' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'actions_count', label: 'Actions Performed' }
         ] }
     ]
   },

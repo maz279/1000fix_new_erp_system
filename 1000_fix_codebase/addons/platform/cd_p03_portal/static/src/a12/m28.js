@@ -61,7 +61,11 @@ export const SCREENS = {
   'M28-quotas': { kind: 'model_list', model: 'fix.api.quota', stateField: 'state',
     cols: ['consumer_id', 'endpoint_id', 'requests_per_min', 'daily_quota', 'state'] },
   'M28-topics': { kind: 'model_list', model: 'fix.event.topic', stateField: 'state',
-    cols: ['code', 'name', 'schema_id', 'retention_days', 'state'] },
+    cols: ['code', 'name', 'schema_id', 'retention_days', 'state'],
+    actions: [
+      { m: 'action_pause', l: 'Pause' },
+      { m: 'action_resume', l: 'Resume' }
+    ] },
   'M28-schemas': { kind: 'model_list', model: 'fix.event.schema', stateField: 'state',
     cols: ['code', 'version', 'state'],
     actions: [{ m: 'action_publish', l: 'Publish Schema' }] },
@@ -128,11 +132,10 @@ export const SCREENS = {
     title: 'API Consumer',
     back: 'M28-consumers',
     sections: [
-      { title: 'Consumer', note: 'The key reference is a vault path - the key value itself never lands in this model (SEC-101). Request counts are measured from the log.',
+      { title: 'Consumer', note: 'The key reference is a vault path - the key value itself never lands in this model (SEC-101). It changes only through the Rotate Key Reference action, which bumps the vault version and is audited. Request counts are measured from the log.',
         fields: [
           { name: 'name', required: true, label: 'Consumer Name' },
           { name: 'partner_id', label: 'Linked Partner' },
-          { name: 'key_ref', label: 'Key Reference (vault)' },
           { name: 'active', label: 'Active' }
         ] }
     ]
@@ -145,13 +148,12 @@ export const SCREENS = {
     back: 'M28-quotas',
     status: { field: 'state', labels: { active: 'Active', throttled: 'Throttled' } },
     sections: [
-      { title: 'Rate Limit', note: 'Limits must be positive (database CHECK). Throttled is the state the gateway sets when the limit fires.',
+      { title: 'Rate Limit', note: 'Limits must be positive (database CHECK) and take effect on the next request — no pause/resume needed. Throttled is the gateway\'s measured verdict and changes only there.',
         fields: [
           { name: 'consumer_id', required: true, label: 'Consumer' },
           { name: 'endpoint_id', label: 'Endpoint' },
           { name: 'requests_per_min', required: true, label: 'Requests / minute' },
-          { name: 'daily_quota', required: true, label: 'Daily Quota' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'daily_quota', required: true, label: 'Daily Quota' }
         ] }
     ]
   },
@@ -163,13 +165,12 @@ export const SCREENS = {
     back: 'M28-topics',
     status: { field: 'state', labels: { active: 'Active', paused: 'Paused', failing: 'Failing' } },
     sections: [
-      { title: 'Subscription', note: 'A webhook binding: every event on the topic is delivered to the consumer URL. The signing secret is referenced by vault alias only.',
+      { title: 'Subscription', note: 'A webhook binding: every event on the topic is delivered to the consumer URL. The URL must be https and on the integration allow-list (fix.integration.webhook_allowlist), and the signing secret is referenced by vault:// alias only.',
         fields: [
           { name: 'consumer_id', required: true, label: 'Consumer' },
           { name: 'topic_id', required: true, label: 'Topic' },
           { name: 'endpoint_url', required: true, label: 'Endpoint URL' },
-          { name: 'secret_ref', label: 'Signing Secret Reference' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'secret_ref', required: true, label: 'Signing Secret Reference (vault://)' }
         ] }
     ]
   },
@@ -198,13 +199,12 @@ export const SCREENS = {
     back: 'M28-topics',
     status: { field: 'state', labels: { active: 'Active', paused: 'Paused' } },
     sections: [
-      { title: 'Topic', note: 'A topic carries one published schema; the retention days drive the bus purge policy.',
+      { title: 'Topic', note: 'A topic carries one published schema; the retention days drive the bus purge policy (minimum 1 day). Pause/Resume are the topic\'s actions on the list.',
         fields: [
           { name: 'code', required: true, label: 'Topic Code' },
           { name: 'name', required: true, label: 'Name' },
           { name: 'schema_id', label: 'Schema' },
-          { name: 'retention_days', required: true, label: 'Retention (days)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'retention_days', required: true, label: 'Retention (days)' }
         ] }
     ]
   },
@@ -217,12 +217,11 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', published: 'Published', deprecated: 'Deprecated' } },
     sections: [
-      { title: 'Schema', note: 'The JSON Schema payload contract. Draft → published; the topic only accepts events matching the published schema.',
+      { title: 'Schema', note: 'The JSON Schema payload contract. Draft → published; once published the code, version and contract are frozen - a correction ships as a NEW version (BRU-IPF-06).',
         fields: [
           { name: 'code', required: true, label: 'Schema Code' },
           { name: 'version', required: true, label: 'Version' },
-          { name: 'schema_text', required: true, type: 'text', label: 'JSON Schema' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'schema_text', required: true, type: 'text', label: 'JSON Schema' }
         ] }
     ]
   },
@@ -235,13 +234,12 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       live: 'Live', degraded: 'Degraded', down: 'Down', disabled: 'Disabled' } },
     sections: [
-      { title: 'Connector', note: 'Live / degraded / down / disabled. Latency is the last recorded probe.',
+      { title: 'Connector', note: 'Live / degraded / down / disabled are health states measured by the platform (probe / circuit breaker); the mark actions are the operator\'s privileged override. Latency is the last recorded probe.',
         fields: [
           { name: 'name', required: true, label: 'Connector Name' },
           { name: 'connector_type', required: true, label: 'Type' },
           { name: 'endpoint', label: 'Endpoint' },
-          { name: 'credential_id', label: 'Credential' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'credential_id', label: 'Credential' }
         ] }
     ]
   },
@@ -255,15 +253,12 @@ export const SCREENS = {
       pending: 'Pending', local_wins: 'Local Wins', remote_wins: 'Remote Wins',
       merged: 'Manually Merged' } },
     sections: [
-      { title: 'Conflict', note: 'An offline edit that collided with the server record; resolution is explicit (local wins / remote wins / merged).',
+      { title: 'Conflict', note: 'An offline edit that collided with the server record. The collided values are evidence - they change only through the resolution actions (local wins / remote wins / merged), which are privileged and audited.',
         fields: [
           { name: 'device_ref', required: true, label: 'Device / Client' },
           { name: 'res_model', required: true, label: 'Record Model' },
           { name: 'res_id', required: true, label: 'Record ID' },
-          { name: 'field_name', required: true, label: 'Field' },
-          { name: 'local_value', label: 'Local Value' },
-          { name: 'remote_value', label: 'Remote Value' },
-          { name: 'resolution', required: true, label: 'Resolution' }
+          { name: 'field_name', required: true, label: 'Field' }
         ] }
     ]
   }

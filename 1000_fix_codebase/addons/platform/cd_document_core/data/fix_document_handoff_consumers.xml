@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 D8: retiring an ITSM asset surfaces the data-destruction review on
+     the governed documents linked to it. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_itsm_asset_retired" model="fix.event.consumer">
+            <field name="name">M06: destruction review for a retired ITSM asset's documents</field>
+            <field name="event_type">itsm.asset_retired</field>
+            <field name="model">fix.document</field>
+            <field name="method">consume_itsm_asset_retired</field>
+            <field name="module">cd_document_core</field>
+        </record>
+    </data>
+</odoo>

@@ -4,10 +4,22 @@
 # Honest scope: reads of individual sensitive fields are not instrumented, so
 # "Sensitive-Data Access" reports the CLASSIFIED EXPOSURE SURFACE (which fields
 # are sensitive and which roles can reach their model) — never invented reads.
+#
+# A12 R4: every surface declares what /p03/model/write may set on it
+# (module-level WRITABLE, merged by controllers/a12/__init__.py). Workflow
+# fields (state/decision/…) change only through the surface's actions.
+# A12 X5 (M29-11): `res.device.log` and `res.users` read under the CALLER's
+# record rules ("rules": True) — the sudo list read used to leak every
+# user's IP, location and session identifier to any internal user.
+# A12 P2: KPIs and reports read as the caller (no sudo().search([])).
 import datetime
 
+from odoo.exceptions import AccessError
+
 SURFACES = {
-    "res.users": {"order": "name", "limit": 400, "actions": set()},
+    # personal data: record rules apply (A09 pattern) — a plain user sees
+    # only their own device logs, and res.users reads respect Odoo's rules
+    "res.users": {"order": "name", "limit": 400, "actions": set(), "rules": True},
     "fix.role": {"order": "code", "limit": 200, "actions": set()},
     "res.groups": {"order": "name", "limit": 300, "actions": set()},
     "fix.field.rule": {"order": "id", "limit": 400, "actions": set()},
@@ -29,7 +41,12 @@ SURFACES = {
         "actions": {"action_close"},
     },
     "fix.sensitive.field": {"order": "model_name, field_name", "limit": 400, "actions": set()},
-    "res.device.log": {"order": "last_activity desc, id desc", "limit": 400, "actions": set()},
+    "res.device.log": {
+        "order": "last_activity desc, id desc",
+        "limit": 400,
+        "actions": set(),
+        "rules": True,
+    },
     "fix.jml.event": {
         "order": "effective_on desc, id desc",
         "limit": 300,
@@ -40,15 +57,123 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_certify", "action_revoke"},
     },
-    "fix.encryption.key": {"order": "code", "limit": 200, "actions": set()},
+    "fix.encryption.key": {
+        "order": "code",
+        "limit": 200,
+        "actions": {"action_rotate"},
+    },
     "fix.security.audit": {"order": "occurred_at desc, id desc", "limit": 500, "actions": set()},
     "fix.security.incident": {
         "order": "detected_at desc, id desc",
         "limit": 400,
-        "actions": {"action_contain", "action_close"},
+        "actions": {"action_contain", "action_close", "action_set_severity"},
     },
     "ir.rule": {"order": "model_id, id", "limit": 400, "actions": set()},
     "ir.model.access": {"order": "model_id, id", "limit": 800, "actions": set()},
+}
+
+# A12 R4: the fields a workspace form may set through /p03/model/write —
+# exactly what the forms in static/src/a12/m29.js offer as editable, minus
+# every workflow-controlled field (those are action-only). Read-only screens
+# declare an empty tuple: nothing the workspace can type on them.
+WRITABLE = {
+    "res.users": ("name", "login", "email", "phone", "active"),
+    "fix.role": ("code", "name", "name_bn", "group_id", "keycloak_role", "active", "description"),
+    "res.groups": (),
+    "fix.field.rule": ("model_id", "field_id", "permission", "active"),
+    "fix.isolation.tier": (
+        "code",
+        "name",
+        "record_rule_domain",
+        "requires_step_up",
+        "requires_audit",
+    ),
+    # the decision record (state/approver/decided_on) is action-only (X1)
+    "fix.access.request": (
+        "request_type",
+        "user_id",
+        "role_id",
+        "requested_on",
+        "valid_until",
+        "reason",
+    ),
+    "fix.sod.control": (
+        "code",
+        "name",
+        "role_a_id",
+        "role_b_id",
+        "conflict_action",
+        "rationale",
+        "active",
+    ),
+    # the measurement (result/violations/users_in_conflict) is computed
+    "fix.sod.test": ("control_id", "tested_on", "tested_by_id", "users_checked"),
+    # closure stamps the end; duration is measured
+    "fix.privileged.session": (
+        "user_id",
+        "access_kind",
+        "reason",
+        "ticket_ref",
+        "started_at",
+        "actions_count",
+    ),
+    "fix.sensitive.field": (
+        "model_name",
+        "field_name",
+        "sensitivity",
+        "data_class",
+        "masking_rule",
+        "lawful_basis",
+        "retention_note",
+        "active",
+    ),
+    "res.device.log": (),
+    "fix.jml.event": ("event_type", "employee_id", "user_id", "role_id", "effective_on"),
+    # the decision (decision/decided_on) is the reviewer's action only
+    "fix.access.certification": ("period", "user_id", "role_id", "reviewer_id", "note"),
+    # state and the rotation dates change only through action_rotate
+    "fix.encryption.key": (
+        "code",
+        "name",
+        "purpose",
+        "algorithm",
+        "vault_ref",
+        "rotations_per_year",
+        "custodian_id",
+    ),
+    # system-written register: nothing may be typed
+    "fix.security.audit": (),
+    # severity is the two-person action; state/resolution are the lifecycle
+    "fix.security.incident": (
+        "title",
+        "category",
+        "detected_at",
+        "detected_by_id",
+        "affected_user_id",
+        "session_id",
+        "description",
+        "containment",
+        "root_cause",
+        "breach_assessment",
+    ),
+    "ir.rule": (
+        "name",
+        "model_id",
+        "domain_force",
+        "perm_read",
+        "perm_write",
+        "perm_create",
+        "perm_unlink",
+    ),
+    "ir.model.access": (
+        "name",
+        "model_id",
+        "group_id",
+        "perm_read",
+        "perm_write",
+        "perm_create",
+        "perm_unlink",
+    ),
 }
 
 
@@ -64,15 +189,23 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _caller_search(env, model, domain, order=None, limit=None):
+    """Read as the CALLER (A12 P2): a figure a user may not read is
+    withheld, never computed with sudo."""
+    return env[model].search(domain, order=order, limit=limit)
+
+
 def access_review(env, date_from=None, date_to=None, **params):
     """Per user: active flag, role count, group count, last login."""
-    users = env["res.users"].sudo().search([("share", "=", False)])
-    Role = env["fix.role"].sudo()
-    roles = Role.search([])
-    group_to_role = {r.group_id.id: r for r in roles if r.group_id}
+    users = _caller_search(env, "res.users", [("share", "=", False)])
+    roles = _caller_search(env, "fix.role", [])
+    group_to_roles = {}
+    for role in roles:
+        for group in role.group_id | role.group_ids:
+            group_to_roles.setdefault(group.id, []).append(role)
     rows = []
     for user in users:
-        user_roles = [group_to_role[g.id].code for g in user.group_ids if g.id in group_to_role]
+        user_roles = [r.code for g in user.group_ids for r in group_to_roles.get(g.id, [])]
         rows.append(
             {
                 "login": user.login,
@@ -108,7 +241,7 @@ def access_review(env, date_from=None, date_to=None, **params):
 
 
 def privileged_sessions(env, date_from=None, date_to=None, **params):
-    sessions = env["fix.privileged.session"].sudo().search([])
+    sessions = _caller_search(env, "fix.privileged.session", [])
     rows = []
     for s in sessions:
         rows.append(
@@ -140,7 +273,8 @@ def privileged_sessions(env, date_from=None, date_to=None, **params):
         rows,
         [
             "A privileged session is opened before sudo/admin work and closed after; duration is "
-            "measured from the timestamps, not typed."
+            "measured from the timestamps, not typed. Stale sessions are force-closed by the "
+            "M29 timeout cron (fix_rbac_ext.privileged_session_timeout_minutes)."
         ],
         empty="No privileged sessions recorded.",
     )
@@ -149,7 +283,7 @@ def privileged_sessions(env, date_from=None, date_to=None, **params):
 def sensitive_access(env, date_from=None, date_to=None, **params):
     """Classified exposure surface: sensitive fields per class and the roles that
     can reach their model. Reads are NOT instrumented — this is exposure, stated."""
-    fields_cls = env["fix.sensitive.field"].sudo().search([("active", "=", True)])
+    fields_cls = _caller_search(env, "fix.sensitive.field", [("active", "=", True)])
     groups = {}
     for f in fields_cls:
         key = f.data_class
@@ -192,8 +326,8 @@ def sensitive_access(env, date_from=None, date_to=None, **params):
 
 
 def sod_results(env, date_from=None, date_to=None, **params):
-    controls = env["fix.sod.control"].sudo().search([("active", "=", True)])
-    tests = env["fix.sod.test"].sudo().search([])
+    controls = _caller_search(env, "fix.sod.control", [("active", "=", True)])
+    tests = _caller_search(env, "fix.sod.test", [])
     rows = []
     for control in controls:
         mine = tests.filtered(lambda t, c=control: t.control_id.id == c.id)
@@ -243,7 +377,8 @@ def sod_results(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Each test measures users who actually hold BOTH roles' Odoo groups; an untested "
-            "control shows 'Not tested' rather than an assumed pass."
+            "control shows 'Not tested' rather than an assumed pass. Grants are blocked at "
+            "the gate for every 'block' control."
         ],
         empty="No active SoD controls.",
     )
@@ -251,7 +386,7 @@ def sod_results(env, date_from=None, date_to=None, **params):
 
 def auth_trends(env, date_from=None, date_to=None, **params):
     """Login recency buckets from res.users.login_date — measured, not sampled."""
-    users = env["res.users"].sudo().search([("share", "=", False), ("active", "=", True)])
+    users = _caller_search(env, "res.users", [("share", "=", False), ("active", "=", True)])
     now = datetime.datetime.now()
     buckets = [("today", 1), ("7d", 7), ("30d", 30), ("90d", 90), ("never", None)]
     rows = []
@@ -294,14 +429,22 @@ REPORTS = {
 
 
 def kpis(env):
-    users = env["res.users"].sudo().search([("share", "=", False), ("active", "=", True)])
-    roles = env["fix.role"].sudo().search([("active", "=", True)])
-    requests = env["fix.access.request"].sudo().search([])
-    sessions = env["fix.privileged.session"].sudo().search([])
-    tests = env["fix.sod.test"].sudo().search([])
+    """Computed as the CALLER (A12 P2): no sudo().search([]) — a figure the
+    caller may not read is withheld rather than invented."""
+
+    def _count(model, domain):
+        try:
+            return env[model].search_count(domain)
+        except AccessError:
+            return 0
+
+    users_active = _count("res.users", [("share", "=", False), ("active", "=", True)])
+    requests = env["fix.access.request"].search([])
+    sessions = env["fix.privileged.session"].search([])
+    tests = env["fix.sod.test"].search([])
     return {
-        "users_active": len(users),
-        "roles_active": len(roles),
+        "users_active": users_active,
+        "roles_active": _count("fix.role", [("active", "=", True)]),
         "requests_open": len(requests.filtered(lambda r: r.state in ("submitted", "approved"))),
         "sessions_open": len(sessions.filtered(lambda s: s.state == "open")),
         "sod_failures": len(tests.filtered(lambda t: t.result == "fail")),

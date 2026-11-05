@@ -9,9 +9,13 @@ access_fix_field_rule_system,fix.field.rule.system,model_fix_field_rule,base.gro
 access_fix_access_request,fix.access.request,model_fix_access_request,base.group_user,1,1,1,0
 access_fix_sod_test,fix.sod.test,model_fix_sod_test,base.group_user,1,1,1,0
 access_fix_privileged_session,fix.privileged.session,model_fix_privileged_session,base.group_user,1,1,1,0
-access_fix_sensitive_field,fix.sensitive.field,model_fix_sensitive_field,base.group_user,1,1,1,0
+access_fix_sensitive_field,fix.sensitive.field,model_fix_sensitive_field,base.group_user,1,0,0,0
+access_fix_sensitive_field_system,fix.sensitive.field.system,model_fix_sensitive_field,base.group_system,1,1,1,1
 access_fix_jml_event,fix.jml.event,model_fix_jml_event,base.group_user,1,1,1,0
 access_fix_access_certification,fix.access.certification,model_fix_access_certification,base.group_user,1,1,1,0
-access_fix_encryption_key,fix.encryption.key,model_fix_encryption_key,base.group_user,1,1,1,0
-access_fix_security_audit,fix.security.audit,model_fix_security_audit,base.group_user,1,0,1,0
+access_fix_encryption_key,fix.encryption.key,model_fix_encryption_key,base.group_user,1,0,0,0
+access_fix_encryption_key_custodian,fix.encryption.key.custodian,model_fix_encryption_key,cd_rbac_ext.group_key_custodian,1,1,1,0
+access_fix_encryption_key_system,fix.encryption.key.system,model_fix_encryption_key,base.group_system,1,1,1,1
+access_fix_security_audit,fix.security.audit,model_fix_security_audit,base.group_user,1,0,0,0
+access_fix_security_audit_system,fix.security.audit.system,model_fix_security_audit,base.group_system,1,0,0,0
 access_fix_security_incident,fix.security.incident,model_fix_security_incident,base.group_user,1,1,1,0

@@ -8,7 +8,11 @@ SURFACES = {
     "fix.api.endpoint": {"order": "version desc, code", "limit": 300, "actions": set()},
     "fix.api.consumer": {"order": "name", "limit": 200, "actions": {"action_rotate_key"}},
     "fix.api.quota": {"order": "consumer_id, endpoint_id", "limit": 300, "actions": set()},
-    "fix.event.topic": {"order": "code", "limit": 200, "actions": set()},
+    "fix.event.topic": {
+        "order": "code",
+        "limit": 200,
+        "actions": {"action_pause", "action_resume"},
+    },
     "fix.event.schema": {
         "order": "code, version desc",
         "limit": 200,
@@ -36,6 +40,38 @@ SURFACES = {
         "actions": {"action_local_wins", "action_remote_wins", "action_merged"},
     },
     "fix.integration.log": {"order": "created_at desc, id desc", "limit": 500, "actions": set()},
+}
+
+# A12 R4 (finding M28-11): what /p03/model/write may set on each M28 surface —
+# exactly the fields a workspace form offers as editable. The workflow fields
+# (state / resolution / replayed_at / health) are NOT here: they change only
+# through the whitelisted actions, which re-check the Integration Admin group
+# and audit the privileged ones (replay, discard, rotate, resolve).
+# Read-only screens carry an empty tuple:
+#   - fix.event.dlq: engine-raised — the cron mirrors the relay's dead
+#     deliveries; replay/discard are the only operations;
+#   - fix.integration.log: system-written only (P1-6), no group may write it.
+WRITABLE = {
+    "fix.api.endpoint": (
+        "code",
+        "name",
+        "version",
+        "path",
+        "method",
+        "auth_type",
+        "description",
+        "active",
+    ),
+    "fix.api.consumer": ("name", "partner_id", "active"),
+    "fix.api.quota": ("consumer_id", "endpoint_id", "requests_per_min", "daily_quota"),
+    "fix.event.topic": ("code", "name", "schema_id", "retention_days"),
+    "fix.event.schema": ("code", "version", "schema_text"),
+    "fix.event.subscription": ("consumer_id", "topic_id", "endpoint_url", "secret_ref"),
+    "fix.event.dlq": (),
+    "fix.connector": ("name", "connector_type", "endpoint", "credential_id"),
+    "fix.connector.credential": ("name", "auth_type", "secret_ref", "expires_on", "active"),
+    "fix.sync.conflict": ("device_ref", "res_model", "res_id", "field_name"),
+    "fix.integration.log": (),
 }
 
 
@@ -222,7 +258,10 @@ def webhook_success(env, date_from=None, date_to=None, **params):
     logs = env["fix.integration.log"].sudo().search([("kind", "=", "webhook")])
     rows = []
     for sub in subs:
-        sub_logs = logs.filtered(lambda ln, s=sub.id: ln.consumer_id.id == s)
+        # M28-12: match attempts on the SUBSCRIPTION, not the consumer - a
+        # consumer can hold several subscriptions, and the old consumer_id
+        # match only looked right when the two ids happened to coincide.
+        sub_logs = logs.filtered(lambda ln, s=sub.id: ln.subscription_id.id == s)
         total = len(sub_logs)
         ok = len(sub_logs.filtered(lambda ln: ln.status == "success"))
         rows.append(
@@ -252,7 +291,8 @@ def webhook_success(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Success % is over recorded webhook attempts; a subscription with no traffic shows "
-            "a dash rather than a fabricated rate. Webhook logs are matched by consumer."
+            "a dash rather than a fabricated rate. Attempts are matched to the subscription "
+            "by the log's subscription link (M28-12)."
         ],
         totals={
             "subscription": "Total",

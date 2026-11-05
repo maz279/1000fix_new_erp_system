@@ -1,8 +1,15 @@
 # M66 ITSM depth — service catalogue, problem management, licence register and
 # the CMDB configuration items. Tickets, changes and assets live in fix_itsm.py /
 # fix_itsm_ops.py.
+#
+# A12 workflow audit (2026-11-04) M66-10/11/13: the problem register's state
+# was a plain write and "known error" needed no workaround; the licence
+# register accepted more assigned seats than owned (and negative counts); a
+# CMDB CI could sit "in service" on a retired asset. All four closed here.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
+
+LICENCE_EXPIRING_DAYS = 30
 
 
 class FixItsmCatalogue(models.Model):
@@ -42,7 +49,7 @@ class FixItsmCatalogue(models.Model):
 class FixItsmProblem(models.Model):
     _name = "fix.itsm.problem"
     _description = "IT Problem"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "opened_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -76,6 +83,9 @@ class FixItsmProblem(models.Model):
     )
     resolved_on = fields.Datetime(readonly=True)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "known_error", "resolved_on"}
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -83,23 +93,46 @@ class FixItsmProblem(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.itsm.problem") or "PRB/New"
         return super().create(vals_list)
 
-    def action_known_error(self):
+    def action_investigate(self):
         for rec in self:
+            if rec.state != "open":
+                raise UserError("Investigate an open problem.")
+            rec._guarded().write({"state": "investigating"})
+
+    def action_known_error(self):
+        """M66-10: a known error is a DOCUMENTED cause + workaround. From open
+        or investigating only; both texts are required."""
+        for rec in self:
+            if rec.state not in ("open", "investigating"):
+                raise UserError(
+                    "Mark a problem as known error while it is open or under "
+                    "investigation (M66-10)."
+                )
             if not (rec.root_cause or "").strip():
                 raise UserError("A known error needs its root cause documented first")
-            rec.write({"state": "known_error", "known_error": True})
+            if not (rec.workaround or "").strip():
+                raise UserError(
+                    "A known error needs its workaround documented (M66-10): the "
+                    "register exists so the service desk can work around the fault."
+                )
+            rec._guarded().write({"state": "known_error", "known_error": True})
 
     def action_resolve(self):
         for rec in self:
             if rec.state not in ("investigating", "known_error"):
                 raise UserError("Resolve a problem that is being investigated")
-            rec.write({"state": "resolved", "resolved_on": fields.Datetime.now()})
+            if not (rec.root_cause or "").strip():
+                raise UserError(
+                    "A resolved problem names its root cause (M66-10): without it the "
+                    "resolution cannot prevent recurrence."
+                )
+            rec._guarded().write({"state": "resolved", "resolved_on": fields.Datetime.now()})
 
     def action_close(self):
         for rec in self:
             if rec.state != "resolved":
                 raise UserError("Close a resolved problem")
-            rec.state = "closed"
+            rec._guarded().write({"state": "closed"})
 
 
 class FixItsmLicence(models.Model):
@@ -136,6 +169,11 @@ class FixItsmLicence(models.Model):
         [("active", "Active"), ("expiring", "Expiring"), ("expired", "Expired")],
         required=True,
         default="active",
+        compute="_compute_state",
+        store=True,
+        help="M66-11: the licence status is the renewal date, not an opinion — "
+        "expired once the renewal date passes, expiring within %d days of it."
+        % LICENCE_EXPIRING_DAYS,
     )
 
     @api.depends("seats_owned", "unit_cost", "licence_type")
@@ -154,6 +192,34 @@ class FixItsmLicence(models.Model):
                 if rec.seats_owned
                 else 0.0
             )
+
+    @api.depends("renewal_on")
+    def _compute_state(self):
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if rec.renewal_on and rec.renewal_on < today:
+                rec.state = "expired"
+            elif rec.renewal_on and rec.renewal_on <= fields.Date.add(
+                today, days=LICENCE_EXPIRING_DAYS
+            ):
+                rec.state = "expiring"
+            else:
+                rec.state = "active"
+
+    @api.constrains("seats_owned", "seats_assigned")
+    def _check_seats(self):
+        """M66-11: the register cannot show more seats in use than the company
+        owns, and it owns a non-negative count."""
+        for rec in self:
+            if rec.seats_owned < 0:
+                raise ValidationError("A licence owns a non-negative number of seats.")
+            if rec.seats_assigned < 0:
+                raise ValidationError("A licence has a non-negative number of seats assigned.")
+            if rec.seats_assigned > rec.seats_owned:
+                raise ValidationError(
+                    "%s: %d seats assigned but only %d owned (M66-11). Assign fewer "
+                    "seats or buy more." % (rec.name, rec.seats_assigned, rec.seats_owned)
+                )
 
 
 class FixItsmCi(models.Model):
@@ -199,3 +265,14 @@ class FixItsmCi(models.Model):
     asset_id = fields.Many2one("fix.itsm.asset", string="Linked Asset")
 
     _ci_unique = models.Constraint("UNIQUE (ci_key, company_id)", "CI key is unique per company")
+
+    @api.constrains("life_status", "asset_id")
+    def _check_asset_life(self):
+        """M66-13: nothing runs in service on retired hardware — the CMDB must
+        not describe service the asset register has already ended."""
+        for rec in self:
+            if rec.life_status == "in_service" and rec.asset_id and rec.asset_id.state == "retired":
+                raise ValidationError(
+                    "CI %s is in service but its asset %s is retired (M66-13). Retire "
+                    "the CI or relink it to live hardware." % (rec.ci_key, rec.asset_id.asset_tag)
+                )

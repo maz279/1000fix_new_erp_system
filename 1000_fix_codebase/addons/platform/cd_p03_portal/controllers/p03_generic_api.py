@@ -159,9 +159,10 @@ class P03GenericApiController(http.Controller):
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # OU record rules stay enforced for every OTHER surface; writes
             # below keep the calling user's context (SoD/permissions apply).
-            # A surface marked "rules" (A09 people data) reads as the caller,
-            # under their record rules: an employee lists their own contract,
-            # never a colleague's (A09 audit M21-5).
+            # A surface may opt OUT of the sudo read with "rules": True (the
+            # A09 pattern): its rows are then read as the caller, so ACLs and
+            # record rules apply (people data, M29 res.users / res.device.log
+            # — a user sees rows only as far as their own access allows).
             rec_model = env[model] if conf.get("rules") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
@@ -464,8 +465,8 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            reader = env[model] if conf.get("rules") else env[model].sudo()
-            rec = reader.browse(int(record_id)).exists() if record_id else None
+            read_model = env[model] if conf.get("rules") else env[model].sudo()
+            rec = read_model.browse(int(record_id)).exists() if record_id else None
             if rec and conf.get("rules"):
                 # opening a record by id must not step around the rules the
                 # list applies (A09 audit M21-5: another company's NID by id)
@@ -559,8 +560,10 @@ class P03GenericApiController(http.Controller):
         out_fields = self._form_field_meta(env, comodel, lines.get("fields"))
         rows = []
         if record_id:
-            reader = env[model] if SURFACES.get(model, {}).get("rules") else env[model].sudo()
-            rec = reader.browse(int(record_id)).exists()
+            # the parent surface's "rules" flag governs its child grid too
+            conf = SURFACES.get(model) or {}
+            read_model = env[model] if conf.get("rules") else env[model].sudo()
+            rec = read_model.browse(int(record_id)).exists()
             if rec:
                 for child in rec[field_name]:
                     rows.append(self._form_record(child, out_fields))

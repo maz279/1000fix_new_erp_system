@@ -130,14 +130,13 @@ export const SCREENS = {
     back: 'M30-announcements',
     status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
     sections: [
-      { title: 'Announcement', note: 'Draft → published → retired. The expiry date retires it from the live count automatically.',
+      { title: 'Announcement', note: 'Draft → published → retired. Publishing is the action button on the list screen — the state is never typed in (an announcement is published by decision, not by save). The expiry date retires it from the live count automatically.',
         fields: [
           { name: 'name', required: true, label: 'Title' },
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'audience', required: true, label: 'Audience' },
           { name: 'publish_on', required: true, label: 'Publish On' },
-          { name: 'expires_on', label: 'Expires On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'expires_on', label: 'Expires On' }
         ] },
       { title: 'Body', fields: [
           { name: 'body', type: 'text', label: 'Message' }
@@ -231,7 +230,7 @@ export const SCREENS = {
     back: 'M30-env',
     status: { field: 'state', labels: { provisioning: "Provisioning", live: "Live", degraded: "Degraded", offline: "Offline" } },
     sections: [
-      { title: "Environment", note: "Each environment states its URL, database, release channel and data residency. Production and DR are separate rows, not labels.",
+      { title: "Environment", note: "Each environment states its URL, database, release channel and data residency. Production and DR are separate rows, not labels. The state column is operational fact (badge only) — an environment goes live through provisioning, not a form save.",
         fields: [
           { name: 'name', required: true, label: "Environment Name" },
           { name: 'kind', required: true, label: "Kind" },
@@ -240,7 +239,7 @@ export const SCREENS = {
           { name: 'release_channel', required: true, label: "Release Channel" },
           { name: 'data_residency', label: "Data Residency" },
           { name: 'owner_id', label: "Owner" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'notes', type: 'text', label: "Notes" }
         ] }
     ]
   },
@@ -251,14 +250,15 @@ export const SCREENS = {
     back: 'M30-release',
     status: { field: 'state', labels: { planned: "Planned", in_test: "In Test", released: "Released", rolled_back: "Rolled Back" } },
     sections: [
-      { title: "Release", note: "Releasing requires a rollback plan to be written first - the model refuses otherwise.",
+      { title: "Release", note: "Releasing is the action on the list screen and requires the rollback plan and the linked approved change first — the model refuses otherwise. The state badge is fact, not a field.",
         fields: [
-          { name: 'version', required: true, label: "Version" },
-          { name: 'name', required: true, label: "Release Name" },
-          { name: 'environment_id', label: "Target Environment" },
+          { name: 'version', required: true, readonly: true, label: "Version" },
+          { name: 'name', required: true, readonly: true, label: "Release Name" },
+          { name: 'environment_id', readonly: true, label: "Target Environment" },
           { name: 'planned_on', required: true, label: "Planned On" },
-          { name: 'owner_id', label: "Release Owner" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'owner_id', readonly: true, label: "Release Owner" },
+          { name: 'itsm_change_id', label: "Approved Change (M66)" },
+          { name: 'rollback_plan', type: 'text', label: "Rollback Plan" }
         ] }
     ]
   },
@@ -271,12 +271,15 @@ export const SCREENS = {
    * ================================================================== */
   'M30-dofa-rulings': { kind: 'table_report', module: 'M30', report: 'open_dofa_rulings',
     title: 'Open DOFA Rulings', period: false },
+  'M30-dofa-coverage': { kind: 'table_report', module: 'M30', report: 'dofa_coverage',
+    title: 'DOFA Coverage (one DoA)', period: false },
   'M30-dofa-ladders': { kind: 'model_list', model: 'fix.dofa.ladder', create: true,
     cols: ['target_model', 'name', 'basis', 'matches_implementation', 'in_force', 'ruled_by', 'ruled_at', 'ruling_reference'],
     actions: [
-      { m: 'action_put_in_force', l: 'Put In Force (ruling)' }
+      { m: 'action_put_in_force', l: 'Put In Force (ruling)',
+        ask: 'Ruling reference (minute / memo number)', kwarg: 'reference' }
     ],
-    note: 'Exactly one ladder per model may be in force. With none in force the model keeps its own coded default, so behaviour is unchanged until somebody rules.' },
+    note: 'Exactly one ladder per model may be in force. With none in force the model keeps its own coded default, so behaviour is unchanged until somebody rules. Ruling needs a stated authority and TWO different authority holders (acting + countersigning, Tier 4 and Tier 5).' },
   'M30-dofa-bands': { kind: 'model_list', model: 'fix.dofa.threshold', create: true,
     cols: ['ladder_id', 'upper_bound', 'tier', 'note'],
     note: 'Each band is an inclusive upper bound and the tier that applies at or below it.' },
@@ -313,12 +316,12 @@ export const SCREENS = {
       {
         tab: 'ruling',
         title: 'The Ruling',
-        note: 'Putting a ladder in force changes who may approve what, so it requires the minute, memo or approval that authorises it.',
+        note: 'Putting a ladder in force changes who may approve what. The ruling itself is made by the Put In Force action on the ladders screen — it asks for the authorising minute or memo, needs two different authority holders (Tier 4 acting, Tier 5 in the pair, the countersigner recorded here), and stamps who ruled and when. Nothing on this tab is typed in.',
         fields: [
-          { name: 'in_force', label: 'In Force' },
-          { name: 'ruling_reference', label: 'Authority (minute / memo)' },
-          { name: 'ruled_by', label: 'Ruled By' },
-          { name: 'ruled_at', label: 'Ruled At' }
+          { name: 'countersigned_by', label: 'Countersigning Authority' },
+          { name: 'ruling_reference', readonly: true, label: 'Authority (minute / memo)' },
+          { name: 'ruled_by', readonly: true, label: 'Ruled By' },
+          { name: 'ruled_at', readonly: true, label: 'Ruled At' }
         ]
       }
     ]
@@ -327,6 +330,7 @@ export const SCREENS = {
 
 export const REPORT_ROUTES = {
   open_dofa_rulings: 'open_dofa_rulings',
+  'DOFA Coverage': 'M30-dofa-coverage',
   'M30:Config Change Log': 'M30-drift',
   'M30:Job Success Rate': 'M30-rpt-jobs',
   'M30:Environment Inventory': 'M30-env',

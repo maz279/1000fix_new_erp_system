@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) X4 / P1-1: cd_itsm shipped no group at all and its
+  ACL gave every internal user write on API masters, event plumbing,
+  connectors and the ITSM register.
+
+  - ITSM agent: works tickets, problems, assets, CIs, licences and the
+    catalogue; raises and implements change requests.
+  - Change manager: approves normal changes (M63-routed), one person,
+    never the implementer of the change they approve.
+  - CAB member: Change Advisory Board - approves high-risk and emergency
+    changes (P1-1), ships EMPTY because membership is a business
+    appointment (report S7-B3).
+  - Integration admin: the only role that may reconfigure API endpoints,
+    consumers, quotas, event topics/schemas/subscriptions, connectors and
+    replay dead letters (X4, P1-6). Operational groups carry the
+    development admin so the workspace keeps working; segregation of
+    duties still applies to it.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_itsm" model="res.groups.privilege">
+            <field name="name">Internal IT Service Management</field>
+            <field name="description">ITSM register, change enablement and integration plumbing roles of M28/M66.</field>
+            <field name="sequence">61</field>
+        </record>
+
+        <record id="group_itsm_agent" model="res.groups">
+            <field name="name">ITSM Agent</field>
+            <field name="privilege_id" ref="privilege_fix_itsm"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Works tickets, problems, assets, CIs, licences and the service catalogue; raises and implements change requests.</field>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+        <record id="group_itsm_change_manager" model="res.groups">
+            <field name="name">IT Change Manager</field>
+            <field name="privilege_id" ref="privilege_fix_itsm"/>
+            <field name="implied_ids" eval="[(4, ref('group_itsm_agent'))]"/>
+            <field name="comment">Approves normal change requests; never approves a change they requested or implemented (P1-1).</field>
+        </record>
+
+        <record id="group_itsm_cab_member" model="res.groups">
+            <field name="name">Change Advisory Board Member</field>
+            <field name="privilege_id" ref="privilege_fix_itsm"/>
+            <field name="implied_ids" eval="[(4, ref('group_itsm_agent'))]"/>
+            <field name="comment">Approves high-risk and emergency changes (P1-1). Ships EMPTY: CAB membership is a business appointment (S7-B3).</field>
+        </record>
+
+        <record id="privilege_fix_integration" model="res.groups.privilege">
+            <field name="name">Integration &amp; API Administration</field>
+            <field name="description">API masters, event plumbing, connectors and dead-letter replay of M28.</field>
+            <field name="sequence">62</field>
+        </record>
+
+        <record id="group_integration_admin" model="res.groups">
+            <field name="name">Integration Admin</field>
+            <field name="privilege_id" ref="privilege_fix_integration"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">The only role that may reconfigure API endpoints/consumers/quotas, event topics, schemas and subscriptions, connectors, and replay dead letters (X4, P1-6).</field>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+    </data>
+</odoo>

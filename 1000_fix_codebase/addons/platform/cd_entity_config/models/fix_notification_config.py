@@ -6,6 +6,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .fix_entity import require_platform_admin
+
 # NT-003 §2.1 — the send windows (Asia/Dhaka). The dispatcher's registry is
 # the machine copy; this model is the governed runtime source of overrides.
 QUIET_HOUR_WINDOWS = [
@@ -13,6 +15,11 @@ QUIET_HOUR_WINDOWS = [
     ("08:00-21:00", "08:00-21:00 (service-related)"),
     ("10:00-20:00", "10:00-20:00 (marketing — BTRC)"),
 ]
+
+# NT-003 §2.2: only transactional and security traffic may be uncapped.
+# Marketing and service messages carry a 7-day rolling cap by policy, so a
+# stored 0 ("uncapped") on those classes is a policy breach, not a default.
+CAPPED_CLASSES = ("marketing", "service")
 
 
 class FixNotificationConfig(models.Model):
@@ -95,10 +102,41 @@ class FixNotificationConfig(models.Model):
     # (AS-03 companion — config carries company, not OU: an OU-level split of
     # consent policy would fragment the customer's preference record).
 
-    @api.constrains("frequency_cap", "combined_cap_non_transactional")
+    # A12 X4 / M30 (b08-b10): caps policy is customer-protection law (BTRC /
+    # BD-02), so the config register is Platform Admin master data.
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The notification-policy register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The notification-policy register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The notification-policy register")
+        return super().unlink()
+
+    # A12 M30-10 (b09, b10): the constraint used to depend on the cap fields
+    # only, so writing sms_route ALONE put marketing SMS on the masking route,
+    # and a marketing row created with cap 0 (uncapped) passed. Every policy
+    # input the rule reads is now a trigger, so no single-field write can
+    # sidestep it.
+    @api.constrains(
+        "consent_class",
+        "channel",
+        "sms_route",
+        "frequency_cap",
+        "combined_cap_non_transactional",
+    )
     def _check_caps(self):
         for config in self:
             if config.frequency_cap < 0 or config.combined_cap_non_transactional < 0:
                 raise ValidationError("Frequency caps cannot be negative")
             if config.consent_class == "marketing" and config.sms_route == "masking":
                 raise ValidationError("BD-02: a marketing message never uses the masking route")
+            if config.consent_class in CAPPED_CLASSES and config.frequency_cap == 0:
+                raise ValidationError(
+                    "NT-003: only transactional and security traffic may be "
+                    "uncapped — set a 7-day frequency cap for %s messages." % config.consent_class
+                )

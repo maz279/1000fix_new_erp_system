@@ -147,7 +147,11 @@ class FixCountryPackDataLoader(models.AbstractModel):
 
     @api.model
     def load_bangladesh_pack(self) -> dict:
-        """Instantiate concrete Bangladesh country pack records on fix.country.pack."""
+        """Instantiate concrete Bangladesh country pack records on fix.country.pack.
+
+        A12 P1-4: the packs walk the certification lifecycle
+        (validate -> certify -> activate -> load) - a pack never loads
+        straight from draft."""
         pack_model = self.env["fix.country.pack"]
         line_model = self.env["fix.country.pack.line"]
 
@@ -186,6 +190,9 @@ class FixCountryPackDataLoader(models.AbstractModel):
                     }
                 )
 
+            div_pack.action_validate()
+            div_pack.action_certify(note="BBS gazetted divisions & districts, 2026 (MD-005)")
+            div_pack.action_activate()
             div_pack.action_load()
 
         # 2. Public Holidays pack
@@ -211,6 +218,9 @@ class FixCountryPackDataLoader(models.AbstractModel):
                     }
                 )
 
+            hol_pack.action_validate()
+            hol_pack.action_certify(note="Bangladesh Gazette public holidays 2026 (MD-005)")
+            hol_pack.action_activate()
             hol_pack.action_load()
 
         return {

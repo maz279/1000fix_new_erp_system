@@ -70,4 +70,30 @@
         <field name="comment">UX-002 workspace 14 (System console) W1 slice: entities, branches, zones, calendars, feature flags, notification configuration, country packs, roles, SoD, isolation tiers.</field>
     </record>
 
+    <!-- A12 X1 (M29-2): the access-approval authority. DELIBERATELY EMPTY —
+         who may approve access (and for which role class) is a business
+         appointment (report §7). Until someone is appointed, only the
+         requester's manager can approve, and nobody can approve their own
+         or their beneficiary's request. Do NOT add base.group_system as an
+         implied group: the approver group must not itself carry rights. -->
+    <record id="privilege_fix_security_authority" model="res.groups.privilege">
+        <field name="name">1000FiX Security Authority</field>
+        <field name="description">Access approval and key custody (A12 X1/R5). Appointments are business decisions (report §7).</field>
+        <field name="sequence">46</field>
+    </record>
+
+    <record id="group_access_approver" model="res.groups">
+        <field name="name">Access Approver (M29)</field>
+        <field name="privilege_id" ref="privilege_fix_security_authority"/>
+        <field name="comment">May approve or reject access requests and apply JML events. Ships EMPTY: appointing members is a business decision. Never the requester or the beneficiary of the request.</field>
+    </record>
+
+    <!-- A12 R5 (M29-8): encryption-key custody. DELIBERATELY EMPTY — only a
+         custodian may rotate keys or re-point a vault reference. -->
+    <record id="group_key_custodian" model="res.groups">
+        <field name="name">Key Custodian (M29)</field>
+        <field name="privilege_id" ref="privilege_fix_security_authority"/>
+        <field name="comment">May write the encryption-key register and rotate keys. Ships EMPTY: appointing custodians is a business decision.</field>
+    </record>
+
 </odoo>

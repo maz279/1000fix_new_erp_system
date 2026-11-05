@@ -5,6 +5,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .fix_entity import require_platform_admin
+
 _WEEKDAYS = [
     ("mon", "Monday"),
     ("tue", "Tuesday"),
@@ -48,6 +50,24 @@ class FixWorkingCalendar(models.Model):
     line_ids = fields.One2many("fix.working.calendar.line", "calendar_id", string="Working Hours")
     holiday_ids = fields.One2many("fix.working.calendar.holiday", "calendar_id", string="Holidays")
 
+    # A12 X4 / M30-6 (b07): a clerk's 60-day "holiday" moved an 8-hour SLA
+    # deadline by 59 days and zeroed elapsed business time, so nothing could
+    # breach. The same calendar drives M63 approval escalation. Calendars and
+    # their lines/holidays are governed master data: Platform Admin only (the
+    # M65 country pack loads holidays as superuser, which stays trusted).
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().unlink()
+
 
 class FixWorkingCalendarLine(models.Model):
     """One weekday's working window on a calendar."""
@@ -71,6 +91,21 @@ class FixWorkingCalendarLine(models.Model):
             if not (0.0 <= line.hour_from < line.hour_to <= 24.0):
                 raise ValidationError("Working window must satisfy 0 <= from < to <= 24")
 
+    # A12 X4 / M30-6: a working line IS the SLA clock (M01 out-of-hours
+    # pausing reads it); the same admin gate as the calendar header.
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().unlink()
+
 
 class FixWorkingCalendarHoliday(models.Model):
     """A holiday closure — fixed-date or moon-dependent (loaded, never coded)."""
@@ -89,3 +124,19 @@ class FixWorkingCalendarHoliday(models.Model):
         for holiday in self:
             if holiday.date_to < holiday.date_from:
                 raise ValidationError("Holiday end precedes its start")
+
+    # A12 X4 / M30-6 (b07): the finding's attack WAS a holiday row. The M65
+    # country pack loads the national calendar as superuser (trusted); an
+    # interactive user needs Platform Admin.
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The working-calendar register")
+        return super().unlink()

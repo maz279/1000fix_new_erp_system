@@ -8,8 +8,10 @@ export const MODULE = {
   kpis: [
     { l: 'Entities', m: 'entities' },
     { l: 'Country Packs', m: 'country_packs' },
+    { l: 'Certified Packs', m: 'country_packs_certified' },
     { l: 'Locales Active', m: 'locales_active' },
-    { l: 'Jurisdiction Rules', m: 'jurisdiction_rules' }
+    { l: 'Jurisdiction Rules', m: 'jurisdiction_rules' },
+    { l: 'Live Gateways', m: 'gateways_live' }
   ],
   groups: [
     { en: 'Registry Completion', screens: [
@@ -51,14 +53,22 @@ export const SCREENS = {
   'M65-entities': { kind: 'model_list', model: 'fix.entity',
     cols: ['code', 'legal_name', 'legal_name_bn', 'active'] },
   'M65-structure': { kind: 'table_report', module: 'M65', report: 'entity_structure', title: 'Entity Structure', period: false },
-  'M65-packs': { kind: 'model_list', model: 'fix.country.pack',
-    cols: ['name', 'code', 'kind', 'version', 'loaded_at', 'active'] },
+  'M65-packs': { kind: 'model_list', model: 'fix.country.pack', stateField: 'state',
+    cols: ['name', 'code', 'kind', 'version', 'certified_on', 'loaded_at', 'state'],
+    /* A12 P1-4 lifecycle: draft → validated → certified (admin + gazette note)
+       → active → load → retire. Only a CERTIFIED pack activates; only an
+       ACTIVE pack loads. */
+    actions: [{ m: 'action_validate', l: 'Validate' },
+              { m: 'action_certify', l: 'Certify', ask: 'Certification note (gazette / source reference)', kwarg: 'note' },
+              { m: 'action_activate', l: 'Activate' },
+              { m: 'action_load', l: 'Load Pack Data' },
+              { m: 'action_retire', l: 'Retire' }] },
   'M65-packlines': { kind: 'model_list', model: 'fix.country.pack.line',
     cols: ['pack_id', 'parent_code', 'code', 'name', 'name_bn', 'active'] },
   'M65-packstatus': { kind: 'table_report', module: 'M65', report: 'country_pack_status', title: 'Country Pack Status', period: false },
   'M65-locales': { kind: 'model_list', model: 'fix.locale.pack', stateField: 'state',
     cols: ['code', 'name', 'number_format', 'date_format', 'coverage_pct', 'state'],
-    actions: [{ m: 'action_activate', l: 'Activate Locale' }] },
+    actions: [{ m: 'action_activate', l: 'Activate Locale' }, { m: 'action_retire', l: 'Retire Locale' }] },
   'M65-readiness': { kind: 'table_report', module: 'M65', report: 'locale_readiness', title: 'Locale Readiness', period: false },
   'M65-jurisdictions': { kind: 'model_list', model: 'fix.jurisdiction.rule',
     cols: ['jurisdiction', 'rule_area', 'requirement', 'frequency', 'authority', 'active'] },
@@ -71,15 +81,14 @@ export const SCREENS = {
     back: 'M65-locales',
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
     sections: [
-      { title: 'Locale', note: 'A locale code is unique per company. The number format drives the en-IN lakh grouping used across the workspace.',
+      { title: 'Locale', note: 'A locale code is unique per company. Activation is coverage-gated (default 100%); the state badge is set by the Activate/Retire buttons, never typed.',
         fields: [
           { name: 'code', required: true, label: 'Locale Code' },
           { name: 'name', required: true, label: 'Locale Name' },
           { name: 'number_format', required: true, label: 'Number Format' },
           { name: 'first_day_of_week', required: true, label: 'First Day of Week' },
           { name: 'date_format', required: true, label: 'Date Format' },
-          { name: 'coverage_pct', label: 'Translation Coverage %' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'coverage_pct', label: 'Translation Coverage %' }
         ] }
     ]
   },
@@ -108,14 +117,14 @@ export const SCREENS = {
     model: 'fix.country.pack',
     title: 'Country Pack',
     back: 'M65-packs',
+    status: { field: 'state', labels: { draft: 'Draft', validated: 'Validated', certified: 'Certified', active: 'Active', retired: 'Retired' } },
     sections: [
-      { title: 'Pack', note: 'Lines (divisions, holidays, postcodes) are loaded by the pack loader; the header records which pack version is active.',
+      { title: 'Pack', note: 'Lines (divisions, holidays, postcodes) are loaded only after the pack is certified and activated. The lifecycle badge is set by the Validate/Certify/Activate/Load/Retire buttons, never typed.',
         fields: [
           { name: 'name', required: true, label: 'Pack Name' },
           { name: 'code', required: true, label: 'Pack Code' },
           { name: 'kind', required: true, label: 'Kind' },
-          { name: 'version', required: true, label: 'Version' },
-          { name: 'active', label: 'Active' }
+          { name: 'version', required: true, label: 'Version' }
         ] }
     ]
   },
@@ -158,7 +167,14 @@ export const SCREENS = {
   'M65-bengali': { kind: 'table_report', module: 'M65', report: 'bengali_support', title: 'Bengali Support (bn-BD)', period: false },
   'M65-translations': { kind: 'table_report', module: 'M65', report: 'translation_completeness', title: 'Translation Infrastructure', period: false },
   'M65-intercompany': { kind: 'model_list', model: 'fix.intercompany.rule', create: false, cols: ['name', 'model_id'] },
-  'M65-gateways': { kind: 'model_list', model: 'fix.payment.gateway', stateField: 'state', cols: ['provider', 'country_code', 'mode', 'currencies', 'settlement_cycle_days', 'state'], actions: [{ m: 'action_activate', l: 'Activate' }] },
+  'M65-gateways': { kind: 'model_list', model: 'fix.payment.gateway', stateField: 'state', cols: ['provider', 'country_code', 'mode', 'currencies', 'settlement_cycle_days', 'state'],
+    /* A12 P1-4: Activate is M63-routed (no button) - Route sends the draft or
+       suspended rail to the coded approver group; every transition is written
+       to the security audit chain. Credential rotation takes TWO inputs
+       (vault ref + reason) and runs from the server, not this one-prompt UI. */
+    actions: [{ m: 'action_request_approval', l: 'Route Activation', ask: 'Why should this gateway go live?', kwarg: 'justification' },
+              { m: 'action_recall_approval', l: 'Recall Request' },
+              { m: 'action_suspend', l: 'Suspend', ask: 'Why is this gateway being suspended?', kwarg: 'reason' }] },
   'M65-assessment': { kind: 'table_report', module: 'M65', report: 'expansion_assessment', title: 'Expansion Assessment', period: false },
 
 
@@ -170,17 +186,16 @@ export const SCREENS = {
     back: 'M65-gateways',
     status: { field: 'state', labels: { draft: "Draft", active: "Active", suspended: "Suspended" } },
     sections: [
-      { title: "Payment Gateway", note: "A gateway holds a VAULT REFERENCE only - API keys are never entered here (SEC-101). The reference must start with vault://.",
+      { title: "Payment Gateway", note: "A gateway holds a VAULT REFERENCE only - API keys are never entered here (SEC-101); the reference must start with vault:// and is settable only while the rail is a DRAFT. Going live is M63-routed and audited; the state badge is never typed.",
         fields: [
           { name: 'provider', required: true, label: "Provider" },
           { name: 'country_code', required: true, label: "Country Code" },
-          { name: 'mode', required: true, label: "Mode" },
+          { name: 'mode', required: true, label: "Mode (sandbox while drafting)" },
           { name: 'currencies', required: true, label: "Currencies" },
-          { name: 'credential_ref', required: true, label: "Credential Reference" },
+          { name: 'credential_ref', required: true, label: "Credential Reference (vault://…)" },
           { name: 'settlement_cycle_days', label: "Settlement Cycle (days)" },
           { name: 'supports_refund', label: "Supports Refund" },
-          { name: 'supports_partial_refund', label: "Supports Partial Refund" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'supports_partial_refund', label: "Supports Partial Refund" }
         ] }
     ]
   },

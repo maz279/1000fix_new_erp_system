@@ -18,7 +18,7 @@ Owns:
 
 CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",
@@ -30,6 +30,14 @@ CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
         "account",
         "cd_entity_config",
         "cd_gl_ext",
+        # A12 P1-4: the routed M63 approval for fix.payment.gateway lives in
+        # models/fix_payment_gateway_approval.py (cd_entity_config cannot
+        # depend on the engine - the engine depends on it).
+        "cd_workflow_engine",
+        # A12 D8: the fix.platform.release.itsm_change_id link lives in
+        # models/fix_platform_release_itsm.py (its comodel is here, and
+        # cd_entity_config loads before cd_itsm).
+        "cd_itsm",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

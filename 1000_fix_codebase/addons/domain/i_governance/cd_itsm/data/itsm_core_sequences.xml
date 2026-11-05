@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) R4 / M66-4: fix.itsm.ticket.create asks ir.sequence
+  for code "fix.itsm.ticket", which no data file shipped - every ticket was
+  named "ITSM/New" and the ticket register could not be referenced.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_itsm_ticket" model="ir.sequence">
+            <field name="name">ITSM Ticket</field>
+            <field name="code">fix.itsm.ticket</field>
+            <field name="prefix">ITSM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

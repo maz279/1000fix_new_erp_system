@@ -3,9 +3,38 @@
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 _logger = logging.getLogger(__name__)
+
+# A12 audit (2026-11-04) X4: the statutory register — entity, branch, zone,
+# working calendar (+ lines/holidays), notification config and feature flags —
+# was writable by every internal user. The ACLs now lock these models to
+# Platform Admin; this check is the second layer for any path that reaches the
+# ORM without an ACL verdict (a relaxed CSV row, a future endpoint). It binds
+# the CALLER, not the recordset: sudo() service code is trusted, exactly as
+# fix.guarded.mixin trusts it.
+PLATFORM_ADMIN_GROUP = "cd_entity_config.group_platform_admin"
+SYSTEM_GROUP = "base.group_system"
+
+
+def require_platform_admin(env, what):
+    """Refuse a statutory/platform master-data change by a non-admin caller.
+
+    `what` names the register for the refusal message. Superuser code (crons,
+    data loads, seeds, the country-pack loader) passes: env.su is the
+    codebase-wide trust boundary, and the guards exist for the people, not for
+    the server.
+    """
+    if env.su:
+        return
+    user = env.user
+    if user.has_group(PLATFORM_ADMIN_GROUP) or user.has_group(SYSTEM_GROUP):
+        return
+    raise AccessError(
+        "%s is statutory platform master data. Only a Platform Admin "
+        "(cd_entity_config.group_platform_admin) may change it." % what
+    )
 
 
 class FixEntity(models.Model):
@@ -67,6 +96,23 @@ class FixEntity(models.Model):
         for rec in self:
             if not rec.code.isupper():
                 raise ValidationError("Entity code must be uppercase.")
+
+    # A12 X4 / M30-12: the legal-entity register is statutory data. A clerk
+    # renamed the entity, changed its code and moved it to India; now only a
+    # Platform Admin may create, edit or delete an entity (branch.company_id,
+    # M65 localisation and multi-entity reporting all hang off this row).
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The legal-entity register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The legal-entity register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The legal-entity register")
+        return super().unlink()
 
     # Odoo's install leaves base.main_company as "My Company" in USD/US; the
     # 1000FiX estate books in BDT under Bangladesh law. Runs on every module

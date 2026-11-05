@@ -1,4 +1,15 @@
 # fix.localisation — Entity Localisation & Nil-Return Automation (CD-M65-01 / CD-M65-02).
+#
+# A12 audit (2026-11-04) M65:
+#   * get_vat_return_due_date crashed (ValueError) when the statutory day was
+#     29/30/31 and the following month was shorter: the due date is now
+#     CLAMPED to the month's last day, the way NBR treats a month-end statutory
+#     day. vat_statutory_day is constrained to 0..31 (0 = unset -> the 15th).
+#   * fix.nil.return.generator carried its guards only in the actions: state,
+#     the measured transaction count and the statutory payloads were writable
+#     directly. They are now guarded (fix.guarded.mixin) and only the actions
+#     may set them.
+import calendar
 import json
 from datetime import date, timedelta
 
@@ -24,8 +35,26 @@ class FixEntityLocalisation(models.Model):
     vat_statutory_day = fields.Integer(
         string="VAT Due Day of Month",
         default=15,
-        help="Statutory submission day (default 15th per Mushak rules)",
+        help="Statutory submission day (default 15th per Mushak rules); a day "
+        "beyond the month's length clamps to the month's last day",
     )
+
+    _vat_day_range = models.Constraint(
+        "CHECK (vat_statutory_day IS NULL OR vat_statutory_day BETWEEN 0 AND 31)",
+        "The VAT statutory day must be a day of the longest month (0 = unset, the 15th applies)",
+    )
+
+    @api.constrains("vat_statutory_day")
+    def _check_vat_statutory_day(self):
+        # Python-level first so the refusal is a form error, never a raw
+        # database CHECK violation on the wire.
+        for rec in self:
+            if rec.vat_statutory_day and not 1 <= rec.vat_statutory_day <= 31:
+                raise ValidationError(
+                    "The VAT statutory day must be a real day of the longest "
+                    "month (1-31; 0 or empty falls back to the statutory 15th)."
+                )
+
     statutory_calendar_rule = fields.Selection(
         [
             ("mushak_next_working_day", "Mushak 15th or Next Working Day (BD Weekend Rollover)"),
@@ -54,7 +83,13 @@ class FixEntityLocalisation(models.Model):
             sub_year = period_year
             sub_month = period_month + 1
 
-        due = date(sub_year, sub_month, self.vat_statutory_day or 15)
+        # M65 lc_03: clamp the statutory day to the month's last day (a 31st
+        # due day still lands in a 30-day month - as NBR treats month-end).
+        due = date(
+            sub_year,
+            sub_month,
+            min(self.vat_statutory_day or 15, calendar.monthrange(sub_year, sub_month)[1]),
+        )
 
         if self.statutory_calendar_rule == "mushak_next_working_day":
             # In Python weekday(): Monday is 0, Tuesday 1, Wednesday 2, Thursday 3, Friday 4, Saturday 5, Sunday 6
@@ -132,8 +167,20 @@ class FixNilReturnGenerator(models.Model):
 
     _name = "fix.nil.return.generator"
     _description = "Statutory Nil-Return Generator"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period_year desc, period_month desc, id desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # M65 nr_01: the state machine, the MEASURED count and the statutory
+        # payloads are evidence - the actions set them, nobody types them.
+        # filing_reference stays open: the officer keys NBR's slip number.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "transaction_count",
+            "transactions_counted_at",
+            "mushak_9_1_nil_payload",
+            "tds_nil_payload",
+        }
 
     # move types that are supplies/purchases whatever accounts they touch
     INVOICE_MOVE_TYPES = (
@@ -299,7 +346,7 @@ class FixNilReturnGenerator(models.Model):
                 f"{self.period_year}-{self.period_month:02d}. A standard Mushak 9.1 "
                 "transaction return is required instead of a nil return."
             )
-        self.write(
+        self._guarded().write(
             {
                 "transaction_count": 0,
                 "transactions_counted_at": fields.Datetime.now(),
@@ -360,7 +407,7 @@ class FixNilReturnGenerator(models.Model):
             "total_deposited_treasury": 0.0,
             "is_nil_declaration": True,
         }
-        self.write(
+        self._guarded().write(
             {
                 "mushak_9_1_nil_payload": json.dumps(mushak_payload, indent=2),
                 "tds_nil_payload": json.dumps(tds_payload, indent=2),
@@ -387,5 +434,5 @@ class FixNilReturnGenerator(models.Model):
                 "before recording this nil return as acknowledged. This system does not "
                 "file with NBR and cannot generate an acknowledgement itself."
             )
-        self.write({"filing_reference": ack_ref, "state": "acknowledged"})
+        self._guarded().write({"filing_reference": ack_ref, "state": "acknowledged"})
         return True
