@@ -12,6 +12,20 @@ from .fix_knowledge import is_safety_content, require_publisher, require_reviewe
 QM_GROUP = "cd_qms_process.group_qms_quality_manager"
 
 
+def _qm_gate(env, message):
+    """The Quality Manager gate without a manifest dependency on
+    cd_qms_process (a hard depends would create a dependency loop through
+    the recall/billing consumers — see the manifest note). The group is
+    resolved through ir.model.data; on a database without the QMS module
+    the group cannot exist, so nobody passes: fail closed."""
+    if env.su:
+        return
+    group = env.ref(QM_GROUP, raise_if_not_found=False)
+    if group and env.user.has_group(QM_GROUP):
+        return
+    raise UserError(message)
+
+
 class FixKnowledgeTree(models.Model):
     """A troubleshooting tree drives a technician's live decisions, so it is
     published under the same review gate as an article (A10 K1, M61-1)."""
@@ -324,11 +338,11 @@ class FixKnowledgeBulletin(models.Model):
                 # A10 P1-7 (M61-4): the audit closed a HIGH recall as any user.
                 # A recall closes under the Quality Manager, and only once every
                 # recipient branch has acknowledged it.
-                if not self.env.su and not self.env.user.has_group(QM_GROUP):
-                    raise UserError(
-                        "Only the Quality Manager closes a safety recall (A10 P1-7) — %s."
-                        % rec.name
-                    )
+                _qm_gate(
+                    self.env,
+                    "Only the Quality Manager closes a safety recall (A10 P1-7) — %s."
+                    % rec.name,
+                )
                 pending = rec.recipient_ids.filtered(lambda r: not r.acknowledged_on)
                 if pending:
                     raise UserError(

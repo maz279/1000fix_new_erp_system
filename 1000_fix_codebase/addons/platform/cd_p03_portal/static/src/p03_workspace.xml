@@ -333,7 +333,7 @@
                                         ID #<t t-esc="state.recView.data.row.id"/> · <t t-esc="state.recView.subtitle"/>
                                     </div>
                                     <div t-if="state.recView.data.row.state" style="margin-bottom: 10px;">
-                                        <span class="chip"><t t-esc="state.recView.data.row.state"/></span>
+                                        <span class="chip"><t t-esc="state.recView.data.row.state.label || state.recView.data.row.state"/></span>
                                     </div>
                                     <button class="btn btn-sm btn-primary" style="width: 100%; margin-top: 8px;" t-on-click="() => this.mlOpenForm(state.recView.data.row.id)">
                                         <t t-esc='t("Open Full Form")'/>
@@ -2994,7 +2994,7 @@
                                             ID #<t t-esc="state.gl.mlSelected.id"/> · <t t-esc="state.gl.modelCfg.model"/>
                                         </div>
                                         <div t-if="state.gl.mlSelected.state" style="margin-bottom: 10px;">
-                                            <span class="chip"><t t-esc="state.gl.mlSelected.state"/></span>
+                                            <span class="chip"><t t-esc="state.gl.mlSelected.state.label || state.gl.mlSelected.state"/></span>
                                         </div>
                                         <button class="btn btn-sm btn-primary" style="width: 100%; margin-top: 8px;" t-on-click="() => this.mlOpenForm(state.gl.mlSelected.id)">
                                             <t t-esc='t("Open Full Form")'/>

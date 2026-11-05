@@ -21,7 +21,15 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         # A10 P1-7 (M61-4): the recipient lines name a duty officer
         # (hr.employee) and a recall closes only under the Quality Manager.
         "cd_employee_core",
-        "cd_qms_process",
+        # NOTE: cd_qms_process is deliberately NOT a dependency. The recall
+        # closure gate resolves the Quality Manager group through
+        # ir.model.data (raise_if_not_found=False), so no install-order
+        # edge is needed — and the edge created a dependency loop once
+        # A04's billing consumer (cd_billing_engine -> cd_warranty_claims)
+        # met this module's recall consumers (cd_warranty_claims ->
+        # cd_knowledge -> cd_qms_process -> cd_cx_feedback ->
+        # cd_loyalty -> cd_billing_engine). Cross-session composition
+        # caught 2026-11-05; neither branch's cycle check saw the other's.
     ],
     "data": [
         "security/fix_knowledge_groups.xml",

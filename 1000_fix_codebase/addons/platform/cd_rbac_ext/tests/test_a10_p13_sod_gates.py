@@ -26,13 +26,19 @@ def _rejects(env, exc, match):
         yield info
 
 
-def _user(env, name):
+def _user(env, name, approver=False):
     n = next(_SEQ)
+    groups = [env.ref("base.group_user").id]
+    if approver:
+        # A12 X1: an access request is decided by an Access Approver (or
+        # the requester's manager) — never a bystander. The fixtures that
+        # decide requests hold the group.
+        groups.append(env.ref("cd_rbac_ext.group_access_approver").id)
     return env["res.users"].with_context(no_reset_password=True).create(
         {
             "name": "A10 P13 %s %d" % (name, n),
             "login": "a10p13.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
-            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+            "group_ids": [(6, 0, groups)],
         }
     )
 
@@ -105,7 +111,7 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
         }
     )
     beneficiary = _user(env, "Beneficiary")
-    approver = _user(env, "Approver")
+    approver = _user(env, "Approver", approver=True)
     beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
     # the raw write is the register's own semantics: a warn control logs and
     # passes — the approval it asks for lives on the request channel
@@ -124,7 +130,9 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
     assert req.approver_id == approver
     with _rejects(env, UserError, match="no expiry"):
         req.action_grant()
-    # the beneficiary approving their own conflict is not a waiver
+    # the beneficiary approving their own conflict is not a waiver — under
+    # the A12 X1 control the self-approval is refused at the DECISION, a
+    # layer earlier than the grant-time SoD waiver check it used to be
     self_req = env["fix.access.request"].create(
         {
             "user_id": beneficiary.id,
@@ -133,9 +141,8 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
             "valid_until": fields.Date.today() + datetime.timedelta(days=7),
         }
     )
-    self_req.with_user(beneficiary).action_approve()
-    with _rejects(env, UserError, match="cannot approve their own"):
-        self_req.action_grant()
+    with _rejects(env, UserError, match="never the requester or the beneficiary"):
+        self_req.with_user(beneficiary).action_approve()
     # a real waiver: someone else, an expiry, a reason — and the log records it
     req.write({"valid_until": fields.Date.today() + datetime.timedelta(days=7)})
     req.action_grant()
@@ -158,7 +165,7 @@ def test_block_conflict_is_refused_even_with_a_full_waiver(odoo_env):
         }
     )
     beneficiary = _user(env, "Preparer")
-    approver = _user(env, "CFO")
+    approver = _user(env, "CFO", approver=True)
     beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
     req = env["fix.access.request"].create(
         {
@@ -189,7 +196,7 @@ def test_expired_access_loses_its_group_and_waiver(odoo_env):
         }
     )
     beneficiary = _user(env, "Expired")
-    approver = _user(env, "Still There")
+    approver = _user(env, "Still There", approver=True)
     beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
     req = env["fix.access.request"].create(
         {

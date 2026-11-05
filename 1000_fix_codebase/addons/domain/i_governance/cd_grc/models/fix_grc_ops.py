@@ -447,8 +447,11 @@ class FixDofaLadderRegisterSync(models.Model):
 
     _inherit = "fix.dofa.ladder"
 
-    def action_put_in_force(self, reference=""):
-        res = super().action_put_in_force(reference=reference)
+    def action_put_in_force(self, reference="", countersigned_by=None):
+        # countersigned_by is the A12 X3 two-person ruling kwarg — the
+        # override must carry the parent's signature or every ruled ladder
+        # from the A03/A12 suites raises TypeError before the resync.
+        res = super().action_put_in_force(reference=reference, countersigned_by=countersigned_by)
         self.env["fix.grc.authority"].sudo()._doa_rebuild()
         return res
 

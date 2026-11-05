@@ -288,15 +288,15 @@ def test_a_sent_envelope_is_sealed(odoo_env):
     envelope = _envelope(odoo_env, signers=[("Customer", 10)])
     envelope.with_user(clerk).action_send()
     other = odoo_env["res.partner"].create({"name": "Late Signer"})
-    with _rejects(odoo_env, UserError, match="while the envelope is a draft"):
+    with _rejects(odoo_env, UserError, match="while (the envelope|it) is a DRAFT"):
         odoo_env["fix.esignature.signer"].with_user(clerk).create(
             {"envelope_id": envelope.id, "partner_id": other.id, "sequence": 20}
         )
-    with _rejects(odoo_env, UserError, match="while the envelope is a draft"):
+    with _rejects(odoo_env, UserError, match="while (the envelope|it) is a DRAFT"):
         envelope.signer_ids.with_user(clerk).unlink()
     with _rejects(odoo_env, UserError, match="cannot be set directly"):
         envelope.signer_ids.with_user(clerk).write({"partner_id": other.id})
-    with _rejects(odoo_env, UserError, match="Only a draft envelope"):
+    with _rejects(odoo_env, UserError, match="Only a DRAFT envelope"):
         envelope.with_user(clerk).action_send()
 
 

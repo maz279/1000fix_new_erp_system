@@ -53,7 +53,7 @@ def test_the_register_is_derived_not_typed(odoo_env):
     ladder = _ladder(
         env,
         "P14 service-risk ladder",
-        "a10.p14.risk",
+        "fix.estimate",
         "ruling",
         [(5000.0, "tier_1"), (50000.0, "tier_3"), (1e9, "tier_5")],
     )
@@ -63,7 +63,7 @@ def test_the_register_is_derived_not_typed(odoo_env):
     assert len(rows) == 3
     top = rows.filtered(lambda r: r.amount_limit >= 1e9)
     assert top.role_title == "Tier 5 — Managing Director / Board"
-    assert "a10.p14.risk" in top.authority_scope
+    assert "fix.estimate" in top.authority_scope
     assert top.source == "dofa" and top.synced_at
     # a typed row is refused at the ORM even for the DoA admin — the ACL and
     # the form are layers, not the rule
@@ -89,7 +89,7 @@ def test_rebuild_is_the_doa_admins_act(odoo_env):
     clerk = _user(env, "Clerk")
     cfo = _user(env, "CFO", group="cd_grc.group_grc_dofa_admin")
     ladder = _ladder(
-        env, "P14 ladder", "a10.p14.risk2", "ruling", [(1000.0, "tier_1"), (1e9, "tier_4")]
+        env, "P14 ladder", "fix.estimate", "ruling", [(1000.0, "tier_1"), (1e9, "tier_4")]
     )
     ladder.action_put_in_force(reference="BM-1")
     assert Register.search([("source_ref", "=", "fix.dofa.ladder:%d" % ladder.id)])
@@ -135,11 +135,11 @@ def test_a_ruling_resyncs_the_register(odoo_env):
     env = odoo_env
     Register = env["fix.grc.authority"]
     # two bases for one target: putting the second in force retires the first
-    first = _ladder(env, "P14 first", "a10.p14.risk3", "req_text",
+    first = _ladder(env, "P14 first", "fix.estimate", "req_text",
                     [(100.0, "tier_0"), (1e9, "tier_3")])
     first.action_put_in_force(reference="BM-A")
     assert Register.search([("source_ref", "=", "fix.dofa.ladder:%d" % first.id)])
-    second = _ladder(env, "P14 second", "a10.p14.risk3", "ruling",
+    second = _ladder(env, "P14 second", "fix.estimate", "ruling",
                      [(100.0, "tier_0"), (9999.0, "tier_2"), (1e9, "tier_5")])
     second.action_put_in_force(reference="BM-B")
     # the view no longer describes the retired ladder's authority

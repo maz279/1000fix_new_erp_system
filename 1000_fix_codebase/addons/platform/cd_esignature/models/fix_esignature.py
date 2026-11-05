@@ -34,11 +34,17 @@ SIGNER_SEALED = {"envelope_id", "sequence", "partner_id"}
 
 
 def _attachment_bytes(document) -> bytes:
-    if document and document.attachment_id and document.attachment_id.datas:
+    # The bytes are read through sudo: they are the EVIDENCE the hash seals,
+    # and every actor of the envelope (the sender, the completion checker,
+    # the cron) must be able to re-hash them regardless of the attachment
+    # ACL world (Odoo's base rule hides res_field attachments from plain
+    # internal users — caught live when the A04 merge tightened it).
+    attachment = document.sudo().attachment_id if document else False
+    if attachment and attachment.datas:
         try:
-            return base64.b64decode(document.attachment_id.datas)
+            return base64.b64decode(attachment.datas)
         except Exception:
-            return str(document.attachment_id.datas).encode("utf-8")
+            return str(attachment.datas).encode("utf-8")
     return b""
 
 
@@ -357,11 +363,16 @@ class FixEsignatureSigner(models.Model):
         # envelope_id is NOT here: a signer is BORN on its envelope (the
         # one2many create sets it in the user's env). Re-pointing an existing
         # signer is the forgery — that is guarded in write() below.
-        return super()._fix_guarded_fields() | {
-            "signed_at",
-            "signature_provider",
-            "auth_method",
-        }
+        # SIGNER_SEALED (A04): once the envelope has left draft, the signer's
+        # identity and place in the sequence are evidence, not configuration.
+        guarded = (
+            super()._fix_guarded_fields()
+            | SIGNER_GUARDED
+            | {"auth_method"}
+        )
+        if any(s.envelope_id.state != "draft" for s in self):
+            guarded |= SIGNER_SEALED
+        return guarded
 
     def write(self, vals):
         if self and not self._fix_guard_open() and "envelope_id" in vals:
@@ -371,12 +382,6 @@ class FixEsignatureSigner(models.Model):
                 ):
                     self._fix_guard_refuse(["envelope_id"])
         return super().write(vals)
-
-    def _fix_guarded_fields(self) -> set:
-        guarded = super()._fix_guarded_fields() | SIGNER_GUARDED
-        if any(s.envelope_id.state != "draft" for s in self):
-            guarded |= SIGNER_SEALED
-        return guarded
 
     def _esign_provider_record_signature(self, signature_ref, signed_at=None):
         """The provider integration records a completed signature (trusted
