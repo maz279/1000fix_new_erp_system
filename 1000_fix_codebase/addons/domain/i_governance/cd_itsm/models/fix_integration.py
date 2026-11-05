@@ -23,6 +23,7 @@
 #     appending a "#rotated" suffix (M28-2 / E A05), and is audited.
 import json
 import re
+from datetime import timedelta
 from urllib.parse import urlsplit
 
 from odoo import api, fields, models
@@ -216,6 +217,111 @@ class FixApiQuota(models.Model):
         # LIMITS (which take effect on the next request - no pause/resume
         # trick needed); only server code records a throttle.
         return {"state"}
+
+    # ------------------------------------------------------------------
+    # P1-6 completion (2026-11-05): the quota ACTS on measured traffic.
+    # The A12 audit's finding was "quotas are read by nothing" — the limits
+    # were a register. check_request_allowed is the gate every dispatcher /
+    # API edge MUST call before serving an API request; cron_enforce_quotas
+    # keeps the register's state honest from the same measured counts, so a
+    # consumer that hammered the API shows 'throttled' on the screen without
+    # waiting for a dispatcher to exist.
+    # ------------------------------------------------------------------
+
+    def _measured_counts(self, consumer_id, endpoint_id=None, at=None):
+        """Requests the consumer actually made (kind='api', every outcome —
+        throttled attempts were still requests) in the last rolling minute
+        and in the calendar day of `at`."""
+        Log = self.env["fix.integration.log"].sudo()
+        at = at or fields.Datetime.now()
+        minute_start = at - timedelta(seconds=60)
+        day_start = at.replace(hour=0, minute=0, second=0, microsecond=0)
+        base = [("kind", "=", "api"), ("consumer_id", "=", consumer_id)]
+        if endpoint_id:
+            base.append(("endpoint_id", "=", endpoint_id))
+        return {
+            "minute": Log.search_count([*base, ("created_at", ">=", minute_start)]),
+            "day": Log.search_count([*base, ("created_at", ">=", day_start)]),
+        }
+
+    @api.model
+    def check_request_allowed(self, consumer, endpoint=None, at=None):
+        """The server-side rate gate (P1-6). A dispatcher calls this BEFORE
+        serving (and before logging) an API request for `consumer`; it
+        refuses when the measured window exceeds either configured limit.
+
+        Returns dict(allowed, reason, quota) so the caller can answer 429
+        with the violated limit named. Counts come from the append-only
+        integration log — never from a counter the caller could reset.
+        """
+        consumer = int(consumer) if isinstance(consumer, int) else consumer.id
+        endpoint_id = None
+        if endpoint:
+            endpoint_id = int(endpoint) if isinstance(endpoint, int) else endpoint.id
+        quotas = self.search(
+            [("consumer_id", "=", consumer)]
+            + ([("endpoint_id", "=", endpoint_id)] if endpoint_id else [])
+        )
+        if not quotas:
+            return {"allowed": True, "reason": "", "quota": None}
+        counts = None
+        for quota in quotas:
+            counts = counts or self._measured_counts(consumer, endpoint_id, at=at)
+            if counts["minute"] >= quota.requests_per_min:
+                return {
+                    "allowed": False,
+                    "reason": "rate: %d requests in the last minute (limit %d/min)"
+                    % (counts["minute"], quota.requests_per_min),
+                    "quota": quota,
+                }
+            if counts["day"] >= quota.daily_quota:
+                return {
+                    "allowed": False,
+                    "reason": "quota: %d requests today (limit %d/day)"
+                    % (counts["day"], quota.daily_quota),
+                    "quota": quota,
+                }
+        return {"allowed": True, "reason": "", "quota": quotas[0]}
+
+    @api.model
+    def cron_enforce_quotas(self):
+        """Keep every quota's state honest from measured traffic (P1-6):
+        over either limit in the live window -> 'throttled' (audited); back
+        under -> 'active' (audited). Server code only — state is guarded."""
+        for quota in self.search([]):
+            counts = self._measured_counts(quota.consumer_id.id, quota.endpoint_id.id or None)
+            over = counts["minute"] >= quota.requests_per_min or counts["day"] >= quota.daily_quota
+            if over and quota.state != "throttled":
+                quota._guarded().write({"state": "throttled"})
+                _integration_audit(
+                    self.env,
+                    "integration.quota_throttled",
+                    "fix.api.quota,%d" % quota.id,
+                    "integration.quota_throttled: %s measured %d/min (limit %d) "
+                    "and %d/day (limit %d) — state set to throttled"
+                    % (
+                        quota.display_name,
+                        counts["minute"],
+                        quota.requests_per_min,
+                        counts["day"],
+                        quota.daily_quota,
+                    ),
+                )
+            elif not over and quota.state == "throttled":
+                quota._guarded().write({"state": "active"})
+                _integration_audit(
+                    self.env,
+                    "integration.quota_released",
+                    "fix.api.quota,%d" % quota.id,
+                    "integration.quota_released: %s back under its limits "
+                    "(%d/min, %d/day) — state set to active"
+                    % (
+                        quota.display_name,
+                        counts["minute"],
+                        counts["day"],
+                    ),
+                )
+        return True
 
 
 class FixEventTopic(models.Model):
@@ -647,6 +753,100 @@ class FixConnector(models.Model):
         # operator's manual override of last resort - privileged.
         return {"state", "last_latency_ms", "last_success_at"}
 
+    # ------------------------------------------------------------------
+    # P1-6 completion (2026-11-05): the health probe exists. It measures
+    # what the platform can honestly measure TODAY — credential validity
+    # (fix.connector.credential.expires_on) and this connector's recorded
+    # traffic in the integration log — and refuses to fabricate the rest:
+    # no synthetic HTTP is invented for connectors that have no dispatcher
+    # yet. The probe can only DEGRADE on real evidence (expired credential,
+    # failing traffic) and only RECOVER on real evidence (unexpired
+    # credential + successful traffic). A 'disabled' connector is the
+    # operator's decision: the probe never touches it.
+    # ------------------------------------------------------------------
+
+    PROBE_WINDOW = timedelta(minutes=30)
+
+    def _probe_health(self):
+        """Measure one connector's health. Returns the verdict dict; the
+        caller (cron / action_probe) writes it through the guard."""
+        self.ensure_one()
+        Log = self.env["fix.integration.log"].sudo()
+        window_start = fields.Datetime.now() - self.PROBE_WINDOW
+        traffic = Log.search(
+            [("connector_id", "=", self.id), ("created_at", ">=", window_start)],
+            order="created_at desc",
+            limit=50,
+        )
+        verdict = {"state": None, "last_latency_ms": None, "last_success_at": None}
+        successes = traffic.filtered(lambda row: row.status == "success")
+        failures = traffic.filtered(lambda row: row.status != "success")
+        credential_expired = bool(
+            self.credential_id.expires_on
+            and self.credential_id.expires_on < fields.Date.context_today(self)
+        )
+        if successes:
+            verdict["last_success_at"] = successes[0].created_at
+            verdict["last_latency_ms"] = int(sum(successes.mapped("latency_ms")) / len(successes))
+        if credential_expired:
+            # an expired credential is hard evidence the connector cannot
+            # authenticate — degrade whatever the traffic says
+            verdict["state"] = "degraded"
+        elif failures and not successes:
+            verdict["state"] = "degraded"
+        elif successes:
+            verdict["state"] = "live"
+        # no traffic + valid credential: no evidence either way — leave the
+        # state alone (a silent connector is not a failing connector)
+        return verdict
+
+    def action_probe(self):
+        """On-demand probe (Integration Admin): degrade/recover the
+        connector from measured evidence only, audited when it changes."""
+        _require_integration_admin(self.env, "probe a connector")
+        return self._apply_probe()
+
+    @api.model
+    def cron_probe_connectors(self):
+        """Every 15 minutes: refresh connector health from measured
+        evidence (P1-6 / M28-9). Server code; guarded fields stay closed."""
+        return self.search([])._apply_probe()
+
+    def _apply_probe(self):
+        for rec in self:
+            if rec.state == "disabled":
+                continue
+            before_state = rec.state
+            verdict = rec._probe_health()
+            writes = {k: v for k, v in verdict.items() if v is not None and getattr(rec, k) != v}
+            if not writes:
+                continue
+            Log = self.env["fix.integration.log"].sudo()
+            window_start = fields.Datetime.now() - self.PROBE_WINDOW
+            window_rows = Log.search_count(
+                [("connector_id", "=", rec.id), ("created_at", ">=", window_start)]
+            )
+            credential_expired = bool(
+                rec.credential_id.expires_on
+                and rec.credential_id.expires_on < fields.Date.context_today(rec)
+            )
+            rec._guarded().write(writes)
+            _integration_audit(
+                self.env,
+                "integration.connector_probed",
+                "fix.connector,%d" % rec.id,
+                "integration.connector_probed: %s state %s -> %s from measured "
+                "evidence (%d log rows in the window, credential %s)"
+                % (
+                    rec.name,
+                    before_state,
+                    verdict.get("state") or before_state,
+                    window_rows,
+                    "expired" if credential_expired else "valid",
+                ),
+            )
+        return True
+
     def action_mark_degraded(self):
         _require_integration_admin(self.env, "mark a connector degraded")
         self._guarded().write({"state": "degraded"})
@@ -744,21 +944,66 @@ class FixSyncConflict(models.Model):
         for rec in self:
             if rec.resolution != "pending":
                 raise UserError("Resolve a pending conflict (this one is %s)" % rec.resolution)
+            if resolution in ("local_wins", "remote_wins"):
+                rec._apply_resolution_value(resolution)
         self._guarded().write({"resolution": resolution})
         for rec in self:
+            applied = resolution in ("local_wins", "remote_wins")
             _integration_audit(
                 self.env,
                 "integration.sync_conflict_resolved",
                 "fix.sync.conflict,%d" % rec.id,
-                "integration.sync_conflict_resolved: %s %s on %s.%s by %s"
+                "integration.sync_conflict_resolved: %s %s on %s.%s by %s%s"
                 % (
                     rec.name,
                     resolution,
                     rec.res_model,
                     rec.field_name,
                     self.env.user.name,
+                    " — value applied to %s#%s" % (rec.res_model, rec.res_id)
+                    if applied
+                    else " (manual merge, nothing auto-applied)",
                 ),
             )
+        return True
+
+    def _apply_resolution_value(self, resolution):
+        """P1-6 completion (M28-7): a resolution is not a label — the chosen
+        value is WRITTEN to the collided record. 'merged' is the operator
+        stating they reconciled it by hand, so it applies nothing.
+
+        Refuses (nothing resolved) when the record, the field or the model
+        is gone, or the field is not a text-like field the stored Char
+        values can safely populate.
+        """
+        self.ensure_one()
+        if self.res_model not in self.env:
+            raise UserError(
+                "Cannot apply %s on %s: model %r no longer exists — resolve "
+                "as 'merged' once handled." % (resolution, self.name, self.res_model)
+            )
+        target_model = self.env[self.res_model].sudo()
+        target = target_model.browse(self.res_id)
+        if not target.exists():
+            raise UserError(
+                "Cannot apply %s on %s: record %s#%d no longer exists — resolve "
+                "as 'merged' once handled." % (resolution, self.name, self.res_model, self.res_id)
+            )
+        field_def = target_model._fields.get(self.field_name)
+        if field_def is None:
+            raise UserError(
+                "Cannot apply %s on %s: field %r no longer exists on %s — "
+                "resolve as 'merged' once handled."
+                % (resolution, self.name, self.field_name, self.res_model)
+            )
+        if field_def.type not in ("char", "text", "html"):
+            raise UserError(
+                "Cannot auto-apply %s on %s.%s: the field is %s and the stored "
+                "collision values are text — reconcile by hand and use 'merged'."
+                % (resolution, self.res_model, self.field_name, field_def.type)
+            )
+        value = self.local_value if resolution == "local_wins" else self.remote_value
+        target.write({self.field_name: value})
         return True
 
     def action_local_wins(self):
@@ -792,6 +1037,13 @@ class FixIntegrationLog(models.Model):
     consumer_id = fields.Many2one("fix.api.consumer", string="Consumer", index=True)
     endpoint_id = fields.Many2one("fix.api.endpoint", string="Endpoint", index=True)
     topic_code = fields.Char(index=True)
+    connector_id = fields.Many2one(
+        "fix.connector",
+        string="Connector",
+        index=True,
+        help="The connector the attempt ran through — the probe derives "
+        "health (state/latency) from these rows (P1-6).",
+    )
     subscription_id = fields.Many2one(
         "fix.event.subscription",
         string="Subscription",
@@ -841,6 +1093,7 @@ class FixIntegrationLog(models.Model):
         endpoint=None,
         topic_code=None,
         subscription=None,
+        connector=None,
         latency_ms=None,
         status_code=None,
         created_at=None,
@@ -862,6 +1115,8 @@ class FixIntegrationLog(models.Model):
             vals["subscription_id"] = (
                 subscription if isinstance(subscription, int) else subscription.id
             )
+        if connector:
+            vals["connector_id"] = connector if isinstance(connector, int) else connector.id
         if topic_code:
             vals["topic_code"] = topic_code
         return self.sudo().with_context(**{LOG_SERVICE_KEY: True}).create(vals)

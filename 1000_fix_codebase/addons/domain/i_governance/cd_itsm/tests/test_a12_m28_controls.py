@@ -504,11 +504,17 @@ def test_m28_12_webhook_report_matches_attempts_on_the_subscription(
 
 
 def _conflict(env):
+    # P1-6 completion: a resolution now APPLIES the chosen value, so the
+    # target must exist (a dangling target refuses - see
+    # test_a12_p16_completion.test_p16_resolve_refuses_when_target_gone).
+    partner = env["res.partner"].create(
+        {"name": "M28 Conflict Target", "phone": "+8801700000000"}
+    )
     return env["fix.sync.conflict"].create(
         {
             "device_ref": "PROBE-DEV-1",
             "res_model": "res.partner",
-            "res_id": 999,
+            "res_id": partner.id,
             "field_name": "phone",
             "local_value": "+8801700000001",
             "remote_value": "+8801700000002",

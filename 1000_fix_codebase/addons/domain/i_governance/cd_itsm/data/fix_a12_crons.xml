@@ -9,6 +9,9 @@
     state is 'dead' into fix.event.dlq, so the DLQ screen shows the REAL
     dead letters of the relay instead of a disconnected register
     (P1-6, 15 minutes).
+  - cron_enforce_quotas / cron_probe_connectors (P1-6 completion
+    2026-11-05): the quota state and connector health are MEASURED from
+    the append-only integration log - never typed.
 -->
 <odoo>
     <data noupdate="1">
@@ -26,6 +29,24 @@
             <field name="model_id" ref="model_fix_event_dlq"/>
             <field name="state">code</field>
             <field name="code">model.cron_sync_dead_letters()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_api_quota_enforcement" model="ir.cron">
+            <field name="name">M28: throttle API consumers over their measured quota</field>
+            <field name="model_id" ref="model_fix_api_quota"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_enforce_quotas()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_connector_probe" model="ir.cron">
+            <field name="name">M28: probe connector health from measured evidence</field>
+            <field name="model_id" ref="model_fix_connector"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_probe_connectors()</field>
             <field name="interval_number">15</field>
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
