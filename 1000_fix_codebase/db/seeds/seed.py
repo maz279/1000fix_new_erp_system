@@ -140,6 +140,23 @@ def validate_target(url: str) -> None:
         raise ValueError(f"seed: refusing non-local endpoint {url!r}")
 
 
+def _apply_url(url: str) -> None:
+    """--url: retarget the seeder at ONE exact loopback endpoint.
+
+    The default ALLOWED set (8069) stays the peer's fix_dev server; a strict
+    fresh-DB seed runs against a second Odoo booted on its own port (e.g.
+    http://127.0.0.1:8079 - fix_test_a4s), so the allowlist narrows to that
+    endpoint alone: nothing else the process could be told to reach stays
+    reachable."""
+    global BIND, ALLOWED
+    p = urlparse(url)
+    if p.scheme != "http" or p.hostname not in ("127.0.0.1", "localhost"):
+        raise SystemExit(f"seed: --url must be an http loopback endpoint, got {url!r}")
+    port = p.port or 80
+    BIND = f"http://{p.hostname}:{port}"
+    ALLOWED = {(p.scheme, p.hostname, port)}
+
+
 class Client:
     def __init__(self) -> None:
         self.cookie = ""
@@ -316,7 +333,14 @@ def main() -> int:
         "--force", action="store_true", help="seed even if orders already exist (appends)"
     )
     ap.add_argument("--db", default=DB, help="database on the local Odoo (default fix_dev)")
+    ap.add_argument(
+        "--url",
+        default=None,
+        help="exact http loopback endpoint of the Odoo to seed (default http://127.0.0.1:8069)",
+    )
     args = ap.parse_args()
+    if args.url:
+        _apply_url(args.url)
     rng = random.Random(args.seed)
 
     c = Client()
