@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 D8: M67 project risks escalate into the M60 enterprise register. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_project_risk_escalated" model="fix.event.consumer">
+            <field name="name">M60: open a register entry for an escalated project risk</field>
+            <field name="event_type">project.risk_escalated</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_project_risk_escalated</field>
+            <field name="module">cd_grc</field>
+        </record>
+    </data>
+</odoo>

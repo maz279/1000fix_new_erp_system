@@ -3,10 +3,15 @@
 # survivorship engine and the stewardship quality audit.
 import contextlib
 import json
-import logging
 
 import pytest
-from odoo.exceptions import ValidationError
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
+    approve_via_inbox,
+    inbox_task,
+)
+from odoo.exceptions import UserError, ValidationError
+
+STEWARD = "cd_entity_config.group_mdm_domain_steward"
 
 
 @contextlib.contextmanager
@@ -15,6 +20,33 @@ def _rejects(env, exc, match):
     half-applied write in the shared test transaction."""
     with pytest.raises(exc, match=match) as info, env.cr.savepoint():
         yield info
+
+
+@pytest.fixture
+def make_user(odoo_env):
+    counter = {"n": 0}
+
+    def _make(*xmlids):
+        counter["n"] += 1
+        groups = [odoo_env.ref("base.group_user").id] + [odoo_env.ref(x).id for x in xmlids]
+        return (
+            odoo_env["res.users"]
+            .with_context(no_reset_password=True)
+            .create(
+                {
+                    "name": "MDM Probe %d" % counter["n"],
+                    "login": "mdm.probe.%d@test" % counter["n"],
+                    "group_ids": [(6, 0, groups)],
+                }
+            )
+        )
+
+    return _make
+
+
+@pytest.fixture
+def stewards(make_user):
+    return {"a": make_user(STEWARD), "b": make_user(STEWARD)}
 
 
 def _events(env, event_type, rec, aggregate="fix.mdm.change.request"):
@@ -47,10 +79,12 @@ def _request(env, **vals):
 def test_create_emits_change_requested(odoo_env):
     cr = _request(odoo_env)
     assert cr.state == "draft"
-    assert cr.reference == "NEW"  # no sequence configured: explicit placeholder
+    # A12 P1-2: the request now carries the governed sequence (MDM/YYYY/…),
+    # not the pre-upgrade "NEW" placeholder.
+    assert cr.reference.startswith("MDM/%d/" % odoo_env.cr.now().year)
     payload = json.loads(_events(odoo_env, "mdm.change_requested", cr).payload)
     assert payload == {
-        "reference": "NEW",
+        "reference": cr.reference,
         "model_name": "res.partner",
         "record_id": cr.record_id,
         "state": "draft",
@@ -74,45 +108,55 @@ def test_submit_twice_is_refused(odoo_env):
         cr.action_submit()
 
 
-@pytest.mark.parametrize(
-    "vals",
-    [
-        {"record_id": 999_999_999},  # target record no longer exists
-        {"proposed_changes": False},  # nothing proposed -> nothing to capture
-    ],
-)
-def test_snapshot_is_empty_when_there_is_nothing_to_capture(odoo_env, vals):
-    cr = _request(odoo_env, **vals)
-    assert cr._snapshot_current() == "{}"
+def test_a_request_that_proposes_nothing_is_refused(odoo_env):
+    """P1-2: the proposed values are the point of the request — a request
+    without them is refused at create, not silently captured empty."""
+    with _rejects(odoo_env, ValidationError, match="proposes nothing"):
+        _request(odoo_env, proposed_changes=False)
 
 
-def test_snapshot_failure_is_logged_and_returns_empty(odoo_env, caplog):
-    cr = _request(odoo_env, model_name="no.such.model")
-    with caplog.at_level(logging.WARNING):
-        assert cr._snapshot_current() == "{}"
-    assert "MDM snapshot of no.such.model" in caplog.text
+def test_a_request_for_a_missing_target_is_refused_at_create(odoo_env):
+    """M64-12: a request for a record that is gone cannot even be raised."""
+    with _rejects(odoo_env, ValidationError, match="gone"):
+        _request(odoo_env, record_id=999_999_999)
 
 
-@pytest.mark.parametrize("pre_state", ["submitted", "under_review"])
-def test_approve_from_review_states_emits_change_approved(odoo_env, pre_state):
+def test_a_request_for_an_unknown_model_is_refused_at_create(odoo_env):
+    with _rejects(odoo_env, ValidationError, match="no.such.model"):
+        _request(odoo_env, model_name="no.such.model")
+
+
+def test_approve_from_review_states_emits_change_approved(odoo_env, stewards):
+    """A12 P1-2: the decision is ROUTED — a steward who is not the proposer
+    decides from the M63 approver's inbox; direct state writes are refused."""
     cr = _request(odoo_env)
-    cr.write({"state": pre_state})
-    cr.action_approve()
+    cr.action_submit()
+    approve_via_inbox(cr, stewards["b"])
     assert cr.state == "approved"
-    assert cr.reviewed_by.id == odoo_env.uid and cr.reviewed_at
+    assert cr.reviewed_by == stewards["b"] and cr.reviewed_at
     payload = json.loads(_events(odoo_env, "mdm.change_approved", cr).payload)
     assert payload["state"] == "approved"
+    # the direct paths the old test used are now the attack surface. odoo_env
+    # runs as the superuser (su), which the guard trusts, so the probe runs
+    # as a real user: the state cannot be typed, only transitioned.
+    with _rejects(odoo_env, UserError, match="cannot be set directly"):
+        cr.with_user(stewards["a"]).write({"state": "under_review"})
+    with _rejects(odoo_env, ValidationError, match="Only submitted requests"):
+        cr.sudo().action_approve()  # already decided: from-state refuses
 
 
 def test_approve_from_draft_is_refused(odoo_env):
     cr = _request(odoo_env)
     with _rejects(odoo_env, ValidationError, match="Only submitted requests can be approved"):
-        cr.action_approve()
+        cr.sudo().action_approve()
 
 
-def test_reject_emits_change_rejected(odoo_env):
+def test_reject_emits_change_rejected(odoo_env, stewards):
     cr = _request(odoo_env)
-    cr.action_reject()
+    cr.action_submit()
+    cr.action_request_approval()
+    task = inbox_task(cr, stewards["b"])
+    task.with_user(stewards["b"]).action_reject("wrong source document")
     assert cr.state == "rejected" and cr.reviewed_at
     assert len(_events(odoo_env, "mdm.change_rejected", cr)) == 1
     assert not _events(odoo_env, "mdm.change_approved", cr)
@@ -126,10 +170,11 @@ def test_writes_without_a_state_change_emit_nothing(odoo_env):
     assert not _events(odoo_env, "mdm.change_rejected", cr)
 
 
-def test_other_state_changes_emit_no_decision_event(odoo_env):
+def test_a_cancelled_request_emits_no_decision_event(odoo_env):
     cr = _request(odoo_env)
     cr.action_submit()
-    cr.write({"state": "under_review", "review_notes": "looking"})
+    cr.action_cancel()
+    assert cr.state == "cancelled"
     assert not _events(odoo_env, "mdm.change_approved", cr)
     assert not _events(odoo_env, "mdm.change_rejected", cr)
 
@@ -209,9 +254,12 @@ def test_scores_start_unmeasured_at_zero(odoo_env):
 
 def test_quality_index_is_the_weighted_dama_score(odoo_env):
     rec = _steward(odoo_env, "party")
-    rec.write({"completeness_score": 90.0, "uniqueness_score": 80.0, "validity_score": 70.0})
+    # the scores are guarded: only the audit action may set them
+    rec._guarded().write(
+        {"completeness_score": 90.0, "uniqueness_score": 80.0, "validity_score": 70.0}
+    )
     assert rec.overall_quality_score == 81.0  # 0.4*90 + 0.3*80 + 0.3*70
-    rec.validity_score = 100.0
+    rec._guarded().write({"validity_score": 100.0})
     assert rec.overall_quality_score == 90.0
 
 
@@ -279,7 +327,9 @@ def test_party_scores_are_computed_from_real_partners(odoo_env, monkeypatch):
 
 def test_audit_of_an_empty_master_never_reports_a_score(odoo_env):
     rec = _steward(odoo_env, "product")
-    rec.write({"completeness_score": 100.0, "uniqueness_score": 100.0, "validity_score": 100.0})
+    rec._guarded().write(
+        {"completeness_score": 100.0, "uniqueness_score": 100.0, "validity_score": 100.0}
+    )
     odoo_env["fix.catalogue.item"].search([]).unlink()
     rec.action_audit_data_quality()
     assert rec.records_audited_count == 0

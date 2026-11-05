@@ -23,6 +23,7 @@ integration stay in W3/W5 — this is the kernel only.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/fix_document_handoff_consumers.xml",
         "views/fix_document_views.xml",
     ],
     "installable": True,

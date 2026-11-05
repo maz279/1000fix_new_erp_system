@@ -80,7 +80,7 @@ DOMAIN_RULES = {
 class FixMdmStewardship(models.Model):
     _name = "fix.mdm.stewardship"
     _description = "Master Data Domain Stewardship & Quality Engine"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "overall_quality_score desc, domain asc"
 
     # AS-03: Multi-company and Operating Unit discipline
@@ -171,6 +171,19 @@ class FixMdmStewardship(models.Model):
         "A stewardship governance record already exists for this domain within the company.",
     )
 
+    # A12 R4 (M64): the quality scores are EVIDENCE measured by the audit
+    # action; a caller typing a better number in the form is the audit finding
+    # itself. They change only through action_audit_data_quality.
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "completeness_score",
+            "uniqueness_score",
+            "validity_score",
+            "audit_state",
+            "records_audited_count",
+            "last_audit_date",
+        }
+
     @api.depends("completeness_score", "uniqueness_score", "validity_score")
     def _compute_quality_index(self):
         for rec in self:
@@ -241,7 +254,7 @@ class FixMdmStewardship(models.Model):
         vals.update(
             {"records_audited_count": measured["count"], "last_audit_date": fields.Datetime.now()}
         )
-        self.write(vals)
+        self._guarded().write(vals)
 
         publish(
             self.env,
@@ -258,3 +271,20 @@ class FixMdmStewardship(models.Model):
                 "records_audited": self.records_audited_count,
             },
         )
+
+    # ---- A12 event consumer (FF-48) ---------------------------------------
+    # mdm.quality_audited → chatter: the quality trail lives on the record.
+    @api.model
+    def consume_mdm_quality_audited(self, event):
+        rec = self.browse(event.get("aggregate_id")).exists()
+        payload = event.get("payload") or {}
+        if rec and hasattr(rec, "message_post"):
+            rec.message_post(
+                body="Quality audit published for %s: %s records, index %s%%."
+                % (
+                    dict(self._fields["domain"].selection).get(rec.domain, rec.domain),
+                    payload.get("records_audited", rec.records_audited_count),
+                    payload.get("overall_quality_score", rec.overall_quality_score),
+                )
+            )
+        return True

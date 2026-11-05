@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 audit (2026-11-04) P2 / FF-48: cd_ppm publishes project.created,
+  project.milestone_completed, project.completed and project.risk_escalated
+  but shipped no fix.event.consumer, so the events piled up in the outbox
+  (live: 9 project.created pending). These are the in-project consumers;
+  the M60 enterprise-register consumer for project.risk_escalated ships in
+  cd_grc (lead).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_project_created" model="fix.event.consumer">
+            <field name="name">M67: project creation hand-off trail</field>
+            <field name="event_type">project.created</field>
+            <field name="model">fix.project</field>
+            <field name="method">consume_project_created</field>
+            <field name="module">cd_ppm</field>
+        </record>
+
+        <record id="consumer_project_milestone_completed" model="fix.event.consumer">
+            <field name="name">M67: milestone completion recomputes project progress</field>
+            <field name="event_type">project.milestone_completed</field>
+            <field name="model">fix.project.milestone</field>
+            <field name="method">consume_project_milestone_completed</field>
+            <field name="module">cd_ppm</field>
+        </record>
+
+        <record id="consumer_project_completed" model="fix.event.consumer">
+            <field name="name">M67: project closure hand-off trail</field>
+            <field name="event_type">project.completed</field>
+            <field name="model">fix.project</field>
+            <field name="method">consume_project_completed</field>
+            <field name="module">cd_ppm</field>
+        </record>
+
+        <record id="consumer_project_risk_escalated" model="fix.event.consumer">
+            <field name="name">M67: risk escalation echo on the project risk</field>
+            <field name="event_type">project.risk_escalated</field>
+            <field name="model">fix.project.risk</field>
+            <field name="method">consume_project_risk_escalated</field>
+            <field name="module">cd_ppm</field>
+        </record>
+
+    </data>
+</odoo>

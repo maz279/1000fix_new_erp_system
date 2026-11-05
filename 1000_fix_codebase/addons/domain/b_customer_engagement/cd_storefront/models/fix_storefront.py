@@ -86,6 +86,30 @@ class FixStorefrontCart(models.Model):
                 raise UserError("A shipping address is required for home delivery")
             address = "Branch walk-in pickup"
 
+        # A12 audit P1-4 / D8 (M65 gateways -> M38 checkout): checkout must
+        # read the payment-gateway master. A rail whose gateway is
+        # configured but not yet LIVE for money (draft, suspended, or still
+        # in sandbox mode) must not take an order. A rail with no gateway
+        # master configured keeps today's behaviour, so tenants that have
+        # not set up M65 are not locked out of their own storefront.
+        if payment_rail and payment_rail != "cod":
+            gateway = (
+                self.env["fix.payment.gateway"]
+                .sudo()
+                .search([("provider", "=ilike", payment_rail)], limit=1)
+            )
+            if gateway:
+                checker = getattr(gateway, "assert_live_for_checkout", None)
+                if callable(checker):
+                    checker("storefront checkout")
+                elif not (gateway.state == "active" and gateway.mode == "live"):
+                    raise UserError(
+                        "The %s payment gateway is not live for checkout "
+                        "(state=%s, mode=%s). Platform operations must "
+                        "activate it before it can take orders."
+                        % (payment_rail, gateway.state or "?", gateway.mode or "?")
+                    )
+
         order_vals = {
             "cart_id": rec.id,
             "customer_id": rec.customer_id.id,

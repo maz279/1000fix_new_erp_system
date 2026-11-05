@@ -1,15 +1,24 @@
 /** @odoo-module **/
-/* A12 · M67 Projects & Portfolio Management. 3 groups / 11 screens / 5 reports / 4 forms / freg 54. */
+/* A12 · M67 Projects & Portfolio Management. 3 groups / 12 screens / 7 reports / 4 forms / freg 54.
+ *
+ * A12 workflow audit (2026-11-04) R4/X5: the forms posted `state` (and the
+ * gate's `decision`) as ordinary inputs — the badge at the top of each form
+ * is now the ONLY place state appears, and every lifecycle button is an
+ * action with its server-side checks: project activation needs the DOFA
+ * budget approval, a milestone completes only with customer acceptance
+ * evidence, "Mark invoiced" creates the real customer invoice, and the gate
+ * decision is prompted (pass / conditional / fail) and recorded by the
+ * reviewer — never typed into a field. */
 
 export const MODULE = {
   area: 'A12', code: 'M67', en: 'Projects & Portfolio Management', title: 'M67 · Projects & Portfolio Management',
   bn: 'প্রজেক্ট ও পোর্টফোলিও', icon: '📈',
-  desc: 'Project register (internal, client, infrastructure), portfolio status with budget vs actual, milestones and tasks with workload, and stage-gate reviews with recorded decisions.',
+  desc: 'Project register (internal, client, infrastructure) with DOFA-routed budget approval and baselines, portfolio status with budget vs actual, milestones with customer acceptance and overdue flagging, tasks, milestone billing that creates real invoices under the contract ceiling, and independent stage-gate reviews.',
   kpis: [
     { l: 'Projects Active', m: 'projects_active' },
-    { l: 'Projects Total', m: 'projects_total' },
     { l: 'Milestones Due 30d', m: 'milestones_due_30d' },
-    { l: 'Tasks Open', m: 'tasks_open' },
+    { l: 'Milestones Overdue', m: 'milestones_overdue' },
+    { l: 'Invoiced (real)', m: 'billings_invoiced' },
     { l: 'Portfolio Budget', m: 'portfolio_budget', prefix: '৳ ' }
   ],
   groups: [
@@ -18,6 +27,7 @@ export const MODULE = {
       { id: 'M67-templates', en: 'Templates (6 types)', bn: 'Templates (6 types)', t: 'g' },
       { id: 'M67-evm', en: 'Earned Value', bn: 'Earned Value', t: 'g' },
       { id: 'M67-billing', en: 'Milestone Billing', bn: 'Milestone Billing', t: 'g' },
+      { id: 'M67-billstatus', en: 'Billing Status', bn: 'বিলিং স্ট্যাটাস', t: 'r' },
       { id: 'M67-profit', en: 'Project P&L', bn: 'Project P&L', t: 'g' },
       { id: 'M67-risks', en: 'Risk & Issue Registers', bn: 'Risk & Issue Registers', t: 'g' }
     ]},
@@ -37,16 +47,16 @@ export const MODULE = {
       { id: 'M67-compliance', en: 'Gate Compliance', bn: 'সম্মতি', t: 'r' }
     ]}
   ],
-  reports: ['Portfolio Status', 'Milestone Tracker', 'Task Workload by Assignee', 'Stage-Gate Compliance', 'Budget vs Actual'],
+  reports: ['Portfolio Status', 'Milestone Tracker', 'Task Workload by Assignee', 'Stage-Gate Compliance', 'Budget vs Actual', 'Billing Status'],
   forms: ['Project (6 types)', 'Milestone', 'Task', 'Stage Gate Review'],
-  cross: ['M49 capex budgets', 'M54 costing', 'M21 project staffing'],
+  cross: ['M49 capex budgets', 'M54 costing', 'M21 project staffing', 'M60 enterprise register (project.risk_escalated)'],
   freg: { src: 54, sub: [
     ['1', 'Portfolio', 10, { model: 'fix.project', cols: ['name', 'code', 'project_type', 'manager_id', 'state'], screens: ['M67-projects', 'M67-portfolio', 'M67-budget'] }],
     ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-record'] }],
     ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-tracker', 'M67-resources'] }],
     ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-compliance'] }],
-    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'state'], screens: ['M67-billing', 'M67-evm', 'M67-profit'] }],
-    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'state'], screens: ['M67-risks'] }]
+    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'invoice_id', 'state'], screens: ['M67-billing', 'M67-billstatus', 'M67-evm', 'M67-profit'] }],
+    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'state'], screens: ['M67-risks'] }]
   ] }
 };
 
@@ -60,7 +70,7 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active',
       on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Project Record', note: 'The full project record: type, manager, dates, budget and state. Budget variance is computed by the model.',
+      { title: 'Project Record', note: 'The full project record: type, manager, dates, budget, contract value and computed variance. Activation needs the DOFA budget approval and freezes the baseline.',
         fields: [
           { name: 'name', required: true, label: 'Project Name' },
           { name: 'project_type', required: true, label: 'Project Type' },
@@ -68,23 +78,44 @@ export const SCREENS = {
           { name: 'date_start', label: 'Start' },
           { name: 'date_end', label: 'End' },
           { name: 'budget', label: 'Budget' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'contract_value', label: 'Contract Value' }
         ] }
     ] },
 
   'M67-projects': { kind: 'model_list', model: 'fix.project', stateField: 'state',
-    cols: ['name', 'code', 'project_type', 'manager_id', 'date_start', 'date_end', 'budget', 'state'] },
+    cols: ['name', 'code', 'project_type', 'manager_id', 'date_start', 'date_end', 'budget', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Budget Approval', states: ['draft'] },
+      { m: 'action_activate', l: 'Activate', states: ['draft'] },
+      { m: 'action_hold', l: 'Hold', states: ['active'] },
+      { m: 'action_resume', l: 'Resume', states: ['on_hold'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'active', 'on_hold'] },
+      { m: 'action_complete', l: 'Complete', states: ['active'] }
+    ] },
   'M67-portfolio': { kind: 'table_report', module: 'M67', report: 'portfolio_status', title: 'Portfolio Status', period: false },
   'M67-budget': { kind: 'table_report', module: 'M67', report: 'budget_vs_actual', title: 'Budget vs Actual', period: false },
   'M67-milestones': { kind: 'model_list', model: 'fix.project.milestone', stateField: 'state',
-    cols: ['name', 'project_id', 'due_date', 'state'] },
+    cols: ['name', 'project_id', 'due_date', 'overdue', 'accepted_on', 'state'],
+    actions: [
+      { m: 'action_accept', l: 'Accept', states: ['pending'], ask: 'Customer acceptance evidence (required)', kwarg: 'acceptance_note' },
+      { m: 'action_complete', l: 'Complete', states: ['pending'] }
+    ] },
   'M67-tracker': { kind: 'table_report', module: 'M67', report: 'milestone_tracker', title: 'Milestone Tracker', period: false },
   'M67-wbs': { kind: 'model_list', model: 'fix.project.task', stateField: 'state',
-    cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'planned_hours', 'actual_hours', 'state'] },
+    cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'planned_hours', 'actual_hours', 'state'],
+    actions: [
+      { m: 'action_start', l: 'Start', states: ['todo'] },
+      { m: 'action_done', l: 'Done', states: ['todo', 'in_progress'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['todo', 'in_progress'] }
+    ] },
   'M67-resources': { kind: 'table_report', module: 'M67', report: 'task_workload', title: 'Task Workload by Assignee', period: false },
   'M67-gates': { kind: 'model_list', model: 'fix.project.gate', stateField: 'state',
-    cols: ['name', 'project_id', 'gate', 'review_on', 'decision', 'checklist_passed', 'state'],
-    actions: [{ m: 'action_hold', l: 'Hold Review' }, { m: 'action_close', l: 'Close' }] },
+    cols: ['name', 'project_id', 'gate', 'review_on', 'reviewer_id', 'decision', 'checklist_passed', 'state'],
+    actions: [
+      { m: 'action_record_decision', l: 'Record Decision', states: ['scheduled'], ask: 'Decision — pass / conditional / fail', kwarg: 'decision' },
+      { m: 'action_hold', l: 'Hold Review', states: ['scheduled'] },
+      { m: 'action_close', l: 'Close', states: ['held'] }
+    ] },
   'M67-compliance': { kind: 'table_report', module: 'M67', report: 'gate_compliance', title: 'Stage-Gate Compliance', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
@@ -97,7 +128,7 @@ export const SCREENS = {
       draft: 'Draft', active: 'Active', on_hold: 'On Hold',
       completed: 'Completed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Project', note: 'The project code is generated on creation. Budget variance is computed as budget minus actual.',
+      { title: 'Project', note: 'The project code is generated on creation (PRJ/year). The budget needs DOFA approval before activation; the baseline freezes at activation and billing may not exceed the contract value.',
         fields: [
           { name: 'name', required: true, label: 'Project Name' },
           { name: 'project_type', required: true, label: 'Project Type' },
@@ -105,7 +136,8 @@ export const SCREENS = {
           { name: 'date_start', label: 'Start' },
           { name: 'date_end', label: 'End' },
           { name: 'budget', label: 'Budget' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'contract_value', label: 'Contract Value' },
+          { name: 'actual_cost', label: 'Actual Cost' }
         ] }
     ]
   },
@@ -117,12 +149,11 @@ export const SCREENS = {
     back: 'M67-milestones',
     status: { field: 'state', labels: { pending: 'Pending', done: 'Done' } },
     sections: [
-      { title: 'Milestone', note: 'A milestone cannot complete while open tasks remain (model gate on action_complete).',
+      { title: 'Milestone', note: 'Completion needs open tasks closed AND the customer acceptance recorded with evidence (list actions); the daily cron flags overdue pending milestones.',
         fields: [
           { name: 'name', required: true, label: 'Milestone Name' },
           { name: 'project_id', required: true, label: 'Project' },
-          { name: 'due_date', label: 'Due Date' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'due_date', label: 'Due Date' }
         ] }
     ]
   },
@@ -135,15 +166,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       todo: 'To Do', in_progress: 'In Progress', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Task', note: 'Planned vs actual hours drive the workload report; the milestone is optional grouping.',
+      { title: 'Task', note: 'Planned vs actual hours drive the workload report; the milestone is optional grouping. State moves through the list actions.',
         fields: [
           { name: 'name', required: true, label: 'Task Name' },
           { name: 'project_id', required: true, label: 'Project' },
           { name: 'milestone_id', label: 'Milestone' },
           { name: 'assigned_to', label: 'Assigned To' },
           { name: 'planned_hours', label: 'Planned Hours' },
-          { name: 'actual_hours', label: 'Actual Hours' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'actual_hours', label: 'Actual Hours' }
         ] }
     ]
   },
@@ -156,15 +186,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       scheduled: 'Scheduled', held: 'Held', closed: 'Closed' } },
     sections: [
-      { title: 'Gate Review', note: 'Holding a review requires the decision to be recorded first; the checklist flag is the pre-review result.',
+      { title: 'Gate Review', note: 'The reviewer is independent of the project manager (constraint). The DECISION is recorded through the list action (pass / conditional / fail) — it is never typed here; a failed gate blocks project activation.',
         fields: [
           { name: 'project_id', required: true, label: 'Project' },
           { name: 'gate', required: true, label: 'Gate' },
           { name: 'review_on', required: true, label: 'Review On' },
           { name: 'reviewer_id', label: 'Reviewer' },
-          { name: 'checklist_passed', label: 'Checklist Passed' },
-          { name: 'decision', label: 'Decision' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'checklist_passed', label: 'Checklist Passed' }
         ] },
       { title: 'Findings', fields: [
           { name: 'findings', type: 'text', label: 'Findings' }
@@ -175,9 +203,14 @@ export const SCREENS = {
   /* registry completion screens */
   'M67-templates': { kind: 'model_list', model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], actions: [{ m: 'action_instantiate', l: 'Create Project' }] },
   'M67-evm': { kind: 'table_report', module: 'M67', report: 'earned_value', title: 'Earned Value', period: false },
-  'M67-billing': { kind: 'model_list', model: 'fix.project.billing', stateField: 'state', cols: ['name', 'project_id', 'milestone_id', 'billing_type', 'amount', 'due_on', 'invoice_ref', 'state'], actions: [{ m: 'action_mark_ready', l: 'Ready to Invoice' }, { m: 'action_mark_invoiced', l: 'Mark Invoiced' }] },
+  'M67-billing': { kind: 'model_list', model: 'fix.project.billing', stateField: 'state', cols: ['name', 'project_id', 'milestone_id', 'billing_type', 'amount', 'due_on', 'invoice_id', 'state'], actions: [{ m: 'action_mark_ready', l: 'Ready to Invoice', states: ['planned'] }, { m: 'action_mark_invoiced', l: 'Mark Invoiced', states: ['ready'] }] },
+  'M67-billstatus': { kind: 'table_report', module: 'M67', report: 'billing_status', title: 'Billing Status', period: false },
   'M67-profit': { kind: 'table_report', module: 'M67', report: 'project_pnl', title: 'Project P&L', period: false },
-  'M67-risks': { kind: 'model_list', model: 'fix.project.risk', stateField: 'state', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'owner_id', 'state'], actions: [{ m: 'action_mitigate', l: 'Mitigate' }, { m: 'action_close', l: 'Close' }] },
+  'M67-risks': { kind: 'model_list', model: 'fix.project.risk', stateField: 'state', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'owner_id', 'state'], actions: [
+    { m: 'action_mitigate', l: 'Mitigate', states: ['open'], ask: 'Mitigation taken (required)', kwarg: 'mitigation' },
+    { m: 'action_close', l: 'Close', states: ['open', 'mitigating'] },
+    { m: 'action_reopen', l: 'Reopen', states: ['closed'] }
+  ] },
 
 
   /* ===== registry completion forms ===== */
@@ -187,13 +220,15 @@ export const SCREENS = {
     title: "Project Template",
     back: 'M67-templates',
     sections: [
-      { title: "Project Template", note: "A template carries the default duration, budget, gate plan and milestone plan. 'Create Project' instantiates a real project and its milestones.",
+      { title: "Project Template", note: "A template carries the default duration, budget, gate plan, milestone plan and WBS. 'Create Project' instantiates a real project, its milestones, tasks and gates, and stamps the template version used.",
         fields: [
           { name: 'name', required: true, label: "Template Name" },
           { name: 'project_type', required: true, label: "Project Type" },
           { name: 'default_duration_days', label: "Default Duration (days)" },
           { name: 'default_budget', label: "Default Budget" },
           { name: 'gate_plan', label: "Gate Plan" },
+          { name: 'milestone_plan', type: 'text', label: "Milestone Plan" },
+          { name: 'wbs_plan', type: 'text', label: "WBS Plan" },
           { name: 'active', label: "Active" }
         ] }
     ]
@@ -205,7 +240,7 @@ export const SCREENS = {
     back: 'M67-billing',
     status: { field: 'state', labels: { planned: "Planned", ready: "Ready to Invoice", invoiced: "Invoiced", paid: "Paid" } },
     sections: [
-      { title: "Milestone Billing", note: "Billing follows the milestone: planned -> ready -> invoiced (an invoice reference is required) -> paid. Retention is held until closure.",
+      { title: "Milestone Billing", note: "Planned → ready (milestone line needs the milestone accepted and done) → invoiced: 'Mark Invoiced' CREATES the real customer invoice and stores it; the terms freeze at ready. Total billing may not exceed the project's contract value.",
         fields: [
           { name: 'project_id', required: true, label: "Project" },
           { name: 'milestone_id', label: "Milestone" },
@@ -213,9 +248,7 @@ export const SCREENS = {
           { name: 'billing_type', required: true, label: "Billing Type" },
           { name: 'amount', required: true, label: "Amount" },
           { name: 'due_on', required: true, label: "Due On" },
-          { name: 'invoice_ref', label: "Invoice Reference" },
-          { name: 'retention_pct', label: "Retention %" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'retention_pct', label: "Retention %" }
         ] }
     ]
   },
@@ -226,19 +259,19 @@ export const SCREENS = {
     back: 'M67-risks',
     status: { field: 'state', labels: { open: "Open", mitigating: "Mitigating", closed: "Closed" } },
     sections: [
-      { title: "Risk / Issue", note: "Severity is computed as probability x impact (1-9) and the register sorts on it, so risk review starts with the worst exposure.",
+      { title: "Risk / Issue", note: "Severity is computed as probability x impact (1-9). At or above the escalation threshold (default 9) the risk publishes project.risk_escalated to the enterprise register; mitigation/close needs the mitigation written.",
         fields: [
           { name: 'project_id', required: true, label: "Project" },
           { name: 'kind', required: true, label: "Kind" },
           { name: 'title', required: true, label: "Title" },
+          { name: 'description', type: 'text', label: "Description" },
           { name: 'probability', required: true, label: "Probability" },
           { name: 'impact', required: true, label: "Impact" },
           { name: 'owner_id', label: "Owner" },
-          { name: 'opened_on', required: true, label: "Opened On" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'opened_on', required: true, label: "Opened On" }
         ] }
     ]
-  },
+  }
 
 };
 
@@ -252,7 +285,8 @@ export const REPORT_ROUTES = {
   'M67:Milestone Tracker': 'M67-tracker',
   'M67:Task Workload by Assignee': 'M67-resources',
   'M67:Stage-Gate Compliance': 'M67-compliance',
-  'M67:Budget vs Actual': 'M67-budget'
+  'M67:Budget vs Actual': 'M67-budget',
+  'M67:Billing Status': 'M67-billstatus'
 };
 
 export const FORM_MODELS = {

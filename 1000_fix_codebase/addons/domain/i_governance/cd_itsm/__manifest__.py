@@ -22,13 +22,23 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         # fix.project (cd_ppm) is referenced by this module's models; without the
         # dependency the relation can load against a missing model (FF-46).
         "cd_ppm",
+        # A12 P1-1: fix.itsm.change inherits fix.approvable.mixin (M63), whose
+        # home module must load first. Acyclic: cd_workflow_engine depends only
+        # on base/mail/hr/cd_entity_config/cd_event_outbox/cd_rbac_ext.
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        # A12: roles first so the ACL rows below can reference them.
+        "security/fix_itsm_a12_groups.xml",
         "security/ir.model.access.csv",
         "data/itsm_catalogue_sequences.xml",
         "data/integration_sequences.xml",
         "data/itsm_ops_sequences.xml",
+        "data/itsm_core_sequences.xml",
+        "data/fix_a12_crons.xml",
+        # A12 D8: chatter relay for the events cd_itsm itself publishes.
+        "data/fix_a12_event_consumers.xml",
         "views/cd_itsm_views.xml",
     ],
     "installable": True,

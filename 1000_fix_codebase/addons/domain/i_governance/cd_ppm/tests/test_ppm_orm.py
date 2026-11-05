@@ -1,4 +1,11 @@
-"""cd_ppm — live-ORM behaviour of M67 projects, milestones and tasks."""
+"""cd_ppm — live-ORM behaviour of M67 projects, milestones and tasks.
+
+A12 rewrite (2026-11-05): activation now needs the DOFA budget approval
+(unbudgeted projects fall at tier_0 = no approval), milestone completion
+needs recorded customer acceptance, task state is guarded (cancelled via
+action_cancel, not an assignment), and the baseline freezes at activation.
+Runs as the superuser; the role gates live in test_a12_m67_controls.py.
+"""
 
 from __future__ import annotations
 
@@ -35,8 +42,10 @@ def test_project_code_event_and_variance(odoo_env):
 
 def test_completion_gates(odoo_env):
     project = odoo_env["fix.project"].create({"name": "Warehouse WMS"})
+    # Unbudgeted: DOFA tier_0, activation needs no financial sign-off.
     project.action_activate()
     assert project.state == "active"
+    assert project.baseline_budget == 0.0
     milestone = odoo_env["fix.project.milestone"].create(
         {"name": "Go-live", "project_id": project.id}
     )
@@ -51,13 +60,22 @@ def test_completion_gates(odoo_env):
         project.action_complete()
     tasks[0].action_start()
     assert tasks[0].state == "in_progress"
+    # BRU-PPM-11: no acceptance, no completion — acceptance is checked first,
+    # so this fires even with all three tasks still open.
+    with (
+        pytest.raises(UserError, match="no recorded acceptance"),
+        odoo_env.cr.savepoint(),
+    ):
+        milestone.action_complete()
+    milestone.action_accept("Client sign-off SO-4471")
+    assert milestone.accepted_by_id
     with (
         pytest.raises(UserError, match="3 task\\(s\\) still open in milestone"),
         odoo_env.cr.savepoint(),
     ):
         milestone.action_complete()
     (tasks[0] | tasks[1]).action_done()
-    tasks[2].state = "cancelled"  # cancelled work does not block
+    tasks[2].action_cancel()  # cancelled work does not block (guard: via action)
     milestone.action_complete()
     assert milestone.state == "done"
     assert _events(odoo_env, "project.milestone_completed", milestone.id) == [

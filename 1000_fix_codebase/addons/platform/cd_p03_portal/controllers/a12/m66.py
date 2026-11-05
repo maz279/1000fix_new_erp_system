@@ -1,27 +1,135 @@
 # A12 · M66 Internal IT Service Management — ITSM tickets, changes and the
 # internal IT asset register.
+#
+# A12 workflow audit (2026-11-04) R4/X5: this surface declared no writable
+# fields (the form endpoint then wrote whatever it was sent, state included)
+# and its buttons covered a fraction of the lifecycle. Every surface key now
+# declares its WRITABLE whitelist — workflow fields (state, resolution,
+# escalated, approved_by, PIR) are NOT in it: they move only through the
+# whitelisted actions below. KPIs and reports read as the CALLER (R4): no
+# sudo, so the role's own read scope is what the numbers show.
 import datetime
 
 SURFACES = {
     "fix.itsm.ticket": {
         "order": "id desc",
         "limit": 400,
-        "actions": {"action_resolve"},
+        "actions": {"action_assign", "action_start", "action_resolve", "action_close"},
+        # R4: the ticket list reads in the CALLER's scope (sudo read is the
+        # lead/B1 plumbing change that consumes this flag — see Needs).
+        "rules": True,
     },
     "fix.itsm.change": {
         "order": "planned_on desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_implement", "action_rollback"},
+        # action_approve is deliberately absent: approval runs through the M63
+        # inbox (P1-1), never a direct button.
+        "actions": {"action_submit", "action_implement", "action_record_pir", "action_rollback"},
     },
-    "fix.itsm.asset": {"order": "name", "limit": 300, "actions": set()},
-    "fix.itsm.catalogue": {"order": "category, name", "limit": 300, "actions": set()},
+    "fix.itsm.asset": {
+        "order": "name",
+        "limit": 300,
+        "actions": {"action_allocate", "action_send_repair", "action_recover", "action_retire"},
+    },
+    "fix.itsm.catalogue": {
+        "order": "category, name",
+        "limit": 300,
+        "actions": set(),
+    },
     "fix.itsm.problem": {
         "order": "opened_on desc, id desc",
         "limit": 300,
-        "actions": {"action_known_error", "action_resolve", "action_close"},
+        "actions": {"action_investigate", "action_known_error", "action_resolve", "action_close"},
     },
     "fix.itsm.licence": {"order": "renewal_on, id", "limit": 300, "actions": set()},
     "fix.itsm.ci": {"order": "ci_class, name", "limit": 400, "actions": set()},
+}
+
+# R4: what /p03/model/write may set per surface. Workflow-controlled fields
+# (state, resolution, escalated, resolved_on, approved_by_id, implemented_on,
+# the PIR fields, known_error) are absent on purpose: the model guard refuses
+# them anyway, and the whitelist keeps the form from even offering them.
+WRITABLE = {
+    "fix.itsm.ticket": {
+        "title",
+        "description",
+        "category",
+        "priority",
+        "requester_id",
+        "assigned_to",
+        "catalogue_id",
+        "operating_unit_id",
+    },
+    "fix.itsm.change": {
+        "title",
+        "change_type",
+        "risk",
+        "risk_probability",
+        "risk_impact",
+        "requested_by_id",
+        "implementer_id",
+        "planned_on",
+        "implementation_plan",
+        "test_plan",
+        "rollback_plan",
+        "change_window_hours",
+        "asset_ids",
+        "release_note",
+    },
+    "fix.itsm.asset": {
+        "name",
+        "asset_tag",
+        "asset_kind",
+        "assigned_to_id",
+        "serial_no",
+        "warranty_end",
+        "os_version",
+        # wipe_certificate is NOT here (M66-9): the evidence is supplied to
+        # action_retire, which stamps it in a guarded write — a direct column
+        # write would let anyone re-paper a retired asset.
+    },
+    "fix.itsm.catalogue": {
+        "code",
+        "name",
+        "category",
+        "description",
+        "fulfilment_team",
+        "target_hours",
+        "cost_per_request",
+        "requires_approval",
+        "active",
+    },
+    "fix.itsm.problem": {
+        "title",
+        "description",
+        "root_cause",
+        "workaround",
+        "severity",
+        "owner_id",
+        "opened_on",
+    },
+    "fix.itsm.licence": {
+        "name",
+        "vendor",
+        "licence_type",
+        "seats_owned",
+        "seats_assigned",
+        "unit_cost",
+        "purchased_on",
+        "renewal_on",
+    },
+    "fix.itsm.ci": {
+        "name",
+        "ci_class",
+        "ci_key",
+        "environment_id",
+        "owner_id",
+        "depends_on",
+        "criticality",
+        "support_hours",
+        "life_status",
+        "asset_id",
+    },
 }
 
 
@@ -38,7 +146,8 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def sla_report(env, date_from=None, date_to=None, **params):
-    tickets = env["fix.itsm.ticket"].sudo().search([])
+    # R4: caller scope — the reader sees the tickets their role may see.
+    tickets = env["fix.itsm.ticket"].search([])
     rows = [
         {
             "ticket": t.name,
@@ -49,14 +158,27 @@ def sla_report(env, date_from=None, date_to=None, **params):
             "age_days": (datetime.date.today() - t.create_date.date()).days
             if t.create_date
             else "—",
+            "deadline": str(t.sla_deadline or "—"),
+            "escalated": "Yes" if t.escalated else "",
             "state": dict(t._fields["state"].selection).get(t.state, t.state),
         }
         for t in tickets
     ]
-    open_count = len([r for r in rows if r["state"] in ("New", "Open")])
+    open_count = len([r for r in rows if r["state"] in ("New", "Assigned", "In Progress")])
+    breach_count = len([r for r in rows if r["escalated"] == "Yes"])
     return _pack(
-        "ITSM Ticket SLA — %d open of %d" % (open_count, len(rows)),
-        ["ticket", "title", "category", "priority", "requester", "age_days", "state"],
+        "ITSM Ticket SLA — %d open of %d, %d escalated" % (open_count, len(rows), breach_count),
+        [
+            "ticket",
+            "title",
+            "category",
+            "priority",
+            "requester",
+            "age_days",
+            "deadline",
+            "escalated",
+            "state",
+        ],
         {
             "ticket": "Ticket",
             "title": "Title",
@@ -64,22 +186,29 @@ def sla_report(env, date_from=None, date_to=None, **params):
             "priority": "Priority",
             "requester": "Requester",
             "age_days": "Age (d)",
+            "deadline": "SLA Deadline",
+            "escalated": "Escalated",
             "state": "State",
         },
         rows,
-        ["Age measured from creation; resolution stamps the closure."],
+        [
+            "Age measured from creation; the deadline is the catalogue target hours "
+            "(default 8h) from creation. Escalated tickets passed it: the hourly cron "
+            "raised their priority and flagged them."
+        ],
         empty="No ITSM tickets.",
     )
 
 
 def change_success(env, date_from=None, date_to=None, **params):
-    changes = env["fix.itsm.change"].sudo().search([])
+    changes = env["fix.itsm.change"].search([])
     groups = {}
     for c in changes:
         key = c.change_type
         g = groups.setdefault(key, {"total": 0, "implemented": 0, "rolled_back": 0, "rejected": 0})
         g["total"] += 1
-        if c.state == "implemented":
+        # implemented + reviewed both mean the change landed and stuck.
+        if c.state in ("implemented", "reviewed"):
             g["implemented"] += 1
         elif c.state == "rolled_back":
             g["rolled_back"] += 1
@@ -105,13 +234,16 @@ def change_success(env, date_from=None, date_to=None, **params):
             "success": "Success %",
         },
         rows,
-        ["Success = implemented over all decided changes of that type."],
+        [
+            "Success = implemented (incl. post-reviewed) over all decided changes of "
+            "that type. Approvals themselves run through the M63 approval inbox."
+        ],
         empty="No change requests.",
     )
 
 
 def asset_lifecycle(env, date_from=None, date_to=None, **params):
-    assets = env["fix.itsm.asset"].sudo().search([])
+    assets = env["fix.itsm.asset"].search([])
     today = datetime.date.today()
     rows = []
     for a in assets:
@@ -141,13 +273,16 @@ def asset_lifecycle(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Warranty shows days left (Expired once past)."],
+        [
+            "Warranty shows days left (Expired once past). Retirement needs the "
+            "data-wipe certificate and an unassigned asset (M66-9)."
+        ],
         empty="No IT assets registered.",
     )
 
 
 def category_mix(env, date_from=None, date_to=None, **params):
-    tickets = env["fix.itsm.ticket"].sudo().search([])
+    tickets = env["fix.itsm.ticket"].search([])
     groups = {}
     for t in tickets:
         key = t.category
@@ -179,13 +314,18 @@ REPORTS = {
 
 
 def kpis(env):
-    tickets = env["fix.itsm.ticket"].sudo().search([])
-    changes = env["fix.itsm.change"].sudo().search([])
-    assets = env["fix.itsm.asset"].sudo().search([])
+    # R4: caller scope. A plain internal user sees their own read scope, not
+    # the whole company's register through sudo.
+    tickets = env["fix.itsm.ticket"].search([])
+    changes = env["fix.itsm.change"].search([])
+    assets = env["fix.itsm.asset"].search([])
     return {
-        "tickets_open": len(tickets.filtered(lambda t: t.state in ("new", "open"))),
+        "tickets_open": len(
+            tickets.filtered(lambda t: t.state in ("new", "assigned", "in_progress"))
+        ),
+        "tickets_escalated": len(tickets.filtered(lambda t: t.escalated)),
         "tickets_total": len(tickets),
-        "changes_pending": len(changes.filtered(lambda c: c.state in ("draft", "approved"))),
+        "changes_pending": len(changes.filtered(lambda c: c.approval_state == "pending")),
         "changes_total": len(changes),
         "assets_in_service": len(assets.filtered(lambda a: a.state == "in_service")),
         "assets_total": len(assets),

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 X2 (M29-5): the M21 -> M29 leaver hand-off. cd_employee_core
+  publishes `employee.left` on the transactional outbox
+  (hr_employee_ext._emit_leaver); this consumer receives it and
+  deprovisions for real: creates AND applies the fix.jml.event, removes
+  EVERY Odoo group (not only role-mapped ones), deactivates the res.users,
+  unassigns the leaver's ITSM assets (P2 hand-off M66 <-> M21) and writes
+  the fix.security.audit rows. Idempotent: a redelivery is a no-op.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_employee_left_deprovision" model="fix.event.consumer">
+            <field name="name">M29: deprovision the leaver on employee.left (X2)</field>
+            <field name="event_type">employee.left</field>
+            <field name="model">fix.jml.event</field>
+            <field name="method">consume_employee_left</field>
+            <field name="module">cd_rbac_ext</field>
+        </record>
+
+    </data>
+</odoo>

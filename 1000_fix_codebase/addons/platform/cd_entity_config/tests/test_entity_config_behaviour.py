@@ -120,8 +120,19 @@ def test_branch_company_derives_from_entity_and_onchange_scopes_ous(odoo_env):
 
 
 def test_country_pack_action_load_stamps_loaded_at(odoo_env):
-    pack = odoo_env["fix.country.pack"].create({"name": "Test Pack", "code": "TST-PACK"})
+    """A12 P1-4: loading now requires the certification lifecycle, so the
+    fixture walks it: a pack with one line, validated, certified (with a
+    basis) and activated; loading stamps loaded_at only then."""
+    pack = odoo_env["fix.country.pack"].create(
+        {"name": "Test Pack", "code": "TST-PACK", "kind": "divisions"}
+    )
+    odoo_env["fix.country.pack.line"].create(
+        {"pack_id": pack.id, "code": "DHA", "name": "Dhaka", "name_bn": "ঢাকা"}
+    )
     assert not pack.loaded_at
+    pack.action_validate()
+    pack.sudo().action_certify(note="test gazette basis")
+    pack.action_activate()
     assert pack.action_load() is True
     assert pack.loaded_at
 

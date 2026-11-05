@@ -15,14 +15,15 @@ Owns:
 Wired to M33 (party) and M37 (catalogue) as the governance layer over both.
 The rest of M64 (full workflow, data quality dashboards) stays in W2.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/MDM",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
+    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_workflow_engine"],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/fix_mdm_core_data.xml",
         "views/fix_mdm_views.xml",
     ],
     "installable": True,

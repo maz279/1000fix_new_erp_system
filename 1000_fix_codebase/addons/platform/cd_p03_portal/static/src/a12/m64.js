@@ -9,6 +9,7 @@ export const MODULE = {
     { l: 'Steward Open', m: 'steward_open' },
     { l: 'Steward Total', m: 'steward_total' },
     { l: 'Active DQ Rules', m: 'dq_rules' },
+    { l: 'Measured Violations', m: 'dq_violations_measured' },
     { l: 'Published Lists', m: 'code_lists' },
     { l: 'Code Entries', m: 'code_entries' }
   ],
@@ -65,6 +66,7 @@ export const SCREENS = {
           { name: 'model_name', required: true, label: "Master Model" },
           { name: 'field_name', required: true, label: "Field" },
           { name: 'strategy', required: true, label: "Survivorship Strategy" },
+          { name: 'priority_source_ids', label: "Priority Sources (in order)" },
           { name: 'sequence', label: "Sequence" },
           { name: 'description', label: "Description" },
           { name: 'active', label: "Active" }
@@ -94,15 +96,22 @@ export const SCREENS = {
 
   'M64-stewardship': { kind: 'model_list', model: 'fix.mdm.steward', stateField: 'state',
     cols: ['name', 'request_type', 'res_model', 'record_ref', 'steward_id', 'created_at', 'state'],
-    actions: [{ m: 'action_review', l: 'Start Review' }, { m: 'action_approve', l: 'Approve' },
-              { m: 'action_reject', l: 'Reject' }] },
+    /* A12 P1-2: approval itself is M63-routed (no Approve button) - the
+       steward decides from the approver's inbox; here we review, route,
+       recall, reject (needs a decision note) and apply the approved change. */
+    actions: [{ m: 'action_review', l: 'Start Review' },
+              { m: 'action_request_approval', l: 'Route for Approval', ask: 'Justification for the steward decision', kwarg: 'justification' },
+              { m: 'action_recall_approval', l: 'Recall Approval' },
+              { m: 'action_apply', l: 'Apply Approved Change' }] },
   'M64-domains': { kind: 'table_report', module: 'M64', report: 'golden_coverage', title: 'Master Models (governed)', period: false },
   'M64-rules': { kind: 'model_list', model: 'fix.mdm.dq.rule',
-    cols: ['code', 'name', 'res_model', 'field_name', 'rule_type', 'severity', 'active'] },
+    cols: ['code', 'name', 'res_model', 'field_name', 'rule_type', 'severity', 'last_status', 'last_violation_count', 'active'],
+    actions: [{ m: 'action_evaluate', l: 'Run Evaluator' }] },
   'M64-scoring': { kind: 'table_report', module: 'M64', report: 'golden_coverage', title: 'Golden Coverage', period: false },
   'M64-codelists': { kind: 'model_list', model: 'fix.mdm.code.list', stateField: 'state',
-    cols: ['code', 'name', 'domain_area', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish List' }] },
+    cols: ['code', 'name', 'domain_area', 'version', 'state'],
+    actions: [{ m: 'action_publish', l: 'Publish List' }, { m: 'action_new_version', l: 'New Version' },
+              { m: 'action_retire', l: 'Retire List' }] },
   'M64-entries': { kind: 'model_list', model: 'fix.mdm.code.entry',
     cols: ['list_id', 'value', 'label', 'label_bn', 'active'] },
 
@@ -120,15 +129,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       submitted: 'Submitted', in_review: 'In Review', approved: 'Approved', rejected: 'Rejected' } },
     sections: [
-      { title: 'Request', note: 'Submitted → in review → approved/rejected. A steward is assigned for the review.',
+      { title: 'Request', note: 'Submitted → in review → routed approval (M63) → applied. The state badge is the workflow - it is decided by the buttons, never typed. Rejection happens from the approver’s inbox, carrying its note as the task comment.',
         fields: [
           { name: 'request_type', required: true, label: 'Request Type' },
           { name: 'res_model', required: true, label: 'Master Model' },
           { name: 'record_ref', label: 'Record Reference' },
-          { name: 'requested_by_id', label: 'Requested By' },
           { name: 'steward_id', label: 'Assigned Steward' },
           { name: 'reason', required: true, type: 'text', label: 'Reason' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'proposed_changes', type: 'text', label: 'Proposed Changes (one field=value per line)' }
         ] }
     ]
   },
@@ -177,18 +185,23 @@ export const SCREENS = {
     back: 'M64-codelists',
     status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
     sections: [
-      { title: 'Code List', note: 'Draft → published; entries are added on the entries screen.',
+      { title: 'Code List', note: 'Draft → published (frozen) → new version for changes. The state badge is set by the Publish/New Version/Retire buttons, never typed.',
         fields: [
           { name: 'code', required: true, label: 'List Code' },
           { name: 'name', required: true, label: 'List Name' },
           { name: 'domain_area', label: 'Domain' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'version', label: 'Version' }
         ] }
     ]
   },
 
   /* registry completion screens */
-  'M64-dedupe': { kind: 'model_list', model: 'fix.mdm.duplicate', stateField: 'decision', cols: ['name', 'res_model', 'record_a_ref', 'record_b_ref', 'score', 'decision'], actions: [{ m: 'action_merge', l: 'Merge' }, { m: 'action_keep_separate', l: 'Keep Separate' }] },
+  'M64-dedupe': { kind: 'model_list', model: 'fix.mdm.duplicate', stateField: 'decision', cols: ['name', 'res_model', 'record_a_ref', 'record_b_ref', 'score', 'decision'],
+    /* A12: Merge no longer writes the master - it routes an M33 fix.party.merge
+       (itself M63-approved); the decision lands when that merge executes. */
+    actions: [{ m: 'action_merge', l: 'Merge (routes M33)', ask: 'Why should this pair be merged?', kwarg: 'justification' },
+              { m: 'action_keep_separate', l: 'Keep Separate' },
+              { m: 'action_sync_merge_state', l: 'Sync Merge State' }] },
   'M64-xref': { kind: 'model_list', model: 'fix.mdm.xref', cols: ['code_list', 'source_system', 'source_value', 'canonical_value', 'confidence'] },
   'M64-impact': { kind: 'table_report', module: 'M64', report: 'impact_analysis', title: 'Impact Analysis', period: false },
   'M64-lineage': { kind: 'table_report', module: 'M64', report: 'lineage_coverage', title: 'Lineage', period: false },
@@ -202,14 +215,14 @@ export const SCREENS = {
     back: 'M64-dedupe',
     status: { field: 'decision', labels: { pending: "Pending", merged: "Merged", kept_separate: "Kept Separate", false_positive: "False Positive" } },
     sections: [
-      { title: "Duplicate Candidate", note: "A candidate pair from the detection run with its match score and factors. Merging records the survivor; nothing is deleted silently.",
+      { title: "Duplicate Candidate", note: "A candidate pair from the detection run with its match score and factors. Merge routes an M33 golden-party merge (M63-approved); nothing is deleted silently, the survivor is chosen at merge time and the decision badge is set by that workflow, never typed.",
         fields: [
           { name: 'res_model', required: true, label: "Master Model" },
           { name: 'record_a_ref', required: true, label: "Record A" },
           { name: 'record_b_ref', required: true, label: "Record B" },
           { name: 'score', label: "Match Score" },
           { name: 'match_factors', label: "Match Factors" },
-          { name: 'decision', required: true, label: "Decision" }
+          { name: 'decision_note', type: 'text', label: "Decision Note" }
         ] }
     ]
   },
@@ -237,9 +250,17 @@ export const SCREENS = {
   'M64-mdm-golden-rule': { kind: 'model_list', model: 'fix.mdm.golden.rule',
     cols: ['active', 'sequence', 'model_name', 'field_name', 'strategy'] },
   'M64-mdm-stewardship': { kind: 'model_list', model: 'fix.mdm.stewardship',
-    cols: ['name', 'company_id', 'operating_unit_id', 'domain', 'lead_steward_id'] },
+    cols: ['name', 'company_id', 'operating_unit_id', 'domain', 'lead_steward_id', 'overall_quality_score', 'audit_state'],
+    actions: [{ m: 'action_audit_data_quality', l: 'Audit Data Quality' }] },
   'M64-mdm-change-request': { kind: 'model_list', model: 'fix.mdm.change.request', stateField: 'state',
-    cols: ['title', 'state', 'company_id', 'operating_unit_id', 'model_name', 'record_id', 'priority'] },
+    cols: ['reference', 'title', 'state', 'company_id', 'operating_unit_id', 'model_name', 'record_id', 'priority'],
+    /* A12 P1-2: approval is M63-routed - Submit validates + freezes the
+       payload, Route sends it to the steward inbox, Apply lands it. */
+    actions: [{ m: 'action_submit', l: 'Submit' },
+              { m: 'action_request_approval', l: 'Route to Steward', ask: 'Why is this master-data change needed?', kwarg: 'justification' },
+              { m: 'action_recall_approval', l: 'Recall' },
+              { m: 'action_reject', l: 'Reject' },
+              { m: 'action_apply', l: 'Apply Approved Change' }] },
   'M64-mdm-match-rule': { kind: 'model_list', model: 'fix.mdm.match.rule',
     cols: ['active', 'sequence', 'model_name', 'field_name', 'match_type', 'weight', 'normalize'] },
 
@@ -249,10 +270,9 @@ export const SCREENS = {
     title: "Mdm Stewardship",
     back: 'M64-mdm-stewardship',
     sections: [
-      { title: "Mdm Stewardship", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Mdm Stewardship", note: "The measured quality scores and audit stamps are computed by the Audit Data Quality action and the evaluator - they are never typed here.",
         fields: [
           { name: 'name', required: true, label: "Stewardship Domain Title" },
-          { name: 'company_id', required: true, label: "Company" },
           { name: 'domain', required: true, label: "Data Domain" },
           { name: 'lead_steward_id', required: true, label: "Lead Data Steward" },
           { name: 'operating_unit_id', label: "Operating Unit" }
@@ -266,14 +286,15 @@ export const SCREENS = {
     back: 'M64-mdm-change-request',
     status: { field: 'state' },
     sections: [
-      { title: "Mdm Change Request", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Mdm Change Request", note: "Proposed values are held on the request - never written to the master until a steward approves and Apply runs. The state badge is decided by Submit/Route/Apply, never typed.",
         fields: [
           { name: 'title', required: true, label: "Title" },
-          { name: 'state', required: true, label: "State" },
-          { name: 'company_id', required: true, label: "Company" },
+          { name: 'description', type: 'text', label: "Description" },
           { name: 'model_name', required: true, label: "Target Model" },
           { name: 'record_id', required: true, label: "Target Record ID" },
+          { name: 'proposed_changes', type: 'text', label: "Proposed Changes (one field=value per line; frozen at submit)" },
           { name: 'priority', required: true, label: "Priority" },
+          { name: 'review_notes', type: 'text', label: "Review Notes" },
           { name: 'operating_unit_id', label: "Operating Unit" }
         ] }
     ]

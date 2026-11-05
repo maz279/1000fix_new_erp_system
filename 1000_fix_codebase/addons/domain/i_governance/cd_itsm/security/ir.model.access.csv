@@ -1,20 +1,33 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_itsm_ticket,fix.itsm.ticket,model_fix_itsm_ticket,base.group_user,1,1,1,0
-access_fix_api_endpoint,fix.api.endpoint,model_fix_api_endpoint,base.group_user,1,1,1,0
-access_fix_api_consumer,fix.api.consumer,model_fix_api_consumer,base.group_user,1,1,1,0
-access_fix_api_quota,fix.api.quota,model_fix_api_quota,base.group_user,1,1,1,0
-access_fix_event_topic,fix.event.topic,model_fix_event_topic,base.group_user,1,1,1,0
-access_fix_event_schema,fix.event.schema,model_fix_event_schema,base.group_user,1,1,1,0
-access_fix_event_subscription,fix.event.subscription,model_fix_event_subscription,base.group_user,1,1,1,0
-access_fix_event_dlq,fix.event.dlq,model_fix_event_dlq,base.group_user,1,1,1,0
-access_fix_connector,fix.connector,model_fix_connector,base.group_user,1,1,1,0
+access_fix_itsm_ticket,fix.itsm.ticket,model_fix_itsm_ticket,base.group_user,1,0,0,0
+access_fix_itsm_ticket_agent,fix.itsm.ticket agent,model_fix_itsm_ticket,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_itsm_change,fix.itsm.change,model_fix_itsm_change,base.group_user,1,0,0,0
+access_fix_itsm_change_agent,fix.itsm.change agent,model_fix_itsm_change,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_itsm_change_mgr,fix.itsm.change manager,model_fix_itsm_change,cd_itsm.group_itsm_change_manager,1,1,0,0
+access_fix_itsm_change_cab,fix.itsm.change cab,model_fix_itsm_change,cd_itsm.group_itsm_cab_member,1,1,0,0
+access_fix_itsm_asset,fix.itsm.asset,model_fix_itsm_asset,base.group_user,1,0,0,0
+access_fix_itsm_asset_agent,fix.itsm.asset agent,model_fix_itsm_asset,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_project_gate_cditsm,fix.project.gate,model_fix_project_gate,base.group_user,1,0,0,0
+access_fix_project_gate_agent,fix.project.gate agent,model_fix_project_gate,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_project_gate_sponsor,fix.project.gate sponsor,model_fix_project_gate,cd_ppm.group_ppm_sponsor,1,1,0,0
+access_fix_itsm_catalogue,fix.itsm.catalogue,model_fix_itsm_catalogue,base.group_user,1,0,0,0
+access_fix_itsm_catalogue_agent,fix.itsm.catalogue agent,model_fix_itsm_catalogue,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_itsm_problem,fix.itsm.problem,model_fix_itsm_problem,base.group_user,1,0,0,0
+access_fix_itsm_problem_agent,fix.itsm.problem agent,model_fix_itsm_problem,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_itsm_licence,fix.itsm.licence,model_fix_itsm_licence,base.group_user,1,0,0,0
+access_fix_itsm_licence_agent,fix.itsm.licence agent,model_fix_itsm_licence,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_itsm_ci,fix.itsm.ci,model_fix_itsm_ci,base.group_user,1,0,0,0
+access_fix_itsm_ci_agent,fix.itsm.ci agent,model_fix_itsm_ci,cd_itsm.group_itsm_agent,1,1,1,0
+access_fix_api_endpoint,fix.api.endpoint,model_fix_api_endpoint,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_api_consumer,fix.api.consumer,model_fix_api_consumer,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_api_quota,fix.api.quota,model_fix_api_quota,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_event_topic,fix.event.topic,model_fix_event_topic,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_event_schema,fix.event.schema,model_fix_event_schema,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_event_subscription,fix.event.subscription,model_fix_event_subscription,cd_itsm.group_integration_admin,1,1,1,1
+access_fix_event_dlq,fix.event.dlq,model_fix_event_dlq,cd_itsm.group_integration_admin,1,1,1,0
+access_fix_connector,fix.connector,model_fix_connector,cd_itsm.group_integration_admin,1,1,1,1
 access_fix_connector_credential,fix.connector.credential,model_fix_connector_credential,base.group_system,1,1,1,0
-access_fix_sync_conflict,fix.sync.conflict,model_fix_sync_conflict,base.group_user,1,1,1,0
-access_fix_integration_log,fix.integration.log,model_fix_integration_log,base.group_user,1,1,1,0
-access_fix_itsm_change,fix.itsm.change,model_fix_itsm_change,base.group_user,1,1,1,0
-access_fix_itsm_asset,fix.itsm.asset,model_fix_itsm_asset,base.group_user,1,1,1,0
-access_fix_project_gate_cditsm,fix.project.gate,model_fix_project_gate,base.group_user,1,1,1,0
-access_fix_itsm_catalogue,fix.itsm.catalogue,model_fix_itsm_catalogue,base.group_user,1,1,1,0
-access_fix_itsm_problem,fix.itsm.problem,model_fix_itsm_problem,base.group_user,1,1,1,0
-access_fix_itsm_licence,fix.itsm.licence,model_fix_itsm_licence,base.group_user,1,1,1,0
-access_fix_itsm_ci,fix.itsm.ci,model_fix_itsm_ci,base.group_user,1,1,1,0
+access_fix_connector_credential_admin,fix.connector.credential admin,model_fix_connector_credential,cd_itsm.group_integration_admin,1,1,1,0
+access_fix_sync_conflict,fix.sync.conflict,model_fix_sync_conflict,base.group_user,1,0,0,0
+access_fix_sync_conflict_admin,fix.sync.conflict admin,model_fix_sync_conflict,cd_itsm.group_integration_admin,1,1,1,0
+access_fix_integration_log,fix.integration.log,model_fix_integration_log,cd_itsm.group_integration_admin,1,0,0,0

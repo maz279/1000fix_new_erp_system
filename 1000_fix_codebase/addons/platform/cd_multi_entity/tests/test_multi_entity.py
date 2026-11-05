@@ -175,7 +175,10 @@ class TestNilReturnAutomation:
     def test_nil_return_generation_payload_schema(self):
         from odoo.addons.cd_multi_entity.models.fix_localisation import FixNilReturnGenerator
 
-        rec = MagicMock(spec=FixNilReturnGenerator)
+        # No class spec: the guarded write path (`_guarded()`) only exists on
+        # the registry-built model, not the plain Python class.
+        rec = MagicMock()
+        rec._guarded = MagicMock(return_value=rec)
         rec.ensure_one = MagicMock()
         rec.state = "verified"
         rec.entity_id = MagicMock(
@@ -191,8 +194,9 @@ class TestNilReturnAutomation:
 
         FixNilReturnGenerator.action_generate_nil_packs(rec)
 
-        rec.write.assert_called_once()
-        args = rec.write.call_args[0][0]
+        # A12: the evidence payloads land through the guarded transition.
+        rec._guarded.return_value.write.assert_called_once()
+        args = rec._guarded.return_value.write.call_args[0][0]
         assert args["state"] == "generated"
 
         # Verify Mushak 9.1 zero return payload

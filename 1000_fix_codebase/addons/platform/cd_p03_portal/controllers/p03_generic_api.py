@@ -159,7 +159,12 @@ class P03GenericApiController(http.Controller):
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # OU record rules stay enforced for every OTHER surface; writes
             # below keep the calling user's context (SoD/permissions apply).
-            rec_model = env[model].sudo()
+            # A surface may opt OUT of the sudo read with "rules": True (the
+            # A09 pattern): its rows are then read as the caller, so ACLs and
+            # record rules apply (M29 res.users / res.device.log read as the
+            # caller — a user sees the estate's users only as far as their
+            # own access allows).
+            rec_model = env[model] if conf.get("rules") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
@@ -461,7 +466,8 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            rec = env[model].sudo().browse(int(record_id)).exists() if record_id else None
+            read_model = env[model] if conf.get("rules") else env[model].sudo()
+            rec = read_model.browse(int(record_id)).exists() if record_id else None
             out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
             if rec:
@@ -551,7 +557,10 @@ class P03GenericApiController(http.Controller):
         out_fields = self._form_field_meta(env, comodel, lines.get("fields"))
         rows = []
         if record_id:
-            rec = env[model].sudo().browse(int(record_id)).exists()
+            # the parent surface's "rules" flag governs its child grid too
+            conf = SURFACES.get(model) or {}
+            read_model = env[model] if conf.get("rules") else env[model].sudo()
+            rec = read_model.browse(int(record_id)).exists()
             if rec:
                 for child in rec[field_name]:
                     rows.append(self._form_record(child, out_fields))

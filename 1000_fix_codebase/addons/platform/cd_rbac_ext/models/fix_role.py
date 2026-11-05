@@ -43,7 +43,20 @@ class FixRole(models.Model):
         help="Which isolation tiers this role may access",
     )
     group_id = fields.Many2one(
-        "res.groups", string="Odoo Group", help="The Odoo group this role maps to"
+        "res.groups", string="Odoo Group", help="The Odoo group this role maps to (legacy 1:1 link)"
+    )
+    # A12 R1 (M29-1): a role maps to the SET of permission groups it needs —
+    # the shipped 53-role -> group mapping is data/fix_role_group_map.xml.
+    # Grants add every mapped group; revokes keep groups another held role
+    # still requires; SoD resolves users' roles through this mapping.
+    group_ids = fields.Many2many(
+        "res.groups",
+        "fix_role_group_rel",
+        "role_id",
+        "group_id",
+        string="Permission Groups",
+        help="Every Odoo group this role carries. The role is the approved, "
+        "SoD-checked way to receive these groups.",
     )
     keycloak_role = fields.Char(
         string="Keycloak Realm Role", help="The Keycloak realm role name (usually same as code)"

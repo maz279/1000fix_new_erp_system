@@ -4,6 +4,8 @@
 # across OUs — company scoping comes from its branches, not from the zone.
 from odoo import api, fields, models
 
+from .fix_entity import require_platform_admin
+
 
 class FixZone(models.Model):
     """A dispatch zone: a geographic grouping of branches for field service."""
@@ -22,6 +24,22 @@ class FixZone(models.Model):
     active = fields.Boolean(default=True, tracking=True)
     branch_ids = fields.One2many("fix.branch", "zone_id", string="Branches")
     geofence_ids = fields.One2many("fix.geofence", "zone_id", string="Geofences")
+
+    # A12 X4 / M30 (b06): dispatch reads zone_id (field-service assignment),
+    # so the zone register is operational master data. A clerk archived a
+    # zone and changed its code with a plain write; now Platform Admin only.
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The dispatch-zone register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The dispatch-zone register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The dispatch-zone register")
+        return super().unlink()
 
     @api.depends("name", "name_bn")
     def _compute_display_name(self):

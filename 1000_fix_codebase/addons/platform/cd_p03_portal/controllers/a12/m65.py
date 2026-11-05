@@ -1,20 +1,84 @@
 # A12 · M65 Multi-Entity & Localisation — entities, country packs, locale
-# packs and jurisdiction rules.
+# packs, jurisdiction rules and payment gateways.
+#
+# A12 workflow audit (2026-11-04) R4: every surface declares what
+# /p03/model/write may set (WRITABLE, merged by controllers/a12/__init__.py);
+# lifecycle fields (state, certification stamps, credentials) are NEVER in
+# it, and the reports and KPIs below read as the CALLER (no sudo().search([])).
 
 SURFACES = {
-    "fix.country.pack": {"order": "name", "limit": 100, "actions": set()},
+    "fix.country.pack": {
+        "order": "name",
+        "limit": 100,
+        # Lifecycle: draft -validate-> validated -certify-> certified
+        # -activate-> active -load-> loaded data -retire-> retired (P1-4).
+        "actions": {
+            "action_validate",
+            "action_certify",
+            "action_activate",
+            "action_load",
+            "action_retire",
+        },
+    },
     "fix.country.pack.line": {"order": "pack_id", "limit": 500, "actions": set()},
     "fix.locale.pack": {
         "order": "code",
         "limit": 100,
-        "actions": {"action_activate"},
+        "actions": {"action_activate", "action_retire"},
     },
     "fix.jurisdiction.rule": {"order": "jurisdiction", "limit": 300, "actions": set()},
     "fix.payment.gateway": {
         "order": "provider",
         "limit": 100,
-        "actions": {"action_activate"},
+        # action_activate is NOT a button: activation is M63-routed
+        # (P1-4) and runs from the approval inbox.
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_suspend",
+            "action_rotate_credential",
+        },
     },
+}
+
+# R4: the fields a user may legitimately type. Lifecycle state, certification
+# stamps and the vault credential reference are set by the guarded actions
+# and the server, never by the form endpoint.
+WRITABLE = {
+    "fix.country.pack": ("name", "code", "kind", "version"),
+    "fix.country.pack.line": ("pack_id", "parent_code", "code", "name", "name_bn", "date_value"),
+    "fix.locale.pack": (
+        "code",
+        "name",
+        "number_format",
+        "first_day_of_week",
+        "date_format",
+        "coverage_pct",
+    ),
+    "fix.jurisdiction.rule": (
+        "jurisdiction",
+        "rule_area",
+        "requirement",
+        "frequency",
+        "authority",
+        "penalty",
+        "active",
+    ),
+    "fix.payment.gateway": (
+        "provider",
+        "country_code",
+        "currencies",
+        # mode/credential_ref are settable only while the record is a DRAFT:
+        # once active, fix.guarded.mixin's _fix_form_locked_fields freezes
+        # both at this endpoint AND on the model, so listing them here only
+        # enables the initial draft creation (vault reference, sandbox).
+        "mode",
+        "credential_ref",
+        "settlement_cycle_days",
+        "supports_refund",
+        "supports_partial_refund",
+        "active",
+    ),
 }
 
 
@@ -31,7 +95,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def entity_structure(env, date_from=None, date_to=None, **params):
-    entities = env["fix.entity"].sudo().search([])
+    entities = env["fix.entity"].search([])
     rows = [
         {
             "code": e.code or "—",
@@ -57,7 +121,7 @@ def entity_structure(env, date_from=None, date_to=None, **params):
 
 
 def country_pack_status(env, date_from=None, date_to=None, **params):
-    packs = env["fix.country.pack"].sudo().search([])
+    packs = env["fix.country.pack"].search([])
     rows = [
         {
             "pack": p.name,
@@ -65,31 +129,37 @@ def country_pack_status(env, date_from=None, date_to=None, **params):
             "kind": dict(p._fields["kind"].selection).get(p.kind, p.kind) if p.kind else "—",
             "version": p.version,
             "lines": len(p.line_ids),
+            "certified": str(p.certified_on or "—"),
             "loaded": str(p.loaded_at or "—")[:19],
-            "active": "Yes" if p.active else "No",
+            "state": dict(p._fields["state"].selection).get(p.state, p.state),
         }
         for p in packs
     ]
     return _pack(
         "Country Pack Status",
-        ["pack", "code", "kind", "version", "lines", "loaded", "active"],
+        ["pack", "code", "kind", "version", "lines", "certified", "loaded", "state"],
         {
             "pack": "Pack",
             "code": "Code",
             "kind": "Kind",
             "version": "Version",
             "lines": "Lines",
+            "certified": "Certified On",
             "loaded": "Loaded At",
-            "active": "Active",
+            "state": "State",
         },
         rows,
-        ["Country packs carry divisions/districts, holidays and postcodes."],
+        [
+            "Country packs carry divisions/districts, holidays and postcodes. Only a "
+            "CERTIFIED pack can be activated and only an ACTIVE pack can be loaded "
+            "(P1-4): loading requires certification, not just existence.",
+        ],
         empty="No country packs loaded.",
     )
 
 
 def locale_readiness(env, date_from=None, date_to=None, **params):
-    packs = env["fix.locale.pack"].sudo().search([])
+    packs = env["fix.locale.pack"].search([])
     rows = [
         {
             "locale": p.code,
@@ -111,7 +181,11 @@ def locale_readiness(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Coverage is the measured translated-string share of the pack."],
+        [
+            "Coverage is the measured translated-string share of the pack. A draft pack "
+            "activates only at the configured minimum coverage "
+            "(ir.config_parameter fix_locale.min_activation_coverage_pct, default 100%).",
+        ],
         empty="No locale packs defined.",
     )
 
@@ -119,8 +193,8 @@ def locale_readiness(env, date_from=None, date_to=None, **params):
 def bengali_support(env, date_from=None, date_to=None, **params):
     """Bengali (bn-BD) readiness: the locale pack's declared coverage plus the
     number of code-list entries that actually carry a Bengali label."""
-    locales = env["fix.locale.pack"].sudo().search([])
-    entries = env["fix.mdm.code.entry"].sudo().search([])
+    locales = env["fix.locale.pack"].search([])
+    entries = env["fix.mdm.code.entry"].search([])
     with_bn = entries.filtered(lambda e: (e.label_bn or "").strip())
     rows = []
     for pack in locales:
@@ -147,7 +221,7 @@ def bengali_support(env, date_from=None, date_to=None, **params):
 
 
 def translation_completeness(env, date_from=None, date_to=None, **params):
-    locales = env["fix.locale.pack"].sudo().search([])
+    locales = env["fix.locale.pack"].search([])
     rows = [
         {
             "locale": p.code,
@@ -178,12 +252,49 @@ def translation_completeness(env, date_from=None, date_to=None, **params):
     )
 
 
+def gateway_readiness(env, date_from=None, date_to=None, **params):
+    """Payment gateway rails: state, mode and the countries they serve. The
+    credential reference is deliberately NOT shown - only whether one exists."""
+    gateways = env["fix.payment.gateway"].search([])
+    rows = [
+        {
+            "provider": g.provider,
+            "country": g.country_code or "—",
+            "mode": dict(g._fields["mode"].selection).get(g.mode, g.mode),
+            "credential": "set" if g.credential_ref else "missing",
+            "settlement_days": g.settlement_cycle_days,
+            "state": dict(g._fields["state"].selection).get(g.state, g.state),
+        }
+        for g in gateways
+    ]
+    return _pack(
+        "Payment Gateway Rails — %d configured" % len(rows),
+        ["provider", "country", "mode", "credential", "settlement_days", "state"],
+        {
+            "provider": "Provider",
+            "country": "Country",
+            "mode": "Mode",
+            "credential": "Credential",
+            "settlement_days": "Settlement (days)",
+            "state": "State",
+        },
+        rows,
+        [
+            "Activation is routed (M63) and every transition is written to the security "
+            "audit chain. Checkout calls assert_live_for_checkout(): only an ACTIVE "
+            "gateway in LIVE mode with a credential set may take a payment; anything "
+            "else is refused rather than retried on a rail that is not live.",
+        ],
+        empty="No payment gateways configured.",
+    )
+
+
 def expansion_assessment(env, date_from=None, date_to=None, **params):
     """Readiness for a new country: packs loaded, jurisdiction rules captured and
     gateways configured per country code."""
-    packs = env["fix.country.pack"].sudo().search([])
-    rules = env["fix.jurisdiction.rule"].sudo().search([("active", "=", True)])
-    gateways = env["fix.payment.gateway"].sudo().search([("state", "=", "active")])
+    packs = env["fix.country.pack"].search([])
+    rules = env["fix.jurisdiction.rule"].search([("active", "=", True)])
+    gateways = env["fix.payment.gateway"].search([("state", "=", "active")])
     countries = {}
     for pack in packs:
         cc = (pack.code or "")[:2] or "??"
@@ -236,17 +347,25 @@ REPORTS = {
 
 REPORTS["bengali_support"] = bengali_support
 REPORTS["translation_completeness"] = translation_completeness
+REPORTS["gateway_readiness"] = gateway_readiness
 REPORTS["expansion_assessment"] = expansion_assessment
 
 
 def kpis(env):
-    entities = env["fix.entity"].sudo().search([])
-    country = env["fix.country.pack"].sudo().search([])
-    locales = env["fix.locale.pack"].sudo().search([("state", "=", "active")])
-    jurisdictions = env["fix.jurisdiction.rule"].sudo().search([("active", "=", True)])
+    entities = env["fix.entity"].search([])
+    country = env["fix.country.pack"].search([])
+    locales = env["fix.locale.pack"].search([("state", "=", "active")])
+    jurisdictions = env["fix.jurisdiction.rule"].search([("active", "=", True)])
+    gateways_live = env["fix.payment.gateway"].search(
+        [("state", "=", "active"), ("mode", "=", "live")]
+    )
     return {
         "entities": len(entities),
         "country_packs": len(country),
+        "country_packs_certified": len(
+            country.filtered(lambda p: p.state in ("certified", "active"))
+        ),
         "locales_active": len(locales),
         "jurisdiction_rules": len(jurisdictions),
+        "gateways_live": len(gateways_live),
     }

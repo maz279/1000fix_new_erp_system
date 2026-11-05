@@ -1,2 +1,9 @@
 # cd_multi_entity models
-from . import fix_bd_country_pack_data, fix_consolidation, fix_intercompany, fix_localisation
+from . import (
+    fix_bd_country_pack_data,
+    fix_consolidation,
+    fix_intercompany,
+    fix_localisation,
+    fix_payment_gateway_approval,
+    fix_platform_release_itsm,
+)

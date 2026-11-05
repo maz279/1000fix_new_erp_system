@@ -1,7 +1,18 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_project,fix.project,model_fix_project,base.group_user,1,1,1,0
-access_fix_project_milestone,fix.project.milestone,model_fix_project_milestone,base.group_user,1,1,1,0
-access_fix_project_task,fix.project.task,model_fix_project_task,base.group_user,1,1,1,0
-access_fix_project_template,fix.project.template,model_fix_project_template,base.group_user,1,1,1,0
-access_fix_project_billing,fix.project.billing,model_fix_project_billing,base.group_user,1,1,1,0
-access_fix_project_risk,fix.project.risk,model_fix_project_risk,base.group_user,1,1,1,0
+access_fix_project,fix.project,model_fix_project,base.group_user,1,0,0,0
+access_fix_project_pm,fix.project project manager,model_fix_project,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_sponsor,fix.project sponsor,model_fix_project,cd_ppm.group_ppm_sponsor,1,1,0,0
+access_fix_project_milestone,fix.project.milestone,model_fix_project_milestone,base.group_user,1,0,0,0
+access_fix_project_milestone_pm,fix.project.milestone project manager,model_fix_project_milestone,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_milestone_sponsor,fix.project.milestone sponsor,model_fix_project_milestone,cd_ppm.group_ppm_sponsor,1,1,0,0
+access_fix_project_task,fix.project.task,model_fix_project_task,base.group_user,1,0,0,0
+access_fix_project_task_pm,fix.project.task project manager,model_fix_project_task,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_template,fix.project.template,model_fix_project_template,base.group_user,1,0,0,0
+access_fix_project_template_pm,fix.project.template project manager,model_fix_project_template,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_billing,fix.project.billing,model_fix_project_billing,base.group_user,1,0,0,0
+access_fix_project_billing_pm,fix.project.billing project manager,model_fix_project_billing,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_risk,fix.project.risk,model_fix_project_risk,base.group_user,1,0,0,0
+access_fix_project_risk_pm,fix.project.risk project manager,model_fix_project_risk,cd_ppm.group_ppm_project_manager,1,1,1,0
+access_fix_project_dofa_t2,fix.project dofa tier 2,model_fix_project,cd_entity_config.group_dofa_tier_2,1,1,0,0
+access_fix_project_dofa_t3,fix.project dofa tier 3,model_fix_project,cd_entity_config.group_dofa_tier_3,1,1,0,0
+access_fix_project_dofa_t4,fix.project dofa tier 4,model_fix_project,cd_entity_config.group_dofa_tier_4,1,1,0,0

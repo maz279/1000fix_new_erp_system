@@ -58,6 +58,16 @@ def make_user(env):
 T2 = "cd_entity_config.group_dofa_tier_2"
 T3 = "cd_entity_config.group_dofa_tier_3"
 T4 = "cd_entity_config.group_dofa_tier_4"
+T5 = "cd_entity_config.group_dofa_tier_5"
+
+
+def rule_in_force(env, make_user, ladder, reference):
+    """A12 X3 / M30-1: a DOFA ruling is two-person — a Tier 4 actor and a
+    DIFFERENT Tier 5 countersigner. The A03 fixtures acted alone; they now
+    rule with a countersigner, exactly as the workspace action does."""
+    ladder.with_user(make_user(T4)).action_put_in_force(
+        reference=reference, countersigned_by=make_user(T5).id
+    )
 
 
 @pytest.fixture
@@ -281,7 +291,7 @@ class TestApprovalCoversWhatWasApproved:
         expected = next(
             b.tier for b in ladder.threshold_ids.sorted("upper_bound") if b.upper_bound >= 30000.0
         )
-        ladder.with_user(make_user(T4)).action_put_in_force(reference="BYP-CAMP-RULING")
+        rule_in_force(env, make_user, ladder, "BYP-CAMP-RULING")
         assert camp._dofa_current_tier() == expected
         if expected != "tier_0":
             with pytest.raises(UserError, match="Launch blocked"):
@@ -664,7 +674,7 @@ def test_putting_a_ladder_in_force_recomputes_existing_tiers(env, make_user, cus
         if band.upper_bound >= 700.0
     )
     assert expected != "tier_1", "the test needs a ruling that actually changes the tier"
-    ladder.with_user(make_user(T4)).action_put_in_force(reference="BYP-RULING-1")
+    rule_in_force(env, make_user, ladder, "BYP-RULING-1")
     assert _stored_tier(env, c) == expected
 
 

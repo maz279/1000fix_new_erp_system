@@ -902,8 +902,12 @@ def test_generate_nil_packs_refuses_without_real_bin_tin(odoo_env):
 
 
 def test_generate_nil_packs_refused_after_submission(odoo_env):
-    nil = _nil(odoo_env, _entity(odoo_env))
-    nil.state = "submitted"
+    # A12 M65: the state is guarded, so a filed return is reached through
+    # the real path (verify -> generate -> NBR acknowledgement), never typed.
+    nil = _generated(odoo_env, "NILFILED")
+    nil.filing_reference = "EVAT-ACK-990011"
+    assert nil.action_submit_to_nbr() is True
+    assert nil.state == "acknowledged"
     with _rejects(odoo_env, ValidationError, match="must be verified prior to generation"):
         nil.action_generate_nil_packs()
     with _rejects(odoo_env, UserError, match="re-verified before the packs"):
