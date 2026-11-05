@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A10 S6 (the M61 -> M27 hand-off): when cd_knowledge publishes an article
+  (knowledge.published), the contact-centre knowledge bindings learn the
+  version now in the field and retire the ones whose article no longer
+  resolves. M27 does not depend on the governance stack — the hand-off is
+  the event, resolved by article_code when M61 is installed.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_knowledge_published_binding_sync" model="fix.event.consumer">
+            <field name="name">M27: sync knowledge bindings when M61 publishes an article</field>
+            <field name="event_type">knowledge.published</field>
+            <field name="model">fix.cc.knowledge.binding</field>
+            <field name="method">consume_knowledge_published</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

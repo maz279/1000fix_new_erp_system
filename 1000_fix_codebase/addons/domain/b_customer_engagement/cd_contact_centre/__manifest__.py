@@ -42,6 +42,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         "data/fix_party_merge_consumers.xml",
         # A02 audit B2: customer SMS on estimate.sent / service_order.ready.
         "data/fix_m01_notif_consumers.xml",
+        # A10 S6 (M61 -> M27 hand-off): sync knowledge bindings on publish.
+        "data/fix_knowledge_consumers.xml",
         "views/fix_contact_centre_views.xml",
     ],
     "installable": True,

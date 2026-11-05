@@ -1,6 +1,6 @@
 /** @odoo-module **/
 /* A10 · Governance, Risk & Quality — M23 Quality Management (ISO 9001).
- * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 78. */
+ * Registry-faithful: 4 groups / 14 screens / 5 reports / 5 forms / freg 78. */
 
 export const MODULE = {
   area: 'A10', code: 'M23', en: 'Quality Management (ISO)', title: 'M23 · Quality Management (ISO)',
@@ -32,7 +32,9 @@ export const MODULE = {
     { en: 'Audits', screens: [
       { id: 'M23-internal', en: 'Internal Audit Programme', bn: 'অভ্যন্তরীণ অডিট', t: 'g' },
       { id: 'M23-external', en: 'Certification & Surveillance', bn: 'সার্টিফিকেশন', t: 'g' },
-      { id: 'M23-review', en: 'Management Review', bn: 'ব্যবস্থাপনা পর্যালোচনা', t: 'g' }
+      { id: 'M23-review', en: 'Management Review', bn: 'ব্যবস্থাপনা পর্যালোচনা', t: 'g' },
+      { id: 'M23-review-inputs', en: 'Review Inputs (9.3.2)', bn: 'পর্যালোচনা উপাদান', t: 'g' },
+      { id: 'M23-review-actions', en: 'Review Actions (9.3.3)', bn: 'পর্যালোচনা কর্ম', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M23-stat', en: 'Pareto & Control Charts', bn: 'প্যারেটো', t: 'r' },
@@ -40,7 +42,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['NCR & CAPA Register', 'Audit Programme Status', 'Repeat-Failure Escalation', 'CoPQ Analysis', 'Management Review Pack'],
-  forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template'],
+  forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template', 'Review Action'],
   cross: ['M01 Service Orders', 'M34 Complaints', 'M42 Suppliers', 'M24 Documents'],
   freg: { src: 78, sub: [
     ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual'], screens: ['M23-policy'] }],
@@ -57,31 +59,67 @@ export const MODULE = {
 export const SCREENS = {
   'M23-policy': { kind: 'model_list', model: 'fix.qms.policy', stateField: 'state',
     cols: ['name', 'year', 'objective', 'target', 'actual', 'unit', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve' }] },
+    actions: [{ m: 'action_approve', l: 'Approve (QM)' }] },
   'M23-processes': { kind: 'model_list', model: 'fix.qms.process',
-    cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'process_type', 'state'] },
+    cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'process_type', 'state'],
+    actions: [{ m: 'action_retire', l: 'Retire (QM)' }] },
   'M23-checklists': { kind: 'model_list', model: 'fix.qms.checklist', stateField: 'state',
     cols: ['name', 'checklist_type', 'iso_clause', 'item_count', 'version', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish' }] },
+    actions: [{ m: 'action_publish', l: 'Publish (QM)' }, { m: 'action_retire', l: 'Retire (QM)' }] },
   'M23-gates': { kind: 'model_list', model: 'fix.qms.gate',
-    cols: ['sequence', 'code', 'name', 'stage', 'mandatory_checklist_id', 'blocking', 'state'] },
+    cols: ['sequence', 'code', 'name', 'stage', 'mandatory_checklist_id', 'blocking', 'state'],
+    actions: [{ m: 'action_retire', l: 'Retire (QM)' }] },
   'M23-ncr': { kind: 'model_list', model: 'fix.ncr', stateField: 'state',
-    cols: ['name', 'source', 'severity', 'disposition', 'root_cause', 'state'] },
+    cols: ['name', 'source', 'severity', 'disposition', 'root_cause', 'state'],
+    actions: [
+      { m: 'action_set_root_cause', l: 'Set Root Cause',
+        asks: [{ label: 'Root cause (5-Why / 8D analysis)', kwarg: 'root_cause' }] },
+      { m: 'action_open_capa', l: 'Open CAPA',
+        asks: [
+          { label: 'Corrective action', kwarg: 'corrective_action' },
+          { label: 'Preventive action (major/critical require one)', kwarg: 'preventive_action' },
+          { label: 'Owner employee ID', kwarg: 'owner_id', number: true }
+        ] },
+      { m: 'action_dispose', l: 'Dispose',
+        asks: [
+          { label: 'Disposition (rework / repair / replace / return / scrap / use_as_is)', kwarg: 'disposition' },
+          { label: 'What was done with the output (ISO 9001 8.7.2)', kwarg: 'note' }
+        ] },
+      { m: 'action_close', l: 'Close' }
+    ] },
   'M23-rca': { kind: 'model_list', model: 'fix.ncr', stateField: 'state',
     cols: ['name', 'severity', 'root_cause', 'state'] },
   'M23-capa': { kind: 'model_list', model: 'fix.capa', stateField: 'state',
     cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'effectiveness_result', 'state'],
-    actions: [{ m: 'action_implement', l: 'Implement' }, { m: 'action_verify', l: 'Verify' },
+    actions: [{ m: 'action_implement', l: 'Implement' },
+              { m: 'action_verify', l: 'Verify',
+                asks: [
+                  { label: 'Verification evidence note (ISO 9001 10.2.2)', kwarg: 'note' },
+                  { label: 'Effective? (yes / no)', kwarg: 'effective' }
+                ] },
               { m: 'action_close', l: 'Close' }] },
   'M23-internal': { kind: 'model_list', model: 'fix.internal.audit', stateField: 'state',
     cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'],
-    actions: [{ m: 'action_execute', l: 'Execute' }, { m: 'action_report', l: 'Report' }] },
+    actions: [{ m: 'action_execute', l: 'Execute',
+                asks: [{ label: 'Checklist capture (P11 offline payload JSON)', kwarg: 'payload' }] },
+              { m: 'action_report', l: 'Report' }] },
   'M23-external': { kind: 'model_list', model: 'fix.qms.certification', stateField: 'result',
     cols: ['name', 'standard', 'body', 'audit_type', 'audit_date', 'valid_until', 'result'],
-    actions: [{ m: 'action_pass', l: 'Mark Passed' }] },
+    actions: [{ m: 'action_pass', l: 'Mark Passed' },
+              { m: 'action_record_result', l: 'Record Result',
+                asks: [{ label: 'Result (minor_ncs / major_ncs / failed / pending)', kwarg: 'result' }] }] },
   'M23-review': { kind: 'model_list', model: 'fix.qms.review', stateField: 'state',
-    cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'],
-    actions: [{ m: 'action_hold', l: 'Mark Held' }, { m: 'action_close', l: 'Close' }] },
+    cols: ['name', 'review_date', 'chairperson_id', 'inputs_missing', 'open_actions', 'state'],
+    actions: [{ m: 'action_pull_inputs', l: 'Pull Inputs (9.3.2)' },
+              { m: 'action_hold', l: 'Mark Held' },
+              { m: 'action_close', l: 'Close — routes to Tier 5',
+                asks: [{ label: 'Why is this review ready to close? (routed to top management, DOFA Tier 5)', kwarg: 'justification' }] }] },
+  'M23-review-inputs': { kind: 'model_list', model: 'fix.qms.review.input',
+    cols: ['review_id', 'kind', 'metric', 'source_count', 'pulled_on', 'summary'] },
+  'M23-review-actions': { kind: 'model_list', model: 'fix.qms.review.action', stateField: 'state',
+    cols: ['review_id', 'name', 'owner_id', 'due_on', 'state', 'done_on'],
+    actions: [{ m: 'action_done', l: 'Mark Done',
+                asks: [{ label: 'Completion note (evidence the action happened)', kwarg: 'note' }] }] },
   'M23-stat': { kind: 'table_report', module: 'M23', report: 'repeat_failure', title: 'Pareto — Repeat Failures', period: false },
   'M23-copq': { kind: 'table_report', module: 'M23', report: 'copq_analysis', title: 'Cost of Poor Quality', period: false },
 
@@ -93,6 +131,9 @@ export const SCREENS = {
   'M23-rpt-review': { kind: 'table_report', module: 'M23', report: 'management_review', title: 'Management Review Pack', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
+  /* A10 Q1–Q3: the workflow fields (state, disposition, verdicts, stamped
+   * approvers) are NOT form inputs anymore — they move only through the
+   * listed actions, which stamp the acting user and enforce the gates. */
   'M23-form-ncr': {
     kind: 'model_form',
     model: 'fix.ncr',
@@ -102,17 +143,18 @@ export const SCREENS = {
       new: 'New', root_cause: 'Root Cause Identified', capa_open: 'CAPA Open',
       verification: 'Verification', closed: 'Closed' } },
     sections: [
-      { title: 'Nonconformance', note: 'Source, severity and description; identify the root cause, then open a CAPA from the NCR record.',
+      { title: 'Nonconformance', note: 'Source, severity and what failed; the root cause, disposition and closure move through the row actions (ISO 9001 8.7).',
         fields: [
           { name: 'source', required: true, label: 'Source' },
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'order_id', label: 'Service Order' },
-          { name: 'description', required: true, type: 'text', label: 'Description' },
+          { name: 'description', required: true, type: 'text', label: 'Description' }
+        ] },
+      { title: 'Analysis & Disposition', note: 'Working fields — the root cause lands via Set Root Cause, the disposition via Dispose (a use-as-is concession is authorised by the Quality Manager).',
+        fields: [
           { name: 'root_cause', type: 'text', label: 'Root Cause' },
-          { name: 'disposition', required: true, label: 'Disposition (ISO 9001 8.7.1)' },
-          { name: 'concession_approved_by_id', label: 'Concession approved by' },
-          { name: 'disposition_note', type: 'text', label: 'Disposition note' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'containment', type: 'text', label: 'Containment (ISO 9001 8.7.1 f)' },
+          { name: 'disposition_note', type: 'text', label: 'Disposition note' }
         ] }
     ]
   },
@@ -125,17 +167,19 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', implemented: 'Implemented', verified: 'Verified', closed: 'Closed' } },
     sections: [
-      { title: 'Corrective & Preventive Action', note: 'Open → implemented → verified → closed; verification needs a note recorded on the CAPA.',
+      { title: 'Corrective & Preventive Action', note: 'Open → implemented → verified → closed; the effectiveness verdict is given by the Quality Manager through the Verify action — never the owner or implementer.',
         fields: [
           { name: 'ncr_id', required: true, label: 'NCR' },
+          { name: 'severity', required: true, label: 'Severity' },
           { name: 'owner_id', required: true, label: 'Owner' },
           { name: 'due_on', label: 'Due On' },
           { name: 'corrective_action', required: true, type: 'text', label: 'Corrective Action' },
-          { name: 'preventive_action', type: 'text', label: 'Preventive Action' },
-          { name: 'effectiveness_result', label: 'Effectiveness (ISO 9001 10.2.1)' },
-          { name: 'verified_by_id', label: 'Verified by' },
-          { name: 'verification_note', type: 'text', label: 'Verification evidence' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'preventive_action', type: 'text', label: 'Preventive Action' }
+        ] },
+      { title: 'Verification', note: 'Stamps of the implementer and the verifier, with the evidence note — read-only record of who decided (ISO 9001 10.2.2).',
+        fields: [
+          { name: 'implemented_by_id', label: 'Implemented by' },
+          { name: 'verification_note', type: 'text', label: 'Verification evidence' }
         ] }
     ]
   },
@@ -148,13 +192,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       planned: 'Planned', executed: 'Executed', reported: 'Reported' } },
     sections: [
-      { title: 'Internal Audit', note: 'Branch, date, auditor and scope; executing the audit lets findings (NCRs) be linked to it.',
+      { title: 'Internal Audit', note: 'Branch, date, auditor and scope. The audited processes link on the back-office form (an auditor may not own one); the checklist capture and report move through the row actions (ISO 9001 9.2).',
         fields: [
           { name: 'branch_id', required: true, label: 'Branch' },
           { name: 'scheduled_on', required: true, label: 'Scheduled On' },
           { name: 'auditor_id', required: true, label: 'Auditor' },
           { name: 'scope', label: 'Scope' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'offline_payload', type: 'text', label: 'Checklist Capture (P11)' }
         ] }
     ]
   },
@@ -173,8 +217,7 @@ export const SCREENS = {
           { name: 'checklist_type', required: true, label: 'Type' },
           { name: 'iso_clause', label: 'ISO Clause' },
           { name: 'item_count', label: 'Items' },
-          { name: 'version', label: 'Version' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'version', label: 'Version' }
         ] }
     ]
   },
@@ -195,10 +238,9 @@ export const SCREENS = {
           { name: 'target', label: 'Target' },
           { name: 'actual', label: 'Actual' },
           { name: 'unit', label: 'Unit' },
-          { name: 'owner_id', label: 'Owner' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'owner_id', label: 'Owner' }
         ] },
-      { title: 'Policy Text', fields: [
+      { title: 'Policy Text', note: 'The certified statement: once approved the text is frozen — next year brings a new record (A10 S6).', fields: [
           { name: 'policy_text', type: 'text', label: 'Policy Statement' }
         ] }
     ]
@@ -213,16 +255,16 @@ export const SCREENS = {
       pending: 'Pending', passed: 'Passed', minor_ncs: 'Passed with Minor NCs',
       major_ncs: 'Major NCs', failed: 'Failed' } },
     sections: [
-      { title: 'Certification Audit', note: 'Stage 1/2, surveillance or recertification; the result and validity date are the certificate record.',
+      { title: 'Certification Audit', note: 'The certificate record — typed by the Quality Manager only; the result moves through Mark Passed (certificate document attached) or Record Result (A10 Q3).',
         fields: [
           { name: 'name', required: true, label: 'Audit Reference' },
           { name: 'standard', required: true, label: 'Standard' },
           { name: 'body', label: 'Certification Body' },
           { name: 'certificate_no', label: 'Certificate No' },
+          { name: 'certificate_doc_id', label: 'Certificate Document' },
           { name: 'audit_type', required: true, label: 'Audit Type' },
           { name: 'audit_date', required: true, label: 'Audit Date' },
-          { name: 'valid_until', label: 'Valid Until' },
-          { name: 'result', required: true, label: 'Result' }
+          { name: 'valid_until', label: 'Valid Until' }
         ] }
     ]
   },
@@ -241,7 +283,6 @@ export const SCREENS = {
           { name: 'code', required: true, label: "Code" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'process_type', required: true, label: "Process Type" },
-          { name: 'state', required: true, label: "State" },
           { name: 'process_owner_id', label: "Process Owner" },
           { name: 'iso_clause', label: "ISO 9001 Clause" },
           { name: 'inputs', label: "Inputs" }
@@ -259,7 +300,6 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Name" },
           { name: 'code', required: true, label: "Code" },
           { name: 'company_id', required: true, label: "Company" },
-          { name: 'state', required: true, label: "State" },
           { name: 'sequence', label: "Sequence" },
           { name: 'stage', label: "Process Stage" },
           { name: 'mandatory_checklist_id', label: "Mandatory Checklist" },
@@ -273,16 +313,45 @@ export const SCREENS = {
     title: "Management Review",
     back: 'M23-review',
     sections: [
-      { title: "Management Review", note: "A management review record: the inputs reviewed and the decisions taken.",
+      { title: "Management Review (ISO 9.3.1)", note: "Top management conducts the review: the chairperson is named before it is held.",
         fields: [
           { name: 'name', required: true, label: "Name" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'review_date', required: true, label: "Review Date" },
-          { name: 'state', required: true, label: "State" },
           { name: 'chairperson_id', label: "Chairperson" },
           { name: 'attendees', label: "Attendees" },
-          { name: 'agenda', type: 'text', label: "Agenda" },
-          { name: 'decisions', type: 'text', label: "Decisions" }
+          { name: 'agenda', type: 'text', label: "Agenda" }
+        ] },
+      { title: "Inputs (ISO 9.3.2)", note: "Pulled by 'Pull Inputs' onto the Review Inputs screen — one line per required kind (audit results, CAPA status, customer feedback, process performance, prior actions, external providers), each a count of records the system holds. Never typed.",
+        fields: [
+          { name: 'inputs_missing', readonly: true, label: "Missing Inputs" }
+        ] },
+      { title: "Decisions & Outputs (ISO 9.3.3)", note: "The decisions narrative explains what top management decided; the outputs are TRACKED ACTIONS (Review Actions screen) with owners and due dates. A decision recorded only as prose tracks nothing — the model refuses to close it. Closure routes to DOFA Tier 5.",
+        fields: [
+          { name: 'decisions', type: 'text', label: "Decisions" },
+          { name: 'open_actions', readonly: true, label: "Open Actions" },
+          { name: 'approval_state', readonly: true, label: "Approval" },
+          { name: 'closed_on', readonly: true, label: "Closed On" },
+          { name: 'closed_by_id', readonly: true, label: "Closed By" }
+        ] }
+    ]
+  },
+
+  'M23-form-review-action': {
+    kind: 'model_form',
+    model: 'fix.qms.review.action',
+    title: "Review Action",
+    back: 'M23-review-actions',
+    sections: [
+      { title: "Tracked Action (ISO 9.3.3)", note: "One output of a management review: what was decided, who owns it, when it is due. Completion is stamped by 'Mark Done' — by the owner or the Quality Manager, never typed.",
+        fields: [
+          { name: 'review_id', required: true, label: "Review" },
+          { name: 'name', type: 'text', required: true, label: "Decision / Action" },
+          { name: 'owner_id', required: true, label: "Owner" },
+          { name: 'due_on', label: "Due" },
+          { name: 'state', readonly: true, label: "State" },
+          { name: 'done_on', readonly: true, label: "Done On" },
+          { name: 'done_by_id', readonly: true, label: "Done By" }
         ] }
     ]
   },
@@ -325,7 +394,8 @@ export const FORM_MODELS = {
   'M23:NCR': 'fix.ncr',
   'M23:CAPA': 'fix.capa',
   'M23:Audit Finding': 'fix.internal.audit',
-  'M23:Checklist Template': 'fix.qms.checklist'
+  'M23:Checklist Template': 'fix.qms.checklist',
+  'M23:Review Action': 'fix.qms.review.action'
 };
 
 export const FORM_CHIPS = {
@@ -336,11 +406,13 @@ export const FORM_CHIPS = {
   'M23:CAPA': 'M23-form-capa',
   'M23:Audit Finding': 'M23-form-audit',
   'M23:Checklist Template': 'M23-form-checklist',
+  'M23:Review Action': 'M23-form-review-action',
   'M23:__by_model__': {
     'fix.qms.copq': 'M23-form-qms-copq',
     'fix.qms.process': 'M23-form-process',
     'fix.qms.gate': 'M23-form-gate',
     'fix.qms.review': 'M23-form-review',
+    'fix.qms.review.action': 'M23-form-review-action',
     'fix.ncr': 'M23-form-ncr',
     'fix.capa': 'M23-form-capa',
     'fix.internal.audit': 'M23-form-audit',
@@ -353,6 +425,7 @@ export const FORM_CHIPS = {
     'M23-processes': 'M23-form-process',
     'M23-gates': 'M23-form-gate',
     'M23-review': 'M23-form-review',
+    'M23-review-actions': 'M23-form-review-action',
     'M23-ncr': 'M23-form-ncr',
     'M23-rca': 'M23-form-ncr',
     'M23-capa': 'M23-form-capa',

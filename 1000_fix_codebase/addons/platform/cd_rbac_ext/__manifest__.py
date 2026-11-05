@@ -27,6 +27,7 @@ Owns:
         "data/fix_isolation_tiers.xml",
         "data/fix_roles.xml",
         "data/fix_sod_controls.xml",
+        "data/fix_access_cron.xml",
         "data/access_ops_sequences.xml",
         "data/security_ops_sequences.xml",
         "views/fix_rbac_views.xml",

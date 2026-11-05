@@ -159,7 +159,11 @@ class P03GenericApiController(http.Controller):
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # OU record rules stay enforced for every OTHER surface; writes
             # below keep the calling user's context (SoD/permissions apply).
-            rec_model = env[model].sudo()
+            # A surface that declares "rules": True searches AS THE CALLER:
+            # its record rules then decide which rows the user sees at all
+            # (A10 W1: an investigator sees only their assigned whistle
+            # reports, never the whole register the ACL alone would allow).
+            rec_model = env[model] if conf.get("rules") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
@@ -461,7 +465,18 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            rec = env[model].sudo().browse(int(record_id)).exists() if record_id else None
+            rec = None
+            if record_id:
+                if conf.get("rules"):
+                    # W1-class surfaces: the record rule decides — browsing a
+                    # report the caller may not see (an investigator opening
+                    # another's whistleblowing report by ID) fails read
+                    # access cleanly instead of leaking it through sudo.
+                    rec = env[model].browse(int(record_id)).exists()
+                    if rec:
+                        rec.check_access("read")
+                else:
+                    rec = env[model].sudo().browse(int(record_id)).exists()
             out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
             if rec:

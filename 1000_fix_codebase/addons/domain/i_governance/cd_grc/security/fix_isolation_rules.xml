@@ -92,6 +92,11 @@
         <field name="model_id" ref="model_fix_grc_whistle"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_risk_appetite_company" model="ir.rule">
+        <field name="name">fix.risk.appetite: allowed companies</field>
+        <field name="model_id" ref="model_fix_risk_appetite"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_risk_register_company" model="ir.rule">
         <field name="name">fix.risk.register: allowed companies</field>
         <field name="model_id" ref="model_fix_risk_register"/>

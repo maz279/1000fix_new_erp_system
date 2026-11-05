@@ -3,3 +3,7 @@ access_fix_document,fix.document,model_fix_document,base.group_user,1,1,1,0
 access_fix_retention_class,fix.retention.class,model_fix_retention_class,base.group_user,1,0,0,0
 access_fix_document_template,fix.document.template,model_fix_document_template,base.group_user,1,1,1,0
 access_fix_retention_class_admin,fix.retention.class,model_fix_retention_class,base.group_system,1,1,1,0
+access_fix_legal_hold,fix.legal.hold,model_fix_legal_hold,base.group_user,1,0,0,0
+access_fix_legal_hold_records,fix.legal.hold,model_fix_legal_hold,group_document_records,1,1,1,0
+access_fix_disposal_record,fix.disposal.record,model_fix_disposal_record,base.group_user,1,0,0,0
+access_fix_disposal_record_records,fix.disposal.record,model_fix_disposal_record,group_document_records,1,1,1,0

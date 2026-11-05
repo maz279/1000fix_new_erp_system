@@ -387,7 +387,6 @@ WRITABLE = {
     ),
     "fix.complaint": frozenset(
         {
-            "capa_id",
             "capa_stub_ref",
             "category",
             "company_id",

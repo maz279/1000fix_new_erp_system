@@ -78,6 +78,7 @@ export const SCREENS = {
       { m: 'action_raise_ncr', l: 'Raise NCR' },
       { m: 'action_record_root_cause', l: 'Record Root Cause' },
       { m: 'action_verify_root_cause', l: 'Verify 5-Why' },
+      { m: 'action_link_capa', l: 'Link CAPA (QM)', ask: 'ID of the CAPA raised from this complaint\'s NCR (leave blank to take the NCR\'s only CAPA)', kwarg: 'capa_id' },
       { m: 'action_open_capa', l: 'Open CAPA' },
       { m: 'action_request_verification', l: 'Send CAPA to Verification' },
       { m: 'action_request_approval', l: 'Request Concession Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
@@ -213,8 +214,10 @@ export const SCREENS = {
           { name: 'five_why_verified_by_id', readonly: true, label: '5-Why Verified By' },
           { name: 'five_why_verified_at', readonly: true, label: '5-Why Verified At' },
         ]},
-      { tab: 'capa', title: 'Corrective & Preventive Action (CAPA) & Quality NCR', fields: [
-        { name: 'capa_id', label: 'Linked CAPA Action Plan Ref' },
+      { tab: 'capa', title: 'Corrective & Preventive Action (CAPA) & Quality NCR',
+        note: 'The CAPA link is the Quality Manager\'s act over the real chain (complaint → NCR → the CAPA raised from that NCR) — never a typed field (A10 S6).',
+        fields: [
+        { name: 'capa_id', readonly: true, label: 'Linked CAPA Action Plan Ref' },
         { name: 'capa_stub_ref', label: 'CAPA Cross-Module Tracking Code' },
         { name: 'ncr_id', readonly: true, label: 'Non-Conformance Report (NCR) Ref' },
         { name: 'ncr_stub_ref', readonly: true, label: 'M23 Quality Management NCR Reference' },

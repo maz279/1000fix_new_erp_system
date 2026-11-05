@@ -104,6 +104,11 @@ class HrEmployeeExt(models.Model):
     # -------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
+        # A10 P1-3: an employee born holding a conflicting role pair is a
+        # conflict, not a fresh start.
+        for vals in vals_list:
+            if vals.get("primary_role_id") or vals.get("additional_role_ids"):
+                self.env["fix.sod.control"].gate_role_set(self._sod_final_role_set(vals))
         records = super().create(vals_list)
         for rec in records:
             if rec.employment_status in ("active", "joining"):
@@ -129,6 +134,12 @@ class HrEmployeeExt(models.Model):
         leavers = self.browse()
         if "active" in vals and not vals["active"]:
             leavers = self.filtered(lambda rec: rec.employment_status == "active")
+        # A10 P1-3: the employee master is the real grant path for business
+        # roles — a direct write must clear the same SoD gate assign_role
+        # does, against the employee's FULL final set.
+        if "primary_role_id" in vals or "additional_role_ids" in vals:
+            for rec in self:
+                self.env["fix.sod.control"].gate_role_set(rec._sod_final_role_set(vals))
         result = super().write(vals)
         # JML event emission on lifecycle changes
         for rec in leavers:
@@ -190,6 +201,31 @@ class HrEmployeeExt(models.Model):
     # -------------------------------------------------------------
     # M21 calls M29's published API (sync one-way) — P03-M08-T08
     # -------------------------------------------------------------
+    def _sod_final_role_set(self, vals):
+        """The employee's final business-role set once a vals dict lands:
+        primary + additional (commands applied) + any register roles the
+        linked user's Odoo groups already carry (A10 P1-3). Called on the
+        record for a write, on the empty recordset for a create."""
+        Sod = self.env["fix.sod.control"]
+        primary = vals.get("primary_role_id") or self.primary_role_id.id
+        additional = set(self.additional_role_ids.ids)
+        for cmd in vals.get("additional_role_ids") or ():
+            if isinstance(cmd, int):
+                additional.add(cmd)
+            elif cmd[0] == 3:
+                additional.discard(cmd[1])
+            elif cmd[0] == 4:
+                additional.add(cmd[1])
+            elif cmd[0] == 5:
+                additional = set()
+            elif cmd[0] == 6:
+                additional = set(cmd[2])
+        user_id = vals.get("user_id") or (self.user_id.id if self.user_id else False)
+        final = {r for r in ({primary} | additional) if r}
+        if user_id:
+            final |= Sod._user_role_ids(self.env["res.users"].browse(user_id))
+        return final
+
     def assign_role(self, role_code: str):
         """Call M29's published API to assign a business role (T08).
 
@@ -200,8 +236,10 @@ class HrEmployeeExt(models.Model):
         role = self.env["fix.role"].search([("code", "=", role_code)], limit=1)
         if not role:
             raise ValueError(f"Role {role_code} not found in the reconciled register.")
-        # SoD check before assignment (P03-M02-T04)
-        self.env["fix.sod.control"].check_assignment(
-            self.primary_role_id.id if self.primary_role_id else role.id, role.id
+        # SoD check before assignment (P03-M02-T04) — against the FULL final
+        # set plus the user's register roles, not one hand-picked pair
+        # (A10 P1-3: the pair-only check missed additional roles).
+        self.env["fix.sod.control"].gate_role_set(
+            self._sod_final_role_set({"additional_role_ids": [(4, role.id)]})
         )
         self.write({"additional_role_ids": [(4, role.id)]})

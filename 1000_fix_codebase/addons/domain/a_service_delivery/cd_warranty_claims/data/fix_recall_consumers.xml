@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A10 P1-7 (M61-4): a distributed safety recall bulletin becomes M09's
+     campaign. The consumer is idempotent on the bulletin link and states no
+     unit count the bulletin did not state. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_bulletin_distributed_warranty_recall" model="fix.event.consumer">
+            <field name="name">M09: a distributed recall bulletin opens its warranty recall campaign</field>
+            <field name="event_type">bulletin.distributed</field>
+            <field name="model">fix.warranty.recall</field>
+            <field name="method">consume_bulletin_distributed</field>
+            <field name="module">cd_warranty_claims</field>
+        </record>
+
+    </data>
+</odoo>

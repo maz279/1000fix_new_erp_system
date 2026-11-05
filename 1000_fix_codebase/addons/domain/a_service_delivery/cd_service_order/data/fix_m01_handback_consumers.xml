@@ -39,5 +39,13 @@
             <field name="module">cd_service_order</field>
         </record>
 
+        <record id="consumer_bulletin_distributed_service_order" model="fix.event.consumer">
+            <field name="name">M01: a distributed recall bulletin flags the open orders holding affected devices</field>
+            <field name="event_type">bulletin.distributed</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_bulletin_distributed</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
     </data>
 </odoo>

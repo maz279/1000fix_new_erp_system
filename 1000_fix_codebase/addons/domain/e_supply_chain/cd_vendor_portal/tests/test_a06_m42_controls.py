@@ -451,8 +451,44 @@ def test_m42_Q03_car_closed_only_by_someone_other_than_the_raiser(c):
     car.with_user(c.steward).action_action()
     with pytest.raises(UserError, match="Segregation"):
         car.with_user(c.steward).action_close()
+    # A10 S6 (M23-12): a MAJOR CAR closes on its root cause — the audit
+    # closed a critical one with neither root cause nor NCR.
+    with pytest.raises(UserError, match="root cause"):
+        car.with_user(c.steward2).action_close()
+    car.with_user(c.steward).write({"root_cause": "no dispatch plan after the vendor change"})
     car.with_user(c.steward2).action_close()
     assert car.state == "closed" and car.closed_by_id == c.steward2
+
+
+def test_a10_s6_every_car_announces_itself_to_the_estate(c):
+    """The M42 -> M23 hand-off (A10 S6): a CAR is published as
+    supplier.car.raised the moment it exists — with what it is, so the QMS
+    consumer in cd_qms_process can raise the NCR for the majors. This
+    module cannot see the QMS; the event is the hand-off."""
+    s = supplier(c)
+    car = (
+        c.env["fix.supplier.car"]
+        .with_user(c.steward)
+        .create(
+            {
+                "supplier_id": s.id,
+                "issue": "wrong part shipped twice",
+                "severity": "critical",
+                "due_date": c.today + timedelta(days=5),
+            }
+        )
+    )
+    events = (
+        c.env["fix.event.outbox"]
+        .sudo()
+        .search([("event_type", "=", "supplier.car.raised"), ("aggregate_id", "=", car.id)])
+    )
+    assert len(events) == 1
+    payload = json.loads(events[0].payload)
+    assert payload["car"] == car.name
+    assert payload["supplier"] == s.name
+    assert payload["severity"] == "critical"
+    assert "wrong part shipped twice" in payload["issue"]
 
 
 def test_m42_Q04_car_action_needs_plan(c):

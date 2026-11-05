@@ -21,6 +21,7 @@ CD-M24-03: e-signature envelopes.
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_esignature_views.xml",
+        "data/fix_esignature_cron.xml",
     ],
     "installable": True,
     "application": False,

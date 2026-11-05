@@ -8,17 +8,31 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_approve"},
     },
-    "fix.qms.process": {"order": "code", "limit": 300, "actions": set()},
+    "fix.qms.process": {
+        "order": "code",
+        "limit": 300,
+        # A10 S6: the register's state is the Quality Manager's act
+        "actions": {"action_retire"},
+    },
     "fix.qms.checklist": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_publish"},
+        "actions": {"action_publish", "action_retire"},
     },
-    "fix.qms.gate": {"order": "sequence, id", "limit": 200, "actions": set()},
+    "fix.qms.gate": {
+        "order": "sequence, id",
+        "limit": 200,
+        "actions": {"action_retire"},
+    },
     "fix.ncr": {
         "order": "id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {
+            "action_set_root_cause",
+            "action_open_capa",
+            "action_dispose",
+            "action_close",
+        },
     },
     "fix.capa": {
         "order": "id desc",
@@ -30,11 +44,20 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_execute", "action_report"},
     },
-    "fix.qms.certification": {"order": "audit_date desc, id desc", "limit": 200, "actions": set()},
+    "fix.qms.certification": {
+        "order": "audit_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_pass", "action_record_result"},
+    },
     "fix.qms.review": {
         "order": "review_date desc, id desc",
         "limit": 200,
-        "actions": {"action_hold", "action_close"},
+        "actions": {"action_pull_inputs", "action_hold", "action_close"},
+    },
+    "fix.qms.review.action": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_done"},
     },
     "fix.qms.copq": {"order": "period desc, id desc", "limit": 500, "actions": set()},
 }
@@ -54,8 +77,8 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def ncr_capa_register(env, date_from=None, date_to=None, **params):
     """NCR & CAPA register: every NCR with its severity, state and CAPA count."""
-    ncrs = env["fix.ncr"].sudo().search([])
-    capas = env["fix.capa"].sudo().search([])
+    ncrs = env["fix.ncr"].search([])
+    capas = env["fix.capa"].search([])
     rows = []
     for ncr in ncrs:
         related = capas.filtered(lambda c, n=ncr.id: c.ncr_id.id == n)
@@ -118,8 +141,8 @@ def ncr_capa_register(env, date_from=None, date_to=None, **params):
 
 def audit_programme(env, date_from=None, date_to=None, **params):
     """Audit programme status: internal audits and their findings."""
-    audits = env["fix.internal.audit"].sudo().search([])
-    ncrs = env["fix.ncr"].sudo().search([])
+    audits = env["fix.internal.audit"].search([])
+    ncrs = env["fix.ncr"].search([])
     rows = []
     for audit in audits:
         findings = ncrs.filtered(
@@ -161,7 +184,7 @@ def audit_programme(env, date_from=None, date_to=None, **params):
 
 def repeat_failure(env, date_from=None, date_to=None, **params):
     """Repeat-failure escalation: NCRs whose source reference repeats."""
-    ncrs = env["fix.ncr"].sudo().search([])
+    ncrs = env["fix.ncr"].search([])
     groups = {}
     for ncr in ncrs:
         key = ncr.order_id.name if getattr(ncr, "order_id", False) and ncr.order_id else None
@@ -203,7 +226,7 @@ def repeat_failure(env, date_from=None, date_to=None, **params):
 
 def copq_analysis(env, date_from=None, date_to=None, **params):
     """CoPQ analysis by period and category."""
-    records = env["fix.qms.copq"].sudo().search([])
+    records = env["fix.qms.copq"].search([])
     groups = {}
     for rec in records:
         key = (rec.period, dict(rec._fields["category"].selection).get(rec.category))
@@ -228,11 +251,11 @@ def copq_analysis(env, date_from=None, date_to=None, **params):
 def management_review_pack(env, date_from=None, date_to=None, **params):
     """Management review pack: the review record plus the quality signals a
     review needs (open NCRs, CAPA states, audit findings, CoPQ total)."""
-    reviews = env["fix.qms.review"].sudo().search([], order="review_date desc", limit=1)
-    ncrs = env["fix.ncr"].sudo().search([])
-    capas = env["fix.capa"].sudo().search([])
-    copq = env["fix.qms.copq"].sudo().search([])
-    audit = env["fix.internal.audit"].sudo().search([])
+    reviews = env["fix.qms.review"].search([], order="review_date desc", limit=1)
+    ncrs = env["fix.ncr"].search([])
+    capas = env["fix.capa"].search([])
+    copq = env["fix.qms.copq"].search([])
+    audit = env["fix.internal.audit"].search([])
     latest = reviews[:1]
     rows = [
         {
@@ -240,6 +263,22 @@ def management_review_pack(env, date_from=None, date_to=None, **params):
             "metric": "Latest review",
             "value": latest.name if latest else "—",
             "detail": str(latest.review_date or "—") if latest else "—",
+        },
+        {
+            "section": "Review",
+            "metric": "ISO 9.3.2 inputs pulled",
+            "value": len(latest.input_ids) if latest else 0,
+            "detail": (
+                "%d required kind(s) missing (A10 P1-6)" % latest.inputs_missing
+                if latest
+                else "no review"
+            ),
+        },
+        {
+            "section": "Review",
+            "metric": "Tracked actions open (9.3.3)",
+            "value": latest.open_actions if latest else 0,
+            "detail": "of %d action line(s)" % len(latest.action_ids) if latest else "—",
         },
         {
             "section": "Nonconformance",
@@ -285,7 +324,11 @@ def management_review_pack(env, date_from=None, date_to=None, **params):
         rows,
         [
             "The pack assembles the review record with the live quality signals; the review's "
-            "own decisions stay on the review record."
+            "own decisions stay on the review record.",
+            "A10 P1-6: the ISO 9.3.2 inputs live ON the review (fix.qms.review.input lines "
+            "pulled by action_pull_inputs — never typed) and the outputs are tracked action "
+            "lines (9.3.3). The counts here mirror those records; this pack reports, it does "
+            "not decide.",
         ],
         empty="No review signals.",
     )
@@ -301,17 +344,38 @@ REPORTS = {
 
 
 def kpis(env):
-    ncrs = env["fix.ncr"].sudo().search([])
-    capas = env["fix.capa"].sudo().search([])
-    audits = env["fix.internal.audit"].sudo().search([])
-    copq = env["fix.qms.copq"].sudo().search([])
+    # A10 S6 (M23-10): the tiles read with the CALLER's scope — the isolation
+    # rules apply, so a Dhaka clerk no longer counts Chattogram's
+    # non-conformances — and every number is measured from the record that
+    # owns it, not invented.
+    ncrs = env["fix.ncr"].search([])
+    capas = env["fix.capa"].search([])
+    copq = env["fix.qms.copq"].search([])
     open_ncrs = ncrs.filtered(lambda n: n.state != "closed")
-    verified = capas.filtered(lambda c: c.state in ("verified", "closed"))
+    # A10 (D7, M23-10): 'on time' means the verified date beat the due date —
+    # counting every verified CAPA as on-time invented the figure the
+    # certification body reads.
+    verdicts = capas.filtered(lambda c: c.effectiveness_result != "pending")
+    on_time = verdicts.filtered(
+        lambda c: not c.due_on or (c.verified_on and c.verified_on <= c.due_on)
+    )
+    # A10 S6 (M23-10): 'open audit findings' counted AUDITS (planned and
+    # executed programmes). Findings are their own record — the GRC audit
+    # finding (fix.audit.finding) — and one is open until its CAPA is closed.
+    findings = env["fix.audit.finding"].search([("capa_status", "!=", "closed")])
+    # first-pass yield is the QC checklist's own verdict: passed over
+    # COMPLETED checks (passed or failed). Pending checks measure nothing.
+    completed = env["fix.qc.checklist"].search([("state", "in", ("passed", "failed"))])
+    first_pass = (
+        round(len(completed.filtered(lambda q: q.state == "passed")) / len(completed) * 100.0, 1)
+        if completed
+        else None
+    )
     return {
         "major_ncs": len(ncrs.filtered(lambda n: n.severity in ("major", "critical"))),
-        "capa_on_time": round(len(verified) / len(capas) * 100.0, 1) if capas else 0.0,
+        "capa_on_time": round(len(on_time) / len(verdicts) * 100.0, 1) if verdicts else 0.0,
         "open_ncrs": len(open_ncrs),
-        "audit_findings": len(audits.filtered(lambda a: a.state != "reported")),
-        "first_pass_qc": None,
+        "audit_findings": len(findings),
+        "first_pass_qc": first_pass,
         "copq": round(sum(float(c.amount or 0.0) for c in copq), 2),
     }

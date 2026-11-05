@@ -3,3 +3,4 @@ access_fix_knowledge_article,fix.knowledge.article,model_fix_knowledge_article,b
 access_fix_knowledge_tree,fix.knowledge.tree,model_fix_knowledge_tree,base.group_user,1,1,1,0
 access_fix_knowledge_media,fix.knowledge.media,model_fix_knowledge_media,base.group_user,1,1,1,0
 access_fix_knowledge_bulletin,fix.knowledge.bulletin,model_fix_knowledge_bulletin,base.group_user,1,1,1,0
+access_fix_knowledge_bulletin_recipient,fix.knowledge.bulletin.recipient,model_fix_knowledge_bulletin_recipient,base.group_user,1,1,1,0

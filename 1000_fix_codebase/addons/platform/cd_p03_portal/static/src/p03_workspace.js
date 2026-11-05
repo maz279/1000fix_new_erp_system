@@ -2331,11 +2331,46 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             gl.prompt = { title: label, label: cfg.ask, value: "", _ml: { row, method, label, kwarg: cfg.kwarg || "otp" } };
             return;
         }
+        if (cfg.asks && cfg.asks.length) {
+            // several typed values (e.g. closing a legal matter needs an
+            // outcome AND a note) — chain native prompts exactly like the
+            // service-order runner; cancelling any prompt aborts the action.
+            const kwargs = Object.assign({}, cfg.kw || {});
+            for (const ask of cfg.asks) {
+                const value = window.prompt(row.name + " — " + this.t(ask.label));
+                if (value === null) return;
+                kwargs[ask.kwarg] = ask.number ? Number(value) : value;
+            }
+            const res = await this._arCall("/p03/model/action", {
+                model: gl.modelCfg.model, ids: [row.id], method, kwargs,
+            }, label + " ✓");
+            if (res.success) {
+                this._mlActionResult(res);
+                this.loadGlData();
+                this.state.gl.mlSelected = null;
+                if (this.state.viewMode === "record_view") this.refreshRecordTab();
+            }
+            return;
+        }
         const res = await this._arCall("/p03/model/action", {
             model: gl.modelCfg.model, ids: [row.id], method,
             kwargs: cfg.kw || undefined,
         }, label ? label + " ✓" : "Done ✓");
-        if (res.success) { this.loadGlData(); this.state.gl.mlSelected = null; }
+        if (res.success) {
+            this._mlActionResult(res);
+            this.loadGlData();
+            this.state.gl.mlSelected = null;
+        }
+    }
+
+    /** An action may answer with a result the user must see — e.g. the
+     * whistleblowing reveal returns the reporter's identity (or the note
+     * that the report was anonymous). Surface it; never let it vanish
+     * into the RPC log. */
+    _mlActionResult(res) {
+        const r = (res && res.result) || {};
+        if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
+        else if (r.note) this.showToast(r.note);
     }
 
     /* ---------------- CoA ---------------- */
@@ -2718,6 +2753,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 label + " ✓"
             );
             if (res.success) {
+                this._mlActionResult(res);
                 this.loadGlData();
                 this.state.gl.mlSelected = null;
                 if (this.state.viewMode === "record_view") this.refreshRecordTab();

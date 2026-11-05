@@ -30,12 +30,16 @@ CD-M09-01..05: the warranty and claims engine.
         "cd_device_registry",
         "cd_service_order",
         "cd_document_core",
+        # A10 P1-7 (M61-4): a distributed safety recall bulletin becomes an
+        # M09 recall campaign (fix.warranty.recall.bulletin_id).
+        "cd_knowledge",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/ir_cron_aut018.xml",
+        "data/fix_recall_consumers.xml",
         "views/fix_warranty_claims_views.xml",
     ],
     "installable": True,

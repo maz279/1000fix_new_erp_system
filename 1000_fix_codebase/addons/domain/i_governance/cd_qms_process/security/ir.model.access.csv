@@ -6,6 +6,11 @@ access_fix_qms_policy,fix.qms.policy,model_fix_qms_policy,base.group_user,1,1,1,
 access_fix_qms_process,fix.qms.process,model_fix_qms_process,base.group_user,1,1,1,0
 access_fix_qms_checklist,fix.qms.checklist,model_fix_qms_checklist,base.group_user,1,1,1,0
 access_fix_qms_gate,fix.qms.gate,model_fix_qms_gate,base.group_user,1,1,1,0
-access_fix_qms_certification,fix.qms.certification,model_fix_qms_certification,base.group_user,1,1,1,0
+access_fix_qms_certification_user,fix.qms.certification,model_fix_qms_certification,base.group_user,1,0,0,0
+access_fix_qms_certification_qm,fix.qms.certification,model_fix_qms_certification,group_qms_quality_manager,1,1,1,0
 access_fix_qms_review,fix.qms.review,model_fix_qms_review,base.group_user,1,1,1,0
 access_fix_qms_copq,fix.qms.copq,model_fix_qms_copq,base.group_user,1,1,1,0
+access_fix_qms_review_input,fix.qms.review.input,model_fix_qms_review_input,base.group_user,1,0,0,0
+access_fix_qms_review_input_qm,fix.qms.review.input,model_fix_qms_review_input,group_qms_quality_manager,1,1,1,1
+access_fix_qms_review_action,fix.qms.review.action,model_fix_qms_review_action,base.group_user,1,1,0,0
+access_fix_qms_review_action_qm,fix.qms.review.action,model_fix_qms_review_action,group_qms_quality_manager,1,1,1,1
