@@ -1,2 +1,11 @@
 # cd_talent models.
-from . import fix_talent, fix_talent_ops
+# ruff: noqa: I001
+from . import (
+    hr_employee_talent,
+    res_users_talent,
+    fix_talent,
+    fix_talent_ops,
+    fix_talent_evaluation,
+    fix_talent_budget,
+    fix_onboarding_task,
+)

@@ -1,2 +1,2 @@
 # cd_attendance — M55 (P08-M02).
-from . import models
+from . import controllers, models

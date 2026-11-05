@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M58 default onboarding task set (FR-TAO-027/028/029/030/031/033).
+
+     The tasks are the spec's own list: day-one readiness is "access,
+     equipment, ID, safety induction" (FR-TAO-033), so those four are
+     mandatory; the learning path (FR-TAO-030) and the mentor (FR-TAO-031) are
+     tracked but optional. Two things are business decisions and are listed
+     in the build report:
+       * owners: none is named, so a task goes to the requisition's hiring
+         manager, else to the recruiter who makes the hire;
+       * due dates: no lead time is stated per task, so every task is due on
+         the joining date (offset 0); the day-one readiness cron already warns
+         `cd_talent.readiness_lead_days` days before it.
+     noupdate: HR edits the template in place. -->
+<odoo>
+    <data noupdate="1">
+        <record id="onboarding_template_default" model="fix.onboarding.template">
+            <field name="name">Standard Onboarding (M58 FR-TAO-027)</field>
+            <field name="is_default" eval="True"/>
+        </record>
+        <record id="onboarding_line_access" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">10</field>
+            <field name="name">System access requested from M29 and working (FR-TAO-028)</field>
+            <field name="function">it</field>
+            <field name="mandatory" eval="True"/>
+        </record>
+        <record id="onboarding_line_equipment" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">20</field>
+            <field name="name">Tools, equipment and van stock issued (M17 / M03, FR-TAO-028)</field>
+            <field name="function">stores</field>
+            <field name="mandatory" eval="True"/>
+        </record>
+        <record id="onboarding_line_id_card" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">30</field>
+            <field name="name">Workspace and employee ID card issued (BLA 2006 s.5, FR-TAO-028)</field>
+            <field name="function">facilities</field>
+            <field name="mandatory" eval="True"/>
+        </record>
+        <record id="onboarding_line_safety" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">40</field>
+            <field name="name">Safety induction completed (M59, BRU-TAO-11)</field>
+            <field name="function">safety</field>
+            <field name="mandatory" eval="True"/>
+            <field name="field_role_only" eval="True"/>
+        </record>
+        <record id="onboarding_line_learning" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">50</field>
+            <field name="name">Onboarding learning path assigned in M22 (FR-TAO-030)</field>
+            <field name="function">hr</field>
+            <field name="mandatory" eval="False"/>
+        </record>
+        <record id="onboarding_line_mentor" model="fix.onboarding.template.line">
+            <field name="template_id" ref="onboarding_template_default"/>
+            <field name="sequence">60</field>
+            <field name="name">Mentor / buddy assigned (FR-TAO-031)</field>
+            <field name="function">branch</field>
+            <field name="mandatory" eval="False"/>
+        </record>
+    </data>
+</odoo>

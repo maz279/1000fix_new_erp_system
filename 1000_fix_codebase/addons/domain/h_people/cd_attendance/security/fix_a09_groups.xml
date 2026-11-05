@@ -24,6 +24,19 @@
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
+    <!-- SOD-28 (A09 audit M55-6/M55-9): the supervisor who maintains rosters and
+         devices and locks the month does not also re-open it. Re-opening a
+         locked period is this separate role's, with a reason, and never once
+         payroll has taken the period. Holders are a business decision: the
+         administrator only. -->
+    <record id="group_attendance_lock_manager" model="res.groups">
+        <field name="name">Attendance Lock Manager</field>
+        <field name="privilege_id" ref="privilege_attendance_supervisor"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Re-opens a locked attendance period, with a reason, before payroll has taken it.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
     <!-- an HR Manager inherits the role, so existing manager accounts are
          unaffected by the tightening -->
     <record id="hr.group_hr_manager" model="res.groups">

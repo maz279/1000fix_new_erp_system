@@ -2,35 +2,88 @@
 # candidates, interviews, practical assessments, checks, offers and first-90
 # reviews.
 
+# A09 workflow audit (M58-F1..F5): "Approve Requisition", "Mark Clear" and
+# "Issue Offer" were the maker's own buttons. Approvals are now requested here
+# and decided from the M63 inbox by someone else; the apply methods
+# (action_approve, action_clear, action_issue) are not offered on the screens.
 SURFACES = {
     "fix.job.requisition": {
         "order": "id desc",
         "limit": 300,
-        "actions": {"action_open", "action_hired"},
+        "actions": {"action_request_approval", "action_recall_approval", "action_close"},
     },
     "fix.candidate": {
         "order": "id desc",
         "limit": 500,
-        "actions": {"action_screen", "action_interview", "action_offer", "action_hire"},
+        "actions": {
+            "action_screen",
+            "action_interview",
+            "action_offer",
+            "action_reject",
+            "action_hire",
+        },
     },
     "fix.talent.interview": {
         "order": "scheduled_on desc, id desc",
         "limit": 400,
-        "actions": {"action_done"},
+        "actions": {
+            "action_add_panelist",
+            "action_remove_panelist",
+            "action_done",
+            "action_cancel",
+        },
     },
     "fix.talent.assessment": {"order": "assessed_on desc, id desc", "limit": 400, "actions": set()},
-    "fix.talent.check": {"order": "id desc", "limit": 400, "actions": {"action_clear"}},
+    "fix.talent.check": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_mark_failed",
+            "action_mark_discrepancy",
+        },
+    },
     "fix.talent.offer": {
         "order": "issued_on desc, id desc",
         "limit": 300,
-        "actions": {"action_issue", "action_accept", "action_decline"},
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_accept",
+            "action_decline",
+        },
     },
     "fix.onboarding.plan": {
         "order": "joined_date desc, id desc",
         "limit": 300,
-        "actions": {"action_start", "action_complete"},
+        "actions": {
+            "action_start",
+            "action_complete",
+            "action_acknowledge_appointment",
+            "action_attest_signed_appointment",
+        },
     },
     "fix.talent.first90": {"order": "check_date desc, id desc", "limit": 300, "actions": set()},
+    # Round 2 (BRU-TAO-07): a panelist's own evaluation, private until the
+    # whole panel has submitted (record rules).
+    "fix.talent.evaluation": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_submit"},
+    },
+    # Round 2 (BRU-TAO-01): the approved headcount budget, decided by the CFO tier.
+    "fix.headcount.budget": {
+        "order": "year desc, id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_close"},
+    },
+    # Round 2 (FR-TAO-027): onboarding tasks with owners, due dates and evidence.
+    "fix.onboarding.task": {
+        "order": "due_date, id",
+        "limit": 500,
+        "actions": {"action_done", "action_cancel"},
+    },
 }
 
 
@@ -48,7 +101,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def funnel_conversion(env, date_from=None, date_to=None, **params):
     """Funnel & conversion: candidates by pipeline stage."""
-    candidates = env["fix.candidate"].sudo().search([])
+    candidates = env["fix.candidate"].search([])
     stages = [
         ("applied", "Applied"),
         ("screening", "Screening"),
@@ -79,13 +132,17 @@ def funnel_conversion(env, date_from=None, date_to=None, **params):
 
 def time_to_fill(env, date_from=None, date_to=None, **params):
     """Time to fill by requisition, from opened to first hire."""
-    reqs = env["fix.job.requisition"].sudo().search([])
-    candidates = env["fix.candidate"].sudo().search([("state", "=", "hired")])
+    reqs = env["fix.job.requisition"].search([])
+    candidates = env["fix.candidate"].search([("state", "=", "hired")])
     rows = []
     for req in reqs:
         hired = candidates.filtered(lambda c, r=req.id: c.requisition_id.id == r)
         opened = req.create_date.date() if req.create_date else None
-        first_hire = min(hired.mapped("create_date"), default=None) if hired else None
+        # the hire is stamped when it happens (hired_on), not when the
+        # candidate was keyed in
+        first_hire = (
+            min((c.hired_on or c.create_date for c in hired), default=None) if hired else None
+        )
         days = (first_hire.date() - opened).days if (opened and first_hire) else None
         rows.append(
             {
@@ -117,12 +174,12 @@ def time_to_fill(env, date_from=None, date_to=None, **params):
 
 
 def source_effectiveness(env, date_from=None, date_to=None, **params):
-    """Source effectiveness: applications and hires by channel (from the
-    candidate's requisition)."""
-    candidates = env["fix.candidate"].sudo().search([])
+    """Source effectiveness: applications and hires by the candidate's channel."""
+    candidates = env["fix.candidate"].search([])
+    labels = dict(env["fix.candidate"]._fields["source"].selection)
     groups = {}
     for cand in candidates:
-        key = "Direct / Referral"
+        key = labels.get(cand.source, "Not recorded")
         g = groups.setdefault(key, {"applied": 0, "hired": 0})
         g["applied"] += 1
         if cand.state == "hired":
@@ -134,17 +191,14 @@ def source_effectiveness(env, date_from=None, date_to=None, **params):
             "hired": v["hired"],
             "conversion": round(v["hired"] / v["applied"] * 100.0, 1) if v["applied"] else 0.0,
         }
-        for k, v in groups.items()
+        for k, v in sorted(groups.items())
     ]
     return _pack(
         "Source Effectiveness",
         ["source", "applied", "hired", "conversion"],
         {"source": "Source", "applied": "Applied", "hired": "Hired", "conversion": "Hire Rate %"},
         rows,
-        [
-            "Candidate carries no source/channel field, so all applications are reported under "
-            "one honest bucket; adding a channel would be a model change."
-        ],
+        ["Grouped by the channel recorded on each candidate."],
         totals={
             "source": "Total",
             "applied": sum(r["applied"] for r in rows),
@@ -156,7 +210,7 @@ def source_effectiveness(env, date_from=None, date_to=None, **params):
 
 def first90_retention(env, date_from=None, date_to=None, **params):
     """First-90 retention: reviews and whether the hire is on track."""
-    reviews = env["fix.talent.first90"].sudo().search([])
+    reviews = env["fix.talent.first90"].search([])
     rows = []
     for rev in reviews:
         rows.append(
@@ -191,7 +245,7 @@ def first90_retention(env, date_from=None, date_to=None, **params):
 
 def practical_results(env, date_from=None, date_to=None, **params):
     """Practical assessment results per candidate."""
-    assessments = env["fix.talent.assessment"].sudo().search([])
+    assessments = env["fix.talent.assessment"].search([])
     rows = []
     for a in assessments:
         rows.append(
@@ -218,7 +272,10 @@ def practical_results(env, date_from=None, date_to=None, **params):
             "assessor": "Assessor",
         },
         rows,
-        ["Score is the recorded 0–100 percentage; passed is the assessor's recorded result."],
+        [
+            "Score is the recorded 0–100 percentage; passed means the score reached the "
+            "requisition's approved pass mark."
+        ],
         empty="No practical assessments recorded.",
     )
 
@@ -233,20 +290,23 @@ REPORTS = {
 
 
 def kpis(env):
-    reqs = env["fix.job.requisition"].sudo().search([])
-    candidates = env["fix.candidate"].sudo().search([])
-    offers = env["fix.talent.offer"].sudo().search([])
+    reqs = env["fix.job.requisition"].search([])
+    candidates = env["fix.candidate"].search([])
+    # Offers are HR-manager data: a recruiter sees the pipeline KPIs without
+    # them instead of losing every KPI to an AccessError.
+    can_offers = env["fix.talent.offer"].has_access("read")
+    offers = env["fix.talent.offer"].search([]) if can_offers else env["fix.talent.offer"]
     hired = candidates.filtered(lambda c: c.state == "hired")
     accepted = offers.filtered(lambda o: o.state == "accepted")
     issued = offers.filtered(lambda o: o.state in ("issued", "accepted", "declined"))
-    reviews = env["fix.talent.first90"].sudo().search([])
+    reviews = env["fix.talent.first90"].search([])
     on_track = len(reviews.filtered(lambda r: r.on_track))
     # Real time-to-fill: average days from requisition creation to its first hire.
     fill_days = []
     for req in reqs:
         req_hired = hired.filtered(lambda c, r=req.id: c.requisition_id.id == r)
         if req_hired and req.create_date:
-            first = min(req_hired.mapped("create_date"))
+            first = min(c.hired_on or c.create_date for c in req_hired)
             fill_days.append((first.date() - req.create_date.date()).days)
     return {
         "open_requisitions": len(reqs.filtered(lambda r: r.state == "open")),
@@ -254,7 +314,14 @@ def kpis(env):
         "pipeline": len(
             candidates.filtered(lambda c: c.state in ("applied", "screening", "interview"))
         ),
-        "offer_accept_rate": round(len(accepted) / len(issued) * 100.0, 1) if issued else 0.0,
-        "referral_share": None,  # no candidate channel field exists
+        "offer_accept_rate": (round(len(accepted) / len(issued) * 100.0, 1) if issued else 0.0)
+        if can_offers
+        else None,
+        "referral_share": round(
+            len(candidates.filtered(lambda c: c.source == "referral")) / len(candidates) * 100.0,
+            1,
+        )
+        if candidates
+        else 0.0,
         "first90_retention": round(on_track / len(reviews) * 100.0, 1) if reviews else 0.0,
     }

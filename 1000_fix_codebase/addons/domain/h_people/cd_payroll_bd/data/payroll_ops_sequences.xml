@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <record id="seq_fix_beftn_return" model="ir.sequence">
+            <field name="name">BEFTN Bank Return</field>
+            <field name="code">fix.beftn.return</field>
+            <field name="prefix">BRT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_payroll_bonus_run" model="ir.sequence">
             <field name="name">Festival Bonus Run</field>
             <field name="code">fix.payroll.bonus.run</field>

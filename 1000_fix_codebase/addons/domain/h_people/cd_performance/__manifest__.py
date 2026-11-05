@@ -12,11 +12,23 @@ CD-M57-01 (P08-M04):
   engine: banded score -> amount (Monetary, AS-10); it FEEDS payroll
   (the payslip's incentive field); 100% covered (DoD-03 — it pays people)
 - fix.compensation.band — bands and ranges; compensation data is T5-tier:
-  the amounts are field-protected (base.group_system) and
-  negative-testable (DoD-07)
-- emits scorecard.published / incentive.granted (P08-M04-T09)
+  the amounts are field-protected (Compensation Manager) and
+  negative-testable (DoD-07); contracts are checked against them (I7)
+- A09 remediation: own roles; incentive runs draft -> computed -> approved
+  through the routed approval engine, lines frozen, one run per period;
+  payroll picks approved lines up (I4) — M57 never writes the payslip;
+  review cycle with self-assessment, line-manager rating and routed
+  calibration; agreed goals; guarded PIPs; recognition prizes approved
+- A09 round 2: incentive schemes with effective-dated versions approved by
+  the HR Director then the CFO (a run computes only under one, and pins it);
+  joiner/leaver/long-leave proration and minimum service; the dispute
+  window; clawbacks of reworked or credited orders; compensation proposals
+  (manager -> calibration -> Compensation Manager) applied as a new
+  contract version inside the band
+- emits scorecard.published / incentive.granted / incentive.approved /
+  recognition.awarded (P08-M04-T09)
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Performance",
@@ -30,8 +42,11 @@ CD-M57-01 (P08-M04):
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_a09_perf_groups.xml",
         "security/ir.model.access.csv",
+        "security/fix_a09_privacy_rules.xml",
         "data/perf_ops_sequences.xml",
+        "data/fix_a09_m57_r2_data.xml",
         "views/fix_performance_views.xml",
     ],
     "installable": True,

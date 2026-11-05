@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 workflow audit M59-F2/F6/F10/F14: every employee could read, close
+     and rewrite every incident, check a colleague out of an overdue
+     lone-worker session, and read the accident register naming injured
+     workers. The self-service ACL stays (any employee REPORTS, RAP X-02), but
+     a plain employee now reaches only their own records; the HSE roles
+     (res.users fix_hse_reads_all) see all. GLOBAL rules, because these models
+     also carry the generated operating-unit group rule and group rules
+     combine with OR: a group rule could not narrow it. -->
+<odoo>
+    <!-- incidents: the reporter and the people named in it change them; round
+         2 adds READ for the line manager of the reporter or the injured
+         worker, and for the manager of the branch where it happened. -->
+    <record id="rule_hse_incident_own" model="ir.rule">
+        <field name="name">fix.hse.incident: own reports unless an HSE role (write)</field>
+        <field name="model_id" ref="model_fix_hse_incident"/>
+        <field name="domain_force">['|', '|', '|', ('create_uid', '=', user.id), ('employee_id.user_id', '=', user.id), ('injured_employee_id.user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_hse_incident_read_scope" model="ir.rule">
+        <field name="name">fix.hse.incident: own, your reports', your branch's, or an HSE role (read)</field>
+        <field name="model_id" ref="model_fix_hse_incident"/>
+        <field name="domain_force">['|', '|', '|', '|', '|', '|', ('create_uid', '=', user.id), ('employee_id.user_id', '=', user.id), ('injured_employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), ('injured_employee_id.parent_id.user_id', '=', user.id), ('branch_id.manager_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- the Form 28 register: the injured worker and the reporter only -->
+    <record id="rule_statutory_register_own" model="ir.rule">
+        <field name="name">fix.statutory.accident.register: own entries unless an HSE role</field>
+        <field name="model_id" ref="model_fix_statutory_accident_register"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('incident_id.create_uid', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- lone worker: the worker and their emergency contact read; only the
+         worker writes their own session -->
+    <record id="rule_hse_loneworker_read_own" model="ir.rule">
+        <field name="name">fix.hse.loneworker: own or buddy (read) unless an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_loneworker"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('buddy_id.user_id', '=', user.id), ('opened_by_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_hse_loneworker_write_own" model="ir.rule">
+        <field name="name">fix.hse.loneworker: own session, or the one you opened as dispatcher (write), unless an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_loneworker"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('opened_by_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- road checks: the driver -->
+    <record id="rule_hse_roadcheck_own" model="ir.rule">
+        <field name="name">fix.hse.roadcheck: own checks unless an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_roadcheck"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('create_uid', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+
+    <!-- PPE issues: the recipient -->
+    <record id="rule_ppe_issue_own" model="ir.rule">
+        <field name="name">fix.ppe.issue: own issues unless an HSE role</field>
+        <field name="model_id" ref="model_fix_ppe_issue"/>
+        <field name="domain_force">['|', ('employee_id.user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_ppe_issue_company" model="ir.rule">
+        <field name="name">fix.ppe.issue: allowed companies</field>
+        <field name="model_id" ref="model_fix_ppe_issue"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- round 2 (F8): a CAPA action is read by its owner and the HSE roles -->
+    <record id="rule_hse_capa_scope" model="ir.rule">
+        <field name="name">fix.hse.capa: the owner's own actions unless an HSE role</field>
+        <field name="model_id" ref="model_fix_hse_capa"/>
+        <field name="domain_force">['|', ('owner_user_id', '=', user.id), (1 if user.fix_hse_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_hse_capa_company" model="ir.rule">
+        <field name="name">fix.hse.capa: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_capa"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_investigation_member_company" model="ir.rule">
+        <field name="name">fix.hse.investigation.member: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_investigation_member"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_root_cause_company" model="ir.rule">
+        <field name="name">fix.hse.root.cause: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_root_cause"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- round 2 (FR-HSE-037, BRU-HSE-15): the fitness status, never the
+         medical record, is read by the employee, their line manager, the HSE
+         roles and Occupational Health -->
+    <record id="rule_hse_fitness_status_scope" model="ir.rule">
+        <field name="name">fix.hse.fitness.status: own, your direct reports', or HSE / Occupational Health</field>
+        <field name="model_id" ref="model_fix_hse_fitness_status"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_hse_reads_fitness() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_hse_fitness_status_company" model="ir.rule">
+        <field name="name">fix.hse.fitness.status: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_fitness_status"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hse_safety_followup_company" model="ir.rule">
+        <field name="name">fix.hse.safety.followup: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_safety_followup"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

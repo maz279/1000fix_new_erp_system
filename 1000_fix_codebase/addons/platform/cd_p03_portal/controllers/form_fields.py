@@ -4,10 +4,10 @@
 # every `kind: 'model_form'` screen, the header fields not declared
 # `readonly: true`, plus the one2many its `lines:` grid edits. This is the
 # single source for the per-surface write whitelists (controllers/<area>/
-# writable.py: R3 of the A03 audit, A2 of the A02 audit) and for the tests
+# writable.py: R3 of the A03 audit, A2 of the A02 audit, B1 of the A09 audit) and for the tests
 # that keep them in step. Not imported by the server; run it to regenerate:
 #
-#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02 --a06 --a07
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02 --a06 --a07 --a09
 import re
 import sys
 from pathlib import Path
@@ -16,7 +16,7 @@ PORTAL = Path(__file__).resolve().parents[1]
 STATIC = PORTAL / "static" / "src"
 CONTROLLERS = PORTAL / "controllers"
 A03 = CONTROLLERS / "a03"
-AREAS = ("a02", "a03", "a06", "a07")
+AREAS = ("a02", "a03", "a06", "a07", "a09")
 
 SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
 MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")

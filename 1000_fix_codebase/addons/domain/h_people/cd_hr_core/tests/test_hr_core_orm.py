@@ -1,7 +1,7 @@
 # cd_hr_core live-ORM tests — P08-M01 / R06-M01 (CD-M21-01).
 #
-# Statutory figures: Labour Rules 2021 r.25 (probation <= 6 months, checked
-# as 180 days), BLA 2006 s.102 (48h week), s.115 (10 casual days per
+# Statutory figures: BLA s.4(8) (probation 6 months clerical, 3 others),
+# BLA 2006 s.102 (48h week, a company setting), s.115 (10 casual days per
 # calendar year), s.116 (14 sick days).
 import base64
 import json
@@ -217,53 +217,58 @@ def test_contract_reference(odoo_env, emp):
     assert draft.name == "CNT/EMP/PART_TIME/%d" % fields.Date.today().year
 
 
-def test_activation_validates_statutory_limits(odoo_env, emp):
-    # 2024-07-01 -> 2024-12-28 = 180 days: exactly the 6 x 30-day cap
-    ok = _contract(odoo_env, emp, contract_type="probation", probation_end=date(2024, 12, 28))
-    ok.action_activate()
-    assert ok.state == "active"
-    assert _events(odoo_env, "employment.contract.activated", ok.id) == [
-        {"employee": "Farhana Islam", "contract_type": "probation", "joining": "2024-07-01"}
-    ]
+def test_statutory_limits_are_constraints_on_every_path(odoo_env, emp):
+    """A09 M21-8: the limits used to run only inside action_activate, so a
+    contract created (or written) past them was saved. Now no path saves it.
+
+    Honest rewrite of the old test: it activated a draft directly, which is
+    no longer possible without Legal Counsel's routed sign-off
+    (test_a09_m21_controls.py proves that path as non-admin users)."""
+    # BLA s.4(8): 6 months for a clerical worker (the default class)
+    ok = _contract(odoo_env, emp, contract_type="probation", probation_end=date(2025, 1, 1))
+    assert ok.state == "draft"
     for vals, message in (
-        ({"probation_end": date(2024, 12, 29)}, "Probation exceeds the 6-month statutory cap"),
+        ({"probation_end": date(2025, 1, 2)}, "Probation exceeds the 6-month statutory cap"),
+        (
+            {"probation_end": date(2024, 10, 2), "probation_class": "other"},
+            "Probation exceeds the 3-month statutory cap",
+        ),
         ({"weekly_hours": 49.0}, "weekly hours may not exceed 48"),
         ({"basic_monthly": 0.0}, "Basic salary must be positive"),
+        ({"state": "active", "contract_type": "probation"}, "needs its probation end date"),
     ):
-        bad = _contract(odoo_env, emp, **vals)
         with pytest.raises(ValidationError, match=message), odoo_env.cr.savepoint():
-            bad.action_activate()
-        assert bad.state == "draft"
+            _contract(odoo_env, emp, **vals)
+    with pytest.raises(ValidationError, match="weekly hours"), odoo_env.cr.savepoint():
+        ok.write({"weekly_hours": 72.0})
 
 
-def test_termination_is_a_leaver_event_with_pending_deprovisioning(odoo_env, emp):
+def test_activation_requires_the_legal_signoff(odoo_env, emp):
+    draft = _contract(odoo_env, emp)
+    with pytest.raises(UserError, match="needs Legal Counsel's sign-off"), odoo_env.cr.savepoint():
+        draft.action_activate()
+    assert draft.state == "draft"
+
+
+def test_terminate_is_not_a_one_click_leaver(odoo_env, emp):
+    """A09 M21-7 / r2 D1: action_terminate ended the contract and fired
+    employee.left with no exit, grounds or notice. An employment now ends only
+    through its exit's settlement (I3), proved in test_a09_m21_controls.py."""
     contract = _contract(odoo_env, emp, state="active")
-    contract.action_terminate()
-    assert contract.state == "terminated"
-    assert emp.left_date == fields.Date.today()
-    assert [e["employee_id"] for e in _events(odoo_env, "employee.left", emp.id)] == [emp.id]
-    assert emp.left_at
-    # never self-reported as done (GV-009)
-    assert emp.keycloak_deprovision_status == "pending"
-    assert not emp.keycloak_deprovisioned_at
-
-
-def test_termination_with_a_continuing_contract_is_not_a_leaver(odoo_env, emp):
-    old = _contract(odoo_env, emp, contract_type="probation", state="active")
-    _contract(odoo_env, emp, joining_date=date(2025, 1, 1), state="active")
-    old.action_terminate()
-    assert old.state == "terminated"
+    with pytest.raises(UserError, match="ends through its Exit"), odoo_env.cr.savepoint():
+        contract.action_terminate()
+    assert contract.state == "active"
     assert _events(odoo_env, "employee.left", emp.id) == []
     assert (emp.keycloak_deprovision_status, emp.left_at) == ("active", False)
 
 
-def test_legal_signoff(odoo_env, emp):
-    contract = _contract(odoo_env, emp, legal_signoff_state="rejected")
-    contract.action_request_legal_signoff()
-    assert contract.legal_signoff_state == "pending"
-    contract.action_approve_legal_signoff()
-    assert contract.legal_signoff_state == "approved"
-    assert contract.signed_by_legal_counsel == odoo_env.user.name
+def test_one_active_contract_per_employee(odoo_env, emp):
+    _contract(odoo_env, emp, state="active")
+    with (
+        pytest.raises(ValidationError, match="already has an active contract"),
+        odoo_env.cr.savepoint(),
+    ):
+        _contract(odoo_env, emp, joining_date=date(2025, 1, 1), state="active")
 
 
 def test_contract_document_generation(odoo_env, emp):
@@ -313,87 +318,6 @@ def test_document_generation_refuses_invalid_contract(odoo_env, emp):
         _contract(odoo_env, emp, basic_monthly=0.0).action_generate_contract_document()
 
 
-# --- statutory leave ----------------------------------------------------------------------
-
-
-def _leave_type(env, code="casual", days=10, **vals):
-    return env["fix.leave.type"].create(
-        {"code": code, "name": code.title(), "entitlement_days": days, **vals}
-    )
-
-
-def test_leave_type_statutory_floor(odoo_env):
-    _leave_type(odoo_env, days=10).action_validate_statutory()
-    with (
-        pytest.raises(ValidationError, match=r"sick entitlement below the statutory floor \(14"),
-        odoo_env.cr.savepoint(),
-    ):
-        _leave_type(odoo_env, code="sick", days=12).action_validate_statutory()
-    # a corporate (non-statutory) benefit and an uncatalogued code have no floor
-    _leave_type(odoo_env, days=2, is_statutory=False).action_validate_statutory()
-    _leave_type(odoo_env, code="study", days=1).action_validate_statutory()
-
-
-def test_leave_days(odoo_env, emp):
-    leave = odoo_env["fix.leave.request"].create(
-        {
-            "employee_id": emp.id,
-            "leave_type_id": _leave_type(odoo_env).id,
-            "date_from": date(2026, 2, 26),
-            "date_to": date(2026, 3, 2),
-        }
-    )
-    assert leave.days == 5  # 26, 27, 28 Feb + 1, 2 Mar inclusive
-    leave.date_to = date(2026, 2, 25)
-    assert leave.days == 0
-
-
-def _request(env, emp, leave_type, start, days):
-    return env["fix.leave.request"].create(
-        {
-            "employee_id": emp.id,
-            "leave_type_id": leave_type.id,
-            "date_from": start,
-            "date_to": start + timedelta(days=days - 1),
-        }
-    )
-
-
-def test_leave_entitlement_counts_days_per_calendar_year(odoo_env, emp):
-    casual = _leave_type(odoo_env)  # s.115: 10 days per calendar year
-    first = _request(odoo_env, emp, casual, date(2026, 1, 4), 5)
-    first.action_approve()
-    assert first.state == "approved"
-    assert _events(odoo_env, "leave.approved", first.id) == [
-        {"employee": "Farhana Islam", "days": 5}
-    ]
-    _request(odoo_env, emp, casual, date(2026, 3, 1), 5).action_approve()  # 10 of 10
-    third = _request(odoo_env, emp, casual, date(2026, 6, 1), 5)
-    with (
-        pytest.raises(UserError, match="10 approved \\+ 5 requested > 10 days in 2026"),
-        odoo_env.cr.savepoint(),
-    ):
-        third.action_approve()
-    assert third.state == "draft"
-    # a new calendar year restores the entitlement
-    next_year = _request(odoo_env, emp, casual, date(2027, 1, 3), 5)
-    next_year.action_approve()
-    assert next_year.state == "approved"
-    # re-approving an approved request does not count it against itself
-    next_year.action_approve()
-    assert next_year.state == "approved"
-
-
-def test_leave_approval_rechecks_the_statutory_floor(odoo_env, emp):
-    sick = _leave_type(odoo_env, code="sick", days=7)
-    with pytest.raises(ValidationError, match="statutory floor"), odoo_env.cr.savepoint():
-        _request(odoo_env, emp, sick, date(2026, 5, 3), 2).action_approve()
-
-
-def test_leave_beyond_entitlement_in_one_request(odoo_env, emp):
-    casual = _leave_type(odoo_env)
-    with (
-        pytest.raises(UserError, match="0 approved \\+ 11 requested > 10 days in 2026"),
-        odoo_env.cr.savepoint(),
-    ):
-        _request(odoo_env, emp, casual, datetime(2026, 8, 2).date(), 11).action_approve()
+# Statutory leave is proved behaviourally, as non-admin users, in
+# test_a09_leave_controls.py (A09 M55); the superuser-only leave tests that
+# used to live here asserted a direct, unrouted approval as correct.

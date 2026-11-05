@@ -13,13 +13,14 @@ master slice (cd_employee_core):
   Bangladesh Labour Act 2006 (annual 20, sick 14, maternity 16 weeks,
   festival 11) with earned-rate validation and encashment flag
 - fix.org.position — reporting lines and position management
-- hr.employee extension — employee code + residency routing: NID/TIN live in
-  fix.identity.document (Z4-routed, SC-007); this module only references
-  the identity store, never duplicates PII
+- hr.employee extension — employee code + residency routing: the NID, birth
+  registration and e-TIN go to the Bangladesh-resident store (Z4) through
+  libs/py/fix_residency; hr_employee keeps a pointer and a keyed hash, and
+  every read is logged (A09 M21-A6, BRU-HCM-06/07)
 - joiner/mover/leaver events (AS-08) verified to drive M29 provisioning at
   full scale (P08-M01-T06)
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources",
@@ -33,15 +34,27 @@ master slice (cd_employee_core):
         "cd_event_outbox",
         "cd_party_master",
         "cd_document_core",
+        # M63 approval engine: every A09 approval is a routed request
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/fix_a09_groups.xml",
+        # M21 decision roles (A09 P0-b): legal, executive, finance, clearance owners
+        "security/fix_a09_m21_groups.xml",
         "security/ir.model.access.csv",
+        "security/fix_a09_privacy_rules.xml",
+        # A09 round 2: the identity read log and the s.27(3A) case
+        "security/fix_a09_m21_r2_rules.xml",
+        # M55 leave controls (A09 P0-b/P1/P2); owned by the leave work package
+        "security/leave/ir.model.access.csv",
+        "data/fix_a09_leave_data.xml",
         "data/statutory_leave_data.xml",
         "data/hr_ops_sequences.xml",
         "data/employment_contract_templates.xml",
         "data/identity_lifecycle_cron.xml",
+        # M21 crons and the employee.left relay consumer (A09 C3/C5)
+        "data/fix_a09_m21_data.xml",
         "views/fix_hr_core_views.xml",
     ],
     "installable": True,

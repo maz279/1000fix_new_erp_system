@@ -24,6 +24,48 @@
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
+
+    <!-- A09 workflow audit B3 (M58-F3/F4/F5): the recruiter raised, approved
+         and cleared his own requisitions, offers and police checks. Each
+         decision now has its own role, decided from the M63 inbox by someone
+         other than the requester. Who holds them is a business decision
+         (A09 report section 7.1): the administrator only until appointed. -->
+    <record id="group_requisition_approver" model="res.groups">
+        <field name="name">Requisition Approver</field>
+        <field name="privilege_id" ref="privilege_talent"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Approves headcount requisitions (BRU-TAO-01/02). Never the requester.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_offer_approver" model="res.groups">
+        <field name="name">Offer Approver (within band)</field>
+        <field name="privilege_id" ref="privilege_talent"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Approves and issues offers within the M57 pay band. An offer outside the band, or with no band, goes to DOFA Tier 4 (CFO, BRU-TAO-03).</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_background_verifier" model="res.groups">
+        <field name="name">Background Verifier</field>
+        <field name="privilege_id" ref="privilege_talent"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Clears reference, NID, education, employment and police checks on their evidence (BRU-TAO-06). Never the recruiter who requested the check.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- A09 workflow audit M58-F7 (round 2): the hiring manager raises and
+         follows their own requisitions, and screens and shortlists their own
+         candidates. The global rules in fix_a09_talent_rules.xml keep them to
+         the requisitions that name them. Holders are a business decision. -->
+    <record id="group_hiring_manager" model="res.groups">
+        <field name="name">Hiring Manager</field>
+        <field name="privilege_id" ref="privilege_talent"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Raises their own requisitions and works the candidates of those requisitions only. Never sees another manager's requisitions, candidates or plans.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
     <!-- an HR Manager inherits the role, so existing manager accounts are
          unaffected by the tightening -->
     <record id="hr.group_hr_manager" model="res.groups">

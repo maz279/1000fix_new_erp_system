@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 round 2 (M21). Hand-written isolation for the two new models (the
+     generator leaves a model with its own company / operating-unit rule alone):
+       * fix.hr.identity.access.log - who read which employee's NID, birth
+         registration or e-TIN (BRU-HCM-07). Its ACL grants READ to the HR
+         Manager only; nobody writes or deletes it (the model refuses).
+       * fix.hr.abandonment - the s.27(3A) absence case: the HR Officer runs
+         it, the executive decides it from the approval inbox. -->
+<odoo>
+    <record id="rule_identity_access_log_company" model="ir.rule">
+        <field name="name">fix.hr.identity.access.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_identity_access_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_abandonment_company" model="ir.rule">
+        <field name="name">fix.hr.abandonment: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_abandonment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_abandonment_operating_unit" model="ir.rule">
+        <field name="name">fix.hr.abandonment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_hr_abandonment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

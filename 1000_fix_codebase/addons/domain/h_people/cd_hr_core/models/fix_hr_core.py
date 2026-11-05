@@ -7,6 +7,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import get_migration_manager, normalize_bus_event, publish
 
+from .fix_hr_controls_common import mask
+
 # Bangladesh Labour Act 2006 statutory leave entitlements (SC-008, DoD-17), in days
 STATUTORY_LEAVE = {
     "casual": 10,  # s. 115 casual leave with full wages (non-cumulative)
@@ -26,6 +28,22 @@ IDP_DEPROVISIONED = "identity.deprovisioned"
 IDP_DEPROVISION_FAILED = "identity.deprovision_failed"
 IDENTITY_TOPIC = "fix.events.identity"
 IDENTITY_CONSUMER_GROUP = "hr-core-identity"
+# A09 audit M21-1/M21-4: every employee could read (and, through the old
+# cd_employee_core ACL, rewrite) a colleague's NID, bank account, wage and
+# medical restrictions. These master fields are readable and writable only by
+# the HR employee officer group; payroll and the attendance registers read
+# them through sudo() inside their own group-checked runs.
+HR_PRIVATE = "hr.group_hr_user"
+# A write to any of these moves the employee (employee.moved for M29).
+MOVER_FIELDS = {
+    "department_id",
+    "job_id",
+    "work_location_id",
+    "position_id",
+    "operating_unit_id",
+    "branch_id",
+    "job_band",
+}
 
 
 class HrEmployeeCdCoreExt(models.Model):
@@ -37,7 +55,9 @@ class HrEmployeeCdCoreExt(models.Model):
     identity store only.
     """
 
-    _inherit = "hr.employee"
+    # two parents: _name keeps this an extension of hr.employee
+    _name = "hr.employee"
+    _inherit = ["hr.employee", "fix.guarded.mixin"]
 
     employee_code = fields.Char(
         string="Employee Code",
@@ -56,17 +76,21 @@ class HrEmployeeCdCoreExt(models.Model):
     biometric_id = fields.Char(
         string="Biometric Device ID", help="Punch device PIN for branch attendance machine"
     )
-    spouse_name = fields.Char(string="Spouse Legal Name", help="Spouse legal name if married")
-    private_district = fields.Char(string="Present District", help="Present Residential District")
+    spouse_name = fields.Char(
+        string="Spouse Legal Name", help="Spouse legal name if married", groups=HR_PRIVATE
+    )
+    private_district = fields.Char(
+        string="Present District", help="Present Residential District", groups=HR_PRIVATE
+    )
 
     # Statutory Identifiers & Tax Compliance (ITA 2023 Sections 261 & 264 PSR)
-    birth_reg_number = fields.Char(
-        string="17-Digit Birth Registration Number",
-        help="Birth Registration Certificate number (BRIS)",
-    )
+    # birth_reg_number, nid_number and tin_number are held in the
+    # Bangladesh-resident store (A09 M21-A6, BRU-HCM-06): see
+    # fix_hr_identity_residency.py. hr_employee keeps a pointer and a keyed hash.
     psr_ack_number = fields.Char(
         string="Tax Return Ack No (PSR)",
         help="Proof of Submission of Return (Section 264, Income Tax Act 2023)",
+        groups=HR_PRIVATE,
     )
     psr_status = fields.Selection(
         [
@@ -78,12 +102,16 @@ class HrEmployeeCdCoreExt(models.Model):
         string="PSR Compliance Status",
         default="not_submitted",
         help="ITA 2023 s.264 Proof of Submission of Return verification state",
+        groups=HR_PRIVATE,
     )
-    psr_tax_year = fields.Char(string="PSR Assessment Year", help="e.g. 2026-2027")
-    psr_verified_on = fields.Date(string="PSR Verified On")
+    psr_tax_year = fields.Char(
+        string="PSR Assessment Year", help="e.g. 2026-2027", groups=HR_PRIVATE
+    )
+    psr_verified_on = fields.Date(string="PSR Verified On", groups=HR_PRIVATE)
     psr_qr_payload = fields.Char(
         string="PSR NBR Verification Reference",
         help="NBR online verification reference or QR payload",
+        groups=HR_PRIVATE,
     )
     form7_last_event_date = fields.Date(
         string="Form 7 Last Event Date",
@@ -98,14 +126,21 @@ class HrEmployeeCdCoreExt(models.Model):
     )
     taxpayer_category = fields.Selection(
         [
-            ("general", "General Taxpayer (BDT 400,000)"),
-            ("female_senior", "Female & Senior Citizen 65+ (BDT 450,000)"),
-            ("disabled_third_gender", "Disabled & Third Gender (BDT 500,000)"),
-            ("freedom_fighter", "War-Wounded Freedom Fighter (BDT 525,000)"),
+            # A09 probe M12: the labels carried tax-free ceilings (400k/450k/
+            # 500k/525k) that contradicted the payroll engine's table. The
+            # ceilings are the engine's (libs/py/payroll_engine
+            # TAX_FREE_THRESHOLDS), pending the tax adviser's sign-off (A09
+            # report §7.3); the category carries no figure of its own.
+            ("general", "General Taxpayer"),
+            ("female_senior", "Female & Senior Citizen 65+"),
+            ("disabled_third_gender", "Disabled & Third Gender"),
+            ("freedom_fighter", "War-Wounded / Gazetted Freedom Fighter"),
         ],
         string="Taxpayer Slabs Category",
         default="general",
-        help="Annual tax-free income ceiling under Finance Act",
+        help="Category for the annual tax-free threshold; the figure is the payroll "
+        "engine's table (tax adviser decision, A09 §7.3)",
+        groups=HR_PRIVATE,
     )
     minimum_tax_location = fields.Selection(
         [
@@ -116,16 +151,19 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Minimum Tax Area",
         default="dhaka_chattogram",
         help="Statutory minimum annual tax floor",
+        groups=HR_PRIVATE,
     )
     has_disabled_child = fields.Boolean(
         string="Parent of Disabled Child",
         help="Additional BDT 50,000 exemption per disabled child under Finance Act",
+        groups=HR_PRIVATE,
     )
-    passport_number = fields.Char(
-        string="International Passport Number", help="International Passport Number"
-    )
+    # passport_number: held in the Bangladesh-resident store
+    # (fix_hr_identity_residency.py)
     driving_license_no = fields.Char(
-        string="BRTA Driving License Number", help="Driving license number for field mobility"
+        string="BRTA Driving License Number",
+        help="Driving license number for field mobility",
+        groups=HR_PRIVATE,
     )
     driving_license_type = fields.Selection(
         [
@@ -141,6 +179,7 @@ class HrEmployeeCdCoreExt(models.Model):
     police_clearance_ref = fields.Char(
         string="Police Clearance Ref (PCC)",
         help="Police clearance certificate reference for in-home service safety",
+        groups=HR_PRIVATE,
     )
 
     # Organizational Hierarchy, Classification & Job Band
@@ -227,7 +266,10 @@ class HrEmployeeCdCoreExt(models.Model):
             ("discrepancy", "Discrepancy Flagged"),
         ],
         string="Academic Verification Status",
-        default="pending",
+        # A09 audit M21-10: summarised from the education lines, each verified
+        # by a second person against its certificate (fix.hr.education).
+        compute="_compute_academic_verified",
+        store=True,
     )
 
     # Career Summary Fields (Prior Experience)
@@ -247,7 +289,7 @@ class HrEmployeeCdCoreExt(models.Model):
     prev_start_date = fields.Date(string="Previous Employment Start")
     prev_end_date = fields.Date(string="Previous Employment End")
     prev_experience_years = fields.Float(string="Total Prior Experience (Years)")
-    prev_last_salary = fields.Float(string="Last Drawn Gross Salary (BDT)")
+    prev_last_salary = fields.Float(string="Last Drawn Gross Salary (BDT)", groups=HR_PRIVATE)
     prev_reason_leaving = fields.Selection(
         [
             ("career_growth", "Career Growth"),
@@ -260,7 +302,7 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Separation Reason",
     )
     prev_supervisor_name = fields.Char(string="Previous Supervisor Name")
-    prev_supervisor_phone = fields.Char(string="Supervisor Contact Mobile")
+    prev_supervisor_phone = fields.Char(string="Supervisor Contact Mobile", groups=HR_PRIVATE)
     prev_reference_status = fields.Selection(
         [
             ("verified_positive", "Verified Positive"),
@@ -269,7 +311,10 @@ class HrEmployeeCdCoreExt(models.Model):
             ("unreachable", "Unreachable"),
         ],
         string="Reference Check Signoff",
-        default="verified_positive",
+        # A09 audit M21-10: defaulted to "verified_positive" with no check made.
+        # Summarised from the reference checks recorded on the experience lines.
+        compute="_compute_prev_reference_status",
+        store=True,
     )
 
     # Technical Competencies & After-Sales Repair Matrix
@@ -297,7 +342,7 @@ class HrEmployeeCdCoreExt(models.Model):
     cert_expiry_date = fields.Date(string="Certificate Expiry Date")
     esd_certified = fields.Boolean(
         string="ESD Safe Handling Certified",
-        default=True,
+        default=False,
         help="Electrostatic Discharge handling protocol certification",
     )
     bga_rework_capable = fields.Boolean(
@@ -307,22 +352,41 @@ class HrEmployeeCdCoreExt(models.Model):
     toolkit_custody_ref = fields.Char(string="Assigned Tool Kit Barcode Ref")
     customer_nda_signed = fields.Boolean(
         string="Customer Data Confidentiality Undertaking Signed",
-        default=True,
+        # A09 audit M21-10: True by default with no undertaking on file. It is
+        # the verified NDA document, nothing typed.
+        compute="_compute_dossier_flags",
+        store=True,
         help="Signed compliance pledge under Cyber Security Act 2023",
     )
 
     # Compensation Breakdown & Allowances (Monthly BDT)
-    wage = fields.Monetary(string="Monthly Gross Salary", currency_field="currency_id")
-    basic_wage = fields.Monetary(string="Monthly Basic Wage", currency_field="currency_id")
-    house_rent = fields.Monetary(string="House Rent Allowance", currency_field="currency_id")
-    medical_allowance = fields.Monetary(string="Medical Allowance", currency_field="currency_id")
+    wage = fields.Monetary(
+        string="Monthly Gross Salary",
+        currency_field="currency_id",
+        groups=HR_PRIVATE,
+        tracking=True,
+    )
+    basic_wage = fields.Monetary(
+        string="Monthly Basic Wage",
+        currency_field="currency_id",
+        groups=HR_PRIVATE,
+        tracking=True,
+    )
+    house_rent = fields.Monetary(
+        string="House Rent Allowance", currency_field="currency_id", groups=HR_PRIVATE
+    )
+    medical_allowance = fields.Monetary(
+        string="Medical Allowance", currency_field="currency_id", groups=HR_PRIVATE
+    )
     conveyance_allowance = fields.Monetary(
-        string="Conveyance Allowance", currency_field="currency_id"
+        string="Conveyance Allowance", currency_field="currency_id", groups=HR_PRIVATE
     )
     technical_allowance = fields.Monetary(
-        string="Technical Skill / OEM Allowance", currency_field="currency_id"
+        string="Technical Skill / OEM Allowance", currency_field="currency_id", groups=HR_PRIVATE
     )
-    pf_member = fields.Boolean(string="Recognized Provident Fund (RPF) Member", default=True)
+    pf_member = fields.Boolean(
+        string="Recognized Provident Fund (RPF) Member", default=True, groups=HR_PRIVATE
+    )
 
     # Occupational Health & Medical Fitness (Workshop & Field Safety)
     color_blindness = fields.Selection(
@@ -333,7 +397,8 @@ class HrEmployeeCdCoreExt(models.Model):
             ("untested", "Untested"),
         ],
         string="Color Vision Test Status",
-        default="normal_pass",
+        default="untested",
+        groups=HR_PRIVATE,
     )
     medical_fitness = fields.Selection(
         [
@@ -343,17 +408,25 @@ class HrEmployeeCdCoreExt(models.Model):
             ("unfit_permanent", "Permanently Unfit"),
         ],
         string="Medical Fitness Verdict",
-        default="fit_duty",
+        groups=HR_PRIVATE,
     )
     work_restrictions = fields.Char(
-        string="Physical Work Restrictions", help="e.g. No outdoor ladder work above 3m"
+        string="Physical Work Restrictions",
+        help="e.g. No outdoor ladder work above 3m",
+        groups=HR_PRIVATE,
     )
-    tetanus_vaccine_date = fields.Date(string="Tetanus Toxoid (TT) Vaccination Date")
-    tetanus_expiry_date = fields.Date(string="Tetanus Booster Expiration Date")
+    tetanus_vaccine_date = fields.Date(
+        string="Tetanus Toxoid (TT) Vaccination Date", groups=HR_PRIVATE
+    )
+    tetanus_expiry_date = fields.Date(string="Tetanus Booster Expiration Date", groups=HR_PRIVATE)
     chemical_allergies = fields.Char(
-        string="Chemical / Solvent Allergies", help="e.g. IPA alcohol, rosin flux, R32 refrigerant"
+        string="Chemical / Solvent Allergies",
+        help="e.g. IPA alcohol, rosin flux, R32 refrigerant",
+        groups=HR_PRIVATE,
     )
-    insurance_policy_no = fields.Char(string="Corporate Group Insurance Policy No")
+    insurance_policy_no = fields.Char(
+        string="Corporate Group Insurance Policy No", groups=HR_PRIVATE
+    )
 
     # Secondary Emergency Contact & Nominee Allocation
     emergency_contact_sec = fields.Char(string="Secondary Emergency Contact Person")
@@ -371,7 +444,7 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Secondary Contact Relationship",
     )
     emergency_phone_sec = fields.Char(string="Secondary Emergency Phone")
-    nominee_name = fields.Char(string="Primary Statutory Nominee Name")
+    nominee_name = fields.Char(string="Primary Statutory Nominee Name", groups=HR_PRIVATE)
     nominee_relation = fields.Selection(
         [
             ("spouse", "Spouse"),
@@ -382,50 +455,94 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Nominee Relationship",
         default="spouse",
+        groups=HR_PRIVATE,
     )
-    nominee_nid = fields.Char(string="Nominee National ID / Birth Reg")
-    nominee_pct = fields.Float(string="Nominee Share % (BLA s.19 & 131)", default=100.0)
-    guardian_name = fields.Char(string="Legal Guardian Name (if Nominee is Minor)")
+    # nominee_nid: held in the Bangladesh-resident store (fix_hr_identity_residency.py)
+    nominee_pct = fields.Float(
+        string="Nominee Share % (BLA s.19 & 131)", default=100.0, groups=HR_PRIVATE
+    )
+    guardian_name = fields.Char(
+        string="Legal Guardian Name (if Nominee is Minor)", groups=HR_PRIVATE
+    )
 
-    # Document Dossier Compliance Checklist
-    doc_nid_verified = fields.Boolean(string="NID Smart Card Verified", default=True)
-    doc_tin_verified = fields.Boolean(string="12-digit e-TIN Certificate Verified", default=True)
-    doc_psr_verified = fields.Boolean(string="Tax Return Submission Ack (PSR) Verified")
-    doc_appointment_signed = fields.Boolean(
-        string="Signed Appointment Letter on File", default=True
+    # Document Dossier Compliance Checklist.
+    # A09 audit M21-10: these defaulted to True for a new employee with no
+    # file (51/51 live employees "had" an appointment letter, 42 had none).
+    # Each flag is now the existence of a fix.hr.document of that type that a
+    # second person verified (fix.hr.document.action_verify) - never typed.
+    doc_nid_verified = fields.Boolean(
+        string="NID Smart Card Verified", compute="_compute_dossier_flags", store=True
     )
-    doc_nda_signed = fields.Boolean(string="Signed NDA & Code of Conduct on File", default=True)
+    doc_tin_verified = fields.Boolean(
+        string="12-digit e-TIN Certificate Verified", compute="_compute_dossier_flags", store=True
+    )
+    doc_psr_verified = fields.Boolean(
+        string="Tax Return Submission Ack (PSR) Verified",
+        compute="_compute_dossier_flags",
+        store=True,
+    )
+    doc_appointment_signed = fields.Boolean(
+        string="Signed Appointment Letter on File",
+        compute="_compute_dossier_flags",
+        store=True,
+        help="A verified appointment letter the employee acknowledged",
+    )
+    doc_nda_signed = fields.Boolean(
+        string="Signed NDA & Code of Conduct on File", compute="_compute_dossier_flags", store=True
+    )
     doc_service_book_scanned = fields.Boolean(
-        string="Form 7 Service Book Pages Scanned", default=True
+        string="Form 7 Service Book Pages Scanned", compute="_compute_dossier_flags", store=True
     )
     doc_medical_fit_certified = fields.Boolean(
-        string="Medical Fitness Certificate Signed", default=True
+        string="Medical Fitness Certificate Signed", compute="_compute_dossier_flags", store=True
     )
-    doc_police_pcc_cleared = fields.Boolean(string="Police Clearance Certificate (PCC) Cleared")
+    doc_police_pcc_cleared = fields.Boolean(
+        string="Police Clearance Certificate (PCC) Cleared",
+        compute="_compute_dossier_flags",
+        store=True,
+    )
 
     # Physical Scanned Document File Attachments (BLA 2006, ISO 9001:2015 Audit Vault)
-    doc_nid_file = fields.Binary(string="National ID Smart Card Scan", attachment=True)
-    doc_nid_filename = fields.Char(string="NID File Name")
-    doc_tin_file = fields.Binary(string="12-digit e-TIN Certificate Scan", attachment=True)
-    doc_tin_filename = fields.Char(string="TIN File Name")
-    doc_psr_file = fields.Binary(string="Tax Return Acknowledgement (PSR) Scan", attachment=True)
-    doc_psr_filename = fields.Char(string="PSR File Name")
-    doc_appointment_file = fields.Binary(string="Signed Appointment Letter Scan", attachment=True)
-    doc_appointment_filename = fields.Char(string="Appointment File Name")
-    doc_service_book_file = fields.Binary(string="Form 7 Service Book Pages Scan", attachment=True)
-    doc_service_book_filename = fields.Char(string="Service Book File Name")
-    doc_nda_file = fields.Binary(string="Signed NDA & Code of Conduct Scan", attachment=True)
-    doc_nda_filename = fields.Char(string="NDA File Name")
-    doc_medical_file = fields.Binary(string="Medical Fitness Certificate Scan", attachment=True)
-    doc_medical_filename = fields.Char(string="Medical File Name")
-    doc_police_pcc_file = fields.Binary(
-        string="Police Clearance Certificate (PCC) Scan", attachment=True
+    doc_nid_file = fields.Binary(
+        string="National ID Smart Card Scan", attachment=True, groups=HR_PRIVATE
     )
-    doc_police_pcc_filename = fields.Char(string="PCC File Name")
-    doc_academic_file = fields.Binary(string="Highest Academic Certificate Scan", attachment=True)
-    doc_academic_filename = fields.Char(string="Academic File Name")
-    doc_nominee_nid_file = fields.Binary(string="Nominee NID & Photo Scan", attachment=True)
-    doc_nominee_nid_filename = fields.Char(string="Nominee File Name")
+    doc_nid_filename = fields.Char(string="NID File Name", groups=HR_PRIVATE)
+    doc_tin_file = fields.Binary(
+        string="12-digit e-TIN Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_tin_filename = fields.Char(string="TIN File Name", groups=HR_PRIVATE)
+    doc_psr_file = fields.Binary(
+        string="Tax Return Acknowledgement (PSR) Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_psr_filename = fields.Char(string="PSR File Name", groups=HR_PRIVATE)
+    doc_appointment_file = fields.Binary(
+        string="Signed Appointment Letter Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_appointment_filename = fields.Char(string="Appointment File Name", groups=HR_PRIVATE)
+    doc_service_book_file = fields.Binary(
+        string="Form 7 Service Book Pages Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_service_book_filename = fields.Char(string="Service Book File Name", groups=HR_PRIVATE)
+    doc_nda_file = fields.Binary(
+        string="Signed NDA & Code of Conduct Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_nda_filename = fields.Char(string="NDA File Name", groups=HR_PRIVATE)
+    doc_medical_file = fields.Binary(
+        string="Medical Fitness Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_medical_filename = fields.Char(string="Medical File Name", groups=HR_PRIVATE)
+    doc_police_pcc_file = fields.Binary(
+        string="Police Clearance Certificate (PCC) Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_police_pcc_filename = fields.Char(string="PCC File Name", groups=HR_PRIVATE)
+    doc_academic_file = fields.Binary(
+        string="Highest Academic Certificate Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_academic_filename = fields.Char(string="Academic File Name", groups=HR_PRIVATE)
+    doc_nominee_nid_file = fields.Binary(
+        string="Nominee NID & Photo Scan", attachment=True, groups=HR_PRIVATE
+    )
+    doc_nominee_nid_filename = fields.Char(string="Nominee File Name", groups=HR_PRIVATE)
 
     # Sub-record Relational Links
     education_line_ids = fields.One2many(
@@ -457,6 +574,7 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Blood Group",
         help="Blood Group (Mandatory for field technicians and occupational health)",
+        groups=HR_PRIVATE,
     )
     religion = fields.Selection(
         [
@@ -468,21 +586,17 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Religion",
         help="Religion (Required for statutory festival holiday bonus entitlement rules)",
-    )
-    nid_number = fields.Char(
-        string="National ID (NID / Smart Card)",
-        help="10-digit smart card or 17-digit national identity number",
-    )
-    tin_number = fields.Char(
-        string="e-TIN Number",
-        help="12-digit Taxpayer Identification Number for NBR withholding (Form 23)",
+        groups=HR_PRIVATE,
     )
     tax_zone = fields.Char(
         string="NBR Tax Zone",
         help="National Board of Revenue tax circle zone (e.g. Zone-01, Dhaka)",
+        groups=HR_PRIVATE,
     )
     tax_circle = fields.Char(
-        string="NBR Tax Circle", help="National Board of Revenue tax circle (e.g. Circle-15)"
+        string="NBR Tax Circle",
+        help="National Board of Revenue tax circle (e.g. Circle-15)",
+        groups=HR_PRIVATE,
     )
     service_book_number = fields.Char(
         string="Service Book Ref",
@@ -491,9 +605,13 @@ class HrEmployeeCdCoreExt(models.Model):
 
     # Address & Residence (Present vs Permanent)
     permanent_address = fields.Text(
-        string="Permanent Address", help="Permanent Address (Village/Road, Post Office, Thana)"
+        string="Permanent Address",
+        help="Permanent Address (Village/Road, Post Office, Thana)",
+        groups=HR_PRIVATE,
     )
-    permanent_district = fields.Char(string="Permanent District", help="Permanent District")
+    permanent_district = fields.Char(
+        string="Permanent District", help="Permanent District", groups=HR_PRIVATE
+    )
     permanent_division = fields.Selection(
         [
             ("dhaka", "Dhaka"),
@@ -507,6 +625,7 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="Permanent Division",
         help="Permanent Division",
+        groups=HR_PRIVATE,
     )
 
     # Emergency Contact Details (BLA Form 7 next-of-kin)
@@ -525,20 +644,31 @@ class HrEmployeeCdCoreExt(models.Model):
         help="Emergency Contact Relationship",
     )
     emergency_contact_address = fields.Text(
-        string="Emergency Contact Address", help="Emergency Contact Address"
+        string="Emergency Contact Address", help="Emergency Contact Address", groups=HR_PRIVATE
     )
     emergency_phone_alt = fields.Char(
         string="Emergency Alternative Phone", help="Alternative Emergency Phone"
     )
 
     # Payroll, Banking & MFS (Bangladesh Electronic Fund Transfer Network & Mobile Wallets)
-    bank_name = fields.Char(string="Bank Name", help="Scheduled Commercial Bank in Bangladesh")
-    bank_branch_name = fields.Char(string="Bank Branch", help="Bank branch name")
+    bank_name = fields.Char(
+        string="Bank Name",
+        help="Scheduled Commercial Bank in Bangladesh",
+        groups=HR_PRIVATE,
+        tracking=True,
+    )
+    bank_branch_name = fields.Char(string="Bank Branch", help="Bank branch name", groups=HR_PRIVATE)
     routing_number = fields.Char(
-        string="BEFTN Routing Number", help="9-digit Bangladesh Bank BEFTN routing code"
+        string="BEFTN Routing Number",
+        help="9-digit Bangladesh Bank BEFTN routing code",
+        groups=HR_PRIVATE,
+        tracking=True,
     )
     bank_account_number = fields.Char(
-        string="Bank Account Number", help="Savings / Current bank account number"
+        string="Bank Account Number",
+        help="Savings / Current bank account number",
+        groups=HR_PRIVATE,
+        tracking=True,
     )
     mfs_provider = fields.Selection(
         [
@@ -550,9 +680,14 @@ class HrEmployeeCdCoreExt(models.Model):
         ],
         string="MFS Provider",
         help="Mobile Financial Services wallet provider for daily allowances & field expenses",
+        groups=HR_PRIVATE,
+        tracking=True,
     )
     mfs_account_number = fields.Char(
-        string="MFS Account Number", help="11-digit mobile wallet number (01XXXXXXXXX)"
+        string="MFS Account Number",
+        help="11-digit mobile wallet number (01XXXXXXXXX)",
+        groups=HR_PRIVATE,
+        tracking=True,
     )
     overtime_eligible = fields.Boolean(
         string="Overtime Eligible",
@@ -627,37 +762,42 @@ class HrEmployeeCdCoreExt(models.Model):
         """BLR 2015 Rule 21 / BLA 2006 s.6-9: Generate Form 7 Service Book entry and reset 15-day clock."""
         docs = self.env["fix.hr.document"]
         today = fields.Date.context_today(self)
-        for rec in self:
+        for rec in self.with_context(fix_identity_read_purpose="Form 7 service book (masked)"):
             payload = (
                 f"FORM 7 - SERVICE BOOK (Bangladesh Labour Rules 2015, Rule 21)\n"
                 f"Service Book No: {rec.service_book_number or 'SB-' + (rec.employee_code or str(rec.id))}\n"
                 f"Worker Name: {rec.name}\n"
                 f"Father's Name: {rec.father_name or ''}\n"
                 f"Mother's Name: {rec.mother_name or ''}\n"
-                f"NID / Smart Card: {rec.nid_number or ''}\n"
+                # an unsigned generated draft carries the last four digits only;
+                # the signed service book is the record (fix.hr.document)
+                f"NID / Smart Card: {mask(rec.nid_number)}\n"
                 f"Identification Mark: {rec.identification_mark or ''}\n"
                 f"Designation / Band: {rec.job_title or ''} ({rec.job_band or ''})\n"
                 f"Joining Date: {rec.joining_date or ''}\n"
                 f"Basic Wage: {rec.basic_wage or 0.0:.2f} | Gross Wage: {rec.wage or 0.0:.2f}\n"
                 f"Endorsed On: {today}\n"
             ).encode()
-            doc = self.env["fix.hr.document"].create(
-                {
-                    "employee_id": rec.id,
-                    "doc_type": "service_book",
-                    "reference": rec.service_book_number or f"FORM7/{rec.employee_code or rec.id}",
-                    "issued_on": today,
-                    "verified": True,
-                    "file_name": f"Form7_ServiceBook_{rec.employee_code or rec.id}.txt",
-                    "file_data": base64.b64encode(payload),
-                }
+            doc = (
+                self.env["fix.hr.document"]
+                ._guarded()
+                .create(
+                    {
+                        "employee_id": rec.id,
+                        "doc_type": "service_book",
+                        "reference": rec.service_book_number
+                        or f"FORM7/{rec.employee_code or rec.id}",
+                        "issued_on": today,
+                        # A09 audit M21-10: a generated text entry is not a signed,
+                        # scanned service book. It is unverified until a second
+                        # person verifies the signed scan (fix.hr.document).
+                        "generated": True,
+                        "file_name": f"Form7_ServiceBook_{rec.employee_code or rec.id}.txt",
+                        "file_data": base64.b64encode(payload),
+                    }
+                )
             )
-            rec.write(
-                {
-                    "form7_endorsed_on": today,
-                    "doc_service_book_scanned": True,
-                }
-            )
+            rec._guarded().write({"form7_endorsed_on": today})
             docs |= doc
         return docs
 
@@ -680,25 +820,31 @@ class HrEmployeeCdCoreExt(models.Model):
                 f"Conveyance: BDT {rec.conveyance_allowance or 0.0:,.2f}\n"
                 f"Gross Salary: BDT {rec.wage or 0.0:,.2f}\n"
             ).encode()
-            doc = self.env["fix.hr.document"].create(
-                {
-                    "employee_id": rec.id,
-                    "doc_type": "appointment",
-                    "reference": f"FORM6/{rec.employee_code or rec.id}/{today}",
-                    "issued_on": today,
-                    "verified": True,
-                    "file_name": f"Form6_Appointment_{rec.employee_code or rec.id}.txt",
-                    "file_data": base64.b64encode(payload),
-                }
+            doc = (
+                self.env["fix.hr.document"]
+                ._guarded()
+                .create(
+                    {
+                        "employee_id": rec.id,
+                        "doc_type": "appointment",
+                        "reference": f"FORM6/{rec.employee_code or rec.id}/{today}",
+                        "issued_on": today,
+                        "generated": True,
+                        "file_name": f"Form6_Appointment_{rec.employee_code or rec.id}.txt",
+                        "file_data": base64.b64encode(payload),
+                    }
+                )
             )
-            rec.write({"doc_appointment_signed": True})
             docs |= doc
         return docs
 
     @api.model
     def action_export_form6a_register(self, domain=None):
         """BLR 2015 Rule 20 / BLA 2006 s.9: Export Form 6(a) Worker Register."""
-        emps = self.search(domain or [])
+        # every NID read is logged (BRU-HCM-07); this names why it was read
+        emps = self.with_context(fix_identity_read_purpose="Form 6(a) register").search(
+            domain or []
+        )
         rows = []
         for idx, emp in enumerate(emps, start=1):
             rows.append(
@@ -718,6 +864,29 @@ class HrEmployeeCdCoreExt(models.Model):
                 }
             )
         return rows
+
+    def _fix_guarded_fields(self) -> set:
+        # A09 audit M21-6: a user who could write the master marked a leaver
+        # "deprovisioned" (KPI-090 green with the account still live) or bound
+        # a colleague to a Keycloak id of their choosing. Only the leaver path,
+        # the HR manager's confirmation and the identity-provider consumer
+        # change these.
+        # A09 P0-b (M21-10): the PSR verification and the Form 7 endorsement
+        # date are stamped by their actions, never typed; the Odoo access
+        # revocation is stamped by the leaver consumer.
+        return super()._fix_guarded_fields() | {
+            "left_at",
+            "keycloak_deprovision_status",
+            "keycloak_deprovisioned_at",
+            "keycloak_deprovision_confirmed_by",
+            "keycloak_user_id",
+            "psr_status",
+            "psr_verified_on",
+            "psr_submitted_by_id",
+            "psr_verified_by_id",
+            "form7_endorsed_on",
+            "odoo_access_revoked_at",
+        }
 
     def _compute_contract_count(self):
         for rec in self:
@@ -739,7 +908,7 @@ class HrEmployeeCdCoreExt(models.Model):
         consumes to remove the Keycloak account) starts the KPI-090 clock:
         the time is recorded and deprovisioning is REQUESTED (pending)."""
         super()._emit_leaver()
-        self.write(
+        self._guarded().write(
             {
                 "left_at": fields.Datetime.now(),
                 "keycloak_deprovision_status": "pending",
@@ -767,7 +936,7 @@ class HrEmployeeCdCoreExt(models.Model):
                     "%s has no Keycloak deprovisioning to confirm (status: %s) - it is "
                     "requested by the leaver event" % (rec.name, rec.keycloak_deprovision_status)
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "keycloak_deprovision_status": "deprovisioned",
                     "keycloak_deprovisioned_at": now,
@@ -804,6 +973,13 @@ class HrEmployeeCdCoreExt(models.Model):
         control. Idempotent: a re-delivered or late event never changes a confirmed
         removal. Returns the employee updated (empty when nothing applied).
         """
+        # A09 audit M21-6: public, so any user could call it over JSON-RPC and
+        # mark a leaver deprovisioned. Only the identity consumer (the cron,
+        # superuser) applies the provider's outcome.
+        if not self.env.su:
+            raise AccessError(
+                "Identity-provider outcomes are applied by the identity consumer only"
+            )
         event = normalize_bus_event(raw_event)
         if event["event_type"] not in (
             IDP_PROVISIONED,
@@ -883,6 +1059,10 @@ class HrEmployeeCdCoreExt(models.Model):
     @api.model
     def drain_identity_lifecycle_events(self, limit=50):
         """Consume M29's identity outcomes through fix_events (FF-28) - the cron's job."""
+        if not self.env.su:
+            raise AccessError(
+                "Identity-provider outcomes are applied by the identity consumer only"
+            )
         manager = get_migration_manager()
         manager.register_group(IDENTITY_CONSUMER_GROUP)
         applied = []
@@ -913,7 +1093,9 @@ class HrEmployeeCdCoreExt(models.Model):
         result = super().write(vals)
         # Odoo 19's field is work_location_id (there is no `work_location`):
         # a location move used to go unannounced to M29.
-        if "department_id" in vals or "job_id" in vals or "work_location_id" in vals:
+        # A09 audit M21-13 (E11): a direct position, branch, operating-unit or
+        # band change moved the employee without telling M29.
+        if MOVER_FIELDS & set(vals):
             for rec in self:
                 publish(
                     self.env,
@@ -989,7 +1171,10 @@ class FixEmploymentContract(models.Model):
         tracking=True,
     )
     joining_date = fields.Date(required=True)
-    probation_end = fields.Date(help="Labour Rules 2021 r.25: probation may not exceed 6 months")
+    probation_end = fields.Date(
+        help="BLA s.4(8): probation is 6 months for clerical work and 3 months for others "
+        "(a skilled worker's may be extended by 3 months)"
+    )
     weekly_hours = fields.Float(
         string="Statutory Weekly Hours",
         default=48,
@@ -1068,48 +1253,8 @@ class FixEmploymentContract(models.Model):
             year = rec.joining_date.year if rec.joining_date else fields.Date.today().year
             rec.name = f"CNT/{code}/{rec.contract_type.upper()}/{year}"
 
-    def action_activate(self):
-        for rec in self:
-            rec._validate_statutory()
-            rec.state = "active"
-            publish(
-                self.env,
-                "employment.contract.activated",
-                "fix.employment.contract",
-                rec.id,
-                {
-                    "employee": rec.employee_id.name,
-                    "contract_type": rec.contract_type,
-                    "joining": str(rec.joining_date),
-                },
-            )
-
-    def action_terminate(self):
-        """End the contract. Unless another active contract continues the
-        employment, the employee leaves through the canonical leaver path
-        (cd_employee_core.action_mark_left: employee.left, which M29 consumes;
-        KPI-090 clock and a PENDING Keycloak deprovisioning) - the removal is
-        never marked done here."""
-        for rec in self:
-            rec.state = "terminated"
-            continuing = self.search_count(
-                [
-                    ("employee_id", "=", rec.employee_id.id),
-                    ("state", "=", "active"),
-                    ("id", "!=", rec.id),
-                ]
-            )
-            if not continuing:
-                rec.employee_id.action_mark_left()
-
-    def action_request_legal_signoff(self):
-        for rec in self:
-            rec.legal_signoff_state = "pending"
-
-    def action_approve_legal_signoff(self):
-        for rec in self:
-            rec.legal_signoff_state = "approved"
-            rec.signed_by_legal_counsel = self.env.user.name
+    # action_activate, action_terminate and the legal sign-off live in
+    # fix_hr_contract_controls.py (A09 P0-b: guarded, routed, versioned).
 
     def action_generate_contract_document(self):
         """Generate official Labour Rules 2015 Form 6 contract via M24 document engine.
@@ -1178,22 +1323,6 @@ class FixEmploymentContract(models.Model):
             )
             docs |= doc
         return docs
-
-    def _validate_statutory(self):
-        for rec in self:
-            if rec.probation_end:
-                cap_months = PROBATION_CAP_MONTHS * 30
-                span = (
-                    fields.Date.to_date(rec.probation_end) - fields.Date.to_date(rec.joining_date)
-                ).days
-                if span > cap_months:
-                    raise ValidationError(
-                        "Probation exceeds the 6-month statutory cap " "(Labour Rules 2021 r.25)"
-                    )
-            if rec.weekly_hours > 48:
-                raise ValidationError("s.102: weekly hours may not exceed 48")
-            if rec.basic_monthly <= 0:
-                raise ValidationError("Basic salary must be positive")
 
 
 class FixLeaveType(models.Model):

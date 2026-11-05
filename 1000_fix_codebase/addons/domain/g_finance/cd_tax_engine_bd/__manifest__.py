@@ -37,6 +37,7 @@ VAT returns and filing (Mushak 9.1) are explicitly W4 (roadmap P06-M02-T09).
         "security/ir.model.access.csv",
         "security/fix_a08_rules.xml",
         "data/fix_tax_master_data.xml",
+        "data/fix_salary_tds_consumers.xml",
         "views/fix_tax_engine_views.xml",
         "views/fix_tax_compliance_views.xml",
         "views/fix_tax_returns_views.xml",

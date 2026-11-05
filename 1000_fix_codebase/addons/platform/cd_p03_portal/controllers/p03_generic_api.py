@@ -12,6 +12,7 @@
 # are the SAME methods the Odoo forms would call. Internal-user only (NVR-22).
 import logging
 
+import psycopg2
 from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
@@ -159,7 +160,10 @@ class P03GenericApiController(http.Controller):
             # every operating unit's bills — the M19 CoA sudo-read pattern).
             # OU record rules stay enforced for every OTHER surface; writes
             # below keep the calling user's context (SoD/permissions apply).
-            rec_model = env[model].sudo()
+            # A surface marked "rules" (A09 people data) reads as the caller,
+            # under their record rules: an employee lists their own contract,
+            # never a colleague's (A09 audit M21-5).
+            rec_model = env[model] if conf.get("rules") else env[model].sudo()
             if "company_id" in env[model]._fields:
                 search_domain.append(("company_id", "in", env.companies.ids))
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
@@ -206,6 +210,8 @@ class P03GenericApiController(http.Controller):
             }
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise  # http.py retries a read-only route on a read/write cursor
         except Exception:
             _logger.exception("p03 model_records failed for %s", model)
             return {"error": _FAILED}
@@ -240,6 +246,8 @@ class P03GenericApiController(http.Controller):
             return out
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise  # http.py retries a read-only route on a read/write cursor
         except Exception:
             _logger.exception("p03 model_report %s.%s failed", module, report)
             return {"error": _FAILED}
@@ -461,7 +469,12 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            rec = env[model].sudo().browse(int(record_id)).exists() if record_id else None
+            reader = env[model] if conf.get("rules") else env[model].sudo()
+            rec = reader.browse(int(record_id)).exists() if record_id else None
+            if rec and conf.get("rules"):
+                # opening a record by id must not step around the rules the
+                # list applies (A09 audit M21-5: another company's NID by id)
+                rec.check_access("read")
             out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
             if rec:
@@ -478,6 +491,10 @@ class P03GenericApiController(http.Controller):
             }
         except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            # a read that must write (A09 identity read log) on the read-only
+            # cursor: http.py retries the route on a read/write cursor
+            raise
         except Exception:
             _logger.exception("p03 model_form failed for %s", model)
             return {"error": "The form data could not be loaded — see the server log."}
@@ -551,7 +568,8 @@ class P03GenericApiController(http.Controller):
         out_fields = self._form_field_meta(env, comodel, lines.get("fields"))
         rows = []
         if record_id:
-            rec = env[model].sudo().browse(int(record_id)).exists()
+            reader = env[model] if SURFACES.get(model, {}).get("rules") else env[model].sudo()
+            rec = reader.browse(int(record_id)).exists()
             if rec:
                 for child in rec[field_name]:
                     rows.append(self._form_record(child, out_fields))

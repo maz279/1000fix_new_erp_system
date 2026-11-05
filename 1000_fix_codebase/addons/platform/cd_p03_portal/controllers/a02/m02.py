@@ -27,6 +27,8 @@ SURFACES = {
             "action_request_dispatch",
             "action_dispatch",
             "action_reassign",
+            # A09 M22-F3: an uncertified technician needs a routed waiver
+            "action_request_certification_waiver",
             "action_accept",
             "action_decline",
             "action_start_travel",
@@ -65,7 +67,7 @@ SURFACES = {
     "fix.work.order": {
         "order": "id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_request_certification_waiver"},
     },
     "fix.geofence": {
         "order": "id",

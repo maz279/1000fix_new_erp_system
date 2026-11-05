@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_competency.tests.certify import certify_for_dispatch
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, AccessError, ValidationError)
@@ -94,6 +95,9 @@ def w(odoo_env):
     ua, ea = mk("p0m02_tech_a", [g_tech])
     ub, eb = mk("p0m02_tech_b", [g_tech])
     ud, ed = mk("p0m02_dispatcher", [g_disp])
+    # A09 C4: dispatch and reassignment need a device-scoped certification
+    for tech in (ea, eb):
+        certify_for_dispatch(env, tech)
 
     def fo(state="draft", tech=None, **kw):
         rec = env["fix.field.order"].create(

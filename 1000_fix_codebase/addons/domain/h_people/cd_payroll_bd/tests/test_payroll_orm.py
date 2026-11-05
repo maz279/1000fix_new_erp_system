@@ -290,6 +290,66 @@ def _locked_attendance(env):
     return lock
 
 
+def _second_payroll_manager(env, company=None):
+    """The checker: a Payroll Manager who did not calculate the run."""
+    company = company or env.company
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Payroll Checker",
+                "login": "payroll.checker.%s@example.test" % company.id,
+                "company_id": company.id,
+                "company_ids": [(6, 0, [company.id])],
+                "group_ids": [(6, 0, [env.ref("cd_payroll_bd.group_payroll_manager").id])],
+            }
+        )
+    )
+
+
+def _releaser(env, company=None):
+    """SOD-29: the Finance releaser, who neither calculated nor approved the run."""
+    company = company or env.company
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Payroll Releaser",
+                "login": "payroll.releaser.%s@example.test" % company.id,
+                "company_id": company.id,
+                "company_ids": [(6, 0, [company.id])],
+                "group_ids": [(6, 0, [env.ref("cd_payroll_bd.group_payroll_release").id])],
+            }
+        )
+    )
+
+
+def _decide(env, record, approver):
+    """`approver` approves `record` from the inbox task the engine routed to them."""
+    task = env["fix.workflow.task"].search(
+        [
+            ("request_id", "=", record.approval_request_id.id),
+            ("assigned_user_id", "=", approver.id),
+            ("state", "=", "pending"),
+        ]
+    )
+    assert task, "no inbox task for %s" % approver.name
+    task.with_user(approver).action_approve()
+    record.invalidate_recordset()
+
+
+def _register_salary_account(env, emp, acc_number, routing):
+    """HR registers the employee's salary account (a res.partner.bank record)
+    and BEFTN routing code on the employee master - what calculate reads."""
+    account = env["res.partner.bank"].create(
+        {"acc_number": acc_number, "partner_id": emp.work_contact_id.id}
+    )
+    emp.write({"bank_account_ids": [(6, 0, [account.id])], "routing_number": routing})
+    return account
+
+
 def test_calculation_is_refused_on_open_attendance(odoo_env):
     period = _period(odoo_env)
     with (
@@ -342,7 +402,40 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
             "check_out": datetime(2026, 2, 1, 20, 0),
         }
     )
+    # M55 (D4): the 2h are payable only against an approved overtime request
+    # (superuser fixture; M55 proves the routed approval itself)
+    req = env["fix.overtime.request"].create(
+        {
+            "employee_id": karim.id,
+            "company_id": karim.company_id.id,
+            "date": date(2026, 1, 31),
+            "hours": 2.0,
+            "reason": "Month-end backlog approved before the work",
+        }
+    )
+    req.write({"state": "submitted"})
+    req.action_approve()
     _locked_attendance(env)
+    checker = _second_payroll_manager(env, payroll_co.company)
+    releaser = _releaser(env, payroll_co.company)
+
+    # A run calculated BEFORE the employees' salary accounts are registered
+    # carries no bank details: pre-validation refuses to route it for
+    # approval, naming both (it used to be approved and fail only at the bank
+    # file). The details are never typed onto the slips.
+    unbanked = _period(env, name="2026-01-UNBANKED")
+    unbanked.write({"company_account_no": COMPANY_ACCOUNT, "company_routing_no": COMPANY_ROUTING})
+    unbanked.action_verify_attendance_locked()
+    unbanked.action_calculate()
+    with pytest.raises(UserError, match="fails pre-validation") as err, env.cr.savepoint():
+        unbanked.action_request_approval()
+    assert "Karim Uddin has no registered salary account" in str(err.value)
+    assert "Nasrin Sultana has no registered salary account" in str(err.value)
+    assert unbanked.state == "calculated" and unbanked.approval_state == "none"
+    # the employee master feeds the next run: a registered bank account record
+    # and the BEFTN routing number of each employee
+    _register_salary_account(env, karim, "1501203345001", "060274689")
+    _register_salary_account(env, nasrin, "2702150098761", "090261725")
 
     period = _period(env)
     manual = _slip(env, period, karim, 1.0)
@@ -369,28 +462,36 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     assert period.pf_total == 18000.00
     assert period.net_total == 81101.92
 
-    # Maker-checker: the calculator may not approve their own run
-    with pytest.raises(UserError, match="Maker-Checker SoD violation"), env.cr.savepoint():
-        period.action_approve()
-    checker = env["res.users"].create({"name": "Payroll Checker", "login": "payroll.checker.t"})
-    period.calculator_id = checker
-    period.action_approve()
-    assert period.state == "approved"
+    # the slips carry the employee master's salary account and routing
+    assert (slips[karim].bank_account_no, slips[karim].routing_no) == (
+        "1501203345001",
+        "060274689",
+    )
+    assert (slips[nasrin].bank_account_no, slips[nasrin].routing_no) == (
+        "2702150098761",
+        "090261725",
+    )
+
+    # No company originating account -> the run is not even routed for
+    # approval (no assumed account).
+    with pytest.raises(UserError, match="company originating account"), env.cr.savepoint():
+        period.action_request_approval()
+    period.write({"company_account_no": COMPANY_ACCOUNT, "company_routing_no": COMPANY_ROUTING})
+
+    # Maker-checker: the run is routed to a Payroll Manager who did not
+    # calculate it, and decided from that manager's inbox (the calculator is
+    # never rewritten to get there)
+    period.action_request_approval()
+    assert period.approval_state == "pending"
+    _decide(env, period, checker)
+    assert period.state == "approved" and period.approval_state == "approved"
+    assert (period.calculator_id, period.approved_by_id) == (env.user, checker)
+    assert period.approved_net_total == 81101.92
     assert _events(env, "payroll.approved", period.id) == [{"period": "2026-01", "net": 81101.92}]
 
-    # Pay: no company originating account -> refused (no assumed account).
-    # The savepoint plays the request transaction a UserError rolls back.
-    with pytest.raises(UserError, match="company originating account"), env.cr.savepoint():
-        period.action_pay()
-    assert period.state == "approved"
-    assert not env["fix.beftn.batch"].search([("period_id", "=", period.id)])
-    period.write({"company_account_no": COMPANY_ACCOUNT, "company_routing_no": COMPANY_ROUTING})
-    # ...and no employee bank details -> refused, naming both employees
-    with pytest.raises(UserError, match="Karim Uddin, Nasrin Sultana"), env.cr.savepoint():
-        period.action_pay()
-    assert period.state == "approved"
-    slips[karim].write({"routing_no": "060274689", "bank_account_no": "1501203345001"})
-    slips[nasrin].write({"routing_no": "090261725", "bank_account_no": "2702150098761"})
+    # SOD-29: the approver does not release the file; the releaser does
+    with pytest.raises(AccessError, match="Disbursement Releaser"), env.cr.savepoint():
+        period.with_user(checker).action_pay()
     submitted = datetime(2026, 10, 1, 17, 0)  # Thursday after the 16:00 cut-off
     with (
         mock.patch.object(fix_payroll, "datetime", _fixed_now(submitted)),
@@ -398,7 +499,9 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
             "libs.py.payroll_engine.beftn.datetime", _fixed_now(datetime(2026, 10, 1, 17, 5))
         ),
     ):
-        period.action_pay()
+        period.with_user(releaser).action_pay()
+    period.invalidate_recordset()
+    assert period.released_by_id == releaser
     batch = period.beftn_batch_id
     assert period.state == "paid"
     # Fri 2 + Sat 3 are the weekend -> settles Sunday 4 October
@@ -414,8 +517,16 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     # 27,576.92 + 51,725.00 = 7,930,192 paisa in the batch and file controls
     assert lines[4][32:44] == "000008110192"
     assert lines[5][43:55] == "000008110192"
+    # A09 round 2: the payload names the company and the amounts for M50
     assert _events(env, "payroll.beftn_submitted", period.id) == [
-        {"period": "2026-01", "batch_id": batch.id, "settlement": "2026-10-04"}
+        {
+            "period": "2026-01",
+            "company_id": payroll_co.company.id,
+            "batch_id": batch.id,
+            "amount": 81101.92,
+            "mfs_amount": 0.0,
+            "settlement": "2026-10-04",
+        }
     ]
 
     period.action_post()
@@ -440,15 +551,29 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     dimensions = env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
     assert len(dimensions) == 6
     assert dimensions.operating_unit_id.company_id == payroll_co.company
+    # A09 round 2: plus the company, the entry and the per-unit split (M56-5)
     assert _events(env, "payroll.posted", period.id) == [
         {
             "period": "2026-01",
+            "company_id": payroll_co.company.id,
+            "move_id": move.id,
+            "period_end": "2026-01-31",
             "gross": 90576.92,
             "net": 81101.92,
             "tax": 475.0,
             "pf": 18000.0,
             "total_debit": 99576.92,
             "total_credit": 99576.92,
+            "by_operating_unit": [
+                {
+                    "operating_unit_id": False,
+                    "branch_id": False,
+                    "cost_centre": False,
+                    "gross": 90576.92,
+                    "tax": 475.0,
+                    "net": 81101.92,
+                }
+            ],
         }
     ]
     # idempotent: a posted period is never posted twice
@@ -485,22 +610,26 @@ def test_approval_requires_the_payroll_manager_role(odoo_env):
         }
     )
     period = _period(env, state="calculated")
-    # a plain employee holds no payroll ACL at all
+    # a plain employee holds no payroll ACL at all (their own published slip
+    # is served by fix.payslip.fix_my_payslips, never by an ACL)
     for model in ("fix.payroll.period", "fix.payslip", "fix.beftn.batch"):
         assert not env[model].with_user(clerk).has_access("read"), model
     # an officer prepares but cannot approve (nor create BEFTN batches)
     assert env["fix.payslip"].with_user(officer).has_access("write")
     assert not env["fix.beftn.batch"].with_user(officer).has_access("create")
-    with pytest.raises(AccessError, match="Payroll Manager"), env.cr.savepoint():
+    with pytest.raises(UserError, match="approver's inbox"), env.cr.savepoint():
         period.with_user(officer).action_approve()
     assert period.state == "calculated"
     assert env.ref("base.user_admin").has_group("cd_payroll_bd.group_payroll_manager")
 
 
-def test_approval_without_recorded_calculator(odoo_env):
+def test_an_empty_run_is_never_approved(odoo_env):
+    """It used to approve: a calculated period with no payslip and no
+    calculator went to 'approved' (pre-validation, M56-14)."""
     period = _period(odoo_env, state="calculated")
-    period.action_approve()
-    assert period.state == "approved"
+    with pytest.raises(UserError, match="the run has no payslip"), odoo_env.cr.savepoint():
+        period.action_approve()
+    assert period.state == "calculated"
 
 
 def test_calculation_carries_only_real_bank_details(odoo_env):
@@ -531,7 +660,9 @@ def test_calculation_carries_only_real_bank_details(odoo_env):
     # the employee's registered salary account (Odoo 19 primary_bank_account_id)
     real = slips[banked]
     assert (real.bank_account_no, real.bank_name) == ("0112233445566", "Sonali Bank PLC")
-    assert real.routing_no is False  # never assumed: the officer enters it
+    # never assumed: the routing code comes from the employee master, and this
+    # employee has none registered
+    assert real.routing_no is False
     for slip in period.payslip_ids:
         assert "1234567890123" not in (slip.bank_account_no or "")
         assert slip.routing_no != "020260123"
@@ -663,8 +794,19 @@ def test_post_refuses_unbalanced_ledger(payroll_co):
 
 
 def _batch(env, period, **vals):
+    """A BEFTN batch over `period` as action_pay builds it: the period is
+    approved first (a file is built only for an approved run whose slips
+    still match the approval) and the batch carries the approved total."""
+    if period and period.state != "approved":
+        # fixture: the superuser plays an approved run (pinned digest and
+        # total). The real approval refuses these slips at pre-validation;
+        # the BEFTN checks below are the second line of defence and are
+        # tested on their own.
+        digest, total = period._payroll_snapshot()
+        period.write({"state": "approved", "approved_digest": digest, "approved_net_total": total})
     base = {
         "period_id": period.id if period else False,
+        "total_amount": period.approved_net_total if period else 0.0,
         "submitted_at": datetime(2026, 10, 5, 10, 30),
         "settlement_date": date(2026, 10, 5),
         "company_account_no": COMPANY_ACCOUNT,
@@ -835,16 +977,28 @@ def test_beftn_happy_path_fixed_width_file(odoo_env):
     assert batch.file_name == f"BEFTN_2026-09_{batch.id}.txt"
 
 
-def test_settlement_waits_for_the_settlement_date(odoo_env):
+def test_settlement_waits_for_the_date_and_the_bank_confirmation(odoo_env):
     period = _period(odoo_env)
     future = _batch(odoo_env, period, settlement_date=date(2099, 1, 4))
     with pytest.raises(UserError, match="BEFTN settles 2099-01-04"), odoo_env.cr.savepoint():
         future.action_settle()
     assert future.state == "submitted"
     due = _batch(odoo_env, period, settlement_date=date(2026, 1, 4))
+    # the date alone no longer settles a batch (A09 probe A10)
+    with pytest.raises(UserError, match="bank's confirmation"), odoo_env.cr.savepoint():
+        due.action_settle()
+    due.write({"bank_confirmation_ref": "BB-RET-20260104-77"})
+    with pytest.raises(UserError, match="bank's confirmation"), odoo_env.cr.savepoint():
+        due.action_settle()
+    due.write(
+        {"bank_confirmation_file": "UkVUVVJOIEZJTEU=", "bank_confirmation_filename": "ret.txt"}
+    )
     due.action_settle()
-    assert due.state == "settled"
+    assert due.state == "settled" and due.settled_by_id == odoo_env.user
     assert _events(odoo_env, "payroll.beftn_settled", due.id) == [{"settlement": "2026-01-04"}]
+    # the confirmation is evidence once settled
+    with pytest.raises(UserError, match="can no longer be changed"), odoo_env.cr.savepoint():
+        due.with_user(_releaser(odoo_env)).write({"bank_confirmation_ref": "FORGED"})
 
 
 # ---------------------------------------------------------------------------
@@ -885,28 +1039,43 @@ def test_separation_below_gratuity_vesting(odoo_env):
 @pytest.mark.parametrize(
     ("notice_days", "expected"),
     [
-        (0, 300000.0),  # 6 x 30 x 1,000 = 180,000 + 120 days in lieu = 120,000
-        (30, 270000.0),  # 90 days in lieu
-        (120, 180000.0),  # full notice served
+        # BLA s.20(1)(a): ONE month's notice or wages in lieu (it paid the s.26
+        # 120 days); s.20(2)(c): 30 days per completed year or gratuity if higher
+        (0, 210000.0),  # 6 x 30 x 1,000 = 180,000 (= gratuity) + 30 days in lieu
+        (10, 200000.0),  # 20 days in lieu
+        (30, 180000.0),  # the full month served
+        (120, 180000.0),  # more than a month served: nothing in lieu
     ],
 )
-def test_retrenchment_compensation(odoo_env, notice_days, expected):
+def test_retrenchment_compensation_follows_s20(odoo_env, notice_days, expected):
     slip = _slip_with_contract(odoo_env, date(2019, 3, 15))
     assert slip.action_compute_retrenchment(date(2026, 3, 14), notice_days) == expected
+    assert slip.notice_pay_amount == 1000.0 * max(30 - notice_days, 0)
+
+
+def test_retrenchment_probe_m9_three_years(odoo_env):
+    # A09 probe M9: 3 years at 30,000 paid 210,000 (120 days' notice);
+    # s.20 gives 3 x 30 x 1,000 = 90,000 + one month 30,000 = 120,000
+    slip = _slip_with_contract(odoo_env, date(2023, 3, 1))
+    assert slip.action_compute_retrenchment(date(2026, 3, 1), 0) == 120000.0
 
 
 def test_separation_and_retrenchment_need_a_contract(odoo_env):
     slip = _slip(odoo_env, _period(odoo_env), _employee(odoo_env, "No Contract"), 30000.0)
     with (
-        pytest.raises(UserError, match="No contract found for separation pay"),
+        pytest.raises(UserError, match="No active or terminated contract"),
         odoo_env.cr.savepoint(),
     ):
         slip.action_compute_separation(date(2026, 3, 14))
     with (
-        pytest.raises(UserError, match="No contract found for retrenchment pay"),
+        pytest.raises(UserError, match="No active or terminated contract"),
         odoo_env.cr.savepoint(),
     ):
         slip.action_compute_retrenchment(date(2026, 3, 14))
+    # the workspace button sends no date: without an exit or a left date
+    # there is nothing to compute from, and it says so (probe M10 crashed)
+    with pytest.raises(UserError, match="no separation date"), odoo_env.cr.savepoint():
+        slip.action_compute_separation()
 
 
 # --- WPPF (BLA 2006 Ch. XV) — A09 zero-trust re-audit 2026-10-30 ------------
@@ -915,18 +1084,28 @@ def test_separation_and_retrenchment_need_a_contract(odoo_env):
 
 
 def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
-    env = odoo_env
+    company = _bdt_company(odoo_env, name="WPPF Test Ltd", code="WPPT")
+    env = _company_env(odoo_env, company)
+    # A09 round 2 (M56-13): the beneficiaries are the company's employees
+    # under an active contract, one line each; a typed head count is not used
+    for n in range(4):
+        _contract(env, _employee(env, "WPPF Worker %d" % n, company), 20000.0)
     alloc = env["fix.wppf.allocation"].create(
         {
+            "company_id": company.id,
             "name": "WPPF 2025-2026",
             "fiscal_year": "2025-2026",
             "net_profit": 10_000_000.0,
             "eligible_workers_count": 100,
             "fiscal_year_end_date": date(2026, 6, 30),
+            # the audited figure, with its evidence (no M19 audited record exists)
+            "audited_statement_file": "JVBERi0xLjQK",
+            "audit_report_ref": "AUDIT/FY26/01",
         }
     )
     alloc.action_calculate()
     assert alloc.state == "calculated"
+    assert alloc.eligible_workers_count == 4 and len(alloc.beneficiary_ids) == 4
     # 5% of 10,000,000 = 500,000 pool
     assert alloc.total_wppf_pool == 500000.00
     # 80 : 10 : 10, the foundation taking the residual so the split is exact
@@ -944,24 +1123,50 @@ def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
     assert (
         alloc.equal_distribution_pool + alloc.investment_pool_share
     ) == alloc.participatory_fund_amount
-    # equal per-worker share of the cash pool
-    assert alloc.per_worker_equal_share == 2666.67
+    # equal per-worker share of the cash pool, over the 4 eligible workers
+    assert alloc.per_worker_equal_share == 66666.67
+    assert set(alloc.beneficiary_ids.mapped("share_amount")) == {66666.67}
     # s.234: transferred within nine months of the year end
     assert alloc.distribution_due_date == date(2026, 6, 30) + timedelta(days=270)
 
-    # Trustee resolution gates approval
+    # The signed trustee resolution (reference AND file) gates the request;
+    # a Payroll Manager who did not prepare or calculate it decides it
+    checker = _second_payroll_manager(env, company)
     with pytest.raises(UserError, match="Board of Trustees resolution"), env.cr.savepoint():
-        alloc.action_approve()
+        alloc.action_request_approval()
     alloc.trustee_board_resolution_ref = "BOT/2026/11"
-    alloc.action_approve()
+    with pytest.raises(UserError, match="Board of Trustees resolution"), env.cr.savepoint():
+        alloc.action_request_approval()
+    alloc.write({"trustee_resolution_file": "JVBERi0xLjQK", "trustee_resolution_filename": "r.pdf"})
+    alloc.action_request_approval()
+    _decide(env, alloc, checker)
     assert alloc.state == "approved"
+    assert alloc.approved_by_id == checker
 
-    # the BWWF 10% deposit challan gates posting
+    # the BWWF 10% deposit challan gates posting, and posting makes an entry
     with pytest.raises(UserError, match="challan"), env.cr.savepoint():
         alloc.action_post()
     alloc.bwwf_challan_ref = "BWWF/CH/2026/0007"
+    with pytest.raises(UserError, match="Configure the payroll accounting"), env.cr.savepoint():
+        alloc.action_post()
+    _configure_payroll_gl(env, company)
+    company.write(
+        {
+            "payroll_wppf_expense_account_id": _account(
+                env, company, "620900", "WPPF Expense", "expense"
+            ).id,
+            "payroll_wppf_payable_account_id": _account(
+                env, company, "219900", "WPPF Payable", "liability_current"
+            ).id,
+        }
+    )
     alloc.action_post()
     assert alloc.state == "posted"
+    assert alloc.gl_move_id.state == "posted"
+    assert _move_lines(alloc.gl_move_id) == [
+        ("219900", "WPPF 5% pool 2025-2026", 0.0, 500000.0),
+        ("620900", "WPPF 5% pool 2025-2026", 500000.0, 0.0),
+    ]
 
 
 def test_wppf_refuses_a_non_positive_net_profit(odoo_env):

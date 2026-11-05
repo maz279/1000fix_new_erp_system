@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M21 decision roles (A09 workflow audit §2 "Roles": no legal counsel,
+     finance, executive or clearance-owner role existed, so one HR Manager
+     signed every step of a promotion and every tick of an exit).
+
+     Each role owns one kind of decision. Members are a business decision
+     (A09 report §7.1): the groups hold only root and admin here, and the
+     approval engine never routes to the requester, the creator or the
+     subject, so a single account cannot complete a flow on its own.
+     Loaded BEFORE ir.model.access.csv so the CSV can reference the groups. -->
+<odoo>
+    <record id="privilege_hr_decisions" model="res.groups.privilege">
+        <field name="name">Core HR Decisions</field>
+        <field name="description">1000FiX A09 — who decides contracts, movements, exits and discipline.</field>
+        <field name="sequence">62</field>
+    </record>
+
+    <record id="group_hr_legal_counsel" model="res.groups">
+        <field name="name">HR Legal Counsel</field>
+        <field name="privilege_id" ref="privilege_hr_decisions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Signs off employment contracts (routed M63 approval). Never the contract's drafter.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_hr_executive" model="res.groups">
+        <field name="name">HR Executive Approver</field>
+        <field name="privilege_id" ref="privilege_hr_decisions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Decides transfers and promotions and disciplinary outcomes (employer approval, BLA s.24).</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_hr_finance" model="res.groups">
+        <field name="name">HR Finance Controller</field>
+        <field name="privilege_id" ref="privilege_hr_decisions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Clears the finance step of a movement, the exit's finance dues and approves the final settlement payroll computed.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_clearance_it" model="res.groups">
+        <field name="name">Exit Clearance: IT</field>
+        <field name="privilege_id" ref="privilege_hr_decisions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Confirms a leaver's devices and IT assets are returned.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_clearance_assets" model="res.groups">
+        <field name="name">Clearance: Stores &amp; Assets</field>
+        <field name="privilege_id" ref="privilege_hr_decisions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Confirms tools, van stock, spare parts and company assets are returned (exit and movement handover).</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+</odoo>

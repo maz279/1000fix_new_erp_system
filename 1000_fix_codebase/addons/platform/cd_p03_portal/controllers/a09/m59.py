@@ -3,28 +3,71 @@
 # lone-worker/road safety, drills, committee and occupational health.
 import datetime
 
+# A09 workflow audit (M59-F2..F12): every state on these surfaces moves only
+# through the actions below; approvals (JSA, injury compensation) are
+# requested here and decided from the M63 inbox, so their apply methods are
+# not offered on the screens.
 SURFACES = {
     "fix.hse.hazard": {
         "order": "risk_score desc, id desc",
         "limit": 300,
-        "actions": {"action_control", "action_close"},
+        "actions": {"action_control", "action_review", "action_close"},
     },
-    "fix.hse.jsa": {"order": "job_type", "limit": 300, "actions": {"action_approve"}},
-    "fix.ppe.register": {"order": "name", "limit": 500, "actions": {"check_replenishment"}},
+    "fix.hse.jsa": {
+        "order": "job_type",
+        "limit": 300,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_revise",
+            "action_retire",
+        },
+    },
+    "fix.ppe.register": {"order": "name", "limit": 500, "actions": set()},
+    "fix.ppe.issue": {"order": "issued_on desc", "limit": 500, "actions": {"action_acknowledge"}},
+    "fix.safety.committee.member": {"order": "committee_id, side", "limit": 500, "actions": set()},
+    "fix.safety.committee.meeting": {"order": "meeting_date desc", "limit": 300, "actions": set()},
     "fix.hse.incident": {
         "order": "reported_at desc, id desc",
         "limit": 400,
         "actions": {
             "action_investigate",
+            "action_triage",
+            "action_record_action_taken",
             "action_close",
+            "action_escalate",
             "action_notify_dife",
             "action_dispatch_dife_notice",
         },
     },
+    # Round 2 (M59-F8): the investigation team, root causes and CAPA actions
+    # are child records; a CAPA is done by its owner and verified by another
+    # HSE Officer.
+    "fix.hse.investigation.member": {"order": "incident_id, role", "limit": 500, "actions": set()},
+    "fix.hse.root.cause": {"order": "incident_id, id", "limit": 500, "actions": set()},
+    "fix.hse.capa": {
+        "order": "due_date, id",
+        "limit": 500,
+        "actions": {"action_mark_done", "action_verify", "action_cancel"},
+    },
+    # Round 2 (FR-HSE-037): the publishable fitness status; read-only here.
+    # Round 2: the follow-up of a lapsed M22 safety certification.
+    "fix.hse.safety.followup": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_close"},
+    },
+    "fix.hse.fitness.status": {"order": "valid_from desc, id desc", "limit": 500, "actions": set()},
     "fix.statutory.accident.register": {
         "order": "accident_date desc",
         "limit": 300,
-        "actions": {"action_notify_dife"},
+        "actions": {
+            "action_notify_dife",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_record_return_to_work",
+            "action_close",
+        },
     },
     "fix.hse.loneworker": {
         "order": "checkin_time desc, id desc",
@@ -32,21 +75,30 @@ SURFACES = {
         "actions": {"action_checkout", "action_escalate"},
     },
     "fix.hse.roadcheck": {"order": "checked_on desc, id desc", "limit": 400, "actions": set()},
-    "fix.hazardous.substance.register": {"order": "name", "limit": 200, "actions": set()},
+    "fix.hazardous.substance.register": {
+        "order": "name",
+        "limit": 200,
+        "actions": {"action_quarantine", "action_release"},
+    },
     "fix.hse.drill": {
         "order": "scheduled_on desc, id desc",
         "limit": 200,
-        "actions": {"action_complete"},
+        "actions": {"action_complete", "action_cancel"},
     },
     "fix.safety.committee": {
         "order": "formation_date desc",
         "limit": 100,
-        "actions": {"action_record_meeting"},
+        "actions": {
+            "action_activate",
+            "action_record_meeting",
+            "action_record_dife_registration",
+            "action_dissolve",
+        },
     },
     "fix.hse.health": {
         "order": "record_date desc, id desc",
         "limit": 300,
-        "actions": {"action_close"},
+        "actions": {"action_publish_fitness", "action_close"},
     },
     "fix.safety.inspection": {"order": "id desc", "limit": 400, "actions": {"action_complete"}},
 }
@@ -66,7 +118,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def incident_statistics(env, date_from=None, date_to=None, **params):
     """Incident statistics by type and severity."""
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     groups = {}
     for inc in incidents:
         key = dict(inc._fields["incident_type"].selection).get(inc.incident_type)
@@ -117,18 +169,16 @@ def leading_indicators(env, date_from=None, date_to=None, **params):
     """Leading indicators: near-miss reports, inspections and hazards controlled."""
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     near_miss = incidents.filtered(
-        lambda i: i.incident_type == "near_miss"
-        and i.reported_at
-        and i.reported_at.date() >= month_start
+        lambda i: (
+            i.incident_type == "near_miss" and i.reported_at and i.reported_at.date() >= month_start
+        )
     )
-    inspections = (
-        env["fix.safety.inspection"].sudo().search([("inspected_on", ">=", str(month_start))])
-    )
-    hazards = env["fix.hse.hazard"].sudo().search([])
+    inspections = env["fix.safety.inspection"].search([("inspected_on", ">=", str(month_start))])
+    hazards = env["fix.hse.hazard"].search([])
     controlled = hazards.filtered(lambda h: h.state in ("controlled", "closed"))
-    drills = env["fix.hse.drill"].sudo().search([("state", "=", "completed")])
+    drills = env["fix.hse.drill"].search([("state", "=", "completed")])
     rows = [
         {"indicator": "Near-miss reports MTD", "value": len(near_miss)},
         {"indicator": "Safety inspections MTD", "value": len(inspections)},
@@ -150,13 +200,15 @@ def leading_indicators(env, date_from=None, date_to=None, **params):
 
 
 def statutory_compliance(env, date_from=None, date_to=None, **params):
-    """Statutory notification clock from the accident register (the model that
-    actually carries the DIFE flag and lost work days)."""
-    registers = env["fix.statutory.accident.register"].sudo().search([])
+    """Statutory notification clock from the accident register: the deadline,
+    whether it has passed, and whether the notice went late (BLA s.80)."""
+    registers = env["fix.statutory.accident.register"].search([])
+    now = datetime.datetime.now()
     rows = []
     for reg in registers:
         reported = reg.accident_date
         days = (datetime.date.today() - reported).days if reported else None
+        overdue = bool(not reg.dife_notified and reg.notice_due and now > reg.notice_due)
         rows.append(
             {
                 "record": reg.name,
@@ -165,14 +217,18 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
                 "body_part": reg.affected_body_part or "—",
                 "lost_days": reg.lost_work_days,
                 "days_open": days if days is not None else "—",
+                "notice_due": str(reg.notice_due or "—"),
+                "overdue": "OVERDUE" if overdue else "No",
                 "notified": "Yes" if reg.dife_notified else "No",
                 "notice_date": str(reg.dife_notification_date or "—"),
+                "late": "Late" if reg.notified_late else ("On time" if reg.dife_notified else "—"),
             }
         )
     rows.sort(key=lambda r: r["date"], reverse=True)
     pending = len([r for r in rows if r["notified"] == "No"])
+    overdue = len([r for r in rows if r["overdue"] == "OVERDUE"])
     return _pack(
-        "Statutory Compliance — %d accident(s) awaiting DIFE notice" % pending,
+        "Statutory Compliance — %d awaiting DIFE notice, %d past the deadline" % (pending, overdue),
         [
             "record",
             "employee",
@@ -180,8 +236,11 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
             "body_part",
             "lost_days",
             "days_open",
+            "notice_due",
+            "overdue",
             "notified",
             "notice_date",
+            "late",
         ],
         {
             "record": "Statutory Record",
@@ -190,13 +249,17 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
             "body_part": "Body Part",
             "lost_days": "Lost Days",
             "days_open": "Days Open",
+            "notice_due": "Notice Deadline",
+            "overdue": "Past Deadline",
             "notified": "DIFE Notified",
             "notice_date": "Notice Date",
+            "late": "Notice Timeliness",
         },
         rows,
         [
-            "Reads the statutory accident register (BLR 2015 Rule 80): the DIFE notice flag and "
-            "lost work days live there, not on the HSE incident."
+            "Reads the statutory accident register (BLA 2006 s.80 / BLR 2015 r.70, Form 28 "
+            "under r.73). The deadline is the incident's computed notice window; a plain "
+            "employee sees only the entries that name them."
         ],
         totals={"record": "Total", "lost_days": sum(r["lost_days"] for r in rows)},
         empty="No statutory accident records.",
@@ -206,7 +269,7 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
 def ppe_compliance(env, date_from=None, date_to=None, **params):
     """PPE register: item types with their regulatory standard, stock and the
     model's computed state (adequate / low stock)."""
-    ppe = env["fix.ppe.register"].sudo().search([])
+    ppe = env["fix.ppe.register"].search([])
     rows = []
     for item in ppe:
         rows.append(
@@ -239,8 +302,8 @@ def ppe_compliance(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "The register holds PPE item types and stock, not per-employee issue rows: compliance "
-            "here means stock at or above the item's minimum threshold."
+            "Stock compliance: an item type is compliant when its stock is above its minimum. "
+            "Issues to employees and their acknowledgements are kept on fix.ppe.issue."
         ],
         totals={"item": "Total", "stock": sum(r["stock"] for r in rows)},
         empty="No PPE items recorded.",
@@ -249,7 +312,7 @@ def ppe_compliance(env, date_from=None, date_to=None, **params):
 
 def drill_coverage(env, date_from=None, date_to=None, **params):
     """Drill calendar coverage by drill type."""
-    drills = env["fix.hse.drill"].sudo().search([])
+    drills = env["fix.hse.drill"].search([])
     groups = {}
     for drill in drills:
         key = dict(drill._fields["drill_type"].selection).get(drill.drill_type)
@@ -302,25 +365,30 @@ def kpis(env):
     today = datetime.date.today()
     year_start = today.replace(month=1, day=1)
     month_start = today.replace(day=1)
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     ytd = incidents.filtered(lambda i: i.reported_at and i.reported_at.date() >= year_start)
     lost_time = ytd.filtered(
         lambda i: i.severity in ("medium", "high") and i.incident_type == "injury"
     )
     near_miss = incidents.filtered(
-        lambda i: i.incident_type == "near_miss"
-        and i.reported_at
-        and i.reported_at.date() >= month_start
+        lambda i: (
+            i.incident_type == "near_miss" and i.reported_at and i.reported_at.date() >= month_start
+        )
     )
-    registers = env["fix.statutory.accident.register"].sudo().search([])
+    registers = env["fix.statutory.accident.register"].search([])
     pending_dife = registers.filtered(lambda r: not r.dife_notified)
-    ppe = env["fix.ppe.register"].sudo().search([])
-    drills = env["fix.hse.drill"].sudo().search([("state", "=", "completed")])
+    ppe = env["fix.ppe.register"].search([])
+    drills = env["fix.hse.drill"].search([("state", "=", "completed")])
     return {
         "recordable_incidents_ytd": len(ytd),
         "lost_time_injuries": len(lost_time),
         "near_miss_mtd": len(near_miss),
         "statutory_clock": len(pending_dife),
-        "ppe_compliance": len(ppe),  # registered PPE item types (stocked), not a rate
+        # a rate: the share of PPE item types whose stock is above the minimum
+        "ppe_compliance": round(
+            len(ppe.filtered(lambda p: p.state == "compliant")) / len(ppe) * 100.0, 1
+        )
+        if ppe
+        else 0.0,
         "drills_completed": len(drills),
     }

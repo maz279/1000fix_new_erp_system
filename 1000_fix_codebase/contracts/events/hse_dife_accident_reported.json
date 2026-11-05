@@ -33,7 +33,8 @@
       "type": "object",
       "required": [
         "worker",
-        "date"
+        "date",
+        "late"
       ],
       "properties": {
         "worker": {
@@ -44,6 +45,9 @@
         },
         "date": {
           "type": "string"
+        },
+        "late": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

@@ -27,6 +27,7 @@ CD-M55-01 (P08-M02) — Wave 5 attendance:
     "depends": [
         "base",
         "mail",
+        "hr",
         "hr_attendance",
         "cd_entity_config",
         "cd_hr_core",
@@ -38,6 +39,9 @@ CD-M55-01 (P08-M02) — Wave 5 attendance:
         "security/fix_isolation_rules.xml",
         "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
+        # A09 P0-b/P1/P2 (M55): own-record rules and the routing cron
+        "security/fix_a09_attendance_rules.xml",
+        "data/fix_a09_attendance_data.xml",
         "data/wfm_sequences.xml",
         "views/fix_attendance_views.xml",
     ],

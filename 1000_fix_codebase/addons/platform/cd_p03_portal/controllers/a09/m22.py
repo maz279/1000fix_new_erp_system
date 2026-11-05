@@ -5,28 +5,57 @@ import datetime
 
 SURFACES = {
     "fix.competency": {"order": "code", "limit": 300, "actions": set()},
+    "fix.certification.waiver": {"order": "id desc", "limit": 300, "actions": {"action_cancel"}},
     "fix.certification": {
         "order": "expires_on",
         "limit": 500,
-        "actions": {"action_grant", "action_mark_expired"},
+        # The grant is a routed request; the verifier decides it in the
+        # approval inbox (M63). Suspend blocks dispatch at once.
+        "actions": {
+            "action_grant",
+            "action_recall_approval",
+            "action_renew",
+            "action_suspend",
+            "action_reinstate",
+            "action_revoke",
+            "action_mark_expired",
+        },
     },
     "fix.training.course": {"order": "code", "limit": 200, "actions": {"action_enroll"}},
     "fix.training.enrollment": {
         "order": "id desc",
         "limit": 500,
-        "actions": {"action_pass"},
+        "actions": {"action_pass", "action_fail"},
     },
+    # BRU-LMS-09: the attempt that reaches the limit is escalated; a
+    # Training Manager grants the retake.
     "fix.competency.assessment": {
         "order": "assessed_on desc, id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_grant_retake"},
+    },
+    # BRU-LMS-10: the yearly budget, and the routed over-budget request.
+    "fix.training.budget": {"order": "year desc, company_id", "limit": 50, "actions": set()},
+    "fix.training.budget.exception": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
     },
     "fix.learning.path": {"order": "name", "limit": 100, "actions": set()},
-    "fix.ojt.record": {"order": "date_from desc, id desc", "limit": 300, "actions": set()},
+    "fix.ojt.record": {
+        "order": "date_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_sign_off"},
+    },
     "fix.audit.evidence": {
         "order": "collected_on desc, id desc",
         "limit": 300,
-        "actions": {"action_submit", "action_accept", "action_compile_iso_dossier"},
+        "actions": {
+            "action_submit",
+            "action_accept",
+            "action_reject",
+            "action_compile_iso_dossier",
+        },
     },
     "fix.device.category": {"order": "code", "limit": 200, "actions": set()},
 }
@@ -50,15 +79,17 @@ def _today():
 
 def certification_coverage(env, date_from=None, date_to=None, **params):
     """Certification coverage by brand/competency: valid vs expired holders."""
-    certs = env["fix.certification"].sudo().search([])
+    certs = env["fix.certification"].search([])
     today = _today()
     groups = {}
     for cert in certs:
+        if cert.state not in ("valid", "lapsed"):
+            continue  # drafts, suspensions and revocations are not coverage
         comp = cert.competency_id
         key = comp.name
         g = groups.setdefault(key, {"holders": set(), "valid": 0, "expired": 0, "expiring": 0})
         g["holders"].add(cert.employee_id.id)
-        if cert.expires_on and cert.expires_on < today:
+        if cert.state == "lapsed" or (cert.expires_on and cert.expires_on < today):
             g["expired"] += 1
         elif cert.expires_on and (cert.expires_on - today).days <= 30:
             g["expiring"] += 1
@@ -86,8 +117,8 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "A certificate counts as expired when its expiry date has passed; expiring means "
-            "inside the next 30 days."
+            "Granted certificates only. A certificate counts as expired when it lapsed or its "
+            "expiry date has passed; expiring means inside the alert lead time."
         ],
         totals={
             "competency": "Total",
@@ -102,7 +133,7 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
 
 def expiry_forecast(env, date_from=None, date_to=None, **params):
     """Expiry forecast: certificates expiring in the next 180 days, by month."""
-    certs = env["fix.certification"].sudo().search([("expires_on", "!=", False)])
+    certs = env["fix.certification"].search([("expires_on", "!=", False), ("state", "=", "valid")])
     today = _today()
     horizon = today + datetime.timedelta(days=180)
     rows = []
@@ -139,11 +170,13 @@ def expiry_forecast(env, date_from=None, date_to=None, **params):
 
 def training_effectiveness(env, date_from=None, date_to=None, **params):
     """Training effectiveness: enrolments, completions and pass rate per course."""
-    courses = env["fix.training.course"].sudo().search([])
+    courses = env["fix.training.course"].search([])
     rows = []
     for course in courses:
-        enrolments = env["fix.training.enrollment"].sudo().search([("course_id", "=", course.id)])
-        completed = len(enrolments.filtered(lambda e: e.state == "completed"))
+        enrolments = env["fix.training.enrollment"].search([("course_id", "=", course.id)])
+        # A09 M22-28: the model's completion state is 'passed' ('completed'
+        # never existed, so the KPI was always 0 %).
+        completed = len(enrolments.filtered(lambda e: e.state == "passed"))
         total = len(enrolments)
         rows.append(
             {
@@ -167,7 +200,7 @@ def training_effectiveness(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Completion counts enrolments in the completed state; a course with no enrolments "
+            "Completion counts enrolments in the passed state; a course with no enrolments "
             "shows zero rather than a fabricated rate."
         ],
         totals={
@@ -183,9 +216,11 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
     """Skill-gap heatmap derived from the records that exist: valid
     certifications (L3+ evidence) and the latest assessment level per
     employee/competency. There is no separate skill-matrix model."""
-    competencies = env["fix.competency"].sudo().search([])
-    certs = env["fix.certification"].sudo().search([("status", "!=", "expired")])
-    assessments = env["fix.competency.assessment"].sudo().search([], order="assessed_on desc")
+    competencies = env["fix.competency"].search([])
+    # A09 M22-09: only a granted certificate inside its dates counts; the
+    # status is judged against today on every read.
+    certs = env["fix.certification"].search([("state", "=", "valid"), ("status", "!=", "expired")])
+    assessments = env["fix.competency.assessment"].search([], order="assessed_on desc")
     rows = []
     for comp in competencies:
         held = certs.filtered(lambda c, cid=comp.id: c.competency_id.id == cid)
@@ -258,7 +293,7 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
 
 def audit_evidence_pack(env, date_from=None, date_to=None, **params):
     """Audit evidence pack: evidence records with their standard clause."""
-    records = env["fix.audit.evidence"].sudo().search([])
+    records = env["fix.audit.evidence"].search([])
     rows = []
     for rec in records:
         rows.append(
@@ -285,7 +320,10 @@ def audit_evidence_pack(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Evidence is accepted by the auditor role; submitted-but-not-accepted rows remain open."],
+        [
+            "Evidence is accepted by a verifier other than its submitter, with the file "
+            "attached; submitted-but-not-accepted rows remain open."
+        ],
         empty="No audit evidence recorded.",
     )
 
@@ -301,9 +339,13 @@ REPORTS = {
 
 def kpis(env):
     today = _today()
-    certs = env["fix.certification"].sudo().search([])
-    employees = env["hr.employee"].sudo().search([])
-    certified = {c.employee_id.id for c in certs if not c.expires_on or c.expires_on >= today}
+    certs = env["fix.certification"].search([("state", "in", ("valid", "lapsed"))])
+    employees = env["hr.employee"].search([])
+    certified = {
+        c.employee_id.id
+        for c in certs
+        if c.state == "valid" and (not c.expires_on or c.expires_on >= today)
+    }
     expiring = len(
         [
             c
@@ -312,11 +354,15 @@ def kpis(env):
         ]
     )
     expired_working = len(
-        {c.employee_id.id for c in certs if c.expires_on and c.expires_on < today}
+        {
+            c.employee_id.id
+            for c in certs
+            if c.state == "lapsed" or (c.expires_on and c.expires_on < today)
+        }
     )
-    assessments = env["fix.competency.assessment"].sudo().search([])
+    assessments = env["fix.competency.assessment"].search([])
     passed = len(assessments.filtered(lambda a: a.passed))
-    ojt = env["fix.ojt.record"].sudo().search([])
+    ojt = env["fix.ojt.record"].search([])
     technicians = (
         len(
             [e for e in employees if e.position_id and "tech" in (e.position_id.name or "").lower()]
