@@ -62,7 +62,13 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_rotate"},
     },
-    "fix.security.audit": {"order": "occurred_at desc, id desc", "limit": 500, "actions": set()},
+    "fix.security.audit": {
+        "order": "occurred_at desc, id desc",
+        "limit": 500,
+        # R5: chain verification reads the whole chain and reports — the
+        # summary is the point (raises with the verified counts).
+        "actions": {"action_verify_chain"},
+    },
     "fix.security.incident": {
         "order": "detected_at desc, id desc",
         "limit": 400,
@@ -77,13 +83,53 @@ SURFACES = {
 # every workflow-controlled field (those are action-only). Read-only screens
 # declare an empty tuple: nothing the workspace can type on them.
 WRITABLE = {
-    "res.users": ("name", "login", "email", "phone", "active"),
-    "fix.role": ("code", "name", "name_bn", "group_id", "keycloak_role", "active", "description"),
+    # M29 wiring pass (2026-11-05): the D365 User form is comprehensive —
+    # identity, organisation/data scope and preferences are editable here;
+    # group_ids, the password fields and company_ids are NOT (entitlement
+    # changes only through approved access requests / JML; passwords through
+    # the invitation flow; allowed companies is a data-scope change owned by
+    # the multi-entity substrate).
+    "res.users": (
+        "name",
+        "name_bn",
+        "login",
+        "email",
+        "phone",
+        "mobile_phone",
+        "work_email",
+        "image_1920",
+        "barcode",
+        "active",
+        "lang",
+        "tz",
+        "preferred_language",
+        "notification_type",
+        "signature",
+        "comment",
+        "out_of_office_from",
+        "out_of_office_to",
+        "out_of_office_message",
+        "company_id",
+        "default_operating_unit_id",
+        "work_location_id",
+        "work_location_type",
+    ),
+    "fix.role": (
+        "code",
+        "name",
+        "name_bn",
+        "group_id",
+        "keycloak_role",
+        "active",
+        "description",
+        "company_id",
+    ),
     "res.groups": (),
     "fix.field.rule": ("model_id", "field_id", "permission", "active"),
     "fix.isolation.tier": (
         "code",
         "name",
+        "description",
         "record_rule_domain",
         "requires_step_up",
         "requires_audit",
@@ -105,6 +151,8 @@ WRITABLE = {
         "conflict_action",
         "rationale",
         "active",
+        "company_id",
+        "operating_unit_id",
     ),
     # the measurement (result/violations/users_in_conflict) is computed
     "fix.sod.test": ("control_id", "tested_on", "tested_by_id", "users_checked"),
@@ -129,8 +177,9 @@ WRITABLE = {
     ),
     "res.device.log": (),
     "fix.jml.event": ("event_type", "employee_id", "user_id", "role_id", "effective_on"),
-    # the decision (decision/decided_on) is the reviewer's action only
-    "fix.access.certification": ("period", "user_id", "role_id", "reviewer_id", "note"),
+    # the decision (decision/decided_on) is the reviewer's action only;
+    # due_on stays editable — it is the close-out deadline the cron enforces
+    "fix.access.certification": ("period", "user_id", "role_id", "reviewer_id", "due_on", "note"),
     # state and the rotation dates change only through action_rotate
     "fix.encryption.key": (
         "code",

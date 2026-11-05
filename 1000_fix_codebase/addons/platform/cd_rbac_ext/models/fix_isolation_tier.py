@@ -54,3 +54,22 @@ class FixIsolationTier(models.Model):
         mapping = dict(self._fields["code"].selection)
         for rec in self:
             rec.name = mapping.get(rec.code, rec.code)
+
+
+class FixIsolationTierDisplayRoll(models.Model):
+    """Read-only role-name roll for the D365 Isolation Tier form (M29 wiring
+    pass, 2026-11-05) — the role m2m itself has no workspace editor."""
+
+    _inherit = "fix.isolation.tier"
+    _description = "Fix Isolation Tier M29 Display Roll"
+
+    fix_role_roll = fields.Char(
+        string="Roles with Access",
+        compute="_compute_display_rolls",
+        help="The roles that may reach data on this tier.",
+    )
+
+    def _compute_display_rolls(self):
+        for rec in self:
+            codes = rec.role_ids.mapped("code")
+            rec.fix_role_roll = ", ".join(sorted(codes)) if codes else "—"

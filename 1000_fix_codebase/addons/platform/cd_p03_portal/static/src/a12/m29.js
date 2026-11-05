@@ -2,7 +2,13 @@
 /* A12 · Platform & Technology — M29 Identity, Access & Security.
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 78.
  * Scope note: field-level reads are not instrumented, so the sensitive-data
- * pack reports the CLASSIFIED exposure surface, never invented read counts. */
+ * pack reports the CLASSIFIED exposure surface, never invented read counts.
+ *
+ * Workspace wiring pass (2026-11-05): the User master is the comprehensive
+ * 7-tab form (identity editable; entitlement / DOFA authority / lifecycle
+ * panels read-only computes over the real registers), every form carries
+ * its decision-stamp and measurement fields read-only, the grids show the
+ * governance columns, and the audit trail exposes the chain verification. */
 
 export const MODULE = {
   area: 'A12', code: 'M29', en: 'Identity, Access & Security', title: 'M29 · Identity, Access & Security',
@@ -13,7 +19,8 @@ export const MODULE = {
     { l: 'Active Roles', m: 'roles_active' },
     { l: 'Requests Open', m: 'requests_open' },
     { l: 'Sessions Open', m: 'sessions_open' },
-    { l: 'SoD Failures', m: 'sod_failures' }
+    { l: 'SoD Failures', m: 'sod_failures' },
+    { l: 'SoD Tests', m: 'sod_tests' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -63,11 +70,11 @@ export const MODULE = {
 export const SCREENS = {
   /* ---- Identity ---- */
   'M29-users': { kind: 'model_list', model: 'res.users', create: false,
-    cols: ['login', 'name', 'login_date', 'active'] },
+    cols: ['login', 'name', 'fix_role_codes', 'company_id', 'default_operating_unit_id', 'login_date', 'active'] },
   'M29-sessions': { kind: 'model_list', model: 'res.device.log', create: false,
     cols: ['user_id', 'platform', 'browser', 'ip_address', 'country', 'last_activity', 'revoked'] },
   'M29-jml': { kind: 'model_list', model: 'fix.jml.event', stateField: 'state',
-    cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'effective_on', 'result_note', 'state'],
+    cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'effective_on', 'applied_on', 'result_note', 'state'],
     actions: [{ m: 'action_apply', l: 'Apply' }, { m: 'action_cancel', l: 'Cancel' }] },
 
   /* ---- Access ---- */
@@ -78,10 +85,10 @@ export const SCREENS = {
   'M29-fields': { kind: 'model_list', model: 'fix.field.rule',
     cols: ['model_id', 'field_id', 'role_ids', 'permission'] },
   'M29-cert': { kind: 'model_list', model: 'fix.access.certification', stateField: 'decision',
-    cols: ['name', 'period', 'user_id', 'role_id', 'reviewer_id', 'decision'],
+    cols: ['name', 'period', 'user_id', 'role_id', 'reviewer_id', 'due_on', 'decided_on', 'decision'],
     actions: [{ m: 'action_certify', l: 'Certify' }, { m: 'action_revoke', l: 'Revoke' }] },
   'M29-requests': { kind: 'model_list', model: 'fix.access.request', stateField: 'state',
-    cols: ['name', 'request_type', 'user_id', 'role_id', 'requested_on', 'valid_until', 'state'],
+    cols: ['name', 'request_type', 'user_id', 'role_id', 'requested_by_id', 'approver_id', 'requested_on', 'valid_until', 'state'],
     actions: [{ m: 'action_approve', l: 'Approve' }, { m: 'action_reject', l: 'Reject' },
               { m: 'action_grant', l: 'Grant / Revoke' }] },
   'M29-groups': { kind: 'model_list', model: 'res.groups', create: false,
@@ -101,8 +108,11 @@ export const SCREENS = {
 
   /* ---- Monitoring ---- */
   // Append-only: entries are written by the system, never typed (+ New suppressed).
+  // Verify Chain (R5) recomputes every row's hash and checks the links —
+  // the summary (entries checked, discontinuities) is the report.
   'M29-audit': { kind: 'model_list', model: 'fix.security.audit', create: false,
-    cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_ref', 'detail', 'entry_hash'] },
+    cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_ref', 'detail', 'entry_hash'],
+    actions: [{ m: 'action_verify_chain', l: 'Verify Chain' }] },
   'M29-privileged': { kind: 'model_list', model: 'fix.privileged.session', stateField: 'state',
     cols: ['name', 'user_id', 'access_kind', 'ticket_ref', 'started_at', 'duration_minutes', 'state'],
     actions: [{ m: 'action_close', l: 'Close Session' }] },
@@ -123,19 +133,101 @@ export const SCREENS = {
   'M29-rpt-auth': { kind: 'table_report', module: 'M29', report: 'auth_trends', title: 'Authentication Trends', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
+  /* The User master (M29 wiring pass 2026-11-05): comprehensive, 7 tabs.
+   * Identity / scope / preferences are EDITABLE; entitlements, authority
+   * and lifecycle panels are READ-ONLY computes over the real registers
+   * (fix.role mapping, DOFA tier groups, certifications, access requests).
+   * group_ids is deliberately absent: every privilege change goes through
+   * an approved access request so the grant is approved, SoD-checked and
+   * recorded. */
   'M29-form-user': {
     kind: 'model_form',
     model: 'res.users',
     title: 'User',
     back: 'M29-users',
+    status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
+    tabs: [
+      { id: 'general', label: '1. General & Photo', bn: '১. সাধারণ তথ্য ও ছবি', icon: '👤', badge: '10' },
+      { id: 'org', label: '2. Organisation & Data Scope', bn: '২. প্রতিষ্ঠান ও ডেটা পরিধি', icon: '🏢', badge: '6' },
+      { id: 'prefs', label: '3. Preferences & Comms', bn: '৩. পছন্দ ও যোগাযোগ', icon: '⚙️', badge: '9' },
+      { id: 'security', label: '4. Security & Authentication', bn: '৪. নিরাপত্তা ও প্রমাণীকরণ', icon: '🔐', badge: '6' },
+      { id: 'access', label: '5. Access & Roles', bn: '৫. অ্যাক্সেস ও ভূমিকা', icon: '🗝️', badge: '4' },
+      { id: 'authority', label: '6. Approver & Financial Authority', bn: '৬. অনুমোদন ও আর্থিক ক্ষমতা', icon: '🧾', badge: '3' },
+      { id: 'lifecycle', label: '7. Lifecycle & Audit', bn: '৭. জীবনচক্র ও অডিট', icon: '📜', badge: '2' }
+    ],
     sections: [
-      { title: 'User', note: 'A login. Groups are NOT edited here — role assignment goes through an access request so the grant is approved and recorded.',
+      { tab: 'general', title: 'Identity', note: 'Who the login belongs to. The photo and the Bengali name follow the estate bilingual master-data rule (DE-17).',
         fields: [
-          { name: 'name', required: true, label: 'Full Name' },
+          { name: 'image_1920', label: 'User Photo', type: 'image' },
+          { name: 'name', required: true, label: 'Full Name (English)' },
+          { name: 'name_bn', label: 'Full Name (Bengali)' },
           { name: 'login', required: true, label: 'Login' },
-          { name: 'email', label: 'Email' },
+          { name: 'email', label: 'Email' }
+        ] },
+      { tab: 'general', title: 'Contact Channels', note: 'Official channels first — these drive notifications and the directory.',
+        fields: [
           { name: 'phone', label: 'Phone' },
+          { name: 'mobile_phone', label: 'Work Mobile' },
+          { name: 'work_email', label: 'Work Email' },
+          { name: 'barcode', label: 'Badge / Attendance PIN' }
+        ] },
+      { tab: 'general', title: 'Account State', note: 'Deactivating a leaver here only switches the login off — the JML leaver action additionally removes EVERY group and unassigns ITSM assets. Prefer the JML action for leavers.',
+        fields: [
           { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'org', title: 'Placement', note: 'The company (startup context) and the operating unit scope the records this user sees through record rules.',
+        fields: [
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'default_operating_unit_id', label: 'Default Operating Unit' },
+          { name: 'work_location_id', label: 'Work Location' },
+          { name: 'work_location_type', label: 'Location Type' },
+          { name: 'employee_id', readonly: true, label: 'Linked Employee (HR Master)' }
+        ] },
+      { tab: 'org', title: 'Data Isolation', note: 'Rows are further isolated by the six tiers T0–T5 (Isolation Tier screen); allowed companies is a data-scope change owned by the multi-entity substrate — shown read-only.',
+        fields: [
+          { name: 'fix_allowed_companies', readonly: true, label: 'Allowed Companies' }
+        ] },
+      { tab: 'prefs', title: 'Interface', note: 'Bengali and English are first-class interface languages (bn_BD / en_US).',
+        fields: [
+          { name: 'lang', label: 'Interface Language' },
+          { name: 'tz', label: 'Timezone' },
+          { name: 'preferred_language', label: 'Preferred Correspondence Language' }
+        ] },
+      { tab: 'prefs', title: 'Communication', note: 'How this user receives notifications; the signature stamps outgoing messages.',
+        fields: [
+          { name: 'notification_type', label: 'Notifications' },
+          { name: 'signature', type: 'text', label: 'Signature' },
+          { name: 'out_of_office_from', label: 'Out of Office From' },
+          { name: 'out_of_office_to', label: 'Out of Office To' },
+          { name: 'out_of_office_message', type: 'text', label: 'Out-of-Office Message' },
+          { name: 'comment', type: 'text', label: 'Internal Note' }
+        ] },
+      { tab: 'security', title: 'Authentication Posture', note: 'Read-only, measured from the login records. MFA (TOTP) status feeds the ISO 27001 A.5.17 review; the 90-day login-recency review drives the account-review trigger. Passwords are never typed here — use the Odoo invitation / reset flow.',
+        fields: [
+          { name: 'totp_enabled', readonly: true, label: 'MFA (TOTP) Enabled' },
+          { name: 'login_date', readonly: true, label: 'Last Login' },
+          { name: 'share', readonly: true, label: 'Internal / Portal' },
+          { name: 'is_system', readonly: true, label: 'System Administrator' },
+          { name: 'create_date', readonly: true, label: 'Created On' },
+          { name: 'write_date', readonly: true, label: 'Last Updated' }
+        ] },
+      { tab: 'access', title: 'Entitlement (read-only)', note: 'What this user can access — resolved from REAL group membership through the 53-role register (the same measurement the Access Review pack reports). Groups are NOT edited here: every grant goes through an approved access request (two-person, SoD-checked). Use the Access Requests screen to grant or revoke.',
+        fields: [
+          { name: 'fix_role_codes', readonly: true, label: 'Business Roles Held' },
+          { name: 'fix_role_count', readonly: true, label: 'Roles Held' },
+          { name: 'fix_group_names', readonly: true, label: 'Permission Groups' },
+          { name: 'fix_workspaces', readonly: true, label: 'Workspace Access' }
+        ] },
+      { tab: 'authority', title: 'Approver & Authoriser (read-only)', note: 'Financial authority is group-derived, never typed: the DOFA tier groups decide which approvals this user may sign, and the threshold amounts live in the two-person-ruled DOFA ladders (M30). Approver/custodian appointments are granted like any other access — via approved requests.',
+        fields: [
+          { name: 'fix_dofa_tier', readonly: true, label: 'DOFA Tier Held' },
+          { name: 'fix_authority', readonly: true, label: 'Security Authority' },
+          { name: 'fix_approver_groups', readonly: true, label: 'Approver Appointments' }
+        ] },
+      { tab: 'lifecycle', title: 'Review & Requests (read-only)', note: 'Certification history and pending requests. Unconfirmed certification lines past their due date are revoked automatically; granted elevations expire on their valid-until date. Full history: JML Automation, Privileged Access, Device Trust (Sessions) and the Immutable Audit Trail screens.',
+        fields: [
+          { name: 'fix_last_certification', readonly: true, label: 'Last Certification' },
+          { name: 'fix_open_requests', readonly: true, label: 'Open Access Requests' }
         ] }
     ]
   },
@@ -154,6 +246,11 @@ export const SCREENS = {
           { name: 'user_id', label: 'Portal User' },
           { name: 'role_id', label: 'Role to Apply' },
           { name: 'effective_on', required: true, label: 'Effective On' }
+        ] },
+      { title: 'Application Result (read-only)', note: 'Stamped by the Apply action: when it ran and exactly what it did (groups granted, or the leaver deprovisioning count).',
+        fields: [
+          { name: 'applied_on', readonly: true, label: 'Applied On' },
+          { name: 'result_note', readonly: true, label: 'Result' }
         ] }
     ]
   },
@@ -171,6 +268,8 @@ export const SCREENS = {
           { name: 'user_id', required: true, label: 'User Under Review' },
           { name: 'role_id', required: true, label: 'Role Held' },
           { name: 'reviewer_id', label: 'Reviewer' },
+          { name: 'due_on', label: 'Due On (close-out deadline)' },
+          { name: 'decided_on', readonly: true, label: 'Decided On' },
           { name: 'note', label: 'Note' }
         ] }
     ]
@@ -191,7 +290,8 @@ export const SCREENS = {
           { name: 'algorithm', required: true, label: 'Algorithm' },
           { name: 'vault_ref', required: true, label: 'Vault Reference' },
           { name: 'rotations_per_year', label: 'Rotations / Year' },
-          { name: 'custodian_id', label: 'Custodian' }
+          { name: 'custodian_id', label: 'Custodian' },
+          { name: 'successor_id', readonly: true, label: 'Rotated Into' }
         ] }
     ]
   },
@@ -221,7 +321,10 @@ export const SCREENS = {
           { name: 'description', type: 'text', label: 'What happened' },
           { name: 'containment', type: 'text', label: 'Containment' },
           { name: 'root_cause', type: 'text', label: 'Root cause (required to close)' },
-          { name: 'breach_assessment', type: 'text', label: 'Breach assessment (required to close a data leak)' }
+          { name: 'breach_assessment', type: 'text', label: 'Breach assessment (required to close a data leak)' },
+          { name: 'severity_set_by_id', readonly: true, label: 'Severity Set By' },
+          { name: 'severity_confirmed_by_id', readonly: true, label: 'Severity Confirmed By' },
+          { name: 'resolved_on', readonly: true, label: 'Resolved On' }
         ] }
     ]
   },
@@ -239,7 +342,14 @@ export const SCREENS = {
           { name: 'name_bn', label: 'Role Name (Bengali)' },
           { name: 'group_id', label: 'Odoo Group' },
           { name: 'keycloak_role', label: 'Keycloak Realm Role' },
+          { name: 'company_id', label: 'Company' },
           { name: 'active', label: 'Active' }
+        ] },
+      { title: 'Mapping & Scope (read-only)', note: 'The full permission-group register, isolation tiers and OU scope this role carries — shown read-only (the workspace form has no m2m editor; the governed mapping is maintained Odoo-side and is what grants actually apply).',
+        fields: [
+          { name: 'fix_group_roll', readonly: true, label: 'Mapped Permission Groups' },
+          { name: 'fix_tier_roll', readonly: true, label: 'Isolation Tiers (T0–T5)' },
+          { name: 'fix_ou_roll', readonly: true, label: 'Operating-Unit Scope' }
         ] },
       { title: 'Description', fields: [
           { name: 'description', type: 'text', label: 'Description' }
@@ -296,6 +406,7 @@ export const SCREENS = {
           { name: 'model_id', required: true, label: 'Model' },
           { name: 'field_id', required: true, label: 'Field' },
           { name: 'permission', required: true, label: 'Permission' },
+          { name: 'fix_role_roll', readonly: true, label: 'Roles (read-only roll)' },
           { name: 'active', label: 'Active' }
         ] }
     ]
@@ -314,6 +425,8 @@ export const SCREENS = {
           { name: 'role_a_id', required: true, label: 'Role A' },
           { name: 'role_b_id', required: true, label: 'Role B' },
           { name: 'conflict_action', required: true, label: 'Conflict Action' },
+          { name: 'company_id', label: 'Company' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'active', label: 'Active' }
         ] },
       { title: 'Rationale', fields: [
@@ -341,6 +454,13 @@ export const SCREENS = {
         ] },
       { title: 'Justification', fields: [
           { name: 'reason', required: true, type: 'text', label: 'Reason' }
+        ] },
+      { title: 'Decision Record (read-only)', note: 'The approval is written by the Approve / Reject actions under two-person control (X1) — the requester and the beneficiary can never decide their own request, so the stamp is never typed.',
+        fields: [
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'approver_id', readonly: true, label: 'Approver' },
+          { name: 'decided_on', readonly: true, label: 'Decided On' },
+          { name: 'decision_note', readonly: true, label: 'Decision Note' }
         ] }
     ]
   },
@@ -359,7 +479,9 @@ export const SCREENS = {
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'ticket_ref', label: 'Ticket / Change Ref' },
           { name: 'started_at', label: 'Started At' },
-          { name: 'actions_count', label: 'Actions Performed' }
+          { name: 'actions_count', label: 'Actions Performed' },
+          { name: 'ended_at', readonly: true, label: 'Ended At' },
+          { name: 'duration_minutes', readonly: true, label: 'Duration (minutes, measured)' }
         ] }
     ]
   },
@@ -376,7 +498,9 @@ export const SCREENS = {
           { name: 'control_id', required: true, label: 'SoD Control' },
           { name: 'tested_on', required: true, label: 'Tested On' },
           { name: 'tested_by_id', label: 'Tested By' },
-          { name: 'users_checked', label: 'Users Checked' }
+          { name: 'users_checked', label: 'Users Checked' },
+          { name: 'violations_found', readonly: true, label: 'Conflicts Found' },
+          { name: 'users_in_conflict', readonly: true, label: 'Conflicting Users' }
         ] }
     ]
   },
@@ -403,7 +527,7 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M29-isolation-tier': { kind: 'model_list', model: 'fix.isolation.tier',
-    cols: ['name', 'code', 'record_rule_domain', 'requires_step_up', 'requires_audit'] },
+    cols: ['name', 'code', 'record_rule_domain', 'requires_step_up', 'requires_audit', 'fix_role_roll'] },
 
   'M29-form-isolation-tier': {
     kind: 'model_form',
@@ -415,9 +539,11 @@ export const SCREENS = {
         fields: [
           { name: 'code', required: true, label: "Tier" },
           { name: 'name', label: "Name" },
+          { name: 'description', type: 'text', label: "Description" },
           { name: 'record_rule_domain', label: "Record Rule Domain" },
           { name: 'requires_step_up', label: "Requires Step Up" },
-          { name: 'requires_audit', label: "Requires Audit" }
+          { name: 'requires_audit', label: "Requires Audit" },
+          { name: 'fix_role_roll', readonly: true, label: "Roles with Access (read-only roll)" }
         ] }
     ]
   },

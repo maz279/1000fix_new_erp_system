@@ -76,3 +76,39 @@ class FixRole(models.Model):
         05-04 register loads — never guessed here."""
         if self.group_id and not self.keycloak_role:
             self.keycloak_role = self.code
+
+
+class FixRoleDisplayRoll(models.Model):
+    """Read-only name rolls for the m2m fields the D365 Role form shows but
+    the workspace cannot edit (no m2m editor): the mapped permission groups,
+    the isolation tiers and the OU scope (M29 wiring pass, 2026-11-05)."""
+
+    _inherit = "fix.role"
+    _description = "Fix Role M29 Display Rolls"
+
+    fix_group_roll = fields.Char(
+        string="Mapped Permission Groups",
+        compute="_compute_display_rolls",
+        help="Every Odoo group this role maps to (the register access "
+        "requests actually grant). Read-only display; the editable mapping "
+        "is governed Odoo-side.",
+    )
+    fix_tier_roll = fields.Char(
+        string="Isolation Tiers",
+        compute="_compute_display_rolls",
+        help="The data-isolation tiers this role may reach (T0–T5).",
+    )
+    fix_ou_roll = fields.Char(
+        string="Operating-Unit Scope",
+        compute="_compute_display_rolls",
+        help="OUs this role is scoped to; empty means all OUs (AS-03).",
+    )
+
+    def _compute_display_rolls(self):
+        for rec in self:
+            groups = (rec.group_id | rec.group_ids).mapped("name")
+            rec.fix_group_roll = ", ".join(sorted(groups)) if groups else "—"
+            tiers = rec.tier_ids.mapped("code")
+            rec.fix_tier_roll = ", ".join(sorted(tiers)) if tiers else "All tiers"
+            ous = rec.operating_unit_ids.mapped("name")
+            rec.fix_ou_roll = ", ".join(sorted(ous)) if ous else "All OUs"
