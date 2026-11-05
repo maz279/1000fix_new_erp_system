@@ -312,6 +312,9 @@ def run_in_shell(db: str, script: str, marker: str) -> None:
         [sys.executable, "vendor/odoo/odoo-bin", "shell", "-c", ODOO_CONF, "-d", db, "--no-http"],
         input=script,
         text=True,
+        # the scripts carry Bengali anchors; Windows' cp1252 default cannot
+        # encode them (the child already reads UTF-8 via PYTHONUTF8=1)
+        encoding="utf-8",
         capture_output=True,
         cwd=ROOT,
         env=env,
