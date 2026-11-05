@@ -35,8 +35,11 @@ and shift control with AS-10 Monetary reconciliation.
         "security/ir.model.access.csv",
         "data/ir_counter_sale_sequence.xml",
         "data/fix_front_desk_cron.xml",
-        "views/fix_counter_sale_views.xml",
+        # fix_front_desk_views must load first: it defines menu_ws_front_desk,
+        # the parent of the Counter Sales menu. The old order only ever worked
+        # on -u upgrades (the menu already existed) and broke clean installs.
         "views/fix_front_desk_views.xml",
+        "views/fix_counter_sale_views.xml",
     ],
     "installable": True,
     "application": False,
