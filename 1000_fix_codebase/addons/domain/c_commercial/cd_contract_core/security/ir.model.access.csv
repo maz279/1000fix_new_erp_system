@@ -1,6 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_contract,fix.contract,model_fix_contract,base.group_user,1,0,0,0
 access_fix_contract_officer,fix.contract.officer,model_fix_contract,group_contract_officer,1,1,1,0
+access_fix_contract_billing_period,fix.contract.billing.period,model_fix_contract_billing_period,base.group_user,1,0,0,0
 access_fix_contract_entitlement,fix.contract.entitlement,model_fix_contract_entitlement,base.group_user,1,0,0,0
 access_fix_contract_entitlement_officer,fix.contract.entitlement.officer,model_fix_contract_entitlement,group_contract_officer,1,1,1,1
 access_fix_contract_pm_visit,fix.contract.pm.visit,model_fix_contract_pm_visit,base.group_user,1,0,0,0

@@ -17,7 +17,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.1.0",
+    "version": "19.0.2.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -35,6 +35,11 @@ CD-M20-01: the M20 accounts-receivable core.
         # claim master (brand code, approved amount). No cycle: the warranty
         # module's closure does not reach this one.
         "cd_warranty_claims",
+        # A04 report C10: the contract billing walker needs the contract
+        # master (billing schedule, billed-through service) and the period
+        # model lives there. No cycle: the contract module's closure (12
+        # modules) does not reach this one.
+        "cd_contract_core",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
@@ -47,6 +52,9 @@ CD-M20-01: the M20 accounts-receivable core.
         "data/fix_party_merge_consumers.xml",
         # A04 report §6 C7: warranty_claim.decided -> draft M20 OEM invoice.
         "data/fix_a04_consumers.xml",
+        # A04 report C10: the contract billing walker (switch:
+        # cd_billing_engine.contract_auto_billing).
+        "data/fix_a04_contract_cron.xml",
         "views/fix_billing_engine_views.xml",
         "views/fix_ar_engine_views.xml",
         "views/fix_vds_certificate_views.xml",

@@ -208,7 +208,9 @@ class FixArInvoice(models.Model):
     # LIABILITY until the performance obligations are satisfied (IFRS 15):
     # their issue credits deferred revenue, and M53's recognition run moves
     # it to revenue. Every other invoice credits revenue at issue.
-    DEFERRED_SOURCES = ("fix.subscription.charge",)
+    # fix.contract.billing.period (A04 C10) is the same shape: the contract's
+    # in-force term billed period by period.
+    DEFERRED_SOURCES = ("fix.subscription.charge", "fix.contract.billing.period")
 
     def _revenue_role(self) -> str:
         self.ensure_one()
