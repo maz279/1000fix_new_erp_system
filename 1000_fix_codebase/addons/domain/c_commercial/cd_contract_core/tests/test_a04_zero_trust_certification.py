@@ -24,6 +24,10 @@ from pathlib import Path
 
 import pytest
 from odoo import fields as odoo_fields
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
+    approve_via_inbox,
+    assigned,
+)
 from odoo.exceptions import UserError, ValidationError
 
 TAG = "A04CERT"
@@ -322,10 +326,10 @@ class TestM11Pricing:
 
     def test_flaw_11_2_override_needs_a_stated_price(self, floor):
         """An override with no proposed price has no measurable tier, so it
-        cannot be granted blind."""
+        cannot be requested blind."""
         f = floor(floor_price=5000.0)
         with pytest.raises(UserError, match="Record the proposed below-floor price"):
-            f.action_approve_dofa_override()
+            f.action_request_override_approval()
 
     def test_flaw_11_2_override_tier_follows_the_discount(self, floor):
         """A 10% shortfall is a Tier 2 call; 25% is Tier 3; half price is
@@ -340,7 +344,9 @@ class TestM11Pricing:
 
     def test_flaw_11_2_creator_cannot_self_approve_an_override(self, env, floor):
         """The user who raised the override cannot clear it, even holding
-        the tier."""
+        the tier (A11 P2: they are never routed their own request, and a
+        direct press is refused; a peer Tier 3 decides from the inbox)."""
+        peer = _approver(env, 3, "a04.floor.t3.peer@example.com")
         director = _approver(env, 3, "a04.floor.t3.self@example.com")
         f = (
             env["fix.price.floor"]
@@ -355,17 +361,26 @@ class TestM11Pricing:
                 }
             )
         )
-        with pytest.raises(UserError, match="Segregation of duties"):
+        f.with_user(director).action_request_override_approval()
+        assert director not in assigned(f), "never routed to the raiser"
+        with pytest.raises(UserError, match="inbox"):
             f.with_user(director).action_approve_dofa_override()
+        approve_via_inbox(f, peer)
+        assert f.dofa_override_approved and f.dofa_override_user_id == peer
 
     def test_flaw_11_2_lower_tier_cannot_clear_a_deeper_discount(self, env, floor):
+        """Half price is a Tier 4 call: a Tier 2 holder is never routed it,
+        and pressing Approve directly is refused."""
         f = floor(
             floor_price=1000.0,
             proposed_override_price=500.0,
             dofa_justification="Clearance of end-of-life stock.",
         )
         weak = _approver(env, 2, "a04.floor.t2@example.com")
-        with pytest.raises(UserError, match="authority insufficient"):
+        _approver(env, 4, "a04.floor.t4@example.com")  # the call's real owner
+        f.with_user(weak).action_request_override_approval()
+        assert weak not in assigned(f), "a Tier 2 holder is never routed a Tier 4 call"
+        with pytest.raises(UserError, match="inbox"):
             f.with_user(weak).action_approve_dofa_override()
 
     def test_flaw_11_2_proper_approver_unlocks_only_that_price(self, env, floor):
@@ -375,7 +390,8 @@ class TestM11Pricing:
             dofa_justification="Matched a competitor quote.",
         )
         mgr = _approver(env, 2, "a04.floor.t2.ok@example.com")
-        f.with_user(mgr).action_approve_dofa_override()
+        f.action_request_override_approval()
+        approve_via_inbox(f, mgr)
         assert f.dofa_override_approved and f.dofa_override_user_id == mgr
         # the approved price is allowed...
         assert f.validate_price_against_floor(900.0) is True

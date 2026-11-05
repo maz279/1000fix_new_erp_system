@@ -7,9 +7,12 @@
     "name": "1000FiX Business Intelligence",
     "summary": "M25: Business Intelligence — exec dashboards, report library, sync config",
     "description": "CD-M25-01 (A11). Power BI sync configuration with an honest"
-    " fail-closed external transport (operator credentials), plus the internal"
-    " aggregate snapshot engine backing the BI Data Freshness KPI.",
-    "version": "19.0.0.1.0",
+    " fail-closed external transport (operator credentials), the internal"
+    " aggregate snapshot engine backing the BI Data Freshness KPI, the G8"
+    " dashboard certification lifecycle (author != steward, through M63),"
+    " the entitlement-re-checking distribution worker and the append-only"
+    " export log (BRU-BID-11).",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
@@ -18,10 +21,14 @@
         "cd_entity_config",
         "cd_service_order",
         "cd_billing_engine",
+        "cd_workflow_engine",
+        "mail",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/bi_security.xml",
         "security/ir.model.access.csv",
+        "data/bi_crons.xml",
     ],
     "installable": True,
     "application": False,

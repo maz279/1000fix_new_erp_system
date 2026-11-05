@@ -13,6 +13,11 @@
         <field name="model_id" ref="model_fix_data_contract"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_data_declassification_auth_company" model="ir.rule">
+        <field name="name">fix.data.declassification.auth: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_declassification_auth"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_data_entity_company" model="ir.rule">
         <field name="name">fix.data.entity: allowed companies</field>
         <field name="model_id" ref="model_fix_data_entity"/>
@@ -45,6 +50,11 @@
         <field name="model_id" ref="model_fix_data_pipeline"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_data_purge_evidence_company" model="ir.rule">
+        <field name="name">fix.data.purge.evidence: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_purge_evidence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_data_quality_rule_company" model="ir.rule">
         <field name="name">fix.data.quality.rule: allowed companies</field>
         <field name="model_id" ref="model_fix_data_quality_rule"/>
@@ -71,9 +81,19 @@
         <field name="model_id" ref="model_fix_data_run"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_metric_consumer_company" model="ir.rule">
+        <field name="name">fix.metric.consumer: allowed companies</field>
+        <field name="model_id" ref="model_fix_metric_consumer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_metric_definition_company" model="ir.rule">
         <field name="name">fix.metric.definition: allowed companies</field>
         <field name="model_id" ref="model_fix_metric_definition"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_metric_version_company" model="ir.rule">
+        <field name="name">fix.metric.version: allowed companies</field>
+        <field name="model_id" ref="model_fix_metric_version"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

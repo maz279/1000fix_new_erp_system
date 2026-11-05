@@ -6,6 +6,7 @@
 # capture exists.
 import datetime
 import logging
+import re
 
 from odoo import http
 from odoo.http import request
@@ -13,6 +14,10 @@ from odoo.http import request
 from ..p03_service_order_api import _require_internal
 
 _logger = logging.getLogger(__name__)
+
+# A Bengali grapheme anywhere in a fault-code row (E5: the 'Bengali
+# classification: Live' claim is measured against this, not asserted).
+_BENGALI_RE = re.compile(r"[ঀ-৿]")
 
 SURFACES = {
     "fix.ml.model": {
@@ -24,16 +29,27 @@ SURFACES = {
         "order": "ran_at desc, id desc",
         "limit": 200,
         "actions": {"action_execute"},
+        # G7/R01: a portal write may capture the HUMAN half of a run only —
+        # the engine's half (state, output, latency, suggestion) is not
+        # writable from any surface.
+        "writable": {"final_value", "override_reason"},
     },
     "fix.predictive.maintenance": {
         "order": "write_date desc, id desc",
         "limit": 100,
         "actions": {"action_create_preventive_wo"},
+        # E6/X03: the prediction list is read AS THE CALLER — OU record rules
+        # apply, so operating unit B's predictions never leak onto unit A's
+        # screen through this endpoint (the sudo read kept only the company
+        # filter, which is not the caller's scope).
+        "caller_scoped": True,
     },
     "fix.ml.model.version": {
         "order": "model_id, version desc",
         "limit": 200,
-        "actions": set(),
+        # G7: state moves only through these actions (deploy lands via the
+        # M63 inbox apply, never as a surface action).
+        "actions": {"action_evaluate", "action_request_promotion", "action_retire"},
     },
     "fix.ml.evaluation.gate": {
         "order": "checked_at desc, id desc",
@@ -53,8 +69,8 @@ def model_accuracy_retraining(env, **params):
     latency, last run. Honest scope note: accuracy needs ground-truth capture
     (dispatch suggestion adoption tracking) that lands with the M02
     iteration; nothing here is estimated."""
-    runs = env["fix.ml.inference.run"].sudo()
-    models = env["fix.ml.model"].sudo().search([])
+    runs = _runs(env)
+    models = _models(env)
     week_ago = fields_datetime_now() - datetime.timedelta(days=7)
     rows = []
     for model in models:
@@ -110,11 +126,13 @@ def fields_datetime_now():
 
 
 def _models(env):
-    return env["fix.ml.model"].sudo().search([])
+    """E6: the registry is read AS THE CALLER — record rules hold the company
+    scope; no sudo anywhere in the reads behind a KPI."""
+    return env["fix.ml.model"].search([])
 
 
 def _runs(env):
-    return env["fix.ml.inference.run"].sudo()
+    return env["fix.ml.inference.run"]
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -263,7 +281,7 @@ def override_analysis(env, date_from=None, date_to=None, **params):
 
 
 def drift_report(env, date_from=None, date_to=None, **params):
-    versions = env["fix.ml.model.version"].sudo().search([("drift_score", ">", 0.0)])
+    versions = env["fix.ml.model.version"].search([("drift_score", ">", 0.0)])
     rows = []
     for v in versions:
         rows.append(
@@ -298,7 +316,7 @@ def drift_report(env, date_from=None, date_to=None, **params):
 
 
 def fairness_summary(env, date_from=None, date_to=None, **params):
-    versions = env["fix.ml.model.version"].sudo().search([])
+    versions = env["fix.ml.model.version"].search([])
     counts = {"untested": 0, "passed": 0, "failed": 0}
     rows = []
     for v in versions:
@@ -383,7 +401,7 @@ def production_monitoring(env, date_from=None, date_to=None, **params):
 
 def fallback_status(env, date_from=None, date_to=None, **params):
     runs = _runs(env)
-    guardrails = env["fix.ml.guardrail"].sudo().search([("active", "=", True)])
+    guardrails = env["fix.ml.guardrail"].search([("active", "=", True)])
     rows = []
     for model in _models(env):
         fallbacks = guardrails.filtered(
@@ -462,17 +480,28 @@ def genai_catalog(env, date_from=None, date_to=None, **params):
 
 
 def bengali_nlp_catalog(env, date_from=None, date_to=None, **params):
-    """Bengali NLP / OCR surfaces: the fault classifier is a real taxonomy
-    match over Bengali text; OCR is not implemented and says so."""
+    """Bengali NLP / OCR surfaces, measured (E5): the classifier runs a real
+    token match, and the taxonomy's Bengali coverage is COUNTED per code —
+    the old 'Live' claim was asserted; this row now carries its evidence."""
     runs = _runs(env)
     fault_models = _models(env).filtered(lambda m: m.kind == "fault_classifier")
     bengali_runs = runs.search([("model_id", "in", fault_models.ids)])
+    codes = env["fix.fault.code"].search([("active", "=", True)])
+    with_bn = [
+        c.code for c in codes if _BENGALI_RE.search("%s %s" % (c.name or "", c.description or ""))
+    ]
+    coverage = "%d of %d active fault codes carry Bengali text" % (len(with_bn), len(codes))
     rows = [
         {
             "surface": "Bengali fault-text classification",
-            "status": "Live (taxonomy match)",
-            "evidence": "%d recorded inference run(s); engines: %s"
-            % (len(bengali_runs), ", ".join(fault_models.mapped("code")) or "—"),
+            "status": "Partial (token match; %s)" % coverage,
+            "evidence": "The engine tokenises Bengali and English alike, but a "
+            "match needs Bengali text in the taxonomy row. %d recorded "
+            "inference run(s); engines: %s"
+            % (
+                len(bengali_runs),
+                ", ".join(fault_models.mapped("code")) or "—",
+            ),
         },
         {
             "surface": "Handwriting / document OCR",
@@ -491,8 +520,8 @@ def bengali_nlp_catalog(env, date_from=None, date_to=None, **params):
         {"surface": "Surface", "status": "Status", "evidence": "Evidence"},
         rows,
         [
-            "The fault classifier's Bengali matching is real and measured; OCR and "
-            "speech are declared gaps, not silent no-ops."
+            "Bengali coverage above is counted live from fix.fault.code, not "
+            "asserted. OCR and speech are declared gaps, not silent no-ops."
         ],
     )
 
@@ -511,20 +540,20 @@ REPORTS = {
 
 
 def _ml_kpis(env):
-    runs = env["fix.ml.inference.run"].sudo()
-    models = env["fix.ml.model"].sudo()
+    """E6: every KPI is read AS THE CALLER under the caller's record rules
+    (the sudo reads leaked every company's runs into the strip)."""
+    runs = env["fix.ml.inference.run"]
+    models = env["fix.ml.model"]
     week_ago = fields_datetime_now() - datetime.timedelta(days=7)
     week_runs = runs.search([("ran_at", ">=", week_ago)])
     latencies = [r.latency_ms for r in week_runs if r.latency_ms]
-    alerts = (
-        env["fix.predictive.maintenance"]
-        .sudo()
-        .search_count([("prediction", "=", "failure_predicted")])
+    alerts = env["fix.predictive.maintenance"].search_count(
+        [("prediction", "=", "failure_predicted")]
     )
     decided = runs.search([("suggested_value", "!=", False)])
     overridden = decided.filtered(lambda r: r.overridden)
     try:
-        drift_alerts = env["fix.ml.model.version"].sudo().search_count([("drift_score", ">=", 0.2)])
+        drift_alerts = env["fix.ml.model.version"].search_count([("drift_score", ">=", 0.2)])
     except Exception:
         drift_alerts = None
     return {

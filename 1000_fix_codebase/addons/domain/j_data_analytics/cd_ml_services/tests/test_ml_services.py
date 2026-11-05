@@ -77,11 +77,16 @@ def test_dispatch_scoring_runs_real_engine(odoo_env):
 
 
 def test_demand_forecast_fails_closed(odoo_env):
+    """Two honest refusals, in order (G7): a planned model with no promoted
+    version is refused SERVING outright; and even with a version, the engine
+    itself fails closed until the M15 seam exists."""
     model = _model(odoo_env, "demand_forecast")
+    assert not model.serving_version_id, "the planned model must carry no deployed version"
     run = odoo_env["fix.ml.inference.run"].create({"model_id": model.id})
-    run.action_execute()
-    assert run.state == "failed"
-    assert "consumption-history" in run.error_note or "not built" in run.error_note
+    with pytest.raises(exceptions.UserError, match="(?i)no DEPLOYED version"):
+        run.action_execute()
+    with pytest.raises(exceptions.UserError):
+        run._engine_demand_forecast()
 
 
 def test_run_stats_follow_runs(odoo_env):

@@ -35,8 +35,11 @@ and shift control with AS-10 Monetary reconciliation.
         "security/ir.model.access.csv",
         "data/ir_counter_sale_sequence.xml",
         "data/fix_front_desk_cron.xml",
-        "views/fix_counter_sale_views.xml",
+        # load order: fix_front_desk_views defines the workspace parent menu
+        # (menu_ws_front_desk) the counter-sale menu hangs from — loading the
+        # counter-sale views first breaks every clean install (build-test-db).
         "views/fix_front_desk_views.xml",
+        "views/fix_counter_sale_views.xml",
     ],
     "installable": True,
     "application": False,

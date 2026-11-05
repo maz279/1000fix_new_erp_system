@@ -48,10 +48,17 @@ class FixRentalAsset(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "name"
 
-    # Retirement is a routed M63 approval (A05 E11): approved from the
-    # approver's inbox, never by pressing Approve on the asset.
+    # A11 audit P2 (A05 area): the retirement write-off's DOFA stamp used to
+    # be given by whoever pressed Approve while holding the tier — no request,
+    # no named approver, no deadline, no delegate, no history. It is now a
+    # routed M63 request: whoever retires the unit asks
+    # (action_request_approval), the engine routes to the holders of the tier
+    # the net book value derives (minus the raiser and the amount-changer),
+    # and the DOFA stamp is given from the approver's inbox only. The net book
+    # value is the approval amount, so a revaluation while the request is
+    # pending withdraws it.
+    _approval_domain = "rental_asset_writeoff"
     _approval_routed = True
-    _approval_domain = "rental_asset_retirement"
 
     # A05 DOFA matrix — Rental Fleet Asset Retirement / Write-Off: never a
     # branch decision (tier 1 is NOT permitted); Fleet Maintenance Lead from
@@ -404,6 +411,15 @@ class FixRentalAsset(models.Model):
                 }
             )
         )
+
+    def _approval_on_rejected(self, comment):
+        """A11 audit P2: an inbox rejection of the write-off is evidence on
+        the asset's thread — the retirement does not proceed."""
+        for rec in self:
+            rec.message_post(
+                body="Retirement write-off rejected by %s: %s"
+                % (rec.env.user.name, comment or "no comment recorded")
+            )
 
     def action_ready(self):
         """A unit returns to the fleet only through its turnaround (checklist

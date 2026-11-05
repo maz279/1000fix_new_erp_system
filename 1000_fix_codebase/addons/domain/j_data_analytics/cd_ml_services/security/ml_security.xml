@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A11 audit M26-11 / G7: the module shipped no ML role at all, so the only
+  ACL line that mattered was 'internal user may WRITE inference runs' — the
+  forgeable decision log. This file names the three hats the spec implies:
+
+    Data Scientist — registers model versions, records measured metrics and
+                     the model card, manages the catalog and guard rails.
+                     Cannot record gate results on a version they registered.
+    ML Reviewer   — records evaluation gate results (reviewer != registrant
+                     is enforced in code, not by appointment).
+    Model Owner   — decides version promotions through the M63 inbox and
+                     retires deployed versions. Never the registrant of the
+                     version they deploy.
+
+  Members are appointed by the business; the development admin is seeded only
+  so the workspace keeps working on development databases.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_ml_data_scientist" model="res.groups.privilege">
+            <field name="name">ML Data Scientist</field>
+            <field name="description">Registers AI/ML model versions and guard rails (M26).</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="privilege_ml_reviewer" model="res.groups.privilege">
+            <field name="name">ML Evaluation Reviewer</field>
+            <field name="description">Records evaluation gate results for model versions (M26).</field>
+            <field name="sequence">41</field>
+        </record>
+        <record id="privilege_ml_model_owner" model="res.groups.privilege">
+            <field name="name">ML Model Owner</field>
+            <field name="description">Approves model promotions through M63 and retires deployed versions (M26).</field>
+            <field name="sequence">42</field>
+        </record>
+
+        <record id="group_ml_data_scientist" model="res.groups">
+            <field name="name">ML Data Scientist</field>
+            <field name="privilege_id" ref="privilege_ml_data_scientist"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Registers model versions (born draft), records measured metrics and the model card, manages the catalog and guard rails. Cannot sign gate results on a version they registered — a reviewer must.</field>
+        </record>
+
+        <record id="group_ml_reviewer" model="res.groups">
+            <field name="name">ML Evaluation Reviewer</field>
+            <field name="privilege_id" ref="privilege_ml_reviewer"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Records evaluation gate results. Gate rows are append-only evidence; the reviewer is stamped by the engine and must differ from the version's registrant.</field>
+        </record>
+
+        <record id="group_ml_model_owner" model="res.groups">
+            <field name="name">ML Model Owner</field>
+            <field name="privilege_id" ref="privilege_ml_model_owner"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Decides model version promotions from the M63 inbox (the registrant never deploys their own version) and retires deployed versions. Retiring stops serving — the engine refuses a model with no deployed version.</field>
+        </record>
+
+    </data>
+</odoo>

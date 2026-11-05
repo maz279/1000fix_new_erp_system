@@ -1401,8 +1401,25 @@ class FixTradeinRequest(models.Model):
         return result
 
     def action_request_payout_approval(self, justification=None):
-        """Submit the graded payout value for approval (after grading)."""
-        return self.action_request_approval(justification=justification)
+        """Submit the graded payout value for approval (after grading) — A11
+        P2 entry point: defaults the justification to the graded amount."""
+        for rec in self:
+            rec.action_request_approval(
+                justification=justification
+                or "Trade-in payout of BDT %.2f" % (rec.graded_value or 0.0)
+            )
+        return True
+
+    def _approval_on_rejected(self, comment):
+        """A11 audit P2: an inbox rejection declines the payout — the grader
+        re-grades or lets the request lapse."""
+        for rec in self:
+            if rec.payout_approval_state == "pending":
+                rec.write({"payout_approval_state": "rejected"})
+            rec.message_post(
+                body="Payout approval rejected by %s: %s"
+                % (rec.env.user.name, comment or "no comment recorded")
+            )
 
     def action_approve_payout(self):
         """The routed decision: run from the approver's inbox task only. Four
@@ -2062,3 +2079,15 @@ class FixRefurbishment(models.Model):
                     )
                 )
         return True
+
+
+class FixApprovalMatrixTradeinDomains(models.Model):
+    """A11 audit P2: lets a DoA matrix row target the routed trade-in payout
+    (SLA, escalation, policy) without touching any other DOFA approval."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("tradein_payout", "Trade-In Payout")],
+        ondelete={"tradein_payout": "cascade"},
+    )

@@ -1390,8 +1390,15 @@ class FixRentalDamage(models.Model):
     _description = "Rental Damage"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
 
+    # A11 audit P2 (A05 area): the loss waiver's DOFA stamp used to be given
+    # by whoever pressed Approve while holding the tier. It is now a routed
+    # M63 request: the raiser asks (action_request_approval), the engine
+    # routes to the holders of the tier the unrecovered loss derives (minus
+    # the raiser and the amount-changer), and the stamp is given from the
+    # approver's inbox only. The unrecovered loss is the approval amount, so
+    # a recovery booked while the request is pending withdraws it.
+    _approval_domain = "rental_loss_waiver"
     _approval_routed = True
-    _approval_domain = "rental_damage_waiver"
 
     # A05 DOFA matrix — Rental Asset Damage Dispute Waiver: the unrecovered
     # loss a waiver writes off decides the tier (SC Manager -> Regional Ops
@@ -1771,5 +1778,29 @@ class FixRentalDamage(models.Model):
             if at_risk <= 0:
                 raise UserError("Nothing to waive on %s: the damage is fully recovered" % label)
             rec._dofa_assert_approved("A rental-loss waiver")
-            rec._guarded().write({"waived": True, "waived_amount": at_risk})
-        return True
+            rec._guarded().write({"waived": True, "settled": True, "waived_amount": at_risk})
+
+    def _approval_on_rejected(self, comment):
+        """A11 audit P2: an inbox rejection of the waiver is evidence on the
+        damage record — the loss stays recoverable."""
+        for rec in self:
+            rec.message_post(
+                body="Loss-waiver approval rejected by %s: %s"
+                % (rec.env.user.name, comment or "no comment recorded")
+            )
+
+
+class FixApprovalMatrixRentalDomains(models.Model):
+    """A11 audit P2: lets a DoA matrix row target the routed rental
+    write-off and loss-waiver approvals (SLA, escalation, policy) without
+    touching any other DOFA approval."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[
+            ("rental_asset_writeoff", "Rental Fleet Asset Write-Off"),
+            ("rental_loss_waiver", "Rental Loss Waiver"),
+        ],
+        ondelete={"rental_asset_writeoff": "cascade", "rental_loss_waiver": "cascade"},
+    )

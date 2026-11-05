@@ -1,38 +1,191 @@
 # A11 · M62 Data Platform & Governance — pipelines, runs, contracts, metrics,
 # quality tests, incidents and retention cost. Packs read only measured rows.
+#
+# A11 audit E6 (M62-11): every pack and KPI is the CALLER's read — the user's
+# own record rules apply and every source with a company is filtered by the
+# caller's allowed companies. Only the explicit "BI company-wide" charter
+# (m25._read) gets elevated reads.
 import datetime
+
+from .m25 import _bi_domain, _read
+
+# A11 audit S2 (M62-13): the fields /p03/model/write accepts on each M62
+# surface — exactly what the M62 workspace forms (static/src/a11/m62.js)
+# offer as editable. Workflow fields (states, stamps, the success rate, the
+# thresholds the engine owns) are never listed: they change only through
+# their actions. The ACL still decides who may write at all: the governance
+# rule book (entities, lineage, rules, contracts, metrics, retention) is the
+# Data Governance Officer's; pipelines, runs and incidents stay writable for
+# the operational flows and carry their own model guards.
+WRITABLE = {
+    "fix.data.pipeline": frozenset(
+        {
+            "code",
+            "name",
+            "source_system",
+            "target_entity_id",
+            "load_mode",
+            "schedule",
+            "freshness_sla_minutes",
+        }
+    ),
+    "fix.data.run": frozenset(
+        {"pipeline_id", "kind", "stage", "started_at", "rows_read", "rows_written", "rows_rejected"}
+    ),
+    "fix.data.entity": frozenset(
+        {"name", "entity_type", "owner_module", "steward_id", "classification", "retention_policy"}
+    ),
+    "fix.data.lineage": frozenset(
+        {
+            "name",
+            "company_id",
+            "source_entity_id",
+            "target_entity_id",
+            "operating_unit_id",
+            "lineage_order",
+        }
+    ),
+    "fix.data.contract": frozenset(
+        {
+            "dataset_code",
+            "name",
+            "entity_id",
+            "producer",
+            "consumers",
+            "schema_version",
+            "freshness_sla_minutes",
+            "breaking_change_notice_days",
+            "guarantees",
+        }
+    ),
+    "fix.metric.definition": frozenset(
+        {"code", "name", "domain_area", "grain", "source_entity_id", "owner_role", "definition"}
+    ),
+    "fix.metric.version": frozenset(),
+    "fix.metric.consumer": frozenset(),
+    "fix.data.quality.rule": frozenset({"name", "entity_id", "rule_type", "threshold", "active"}),
+    # The threshold is NOT form-editable: the evidence row records the rule's
+    # threshold at run time (the model stamps it whatever the caller sends).
+    "fix.data.quality.test": frozenset({"rule_id", "checked_at", "observed_value", "note"}),
+    "fix.data.incident": frozenset(
+        {
+            "title",
+            "entity_id",
+            "rule_id",
+            "severity",
+            "detected_at",
+            "owner_id",
+            "description",
+            "resolution",
+            "root_cause",
+        }
+    ),
+    "fix.data.retention.policy": frozenset(
+        {
+            "entity_id",
+            "tier",
+            "retention_months",
+            "volume_gb",
+            "storage_cost_per_gb",
+            "purge_rule",
+            "active",
+        }
+    ),
+    "fix.data.declassification.auth": frozenset(),
+    "fix.data.purge.evidence": frozenset(),
+}
 
 SURFACES = {
     "fix.data.pipeline": {
         "order": "code",
         "limit": 200,
         "actions": {"action_pause", "action_resume"},
+        "writable": WRITABLE["fix.data.pipeline"],
     },
     "fix.data.run": {
         "order": "started_at desc, id desc",
         "limit": 500,
         "actions": {"action_finish", "action_fail"},
+        "writable": WRITABLE["fix.data.run"],
     },
-    "fix.data.entity": {"order": "name", "limit": 300, "actions": set()},
-    "fix.data.lineage": {"order": "lineage_order, id", "limit": 400, "actions": set()},
+    "fix.data.entity": {
+        "order": "name",
+        "limit": 300,
+        "actions": set(),
+        "writable": WRITABLE["fix.data.entity"],
+    },
+    "fix.data.lineage": {
+        "order": "lineage_order, id",
+        "limit": 400,
+        "actions": set(),
+        "writable": WRITABLE["fix.data.lineage"],
+    },
     "fix.data.contract": {
-        "order": "dataset_code",
+        "order": "dataset_code, version desc",
         "limit": 200,
-        "actions": {"action_activate"},
+        # action_activate is GONE from the surface on purpose (A11 audit G1):
+        # activation runs only from an approved M63 task, never a click.
+        "actions": {"action_producer_sign", "action_new_version", "action_request_approval"},
+        "writable": WRITABLE["fix.data.contract"],
     },
     "fix.metric.definition": {
         "order": "code",
         "limit": 300,
-        "actions": {"action_publish"},
+        "actions": {"action_retire"},
+        "writable": WRITABLE["fix.metric.definition"],
     },
-    "fix.data.quality.rule": {"order": "name", "limit": 400, "actions": set()},
-    "fix.data.quality.test": {"order": "checked_at desc, id desc", "limit": 500, "actions": set()},
+    # G2: a metric publishes through its VERSION (steward review, then an
+    # approved request), never a direct publish button on the definition.
+    "fix.metric.version": {
+        "order": "definition_id, version desc",
+        "limit": 300,
+        "actions": {"action_steward_review", "action_request_approval"},
+        "writable": WRITABLE["fix.metric.version"],
+    },
+    "fix.metric.consumer": {
+        "order": "definition_id, consumer",
+        "limit": 400,
+        "actions": set(),
+        "writable": WRITABLE["fix.metric.consumer"],
+    },
+    "fix.data.quality.rule": {
+        "order": "name",
+        "limit": 400,
+        "actions": {"action_measure"},
+        "writable": WRITABLE["fix.data.quality.rule"],
+    },
+    "fix.data.quality.test": {
+        "order": "checked_at desc, id desc",
+        "limit": 500,
+        "actions": set(),
+        "writable": WRITABLE["fix.data.quality.test"],
+    },
     "fix.data.incident": {
         "order": "detected_at desc, id desc",
         "limit": 300,
         "actions": {"action_fix", "action_close"},
+        "writable": WRITABLE["fix.data.incident"],
     },
-    "fix.data.retention.policy": {"order": "entity_id", "limit": 300, "actions": set()},
+    "fix.data.retention.policy": {
+        "order": "entity_id",
+        "limit": 300,
+        "actions": {"action_request_shorten", "action_purge"},
+        "writable": WRITABLE["fix.data.retention.policy"],
+    },
+    # G6: the routed, time-limited authorisation a classification downgrade
+    # needs; G5: the append-only disposition evidence.
+    "fix.data.declassification.auth": {
+        "order": "create_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_request_approval"},
+        "writable": WRITABLE["fix.data.declassification.auth"],
+    },
+    "fix.data.purge.evidence": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        "writable": WRITABLE["fix.data.purge.evidence"],
+    },
 }
 
 
@@ -51,9 +204,9 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 def quality_scorecard(env, date_from=None, date_to=None, **params):
     """Per entity: rules defined, tests run, pass rate over the latest test of
     each rule. 'Never tested' is stated as such, never counted as a pass."""
-    entities = env["fix.data.entity"].sudo().search([])
-    rules = env["fix.data.quality.rule"].sudo().search([])
-    tests = env["fix.data.quality.test"].sudo().search([])
+    entities = _read(env, "fix.data.entity").search(_bi_domain(env, "fix.data.entity", []))
+    rules = _read(env, "fix.data.quality.rule").search(_bi_domain(env, "fix.data.quality.rule", []))
+    tests = _read(env, "fix.data.quality.test").search(_bi_domain(env, "fix.data.quality.test", []))
     rows = []
     for entity in entities:
         my_rules = rules.filtered(lambda r, e=entity: r.entity_id.id == e.id)
@@ -105,7 +258,9 @@ def quality_scorecard(env, date_from=None, date_to=None, **params):
 
 
 def freshness_sla(env, date_from=None, date_to=None, **params):
-    pipelines = env["fix.data.pipeline"].sudo().search([("state", "=", "active")])
+    pipelines = _read(env, "fix.data.pipeline").search(
+        _bi_domain(env, "fix.data.pipeline", [("state", "=", "active")])
+    )
     now = datetime.datetime.now()
     rows = []
     for p in pipelines:
@@ -150,8 +305,8 @@ def freshness_sla(env, date_from=None, date_to=None, **params):
 
 
 def lineage_coverage(env, date_from=None, date_to=None, **params):
-    entities = env["fix.data.entity"].sudo().search([])
-    lineage = env["fix.data.lineage"].sudo().search([])
+    entities = _read(env, "fix.data.entity").search(_bi_domain(env, "fix.data.entity", []))
+    lineage = _read(env, "fix.data.lineage").search(_bi_domain(env, "fix.data.lineage", []))
     covered = len(
         set(lineage.mapped("source_entity_id").ids) | set(lineage.mapped("target_entity_id").ids)
     )
@@ -189,7 +344,9 @@ def lineage_coverage(env, date_from=None, date_to=None, **params):
 
 
 def cost_per_domain(env, date_from=None, date_to=None, **params):
-    policies = env["fix.data.retention.policy"].sudo().search([("active", "=", True)])
+    policies = _read(env, "fix.data.retention.policy").search(
+        _bi_domain(env, "fix.data.retention.policy", [("active", "=", True)])
+    )
     groups = {}
     for pol in policies:
         domain = pol.entity_id.owner_module or "unassigned"
@@ -246,12 +403,18 @@ REPORTS = {
 
 
 def kpis(env):
-    pipelines = env["fix.data.pipeline"].sudo().search([("state", "=", "active")])
-    runs = env["fix.data.run"].sudo().search([])
-    tests = env["fix.data.quality.test"].sudo().search([])
-    incidents = env["fix.data.incident"].sudo().search([])
-    contracts = env["fix.data.contract"].sudo().search([("state", "=", "active")])
-    metrics = env["fix.metric.definition"].sudo().search([("state", "=", "published")])
+    pipelines = _read(env, "fix.data.pipeline").search(
+        _bi_domain(env, "fix.data.pipeline", [("state", "=", "active")])
+    )
+    runs = _read(env, "fix.data.run").search(_bi_domain(env, "fix.data.run", []))
+    tests = _read(env, "fix.data.quality.test").search(_bi_domain(env, "fix.data.quality.test", []))
+    incidents = _read(env, "fix.data.incident").search(_bi_domain(env, "fix.data.incident", []))
+    contracts = _read(env, "fix.data.contract").search(
+        _bi_domain(env, "fix.data.contract", [("state", "=", "active")])
+    )
+    metrics = _read(env, "fix.metric.definition").search(
+        _bi_domain(env, "fix.metric.definition", [("state", "=", "published")])
+    )
     return {
         "pipelines_active": len(pipelines),
         "runs_24h": len(

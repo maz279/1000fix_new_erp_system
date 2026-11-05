@@ -159,12 +159,11 @@ export const SCREENS = {
     title: 'Quality Test',
     back: 'M62-quality',
     sections: [
-      { title: 'Test Run', note: 'Records what was measured against the rule threshold. Pass/fail is computed from the observed value — it is never typed.',
+      { title: 'Test Run', note: 'Records what was measured against the rule threshold. Pass/fail is computed from the observed value — it is never typed, and the threshold is the rule\'s own, stamped at run time.',
         fields: [
           { name: 'rule_id', required: true, label: 'Quality Rule' },
           { name: 'checked_at', label: 'Checked At' },
           { name: 'observed_value', label: 'Observed Value' },
-          { name: 'threshold', label: 'Threshold' },
           { name: 'note', label: 'Note' }
         ] }
     ]
@@ -219,17 +218,19 @@ export const SCREENS = {
     back: 'M62-incidents',
     status: { field: 'state', labels: { open: 'Open', fixed: 'Fixed', closed: 'Closed' } },
     sections: [
-      { title: 'Incident', note: 'Open → fixed → closed. Seeded from a failing quality test or reported by a consumer.',
+      { title: 'Incident', note: 'Open → fixed → closed. Seeded from a failing quality test or reported by a consumer. Fix and Close demand an owner, a root cause and a resolution.',
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'entity_id', required: true, label: 'Entity' },
           { name: 'rule_id', label: 'Quality Rule' },
           { name: 'severity', required: true, label: 'Severity' },
+          { name: 'owner_id', label: 'Owner' },
           { name: 'detected_at', label: 'Detected At' },
           { name: 'state', required: true, label: 'State' }
         ] },
       { title: 'Narrative', fields: [
           { name: 'description', type: 'text', label: 'What happened' },
+          { name: 'root_cause', type: 'text', label: 'Root cause' },
           { name: 'resolution', type: 'text', label: 'Resolution' }
         ] }
     ]

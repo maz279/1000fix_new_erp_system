@@ -61,6 +61,18 @@ class FixPriceFloor(models.Model):
         (float("inf"), "tier_4"),
     ]
 
+    # A11 audit P2 (A04 area): the override used to be cleared by whoever
+    # pressed Approve while holding the tier — no request, no named approver,
+    # no deadline, no delegate, no history. It is now a routed M63 request:
+    # the raiser asks (action_request_override_approval), the engine routes to
+    # the holders of the tier the shortfall derives (minus the raiser and the
+    # amount-changer), and the flags are stamped from the approver's inbox
+    # only. The shortfall percentage is the approval amount, so moving the
+    # floor or the proposed price while the request is pending withdraws it.
+    _approval_domain = "price_floor_override"
+    _approval_apply_method = "action_approve_dofa_override"
+    _approval_routed = True
+
     name = fields.Char(required=True)
     product_code = fields.Char(required=True, index=True)
     catalogue_item_id = fields.Many2one("fix.catalogue.item", string="Catalogue Item")
@@ -117,8 +129,21 @@ class FixPriceFloor(models.Model):
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
+    def action_request_override_approval(self, justification=None):
+        """A11 audit P2: route the below-floor override through M63 — the
+        holders of the tier the shortfall derives decide it from their inbox."""
+        for rec in self:
+            if not rec.proposed_override_price:
+                raise UserError(
+                    "Record the proposed below-floor price before seeking an "
+                    "override: the approval tier is derived from how far below "
+                    "the floor it sits."
+                )
+            rec.action_request_approval(justification=justification)
+
     def action_approve_dofa_override(self):
-        """Approve a below-floor price under real DOFA authority."""
+        """Approve a below-floor price under real DOFA authority — from the
+        approver's M63 inbox only (a direct press is refused)."""
         for rec in self:
             if not rec.proposed_override_price:
                 raise UserError(
@@ -127,12 +152,16 @@ class FixPriceFloor(models.Model):
                     "the floor it sits."
                 )
             rec.action_dofa_approve()
-            rec.write(
+            rec._guarded().write(
                 {
                     "dofa_override_approved": True,
                     "dofa_override_user_id": rec.dofa_approved_by.id,
                 }
             )
+
+    def _fix_guarded_fields(self) -> set:
+        # The override stamps change only through the approve action.
+        return super()._fix_guarded_fields() | {"dofa_override_approved", "dofa_override_user_id"}
 
     def validate_price_against_floor(self, proposed_price: float):
         """Statutory guard blocking transaction pricing below floor without DOFA approval."""
@@ -239,3 +268,16 @@ class FixPriceSimulation(models.Model):
     )
     requested_by = fields.Many2one("res.users", default=lambda self: self.env.user, readonly=True)
     computed_at = fields.Datetime(readonly=True)
+
+
+class FixApprovalMatrixFloorDomains(models.Model):
+    """A11 audit P2: lets a DoA matrix row target the routed price-floor
+    override (SLA, escalation, policy) without touching any other DOFA
+    approval."""
+
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("price_floor_override", "Price-Floor Override")],
+        ondelete={"price_floor_override": "cascade"},
+    )

@@ -341,6 +341,100 @@ class FixApprovalMatrix(models.Model):
             raise UserError("No %s with id %s." % (self.res_model, res_id))
         return record.approval_simulate()
 
+    # ---- versioning (A11 audit G9, M63-8) -----------------------------------
+    #
+    # A dated row that has come into force is a FACT about the decisions
+    # already routed under it — requests pin the row that governed them
+    # (fix.approval.request.matrix_id), so what it said when it said it must
+    # stay readable and provable. It is never edited in place: a new ruling
+    # is a NEW row (action_new_version closes the current one and opens the
+    # next). Only closing (date_to) and archiving remain writable on a row in
+    # force — that is how a version is retired, and it rewrites nothing.
+    _RULE_CONTENT_FIELDS = frozenset(
+        {
+            "res_model",
+            "decision_domain",
+            "threshold",
+            "approver_role",
+            "condition",
+            "approver_group_id",
+            "approval_policy",
+            "sla_hours",
+            "max_escalations",
+            "escalate_to_id",
+            "final_action",
+            "calendar_id",
+            "date_from",
+        }
+    )
+
+    def write(self, vals):
+        if not self.env.context.get("matrix_version_engine"):
+            today = fields.Date.context_today(self)
+            for row in self:
+                if not row.date_from or row.date_from > today:
+                    continue  # not yet in force: still a draft of a ruling
+                touched = self._RULE_CONTENT_FIELDS & set(vals)
+                if touched:
+                    raise UserError(
+                        "Rule %s has been in force since %s and is never edited "
+                        "in place — %s would change what it ruled, and requests "
+                        "already decided under it point back here. Use New "
+                        "Version: the row is closed and a new one takes effect "
+                        "from tomorrow (M63 G9)."
+                        % (row.display_name, row.date_from, ", ".join(sorted(touched)))
+                    )
+        return super().write(vals)
+
+    def action_new_version(self):
+        """Close every selected row at today and open its successor from
+        tomorrow. The successor is a copy the DoA Administrator edits freely —
+        it is not in force until its date arrives, so the guard above does not
+        apply to it."""
+        today = fields.Date.context_today(self)
+        tomorrow = today + timedelta(days=1)
+        new_rows = self.env["fix.approval.matrix"]
+        for row in self:
+            if not row.date_from:
+                raise UserError(
+                    "Rule %s carries no effective date, so there is nothing to "
+                    "version — set its Effective From first." % row.display_name
+                )
+            clash = self.sudo().search_count(
+                [
+                    ("decision_domain", "=", row.decision_domain or False),
+                    ("currency_id", "=", row.currency_id.id or False),
+                    ("res_model", "=", row.res_model or False),
+                    ("date_from", "=", tomorrow),
+                    ("id", "!=", row.id),
+                ]
+            )
+            if clash:
+                raise ValidationError(
+                    "A rule for %s / %s already takes effect on %s — edit that "
+                    "row instead of stacking versions on the same date."
+                    % (row.decision_domain or row.res_model, row.currency_id.name, tomorrow)
+                )
+            row.with_context(matrix_version_engine=True).write({"date_to": today})
+            new_rows |= row.copy(
+                {
+                    "name": "%s (from %s)" % (row.name or row.display_name, tomorrow),
+                    "date_from": tomorrow,
+                    "date_to": False,
+                    "active": True,
+                }
+            )
+        if not new_rows:
+            return True
+        return {
+            "type": "ir.actions.act_window",
+            "name": "New rule version",
+            "res_model": "fix.approval.matrix",
+            "res_id": new_rows.ids[0] if len(new_rows) == 1 else False,
+            "views": [(False, "form")],
+            "target": "current",
+        }
+
 
 class FixApprovableMixin(models.AbstractModel):
     """A record whose approval is a routed request (M63)."""
@@ -1184,12 +1278,15 @@ class FixApprovalRequest(models.Model):
 
     @api.model
     def approval_kpis(self):
-        reqs = self.sudo().search([])
+        """E6 (M63-11): every figure is read AS THE CALLER, under the caller's
+        record rules and companies — the sudo reads put every company's
+        requests and ages into any user's KPI strip."""
+        reqs = self.search([])
         now = fields.Datetime.now()
         pending = reqs.filtered(lambda r: r.state == "pending")
         ages = [(now - r.requested_at).total_seconds() / 3600.0 for r in pending]
         approved = reqs.filtered(lambda r: r.state == "approved")
-        history = self.env["fix.approval.history"].sudo().search([])
+        history = self.env["fix.approval.history"].search([])
         decided = reqs.filtered(lambda r: r.cycle_hours and r.state in ("approved", "rejected"))
         by_tier = {}
         for r in approved:

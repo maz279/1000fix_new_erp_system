@@ -191,9 +191,28 @@ class AnalyticsApiController(http.Controller):
             "kpis": items,
         }
 
+    @staticmethod
+    def _frozen(payload, artifact, endpoint):
+        """A11 audit E5: the governance endpoints serve a FROZEN audit
+        artefact verbatim — they are not a live measurement of the estate,
+        and every response now says so instead of implying liveness."""
+        out = dict(payload) if isinstance(payload, dict) else {"data": payload}
+        out["is_frozen_artifact"] = True
+        out["artifact"] = artifact
+        out["served_from"] = endpoint
+        out["as_of"] = out.get("as_of") or out.get("date") or out.get("generated_at")
+        out["note"] = (
+            "Frozen audit artefact served verbatim; this is NOT a live measurement. "
+            "Live governance reads are the M62 packs (quality scorecard, lineage "
+            "coverage, freshness SLA)."
+        )
+        return out
+
     @http.route("/analytics/governance/catalogue", type="jsonrpc", auth="user", readonly=True)
     def governance_catalogue(self, **kwargs):
-        """M02-T01: Estate-wide data catalogue (1,335 owned entities, 12 domains, DA-002/DA-003)."""
+        """M02-T01: Estate-wide data catalogue (1,335 owned entities, 12 domains, DA-002/DA-003).
+
+        E5: frozen artefact — the payload is labelled as such."""
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -209,11 +228,15 @@ class AnalyticsApiController(http.Controller):
             }
         with open(evidence_path, encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        return self._frozen(
+            data, "r09-m02-data-catalogue-audit.json", "/analytics/governance/catalogue"
+        )
 
     @http.route("/analytics/governance/lineage", type="jsonrpc", auth="user", readonly=True)
     def governance_lineage(self, **kwargs):
-        """M02-T02: Source-to-target lineage across all warehouse feeds (DA-003 §6 / DA-007)."""
+        """M02-T02: Source-to-target lineage across all warehouse feeds (DA-003 §6 / DA-007).
+
+        E5: frozen artefact — the payload is labelled as such."""
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -230,20 +253,26 @@ class AnalyticsApiController(http.Controller):
         feeds = data.get("feeds", [])
         if feed_name:
             feeds = [f for f in feeds if f.get("feed_name") == feed_name]
-        return {
-            "milestone": data.get("milestone"),
-            "task": data.get("task"),
-            "standard": data.get("standard"),
-            "audit_timestamp": data.get("audit_timestamp"),
-            "total_warehouse_feeds": len(feeds),
-            "lineage_coverage_pct": data.get("lineage_coverage_pct"),
-            "status": data.get("status"),
-            "feeds": feeds,
-        }
+        return self._frozen(
+            {
+                "milestone": data.get("milestone"),
+                "task": data.get("task"),
+                "standard": data.get("standard"),
+                "audit_timestamp": data.get("audit_timestamp"),
+                "total_warehouse_feeds": len(feeds),
+                "lineage_coverage_pct": data.get("lineage_coverage_pct"),
+                "status": data.get("status"),
+                "feeds": feeds,
+            },
+            "r09-m02-lineage-audit.json",
+            "/analytics/governance/lineage",
+        )
 
     @http.route("/analytics/governance/dq", type="jsonrpc", auth="user", readonly=True)
     def governance_dq(self, **kwargs):
-        """M02-T03: Data quality monitoring with thresholds and alerting wire verification (DA-008)."""
+        """M02-T03: Data quality monitoring with thresholds and alerting wire verification (DA-008).
+
+        E5: frozen artefact — the payload is labelled as such."""
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -259,11 +288,13 @@ class AnalyticsApiController(http.Controller):
             }
         with open(evidence_path, encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        return self._frozen(data, "r09-m02-dq-monitoring-evidence.json", "/analytics/governance/dq")
 
     @http.route("/analytics/governance/residency", type="jsonrpc", auth="user", readonly=True)
     def governance_residency(self, **kwargs):
-        """M02-T04: NFR-086c residency classification compliance scan across warehouse."""
+        """M02-T04: NFR-086c residency classification compliance scan across warehouse.
+
+        E5: frozen artefact — the payload is labelled as such."""
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[5]
@@ -279,7 +310,9 @@ class AnalyticsApiController(http.Controller):
             }
         with open(evidence_path, encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        return self._frozen(
+            data, "r09-m02-nfr086c-residency-scan.json", "/analytics/governance/residency"
+        )
 
     @http.route("/analytics/stt/dashboard", type="jsonrpc", auth="user", readonly=True)
     def stt_dashboard(self, **kwargs):
