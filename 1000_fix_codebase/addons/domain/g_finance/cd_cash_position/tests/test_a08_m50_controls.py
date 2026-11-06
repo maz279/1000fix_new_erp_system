@@ -623,6 +623,16 @@ def test_m50_r04_credit_line_never_confirms_outgoing_payment(c):
     assert p.state == "sent"
 
 
+def test_m50_r04b_confirm_bank_looks_only_at_debits(c):
+    """Mutation check: Confirm from Statement must not even consider a credit that
+    quotes the payment. Only the line-level sign check used to prove this."""
+    p = released(c, amount=4500.0)
+    stmt(c, [(4500.0, p.name)])
+    with pytest.raises(UserError, match="No single imported bank statement debit"):
+        p.with_user(c.acct2).action_confirm_bank()
+    assert p.state == "sent" and not p.bank_confirmed
+
+
 def test_m50_r05_auto_match_credit_does_not_confirm(c):
     p = released(c, amount=4321.0)
     stmt(c, [(4321.0, p.name)])

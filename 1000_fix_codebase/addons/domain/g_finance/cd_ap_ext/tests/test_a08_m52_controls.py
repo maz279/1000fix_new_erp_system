@@ -452,6 +452,16 @@ def test_m52_01_submitter_cannot_approve(c):
     assert refused(c.env, lambda: b.with_user(c.acc1).action_approve())
 
 
+def test_m52_01b_submitter_who_is_not_the_creator_cannot_approve(c):
+    """Mutation check: with the creator as the submitter a second rule also refuses,
+    which hid the submitter rule. Here only the submitter rule applies."""
+    b = bill(c, 10000.0, by=c.acc2)
+    b.with_user(c.acc1).action_submit_approval()
+    assert "submitter" in str(refused(c.env, lambda: b.with_user(c.acc1).action_approve()))
+    b.with_user(c.acc3).action_approve()
+    assert b.approval_state == "approved"
+
+
 def test_m52_02_level_two_needs_manager(c):
     b = bill(c, 600000.0)
     b.with_user(c.acc1).action_submit_approval()

@@ -876,3 +876,15 @@ def test_s1_an_account_that_goes_bad_after_the_proposal_is_refused_at_submit(c):
     line.bank_account_id.sudo().write({"acc_number": "A08-CHANGED-AFTER-PROPOSAL"})
     with pytest.raises(UserError, match="cannot be submitted"), c.env.cr.savepoint():
         r.with_user(c.acc1).action_submit()
+
+
+def test_s1_an_account_changed_behind_the_orm_loses_its_confirmation(c):  # noqa: F811
+    """The fingerprint is the backstop when a change bypasses the write hook (a direct
+    database edit, an import): the confirmation is of THESE details, not of the row."""
+    assert c.vbank._fix_payable_problem() is False
+    c.env.cr.execute(
+        "UPDATE res_partner_bank SET acc_number = %s WHERE id = %s",
+        ("A08-CHANGED-BEHIND-THE-ORM", c.vbank.id),
+    )
+    c.vbank.invalidate_recordset()
+    assert c.vbank._fix_payable_problem()
