@@ -20,7 +20,7 @@ export const MODULE = {
   groups: [
     { en: 'Subscriptions', screens: [
       { id: 'M39-subs', en: 'Subscriptions', bn: 'সাবস্ক্রিপশন', t: 'g' },
-      { id: 'M39-form-subscription', en: 'Subscription Record', bn: 'সাবস্ক্রিপশন রেকর্ড', t: 'f' },
+      { id: 'M39-record', en: 'Subscription Record', bn: 'সাবস্ক্রিপশন রেকর্ড', t: 'f' },
       { id: 'M39-plans', en: 'Plan Changes', bn: 'প্ল্যান পরিবর্তন', t: 'g' }
     ]},
     { en: 'Rating & Billing', screens: [
@@ -97,7 +97,7 @@ export const SCREENS = {
 
   'M39-subs': { kind: 'model_list', model: 'fix.subscription', stateField: 'state',
     cols: ['name', 'customer_id', 'plan', 'billing_cycle', 'recurring_amount', 'next_invoice_date', 'state'] },
-  'M39-form-subscription': {
+  'M39-record': {
 
     lines: {
 
@@ -450,19 +450,19 @@ export const FORM_MODELS = {
 };
 
 export const FORM_CHIPS = {
-  'M39:Subscription': 'M39-form-subscription',
+  'M39:Subscription': 'M39-record',
   'M39:Billing Schedule': 'M39-form-schedule',
   'M39:Plan Change': 'M39-form-proration',
   'M39:Dunning Step': 'M39-form-dunning',
   'M39:__by_model__': {
-    'fix.subscription': 'M39-form-subscription',
+    'fix.subscription': 'M39-record',
     'fix.subscription.charge': 'M39-form-schedule',
     'fix.subscription.proration': 'M39-form-proration',
     'fix.subscription.autopay': 'M39-form-autopay',
     'fix.subscription.usage': 'M39-form-usage'
   },
   'M39:__by_screen__': {
-    'M39-subs': 'M39-form-subscription',
+    'M39-subs': 'M39-record',
     'M39-runs': 'M39-form-schedule',
     'M39-plans': 'M39-form-proration',
     'M39-usage': 'M39-form-usage',
@@ -472,5 +472,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M39: { screen: 'M39-form-subscription', model: 'fix.subscription', label: 'Subscription' }
+  M39: { screen: 'M39-record', model: 'fix.subscription', label: 'Subscription' }
 };

@@ -20,7 +20,7 @@ export const MODULE = {
   groups: [
     { en: 'Contract Register', screens: [
       { id: 'M08-contracts', en: 'Contracts', bn: 'চুক্তি', t: 'g' },
-      { id: 'M08-form-contract', en: 'Contract Record', bn: 'চুক্তি রেকর্ড', t: 'f' },
+      { id: 'M08-record', en: 'Contract Record', bn: 'চুক্তি রেকর্ড', t: 'f' },
       { id: 'M08-families', en: 'Contract Product Families', bn: 'পণ্য পরিবার', t: 'g' },
       { id: 'M08-master', en: 'Master Agreements', bn: 'মাস্টার চুক্তি', t: 'g' }
     ]},
@@ -185,7 +185,7 @@ export const SCREENS = {
   'M08-rpt-pnl': { kind: 'table_report', module: 'M08', report: 'contract_pnl', title: 'Contract P&L', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
-  'M08-form-contract': {
+  'M08-record': {
     lines: {
       field: 'entitlement_ids',
       title: 'Contract Entitlements — what the customer may draw',
@@ -461,13 +461,13 @@ export const FORM_MODELS = {
 };
 
 export const FORM_CHIPS = {
-  'M08:Contract (14 families)': 'M08-form-contract',
+  'M08:Contract (14 families)': 'M08-record',
   'M08:Amendment': 'M08-form-amendment',
   'M08:Asset Attach/Detach': 'M08-form-entitlement',
   'M08:Renewal Quote': 'M08-form-renewal',
   'M08:PM Schedule': 'M08-form-pm',
   'M08:__by_model__': {
-    'fix.contract': 'M08-form-contract',
+    'fix.contract': 'M08-record',
     'fix.contract.amendment': 'M08-form-amendment',
     'fix.contract.entitlement': 'M08-form-entitlement',
     'fix.contract.renewal': 'M08-form-renewal',
@@ -475,7 +475,7 @@ export const FORM_CHIPS = {
     'fix.contract.termination': 'M08-form-termination'
   },
   'M08:__by_screen__': {
-    'M08-contracts': 'M08-form-contract',
+    'M08-contracts': 'M08-record',
     'M08-amend': 'M08-form-amendment',
     'M08-entitle': 'M08-form-entitlement',
     'M08-renewals': 'M08-form-renewal',
@@ -486,5 +486,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M08: { screen: 'M08-form-contract', model: 'fix.contract', label: 'Contract' }
+  M08: { screen: 'M08-record', model: 'fix.contract', label: 'Contract' }
 };

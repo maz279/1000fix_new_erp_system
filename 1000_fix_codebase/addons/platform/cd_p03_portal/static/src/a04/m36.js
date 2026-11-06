@@ -24,7 +24,7 @@ export const MODULE = {
     ]},
     { en: 'Quotations', screens: [
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
-      { id: 'M36-form-quotation', en: 'Quotation Record', bn: 'কোটেশন রেকর্ড', t: 'f' },
+      { id: 'M36-record', en: 'Quotation Record', bn: 'কোটেশন রেকর্ড', t: 'f' },
       { id: 'M36-versions', en: 'Versions & Counter-Offer', bn: 'ভার্সন ও কাউন্টার', t: 'g' },
       { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'g' }
     ]},
@@ -232,7 +232,7 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (line_ids, approval_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
 
-  'M36-form-quotation': {
+  'M36-record': {
     kind: 'model_form',
     model: 'fix.quotation',
     title: 'Commercial Proposal & Tender Quotation',
@@ -573,12 +573,12 @@ export const FORM_MODELS = {
 
 export const FORM_CHIPS = {
   'M36:Estimate': 'M36-form-estimate',
-  'M36:Quotation (versioned)': 'M36-form-quotation',
+  'M36:Quotation (versioned)': 'M36-record',
   'M36:Tender Bid': 'M36-form-tender',
   'M36:Counter-Offer': 'M36-form-counter',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
-    'fix.quotation': 'M36-form-quotation',
+    'fix.quotation': 'M36-record',
     'fix.tender': 'M36-form-tender',
     'fix.counter.sale': 'M36-form-counter',
     'fix.tender.bond': 'M36-form-bond',
@@ -587,10 +587,10 @@ export const FORM_CHIPS = {
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
-    'M36-quotes': 'M36-form-quotation',
-    'M36-versions': 'M36-form-quotation',
+    'M36-quotes': 'M36-record',
+    'M36-versions': 'M36-record',
     'M36-loop': 'M36-form-review',
-    'M36-declined': 'M36-form-quotation',
+    'M36-declined': 'M36-record',
     'M36-tenders': 'M36-form-tender',
     'M36-bonds': 'M36-form-bond',
     'M36-variations': 'M36-form-variation'
@@ -598,5 +598,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M36: { screen: 'M36-form-quotation', model: 'fix.quotation', label: 'Quotation' }
+  M36: { screen: 'M36-record', model: 'fix.quotation', label: 'Quotation' }
 };

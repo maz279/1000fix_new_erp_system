@@ -24,7 +24,7 @@ export const MODULE = {
     ]},
     { en: 'Item Master', screens: [
       { id: 'M37-items', en: 'Unified Item Master', bn: 'ইউনিফায়েড আইটেম মাস্টার', t: 'g' },
-      { id: 'M37-form-item', en: 'Item Record', bn: 'আইটেম রেকর্ড', t: 'f' },
+      { id: 'M37-item', en: 'Item Record', bn: 'আইটেম রেকর্ড', t: 'f' },
       { id: 'M37-taxonomy', en: 'Typed Taxonomy (14 streams)', bn: 'টাইপড ট্যাক্সোনমি', t: 'g' },
       { id: 'M37-hierarchy', en: 'Product Hierarchy', bn: 'পণ্য শ্রেণিবিন্যাস', t: 'g' }
     ]},
@@ -164,7 +164,7 @@ export const SCREENS = {
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
-  'M37-form-item': {
+  'M37-item': {
     kind: 'model_form',
     model: 'fix.catalogue.item',
     title: 'Catalogue Master Item & Engineering SKU',
@@ -671,7 +671,7 @@ export const FORM_CHIPS = {
   'M37:Service Kit': 'M37-form-kit',
   'M37:Contract Template': 'M37-form-ctpl',
   'M37:Rental SKU': 'M37-form-rentalsku',
-  'M37:Catalogue Item (9 types)': 'M37-form-item',
+  'M37:Catalogue Item (9 types)': 'M37-item',
   'M37:Service Definition': 'M37-form-service',
   'M37:rBOM Line': 'M37-form-rbom',
   'M37:Fault Code': 'M37-form-fault',
@@ -682,7 +682,7 @@ export const FORM_CHIPS = {
     'fix.service.kit': 'M37-form-kit',
     'fix.contract.template': 'M37-form-ctpl',
     'fix.rental.sku': 'M37-form-rentalsku',
-    'fix.catalogue.item': 'M37-form-item',
+    'fix.catalogue.item': 'M37-item',
     'fix.rbom.line': 'M37-form-rbom',
     'fix.fault.code': 'M37-form-fault'
   },
@@ -692,7 +692,7 @@ export const FORM_CHIPS = {
     'M37-kits': 'M37-form-kit',
     'M37-contract-tpl': 'M37-form-ctpl',
     'M37-rental-sku': 'M37-form-rentalsku',
-    'M37-items': 'M37-form-item',
+    'M37-items': 'M37-item',
     'M37-services': 'M37-form-service',
     'M37-parts-id': 'M37-form-rbom',
     'M37-protection': 'M37-form-protection',
@@ -702,5 +702,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M37: { screen: 'M37-form-item', model: 'fix.catalogue.item', label: 'Catalogue Item' }
+  M37: { screen: 'M37-item', model: 'fix.catalogue.item', label: 'Catalogue Item' }
 };
