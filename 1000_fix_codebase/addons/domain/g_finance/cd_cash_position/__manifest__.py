@@ -27,7 +27,7 @@ imprest count against pending vouchers, frozen facility schedules with
 amendments, approved covenants, the payment.requested consumer and the
 auto-match / covenant crons.
 """,
-    "version": "19.0.1.3.0",
+    "version": "19.0.1.3.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -39,6 +39,9 @@ auto-match / covenant crons.
         "cd_event_outbox",
         "cd_front_desk",
         "cd_gl_ext",
+        # cd_storefront: the COD settlement model carries a One2many to
+        # fix.storefront.order (a load-time field), and through it this
+        # module also sees fix.ar.receipt for the cheque-bounce re-open.
         "cd_storefront",
         "cd_workflow_engine",
     ],

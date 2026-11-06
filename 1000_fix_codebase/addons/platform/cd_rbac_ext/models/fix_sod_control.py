@@ -34,8 +34,11 @@ class FixSodControl(models.Model):
         "res.company", string="Company", index=True, default=lambda self: self.env.company
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    role_a_id = fields.Many2one("fix.role", string="Role A", required=True, ondelete="cascade")
-    role_b_id = fields.Many2one("fix.role", string="Role B", required=True, ondelete="cascade")
+    # Optional since the A08 S4 group-pair controls: a control pairs two
+    # roles OR two Odoo groups (fix_sod_control_groups.py, pre-migrate
+    # 19.0.1.2.1 drops the legacy NOT NULL).
+    role_a_id = fields.Many2one("fix.role", string="Role A", ondelete="cascade")
+    role_b_id = fields.Many2one("fix.role", string="Role B", ondelete="cascade")
     conflict_action = fields.Selection(
         [("block", "Block Assignment"), ("warn", "Warn + Require Approval"), ("log", "Log Only")],
         default="block",

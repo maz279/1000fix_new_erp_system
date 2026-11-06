@@ -58,9 +58,15 @@ def w(odoo_env):
 
 
 def _relay(env):
-    """Deliver this suite's events through the production relay."""
+    """Deliver this suite's events through the production relay, with only
+    THIS suite's consumer active (the A08 B4 build adds its own
+    fix.commission.ledger consumer for the same events — it is deactivated
+    here so the A04 consumer's exclusivity assertions still measure this
+    consumer alone)."""
     Consumer = env["fix.event.consumer"].sudo()
-    mine = Consumer.search([("event_type", "in", A04_EVENTS)])
+    mine = Consumer.search(
+        [("event_type", "in", A04_EVENTS), ("model", "=", "fix.a04.finance.consumers")]
+    )
     assert set(mine.mapped("model")) == {"fix.a04.finance.consumers"}
     (Consumer.search([]) - mine).write({"active": False})
     mine.write({"active": True, "active_from": env.cr.now() - timedelta(minutes=1)})
@@ -214,12 +220,15 @@ def _approved_rebate(w):
 
 def test_the_consumer_rows_are_wired(w):
     rows = w.env["fix.event.consumer"].sudo().search([("event_type", "in", A04_EVENTS)])
-    by_type = {r.event_type: r for r in rows}
+    ours = rows.filtered(lambda r: r.model == "fix.a04.finance.consumers")
+    by_type = {r.event_type: r for r in ours}
     assert set(by_type) == set(A04_EVENTS)
     for row in by_type.values():
-        assert row.model == "fix.a04.finance.consumers"
         assert row.method.startswith("consume_")
         assert row.module == "cd_settlement_ext"
+    # the A08 B4 build registers its own commission.earned consumer (the
+    # ledger writer on fix.commission.ledger); both coexist, each delivering
+    # the event once to its own model
 
 
 # ---------------------------------------------------------------- commission.earned

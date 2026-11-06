@@ -771,11 +771,15 @@ def test_m53_29_refund_credit_note_needs_another_approver(c):
 
 
 def test_m53_30_reinstate_needs_finance_and_settled_invoices(c):
-    start = date.today() - timedelta(days=70)
+    start = date.today() - timedelta(days=20)  # inside the 31-day backdate floor
     s = sub(c, c.acct, start_date=start, next_invoice_date=start)
     s.with_user(c.acct).action_generate_charge()
-    s.charge_ids.invoice_id.with_user(c.acct2).action_issue()
-    s.sudo().write({"state": "hold", "dunning_step": "escalate", "days_overdue": 40})
+    # trusted staging: the cycle invoice issued 45 days ago — past the
+    # default 30-day terms, so the overdue-unpaid basis sees it owed
+    s.charge_ids.invoice_id.sudo().write(
+        {"invoice_date": date.today() - timedelta(days=45), "state": "issued"}
+    )
+    s.sudo()._guarded().write({"state": "hold", "dunning_step": "escalate", "days_overdue": 40})
     with pytest.raises(AccessError):
         as_(c, c.plain)["fix.subscription"].browse(s.id).action_reinstate()
     with pytest.raises(UserError, match="owes"):
@@ -1035,9 +1039,11 @@ def test_a04_m39_quotation_consumer(c):
 
 def test_a04_m40_no_self_or_duplicate_referral(c):
     referral(c)
-    with pytest.raises(ValidationError, match="already has an open referral"):
+    # the merged gate: an estate-wide open-referral refusal (UserError from
+    # the create gate) or the per-referrer constraint (ValidationError)
+    with pytest.raises(REFUSED, match="already has an open referral"):
         referral(c)
-    with pytest.raises(ValidationError, match="cannot refer itself"):
+    with pytest.raises(REFUSED, match="cannot refer themselves"):
         as_(c, c.acct)["fix.referral"].create(
             {
                 "name": "REF-SELF-%s" % c.tag,
@@ -1053,6 +1059,9 @@ def _commissioned_order(c, gross=50000.0):
     seller = c.env["fix.marketplace.seller"].create(
         {"name": "B4 Seller %s" % c.tag, "partner_id": c.payee2.id, "company_id": c.company.id}
     )
+    # trusted staging of the KYC/CFO decision (both stamps are guarded; the
+    # quote gate reads them - BRU-ECM-01)
+    seller.sudo()._guarded().write({"kyc_status": "verified", "cfo_approved": True})
     order = c.env["fix.marketplace.order"].create(
         {"customer_id": c.customer.id, "description": "Screen repair", "company_id": c.company.id,
          "operating_unit_id": c.ou.id, "budget": gross, "commission_rate": 0.10}

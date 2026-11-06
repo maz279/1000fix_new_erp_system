@@ -11,8 +11,10 @@ from . import (
     fix_role,
     fix_security_ops,
     fix_sod_control,
-    # A08 S4 additions (B6): grant-path SoD hooks and time-boxed mitigations.
-    # They only _inherit models loaded above, so order stays safe.
+    # A08 S4 additions (B6): the group-pair extension (same _name, merges
+    # into fix.sod.control), then the grant-path hooks and mitigations that
+    # call it. Order matters: the extension must load after the base.
+    fix_sod_control_groups,
     fix_sod_grant_hooks,
     fix_sod_mitigation,
     res_users_ext,

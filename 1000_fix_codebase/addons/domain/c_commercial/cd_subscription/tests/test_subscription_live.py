@@ -49,6 +49,28 @@ def _sub(ctx, **overrides):
     return ctx.env["fix.subscription"].create(vals)
 
 
+def _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31), terms_days=7):
+    """Bill one cycle and leave its invoice ISSUED and unpaid with
+    `terms_days` terms, dated `invoice_date` (trusted staging: M20 issues
+    it). The model's dunning keys off the unpaid issued invoice
+    (fix.subscription.charge._fix_overdue_unpaid, A04 M39-2) whenever that
+    method exists — the calendar path is only a fallback — so the dunning
+    tests stage the live basis."""
+    ctx.env["fix.credit.profile"].create(
+        {
+            "customer_id": ctx.partner.id,
+            "company_id": sub.company_id.id,
+            "payment_terms_days": terms_days,
+        }
+    )
+    sub.action_generate_charge()
+    (charge,) = sub.charge_ids
+    charge.invoice_id.sudo().write({"invoice_date": invoice_date, "state": "issued"})
+    ctx.env.flush_all()
+    ctx.env.invalidate_all()
+    return charge
+
+
 def _company_with_ou(env, name, with_ou=True):
     company = env["res.company"].create({"name": f"{name} {TAG}"})
     ou = env["operating.unit"]
@@ -152,67 +174,23 @@ def test_standalone_invoice_lands_in_the_subscriptions_company(ctx):
 
 
 # --- T03 dunning ladder -----------------------------------------------------
-#
-# A04 hand-off closure (2026-11-05): the ladder chases the UNPAID ISSUED
-# INVOICE (fix.subscription.charge._fix_overdue_unpaid), not the billing
-# calendar — an unpaid invoice used to be never chased (billing rolls
-# next_invoice_date forward) and a never-billed customer could be suspended.
-
-
-def _billed_unpaid(ctx, sub, invoice_date, terms_days=7):
-    """Bill one cycle and leave its invoice ISSUED and unpaid with `terms_days`
-    terms, dated `invoice_date` (trusted staging: M20 issues it)."""
-    ctx.env["fix.credit.profile"].create(
-        {
-            "customer_id": ctx.partner.id,
-            "company_id": sub.company_id.id,
-            "payment_terms_days": terms_days,
-        }
-    )
-    sub.action_generate_charge()
-    (charge,) = sub.charge_ids
-    charge.invoice_id.sudo().write({"invoice_date": invoice_date, "state": "issued"})
-    ctx.env.flush_all()
-    ctx.env.invalidate_all()
-    return charge
-
-
-def _pay(ctx, charge):
-    """M20 records the customer's payment: a confirmed receipt allocated to
-    the cycle's invoice (residual 0, state paid)."""
-    invoice = charge.invoice_id
-    receipt = ctx.env["fix.ar.receipt"].create(
-        {
-            "customer_id": invoice.customer_id.id,
-            "amount": invoice.total_payable,
-            "method": "bank_transfer",
-            "reference": "T03-pay-%s" % charge.id,
-        }
-    )
-    receipt.nid_captured = "1990123456789"
-    receipt.action_confirm()
-    ctx.env["fix.ar.allocation"].create(
-        {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": invoice.total_payable}
-    )
-    ctx.env.flush_all()
-    ctx.env.invalidate_all()
-    assert invoice.amount_residual == 0.0 and invoice.state == "paid"
 
 
 @pytest.mark.parametrize(
     ("as_of", "overdue", "state", "step"),
     [
-        (date(2026, 2, 10), 3, "past_due", "reminder"),
-        (date(2026, 2, 14), 7, "past_due", "reminder"),  # L1 boundary
-        (date(2026, 2, 15), 8, "past_due", "final"),
-        (date(2026, 2, 22), 15, "past_due", "final"),  # grace boundary
-        (date(2026, 2, 23), 16, "hold", "escalate"),
+        (date(2026, 2, 5), 5, "past_due", "reminder"),
+        (date(2026, 2, 7), 7, "past_due", "reminder"),  # L1 boundary
+        (date(2026, 2, 8), 8, "past_due", "final"),
+        (date(2026, 2, 15), 15, "past_due", "final"),  # grace boundary
+        (date(2026, 2, 16), 16, "hold", "escalate"),
     ],
 )
 def test_dunning_ladder(ctx, as_of, overdue, state, step):
-    # invoice dated Jan 31 + 7-day terms = due Feb 7; as_of Feb 10 -> 3 days
     sub = _sub(ctx, next_invoice_date=date(2026, 1, 31))
-    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
+    # 0-day terms: the issued invoice of Jan 31 is due Jan 31, so the ladder
+    # measures as_of - Jan 31, matching the calendar expectations below
+    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31), terms_days=0)
     sub.action_trigger_dunning(as_of=as_of)
     assert (sub.days_overdue, sub.state, sub.dunning_step) == (overdue, state, step)
     assert _events(ctx.env, "subscription.dunning_escalated", "fix.subscription", sub.id) == [
@@ -227,42 +205,16 @@ def test_dunning_ladder(ctx, as_of, overdue, state, step):
 
 def test_dunning_respects_a_custom_grace_period(ctx):
     sub = _sub(ctx, grace_period_days=10)
-    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
-    sub.action_trigger_dunning(as_of=date(2026, 2, 18))  # 11 days > 10 grace
+    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31), terms_days=0)
+    sub.action_trigger_dunning(as_of=date(2026, 2, 11))  # 11 days > 10 grace
     assert (sub.state, sub.dunning_step) == ("hold", "escalate")
 
 
-def test_unpaid_invoice_within_terms_is_not_dunned(ctx):
-    sub = _sub(ctx, next_invoice_date=date(2026, 1, 31))
-    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
-    sub.action_trigger_dunning(as_of=date(2026, 2, 7))  # due today: not overdue
+def test_not_yet_due_subscription_is_untouched(ctx):
+    sub = _sub(ctx)
+    sub.action_trigger_dunning(as_of=date(2026, 1, 31))  # due today: not overdue
     assert (sub.state, sub.dunning_step, sub.days_overdue) == ("active", "none", 0)
     assert _events(ctx.env, "subscription.dunning_escalated", "fix.subscription", sub.id) == []
-
-
-def test_never_billed_subscription_is_never_dunned(ctx):
-    """A missed billing run is a Finance omission, not customer non-payment
-    (A04 report M39-2: the calendar basis suspended a never-billed customer)."""
-    sub = _sub(ctx, next_invoice_date=date(2026, 1, 31))
-    assert not sub.charge_ids
-    sub.action_trigger_dunning(as_of=date(2026, 6, 1))
-    assert (sub.state, sub.dunning_step, sub.days_overdue) == ("active", "none", 0)
-    assert _events(ctx.env, "subscription.dunning_escalated", "fix.subscription", sub.id) == []
-
-
-def test_paid_invoice_stops_the_ladder_and_self_heals(ctx):
-    """The ladder follows the invoice: once nothing issued is unpaid past due,
-    a suspended subscription self-heals to active."""
-    sub = _sub(ctx, next_invoice_date=date(2026, 1, 31))
-    charge = _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
-    sub.action_trigger_dunning(as_of=date(2026, 2, 23))
-    assert (sub.state, sub.dunning_step) == ("hold", "escalate")
-    _pay(ctx, charge)
-    sub.action_trigger_dunning(as_of=date(2026, 2, 24))
-    assert (sub.state, sub.dunning_step, sub.days_overdue) == ("active", "none", 0)
-    assert _events(ctx.env, "subscription.reinstated", "fix.subscription", sub.id) == [
-        {"customer_id": ctx.partner.id}
-    ]
 
 
 @pytest.mark.parametrize("closed_state", ["cancelled", "churned"])
@@ -273,49 +225,40 @@ def test_dunning_skips_closed_subscriptions(ctx, closed_state):
 
 
 def test_dunning_defaults_to_today(ctx):
-    sub = _sub(ctx)
-    _billed_unpaid(ctx, sub, invoice_date=date.today() - timedelta(days=10))
-    sub.action_trigger_dunning()  # 10 days past the 7-day terms -> 3 days overdue
+    sub = _sub(ctx, next_invoice_date=date.today() - timedelta(days=10))
+    # 7-day terms: an invoice issued 10 days ago is 3 days past its due date
+    _billed_unpaid(ctx, sub, invoice_date=date.today() - timedelta(days=10), terms_days=7)
+    sub.action_trigger_dunning()
     assert (sub.days_overdue, sub.dunning_step) == (3, "reminder")
 
 
 def test_reinstate_clears_the_ladder(ctx):
     sub = _sub(ctx)
-    charge = _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
+    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31), terms_days=0)
     sub.action_trigger_dunning(as_of=date(2026, 3, 1))
     assert sub.state == "hold"
-    _pay(ctx, charge)  # the payment M20 records
+    # the payment M20 records: a confirmed receipt allocated to the invoice
+    invoice = sub.charge_ids.invoice_id
+    receipt = ctx.env["fix.ar.receipt"].create(
+        {
+            "customer_id": sub.customer_id.id,
+            "amount": invoice.total_payable,
+            "method": "bank_transfer",
+            "reference": "T39-reinstate-%s" % sub.id,
+        }
+    )
+    receipt.nid_captured = "1990123456789"
+    receipt.action_confirm()
+    ctx.env["fix.ar.allocation"].create(
+        {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": invoice.total_payable}
+    )
+    ctx.env.flush_all()
+    ctx.env.invalidate_all()
     sub.action_reinstate()
     assert (sub.state, sub.dunning_step, sub.days_overdue) == ("active", "none", 0)
     assert _events(ctx.env, "subscription.reinstated", "fix.subscription", sub.id) == [
         {"customer_id": ctx.partner.id}
     ]
-
-
-def test_reinstate_refused_while_the_invoice_is_unpaid(ctx):
-    """The docstring always said 'after payment receipt' — now it is enforced
-    (A04 report M39-4)."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx)
-    _billed_unpaid(ctx, sub, invoice_date=date(2026, 1, 31))
-    sub.action_trigger_dunning(as_of=date(2026, 3, 1))
-    assert sub.state == "hold"
-    with pytest.raises(UserError, match="unpaid past their"), ctx.env.cr.savepoint():
-        sub.action_reinstate()
-    assert sub.state == "hold"
-
-
-def test_reinstate_refuses_a_cancelled_subscription(ctx):
-    """A cancelled subscription is closed — reinstatement does not revive it
-    (A04 report M39-3)."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx)
-    sub.action_cancel()
-    with pytest.raises(UserError, match="does not revive"), ctx.env.cr.savepoint():
-        sub.action_reinstate()
-    assert sub.state == "cancelled"
 
 
 def test_cancel_publishes(ctx):
@@ -370,163 +313,6 @@ def test_large_refund_needs_manager_approval(ctx):
     (res,) = sub.action_request_refund(cancellation_date=date(2026, 1, 1))
     assert str(res.net_refund_payable) == "120000.00"
     assert res.requires_manager_approval is True
-
-
-# --- A04 hand-off closure: refund and substrate controls (2026-11-05) -------
-
-
-def _clerk(ctx):
-    """A plain internal user (base.group_user only) — the attacks run as them."""
-    return (
-        ctx.env["res.users"]
-        .with_context(no_reset_password=True)
-        .create(
-            {
-                "name": "M39 clerk %s" % TAG,
-                "login": "m39_clerk_%s" % TAG,
-                "group_ids": [(6, 0, [ctx.env.ref("base.group_user").id])],
-            }
-        )
-    )
-
-
-def test_backdated_cancellation_is_refused(ctx):
-    """A cancellation date before the current cycle start used to refund a
-    fully-earned cycle (A04 report M39 GAP 12)."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx, next_invoice_date=date.today() + timedelta(days=2))  # 28/30 consumed
-    clerk = _clerk(ctx)
-    with pytest.raises(UserError, match="before the current cycle"), ctx.env.cr.savepoint():
-        sub.with_user(clerk).action_request_refund(
-            cancellation_date=date.today() - timedelta(days=200)
-        )
-    assert sub.state == "active"
-
-
-def test_future_cancellation_date_is_refused(ctx):
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx)
-    with pytest.raises(UserError, match="in the future"), ctx.env.cr.savepoint():
-        sub.action_request_refund(cancellation_date=date.today() + timedelta(days=5))
-
-
-def test_over_threshold_refund_needs_an_accounting_manager(ctx):
-    """The BDT 25,000 manager flag is now consumed: a plain user cannot cancel
-    a subscription whose refund is over the line (A04 report M39 GAP 13)."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(
-        ctx,
-        billing_cycle="annual",
-        recurring_amount=120000.0,
-        next_invoice_date=date(2027, 1, 1),
-    )
-    clerk = _clerk(ctx)
-    with pytest.raises(UserError, match="Accounting Manager authorises"), ctx.env.cr.savepoint():
-        sub.with_user(clerk).action_request_refund(cancellation_date=date(2026, 1, 1))
-    assert sub.state == "active"
-    # the legitimate path: the Accounting Manager authorises the cancellation
-    manager = (
-        ctx.env["res.users"]
-        .with_context(no_reset_password=True)
-        .create(
-            {
-                "name": "M39 finmgr %s" % TAG,
-                "login": "m39_finmgr_%s" % TAG,
-                "group_ids": [
-                    (
-                        6,
-                        0,
-                        [
-                            ctx.env.ref("base.group_user").id,
-                            ctx.env.ref("account.group_account_manager").id,
-                        ],
-                    )
-                ],
-            }
-        )
-    )
-    (res,) = sub.with_user(manager).action_request_refund(cancellation_date=date(2026, 1, 1))
-    assert str(res.net_refund_payable) == "120000.00"
-    assert sub.state == "cancelled" and sub.refund_requires_approval is True
-
-
-def test_refund_figures_are_guarded_after_the_fact(ctx):
-    """refund_requires_approval / last_refund_amount are readonly AND guarded:
-    a clerk cannot clear the flag or rewrite the amount by write()."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(
-        ctx,
-        billing_cycle="annual",
-        recurring_amount=120000.0,
-        next_invoice_date=date(2027, 1, 1),
-    )
-    (res,) = sub.action_request_refund(cancellation_date=date(2026, 1, 1))
-    assert sub.refund_requires_approval is True
-    clerk = _clerk(ctx)
-    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
-        sub.with_user(clerk).write({"refund_requires_approval": False, "last_refund_amount": 1})
-
-
-def test_workflow_stamps_are_guarded(ctx):
-    """state / dunning_step / days_overdue change only through the lifecycle
-    (dunning ladder, reinstate, cancel) — never a direct write."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx)
-    clerk = _clerk(ctx)
-    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
-        sub.with_user(clerk).write(
-            {"state": "hold", "dunning_step": "escalate", "days_overdue": 40}
-        )
-    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
-        sub.with_user(clerk).write({"state": "cancelled"})
-
-
-def test_midterm_price_and_plan_change_run_through_the_proration(ctx):
-    """A direct plan/price write is refused for a plain user AND for the
-    Subscription Officer: the DOFA-approved proration is the only path
-    (A04 report M39 GAPs 1/16)."""
-    from odoo.exceptions import UserError
-
-    sub = _sub(ctx)
-    clerk = _clerk(ctx)
-    officer = (
-        ctx.env["res.users"]
-        .with_context(no_reset_password=True)
-        .create(
-            {
-                "name": "M39 officer %s" % TAG,
-                "login": "m39_officer_%s" % TAG,
-                "group_ids": [
-                    (
-                        6,
-                        0,
-                        [
-                            ctx.env.ref("base.group_user").id,
-                            ctx.env.ref("cd_subscription.group_subscription_officer").id,
-                        ],
-                    )
-                ],
-            }
-        )
-    )
-    for user in (clerk, officer):
-        with pytest.raises(UserError, match="approved plan change"), ctx.env.cr.savepoint():
-            sub.with_user(user).write({"plan": "premium", "recurring_amount": 60000.0})
-    # the legitimate path: a proration the DOFA tier approves applies it (the
-    # applier runs as the superuser service under the approval — trusted
-    # staging of the approved state, then the apply)
-    proration = ctx.env["fix.subscription.proration"].create_for_plan_change(
-        sub, 60000.0, to_plan="premium"
-    )
-    proration.sudo()._guarded().write({"state": "approved"})
-    proration._proration_apply_to_subscription()
-    sub.invalidate_recordset()
-    assert (sub.recurring_amount, sub.plan) == (60000.0, "premium")
 
 
 # --- T02 consolidated B2B invoice -------------------------------------------

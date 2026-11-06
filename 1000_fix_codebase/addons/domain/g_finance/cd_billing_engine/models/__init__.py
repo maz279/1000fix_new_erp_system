@@ -11,6 +11,8 @@ from . import (
     fix_vds_certificate,
 )
 
-# after fix_ar_engine: it extends fix.ar.receipt (kept apart so an import
-# sorter cannot move it ahead of the model it inherits)
-from . import fix_ar_cheque_bounce  # noqa: E402,I001
+# NOTE: the bounced-cheque AR re-open (A08 cheque.bounced consumer) lives in
+# cd_cash_position/models/fix_ar_cheque_bounce.py — it extends fix.ar.receipt
+# but adds a Many2one to fix.cheque, so it must load beside the cheque
+# register; a dependency from here onto cash closed the module cycle
+# billing -> cash -> storefront -> billing.

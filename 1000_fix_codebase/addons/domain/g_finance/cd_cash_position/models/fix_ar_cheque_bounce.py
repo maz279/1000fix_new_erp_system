@@ -1,5 +1,12 @@
-# cd_billing_engine — a bounced customer cheque re-opens the AR it paid
+# cd_cash_position — a bounced customer cheque re-opens the AR it paid
 # (A08, B1 -> B4 hand-off: cheque.bounced).
+#
+# Lives HERE, not in cd_billing_engine: the extension adds a Many2one to
+# fix.cheque (this module's register), while fix.ar.receipt arrives through
+# this module's storefront -> billing dependency chain. Declaring the edge
+# the other way (billing depends on cash) closed the cycle
+# billing -> cash -> storefront -> billing and Odoo's loop detector skipped
+# every module in it.
 #
 # Treasury (M50, fix.cheque.action_bounce) records the bank's return and, for
 # a cheque that had CLEARED, reverses the bank side itself: Dr returned
@@ -105,7 +112,10 @@ class FixArReceiptChequeBounce(models.Model):
             raise UserError("%s refused: the event's amount is not the cheque's." % label)
         receipt = self._fix_cheque_receipt(cheque)
         company = receipt.company_id
-        from .fix_ar_engine import _ar_account, _post_ar_move
+        from odoo.addons.cd_billing_engine.models.fix_ar_engine import (
+            _ar_account,
+            _post_ar_move,
+        )
 
         ar = _ar_account(self.env, company, "ar")
         if not ar:

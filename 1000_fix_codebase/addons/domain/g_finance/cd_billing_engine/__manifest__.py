@@ -45,8 +45,11 @@ CD-M20-01: the M20 accounts-receivable core.
         "cd_contract_core",
         # A08 S3 / P1-1: credit notes and write-offs route through M63 (DOFA)
         "cd_workflow_engine",
-        # A08 B1 -> B4: a returned customer cheque (fix.cheque) re-opens its AR
-        "cd_cash_position",
+        # NOT cd_cash_position: the A08 cheque.bounced AR re-open extends
+        # fix.ar.receipt from cd_cash_position (models/fix_ar_cheque_bounce.py
+        # there) — a dependency from here onto cash closed the module cycle
+        # billing -> cash -> storefront -> billing, and Odoo's loop detector
+        # skipped every module in it.
     ],
     "data": [
         "security/fix_isolation_rules.xml",

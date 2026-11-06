@@ -19,7 +19,7 @@ import re
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -28,6 +28,10 @@ GROUP_KYC = "cd_partner.group_fix_channel_kyc_officer"
 GROUP_MANAGER = "cd_partner.group_fix_channel_manager"
 GROUP_REBATE_APPROVER = "cd_partner.group_fix_rebate_approver"
 GROUP_TIER3 = "cd_entity_config.group_dofa_tier_3"
+# A08 B4 (F6 / M53-4): the referral lifecycle's roles and guarded stamps
+GROUP_REFERRAL_MANAGER = "cd_partner.group_fix_referral_manager"
+GROUP_ACCOUNTANT = "account.group_account_user"
+REFERRAL_GUARDED = {"state", "base_amount", "commission_amount"}
 
 # FLAW-40.1: the technical-audit pass mark that gates rebate payouts.
 AUDIT_PASS_SCORE = 85.0
@@ -639,11 +643,22 @@ class FixPartner(models.Model):
 
 
 class FixReferral(models.Model):
-    """M40: referral with commission through M53's event engine."""
+    """M40: referral with commission through M53's event engine.
+
+    A08 remediation (B4, F6 / M53-4): any internal user converted a referral
+    at a typed base (BDT 5,000,000 -> commission 250,000) and earned it; the
+    state was writable. Now the state, base and commission are guarded; a
+    referral is converted only by the role the spec names (R21 Sales
+    Manager: cd_partner.group_fix_referral_manager, shipped empty), and the
+    base is taken from the referred customer's paid invoice (the M53
+    settlement module supplies that evidence)."""
 
     _name = "fix.referral"
     _description = "Referral"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | REFERRAL_GUARDED
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -682,13 +697,41 @@ class FixReferral(models.Model):
     # 5,000,000 base.
     _PORTAL_REFERRAL_FIELDS = frozenset({"name", "partner_id", "referred_partner_id"})
 
-    # A04 hand-off closure, ref_02 (2026-11-05): the model now really gates
-    # duplicate and self-referrals server-side, as partner_api's AS-09 note
-    # always claimed. BUSINESS DEFAULT to confirm (§7.5): a referred customer
-    # may hold ONE open (submitted/converted) referral estate-wide — first in
-    # wins, like a deal registration — and one partner earns on a customer at
-    # most once (a second referral of the same customer by the same partner
-    # is refused whatever the state of the first).
+    @api.constrains("partner_id", "referred_partner_id", "state")
+    def _check_referral_parties(self):
+        """A04 M40 request: a partner never refers itself, and one referrer
+        holds one OPEN referral of a party at a time (no duplicate claims on
+        the same lead)."""
+        for rec in self:
+            referred = rec.referred_partner_id.commercial_partner_id
+            if not referred:
+                continue
+            referrer = rec.partner_id.partner_id.commercial_partner_id
+            if referred == referrer:
+                raise ValidationError("A partner cannot refer itself (%s)." % referred.name)
+            if rec.state in ("submitted", "converted"):
+                dup = self.sudo().search(
+                    [
+                        ("id", "!=", rec.id),
+                        ("partner_id", "=", rec.partner_id.id),
+                        ("referred_partner_id", "child_of", referred.id),
+                        ("state", "in", ("submitted", "converted")),
+                    ],
+                    limit=1,
+                )
+                if dup:
+                    raise ValidationError(
+                        "%s already has an open referral of %s (%s)."
+                        % (rec.partner_id.name, referred.name, dup.name)
+                    )
+
+    # A04 hand-off closure, ref_02 (2026-11-05): the estate-wide gate, kept
+    # alongside the constraint above. BUSINESS DEFAULT to confirm (§7.5): a
+    # referred customer may hold ONE open (submitted/converted) referral
+    # estate-wide — first in wins, like a deal registration — and one partner
+    # earns on a customer at most once (a second referral of the same
+    # customer by the same partner is refused whatever the state of the
+    # first).
     def _referral_reject_dup_and_self(self, vals, skip_id=0):
         referred_id = vals.get("referred_partner_id") or 0
         partner_id = vals.get("partner_id") or 0
@@ -757,14 +800,45 @@ class FixReferral(models.Model):
         if self.env.user.share and not self.env.su:
             raise UserError("%s is the company's decision, not the partner's." % what)
 
-    def action_convert(self, base_amount=None):
+    def _fix_require_role(self, what, *xmlids):
+        """Superuser code is trusted; a user needs one of the named roles."""
+        if self.env.su:
+            return
+        if not any(self.env.user.has_group(x) for x in xmlids):
+            group = self.env.ref(xmlids[0], raise_if_not_found=False)
+            raise AccessError(
+                "%s needs the %s role, which you do not hold."
+                % (what, group.name if group else xmlids[0])
+            )
+
+    def _fix_referral_evidence(self, evidence=None):
+        """Per settlement module: the referred revenue base, read from the
+        evidencing document (the referred customer's paid invoice), and the
+        values to record with it. Here no evidence source exists, so a user's
+        conversion is refused; trusted code (seeds, the relay) may state it."""
+        self.ensure_one()
+        raise UserError(
+            "Referral %s is converted from the referred customer's paid invoice (M53): the "
+            "base is never typed." % self.name
+        )
+
+    def action_convert(self, base_amount=None, invoice=None):
         self._fix_require_internal("Converting a referral")
+        self._fix_require_role("Converting a referral", GROUP_REFERRAL_MANAGER)
         for rec in self:
             if rec.state != "submitted":
                 raise UserError("Only a submitted referral can be converted")
-            if base_amount is not None:
-                rec.base_amount = base_amount
-            rec.state = "converted"
+            vals = {"state": "converted"}
+            if invoice is not None or not self.env.su:
+                if base_amount is not None:
+                    raise UserError(
+                        "The referral base comes from the referred customer's invoice, not a "
+                        "typed amount (A08 M53-4)."
+                    )
+                vals.update(rec._fix_referral_evidence(invoice))
+            elif base_amount is not None:
+                vals["base_amount"] = base_amount
+            rec._guarded().write(vals)
             publish(
                 self.env,
                 "referral.converted",
@@ -776,6 +850,12 @@ class FixReferral(models.Model):
     def action_earn_commission(self):
         """Publishes commission.earned — M53's engine consumes it."""
         self._fix_require_internal("Earning a referral commission")
+        self._fix_require_role(
+            "Earning a referral commission",
+            GROUP_REFERRAL_MANAGER,
+            GROUP_ACCOUNTANT,
+            "account.group_account_manager",
+        )
         for rec in self:
             if rec.state != "converted":
                 raise UserError("Convert before commissioning")
@@ -791,7 +871,8 @@ class FixReferral(models.Model):
                 )
             # the partner's agreed rate on the real base - never a flat amount
             commission = rec.currency_id.round(rec.base_amount * rate)
-            rec.write({"state": "commissioned", "commission_amount": commission})
+            # role checked above; the system records the figure it computed
+            rec.sudo()._guarded().write({"state": "commissioned", "commission_amount": commission})
             publish(
                 self.env,
                 "commission.earned",

@@ -18,3 +18,4 @@ access_fix_partner_conflict_officer,fix.partner.conflict officer,model_fix_partn
 access_fix_partner_audit_officer,fix.partner.audit officer,model_fix_partner_audit,group_fix_channel_officer,1,1,1,0
 access_fix_partner_kyc,fix.partner kyc,model_fix_partner,group_fix_channel_kyc_officer,1,1,0,0
 access_fix_partner_rebate_approver,fix.partner.rebate approver,model_fix_partner_rebate,group_fix_rebate_approver,1,1,0,0
+access_fix_referral_manager,fix.referral.manager,model_fix_referral,group_fix_referral_manager,1,1,1,0
