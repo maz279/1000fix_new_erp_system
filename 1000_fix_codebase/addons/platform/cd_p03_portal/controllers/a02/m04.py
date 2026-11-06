@@ -274,6 +274,68 @@ def _branch_league_report(env, **params):
     }
 
 
+def _shift_checklists_report(env, **params):
+    """Open/Close Checklists: the branch day's open/close procedure per cash
+    shift — float staged, blind count submitted, counted, variance approved
+    (M04 sweep audit 2026-11-06: the screen previously duplicated the branch
+    league; this is its own register, per the module's freg sub 8)."""
+    Shift = env["fix.cash.shift"].sudo()
+    type_labels = dict(Shift._fields["shift_type"].selection)
+    state_labels = dict(Shift._fields["state"].selection)
+    rows = []
+    for s in Shift.search([], order="shift_date desc, id desc", limit=200):
+        rows.append(
+            {
+                "shift": "%s · %s"
+                % (
+                    s.shift_date,
+                    type_labels.get(s.shift_type, s.shift_type or "—"),
+                ),
+                "branch": s.branch_id.name or "—",
+                "operator": s.operator_id.name or "—",
+                "state": state_labels.get(s.state, s.state),
+                "float_staged": "Yes" if s.opening_float else "—",
+                "blind_count": "Yes" if s.blind_count_submitted else "No",
+                "counted": "Yes" if s.counted_at else "—",
+                "variance": s.variance if s.variance else None,
+                "variance_approved": "Yes"
+                if s.supervisor_variance_approved_by
+                else ("Not required" if not s.variance else "Pending"),
+            }
+        )
+    return {
+        "title": "Open/Close Checklists",
+        "cols": [
+            "shift",
+            "branch",
+            "operator",
+            "state",
+            "float_staged",
+            "blind_count",
+            "counted",
+            "variance",
+            "variance_approved",
+        ],
+        "labels": {
+            "shift": "Shift",
+            "branch": "Branch",
+            "operator": "Operator",
+            "state": "State",
+            "float_staged": "Opening Float Staged",
+            "blind_count": "Blind Count",
+            "counted": "Counted",
+            "variance": "Variance (৳)",
+            "variance_approved": "Variance Approval",
+        },
+        "rows": rows,
+        "notes": [
+            "The open procedure is the staged float; the close procedure is the "
+            "blind count, the counted till and the variance sign-off. A variance "
+            "without an approver is a pending checklist item."
+        ],
+    }
+
+
 REPORTS = {
     "daily_cash": _daily_cash_report,
     "wait_distribution": _wait_distribution_report,
@@ -281,6 +343,8 @@ REPORTS = {
     "sales_category": _sales_category_report,
     "variance_register": _variance_register_report,
     "branch_league": _branch_league_report,
+    # M04 sweep audit 2026-11-06: the checklist screen gets its own pack.
+    "shift_checklists": _shift_checklists_report,
 }
 
 
