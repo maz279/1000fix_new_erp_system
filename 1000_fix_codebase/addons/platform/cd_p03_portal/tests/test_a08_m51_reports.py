@@ -64,7 +64,7 @@ def _register(t, no, total, on="2026-09-12"):
             "supplier_name": "1000 FiX Services Ltd.",
             "supplier_bin": "1234567890123",
             "customer_name": "Bashundhara Corporate",
-            "customer_bin": "1111111111111",
+            "customer_bin": "1234567890128",  # a repeated-digit BIN is now refused (M51-2)
             "taxable_amount": round(total / 1.15, 2),
             "vat_amount": round(total - total / 1.15, 2),
             "total_payable": total,

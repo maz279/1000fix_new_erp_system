@@ -126,8 +126,9 @@ def test_release_action_runs_through_the_endpoint_and_refuses_honestly(odoo_env,
     res = call(
         env, "model_action", model="fix.payment.execution", ids=[pay.id], method="action_release"
     )
+    # A08 F1: release needs a prepared (and, above the limit, authorised) instruction
     assert res["success"] is False
-    assert "bank account" in res["error"]
+    assert "prepared" in res["error"]
     assert pay.state == "pending"
     res = call(
         env, "model_action", model="fix.payment.execution", ids=[pay.id], method="action_execute"

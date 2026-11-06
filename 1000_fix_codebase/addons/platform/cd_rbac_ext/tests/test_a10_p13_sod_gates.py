@@ -34,12 +34,16 @@ def _user(env, name, approver=False):
         # the requester's manager) — never a bystander. The fixtures that
         # decide requests hold the group.
         groups.append(env.ref("cd_rbac_ext.group_access_approver").id)
-    return env["res.users"].with_context(no_reset_password=True).create(
-        {
-            "name": "A10 P13 %s %d" % (name, n),
-            "login": "a10p13.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
-            "group_ids": [(6, 0, groups)],
-        }
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "A10 P13 %s %d" % (name, n),
+                "login": "a10p13.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
+                "group_ids": [(6, 0, groups)],
+            }
+        )
     )
 
 
@@ -72,7 +76,9 @@ def test_group_write_refuses_a_register_block_conflict(odoo_env):
             {
                 "name": "A10 P13 Born Bad",
                 "login": "a10p13.bornbad@a10.test",
-                "group_ids": [(6, 0, [env.ref("base.group_user").id, role_a.group_id.id, role_b.group_id.id])],
+                "group_ids": [
+                    (6, 0, [env.ref("base.group_user").id, role_a.group_id.id, role_b.group_id.id])
+                ],
             }
         )
     # a removal never creates a conflict, even on a legacy conflicted user
@@ -203,7 +209,9 @@ def test_expired_access_loses_its_group_and_waiver(odoo_env):
             "user_id": beneficiary.id,
             "role_id": role_b.id,
             "reason": "Peak season cover",
-            "valid_until": fields.Date.today(),
+            # the waiver gate reads the company's local day, not UTC: at 01:00
+            # in Dhaka fields.Date.today() is still yesterday
+            "valid_until": fields.Date.context_today(env["fix.sod.control"]),
         }
     )
     req.with_user(approver).action_approve()

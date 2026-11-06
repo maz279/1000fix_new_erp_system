@@ -394,7 +394,12 @@ def test_certifying_a_role_held_in_an_unmitigated_conflict_is_refused(odoo_env, 
     both = _user(env, "Both", [ga, gb])
     role = _role(env, gb)
     line = env["fix.access.certification"].create(
-        {"period": "2026-Q4", "user_id": both.id, "role_id": role.id}
+        {
+            "period": "2026-Q4",
+            "user_id": both.id,
+            "role_id": role.id,
+            "reviewer_id": granters["non_admin"].id,  # M29-7: only the assigned reviewer decides
+        }
     )
     with pytest.raises(UserError, match=control.code), env.cr.savepoint():
         line.with_user(granters["non_admin"]).action_certify()

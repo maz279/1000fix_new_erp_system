@@ -179,6 +179,35 @@ APPROVERS = [
         "জেসমিন আক্তার (E-Waste Finance Approver)",
         ["cd_ewaste.group_ewaste_finance_approver"],
     ),
+    # A08 S5: enough finance staff that every maker has a checker. Billing
+    # raises, two Accountants prepare and clear level 1, two Administrators
+    # approve and release. None of them may confirm a supplier's bank change
+    # (FSOD-01): that stays with seed.supplier.approver, outside payables.
+    (
+        "seed.fin.billing@1000fix.local",
+        "তানজিনা রহমান (Billing)",
+        ["account.group_account_invoice"],
+    ),
+    (
+        "seed.fin.accountant1@1000fix.local",
+        "মেহেদী হাসান (Accountant 1)",
+        ["account.group_account_user"],
+    ),
+    (
+        "seed.fin.accountant2@1000fix.local",
+        "সুমাইয়া খাতুন (Accountant 2)",
+        ["account.group_account_user"],
+    ),
+    (
+        "seed.fin.admin@1000fix.local",
+        "কামরুল হাসান (Accounting Administrator)",
+        ["account.group_account_manager"],
+    ),
+    (
+        "seed.fin.cfo@1000fix.local",
+        "শারমিন সুলতানা (CFO)",
+        ["account.group_account_manager", "cd_tax_engine_bd.group_tax_filing_approver"],
+    ),
 ]
 
 Users = env["res.users"].with_context(no_reset_password=True)
@@ -187,7 +216,12 @@ base_user = env.ref("base.group_user")
 companies = env["res.company"].search([])
 home = env.ref("base.main_company")
 made, extended, missing = [], [], []
+# FIX_APPOINT_ONLY=seed.fin. limits a run to one area's logins, so deploying one
+# area's staffing does not also appoint every other area's synthetic approvers.
+only = __import__("os").environ.get("FIX_APPOINT_ONLY", "")
 for login, name, xmlids in APPROVERS:
+    if not login.startswith(only):
+        continue
     groups = [env.ref(x, raise_if_not_found=False) for x in xmlids]
     missing += [x for x, g in zip(xmlids, groups, strict=True) if not g]
     groups = [g for g in groups if g]

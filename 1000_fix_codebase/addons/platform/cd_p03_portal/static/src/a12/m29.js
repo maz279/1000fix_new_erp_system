@@ -50,7 +50,9 @@ export const MODULE = {
       { id: 'M29-privileged', en: 'Privileged Access', bn: 'বিশেষ সুবিধাভোগী', t: 'g' },
       { id: 'M29-incidents', en: 'Security Incidents', bn: 'নিরাপত্তা ঘটনা', t: 'g' },
       { id: 'M29-sod', en: 'SoD Controls', bn: 'SoD নিয়ন্ত্রণ', t: 'g' },
-      { id: 'M29-sodtests', en: 'SoD Test Runs', bn: 'SoD পরীক্ষা', t: 'g' }
+      { id: 'M29-sodtests', en: 'SoD Test Runs', bn: 'SoD পরীক্ষা', t: 'g' },
+      { id: 'M29-sod-exceptions', en: 'SoD Exceptions', bn: 'SoD ব্যতিক্রম', t: 'g' },
+      { id: 'M29-rpt-sod-violations', en: 'SoD Violations', bn: 'SoD লঙ্ঘন', t: 'r' }
     ]}
   ],
   reports: ['Access Review Pack', 'Privileged Session Log', 'Sensitive-Data Access', 'SoD Test Results', 'Authentication Trends'],
@@ -120,7 +122,12 @@ export const SCREENS = {
     cols: ['name', 'title', 'category', 'severity', 'detected_at', 'affected_user_id', 'state'],
     actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' }, { m: 'action_set_severity', l: 'Set Severity' }] },
   'M29-sod': { kind: 'model_list', model: 'fix.sod.control',
-    cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action', 'active'] },
+    cols: ['code', 'name', 'control_type', 'pair_label', 'measurable', 'conflict_action', 'active'] },
+  // A08 S4 / FR-SEC-024: the only way past a blocked duty conflict is a time-boxed
+  // exception with a mitigating control, approved by someone other than the grantee.
+  'M29-sod-exceptions': { kind: 'model_list', model: 'fix.sod.mitigation', stateField: 'state',
+    cols: ['name', 'control_id', 'user_id', 'valid_from', 'valid_until', 'approved_by_id', 'is_live', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve' }, { m: 'action_reject', l: 'Reject' }, { m: 'action_revoke', l: 'Revoke' }] },
   'M29-sodtests': { kind: 'model_list', model: 'fix.sod.test', stateField: 'result',
     cols: ['name', 'control_id', 'tested_on', 'users_checked', 'violations_found', 'result'],
     actions: [{ m: 'action_run', l: 'Run Test' }] },
@@ -130,6 +137,7 @@ export const SCREENS = {
   'M29-rpt-sessions': { kind: 'table_report', module: 'M29', report: 'privileged_sessions', title: 'Privileged Session Log', period: false },
   'M29-rpt-sensitive': { kind: 'table_report', module: 'M29', report: 'sensitive_access', title: 'Sensitive-Data Access', period: false },
   'M29-rpt-sod': { kind: 'table_report', module: 'M29', report: 'sod_results', title: 'SoD Test Results', period: false },
+  'M29-rpt-sod-violations': { kind: 'table_report', module: 'M29', report: 'sod_violations', title: 'SoD Violations', period: false },
   'M29-rpt-auth': { kind: 'table_report', module: 'M29', report: 'auth_trends', title: 'Authentication Trends', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
@@ -422,8 +430,13 @@ export const SCREENS = {
         fields: [
           { name: 'code', required: true, label: 'SoD Code' },
           { name: 'name', required: true, label: 'Control Description' },
-          { name: 'role_a_id', required: true, label: 'Role A' },
-          { name: 'role_b_id', required: true, label: 'Role B' },
+          { name: 'control_type', required: true, label: 'Pairs' },
+          { name: 'role_a_id', label: 'Role A (role pair)' },
+          { name: 'role_b_id', label: 'Role B (role pair)' },
+          { name: 'group_a_id', label: 'Group A (duty pair)' },
+          { name: 'group_b_id', label: 'Group B (duty pair)' },
+          { name: 'pair_label', readonly: true, label: 'Pair' },
+          { name: 'measurable', readonly: true, label: 'Measurable' },
           { name: 'conflict_action', required: true, label: 'Conflict Action' },
           { name: 'company_id', label: 'Company' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
@@ -482,6 +495,31 @@ export const SCREENS = {
           { name: 'actions_count', label: 'Actions Performed' },
           { name: 'ended_at', readonly: true, label: 'Ended At' },
           { name: 'duration_minutes', readonly: true, label: 'Duration (minutes, measured)' }
+        ] }
+    ]
+  },
+
+  'M29-form-sodexception': {
+    kind: 'model_form',
+    model: 'fix.sod.mitigation',
+    title: 'SoD Exception',
+    back: 'M29-sod-exceptions',
+    sections: [
+      { title: 'Exception', note: 'A time-boxed exception lets one person hold both sides of a duty conflict. It takes effect only when someone other than the grantee and the requester approves it, and it ends on its own date.',
+        fields: [
+          { name: 'control_id', required: true, label: 'SoD Control' },
+          { name: 'user_id', required: true, label: 'Person' },
+          { name: 'valid_from', required: true, label: 'Valid From' },
+          { name: 'valid_until', required: true, label: 'Valid Until' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'decided_on', readonly: true, label: 'Decided On' },
+          { name: 'is_live', readonly: true, label: 'In Force Today' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] },
+      { title: 'Justification', fields: [
+          { name: 'mitigating_control', type: 'text', required: true, label: 'Mitigating Control' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' }
         ] }
     ]
   },
@@ -592,7 +630,8 @@ export const FORM_CHIPS = {
     'fix.security.incident': 'M29-form-incident',
     'fix.privileged.session': 'M29-form-session',
     'fix.sod.test': 'M29-form-sodtest',
-    'fix.sod.control': 'M29-form-sodcontrol'
+    'fix.sod.control': 'M29-form-sodcontrol',
+    'fix.sod.mitigation': 'M29-form-sodexception'
   },
   'M29:__by_screen__': {
     'M29-isolation-tier': 'M29-form-isolation-tier',
@@ -608,6 +647,7 @@ export const FORM_CHIPS = {
     'M29-keys': 'M29-form-key',
     'M29-incidents': 'M29-form-incident',
     'M29-privileged': 'M29-form-session',
+    'M29-sod-exceptions': 'M29-form-sodexception',
     'M29-sodtests': 'M29-form-sodtest',
     'M29-sod': 'M29-form-sodcontrol'
   }

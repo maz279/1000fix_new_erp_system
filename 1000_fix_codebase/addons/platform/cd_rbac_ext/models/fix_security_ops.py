@@ -334,7 +334,25 @@ class FixAccessCertification(models.Model):
         for rec in self:
             if rec.decision != "pending":
                 raise UserError("This access line is already decided")
-            self.env["fix.sod.control"].check_user_assignment(rec.user_id, rec.role_id)
+            Sod = self.env["fix.sod.control"]
+            Sod.check_user_assignment(rec.user_id, rec.role_id)
+            # A08 S4: keeping a role whose groups sit on one side of a duty
+            # conflict the user holds needs a live SoD exception; otherwise
+            # the reviewer revokes. Strict, as the reviewer may be sudo.
+            index = Sod._fix_index()
+            role_groups = Sod._role_groups(rec.role_id).sudo().all_implied_ids
+            duty_conflicts = (
+                Sod._fix_conflicts(user=rec.user_id, index=index)
+                .filtered(lambda c: c.control_type == "group")
+                .filtered(lambda c, rg=role_groups: set(c._fix_pair_groups() or ()) & set(rg))
+            )
+            Sod._fix_enforce(
+                rec.user_id,
+                Sod.browse(),
+                duty_conflicts,
+                "role %s certified" % rec.role_id.code,
+                strict=True,
+            )
             rec._guarded().write({"decision": "certified", "decided_on": fields.Datetime.now()})
             self.env["fix.security.audit"].log_event(
                 "certification",

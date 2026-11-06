@@ -20,7 +20,9 @@ from odoo.addons.cd_p03_portal.controllers.a08.writable import WRITABLE
 from odoo.exceptions import UserError
 
 _SEQ = itertools.count(1)
-GUARD_MESSAGE = "changes only through its workflow"
+# fix.mushak.register refuses `posted` by what it needs (a posted GL entry) before
+# the generic guard answers, which is the stricter of the two refusals.
+GUARD_MESSAGE = "changes only through its workflow|cannot be marked posted"
 SIMPLE = {
     "char",
     "text",
@@ -105,7 +107,6 @@ EXPOSED = (
     "fix.vendor.invoice",
     "fix.vendor.note",
     "fix.warranty.provision",
-    "fix.warranty.provision.policy",
     "fix.withholding.certificate",
     "fix.withholding.line",
 )

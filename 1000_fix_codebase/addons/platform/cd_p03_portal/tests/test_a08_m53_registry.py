@@ -123,7 +123,6 @@ def test_wired_actions_are_on_the_screens(registry):
         ("fix.seller.statement", "action_issue_statement"),
         ("fix.seller.statement", "action_settle_statement"),
         ("fix.payout.run", "action_query_status"),
-        ("fix.payout.run", "action_post_payout_to_gl"),
         ("fix.revenue.schedule", "action_recognize_period"),
         ("fix.subscription", "action_generate_charge"),
         ("fix.subscription", "action_trigger_dunning"),
@@ -246,7 +245,9 @@ def test_generic_action_endpoint_runs_and_refuses_cleanly(odoo_env, contract):
         res = ctl.model_action(
             model="fix.payout.run", ids=[run.id], method="action_post_payout_to_gl"
         )
-        assert res["success"] is False and "only a confirmed" in res["error"]
+        # A08 F2: the GL leg follows the bank's confirmation through M50, so the
+        # posting method is no longer a button anyone can press
+        assert res == {"success": False, "error": "Action not available for this surface"}
         res = ctl.model_records(
             model="fix.performance.obligation",
             cols=["name", "allocated_amount", "state"],

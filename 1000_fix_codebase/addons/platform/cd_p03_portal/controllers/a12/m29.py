@@ -157,13 +157,25 @@ WRITABLE = {
     "fix.sod.control": (
         "code",
         "name",
+        "control_type",
         "role_a_id",
         "role_b_id",
+        "group_a_id",
+        "group_b_id",
         "conflict_action",
         "rationale",
         "active",
         "company_id",
         "operating_unit_id",
+    ),
+    # the decision (state, approver) is taken by the actions
+    "fix.sod.mitigation": (
+        "control_id",
+        "user_id",
+        "mitigating_control",
+        "reason",
+        "valid_from",
+        "valid_until",
     ),
     # the measurement (result/violations/users_in_conflict) is computed
     "fix.sod.test": ("control_id", "tested_on", "tested_by_id", "users_checked"),

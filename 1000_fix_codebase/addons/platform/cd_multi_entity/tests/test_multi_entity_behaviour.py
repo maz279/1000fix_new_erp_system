@@ -906,6 +906,8 @@ def test_generate_nil_packs_refused_after_submission(odoo_env):
     # the real path (verify -> generate -> NBR acknowledgement), never typed.
     nil = _generated(odoo_env, "NILFILED")
     nil.filing_reference = "EVAT-ACK-990011"
+    # A08 M19-12: a nil return is recorded only for a closed and locked period
+    nil.entity_id.company_id.sudo().fiscalyear_lock_date = nil._period_bounds()[1]
     assert nil.action_submit_to_nbr() is True
     assert nil.state == "acknowledged"
     with _rejects(odoo_env, ValidationError, match="must be verified prior to generation"):

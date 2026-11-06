@@ -612,7 +612,6 @@ WRITABLE = {
             "operating_unit_id",
             "period",
             "rail_type",
-            "state",
             "statement_ids",
         }
     ),
@@ -638,7 +637,6 @@ WRITABLE = {
             "operating_unit_id",
             "partner_id",
             "referred_partner_id",
-            "state",
         }
     ),
     "fix.revenue.schedule": frozenset(
@@ -704,7 +702,6 @@ WRITABLE = {
             "contract_value",
             "currency_id",
             "customer_id",
-            "days_overdue",
             "dunning_step",
             "grace_period_days",
             "name",
@@ -714,7 +711,6 @@ WRITABLE = {
             "plan",
             "recurring_amount",
             "start_date",
-            "state",
         }
     ),
     "fix.tax.audit.pack": frozenset(
@@ -843,7 +839,6 @@ WRITABLE = {
             "company_id",
             "note",
             "period",
-            "state",
         }
     ),
     "fix.warranty.provision.policy": frozenset(

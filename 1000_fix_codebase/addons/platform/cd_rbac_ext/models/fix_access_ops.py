@@ -329,6 +329,31 @@ class FixSodTest(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.sod.test") or "SODT/New"
         return super().create(vals_list)
 
+    def _run_group_pair(self):
+        """A08 S4: a duty control pairs two Odoo groups, so the measure is who
+        effectively holds both (implied groups count). A side that is not
+        installed cannot be measured, and saying so beats reporting a pass."""
+        self.ensure_one()
+        pair = self.control_id._fix_pair_groups()
+        if not pair:
+            raise UserError(
+                "%s cannot be measured: one of its groups is not installed" % self.control_id.code
+            )
+        candidates = (
+            self.env["res.users"].sudo().search([("share", "=", False), ("active", "=", True)])
+        )
+        offenders = candidates.filtered(
+            lambda u: pair[0] in u.all_group_ids and pair[1] in u.all_group_ids
+        )
+        self._guarded().write(
+            {
+                "users_checked": len(candidates),
+                "violations_found": len(offenders),
+                "users_in_conflict": ", ".join(offenders.mapped("login"))[:250] or "—",
+                "result": "fail" if offenders else "pass",
+            }
+        )
+
     def action_run(self):
         """Measures the conflict for real through role resolution: users who
         hold at least one mapped group of EACH role (R1 makes the pairs
@@ -336,6 +361,9 @@ class FixSodTest(models.Model):
         of scope of the access register."""
         for rec in self:
             control = rec.control_id
+            if control.control_type == "group":
+                rec._run_group_pair()
+                continue
             role_a, role_b = control.role_a_id, control.role_b_id
             groups_a = set(self.env["fix.sod.control"]._role_groups(role_a).ids)
             groups_b = set(self.env["fix.sod.control"]._role_groups(role_b).ids)

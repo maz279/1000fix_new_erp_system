@@ -63,8 +63,11 @@ def _guarded_create(model, vals_list, extra_ok=("name",)):
 class FixImprestFund(models.Model):
     _name = "fix.imprest.fund"
     _description = "Petty Cash (Imprest) Fund"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "name"
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state"}
 
     name = fields.Char(required=True, tracking=True)
     company_id = fields.Many2one(

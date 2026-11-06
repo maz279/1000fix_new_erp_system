@@ -334,6 +334,8 @@ def test_submission_needs_the_real_nbr_acknowledgement(odoo_env, nil_world):
         gen.with_user(nil_world["officer"]).action_submit_to_nbr()
     # the officer keys NBR's slip number: that field stays open by design
     gen.with_user(nil_world["officer"]).write({"filing_reference": "NBR-2020-0001"})
+    # A08 M19-12: a nil return is recorded only for a closed and locked period
+    gen.entity_id.company_id.sudo().fiscalyear_lock_date = "2020-12-31"
     gen.with_user(nil_world["officer"]).action_submit_to_nbr()
     assert gen.state == "acknowledged"
 

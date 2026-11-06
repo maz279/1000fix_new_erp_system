@@ -234,7 +234,26 @@ class FixChartLoader(models.Model):
 
     _name = "fix.chart.loader"
     _description = "Chart of Accounts Loader"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    _LOADER_GUARDED = frozenset(
+        {
+            "state",
+            "loaded_at",
+            "account_count",
+            "postable_count",
+            "control_count",
+            "checksum",
+            "reconciled_at",
+            "recon_discrepancy",
+            "unmapped_ledger_count",
+            "unmapped_ledger_balance",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # the load and reconcile results are measured, never typed
+        return super()._fix_guarded_fields() | self._LOADER_GUARDED
 
     company_id = fields.Many2one(
         "res.company",
@@ -352,7 +371,7 @@ class FixChartLoader(models.Model):
             else:
                 acc_model.create(vals)
 
-        self.write(
+        self._guarded().write(
             {
                 "state": "loaded",
                 "loaded_at": fields.Datetime.now(),
@@ -456,7 +475,7 @@ class FixChartLoader(models.Model):
             vals["state"] = "reconciled"
         elif self.state == "reconciled":
             vals["state"] = "loaded"
-        self.write(vals)
+        self._guarded().write(vals)
         return recon_res
 
     def action_link_odoo_accounts(self) -> dict:
@@ -493,7 +512,7 @@ class FixChartLoader(models.Model):
                 continue
             statutory.write({"odoo_account_id": odoo_account.id})
             linked += 1
-        self.write(
+        self._guarded().write(
             {
                 "linked_count": chart_model.search_count(
                     [("company_id", "=", self.company_id.id), ("odoo_account_id", "!=", False)]

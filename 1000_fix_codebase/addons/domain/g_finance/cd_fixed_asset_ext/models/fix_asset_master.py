@@ -90,8 +90,13 @@ class FixAssetTaxRate(models.Model):
 
     _name = "fix.asset.tax.rate"
     _description = "Tax Depreciation Rate (ITA 2023 Third Schedule)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "code, date_from desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # A08 M49-8: the tick is a statement by the tax adviser, recorded through
+        # the M51 statutory master (fix.tax.rate). Nobody types it here.
+        return super()._fix_guarded_fields() | {"verified"}
 
     company_id = fields.Many2one(
         "res.company",
