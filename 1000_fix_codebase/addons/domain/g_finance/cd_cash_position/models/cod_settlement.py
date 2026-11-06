@@ -15,10 +15,20 @@
 # tolerance needs a second Accounting Administrator's approval before the
 # settlement posts it to the rider receivable, and the rider then carries an
 # open variance until recovered (BRU-TRE-04: `_fix_rider_has_open_variance`).
+#
+# A08 finish (M50-10): the block has a caller (a blocked rider cannot be given
+# a COD consignment or COD order, below); a booked shortage is handed to HR /
+# payroll (cod.shortage_recovery_requested + an activity for the payroll
+# manager); and a shortage falls in one of the two tiers of BRU-TRE-03 /
+# FR-TRE-018. The spec names two thresholds and gives no value (M50 Q-04 is
+# open, owner CFO / HR Manager), so both are configuration defaulting to 0:
+# with nothing configured every shortage takes the strictest path.
 from __future__ import annotations
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
+
+from libs.py.fix_events import publish
 
 from .treasury_common import (
     GROUP_ACCOUNTANT,
@@ -29,12 +39,18 @@ from .treasury_common import (
     require_other_person,
     require_role,
     treasury_account,
+    treasury_alert,
 )
 
 # Shortage a single settler may book (BDT). The spec leaves the variance
 # thresholds open (M50 Q-04), so the default is 0: every shortage has a
 # second approver.
 PARAM_COD_TOLERANCE = "cd_cash_position.cod_shortage_tolerance"
+# BRU-TRE-03 second threshold: above it the shortage is escalated (the approver
+# states why it is accepted and every Accounting Administrator is alerted).
+PARAM_COD_ESCALATION = "cd_cash_position.cod_shortage_escalation_threshold"
+# Who receives the recovery hand-off; the payroll addon is not a dependency.
+PAYROLL_MANAGER_GROUP = "cd_payroll_bd.group_payroll_manager"
 
 
 class FixCodSettlement(models.Model):
@@ -105,6 +121,23 @@ class FixCodSettlement(models.Model):
         "res.users", string="Shortage Approved By", readonly=True, copy=False
     )
     shortage_approved_at = fields.Datetime(readonly=True, copy=False)
+    shortage_tier = fields.Selection(
+        [
+            ("none", "No Shortage"),
+            ("tolerated", "Within Tolerance"),
+            ("second_approver", "Second Approver"),
+            ("escalated", "Escalated"),
+        ],
+        compute="_compute_shortage_tier",
+        help="Which BRU-TRE-03 threshold this shortage is above "
+        "(cd_cash_position.cod_shortage_tolerance / cod_shortage_escalation_threshold).",
+    )
+    shortage_approval_note = fields.Char(
+        string="Why the Shortage Is Accepted", readonly=True, copy=False, tracking=True
+    )
+    recovery_requested_at = fields.Datetime(
+        string="Recovery Handed to HR", readonly=True, copy=False
+    )
     recovery_state = fields.Selection(
         [("none", "No Shortage"), ("open", "Recovery Open"), ("recovered", "Recovered")],
         default="none",
@@ -127,6 +160,8 @@ class FixCodSettlement(models.Model):
             "order_ids",
             "shortage_approved_by_id",
             "shortage_approved_at",
+            "shortage_approval_note",
+            "recovery_requested_at",
             "recovery_state",
         }
     )
@@ -193,6 +228,22 @@ class FixCodSettlement(models.Model):
         self.ensure_one()
         tolerance = float_param(self.env, PARAM_COD_TOLERANCE, 0.0)
         return self._shortage() > tolerance + 0.005
+
+    def _shortage_tier(self) -> str:
+        self.ensure_one()
+        shortage = self._shortage()
+        if shortage <= 0.005:
+            return "none"
+        if not self._needs_shortage_approval():
+            return "tolerated"
+        if shortage > float_param(self.env, PARAM_COD_ESCALATION, 0.0) + 0.005:
+            return "escalated"
+        return "second_approver"
+
+    @api.depends("variance")
+    def _compute_shortage_tier(self):
+        for rec in self:
+            rec.shortage_tier = rec._shortage_tier()
 
     def _check_orders(self):
         """Every order is a delivered COD order of THIS rider in this company,
@@ -287,9 +338,10 @@ class FixCodSettlement(models.Model):
             rec._guarded().write({"state": "submitted", "submitted_by_id": self.env.uid})
         return True
 
-    def action_approve_shortage(self):
+    def action_approve_shortage(self, note=None):
         """A second Accounting Administrator accepts a shortage above the
-        tolerance before it is booked against the rider."""
+        tolerance before it is booked against the rider. Above the second
+        threshold they state why, and every Accounting Administrator is told."""
         require_role(self.env, GROUP_ADMIN, "Approving a rider COD shortage")
         for rec in self:
             if rec.state != "submitted":
@@ -301,15 +353,30 @@ class FixCodSettlement(models.Model):
                 rec.submitted_by_id | rec.create_uid,
                 "Approving the shortage of %s" % rec.name,
             )
+            tier = rec._shortage_tier()
+            why = (note or "").strip()
+            if tier == "escalated" and not why:
+                raise UserError(
+                    "%s is %.2f short, above the escalation threshold (%s): state why the "
+                    "shortage is accepted." % (rec.name, rec._shortage(), PARAM_COD_ESCALATION)
+                )
             rec._guarded().write(
                 {
                     "shortage_approved_by_id": self.env.uid,
                     "shortage_approved_at": fields.Datetime.now(),
+                    "shortage_approval_note": why or False,
                 }
             )
             rec.message_post(
                 body="Shortage of %.2f approved by %s." % (rec._shortage(), self.env.user.name)
             )
+            if tier == "escalated":
+                treasury_alert(
+                    rec,
+                    "Escalated COD shortage",
+                    "%s: rider %s is %.2f short. Accepted by %s: %s"
+                    % (rec.name, rec.rider_id.name, rec._shortage(), self.env.user.name, why),
+                )
         return True
 
     def action_settle(self):
@@ -369,24 +436,132 @@ class FixCodSettlement(models.Model):
                     "recovery_state": "open" if rec.variance < -0.005 else "none",
                 }
             )
+            if rec.recovery_state == "open":
+                rec._fix_request_recovery()
         return True
 
-    def action_mark_recovered(self):
+    def _fix_request_recovery(self):
+        """Hand a booked shortage to HR / payroll: the event a payroll consumer
+        takes (the same contract as advance.recovery_requested) and a to-do for
+        the payroll managers. The block stays until action_mark_recovered."""
+        self.ensure_one()
+        amount = self._shortage()
+        publish(
+            self.env,
+            "cod.shortage_recovery_requested",
+            "fix.cod.settlement",
+            self.id,
+            {
+                "employee_id": self.rider_id.id,
+                "amount": amount,
+                "currency": self.currency_id.name,
+                "company_id": self.company_id.id,
+                "settlement": self.name,
+            },
+        )
+        self._guarded().write({"recovery_requested_at": fields.Datetime.now()})
+        note = "Recover %.2f from %s (COD settlement %s), then record the reference on it." % (
+            amount,
+            self.rider_id.name,
+            self.name,
+        )
+        self.sudo().message_post(body="Recovery handed to HR / payroll. %s" % note)
+        group = self.env.ref(PAYROLL_MANAGER_GROUP, raise_if_not_found=False)
+        users = (
+            group.sudo().all_user_ids.filtered(
+                lambda u, c=self.company_id: u.active and not u.share and c in u.company_ids
+            )
+            if group
+            else self.env["res.users"]
+        )
+        if not users:
+            treasury_alert(self, "Recover rider COD shortage", note)
+        for user in users:
+            self.sudo().activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Recover rider COD shortage",
+                note=note,
+                user_id=user.id,
+            )
+
+    def action_mark_recovered(self, reference=None):
         """The rider's shortage was recovered (HR deduction / repayment)."""
         require_role(self.env, GROUP_ADMIN, "Closing a rider shortage")
         for rec in self:
             if rec.recovery_state != "open":
                 raise UserError("%s has no open shortage." % rec.name)
-            if not (rec.recovery_ref or "").strip():
+            ref = (reference or rec.recovery_ref or "").strip()
+            if not ref:
                 raise UserError("Record the recovery reference (HR deduction / receipt) first.")
-            rec._guarded().write({"recovery_state": "recovered"})
+            rec._guarded().write({"recovery_state": "recovered", "recovery_ref": ref})
         return True
 
-    def action_dispute(self):
+    def action_dispute(self, reason=None):
         for rec in self:
             if rec.state not in ("draft", "submitted"):
                 raise UserError("A settled COD is not disputed — reverse its entry instead.")
-            if not (rec.dispute_reason or "").strip():
+            why = (reason or rec.dispute_reason or "").strip()
+            if not why:
                 raise UserError("Record the dispute reason first.")
-            rec._guarded().write({"state": "disputed"})
+            rec._guarded().write({"state": "disputed", "dispute_reason": why})
         return True
+
+
+def _refuse_blocked_riders(env, riders, what):
+    """BRU-TRE-04: refuses even trusted service code; the block is lifted only
+    by settling or recovering the variance, never by who is asking."""
+    Settlement = env["fix.cod.settlement"]
+    for rider in riders:
+        if Settlement._fix_rider_has_open_variance(rider):
+            raise UserError(
+                "%s: rider %s has an unresolved COD variance and is blocked from further cash "
+                "collection until it is settled and recovered (BRU-TRE-04)." % (what, rider.name)
+            )
+
+
+class FixConsignmentCodBlock(models.Model):
+    """A consignment carrying COD orders cannot be given to a blocked rider."""
+
+    _inherit = "fix.consignment"
+
+    def write(self, vals):
+        if vals.get("rider_id"):
+            cod_orders = (
+                self.env["fix.storefront.order"]
+                .sudo()
+                .search_count(
+                    [
+                        ("carrier_consignment_id", "in", self.ids),
+                        ("payment_rail", "=", "cod"),
+                        ("state", "not in", ("cancelled", "delivered")),
+                    ]
+                )
+            )
+            if cod_orders:
+                rider = self.env["hr.employee"].sudo().browse(vals["rider_id"])
+                _refuse_blocked_riders(self.env, rider, "Assigning a COD consignment")
+        return super().write(vals)
+
+
+class FixStorefrontOrderCodBlock(models.Model):
+    """A COD order cannot go out on a blocked rider's consignment."""
+
+    _inherit = "fix.storefront.order"
+
+    def _fix_check_cod_rider(self, consignment_id, rail=None):
+        rider = self.env["fix.consignment"].sudo().browse(consignment_id).rider_id
+        cod = rail == "cod" if rail else any(o.payment_rail == "cod" for o in self)
+        if rider and cod:
+            _refuse_blocked_riders(self.env, rider, "Dispatching a COD order")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("carrier_consignment_id") and vals.get("payment_rail") == "cod":
+                self._fix_check_cod_rider(vals["carrier_consignment_id"], "cod")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get("carrier_consignment_id"):
+            self._fix_check_cod_rider(vals["carrier_consignment_id"], vals.get("payment_rail"))
+        return super().write(vals)

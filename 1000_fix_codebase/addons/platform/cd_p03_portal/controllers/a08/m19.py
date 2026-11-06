@@ -68,6 +68,9 @@ SURFACES = {
         "order": "transaction_date desc, id desc",
         "limit": 300,
         "actions": {"action_generate_mirror", "action_match", "action_mark_settled"},
+        # The counterparty accountant accepts the charge (M19-13), but its
+        # company is the originating one: the list also serves its target side.
+        "company_paths": ("company_id", "target_entity_id.company_id"),
     },
     "fix.intercompany.rule": {
         "order": "code",
@@ -91,7 +94,27 @@ SURFACES = {
     "fix.period.close": {
         "order": "id desc",
         "limit": 400,
-        "actions": {"action_generate_standard_steps", "action_ready", "action_close"},
+        "actions": {
+            "action_generate_standard_steps",
+            "action_set_cutover_entry",
+            "action_reconcile_inventory_suspense",
+            "action_ready",
+            "action_close",
+            "action_request_reopen",
+        },
+    },
+    # A reopen and a control-flag change are decided from the M63 approval
+    # inbox, like a journal entry: only the maker's steps are here.
+    "fix.period.reopen": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_revoke"},
+    },
+    "fix.chart.control.change": {"order": "id desc", "limit": 200, "actions": {"action_submit"}},
+    "fix.transfer.price.rate": {
+        "order": "rule_id, date_from desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
     },
 }
 

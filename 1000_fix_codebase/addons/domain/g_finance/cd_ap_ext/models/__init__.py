@@ -6,6 +6,7 @@ from . import (
     fix_ap_ext,
     fix_ap_notes,
     fix_ap_payee_bank,
+    fix_ap_payment_events,
     fix_ap_payment_run,
     fix_ap_tax_ext,
     fix_ap_tax_profile,

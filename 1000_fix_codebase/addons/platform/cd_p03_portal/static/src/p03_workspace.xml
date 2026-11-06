@@ -200,7 +200,7 @@
                                         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                                             <button class="btn btn-sm btn-primary" t-if="state.recView.data.invoice.state === 'draft'" t-on-click="() => this.recAction(() => this.arIssueDraft(state.recView.data.invoice.id))"><t t-esc='t("Issue (Mushak + number + GL)")'/></button>
                                             <button class="btn btn-sm" t-if="['draft', 'issued'].includes(state.recView.data.invoice.state)" t-on-click="() => this.glPrompt('Cancel invoice', 'Cancellation reason (FR-ARB-011)', 'cancel_invoice', state.recView.data.invoice.id)"><t t-esc='t("Cancel")'/></button>
-                                            <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.glPrompt('Write off residual', 'Write-off reason (authority matrix)', 'writeoff_invoice', state.recView.data.invoice.id)"><t t-esc='t("Write off")'/></button>
+                                            <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.glPrompt('Write off residual', 'Reason | recovery history (collection steps taken)', 'writeoff_invoice', state.recView.data.invoice.id)"><t t-esc='t("Write off")'/></button>
                                             <button class="btn btn-sm btn-primary" t-if="state.recView.data.invoice.state === 'issued' &amp;&amp; Math.abs(state.recView.data.invoice.residual || 0) &lt; 0.005" t-on-click="() => this.recAction(() => this.arRegisterPaid(state.recView.data.invoice.id))"><t t-esc='t("Register Paid")'/></button>
                                             <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arOpenNoteForm(state.recView.data.invoice.id)"><t t-esc='t("+ Credit note")'/></button>
                                             <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arCreateLink(state.recView.data.invoice.id)"><t t-esc='t("Payment link")'/></button>
@@ -266,11 +266,15 @@
                                     <div style="display: flex; gap: 8px;">
                                         <span t-if="state.recView.data.move.state === 'posted'" class="chip ok">posted</span>
                                         <t t-if="state.recView.data.move.state === 'draft'">
-                                            <span class="chip warn"><t t-esc='t("awaiting review")'/></span>
-                                            <button class="btn btn-primary" t-on-click="() => this.recAction(() => this.glApproveJe(state.recView.data.move.id))"><t t-esc='t("Approve &amp; Post")'/></button>
+                                            <span class="chip warn"><t t-esc="state.recView.data.approval ? t(state.recView.data.approval.state_label) : t('not routed for approval')"/></span>
+                                            <button t-if="state.recView.data.actions.approve" class="btn btn-primary" t-on-click="() => this.recAction(() => this.glApproveJe(state.recView.data.move.id))"><t t-esc='t("Approve &amp; Post")'/></button>
+                                            <button t-if="state.recView.data.actions.route" class="btn" t-on-click="() => this.glPrompt(t('Route for approval'), t('Reason / narrative of this journal'), 'route_je', state.recView.data.move.id)"><t t-esc='t("Route for Approval")'/></button>
+                                            <button t-if="state.recView.data.actions.discard" class="btn" t-on-click="() => this.glPrompt(t('Discard draft'), t('Why is this draft discarded?'), 'discard_je', state.recView.data.move.id)"><t t-esc='t("Discard")'/></button>
                                         </t>
                                     </div>
                                 </div>
+                                <p t-if="state.recView.data.approval &amp;&amp; state.recView.data.approval.rejection" style="margin: 0 0 10px; color: var(--status-error); font-size: 12px;"><t t-esc='t("Rejected:")'/> <t t-esc="state.recView.data.approval.rejection"/></p>
+                                <p t-if="state.recView.data.approval &amp;&amp; state.recView.data.approval.pending_with.length" style="margin: 0 0 10px; color: var(--ink-500); font-size: 12px;"><t t-esc='t("With:")'/> <t t-esc="state.recView.data.approval.pending_with.join(', ')"/></p>
                                 <div class="tbl-wrap">
                                     <table class="fx-table">
                                         <thead><tr><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Label")'/></th><th style="text-align: right;"><t t-esc='t("Debit")'/></th><th style="text-align: right;"><t t-esc='t("Credit")'/></th><th><t t-esc='t("Dimensions")'/></th></tr></thead>
@@ -2021,12 +2025,13 @@
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'close' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
                                 <h3><t t-esc='t("Close Checklist —")'/> <t t-esc="glSelectedClose ? glSelectedClose.period_end : ''"/> <t t-esc='t("(SOP SP-020 · 5-day target)")'/></h3>
+                                <button class="btn btn-sm" t-if="!state.gl.data.limited" t-on-click="() => this.glCloseAction('start_period')"><t t-esc='t("Start Next Period")'/> <t t-esc="state.gl.data.next_period_end"/></button>
                                 <div t-if="glSelectedClose">
                                     <div style="display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap;">
                                         <span class="chip"><t t-esc='t("steps done:")'/> <t t-esc="glSelectedClose.steps.filter((s) => s.state === 'done').length"/>/<t t-esc="glSelectedClose.steps.length"/></span>
                                         <span t-if="glSelectedClose.sla_status === 'within_sla'" class="chip ok"><t t-esc='t("within 5-day SLA")'/></span>
                                         <span t-elif="glSelectedClose.sla_status === 'breached'" class="chip err"><t t-esc='t("SLA breached")'/></span>
-                                        <span class="chip"><t t-esc='t("suspense closing:")'/> <t t-esc="fmtBDT(glSelectedClose.suspense_closing)"/></span>
+                                        <span class="chip" t-if="!state.gl.data.limited"><t t-esc='t("suspense pending:")'/> <t t-esc="fmtBDT(glSelectedClose.suspense_pending_value)"/> (<t t-esc="glSelectedClose.suspense_pending_count"/>)</span>
                                     </div>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
@@ -2055,9 +2060,12 @@
                                     </div>
                                     <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
                                         <button class="btn" t-if="!glSelectedClose.steps.length" t-on-click="() => this.glCloseAction('generate_steps')"><t t-esc='t("Generate 10 SOP Steps")'/></button>
+                                        <t t-if="!state.gl.data.limited">
+                                            <button class="btn" t-on-click="() => this.glPrompt(t('Set cutover entry'), t('Number of the posted suspense cutover entry'), 'set_cutover', glSelectedClose.id)"><t t-esc='t("Set Cutover Entry")'/></button>
                                         <button class="btn" t-on-click="() => this.glCloseAction('reconcile_suspense')"><t t-esc='t("Reconcile Inventory Suspense")'/></button>
                                         <button class="btn" t-on-click="() => this.glCloseAction('ready')"><t t-esc='t("Check Ready to Close")'/></button>
                                         <button class="btn btn-primary" t-if="glSelectedClose.state === 'ready_to_close'" t-on-click="() => this.glCloseAction('close')"><t t-esc='t("Close Period")'/></button>
+                                        </t>
                                     </div>
                                 </div>
                                 <p style="color: var(--ink-500); font-size: 12px; margin-top: 12px;"><t t-esc='t("A done step always carries an evidence reference (report ID / reconciliation record) — no step is marked done on nothing. Suspense must be zero before close (AR-006 §5.4).")'/></p>
@@ -2613,7 +2621,7 @@
                                                 <td><t t-esc="row.days"/></td><td><span class="chip"><t t-esc="row.bucket"/></span></td>
                                                 <td><span class="chip" t-att-class="{'warn': row.step === 'escalate'}"><t t-esc="row.step"/></span> <t t-if="row.suppressed" class="chip"><t t-esc='t("suppressed (")'/><t t-esc="row.suppression"/>)</t></td>
                                                 <td style="font-size: 12px;"><t t-esc="row.step_date"/></td>
-                                                <td><button class="btn btn-sm" t-if="!row.suppressed" t-on-click="() => this.glPrompt('Suppress dunning', 'Suppression reason', 'suppress_dunning', row.id)"><t t-esc='t("Suppress")'/></button></td>
+                                                <td><button class="btn btn-sm" t-if="!row.suppressed" t-on-click="() => this.glPrompt('Suppress dunning', 'Code | until YYYY-MM-DD | note (dispute, payment_plan, strategic; until and note optional)', 'suppress_dunning', row.id)"><t t-esc='t("Suppress")'/></button><button class="btn btn-sm" t-if="row.suppressed" t-on-click="() => this.glPrompt('Lift suppression', 'Why the suppression ends', 'lift_dunning', row.id)"><t t-esc='t("Lift")'/></button></td>
                                             </tr>
                                             <tr t-if="!state.gl.data.rows.length"><td colspan="8" style="text-align: center; color: var(--ink-300);"><t t-esc='t("Nothing overdue — run the ladder after invoices age past terms.")'/></td></tr>
                                         </tbody>
@@ -2628,7 +2636,7 @@
                                                 <tr t-foreach="state.gl.data.disputes" t-as="d" t-key="d.id" t-att-class="{'alt': d_index % 2}">
                                                     <td><t t-esc="d.invoice"/></td><td style="text-align: right;"><b><t t-esc="fmtBDT(d.amount)"/></b></td><td style="font-size: 12px;"><t t-esc="d.reason"/></td>
                                                     <td><span class="chip" t-att-class="{'warn': d.state === 'open'}"><t t-esc="tState(d.state)"/></span></td>
-                                                    <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Resolution note', 'resolve_dispute', d.id)">Resolve</button></td>
+                                                    <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Outcome code | note (upheld_credit, partially_upheld, rejected, withdrawn, payment_plan)', 'resolve_dispute', d.id)">Resolve</button></td>
                                                 </tr>
                                                 <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes — open one from an invoice\\&apos;s detail view.")'/></td></tr>
                                             </tbody>
@@ -2653,7 +2661,7 @@
                                             <tr t-foreach="state.gl.data.disputes" t-as="d" t-key="d.id" t-att-class="{'alt': d_index % 2}">
                                                 <td><b><t t-esc="d.invoice"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(d.amount)"/></b></td><td style="font-size: 12px;"><t t-esc="d.reason"/></td>
                                                 <td><span class="chip" t-att-class="{'warn': d.state === 'open'}"><t t-esc="tState(d.state)"/></span></td>
-                                                <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Resolution note', 'resolve_dispute', d.id)">Resolve</button></td>
+                                                <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Outcome code | note (upheld_credit, partially_upheld, rejected, withdrawn, payment_plan)', 'resolve_dispute', d.id)">Resolve</button></td>
                                             </tr>
                                             <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes open — open one from an invoice\\&apos;s detail view.")'/></td></tr>
                                         </tbody>
@@ -3145,6 +3153,14 @@
                                                             <option t-att-value="opt.id" t-att-selected="formSelectValue(field.name) == opt.id" t-esc="opt.label"/>
                                                         </t>
                                                     </select>
+                                                    <!-- many2many: every selected row is saved -->
+                                                    <select t-elif="fm.type === 'many2many'" class="d365-input" multiple="multiple" size="5"
+                                                            t-att-id="fldId" t-att-name="field.name"
+                                                            t-on-change="(ev) => this.formSetMany(field.name, ev)">
+                                                        <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.id">
+                                                            <option t-att-value="opt.id" t-att-selected="formManySelected(field.name, opt.id)" t-esc="opt.label"/>
+                                                        </t>
+                                                    </select>
                                                     <!-- boolean -->
                                                     <label t-elif="fm.type === 'boolean'" class="d365-check">
                                                         <input type="checkbox"
@@ -3205,7 +3221,7 @@
                                                                 <div class="d365-doc-details">
                                                                     <span t-if="formFieldValue(field.name)" class="d365-doc-name" t-esc="formFileName(field.name)"/>
                                                                     <span t-else="" class="d365-doc-name empty"><t t-esc='t("No Document Uploaded")'/></span>
-                                                                    <span class="d365-doc-hint"><t t-esc='t("Supports PDF, JPG, PNG, DOCX (Max 10MB)")'/></span>
+                                                                    <span class="d365-doc-hint"><t t-if="field.accept" t-esc="field.accept"/><t t-else="" t-esc='t("Supports PDF, JPG, PNG, DOCX (Max 10MB)")'/></span>
                                                                 </div>
                                                                 <span t-if="formFieldValue(field.name)" class="d365-doc-badge attached"><t t-esc='t("Attached")'/></span>
                                                                 <span t-else="" class="d365-doc-badge missing"><t t-esc='t("Missing")'/></span>
@@ -3218,7 +3234,7 @@
                                                                 <label class="btn btn-sm d365-file-btn d365-doc-upload-btn" t-att-for="'doc_file_' + fldId">
                                                                     <span t-if="formFieldValue(field.name)">🔄 <t t-esc='t("Replace Document")'/></span>
                                                                     <span t-else="">📁 <t t-esc='t("Upload Physical Document")'/></span>
-                                                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="d365-file-input"
+                                                                    <input type="file" t-att-accept="field.accept or '.pdf,.jpg,.jpeg,.png,.doc,.docx'" class="d365-file-input"
                                                                            t-att-id="'doc_file_' + fldId"
                                                                            t-on-change="(ev) => this.formHandleFileUpload(field.name, ev)"/>
                                                                 </label>
@@ -3264,7 +3280,8 @@
                                             <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
-                                                    <select t-if="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
+                                                    <span t-if="lf.readonly" t-esc="formLineValue(row_index, lf.name)"/>
+                                                    <select t-elif="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
                                                             t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                             t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
                                                         <option value=""></option>

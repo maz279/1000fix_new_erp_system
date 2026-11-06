@@ -329,7 +329,7 @@ def claim(c, by, employee, lines=None, **vals):
         "expense_date": D,
     }
     if lines is not None:
-        v["line_ids"] = [(0, 0, ln) for ln in lines]
+        v["line_ids"] = [(0, 0, {"cost_centre": "A08B2", **ln}) for ln in lines]
     v.update(vals)
     return c.env["fix.expense.claim"].with_user(by).create(v)
 
@@ -531,11 +531,14 @@ def test_m52_08_matrix_changes_need_a_second_manager(c):
         c.env.ref(MGR),
         "applied",
     )
-    # a matrix level is always decided by an accounting group, even with two managers
-    bad = Change.with_user(c.mgr).create(
-        {"rule_id": level2.id, "group_id": plain_group.id, "reason": "probe"}
+    # a matrix level is always decided by an accounting group, even with two
+    # managers: refused at the proposal
+    assert refused(
+        c.env,
+        lambda: Change.with_user(c.mgr).create(
+            {"rule_id": level2.id, "group_id": plain_group.id, "reason": "probe"}
+        ),
     )
-    assert refused(c.env, lambda: bad.with_user(c.mgr2).action_apply())
     assert refused(c.env, lambda: Change.with_user(c.acc1).create({"reason": "x"}))
 
 
@@ -1240,14 +1243,13 @@ def test_m52_56_payroll_recovery_requested_once_and_confirmed(c):
 
 
 def test_m52_56b_payroll_recovery_has_a_registered_consumer(c):
-    """Wiring (needs A09): payroll consumes advance.recovery_requested."""
+    """Wiring; the behaviour is test_a08_m52_operability's
+    test_m52_8_payroll_recovery_from_the_screen."""
     consumers = (
         c.env["fix.event.consumer"]
         .sudo()
         .search_count([("event_type", "=", "advance.recovery_requested")])
     )
-    if not consumers:
-        pytest.xfail("A09 payroll has not registered its advance.recovery_requested consumer yet")
     assert consumers
 
 

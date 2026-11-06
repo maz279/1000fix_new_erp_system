@@ -71,6 +71,8 @@ SURFACES = {
             "action_sync_disbursement",
             "action_settle",
             "action_record_recovery",
+            "action_confirm_payroll_recovery",
+            "action_cancel",
         },
     },
     "fix.expense.rate": {"order": "rate_type, date_from desc", "limit": 200, "actions": set()},
@@ -78,6 +80,14 @@ SURFACES = {
     "fix.vendor.tax.profile": {"order": "partner_id", "limit": 300, "actions": set()},
     "fix.expense.category": {"order": "id desc", "limit": 400, "actions": set()},
     "fix.expense.grade": {"order": "id desc", "limit": 400, "actions": set()},
+    # A08 M52-7: a line's receipt is attached on the line's own form. Read as the
+    # caller: a plain user sees the lines of their own claims only.
+    "fix.expense.claim.line": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": set(),
+        "rules": True,
+    },
 }
 
 

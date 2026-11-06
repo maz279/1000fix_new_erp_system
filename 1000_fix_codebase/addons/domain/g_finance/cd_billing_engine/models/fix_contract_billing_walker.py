@@ -27,6 +27,8 @@ from odoo import api, fields, models
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+from .fix_billing_engine import m51_determine
+
 TWO = Decimal("0.01")
 
 # The switch (off on deploy): the walker raises draft invoices on the AR
@@ -156,14 +158,17 @@ class FixContractBillingWalker(models.Model):
         determination (the M39 subscription-charge pattern, product code
         AMC), a truthful manual_reason so finance's action_issue has its
         FR-ARB-010 reason, and invoice_date = the period's start."""
-        determination = tax_logic.determine_tax(
+        determination = m51_determine(
+            self.env,
             [
                 tax_logic.TaxLine(
                     product_code="AMC",
                     qty=Decimal("1"),
                     unit_price=Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP),
                 )
-            ]
+            ],
+            on_date=period.period_start,
+            company=contract.company_id,
         )
         det = determination.lines[0]
         invoice = (

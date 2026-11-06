@@ -11,7 +11,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_asset_common import money
+from .fix_asset_common import USER_GROUP, money, require_group
 
 OPEN_PO_STATES = ("draft", "sent", "acknowledged", "partially_received", "received", "closed")
 
@@ -123,6 +123,29 @@ class FixCapexRequestOrders(models.Model):
     ordered_amount = fields.Monetary(
         string="Ordered", compute="_compute_ordered_amount", help="Open M16 orders against it"
     )
+
+    def action_link_purchase_order(self, order=None):
+        """A08 M49-10: name the draft M16 purchase order this approved capex
+        pays for: the order becomes a capital purchase against this request and
+        the approved-amount ceiling applies at once. The link freezes when the
+        order leaves draft."""
+        require_group(self.env, USER_GROUP, "Linking a purchase order to a capex request")
+        self.ensure_one()
+        name = (order or "").strip()
+        if not name:
+            raise UserError(self.env._("Name the purchase order number."))
+        po = (
+            self.env["fix.purchase.order"]
+            .sudo()
+            .search([("company_id", "=", self.company_id.id), ("name", "=", name)], limit=1)
+        )
+        if not po:
+            raise UserError(self.env._("%s has no purchase order %s.", self.company_id.name, name))
+        if po.state != "draft":
+            raise UserError(self.env._("%s is %s: only a draft order is linked.", name, po.state))
+        po.write({"is_capex": True, "capex_request_id": self.id})
+        po._fix_assert_capex()
+        return {"note": self.env._("%s now spends capex request %s.", name, self.name)}
 
     @api.depends("purchase_order_ids.amount_total", "purchase_order_ids.state")
     def _compute_ordered_amount(self):

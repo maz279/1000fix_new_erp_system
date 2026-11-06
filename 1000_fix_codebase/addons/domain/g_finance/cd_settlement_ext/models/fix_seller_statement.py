@@ -8,6 +8,10 @@
 # its certificate number comes from a sequence at issue, and an issued
 # statement is immutable (a recalculation is an adjustment on a later one).
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    require_role,
+)
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
@@ -98,8 +102,19 @@ class FixSellerStatement(models.Model):
         readonly=True,
         copy=False,
         index=True,
-        help="Drawn from the certificate sequence when the statement is issued; never typed.",
+        help="Numbered when the TDS is shown deposited (a verified TDS challan is attached), "
+        "never typed; a statement with TDS and no challan has no certificate yet.",
     )
+    tds_challan_id = fields.Many2one(
+        "fix.tax.challan",
+        string="TDS Challan / চালান",
+        readonly=True,
+        copy=False,
+        index=True,
+        help="The deposited, verified M51 challan that carried this statement's TDS to NBR.",
+    )
+    tds_challan_no = fields.Char(related="tds_challan_id.challan_no", string="Challan No")
+    tds_challan_date = fields.Date(related="tds_challan_id.challan_date", string="Challan Date")
     statutory_note = fields.Char(
         string="Statutory Certification / সংবিধিবদ্ধ প্রত্যয়ন",
         default="Certified that tax has been deducted at source under section 140 of the Income "
@@ -130,6 +145,7 @@ class FixSellerStatement(models.Model):
             "withholding_cert_ref",
             "statutory_note",
             "payout_run_id",
+            "tds_challan_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -186,8 +202,8 @@ class FixSellerStatement(models.Model):
 
     def action_issue_statement(self):
         """Issue a draft statement to the seller (published for the P07
-        seller portal): only for a payout run whose money has moved, with the
-        certificate number drawn from its sequence."""
+        seller portal): only for a payout run whose money has moved. The
+        withholding certificate follows the TDS deposit (action_attach_challan)."""
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Statement %s is already %s" % (rec.name, rec.state))
@@ -197,15 +213,7 @@ class FixSellerStatement(models.Model):
                     "certifies money that was paid and tax that was withheld."
                     % (rec.name, rec.payout_run_id.name or "no payout run")
                 )
-            cert = (
-                self.env["ir.sequence"].sudo().next_by_code("fix.seller.statement.tds_cert")
-                or False
-            )
-            if not cert:
-                raise UserError("The withholding certificate sequence is missing — upgrade M53.")
-            rec._guarded().write(
-                {"state": "issued", "withholding_cert_ref": cert, "date_issued": fields.Date.today()}
-            )
+            rec._guarded().write({"state": "issued", "date_issued": fields.Date.context_today(rec)})
             publish(
                 self.env,
                 "seller.statement_issued",
@@ -218,9 +226,65 @@ class FixSellerStatement(models.Model):
                     "gross_gmv": float(rec.gross_gmv),
                     "tds_withheld": float(rec.tds_withheld),
                     "net_disbursed": float(rec.net_payable),
-                    "cert_ref": rec.withholding_cert_ref,
+                    "cert_ref": rec.withholding_cert_ref or "",
                 },
             )
+
+    def action_attach_challan(self, challan_no=""):
+        """M53-8 / BRU-REV-19: the certificate states the deposit. Name the
+        deposited, verified TDS challan (M51) of the statement's period; the
+        certificate is numbered now and the challan never carries more TDS
+        than it deposited."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Attaching a TDS challan")
+        challan_no = (challan_no or "").strip()
+        if not challan_no:
+            raise UserError("Name the deposited TDS challan.")
+        for rec in self:
+            if rec.state not in ("issued", "settled"):
+                raise UserError("Statement %s is %s: issue it first." % (rec.name, rec.state))
+            if (rec.tds_withheld or 0.0) <= 0.005:
+                raise UserError("Statement %s withheld no TDS: it has no certificate." % rec.name)
+            if rec.tds_challan_id:
+                raise UserError(
+                    "Statement %s is already on challan %s."
+                    % (rec.name, rec.tds_challan_id.challan_no)
+                )
+            challan = (
+                self.env["fix.tax.challan"]
+                .sudo()
+                .search(
+                    [("company_id", "=", rec.company_id.id), ("challan_no", "=", challan_no)],
+                    limit=1,
+                )
+            )
+            if not challan:
+                raise UserError("No challan %s in %s." % (challan_no, rec.company_id.name))
+            if challan.tax_kind != "tds":
+                raise UserError("Challan %s deposits %s, not TDS." % (challan_no, challan.tax_kind))
+            if challan.state != "deposited" or not challan.verified_by_id:
+                raise UserError(
+                    "Challan %s is not deposited and verified (M51): no certificate is issued on "
+                    "it." % challan_no
+                )
+            if challan.period and challan.period != rec.period:
+                raise UserError(
+                    "Challan %s settles period %s; this statement is %s."
+                    % (challan_no, challan.period, rec.period)
+                )
+            carried = sum(
+                self.sudo().search([("tds_challan_id", "=", challan.id)]).mapped("tds_withheld")
+            )
+            if carried + rec.tds_withheld > challan.amount + 0.005:
+                raise UserError(
+                    "Challan %s deposited %.2f and already carries %.2f: %.2f more does not fit."
+                    % (challan_no, challan.amount, carried, rec.tds_withheld)
+                )
+            cert = self.env["ir.sequence"].sudo().next_by_code("fix.seller.statement.tds_cert")
+            if not cert:
+                raise UserError("The withholding certificate sequence is missing — upgrade M53.")
+            rec._guarded().write({"tds_challan_id": challan.id, "withholding_cert_ref": cert})
+            rec.message_post(body="Certificate %s issued on challan %s." % (cert, challan_no))
+        return True
 
     def action_settle_statement(self):
         """Close an issued statement once its money has really moved: the

@@ -112,7 +112,12 @@ EXPOSED = (
 )
 
 # An employee still raises these; their workflow fields are guarded.
-EMPLOYEE_WRITABLE = {"fix.expense.claim", "fix.referral", "fix.subscription"}
+EMPLOYEE_WRITABLE = {
+    "fix.expense.claim",
+    "fix.expense.claim.line",
+    "fix.referral",
+    "fix.subscription",
+}
 
 
 @pytest.fixture

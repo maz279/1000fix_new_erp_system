@@ -37,20 +37,38 @@ WRITABLE = {
         }
     ),
     "fix.ap.approval.rule": frozenset(),
-    "fix.ap.approval.rule.change": frozenset(),
+    "fix.ap.approval.rule.change": frozenset(
+        {
+            "active",
+            "amount_min",
+            "group_id",
+            "level",
+            "name",
+            "reason",
+            "rule_id",
+        }
+    ),
     "fix.ar.consolidated.bill": frozenset(),
     "fix.ar.dispute": frozenset(),
+    "fix.ar.ecl.rate": frozenset(
+        {
+            "basis_note",
+            "date_from",
+            "date_to",
+            "name",
+            "rate_1_30",
+            "rate_31_60",
+            "rate_61_90",
+            "rate_90_plus",
+            "rate_current",
+        }
+    ),
     "fix.ar.impairment": frozenset(
         {
             "as_of",
             "expense_account_id",
             "journal_id",
             "provision_account_id",
-            "rate_1_30",
-            "rate_31_60",
-            "rate_61_90",
-            "rate_90_plus",
-            "rate_current",
         }
     ),
     "fix.ar.invoice": frozenset(),
@@ -71,23 +89,45 @@ WRITABLE = {
             "reference",
         }
     ),
-    "fix.ar.writeoff": frozenset(),
+    "fix.ar.writeoff": frozenset(
+        {
+            "invoice_id",
+            "reason",
+            "recovery_history",
+        }
+    ),
     "fix.asset.category": frozenset(
         {
+            "accumulated_account_id",
             "active",
+            "asset_account_id",
             "code",
+            "cwip_account_id",
+            "expense_account_id",
+            "gain_account_id",
+            "impairment_account_id",
             "journal_id",
+            "loss_account_id",
             "name",
+            "revaluation_surplus_account_id",
             "salvage_percent",
             "tax_rate_code",
             "useful_life_months",
         }
     ),
-    "fix.asset.depreciation.run": frozenset(),
+    "fix.asset.depreciation.run": frozenset(
+        {
+            "asset_ids",
+            "book",
+            "operating_unit_id",
+            "period_start",
+        }
+    ),
     "fix.asset.disposal": frozenset(
         {
             "asset_id",
             "date",
+            "ewaste_route",
             "incident_ref",
             "insurance_claim_ref",
             "kind",
@@ -104,18 +144,11 @@ WRITABLE = {
             "date",
             "kind",
             "new_value",
+            "valuer_report_file",
+            "valuer_report_filename",
         }
     ),
-    "fix.asset.tax.rate": frozenset(
-        {
-            "code",
-            "date_from",
-            "date_to",
-            "legal_reference",
-            "name",
-            "rate_percent",
-        }
-    ),
+    "fix.asset.tax.rate": frozenset(),
     "fix.asset.transfer": frozenset(
         {
             "asset_id",
@@ -138,18 +171,34 @@ WRITABLE = {
             "expiry_date",
             "facility_type",
             "interest_rate",
+            "journal_id",
             "lender_id",
+            "liability_account_id",
             "limit_amount",
             "name",
+            "operating_unit_id",
+            "principal",
             "repayment_frequency",
             "sanction_date",
             "sanction_ref",
+            "start_date",
             "tenor_months",
         }
     ),
+    "fix.bank.reconciliation": frozenset(
+        {
+            "difference_note",
+            "journal_id",
+            "operating_unit_id",
+            "period",
+            "statement_balance",
+            "statement_ref",
+        }
+    ),
+    "fix.bank.reconciliation.line": frozenset(),
     "fix.bank.statement.import": frozenset(
         {
-            "filename",
+            "file",
             "format_type",
             "journal_id",
             "operating_unit_id",
@@ -177,19 +226,29 @@ WRITABLE = {
             "company_id",
             "currency_id",
             "date_from",
+            "date_to",
             "fiscal_year",
+            "line_ids",
             "name",
             "version_id",
         }
     ),
+    "fix.budget.line": frozenset(),
     "fix.budget.version": frozenset(
         {
+            "base_date_from",
+            "base_date_to",
             "base_version_id",
             "date_from",
             "date_to",
+            "driver_ids",
             "fiscal_year",
+            "labour_account_id",
             "name",
             "operating_unit_id",
+            "overhead_account_id",
+            "parts_account_id",
+            "revenue_account_id",
             "version_type",
         }
     ),
@@ -262,6 +321,14 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.chart.control.change": frozenset(
+        {
+            "account_id",
+            "new_is_control",
+            "new_subledger",
+            "reason",
+        }
+    ),
     "fix.chart.loader": frozenset(
         {
             "company_id",
@@ -277,13 +344,37 @@ WRITABLE = {
             "direction",
             "drawee_bank",
             "journal_id",
+            "operating_unit_id",
             "partner_id",
             "payee_name",
             "received_date",
             "source_ref",
         }
     ),
-    "fix.cod.settlement": frozenset(),
+    "fix.cheque.book": frozenset(
+        {
+            "first_number",
+            "journal_id",
+            "last_number",
+            "name",
+            "number_width",
+            "operating_unit_id",
+        }
+    ),
+    "fix.cod.settlement": frozenset(
+        {
+            "branch_id",
+            "dispute_reason",
+            "operating_unit_id",
+            "recovery_ref",
+            "remittance_journal_id",
+            "remittance_method",
+            "remittance_ref",
+            "remitted_amount",
+            "rider_id",
+            "settlement_date",
+        }
+    ),
     "fix.commission.ledger": frozenset(),
     "fix.commission.scheme": frozenset(
         {
@@ -318,16 +409,27 @@ WRITABLE = {
             "pool_id",
         }
     ),
+    "fix.cost.element": frozenset(
+        {
+            "account_ids",
+            "code",
+            "element_type",
+            "name",
+            "pool_id",
+        }
+    ),
     "fix.cost.pool": frozenset(
         {
             "allocation_basis",
             "clearing_account_id",
             "code",
             "include_in_labour_rate",
+            "journal_id",
             "name",
             "operating_unit_id",
             "pool_type",
             "receiver_type",
+            "share_ids",
             "target_account_id",
         }
     ),
@@ -384,6 +486,20 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.expense.claim.line": frozenset(
+        {
+            "category_id",
+            "cost_centre",
+            "date",
+            "description",
+            "location",
+            "quantity",
+            "receipt_file",
+            "receipt_filename",
+            "unit_amount",
+            "vehicle",
+        }
+    ),
     "fix.expense.grade": frozenset(
         {
             "active",
@@ -412,6 +528,16 @@ WRITABLE = {
             "rate",
             "rate_type",
             "vehicle",
+        }
+    ),
+    "fix.facility.amendment": frozenset(
+        {
+            "facility_id",
+            "new_instalments",
+            "new_interest_rate",
+            "new_limit_amount",
+            "new_next_due_date",
+            "reason",
         }
     ),
     "fix.facility.covenant": frozenset(
@@ -461,8 +587,10 @@ WRITABLE = {
     "fix.gateway.settlement": frozenset(
         {
             "journal_id",
+            "operating_unit_id",
             "provider",
             "provider_batch_ref",
+            "report_file",
             "settlement_date",
         }
     ),
@@ -481,6 +609,7 @@ WRITABLE = {
             "custodian_id",
             "imprest_limit",
             "name",
+            "operating_unit_id",
             "voucher_limit",
         }
     ),
@@ -521,11 +650,20 @@ WRITABLE = {
         {
             "code",
             "company_id",
+            "documentation_ref",
+            "markup_percent",
             "name",
             "scope",
             "source_branch_id",
             "source_entity_id",
+            "source_income_account_id",
+            "source_journal_id",
+            "source_receivable_account_id",
+            "target_branch_id",
             "target_entity_id",
+            "target_expense_account_id",
+            "target_journal_id",
+            "target_payable_account_id",
             "transaction_type",
         }
     ),
@@ -557,15 +695,34 @@ WRITABLE = {
         {
             "category_id",
             "commencement_date",
+            "exemption",
+            "ibr_percent",
+            "initial_direct_costs",
+            "interest_account_id",
+            "liability_account_id",
             "name",
             "operating_unit_id",
             "partner_id",
+            "payment_account_id",
             "payment_amount",
             "payment_timing",
+            "prepaid_payments",
             "term_months",
         }
     ),
     "fix.lease.schedule.line": frozenset(),
+    "fix.mushak.correction": frozenset(
+        {
+            "correction_type",
+            "note_date",
+            "reason",
+            "reduced_rate",
+            "register_id",
+            "taxable_amount",
+            "treatment",
+            "vat_amount",
+        }
+    ),
     "fix.mushak.register": frozenset(),
     "fix.nil.return.generator": frozenset(
         {
@@ -575,7 +732,20 @@ WRITABLE = {
             "period_year",
         }
     ),
-    "fix.payee.bank.change": frozenset(),
+    "fix.payee.bank.change": frozenset(
+        {
+            "acc_holder_name",
+            "acc_number",
+            "bank_id",
+            "evidence_file",
+            "evidence_filename",
+            "partner_bank_id",
+            "partner_id",
+            "routing_number",
+            "verification_ref",
+            "verified_by_id",
+        }
+    ),
     "fix.payment.execution": frozenset(
         {
             "amount",
@@ -602,7 +772,12 @@ WRITABLE = {
             "rail",
         }
     ),
-    "fix.payout.reconciliation": frozenset(),
+    "fix.payout.reconciliation": frozenset(
+        {
+            "payout_run_id",
+            "reconciliation_date",
+        }
+    ),
     "fix.payout.run": frozenset(
         {
             "bank_confirmation_ref",
@@ -627,11 +802,27 @@ WRITABLE = {
             "subscription_id",
         }
     ),
-    "fix.period.close": frozenset(),
+    "fix.period.close": frozenset(
+        {
+            "company_id",
+            "cutover_move_id",
+            "operating_unit_id",
+            "period_end",
+        }
+    ),
+    "fix.period.reopen": frozenset(
+        {
+            "close_id",
+            "end_datetime",
+            "reason",
+            "user_id",
+        }
+    ),
     "fix.referral": frozenset(
         {
             "base_amount",
             "company_id",
+            "convert_invoice_id",
             "currency_id",
             "name",
             "operating_unit_id",
@@ -667,6 +858,9 @@ WRITABLE = {
         {
             "adjustment_type",
             "amount",
+            "commission_ids",
+            "dispute_id",
+            "reason",
             "seller_partner_id",
         }
     ),
@@ -765,6 +959,15 @@ WRITABLE = {
             "quarter",
         }
     ),
+    "fix.transfer.price.rate": frozenset(
+        {
+            "date_from",
+            "date_to",
+            "markup_percent",
+            "rule_id",
+            "study_ref",
+        }
+    ),
     "fix.vat.return": frozenset(
         {
             "period",
@@ -801,10 +1004,12 @@ WRITABLE = {
             "invoice_ref",
             "line_ids",
             "operating_unit_id",
+            "payment_channel",
             "payment_term_days",
             "requisition_id",
             "supplier_mushak_no",
             "vat_amount",
+            "vds_rate_id",
             "vendor_id",
         }
     ),
@@ -826,9 +1031,15 @@ WRITABLE = {
             "default_tds_category",
             "default_vds_rate_id",
             "partner_id",
+            "psr_evidence_file",
+            "psr_evidence_filename",
             "psr_reference",
             "psr_valid_until",
             "taxpayer_type",
+            "tds_exempt_certificate_ref",
+            "tds_exempt_file",
+            "tds_exempt_filename",
+            "tds_exempt_valid_until",
             "tin",
             "turnover_enlisted",
             "vds_exempt",
@@ -837,7 +1048,6 @@ WRITABLE = {
     "fix.warranty.provision": frozenset(
         {
             "company_id",
-            "note",
             "period",
         }
     ),

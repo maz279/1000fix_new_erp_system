@@ -350,7 +350,7 @@ def test_m51_t03_vat_rate_master_is_what_invoices_use(c):
     # a proposal is not what is charged
     assert Treatment._fix_determine_tax(line, start, c.co).total_vat == Decimal("150.00")
     new.with_user(c.mgr).action_record_adviser_verification("ADV-2026-11")
-    new.with_user(c.mgr2).action_activate()
+    new.with_user(c.filer).action_activate()
     det = Treatment._fix_determine_tax(line, start, c.co)
     assert (det.total_vat, det.rates_source) == (Decimal("100.00"), "master")
     assert Treatment._fix_determine_tax(line, c.today, c.co).total_vat == Decimal("150.00")
@@ -382,14 +382,18 @@ def test_m51_t04_manager_cannot_zero_tds_rate_alone(c):
     )
     assert (new.state, new.verify_with_adviser) == ("proposed", True)
     assert c.env["fix.tax.rate"].find_rate("tds", "service_general", c.today, c.co) == old
-    _refused(new.with_user(c.mgr2).action_activate, match="verify-with-adviser")
-    new.with_user(c.mgr).action_record_adviser_verification("ADV-1")
+    _refused(new.with_user(c.filer).action_activate, match="verify-with-adviser")
+    new.with_user(c.mgr2).action_record_adviser_verification("ADV-1")
+    # the CFO step (BRU-TAX-22): neither the proposer, nor who recorded the
+    # confirmation, nor anyone without the role
+    c.mgr.sudo().write({"group_ids": [(4, c.env.ref(FILER).id)]})
     _refused(new.with_user(c.mgr).action_activate, match="Segregation")
-    _refused(new.with_user(c.acct).action_activate, match="Accounting Administrator")
+    _refused(new.with_user(c.mgr2).action_activate, match="Filing Approver")
+    _refused(new.with_user(c.acct).action_activate, match="Filing Approver")
     _refused(new.with_user(c.mgr).write, {"state": "active"})
 
 
-def test_m51_t04_proper_path_second_manager_activates(c):
+def test_m51_t04_proper_path_cfo_activates(c):
     new = c.as_(c.mgr)["fix.tax.rate"].create(
         {
             "tax_kind": "tds",
@@ -402,8 +406,8 @@ def test_m51_t04_proper_path_second_manager_activates(c):
         }
     )
     new.with_user(c.mgr).action_record_adviser_verification("ADV-2")
-    new.with_user(c.mgr2).action_activate()
-    assert (new.state, new.activated_by_id) == ("active", c.mgr2)
+    new.with_user(c.filer).action_activate()
+    assert (new.state, new.activated_by_id) == ("active", c.filer)
     later = c.env["fix.tax.rate"].find_rate(
         "tds", "service_general", c.today + timedelta(days=10), c.co
     )

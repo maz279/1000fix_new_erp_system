@@ -1155,11 +1155,18 @@ class FixRentalTurnaround(models.Model):
                     "evidence" % (asset.name, asset.category, denial)
                 )
             cert = cert.sudo()
-            if cert.verified_at and cert.verified_at.date() < self.returned_on:
+            # returned_on is a local day and verified_at is UTC: a wipe verified at
+            # 01:30 in Dhaka is the same day as a return that morning
+            verified_on = (
+                fields.Datetime.context_timestamp(self, cert.verified_at).date()
+                if cert.verified_at
+                else None
+            )
+            if verified_on and verified_on < self.returned_on:
                 return (
                     "wipe certificate %s was verified on %s, before this return (%s): it "
                     "does not cover the last customer's data"
-                    % (cert.name, cert.verified_at.date(), self.returned_on)
+                    % (cert.name, verified_on, self.returned_on)
                 )
             reused = self.sudo().search_count(
                 [

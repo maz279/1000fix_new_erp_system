@@ -14,13 +14,23 @@ from odoo import fields
 # row is posted by its invoice posting, the register rebuilds from events as an
 # administrator's engine run, and a certificate is issued from its deposited
 # deduction. Statutory master rows change by proposal + activation (M51-6).
-MASTER_ACTIONS = {"action_record_adviser_verification", "action_activate", "action_reject_proposal"}
+MASTER_ACTIONS = {
+    "action_record_adviser_verification",
+    "action_cfo_signoff",
+    "action_activate",
+    "action_reject_proposal",
+}
 
 SURFACES = {
     "fix.mushak.register": {
         "order": "invoice_date desc, id desc",
         "limit": 200,
         "actions": set(),
+    },
+    "fix.mushak.correction": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_reject"},
     },
     "fix.vat.return": {
         "order": "period desc, id desc",
@@ -37,7 +47,15 @@ SURFACES = {
     "fix.withholding.line": {
         "order": "document_date desc, id desc",
         "limit": 300,
-        "actions": {"action_issue_certificate", "action_apply_statutory_uplift"},
+        "actions": {
+            "action_issue_certificate",
+            "action_apply_statutory_uplift",
+            "action_request_void",
+            "action_request_reopen",
+            "action_approve_correction",
+            "action_reject_correction",
+            "action_clear_duplicate",
+        },
     },
     "fix.tax.challan": {
         "order": "challan_date desc, id desc",
@@ -71,6 +89,15 @@ SURFACES = {
     "fix.statutory.due.rule": {"order": "obligation", "limit": 100, "actions": set(MASTER_ACTIONS)},
     "fix.statutory.filing": {"order": "filed_on desc", "limit": 200, "actions": set()},
 }
+
+
+# The statutory masters with a two-step sign-off, for the queue and the tile.
+SIGNOFF_MASTERS = (
+    ("fix.tax.rate", "Tax Rate"),
+    ("fix.tax.parameter", "Statutory Parameter"),
+    ("fix.vat.treatment", "VAT Treatment"),
+    ("fix.statutory.due.rule", "Calendar Rule"),
+)
 
 
 def _companies(env):
@@ -122,6 +149,13 @@ def kpis(env):
         out["next_due"] = str(upcoming[0]["due_date"]) if upcoming else "none"
     except Exception:
         out["overdue_obligations"] = out["next_due"] = None
+    try:
+        out["signoff_pending"] = sum(
+            env[model].search_count([("state", "=", "active"), ("signoff_state", "!=", "signed")])
+            for model, _label in SIGNOFF_MASTERS
+        )
+    except Exception:
+        out["signoff_pending"] = None
     return out
 
 
@@ -171,6 +205,56 @@ def statutory_calendar(env, date_from=None, date_to=None, **params):
         "(Fri/Sat) and fixed public holidays roll forward; moon-dependent holidays are not "
         "applied.",
         "empty": "No statutory due dates in the period.",
+    }
+
+
+def signoff_queue(env, date_from=None, date_to=None, **params):
+    """BRU-TAX-22: every statutory master row in force or proposed that is not
+    signed off by the adviser and the CFO, and the step it waits for. Rows in
+    force keep working meanwhile (see fix_tax_master.ENFORCE_SIGNOFF_PARAM)."""
+    next_step = {
+        "adviser": "Record the adviser's written confirmation (Accounting Administrator)",
+        "cfo": "CFO sign-off, by someone other than who recorded the confirmation",
+    }
+    rows = []
+    for model, label in SIGNOFF_MASTERS:
+        states = dict(env[model]._fields["state"].selection)
+        stages = dict(env[model]._fields["signoff_state"].selection)
+        for row in env[model].search(
+            [("state", "in", ("active", "proposed")), ("signoff_state", "!=", "signed")]
+        ):
+            rows.append(
+                {
+                    "master": label,
+                    "row": row.display_name,
+                    "status": states.get(row.state),
+                    "stage": stages.get(row.signoff_state),
+                    "adviser": row.adviser_reference or "",
+                    "next": next_step[row.signoff_state]
+                    if row.state == "active" or row.signoff_state == "adviser"
+                    else "CFO activates the proposal",
+                }
+            )
+    return {
+        "title": "Statutory master sign-off queue: %d row(s)" % len(rows),
+        "cols": ["master", "row", "status", "stage", "adviser", "next"],
+        "labels": {
+            "master": "Master",
+            "row": "Row",
+            "status": "Status",
+            "stage": "Waiting For",
+            "adviser": "Adviser Confirmation",
+            "next": "Next Step",
+        },
+        "rows": rows,
+        "notes": [
+            "Rows in force stay in use while they wait, or every bill and invoice would stop: "
+            "a deduction or Mushak row using one shows Rate Unconfirmed. Act on a row on its "
+            "own master screen (Tax Rate Master, Statutory Parameters, Tax Determination "
+            "Service, Statutory Calendar Rules). Once this list is empty, system parameter "
+            "cd_tax_engine_bd.enforce_rate_signoff = 1 makes an unsigned row refuse."
+        ],
+        "empty": "Every statutory master row is signed off.",
     }
 
 
@@ -483,7 +567,11 @@ def tds_annual_summary(env, date_from=None, date_to=None, **params):
             "deposited": _num(sum(r["deposited"] for r in rows)),
             "outstanding": _num(sum(r["outstanding"] for r in rows)),
         },
-        "notes": "Bangladesh fiscal year (July-June); deposited = challan-linked or certified lines.",
+        "notes": [
+            "Bangladesh fiscal year (July-June); deposited = challan-linked or certified lines.",
+            "%d of %d deduction(s) use a rate not yet signed off by the adviser and the CFO "
+            "(Sign-Off Queue)." % (len(lines.filtered("rate_flagged")), len(lines)),
+        ],
         "empty": "No TDS withholding this fiscal year.",
     }
 
@@ -509,12 +597,24 @@ def vds_deduction_register(env, date_from=None, date_to=None, **params):
                 "source": line.source_ref or "—",
                 "challan": line.challan_no or "—",
                 "state": dict(line._fields["state"].selection).get(line.state, line.state),
+                "basis": "Rate unconfirmed" if line.rate_flagged else "Signed off",
             }
         )
     rows.sort(key=lambda r: r["date"], reverse=True)
     return {
         "title": "VDS Deduction Register (Mushak 6.6)",
-        "cols": ["date", "vendor", "bin", "base", "rate", "amount", "source", "challan", "state"],
+        "cols": [
+            "date",
+            "vendor",
+            "bin",
+            "base",
+            "rate",
+            "amount",
+            "source",
+            "challan",
+            "state",
+            "basis",
+        ],
         "labels": {
             "date": "Date",
             "vendor": "Vendor",
@@ -525,6 +625,7 @@ def vds_deduction_register(env, date_from=None, date_to=None, **params):
             "source": "Source Document",
             "challan": "Challan No",
             "state": "State",
+            "basis": "Rate Basis",
         },
         "rows": rows,
         "totals": {
@@ -590,6 +691,7 @@ def sd_at_liability(env, date_from=None, date_to=None, **params):
 REPORTS = {
     "sd_at_liability": sd_at_liability,
     "statutory_calendar": statutory_calendar,
+    "signoff_queue": signoff_queue,
     "mushak_610": mushak_610,
     "note_register": note_register,
     "vat_return_draft": vat_return_draft,

@@ -182,8 +182,9 @@ class TestStatutoryCalendar:
 class TestChallan:
     def test_link_confirm_post_and_certify_flow(self, tax):
         env = tax["env"]
-        a = _deduction(tax, amount=400.0)
-        b = _deduction(tax, amount=600.0)
+        # two bills: two deductions on ONE bill are duplicates (A08 M51-8)
+        a = _deduction(tax, amount=400.0, source_ref="BILL-LINK-A")
+        b = _deduction(tax, amount=600.0, source_ref="BILL-LINK-B")
         _deduction(tax, kind="vds", amount=900.0)  # other tax: not linked
         challan = env["fix.tax.challan"].create(
             {

@@ -85,6 +85,10 @@ METHOD_ROLE = {
 # Hours a payment link stays valid (FR-ARB-015); 48 h is the engine's
 # original default.
 PARAM_LINK_HOURS = "cd_billing_engine.payment_link_hours"
+# BRU-ARB-22 / FR-ARB-024: a receipt unapplied longer than this is escalated.
+# 7 days is the spec's own measure ("Unapplied receipts older than 7 days").
+PARAM_UNAPPLIED_DAYS = "cd_billing_engine.unapplied_escalation_days"
+DEFAULT_UNAPPLIED_DAYS = 7.0
 DEFAULT_LINK_HOURS = 48.0
 _HOLD_TOKEN = object()
 
@@ -380,6 +384,14 @@ class FixArReceipt(models.Model):
     allocation_ids = fields.One2many("fix.ar.allocation", "receipt_id", string="Allocations")
     allocated_amount = fields.Monetary(compute="_compute_allocation", store=True)
     unapplied_amount = fields.Monetary(compute="_compute_allocation", store=True)
+    unapplied_escalated_at = fields.Datetime(
+        string="Unapplied Escalated On",
+        readonly=True,
+        copy=False,
+        help="When this receipt was escalated to the Accounting Administrators for sitting "
+        "unapplied past the configured age (BRU-ARB-22). The job only flags it; the receipt "
+        "is never netted against another balance.",
+    )
     posted_move_id = fields.Many2one("account.move", readonly=True, copy=False)
     gl_note = fields.Char(readonly=True, copy=False)
     reversal_reason = fields.Char(readonly=True)
@@ -643,6 +655,56 @@ class FixArReceipt(models.Model):
                     )
         proposals.sort(key=lambda p: -p["score"])
         return proposals
+
+
+class FixArReceiptUnapplied(models.Model):
+    """BRU-ARB-22 / AUT-ARB-20: unapplied receipts are aged and escalated."""
+
+    _inherit = "fix.ar.receipt"
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"unapplied_escalated_at"}
+
+    @api.model
+    def _cron_escalate_unapplied(self):
+        """Daily: flag each confirmed receipt with money unapplied past the
+        configured age, once, with a to-do for the Accounting Administrators.
+        Moves no money and posts nothing. Returns how many were escalated."""
+        days = float_param(self.env, PARAM_UNAPPLIED_DAYS, DEFAULT_UNAPPLIED_DAYS)
+        cutoff = fields.Date.context_today(self) - timedelta(days=int(days))
+        rows = self.sudo().search(
+            [
+                ("state", "=", "confirmed"),
+                ("unapplied_amount", ">", 0.005),
+                ("receipt_date", "<=", cutoff),
+                ("unapplied_escalated_at", "=", False),
+            ]
+        )
+        group = self.env.ref(GROUP_ADMINISTRATOR, raise_if_not_found=False)
+        holders = group.sudo().all_user_ids.filtered("active") if group else self.env["res.users"]
+        for receipt in rows:
+            receipt._guarded().write({"unapplied_escalated_at": fields.Datetime.now()})
+            body = (
+                "Receipt %s: BDT %.2f of %s from %s is still unapplied after %s day(s) "
+                "(BRU-ARB-22): apply it to the customer's open invoices or refund it. It is not "
+                "netted against other balances."
+                % (
+                    receipt.name,
+                    receipt.unapplied_amount,
+                    receipt.method,
+                    receipt.customer_id.display_name,
+                    (fields.Date.context_today(self) - receipt.receipt_date).days,
+                )
+            )
+            receipt.message_post(body=body)
+            for user in holders.filtered(lambda u, r=receipt: r.company_id in u.company_ids)[:1]:
+                receipt.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    summary="Unapplied receipt %s" % receipt.name,
+                    note=body,
+                    user_id=user.id,
+                )
+        return len(rows)
 
 
 class FixArAllocation(models.Model):
@@ -948,6 +1010,7 @@ class FixArDispute(models.Model):
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit", index=True)
     invoice_id = fields.Many2one("fix.ar.invoice", required=True, ondelete="cascade", index=True)
+    name = fields.Char(compute="_compute_name", string="Dispute")
     currency_id = fields.Many2one(related="invoice_id.currency_id")
     amount_disputed = fields.Monetary(currency_field="currency_id", required=True)
     reason = fields.Char(required=True)
@@ -1055,6 +1118,27 @@ class FixArDispute(models.Model):
                     "resolved_at": fields.Datetime.now(),
                 }
             )
+
+    @api.depends("invoice_id.name")
+    def _compute_name(self):
+        for rec in self:
+            rec.name = "Dispute #%s / %s" % (rec.id or "new", rec.invoice_id.name or "")
+
+    # One button per outcome (BRU-ARB-17): the code is chosen, never typed.
+    def action_resolve_upheld_credit(self, note=""):
+        return self.action_resolve(note, outcome_code="upheld_credit")
+
+    def action_resolve_partially_upheld(self, note=""):
+        return self.action_resolve(note, outcome_code="partially_upheld")
+
+    def action_resolve_rejected(self, note=""):
+        return self.action_resolve(note, outcome_code="rejected")
+
+    def action_resolve_withdrawn(self, note=""):
+        return self.action_resolve(note, outcome_code="withdrawn")
+
+    def action_resolve_payment_plan(self, note=""):
+        return self.action_resolve(note, outcome_code="payment_plan")
 
 
 # ---------------------------------------------------------------------------

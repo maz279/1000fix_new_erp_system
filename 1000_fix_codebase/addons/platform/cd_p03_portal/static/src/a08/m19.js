@@ -51,7 +51,10 @@ export const MODULE = {
     { en: 'Controls', screens: [
       { id: 'M19-suspense', en: 'Suspense & Control Accounts', bn: 'সাসপেন্স', t: 'g' },
       { id: 'M19-recon', en: 'Subledger vs Control', bn: 'উপ-খতিয়ান মিলকরণ', t: 'c' },
-      { id: 'M19-audit', en: 'Immutable Audit Trail', bn: 'নিরবচ্ছিন্ন অডিট', t: 'g' }
+      { id: 'M19-audit', en: 'Immutable Audit Trail', bn: 'নিরবচ্ছিন্ন অডিট', t: 'g' },
+      { id: 'M19-reopens', en: 'Period Reopen Requests', bn: 'পিরিয়ড পুনরায় খোলার অনুরোধ', t: 'g' },
+      { id: 'M19-control-changes', en: 'Control Account Changes', bn: 'নিয়ন্ত্রণ হিসাব পরিবর্তন', t: 'g' },
+      { id: 'M19-tp-rates', en: 'Transfer-Pricing Rates', bn: 'স্থানান্তর মূল্য হার', t: 'g' }
     ]},
     { en: 'Group & Inter-Branch', bn: 'গ্রুপ ও আন্তঃশাখা', screens: [
       { id: 'M19-consol-books', en: 'Consolidation Books', bn: 'একীভূতকরণ খাতা', t: 'c' },
@@ -65,11 +68,11 @@ export const MODULE = {
   forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   freg: { src: 91, sub: [
-    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader'] }],
+    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'] }],
     ['2', 'Journals', 11, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je'] }],
     ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'] }],
-    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla'] }],
-    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol'] }],
+    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'] }],
+    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol', 'M19-tp-rates'] }],
     ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'] }],
     ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'] }],
     ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'] }],
@@ -274,11 +277,15 @@ export const SCREENS = {
       },
       {
         title: 'Matching (system)',
-        note: 'Populated by “Post & Mirror” and “Match Against Ledger” — read-only here.',
+        note: 'Populated by “Post & Mirror” and “Match Against Ledger” — read-only here. A priced charge posts at the approved transfer-pricing rate on its date; a user of the counterparty entity, not the poster, matches it.',
         fields: [
           { name: 'mirror_invoice_ref', readonly: true, label: 'Mirror Invoice Ref' },
           { name: 'match_difference', readonly: true, label: 'Match Difference' },
-          { name: 'matched_date', readonly: true, label: 'Matched Timestamp' }
+          { name: 'matched_date', readonly: true, label: 'Matched Timestamp' },
+          { name: 'cost_amount', readonly: true, label: 'Cost Before Markup' },
+          { name: 'tp_rate_id', readonly: true, label: 'Approved TP Rate Applied' },
+          { name: 'mirrored_by_id', readonly: true, label: 'Mirror Posted By' },
+          { name: 'matched_by_id', readonly: true, label: 'Matched By' }
         ]
       }
     ]
@@ -417,8 +424,13 @@ export const SCREENS = {
     model: 'fix.intercompany.rule',
     title: "Intercompany Rule",
     back: 'M19-ic-rules',
+    tabs: [
+      { id: 'rule', label: 'Rule', bn: 'নিয়ম' },
+      { id: 'posting', label: 'Posting Accounts', bn: 'পোস্টিং হিসাব' },
+      { id: 'pricing', label: 'Transfer Pricing', bn: 'স্থানান্তর মূল্য' }
+    ],
     sections: [
-      { title: "Intercompany Rule", note: "The rule that pairs an intercompany transaction with its mirror entry in the counterpart entity.",
+      { tab: 'rule', title: "Intercompany Rule", note: "The rule that pairs an intercompany transaction with its mirror entry in the counterpart entity.",
         fields: [
           { name: 'name', required: true, label: "Rule Name" },
           { name: 'code', required: true, label: "Rule Code" },
@@ -427,7 +439,129 @@ export const SCREENS = {
           { name: 'source_entity_id', required: true, label: "Selling / Supplying Entity" },
           { name: 'target_entity_id', required: true, label: "Purchasing / Receiving Entity" },
           { name: 'transaction_type', required: true, label: "Transaction Category" },
-          { name: 'source_branch_id', label: "Supplying Branch" }
+          { name: 'source_branch_id', label: "Supplying Branch" },
+          { name: 'target_branch_id', label: "Receiving Branch" }
+        ] },
+      { tab: 'posting', title: "Posting Accounts", note: "Both sides post on these; a charge under a rule with any of them missing is refused, naming what is missing. An inter-branch rule uses the supplying side's journal only.",
+        fields: [
+          { name: 'source_journal_id', label: "Supplying Side Journal" },
+          { name: 'source_receivable_account_id', label: "Due-From Account" },
+          { name: 'source_income_account_id', label: "Recharge Income Account" },
+          { name: 'target_journal_id', label: "Receiving Side Journal" },
+          { name: 'target_expense_account_id', label: "Recharge Expense Account" },
+          { name: 'target_payable_account_id', label: "Due-To Account" }
+        ] },
+      { tab: 'pricing', title: "Transfer Pricing", note: "The markup a charge under this rule is priced at. It must equal an approved rate in force on the charge's date (Transfer-Pricing Rates); a markup with no approved rate is refused at posting.",
+        fields: [
+          { name: 'markup_percent', label: "Transfer Pricing Markup (%)" },
+          { name: 'documentation_ref', label: "TP Documentation Ref" },
+          { name: 'transfer_pricing_compliant', readonly: true, label: "Approved Rate in Force" }
+        ] }
+    ]
+  },
+
+  /* A08 finish: the screens the close, the control flag and transfer pricing
+   * could not be operated without. Decisions stay in the M63 approval inbox. */
+  'M19-form-period-close': {
+    kind: 'model_form',
+    model: 'fix.period.close',
+    title: "Period Close",
+    back: 'M19-period-close',
+    status: { field: 'state', labels: { open: 'Open', in_progress: 'In Progress', ready_to_close: 'Ready to Close', closed: 'Closed' } },
+    tabs: [
+      { id: 'period', label: 'Period', bn: 'পিরিয়ড' },
+      { id: 'suspense', label: 'Inventory Suspense', bn: 'ইনভেন্টরি সাসপেন্স' },
+      { id: 'closure', label: 'Closure', bn: 'সমাপ্তি' }
+    ],
+    sections: [
+      { tab: 'period', title: "Period", note: "One close per company and month-end. Save, then Generate SOP Steps; the steps are worked in the Month-End Close Console.",
+        fields: [
+          { name: 'period_end', required: true, label: "Period End (last day of the month)" },
+          { name: 'company_id', required: true, label: "Company" },
+          { name: 'operating_unit_id', label: "Operating Unit" },
+          { name: 'state', readonly: true, label: "State" },
+          { name: 'started_at', readonly: true, label: "Started At" },
+          { name: 'target_completion_date', readonly: true, label: "Target Completion Date" },
+          { name: 'sla_status', readonly: true, label: "SLA Performance" }
+        ] },
+      { tab: 'suspense', title: "Inventory Suspense Cutover", note: "Draft the cutover journal (Journal Entry screen) for the pending suspense, have it approved, select it here, then Reconcile. Pending suspense blocks the close.",
+        fields: [
+          { name: 'cutover_move_id', label: "Suspense Cutover Journal Entry" },
+          { name: 'suspense_closing', readonly: true, label: "Suspense Still Pending After Reconciling" },
+          { name: 'suspense_reconciled', readonly: true, label: "Suspense Reconciled" },
+          { name: 'cutover_voucher_ref', readonly: true, label: "Cutover Voucher" }
+        ] },
+      { tab: 'closure', title: "Closure (system)", note: "Stamped by the Ready Check and by Close & Lock.",
+        fields: [
+          { name: 'ready_by_id', readonly: true, label: "Ready Check By" },
+          { name: 'closed_by_id', readonly: true, label: "Closed By" },
+          { name: 'closed_at', readonly: true, label: "Closed At" },
+          { name: 'lock_date_set', readonly: true, label: "Lock Date Set" },
+          { name: 'is_locked', readonly: true, label: "Ledger Locked" }
+        ] }
+    ]
+  },
+  'M19-form-reopen': {
+    kind: 'model_form',
+    model: 'fix.period.reopen',
+    title: "Period Reopen Request",
+    back: 'M19-reopens',
+    status: { field: 'state', labels: { draft: 'Draft', pending: 'Awaiting Approval', approved: 'Approved (exception active)', rejected: 'Rejected', revoked: 'Revoked' } },
+    sections: [
+      { title: "Request", note: "One named user may post into a closed period until the end time (3 days at most). Save, then Submit; an Accounting Administrator other than the closer, the requester and that user decides it in the approval inbox. Once submitted the request is frozen.",
+        fields: [
+          { name: 'close_id', required: true, label: "Closed Period" },
+          { name: 'user_id', required: true, label: "Posting User" },
+          { name: 'end_datetime', required: true, label: "Exception Ends" },
+          { name: 'reason', required: true, label: "Reason" },
+          { name: 'state', readonly: true, label: "Status" }
+        ] },
+      { title: "Decision (system)", note: "Stamped when the request is submitted and decided.",
+        fields: [
+          { name: 'approval_state', readonly: true, label: "Approval" },
+          { name: 'requested_by_id', readonly: true, label: "Requested By" },
+          { name: 'approved_by_id', readonly: true, label: "Approved By" },
+          { name: 'approved_at', readonly: true, label: "Approved At" }
+        ] }
+    ]
+  },
+  'M19-form-control-change': {
+    kind: 'model_form',
+    model: 'fix.chart.control.change',
+    title: "Control Account Change",
+    back: 'M19-control-changes',
+    status: { field: 'state', labels: { draft: 'Draft', pending: 'Pending', applied: 'Applied', rejected: 'Rejected' } },
+    sections: [
+      { title: "Proposal", note: "The control flag of a statutory account changes only through this proposal: it applies when an Accounting Administrator other than the proposer approves it in the approval inbox. Once submitted the proposal is frozen.",
+        fields: [
+          { name: 'account_id', required: true, label: "Statutory Account" },
+          { name: 'new_is_control', label: "Control Account" },
+          { name: 'new_subledger', label: "Control Subledger" },
+          { name: 'reason', required: true, label: "Reason" },
+          { name: 'state', readonly: true, label: "Status" },
+          { name: 'approval_state', readonly: true, label: "Approval" },
+          { name: 'requested_by_id', readonly: true, label: "Proposed By" },
+          { name: 'applied_by_id', readonly: true, label: "Applied By" }
+        ] }
+    ]
+  },
+  'M19-form-tp-rate': {
+    kind: 'model_form',
+    model: 'fix.transfer.price.rate',
+    title: "Transfer-Pricing Rate",
+    back: 'M19-tp-rates',
+    status: { field: 'state', labels: { draft: 'Proposed', active: 'Approved & Active', retired: 'Retired' } },
+    sections: [
+      { title: "Rate", note: "An accountant proposes the markup of a rule for an effective period, on the transfer-pricing study it rests on; an Accounting Administrator other than the proposer approves it. The rule's own markup must then equal it. An approved rate is frozen: retire it and propose a new one.",
+        fields: [
+          { name: 'rule_id', required: true, label: "Inter-Company Rule" },
+          { name: 'markup_percent', required: true, label: "Approved Markup (%)" },
+          { name: 'date_from', required: true, label: "Effective From" },
+          { name: 'date_to', label: "Effective To" },
+          { name: 'study_ref', required: true, label: "Transfer-Pricing Study / Basis" },
+          { name: 'state', readonly: true, label: "Status" },
+          { name: 'approved_by_id', readonly: true, label: "Approved By" },
+          { name: 'approved_at', readonly: true, label: "Approved At" }
         ] }
     ]
   },
@@ -441,12 +575,30 @@ export const SCREENS = {
     actions: [{ m: 'action_lock_journals', l: 'Re-apply Lock (Accounting Administrator)' }] },
   'M19-journal-dimension': { kind: 'model_list', model: 'fix.journal.dimension', create: false,
     cols: ['company_id', 'operating_unit_id', 'branch_id', 'cost_centre', 'business_line', 'project_ref', 'brand'] },
-  'M19-period-close': { kind: 'model_list', model: 'fix.period.close', stateField: 'state', create: false,
-    cols: ['state', 'company_id', 'operating_unit_id', 'period_end', 'started_at', 'is_locked', 'closed_by_id', 'lock_date_set'],
+  'M19-period-close': { kind: 'model_list', model: 'fix.period.close', stateField: 'state',
+    cols: ['period_end', 'state', 'company_id', 'started_at', 'cutover_move_id', 'suspense_reconciled', 'is_locked', 'closed_by_id', 'lock_date_set'],
     actions: [
       { m: 'action_generate_standard_steps', l: 'Generate SOP Steps' },
+      { m: 'action_set_cutover_entry', l: 'Set Cutover Entry', ask: 'Number of the posted suspense cutover entry', kwarg: 'entry' },
+      { m: 'action_reconcile_inventory_suspense', l: 'Reconcile Suspense' },
       { m: 'action_ready', l: 'Ready Check' },
       { m: 'action_close', l: 'Close & Lock (Accounting Administrator)' },
+      { m: 'action_request_reopen', l: 'Request Reopen (for me)', ask: 'Why must this closed period reopen? (an exception for you, for the longest window allowed)', kwarg: 'reason' },
+    ] },
+  'M19-reopens': { kind: 'model_list', model: 'fix.period.reopen', stateField: 'state',
+    cols: ['close_id', 'period_end', 'user_id', 'end_datetime', 'reason', 'requested_by_id', 'approval_state', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval' },
+      { m: 'action_revoke', l: 'Revoke (Accounting Administrator)' },
+    ] },
+  'M19-control-changes': { kind: 'model_list', model: 'fix.chart.control.change', stateField: 'state',
+    cols: ['account_id', 'new_is_control', 'new_subledger', 'reason', 'requested_by_id', 'approval_state', 'applied_by_id', 'state'],
+    actions: [{ m: 'action_submit', l: 'Submit for Approval' }] },
+  'M19-tp-rates': { kind: 'model_list', model: 'fix.transfer.price.rate', stateField: 'state',
+    cols: ['rule_id', 'markup_percent', 'date_from', 'date_to', 'study_ref', 'approved_by_id', 'approved_at', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Approve & Activate (Accounting Administrator)' },
+      { m: 'action_retire', l: 'Retire (Accounting Administrator)' },
     ] },
 
   'M19-form-chart-account': {
@@ -504,6 +656,10 @@ export const FORM_CHIPS = {
   'M19:Recurring Journal Template': 'M19-form-template',
   'M19:Nil Return Declaration': 'M19-form-nil',
   'M19:__by_model__': {
+    'fix.period.close': 'M19-form-period-close',
+    'fix.period.reopen': 'M19-form-reopen',
+    'fix.chart.control.change': 'M19-form-control-change',
+    'fix.transfer.price.rate': 'M19-form-tp-rate',
     'fix.fx.revaluation': 'M19-form-fx',
     'fix.chart.account': 'M19-form-chart-account',
     'fix.chart.loader': 'M19-form-coaload',
@@ -516,6 +672,10 @@ export const FORM_CHIPS = {
     'fix.nil.return.generator': 'M19-form-nil'
   },
   'M19:__by_screen__': {
+    'M19-period-close': 'M19-form-period-close',
+    'M19-reopens': 'M19-form-reopen',
+    'M19-control-changes': 'M19-form-control-change',
+    'M19-tp-rates': 'M19-form-tp-rate',
     'M19-fx-revaluation': 'M19-form-fx',
     'M19-chart-account': 'M19-form-chart-account',
     'M19-coa-loader': 'M19-form-coaload',

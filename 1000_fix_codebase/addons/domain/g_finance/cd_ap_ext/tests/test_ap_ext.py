@@ -17,10 +17,38 @@ pytestmark = [pytest.mark.financial, pytest.mark.tax]
 
 
 class TestThreeWayMatch:
-    def test_model_exists(self):
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
+    def test_unmatched_po_bill_is_refused_payment(self, odoo_env):
+        """G3-06, as behaviour: a purchase-order bill with no order behind it is
+        unmatched, and the payment request refuses it and publishes nothing."""
+        from odoo.exceptions import UserError
 
-        assert FixVendorInvoice is not None
+        env = odoo_env
+        ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
+        bill = env["fix.vendor.invoice"].create(
+            {
+                "operating_unit_id": ou.id,
+                "vendor_id": env["res.partner"].create({"name": "G3-06 vendor"}).id,
+                "invoice_ref": "G3-06-1",
+                "bill_type": "po",
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "product_id": env["product.product"].create({"name": "G3-06"}).id,
+                            "description": "G3-06",
+                            "quantity": 1.0,
+                            "unit_price": 100.0,
+                        },
+                    )
+                ],
+            }
+        )
+        assert bill.match_state == "unmatched"
+        with pytest.raises(UserError, match="G3-06"):
+            bill.action_request_payment()
+        assert bill.payment_state == "not_paid"
+        assert not env["fix.ap.bill.payment"].sudo().search([("bill_id", "=", bill.id)])
 
     def test_match_states_block_not_warn(self):
         """G3-06: the match outcome set includes 'blocked' — an unmatched

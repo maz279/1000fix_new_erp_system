@@ -592,7 +592,7 @@ class TestEmployeeExpense:
                 "employee_id": s["employee"].id,
                 "description": "Site visit Chattogram",
                 "expense_date": "2026-10-10",
-                "line_ids": [(0, 0, line) for line in lines],
+                "line_ids": [(0, 0, {"cost_centre": "CC-T", **line}) for line in lines],
                 **vals,
             }
         )

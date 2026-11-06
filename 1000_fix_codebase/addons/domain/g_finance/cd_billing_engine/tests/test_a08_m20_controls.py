@@ -113,6 +113,25 @@ def as_(c, user):
     return c.env(user=user.id)
 
 
+def ecl_rates(c):
+    """The approved IFRS 9 loss rates a run stamps at Compute (M20-5)."""
+    rates = as_(c, c.mgr)["fix.ar.ecl.rate"].create(
+        {
+            "name": "ECL %s" % c.tag,
+            "company_id": c.company.id,
+            "date_from": date(2020, 1, 1),
+            "rate_current": 0.5,
+            "rate_1_30": 2.0,
+            "rate_31_60": 10.0,
+            "rate_61_90": 25.0,
+            "rate_90_plus": 50.0,
+            "basis_note": "control suite",
+        }
+    )
+    rates.with_user(c.mgr2).action_approve()
+    return rates
+
+
 def inv(c, maker=None, taxable=10000.0, issue=True, when=None, issuer=None, **line):
     """A manual invoice raised by `maker` and issued by a second person."""
     maker = maker or c.acct
@@ -120,7 +139,9 @@ def inv(c, maker=None, taxable=10000.0, issue=True, when=None, issuer=None, **li
     if when:
         vals["invoice_date"] = when
     i = as_(c, maker)["fix.ar.invoice"].create_manual_invoice(
-        vals, [dict({"description": "Job", "taxable_amount": taxable}, **line)], reason_code="B4 test"
+        vals,
+        [dict({"description": "Job", "taxable_amount": taxable}, **line)],
+        reason_code="B4 test",
     )
     if issue:
         i.with_user(issuer or (c.acct2 if maker != c.acct2 else c.acct)).action_issue()
@@ -190,7 +211,9 @@ def p03(c):
 
     ctl = g.P03GenericApiController()
     mw = getattr(
-        g.P03GenericApiController.model_write, "original_endpoint", g.P03GenericApiController.model_write
+        g.P03GenericApiController.model_write,
+        "original_endpoint",
+        g.P03GenericApiController.model_write,
     )
     old = getattr(g, "request", None)
     holder = types.SimpleNamespace(env=None)
@@ -222,7 +245,9 @@ def test_ref_02_receipt_confirm_posts_cash_against_ar(c):
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0)
     assert lines(r.posted_move_id) == sorted([("101401", 11500.0, 0.0), ("121000", 0.0, 11500.0)])
-    as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+    as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+    )
     assert i.state == "paid"
 
 
@@ -386,6 +411,7 @@ def test_m20_13_write_off_state_cannot_be_written(c):
 
 
 def test_m20_14_write_off_uses_the_ecl_allowance_first(c):
+    ecl_rates(c)
     i = inv(c, c.acct, 10000.0, when=date.today() - timedelta(days=200))
     run = as_(c, c.acct)["fix.ar.impairment"].create(
         {
@@ -419,6 +445,7 @@ def test_m20_15_plain_user_cannot_touch_the_ecl_run(c):
 
 
 def test_m20_16_existing_provision_is_measured_not_typed(c):
+    ecl_rates(c)
     inv(c, c.acct, 10000.0, when=date.today() - timedelta(days=200))
     run = as_(c, c.acct)["fix.ar.impairment"].create(
         {
@@ -438,6 +465,7 @@ def test_m20_16_existing_provision_is_measured_not_typed(c):
 
 
 def test_m20_17_ecl_post_is_a_review_by_another_administrator(c):
+    ecl_rates(c)
     inv(c, c.acct, 10000.0, when=date.today() - timedelta(days=200))
     run = as_(c, c.mgr)["fix.ar.impairment"].create(
         {
@@ -445,7 +473,6 @@ def test_m20_17_ecl_post_is_a_review_by_another_administrator(c):
             "journal_id": c.journal.id,
             "expense_account_id": c.acc["ecl_expense"].id,
             "provision_account_id": c.acc["ecl_provision"].id,
-            "rate_90_plus": 0.01,
         }
     )
     run.action_compute()
@@ -473,7 +500,9 @@ def test_m20_18_batch_over_allocation_refused(c):
 def test_m20_19_allocation_write_checked(c):
     i = inv(c)
     r = rcpt(c, c.acct, 1000.0)
-    a = as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 100.0})
+    a = as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 100.0}
+    )
     with pytest.raises(UserError):
         a.write({"amount": 11500.0})
     a.write({"amount": 900.0})
@@ -493,7 +522,12 @@ def test_m20_21_receipt_state_cannot_be_forged(c):
         r.write({"state": "confirmed"})
     with pytest.raises(UserError):
         as_(c, c.acct)["fix.ar.receipt"].create(
-            {"company_id": c.company.id, "customer_id": c.customer.id, "amount": 5.0, "state": "confirmed"}
+            {
+                "company_id": c.company.id,
+                "customer_id": c.customer.id,
+                "amount": 5.0,
+                "state": "confirmed",
+            }
         )
 
 
@@ -508,7 +542,9 @@ def test_m20_22_invoice_paid_only_with_evidence(c):
 def test_m20_23_unlink_allocation_of_paid_invoice_refused(c):
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0)
-    a = as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+    a = as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+    )
     with pytest.raises(UserError):
         a.unlink()
 
@@ -517,7 +553,9 @@ def test_m20_24_cross_customer_allocation_refused(c):
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0, customer=c.customer2)
     with pytest.raises(UserError):
-        as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+        as_(c, c.acct)["fix.ar.allocation"].create(
+            {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+        )
 
 
 def test_m20_25_cash_nid_must_be_a_national_id(c):
@@ -540,14 +578,18 @@ def test_m20_26_cumulative_disputes_capped_at_open_amount(c):
 
 def test_m20_27_open_dispute_holds_dunning(c):
     i = inv(c, when=date.today() - timedelta(days=90))
-    as_(c, c.acct)["fix.ar.dispute"].create({"invoice_id": i.id, "amount_disputed": 11500.0, "reason": "wrong part"})
+    as_(c, c.acct)["fix.ar.dispute"].create(
+        {"invoice_id": i.id, "amount_disputed": 11500.0, "reason": "wrong part"}
+    )
     c.env["fix.dunning"].action_run_dunning()
     assert not c.env["fix.dunning"].search([("invoice_id", "=", i.id)])
 
 
 def test_m20_28_dispute_closed_by_a_second_person_with_an_outcome(c):
     i = inv(c, when=date.today() - timedelta(days=90))
-    d = as_(c, c.acct)["fix.ar.dispute"].create({"invoice_id": i.id, "amount_disputed": 11500.0, "reason": "x"})
+    d = as_(c, c.acct)["fix.ar.dispute"].create(
+        {"invoice_id": i.id, "amount_disputed": 11500.0, "reason": "x"}
+    )
     with pytest.raises(UserError):
         d.action_resolve(note="checked", outcome_code="rejected")
     with pytest.raises(UserError):
@@ -572,7 +614,12 @@ def test_m20_29_dunning_suppression_is_kept_with_who_why_until(c):
 
 def test_m20_30_credit_hold_released_by_a_senior_role(c):
     prof = as_(c, c.acct)["fix.credit.profile"].create(
-        {"company_id": c.company.id, "customer_id": c.customer.id, "credit_hold": True, "hold_reason": "overdue 90+"}
+        {
+            "company_id": c.company.id,
+            "customer_id": c.customer.id,
+            "credit_hold": True,
+            "hold_reason": "overdue 90+",
+        }
     )
     with pytest.raises(UserError):
         inv(c, c.acct)
@@ -707,7 +754,9 @@ def test_m20_39_consolidated_bill_takes_issued_invoices_only(c):
 def test_m20_40_payment_link_asks_the_residual_and_expires(c):
     i = inv(c)
     r = rcpt(c, c.acct, 5000.0)
-    as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 5000.0})
+    as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 5000.0}
+    )
     link = as_(c, c.acct)["fix.ar.payment.link"].create({"invoice_id": i.id})
     assert link.amount == i.amount_residual == 6500.0
     with pytest.raises(UserError):
@@ -752,7 +801,9 @@ def test_m20_43_p03_cannot_forge_credit_note_state(c, p03):
 
 
 def test_m20_44_p03_plain_user_cannot_post_ecl(c, p03):
-    run = c.env["fix.ar.impairment"].create({"company_id": c.company.id, "journal_id": c.journal.id})
+    run = c.env["fix.ar.impairment"].create(
+        {"company_id": c.company.id, "journal_id": c.journal.id}
+    )
     out = p03.write(
         c.plain,
         model="fix.ar.impairment",
@@ -766,7 +817,9 @@ def test_m20_44_p03_plain_user_cannot_post_ecl(c, p03):
 def test_m20_45_p03_cannot_verify_vds(c, p03):
     i = inv(c)
     v = vds(c, c.acct, i, 1500.0)
-    out = p03.write(c.acct, model="fix.vds.certificate.received", record_id=v.id, values={"state": "verified"})
+    out = p03.write(
+        c.acct, model="fix.vds.certificate.received", record_id=v.id, values={"state": "verified"}
+    )
     v.invalidate_recordset()
     assert out.get("error") and v.state == "draft"
 
@@ -780,7 +833,9 @@ def test_m20_46_first_issue_in_a_company_works_for_an_accountant(c_raw):
 def test_m20_47_p03_refuses_readonly_stamp(c, p03):
     i = inv(c, c.acct, 100000.0)
     n = cn(c, c.acct, i, 50000.0)
-    out = p03.write(c.acct, model="fix.credit.note", record_id=n.id, values={"approved_by": c.mgr.id})
+    out = p03.write(
+        c.acct, model="fix.credit.note", record_id=n.id, values={"approved_by": c.mgr.id}
+    )
     n.invalidate_recordset()
     assert out.get("error") and not n.approved_by
 
@@ -796,20 +851,35 @@ def test_m20_ar_invoice_api_for_disposals(c):
     """B4 -> B5 contract: a system invoice for an approved source, issued with
     M51 VAT and credited to the account the caller names; idempotent."""
     source = c.env["res.partner"].create({"name": "Disposal source %s" % c.tag})
-    proceeds = c.env["account.account"].with_company(c.company).create(
-        {"name": "Disposal proceeds", "code": "480100", "account_type": "income_other",
-         "company_ids": [(6, 0, c.company.ids)]}
+    proceeds = (
+        c.env["account.account"]
+        .with_company(c.company)
+        .create(
+            {
+                "name": "Disposal proceeds",
+                "code": "480100",
+                "account_type": "income_other",
+                "company_ids": [(6, 0, c.company.ids)],
+            }
+        )
     )
     Invoice = as_(c, c.acct)["fix.ar.invoice"]
     i = Invoice._fix_ar_invoice_from_source(
-        source, c.customer, [{"description": "Sale of laptop", "taxable_amount": 20000.0}],
-        "Disposal approved", credit_account=proceeds, operating_unit=c.ou,
+        source,
+        c.customer,
+        [{"description": "Sale of laptop", "taxable_amount": 20000.0}],
+        "Disposal approved",
+        credit_account=proceeds,
+        operating_unit=c.ou,
     )
     assert i.state == "issued" and i.vat_amount == 3000.0
     assert ("480100", 0.0, 20000.0) in lines(i.posted_move_id)
-    assert Invoice._fix_ar_invoice_from_source(
-        source, c.customer, [{"description": "x", "taxable_amount": 1.0}], "again"
-    ) == i
+    assert (
+        Invoice._fix_ar_invoice_from_source(
+            source, c.customer, [{"description": "x", "taxable_amount": 1.0}], "again"
+        )
+        == i
+    )
 
 
 # ============================================================ cheque.bounced (B1 -> B4)
@@ -843,13 +913,23 @@ def _cheque_event(chq):
 
 
 def test_m20_cheque_bounced_reopens_the_invoice_once(c):
-    returned = c.env["account.account"].with_company(c.company).create(
-        {"name": "Returned cheques", "code": "131900", "account_type": "asset_receivable",
-         "company_ids": [(6, 0, c.company.ids)]}
+    returned = (
+        c.env["account.account"]
+        .with_company(c.company)
+        .create(
+            {
+                "name": "Returned cheques",
+                "code": "131900",
+                "account_type": "asset_receivable",
+                "company_ids": [(6, 0, c.company.ids)],
+            }
+        )
     )
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0, method="cheque", reference="CHQ-778899")
-    as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+    as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+    )
     assert i.state == "paid"
     chq = _bounced_cheque(c, r)
     Receipt = c.env["fix.ar.receipt"]
@@ -859,7 +939,9 @@ def test_m20_cheque_bounced_reopens_the_invoice_once(c):
     c.env["ir.config_parameter"].set_param("cd_cash_position.account_code.cheque_returned", False)
     with pytest.raises(UserError, match="cheque_returned"):
         Receipt.consume_cheque_bounced(_cheque_event(chq))
-    c.env["ir.config_parameter"].set_param("cd_cash_position.account_code.cheque_returned", "131900")
+    c.env["ir.config_parameter"].set_param(
+        "cd_cash_position.account_code.cheque_returned", "131900"
+    )
     out = Receipt.consume_cheque_bounced(_cheque_event(chq))
     assert out["created"] and r.state == "reversed" and r.bounced_cheque_id == chq
     i.invalidate_recordset()
@@ -878,7 +960,9 @@ def test_m20_cheque_bounced_reopens_the_invoice_once(c):
 def test_m20_cheque_bounced_before_clearing_reverses_the_receipt_account(c):
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0, method="cheque", reference="CHQ-112233")
-    as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+    as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+    )
     chq = _bounced_cheque(c, r, cleared=False)
     c.env["fix.ar.receipt"].consume_cheque_bounced(_cheque_event(chq))
     assert lines(r.bounce_move_id) == sorted([("121000", 11500.0, 0.0), ("101402", 0.0, 11500.0)])
@@ -888,7 +972,9 @@ def test_m20_cheque_bounced_before_clearing_reverses_the_receipt_account(c):
 def test_m20_forged_cheque_bounce_event_refused(c):
     i = inv(c)
     r = rcpt(c, c.acct, 11500.0, method="cheque", reference="CHQ-445566")
-    as_(c, c.acct)["fix.ar.allocation"].create({"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0})
+    as_(c, c.acct)["fix.ar.allocation"].create(
+        {"receipt_id": r.id, "invoice_id": i.id, "amount": 11500.0}
+    )
     chq = _bounced_cheque(c, r)
     chq.sudo()._guarded().write({"state": "cleared"})
     with pytest.raises(UserError, match="not returned"):
@@ -900,14 +986,22 @@ def test_m20_forged_cheque_bounce_event_refused(c):
 def test_bridge_a_draft_invoice_from_an_external_source_is_idempotent(c):
     Invoice = c.env["fix.ar.invoice"]
     i = Invoice._fix_draft_invoice_from_source(
-        "fix.contract.billing", "CB-2026-11-001", c.customer,
+        "fix.contract.billing",
+        "CB-2026-11-001",
+        c.customer,
         [{"description": "AMC November", "taxable_amount": 8000.0}],
-        "Contract billing, November", company=c.company, operating_unit=c.ou,
+        "Contract billing, November",
+        company=c.company,
+        operating_unit=c.ou,
     )
     assert i.state == "draft" and i.source_ref == "CB-2026-11-001" and i.vat_amount == 1200.0
     again = Invoice._fix_draft_invoice_from_source(
-        "fix.contract.billing", "CB-2026-11-001", c.customer,
-        [{"description": "x", "taxable_amount": 1.0}], "replay", company=c.company,
+        "fix.contract.billing",
+        "CB-2026-11-001",
+        c.customer,
+        [{"description": "x", "taxable_amount": 1.0}],
+        "replay",
+        company=c.company,
     )
     assert again == i
     with pytest.raises(UserError):

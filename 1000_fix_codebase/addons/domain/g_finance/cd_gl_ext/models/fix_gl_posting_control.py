@@ -139,9 +139,7 @@ class AccountMove(models.Model):
             return False
         if "stock_valuation_layer_ids" in move._fields and move.stock_valuation_layer_ids:
             return False
-        if move.reversed_entry_id and move._fix_is_mirror_of(move.reversed_entry_id):
-            return False
-        return True
+        return not (move.reversed_entry_id and move._fix_is_mirror_of(move.reversed_entry_id))
 
     # ---- checks -------------------------------------------------------------
     def _fix_check_control_accounts(self, source=None):
@@ -204,8 +202,10 @@ class AccountMove(models.Model):
             # entry that was approved.
             for move in self:
                 approval = move.sudo().fix_journal_approval_id
-                if approval and approval.lines_snapshot and approval.lines_snapshot != _move_snapshot(
-                    move
+                if (
+                    approval
+                    and approval.lines_snapshot
+                    and approval.lines_snapshot != _move_snapshot(move)
                 ):
                     raise UserError(
                         "Entry %s changed after its approval was requested; the approval no "
@@ -222,8 +222,10 @@ class AccountMove(models.Model):
                     % ", ".join(protected.mapped("name"))
                 )
         result = super().button_draft()
-        approvals = self.env["fix.journal.approval"].sudo().search(
-            [("move_id", "in", self.ids), ("state", "in", ("approved", "posted"))]
+        approvals = (
+            self.env["fix.journal.approval"]
+            .sudo()
+            .search([("move_id", "in", self.ids), ("state", "in", ("approved", "posted"))])
         )
         for approval in approvals:
             approval._fix_void("the entry was reset to draft; its approval no longer covers it")
@@ -253,7 +255,10 @@ class AccountMove(models.Model):
         from .fix_gl_ext import post_existing_moves
 
         return post_existing_moves(
-            self.env, self, source=source, source_ref=source_ref,
+            self.env,
+            self,
+            source=source,
+            source_ref=source_ref,
             dimension_by_line=dimension_by_line,
         )
 
@@ -291,7 +296,7 @@ class AccountLockException(models.Model):
                 "Administrator other than the closer (BRU-FIN-06)."
             )
         for vals in vals_list:
-            if self.env.context.get(LOCK_EXC_KEY) is _LOCK_EXC_TOKEN and not self.env.context.get(
+            if self.env.context.get(LOCK_EXC_KEY) is _LOCK_EXC_TOKEN and not self.env.context.get(  # noqa: SIM102
                 "fix_m19_recreate"
             ):
                 if not vals.get("user_id") or not vals.get("end_datetime"):
@@ -311,12 +316,16 @@ class ResCompany(models.Model):
     _inherit = "res.company"
 
     def write(self, vals):
-        if "fiscalyear_lock_date" in vals and not self.env.su and not has_fiscal_lock_token(
-            self.env
+        if (
+            "fiscalyear_lock_date" in vals
+            and not self.env.su
+            and not has_fiscal_lock_token(self.env)
         ):
-            new = fields.Date.to_date(vals["fiscalyear_lock_date"]) if vals[
-                "fiscalyear_lock_date"
-            ] else None
+            new = (
+                fields.Date.to_date(vals["fiscalyear_lock_date"])
+                if vals["fiscalyear_lock_date"]
+                else None
+            )
             today = fields.Date.context_today(self)
             for company in self:
                 current = company.fiscalyear_lock_date
@@ -402,7 +411,9 @@ class FixJournalApproval(models.Model):
     def _compute_name(self):
         for rec in self:
             move = rec.move_id.sudo()
-            rec.name = "JE approval %s" % (move.name if move.name and move.name != "/" else move.ref or move.id)
+            rec.name = "JE approval %s" % (
+                move.name if move.name and move.name != "/" else move.ref or move.id
+            )
 
     @api.depends("move_id.line_ids.debit")
     def _compute_amount(self):
@@ -427,7 +438,10 @@ class FixJournalApproval(models.Model):
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "manual journal %s of BDT %.2f" % (self.move_id.sudo().display_name, self._dofa_amount())
+        return "manual journal %s of BDT %.2f" % (
+            self.move_id.sudo().display_name,
+            self._dofa_amount(),
+        )
 
     def _fix_conflicted_users(self):
         """Preparer, requester, and whoever created or edited the entry."""
@@ -441,6 +455,14 @@ class FixJournalApproval(models.Model):
             | rec.move_id.line_ids.mapped("write_uid")
             | rec.approval_request_id.requested_by_id
         )
+        if rec.id:
+            # a re-routed entry: whoever requested it in an earlier round too
+            users |= (
+                self.env["fix.approval.request"]
+                .sudo()
+                .search([("res_model", "=", self._name), ("res_id", "=", rec.id)])
+                .mapped("requested_by_id")
+            )
         return users.filtered(lambda u: not u._is_superuser())
 
     def _approval_excluded(self):
@@ -478,7 +500,8 @@ class FixJournalApproval(models.Model):
         if clash:
             raise UserError(
                 "Segregation of duties (BRU-FIN-11): %s prepared or edited %s and cannot "
-                "approve it, at any value." % (", ".join(clash.mapped("name")), self.move_id.display_name)
+                "approve it, at any value."
+                % (", ".join(clash.mapped("name")), self.move_id.display_name)
             )
 
     def action_dofa_approve(self):
@@ -509,7 +532,11 @@ class FixJournalApproval(models.Model):
                 rec._guarded().write({"lines_snapshot": _move_snapshot(move)})
             move.with_context(**m19_context(rec.source or "manual"))._post(soft=False)
             rec._guarded().write(
-                {"state": "posted", "posted_by_id": self.env.uid, "posted_at": fields.Datetime.now()}
+                {
+                    "state": "posted",
+                    "posted_by_id": self.env.uid,
+                    "posted_at": fields.Datetime.now(),
+                }
             )
             if rec.log_id:
                 rec.log_id.with_context(force_edit=True).sudo().write(
@@ -524,7 +551,9 @@ class FixJournalApproval(models.Model):
             else:
                 _log_posting(self.env, move, rec.source or "manual", rec.requested_by_id.id, None)
             _publish_posted(self.env, move, rec.source or "manual")
-            rec.message_post(body="Journal entry %s approved and posted by %s." % (move.name, self.env.user.name))
+            rec.message_post(
+                body="Journal entry %s approved and posted by %s." % (move.name, self.env.user.name)
+            )
 
     def _approval_on_rejected(self, comment):
         for rec in self.sudo():
@@ -577,7 +606,19 @@ class FixPeriodReopen(models.Model):
     requested_by_id = fields.Many2one("res.users", readonly=True)
     approved_by_id = fields.Many2one("res.users", readonly=True)
     approved_at = fields.Datetime(readonly=True)
-    lock_exception_id = fields.Many2one("account.lock_exception", readonly=True, ondelete="set null")
+    lock_exception_id = fields.Many2one(
+        "account.lock_exception", readonly=True, ondelete="set null"
+    )
+
+    _TERMS = ("close_id", "user_id", "end_datetime", "reason")
+
+    @api.depends("period_end", "user_id")
+    def _compute_display_name(self):
+        for rec in self:
+            rec.display_name = "Reopen %s for %s" % (
+                rec.period_end or "",
+                rec.user_id.sudo().name or "",
+            )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -587,6 +628,21 @@ class FixPeriodReopen(models.Model):
             "approved_at",
             "lock_exception_id",
         }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(rec.state != "draft" for rec in self):
+            locked |= set(self._TERMS)
+        return locked
+
+    def write(self, vals):
+        if (
+            set(self._TERMS) & set(vals)
+            and not self._fix_guard_open()
+            and any(rec.state != "draft" for rec in self)
+        ):
+            raise UserError("A submitted reopen request is frozen; raise a new one.")
+        return super().write(vals)
 
     def _approval_pinned_fields(self) -> set:
         return super()._approval_pinned_fields() | {"close_id", "user_id", "end_datetime", "reason"}
@@ -642,7 +698,8 @@ class FixPeriodReopen(models.Model):
                 if clash:
                     raise UserError(
                         "Segregation of duties: %s closed the period, requested the reopen or "
-                        "would post under it, and cannot approve it." % ", ".join(clash.mapped("name"))
+                        "would post under it, and cannot approve it."
+                        % ", ".join(clash.mapped("name"))
                     )
             if rec.state != "pending":
                 raise UserError("The reopen request is not awaiting approval.")
@@ -748,7 +805,12 @@ class FixChartControlChange(models.Model):
     )
     reason = fields.Text(required=True)
     state = fields.Selection(
-        [("draft", "Draft"), ("pending", "Pending"), ("applied", "Applied"), ("rejected", "Rejected")],
+        [
+            ("draft", "Draft"),
+            ("pending", "Pending"),
+            ("applied", "Applied"),
+            ("rejected", "Rejected"),
+        ],
         default="draft",
         required=True,
         tracking=True,
@@ -756,8 +818,30 @@ class FixChartControlChange(models.Model):
     requested_by_id = fields.Many2one("res.users", readonly=True)
     applied_by_id = fields.Many2one("res.users", readonly=True)
 
+    _TERMS = ("account_id", "new_is_control", "new_subledger", "reason")
+
+    @api.depends("account_id")
+    def _compute_display_name(self):
+        for rec in self:
+            rec.display_name = "Control change %s" % (rec.account_id.sudo().account_code or "")
+
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state", "requested_by_id", "applied_by_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(rec.state != "draft" for rec in self):
+            locked |= set(self._TERMS)
+        return locked
+
+    def write(self, vals):
+        if (
+            set(self._TERMS) & set(vals)
+            and not self._fix_guard_open()
+            and any(rec.state != "draft" for rec in self)
+        ):
+            raise UserError("A submitted control change is frozen; propose a new one.")
+        return super().write(vals)
 
     def _approval_pinned_fields(self) -> set:
         return super()._approval_pinned_fields() | {"account_id", "new_is_control", "new_subledger"}
@@ -779,9 +863,13 @@ class FixChartControlChange(models.Model):
         for rec in self:
             if not self.env.su:
                 if not self.env.user.has_group(ACCOUNT_MANAGER):
-                    raise AccessError("A control-account change is approved by an Accounting Administrator.")
+                    raise AccessError(
+                        "A control-account change is approved by an Accounting Administrator."
+                    )
                 if self.env.user in (rec.create_uid | rec.requested_by_id):
-                    raise UserError("Segregation of duties: the proposer cannot approve the change.")
+                    raise UserError(
+                        "Segregation of duties: the proposer cannot approve the change."
+                    )
             if rec.state != "pending":
                 raise UserError("The proposal is not awaiting approval.")
             rec.account_id.sudo().with_context(**{CONTROL_KEY: _CONTROL_TOKEN}).write(
@@ -802,4 +890,3 @@ class FixChartControlChange(models.Model):
 def control_change_context():
     """For the statutory chart loader's governed master-file reload."""
     return {CONTROL_KEY: _CONTROL_TOKEN}
-

@@ -6,6 +6,10 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_fixed_asset_ext.models.fix_asset_common import (
+    attach_upload,
+    attachment_names,
+)
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
@@ -17,6 +21,7 @@ from .fix_ap_controls import (
     GROUP_MANAGER,
     PARAM_CLAIM_MANAGER_STEP,
     PARAM_CLAIM_MANAGER_THRESHOLD,
+    PARAM_CLAIM_REQUIRE_COST_CENTRE,
     PARAM_CLAIM_SPLIT_DAYS,
     bool_param,
     float_param,
@@ -244,6 +249,15 @@ class FixExpenseClaim(models.Model):
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     policy_notes = fields.Text(readonly=True)
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
+    # A08 M52-9: read back from treasury's events
+    payment_move_id = fields.Many2one(
+        "account.move",
+        string="Payable Cleared By",
+        readonly=True,
+        copy=False,
+        help="Dr employee payable / Cr outgoing clearing, when treasury confirmed the payment.",
+    )
+    payment_failure = fields.Char(string="Last Bank Rejection", readonly=True, copy=False)
     # Kept for old callers: the default of the configurable threshold.
     APPROVAL_THRESHOLD = 25000
 
@@ -257,6 +271,8 @@ class FixExpenseClaim(models.Model):
         "policy_notes",
         "move_id",
         "amount",
+        "payment_move_id",
+        "payment_failure",
     }
     CLAIM_TERMS = {
         "employee_id",
@@ -365,6 +381,20 @@ class FixExpenseClaim(models.Model):
         breaches += self._duplicate_receipts()
         return list(dict.fromkeys(breaches))
 
+    def _attribution_breaches(self):
+        """BRU-APE-16: every line is attributed to a cost centre. Checked when
+        the claimant submits, not at approval: a claim already submitted cannot
+        change its lines."""
+        self.ensure_one()
+        if not bool_param(self.env, PARAM_CLAIM_REQUIRE_COST_CENTRE, True):
+            return []
+        return [
+            "%s (%s): name the cost centre this expense belongs to"
+            % (line.category_id.name, line.date)
+            for line in self.line_ids
+            if not (line.cost_centre or "").strip()
+        ]
+
     def _receipt_checksums(self):
         self.ensure_one()
         return {
@@ -466,7 +496,7 @@ class FixExpenseClaim(models.Model):
             ):
                 raise UserError("You submit your own expense claims only.")
             claim._guarded()._compute_amount()
-            breaches = claim._policy_breaches()
+            breaches = claim._policy_breaches() + claim._attribution_breaches()
             if breaches:
                 claim._guarded().write({"policy_notes": "\n".join(breaches)})
                 raise UserError("Expense policy breached:\n%s" % "\n".join(breaches))
@@ -596,7 +626,9 @@ class FixExpenseClaim(models.Model):
         label = "Expense claim EXP/%s %s" % (self.id, employee.name)
         default_expense = None
         lines = []
+        dimensions = {}
         for line in self.line_ids:
+            dimensions[len(lines)] = {"cost_centre": (line.cost_centre or "").strip()}
             account = line.category_id.account_id
             if not account:
                 default_expense = default_expense or ap_account(env, company, "expense")
@@ -621,6 +653,7 @@ class FixExpenseClaim(models.Model):
             label,
             lines,
             self.operating_unit_id,
+            line_dimensions=dimensions,
         )
         self._guarded().write({"move_id": move.id})
 
@@ -648,7 +681,39 @@ class FixExpenseClaimLine(models.Model):
         currency_field="currency_id", help="Actual cost, or the rate master's rate"
     )
     amount = fields.Monetary(currency_field="currency_id", compute="_compute_amount", store=True)
+    cost_centre = fields.Char(
+        string="Cost Centre",
+        help="BRU-APE-16: where this expense belongs. Carried to the GL dimension of the line.",
+    )
     receipt_attachment_ids = fields.Many2many("ir.attachment", string="Receipts")
+    # A08 M52-7: a receipt uploaded on the line's form becomes an attachment
+    receipt_file = fields.Binary(
+        string="Upload Receipt",
+        compute="_compute_receipt_file",
+        inverse="_inverse_receipt_file",
+        attachment=False,
+    )
+    receipt_filename = fields.Char(string="Receipt File Name", copy=False)
+    receipt_names = fields.Char(string="Receipts Attached", compute="_compute_receipt_names")
+
+    def _compute_receipt_file(self):
+        for line in self:
+            line.receipt_file = False
+
+    def _inverse_receipt_file(self):
+        for line in self:
+            attach_upload(
+                line,
+                "receipt_attachment_ids",
+                line.receipt_file,
+                line.receipt_filename,
+                "Receipt EXP/%s %s" % (line.claim_id.id, line.date),
+            )
+
+    @api.depends("receipt_attachment_ids")
+    def _compute_receipt_names(self):
+        for line in self:
+            line.receipt_names = attachment_names(line.receipt_attachment_ids)
 
     @api.depends("quantity", "unit_amount")
     def _compute_amount(self):
@@ -795,6 +860,14 @@ class FixEmployeeAdvance(models.Model):
         help="Posted when the bank returned the disbursement after clearing.",
     )
     settlement_move_id = fields.Many2one("account.move", readonly=True, copy=False)
+    excess_payment_move_id = fields.Many2one(
+        "account.move",
+        string="Excess Payable Cleared By",
+        readonly=True,
+        copy=False,
+        help="Dr employee payable / Cr outgoing clearing for the excess treasury paid.",
+    )
+    cancel_reason = fields.Char(string="Cancelled Because", readonly=True, copy=False)
     recovery_method = fields.Selection(
         [("cash", "Cash / bank refund"), ("payroll", "Payroll deduction (A09)")],
         help="How an unspent balance is recovered",
@@ -814,6 +887,8 @@ class FixEmployeeAdvance(models.Model):
         "recovered_amount",
         "recovery_state",
         "recovery_requested_amount",
+        "excess_payment_move_id",
+        "cancel_reason",
     }
     ADV_TERMS = {
         "amount",
@@ -1045,6 +1120,32 @@ class FixEmployeeAdvance(models.Model):
             adv.message_post(body=label)
         return True
 
+    def action_cancel(self, reason=None):
+        """A08 M52-8: an advance not yet paid out is cancelled, with its reason,
+        and its open instruction with it: one whose execution failed was stuck
+        at approved and blocked every further advance (BRU-APE-17). An instruction
+        with the bank is treasury's to resolve first."""
+        require_finance(self.env, "Cancelling an employee advance")
+        for adv in self:
+            if adv.state not in ("draft", "approved"):
+                raise UserError(
+                    "Advance %s is %s: only a draft or approved advance is cancelled."
+                    % (adv.name, adv.state)
+                )
+            if not (reason or "").strip():
+                raise UserError("State why advance %s is cancelled." % adv.name)
+            execution = adv.execution_id.sudo()
+            if execution.state in ("sent", "executed"):
+                raise UserError(
+                    "Treasury instruction %s of advance %s is %s: treasury resolves it first."
+                    % (execution.name, adv.name, execution.state)
+                )
+            if execution and execution.state != "cancelled":
+                execution.action_cancel()
+            adv._guarded().write({"state": "cancelled", "cancel_reason": reason.strip()})
+            adv.message_post(body="Advance %s cancelled: %s" % (adv.name, reason.strip()))
+        return True
+
     def action_settle(self):
         """Settle against the approved, posted claims linked to the advance:
         Dr employee payable / Cr employee advance for what is NEW since the
@@ -1122,6 +1223,10 @@ class FixEmployeeAdvance(models.Model):
             if adv.balance <= 0.005:
                 vals["state"] = "settled"
             adv._guarded().write(vals)
+            # claims the advance covers are paid by the set-off; when claims
+            # ran above it they are paid when treasury pays the excess
+            if adv.excess_requested <= 0.005:
+                claims.filtered(lambda c: c.state == "approved")._guarded().write({"state": "paid"})
         return True
 
     def action_record_recovery(self):
@@ -1192,16 +1297,45 @@ class FixEmployeeAdvance(models.Model):
                 )
         return True
 
-    def action_confirm_payroll_recovery(self, amount, reference):
+    @api.model
+    def consume_advance_recovery_requested(self, event):
+        """advance.recovery_requested (A08 M52-8): put the deduction in front of
+        payroll as a to-do. Payroll deducts on the next run and accounting (or
+        payroll) confirms it here, with the payslip reference. A09 has no input
+        that takes an advance deduction by itself: fix.payroll.recovery is for a
+        paid payslip that overpaid. Relay only; the payload is not trusted."""
+        if not self.env.su:
+            raise UserError("This consumer runs only from the event relay.")
+        adv = self.browse(event.get("aggregate_id") or 0).exists()
+        if not adv or adv.recovery_state != "requested":
+            return False
+        group = self.env.ref("cd_payroll_bd.group_payroll_officer", raise_if_not_found=False)
+        users = group.sudo().all_user_ids.filtered("active") if group else self.env["res.users"]
+        summary = "Deduct BDT %.2f (advance %s) from %s on the next payroll" % (
+            adv.recovery_requested_amount,
+            adv.name,
+            adv.employee_id.sudo().name,
+        )
+        if users:
+            adv.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=summary,
+                note="Then confirm the deduction on the advance, with the payslip reference.",
+                user_id=users[0].id,
+            )
+        else:
+            adv.message_post(body="%s. No payroll officer has a login to take this." % summary)
+        return True
+
+    def action_confirm_payroll_recovery(self, amount=None, reference=None):
         """Payroll (A09) confirms the deduction it made: Dr salary payable /
-        Cr employee advance. Called by payroll's consumer of
-        advance.recovery_requested (system) or by accounting."""
+        Cr employee advance. Called by accounting on the advance screen."""
         if not (self.env.su or is_finance(self.env)):
             raise UserError("A payroll recovery is confirmed by payroll or accounting.")
         for adv in self:
             if adv.recovery_state != "requested":
                 raise UserError("%s has no payroll deduction awaiting confirmation." % adv.name)
-            amount = _q(amount)
+            amount = _q(amount or 0.0)
             if amount <= 0 or amount > _q(adv.recovery_requested_amount) + 0.005:
                 raise UserError(
                     "Payroll confirmed %.2f for %s; %.2f was requested."

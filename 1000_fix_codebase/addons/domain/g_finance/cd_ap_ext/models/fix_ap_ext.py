@@ -23,7 +23,7 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish  # FF-28
 
 from .ap_gl import ap_account, ap_journal, post_ap_move
-from .fix_ap_controls import PARAM_HIGHER_SIGNS_LOWER, bool_param
+from .fix_ap_controls import PARAM_HIGHER_SIGNS_LOWER, bool_param, require_finance
 
 TWO = Decimal("0.01")
 
@@ -61,6 +61,7 @@ LOCKED_FIELDS = {
     "payment_term_days",
     "due_date",
     "supplier_mushak_no",
+    "payment_channel",
 }
 
 # A08 M52-2/-3/-4 (F3): workflow and stamp fields only a transition sets.
@@ -77,6 +78,8 @@ GUARDED_FIELDS = {
     "input_credit_id",
     "match_state",
     "match_detail",
+    "payment_move_id",
+    "payment_failure",
 }
 
 
@@ -200,6 +203,29 @@ class FixVendorInvoice(models.Model):
         copy=False,
     )
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
+    # BRU-APE-08 (A08 M52-10): how the bill will be paid decides the withholding.
+    # The deduction is booked at approval, before the payment exists, so the
+    # bill states it. A non-bank bill suffers the uplift and stays out of payment
+    # runs, which pay by bank rails only.
+    payment_channel = fields.Selection(
+        [
+            ("bank", "Bank (BEFTN / RTGS / NPSB / cheque)"),
+            ("non_bank", "Cash / non-bank (withholding uplift applies)"),
+        ],
+        string="Payment Channel",
+        default="bank",
+        required=True,
+        tracking=True,
+    )
+    # A08 M52-9: the Request Payment path, read back from treasury's events
+    payment_move_id = fields.Many2one(
+        "account.move",
+        string="Payable Cleared By",
+        readonly=True,
+        copy=False,
+        help="Dr trade payables / Cr outgoing clearing, when treasury confirmed the payment.",
+    )
+    payment_failure = fields.Char(string="Last Bank Rejection", readonly=True, copy=False)
     withholding_line_ids = fields.One2many(
         "fix.withholding.line", "vendor_invoice_id", string="TDS / VDS Deductions"
     )
@@ -352,6 +378,14 @@ class FixVendorInvoice(models.Model):
                 inv.match_state = "matched"
                 inv.match_detail = "PO / receipt / invoice reconciled"
 
+    @api.constrains("vds_rate_id")
+    def _check_vds_rate(self):
+        # the form's list is every tax rate: the domain binds only Odoo's own form
+        for inv in self:
+            rate = inv.vds_rate_id.sudo()
+            if rate and rate.tax_kind != "vds":
+                raise ValidationError("%s is not a VDS service code." % rate.display_name)
+
     @api.constrains("bill_type", "requisition_id")
     def _check_bill_type(self):
         for inv in self:
@@ -370,6 +404,21 @@ class FixVendorInvoice(models.Model):
         if self and any(inv.approval_state in ("to_approve", "approved") for inv in self):
             locked |= LOCKED_FIELDS
         return locked
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A08 M52-10: a new bill takes the vendor's default VDS service code
+        (the person can clear it on the draft). A vendor outside VDS has none."""
+        Partner = self.env["res.partner"].sudo()
+        Profile = self.env["fix.vendor.tax.profile"]
+        for vals in vals_list:
+            if vals.get("vds_rate_id") or not vals.get("vendor_id"):
+                continue
+            company = self.env["res.company"].browse(vals.get("company_id") or self.env.company.id)
+            profile = Profile.for_partner(Partner.browse(vals["vendor_id"]), company)
+            if profile.default_vds_rate_id and not profile.vds_exempt:
+                vals["vds_rate_id"] = profile.default_vds_rate_id.id
+        return super().create(vals_list)
 
     def write(self, vals):
         # The lock yields to a transition (guard token) or superuser code only:
@@ -444,6 +493,12 @@ class FixVendorInvoice(models.Model):
                 raise UserError(
                     "Duplicate prevention: %s already has bill reference %s (id %s)"
                     % (inv.vendor_id.display_name, inv.invoice_ref, dup[0].id)
+                )
+            if inv.vds_rate_id and inv._tax_profile().vds_exempt:
+                raise UserError(
+                    "Bill %s carries a VDS service code, but vendor %s is marked VDS Not "
+                    "Applicable on its tax profile. Clear one of them."
+                    % (inv.invoice_ref, inv.vendor_id.display_name)
                 )
             inv.line_ids._compute_tds()
             inv._compute_totals()
@@ -617,7 +672,8 @@ class FixVendorInvoice(models.Model):
             if inv.approval_state != "to_approve":
                 raise UserError("Only a bill awaiting approval can be rejected")
             rule = inv._next_level()
-            if rule and rule.group_id not in self.env.user.all_group_ids:
+            # who may sign a level may refuse it (A08 M52-11): a manager signs level 1
+            if rule and not inv._ap_may_sign(self.env.user, rule):
                 raise UserError("Only a %s member can reject at this level" % rule.group_id.name)
             if self.env.user in (inv.create_uid | inv.submitted_by):
                 raise UserError("Segregation of duties: the maker does not decide the bill")
@@ -770,12 +826,11 @@ class FixVendorInvoice(models.Model):
         filer = bool(profile) and profile.is_filer_on(self.invoice_date)
         for (rate, multiplier), (base, amount) in groups.items():
             # A08 M52-10: ONE computation. The bill line already applies every
-            # ITA 2023 default (no PSR s.142, no TIN s.143/163) in _compute_tds
-            # and the GL posts that amount; the deduction sent to the return
-            # and the certificate is the same figure. (It used to be recomputed
-            # here as 1.5**2 for a vendor without TIN: GL 1,500, certificate
-            # 2,250.) Payment runs pay by bank rails only (BEFTN/RTGS/NPSB/
-            # cheque), so the non-bank default does not arise on this path.
+            # ITA 2023 default (no PSR s.142, no TIN s.143/163, payment not by
+            # bank) in _compute_tds and the GL posts that amount; the deduction
+            # sent to the return and the certificate is the same figure. (It
+            # used to be recomputed here as 1.5**2 for a vendor without TIN:
+            # GL 1,500, certificate 2,250.)
             vals.append(
                 {
                     **common,
@@ -787,7 +842,7 @@ class FixVendorInvoice(models.Model):
                     "multiplier": multiplier,
                     "non_filer": not filer,
                     "psr_received": filer,
-                    "paid_by_bank": True,
+                    "paid_by_bank": self.payment_channel == "bank",
                     "amount": _q(amount),
                 }
             )
@@ -842,7 +897,14 @@ class FixVendorInvoice(models.Model):
     def action_request_payment(self) -> None:
         """T06: M52 raises payment requests as EVENTS — treasury executes
         and publishes confirmation. No synchronous call into M50. Only an
-        APPROVED and MATCHED bill can be paid (approval + G3-06)."""
+        APPROVED and MATCHED bill can be paid (approval + G3-06).
+
+        A08 M52-4: the request takes the bill's payment lock in the same
+        transaction, so a payment run no longer proposes it and a second press
+        is refused: one bill, one execution. The lock closes on treasury's
+        events (fix.ap.payment.events)."""
+        require_finance(self.env, "Requesting a bill payment")
+        Lock = self.env["fix.ap.bill.payment"].sudo()
         for inv in self:
             if inv.match_state not in PAYABLE_MATCH_STATES:
                 raise UserError(
@@ -861,6 +923,19 @@ class FixVendorInvoice(models.Model):
                 )
             if inv.payment_state != "not_paid" or inv._ap_live_payment():
                 raise UserError("Bill %s is already %s" % (inv.invoice_ref, inv.payment_state))
+            if inv._ap_requested_execution():
+                raise UserError(
+                    "Treasury cancelled the earlier payment request of bill %s: pay it through "
+                    "a payment run." % inv.invoice_ref
+                )
+            Lock.create(
+                {
+                    "company_id": inv.company_id.id,
+                    "bill_id": inv.id,
+                    "amount": inv.total_payable,
+                }
+            )
+            inv._guarded().write({"payment_state": "in_run"})
             publish(
                 self.env,
                 "payment.requested",
@@ -880,6 +955,30 @@ class FixVendorInvoice(models.Model):
                     )[:1].user_id.id,
                 },
             )
+
+    def _ap_requested_execution(self):
+        """Treasury's instruction from this bill's Request Payment, if any."""
+        self.ensure_one()
+        return (
+            self.env["fix.payment.execution"]
+            .sudo()
+            .search([("source_model", "=", self._name), ("source_id", "=", self.id)], limit=1)
+        )
+
+    @api.model
+    def _ap_release_cancelled_requests(self, bills):
+        """A request treasury CANCELLED pays nothing and never will (a failed
+        one can still be re-queued, so its lock stays): the bill returns to the
+        pool, where a payment run can take it."""
+        Lock = self.env["fix.ap.bill.payment"].sudo()
+        locks = Lock.search(
+            [("bill_id", "in", bills.ids), ("state", "=", "open"), ("run_line_id", "=", False)]
+        )
+        for lock in locks:
+            bill = lock.bill_id
+            if bill._ap_requested_execution().state == "cancelled":
+                lock.write({"state": "failed"})
+                bill.sudo()._guarded().write({"payment_state": "not_paid"})
 
     def _ap_live_payment(self):
         """The open or paid payment lock of this bill (BRU-APE-10)."""
@@ -961,6 +1060,7 @@ class FixVendorInvoiceLine(models.Model):
         "invoice_id.invoice_date",
         "invoice_id.vendor_id",
         "invoice_id.company_id",
+        "invoice_id.payment_channel",
     )
     def _compute_tds(self) -> None:
         """Effective-dated TDS from the Tax Rate Master; a payee without a
@@ -995,12 +1095,14 @@ class FixVendorInvoiceLine(models.Model):
             multiplier = 1.0
             if rate.non_filer_applies:
                 # ITA 2023 defaults, one uplift each (the rule M51's withholding
-                # line enforces): no valid, evidenced PSR (s.142) and no TIN
-                # (s.143/163).
+                # line enforces): no valid, evidenced PSR (s.142), no TIN
+                # (s.143/163), and payment not by bank (BRU-APE-08).
                 defaults = 0
                 if not (profile and profile.is_filer_on(inv.invoice_date)):
                     defaults += 1
                 if not (profile and (profile.tin or "").strip()):
+                    defaults += 1
+                if inv.payment_channel == "non_bank":
                     defaults += 1
                 if defaults:
                     uplift = Param.get_value("non_filer_multiplier", inv.invoice_date, company)
@@ -1035,6 +1137,15 @@ class FixVendorInvoiceLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # A08 M52-10: a line with no category takes the vendor's default
+        Invoice = self.env["fix.vendor.invoice"]
+        known = dict(TDS_CATEGORIES)
+        for vals in vals_list:
+            if vals.get("tds_category") or not vals.get("invoice_id"):
+                continue
+            profile = Invoice.browse(vals["invoice_id"])._tax_profile()
+            code = (profile.default_tds_category or "").strip()
+            vals["tds_category"] = code if code in known else "service_general"
         lines = super().create(vals_list)
         lines._check_parent_editable()
         return lines

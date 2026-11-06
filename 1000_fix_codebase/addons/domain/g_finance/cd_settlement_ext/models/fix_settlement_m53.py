@@ -23,15 +23,14 @@ from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
-from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
-from odoo.exceptions import AccessError, UserError, ValidationError
-
-from libs.py.fix_events import publish
-
 from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
     GROUP_ACCOUNTANT,
     require_role,
 )
+from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from libs.py.fix_events import publish
 
 from .fix_settlement_ext import _configured_account, _configured_journal
 
@@ -228,6 +227,12 @@ class FixReferral(models.Model):
         index=True,
         help="The paid M20 invoice of the referred customer the commission base comes from.",
     )
+    convert_invoice_id = fields.Many2one(
+        "fix.ar.invoice",
+        string="Invoice to Convert From",
+        copy=False,
+        help="Pick the referred customer's paid invoice, then Convert: the base is read from it.",
+    )
     converted_by_id = fields.Many2one("res.users", string="Converted By", readonly=True, copy=False)
     converted_at = fields.Datetime(string="Converted On", readonly=True, copy=False)
 
@@ -247,9 +252,19 @@ class FixReferral(models.Model):
         """The base is the referred customer's PAID invoice (revenue, VAT
         excluded), in the referral's company; each invoice is used once."""
         self.ensure_one()
-        invoice = evidence
-        if isinstance(evidence, int):
-            invoice = self.env["fix.ar.invoice"].browse(evidence)
+        invoice = evidence or self.convert_invoice_id
+        if isinstance(invoice, str):
+            # the number typed at the Convert prompt, in the referral's company
+            invoice = (
+                self.env["fix.ar.invoice"]
+                .sudo()
+                .search(
+                    [("name", "=", invoice.strip()), ("company_id", "=", self.company_id.id)],
+                    limit=1,
+                )
+            )
+        elif isinstance(invoice, int):
+            invoice = self.env["fix.ar.invoice"].browse(invoice)
         invoice = invoice.sudo().exists() if invoice else self.env["fix.ar.invoice"]
         if not invoice:
             raise UserError(
@@ -288,7 +303,12 @@ class FixReferral(models.Model):
         for ref in self:
             if ref.state != "commissioned":
                 raise UserError("Referral %s has not earned its commission yet" % ref.name)
-            if ref.commission_ledger_id:
+            # the one commission.earned consumer may have raised the row already:
+            # finance accrues THAT row (UNIQUE referral_id allows no second one)
+            existing = ref.commission_ledger_id or Ledger.sudo().search(
+                [("referral_id", "=", ref.id)], limit=1
+            )
+            if existing and existing.state != "earned":
                 raise UserError("Referral %s is already in the commission ledger" % ref.name)
             if not self.env.su:
                 if not ref.invoice_id or ref.invoice_id.sudo().state != "paid":
@@ -318,20 +338,31 @@ class FixReferral(models.Model):
                 )
             if scheme.commission_rate:
                 rate = scheme.commission_rate
-            ledger = Ledger._guarded().create(
-                {
-                    "company_id": ref.company_id.id,
-                    "operating_unit_id": ref.operating_unit_id.id,
-                    "source_type": "partner_referral",
-                    "seller_partner_id": partner.partner_id.id,
-                    "source_ref": ref.name,
-                    "referral_id": ref.id,
-                    "scheme_id": scheme.id,
-                    "gross_amount": ref.base_amount,
-                    "commission_rate": rate,
-                    "rail": "BEFTN",
-                }
-            )
+            if existing:
+                existing.sudo()._guarded().write(
+                    {
+                        "scheme_id": scheme.id,
+                        "gross_amount": ref.base_amount,
+                        "commission_rate": rate,
+                        "rail": "BEFTN",
+                    }
+                )
+                ledger = existing.with_env(self.env)
+            else:
+                ledger = Ledger._guarded().create(
+                    {
+                        "company_id": ref.company_id.id,
+                        "operating_unit_id": ref.operating_unit_id.id,
+                        "source_type": "partner_referral",
+                        "seller_partner_id": partner.partner_id.id,
+                        "source_ref": ref.name,
+                        "referral_id": ref.id,
+                        "scheme_id": scheme.id,
+                        "gross_amount": ref.base_amount,
+                        "commission_rate": rate,
+                        "rail": "BEFTN",
+                    }
+                )
             ref.sudo()._guarded().write({"commission_ledger_id": ledger.id})
             ledger.with_env(self.env).action_post_to_gl()
 
@@ -370,7 +401,9 @@ class FixSettlementAdjustment(models.Model):
         if not self._fix_guard_open():
             touched = set(self.ADJ_LOCKED) & set(vals)
             if touched and self.filtered(lambda r: r.state != "draft"):
-                raise UserError("An active escrow / clawback is fixed; cancel it and raise a new one.")
+                raise UserError(
+                    "An active escrow / clawback is fixed; cancel it and raise a new one."
+                )
         return super().write(vals)
 
     name = fields.Char(string="Reference", default="New", readonly=True, copy=False)
@@ -515,6 +548,81 @@ class FixSettlementAdjustment(models.Model):
                     rec.id,
                     payload,
                 )
+
+    # ---- M53-7: a dispute raises its own escrow -------------------------------
+    @api.model
+    def _fix_escrow_for_dispute(self, dispute):
+        """Hold the commissions of the disputed order, once per dispute. Rows
+        already in a released payout run cannot be held and are reported on the
+        dispute for finance; with nothing unpaid there is nothing to hold."""
+        self = self.sudo()
+        existing = self.search(
+            [
+                ("dispute_id", "=", dispute.id),
+                ("adjustment_type", "=", "escrow"),
+                ("state", "in", ("draft", "active")),
+            ],
+            limit=1,
+        )
+        if existing:
+            return existing
+        order = dispute.order_id
+        rows = (
+            self.env["fix.commission.ledger"]
+            .sudo()
+            .search(
+                [("marketplace_order_id", "=", order.id), ("state", "in", ("earned", "accrued"))]
+            )
+        )
+        in_flight = (
+            self.env["fix.payout.run"]
+            .sudo()
+            .search([("commission_ids", "in", rows.ids), ("state", "!=", "draft")])
+        )
+        free = rows - in_flight.mapped("commission_ids")
+        if not free:
+            if rows:
+                dispute.message_post(
+                    body="Escrow not raised: the order's commissions are already in payout run(s) "
+                    "%s. Finance decides." % ", ".join(in_flight.mapped("name"))
+                )
+            return self.browse()
+        seller = free[:1].seller_partner_id
+        adjustment = self.create(
+            {
+                "company_id": order.company_id.id,
+                "operating_unit_id": order.operating_unit_id.id or False,
+                "adjustment_type": "escrow",
+                "seller_partner_id": seller.id,
+                "dispute_id": dispute.id,
+                "commission_ids": [
+                    (6, 0, free.filtered(lambda c, s=seller: c.seller_partner_id == s).ids)
+                ],
+                "reason": "Automatic hold: dispute %s was raised on order %s."
+                % (dispute.name, order.name),
+            }
+        )
+        adjustment.action_activate()
+        return adjustment
+
+    @api.model
+    def consume_dispute_raised(self, event: dict) -> dict:
+        """R8 consumer of marketplace.dispute_raised: the disputed amount stops
+        at once, without anyone having to remember to raise the escrow. The
+        payload is a claim: the dispute is re-read and must still be open."""
+        if not self.env.su:
+            raise AccessError("The escrow consumer runs only from the event relay.")
+        try:
+            dispute_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            dispute_id = 0
+        dispute = self.env["fix.marketplace.dispute"].sudo().browse(dispute_id).exists()
+        if not dispute:
+            raise UserError("Escrow refused: there is no marketplace dispute #%s." % dispute_id)
+        if dispute.state not in OPEN_DISPUTE_STATES:
+            return {"skipped": "dispute %s is %s" % (dispute.name, dispute.state)}
+        adjustment = self._fix_escrow_for_dispute(dispute)
+        return {"model": self._name, "id": adjustment.id or False, "created": bool(adjustment)}
 
     def action_release(self):
         """Release an escrow back into payouts once its dispute is resolved
@@ -697,14 +805,18 @@ class FixWarrantyProvision(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         # A08 M53-11: the figures are measured, the stamps are evidence
-        return super()._fix_guarded_fields() | set(self.PROVISION_FIGURES) | {
-            "state",
-            "move_id",
-            "computed_by_id",
-            "computed_at",
-            "posted_by_id",
-            "note",
-        }
+        return (
+            super()._fix_guarded_fields()
+            | set(self.PROVISION_FIGURES)
+            | {
+                "state",
+                "move_id",
+                "computed_by_id",
+                "computed_at",
+                "posted_by_id",
+                "note",
+            }
+        )
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -713,7 +825,7 @@ class FixWarrantyProvision(models.Model):
         return locked
 
     def write(self, vals):
-        if not self._fix_guard_open() and {"period", "company_id"} & set(vals):
+        if not self._fix_guard_open() and {"period", "company_id"} & set(vals):  # noqa: SIM102
             if self.filtered(lambda r: r.state != "draft"):
                 raise UserError("A computed provision keeps its period; open a new one.")
         return super().write(vals)
@@ -874,9 +986,10 @@ class FixWarrantyProvision(models.Model):
             # what posts is what the data says now, never a figure carried
             # over from a write
             measured = rec._fix_measure()
-            if abs(measured["movement"] - rec.movement) > 0.005 or abs(
-                measured["required_balance"] - rec.required_balance
-            ) > 0.005:
+            if (
+                abs(measured["movement"] - rec.movement) > 0.005
+                or abs(measured["required_balance"] - rec.required_balance) > 0.005
+            ):
                 raise UserError(
                     "Provision %s no longer matches its data (movement %.2f now %.2f): compute "
                     "it again before posting." % (rec.name, rec.movement, measured["movement"])

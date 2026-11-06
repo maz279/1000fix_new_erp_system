@@ -22,6 +22,7 @@
 #
 # AS-10: every amount below is fields.Monetary with an explicit currency_id.
 import logging
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -40,7 +41,7 @@ ACCOUNT_MANAGER = "account.group_account_manager"
 # the context, but not this object. post_with_dimensions / post_existing_moves
 # are the only code that obtains it.
 # --------------------------------------------------------------------------
-M19_TOKEN_KEY = "fix_m19_posting"
+M19_TOKEN_KEY = "fix_m19_posting"  # noqa: S105 - a context key, not a secret
 M19_SOURCE_KEY = "fix_m19_source"
 _M19_TOKEN = object()
 
@@ -140,21 +141,51 @@ class FixJournalDimension(models.Model):
 # of its owning group (A08 M19-5: one accountant used to clear every owner's
 # step, the CFO's included, with the evidence "x").
 STANDARD_CLOSE_STEPS = [
-    (10, "Subledger Cut-Off & Physical Inventory Counts", "Supply Chain Lead", 0, True,
-     "stock.group_stock_manager"),
-    (20, "Bank Statement Feeds Import & Automated Reconciliation", "Treasury Lead", 1, True,
-     ACCOUNT_USER),
+    (
+        10,
+        "Subledger Cut-Off & Physical Inventory Counts",
+        "Supply Chain Lead",
+        0,
+        True,
+        "stock.group_stock_manager",
+    ),
+    (
+        20,
+        "Bank Statement Feeds Import & Automated Reconciliation",
+        "Treasury Lead",
+        1,
+        True,
+        ACCOUNT_USER,
+    ),
     (30, "AR Billing & Auto-Invoice Clearance", "Billing Specialist", 2, True, ACCOUNT_USER),
     (40, "AP Three-Way Match & Vendor Invoice Clearance", "AP Accountant", 3, True, ACCOUNT_USER),
     (50, "VAT Sub-Ledger & Mushak 9.1 Return Preparation", "Tax Manager", 3, True, ACCOUNT_USER),
-    (60, "Inventory Suspense Account Zero-Balance Clearance", "Inventory Accountant", 4, True,
-     ACCOUNT_USER),
+    (
+        60,
+        "Inventory Suspense Account Zero-Balance Clearance",
+        "Inventory Accountant",
+        4,
+        True,
+        ACCOUNT_USER,
+    ),
     (70, "Fixed Asset Capitalisation Interface Review", "Asset Accountant", 4, False, ACCOUNT_USER),
     (80, "Inter-Branch & Operating Unit Dimension Balancing", "GL Lead", 5, True, ACCOUNT_USER),
-    (90, "Accruals, Depreciation & Tax Withholding Postings", "Senior Accountant", 5, True,
-     ACCOUNT_USER),
-    (100, "General Ledger Lock & Financial Statements Generation", "Chief Financial Officer", 5,
-     True, ACCOUNT_MANAGER),
+    (
+        90,
+        "Accruals, Depreciation & Tax Withholding Postings",
+        "Senior Accountant",
+        5,
+        True,
+        ACCOUNT_USER,
+    ),
+    (
+        100,
+        "General Ledger Lock & Financial Statements Generation",
+        "Chief Financial Officer",
+        5,
+        True,
+        ACCOUNT_MANAGER,
+    ),
 ]
 
 # Records a close step's evidence may point at ("model,id"). The record must
@@ -280,6 +311,32 @@ class FixPeriodClose(models.Model):
         compute="_compute_duration", store=True, string="Close Duration (days)"
     )
 
+    @api.depends("period_end", "company_id")
+    def _compute_display_name(self):
+        # No `name` field: a many2one picker (reopen request, bridge) must not
+        # read "fix.period.close,7".
+        for close in self:
+            close.display_name = "Close %s - %s" % (
+                close.period_end or "",
+                close.company_id.sudo().name or "",
+            )
+
+    def _fix_check_month_end(self, period_end):
+        """A close covers a calendar month: the lock it sets and the window a
+        reopen admits are measured from it (FR-FIN-019). Now that a person types
+        the date on a form, 2026-10-15 is a mistake to refuse, not a period.
+        Superuser code (seeds, service calls) is trusted, as the guards trust it,
+        which is why this is not an @api.constrains: those run as the superuser."""
+        end = fields.Date.to_date(period_end)
+        if end and not self.env.su and (end + timedelta(days=1)).day != 1:
+            raise ValidationError("Period end %s is not the last day of a month." % end)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            self._fix_check_month_end(vals.get("period_end"))
+        return super().create(vals_list)
+
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
@@ -306,6 +363,7 @@ class FixPeriodClose(models.Model):
             and any(c.state == "closed" for c in self)
         ):
             raise UserError("A closed period's facts are frozen; reopen it through an approval.")
+        self._fix_check_month_end(vals.get("period_end"))
         return super().write(vals)
 
     @api.depends("company_id.fiscalyear_lock_date", "period_end")
@@ -361,6 +419,94 @@ class FixPeriodClose(models.Model):
             )
         self._guarded().write({"state": "in_progress"})
         return True
+
+    @api.model
+    def _fix_next_period_end(self, company=None):
+        """The month-end after the company's latest close; with no close yet,
+        the month that last ended."""
+        company = company or self.env.company
+        latest = self.sudo().search(
+            [("company_id", "=", company.id)], order="period_end desc", limit=1
+        )
+        if latest:
+            first_of_next = fields.Date.add(latest.period_end, days=1)
+            return fields.Date.end_of(first_of_next, "month")
+        today = dhaka_today(self)
+        return fields.Date.subtract(fields.Date.start_of(today, "month"), days=1)
+
+    @api.model
+    def action_start_period(self, period_end=None):
+        """Open the close checklist of a period with its 10 SOP steps (M19-1):
+        the next month-end of the company unless a date is given. Nothing is
+        posted, locked or closed by this."""
+        require_role(self.env, ACCOUNT_USER, "Starting a period close")
+        end = fields.Date.to_date(period_end) if period_end else self._fix_next_period_end()
+        company = self.env.company
+        if self.sudo().search_count([("company_id", "=", company.id), ("period_end", "=", end)]):
+            raise UserError("%s already has a close for %s." % (company.name, end))
+        close = self.create({"period_end": end, "company_id": company.id})
+        close.action_generate_standard_steps()
+        return close
+
+    def action_set_cutover_entry(self, entry=None):
+        """Name the posted entry that clears the inventory suspense, by its
+        number: the journal the accountant has just had approved."""
+        self.ensure_one()
+        require_role(self.env, ACCOUNT_USER, "Setting the suspense cutover entry")
+        if self.state == "closed":
+            raise UserError("The period is closed; the suspense cutover belongs to an open close.")
+        number = (entry or "").strip()
+        if not number:
+            raise UserError("Give the number of the posted cutover journal entry.")
+        move = (
+            self.env["account.move"]
+            .sudo()
+            .search(
+                [
+                    ("name", "=", number),
+                    ("state", "=", "posted"),
+                    ("company_id", "=", self.company_id.id),
+                ],
+                limit=1,
+            )
+        )
+        if not move:
+            raise UserError(
+                "No posted journal entry numbered %s in %s." % (number, self.company_id.name)
+            )
+        self.write({"cutover_move_id": move.id})
+        return True
+
+    def _fix_suspense_pending(self):
+        """(entries, value) of the company's inventory suspense still waiting
+        for its GL cutover, read from the suspense itself (cd_inventory, which
+        depends on this module, is looked up softly)."""
+        self.ensure_one()
+        if "fix.inventory.valuation.suspense" not in self.env:
+            return 0, 0.0
+        ((count, value),) = (
+            self.env["fix.inventory.valuation.suspense"]
+            .sudo()
+            ._read_group(
+                [("status", "=", "pending_gl_cutover"), ("company_id", "=", self.company_id.id)],
+                [],
+                ["__count", "total_valuation:sum"],
+            )
+        )
+        return count, round(value or 0.0, 2)
+
+    def _fix_check_suspense_clear(self):
+        """AR-006 section 5.4. `suspense_closing` is written only by the
+        reconciliation, so a close that never ran it read 0 and passed with the
+        suspense pending: the check is against the suspense itself."""
+        self.ensure_one()
+        count, value = self._fix_suspense_pending()
+        if count:
+            raise UserError(
+                "Period %s cannot close: %d inventory suspense entries (%.2f) are still pending "
+                "their GL cutover (AR-006 section 5.4). Post the cutover entry, set it on the "
+                "close and reconcile the suspense." % (self.period_end, count, value)
+            )
 
     def action_reconcile_inventory_suspense(self) -> dict:
         """T04: Reconcile the W2 inventory suspense entries against a REAL,
@@ -462,10 +608,13 @@ class FixPeriodClose(models.Model):
             if close.state not in ("open", "in_progress"):
                 raise UserError("Only an open close in progress can be checked ready.")
             if not close.line_ids:
-                raise UserError("Generate the close steps first; a close with no steps is not ready.")
+                raise UserError(
+                    "Generate the close steps first; a close with no steps is not ready."
+                )
             blocking = close.line_ids.filtered(lambda line: line.blocking and line.state != "done")
             if blocking:
                 raise UserError("Close steps still open: %s" % ", ".join(blocking.mapped("name")))
+            close._fix_check_suspense_clear()
             if close.suspense_closing:
                 raise UserError(
                     "Suspense account must be zero at close (AR-006 §5.4) — "
@@ -518,6 +667,7 @@ class FixPeriodClose(models.Model):
         for close in self:
             if close.state != "ready_to_close":
                 raise UserError("Run the ready check before closing")
+            close._fix_check_suspense_clear()
             if close.period_end >= today:
                 raise UserError(
                     "Period %s has not ended (today is %s): a period closes after its last day."
@@ -560,14 +710,27 @@ class FixPeriodClose(models.Model):
 
     def action_request_reopen(self, user_id=None, reason=None, end_datetime=None):
         """Raise a time-boxed reopen (lock exception) for one user; an
-        Accounting Administrator other than the closer approves it."""
+        Accounting Administrator other than the closer approves it. From the
+        workspace row action: for the requester, for the longest window allowed
+        (the reopen form names another user or a shorter window)."""
+        from .fix_gl_posting_control import (
+            DEFAULT_REOPEN_MAX_DAYS,
+            PARAM_REOPEN_MAX_DAYS,
+            float_param,
+        )
+
         self.ensure_one()
+        if not (reason or "").strip():
+            raise UserError("A reopen states its reason.")
+        if not end_datetime:
+            days = float_param(self.env, PARAM_REOPEN_MAX_DAYS, DEFAULT_REOPEN_MAX_DAYS)
+            end_datetime = fields.Datetime.now() + timedelta(days=days)
         reopen = self.env["fix.period.reopen"].create(
             {
                 "close_id": self.id,
                 "user_id": int(user_id) if user_id else self.env.uid,
-                "reason": reason or False,
-                "end_datetime": end_datetime or False,
+                "reason": reason,
+                "end_datetime": end_datetime,
             }
         )
         reopen.action_submit()
@@ -679,8 +842,10 @@ class FixPeriodCloseLine(models.Model):
                 if model in EVIDENCE_MODELS and model in self.env and rid.isdigit():
                     record = self.env[model].sudo().browse(int(rid)).exists()
                     if record:
-                        if "company_id" in record._fields and record.company_id and (
-                            record.company_id != self.close_id.company_id
+                        if (
+                            "company_id" in record._fields
+                            and record.company_id
+                            and (record.company_id != self.close_id.company_id)
                         ):
                             break
                         return model, record.id
@@ -746,7 +911,9 @@ class FixPeriodCloseLine(models.Model):
         if new_state not in ("pending", "in_progress", "done"):
             raise UserError(f"Invalid state: {new_state}")
         if new_state == "done":
-            raise UserError("A step is completed with its evidence (Mark Done), not by a state change.")
+            raise UserError(
+                "A step is completed with its evidence (Mark Done), not by a state change."
+            )
         self._check_owner()
         self.sudo()._guarded().write(
             {
@@ -988,7 +1155,13 @@ def post_with_dimensions(
     dimensions = _attach_dimensions(env, move, dimension_by_line or {})
     _publish_posted(env, move, source)
     _log_posting(
-        env, move, source, getattr(env, "uid", None), template, state="posted", source_ref=source_ref
+        env,
+        move,
+        source,
+        getattr(env, "uid", None),
+        template,
+        state="posted",
+        source_ref=source_ref,
     )
     return move, dimensions
 
@@ -1059,17 +1232,121 @@ def create_journal_entry_draft(
     move._fix_check_not_in_closed_period()
     _attach_dimensions(env, move, dimension_by_line or {})
     log = _log_posting(env, move, source, getattr(env, "uid", None), template, state="requested")
-    approval = env["fix.journal.approval"]._guarded().create(
-        {
-            "move_id": move.id,
-            "company_id": move.company_id.id,
-            "source": source,
-            "reason": reason or move.ref or False,
-            "log_id": log.id,
-        }
+    approval = (
+        env["fix.journal.approval"]
+        ._guarded()
+        .create(
+            {
+                "move_id": move.id,
+                "company_id": move.company_id.id,
+                "source": source,
+                "reason": reason or move.ref or False,
+                "log_id": log.id,
+            }
+        )
     )
     approval.action_request_approval(justification=reason or move.ref or None)
     return move, log
+
+
+def _dimensions_of_move(env, move) -> dict:
+    """The dimension rows already on a draft, as the COA rules read them."""
+    rows = env["fix.journal.dimension"].sudo().search([("move_line_id", "in", move.line_ids.ids)])
+    by_line = {row.move_line_id.id: row for row in rows}
+    out = {}
+    for idx, line in enumerate(move.line_ids):
+        row = by_line.get(line.id)
+        if row:
+            out[idx] = {
+                "branch_id": row.branch_id.id,
+                "cost_centre": row.cost_centre,
+                "business_line": row.business_line,
+                "project_ref": row.project_ref,
+                "brand": row.brand,
+                "channel": row.channel,
+            }
+    return out
+
+
+def _check_reviewable_draft(env, move, what):
+    require_role(env, ACCOUNT_USER, what)
+    move.check_access("read")
+    if move.state != "draft":
+        raise UserError("%s is %s, not a draft entry." % (move.display_name, move.state))
+    if not move._fix_is_manual_entry():
+        raise UserError(
+            "%s is not a manual journal entry; its own sub-ledger posts it." % move.display_name
+        )
+
+
+def route_journal_entry(env, move, reason=None):
+    """Send a draft entry for review (M19-2). Three drafts need this: one with
+    no approval yet (raised before the maker-checker existed, or by a sub-ledger
+    that left it behind), one whose approval was rejected or voided, and one
+    edited after it was routed, whose approval no longer covers it. The approval
+    is requested again and the usual checks apply; everyone who prepared it or
+    requested it in any round stays excluded."""
+    move = move.with_env(env)
+    move.ensure_one()
+    _check_reviewable_draft(env, move, "Routing a manual journal entry")
+    reason = (reason or "").strip() or (move.ref or "").strip()
+    if not reason:
+        raise UserError("State the reason / narrative of the manual journal (BRU-FIN-16).")
+    _validate_move_against_chart(env, move, _dimensions_of_move(env, move), "manual")
+    move._fix_check_not_in_closed_period()
+    Approval = env["fix.journal.approval"]
+    approval = Approval.sudo().search([("move_id", "=", move.id)], limit=1).with_env(env)
+    if approval.state == "posted":
+        raise UserError("%s was already approved and posted." % move.display_name)
+    if approval.state == "pending":
+        if approval.sudo().lines_snapshot == _move_snapshot(move):
+            raise UserError("%s is already awaiting approval." % move.display_name)
+        approval._fix_void("the entry changed after it was routed for approval")
+    log = approval.sudo().log_id
+    if not log or log.state != "requested":
+        log = _log_posting(env, move, "manual", env.uid, None, state="requested")
+    if approval:
+        approval._guarded().write({"reason": reason, "log_id": log.id})
+    else:
+        approval = Approval._guarded().create(
+            {
+                "move_id": move.id,
+                "company_id": move.company_id.id,
+                "source": "manual",
+                "reason": reason,
+                "log_id": log.id,
+            }
+        )
+    approval.action_request_approval(justification=reason)
+    return approval
+
+
+def discard_journal_entry(env, move, reason=None):
+    """Withdraw a draft entry that will not be posted: rejected and not worth
+    correcting, or left behind by a failed run. It is cancelled, never deleted,
+    by its preparer or an Accounting Administrator; its approval and its row in
+    the posting log say so."""
+    move = move.with_env(env)
+    move.ensure_one()
+    _check_reviewable_draft(env, move, "Discarding a manual journal entry")
+    reason = (reason or "").strip()
+    if not reason:
+        raise UserError("State why the entry is discarded.")
+    approval = env["fix.journal.approval"].sudo().search([("move_id", "=", move.id)], limit=1)
+    preparers = move.sudo().create_uid | approval.requested_by_id
+    if env.uid not in preparers.ids and not has_role(env, ACCOUNT_MANAGER):
+        raise AccessError(
+            "%s is discarded by its preparer or an Accounting Administrator." % move.display_name
+        )
+    if approval:
+        approval._fix_void("discarded by %s: %s" % (env.user.name, reason))
+        if approval.log_id.state == "requested":
+            approval.log_id.with_context(force_edit=True).write(
+                {"state": "discarded", "note": reason[:200]}
+            )
+    move.button_cancel()
+    move.sudo().message_post(body="Draft discarded by %s: %s" % (env.user.name, reason))
+    return move
 
 
 def approve_journal_entry(env, move, dimension_by_line=None):
@@ -1083,7 +1360,7 @@ def approve_journal_entry(env, move, dimension_by_line=None):
     if not approval:
         raise UserError(
             "Entry %s was not drafted through the M19 maker-checker; it has no approval to "
-            "decide. Draft it for review instead." % (move.display_name,)
+            "decide. Route it for approval first." % (move.display_name,)
         )
     if env.su:
         approval.with_env(env)._fix_post_approved(system=True)

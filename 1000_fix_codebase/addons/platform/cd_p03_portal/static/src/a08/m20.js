@@ -20,6 +20,8 @@ export const MODULE = {
   groups: [
     { en: 'Provisioning', screens: [
       { id: 'M20-ecl', en: 'IFRS 9 Impairment (ECL)', bn: 'আইএফআরএস ৯ ইসিএল', t: 'g' },
+      { id: 'M20-ecl-rates', en: 'ECL Loss Rates (approved)', bn: 'ইসিএল ক্ষতির হার', t: 'g' },
+      { id: 'M20-writeoffs', en: 'Write-offs', bn: 'অবলোপন', t: 'g' },
     ]},
     { en: 'Record Coverage', screens: [
       { id: 'M20-ar-dispute', en: "Ar Dispute", bn: "Ar Dispute", t: 'g' },
@@ -38,7 +40,8 @@ export const MODULE = {
       { id: 'M20-links', en: 'Payment Links', bn: 'পেমেন্ট লিংক', t: 'g' },
       { id: 'M20-allocation', en: 'Matching & Allocation', bn: 'মিলকরণ', t: 'c' },
       { id: 'M20-vds', en: 'Customer VDS Certificates (Mushak 6.6)', bn: 'গ্রাহকের উৎসে ভ্যাট কর্তন সনদ (মুশক ৬.৬)', t: 'g' },
-      { id: 'M20-closeout', en: 'Invoice Settlement Close-out', bn: 'ইনভয়েস নিষ্পত্তি সমাপন', t: 'g' }
+      { id: 'M20-closeout', en: 'Invoice Settlement Close-out', bn: 'ইনভয়েস নিষ্পত্তি সমাপন', t: 'g' },
+      { id: 'M20-unapplied', en: 'Unapplied Receipts', bn: 'অপ্রয়োগকৃত রসিদ', t: 'g' }
     ]},
     { en: 'Credit Control', screens: [
       { id: 'M20-credit', en: 'Limits, Terms & Holds', bn: 'ক্রেডিট নিয়ন্ত্রণ', t: 'g' },
@@ -51,11 +54,12 @@ export const MODULE = {
       { id: 'M20-aging', en: 'AR Ageing', bn: 'বয়স্ক প্রাপ্য', t: 'r' },
       { id: 'M20-leakage', en: 'Revenue-Leakage Detection', bn: 'রাজস্ব ক্ষয়', t: 'r' },
       { id: 'M20-statements', en: 'Customer Statements', bn: 'গ্রাহক স্টেটমেন্ট', t: 'r' },
-      { id: 'M20-vds-register', en: 'VDS Claim Register (Mushak 9.1)', bn: 'উৎসে ভ্যাট কর্তন দাবি রেজিস্টার (মুশক ৯.১)', t: 'r' }
+      { id: 'M20-vds-register', en: 'VDS Claim Register (Mushak 9.1)', bn: 'উৎসে ভ্যাট কর্তন দাবি রেজিস্টার (মুশক ৯.১)', t: 'r' },
+      { id: 'M20-gl-recon', en: 'AR Sub-ledger to GL Reconciliation', bn: 'প্রাপ্য ও সাধারণ খতিয়ান সমন্বয়', t: 'r' }
     ]}
   ],
-  reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity', 'VDS Received Register'],
-  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate'],
+  reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity', 'VDS Received Register', 'AR Sub-ledger to GL Reconciliation'],
+  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'Write-off', 'ECL Loss Rates'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 99, sub: [
     ['1', 'Billable-Event Intake', 12, { model: 'fix.ar.invoice', cols: ['name', 'source_model', 'source_id', 'invoice_date', 'state'], screens: ['M20-events'] }],
@@ -84,17 +88,18 @@ export const SCREENS = {
     back: 'M20-ecl',
     status: { field: 'state', labels: { draft: 'Draft', computed: 'Computed', posted: 'Posted' } },
     sections: [
-      { title: 'Run', note: 'Compute ages every open invoice against its due date and applies the bucket loss rate; Post (an Accounting Administrator other than the preparer) writes only the movement against the provision already booked, read from the GL, through the M19 API.',
+      { title: 'Run', note: 'Compute ages every open invoice against its due date and applies the loss rates of the approved set in force at the as-of date; Post (an Accounting Administrator other than the preparer) writes only the movement against the provision already booked, read from the GL, through the M19 API.',
         fields: [
           { name: 'as_of', required: true, label: 'As Of' },
           { name: 'journal_id', required: true, label: 'Journal' },
           { name: 'expense_account_id', label: 'Impairment Expense Account' },
           { name: 'provision_account_id', label: 'Provision Account' },
-          { name: 'rate_current', label: 'Rate current (%)' },
-          { name: 'rate_1_30', label: 'Rate 1-30 (%)' },
-          { name: 'rate_31_60', label: 'Rate 31-60 (%)' },
-          { name: 'rate_61_90', label: 'Rate 61-90 (%)' },
-          { name: 'rate_90_plus', label: 'Rate 90+ (%)' },
+          { name: 'rate_set_id', readonly: true, label: 'Approved Loss Rates (at Compute)' },
+          { name: 'rate_current', readonly: true, label: 'Rate current (%)' },
+          { name: 'rate_1_30', readonly: true, label: 'Rate 1-30 (%)' },
+          { name: 'rate_31_60', readonly: true, label: 'Rate 31-60 (%)' },
+          { name: 'rate_61_90', readonly: true, label: 'Rate 61-90 (%)' },
+          { name: 'rate_90_plus', readonly: true, label: 'Rate 90+ (%)' },
           { name: 'state', readonly: true, label: 'State' },
           { name: 'existing_provision', readonly: true, label: 'Provision Already Booked (from GL)' },
           { name: 'computed_by_id', readonly: true, label: 'Computed By' },
@@ -102,6 +107,76 @@ export const SCREENS = {
         ] }
     ]
   },
+  /* M20-5: the approved loss rates a run stamps at Compute. */
+  'M20-ecl-rates': { kind: 'model_list', model: 'fix.ar.ecl.rate', stateField: 'state',
+    cols: ['name', 'date_from', 'date_to', 'rate_current', 'rate_1_30', 'rate_31_60', 'rate_61_90', 'rate_90_plus', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve (second Accounting Administrator)' },
+      { m: 'action_retire', l: 'Retire', ask: 'Why these rates are retired', kwarg: 'reason' }
+    ] },
+  'M20-form-ecl-rate': {
+    kind: 'model_form',
+    model: 'fix.ar.ecl.rate',
+    title: 'ECL Loss Rates',
+    back: 'M20-ecl-rates',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', retired: 'Retired' } },
+    sections: [
+      { title: 'Rate Set', note: 'The IFRS 9 simplified-approach loss rate per ageing bucket, from the company\'s own loss history. An Accounting Administrator other than the preparer approves it; a run with no approved set in force at its as-of date is refused.',
+        fields: [
+          { name: 'name', required: true, label: 'Rate Set' },
+          { name: 'date_from', required: true, label: 'Effective From' },
+          { name: 'date_to', label: 'Effective To' },
+          { name: 'rate_current', required: true, label: 'Rate current (%)' },
+          { name: 'rate_1_30', required: true, label: 'Rate 1-30 (%)' },
+          { name: 'rate_31_60', required: true, label: 'Rate 31-60 (%)' },
+          { name: 'rate_61_90', required: true, label: 'Rate 61-90 (%)' },
+          { name: 'rate_90_plus', required: true, label: 'Rate 90+ (%)' },
+          { name: 'basis_note', required: true, type: 'text', label: 'Basis (loss history or policy)' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' }
+        ] }
+    ]
+  },
+  /* M20-6 / S3: a write-off is requested here with its recovery history; a
+   * second Accountant approves within the direct band, the M63 inbox above it. */
+  'M20-writeoffs': { kind: 'model_list', model: 'fix.ar.writeoff', stateField: 'state',
+    cols: ['name', 'invoice_id', 'customer_id', 'amount', 'reason', 'allowance_amount', 'expense_amount', 'requested_by_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Request Approval' },
+      { m: 'action_approve', l: 'Approve (direct band)' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the write-off is rejected', kwarg: 'reason' }
+    ] },
+  'M20-form-writeoff': {
+    kind: 'model_form',
+    model: 'fix.ar.writeoff',
+    title: 'Write-off',
+    back: 'M20-writeoffs',
+    status: { field: 'state', labels: { draft: 'Draft', requested: 'Requested', posted: 'Approved & Posted', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Request', note: 'FR-ARB-041 / BRU-ARB-12: the open residual of an issued invoice, with the reason and the collection steps already taken. It posts against the IFRS 9 loss allowance first, only the excess to bad-debt expense, and never by the person who requested it.',
+        fields: [
+          { name: 'invoice_id', required: true, label: 'Invoice' },
+          { name: 'reason', required: true, label: 'Reason' },
+          { name: 'recovery_history', required: true, type: 'text', label: 'Recovery History' }
+        ] },
+      { title: 'Approval & Posting (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'amount', readonly: true, label: 'Amount (residual at request)' },
+          { name: 'allowance_amount', readonly: true, label: 'Charged to Loss Allowance' },
+          { name: 'expense_amount', readonly: true, label: 'Charged to Bad-Debt Expense' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'rejected_reason', readonly: true, label: 'Rejection Reason' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+  /* BRU-ARB-22: money received and not applied, aged; the daily job escalates. */
+  'M20-unapplied': { kind: 'model_list', model: 'fix.ar.receipt', create: false,
+    domain: [['state', '=', 'confirmed'], ['unapplied_amount', '>', 0]],
+    cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'allocated_amount', 'unapplied_amount', 'unapplied_escalated_at'] },
+  'M20-gl-recon': { kind: 'table_report', module: 'M20', report: 'ar_subledger_gl_recon', title: 'AR Sub-ledger to GL Reconciliation', period: false },
   'M20-invoices': { kind: 'ar_invoices' },
   'M20-invoice': { kind: 'ar_editor' },
   'M20-events': { kind: 'ar_events' },
@@ -142,10 +217,13 @@ export const SCREENS = {
    * D365 form creates the draft; the register moves it). */
   'M20-notes-register': { kind: 'model_list', model: 'fix.credit.note', stateField: 'state',
     create: false,
-    cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at', 'approved_by', 'gl_note'],
+    cols: ['invoice_id', 'amount', 'reason_code', 'state', 'approval_state', 'issued_at', 'approved_by', 'refund_amount', 'refund_ref', 'gl_note'],
     actions: [
       { m: 'action_submit', l: 'Submit for Approval' },
       { m: 'action_approve', l: 'Approve' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the credit note is rejected', kwarg: 'reason' },
+      { m: 'action_rerequest', l: 'Re-request (returned by approver)', ask: 'The information the approver asked for', kwarg: 'justification' },
+      { m: 'action_withdraw_to_draft', l: 'Withdraw to Draft (returned)', ask: 'Why the note is withdrawn', kwarg: 'reason' },
       { m: 'action_issue', l: 'Issue & Post to GL' },
     ] },
 
@@ -196,7 +274,7 @@ export const SCREENS = {
     sections: [
       {
         title: 'Credit Request',
-        note: 'FR-ARB-036: a credit note reverses revenue + VAT pro-rata on the original invoice. It is never approved by its raiser: up to BDT 10,000 (cumulative on the invoice) a second Accountant approves; above it the Accounting Administrator approves from the M63 inbox. Credits never exceed the invoice.',
+        note: 'FR-ARB-036: a credit note reverses revenue + VAT pro-rata on the original invoice. It is never approved by its raiser: up to BDT 10,000 (cumulative on the invoice) a second Accountant approves; above it the Accounting Administrator approves from the M63 inbox. Credits never exceed the invoice; the part covering money already received is refunded through treasury (M50).',
         fields: [
           { name: 'invoice_id', required: true, label: 'Original Invoice' },
           { name: 'amount', required: true, label: 'Credit Amount (BDT)' },
@@ -214,7 +292,9 @@ export const SCREENS = {
           { name: 'tier_basis_amount', readonly: true, label: 'Cumulative Credit (tier basis)' },
           { name: 'issued_at', readonly: true, label: 'Issued At' },
           { name: 'posted_move_id', readonly: true, label: 'GL Move' },
-          { name: 'gl_note', readonly: true, label: 'GL Note' }
+          { name: 'gl_note', readonly: true, label: 'GL Note' },
+          { name: 'refund_amount', readonly: true, label: 'Refund of Money Received (M50)' },
+          { name: 'refund_ref', readonly: true, label: 'Refund Instruction' }
         ]
       }
     ]
@@ -254,8 +334,13 @@ export const SCREENS = {
     title: 'VDS Certificate',
     back: 'M20-vds',
     status: { field: 'state', labels: { draft: 'Draft', verified: 'Verified', settled: 'Settled against Receivable', claimed: 'Claimed in Mushak 9.1', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'certificate', label: 'Certificate', bn: 'সনদ' },
+      { id: 'verification', label: 'Verification & Claim', bn: 'যাচাই ও দাবি' }
+    ],
     sections: [
       {
+        tab: 'certificate',
         title: 'Mushak 6.6 Certificate',
         note: 'The customer deducts VDS at source and issues a Mushak 6.6 certificate. Record it here, then Verify → Settle against the receivable → claim in the Mushak 9.1 adjustment.',
         fields: [
@@ -271,6 +356,7 @@ export const SCREENS = {
         ]
       },
       {
+        tab: 'verification',
         title: 'Verification & Claim (system)',
         note: 'Verify and Settle from the VDS register; the tax return marks the certificate claimed.',
         fields: [
@@ -288,11 +374,24 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M20-ar-dispute': { kind: 'model_list', model: 'fix.ar.dispute', stateField: 'state', create: false,
-    cols: ['state', 'company_id', 'operating_unit_id', 'invoice_id', 'amount_disputed', 'reason', 'resolution_note'] },
+    cols: ['name', 'state', 'invoice_id', 'amount_disputed', 'reason', 'outcome_code', 'resolution_note', 'resolved_by'],
+    actions: [
+      { m: 'action_resolve_upheld_credit', l: 'Resolve: Upheld (credit note)', ask: 'Resolution note', kwarg: 'note' },
+      { m: 'action_resolve_partially_upheld', l: 'Resolve: Partially Upheld', ask: 'Resolution note', kwarg: 'note' },
+      { m: 'action_resolve_rejected', l: 'Resolve: Rejected', ask: 'Resolution note', kwarg: 'note' },
+      { m: 'action_resolve_withdrawn', l: 'Resolve: Withdrawn', ask: 'Resolution note', kwarg: 'note' },
+      { m: 'action_resolve_payment_plan', l: 'Resolve: Payment Plan', ask: 'Resolution note', kwarg: 'note' }
+    ] },
   'M20-ar-consolidated-bill': { kind: 'model_list', model: 'fix.ar.consolidated.bill', stateField: 'state', create: false,
     cols: ['state', 'company_id', 'operating_unit_id', 'customer_id', 'currency_id', 'bill_ref', 'period_start'] },
   'M20-dunning-register': { kind: 'model_list', model: 'fix.dunning', create: false,
-    cols: ['company_id', 'operating_unit_id', 'invoice_id', 'overdue_amount', 'step', 'step_date', 'suppressed'] },
+    cols: ['name', 'invoice_id', 'overdue_amount', 'step', 'step_date', 'suppressed', 'suppression_reason', 'suppressed_until', 'suppression_note'],
+    actions: [
+      { m: 'action_suppress_payment_plan', l: 'Suppress: Payment Plan', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
+      { m: 'action_suppress_strategic', l: 'Suppress: Strategic Customer', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
+      { m: 'action_suppress_dispute', l: 'Suppress: Open Dispute', asks: [{ label: 'Until (YYYY-MM-DD, empty = until the dispute closes)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
+      { m: 'action_lift_suppression', l: 'Lift Suppression', ask: 'Why the suppression ends', kwarg: 'note' }
+    ] },
 
 
 };
@@ -307,6 +406,7 @@ export const REPORT_ROUTES = {
   "M20:Brand Receivable Ageing": "M20-rpt-brandage",
   "M20:Collections Productivity": "M20-rpt-productivity",
   "M20:VDS Received Register": "M20-vds-register",
+  "M20:AR Sub-ledger to GL Reconciliation": "M20-gl-recon",
 };
 
 /* data-entry form chips -> real model forms */
@@ -317,6 +417,8 @@ export const FORM_MODELS = {
   'M20:Receipt': 'fix.ar.receipt',
   'M20:Payment Link': 'fix.ar.payment.link',
   'M20:VDS Certificate': 'fix.vds.certificate.received',
+  'M20:Write-off': 'fix.ar.writeoff',
+  'M20:ECL Loss Rates': 'fix.ar.ecl.rate',
 };
 
 /* the registry chips + every grid's + New / Open full record resolve to the
@@ -327,8 +429,12 @@ export const FORM_CHIPS = {
   'M20:Refund': 'M20-form-note',
   'M20:Payment Link': 'M20-form-link',
   'M20:VDS Certificate': 'M20-form-vds',
+  'M20:Write-off': 'M20-form-writeoff',
+  'M20:ECL Loss Rates': 'M20-form-ecl-rate',
   'M20:__by_model__': {
     'fix.ar.impairment': 'M20-form-ecl',
+    'fix.ar.ecl.rate': 'M20-form-ecl-rate',
+    'fix.ar.writeoff': 'M20-form-writeoff',
 
     'fix.ar.receipt': 'M20-form-receipt',
     'fix.credit.note': 'M20-form-note',
@@ -337,7 +443,8 @@ export const FORM_CHIPS = {
   },
   'M20:__by_screen__': {
     'M20-ecl': 'M20-form-ecl',
-
+    'M20-ecl-rates': 'M20-form-ecl-rate',
+    'M20-writeoffs': 'M20-form-writeoff',
     'M20-vds': 'M20-form-vds',
     'M20-notes-register': 'M20-form-note'
   }

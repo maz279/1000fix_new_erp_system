@@ -280,8 +280,12 @@ def _treasury(book):
     """Users and the paying bank account for the M50 leg."""
     env = book.env
     journal = env["account.journal"].create(
-        {"name": "Payout Bank", "code": "PYB%s" % str(book.seller_a.id)[-2:], "type": "bank",
-         "company_id": env.company.id}
+        {
+            "name": "Payout Bank",
+            "code": "PYB%s" % str(book.seller_a.id)[-2:],
+            "type": "bank",
+            "company_id": env.company.id,
+        }
     )
     param = env["ir.config_parameter"]
     param.set_param("cd_settlement_ext.payout_journal_code", journal.code)
@@ -301,10 +305,18 @@ def _treasury(book):
 
 
 def _inbox_approve(env, record, user):
-    task = env["fix.workflow.task"].sudo().search(
-        [("res_model", "=", record._name), ("res_id", "=", record.id),
-         ("state", "=", "pending"), ("assigned_user_id", "=", user.id)],
-        limit=1,
+    task = (
+        env["fix.workflow.task"]
+        .sudo()
+        .search(
+            [
+                ("res_model", "=", record._name),
+                ("res_id", "=", record.id),
+                ("state", "=", "pending"),
+                ("assigned_user_id", "=", user.id),
+            ],
+            limit=1,
+        )
     )
     assert task, "no M63 task for %s" % user.login
     task.with_user(user).action_approve()
@@ -312,8 +324,10 @@ def _inbox_approve(env, record, user):
 
 
 def _approved(book, t):
-    run = book.env["fix.payout.run"].with_user(t.preparer).create(
-        {"period": "2026-10", "company_id": book.env.company.id}
+    run = (
+        book.env["fix.payout.run"]
+        .with_user(t.preparer)
+        .create({"period": "2026-10", "company_id": book.env.company.id})
     )
     run.action_collect_accrued()
     run.action_prepare()
@@ -405,15 +419,24 @@ class TestPayoutRun:
         assert set(pays.mapped("state")) == {"executed"} and all(pays.mapped("source_posts_gl"))
         assert not pays.mapped("move_id")  # M50 books nothing: the run discharges once
         bank_code = t.journal.default_account_id.code
-        rows = sorted(
-            (line.account_id.code, line.debit, line.credit) for line in run.gl_move_id.line_ids
-        )
-        assert rows == sorted(
-            [("200200", 15050.45, 0.0), ("210100", 0.0, 640.0), (bank_code, 0.0, 14410.45)]
-        )
+        # one discharge per payee, posted as the bank confirmed each payment (M53-1)
+        moves = run.line_ids.mapped("gl_move_id")
+        assert len(moves) == len(run.line_ids) == 2 and run.gl_move_id in moves
+        totals = {}
+        for line in moves.mapped("line_ids"):
+            debit, credit = totals.get(line.account_id.code, (0.0, 0.0))
+            totals[line.account_id.code] = (
+                round(debit + line.debit, 2),
+                round(credit + line.credit, 2),
+            )
+        assert totals == {
+            "200200": (15050.45, 0.0),
+            "210100": (0.0, 640.0),
+            bank_code: (0.0, 14410.45),
+        }
         st_a = run.statement_ids.filtered(lambda s: s.seller_partner_id == book.seller_a)
         assert st_a.state == "issued" and _money(st_a.net_payable) == D("10800.45")
-        assert st_a.withholding_cert_ref.startswith("TDSC/")
+        assert not st_a.withholding_cert_ref  # numbered on the TDS challan (M53-8)
         (event,) = _events(book.env, "payout.executed", run.id)
         assert (event["sellers_paid"], event["total_disbursed"]) == (2, 14410.45)
         # a second release cannot pay again
@@ -488,7 +511,7 @@ class TestSellerStatement:
             stmt.action_issue_statement()
         run.state = "executed"
         stmt.action_issue_statement()
-        assert stmt.state == "issued" and stmt.withholding_cert_ref.startswith("TDSC/")
+        assert stmt.state == "issued" and not stmt.withholding_cert_ref  # on the challan (M53-8)
         assert _events(odoo_env, "seller.statement_issued", stmt.id) == [
             {
                 "statement_ref": stmt.name,
@@ -497,7 +520,7 @@ class TestSellerStatement:
                 "gross_gmv": 5000.0,
                 "tds_withheld": 225.0,
                 "net_disbursed": 4275.0,
-                "cert_ref": stmt.withholding_cert_ref,
+                "cert_ref": "",
             }
         ]
         stmt.action_settle_statement()
@@ -565,7 +588,11 @@ class TestPayoutReconciliation:
             }
         )
         fresh = line_model.create(
-            {"reconciliation_id": recon.id, "seller_partner_id": book.seller_a.id, "discrepancy": 10.0}
+            {
+                "reconciliation_id": recon.id,
+                "seller_partner_id": book.seller_a.id,
+                "discrepancy": 10.0,
+            }
         )
         assert (aged.age_days, aged.is_aged) == (40, True)
         assert (fresh.age_days, fresh.is_aged) == (0, False)

@@ -78,6 +78,9 @@ LEDGER_GUARDED = {
     "commission_rate",
     "referral_id",
     "marketplace_order_id",
+    "void_reason",
+    "voided_by_id",
+    "voided_at",
 }
 # LP-07: what an accrued row never changes (reversible only by contra-posting).
 LEDGER_LOCKED = (
@@ -224,6 +227,7 @@ class FixCommissionLedger(models.Model):
             ("accrued", "Accrued / Posted to GL"),
             ("paid", "Disbursed / Paid"),
             ("forfeited", "Forfeited (dispute ruling)"),
+            ("void", "Voided (no source document)"),
         ],
         default="earned",
         required=True,
@@ -251,6 +255,9 @@ class FixCommissionLedger(models.Model):
         help="The commissioned M12 order the row was raised from (A08 M53-4).",
     )
     scheme_id = fields.Many2one("fix.commission.scheme", string="Commission Scheme")
+    void_reason = fields.Char(string="Why Voided", readonly=True, copy=False)
+    voided_by_id = fields.Many2one("res.users", string="Voided By", readonly=True, copy=False)
+    voided_at = fields.Datetime(string="Voided On", readonly=True, copy=False)
     escrow_hold = fields.Boolean(
         string="Held in Escrow",
         readonly=True,
@@ -442,13 +449,50 @@ class FixCommissionLedger(models.Model):
             if rec.scheme_id:
                 tds = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
                 if not psr:
-                    uplift = float_param(
-                        rec.env, PARAM_NON_FILER_UPLIFT, DEFAULT_NON_FILER_UPLIFT
-                    )
+                    uplift = float_param(rec.env, PARAM_NON_FILER_UPLIFT, DEFAULT_NON_FILER_UPLIFT)
                     tds = round(tds * (1.0 + uplift), 2)
             rec._guarded().write(
                 {"tds_amount": tds, "psr_verified": psr, "psr_slip_number": slip or False}
             )
+
+    def _fix_scheme_in_force(self):
+        """The commission scheme in force today for this row's payee."""
+        self.ensure_one()
+        Scheme = self.env["fix.commission.scheme"]
+        today = fields.Date.context_today(self)
+        if self.source_type == "partner_referral":
+            return Scheme._find(
+                "partner",
+                today,
+                self.company_id,
+                partner_type=self.referral_id.partner_id.partner_type,
+            )
+        seller = self.marketplace_order_id.selected_quote_id.seller_id.sudo()
+        tier = seller.tier if seller and "tier" in seller._fields else False
+        return Scheme._find("seller", today, self.company_id, seller_tier=tier)
+
+    def _fix_ensure_scheme(self):
+        """BRU-REV-10 / M53-12: a commission accrues on the scheme in force; a
+        row with no scheme took the order's rate with TDS 0 and no non-filer
+        uplift. It now takes the scheme in force, or is refused until Finance
+        configures one. Superuser code keeps what it stated."""
+        for rec in self.filtered(lambda r: not r.scheme_id):
+            scheme = rec._fix_scheme_in_force()
+            if not scheme:
+                if rec.env.su:
+                    continue
+                raise UserError(
+                    "No %s commission scheme is in force today for %s: nothing accrues until "
+                    "Finance configures one in M53 Commission Schemes (its rate and TDS)."
+                    % (
+                        "partner" if rec.source_type == "partner_referral" else "seller",
+                        rec.seller_partner_id.name,
+                    )
+                )
+            vals = {"scheme_id": scheme.id}
+            if scheme.commission_rate:
+                vals["commission_rate"] = scheme.commission_rate
+            rec._guarded().write(vals)
 
     @api.model
     def _fix_scheme_rate(self, vals):
@@ -485,7 +529,7 @@ class FixCommissionLedger(models.Model):
     def write(self, vals):
         if not self.env.su:
             for rec in self:
-                if rec.state in ("accrued", "paid", "forfeited"):
+                if rec.state in ("accrued", "paid", "forfeited", "void"):  # noqa: SIM102
                     # Reversible only by contra-posting per LP-07
                     if set(LEDGER_LOCKED) & set(vals):
                         raise UserError(
@@ -590,6 +634,7 @@ class FixCommissionLedger(models.Model):
             if rec.state != "earned":
                 continue
             rec._fix_assert_source()
+            rec._fix_ensure_scheme()
             # TDS and PSR are measured again at accrual, then locked (LP-07)
             rec._fix_measure_tds()
             if rec.source_type == "partner_referral":
@@ -692,49 +737,126 @@ class FixCommissionLedger(models.Model):
     # ---- the M12 -> M53 seam --------------------------------------------------
     @api.model
     def consume_commission_earned(self, event: dict):
-        """R8 consumer of commission.earned (A08 M53-15). A commissioned
-        marketplace order becomes ONE earned ledger row at the seller scheme's
-        rate; the payload is a claim — the order is re-read. Referral events
-        are accrued by finance (Accrue Commission), not here."""
+        """The marketplace half of commission.earned. M53-15 / M53-4: there is
+        ONE consumer of the event (fix.a04.finance.consumers); two active rows
+        raised two ledger rows per order. Kept as a thin door to that one path."""
         if not self.env.su:
             raise AccessError("The commission consumer runs only from the event relay.")
         if (event.get("aggregate") or "fix.marketplace.order") != "fix.marketplace.order":
             return {"skipped": event.get("aggregate")}
-        try:
-            order_id = int(event.get("aggregate_id") or 0)
-        except (TypeError, ValueError):
-            order_id = 0
-        order = self.env["fix.marketplace.order"].sudo().browse(order_id).exists()
-        if not order:
-            raise UserError("Commission refused: there is no marketplace order #%s." % order_id)
-        existing = self.sudo().search([("marketplace_order_id", "=", order.id)], limit=1)
-        if existing:
-            return {"id": existing.id, "created": False}
-        if order.state not in ("commissioned", "paid"):
-            raise UserError("Commission refused: order %s is %s." % (order.name, order.state))
-        quote = order.selected_quote_id
-        seller = quote.seller_id
-        if not seller.partner_id:
-            raise UserError("Commission refused: order %s names no seller party." % order.name)
-        gross = quote.quoted_price if quote else (order.budget or 0.0)
-        tier = seller.tier if "tier" in seller._fields else False
-        scheme = self.env["fix.commission.scheme"]._find(
-            "seller", fields.Date.context_today(self), order.company_id, seller_tier=tier
+        return self.env["fix.a04.finance.consumers"].consume_commission_earned(
+            dict(event, aggregate="fix.marketplace.order")
         )
-        row = self._guarded().create(
-            {
-                "company_id": order.company_id.id,
-                "operating_unit_id": order.operating_unit_id.id,
-                "source_type": "marketplace",
-                "seller_partner_id": seller.partner_id.id,
-                "marketplace_order_id": order.id,
-                "source_ref": order.name,
-                "gross_amount": gross,
-                "commission_rate": order.commission_rate,
-                "scheme_id": scheme.id or False,
-            }
+
+    # ---- M53-4: the exit for rows with no source document ---------------------
+    def _fix_unsourced(self):
+        return self.filtered(
+            lambda r: r.state == "earned"
+            and not r.gl_move_id
+            and not r.referral_id
+            and not r.marketplace_order_id
         )
-        return {"id": row.id, "created": True}
+
+    def action_link_source(self, source_ref=""):
+        """Name the source document of a row that has none: the marketplace
+        order (or referral) it was earned on. The document is re-read and must
+        agree on payee and amount; then the row can accrue."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Linking a commission to its source")
+        source_ref = (source_ref or "").strip()
+        if not source_ref:
+            raise UserError("Name the marketplace order or referral this commission was earned on.")
+        for rec in self:
+            if not rec._fix_unsourced():
+                raise UserError("Commission %s already has its source or left Earned." % rec.name)
+            if rec.source_type == "partner_referral":
+                ref = (
+                    self.env["fix.referral"]
+                    .sudo()
+                    .search(
+                        [("name", "=", source_ref), ("company_id", "=", rec.company_id.id)], limit=1
+                    )
+                )
+                if not ref or ref.state != "commissioned":
+                    raise UserError(
+                        "No commissioned referral %s in %s." % (source_ref, rec.company_id.name)
+                    )
+                if ref.partner_id.partner_id != rec.seller_partner_id:
+                    raise UserError("Referral %s pays another partner." % ref.name)
+                if abs((ref.base_amount or 0.0) - rec.gross_amount) > 0.005:
+                    raise UserError(
+                        "Referral %s has base %.2f; this row says %.2f."
+                        % (ref.name, ref.base_amount, rec.gross_amount)
+                    )
+                rec._guarded().write({"referral_id": ref.id, "source_ref": ref.name})
+                ref._guarded().write({"commission_ledger_id": rec.id})
+                continue
+            order = (
+                self.env["fix.marketplace.order"]
+                .sudo()
+                .search(
+                    [("name", "=", source_ref), ("company_id", "=", rec.company_id.id)], limit=1
+                )
+            )
+            if not order or order.state not in ("commissioned", "paid"):
+                raise UserError(
+                    "No commissioned marketplace order %s in %s."
+                    % (source_ref, rec.company_id.name)
+                )
+            if order.selected_quote_id.seller_id.partner_id != rec.seller_partner_id:
+                raise UserError("Order %s pays another seller." % order.name)
+            awarded = order.awarded_price or order.selected_quote_id.quoted_price or 0.0
+            if abs(awarded - rec.gross_amount) > 0.005:
+                raise UserError(
+                    "Order %s was awarded at %.2f; this row says %.2f."
+                    % (order.name, awarded, rec.gross_amount)
+                )
+            if self.sudo().search([("marketplace_order_id", "=", order.id)], limit=1):
+                raise UserError("Order %s already has its commission row." % order.name)
+            vals = {"marketplace_order_id": order.id, "source_ref": order.name}
+            if order.commission_rate:
+                vals["commission_rate"] = order.commission_rate
+            rec._guarded().write(vals)
+            rec.message_post(body="Linked to order %s by %s." % (order.name, self.env.user.name))
+        return True
+
+    def action_void_unsourced(self, reason=""):
+        """The Accounting Administrator closes earned rows with no source: they
+        never reached the GL or a payout, so nothing is reversed."""
+        require_role(self.env, GROUP_ADMINISTRATOR, "Voiding a commission row")
+        if not (reason or "").strip():
+            raise UserError("State why the commission row is voided.")
+        for rec in self:
+            if not rec._fix_unsourced():
+                raise UserError(
+                    "Commission %s has a source document or left Earned: it is not voided."
+                    % rec.name
+                )
+            rec._guarded().write(
+                {
+                    "state": "void",
+                    "void_reason": reason.strip()[:250],
+                    "voided_by_id": self.env.uid,
+                    "voided_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(body="Voided by %s: %s" % (self.env.user.name, reason.strip()[:250]))
+        return True
+
+    def action_void_all_unsourced(self, reason=""):
+        """The same decision for every source-less earned row of the selected
+        row's company (145 on the live copy), so it is not 145 clicks."""
+        require_role(self.env, GROUP_ADMINISTRATOR, "Voiding commission rows")
+        rows = self.search(
+            [
+                ("company_id", "in", self.mapped("company_id").ids),
+                ("state", "=", "earned"),
+                ("gl_move_id", "=", False),
+                ("referral_id", "=", False),
+                ("marketplace_order_id", "=", False),
+            ]
+        )
+        rows.action_void_unsourced(reason)
+        return {"voided": len(rows)}
 
 
 PAYOUT_GUARDED = {
@@ -1259,15 +1381,30 @@ class FixPayoutRun(models.Model):
                     % (line.partner_id.name, line.acc_number)
                 )
             if bank.partner_id.commercial_partner_id != line.partner_id.commercial_partner_id:
-                raise UserError("The approved account no longer belongs to %s." % line.partner_id.name)
+                raise UserError(
+                    "The approved account no longer belongs to %s." % line.partner_id.name
+                )
+
+    def _fix_active_lines(self):
+        """The payee lines still to be paid or paid (not replaced or dropped)."""
+        self.ensure_one()
+        return self.line_ids.filtered(lambda ln: not ln.superseded)
 
     def _payout_journal(self):
         code = self.env["ir.config_parameter"].sudo().get_param(PARAM_PAYOUT_JOURNAL)
         if not code:
             return self.env["account.journal"]
-        return self.env["account.journal"].sudo().search(
-            [("code", "=", code), ("company_id", "=", self.company_id.id), ("type", "=", "bank")],
-            limit=1,
+        return (
+            self.env["account.journal"]
+            .sudo()
+            .search(
+                [
+                    ("code", "=", code),
+                    ("company_id", "=", self.company_id.id),
+                    ("type", "=", "bank"),
+                ],
+                limit=1,
+            )
         )
 
     def action_request_payments(self):
@@ -1290,36 +1427,169 @@ class FixPayoutRun(models.Model):
                 )
             run._fin_assert_approved()
             run._fix_assert_pinned()
-            journal = run._payout_journal()
             for line in run.line_ids.filtered(lambda ln: ln.amount > 0.005):
                 Bank._fix_assert_payable_bank(line.partner_bank_id)
-                options = {
-                    "company_id": run.company_id.id,
-                    "operating_unit_id": run.operating_unit_id.id or False,
-                    "method": "bank_transfer",
-                    "rail": "beftn",
-                }
-                if journal:
-                    options["journal_id"] = journal.id
-                pay = Execution._fix_request_payment(
-                    "fix.payout.run.line",
-                    line.id,
-                    line.partner_id,
-                    line.partner_bank_id,
-                    line.amount,
-                    run.currency_id,
-                    "%s / %s" % (run.name, line.partner_id.name),
-                    run.approved_by_id,
-                    **options,
-                )
-                line.sudo().write({"payment_execution_id": pay.id})
-            run._guarded().write({"state": "executing", "rail_type": "m50", "rail_status": "executing"})
+                run._fix_request_line_payment(line)
+            run._guarded().write(
+                {"state": "executing", "rail_type": "m50", "rail_status": "executing"}
+            )
             run.message_post(
                 body="Released to treasury: %d payment instruction(s), net BDT %.2f."
                 % (len(run.line_ids.filtered("payment_execution_id")), run.approved_total)
             )
             run._fix_sync_payments()
         return True
+
+    def _fix_request_line_payment(self, line):
+        """One M50 instruction for one pinned payee line."""
+        self.ensure_one()
+        options = {
+            "company_id": self.company_id.id,
+            "operating_unit_id": self.operating_unit_id.id or False,
+            "method": "bank_transfer",
+            "rail": "beftn",
+        }
+        journal = self._payout_journal()
+        if journal:
+            options["journal_id"] = journal.id
+        pay = self.env["fix.payment.execution"]._fix_request_payment(
+            "fix.payout.run.line",
+            line.id,
+            line.partner_id,
+            line.partner_bank_id,
+            line.amount,
+            self.currency_id,
+            "%s / %s" % (self.name, line.partner_id.name),
+            self.approved_by_id,
+            **options,
+        )
+        line.sudo().write({"payment_execution_id": pay.id})
+        return pay
+
+    # ---- M53-1: an instruction treasury could not pay -------------------------
+    def _fix_unpaid_lines(self):
+        """Active lines whose instruction the bank rejected or treasury cancelled."""
+        self.ensure_one()
+        return self._fix_active_lines().filtered(
+            lambda ln: ln.amount > 0.005
+            and ln.payment_execution_id.sudo().state in ("failed", "cancelled")
+        )
+
+    def action_rerequest_unpaid(self):
+        """Ask treasury again for the rejected or cancelled payee lines, on the
+        terms approved: same payee, account and amount. A failed instruction is
+        re-queued; a cancelled one is final in M50, so its line is replaced by
+        an identical pinned line with a new instruction."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Re-requesting a payout payment")
+        Bank = self.env["res.partner.bank"]
+        for run in self:
+            if run.state != "executing":
+                raise UserError(
+                    "Payout run %s is %s, not released to treasury." % (run.name, run.state)
+                )
+            lines = run._fix_unpaid_lines()
+            if not lines:
+                raise UserError("Payout run %s has no rejected or cancelled payment." % run.name)
+            for line in lines:
+                bank = line.partner_bank_id.sudo().exists()
+                if not bank or (bank.acc_number or "").strip() != (line.acc_number or ""):
+                    raise UserError(
+                        "The bank account of %s changed after approval: drop this payee from the "
+                        "run and pay them in a new, newly approved run." % line.partner_id.name
+                    )
+                Bank._fix_assert_payable_bank(bank)
+                pay = line.payment_execution_id.sudo()
+                if pay.state == "failed":
+                    pay.with_env(self.env).action_retry()
+                    continue
+                twin = (
+                    self.env["fix.payout.run.line"]
+                    .sudo()
+                    .create(
+                        {
+                            "run_id": run.id,
+                            "partner_id": line.partner_id.id,
+                            "partner_bank_id": line.partner_bank_id.id,
+                            "acc_number": line.acc_number,
+                            "routing_number": line.routing_number,
+                            "amount": line.amount,
+                            "tds_amount": line.tds_amount,
+                            "gross_amount": line.gross_amount,
+                            "commission_ids": [(6, 0, line.commission_ids.ids)],
+                        }
+                    )
+                )
+                line.sudo().write(
+                    {"superseded": True, "superseded_reason": "Cancelled instruction re-requested"}
+                )
+                run._fix_request_line_payment(twin)
+            run._guarded().write({"rail_status": "executing"})
+            run.message_post(
+                body="%s re-requested %d unpaid payment(s) from treasury."
+                % (self.env.user.name, len(lines))
+            )
+        return True
+
+    def action_drop_unpaid(self, reason=""):
+        """Close the run without the payees treasury could not pay: their
+        commissions return to Accrued, free for a new, newly approved run. The
+        Accounting Administrator decides, not whoever prepared the run."""
+        require_role(self.env, GROUP_ADMINISTRATOR, "Dropping a payee from a payout run")
+        if not (reason or "").strip():
+            raise UserError("State why the payee is dropped from the run.")
+        for run in self:
+            if run.state != "executing":
+                raise UserError(
+                    "Payout run %s is %s, not released to treasury." % (run.name, run.state)
+                )
+            if not self.env.su and run.prepared_by_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you prepared %s; another Accounting Administrator "
+                    "decides this." % run.name
+                )
+            lines = run._fix_unpaid_lines()
+            if not lines:
+                raise UserError("Payout run %s has no rejected or cancelled payment." % run.name)
+            dropped = lines.mapped("commission_ids")
+            lines.sudo().write({"superseded": True, "superseded_reason": reason.strip()[:250]})
+            # the run first, so a cancel's status sync sees only who is still paid
+            run._guarded().write(
+                {
+                    "commission_ids": [(3, c.id) for c in dropped],
+                    "approved_commission_ids": [(3, c.id) for c in dropped],
+                    "rail_status": "executing",
+                }
+            )
+            for pay in (
+                lines.mapped("payment_execution_id").sudo().filtered(lambda p: p.state == "failed")
+            ):
+                pay.with_env(self.env).action_cancel()
+            run.message_post(
+                body="%s dropped %s from the run: %s. Their commissions stay accrued for a new run."
+                % (
+                    self.env.user.name,
+                    ", ".join(lines.mapped("partner_id.name")),
+                    reason.strip()[:250],
+                )
+            )
+            if run._fix_active_lines():
+                run._fix_sync_payments()
+            else:
+                run._guarded().write({"state": "cancelled", "rail_status": "failed"})
+        return True
+
+    def action_open_reconciliation(self):
+        """M53-14: open (or re-run) this run's payout reconciliation."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Reconciling a payout run")
+        Rec = self.env["fix.payout.reconciliation"]
+        out = Rec
+        for run in self:
+            rec = run.reconciliation_ids.filtered(lambda r: r.state != "resolved")[
+                :1
+            ] or Rec.create({"company_id": run.company_id.id, "payout_run_id": run.id})
+            rec.action_run_reconciliation()
+            out |= rec
+        return {"reconciliation": out[:1].name, "state": out[:1].state}
 
     # Old entry points: the run no longer pays by itself.
     def action_execute(self):
@@ -1346,17 +1616,113 @@ class FixPayoutRun(models.Model):
         for run in self.sudo():
             if run.state != "executing":
                 continue
-            lines = run.line_ids.filtered(lambda ln: ln.amount > 0.005)
-            states = lines.mapped("payment_execution_id.state")
-            if any(s == "failed" for s in states):
+            lines = run._fix_active_lines().filtered(lambda ln: ln.amount > 0.005)
+            # per disbursement (M53-1): each payee is discharged in the GL when
+            # the bank confirms THAT payment, not when the last one clears
+            for line in lines.filtered(
+                lambda ln: ln.payment_execution_id.state == "executed" and not ln.gl_move_id
+            ):
+                run._fix_post_line_discharge(line)
+            states = [ln.payment_execution_id.state for ln in lines]
+            if any(s in ("failed", "cancelled") for s in states):
                 run._guarded().write({"rail_status": "failed"})
-            if lines and all(s == "executed" for s in states) and len(states) == len(lines):
+            if lines and all(s == "executed" for s in states):
                 run._guarded().write({"rail_status": "confirmed"})
                 run._finalize_payout_execution()
-            elif not lines:
+            elif not lines and (run._fix_active_lines() or not run.line_ids):
+                # nothing to pay (a clawback consumed every net), not "all dropped"
                 run._guarded().write({"rail_status": "confirmed"})
                 run._finalize_payout_execution()
         return True
+
+    def _fix_post_line_discharge(self, line):
+        """Discharge one payee line: Dr each payable role, Cr clawback recovery,
+        Cr TDS, Cr the bank treasury paid from. The commissions are paid now."""
+        self.ensure_one()
+        run = self.sudo()
+        company = run.company_id
+        rows = line.commission_ids
+        by_role: dict[str, float] = {}
+        for c in rows:
+            role = c._payable_role()
+            by_role[role] = by_role.get(role, 0.0) + c.net_payable + (c.tds_amount or 0.0)
+        labels = {
+            "seller_payable": "Discharge Seller Liability",
+            "partner_payable": "Discharge Partner Commission Liability",
+        }
+        entries = []
+        dims = []
+        for role, amount in sorted(by_role.items(), key=lambda kv: kv[0] != "seller_payable"):
+            entries.append(
+                {
+                    "name": "%s: %s" % (labels[role], run.name),
+                    "account_id": _configured_account(self.env, company, role).id,
+                    "partner_id": line.partner_id.id,
+                    "debit": round(amount, 2),
+                    "credit": 0.0,
+                }
+            )
+            dims.append("CC-PAY")
+        clawback = round(sum(a for _c, a in run._clawback_deductions().get(line.partner_id, [])), 2)
+        if clawback > 0.005:
+            entries.append(
+                {
+                    "name": "Clawbacks recovered: %s" % run.name,
+                    "account_id": _configured_account(self.env, company, "clawback_recovery").id,
+                    "debit": 0.0,
+                    "credit": clawback,
+                }
+            )
+            dims.append("CC-PAY")
+        tds = round(sum(c.tds_amount or 0.0 for c in rows), 2)
+        if tds > 0.005:
+            entries.append(
+                {
+                    "name": "Statutory TDS Withheld (ITA 2023 s.140): %s" % run.name,
+                    "account_id": _configured_account(self.env, company, "tds_payable").id,
+                    "debit": 0.0,
+                    "credit": tds,
+                }
+            )
+            dims.append("CC-TAX")
+        if line.amount > 0.005:
+            pay = line.payment_execution_id.sudo()
+            journal = pay and (
+                (pay["released_journal_id"] if "released_journal_id" in pay._fields else False)
+                or pay.journal_id
+            )
+            account = (journal.default_account_id if journal else False) or _configured_account(
+                self.env, company, "clearing"
+            )
+            entries.append(
+                {
+                    "name": "Net Disbursed Funds via treasury: %s" % run.name,
+                    "account_id": account.id,
+                    "debit": 0.0,
+                    "credit": round(line.amount, 2),
+                }
+            )
+            dims.append("CC-TREAS")
+        move, _ = post_with_dimensions(
+            self.env,
+            {
+                "journal_id": _configured_journal(self.env, company).id,
+                "company_id": company.id,
+                "date": fields.Date.context_today(run),
+                "ref": "PAYOUT-DISCHARGE-%s-%s" % (run.name, line.id),
+                "line_ids": [(0, 0, vals) for vals in entries],
+            },
+            {
+                i: {"operating_unit_id": run.operating_unit_id.id, "cost_centre": cc}
+                for i, cc in enumerate(dims)
+            },
+            source="settlement",
+        )
+        line.sudo().write({"gl_move_id": move.id})
+        if not run.gl_move_id:
+            run._guarded().write({"gl_move_id": move.id})
+        rows._guarded().write({"state": "paid"})
+        return move
 
     def _finalize_payout_execution(self):
         """Finalize executed payout run: mark paid, generate bilingual statements, and post to GL."""
@@ -1381,7 +1747,8 @@ class FixPayoutRun(models.Model):
         # by the system now that the money has moved)
         stmt_model = self.env["fix.seller.statement"].sudo()
         statements = stmt_model
-        for line in run.line_ids:
+        lines = run._fix_active_lines()
+        for line in lines:
             comms = line.commission_ids
             clawback_tot = sum(amt for _c, amt in deductions.get(line.partner_id, []))
             statements |= stmt_model._guarded().create(
@@ -1412,7 +1779,7 @@ class FixPayoutRun(models.Model):
                 "payout_run": run.name,
                 "rail_type": run.rail_type,
                 "rail_status": run.rail_status,
-                "sellers_paid": len(run.line_ids),
+                "sellers_paid": len(lines),
                 "total_disbursed": float(run.total_payable),
                 "tds_withheld": float(run.total_tds),
             },
@@ -1450,8 +1817,18 @@ class FixPayoutRun(models.Model):
         partner payable); clawbacks recovered in the run credit the
         customer-refund clearing account they reimburse; the net credits the
         bank account treasury paid from (M50 books nothing for a payout line,
-        so the bank is credited once)."""
+        so the bank is credited once).
+
+        A run paid through M50 discharges per payee line as each payment is
+        confirmed (M53-1); this settles any line not yet posted (a payee whose
+        net a clawback consumed). The aggregate entry below is only for runs
+        paid before the pinned lines existed."""
         for rec in self:
+            lines = rec._fix_active_lines()
+            if lines and rec.state == "executed":
+                for line in lines.filtered(lambda ln: not ln.gl_move_id):
+                    rec._fix_post_line_discharge(line)
+                continue
             if rec.gl_move_id:
                 continue
             if rec.state != "executed":
@@ -1587,9 +1964,7 @@ class FixPayoutRunLine(models.Model):
     operating_unit_id = fields.Many2one(related="run_id.operating_unit_id", store=True)
     currency_id = fields.Many2one(related="run_id.currency_id")
     partner_id = fields.Many2one("res.partner", string="Payee", required=True, readonly=True)
-    partner_bank_id = fields.Many2one(
-        "res.partner.bank", string="Approved Account", readonly=True
-    )
+    partner_bank_id = fields.Many2one("res.partner.bank", string="Approved Account", readonly=True)
     acc_number = fields.Char(string="Approved Account No", readonly=True)
     routing_number = fields.Char(string="Approved Routing No", readonly=True)
     amount = fields.Monetary(string="Net Paid", currency_field="currency_id", readonly=True)
@@ -1607,6 +1982,15 @@ class FixPayoutRunLine(models.Model):
         "fix.payment.execution", string="Treasury Instruction", readonly=True
     )
     payment_state = fields.Selection(related="payment_execution_id.state", string="Payment")
+    gl_move_id = fields.Many2one("account.move", string="GL Discharge", readonly=True, copy=False)
+    superseded = fields.Boolean(
+        string="Replaced / Dropped",
+        readonly=True,
+        copy=False,
+        help="This line no longer pays: its cancelled instruction was re-requested on a new "
+        "line, or the payee was dropped from the run (M53-1).",
+    )
+    superseded_reason = fields.Char(string="Why Replaced / Dropped", readonly=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1617,7 +2001,8 @@ class FixPayoutRunLine(models.Model):
     def write(self, vals):
         if not self.env.su:
             raise UserError("A pinned payee line is never edited (F2).")
-        if set(vals) - {"payment_execution_id"} and self.filtered("payment_execution_id"):
+        allowed = {"payment_execution_id", "gl_move_id", "superseded", "superseded_reason"}
+        if set(vals) - allowed and self.filtered("payment_execution_id"):
             raise UserError("A payee line released to treasury is never edited (F2).")
         return super().write(vals)
 

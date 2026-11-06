@@ -201,12 +201,22 @@ APPROVERS = [
     (
         "seed.fin.admin@1000fix.local",
         "কামরুল হাসান (Accounting Administrator)",
-        ["account.group_account_manager"],
+        [
+            "account.group_account_manager",
+            "cd_entity_config.group_dofa_tier_3",
+            "cd_partner.group_fix_referral_manager",
+        ],
     ),
     (
+        # Treasury authorisers must hold the DOFA tier AND be an Accounting
+        # Administrator (M50-1); without this only `admin` could clear the bands.
         "seed.fin.cfo@1000fix.local",
         "শারমিন সুলতানা (CFO)",
-        ["account.group_account_manager", "cd_tax_engine_bd.group_tax_filing_approver"],
+        [
+            "account.group_account_manager",
+            "cd_tax_engine_bd.group_tax_filing_approver",
+            "cd_entity_config.group_dofa_tier_5",
+        ],
     ),
 ]
 

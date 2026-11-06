@@ -160,9 +160,21 @@ def bank_recon_summary(env, date_from=None, date_to=None, **_kw):
             dom.append(("date", ">=", d_from))
         lines = Line.search(dom)
         unmatched = lines.filtered(lambda ln: ln.match_state == "unmatched")
+        last = env["fix.bank.reconciliation"].search(
+            [
+                ("company_id", "=", company.id),
+                ("journal_id", "=", journal.id),
+                ("state", "=", "reviewed"),
+            ],
+            order="period desc",
+            limit=1,
+        )
         rows.append(
             {
                 "account": journal.name,
+                "last_reviewed": (
+                    "%s (%s)" % (last.period, last.reviewed_by_id.name) if last else "Never"
+                ),
                 "gl_balance": _r(
                     gl_balance(env, journal.default_account_id, company, date_to=d_to)
                 ),
@@ -197,6 +209,7 @@ def bank_recon_summary(env, date_from=None, date_to=None, **_kw):
         rows.append(
             {
                 "account": "(no bank account on the line)",
+                "last_reviewed": "",
                 "gl_balance": None,
                 "lines": len(orphan),
                 "matched": len(orphan) - len(unmatched),
@@ -232,9 +245,11 @@ def bank_recon_summary(env, date_from=None, date_to=None, **_kw):
             "unmatched_out",
             "awaiting_bank",
             "in_transit",
+            "last_reviewed",
         ],
         "labels": {
             "account": "Bank Account",
+            "last_reviewed": "Last Reviewed Statement",
             "gl_balance": "GL Balance",
             "lines": "Statement Lines",
             "matched": "Matched",
@@ -256,6 +271,8 @@ def bank_recon_summary(env, date_from=None, date_to=None, **_kw):
             % (round(total_matched / total_lines * 100.0, 1) if total_lines else 0.0),
             "Payments executed by a calling module without bank evidence: %s (shown until a statement line confirms them)."
             % unconfirmed,
+            "The statement itself, per account and period with its second-person review, is on "
+            "Reconciliation Statements.",
         ],
         "empty": "No bank journals.",
     }

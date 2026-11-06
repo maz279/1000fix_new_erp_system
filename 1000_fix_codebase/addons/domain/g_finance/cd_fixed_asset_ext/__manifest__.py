@@ -48,6 +48,7 @@ CD-M49-01 (P08-M08, rebuilt for A08) — fixed assets on the seam M19 built:
         "data/fix_asset_sequence_data.xml",
         "data/fix_asset_master_data.xml",
         "data/fix_asset_consumers.xml",
+        "data/fix_asset_cron.xml",
         "views/fix_fixed_asset_views.xml",
         "views/fix_asset_lifecycle_views.xml",
     ],

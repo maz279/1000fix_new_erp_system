@@ -63,7 +63,7 @@ class FixJournalPostingLog(models.Model):
         default="api",
     )
     state = fields.Selection(
-        [("requested", "Awaiting Review"), ("posted", "Posted")],
+        [("requested", "Awaiting Review"), ("posted", "Posted"), ("discarded", "Discarded")],
         required=True,
         default="posted",
     )
@@ -609,8 +609,7 @@ class FixAllocationRule(models.Model):
             if movement == 0.0:
                 raise UserError(
                     "Source account %s has no posted movement between %s and %s — "
-                    "nothing to allocate."
-                    % (rule.source_account_id.display_name, run_from, run_to)
+                    "nothing to allocate." % (rule.source_account_id.display_name, run_from, run_to)
                 )
 
             line_vals = [

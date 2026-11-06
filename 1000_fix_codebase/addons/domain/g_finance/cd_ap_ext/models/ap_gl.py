@@ -30,8 +30,9 @@ AP_ACCOUNTS = {
     "expense": (None, "Default purchase / expense account"),
     "employee_payable": (None, "Employee reimbursements payable"),
     "employee_advance": (None, "Employee advances and floats"),
-    # A08 M52-8: an advance recovered through payroll clears against salaries payable
-    "salary_payable": (None, "Salaries payable (payroll recovery of advances)"),
+    # A08 M52-8: an advance recovered through payroll clears against salaries
+    # payable; Odoo generic chart: 230000 "Salary Payable"
+    "salary_payable": ("230000", "Salaries payable (payroll recovery of advances)"),
 }
 TAX_ROLES = ("vat_input", "tds_payable", "vds_payable")
 
@@ -111,10 +112,14 @@ def _ap_posting_dims(env):
     }
 
 
-def post_ap_move(env, company, journal, entry_date, ref, lines, operating_unit=None):
+def post_ap_move(
+    env, company, journal, entry_date, ref, lines, operating_unit=None, line_dimensions=None
+):
     """Post a balanced AP entry; lines: [(account, label, debit, credit, partner)].
     Same engine as the tax subledger, plus the AP default cost-centre and
-    business-line dimensions on every line (COA-003)."""
+    business-line dimensions on every line (COA-003). line_dimensions: {index
+    into `lines`: {dimension: value}} overrides them on one line (an expense
+    line's own cost centre, BRU-APE-16)."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
     debit = round(sum(line[2] for line in lines), 2)
@@ -146,6 +151,11 @@ def post_ap_move(env, company, journal, entry_date, ref, lines, operating_unit=N
     }
     line_dims = {"operating_unit_id": ou.id} if ou else {}
     line_dims.update(_ap_posting_dims(env))
-    dims = {i: dict(line_dims) for i in range(len(move_vals["line_ids"]))}
+    kept = [i for i, line in enumerate(lines) if round(line[2], 2) or round(line[3], 2)]
+    overrides = line_dimensions or {}
+    dims = {
+        position: {**line_dims, **{k: v for k, v in overrides.get(i, {}).items() if v}}
+        for position, i in enumerate(kept)
+    }
     move, _attached = post_with_dimensions(env, move_vals, dims, source="ap_subledger")
     return move

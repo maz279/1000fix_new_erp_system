@@ -21,6 +21,7 @@ export const MODULE = {
     { en: 'Revenue', screens: [
       { id: 'M53-obligations', en: 'Performance Obligations', bn: 'পারফরম্যান্স বাধ্যবাধকতা', t: 'g' },
       { id: 'M53-schedules', en: 'Revenue Schedules', bn: 'রাজস্ব সূচি', t: 'g' },
+      { id: 'M53-schedules-held', en: 'Held Revenue Schedules (needs a decision)', bn: 'আটকে রাখা রাজস্ব সূচি', t: 'g' },
       { id: 'M53-contract', en: 'Contract Assets & Liabilities', bn: 'চুক্তি সম্পদ ও দায়', t: 'r' },
       { id: 'M53-bridge', en: 'Deferred Revenue Bridge', bn: 'বিলম্বিত রাজস্ব সমন্বয়', t: 'r' },
       { id: 'M53-warranty', en: 'Warranty Provision (IAS 37)', bn: 'ওয়ারেন্টি সঞ্চিতি (IAS 37)', t: 'g' },
@@ -31,6 +32,7 @@ export const MODULE = {
     ]},
     { en: 'Commission', screens: [
       { id: 'M53-ledger', en: 'Commission Ledger', bn: 'কমিশন লেজার', t: 'g' },
+      { id: 'M53-ledger-unsourced', en: 'Commissions with No Source (needs a decision)', bn: 'উৎসবিহীন কমিশন', t: 'g' },
       { id: 'M53-schemes', en: 'Commission Schemes', bn: 'কমিশন কর্মসূচি', t: 'g' }
     ]},
     { en: 'Settlements', screens: [
@@ -42,7 +44,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream', 'Contract Assets & Liabilities', 'Commission Accrual', 'Payout Reconciliation', 'Clawback Register'],
-  forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract'],
+  forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract', 'Payout Reconciliation'],
   cross: ['Subscriptions & Recurring', 'Marketplace & Sellers', 'Partner & Channel'],
   freg: { src: 74, sub: [
     ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations'] }],
@@ -68,6 +70,13 @@ export const SCREENS = {
     cols: ['source_model','description','total_amount','recognized_amount','deferred_balance','start_date','end_date','state'],
     stateField: 'state', actions: [{m:'action_recognize_period',l:'Recognise to Today (posts GL)'},
       {m:'action_request_cfo_approval',l:'Request CFO Approval (manual schedule)'}] },
+  /* M53-6: schedules with no contract and no CFO approval post nothing; a person
+   * cancels them, or reopens them as a manual schedule for the CFO. */
+  'M53-schedules-held': { kind: 'model_list', model: 'fix.revenue.schedule', create: false,
+    domain: [['state', '=', 'held']],
+    cols: ['source_model','source_id','description','total_amount','recognized_amount','start_date','end_date','hold_reason','state'],
+    stateField: 'state', actions: [{m:'action_cancel_held',l:'Cancel (no contract)',ask:'Why this schedule is cancelled',kwarg:'reason'},
+      {m:'action_reopen_as_manual',l:'Reopen as Manual Schedule (for the CFO)'}] },
   'M53-contract': { kind: 'table_report', module: 'M53', report: 'contract_balances' },
   'M53-bridge': { kind: 'table_report', module: 'M53', report: 'deferred_revenue_bridge' },
   'M53-warranty': { kind: 'model_list', model: 'fix.warranty.provision',
@@ -81,11 +90,22 @@ export const SCREENS = {
     stateField: 'state',
     actions: [{m:'action_generate_charge',l:'Generate Charge'},{m:'action_trigger_dunning',l:'Run Dunning'},
       {m:'action_reinstate',l:'Reinstate'},{m:'action_allocate_price',l:'Allocate Price (IFRS 15)'},
+      {m:'action_generate_revrec_schedule',l:'Generate Revenue Schedule'},
+      {m:'action_request_contract_value',l:'Request Transaction Price',asks:[{label:'Transaction price (BDT, VAT excluded)',kwarg:'contract_value',number:true},{label:'Where it comes from (the contract)',kwarg:'reason'}]},
+      {m:'action_approve_contract_value',l:'Approve Transaction Price (second person)'},
       {m:'action_request_refund',l:'Cancel & Refund'}] },
   // Commission
   'M53-ledger': { kind: 'model_list', model: 'fix.commission.ledger',
     cols: ['name','seller_partner_id','source_type','gross_amount','commission_amount','tds_amount','net_payable','escrow_hold','state'],
     stateField: 'state', actions: [{m:'action_post_to_gl',l:'Post Accrual to GL'}] },
+  /* M53-4: an earned row with no order or referral never accrues; this is its exit. */
+  'M53-ledger-unsourced': { kind: 'model_list', model: 'fix.commission.ledger', create: false,
+    domain: [['state','=','earned'],['marketplace_order_id','=',false],['referral_id','=',false]],
+    cols: ['name','seller_partner_id','source_type','gross_amount','commission_amount','create_date','state'],
+    stateField: 'state',
+    actions: [{m:'action_link_source',l:'Link to its Order / Referral',ask:'Marketplace order or referral number',kwarg:'source_ref'},
+      {m:'action_void_unsourced',l:'Void (Accounting Administrator)',ask:'Why this row is voided',kwarg:'reason'},
+      {m:'action_void_all_unsourced',l:'Void All with No Source (Accounting Administrator)',ask:'Why every source-less row of this company is voided',kwarg:'reason'}] },
   'M53-schemes': { kind: 'model_list', model: 'fix.commission.scheme',
     cols: ['name','scheme_type','partner_type','seller_tier','commission_rate','tds_rate','date_from','date_to'] },
   // Settlements
@@ -97,23 +117,33 @@ export const SCREENS = {
     actions: [{m:'action_collect_accrued',l:'Collect Accrued Commissions'},
       {m:'action_prepare',l:'Prepare & Request Approval'},
       {m:'action_request_payments',l:'Release to Treasury (M50)'},
-      {m:'action_query_status',l:'Refresh Payment Status'},{m:'action_cancel',l:'Cancel'}] },
+      {m:'action_query_status',l:'Refresh Payment Status'},
+      {m:'action_rerequest_unpaid',l:'Re-request Rejected Payments'},
+      {m:'action_drop_unpaid',l:'Drop Unpaid Payees (Accounting Administrator)',ask:'Why these payees leave the run',kwarg:'reason'},
+      {m:'action_open_reconciliation',l:'Reconcile to Bank'},
+      {m:'action_cancel',l:'Cancel'}] },
   'M53-sellers': { kind: 'model_list', model: 'fix.seller.statement',
-    cols: ['name','seller_partner_id','period','gross_gmv','commission_amount','tds_withheld','clawback_amount','net_payable','state'],
+    cols: ['name','seller_partner_id','period','gross_gmv','commission_amount','tds_withheld','clawback_amount','net_payable','withholding_cert_ref','tds_challan_id','state'],
     stateField: 'state',
-    actions: [{m:'action_issue_statement',l:'Issue Statement'},{m:'action_settle_statement',l:'Mark Settled'}] },
+    actions: [{m:'action_issue_statement',l:'Issue Statement'},{m:'action_settle_statement',l:'Mark Settled'},
+      {m:'action_attach_challan',l:'Attach TDS Challan (issues the certificate)',ask:'Deposited, verified TDS challan number',kwarg:'challan_no'}] },
   'M53-partners': { kind: 'model_list', model: 'fix.referral',
     cols: ['name','partner_id','referred_partner_id','base_amount','commission_amount','state','commission_ledger_id','payout_state'],
-    stateField: 'state', domain: [['state','in',['converted','commissioned']]], create: false,
-    actions: [{m:'action_accrue_commission',l:'Accrue Commission (GL)'}] },
+    stateField: 'state', domain: [['state','in',['submitted','converted','commissioned']]], create: false,
+    /* Convert: the Referral Manager (cd_partner.group_fix_referral_manager). */
+    actions: [{m:'action_convert',l:'Convert from Paid Invoice',ask:'The referred customer\'s paid invoice number (empty = the one picked on the form)',kwarg:'invoice'},
+      {m:'action_earn_commission',l:'Earn Commission'},
+      {m:'action_accrue_commission',l:'Accrue Commission (GL)'}] },
   'M53-escrow': { kind: 'model_list', model: 'fix.settlement.adjustment',
     cols: ['name','adjustment_type','seller_partner_id','dispute_id','amount','remaining_amount','state'],
     stateField: 'state',
     actions: [{m:'action_activate',l:'Activate'},{m:'action_release',l:'Release Escrow'},
       {m:'action_forfeit',l:'Forfeit (refund customer)'},{m:'action_cancel',l:'Cancel'}] },
-  'M53-recon': { kind: 'model_list', create: false, model: 'fix.payout.reconciliation',
+  'M53-recon': { kind: 'model_list', model: 'fix.payout.reconciliation',
     cols: ['name','payout_run_id','reconciliation_date','system_count','rail_count','system_amount','rail_amount','unmatched_amount','state'],
-    stateField: 'state', actions: [{m:'action_run_reconciliation',l:'Run Reconciliation'}] },
+    stateField: 'state', actions: [{m:'action_run_reconciliation',l:'Run Reconciliation'},
+      {m:'action_investigate',l:'Investigate Break',ask:'What is being checked',kwarg:'note'},
+      {m:'action_resolve_break',l:'Resolve Break (Accounting Administrator)',ask:'What explains the break',kwarg:'note'}] },
 
 
   /* ===== A08 master-data forms (D365 in-workspace) ===== */
@@ -158,7 +188,7 @@ export const SCREENS = {
         ] },
       { title: "Note",
         fields: [
-          { name: 'note', type: 'text', label: "Note" }
+          { name: 'note', type: 'text', readonly: true, label: "Note (from the computation)" }
         ] }
     ]
   },
@@ -201,6 +231,9 @@ export const SCREENS = {
           { name: 'next_invoice_date', required: true, label: "Next Invoice" },
           { name: 'grace_period_days', label: "Grace Period (days)" },
           { name: 'consolidated', label: "Consolidated Billing" },
+          { name: 'contract_value', label: "Transaction Price (at creation; then Request Transaction Price)" },
+          { name: 'contract_end_date', label: "Contract End" },
+          { name: 'pending_contract_value', readonly: true, label: "Requested Transaction Price" },
           { name: 'state', readonly: true, label: "State" }
         ] }
     ]
@@ -248,7 +281,8 @@ export const SCREENS = {
           { name: 'platform_fee', label: "Platform Fee" },
           { name: 'clawback_amount', label: "Clawback" },
           { name: 'net_payable', readonly: true, label: "Net Payable (computed)" },
-          { name: 'withholding_cert_ref', readonly: true, label: "Withholding Certificate (at issue)" },
+          { name: 'withholding_cert_ref', readonly: true, label: "Withholding Certificate (on the TDS challan)" },
+          { name: 'tds_challan_id', readonly: true, label: "TDS Challan" },
           { name: 'state', readonly: true, label: "State" }
         ] }
     ]
@@ -280,6 +314,7 @@ export const FORM_MODELS = {
   'M53:Payout Run': 'fix.payout.run',
   'M53:Clawback': 'fix.settlement.adjustment',
   'M53:Commission Scheme': 'fix.commission.scheme',
+  'M53:Payout Reconciliation': 'fix.payout.reconciliation',
   'M53:Performance Obligation': 'fix.performance.obligation',
   'M53:Subscription Contract': 'fix.subscription',
 };
@@ -304,6 +339,7 @@ Object.assign(SCREENS, {
           { name: 'manual_reason', label: 'Reason (manual schedule)', type: 'text' },
           { name: 'evidence_ref', label: 'Evidence Reference' },
           { name: 'state', readonly: true, label: 'State' },
+          { name: 'hold_reason', readonly: true, label: 'Why Held' },
           { name: 'recognized_amount', readonly: true, label: 'Recognised (posted lines)' }
         ] }
     ]
@@ -336,12 +372,77 @@ Object.assign(SCREENS, {
       draft: 'Draft', active: 'Held / Open', released: 'Released to Payee',
       forfeited: 'Forfeited (refunded)', recovered: 'Recovered', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Adjustment', note: 'An escrow hold freezes a disputed amount; a clawback recovers it from future payouts. Recovery progress is tracked on the register.',
+      { title: 'Adjustment', note: 'An escrow hold freezes the listed commissions while a dispute is open (a raised dispute holds its own order\'s commissions automatically; the amount is what they would pay). A clawback recovers a stated amount from future payouts.',
         fields: [
           { name: 'adjustment_type', required: true, label: 'Type' },
-          { name: 'seller_partner_id', required: true, label: 'Seller' },
-          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'seller_partner_id', required: true, label: 'Seller / Partner' },
+          { name: 'dispute_id', label: 'Marketplace Dispute (escrow)' },
+          { name: 'commission_ids', label: 'Commissions to Hold (escrow)' },
+          { name: 'amount', label: 'Amount (clawback; an escrow computes it)' },
+          { name: 'reason', required: true, type: 'text', label: 'Reason' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'decided_by_id', readonly: true, label: 'Decided By' },
           { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  /* M53-4: pick the referred customer's paid invoice, then Convert. */
+  'M53-form-referral': {
+    kind: 'model_form',
+    model: 'fix.referral',
+    title: 'Partner Referral',
+    back: 'M53-partners',
+    status: { field: 'state', labels: { submitted: 'Submitted', converted: 'Converted', commissioned: 'Commissioned' } },
+    sections: [
+      { title: 'Conversion', note: 'A referral converts on the referred customer\'s PAID invoice: the base is read from it, never typed. Converting needs the Referral Manager; finance then earns and accrues the commission.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Referral' },
+          { name: 'partner_id', readonly: true, label: 'Referring Partner' },
+          { name: 'referred_partner_id', readonly: true, label: 'Referred Customer' },
+          { name: 'convert_invoice_id', label: 'Paid Invoice to Convert From' },
+          { name: 'invoice_id', readonly: true, label: 'Invoice Converted From' },
+          { name: 'base_amount', readonly: true, label: 'Referred Revenue (from the invoice)' },
+          { name: 'commission_amount', readonly: true, label: 'Commission Earned' },
+          { name: 'commission_ledger_id', readonly: true, label: 'Commission Ledger Entry' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  /* M53-14: reconcile a released run to what the bank statement confirmed. */
+  'M53-form-recon': {
+    kind: 'model_form',
+    model: 'fix.payout.reconciliation',
+    title: 'Payout Reconciliation',
+    back: 'M53-recon',
+    status: { field: 'state', labels: { draft: 'Not Run', balanced: 'Balanced', break_detected: 'Break Detected', investigating: 'Investigating', resolved: 'Resolved' } },
+    tabs: [
+      { id: 'run', label: 'Run', bn: 'চালনা' },
+      { id: 'figures', label: 'Figures', bn: 'অঙ্ক' }
+    ],
+    sections: [
+      { tab: 'run', title: 'Reconciliation', note: 'Pick the payout run, save, then Run Reconciliation: the disbursed side is read from the M50 instructions the bank statement confirmed, never typed. A break is investigated and resolved by an Accounting Administrator who did not run it.',
+        fields: [
+          { name: 'payout_run_id', required: true, label: 'Payout Run' },
+          { name: 'rail_name', readonly: true, label: 'Rail' },
+          { name: 'reconciliation_date', label: 'Reconciliation Date' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'break_notes', readonly: true, type: 'text', label: 'Break Notes' },
+          { name: 'ran_by_id', readonly: true, label: 'Last Run By' },
+          { name: 'resolved_by_id', readonly: true, label: 'Resolved By' }
+        ] },
+      { tab: 'figures', title: 'Count and Amount', note: 'Compared separately (FF-94).',
+        fields: [
+          { name: 'system_count', readonly: true, label: 'System Payees' },
+          { name: 'rail_count', readonly: true, label: 'Bank-Confirmed Payees' },
+          { name: 'count_matched', readonly: true, label: 'Counts Match' },
+          { name: 'system_amount', readonly: true, label: 'System Amount' },
+          { name: 'rail_amount', readonly: true, label: 'Bank-Confirmed Amount' },
+          { name: 'amount_matched', readonly: true, label: 'Amounts Match' },
+          { name: 'unmatched_count', readonly: true, label: 'Unmatched Payees' },
+          { name: 'unmatched_amount', readonly: true, label: 'Unmatched Amount' },
+          { name: 'aged_unmatched_count', readonly: true, label: 'Unmatched Aged > 30 Days' }
         ] }
     ]
   },
@@ -380,7 +481,10 @@ export const FORM_CHIPS = {
   'M53:Payout Run': 'M53-form-payoutrun',
   'M53:Clawback': 'M53-form-clawback',
   'M53:Commission Scheme': 'M53-form-scheme',
+  'M53:Payout Reconciliation': 'M53-form-recon',
   'M53:__by_model__': {
+    'fix.referral': 'M53-form-referral',
+    'fix.payout.reconciliation': 'M53-form-recon',
     'fix.performance.obligation': 'M53-form-obligation',
     'fix.warranty.provision': 'M53-form-provision',
     'fix.warranty.provision.policy': 'M53-form-policy',
@@ -402,7 +506,10 @@ export const FORM_CHIPS = {
     'M53-schedules': 'M53-form-schedule',
     'M53-payouts': 'M53-form-payoutrun',
     'M53-escrow': 'M53-form-clawback',
-    'M53-schemes': 'M53-form-scheme'
+    'M53-schemes': 'M53-form-scheme',
+    'M53-partners': 'M53-form-referral',
+    'M53-recon': 'M53-form-recon',
+    'M53-schedules-held': 'M53-form-schedule'
   }
 };
 

@@ -37,6 +37,12 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_compute", "action_post"},
     },
+    # A08 M20-5: the approved IFRS 9 loss rates a run stamps at Compute
+    "fix.ar.ecl.rate": {
+        "order": "date_from desc, id desc",
+        "limit": 100,
+        "actions": {"action_approve", "action_retire"},
+    },
     "fix.ar.invoice": {
         "order": "invoice_date desc, id desc",
         "limit": 200,
@@ -53,7 +59,14 @@ SURFACES = {
         "limit": 200,
         # A08 S3: approve within the direct band (second Accountant); above
         # it the approval is decided from the M63 inbox, not here
-        "actions": {"action_submit", "action_approve", "action_issue"},
+        "actions": {
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_issue",
+            "action_rerequest",
+            "action_withdraw_to_draft",
+        },
     },
     "fix.ar.payment.link": {
         "order": "create_date desc, id desc",
@@ -70,8 +83,29 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_generate", "action_send"},
     },
-    "fix.ar.dispute": {"order": "id desc", "limit": 400, "actions": set()},
-    "fix.dunning": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.ar.dispute": {
+        "order": "id desc",
+        "limit": 400,
+        # BRU-ARB-17: one button per outcome code; the note is asked
+        "actions": {
+            "action_resolve_upheld_credit",
+            "action_resolve_partially_upheld",
+            "action_resolve_rejected",
+            "action_resolve_withdrawn",
+            "action_resolve_payment_plan",
+        },
+    },
+    "fix.dunning": {
+        "order": "id desc",
+        "limit": 400,
+        # BRU-ARB-16: one button per suppression reason, an end date, a lift
+        "actions": {
+            "action_suppress_payment_plan",
+            "action_suppress_strategic",
+            "action_suppress_dispute",
+            "action_lift_suppression",
+        },
+    },
 }
 
 
@@ -578,6 +612,102 @@ def collections_productivity(env, date_from=None, date_to=None, **params):
     }
 
 
+def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
+    """M20-4: the AR sub-ledger against the GL control account, per customer.
+    Sub-ledger = what the receipts, credits, VDS and write-offs leave open on
+    issued and paid invoices, less money received but not yet applied; GL = the
+    posted balance of the AR account for that customer. A difference is listed,
+    never adjusted. Read as the caller, in the caller's companies."""
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account
+
+    labels = {
+        "company": "Company",
+        "customer": "Customer",
+        "invoices_open": "Open on Invoices",
+        "unapplied": "Unapplied Receipts",
+        "subledger": "Sub-ledger Balance",
+        "gl": "GL Balance",
+        "difference": "Difference",
+    }
+    cols = list(labels)
+    title = "AR Sub-ledger to GL Reconciliation"
+    if not env["account.move.line"].has_access("read"):
+        return _pack(
+            title,
+            cols,
+            labels,
+            [],
+            ["Visible to finance roles only."],
+            empty="Not available to your role.",
+        )
+    rows = []
+    notes = []
+    MoveLine = env["account.move.line"].sudo()
+    Partner = env["res.partner"].sudo()
+    for company in env.companies:
+        ar = _ar_account(env, company, "ar")
+        if not ar:
+            notes.append(
+                "%s has no AR account configured (cd_billing_engine.account_code.ar): not "
+                "reconciled." % company.name
+            )
+            continue
+        side = {}
+        for inv in env["fix.ar.invoice"].search(
+            [("company_id", "=", company.id), ("state", "in", ("issued", "paid"))]
+        ):
+            key = inv.customer_id.commercial_partner_id.id
+            side.setdefault(key, [0.0, 0.0])[0] += inv.amount_residual
+        for receipt in env["fix.ar.receipt"].search(
+            [("company_id", "=", company.id), ("state", "=", "confirmed")]
+        ):
+            key = receipt.customer_id.commercial_partner_id.id
+            side.setdefault(key, [0.0, 0.0])[1] += receipt.unapplied_amount
+        gl = {}
+        for line in MoveLine.search(
+            [
+                ("company_id", "=", company.id),
+                ("account_id", "=", ar.id),
+                ("parent_state", "=", "posted"),
+            ]
+        ):
+            key = line.partner_id.commercial_partner_id.id or 0
+            gl[key] = gl.get(key, 0.0) + line.balance
+        for key in sorted(set(side) | set(gl)):
+            open_amount, unapplied = side.get(key, (0.0, 0.0))
+            balance = round(gl.get(key, 0.0), 2)
+            subledger = round(open_amount - unapplied, 2)
+            rows.append(
+                {
+                    "company": company.name,
+                    "customer": Partner.browse(key).name if key else "(no customer on the GL line)",
+                    "invoices_open": round(open_amount, 2),
+                    "unapplied": round(unapplied, 2),
+                    "subledger": subledger,
+                    "gl": balance,
+                    "difference": round(subledger - balance, 2),
+                }
+            )
+    rows.sort(key=lambda r: -abs(r["difference"]))
+    totals = {"company": "Total"}
+    for col in cols[2:]:
+        totals[col] = round(sum(r[col] for r in rows), 2)
+    differing = sum(1 for r in rows if abs(r["difference"]) > 0.005)
+    return _pack(
+        "%s: %d customer(s) differ" % (title, differing),
+        cols,
+        labels,
+        rows,
+        [
+            "Differences are listed for a person to explain and are never adjusted here. "
+            "Largest differences first.",
+            *notes,
+        ],
+        totals=totals if rows else None,
+        empty="No receivable or AR posting in your companies.",
+    )
+
+
 def ecl_provision(env, date_from=None, date_to=None, **params):
     """IFRS 9 expected credit loss: exposure per ageing bucket x the loss rate
     stated on the run. Shows the movement against the provision already booked.
@@ -590,8 +720,12 @@ def ecl_provision(env, date_from=None, date_to=None, **params):
         return _pack(
             "IFRS 9 ECL Provision",
             ["bucket", "exposure", "rate", "provision"],
-            {"bucket": "Ageing bucket", "exposure": "Exposure", "rate": "Loss rate %",
-             "provision": "Provision"},
+            {
+                "bucket": "Ageing bucket",
+                "exposure": "Exposure",
+                "rate": "Loss rate %",
+                "provision": "Provision",
+            },
             [],
             ["The IFRS 9 provision is visible to finance roles only."],
             empty="Not available to your role.",
@@ -654,6 +788,7 @@ def ecl_provision(env, date_from=None, date_to=None, **params):
 
 REPORTS = {
     "ecl_provision": ecl_provision,
+    "ar_subledger_gl_recon": ar_subledger_gl_recon,
     "vds_claim_register": vds_claim_register,
     "ageing_by_segment": ageing_by_segment,
     "dunning_effectiveness": dunning_effectiveness,

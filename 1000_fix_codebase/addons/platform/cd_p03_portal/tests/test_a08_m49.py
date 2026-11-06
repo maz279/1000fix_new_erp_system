@@ -133,6 +133,11 @@ def m49_data(odoo_env):
     """A configured category, one depreciated + revalued asset, one disposed
     asset, a budget with an approved request, and an active lease."""
     env = odoo_env
+    # the tax book refuses a rate the adviser has not confirmed (M49-8): this
+    # fixture is about the reports, so the class it uses is confirmed here
+    env["fix.tax.rate"].sudo().search([("code", "=", "ITA3-COMPUTER")]).write(
+        {"verify_with_adviser": False}
+    )
     tag = next(_SEQ)
     acc = {
         k: _acc(env, tag, c, t)

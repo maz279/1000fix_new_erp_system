@@ -30,6 +30,16 @@ SURFACES = {
         },
     },
     "fix.bank.statement.import": {"order": "id desc", "limit": 100, "actions": {"action_import"}},
+    "fix.bank.reconciliation": {
+        "order": "period desc, journal_id, id desc",
+        "limit": 100,
+        "actions": {"action_prepare", "action_submit", "action_review", "action_return"},
+    },
+    "fix.bank.reconciliation.line": {
+        "order": "reconciliation_id desc, date, id",
+        "limit": 300,
+        "actions": {"action_explain"},
+    },
     "fix.bank.statement.line": {
         "order": "date desc, id desc",
         "limit": 200,
@@ -79,6 +89,11 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_deposit", "action_bounce", "action_cancel"},
     },
+    "fix.cheque.book": {
+        "order": "journal_id, first_number",
+        "limit": 100,
+        "actions": {"action_close"},
+    },
     "fix.gateway.settlement": {
         "order": "settlement_date desc, id desc",
         "limit": 100,
@@ -95,6 +110,11 @@ SURFACES = {
             "action_acknowledge_expiry",
         },
     },
+    "fix.facility.amendment": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_approve", "action_reject"},
+    },
     "fix.facility.repayment": {"order": "due_date, id", "limit": 300, "actions": {"action_pay"}},
     "fix.facility.covenant": {
         "order": "facility_id, id",
@@ -103,6 +123,7 @@ SURFACES = {
     },
     "fix.cash.forecast.item": {"order": "direction, name", "limit": 200, "actions": set()},
 }
+
 
 _NOT_INSTALLED = {
     "cols": [],

@@ -5,8 +5,8 @@
   M39 had no ir.cron: billing and collection were manual button presses.
   Both jobs are daily and idempotent. The billing job is switched off until
   Finance sets cd_subscription.auto_billing = 1 (it raises draft invoices).
-  Dunning stays with fix.subscription (A08), whose ladder must first key off
-  the unpaid invoice (fix.subscription.charge._fix_overdue_unpaid).
+  Dunning stays with fix.subscription (A08): its ladder keys off the unpaid
+  invoice (fix.subscription.charge._fix_overdue_unpaid) and posts nothing.
 -->
 <odoo>
     <data noupdate="1">
@@ -15,6 +15,15 @@
             <field name="model_id" ref="model_fix_subscription_charge"/>
             <field name="state">code</field>
             <field name="code">model.cron_generate_due_charges()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_subscription_dunning" model="ir.cron">
+            <field name="name">M53: subscription dunning ladder (unpaid cycle invoices)</field>
+            <field name="model_id" ref="model_fix_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_run_dunning()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>

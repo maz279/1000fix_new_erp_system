@@ -31,8 +31,11 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish
 
 from .fix_asset_common import (
+    CLOSE_GATE,
+    CLOSE_GATE_TOLERANCE,
     USER_GROUP,
     add_months,
+    float_param,
     money,
     month_end,
     month_start,
@@ -647,6 +650,48 @@ class FixFixedAsset(models.Model):
         return rows
 
 
+class FixPeriodCloseRegister(models.Model):
+    """BRU-FXA-03 (A08 M49-10): the register reconciles to its control accounts
+    before the period closes. The reconciliation was a report nobody had to read."""
+
+    _inherit = "fix.period.close"
+
+    def _fix_check_register_reconciled(self):
+        self.ensure_one()
+        env = self.env
+        if not float_param(env, CLOSE_GATE):
+            return True
+        tolerance = float_param(env, CLOSE_GATE_TOLERANCE)
+        rows = env["fix.fixed.asset"].sudo()._fix_register_gl_reconciliation(self.company_id)
+        off = [row for row in rows if abs(row["variance"]) > tolerance]
+        if off:
+            raise UserError(
+                "The fixed-asset register does not agree with the ledger (BRU-FXA-03), so "
+                "period %s does not close. Reconcile on Register to GL Reconciliation:\n%s"
+                % (
+                    self.period_end,
+                    "\n".join(
+                        "%s, %s (%s): register %.2f, ledger %.2f, variance %.2f"
+                        % (
+                            row["category"],
+                            row["line"],
+                            row["account"],
+                            row["register"],
+                            row["gl"],
+                            row["variance"],
+                        )
+                        for row in off[:10]
+                    ),
+                )
+            )
+        return True
+
+    def action_close(self):
+        for close in self:
+            close._fix_check_register_reconciled()
+        return super().action_close()
+
+
 class FixCwipEntry(models.Model):
     """Capital work in progress: posted costs accumulate, then capitalise."""
 
@@ -788,15 +833,49 @@ class FixCwipEntry(models.Model):
         self._guarded().write({"cost_line_ids": [(4, ln.id) for ln in lines]})
         return True
 
-    def action_book_posted_cost(self, move_ids=None):
-        """Book the CWIP-account lines of posted entries (ids) to the project."""
+    def _unbooked_cwip_entries(self):
+        """Posted entries on the project's CWIP account not yet booked to any
+        project: what the person can name when booking cost."""
+        self.ensure_one()
+        lines = (
+            self.env["account.move.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("account_id", "=", self._fix_cwip_account().id),
+                    ("parent_state", "=", "posted"),
+                    ("balance", ">", 0),
+                ]
+            )
+        )
+        booked = self.sudo().search([("cost_line_ids", "in", lines.ids)]).mapped("cost_line_ids")
+        return (lines - booked).mapped("move_id")
+
+    def action_book_posted_cost(self, move_ids=None, entries=None):
+        """Book the CWIP-account lines of posted entries to the project: by id
+        (the M52 hand-off) or by entry number (`entries`, comma separated, the
+        workspace's Book Posted Cost)."""
         require_group(self.env, USER_GROUP, "Booking CWIP cost")
+        names = [n.strip() for n in (entries or "").split(",") if n.strip()]
         for rec in self:
-            moves = self.env["account.move"].browse(move_ids or [])
+            Move = self.env["account.move"].sudo()
+            moves = Move.browse(move_ids or [])
+            if names:
+                moves |= Move.search(
+                    [("company_id", "=", rec.company_id.id), ("name", "in", names)]
+                )
             account = rec._fix_cwip_account()
-            lines = moves.sudo().line_ids.filtered(lambda ln, a=account: ln.account_id == a)
+            lines = moves.line_ids.filtered(lambda ln, a=account: ln.account_id == a)
             if not lines:
-                raise UserError(self.env._("No posted CWIP cost in the entries given."))
+                waiting = rec._unbooked_cwip_entries().mapped("name")
+                raise UserError(
+                    self.env._(
+                        "No posted CWIP cost in the entries given. Posted entries on the CWIP "
+                        "account not yet booked to a project: %s",
+                        ", ".join(waiting[:20]) or "none",
+                    )
+                )
             rec._fix_book_cost(lines)
         return True
 

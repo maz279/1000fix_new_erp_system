@@ -74,7 +74,9 @@ def test_allocation_by_relative_ssp_sums_exactly(ctx):
     assert [a.allocated_amount, b.allocated_amount, c.allocated_amount] == [333.34, 333.33, 333.33]
     assert {a.state, b.state, c.state} == {"allocated"}
 
-    zero = _contract(ctx, name=f"Zero {TAG}", contract_value=0.0)
+    # no value and no term: nothing says what the price is (with a term it is
+    # what the term bills, recurring x cycles: M53-13)
+    zero = _contract(ctx, name=f"Zero {TAG}", contract_value=0.0, contract_end_date=False)
     _obligation(zero, "AMC", "amc_service", 10.0)
     with pytest.raises(UserError, match="transaction price"), ctx.env.cr.savepoint():
         zero.action_allocate_price()

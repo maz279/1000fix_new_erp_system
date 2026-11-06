@@ -4,7 +4,7 @@
 # verified against the primary NBR text: each row carries "verify with the
 # company's tax adviser" until someone ticks Verified.
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class FixAssetCategory(models.Model):
@@ -121,6 +121,33 @@ class FixAssetTaxRate(models.Model):
         "confirmed against the current ITA 2023 Third Schedule.",
     )
     note = fields.Text(string="Note")
+
+    # A08 M49-8: the depreciation run reads the M51 Tax Rate Master. This table is
+    # read by nothing that posts; a figure typed here would change nothing and
+    # look as if it had. It stays as a record of the seeded rows, read-only.
+    def _fix_refuse_legacy_rate(self):
+        if not self.env.su:
+            raise UserError(
+                self.env._(
+                    "Tax depreciation rates are kept in the M51 Tax Rate Master (kind Tax "
+                    "depreciation). This legacy table is read-only."
+                )
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self._fix_refuse_legacy_rate()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        # a guarded field (the adviser's tick) keeps the guard's own refusal
+        if not set(vals) & self._fix_guarded_fields():
+            self._fix_refuse_legacy_rate()
+        return super().write(vals)
+
+    def unlink(self):
+        self._fix_refuse_legacy_rate()
+        return super().unlink()
 
     @api.constrains("rate_percent", "date_from", "date_to", "code", "company_id")
     def _check_rate(self):

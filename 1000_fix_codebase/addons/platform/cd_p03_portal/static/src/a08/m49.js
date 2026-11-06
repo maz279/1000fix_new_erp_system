@@ -68,9 +68,10 @@ export const MODULE = {
 export const SCREENS = {
   // Capex
   'M49-requests': { kind: 'model_list', model: 'fix.capex.request',
-    cols: ['name','title','request_date','operating_unit_id','budget_id','amount','requested_by_id','state'],
+    cols: ['name','title','request_date','operating_unit_id','budget_id','amount','ordered_amount','requested_by_id','state'],
     stateField: 'state', actions: [{m:'action_submit',l:'Submit for Approval'},{m:'action_recall_approval',l:'Recall Approval Request'},
-      {m:'action_reject',l:'Reject'},{m:'action_create_cwip',l:'Open CWIP Project'}] },
+      {m:'action_reject',l:'Reject'},{m:'action_create_cwip',l:'Open CWIP Project'},
+      {m:'action_link_purchase_order',l:'Link Purchase Order',ask:'Number of the draft purchase order this capex pays for',kwarg:'order'}] },
   'M49-budget': { kind: 'model_list', model: 'fix.capex.budget',
     cols: ['name','fiscal_year','date_from','date_to','operating_unit_id','amount','committed_amount','actual_amount','available_amount','state'],
     stateField: 'state', actions: [{m:'action_approve',l:'Approve'},{m:'action_close',l:'Close'}] },
@@ -81,15 +82,15 @@ export const SCREENS = {
     stateField: 'state', actions: [{m:'action_activate',l:'Put into Service'},{m:'action_accrue_month',l:'Accrue Month'},{m:'action_dispose',l:'Dispose'}] },
   'M49-cwip': { kind: 'model_list', model: 'fix.cwip.entry',
     cols: ['name','capex_request_id','category_id','operating_unit_id','amount','state','asset_id'],
-    stateField: 'state', actions: [{m:'action_capitalise',l:'Capitalise'}] },
+    stateField: 'state', actions: [{m:'action_book_posted_cost',l:'Book Posted Cost',ask:'Journal entry number(s) carrying the cost on the CWIP account, comma separated',kwarg:'entries'},{m:'action_capitalise',l:'Capitalise'}] },
   'M49-transfer': { kind: 'model_list', model: 'fix.asset.transfer',
     cols: ['name','asset_id','date','from_operating_unit_id','operating_unit_id','from_custodian_id','to_custodian_id','acknowledged_by_id','state'],
     stateField: 'state', actions: [{m:'action_confirm',l:'Send (Confirm Transfer)'},{m:'action_acknowledge',l:'Acknowledge Receipt'},{m:'action_cancel',l:'Cancel'}] },
   'M49-categories': { kind: 'model_list', model: 'fix.asset.category',
-    cols: ['code','name','useful_life_months','salvage_percent','tax_rate_code','journal_id','asset_account_id','expense_account_id'] },
+    cols: ['code','name','useful_life_months','salvage_percent','tax_rate_code','journal_id','asset_account_id','accumulated_account_id','expense_account_id','cwip_account_id'] },
   // Depreciation
-  'M49-dep': { kind: 'model_list', create: false, model: 'fix.asset.depreciation.run',
-    cols: ['name','book','period_start','operating_unit_id','asset_count','total_amount','state'],
+  'M49-dep': { kind: 'model_list', model: 'fix.asset.depreciation.run',
+    cols: ['name','book','period_start','operating_unit_id','asset_count','total_amount','note','state'],
     stateField: 'state', actions: [{m:'action_compute',l:'Compute'},{m:'action_post',l:'Post'}] },
   'M49-dualbook': { kind: 'table_report', module: 'M49', report: 'dual_book' },
   'M49-schedules': { kind: 'table_report', module: 'M49', report: 'movement_schedule' },
@@ -106,7 +107,9 @@ export const SCREENS = {
   'M49-disposal-gl': { kind: 'table_report', module: 'M49', report: 'disposal_gains' },
   'M49-verify': { kind: 'model_list', model: 'fix.asset.verification.campaign',
     cols: ['name','date','operating_unit_id','expected_count','found_count','misplaced_count','missing_count','unregistered_count','state'],
-    stateField: 'state', actions: [{m:'action_start',l:'Start Count'},{m:'action_close',l:'Close Campaign'}] },
+    stateField: 'state', actions: [{m:'action_start',l:'Start Count'},
+      {m:'action_record_scan',l:'Record Scanned Tag',asks:[{label:'Scan or type the asset tag',kwarg:'tag'},{label:'Branch code it was found at (empty: its expected branch)',kwarg:'branch'}]},
+      {m:'action_close',l:'Close Campaign'}] },
   'M49-verify-results': { kind: 'model_list', model: 'fix.asset.verification.line',
     cols: ['campaign_id','asset_id','asset_code','operating_unit_id','scanned_tag','scanned_operating_unit_id','result'],
     stateField: 'result', create: false,
@@ -174,36 +177,54 @@ export const SCREENS = {
     model: 'fix.asset.category',
     title: "Asset Category",
     back: 'M49-categories',
+    tabs: [
+      { id: 'general', label: 'General', bn: 'সাধারণ' },
+      { id: 'accounts', label: 'Posting Accounts', bn: 'পোস্টিং হিসাব' }
+    ],
     sections: [
-      { title: "Category",
-        note: "The category carries the default useful life, salvage percentage and every GL account the depreciation engine posts to.",
+      { tab: 'general', title: "Category",
+        note: "The category carries the default useful life and salvage percentage. Tax Rate Code is the class of the M51 Tax Rate Master (kind Tax depreciation); empty keeps the category out of the tax book.",
         fields: [
           { name: 'name', required: true, label: "Category Name" },
           { name: 'code', required: true, label: "Category Code" },
           { name: 'useful_life_months', required: true, label: "Useful Life (months)" },
           { name: 'salvage_percent', label: "Salvage %" },
           { name: 'tax_rate_code', label: "Tax Rate Code" },
-          { name: 'journal_id', label: "Journal" },
           { name: 'active', label: "Active" }
+        ] },
+      { tab: 'accounts', title: "Journal and GL Accounts",
+        note: "Every posting refuses, naming the missing account, until these are set: capitalisation needs the asset and CWIP accounts, depreciation the expense and accumulated accounts, a revaluation the surplus and impairment accounts, a disposal the gain and loss accounts.",
+        fields: [
+          { name: 'journal_id', label: "Asset Journal" },
+          { name: 'asset_account_id', label: "Asset Account" },
+          { name: 'accumulated_account_id', label: "Accumulated Depreciation & Impairment Account" },
+          { name: 'expense_account_id', label: "Depreciation Expense Account" },
+          { name: 'cwip_account_id', label: "CWIP Account" },
+          { name: 'revaluation_surplus_account_id', label: "Revaluation Surplus Account (OCI)" },
+          { name: 'impairment_account_id', label: "Impairment / Revaluation Loss Account" },
+          { name: 'gain_account_id', label: "Gain on Disposal Account" },
+          { name: 'loss_account_id', label: "Loss on Disposal Account" }
         ] }
     ]
   },
-  'M49-form-taxrate': {
+  'M49-form-deprun': {
     kind: 'model_form',
-    model: 'fix.asset.tax.rate',
-    title: "Asset Tax Rate",
-    back: 'M49-taxrates',
+    model: 'fix.asset.depreciation.run',
+    title: "Depreciation Run",
+    back: 'M49-dep',
+    status: { field: 'state', labels: { draft: "Draft", computed: "Computed", posted: "Posted" } },
     sections: [
-      { title: "Tax Rate",
-        note: "Depreciation tax rates are dated: a rate applies only inside its from/to window.",
+      { title: "Run",
+        note: "One run per book and month, dated the 1st. Compute builds the lines and skips what is already charged; Post makes the entry. The accounting book posts to the GL; the tax book (ITA 2023 Third Schedule) is a memo and refuses a rate the tax adviser has not confirmed. The monthly job only prepares runs: a person posts them.",
         fields: [
-          { name: 'code', required: true, label: "Rate Code" },
-          { name: 'name', required: true, label: "Rate Name" },
-          { name: 'rate_percent', required: true, label: "Rate %" },
-          { name: 'date_from', required: true, label: "From" },
-          { name: 'date_to', label: "To" },
-          { name: 'legal_reference', label: "Legal Reference" },
-          { name: 'verified', readonly: true, label: "Verified (legacy; the M51 master is used)" }
+          { name: 'book', required: true, label: "Book" },
+          { name: 'period_start', required: true, label: "Period (1st of the month)" },
+          { name: 'operating_unit_id', label: "Branch Scope (empty: every branch)" },
+          { name: 'asset_ids', label: "Assets (empty: every active asset)" },
+          { name: 'asset_count', readonly: true, label: "Assets Charged" },
+          { name: 'total_amount', readonly: true, label: "Total Depreciation" },
+          { name: 'note', readonly: true, type: 'text', label: "Run Notes" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -341,7 +362,11 @@ Object.assign(SCREENS, {
           { name: 'proceeds_account_id', label: 'Proceeds Clearing Account' },
           { name: 'incident_ref', label: 'Incident Reference (write-off)' },
           { name: 'insurance_claim_ref', label: 'Insurance Claim' },
+          { name: 'ewaste_route', label: 'Physical Disposal Through M18 (E-Waste)' },
           { name: 'reason', type: 'text', label: 'Reason' },
+          { name: 'ewaste_collection_ref', readonly: true, label: 'M18 Collection' },
+          { name: 'tax_wdv', readonly: true, label: 'Tax WDV at Disposal' },
+          { name: 'tax_balancing', readonly: true, label: 'Balancing Charge (+) / Allowance (-)' },
           { name: 'approval_state', readonly: true, label: 'Approval' },
           { name: 'state', readonly: true, label: 'State' }
         ] }
@@ -363,6 +388,9 @@ Object.assign(SCREENS, {
           { name: 'date', required: true, label: 'Date' },
           { name: 'new_value', required: true, label: 'New Value' },
           { name: 'basis', type: 'text', label: 'Basis / Valuer' },
+          { name: 'valuer_report_file', type: 'binary', filename: 'valuer_report_filename', accept: '.pdf,.jpg,.jpeg,.png,.doc,.docx', label: 'Upload Valuer Report' },
+          { name: 'valuer_report_filename', label: 'Report File Name' },
+          { name: 'valuer_report_names', readonly: true, label: 'Reports Attached' },
           { name: 'approval_state', readonly: true, label: 'Approval' },
           { name: 'state', readonly: true, label: 'State' }
         ] }
@@ -374,17 +402,41 @@ Object.assign(SCREENS, {
     model: 'fix.lease',
     title: 'Lease Contract',
     back: 'M49-leases',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', ended: 'Ended' } },
+    tabs: [
+      { id: 'terms', label: 'Terms', bn: 'শর্তাবলি' },
+      { id: 'accounts', label: 'Accounts', bn: 'হিসাব' },
+      { id: 'recognition', label: 'Recognition', bn: 'স্বীকৃতি' }
+    ],
     sections: [
-      { title: 'IFRS 16 Lease', note: 'Commencement date, term and payment generate the right-of-use asset and the lease liability schedule; term changes are constrained by the model.',
+      { tab: 'terms', title: 'IFRS 16 Lease', note: 'Commencement date, term, payment and the incremental borrowing rate generate the right-of-use asset and the lease liability schedule. Once recognised the terms are frozen.',
         fields: [
           { name: 'name', required: true, label: 'Lease' },
           { name: 'partner_id', label: 'Lessor' },
-          { name: 'category_id', label: 'Asset Category' },
+          { name: 'operating_unit_id', label: 'Branch' },
           { name: 'commencement_date', required: true, label: 'Commencement Date' },
           { name: 'term_months', required: true, label: 'Lease Term (Months)' },
-          { name: 'payment_amount', label: 'Payment Amount' },
-          { name: 'payment_timing', label: 'Payment Timing' },
-          { name: 'operating_unit_id', label: 'Branch' }
+          { name: 'payment_amount', required: true, label: 'Monthly Rent (Gross)' },
+          { name: 'payment_timing', required: true, label: 'Payment Timing' },
+          { name: 'ibr_percent', required: true, label: 'Incremental Borrowing Rate % a Year' },
+          { name: 'prepaid_payments', label: 'Payments Before Commencement' },
+          { name: 'initial_direct_costs', label: 'Initial Direct Costs' },
+          { name: 'exemption', required: true, label: 'IFRS 16 Exemption' }
+        ] },
+      { tab: 'accounts', title: 'Posting Accounts', note: 'Activate refuses, naming what is missing, until the right-of-use category (with its journal and asset account) and these three accounts are set.',
+        fields: [
+          { name: 'category_id', label: 'Right-of-Use Category' },
+          { name: 'liability_account_id', label: 'Lease Liability Account' },
+          { name: 'interest_account_id', label: 'Interest Expense Account' },
+          { name: 'payment_account_id', label: 'Rent Payable / Clearing Account' }
+        ] },
+      { tab: 'recognition', title: 'Recognised on Commencement',
+        fields: [
+          { name: 'pv_preview', readonly: true, label: 'Present Value (Preview)' },
+          { name: 'initial_liability', readonly: true, label: 'Initial Lease Liability' },
+          { name: 'rou_amount', readonly: true, label: 'Right-of-Use Asset' },
+          { name: 'liability_balance', readonly: true, label: 'Liability Balance' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   }
@@ -394,7 +446,7 @@ export const FORM_CHIPS = {
   'M49:Capex Budget': 'M49-form-budget',
   'M49:CWIP Entry': 'M49-form-cwip',
   'M49:Asset Category': 'M49-form-category',
-  'M49:Asset Tax Rate': 'M49-form-taxrate',
+  'M49:Depreciation Run': 'M49-form-deprun',
   'M49:Verification Campaign': 'M49-form-verify',
   'M49:Capex Request': 'M49-form-capex',
   'M49:Asset Capitalisation': 'M49-form-asset',
@@ -406,7 +458,7 @@ export const FORM_CHIPS = {
     'fix.capex.budget': 'M49-form-budget',
     'fix.cwip.entry': 'M49-form-cwip',
     'fix.asset.category': 'M49-form-category',
-    'fix.asset.tax.rate': 'M49-form-taxrate',
+    'fix.asset.depreciation.run': 'M49-form-deprun',
     'fix.asset.verification.campaign': 'M49-form-verify',
     'fix.capex.request': 'M49-form-capex',
     'fix.fixed.asset': 'M49-form-asset',
@@ -419,7 +471,7 @@ export const FORM_CHIPS = {
     'M49-budget': 'M49-form-budget',
     'M49-cwip': 'M49-form-cwip',
     'M49-categories': 'M49-form-category',
-    'M49-taxrates': 'M49-form-taxrate',
+    'M49-dep': 'M49-form-deprun',
     'M49-verify': 'M49-form-verify',
     'M49-requests': 'M49-form-capex',
     'M49-register': 'M49-form-asset',

@@ -809,7 +809,7 @@ class FixPaymentExecution(models.Model):
             "currency": inv.currency_id,
             "approver": approver,
             "ref": payload.get("invoice_ref") or inv.display_name,
-            "options": {},
+            "options": {"method": "cash"} if inv.payment_channel == "non_bank" else {},
         }
 
     @api.model
@@ -1224,7 +1224,9 @@ class FixPaymentExecution(models.Model):
         note = False
         # statement: the bank debited the released amount; payroll_return:
         # the netted amount the return file leaves the bank owing
-        amount = self.released_amount if source == "statement" else (self.amount or self.released_amount)
+        amount = (
+            self.released_amount if source == "statement" else (self.amount or self.released_amount)
+        )
         if self.source_posts_gl:
             note = "Payment entry booked by the requesting document (%s)" % self.source_model
         else:

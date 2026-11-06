@@ -186,10 +186,17 @@ class FixPaymentRun(models.Model):
             ("due_date", "<=", self.due_by),
             # A08 M52-2/-26: a bill whose liability was never booked is not paid
             ("move_id.state", "=", "posted"),
+            # BRU-APE-08: a run pays by bank rails; a non-bank bill went out at
+            # the uplifted withholding and is not one of them
+            ("payment_channel", "=", "bank"),
         ]
         if self.operating_unit_id:
             domain.append(("operating_unit_id", "=", self.operating_unit_id.id))
-        bills = self.env["fix.vendor.invoice"].search(domain, order="due_date, id")
+        Bill = self.env["fix.vendor.invoice"]
+        Bill._ap_release_cancelled_requests(
+            Bill.search([("company_id", "=", self.company_id.id), ("payment_state", "=", "in_run")])
+        )
+        bills = Bill.search(domain, order="due_date, id")
         live = (
             self.env["fix.ap.bill.payment"]
             .sudo()

@@ -32,6 +32,11 @@ SURFACES = {
         "actions": {"action_compute", "action_post", "action_reverse", "action_reset_draft"},
     },
     "fix.cost.pool": {"order": "code", "limit": 200, "actions": set()},
+    # A pool gathers nothing without elements; each names GL accounts, so it has
+    # its own form (the form engine's child grid has no many2many input).
+    "fix.cost.element": {"order": "pool_id, code", "limit": 400, "actions": set()},
+    # Every planned line across budgets; edited on the budget's own grid.
+    "fix.budget.line": {"order": "date_from desc, id desc", "limit": 400, "actions": set()},
     "fix.business.line": {"order": "sequence, code", "limit": 100, "actions": set()},
     "fix.board.pack": {
         "order": "date_to desc, id desc",

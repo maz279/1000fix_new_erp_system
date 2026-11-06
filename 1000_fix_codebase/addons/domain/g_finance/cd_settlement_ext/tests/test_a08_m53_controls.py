@@ -296,7 +296,9 @@ def p03(c):
 
     ctl = g.P03GenericApiController()
     mw = getattr(
-        g.P03GenericApiController.model_write, "original_endpoint", g.P03GenericApiController.model_write
+        g.P03GenericApiController.model_write,
+        "original_endpoint",
+        g.P03GenericApiController.model_write,
     )
     old = getattr(g, "request", None)
     holder = types.SimpleNamespace(env=None)
@@ -323,18 +325,26 @@ def test_ref_01_referral_to_payout_proper_path(c):
     inbox_approve(c, run, c.mgr)
     assert run.state == "approved" and run.approved_by_id == c.mgr and run.approved_total == 850.0
     line = run.line_ids
-    assert line.partner_id == c.payee and line.acc_number == "2050123456789" and line.amount == 850.0
+    assert (
+        line.partner_id == c.payee and line.acc_number == "2050123456789" and line.amount == 850.0
+    )
     pay_run(c, run)
     assert run.state == "executed" and led.state == "paid" and run.gl_move_id
     pay = line.payment_execution_id
     assert pay.state == "executed" and pay.source_posts_gl and not pay.move_id
     assert lines(run.gl_move_id) == sorted(
-        [("200300", 1000.0, 0.0), ("210100", 0.0, 150.0),
-         (c.bank_journal.default_account_id.code, 0.0, 850.0)]
+        [
+            ("200300", 1000.0, 0.0),
+            ("210100", 0.0, 150.0),
+            (c.bank_journal.default_account_id.code, 0.0, 850.0),
+        ]
     )
     st = run.statement_ids
-    assert st.state == "issued" and st.net_payable == 850.0 and st.withholding_cert_ref.startswith("TDSC/")
-    assert run.name.startswith("PAY/") and led.name.startswith("COM/") and st.name.startswith("STM/")
+    # the certificate follows the TDS deposit (M53-8): no number until the challan
+    assert st.state == "issued" and st.net_payable == 850.0 and not st.withholding_cert_ref
+    assert (
+        run.name.startswith("PAY/") and led.name.startswith("COM/") and st.name.startswith("STM/")
+    )
 
 
 # ============================================================ commission maths
@@ -366,8 +376,9 @@ def test_m53_02_commission_rows_are_never_typed(c):
                 "commission_rate": 0.0,
             }
         )
-    row = system_row(c, 100000.0, 0.0, payee=c.payee2, source_type="marketplace", post=False,
-                     scheme_id=False)
+    row = system_row(
+        c, 100000.0, 0.0, payee=c.payee2, source_type="marketplace", post=False, scheme_id=False
+    )
     with pytest.raises(UserError):
         row.with_user(c.acct).action_post_to_gl()
 
@@ -506,9 +517,12 @@ def test_m53_14_executed_run_is_never_approved_or_paid_again(c):
     with pytest.raises(UserError):
         run.with_user(c.acct).action_request_payments()
     assert len(run.statement_ids) == 1
-    assert c.env["fix.payment.execution"].search_count(
-        [("source_model", "=", "fix.payout.run.line"), ("source_id", "in", run.line_ids.ids)]
-    ) == 1
+    assert (
+        c.env["fix.payment.execution"].search_count(
+            [("source_model", "=", "fix.payout.run.line"), ("source_id", "in", run.line_ids.ids)]
+        )
+        == 1
+    )
 
 
 def test_m53_15_no_typed_bank_confirmation_and_approver_does_not_release(c):
@@ -624,8 +638,13 @@ def test_m53_21_issued_statement_is_immutable(c):
 
 def test_m53_22_net_is_computed_with_the_platform_fee(c):
     st = statement(
-        c, c.acct, gross_gmv=50000.0, commission_amount=5000.0, tds_withheld=500.0,
-        platform_fee=135.0, net_payable=44500.0,
+        c,
+        c.acct,
+        gross_gmv=50000.0,
+        commission_amount=5000.0,
+        tds_withheld=500.0,
+        platform_fee=135.0,
+        net_payable=44500.0,
     )
     assert st.net_payable == 50000.0 - 5000.0 - 500.0 - 135.0
 
@@ -650,7 +669,9 @@ def sub(c, user, **kw):
 
 
 def test_m53_23_recognition_cannot_be_reset_or_doubled(c):
-    s = sub(c, c.acct, contract_value=120000.0, contract_end_date=date.today() + timedelta(days=185))
+    s = sub(
+        c, c.acct, contract_value=120000.0, contract_end_date=date.today() + timedelta(days=185)
+    )
     s.with_user(c.acct).action_generate_revrec_schedule()
     sched = s.obligation_ids.schedule_id
     sched.with_user(c.acct).action_recognize_period()
@@ -711,8 +732,13 @@ def test_m53_24_manual_schedule_needs_contract_and_cfo(c):
 def test_m53_25_obligation_allocation_cannot_be_forged(c):
     s = sub(c, c.acct, contract_value=12000.0, contract_end_date=date.today() + timedelta(days=300))
     ob = as_(c, c.acct)["fix.performance.obligation"].create(
-        {"subscription_id": s.id, "name": "AMC", "standalone_price": 12000.0,
-         "start_date": s.start_date, "end_date": s.contract_end_date}
+        {
+            "subscription_id": s.id,
+            "name": "AMC",
+            "standalone_price": 12000.0,
+            "start_date": s.start_date,
+            "end_date": s.contract_end_date,
+        }
     )
     with pytest.raises(UserError):
         ob.write({"allocated_amount": 999999.0, "state": "allocated"})
@@ -723,9 +749,9 @@ def test_m53_25_obligation_allocation_cannot_be_forged(c):
 
 def test_m53_26_allocation_sums_to_price(c):
     s = sub(c, c.acct, contract_value=10000.0, contract_end_date=date.today() + timedelta(days=300))
-    O = as_(c, c.acct)["fix.performance.obligation"]
+    obligations = as_(c, c.acct)["fix.performance.obligation"]
     for name, ssp in (("AMC", 7000.0), ("Warranty", 2000.0), ("Parts", 3333.33)):
-        O.create({"subscription_id": s.id, "name": name, "standalone_price": ssp})
+        obligations.create({"subscription_id": s.id, "name": name, "standalone_price": ssp})
     s.with_user(c.acct).action_allocate_price()
     assert abs(sum(s.obligation_ids.mapped("allocated_amount")) - 10000.0) < 0.001
 
@@ -752,12 +778,17 @@ def test_m53_28_plain_user_cannot_write_refund_fields(c):
 
 
 def test_m53_29_refund_credit_note_needs_another_approver(c):
-    s = sub(c, c.acct, recurring_amount=20000.0, next_invoice_date=date.today() - timedelta(days=10),
-            start_date=date.today() - timedelta(days=10))
+    s = sub(
+        c,
+        c.acct,
+        recurring_amount=20000.0,
+        next_invoice_date=date.today() - timedelta(days=10),
+        start_date=date.today() - timedelta(days=10),
+    )
     s.with_user(c.acct).action_generate_charge()
     invoice = s.charge_ids.invoice_id
     invoice.with_user(c.acct2).action_issue()
-    s.with_user(c.acct).action_request_refund(cancellation_date=date.today())
+    s.with_user(c.acct).action_request_refund(cancellation_date=fields.Date.context_today(s))
     note = s.refund_credit_note_id
     assert note.state == "draft" and s.refund_requires_approval
     note.with_user(c.acct).action_submit()
@@ -833,21 +864,31 @@ def test_m53_34_plain_user_cannot_accrue(c):
 @pytest.fixture
 def wp(c):
     c.env["fix.warranty.provision.policy"].create(
-        {"name": "90d", "warranty_days": 90, "lookback_months": 12, "cost_ratio": 0.2,
-         "date_from": date(2000, 1, 1), "company_id": c.company.id}
+        {
+            "name": "90d",
+            "warranty_days": 90,
+            "lookback_months": 12,
+            "cost_ratio": 0.2,
+            "date_from": date(2000, 1, 1),
+            "company_id": c.company.id,
+        }
     )
     return c
 
 
 def test_m53_35_provision_computer_cannot_post(wp):
-    p = as_(wp, wp.mgr)["fix.warranty.provision"].create({"period": "2026-09", "company_id": wp.company.id})
+    p = as_(wp, wp.mgr)["fix.warranty.provision"].create(
+        {"period": "2026-09", "company_id": wp.company.id}
+    )
     p.action_compute()
     with pytest.raises(AccessError):
         p.action_post()
 
 
 def test_m53_36_provision_figures_cannot_be_typed(wp):
-    p = as_(wp, wp.acct)["fix.warranty.provision"].create({"period": "2026-09", "company_id": wp.company.id})
+    p = as_(wp, wp.acct)["fix.warranty.provision"].create(
+        {"period": "2026-09", "company_id": wp.company.id}
+    )
     p.action_compute()
     with pytest.raises(UserError):
         p.write({"required_balance": 5000000.0, "movement": 5000000.0})
@@ -856,7 +897,9 @@ def test_m53_36_provision_figures_cannot_be_typed(wp):
 
 
 def test_m53_37_provision_computer_stamp_cannot_be_rewritten(wp):
-    p = as_(wp, wp.mgr)["fix.warranty.provision"].create({"period": "2026-09", "company_id": wp.company.id})
+    p = as_(wp, wp.mgr)["fix.warranty.provision"].create(
+        {"period": "2026-09", "company_id": wp.company.id}
+    )
     p.action_compute()
     with pytest.raises(UserError):
         p.write({"computed_by_id": wp.acct.id})
@@ -870,8 +913,14 @@ def test_m53_38_reconciliation_reads_the_bank_side(c):
     run = prepared_run(c)
     Rec = as_(c, c.acct)["fix.payout.reconciliation"]
     with pytest.raises(UserError):
-        Rec.create({"company_id": c.company.id, "payout_run_id": run.id, "rail_count": 7,
-                    "rail_amount": 1.0})
+        Rec.create(
+            {
+                "company_id": c.company.id,
+                "payout_run_id": run.id,
+                "rail_count": 7,
+                "rail_amount": 1.0,
+            }
+        )
     rec = Rec.create({"company_id": c.company.id, "payout_run_id": run.id})
     with pytest.raises(UserError, match="released nothing"):
         rec.action_run_reconciliation()
@@ -901,16 +950,24 @@ def test_m53_39_p03_cannot_approve_a_payout(c, p03):
 
 def test_m53_40_p03_plain_user_cannot_commission_a_referral(c, p03):
     r = referral(c, c.plain)
-    out = p03.write(c.plain, model="fix.referral", record_id=r.id,
-                    values={"state": "commissioned", "base_amount": 900000.0})
+    out = p03.write(
+        c.plain,
+        model="fix.referral",
+        record_id=r.id,
+        values={"state": "commissioned", "base_amount": 900000.0},
+    )
     r.invalidate_recordset()
     assert out.get("error") and r.state == "submitted" and not r.base_amount
 
 
 def test_m53_41_p03_plain_user_cannot_rewrite_a_subscription(c, p03):
     s = sub(c, c.acct)
-    out = p03.write(c.plain, model="fix.subscription", record_id=s.id,
-                    values={"state": "active", "recurring_amount": 1.0})
+    out = p03.write(
+        c.plain,
+        model="fix.subscription",
+        record_id=s.id,
+        values={"state": "active", "recurring_amount": 1.0},
+    )
     s.invalidate_recordset()
     assert out.get("error") and s.recurring_amount == 1000.0
 
@@ -918,8 +975,12 @@ def test_m53_41_p03_plain_user_cannot_rewrite_a_subscription(c, p03):
 def test_m53_42_p03_refuses_readonly_sod_stamp(c, p03):
     accrued_referral(c)
     run = prepared_run(c)
-    out = p03.write(c.acct, model="fix.payout.run", record_id=run.id,
-                    values={"approved_by_id": c.mgr.id, "sod_verified": True})
+    out = p03.write(
+        c.acct,
+        model="fix.payout.run",
+        record_id=run.id,
+        values={"approved_by_id": c.mgr.id, "sod_verified": True},
+    )
     run.invalidate_recordset()
     assert out.get("error") and not run.sod_verified
 
@@ -948,8 +1009,9 @@ def test_m53_15_wiring_sequences_cron_consumer(c):
         ("seq_fix_seller_statement_tds_cert", "fix.seller.statement.tds_cert"),
     ):
         assert c.env.ref("cd_settlement_ext.%s" % xmlid).code == code
-    consumer = c.env.ref("cd_settlement_ext.consumer_commission_earned_marketplace")
+    consumer = c.env.ref("cd_settlement_ext.consumer_a04_commission_earned")
     assert consumer.event_type == "commission.earned" and consumer.active
+    assert not c.env.ref("cd_settlement_ext.consumer_commission_earned_marketplace", False)
     cron = c.env.ref("cd_subscription.ir_cron_revenue_recognition")
     assert cron.active and "_cron_recognize" in cron.code
 
@@ -962,28 +1024,52 @@ def test_m53_commission_consumer_is_relay_only(c):
 
 
 # ============================================================ A04 requests (M39 / M40)
-def _no_a04_proration(c):
-    P = c.env["fix.subscription.proration"] if "fix.subscription.proration" in c.env else None
-    return P is None or not hasattr(P, "create_for_plan_change")
-
-
 def test_a04_m39_price_is_guarded_and_changed_by_a_second_person(c):
+    """On the merged code a price change is A04's proration: a Subscription
+    Officer who is also an Accountant raises it, and it changes nothing until a
+    billing user other than the raiser approves it from the M63 inbox."""
     s = sub(c, c.acct)
     with pytest.raises(UserError, match="Request Price"):
         s.with_user(c.acct).write({"recurring_amount": 1.0})
-    if not _no_a04_proration(c):
-        pytest.skip("A04's proration service decides the change on the merged branch")
-    s.with_user(c.acct).action_request_price_change(1200.0, reason="plan upgrade")
-    assert s.recurring_amount == 1000.0 and s.pending_recurring_amount == 1200.0
-    with pytest.raises(UserError, match="Segregation"):
-        s.with_user(c.acct).action_approve_price_change()
-    s.with_user(c.acct2).action_approve_price_change()  # 2,400 a year: within the band
-    assert s.recurring_amount == 1200.0 and not s.price_change_requested_by_id
-    s.with_user(c.acct).action_request_price_change(5000.0, reason="enterprise tier")
-    with pytest.raises(AccessError):  # 45,600 a year: the Accounting Administrator's
-        s.with_user(c.acct2).action_approve_price_change()
-    s.with_user(c.mgr).action_approve_price_change()
-    assert s.recurring_amount == 5000.0
+    officer = (
+        c.env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "officer %s" % c.tag,
+                "login": "officer-%s@b4m53.test" % c.tag,
+                "company_id": c.company.id,
+                "company_ids": [(6, 0, c.company.ids)],
+                "assigned_operating_unit_ids": [(6, 0, c.ou.ids)],
+                "default_operating_unit_id": c.ou.id,
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            c.env.ref(g).id
+                            for g in (
+                                "base.group_user",
+                                ACC,
+                                "cd_subscription.group_subscription_officer",
+                            )
+                        ],
+                    )
+                ],
+            }
+        )
+    )
+    with pytest.raises(UserError, match="State why"):
+        s.with_user(officer).action_request_price_change(1200.0, reason="")
+    (proration,) = s.with_user(officer).action_request_price_change(1200.0, reason="plan upgrade")
+    assert proration._name == "fix.subscription.proration" and proration.state == "pending"
+    assert s.recurring_amount == 1000.0, "the request changed the price"
+    # the raiser holds no inbox task of their own, and may not decide it directly
+    with pytest.raises(REFUSED):
+        proration.with_user(officer).action_dofa_approve()
+    assert s.recurring_amount == 1000.0
+    inbox_approve(c, proration, c.acct2)
+    assert proration.state == "approved" and s.recurring_amount == 1200.0
 
 
 def test_a04_m39_reinstate_only_from_suspended(c):
@@ -1001,10 +1087,12 @@ def test_a04_m39_reinstate_only_from_suspended(c):
 def test_a04_m39_cancellation_is_dated_today(c):
     s = sub(c, c.acct)
     with pytest.raises(UserError, match="never backdated"):
-        s.with_user(c.acct).action_request_refund(cancellation_date=date.today() - timedelta(days=5))
+        s.with_user(c.acct).action_request_refund(
+            cancellation_date=date.today() - timedelta(days=5)
+        )
     assert s.state == "active"
     s.with_user(c.acct).action_cancel()
-    assert s.state == "cancelled" and s.cancelled_on == date.today()
+    assert s.state == "cancelled" and s.cancelled_on == fields.Date.context_today(s)
 
 
 def test_a04_m39_quotation_consumer(c):
@@ -1013,7 +1101,7 @@ def test_a04_m39_quotation_consumer(c):
     Sub = c.env["fix.subscription"]
     with pytest.raises(AccessError):
         as_(c, c.acct)["fix.subscription"].consume_quotation_accepted({"aggregate_id": 1})
-    Quote = c.env["fix.quotation"] if "fix.quotation" in c.env else None
+    Quote = c.env.get("fix.quotation", None)
     if Quote is None or "quote_type" not in Quote._fields:
         pytest.skip("subscription quotations exist on A04's branch only")
     quote = Quote.create(
@@ -1063,12 +1151,22 @@ def _commissioned_order(c, gross=50000.0):
     # quote gate reads them - BRU-ECM-01)
     seller.sudo()._guarded().write({"kyc_status": "verified", "cfo_approved": True})
     order = c.env["fix.marketplace.order"].create(
-        {"customer_id": c.customer.id, "description": "Screen repair", "company_id": c.company.id,
-         "operating_unit_id": c.ou.id, "budget": gross, "commission_rate": 0.10}
+        {
+            "customer_id": c.customer.id,
+            "description": "Screen repair",
+            "company_id": c.company.id,
+            "operating_unit_id": c.ou.id,
+            "budget": gross,
+            "commission_rate": 0.10,
+        }
     )
     quote = c.env["fix.seller.quote"].create(
-        {"marketplace_order_id": order.id, "seller_id": seller.id, "quoted_price": gross,
-         "company_id": c.company.id}
+        {
+            "marketplace_order_id": order.id,
+            "seller_id": seller.id,
+            "quoted_price": gross,
+            "company_id": c.company.id,
+        }
     )
     order.write({"selected_quote_id": quote.id, "state": "commissioned"})
     return seller, order
@@ -1083,10 +1181,14 @@ def test_bridge_c_commission_earned_records_one_ledger_row(c):
     assert out["created"] and row.marketplace_order_id == order and row.state == "earned"
     assert row.seller_partner_id == c.payee2 and row.gross_amount == 50000.0
     assert abs(row.commission_amount - 5000.0) < 0.01
-    assert Ledger.consume_commission_earned(event) == {"id": row.id, "created": False}
-    assert Ledger.consume_commission_earned(
-        {"aggregate": "fix.referral", "aggregate_id": 1}
-    ) == {"skipped": "fix.referral"}
+    assert Ledger.consume_commission_earned(event) == {
+        "model": "fix.commission.ledger",
+        "id": row.id,
+        "created": False,
+    }
+    assert Ledger.consume_commission_earned({"aggregate": "fix.referral", "aggregate_id": 1}) == {
+        "skipped": "fix.referral"
+    }
 
 
 def test_payout_run_skips_a_seller_on_payout_hold(c):

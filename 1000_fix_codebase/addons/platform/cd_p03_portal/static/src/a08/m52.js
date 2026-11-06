@@ -27,15 +27,19 @@ export const MODULE = {
       { id: 'M52-match', en: 'Match Exceptions', bn: 'মিল ব্যতিক্রম', t: 'g' },
       { id: 'M52-approval', en: 'Approval Workflow', bn: 'অনুমোদন', t: 'c' },
       { id: 'M52-matrix', en: 'Approval Matrix', bn: 'অনুমোদন ম্যাট্রিক্স', t: 'g' },
+      { id: 'M52-matrix-change', en: 'Matrix Change Requests', bn: 'ম্যাট্রিক্স পরিবর্তনের অনুরোধ', t: 'g' },
       { id: 'M52-taxprofile', en: 'Vendor Tax Profile', bn: 'বিক্রেতার কর প্রোফাইল', t: 'g' }
     ]},
     { en: 'Payments', screens: [
+      { id: 'M52-bank-queue', en: 'Bank Accounts to Confirm', bn: 'নিশ্চিতকরণের অপেক্ষায় ব্যাংক হিসাব', t: 'c' },
+      { id: 'M52-bank-changes', en: 'Payee Bank Changes', bn: 'প্রাপকের ব্যাংক পরিবর্তন', t: 'g' },
       { id: 'M52-runs', en: 'Payment Runs', bn: 'পেমেন্ট রান', t: 'c' },
       { id: 'M52-tds', en: 'TDS / VDS at Source', bn: 'উৎসে কর', t: 'g' },
       { id: 'M52-notes', en: 'Debit / Credit Notes', bn: 'ডেবিট ও ক্রেডিট নোট', t: 'g' }
     ]},
     { en: 'Employee Expense', screens: [
       { id: 'M52-claims', en: 'Expense Claims', bn: 'খরচের দাবি', t: 'g' },
+      { id: 'M52-claim-lines', en: 'Claim Lines & Receipts', bn: 'দাবির লাইন ও রসিদ', t: 'g' },
       { id: 'M52-advances', en: 'Advances & Floats', bn: 'অগ্রিম', t: 'g' },
       { id: 'M52-perdiem', en: 'Per-Diem & Mileage', bn: 'ভাতা ও মাইলেজ', t: 'g' },
       { id: 'M52-policy', en: 'Expense Policy', bn: 'নীতি', t: 'g' }
@@ -53,11 +57,11 @@ export const MODULE = {
   freg: { src: 82, sub: [
     ['1', 'Invoice Capture', 10, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'invoice_date', 'due_date', 'total_payable'], screens: ['M52-bills', 'M52-dupes'] }],
     ['2', 'Matching', 11, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'bill_type', 'total_payable', 'match_state'], screens: ['M52-match'], domain: [['match_state', 'in', ['unmatched', 'blocked']]] }],
-    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix'], domain: [['approval_state', '!=', 'draft']] }],
+    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix', 'M52-matrix-change'], domain: [['approval_state', '!=', 'draft']] }],
     ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes'], domain: [['payment_state', '!=', 'paid']] }],
-    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs'] }],
+    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs', 'M52-bank-queue', 'M52-bank-changes'] }],
     ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'] }],
-    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-policy', 'M52-perdiem', 'M52-expcat'] }],
+    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-claim-lines', 'M52-policy', 'M52-perdiem', 'M52-expcat'] }],
     ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances'] }],
     ['9', 'GRNI', 5, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M52-grni'] }]
   ] }
@@ -76,8 +80,19 @@ export const SCREENS = {
     cols: ['vendor_id','invoice_ref','invoice_date','gross_amount','approval_level','approval_levels_required','submitted_by','approval_state'],
     stateField: 'approval_state', domain: [['approval_state','!=','draft']],
     actions: [{m:'action_approve',l:'Approve Level'},{m:'action_reject',l:'Reject'},{m:'action_reset_draft',l:'Reset to Draft'}] },
-  'M52-matrix': { kind: 'model_list', model: 'fix.ap.approval.rule',
+  'M52-matrix': { kind: 'model_list', model: 'fix.ap.approval.rule', create: false,
     cols: ['level','name','amount_min','group_id','active'] },
+  'M52-matrix-change': { kind: 'model_list', model: 'fix.ap.approval.rule.change',
+    cols: ['rule_id','name','level','amount_min','group_id','active','reason','proposed_by_id','decided_by_id','state'],
+    stateField: 'state',
+    actions: [{m:'action_apply',l:'Confirm & Apply'},{m:'action_reject',l:'Reject'}] },
+  'M52-bank-queue': { kind: 'model_list', model: 'fix.payee.bank.change',
+    cols: ['name','partner_id','partner_bank_id','acc_number','bank_id','routing_number','verification_ref','verified_by_id','evidence_names','proposed_by_id','state'],
+    stateField: 'state', domain: [['state','in',['draft','proposed']]],
+    actions: [{m:'action_propose',l:'Propose (call-back recorded)'},{m:'action_confirm',l:'Confirm (second person)'},{m:'action_reject',l:'Reject',ask:'Why is this bank change rejected?',kwarg:'reason'}] },
+  'M52-bank-changes': { kind: 'model_list', model: 'fix.payee.bank.change',
+    cols: ['name','partner_id','acc_number','verification_ref','proposed_by_id','confirmed_by_id','confirmed_at','reject_reason','state'],
+    stateField: 'state' },
   'M52-taxprofile': { kind: 'model_list', model: 'fix.vendor.tax.profile',
     cols: ['partner_id','tin','bin','taxpayer_type','psr_reference','psr_valid_until','psr_valid','turnover_enlisted'] },
   'M52-runs': { kind: 'model_list', model: 'fix.payment.run',
@@ -91,12 +106,16 @@ export const SCREENS = {
     cols: ['name','vendor_id','note_type','mushak_ref','note_date','amount','vat_amount','signed_total','state'],
     stateField: 'state', actions: [{m:'action_approve',l:'Approve & Post'},{m:'action_cancel',l:'Cancel'}] },
   'M52-claims': { kind: 'model_list', model: 'fix.expense.claim',
-    cols: ['employee_id','description','expense_date','amount','advance_id','state'],
+    cols: ['employee_id','description','expense_date','amount','advance_id','payment_failure','state'],
     stateField: 'state', actions: [{m:'action_submit',l:'Submit'},{m:'action_manager_approve',l:'Line Manager Approve'},{m:'action_approve',l:'Finance Approve'},{m:'action_reject',l:'Reject'}] },
   'M52-advances': { kind: 'model_list', model: 'fix.employee.advance',
-    cols: ['name','employee_id','advance_type','purpose','amount','settled_amount','recovered_amount','balance','state'],
+    cols: ['name','employee_id','advance_type','purpose','amount','settled_amount','recovered_amount','balance','recovery_state','state'],
     stateField: 'state',
-    actions: [{m:'action_approve',l:'Approve'},{m:'action_confirm_disbursement',l:'Confirm Disbursement'},{m:'action_sync_disbursement',l:'Read Bank Status'},{m:'action_settle',l:'Settle Against Claims'},{m:'action_record_recovery',l:'Recover Balance'}] },
+    actions: [{m:'action_approve',l:'Approve'},{m:'action_confirm_disbursement',l:'Confirm Disbursement'},{m:'action_sync_disbursement',l:'Read Bank Status'},{m:'action_settle',l:'Settle Against Claims'},{m:'action_record_recovery',l:'Recover Balance'},
+      {m:'action_confirm_payroll_recovery',l:'Confirm Payroll Deduction',asks:[{label:'Amount payroll deducted',kwarg:'amount',number:true},{label:'Payslip or payroll run reference',kwarg:'reference'}]},
+      {m:'action_cancel',l:'Cancel',ask:'Why is this advance cancelled?',kwarg:'reason'}] },
+  'M52-claim-lines': { kind: 'model_list', model: 'fix.expense.claim.line', create: false,
+    cols: ['claim_id','category_id','date','description','cost_centre','quantity','unit_amount','amount','receipt_names'] },
   'M52-perdiem': { kind: 'model_list', model: 'fix.expense.rate',
     cols: ['rate_type','grade_id','location','vehicle','rate','date_from','date_to'] },
   'M52-policy': { kind: 'model_list', model: 'fix.expense.policy',
@@ -131,18 +150,22 @@ export const SCREENS = {
           { name: 'payment_term_days', label: 'Payment Terms (days)' },
           { name: 'supplier_mushak_no', label: 'Supplier Mushak 6.3 No' },
           { name: 'vat_amount', label: 'Input VAT (6.3)' },
+          { name: 'vds_rate_id', label: 'VDS Service Code (empty: the vendor default, or no VDS)' },
+          { name: 'payment_channel', required: true, label: 'Payment Channel' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
         ] }
     ],
     lines: {
       field: 'line_ids',
       title: 'Invoice Lines — quantity, unit price and the product claimed against the PO',
-      note: 'The three-way match compares these lines (product, quantity, price) with the purchase order and the goods receipt; an unmatched bill never reaches payment.',
+      note: 'The three-way match compares these lines (product, quantity, price) with the purchase order and the goods receipt; an unmatched bill never reaches payment. TDS comes from the category’s rate in the M51 master; an exemption counts only with the certificate on the vendor’s tax profile.',
       fields: [
         { name: 'product_id', required: true, label: 'Product' },
         { name: 'description', required: true, label: 'Description' },
         { name: 'quantity', required: true, label: 'Quantity' },
         { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'tds_category', label: 'TDS Category' },
+        { name: 'tds_exempt', label: 'TDS Exempt' },
         { name: 'cwip_id', label: 'CWIP Project (capital purchase)' }
       ]
     }
@@ -169,15 +192,110 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Expense Lines — per-diem and mileage come from the rate master',
-      note: 'Quantity is days (per-diem) or kilometres (mileage) or 1 for actual cost; the rate master fills the unit amount for per-diem and mileage lines, and the policy limits are checked per line and per day for the employee’s grade.',
+      note: 'Quantity is days (per-diem) or kilometres (mileage) or 1 for actual cost; the rate master fills the unit amount for per-diem and mileage lines, and the policy limits are checked per line and per day for the employee’s grade. Every line names its cost centre. Save, then attach each receipt on Claim Lines & Receipts: above the policy’s amount a claim does not submit without one.',
       fields: [
         { name: 'category_id', required: true, label: 'Category' },
         { name: 'date', required: true, label: 'Date' },
         { name: 'quantity', required: true, label: 'Days / km / qty' },
         { name: 'unit_amount', label: 'Unit Amount (rate)' },
+        { name: 'cost_centre', required: true, label: 'Cost Centre' },
+        { name: 'location', label: 'Per-Diem Location' },
+        { name: 'vehicle', label: 'Vehicle' },
         { name: 'description', label: 'Detail' }
       ]
     }
+  },
+
+  'M52-form-claim-line': {
+    kind: 'model_form',
+    model: 'fix.expense.claim.line',
+    title: 'Claim Line & Receipt',
+    back: 'M52-claim-lines',
+    sections: [
+      { title: 'Expense Line', note: 'The lines of a submitted claim no longer change. A receipt is reimbursed once: the same file on another live claim is refused at submission.',
+        fields: [
+          { name: 'claim_id', readonly: true, label: 'Claim' },
+          { name: 'category_id', required: true, label: 'Category' },
+          { name: 'date', required: true, label: 'Date' },
+          { name: 'quantity', required: true, label: 'Days / km / qty' },
+          { name: 'unit_amount', label: 'Unit Amount (rate)' },
+          { name: 'amount', readonly: true, label: 'Amount' },
+          { name: 'cost_centre', required: true, label: 'Cost Centre' },
+          { name: 'location', label: 'Per-Diem Location' },
+          { name: 'vehicle', label: 'Vehicle' },
+          { name: 'description', label: 'Detail' }
+        ] },
+      { title: 'Receipt',
+        fields: [
+          { name: 'receipt_file', type: 'binary', filename: 'receipt_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Upload Receipt' },
+          { name: 'receipt_filename', label: 'Receipt File Name' },
+          { name: 'receipt_names', readonly: true, label: 'Receipts Attached' }
+        ] }
+    ]
+  },
+
+  'M52-form-bank-change': {
+    kind: 'model_form',
+    model: 'fix.payee.bank.change',
+    title: 'Payee Bank Change',
+    back: 'M52-bank-queue',
+    status: { field: 'state', labels: { draft: 'Draft', proposed: 'Proposed', confirmed: 'Confirmed', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Account', note: 'An account is not payable until a second person confirms it. Unconfirmed accounts queue here by themselves; complete the call-back on the row, or raise a new or changed account with + New. An M42 supplier’s account changes through the supplier bank-detail change request instead.',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Payee' },
+          { name: 'partner_bank_id', label: 'Account To Confirm / Change (empty: a new account)' },
+          { name: 'acc_number', required: true, label: 'Account / Wallet Number' },
+          { name: 'bank_id', label: 'Bank' },
+          { name: 'routing_number', label: 'BEFTN Routing Number' },
+          { name: 'acc_holder_name', label: 'Account Holder' }
+        ] },
+      { title: 'Call-Back Evidence', note: 'Who was called, on which independently known number, when, and what they confirmed. Required to propose. The confirming accounting manager is someone other than the proposer, the caller and the last person to change the account.',
+        fields: [
+          { name: 'verification_ref', type: 'text', required: true, label: 'Call-Back Verification' },
+          { name: 'verified_by_id', label: 'Call-Back Made By' },
+          { name: 'evidence_file', type: 'binary', filename: 'evidence_filename', label: 'Upload Evidence' },
+          { name: 'evidence_filename', label: 'Evidence File Name' },
+          { name: 'evidence_names', readonly: true, label: 'Evidence Attached' }
+        ] },
+      { title: 'Decision',
+        fields: [
+          { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
+          { name: 'proposed_at', readonly: true, label: 'Proposed On' },
+          { name: 'confirmed_by_id', readonly: true, label: 'Confirmed By' },
+          { name: 'confirmed_at', readonly: true, label: 'Confirmed On' },
+          { name: 'reject_reason', readonly: true, label: 'Rejected Because' },
+          { name: 'result_bank_id', readonly: true, label: 'Confirmed Account' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M52-form-matrix-change': {
+    kind: 'model_form',
+    model: 'fix.ap.approval.rule.change',
+    title: 'Matrix Change Request',
+    back: 'M52-matrix-change',
+    status: { field: 'state', labels: { proposed: 'Proposed', applied: 'Applied', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Proposed Row', note: 'Saving proposes the change; another accounting manager confirms it, and only that writes the matrix. Name the row to change, or leave Matrix Row empty to add one. For an existing row, what you leave empty stays as it is.',
+        fields: [
+          { name: 'rule_id', label: 'Matrix Row (empty: a new row)' },
+          { name: 'name', label: 'New Name' },
+          { name: 'level', label: 'New Level' },
+          { name: 'amount_min', label: 'New Applies From (gross)' },
+          { name: 'group_id', label: 'New Approver Group' },
+          { name: 'active', label: 'Row Active' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' }
+        ] },
+      { title: 'Decision',
+        fields: [
+          { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
+          { name: 'decided_by_id', readonly: true, label: 'Decided By' },
+          { name: 'decided_at', readonly: true, label: 'Decided On' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
   },
 
   'M52-form-advance': {
@@ -197,7 +315,10 @@ export const SCREENS = {
           { name: 'request_date', required: true, label: 'Request Date' },
           { name: 'settle_by', label: 'Settle By' },
           { name: 'recovery_method', label: 'Recovery Method' },
-          { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'recovery_state', readonly: true, label: 'Recovery' },
+          { name: 'recovery_requested_amount', readonly: true, label: 'Payroll Deduction Requested' },
+          { name: 'cancel_reason', readonly: true, label: 'Cancelled Because' }
         ] }
     ]
   },
@@ -229,8 +350,13 @@ export const SCREENS = {
     model: 'fix.vendor.tax.profile',
     title: 'Vendor Tax Profile',
     back: 'M52-taxprofile',
+    tabs: [
+      { id: 'identity', label: 'Tax Identity', bn: 'কর পরিচিতি' },
+      { id: 'psr', label: 'Return-Filing Proof (PSR)', bn: 'রিটার্ন দাখিলের প্রমাণ' },
+      { id: 'exempt', label: 'TDS Exemption', bn: 'টিডিএস অব্যাহতি' }
+    ],
     sections: [
-      { title: 'Tax Identity', note: 'One profile per vendor per company. The PSR proof drives the non-filer TDS multiplier; a turnover-enlisted vendor’s invoices do not support input VAT credit.',
+      { tab: 'identity', title: 'Tax Identity', note: 'One profile per vendor per company. The PSR proof drives the non-filer TDS multiplier; a turnover-enlisted vendor’s invoices do not support input VAT credit.',
         fields: [
           { name: 'partner_id', required: true, label: 'Vendor' },
           { name: 'tin', label: 'TIN (e-TIN)' },
@@ -241,9 +367,22 @@ export const SCREENS = {
           { name: 'vds_exempt', label: 'VDS Not Applicable' },
           { name: 'turnover_enlisted', label: 'Turnover-Tax Enlisted' }
         ] },
-      { title: 'Return-Filing Proof (PSR)', fields: [
+      { tab: 'psr', title: 'Return-Filing Proof (PSR)', note: 'The vendor counts as a filer only with a TIN, the reference, an expiry not yet passed and the proof attached.',
+        fields: [
           { name: 'psr_reference', label: 'PSR Reference' },
-          { name: 'psr_valid_until', label: 'PSR Valid Until' }
+          { name: 'psr_valid_until', label: 'PSR Valid Until' },
+          { name: 'psr_evidence_file', type: 'binary', filename: 'psr_evidence_filename', label: 'Upload PSR Proof' },
+          { name: 'psr_evidence_filename', label: 'PSR File Name' },
+          { name: 'psr_evidence_names', readonly: true, label: 'PSR Proof Attached' },
+          { name: 'psr_valid', readonly: true, label: 'PSR Valid Today' }
+        ] },
+      { tab: 'exempt', title: 'TDS Exemption Certificate', note: 'A bill line ticked TDS Exempt counts only with the certificate number, its expiry and the file here, valid on the invoice date.',
+        fields: [
+          { name: 'tds_exempt_certificate_ref', label: 'TDS Exemption Certificate No' },
+          { name: 'tds_exempt_valid_until', label: 'Exemption Valid Until' },
+          { name: 'tds_exempt_file', type: 'binary', filename: 'tds_exempt_filename', label: 'Upload Exemption Certificate' },
+          { name: 'tds_exempt_filename', label: 'Certificate File Name' },
+          { name: 'tds_exempt_names', readonly: true, label: 'Certificate Attached' }
         ] }
     ]
   },
@@ -388,6 +527,8 @@ export const FORM_MODELS = {
 
 export const FORM_CHIPS = {
   'M52:AP Approval Rule': 'M52-form-aprule',
+  'M52:Matrix Change Request': 'M52-form-matrix-change',
+  'M52:Payee Bank Change': 'M52-form-bank-change',
   'M52:Payment Run': 'M52-form-aprun',
   'M52:Vendor Bill': 'M52-form-bill',
   'M52:Expense Claim': 'M52-form-claim',
@@ -398,6 +539,9 @@ export const FORM_CHIPS = {
     'fix.expense.category': 'M52-form-expense-category',
     'fix.expense.grade': 'M52-form-expense-grade',
     'fix.ap.approval.rule': 'M52-form-aprule',
+    'fix.ap.approval.rule.change': 'M52-form-matrix-change',
+    'fix.payee.bank.change': 'M52-form-bank-change',
+    'fix.expense.claim.line': 'M52-form-claim-line',
     'fix.payment.run': 'M52-form-aprun',
     'fix.vendor.invoice': 'M52-form-bill',
     'fix.expense.claim': 'M52-form-claim',
@@ -411,6 +555,10 @@ export const FORM_CHIPS = {
     'M52-expense-category': 'M52-form-expense-category',
     'M52-expense-grade': 'M52-form-expense-grade',
     'M52-matrix': 'M52-form-aprule',
+    'M52-matrix-change': 'M52-form-matrix-change',
+    'M52-bank-queue': 'M52-form-bank-change',
+    'M52-bank-changes': 'M52-form-bank-change',
+    'M52-claim-lines': 'M52-form-claim-line',
     'M52-runs': 'M52-form-aprun',
     'M52-bills': 'M52-form-bill',
     'M52-claims': 'M52-form-claim',

@@ -124,17 +124,19 @@ def _invoices(k, contract):
     )
 
 
-def _determined(amount):
-    """What M51 says for one AMC line of this amount (the walker must carry
+def _determined(period):
+    """What M51 says for one AMC line of this period (the walker must carry
     the determination, never a local VAT constant)."""
-    determination = tax_logic.determine_tax(
+    determination = period.env["fix.vat.treatment"]._fix_determine_tax(
         [
             tax_logic.TaxLine(
                 product_code="AMC",
                 qty=Decimal("1"),
-                unit_price=Decimal(str(amount)).quantize(TWO, ROUND_HALF_UP),
+                unit_price=Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP),
             )
-        ]
+        ],
+        on_date=period.period_start,
+        company=period.contract_id.company_id,
     )
     det = determination.lines[0]
     return float(det.taxable_amount), float(det.vat_amount), float(det.line_total)
@@ -184,7 +186,7 @@ def test_due_periods_raise_draft_invoices_and_advance_billed_through(k):
         assert invoice.invoice_date == period.period_start
         assert contract.code in (invoice.manual_reason or "")
         assert invoice._revenue_role() == "deferred_revenue"  # IFRS 15 contract liability
-        expected = _determined(period.amount)
+        expected = _determined(period)
         (line,) = invoice.line_ids
         assert (
             round(line.taxable_amount, 2),

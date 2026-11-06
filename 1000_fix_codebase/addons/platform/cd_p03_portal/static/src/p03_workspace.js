@@ -1950,6 +1950,14 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         if (name === "state" && !raw) return "Draft (New)";
         if (!meta) return raw === "" || raw === null || raw === undefined ? "—" : String(raw);
         if (meta.type === "many2one") return raw && raw.label ? raw.label : "—";
+        if (meta.type === "many2many") {
+            const labels = (Array.isArray(raw) ? raw : []).map((v) => {
+                if (v && typeof v === "object") return v.label;
+                const hit = (meta.choices || []).find((c) => c.id === v);
+                return hit ? hit.label : String(v);
+            });
+            return labels.length ? labels.join(", ") : "—";
+        }
         if (meta.type === "selection") {
             const hit = (meta.choices || []).find((c) => c.key === raw);
             return hit ? this.t(hit.label) : raw === "" || raw === null || raw === undefined ? "—" : String(raw);
@@ -2024,15 +2032,15 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 "file_name"
             ];
             for (const fnField of fnCandidates) {
-                if (this.state.formDraft && fnField in this.state.formDraft) {
+                if (this.formFieldsMeta[fnField]) {
                     this.formSet(fnField, file.name);
                     break;
                 }
             }
-            if (this.state.formDraft && "file_size" in this.state.formDraft) {
+            if (this.formFieldsMeta["file_size"]) {
                 this.formSet("file_size", file.size);
             }
-            if (this.state.formDraft && "file_mimetype" in this.state.formDraft) {
+            if (this.formFieldsMeta["file_mimetype"]) {
                 this.formSet("file_mimetype", file.type || "application/octet-stream");
             }
             this.render(true);
@@ -2050,15 +2058,15 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             "file_name"
         ];
         for (const fnField of fnCandidates) {
-            if (this.state.formDraft && fnField in this.state.formDraft) {
+            if (this.formFieldsMeta[fnField]) {
                 this.formSet(fnField, "");
                 break;
             }
         }
-        if (this.state.formDraft && "file_size" in this.state.formDraft) {
+        if (this.formFieldsMeta["file_size"]) {
             this.formSet("file_size", 0);
         }
-        if (this.state.formDraft && "file_mimetype" in this.state.formDraft) {
+        if (this.formFieldsMeta["file_mimetype"]) {
             this.formSet("file_mimetype", "");
         }
         this.render(true);
@@ -2146,6 +2154,17 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
         gl.loading = false;
         this.render(true);
+    }
+
+    /* A many2many input is a multi-select: the save posts every selected id. */
+    formSetMany(name, ev) {
+        const ids = [...ev.target.selectedOptions].map((o) => Number(o.value));
+        this.formSet(name, ids);
+    }
+
+    formManySelected(name, id) {
+        const raw = this.formFieldValue(name);
+        return Array.isArray(raw) && raw.some((v) => (v && typeof v === "object" ? v.id : v) === id);
     }
 
     formSet(name, value) {
@@ -2753,6 +2772,10 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             reverse_receipt: ["/p03/ar/receipt/reverse", { receipt_id: p.id, reason: p.value }, "Receipt reversed"],
             suppress_dunning: ["/p03/ar/dunning/suppress", { dunning_id: p.id, reason: p.value }, "Dunning suppressed"],
             resolve_dispute: ["/p03/ar/dispute/resolve", { dispute_id: p.id, note: p.value }, "Dispute resolved"],
+            lift_dunning: ["/p03/ar/dunning/lift", { dunning_id: p.id, note: p.value }, "Suppression lifted"],
+            route_je: ["/p03/gl/je/route", { move_id: p.id, reason: p.value }, "Routed for approval"],
+            discard_je: ["/p03/gl/je/discard", { move_id: p.id, reason: p.value }, "Draft discarded"],
+            set_cutover: ["/p03/gl/close/action", { close_id: p.id, action: "set_cutover", entry: p.value }, "Cutover entry set"],
         };
         // model_list "ask" actions (e.g. the customer's POD OTP at hand-over,
         // or an MSP resolution note) — the kwarg names the server parameter

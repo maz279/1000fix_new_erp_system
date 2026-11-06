@@ -27,7 +27,7 @@ imprest count against pending vouchers, frozen facility schedules with
 amendments, approved covenants, the payment.requested consumer and the
 auto-match / covenant crons.
 """,
-    "version": "19.0.1.3.1",
+    "version": "19.0.1.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",

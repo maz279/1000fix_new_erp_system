@@ -47,6 +47,7 @@ CD-M52-01: the accounts-payable core.
         "security/ir.model.access.csv",
         "security/fix_a08_rules.xml",
         "data/fix_ap_data.xml",
+        "data/fix_ap_automation.xml",
         "views/fix_ap_ext_views.xml",
     ],
     "installable": True,

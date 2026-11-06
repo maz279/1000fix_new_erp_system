@@ -18,6 +18,8 @@ from odoo.exceptions import UserError, ValidationError
 
 from .fix_asset_common import (
     USER_GROUP,
+    attach_upload,
+    attachment_names,
     disposal_ladder,
     money,
     post_entry,
@@ -240,6 +242,18 @@ class FixAssetRevaluation(models.Model):
         string="Valuer Report",
         help="The independent valuer's report (revaluation) or the impairment test",
     )
+    # A08 M49-9: the workspace form uploads the report here; it becomes an
+    # attachment on valuer_report_ids.
+    valuer_report_file = fields.Binary(
+        string="Upload Valuer Report",
+        compute="_compute_valuer_report_file",
+        inverse="_inverse_valuer_report_file",
+        attachment=False,
+    )
+    valuer_report_filename = fields.Char(string="Report File Name", copy=False)
+    valuer_report_names = fields.Char(
+        string="Reports Attached", compute="_compute_valuer_report_names"
+    )
     requested_by_id = fields.Many2one(
         "res.users", string="Requested By", default=lambda self: self.env.user, readonly=True
     )
@@ -269,6 +283,25 @@ class FixAssetRevaluation(models.Model):
     move_id = fields.Many2one("account.move", string="Journal Entry", readonly=True, copy=False)
 
     _TERMS = frozenset({"asset_id", "kind", "date", "new_value"})
+
+    def _compute_valuer_report_file(self):
+        for rec in self:
+            rec.valuer_report_file = False
+
+    def _inverse_valuer_report_file(self):
+        for rec in self:
+            attach_upload(
+                rec,
+                "valuer_report_ids",
+                rec.valuer_report_file,
+                rec.valuer_report_filename,
+                "Valuer report %s" % rec.name,
+            )
+
+    @api.depends("valuer_report_ids")
+    def _compute_valuer_report_names(self):
+        for rec in self:
+            rec.valuer_report_names = attachment_names(rec.valuer_report_ids)
 
     # ---- DOFA --------------------------------------------------------------
     def _dofa_amount(self) -> float:
@@ -308,7 +341,12 @@ class FixAssetRevaluation(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and self.state != "draft":
-            locked |= set(self._TERMS) | {"basis", "valuer_report_ids"}
+            locked |= set(self._TERMS) | {
+                "basis",
+                "valuer_report_ids",
+                "valuer_report_file",
+                "valuer_report_filename",
+            }
         return locked
 
     def write(self, vals):
@@ -571,9 +609,38 @@ class FixAssetDisposal(models.Model):
     move_id = fields.Many2one("account.move", string="Journal Entry", readonly=True, copy=False)
     sale_invoice_ref = fields.Char(string="M20 Sale Invoice", readonly=True, copy=False)
     sale_invoice_res_id = fields.Integer(string="M20 Sale Invoice ID", readonly=True, copy=False)
+    # A08 M49-8: the tax side of the disposal, a MEMO like the tax book itself
+    # (never posted to the GL). Proceeds against the tax written-down value: the
+    # year-of-disposal treatment is the tax adviser's to confirm.
+    tax_wdv = fields.Monetary(string="Tax WDV at Disposal", readonly=True, copy=False)
+    tax_balancing = fields.Monetary(
+        string="Balancing Charge (+) / Allowance (-)",
+        readonly=True,
+        copy=False,
+        help="Proceeds less the tax written-down value at disposal, for the tax computation. "
+        "Memo only. Empty for an asset outside the tax book.",
+    )
+    # A08 M49-10, BRU-FXA-18: lawful physical disposal is M18's.
+    ewaste_route = fields.Boolean(
+        string="Physical Disposal Through M18 (E-Waste)",
+        tracking=True,
+        help="Tick where e-waste or environmental rules apply: posting the disposal opens an "
+        "M18 collection for the item, which then goes through M18's own triage and recycler "
+        "gates.",
+    )
+    ewaste_collection_ref = fields.Char(string="M18 Collection", readonly=True, copy=False)
+    ewaste_collection_res_id = fields.Integer(string="M18 Collection ID", readonly=True, copy=False)
 
     _TERMS = frozenset(
-        {"asset_id", "kind", "date", "partner_id", "proceeds", "proceeds_account_id"}
+        {
+            "asset_id",
+            "kind",
+            "date",
+            "partner_id",
+            "proceeds",
+            "proceeds_account_id",
+            "ewaste_route",
+        }
     )
 
     # ---- DOFA --------------------------------------------------------------
@@ -612,6 +679,10 @@ class FixAssetDisposal(models.Model):
             "move_id",
             "sale_invoice_ref",
             "sale_invoice_res_id",
+            "tax_wdv",
+            "tax_balancing",
+            "ewaste_collection_ref",
+            "ewaste_collection_res_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -752,6 +823,9 @@ class FixAssetDisposal(models.Model):
             accumulated = money(asset.accumulated_depreciation + asset.impairment_total)
             nbv = money(cost - accumulated)
             gain_loss = money(rec.proceeds - nbv)
+            in_tax_book = bool(cat.tax_rate_code or asset.tax_accumulated)
+            tax_wdv = money(asset.tax_wdv) if in_tax_book else 0.0
+            tax_balancing = money(rec.proceeds - tax_wdv) if in_tax_book else 0.0
             needed = ["journal_id", "asset_account_id"]
             if accumulated:
                 needed.append("accumulated_account_id")
@@ -792,11 +866,62 @@ class FixAssetDisposal(models.Model):
                     "accumulated": accumulated,
                     "nbv": nbv,
                     "gain_loss": gain_loss,
+                    "tax_wdv": tax_wdv,
+                    "tax_balancing": tax_balancing,
                     "move_id": move.id,
                 }
             )
             asset._mark_disposed(rec.date, move)
         return True
+
+    @api.model
+    def consume_asset_disposed_m18(self, event):
+        """asset.disposed -> M18 (A08 M49-10, BRU-FXA-18): a posted disposal
+        marked for physical disposal opens one M18 collection (the company's
+        own stock), which goes through M18's own triage, wipe and recycler
+        gates. Relay only and idempotent; everything is re-read, the payload
+        is not trusted. cd_ewaste does not depend on this addon, so it is read
+        by name: a disposal that asks for M18 where M18 is not installed fails
+        the delivery visibly rather than being dropped."""
+        if not self.env.su:
+            raise UserError(self.env._("This consumer runs only from the event relay."))
+        asset = self.env["fix.fixed.asset"].browse(event.get("aggregate_id") or 0).exists()
+        disposal = asset.disposal_ids.filtered(lambda d: d.state == "posted" and d.ewaste_route)[:1]
+        if not disposal:
+            return self.browse()
+        if "fix.ewaste.collection" not in self.env:
+            raise UserError(
+                self.env._("%s is routed to M18, but cd_ewaste is not installed.", disposal.name)
+            )
+        Collection = self.env["fix.ewaste.collection"]
+        collection = Collection.search(
+            [("source_model", "=", disposal._name), ("source_res_id", "=", disposal.id)], limit=1
+        )
+        if not collection:
+            collection = Collection._guarded().create(
+                {
+                    "company_id": disposal.company_id.id,
+                    "operating_unit_id": disposal.operating_unit_id.id or False,
+                    "customer_id": disposal.company_id.partner_id.id,
+                    "material_type": "other",
+                    "item_count": 1,
+                    "source_model": disposal._name,
+                    "source_res_id": disposal.id,
+                    "source_ref": disposal.name,
+                }
+            )
+            collection.message_post(
+                body=self.env._(
+                    "Received from M49 disposal %s of asset %s.", disposal.name, asset.display_name
+                )
+            )
+        disposal._guarded().write(
+            {
+                "ewaste_collection_ref": collection.name,
+                "ewaste_collection_res_id": collection.id,
+            }
+        )
+        return self.browse(disposal.id)
 
     def action_cancel(self):
         for rec in self:

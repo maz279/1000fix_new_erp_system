@@ -24,10 +24,19 @@ class FixIntercompanyTransaction(models.Model):
     _name = "fix.intercompany.transaction"
     _inherit = ["fix.intercompany.transaction", "fix.guarded.mixin"]
 
-    mirrored_by_id = fields.Many2one("res.users", string="Mirror Posted By", readonly=True, copy=False)
+    mirrored_by_id = fields.Many2one(
+        "res.users", string="Mirror Posted By", readonly=True, copy=False
+    )
     matched_by_id = fields.Many2one("res.users", string="Matched By", readonly=True, copy=False)
 
-    _PINNED = ("amount", "currency_id", "rule_id", "source_entity_id", "target_entity_id", "transaction_date")
+    _PINNED = (
+        "amount",
+        "currency_id",
+        "rule_id",
+        "source_entity_id",
+        "target_entity_id",
+        "transaction_date",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -57,18 +66,40 @@ class FixIntercompanyTransaction(models.Model):
         self._guarded().write({"mirrored_by_id": self.env.uid})
         return result
 
-    def action_match(self):
-        """The counterparty acceptance: the match is decided by someone other
-        than the user who posted both sides (I02)."""
-        self.ensure_one()
-        if not self.env.su and self.mirrored_by_id and self.mirrored_by_id == self.env.user:
+    def _fix_check_counterparty_user(self):
+        """M19-13: the match is the counterparty's acceptance, so the accountant
+        who decides it is a user of the entity that carries the due-to, and not
+        the user who posted both sides (I02). The transaction's company is the
+        ORIGINATING one, so a counterparty accountant holding only the target
+        company is admitted here, on the role and the entity, not by record rule."""
+        if self.env.su:
+            return
+        user = self.env.user
+        if not user.has_group("account.group_account_user"):
+            raise UserError("Accepting an inter-company charge needs the Accountant role.")
+        txn = self.sudo()
+        company = txn.target_entity_id.company_id
+        if company not in user.sudo().company_ids:
+            raise UserError(
+                "%s is accepted by a user of the counterparty entity %s (%s); you are not one."
+                % (txn.reference, txn.target_entity_id.code, company.name)
+            )
+        if txn.mirrored_by_id == user:
             raise UserError(
                 "Segregation of duties: %s posted both sides of %s and cannot also match "
-                "them; the counterparty entity's accountant matches." % (self.env.user.name, self.reference)
+                "them; the counterparty entity's accountant matches." % (user.name, txn.reference)
             )
-        result = super(FixIntercompanyTransaction, self._guarded()).action_match()
-        if self.state == "matched":
-            self._guarded().write({"matched_by_id": self.env.uid})
+
+    def action_match(self):
+        """The counterparty acceptance. Runs as the system once the user is
+        established: a target-only accountant cannot read the originating
+        company's record (or its due line) through the record rules."""
+        self.ensure_one()
+        self._fix_check_counterparty_user()
+        txn = self.sudo()._guarded()
+        result = super(FixIntercompanyTransaction, txn).action_match()
+        if txn.state == "matched":
+            txn.write({"matched_by_id": self.env.uid})
         return result
 
     def action_mark_settled(self):
@@ -151,7 +182,9 @@ class FixEliminationEntry(models.Model):
         self._fix_generated_only(books)
         for vals in vals_list:
             if not vals.get("transaction_id"):
-                raise ValidationError("An elimination names the inter-company transaction it removes.")
+                raise ValidationError(
+                    "An elimination names the inter-company transaction it removes."
+                )
         return super().create(vals_list)
 
     def write(self, vals):
@@ -184,7 +217,9 @@ class FixNilReturnGenerator(models.Model):
                 "Mushak 9.1 return is due, not a nil return."
                 % (what, self.entity_id.code, count, self.period_year, self.period_month)
             )
-        self._guarded().write({"transaction_count": 0, "transactions_counted_at": fields.Datetime.now()})
+        self._guarded().write(
+            {"transaction_count": 0, "transactions_counted_at": fields.Datetime.now()}
+        )
 
     def action_verify_eligibility(self):
         return super(FixNilReturnGenerator, self._guarded()).action_verify_eligibility()
@@ -230,7 +265,9 @@ class FixTransferPriceRate(models.Model):
     _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "rule_id, date_from desc"
 
-    rule_id = fields.Many2one("fix.intercompany.rule", required=True, ondelete="cascade", index=True)
+    rule_id = fields.Many2one(
+        "fix.intercompany.rule", required=True, ondelete="cascade", index=True
+    )
     company_id = fields.Many2one(related="rule_id.company_id", store=True)
     markup_percent = fields.Float(string="Approved Markup (%)", required=True, digits=(16, 4))
     date_from = fields.Date(string="Effective From", required=True)
@@ -247,8 +284,23 @@ class FixTransferPriceRate(models.Model):
 
     _TERMS = ("rule_id", "markup_percent", "date_from", "date_to", "study_ref")
 
+    @api.depends("rule_id", "markup_percent", "date_from")
+    def _compute_display_name(self):
+        for rate in self:
+            rate.display_name = "%s %.2f%% from %s" % (
+                rate.rule_id.sudo().code or "",
+                rate.markup_percent or 0.0,
+                rate.date_from or "",
+            )
+
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state", "approved_by_id", "approved_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(rate.state != "draft" for rate in self):
+            locked |= set(self._TERMS)
+        return locked
 
     @api.constrains("date_from", "date_to", "markup_percent")
     def _check_terms(self):
@@ -259,7 +311,7 @@ class FixTransferPriceRate(models.Model):
                 raise ValidationError("A transfer-pricing markup is not negative.")
 
     def write(self, vals):
-        if set(self._TERMS) & set(vals) and not self._fix_guard_open():
+        if set(self._TERMS) & set(vals) and not self._fix_guard_open():  # noqa: SIM102
             if any(r.state != "draft" for r in self):
                 raise UserError(
                     "An approved transfer-pricing rate is frozen; retire it and propose a new one."

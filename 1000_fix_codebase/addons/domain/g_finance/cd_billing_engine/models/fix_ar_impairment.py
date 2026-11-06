@@ -11,7 +11,10 @@
 #     provision already booked is read from the GL, and read again at Post);
 #   * the rates are frozen once computed; posting is a review by an
 #     Accounting Administrator who neither created nor computed the run;
-#   * the entry posts through the M19 API (BRU-ARB-23), source "impairment".
+#   * the entry posts through the M19 API (BRU-ARB-23), source "impairment";
+#   * M20-5: the rates come from fix.ar.ecl.rate, an effective-dated master
+#     approved by a second person, stamped onto the run by Compute; a run with
+#     no approved set in force is refused rather than given rates.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -30,14 +33,142 @@ RUN_INPUTS = (
     "journal_id",
     "expense_account_id",
     "provision_account_id",
-    "rate_current",
-    "rate_1_30",
-    "rate_31_60",
-    "rate_61_90",
-    "rate_90_plus",
     "company_id",
     "currency_id",
 )
+RATE_FIELDS = ("rate_current", "rate_1_30", "rate_31_60", "rate_61_90", "rate_90_plus")
+
+
+class FixArEclRate(models.Model):
+    """The approved IFRS 9 loss rates (M20-5): effective-dated master data set
+    by finance and approved by an Accounting Administrator who did not prepare
+    it. Nothing is seeded: the rates are the company's own estimate."""
+
+    _name = "fix.ar.ecl.rate"
+    _description = "ECL Loss-Rate Set (IFRS 9)"
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    _order = "date_from desc, id desc"
+
+    name = fields.Char(required=True, tracking=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    date_from = fields.Date(string="Effective From", required=True, tracking=True)
+    date_to = fields.Date(string="Effective To", tracking=True)
+    rate_current = fields.Float(
+        string="Rate current (%)", digits=(6, 3), required=True, tracking=True
+    )
+    rate_1_30 = fields.Float(string="Rate 1-30 (%)", digits=(6, 3), required=True, tracking=True)
+    rate_31_60 = fields.Float(string="Rate 31-60 (%)", digits=(6, 3), required=True, tracking=True)
+    rate_61_90 = fields.Float(string="Rate 61-90 (%)", digits=(6, 3), required=True, tracking=True)
+    rate_90_plus = fields.Float(string="Rate 90+ (%)", digits=(6, 3), required=True, tracking=True)
+    basis_note = fields.Text(
+        string="Basis", required=True, help="The loss history or policy these rates come from."
+    )
+    state = fields.Selection(
+        [("draft", "Draft"), ("approved", "Approved"), ("retired", "Retired")],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_at = fields.Datetime(string="Approved On", readonly=True, copy=False)
+
+    _LOCKED = (*RATE_FIELDS, "date_from", "company_id", "basis_note")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "approved_by_id", "approved_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self._LOCKED)
+        return locked
+
+    def write(self, vals):
+        locked = set(self._LOCKED) & set(vals)
+        if locked and not self._fix_guard_open() and self.filtered(lambda r: r.state != "draft"):
+            raise UserError(
+                "An approved rate set is fixed: retire it and approve a new one from the date "
+                "the rates change."
+            )
+        return super().write(vals)
+
+    @api.constrains(*RATE_FIELDS, "date_from", "date_to")
+    def _check_rates(self):
+        for rec in self:
+            if not all(0.0 <= rec[f] <= 100.0 for f in RATE_FIELDS):
+                raise UserError("A loss rate is a percentage between 0 and 100.")
+            if rec.date_to and rec.date_to < rec.date_from:
+                raise UserError("A rate set cannot end before it starts.")
+
+    def _overlapping(self):
+        self.ensure_one()
+        for other in self.search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "=", "approved"),
+            ]
+        ):
+            if (not self.date_to or other.date_from <= self.date_to) and (
+                not other.date_to or self.date_from <= other.date_to
+            ):
+                return other
+        return self.browse()
+
+    def action_approve(self):
+        """The checker: an Accounting Administrator who did not prepare the set."""
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft rate set is approved.")
+            if not self.env.su:
+                require_role(self.env, GROUP_ADMINISTRATOR, "Approving IFRS 9 loss rates")
+                if rec.create_uid == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: you prepared %s; another Accounting "
+                        "Administrator approves it." % rec.name
+                    )
+            clash = rec._overlapping()
+            if clash:
+                raise UserError(
+                    "%s overlaps the approved set %s: end that one first." % (rec.name, clash.name)
+                )
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.uid,
+                    "approved_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_retire(self, reason=""):
+        """End an approved set; new runs need another one in force."""
+        require_role(self.env, GROUP_ADMINISTRATOR, "Retiring IFRS 9 loss rates")
+        if not (reason or "").strip():
+            raise UserError("State why the rate set is retired.")
+        for rec in self:
+            if rec.state != "approved":
+                raise UserError("Only an approved rate set is retired.")
+            rec._guarded().write({"state": "retired"})
+            rec.message_post(body="Retired by %s: %s" % (self.env.user.name, reason))
+        return True
+
+    @api.model
+    def _fix_in_force(self, company, on_date):
+        return self.sudo().search(
+            [
+                ("company_id", "=", company.id),
+                ("state", "=", "approved"),
+                ("date_from", "<=", on_date),
+                "|",
+                ("date_to", "=", False),
+                ("date_to", ">=", on_date),
+            ],
+            order="date_from desc",
+            limit=1,
+        )
 
 
 class FixArImpairment(models.Model):
@@ -57,12 +188,16 @@ class FixArImpairment(models.Model):
     journal_id = fields.Many2one("account.journal", string="Journal", required=True)
     expense_account_id = fields.Many2one("account.account", string="Impairment expense account")
     provision_account_id = fields.Many2one("account.account", string="Provision account")
-    # IFRS 9 simplified approach: a loss rate per ageing bucket, stated on the run
-    rate_current = fields.Float(string="Rate current (%)", default=0.5)
-    rate_1_30 = fields.Float(string="Rate 1-30 (%)", default=2.0)
-    rate_31_60 = fields.Float(string="Rate 31-60 (%)", default=10.0)
-    rate_61_90 = fields.Float(string="Rate 61-90 (%)", default=25.0)
-    rate_90_plus = fields.Float(string="Rate 90+ (%)", default=50.0)
+    # IFRS 9 simplified approach: a loss rate per ageing bucket, stamped by
+    # Compute from the approved master in force at the as-of date (M20-5)
+    rate_set_id = fields.Many2one(
+        "fix.ar.ecl.rate", string="Approved Loss Rates", readonly=True, copy=False
+    )
+    rate_current = fields.Float(string="Rate current (%)", readonly=True, digits=(6, 3))
+    rate_1_30 = fields.Float(string="Rate 1-30 (%)", readonly=True, digits=(6, 3))
+    rate_31_60 = fields.Float(string="Rate 31-60 (%)", readonly=True, digits=(6, 3))
+    rate_61_90 = fields.Float(string="Rate 61-90 (%)", readonly=True, digits=(6, 3))
+    rate_90_plus = fields.Float(string="Rate 90+ (%)", readonly=True, digits=(6, 3))
     line_ids = fields.One2many("fix.ar.impairment.line", "run_id", string="Buckets")
     total_exposure = fields.Monetary(
         compute="_compute_totals", store=True, currency_field="currency_id"
@@ -100,6 +235,8 @@ class FixArImpairment(models.Model):
             "computed_by_id",
             "computed_at",
             "posted_by_id",
+            "rate_set_id",
+            *RATE_FIELDS,
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -168,6 +305,14 @@ class FixArImpairment(models.Model):
         require_role(self.env, GROUP_ACCOUNTANT, "Computing the IFRS 9 provision")
         if self.state == "posted":
             raise UserError("Run %s is posted; open a new run" % self.name)
+        rates = self.env["fix.ar.ecl.rate"]._fix_in_force(self.company_id, self.as_of)
+        if not rates:
+            raise UserError(
+                "No approved ECL loss-rate set is in force for %s on %s: Finance prepares one "
+                "and a second Accounting Administrator approves it (M20 ECL Loss Rates)."
+                % (self.company_id.name, self.as_of)
+            )
+        self._guarded().write({"rate_set_id": rates.id, **{f: rates[f] for f in RATE_FIELDS}})
         self.line_ids.sudo().unlink()
         Invoice = self.env["fix.ar.invoice"].sudo()
         invoices = Invoice.search(
@@ -277,9 +422,7 @@ class FixArImpairment(models.Model):
             from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
             move, _dims = post_with_dimensions(self.env, move_vals, {0: dims, 1: dims}, source="ar")
-        self._guarded().write(
-            {"move_id": move.id, "state": "posted", "posted_by_id": self.env.uid}
-        )
+        self._guarded().write({"move_id": move.id, "state": "posted", "posted_by_id": self.env.uid})
         return move
 
 

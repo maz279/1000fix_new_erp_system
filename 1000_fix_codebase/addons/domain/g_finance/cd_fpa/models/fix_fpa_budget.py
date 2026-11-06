@@ -346,23 +346,31 @@ class FixBudgetVersion(models.Model):
     def _approval_on_rejected(self, comment):
         for ver in self.sudo():
             ver._guarded().write(
-                {"state": "rejected", "rejection_reason": comment or ver.rejection_reason or "Rejected"}
+                {
+                    "state": "rejected",
+                    "rejection_reason": comment or ver.rejection_reason or "Rejected",
+                }
             )
         return super()._approval_on_rejected(comment)
 
-    def action_reject(self):
+    def action_reject(self, reason=None):
+        """`reason` is what the workspace prompt collects (M54-1): the button
+        used to demand a field no form offered, so it could never work."""
         self._require_group(MANAGER_GROUP, "Rejecting a budget version")
+        reason = (reason or "").strip()
         for ver in self:
             if ver.state != "submitted":
                 raise UserError("Only a submitted version can be rejected")
-            if not ver.rejection_reason:
-                raise UserError(
-                    "Write the rejection reason on version %s (open the record) first" % ver.name
-                )
             if not self.env.su and self.env.user in ver._fpa_conflicted_users():
                 raise UserError("Segregation of duties: the preparer or submitter cannot reject.")
+            if reason:
+                ver.write({"rejection_reason": reason})
+            if not ver.rejection_reason:
+                raise UserError("State the rejection reason for version %s." % ver.name)
             if ver.approval_state == "pending":
-                ver._approval_void("rejected by %s: %s" % (self.env.user.name, ver.rejection_reason))
+                ver._approval_void(
+                    "rejected by %s: %s" % (self.env.user.name, ver.rejection_reason)
+                )
             ver._guarded().write({"state": "rejected"})
         return True
 
@@ -454,7 +462,7 @@ class FixBudgetVersion(models.Model):
                 value = round(base[key], 4)
                 if key in existing:
                     drv = existing[key]
-                    drv.write(
+                    drv._guarded().write(
                         {
                             "base_value": value,
                             "scenario_value": drv.scenario_value
@@ -463,7 +471,7 @@ class FixBudgetVersion(models.Model):
                         }
                     )
                 else:
-                    self.env["fix.fpa.driver"].create(
+                    self.env["fix.fpa.driver"]._guarded().create(
                         {
                             "version_id": ver.id,
                             "driver_key": key,
@@ -626,7 +634,7 @@ class FixFpaDriver(models.Model):
 
     _name = "fix.fpa.driver"
     _description = "Scenario Driver"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "version_id, driver_key"
     _version_key_unique = models.Constraint(
         "UNIQUE (version_id, driver_key)", "Each driver appears once per version"
@@ -644,6 +652,11 @@ class FixFpaDriver(models.Model):
         compute="_compute_change", store=True, string="Changed By Planner"
     )
     change_pct = fields.Float(compute="_compute_change", store=True, string="Change %")
+
+    def _fix_guarded_fields(self) -> set:
+        # Measured from the actuals by Load Drivers, never typed: the workspace
+        # grid posts it back with the row, unchanged (M54-2).
+        return super()._fix_guarded_fields() | {"base_value"}
 
     @api.depends("base_value", "scenario_value")
     def _compute_change(self) -> None:

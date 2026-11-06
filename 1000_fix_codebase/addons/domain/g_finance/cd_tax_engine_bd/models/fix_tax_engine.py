@@ -34,7 +34,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from . import tax_logic
+from . import return_logic, tax_logic
 
 BIN_RE = re.compile(r"^\d{13}$")
 FINANCE_GROUPS = (
@@ -168,6 +168,245 @@ class FixVatTreatment(models.Model):
         return tax_logic.determine_tax(determined, rates)
 
 
+class FixMushakCorrection(models.Model):
+    """A governed correction of the VAT register (A08 M51-1/-2, BRU-TAX-11): an
+    issued row is never edited. An accountant asks, a different Accounting
+    Administrator decides, and the decision either classifies a row whose
+    amounts fit the treatment (the row carries no treatment, so its Mushak 9.1
+    line cannot be read from it) or issues the Mushak 6.7 / 6.8 note. A period
+    whose return is filed is closed to both: the note goes in an open period."""
+
+    _name = "fix.mushak.correction"
+    _description = "VAT Register Correction"
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
+    _order = "id desc"
+    _rec_name = "reason"
+
+    register_id = fields.Many2one(
+        "fix.mushak.register",
+        string="Register Row",
+        required=True,
+        index=True,
+        ondelete="restrict",
+        domain="[('row_type', '=', 'invoice')]",
+    )
+    company_id = fields.Many2one(related="register_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(
+        related="register_id.operating_unit_id", store=True, index=True
+    )
+    currency_id = fields.Many2one(related="register_id.currency_id")
+    current_line = fields.Char(related="register_id.vat_line", string="9.1 Line Now")
+    correction_type = fields.Selection(
+        [
+            ("classify", "Classify the Row"),
+            ("credit_note", "Mushak 6.7 Credit Note"),
+            ("debit_note", "Mushak 6.8 Debit Note"),
+        ],
+        required=True,
+        default="classify",
+        tracking=True,
+    )
+    treatment = fields.Selection(
+        [
+            ("standard_15", "Standard Rate"),
+            ("reduced", "Reduced Rate"),
+            ("zero_rated", "Zero-Rated"),
+            ("exempt", "Exempt"),
+            ("truncated", "Truncated Base"),
+        ],
+        help="Classification: the treatment of the row. Note: required when the original "
+        "row has none, so the note has a 9.1 line of its own.",
+    )
+    reduced_rate = fields.Float(
+        string="Scheduled Reduced Rate (%)", digits=(6, 3), help="Reduced treatment only"
+    )
+    taxable_amount = fields.Monetary(
+        string="Note Taxable Value", currency_field="currency_id", help="Notes: enter positive"
+    )
+    vat_amount = fields.Monetary(
+        string="Note VAT", currency_field="currency_id", help="Notes: enter positive"
+    )
+    note_date = fields.Date(string="Note Date", default=fields.Date.context_today)
+    reason = fields.Char(required=True, tracking=True)
+    state = fields.Selection(
+        [("draft", "Requested"), ("approved", "Approved & Applied"), ("rejected", "Rejected")],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+    requested_by_id = fields.Many2one(
+        "res.users", default=lambda self: self.env.user, readonly=True, copy=False
+    )
+    decided_by_id = fields.Many2one("res.users", string="Decided By", readonly=True, copy=False)
+    decided_at = fields.Datetime(string="Decided On", readonly=True, copy=False)
+    rejection_reason = fields.Char(readonly=True, copy=False)
+    note_id = fields.Many2one(
+        "fix.mushak.register", string="Note Issued", readonly=True, copy=False, ondelete="restrict"
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "requested_by_id",
+            "decided_by_id",
+            "decided_at",
+            "rejection_reason",
+            "note_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(c.state != "draft" for c in self):
+            locked |= {n for n, f in self._fields.items() if f.store}
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            moving = {k for k in vals if not k.startswith(("message_", "activity_"))}
+            if moving and any(c.state != "draft" for c in self):
+                raise UserError("A decided register correction is a record of what was decided.")
+        return super().write(vals)
+
+    @api.constrains("correction_type", "treatment", "taxable_amount", "vat_amount", "register_id")
+    def _check_request(self):
+        for req in self:
+            if req.register_id.row_type != "invoice":
+                raise ValidationError("A correction is made against an issued Mushak 6.3.")
+            if req.correction_type == "classify":
+                if not req.treatment:
+                    raise ValidationError("Name the treatment the row is classified under.")
+            elif req.taxable_amount <= 0 and req.vat_amount <= 0:
+                raise ValidationError("A note carries positive amounts: its form gives the sign.")
+
+    def _fix_refuse_filed_period(self, day):
+        self.ensure_one()
+        period = day.strftime("%Y-%m")
+        filed = (
+            self.env["fix.vat.return"]
+            .sudo()
+            .search_count(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("period", "=", period),
+                    ("state", "=", "filed"),
+                ]
+            )
+        )
+        if filed:
+            raise UserError(
+                "The Mushak 9.1 for %s is filed: that period's register is closed "
+                "(BRU-TAX-11). Issue the correcting note in an open period." % period
+            )
+
+    def _fix_treatment_text(self, row):
+        """(the '<number>: <treatment> @ <rate>%' line the Mushak 9.1 reads, the
+        rate), the rate being the one in force on the row's date."""
+        self.ensure_one()
+        rates = self.env["fix.tax.rate"]._fix_vat_rates(row.invoice_date, row.company_id)
+        rate = Decimal("0")
+        if self.treatment == "standard_15":
+            rate = Decimal(str(rates.standard))
+        elif self.treatment == "reduced":
+            rate = Decimal(str(self.reduced_rate or 0))
+            if rate not in {Decimal(str(r)) for r in rates.reduced}:
+                raise UserError(
+                    "%g%% is not a scheduled reduced rate in the Tax Rate Master on %s."
+                    % (self.reduced_rate, row.invoice_date)
+                )
+        text = "%s: %s @ %s%%" % (row.mushak_no, self.treatment, format(rate.normalize(), "f"))
+        return text, rate
+
+    def _fix_apply(self):
+        """Classify the row, or issue the note (returned)."""
+        self.ensure_one()
+        row = self.register_id.sudo()
+        Register = self.env["fix.mushak.register"]
+        if self.correction_type == "classify":
+            if not (row.vat_line or "").startswith(return_logic.UNCLASSIFIED_PREFIX):
+                raise UserError(
+                    "Mushak %s already falls on the 9.1 line %s: a change is a Mushak 6.7 / 6.8 "
+                    "note, never a re-classification." % (row.mushak_no, row.vat_line)
+                )
+            self._fix_refuse_filed_period(row.invoice_date)
+            text, rate = self._fix_treatment_text(row)
+            expected = float(Decimal(str(row.taxable_amount)) * rate / 100)
+            if abs(expected - row.vat_amount) > 0.01:
+                raise UserError(
+                    "Mushak %s carries VAT %.2f on %.2f, which does not fit %s at %s%%: correct "
+                    "it with a Mushak 6.7 / 6.8 note."
+                    % (row.mushak_no, row.vat_amount, row.taxable_amount, self.treatment, rate)
+                )
+            row._guarded().write({"treatment_summary": text})
+            row.message_post(
+                body="Classified %s by %s, requested by %s: %s"
+                % (self.treatment, self.env.user.name, self.requested_by_id.name, self.reason)
+            )
+            return Register
+        on_date = self.note_date or fields.Date.context_today(self)
+        self._fix_refuse_filed_period(on_date)
+        summary = None
+        if not (row.treatment_summary or "").strip():
+            if not self.treatment:
+                raise UserError(
+                    "Mushak %s has no treatment: name the treatment of the note, so it has a "
+                    "Mushak 9.1 line of its own." % row.mushak_no
+                )
+            summary = self._fix_treatment_text(row)[0]
+        return Register._fix_issue_note(
+            row,
+            self.correction_type,
+            self.taxable_amount,
+            self.vat_amount,
+            self.reason,
+            on_date=on_date,
+            treatment_summary=summary,
+        )
+
+    def _fix_require_decider(self, what):
+        if not self.env.su and not self.env.user.has_group("account.group_account_manager"):
+            raise UserError("%s needs the Accounting Administrator role." % what)
+        for req in self:
+            if not self.env.su and self.env.user in (req.requested_by_id | req.create_uid):
+                raise UserError(
+                    "Segregation of duties: you asked for this correction; a different Accounting "
+                    "Administrator decides it."
+                )
+
+    def action_approve(self):
+        self._fix_require_decider("Approving a VAT register correction")
+        for req in self:
+            if req.state != "draft":
+                raise UserError("Only a requested correction is approved.")
+            note = req._fix_apply()
+            req._guarded().write(
+                {
+                    "state": "approved",
+                    "decided_by_id": self.env.uid,
+                    "decided_at": fields.Datetime.now(),
+                    "note_id": note.id or False,
+                }
+            )
+        return True
+
+    def action_reject(self, reason=None):
+        self._fix_require_decider("Rejecting a VAT register correction")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("State why the correction is rejected.")
+        for req in self:
+            if req.state != "draft":
+                raise UserError("Only a requested correction is rejected.")
+            req._guarded().write(
+                {
+                    "state": "rejected",
+                    "decided_by_id": self.env.uid,
+                    "decided_at": fields.Datetime.now(),
+                    "rejection_reason": why,
+                }
+            )
+        return True
+
+
 class FixMushakRegister(models.Model):
     """The VAT register — one row per Mushak 6.3 issued (T04), plus the
     Mushak 6.7 (credit) and 6.8 (debit) note rows that correct it.
@@ -180,6 +419,7 @@ class FixMushakRegister(models.Model):
     _description = "Mushak 6.3 VAT Register"
     _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
+    _rec_name = "mushak_no"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _mushak_no_company_unique = models.Constraint(
@@ -272,6 +512,51 @@ class FixMushakRegister(models.Model):
     posted = fields.Boolean(
         default=False, readonly=True, help="True once the GL posting committed (atomic pair)"
     )
+    vat_line = fields.Char(
+        string="9.1 Line",
+        compute="_compute_vat_line",
+        store=True,
+        index=True,
+        help="The Mushak 9.1 line this row falls on, read as the return reads it. "
+        "'unclassified...' blocks filing: classify it on VAT Register Corrections.",
+    )
+    rate_flagged = fields.Boolean(
+        string="Rate Unconfirmed",
+        compute="_compute_rate_flagged",
+        help="The VAT rate of this row is not signed off by the adviser and the CFO yet.",
+    )
+
+    @api.depends("taxable_amount", "vat_amount", "treatment_summary")
+    def _compute_vat_line(self):
+        for row in self:
+            row.vat_line = return_logic.classify_register_row(
+                row.taxable_amount, row.vat_amount, row.treatment_summary or ""
+            )
+
+    def _compute_rate_flagged(self):
+        Rate = self.env["fix.tax.rate"].sudo()
+        seen = {}
+        for row in self:
+            line = row.vat_line or ""
+            if line == "standard_15":
+                code = "standard"
+            elif line.startswith("reduced_"):
+                code = line.replace(".", "_")
+            else:
+                row.rate_flagged = False
+                continue
+            key = (code, row.invoice_date, row.company_id.id)
+            if key not in seen:
+                found = Rate._company_first(
+                    [
+                        ("tax_kind", "=", "vat"),
+                        ("code", "=", code),
+                        *Rate._window_domain(row.invoice_date),
+                    ],
+                    row.company_id,
+                )
+                seen[key] = bool(found) and found.signoff_state != "signed"
+            row.rate_flagged = seen[key]
 
     # ---------------------------------------------------------------- guard --
     def _fix_guarded_fields(self) -> set:
@@ -349,9 +634,13 @@ class FixMushakRegister(models.Model):
         return self.browse(row.id)
 
     @api.model
-    def _fix_issue_note(self, original, kind, taxable, vat, reason, ref=None, on_date=None):
+    def _fix_issue_note(
+        self, original, kind, taxable, vat, reason, ref=None, on_date=None, treatment_summary=None
+    ):
         """A Mushak 6.7 (kind 'credit_note', amounts reduce) or 6.8 ('debit_note')
-        against an issued 6.3 — the only correction of a register row."""
+        against an issued 6.3 — the only correction of a register row. The
+        supplier on the note is this company: an original carrying a placeholder
+        BIN is corrected under the company's real one (never typed)."""
         if kind not in ("credit_note", "debit_note"):
             raise UserError("A register correction is a credit (6.7) or debit (6.8) note")
         if not (reason or "").strip():
@@ -363,6 +652,9 @@ class FixMushakRegister(models.Model):
         taxable, vat = sign * abs(taxable or 0.0), sign * abs(vat or 0.0)
         company = original.company_id
         on_date = on_date or fields.Date.context_today(self)
+        supplier_bin = original.supplier_bin
+        if not valid_bin(supplier_bin):
+            supplier_bin = self._fix_company_bin(company)
         return self._fix_issue_register_row(
             {
                 "company_id": company.id,
@@ -374,14 +666,14 @@ class FixMushakRegister(models.Model):
                 "invoice_ref": ref or "%s/%s" % (kind.upper(), original.mushak_no),
                 "invoice_date": on_date,
                 "supplier_name": original.supplier_name,
-                "supplier_bin": original.supplier_bin,
+                "supplier_bin": supplier_bin,
                 "customer_name": original.customer_name,
                 "customer_bin": original.customer_bin or False,
                 "currency_id": original.currency_id.id,
                 "taxable_amount": taxable,
                 "vat_amount": vat,
                 "total_payable": taxable + vat,
-                "treatment_summary": original.treatment_summary or "",
+                "treatment_summary": treatment_summary or original.treatment_summary or "",
             }
         )
 

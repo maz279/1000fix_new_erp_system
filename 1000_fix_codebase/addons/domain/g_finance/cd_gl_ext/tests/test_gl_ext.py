@@ -21,7 +21,6 @@ from odoo.addons.cd_gl_ext.models.fix_gl_ext import (
     FixFixedAssetSeam,
     FixJournalDimension,
     FixPeriodClose,
-    FixPeriodCloseLine,
     post_with_dimensions,
 )
 from odoo.exceptions import UserError, ValidationError
@@ -362,7 +361,8 @@ class TestChartAccountAndLoader:
             assert res["status"] == "loaded"
             assert res["account_count"] == 14
             assert acc_model.create.call_count == 14
-            loader.write.assert_called_once()
+            # the loader's stamps are guarded: they go through the transition token
+            loader._guarded.return_value.write.assert_called_once()
 
     def test_chart_loader_action_load_from_csv_existing(self):
         loader = MagicMock()

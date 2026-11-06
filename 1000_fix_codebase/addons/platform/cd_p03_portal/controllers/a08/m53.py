@@ -16,7 +16,12 @@ SURFACES = {
     "fix.revenue.schedule": {
         "order": "start_date desc, id desc",
         "limit": 200,
-        "actions": {"action_recognize_period", "action_request_cfo_approval"},
+        "actions": {
+            "action_recognize_period",
+            "action_request_cfo_approval",
+            "action_cancel_held",
+            "action_reopen_as_manual",
+        },
     },
     "fix.subscription": {
         "order": "next_invoice_date, id desc",
@@ -27,6 +32,9 @@ SURFACES = {
             "action_reinstate",
             "action_request_refund",
             "action_allocate_price",
+            "action_generate_revrec_schedule",
+            "action_request_contract_value",
+            "action_approve_contract_value",
         },
         # A04 hand-off closure (2026-11-05): what the subscription form may
         # set through /p03/model/write. The state, dunning ladder and refund
@@ -60,7 +68,16 @@ SURFACES = {
     },
     "fix.warranty.provision.policy": {"order": "date_from desc", "limit": 50, "actions": set()},
     # --- commission ---
-    "fix.commission.ledger": {"order": "id desc", "limit": 200, "actions": {"action_post_to_gl"}},
+    "fix.commission.ledger": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_post_to_gl",
+            "action_link_source",
+            "action_void_unsourced",
+            "action_void_all_unsourced",
+        },
+    },
     "fix.commission.scheme": {
         "order": "scheme_type, date_from desc",
         "limit": 100,
@@ -78,14 +95,23 @@ SURFACES = {
             "action_request_payments",
             "action_query_status",
             "action_cancel",
+            "action_rerequest_unpaid",
+            "action_drop_unpaid",
+            "action_open_reconciliation",
         },
     },
     "fix.seller.statement": {
         "order": "period desc, id desc",
         "limit": 100,
-        "actions": {"action_issue_statement", "action_settle_statement"},
+        "actions": {"action_issue_statement", "action_settle_statement", "action_attach_challan"},
     },
-    "fix.referral": {"order": "id desc", "limit": 200, "actions": {"action_accrue_commission"}},
+    "fix.referral": {
+        "order": "id desc",
+        "limit": 200,
+        # M53-4: convert from the paid invoice (the referral manager), earn,
+        # then finance accrues
+        "actions": {"action_convert", "action_earn_commission", "action_accrue_commission"},
+    },
     "fix.settlement.adjustment": {
         "order": "id desc",
         "limit": 200,
@@ -94,7 +120,7 @@ SURFACES = {
     "fix.payout.reconciliation": {
         "order": "reconciliation_date desc, id desc",
         "limit": 100,
-        "actions": {"action_run_reconciliation"},
+        "actions": {"action_run_reconciliation", "action_investigate", "action_resolve_break"},
     },
 }
 
@@ -225,7 +251,12 @@ def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
     Line = env["fix.revenue.recognition.line"]
     streams = {}
     for schedule in Schedule.search(
-        [("company_id", "in", env.companies.ids), ("start_date", "<=", d_to)]
+        [
+            ("company_id", "in", env.companies.ids),
+            ("start_date", "<=", d_to),
+            # awaiting the CFO, or held with no contract: nothing is deferred (M53-6)
+            ("state", "not in", ("draft", "held")),
+        ]
     ):
         if schedule.state == "cancelled" and (
             not schedule.cancelled_date or schedule.cancelled_date < d_from

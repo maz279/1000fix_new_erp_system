@@ -33,6 +33,10 @@ CAPEX_TIER4 = "cd_fixed_asset_ext.capex_dofa_tier4_max"
 DISPOSAL_FLOOR = "cd_fixed_asset_ext.disposal_dofa_no_approval_max"
 DISPOSAL_TIER2 = "cd_fixed_asset_ext.disposal_dofa_tier2_max"
 REVALUATION_FLOOR = "cd_fixed_asset_ext.revaluation_dofa_no_approval_max"
+# BRU-FXA-03 (A08 M49-10): a period does not close while the register and its
+# GL control accounts disagree by more than the tolerance. 0 switches it off.
+CLOSE_GATE = "cd_fixed_asset_ext.close_gate_register_gl"
+CLOSE_GATE_TOLERANCE = "cd_fixed_asset_ext.close_gate_tolerance"
 DEFAULTS = {
     CAPEX_FLOOR: 0.0,
     CAPEX_TIER2: 50000.0,
@@ -41,6 +45,8 @@ DEFAULTS = {
     DISPOSAL_FLOOR: 0.0,
     DISPOSAL_TIER2: 25000.0,
     REVALUATION_FLOOR: 0.0,
+    CLOSE_GATE: 1.0,
+    CLOSE_GATE_TOLERANCE: 1.0,
 }
 
 
@@ -94,6 +100,28 @@ def disposal_ladder(env, write_off=False):
 
 def revaluation_ladder(env):
     return [(float_param(env, REVALUATION_FLOOR), "tier_0"), (float("inf"), "tier_4")]
+
+
+def attach_upload(record, link_field, data, filename, fallback):
+    """A file uploaded on a workspace form becomes an attachment of the record,
+    linked on its evidence many2many: the many2many itself offers only a pick
+    list of files already in the system, which is no way to attach one."""
+    if not data:
+        return False
+    attachment = record.env["ir.attachment"].create(
+        {
+            "name": filename or fallback,
+            "datas": data,
+            "res_model": record._name,
+            "res_id": record.id,
+        }
+    )
+    record.write({link_field: [(4, attachment.id)]})
+    return attachment
+
+
+def attachment_names(attachments) -> str:
+    return ", ".join(attachments.sudo().mapped("name"))
 
 
 def require_group(env, group: str, what: str) -> None:

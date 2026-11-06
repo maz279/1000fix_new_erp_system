@@ -24,6 +24,7 @@ SURFACES = {
             "action_recall_approval",
             "action_reject",
             "action_create_cwip",
+            "action_link_purchase_order",
         },
     },
     "fix.capex.budget": {
@@ -36,7 +37,11 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_activate", "action_accrue_month", "action_dispose"},
     },
-    "fix.cwip.entry": {"order": "id desc", "limit": 200, "actions": {"action_capitalise"}},
+    "fix.cwip.entry": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_capitalise", "action_book_posted_cost"},
+    },
     "fix.asset.category": {"order": "code", "limit": 200, "actions": set()},
     "fix.asset.transfer": {
         "order": "date desc, id desc",
@@ -48,6 +53,8 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_compute", "action_post"},
     },
+    # A08 M49-8: the legacy rate table is read-only and has no form; the rates
+    # in force are the M51 master's (the M49-taxrates report).
     "fix.asset.tax.rate": {"order": "code, date_from desc", "limit": 200, "actions": set()},
     "fix.asset.revaluation": {
         "order": "date desc, id desc",
@@ -62,7 +69,7 @@ SURFACES = {
     "fix.asset.verification.campaign": {
         "order": "date desc, id desc",
         "limit": 100,
-        "actions": {"action_start", "action_close"},
+        "actions": {"action_start", "action_record_scan", "action_close"},
     },
     "fix.asset.verification.line": {
         "order": "campaign_id desc, id",
@@ -431,11 +438,24 @@ def disposal_gains(env, date_from=None, date_to=None, **_kw):
             "proceeds": _r(d.proceeds),
             "nbv": _r(d.nbv),
             "gain_loss": _r(d.gain_loss),
+            "tax_wdv": _r(d.tax_wdv),
+            "tax_balancing": _r(d.tax_balancing),
             "entry": d.move_id.name or "",
         }
         for d in disposals
     ]
-    cols = ["reference", "asset", "kind", "date", "proceeds", "nbv", "gain_loss", "entry"]
+    cols = [
+        "reference",
+        "asset",
+        "kind",
+        "date",
+        "proceeds",
+        "nbv",
+        "gain_loss",
+        "tax_wdv",
+        "tax_balancing",
+        "entry",
+    ]
     return {
         "title": "Disposal Gains/Losses %s to %s" % (df, dt),
         "cols": cols,
@@ -447,8 +467,14 @@ def disposal_gains(env, date_from=None, date_to=None, **_kw):
             "proceeds": "Proceeds",
             "nbv": "NBV Derecognised",
             "gain_loss": "Gain (+) / Loss (-)",
+            "tax_wdv": "Tax WDV",
+            "tax_balancing": "Balancing Charge (+) / Allowance (-)",
             "entry": "Journal Entry",
         },
+        "notes": [
+            "The tax columns are a memo for the tax computation: proceeds less the tax "
+            "written-down value. They post nothing; the tax adviser confirms the treatment."
+        ],
         "rows": rows,
         "totals": _totals(rows, cols, "reference") if rows else None,
         "empty": "No disposals posted in this period.",

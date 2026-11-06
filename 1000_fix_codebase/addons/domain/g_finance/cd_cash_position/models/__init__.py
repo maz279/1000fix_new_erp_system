@@ -1,5 +1,6 @@
 from . import (
     bank_master,
+    bank_reconciliation,
     cash_deposit,
     cheque,
     cod_settlement,

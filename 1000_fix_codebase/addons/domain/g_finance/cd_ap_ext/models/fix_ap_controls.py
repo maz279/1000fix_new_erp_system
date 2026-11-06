@@ -34,6 +34,9 @@ PARAM_CLAIM_MANAGER_STEP = "cd_ap_ext.claim_line_manager_step"
 # A higher matrix level's approver may sign a lower level (managers act on
 # level 1) — one user still signs one level only. "0" switches it off.
 PARAM_HIGHER_SIGNS_LOWER = "cd_ap_ext.higher_level_may_approve_lower"
+# BRU-APE-16: every expense line names its cost centre at submission. "0" switches
+# the refusal off (the posting then falls back to the default cost centre).
+PARAM_CLAIM_REQUIRE_COST_CENTRE = "cd_ap_ext.claim_require_cost_centre"
 
 
 def float_param(env, key, default):
@@ -151,6 +154,8 @@ class FixApApprovalRuleChange(models.Model):
     decided_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     decided_at = fields.Datetime(readonly=True, copy=False)
 
+    TERMS = ("rule_id", "name", "level", "amount_min", "group_id", "active", "reason")
+
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
@@ -158,6 +163,13 @@ class FixApApprovalRuleChange(models.Model):
             "decided_at",
             "proposed_by_id",
         }
+
+    def _fix_form_locked_fields(self) -> set:
+        # a change is fixed once proposed: it is created proposed
+        locked = super()._fix_form_locked_fields()
+        if self:
+            locked |= set(self.TERMS)
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -167,20 +179,24 @@ class FixApApprovalRuleChange(models.Model):
             vals.pop("proposed_by_id", None)
             if vals.get("rule_id"):
                 # a change states the whole row: what is not changed is copied
+                # (the workspace form omits what the person left empty)
                 rule = Rule.browse(vals["rule_id"])
                 vals.setdefault("company_id", rule.company_id.id)
-                vals.setdefault("name", rule.name)
-                vals.setdefault("level", rule.level)
+                vals["name"] = vals.get("name") or rule.name
+                vals["level"] = vals.get("level") or rule.level
+                vals["group_id"] = vals.get("group_id") or rule.group_id.id
                 vals.setdefault("amount_min", rule.amount_min)
-                vals.setdefault("group_id", rule.group_id.id)
                 vals.setdefault("active", rule.active)
+            elif not (vals.get("name") and vals.get("level") and vals.get("group_id")):
+                raise ValidationError("A new matrix row needs a name, a level and a group.")
+            # refused at the proposal, not after a second person has read it
+            Rule._fix_assert_matrix_group(self.env["res.groups"].browse(vals["group_id"]))
         return super(FixApApprovalRuleChange, self._guarded()).create(
             [dict(v, proposed_by_id=self.env.uid) for v in vals_list]
         )
 
     def write(self, vals):
-        terms = {"rule_id", "name", "level", "amount_min", "group_id", "active", "reason"}
-        if terms & set(vals) and not self._fix_guard_open():
+        if set(self.TERMS) & set(vals) and not self._fix_guard_open():
             raise UserError("A proposed matrix change is fixed; reject it and propose again.")
         return super().write(vals)
 

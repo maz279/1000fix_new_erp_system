@@ -1310,14 +1310,17 @@ class FixRentalReservation(models.Model):
                 raise UserError(
                     "Rental %s has no taxable charge to invoice (rental fee + late fee)" % rec.name
                 )
-            determination = tax_logic.determine_tax(
+            # A08 M51-5: the rate comes from the statutory master, never from code
+            determination = self.env["fix.vat.treatment"]._fix_determine_tax(
                 [
                     tax_logic.TaxLine(
                         product_code="RENTAL",
                         qty=Decimal("1"),
                         unit_price=Decimal(str(taxable)).quantize(Decimal("0.01"), ROUND_HALF_UP),
                     )
-                ]
+                ],
+                on_date=fields.Date.context_today(rec),
+                company=rec.company_id,
             )
             det = determination.lines[0]
             invoice = Invoice.create(

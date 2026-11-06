@@ -26,10 +26,15 @@ from tax_logic import (
     DeterminationError,
     TaxLine,
     VatRates,
-    determine_tax,
 )
 
 D = Decimal
+# What the master holds (the engine has no rate of its own: A08 M51-5).
+RATES = VatRates(standard=D("15"), reduced=frozenset({D("5"), D("7.5"), D("10")}))
+
+
+def determine_tax(lines, rates=RATES):
+    return tax_logic.determine_tax(lines, rates)
 
 
 class TestDetermineTaxStandard(unittest.TestCase):
@@ -189,9 +194,13 @@ class TestRatesFromTheMaster(unittest.TestCase):
         with self.assertRaises(DeterminationError):
             determine_tax([TaxLine("SVC", D("1"), D("1"))], VatRates(standard=D("0")))
 
-    def test_legacy_fallback_is_marked(self):
-        result = determine_tax([TaxLine("SVC", D("1"), D("100"))])
-        self.assertEqual(result.rates_source, "legacy")
+    def test_no_rates_no_determination(self):
+        with self.assertRaises(DeterminationError):
+            tax_logic.determine_tax([TaxLine("SVC", D("1"), D("100"))])
+
+    def test_no_rate_constant_is_left(self):
+        for name in ("LEGACY_RATES", "STANDARD_RATE", "REDUCED_RATES"):
+            self.assertFalse(hasattr(tax_logic, name), name)
 
 
 class TestNoSecondTdsSchedule(unittest.TestCase):

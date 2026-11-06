@@ -252,7 +252,9 @@ class TestExpenseClaim:
                 "operating_unit_id": ap["ou"].id,
                 "employee_id": employee.id,
                 "description": "Travel to client site",
-                "line_ids": [(0, 0, {"category_id": other.id, "unit_amount": amount})],
+                "line_ids": [
+                    (0, 0, {"category_id": other.id, "unit_amount": amount, "cost_centre": "CC-T"})
+                ],
                 **vals,
             }
         )

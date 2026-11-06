@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
+from odoo import fields
 from odoo.exceptions import UserError
 
 # per-run tag / source id: unique keys never collide with a concurrent run
@@ -225,9 +226,10 @@ def test_dunning_skips_closed_subscriptions(ctx, closed_state):
 
 
 def test_dunning_defaults_to_today(ctx):
-    sub = _sub(ctx, next_invoice_date=date.today() - timedelta(days=10))
+    today = fields.Date.context_today(ctx.env["fix.subscription"])
+    sub = _sub(ctx, next_invoice_date=today - timedelta(days=10))
     # 7-day terms: an invoice issued 10 days ago is 3 days past its due date
-    _billed_unpaid(ctx, sub, invoice_date=date.today() - timedelta(days=10), terms_days=7)
+    _billed_unpaid(ctx, sub, invoice_date=today - timedelta(days=10), terms_days=7)
     sub.action_trigger_dunning()
     assert (sub.days_overdue, sub.dunning_step) == (3, "reminder")
 
@@ -294,9 +296,10 @@ def test_mid_cycle_refund_prorates_and_charges_fee(ctx):
 
 
 def test_refund_defaults_to_today_without_fee(ctx):
+    today = fields.Date.context_today(ctx.env["fix.subscription"])
     # cycle start = (today + 10) - 30 = today - 20 -> 20 of 30 days earned
     # earned = 3000 * 20/30 = 2000.00, net refund = 1000.00
-    sub = _sub(ctx, next_invoice_date=date.today() + timedelta(days=10))
+    sub = _sub(ctx, next_invoice_date=today + timedelta(days=10))
     (res,) = sub.action_request_refund()
     assert str(res.earned_revenue) == "2000.00"
     assert str(res.net_refund_payable) == "1000.00"
@@ -433,10 +436,21 @@ def test_consolidated_invoice_never_borrows_another_companys_unit(ctx):
 
 
 def _schedule(ctx, **overrides):
+    """A schedule on a real subscription contract: M53-6, one with no contract
+    behind it is held and posts nothing."""
+    contract = ctx.__dict__.setdefault(
+        "contract",
+        _sub(
+            ctx,
+            contract_value=3650.0,
+            contract_end_date=date(2027, 1, 1),
+            start_date=date(2026, 1, 1),
+        ),
+    )
     vals = {
         "operating_unit_id": ctx.ou.id,
-        "source_model": "fix.contract",
-        "source_id": SOURCE_ID,
+        "source_model": "fix.subscription",
+        "source_id": contract.id,
         "description": "AMC Gold 2026",
         "total_amount": 3650.0,
         "start_date": date(2026, 1, 1),
@@ -459,7 +473,7 @@ def test_schedule_amount_must_be_positive(ctx):
 def test_create_from_deferral_inherits_the_source_unit_and_company(ctx):
     """Regression: create_from_deferral never set the REQUIRED
     operating_unit_id, so every call failed."""
-    sub = _sub(ctx)
+    sub = _sub(ctx, contract_value=1200.0)
     schedule = ctx.env["fix.revenue.schedule"].create_from_deferral(
         "fix.subscription", sub.id, "AMC Gold FY26", 1200.0, date(2026, 1, 1), date(2026, 12, 31)
     )
@@ -519,8 +533,8 @@ def test_recognition_straight_line_cumulative_and_completes(ctx):
     schedule.action_recognize_period(as_of=date(2027, 6, 1))
     events = _events(ctx.env, "revenue.recognized", "fix.revenue.schedule", schedule.id)
     common = {
-        "source_model": "fix.contract",
-        "source_id": SOURCE_ID,
+        "source_model": "fix.subscription",
+        "source_id": schedule.source_id,
         # the configured contract-liability / revenue accounts actually posted
         "gl_debit_account": "212000",
         "gl_credit_account": "400000",
@@ -532,10 +546,11 @@ def test_recognition_straight_line_cumulative_and_completes(ctx):
 
 
 def test_recognition_defaults_to_today(ctx):
+    today = fields.Date.context_today(ctx.env["fix.subscription"])
     schedule = _schedule(
         ctx,
-        start_date=date.today() - timedelta(days=10),
-        end_date=date.today() + timedelta(days=355),
+        start_date=today - timedelta(days=10),
+        end_date=today + timedelta(days=355),
     )
     schedule.action_recognize_period()
     assert schedule.recognized_amount == 100.0  # 10/365 of 3650

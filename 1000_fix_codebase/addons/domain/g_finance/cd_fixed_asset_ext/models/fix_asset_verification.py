@@ -92,9 +92,27 @@ class FixAssetVerificationCampaign(models.Model):
             rec._guarded().write({"state": "in_progress"})
         return True
 
-    def action_record_scan(self, tag, operating_unit_id=None):
-        """One scanned tag (mobile scanner API). Returns the line's result."""
+    def _scan_branch(self, branch):
+        """The branch a scan names: its code or name (a person types it)."""
+        branch = (branch or "").strip()
+        if not branch:
+            return False
+        Unit = self.env["operating.unit"]
+        scope = [("company_id", "=", self.company_id.id)]
+        unit = Unit.search([*scope, ("code", "=ilike", branch)], limit=1) or Unit.search(
+            [*scope, ("name", "=ilike", branch)], limit=1
+        )
+        if not unit:
+            raise UserError(self.env._("No branch with the code or name %s.", branch))
+        return unit.id
+
+    def action_record_scan(self, tag=None, operating_unit_id=None, branch=None):
+        """One scanned tag (mobile scanner API and the workspace's Record Scan,
+        A08 M49-1). `branch` is the code or name of the branch it was found
+        at; empty = at its expected branch. Returns the line's result."""
+        require_group(self.env, USER_GROUP, "Recording a verification scan")
         self.ensure_one()
+        operating_unit_id = operating_unit_id or self._scan_branch(branch)
         if self.state != "in_progress":
             raise UserError(self.env._("Start the campaign before scanning."))
         tag = (tag or "").strip()
@@ -120,7 +138,12 @@ class FixAssetVerificationCampaign(models.Model):
                 )
             )
             line._apply_scan()
-        return {"line_id": line.id, "result": line.result}
+        labels = dict(RESULTS)
+        return {
+            "line_id": line.id,
+            "result": line.result,
+            "note": self.env._("Tag %s: %s", tag, labels.get(line.result, line.result)),
+        }
 
     def action_close(self):
         """Close: everything still pending is missing."""

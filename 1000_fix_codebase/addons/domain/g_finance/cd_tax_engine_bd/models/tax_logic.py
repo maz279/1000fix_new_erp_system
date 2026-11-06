@@ -38,20 +38,6 @@ class VatRates:
     source: str = "master"
 
 
-# DEPRECATED fallback for callers that do not pass the master's rates yet
-# (A08 M51-5). It equals the seeded master rows (VAT & SD Act 2012, flagged
-# verify-with-adviser) and is marked on the result as `rates_source="legacy"`.
-# Callers switch to env["fix.vat.treatment"]._fix_determine_tax(...), which
-# reads the master; this constant is then removed.
-LEGACY_RATES = VatRates(
-    standard=Decimal("15"),
-    reduced=frozenset({Decimal("5"), Decimal("7.5"), Decimal("10")}),
-    source="legacy",
-)
-# Kept for imports that still name them (read from the legacy fallback).
-STANDARD_RATE = LEGACY_RATES.standard
-REDUCED_RATES = set(LEGACY_RATES.reduced)
-
 VALID_TREATMENTS = ("standard_15", "reduced", "zero_rated", "exempt", "truncated")
 
 
@@ -101,8 +87,6 @@ class Determination:
     # VAT — they carry their fixed base separately (Mushak register reads
     # this flag).
     has_truncated: bool = False
-    # "master" when the caller passed the effective-dated master's rates,
-    # "legacy" when it relied on the deprecated in-code fallback.
     rates_source: str = "master"
 
     @property
@@ -145,10 +129,18 @@ def _rate_for(line: TaxLine, rates: VatRates) -> tuple[str, Decimal]:
 def determine_tax(lines: list[TaxLine], rates: VatRates | None = None) -> Determination:
     """The synchronous determination API (AR-006 §4.2 worked example).
 
+    The rates are the effective-dated master's, always passed in (BRU-TAX-01):
+    env["fix.vat.treatment"]._fix_determine_tax(lines, on_date, company) reads
+    them; there is no rate in this code to fall back on.
+
     Rounding is half-up at TWO decimal places per line — per-line rounding,
     never on the total, is where silent money loss is prevented (P06-M03-T08).
     """
-    rates = rates or LEGACY_RATES
+    if rates is None:
+        raise DeterminationError(
+            "the VAT rates in force were not passed: call "
+            "fix.vat.treatment._fix_determine_tax, which reads the Tax Rate Master"
+        )
     if rates.standard is None or Decimal(str(rates.standard)) <= 0:
         raise DeterminationError("no standard VAT rate in force (Tax Rate Master)")
     determined: list[DeterminedLine] = []

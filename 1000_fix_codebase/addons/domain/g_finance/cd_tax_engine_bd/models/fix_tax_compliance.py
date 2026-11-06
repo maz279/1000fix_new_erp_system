@@ -23,12 +23,22 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish  # FF-28
 
 from . import return_logic
-from .fix_tax_master import add_months, float_param, period_of, tax_account
+from .fix_tax_master import (
+    MANAGER_GROUP,
+    add_months,
+    float_param,
+    period_of,
+    tax_account,
+    tax_alert,
+)
 
 TWO = Decimal("0.01")
 FINANCE_USER_GROUPS = ("account.group_account_user", "account.group_account_manager")
 RATIO_TOLERANCE_PARAM = "cd_tax_engine_bd.input_vat_ratio_tolerance"
 RATIO_TOLERANCE_DEFAULT = 1.0  # BDT: per-line rounding on the supplier's 6.3
+# BRU-TAX-10 says "the statutory window" and gives no number: 0 reminds from the
+# day of the deposit. The adviser's figure goes here.
+CERTIFICATE_WINDOW_PARAM = "cd_tax_engine_bd.certificate_window_days"
 
 
 def require_finance(env, what):
@@ -130,6 +140,7 @@ class FixWithholdingLine(models.Model):
     _description = "TDS / VDS Deduction"
     _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "document_date desc, id desc"
+    _rec_name = "source_ref"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -236,10 +247,62 @@ class FixWithholdingLine(models.Model):
         help="The posted GL entry that credits the TDS / VDS payable for this deduction "
         "(the vendor bill's posting).",
     )
+    rate_flagged = fields.Boolean(
+        string="Rate Unconfirmed",
+        compute="_compute_rate_flagged",
+        help="The rate row this deduction cites is not signed off by the adviser and the CFO.",
+    )
+    duplicate_refs = fields.Char(
+        string="Duplicate Of",
+        compute="_compute_duplicate_refs",
+        help="Other live deductions of the same tax, payee and bill.",
+    )
+    duplicate_cleared_by_id = fields.Many2one(
+        "res.users", string="Not a Duplicate, Per", readonly=True, copy=False
+    )
+    duplicate_cleared_reason = fields.Char(
+        string="Why It Is Not a Duplicate", readonly=True, copy=False
+    )
+    # A08 M51-4/-8: the only way out of a phantom "certified" state, and the only
+    # way a duplicate deduction stops counting: one person asks with a reason, a
+    # different Accounting Administrator applies it.
+    correction_kind = fields.Selection(
+        [("void", "Void this Duplicate"), ("reopen", "Reopen as Withheld")],
+        string="Correction",
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    correction_state = fields.Selection(
+        [("requested", "Requested"), ("applied", "Applied"), ("rejected", "Rejected")],
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    correction_reason = fields.Char(readonly=True, copy=False, tracking=True)
+    correction_requested_by_id = fields.Many2one(
+        "res.users", string="Correction Requested By", readonly=True, copy=False
+    )
+    correction_decided_by_id = fields.Many2one(
+        "res.users", string="Correction Decided By", readonly=True, copy=False
+    )
+    correction_decided_at = fields.Datetime(readonly=True, copy=False)
 
     # ---------------------------------------------------------------- guard --
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "certificate_id", "move_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "certificate_id",
+            "move_id",
+            "duplicate_cleared_by_id",
+            "duplicate_cleared_reason",
+            "correction_kind",
+            "correction_state",
+            "correction_reason",
+            "correction_requested_by_id",
+            "correction_decided_by_id",
+            "correction_decided_at",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -481,6 +544,217 @@ class FixWithholdingLine(models.Model):
             or False,
         }
 
+    def _compute_rate_flagged(self):
+        for line in self:
+            row = line.rate_id.sudo()
+            line.rate_flagged = bool(row) and row.signoff_state != "signed"
+
+    # ------------------------------------------------- duplicates and corrections --
+    @staticmethod
+    def _fix_bill_key(source_ref):
+        """The bill a deduction was withheld from, however its source was written:
+        one series says 'ACME-1180', its duplicate says 'Bill ACME-1180'."""
+        return re.sub(r"^bill\s+", "", (source_ref or "").strip(), flags=re.I).upper()
+
+    def _fix_duplicates(self):
+        """Other live deductions of the same tax, payee and bill. Which one is
+        right is a person's decision; this only says there are two."""
+        self.ensure_one()
+        key = self._fix_bill_key(self.source_ref)
+        if not key or self.duplicate_cleared_by_id or self.state == "cancelled":
+            return self.browse()
+        others = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", self.company_id.id),
+                ("tax_kind", "=", self.tax_kind),
+                ("partner_id", "=", self.partner_id.id),
+                ("state", "!=", "cancelled"),
+                ("duplicate_cleared_by_id", "=", False),
+            ]
+        )
+        return others.filtered(lambda o, k=key: self._fix_bill_key(o.source_ref) == k)
+
+    def _compute_duplicate_refs(self):
+        for line in self:
+            dups = line._fix_duplicates() if line.id else line.browse()
+            line.duplicate_refs = ", ".join(
+                "#%s %.2f (%s)" % (d.id, d.amount, d.state) for d in dups
+            )
+
+    def _fix_refuse_void(self):
+        self.ensure_one()
+        if self.state == "cancelled":
+            raise UserError("Deduction #%s is already void." % self.id)
+        if self.certificate_id or self.challan_id:
+            raise UserError(
+                "Deduction #%s has a %s: it is not voided."
+                % (self.id, "certificate" if self.certificate_id else "challan")
+            )
+        if self.move_id:
+            raise UserError(
+                "Deduction #%s carries the liability of %s: reverse that entry at its bill; it "
+                "is not voided here." % (self.id, self.move_id.display_name)
+            )
+        if not self._fix_duplicates():
+            raise UserError(
+                "Deduction #%s is not a duplicate: only a duplicate is voided. A wrong deduction "
+                "is corrected at its bill." % self.id
+            )
+        filed = (
+            self.env["fix.tds.return.line"]
+            .sudo()
+            .search_count(
+                [("withholding_line_id", "=", self.id), ("tds_return_id.state", "=", "filed")]
+            )
+        )
+        if filed:
+            raise UserError("Deduction #%s is on a filed TDS return." % self.id)
+
+    def _fix_refuse_reopen(self):
+        self.ensure_one()
+        if self.state not in ("certified", "deposited"):
+            raise UserError("Only a deduction marked deposited or certified is reopened.")
+        if self.certificate_id or self.challan_id:
+            raise UserError(
+                "Deduction #%s has a %s: its state is real and it is not reopened."
+                % (self.id, "certificate" if self.certificate_id else "challan")
+            )
+
+    def _fix_request_correction(self, kind, reason):
+        require_finance(self.env, "Requesting a correction of a deduction")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("State the reason for the correction.")
+        for line in self:
+            if line.correction_state == "requested":
+                raise UserError("Deduction #%s already has a correction waiting." % line.id)
+            (line._fix_refuse_void if kind == "void" else line._fix_refuse_reopen)()
+            line._guarded().write(
+                {
+                    "correction_kind": kind,
+                    "correction_state": "requested",
+                    "correction_reason": why,
+                    "correction_requested_by_id": self.env.uid,
+                    "correction_decided_by_id": False,
+                    "correction_decided_at": False,
+                }
+            )
+        return True
+
+    def action_request_void(self, reason=None):
+        """Ask to void this deduction as the duplicate of another."""
+        return self._fix_request_correction("void", reason)
+
+    def action_request_reopen(self, reason=None):
+        """Ask to put back to withheld a deduction marked deposited or certified
+        with neither challan nor certificate behind it."""
+        return self._fix_request_correction("reopen", reason)
+
+    def _fix_require_second_person(self, what):
+        if not self.env.su and not self.env.user.has_group(MANAGER_GROUP):
+            raise UserError("%s needs the Accounting Administrator role." % what)
+        for line in self:
+            if not self.env.su and self.env.user in (
+                line.correction_requested_by_id | line.create_uid
+            ):
+                raise UserError(
+                    "Segregation of duties: %s must be done by someone other than who recorded "
+                    "deduction #%s or asked for this." % (what, line.id)
+                )
+
+    def action_approve_correction(self):
+        """The second person applies the requested void or reopen, re-checked now."""
+        self._fix_require_second_person("Applying a deduction correction")
+        for line in self:
+            if line.correction_state != "requested":
+                raise UserError("Deduction #%s has no correction waiting." % line.id)
+            void = line.correction_kind == "void"
+            (line._fix_refuse_void if void else line._fix_refuse_reopen)()
+            line._guarded().write(
+                {
+                    "state": "cancelled" if void else "withheld",
+                    "correction_state": "applied",
+                    "correction_decided_by_id": self.env.uid,
+                    "correction_decided_at": fields.Datetime.now(),
+                }
+            )
+            line.message_post(
+                body="%s by %s, requested by %s: %s"
+                % (
+                    "Voided as a duplicate" if void else "Reopened as withheld",
+                    self.env.user.name,
+                    line.correction_requested_by_id.name,
+                    line.correction_reason,
+                )
+            )
+        return True
+
+    def action_reject_correction(self, reason=None):
+        self._fix_require_second_person("Rejecting a deduction correction")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("State why the correction is rejected.")
+        for line in self:
+            if line.correction_state != "requested":
+                raise UserError("Deduction #%s has no correction waiting." % line.id)
+            line._guarded().write(
+                {
+                    "correction_state": "rejected",
+                    "correction_decided_by_id": self.env.uid,
+                    "correction_decided_at": fields.Datetime.now(),
+                }
+            )
+            line.message_post(body="Correction rejected by %s: %s" % (self.env.user.name, why))
+        return True
+
+    def action_clear_duplicate(self, reason=None):
+        """An Accounting Administrator who did not record it says the second
+        deduction on this bill is genuine (two sections on one bill, say)."""
+        self._fix_require_second_person("Clearing a duplicate flag")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("State why this is not a duplicate.")
+        for line in self:
+            if not line._fix_duplicates():
+                raise UserError("Deduction #%s is not flagged as a duplicate." % line.id)
+            line._guarded().write(
+                {"duplicate_cleared_by_id": self.env.uid, "duplicate_cleared_reason": why}
+            )
+        return True
+
+    @api.model
+    def _cron_certificate_window(self):
+        """BRU-TAX-10 / AUT-TAX-09 (ir.cron, daily): a deduction deposited by challan
+        with no certificate past the window is a to-do for the Accounting
+        Administrators. Issues nothing, posts nothing."""
+        window = int(float_param(self.env, CERTIFICATE_WINDOW_PARAM, 0))
+        today = fields.Date.context_today(self)
+        due = self.sudo().search([("state", "=", "deposited"), ("certificate_id", "=", False)])
+        count = 0
+        for line in due.filtered(
+            lambda ln: ln.challan_id.challan_date
+            and (today - ln.challan_id.challan_date).days >= window
+        ):
+            count += len(
+                tax_alert(
+                    line,
+                    line.company_id,
+                    "Withholding certificate due",
+                    "Deduction #%s (%s, %.2f) was deposited by challan %s on %s; its certificate "
+                    "is not issued."
+                    % (
+                        line.id,
+                        line.partner_id.display_name,
+                        line.amount,
+                        line.challan_no,
+                        line.challan_date,
+                    ),
+                    [MANAGER_GROUP],
+                )
+            )
+        return count
+
     def action_issue_certificate(self):
         """Issue the deductee certificate (Mushak 6.6 for VDS, the income-tax
         withholding certificate for TDS) — only once the money is deposited:
@@ -697,8 +971,20 @@ class FixTaxChallan(models.Model):
                 raise UserError(
                     "No undeposited %s deductions in %s" % (ch.tax_kind.upper(), ch.period)
                 )
+            ch._fix_refuse_duplicates(open_lines)
             open_lines.write({"challan_id": ch.id})
         return True
+
+    def _fix_refuse_duplicates(self, lines):
+        """A challan does not settle both copies of a deduction (M51-8). Which one
+        is voided is a person's decision on the Deductions screen."""
+        dups = lines.filtered(lambda line: line._fix_duplicates())
+        if dups:
+            raise UserError(
+                "%d deduction(s) in this set are duplicates of another on the same bill (%s). "
+                "Void the wrong one, or clear the flag, on the Deductions screen first."
+                % (len(dups), ", ".join("#%s %s" % (d.id, d.source_ref) for d in dups[:6]))
+            )
 
     def action_confirm_deposit(self):
         """Confirm the deposit: the challan must settle exactly the linked
@@ -733,6 +1019,7 @@ class FixTaxChallan(models.Model):
                         "Only withheld, undeposited %s deductions of %s can be settled"
                         % (ch.tax_kind.upper(), company.name)
                     )
+                ch._fix_refuse_duplicates(lines)
                 role, partner_lines = "%s_payable" % ch.tax_kind, lines
             if abs(money(ch.amount) - money(ch.liability_total)) > 0.005:
                 raise UserError(

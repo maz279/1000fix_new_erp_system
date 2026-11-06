@@ -277,6 +277,12 @@ class FixTdsReturnA08(models.Model):
         for ret in self:
             if ret.state == "filed":
                 raise UserError("TDS return %s is filed" % ret.quarter)
+            if not QUARTER_RE.match(ret.quarter or ""):
+                raise UserError(
+                    "TDS return %r: the quarter label is the fiscal-year start year and quarter, "
+                    "e.g. 2026-Q2 for Oct-Dec 2026. Correct it on the return, then prepare."
+                    % ret.quarter
+                )
             start, end = quarter_bounds(ret.quarter)
             deductions = self.env["fix.withholding.line"].search(
                 [

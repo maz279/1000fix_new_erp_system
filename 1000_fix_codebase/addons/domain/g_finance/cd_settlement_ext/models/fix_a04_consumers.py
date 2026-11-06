@@ -18,7 +18,7 @@
 #     payout controls apply later); a rebate payout is a PENDING M50
 #     instruction that treasury releases and finance records through
 #     action_record_payout with the bank reference.
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 # how a storefront/subscription-style rail maps onto an M50 payment method
@@ -79,7 +79,13 @@ class FixA04FinanceConsumers(models.AbstractModel):
     def _commission_marketplace(self, event):
         label = "Commission hand-off (marketplace)"
         order, payload = self._a04_source(event, "fix.marketplace.order", label)
-        if order.state != "commissioned":
+        # idempotent per order, whichever door raised the row (M53-15): a replay
+        # after the order moved on returns what exists
+        Ledger = self.env["fix.commission.ledger"].sudo()
+        existing = Ledger.search([("marketplace_order_id", "=", order.id)], limit=1)
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        if order.state not in ("commissioned", "paid"):
             raise UserError(
                 "%s refused: order %s is %s, not commissioned." % (label, order.name, order.state)
             )
@@ -89,7 +95,7 @@ class FixA04FinanceConsumers(models.AbstractModel):
             raise UserError(
                 "%s refused: order %s has no seller partner to credit." % (label, order.name)
             )
-        gross = order.awarded_price or 0.0
+        gross = order.awarded_price or order.selected_quote_id.quoted_price or 0.0
         rate = order.commission_rate or 0.0
         source_ref = "fix.marketplace.order/%s" % order.id
         handback = self.env["fix.finance.handback"]
@@ -105,27 +111,41 @@ class FixA04FinanceConsumers(models.AbstractModel):
                 "%s refused: order %s carries no commission (gross %.2f, rate %.4f)."
                 % (label, order.name, gross, rate)
             )
-        row = (
-            self.env["fix.commission.ledger"]
-            .sudo()
-            .create(
-                {
-                    "company_id": order.company_id.id,
-                    "operating_unit_id": order.operating_unit_id.id
-                    or handback._handback_ou(order.company_id).id,
-                    "seller_partner_id": seller.partner_id.id,
-                    "source_type": "marketplace",
-                    "gross_amount": gross,
-                    "commission_rate": rate,
-                    "source_ref": source_ref,
-                }
-            )
+        # the row carries its order (Accrue needs it) and the scheme in force,
+        # whose rate and TDS apply (BRU-REV-10); no scheme yet = Accrue refuses
+        tier = seller.tier if "tier" in seller._fields else False
+        scheme = self.env["fix.commission.scheme"]._find(
+            "seller", fields.Date.context_today(self), order.company_id, seller_tier=tier
+        )
+        row = Ledger.create(
+            {
+                "company_id": order.company_id.id,
+                "operating_unit_id": order.operating_unit_id.id
+                or handback._handback_ou(order.company_id).id,
+                "seller_partner_id": seller.partner_id.id,
+                "source_type": "marketplace",
+                "marketplace_order_id": order.id,
+                "scheme_id": scheme.id or False,
+                "gross_amount": gross,
+                "commission_rate": rate,
+                "source_ref": source_ref,
+            }
         )
         row.message_post(
             body="Raised by the commission.earned hand-off of order %s: gross BDT %.2f at "
             "%.2f%%. Earned only - the buyer dispute window, the GL accrual and the payout "
             "run keep their own controls." % (order.name, gross, rate * 100.0)
         )
+        # a dispute raised before the commission existed holds it now (M53-7)
+        from .fix_settlement_m53 import OPEN_DISPUTE_STATES
+
+        Adjustment = self.env["fix.settlement.adjustment"].sudo()
+        for dispute in (
+            self.env["fix.marketplace.dispute"]
+            .sudo()
+            .search([("order_id", "=", order.id), ("state", "in", OPEN_DISPUTE_STATES)])
+        ):
+            Adjustment._fix_escrow_for_dispute(dispute)
         return {"model": row._name, "id": row.id, "created": True}
 
     def _commission_referral(self, event):
@@ -149,7 +169,11 @@ class FixA04FinanceConsumers(models.AbstractModel):
         handback._handback_check_amount(
             label, payload, "commission", referral.commission_amount or 0.0
         )
-        existing = self._commission_ledger_exists("partner_referral", source_ref)
+        existing = self._commission_ledger_exists("partner_referral", source_ref) or (
+            self.env["fix.commission.ledger"]
+            .sudo()
+            .search([("referral_id", "=", referral.id)], limit=1)
+        )
         if existing:
             return {"model": existing._name, "id": existing.id, "created": False}
         if gross <= 0.005 or not 0 < rate <= 1:
@@ -157,6 +181,12 @@ class FixA04FinanceConsumers(models.AbstractModel):
                 "%s refused: referral %s carries no commission (base %.2f, rate %.4f)."
                 % (label, referral.name, gross, rate)
             )
+        scheme = self.env["fix.commission.scheme"]._find(
+            "partner",
+            fields.Date.context_today(self),
+            referral.company_id,
+            partner_type=partner.partner_type,
+        )
         row = (
             self.env["fix.commission.ledger"]
             .sudo()
@@ -168,12 +198,16 @@ class FixA04FinanceConsumers(models.AbstractModel):
                     "seller_partner_id": partner.partner_id.id,
                     "source_type": "partner_referral",
                     "referral_id": referral.id,
+                    "scheme_id": scheme.id or False,
                     "gross_amount": gross,
                     "commission_rate": rate,
                     "source_ref": source_ref,
                 }
             )
         )
+        # finance's Accrue Commission picks up THIS row (M53-4: a second create
+        # hit UNIQUE referral_id)
+        referral.sudo()._guarded().write({"commission_ledger_id": row.id})
         row.message_post(
             body="Raised by the commission.earned hand-off of referral %s: base BDT %.2f at "
             "%.2f%% per the partner's agreed rate. Earned only - the expense accrual "

@@ -284,6 +284,46 @@ class FixAssetDepreciationRun(models.Model):
             line.asset_id._publish_depreciation(line.amount, line.move_id)
 
     @api.model
+    def _cron_prepare_monthly_runs(self):
+        """A08 M49-11: prepare the month's run of each book, for a person to
+        check and post. NEVER posts: no journal entry and no posted tax line
+        comes from this job. A run that cannot be computed (a tax rate the
+        adviser has not confirmed, a closed period) stays in draft with the
+        reason in its notes. Idempotent per company, book and month; a month
+        that has nothing to charge leaves no run behind."""
+        Asset = self.env["fix.fixed.asset"].sudo()
+        prepared = self.browse()
+        for company in self.env["res.company"].sudo().search([]):
+            if not Asset.search_count([("company_id", "=", company.id), ("state", "=", "active")]):
+                continue
+            today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+            period = month_start(today)
+            Run = self.sudo().with_company(company)
+            for book, _label in BOOKS:
+                if Run.search_count(
+                    [
+                        ("company_id", "=", company.id),
+                        ("book", "=", book),
+                        ("period_start", "=", period),
+                    ]
+                ):
+                    continue
+                run = Run.create({"company_id": company.id, "book": book, "period_start": period})
+                try:
+                    with self.env.cr.savepoint():
+                        run.action_compute()
+                except UserError as exc:
+                    run._guarded().write(
+                        {"note": "Prepared by the monthly job, not computed: %s" % exc}
+                    )
+                else:
+                    if not run.line_ids:
+                        run.unlink()
+                        continue
+                prepared |= run
+        return prepared
+
+    @api.model
     def _depreciate(self, assets, period, book="book"):
         """One-shot run for specific assets (the register's Accrue Month and
         the lease month posting). Refuses when nothing is left to charge for

@@ -23,7 +23,7 @@ from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import (
     compute_pnl,
     compute_trial_balance,
 )
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
 from .p03_service_order_api import _require_internal, _user_error
@@ -227,6 +227,7 @@ class P03GlApiController(http.Controller):
         log = env["fix.journal.posting.log"].sudo().search([("move_id", "=", move.id)], limit=1)
         return {
             "success": True,
+            **self._je_review(env, move),
             "move": {
                 "id": move.id,
                 "name": move.name or "",
@@ -271,6 +272,71 @@ class P03GlApiController(http.Controller):
                 if log
                 else None
             ),
+        }
+
+    def _je_review(self, env, move):
+        """Where a draft stands in its review and what THIS user may do with it,
+        so the entry screen offers only the buttons the server will honour. The
+        models re-check everything; this only decides what is shown."""
+        from odoo.addons.cd_gl_ext.models.fix_gl_ext import _move_snapshot
+
+        move = move.sudo()
+        approval = env["fix.journal.approval"].sudo().search([("move_id", "=", move.id)], limit=1)
+        request = approval.approval_request_id
+        tasks = (
+            request.task_ids.filtered(lambda t: t.state == "pending")
+            if request
+            else env["fix.workflow.task"].sudo()
+        )
+        rejection = (
+            env["fix.approval.history"]
+            .sudo()
+            .search(
+                [
+                    ("res_model", "=", approval._name),
+                    ("res_id", "=", approval.id),
+                    ("event", "=", "rejected"),
+                ],
+                order="id desc",
+                limit=1,
+            )
+            if approval
+            else None
+        )
+        is_draft = move.state == "draft"
+        manual = is_draft and move._fix_is_manual_entry()
+        accountant = env.su or env.user.has_group("account.group_account_user")
+        manager = env.su or env.user.has_group("account.group_account_manager")
+        stale = approval.state == "pending" and approval.lines_snapshot != _move_snapshot(move)
+        routable = not approval or approval.state in ("rejected", "voided") or stale
+        preparer = env.uid in (move.create_uid | approval.requested_by_id).ids
+        states = dict(approval._fields["state"].selection)
+        return {
+            "approval": (
+                {
+                    "id": approval.id,
+                    "state": approval.state,
+                    "state_label": states.get(approval.state, approval.state),
+                    "tier": approval.dofa_tier_required or "",
+                    "reason": approval.reason or "",
+                    "requested_by": approval.requested_by_id.name or "",
+                    "pending_with": tasks.mapped("assigned_user_id.name"),
+                    "rejection": (rejection.comment or "") if rejection else "",
+                    "changed_since_routed": bool(stale),
+                }
+                if approval
+                else None
+            ),
+            "actions": {
+                "approve": bool(
+                    is_draft
+                    and manager
+                    and not stale
+                    and tasks.filtered(lambda t: t.assigned_user_id.id == env.uid)
+                ),
+                "route": bool(manual and accountant and routable),
+                "discard": bool(manual and accountant and (preparer or manager)),
+            },
         }
 
     # ---------------------------------------------------------- statements
@@ -353,57 +419,129 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/close", type="jsonrpc", auth="user", readonly=True)
     def gl_close(self, close_id=None, **kw):
-        _require_finance(request.env)
+        """The close console. A finance role reads every close. A step owner
+        outside finance (the stock manager owns the subledger cut-off, M19-5)
+        reads only the steps they own, and no ledger figure, so the step they
+        must complete can actually be found."""
+        _require_internal(request.env)
         env = request.env
+        finance = env.su or any(env.user.has_group(g) for g in FINANCE_READ_GROUPS)
         domain = [("company_id", "in", env.companies.ids)]
         if close_id:
             domain.append(("id", "=", int(close_id)))
         closes = env["fix.period.close"].sudo().search(domain, order="period_end desc")
-        return {
-            "closes": closes.mapped(
-                lambda c: {
-                    "id": c.id,
-                    "period_end": str(c.period_end),
-                    "state": c.state,
-                    "sla_status": c.sla_status,
-                    "target_completion": str(c.target_completion_date or ""),
-                    "closed_at": str(c.closed_at or ""),
-                    "duration_days": c.close_duration_days,
-                    "suspense_opening": round(c.suspense_opening or 0.0, 2),
-                    "suspense_closing": round(c.suspense_closing or 0.0, 2),
-                    "suspense_reconciled": c.suspense_reconciled,
-                    "cutover_ref": c.cutover_voucher_ref or "",
-                    "steps": c.line_ids.mapped(
-                        lambda s: {
-                            "id": s.id,
-                            "sequence": s.sequence,
-                            "name": s.name,
-                            "owner": s.owner_role or "",
-                            "target_day": s.target_day,
-                            "blocking": s.blocking,
-                            "state": s.state,
-                            "evidence": s.evidence_ref or "",
-                        }
-                    ),
+        my_groups = env.user.sudo().all_group_ids
+        if not finance:
+            closes = closes.filtered(
+                lambda c: c.line_ids.filtered(lambda s: s.owner_group_id in my_groups)
+            )
+            if not closes:
+                raise AccessError(
+                    "The close console needs a finance (accounting) role or a close step you own."
+                )
+
+        def steps(close):
+            lines = close.line_ids
+            if not finance:
+                lines = lines.filtered(lambda s: s.owner_group_id in my_groups)
+            return lines.mapped(
+                lambda s: {
+                    "id": s.id,
+                    "sequence": s.sequence,
+                    "name": s.name,
+                    "owner": s.owner_role or "",
+                    "target_day": s.target_day,
+                    "blocking": s.blocking,
+                    "state": s.state,
+                    "evidence": s.evidence_ref or "",
                 }
             )
+
+        def row(close):
+            out = {
+                "id": close.id,
+                "period_end": str(close.period_end),
+                "state": close.state,
+                "sla_status": close.sla_status,
+                "target_completion": str(close.target_completion_date or ""),
+                "closed_at": str(close.closed_at or ""),
+                "duration_days": close.close_duration_days,
+                "steps": steps(close),
+            }
+            if finance:
+                pending_count, pending_value = close._fix_suspense_pending()
+                out.update(
+                    {
+                        "suspense_opening": round(close.suspense_opening or 0.0, 2),
+                        "suspense_closing": round(close.suspense_closing or 0.0, 2),
+                        "suspense_reconciled": close.suspense_reconciled,
+                        "cutover_ref": close.cutover_voucher_ref or "",
+                        "cutover_entry": close.cutover_move_id.name or "",
+                        # what the ready check reads; suspense_closing stays 0
+                        # until a reconciliation has run
+                        "suspense_pending_count": pending_count,
+                        "suspense_pending_value": pending_value,
+                    }
+                )
+            else:
+                out.update(
+                    {
+                        "suspense_opening": None,
+                        "suspense_closing": None,
+                        "suspense_reconciled": None,
+                        "cutover_ref": "",
+                        "cutover_entry": "",
+                        "suspense_pending_count": None,
+                        "suspense_pending_value": None,
+                    }
+                )
+            return out
+
+        return {
+            "closes": [row(close) for close in closes],
+            "limited": not finance,
+            "next_period_end": (
+                str(env["fix.period.close"].sudo()._fix_next_period_end()) if finance else ""
+            ),
         }
 
     @http.route("/p03/gl/close/action", type="jsonrpc", auth="user", readonly=False)
     def gl_close_action(
-        self, close_id=None, action=None, step_id=None, evidence=None, state=None, **kw
+        self,
+        close_id=None,
+        action=None,
+        step_id=None,
+        evidence=None,
+        state=None,
+        period_end=None,
+        entry=None,
+        **kw,
     ):
         _require_internal(request.env)
         env = request.env
         try:
             # savepoint: a refused action (UserError) must leave nothing behind
             with env.cr.savepoint():
-                return self._close_action(env, close_id, action, step_id, evidence, state)
+                return self._close_action(
+                    env, close_id, action, step_id, evidence, state, period_end, entry
+                )
         except UserError as exc:
             return {"success": False, "error": str(exc)}
 
-    def _close_action(self, env, close_id, action, step_id, evidence, state):
+    def _close_action(
+        self, env, close_id, action, step_id, evidence, state, period_end=None, entry=None
+    ):
         try:
+            if action == "start_period":
+                close = env["fix.period.close"].action_start_period(period_end)
+                return {
+                    "success": True,
+                    "message": "Close for %s started with its 10 SOP steps" % close.period_end,
+                    "close_id": close.id,
+                }
+            if action == "set_cutover":
+                env["fix.period.close"].browse(int(close_id)).action_set_cutover_entry(entry)
+                return {"success": True, "message": "Cutover entry set: %s" % entry}
             if action == "generate_steps":
                 close = env["fix.period.close"].browse(int(close_id))
                 close.action_generate_standard_steps()
@@ -453,8 +591,8 @@ class P03GlApiController(http.Controller):
             .sudo()
             .search([("company_id", "in", env.companies.ids)], order="period_end desc")
         )
-        bridges = env["fix.fiscal.period.bridge"].sudo().search(
-            [("period_close_id", "in", closes.ids)]
+        bridges = (
+            env["fix.fiscal.period.bridge"].sudo().search([("period_close_id", "in", closes.ids)])
         )
         bridge_by_close = {b.period_close_id.id: b for b in bridges}
         company = env.company.sudo()
@@ -1007,4 +1145,42 @@ class P03GlApiController(http.Controller):
                 posted, _dims = approve_journal_entry(env, move)
             return {"success": True, "message": "%s posted" % (posted.name or "")}
         except (UserError, AccessError) as exc:
+            return {"success": False, "error": str(exc)}
+
+    @http.route("/p03/gl/je/route", type="jsonrpc", auth="user", readonly=False)
+    def gl_je_route(self, move_id=None, reason=None, **kw):
+        """Maker step for a draft with no live approval: never routed, rejected,
+        voided, or edited since it was routed (M19-2, S2)."""
+        from odoo.addons.cd_gl_ext.models.fix_gl_ext import route_journal_entry
+
+        _require_internal(request.env)
+        env = request.env
+        try:
+            move = env["account.move"].browse(int(move_id)).exists()
+            if not move:
+                return {"success": False, "error": "Journal entry not found"}
+            with env.cr.savepoint():
+                approval = route_journal_entry(env, move, reason)
+            return {
+                "success": True,
+                "message": "Routed for approval (%s)" % (approval.dofa_tier_required or ""),
+            }
+        except (UserError, AccessError, ValidationError) as exc:
+            return {"success": False, "error": str(exc)}
+
+    @http.route("/p03/gl/je/discard", type="jsonrpc", auth="user", readonly=False)
+    def gl_je_discard(self, move_id=None, reason=None, **kw):
+        """Cancel a draft that will not be posted; it stays on record."""
+        from odoo.addons.cd_gl_ext.models.fix_gl_ext import discard_journal_entry
+
+        _require_internal(request.env)
+        env = request.env
+        try:
+            move = env["account.move"].browse(int(move_id)).exists()
+            if not move:
+                return {"success": False, "error": "Journal entry not found"}
+            with env.cr.savepoint():
+                discard_journal_entry(env, move, reason)
+            return {"success": True, "message": "Draft discarded"}
+        except (UserError, AccessError, ValidationError) as exc:
             return {"success": False, "error": str(exc)}

@@ -128,10 +128,16 @@ class FixBudget(models.Model):
                     "submitted and approved (A08 M54-7)."
                 )
             version._check_editable()
-            vals.setdefault("fiscal_year", version.fiscal_year)
-            vals.setdefault("date_from", version.date_from)
-            vals.setdefault("date_to", version.date_to)
-            vals.setdefault("company_id", version.company_id.id)
+            # blank on the form means "as the version": the year and window are
+            # the version's unless the planner narrows them
+            for name, value in (
+                ("fiscal_year", version.fiscal_year),
+                ("date_from", version.date_from),
+                ("date_to", version.date_to),
+                ("company_id", version.company_id.id),
+            ):
+                if not vals.get(name):
+                    vals[name] = value
         return super().create(vals_list)
 
     def write(self, vals):
@@ -253,7 +259,12 @@ class FixCostAllocation(models.Model):
             for rec in self.filtered(lambda r: r.state == "computed"):
                 rec.line_ids.sudo()._guarded().unlink()
                 rec._guarded().write(
-                    {"state": "draft", "direct_cost": 0.0, "allocated_overhead": 0.0, "computed_by": False}
+                    {
+                        "state": "draft",
+                        "direct_cost": 0.0,
+                        "allocated_overhead": 0.0,
+                        "computed_by": False,
+                    }
                 )
             return result
         return super().write(vals)
@@ -303,7 +314,11 @@ class FixCostAllocation(models.Model):
         receivers = sorted(drivers.items(), key=lambda kv: kv[0])
         for idx, (receiver, qty) in enumerate(receivers):
             share = qty / total_driver
-            part = round(amount - running, 2) if idx == len(receivers) - 1 else round(amount * share, 2)
+            part = (
+                round(amount - running, 2)
+                if idx == len(receivers) - 1
+                else round(amount * share, 2)
+            )
             running = round(running + part, 2)
             vals = {"driver_qty": qty, "share_pct": round(100 * share, 4), "amount": part}
             vals["branch_id" if pool.receiver_type == "branch" else "business_line_id"] = receiver
@@ -359,7 +374,8 @@ class FixCostAllocation(models.Model):
             if not self.env.su and self.env.user in (rec.computed_by | rec.create_uid):
                 raise UserError(
                     "Segregation of duties: %s prepared or computed allocation %s and cannot "
-                    "post it; another accountant reviews and posts it." % (self.env.user.name, rec.name)
+                    "post it; another accountant reviews and posts it."
+                    % (self.env.user.name, rec.name)
                 )
             pool = rec.pool_id
             missing = [
@@ -509,7 +525,14 @@ class FixCostAllocationLine(models.Model):
     share_pct = fields.Float(string="Share %", digits=(16, 4))
     amount = fields.Monetary(currency_field="currency_id")
 
-    _LINE_FIELDS = {"allocation_id", "branch_id", "business_line_id", "driver_qty", "share_pct", "amount"}
+    _LINE_FIELDS = {
+        "allocation_id",
+        "branch_id",
+        "business_line_id",
+        "driver_qty",
+        "share_pct",
+        "amount",
+    }
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._LINE_FIELDS
@@ -517,12 +540,16 @@ class FixCostAllocationLine(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self._fix_guard_open():
-            raise UserError("Allocation receivers are written by Compute, never typed (BRU-FPA-04).")
+            raise UserError(
+                "Allocation receivers are written by Compute, never typed (BRU-FPA-04)."
+            )
         return super().create(vals_list)
 
     def unlink(self):
         if not self._fix_guard_open():
-            raise UserError("Allocation receivers are written by Compute, never typed (BRU-FPA-04).")
+            raise UserError(
+                "Allocation receivers are written by Compute, never typed (BRU-FPA-04)."
+            )
         return super().unlink()
 
     @api.depends("branch_id", "business_line_id")

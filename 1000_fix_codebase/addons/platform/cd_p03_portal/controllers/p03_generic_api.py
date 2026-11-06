@@ -196,7 +196,12 @@ class P03GenericApiController(http.Controller):
                 else env[model].sudo()
             )
             if "company_id" in env[model]._fields:
-                search_domain.append(("company_id", "in", env.companies.ids))
+                # a surface may name more than one company path: a counterparty
+                # accountant holding only the target company sees the charge she accepts
+                paths = conf.get("company_paths") or ("company_id",)
+                search_domain += ["|"] * (len(paths) - 1) + [
+                    (path, "in", env.companies.ids) for path in paths
+                ]
             records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
             raw = records.read(cols) if records else []
             rows = []
@@ -569,7 +574,7 @@ class P03GenericApiController(http.Controller):
                     {"key": k, "label": v}
                     for k, v in (spec.get("choices") or m.get("selection") or [])
                 ]
-            if field_type == "many2one":
+            if field_type in ("many2one", "many2many"):
                 comodel = env[model]._fields[name].comodel_name
                 entry["comodel"] = comodel
                 entry["choices"] = [
@@ -587,6 +592,8 @@ class P03GenericApiController(http.Controller):
                 record[entry["name"]] = (
                     {"id": value.id, "label": value.display_name} if value else None
                 )
+            elif entry["type"] == "many2many":
+                record[entry["name"]] = [{"id": r.id, "label": r.display_name} for r in value]
             elif entry["type"] in ("date",):
                 record[entry["name"]] = str(value) if value else ""
             elif entry["type"] == "datetime":
@@ -647,6 +654,16 @@ class P03GenericApiController(http.Controller):
         current = env[model].browse(int(record_id)).exists() if record_id else env[model]
         if record_id and not current:
             return {"error": "Record not found"}
+        # a many2many input posts the ids it holds: the whole selection, replaced
+        for key, value in list(vals.items()):
+            is_many = getattr(fields_meta.get(key), "type", "") == "many2many"
+            if (
+                is_many
+                and isinstance(value, list)
+                and all(isinstance(v, int | dict) for v in value)
+            ):
+                ids = [v["id"] if isinstance(v, dict) else v for v in value]
+                vals[key] = [(6, 0, ids)]
         locked = _locked_fields(current)
         workflow = [
             k for k in vals if k in fields_meta and (fields_meta[k].readonly or k in locked)

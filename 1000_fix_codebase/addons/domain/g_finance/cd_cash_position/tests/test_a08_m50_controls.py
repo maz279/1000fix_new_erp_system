@@ -1191,7 +1191,8 @@ def test_m50_c03_shortage_needs_a_second_approver_and_blocks_the_rider(c):
     s.with_user(c.acct).action_submit()
     with pytest.raises(UserError, match="second Accounting Administrator"):
         s.with_user(c.mgr).action_settle()
-    s.with_user(c.mgr).action_approve_shortage()
+    # unconfigured thresholds: the escalated tier, which states why (M50-10)
+    s.with_user(c.mgr).action_approve_shortage(note="Rider's collection stolen, FIR 88")
     with pytest.raises(UserError, match="Segregation"):
         s.with_user(c.mgr).action_settle()
     s.with_user(c.mgr2).action_settle()

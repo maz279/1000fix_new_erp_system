@@ -551,17 +551,24 @@ class FixTradeinRequest(models.Model):
             acquisition = rec.graded_value or rec.offered_value or 0.0
             rec.inventory_valuation = acquisition + (rec.refurbishment_cost or 0.0)
 
+    def _tds_multiplier(self):
+        self.ensure_one()
+        tin = (self.taxpayer_tin or "").strip()
+        defaults = int(not (self.psr_verified and tin)) + int(not tin)
+        return round(1.5**defaults, 3)
+
     @api.depends("graded_value", "tds_applicable", "tds_rate_pct", "psr_verified", "taxpayer_tin")
     def _compute_tds(self):
         for rec in self:
             val = rec.graded_value or 0.0
-            # ITA 2023 s.142: withholding without a sighted PSR or e-TIN is
-            # lifted by half again (the estate's x1.5 uplift, M53/M52 pattern).
-            # PSR counts only with its e-TIN (M14-10): the tick alone cut TDS.
+            # ITA 2023 (A08 M51-7): each default lifts the rate by half again,
+            # the count fix.withholding.line uses for its statutory floor. No
+            # sighted PSR is one default, no e-TIN another. PSR counts only with
+            # its e-TIN (M14-10): the tick alone cut TDS. M50 always pays by bank
+            # or MFS, so the cash default never applies.
             rate = rec.tds_rate_pct or 0.0
-            tin = (rec.taxpayer_tin or "").strip()
-            if rec.tds_applicable and rate > 0 and not ((rec.psr_verified and tin) or tin):
-                rate = round(rate * 1.5, 4)
+            if rec.tds_applicable and rate > 0:
+                rate = round(rate * rec._tds_multiplier(), 4)
             rec.tds_effective_rate_pct = rate if rec.tds_applicable else 0.0
             tds = round(val * (rate / 100.0), 2) if rec.tds_applicable and rate > 0 else 0.0
             rec.tds_amount = tds
@@ -1598,7 +1605,6 @@ class FixTradeinRequest(models.Model):
                 "NBR remittance." % (self.tds_amount, self.tds_section)
             )
         tin = (self.taxpayer_tin or "").strip()
-        uplifted = (self.tds_effective_rate_pct or 0.0) > (self.tds_rate_pct or 0.0) + 1e-6
         Line = self.env["fix.withholding.line"].sudo()
         line = Line.search([("source_ref", "=", self.name), ("tax_kind", "=", "tds")], limit=1)
         if not line:
@@ -1614,7 +1620,7 @@ class FixTradeinRequest(models.Model):
                     "currency_id": self.currency_id.id,
                     "base_amount": self.graded_value,
                     "rate": self.tds_rate_pct,
-                    "multiplier": 1.5 if uplifted else 1.0,
+                    "multiplier": self._tds_multiplier(),
                     "amount": self.tds_amount,
                     "psr_received": bool(self.psr_verified and tin),
                     "paid_by_bank": True,  # M50 pays by bank / MFS, never cash

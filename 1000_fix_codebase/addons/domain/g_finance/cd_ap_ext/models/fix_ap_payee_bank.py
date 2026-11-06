@@ -20,6 +20,10 @@ import hashlib
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_fixed_asset_ext.models.fix_asset_common import (
+    attach_upload,
+    attachment_names,
+)
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
@@ -211,6 +215,14 @@ class ResPartnerBankPayable(models.Model):
             return False
         return change
 
+    def _fix_is_confirmed(self):
+        """Confirmed as it stands now, here or through the M42 supplier change."""
+        self.ensure_one()
+        bank = self.sudo()
+        if bank.fix_confirmed and bank.fix_confirmed_fingerprint == bank._fix_fingerprint():
+            return True
+        return bool(bank._fix_supplier_confirmation())
+
     def _fix_payable_problem(self):
         """Why this account cannot be paid now, or False."""
         self.ensure_one()
@@ -292,6 +304,15 @@ class FixPayeeBankChange(models.Model):
         "res.users", string="Call-Back Made By", default=lambda self: self.env.user
     )
     evidence_attachment_ids = fields.Many2many("ir.attachment", string="Evidence")
+    # A08 S1: the workspace form uploads the call-back evidence here
+    evidence_file = fields.Binary(
+        string="Upload Evidence",
+        compute="_compute_evidence_file",
+        inverse="_inverse_evidence_file",
+        attachment=False,
+    )
+    evidence_filename = fields.Char(string="Evidence File Name", copy=False)
+    evidence_names = fields.Char(string="Evidence Attached", compute="_compute_evidence_names")
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -338,8 +359,65 @@ class FixPayeeBankChange(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(r.state != "draft" for r in self):
-            locked |= set(self.TERMS)
+            locked |= set(self.TERMS) | {"evidence_file", "evidence_filename"}
         return locked
+
+    def _compute_evidence_file(self):
+        for rec in self:
+            rec.evidence_file = False
+
+    def _inverse_evidence_file(self):
+        for rec in self:
+            attach_upload(
+                rec,
+                "evidence_attachment_ids",
+                rec.evidence_file,
+                rec.evidence_filename,
+                "Call-back evidence %s" % rec.name,
+            )
+
+    @api.depends("evidence_attachment_ids")
+    def _compute_evidence_names(self):
+        for rec in self:
+            rec.evidence_names = attachment_names(rec.evidence_attachment_ids)
+
+    @api.model
+    def _cron_open_confirmation_queue(self):
+        """A08 S1: the queue of accounts awaiting a second person. Every payee
+        account that is not confirmed as it stands gets one open DRAFT change,
+        carrying its current details, for a person to complete with the
+        call-back. Moves no money and confirms nothing. Left out: the company's
+        own bank accounts (not payees), M42 suppliers (their change request is
+        fix.supplier.bank.change) and accounts with a change already open."""
+        Bank = self.env["res.partner.bank"].sudo()
+        own = self.env["res.company"].sudo().search([]).mapped("partner_id")
+        opened = self.browse()
+        for bank in Bank.search([("acc_number", "!=", False)]):
+            payee = bank.partner_id
+            if not payee or payee.commercial_partner_id in own or bank._fix_is_confirmed():
+                continue
+            if self._is_supplier(payee):
+                continue
+            if self.sudo().search_count(
+                [("partner_bank_id", "=", bank.id), ("state", "in", ("draft", "proposed"))]
+            ):
+                continue
+            company = bank.company_id or payee.company_id or self.env.company
+            opened |= self.sudo().create(
+                {
+                    "company_id": company.id,
+                    "partner_id": payee.id,
+                    "partner_bank_id": bank.id,
+                    "acc_number": bank.acc_number,
+                    "bank_id": bank.bank_id.id or False,
+                    "routing_number": bank["fix_routing_number"] or False
+                    if "fix_routing_number" in bank._fields
+                    else False,
+                    "acc_holder_name": bank.acc_holder_name or False,
+                    "verified_by_id": False,
+                }
+            )
+        return opened
 
     @api.constrains("routing_number")
     def _check_routing(self):
@@ -412,6 +490,8 @@ class FixPayeeBankChange(models.Model):
                     "state": "proposed",
                     "proposed_by_id": self.env.uid,
                     "proposed_at": fields.Datetime.now(),
+                    # a queue row opened by the job names nobody yet
+                    "verified_by_id": rec.verified_by_id.id or self.env.uid,
                 }
             )
             rec.message_post(body="Payee bank-detail change %s proposed." % rec.name)

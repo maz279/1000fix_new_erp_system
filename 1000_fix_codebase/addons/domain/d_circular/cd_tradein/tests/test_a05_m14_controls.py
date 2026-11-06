@@ -707,18 +707,21 @@ def test_revised_offer_needs_the_customers_reacceptance(m):
 def test_psr_needs_a_tin_a_document_and_another_person(m):
     rec = request(m)
     rec.write({"graded_value": 10000, "tds_applicable": True, "tds_rate_pct": 5.0})
-    assert rec.tds_amount == 750.0
+    # no PSR and no e-TIN are two defaults: 5% x 1.5 x 1.5 (the M51-7 floor)
+    assert rec.tds_amount == 1125.0
     assert p03_write(m, TRD, rec.id, {"psr_verified": True}).get("error")
     rec.invalidate_recordset()
-    assert not rec.psr_verified and rec.tds_amount == 750.0
+    assert not rec.psr_verified and rec.tds_amount == 1125.0
     refused(lambda: rec.with_user(m.clerk2).action_verify_psr(), "e-TIN")
     rec.write({"taxpayer_tin": "583920174635"})
+    assert rec.tds_amount == 750.0  # the e-TIN clears one default; no PSR is still one
     refused(lambda: rec.with_user(m.clerk2).action_verify_psr(), "Attach the PSR")
     doc = m.env["ir.attachment"].create({"name": "psr.pdf", "raw": b"PSR"})
     rec.write({"psr_attachment_id": doc.id})
     refused(rec.action_verify_psr, "Segregation")
     rec.with_user(m.clerk2).action_verify_psr()
     assert rec.psr_verified and rec.psr_verified_by_id == m.clerk2
+    assert rec.tds_amount == 500.0  # no default left: the statutory rate
     rec.write({"taxpayer_tin": "583920174699"})
     assert not rec.psr_verified  # a PSR is verified against one e-TIN
 
@@ -818,9 +821,11 @@ def test_tds_is_registered_with_m51_for_nbr_remittance(m):
     rec.action_pay()
     line = rec.withholding_line_id
     assert line and line.state == "withheld" and line.tax_kind == "tds"
-    assert (line.base_amount, line.amount, line.partner_id) == (10000.0, 500.0, rec.customer_id)
+    # e-TIN but no sighted PSR: one default, x1.5, which the M51 row's floor requires
+    assert (line.base_amount, line.amount, line.partner_id) == (10000.0, 750.0, rec.customer_id)
+    assert line.multiplier == 1.5
     assert line.source_ref == rec.name
-    assert rec.payout_execution_id.amount == 9500.0
+    assert rec.payout_execution_id.amount == 9250.0
     with pytest.raises(UserError, match=GUARD), m.env.cr.savepoint():
         rec.write({"withholding_line_id": False})
     other = request(m)
@@ -831,11 +836,12 @@ def test_tds_is_registered_with_m51_for_nbr_remittance(m):
 def test_hold_period_blocks_resale_until_the_cron_releases_it(m):
     m.env["ir.config_parameter"].sudo().set_param("cd_tradein.hold_days", "7")
     rec = graded(m)
-    assert rec.hold_until == fields.Date.today() + timedelta(days=7)
+    # the hold counts from the local day, not UTC
+    assert rec.hold_until == fields.Date.context_today(rec) + timedelta(days=7)
     refused(rec.action_resale_ready, "hold period")
     Request = m.env[TRD]
     assert rec.id not in Request.search([("hold_released", "=", True)]).ids
-    rec.sudo().write({"hold_until": fields.Date.today() - timedelta(days=1)})
+    rec.sudo().write({"hold_until": fields.Date.context_today(rec) - timedelta(days=1)})
     assert Request.cron_tradein_hold_period() >= 1
     assert rec.hold_released
     assert Request.cron_tradein_hold_period() == 0  # safe to re-run

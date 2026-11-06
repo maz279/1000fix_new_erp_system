@@ -2,6 +2,10 @@
 import re
 
 from odoo import api, fields, models
+from odoo.addons.cd_fixed_asset_ext.models.fix_asset_common import (
+    attach_upload,
+    attachment_names,
+)
 from odoo.exceptions import UserError, ValidationError
 
 _MATRIX_KEY = "fix_ap_matrix_change"
@@ -48,6 +52,14 @@ class FixVendorTaxProfile(models.Model):
         string="PSR Evidence",
         help="A08 M52-10: the PSR counts only with the proof attached (and a TIN on file).",
     )
+    psr_evidence_file = fields.Binary(
+        string="Upload PSR Proof",
+        compute="_compute_upload_files",
+        inverse="_inverse_psr_evidence_file",
+        attachment=False,
+    )
+    psr_evidence_filename = fields.Char(string="PSR File Name", copy=False)
+    psr_evidence_names = fields.Char(string="PSR Proof Attached", compute="_compute_upload_names")
     # A08 M52-10: a TDS exemption is evidence, not a tick on the bill line.
     tds_exempt_certificate_ref = fields.Char(string="TDS Exemption Certificate No", tracking=True)
     tds_exempt_valid_until = fields.Date(string="Exemption Valid Until", tracking=True)
@@ -58,6 +70,14 @@ class FixVendorTaxProfile(models.Model):
         "attachment_id",
         string="Exemption Certificate",
     )
+    tds_exempt_file = fields.Binary(
+        string="Upload Exemption Certificate",
+        compute="_compute_upload_files",
+        inverse="_inverse_tds_exempt_file",
+        attachment=False,
+    )
+    tds_exempt_filename = fields.Char(string="Certificate File Name", copy=False)
+    tds_exempt_names = fields.Char(string="Certificate Attached", compute="_compute_upload_names")
     psr_valid = fields.Boolean(
         string="PSR Valid Today", compute="_compute_psr_valid", search="_search_psr_valid"
     )
@@ -96,6 +116,46 @@ class FixVendorTaxProfile(models.Model):
         ]
         positive = (operator == "=") == bool(value)
         return valid if positive else ["!", *valid]
+
+    def _compute_upload_files(self):
+        for prof in self:
+            prof.psr_evidence_file = False
+            prof.tds_exempt_file = False
+
+    def _inverse_psr_evidence_file(self):
+        for prof in self:
+            attach_upload(
+                prof,
+                "psr_attachment_ids",
+                prof.psr_evidence_file,
+                prof.psr_evidence_filename,
+                "PSR %s" % (prof.psr_reference or prof.partner_id.display_name),
+            )
+
+    def _inverse_tds_exempt_file(self):
+        for prof in self:
+            attach_upload(
+                prof,
+                "tds_exempt_attachment_ids",
+                prof.tds_exempt_file,
+                prof.tds_exempt_filename,
+                "TDS exemption %s"
+                % (prof.tds_exempt_certificate_ref or prof.partner_id.display_name),
+            )
+
+    @api.depends("psr_attachment_ids", "tds_exempt_attachment_ids")
+    def _compute_upload_names(self):
+        for prof in self:
+            prof.psr_evidence_names = attachment_names(prof.psr_attachment_ids)
+            prof.tds_exempt_names = attachment_names(prof.tds_exempt_attachment_ids)
+
+    @api.constrains("default_vds_rate_id")
+    def _check_default_vds(self):
+        # the form's list is every tax rate: the domain binds only Odoo's own form
+        for prof in self:
+            rate = prof.default_vds_rate_id.sudo()
+            if rate and rate.tax_kind != "vds":
+                raise ValidationError("%s is not a VDS service code." % rate.display_name)
 
     @api.constrains("tin", "bin")
     def _check_ids(self):
@@ -174,19 +234,22 @@ class FixApApprovalRule(models.Model):
             if rule.level < 1 or rule.amount_min < 0:
                 raise ValidationError("Levels start at 1 and minimums are not negative")
 
-    @api.constrains("group_id")
-    def _check_group(self):
+    @api.model
+    def _fix_assert_matrix_group(self, group):
         allowed = self.env["res.groups"]
         for xmlid in MATRIX_GROUPS:
             allowed |= self.env.ref(xmlid, raise_if_not_found=False) or self.env["res.groups"]
+        group = group.sudo()
+        if not (group & allowed or group.all_implied_ids & allowed):
+            raise ValidationError(
+                "A matrix level is decided by an accounting group (Accountant or Accounting "
+                "Administrator, or a group that implies one): %s is not." % group.display_name
+            )
+
+    @api.constrains("group_id")
+    def _check_group(self):
         for rule in self:
-            group = rule.group_id.sudo()
-            if not (group & allowed or group.all_implied_ids & allowed):
-                raise ValidationError(
-                    "Matrix level %d must be decided by an accounting group (Accountant or "
-                    "Accounting Administrator, or a group that implies one): %s does not."
-                    % (rule.level, group.display_name)
-                )
+            self._fix_assert_matrix_group(rule.group_id)
 
     # ---- dual control (A08 M52-12) ------------------------------------------
     def _fix_matrix_writing(self):

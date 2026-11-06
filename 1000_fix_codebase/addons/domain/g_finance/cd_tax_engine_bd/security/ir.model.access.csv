@@ -51,3 +51,6 @@ access_fix_tax_parameter_account_invoice,fix.tax.parameter.account.invoice,model
 access_fix_tax_audit_pack_seal_account_readonly,fix.tax.audit.pack.seal.account.readonly,model_fix_tax_audit_pack_seal,account.group_account_readonly,1,0,0,0
 access_fix_tax_audit_pack_seal_account_user,fix.tax.audit.pack.seal.account.user,model_fix_tax_audit_pack_seal,account.group_account_user,1,0,0,0
 access_fix_tax_audit_pack_seal_account_manager,fix.tax.audit.pack.seal.account.manager,model_fix_tax_audit_pack_seal,account.group_account_manager,1,0,0,0
+access_fix_mushak_correction_account_readonly,fix.mushak.correction.account.readonly,model_fix_mushak_correction,account.group_account_readonly,1,0,0,0
+access_fix_mushak_correction_account_user,fix.mushak.correction.account.user,model_fix_mushak_correction,account.group_account_user,1,1,1,0
+access_fix_mushak_correction_account_manager,fix.mushak.correction.account.manager,model_fix_mushak_correction,account.group_account_manager,1,1,1,0

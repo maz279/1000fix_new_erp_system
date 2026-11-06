@@ -663,6 +663,12 @@ class FixArInvoice(models.Model):
         residual. The request (fix.ar.writeoff) is approved on the finance
         ladder by someone other than the requester and only then posts,
         against the IFRS 9 loss allowance first. Returns the request."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Requesting a write-off")
+        if not (recovery_history or "").strip():
+            raise UserError(
+                "Record the recovery history: the collection steps taken before this write-off "
+                "(BRU-ARB-12)."
+            )
         WriteOff = self.env["fix.ar.writeoff"]
         requests = WriteOff
         for inv in self:
@@ -670,7 +676,7 @@ class FixArInvoice(models.Model):
                 {
                     "invoice_id": inv.id,
                     "reason": reason,
-                    "recovery_history": recovery_history or reason,
+                    "recovery_history": recovery_history,
                 }
             )
         requests.action_submit()
@@ -1306,11 +1312,15 @@ class FixArInvoiceLine(models.Model):
         """Fill vals' VAT and total from M51; refuse a typed VAT that differs."""
         Invoice = self.env["fix.ar.invoice"]
         invoice = Invoice.browse(vals["invoice_id"]) if vals.get("invoice_id") else line.invoice_id
-        taxable = vals["taxable_amount"] if "taxable_amount" in vals else (line.taxable_amount if line else 0.0)
+        taxable = vals.get("taxable_amount", line.taxable_amount if line else 0.0)
         product = (
             self.env["product.product"].browse(vals["product_id"])
             if vals.get("product_id")
-            else (line.product_id if line and "product_id" not in vals else self.env["product.product"])
+            else (
+                line.product_id
+                if line and "product_id" not in vals
+                else self.env["product.product"]
+            )
         )
         treatment = (
             self.env["fix.vat.treatment"].browse(vals["vat_treatment_id"])
@@ -1327,7 +1337,13 @@ class FixArInvoiceLine(models.Model):
             raise UserError(
                 "VAT on an AR invoice line is M51's determination (BRU-ARB-03/04): BDT %.2f on "
                 "a taxable value of %.2f (%s @ %s%%), not the BDT %.2f entered."
-                % (vat, float(det.taxable_amount), det.treatment, det.rate, vals["vat_amount"] or 0.0)
+                % (
+                    vat,
+                    float(det.taxable_amount),
+                    det.treatment,
+                    det.rate,
+                    vals["vat_amount"] or 0.0,
+                )
             )
         vals["vat_amount"] = vat
         vals["line_total"] = float(det.taxable_amount) + vat
@@ -1396,6 +1412,7 @@ class FixDunning(models.Model):
     invoice_id = fields.Many2one(
         "fix.ar.invoice", string="Invoice", required=True, ondelete="cascade", index=True
     )
+    name = fields.Char(compute="_compute_name", string="Dunning")
     currency_id = fields.Many2one(related="invoice_id.currency_id")
     overdue_amount = fields.Monetary(string="Overdue", currency_field="currency_id")
     days_overdue = fields.Integer(compute="_compute_ageing", store=True)
@@ -1593,13 +1610,34 @@ class FixDunning(models.Model):
         """Daily cron entry: run the ladder."""
         self.action_run_dunning()
 
+    @api.depends("invoice_id.name", "step")
+    def _compute_name(self):
+        for run in self:
+            run.name = "%s / %s" % (
+                run.invoice_id.name or "Invoice #%s" % run.invoice_id.id,
+                run.step,
+            )
+
+    # One button per controlled reason (M20-11): the code is chosen, never typed.
+    def action_suppress_payment_plan(self, until=None, note=None):
+        return self.action_suppress("payment_plan", until=until, note=note)
+
+    def action_suppress_strategic(self, until=None, note=None):
+        return self.action_suppress("strategic", until=until, note=note)
+
+    def action_suppress_dispute(self, until=None, note=None):
+        return self.action_suppress("dispute", until=until, note=note)
+
     def action_suppress(self, reason, until=None, note=None):
         """BRU-ARB-16: suppress dunning with a reason, the suppressor and an
         end date (default: the configured number of days)."""
         require_role(self.env, GROUP_ACCOUNTANT, "Suppressing dunning")
         if reason not in ("dispute", "payment_plan", "strategic"):
             raise UserError("Pick a suppression reason (FR-ARB-033)")
-        end = fields.Date.to_date(until) if until else None
+        try:
+            end = fields.Date.to_date(until) if until else None
+        except ValueError:
+            raise UserError("The end date of a suppression is written YYYY-MM-DD.") from None
         if end is None and reason != "dispute":
             days = int(float_param(self.env, PARAM_SUPPRESSION_DAYS, DEFAULT_SUPPRESSION_DAYS))
             end = fields.Date.add(fields.Date.context_today(self), days=days)
@@ -1648,6 +1686,8 @@ CREDIT_GUARDED = {
     "gl_note",
     "rejected_reason",
     "mushak_note_id",
+    "refund_amount",
+    "refund_ref",
 }
 # Frozen once a credit note is submitted: the approval covers them.
 CREDIT_LOCKED = ("amount", "invoice_id", "reason_code", "company_id", "operating_unit_id")
@@ -1707,9 +1747,7 @@ class FixCreditNote(models.Model):
     )
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     approved_at = fields.Datetime(readonly=True, copy=False)
-    requested_by_id = fields.Many2one(
-        "res.users", string="Submitted By", readonly=True, copy=False
-    )
+    requested_by_id = fields.Many2one("res.users", string="Submitted By", readonly=True, copy=False)
     submitted_at = fields.Datetime(readonly=True, copy=False)
     tier_basis_amount = fields.Monetary(
         string="Cumulative Credit (tier basis)",
@@ -1727,6 +1765,15 @@ class FixCreditNote(models.Model):
     mushak_note_id = fields.Many2one(
         "fix.mushak.register", string="Mushak 6.7", readonly=True, copy=False
     )
+    refund_amount = fields.Monetary(
+        string="Refund of Money Received",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The part of this credit that covers money the customer already paid: it is "
+        "paid back only as an M50 payment instruction (BRU-ARB-11).",
+    )
+    refund_ref = fields.Char(string="Refund Instruction", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | CREDIT_GUARDED
@@ -1805,7 +1852,11 @@ class FixCreditNote(models.Model):
 
     # ---- checks -------------------------------------------------------------
     def _check_credit_cap(self):
-        """Total credits on the invoice (open and issued) never exceed it."""
+        """Credits never exceed what is creditable on the invoice: its total,
+        less every other credit (open and issued) and what VDS or a write-off
+        already settled. Money the customer PAID stays creditable, but that part
+        is not a reduction of the receivable: it is a refund and goes through
+        M50 (BRU-ARB-11), so it is refused where treasury cannot pay it."""
         for note in self:
             invoice = note.invoice_id
             if not invoice:
@@ -1813,12 +1864,73 @@ class FixCreditNote(models.Model):
             if note.amount <= 0:
                 raise UserError("A credit note amount must be positive")
             total = note.amount + note._other_open_credit()
-            if total > invoice.total_payable + 0.005:
+            settled = (invoice.vds_settled_amount or 0.0) + (invoice.written_off_amount or 0.0)
+            creditable = invoice.total_payable - settled
+            if total > creditable + 0.005:
                 raise UserError(
                     "Credit %.2f would take the credits on invoice %s to %.2f, above the "
-                    "invoice total %.2f: credits never exceed the invoice."
-                    % (note.amount, invoice.name, total, invoice.total_payable)
+                    "creditable %.2f (total %.2f less VDS and write-off): credits never exceed "
+                    "the invoice."
+                    % (note.amount, invoice.name, total, creditable, invoice.total_payable)
                 )
+            if note._refund_part() > 0.005 and "fix.payment.execution" not in self.env:
+                raise UserError(
+                    "Credit %.2f on invoice %s covers money already received: it is refunded "
+                    "through treasury (M50), which is not installed. Credit only the open %.2f."
+                    % (note.amount, invoice.name, max(note.amount - note._refund_part(), 0.0))
+                )
+
+    def _refund_part(self) -> float:
+        """The part of this credit above what is still unpaid on the invoice:
+        total - credits - paid is the most that can reduce the receivable."""
+        self.ensure_one()
+        invoice = self.invoice_id
+        settled = (invoice.vds_settled_amount or 0.0) + (invoice.written_off_amount or 0.0)
+        unpaid = (
+            invoice.total_payable
+            - self._other_open_credit()
+            - settled
+            - (invoice.amount_paid or 0.0)
+        )
+        return round(max(self.amount - max(unpaid, 0.0), 0.0), 2)
+
+    def _fix_request_refund(self):
+        """BRU-ARB-11: the part of an issued credit that covers money already
+        received leaves as a pending M50 instruction to the customer; treasury
+        prepares and releases it (Dr receivable / Cr bank)."""
+        from .fix_ar_engine import _ar_account
+
+        for note in self:
+            refund = note.refund_amount
+            if refund <= 0.005 or note.refund_ref:
+                continue
+            invoice = note.invoice_id
+            customer = invoice.customer_id.commercial_partner_id.sudo()
+            options = {
+                "company_id": invoice.company_id.id,
+                "operating_unit_id": invoice.operating_unit_id.id,
+                "method": "bank_transfer",
+                "payee": customer.display_name,
+            }
+            ar = _ar_account(note.env, invoice.company_id, "ar")
+            if ar:
+                options["debit_account_id"] = ar.id
+            pay = self.env["fix.payment.execution"]._fix_request_payment(
+                "fix.credit.note",
+                note.id,
+                customer,
+                customer.bank_ids[:1],
+                refund,
+                invoice.currency_id,
+                "Refund on credit note #%s (%s)" % (note.id, invoice.name),
+                note.approved_by,
+                **options,
+            )
+            note._guarded().write({"refund_ref": pay.name})
+            note.message_post(
+                body="BDT %.2f of this credit covers money already received: refund instruction "
+                "%s is pending with treasury (BRU-ARB-11)." % (refund, pay.name)
+            )
 
     def action_submit(self):
         """Submit for approval: the amount is frozen, the cumulative tier
@@ -1889,6 +2001,47 @@ class FixCreditNote(models.Model):
             note._guarded().write({"state": "rejected", "rejected_reason": reason[:250]})
         return True
 
+    def action_rerequest(self, justification=""):
+        """M63 returned the note for more information: the requester answers
+        and sends it back, unchanged, into the same ladder (M20-1: it stayed
+        pending for ever)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Re-requesting a credit note's approval")
+        if not (justification or "").strip():
+            raise UserError("Say what information the approver asked for and what it is.")
+        for note in self:
+            if note.state != "pending_approval" or note.approval_state != "returned":
+                raise UserError(
+                    "Credit note %s was not returned by its approver (%s / %s)."
+                    % (note.display_name, note.state, note.approval_state)
+                )
+            note.action_request_approval(justification=justification)
+        return True
+
+    def action_withdraw_to_draft(self, reason=""):
+        """Or the requester takes a returned note back to correct it: the
+        approval is voided, the note is a draft again and is submitted anew."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Withdrawing a credit note")
+        if not (reason or "").strip():
+            raise UserError("State why the credit note is withdrawn.")
+        for note in self:
+            if note.state != "pending_approval" or note.approval_state != "returned":
+                raise UserError(
+                    "Only a credit note returned by its approver is withdrawn (%s)."
+                    % note.display_name
+                )
+            note._fin_void("withdrawn: %s" % reason)
+            note._guarded().write(
+                {
+                    "state": "draft",
+                    "approval_state": "none",
+                    "requested_by_id": False,
+                    "submitted_at": False,
+                    "tier_basis_amount": 0.0,
+                }
+            )
+            note.message_post(body="Withdrawn to draft by %s: %s" % (self.env.user.name, reason))
+        return True
+
     def _approval_on_rejected(self, comment):
         for note in self.sudo():
             if note.state in ("pending_approval", "approved"):
@@ -1911,9 +2064,13 @@ class FixCreditNote(models.Model):
                     "Credit notes apply to issued/paid invoices only (state: %s)" % invoice.state
                 )
             note._check_credit_cap()
-            note._guarded().write({"state": "issued", "issued_at": fields.Datetime.now()})
+            refund = note._refund_part()
+            note._guarded().write(
+                {"state": "issued", "issued_at": fields.Datetime.now(), "refund_amount": refund}
+            )
             note._post_credit_gl()
             note._register_mushak_note()
+            note._fix_request_refund()
             # partial application: only fully-credited invoices flip state
             if invoice.state == "issued" and invoice.amount_residual <= 0.005:
                 invoice._guarded().write({"state": "credited"})
@@ -2073,7 +2230,10 @@ class FixArWriteoff(models.Model):
         string="Charged to Loss Allowance", currency_field="currency_id", readonly=True, copy=False
     )
     expense_amount = fields.Monetary(
-        string="Charged to Bad-Debt Expense", currency_field="currency_id", readonly=True, copy=False
+        string="Charged to Bad-Debt Expense",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
     )
     move_id = fields.Many2one("account.move", string="GL Move", readonly=True, copy=False)
     rejected_reason = fields.Char(readonly=True, copy=False)
@@ -2128,8 +2288,12 @@ class FixArWriteoff(models.Model):
                 raise UserError("A write-off reason is required (FR-ARB-041)")
             if not (wo.recovery_history or "").strip():
                 raise UserError("Record the recovery history first (BRU-ARB-12)")
-            if invoice.writeoff_ids.filtered(lambda w: w.id != wo.id and w.state == "requested"):
-                raise UserError("Invoice %s already has a write-off awaiting approval" % invoice.name)
+            if invoice.writeoff_ids.filtered(
+                lambda w, own=wo.id: w.id != own and w.state == "requested"
+            ):
+                raise UserError(
+                    "Invoice %s already has a write-off awaiting approval" % invoice.name
+                )
             wo._guarded().write(
                 {
                     "state": "requested",
@@ -2234,7 +2398,12 @@ class FixArWriteoff(models.Model):
             debit_lines.append(("ecl_provision", allowance_acc, use, invoice.customer_id.id))
         if excess > 0.005:
             debit_lines.append(
-                ("writeoff_expense", _ar_account(wo.env, company, "writeoff_expense"), excess, False)
+                (
+                    "writeoff_expense",
+                    _ar_account(wo.env, company, "writeoff_expense"),
+                    excess,
+                    False,
+                )
             )
         move = invoice._post_reversal_gl(
             "WRITE-OFF INV %s — %s" % (invoice.name, wo.reason),
@@ -2388,9 +2557,9 @@ class FixArConsolidatedBill(models.Model):
 
 # re-exported for the settlement / subscription modules
 __all__ = [
-    "FixArInvoice",
-    "FixCreditNote",
-    "FixArWriteoff",
-    "ValidationError",
     "AccessError",
+    "FixArInvoice",
+    "FixArWriteoff",
+    "FixCreditNote",
+    "ValidationError",
 ]

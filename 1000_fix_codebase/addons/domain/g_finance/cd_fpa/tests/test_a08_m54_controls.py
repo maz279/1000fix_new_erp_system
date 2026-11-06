@@ -10,6 +10,7 @@ from datetime import date
 import pytest
 from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError, ValidationError
+from psycopg2.errors import UniqueViolation
 
 REFUSED = (UserError, ValidationError, AccessError)
 ACC_USER = "account.group_account_user"
@@ -82,8 +83,12 @@ def je(c, d, amount, debit, credit):
             "journal_id": c.misc.id,
             "date": d,
             "line_ids": [
-                Command.create({"account_id": debit.id, "debit": amount, "credit": 0.0, "name": "p"}),
-                Command.create({"account_id": credit.id, "debit": 0.0, "credit": amount, "name": "p"}),
+                Command.create(
+                    {"account_id": debit.id, "debit": amount, "credit": 0.0, "name": "p"}
+                ),
+                Command.create(
+                    {"account_id": credit.id, "debit": 0.0, "credit": amount, "name": "p"}
+                ),
             ],
         }
     )
@@ -91,7 +96,9 @@ def je(c, d, amount, debit, credit):
     return m
 
 
-def version(c, user, planned=100000.0, account=None, d_from=date(2026, 9, 1), d_to=date(2026, 9, 30), **kw):
+def version(
+    c, user, planned=100000.0, account=None, d_from=date(2026, 9, 1), d_to=date(2026, 9, 30), **kw
+):
     vals = {
         "name": "A08 FY27 budget %d" % next(_SEQ),
         "version_type": "budget",
@@ -107,7 +114,12 @@ def version(c, user, planned=100000.0, account=None, d_from=date(2026, 9, 1), d_
             "version_id": ver.id,
             "line_ids": [
                 Command.create(
-                    {"account_id": (account or c.exp).id, "date_from": d_from, "date_to": d_to, "planned_amount": planned}
+                    {
+                        "account_id": (account or c.exp).id,
+                        "date_from": d_from,
+                        "date_to": d_to,
+                        "planned_amount": planned,
+                    }
                 )
             ],
         }
@@ -134,7 +146,9 @@ def approve_as(c, record, user):
 
 
 def bva_rows(c, user, d_from=date(2026, 9, 1), d_to=date(2026, 9, 30), **kw):
-    return c.env["fix.fpa.engine"].with_user(user).report_budget_variance(d_from, d_to, **kw)["rows"]
+    return (
+        c.env["fix.fpa.engine"].with_user(user).report_budget_variance(d_from, d_to, **kw)["rows"]
+    )
 
 
 @pytest.fixture
@@ -143,7 +157,11 @@ def p03(c):
     import odoo.addons.cd_p03_portal.controllers.p03_service_order_api as s
 
     ctl = g.P03GenericApiController()
-    mw = getattr(g.P03GenericApiController.model_write, "original_endpoint", g.P03GenericApiController.model_write)
+    mw = getattr(
+        g.P03GenericApiController.model_write,
+        "original_endpoint",
+        g.P03GenericApiController.model_write,
+    )
     old = (getattr(g, "request", None), getattr(s, "request", None))
 
     def as_user(user):
@@ -163,9 +181,8 @@ def test_m54_B01_submit_route_approve_and_bva(c):
     ver.with_user(c.acct).action_submit()
     assert ver.state == "submitted" and ver.approval_state == "pending"
     assert ver.dofa_tier_required == "tier_4"
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            ver.with_user(c.acct).action_approve()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        ver.with_user(c.acct).action_approve()
     with pytest.raises(UserError, match="approver's inbox"):
         ver.with_user(c.mgr).action_approve()
     approve_as(c, ver, c.mgr)
@@ -193,7 +210,9 @@ def test_m54_B03_preparer_cannot_approve(c):
 def test_m54_B04_approval_cannot_be_typed(c):
     ver = version(c, c.acct, planned=5000000.0)
     with pytest.raises(UserError, match="changes only through its workflow"):
-        ver.with_user(c.acct).write({"state": "approved", "approved_by": c.mgr.id, "approved_at": fields.Datetime.now()})
+        ver.with_user(c.acct).write(
+            {"state": "approved", "approved_by": c.mgr.id, "approved_at": fields.Datetime.now()}
+        )
     assert ver.state == "draft" and not [r for r in bva_rows(c, c.acct) if r["version"] == ver.name]
 
 
@@ -247,7 +266,12 @@ def test_m54_B07_actual_is_the_ledger_not_a_typed_figure(c):
 def test_m54_B08_versionless_budget_refused(c):
     with pytest.raises(REFUSED):
         c.env["fix.budget"].with_user(c.acct).create(
-            {"name": "orphan", "fiscal_year": "FY2026-27", "planned_amount": 2000000.0, "state": "approved"}
+            {
+                "name": "orphan",
+                "fiscal_year": "FY2026-27",
+                "planned_amount": 2000000.0,
+                "state": "approved",
+            }
         )
     with pytest.raises(ValidationError, match="belongs to a budget version"):
         c.env["fix.budget"].with_user(c.acct).create({"name": "orphan", "fiscal_year": "FY2026-27"})
@@ -261,10 +285,12 @@ def test_m54_B09_one_approved_version_per_year(c):
     v2 = version(c, c.acct, planned=500000.0, fiscal_year=fy)
     with pytest.raises(UserError, match="changes only through its workflow"):
         v2.with_user(c.acct).write({"state": "approved"})
-    with pytest.raises(Exception):  # the database refuses two approved versions
-        with c.env.cr.savepoint():
-            v2._guarded().write({"state": "approved"})
-            c.env.flush_all()
+    # the database refuses two approved versions: that index, and nothing else
+    with pytest.raises(UniqueViolation) as refused, c.env.cr.savepoint():
+        v2._guarded().write({"state": "approved"})
+        c.env.flush_all()
+    assert "one_approved_per_year" in refused.value.diag.constraint_name
+    c.env.invalidate_all()
     rows = [r for r in bva_rows(c, c.mgr) if r["version"] in (v1.name, v2.name)]
     assert len(rows) == 1 and rows[0]["planned"] == 100000.0
     # approving the second the proper way supersedes the first
@@ -279,7 +305,7 @@ def test_m54_B10_bva_measures_the_report_window(c):
     approve_as(c, ver, c.mgr)
     je(c, date(2026, 8, 10), 100000.0, c.exp, c.cash)
     je(c, date(2026, 9, 10), 50000.0, c.exp, c.cash)
-    r = [row for row in bva_rows(c, c.mgr) if row["version"] == ver.name][0]
+    r = next(row for row in bva_rows(c, c.mgr) if row["version"] == ver.name)
     assert r["actual"] == 50000.0
     assert r["planned"] == round(1200000.0 * 30 / 365, 2)
 
@@ -295,9 +321,8 @@ def test_m54_B11_p03_write_cannot_approve(c, p03):
 def test_m54_B12_reject_needs_reason(c):
     ver = version(c, c.acct)
     ver.with_user(c.acct).action_submit()
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            ver.with_user(c.mgr).action_reject()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        ver.with_user(c.mgr).action_reject()
     ver.with_user(c.mgr).write({"rejection_reason": "Rent line unsupported"})
     ver.with_user(c.mgr).action_reject()
     assert ver.state == "rejected" and ver.approval_state == "none"
@@ -326,8 +351,12 @@ def test_m54_B14_board_threshold_routes_to_tier_5(c):
 
 # ====================================================================== board pack
 def _pack(c, user):
-    return c.env["fix.board.pack"].with_user(user).create(
-        {"name": "Board pack Sep", "date_from": date(2026, 9, 1), "date_to": date(2026, 9, 30)}
+    return (
+        c.env["fix.board.pack"]
+        .with_user(user)
+        .create(
+            {"name": "Board pack Sep", "date_from": date(2026, 9, 1), "date_to": date(2026, 9, 30)}
+        )
     )
 
 
@@ -336,14 +365,12 @@ def test_m54_K01_assemble_and_issue_sod(c):
     p = _pack(c, c.acct)
     p.with_user(c.acct).action_assemble()
     rev = p.line_ids.filtered(lambda line: line.metric == "Revenue").amount
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            p.with_user(c.acct).action_issue()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        p.with_user(c.acct).action_issue()
     p2 = _pack(c, c.mgr)
     p2.with_user(c.mgr).action_assemble()
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            p2.with_user(c.mgr).action_issue()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        p2.with_user(c.mgr).action_issue()
     p.with_user(c.mgr2).action_issue()
     assert p.state == "issued" and p.assembled_by == c.acct and rev >= 80000.0
 
@@ -369,7 +396,9 @@ def test_m54_K02_issued_pack_lines_frozen(c):
 def test_m54_K03_issue_cannot_be_typed(c):
     p = _pack(c, c.acct)
     with pytest.raises(UserError, match="changes only through its workflow"):
-        p.with_user(c.acct).write({"state": "issued", "issued_by": c.mgr.id, "issued_at": fields.Datetime.now()})
+        p.with_user(c.acct).write(
+            {"state": "issued", "issued_by": c.mgr.id, "issued_at": fields.Datetime.now()}
+        )
     assert p.state == "draft"
 
 
@@ -397,12 +426,10 @@ def test_m54_K06_issued_pack_frozen(c):
     p = _pack(c, c.acct)
     p.with_user(c.acct).action_assemble()
     p.with_user(c.mgr).action_issue()
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            p.with_user(c.mgr).write({"date_to": date(2026, 10, 31)})
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            p.with_user(c.mgr).unlink()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        p.with_user(c.mgr).write({"date_to": date(2026, 10, 31)})
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        p.with_user(c.mgr).unlink()
 
 
 def test_m54_K07_plain_user_cannot_read_pack(c):
@@ -416,9 +443,15 @@ def test_m54_K07_plain_user_cannot_read_pack(c):
 def pool(c):
     env = c.env
     n = next(_SEQ)
-    ent = env["fix.entity"].create({"code": "A08FPA%d" % n, "legal_name": "A08 FPA", "company_id": c.co.id})
-    b1 = env["fix.branch"].create({"code": "B1%d" % n, "name": "Dhanmondi", "entity_id": ent.id, "operating_unit_id": c.ou.id})
-    b2 = env["fix.branch"].create({"code": "B2%d" % n, "name": "Uttara", "entity_id": ent.id, "operating_unit_id": c.ou.id})
+    ent = env["fix.entity"].create(
+        {"code": "A08FPA%d" % n, "legal_name": "A08 FPA", "company_id": c.co.id}
+    )
+    b1 = env["fix.branch"].create(
+        {"code": "B1%d" % n, "name": "Dhanmondi", "entity_id": ent.id, "operating_unit_id": c.ou.id}
+    )
+    b2 = env["fix.branch"].create(
+        {"code": "B2%d" % n, "name": "Uttara", "entity_id": ent.id, "operating_unit_id": c.ou.id}
+    )
     p = env["fix.cost.pool"].create(
         {
             "code": "A08P%d" % n,
@@ -428,7 +461,9 @@ def pool(c):
             "target_account_id": c.absorbed.id,
             "clearing_account_id": c.clearing.id,
             "journal_id": c.misc.id,
-            "element_ids": [Command.create({"code": "RENT", "name": "Rent", "account_ids": [(6, 0, c.exp.ids)]})],
+            "element_ids": [
+                Command.create({"code": "RENT", "name": "Rent", "account_ids": [(6, 0, c.exp.ids)]})
+            ],
             "share_ids": [
                 Command.create({"branch_id": b1.id, "percent": 60.0}),
                 Command.create({"branch_id": b2.id, "percent": 40.0}),
@@ -442,8 +477,17 @@ def pool(c):
 
 
 def _alloc(c, pool, user):
-    return c.env["fix.cost.allocation"].with_user(user).create(
-        {"name": "Rent Sep %d" % next(_SEQ), "pool_id": pool.pool.id, "date_from": date(2026, 9, 1), "date_to": date(2026, 9, 30)}
+    return (
+        c.env["fix.cost.allocation"]
+        .with_user(user)
+        .create(
+            {
+                "name": "Rent Sep %d" % next(_SEQ),
+                "pool_id": pool.pool.id,
+                "date_from": date(2026, 9, 1),
+                "date_to": date(2026, 9, 30),
+            }
+        )
     )
 
 
@@ -489,17 +533,15 @@ def test_m54_L04_overlapping_period_refused(c, pool):
     a.with_user(c.acct2).action_post()
     b = _alloc(c, pool, c.acct)
     b.with_user(c.acct).action_compute()
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            b.with_user(c.acct2).action_post()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        b.with_user(c.acct2).action_post()
 
 
 def test_m54_L05_fixed_shares_must_total_100(c, pool):
     pool.pool.share_ids[0].write({"percent": 90.0})
     a = _alloc(c, pool, c.acct)
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            a.with_user(c.acct).action_compute()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        a.with_user(c.acct).action_compute()
 
 
 def test_m54_L06_posted_state_cannot_be_typed(c, pool):

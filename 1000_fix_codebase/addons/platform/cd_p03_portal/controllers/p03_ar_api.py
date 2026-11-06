@@ -59,6 +59,25 @@ def _invoice_row(inv):
     }
 
 
+# The controlled lists the single-value prompts offer (M20-10, M20-11).
+DUNNING_SUPPRESSIONS = ("dispute", "payment_plan", "strategic")
+DISPUTE_OUTCOME_CODES = (
+    "upheld_credit",
+    "partially_upheld",
+    "rejected",
+    "withdrawn",
+    "payment_plan",
+)
+
+
+def _split_prompt(value, parts):
+    """A prompt's text split on "|" into exactly `parts` stripped values; the
+    missing ones are None. The last value keeps any further "|"."""
+    pieces = [p.strip() for p in str(value or "").split("|", parts - 1)]
+    pieces += [None] * (parts - len(pieces))
+    return [p or None for p in pieces]
+
+
 class P03ArApiController(http.Controller):
     """M20 in-workspace screen data."""
 
@@ -530,13 +549,24 @@ class P03ArApiController(http.Controller):
             return {"success": False, "error": _user_error(exc)}
 
     @http.route("/p03/ar/invoice/writeoff", type="jsonrpc", auth="user")
-    def ar_invoice_writeoff(self, invoice_id=None, reason=None, **kw):
+    def ar_invoice_writeoff(self, invoice_id=None, reason=None, recovery_history=None, **kw):
+        """The single prompt carries "reason | recovery history" (BRU-ARB-12);
+        the M20 Write-offs screen has the two fields separately."""
         _require_internal(request.env)
+        reason, recovery = _split_prompt(reason, 2)
+        recovery_history = recovery_history or recovery
         try:
             with request.env.cr.savepoint():
                 invoice = request.env["fix.ar.invoice"].browse(int(invoice_id))
-                invoice.action_write_off(reason or "")
-                return {"success": True, "state": invoice.state}
+                requests = invoice.action_write_off(
+                    reason or "", recovery_history=recovery_history or ""
+                )
+                return {
+                    "success": True,
+                    "state": invoice.state,
+                    "request": requests[:1].name,
+                    "request_state": requests[:1].state,
+                }
         except UserError as exc:
             return {"success": False, "error": _user_error(exc)}
 
@@ -745,12 +775,40 @@ class P03ArApiController(http.Controller):
             return {"success": False, "error": _user_error(exc)}
 
     @http.route("/p03/ar/dunning/suppress", type="jsonrpc", auth="user")
-    def ar_dunning_suppress(self, dunning_id=None, reason=None, **kw):
+    def ar_dunning_suppress(self, dunning_id=None, reason=None, until=None, note=None, **kw):
+        """A code from the controlled list, never a default: the single prompt
+        carries "code | until YYYY-MM-DD | note"; until and note are optional."""
+        _require_internal(request.env)
+        code, typed_until, typed_note = _split_prompt(reason, 3)
+        code = (code or "").lower().replace(" ", "_").replace("-", "_")
+        if code not in DUNNING_SUPPRESSIONS:
+            return {
+                "success": False,
+                "error": "Start with a suppression code: %s, then optionally "
+                "| until YYYY-MM-DD | note." % ", ".join(DUNNING_SUPPRESSIONS),
+            }
+        try:
+            with request.env.cr.savepoint():
+                row = request.env["fix.dunning"].browse(int(dunning_id))
+                row.action_suppress(code, until=until or typed_until, note=note or typed_note)
+                return {
+                    "success": True,
+                    "suppressed": row.suppressed,
+                    "until": str(row.suppressed_until or ""),
+                }
+        except ValueError:
+            return {"success": False, "error": "The until date is written YYYY-MM-DD."}
+        except UserError as exc:
+            return {"success": False, "error": _user_error(exc)}
+
+    @http.route("/p03/ar/dunning/lift", type="jsonrpc", auth="user")
+    def ar_dunning_lift(self, dunning_id=None, note=None, **kw):
+        """End a suppression early (logged)."""
         _require_internal(request.env)
         try:
             with request.env.cr.savepoint():
                 row = request.env["fix.dunning"].browse(int(dunning_id))
-                row.action_suppress(reason or "strategic")
+                row.action_lift_suppression(note=note or "")
                 return {"success": True, "suppressed": row.suppressed}
         except UserError as exc:
             return {"success": False, "error": _user_error(exc)}
@@ -772,13 +830,31 @@ class P03ArApiController(http.Controller):
             return {"success": False, "error": _user_error(exc)}
 
     @http.route("/p03/ar/dispute/resolve", type="jsonrpc", auth="user")
-    def ar_dispute_resolve(self, dispute_id=None, note=None, **kw):
+    def ar_dispute_resolve(self, dispute_id=None, note=None, outcome_code=None, **kw):
+        """BRU-ARB-17: a dispute closes with an outcome code and a note. The
+        single prompt carries "code | note"; the route always sent no code, so
+        the Resolve button could only fail."""
         _require_internal(request.env)
+        if not outcome_code:
+            first, rest = _split_prompt(note, 2)
+            code = (first or "").lower().replace(" ", "_").replace("-", "_")
+            if code in DISPUTE_OUTCOME_CODES:
+                outcome_code, note = code, rest
+            else:
+                return {
+                    "success": False,
+                    "error": "Start with an outcome code: %s, then | the resolution note."
+                    % ", ".join(DISPUTE_OUTCOME_CODES),
+                }
         try:
             with request.env.cr.savepoint():
                 dispute = request.env["fix.ar.dispute"].browse(int(dispute_id))
-                dispute.action_resolve(note or "")
-                return {"success": True, "state": dispute.state}
+                dispute.action_resolve(note or "", outcome_code=outcome_code)
+                return {
+                    "success": True,
+                    "state": dispute.state,
+                    "outcome_code": dispute.outcome_code,
+                }
         except UserError as exc:
             return {"success": False, "error": _user_error(exc)}
 

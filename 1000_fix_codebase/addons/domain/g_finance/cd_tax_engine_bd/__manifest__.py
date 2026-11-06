@@ -27,7 +27,7 @@ CD-M51-01..05 (W3 slice per MV-03) + the P07-M04 completion:
 
 VAT returns and filing (Mushak 9.1) are explicitly W4 (roadmap P06-M02-T09).
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Tax",
@@ -39,6 +39,7 @@ VAT returns and filing (Mushak 9.1) are explicitly W4 (roadmap P06-M02-T09).
         "security/fix_a08_rules.xml",
         "data/fix_tax_master_data.xml",
         "data/fix_salary_tds_consumers.xml",
+        "data/fix_tax_reminder_cron.xml",
         "data/fix_tax_depreciation_data.xml",
         "data/fix_tax_register_data.xml",
         "views/fix_tax_engine_views.xml",

@@ -5,6 +5,7 @@
 # code: the company's VAT/tax adviser corrects a row without a release.
 # Rows that could not be confirmed against a primary NBR text are seeded
 # with verify_with_adviser=True and say so on every screen that shows them.
+import logging
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -12,6 +13,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from . import return_logic, tax_logic
+
+_logger = logging.getLogger(__name__)
 
 TAX_KINDS = [
     ("vat", "VAT"),
@@ -99,6 +102,25 @@ class FixJournalPostingLogTax(models.Model):
 
 
 MANAGER_GROUP = "account.group_account_manager"
+# BRU-TAX-22 "the CFO approves": the same appointment that files the returns.
+CFO_GROUP = "cd_tax_engine_bd.group_tax_filing_approver"
+# A08 M51-6: rows in force that are not signed off KEEP WORKING (25 of 26 rates
+# and 4 of 4 parameters are flagged today: refusing them would stop every bill
+# and invoice). They warn, show on the document and report, and queue on the
+# Sign-Off Queue screen. Set this to 1 once the queue is empty: find_rate and
+# get_value then refuse an unsigned row.
+ENFORCE_SIGNOFF_PARAM = "cd_tax_engine_bd.enforce_rate_signoff"
+SIGNOFF_STATES = [
+    ("adviser", "Awaiting Adviser"),
+    ("cfo", "Awaiting CFO"),
+    ("signed", "Signed Off"),
+]
+DEADLINE_REMINDER_PARAM = "cd_tax_engine_bd.deadline_reminder_days"
+DEADLINE_REMINDER_DEFAULT = 7
+DEADLINE_ESCALATE_PARAM = "cd_tax_engine_bd.deadline_escalate_days"
+DEADLINE_ESCALATE_DEFAULT = 3
+DEADLINE_LOOKBACK_PARAM = "cd_tax_engine_bd.deadline_lookback_days"
+DEADLINE_LOOKBACK_DEFAULT = 90
 MASTER_STATES = [
     ("proposed", "Proposed (awaiting activation)"),
     ("active", "Active"),
@@ -121,16 +143,51 @@ def float_param(env, key, default):
         return float(default)
 
 
+def signoff_enforced(env):
+    raw = env["ir.config_parameter"].sudo().get_param(ENFORCE_SIGNOFF_PARAM)
+    return str(raw or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def tax_alert(record, company, summary, note, groups, deadline=None):
+    """A to-do for each active member of `groups` in `company`, once per
+    person while one with the same summary is open. Posts nothing."""
+    env = record.env
+    record = record.sudo()
+    done = record.activity_ids.filtered(lambda a: a.summary == summary).mapped("user_id")
+    created = env["mail.activity"]
+    for xmlid in groups:
+        group = env.ref(xmlid, raise_if_not_found=False)
+        if not group:
+            continue
+        for user in group.sudo().all_user_ids.filtered(
+            lambda u: u.active and not u.share and company in u.company_ids
+        ):
+            if user in done:
+                continue
+            done |= user
+            created |= record.activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=deadline,
+                summary=summary,
+                note=note,
+                user_id=user.id,
+            )
+    return created
+
+
 class _MasterApproval(models.AbstractModel):
     """Two-step change of a statutory master row (A08 M51-6, BRU-TAX-22/23).
 
     A user's new row is a PROPOSAL: it is never used (find_rate, get_value,
     the calendar and the VAT determination read ACTIVE rows only), it is
-    flagged "verify with adviser", and an accounting manager who is not its
-    proposer activates it only after the adviser's written confirmation is
-    recorded on it. An active row is never edited in place: a change is a new
-    proposal, whose activation closes (or retires) the row it supersedes.
-    Rows written by trusted system code (seed data, sudo) are active at once."""
+    flagged "verify with adviser", and the CFO (the filing approver), who
+    neither proposed it nor recorded the confirmation, activates it only after
+    an accounting manager records the adviser's written confirmation on it. An
+    active row is never edited in place: a change is a new proposal, whose
+    activation closes (or retires) the row it supersedes. Rows written by
+    trusted system code (seed data, sudo) are active at once, and a seeded row
+    flagged for the adviser goes through the same two steps while in force
+    (action_record_adviser_verification, then action_cfo_signoff)."""
 
     _name = "fix.tax.master.approval.mixin"
     _inherit = ["fix.guarded.mixin"]
@@ -166,6 +223,19 @@ class _MasterApproval(models.AbstractModel):
     )
     activated_by_id = fields.Many2one("res.users", string="Activated By", readonly=True, copy=False)
     activated_at = fields.Datetime(string="Activated On", readonly=True, copy=False)
+    cfo_signed_by_id = fields.Many2one(
+        "res.users", string="CFO Sign-Off By", readonly=True, copy=False
+    )
+    cfo_signed_at = fields.Datetime(string="CFO Sign-Off On", readonly=True, copy=False)
+    signoff_state = fields.Selection(
+        SIGNOFF_STATES,
+        string="Sign-Off",
+        compute="_compute_signoff_state",
+        store=True,
+        index=True,
+        help="BRU-TAX-22: the adviser's written confirmation, then the CFO. A seeded row with "
+        "no flag was confirmed before this record existed.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -177,7 +247,34 @@ class _MasterApproval(models.AbstractModel):
             "adviser_verified_at",
             "activated_by_id",
             "activated_at",
+            "cfo_signed_by_id",
+            "cfo_signed_at",
         }
+
+    @api.depends("verify_with_adviser", "adviser_reference", "cfo_signed_by_id")
+    def _compute_signoff_state(self):
+        for rec in self:
+            if rec.verify_with_adviser:
+                rec.signoff_state = "adviser"
+            elif rec.adviser_reference and not rec.cfo_signed_by_id:
+                rec.signoff_state = "cfo"
+            else:
+                rec.signoff_state = "signed"
+
+    def _fix_signoff_check(self):
+        """Called where a row in force is used: warn, or refuse once the company
+        has decided to enforce it (see ENFORCE_SIGNOFF_PARAM)."""
+        for rec in self.filtered(lambda r: r.signoff_state != "signed"):
+            if signoff_enforced(rec.env):
+                raise UserError(
+                    "%s is not signed off by the adviser and the CFO (%s is set), so it is not "
+                    "used. See the Sign-Off Queue." % (rec.display_name, ENFORCE_SIGNOFF_PARAM)
+                )
+            _logger.warning(
+                "%s used before its sign-off (%s): see the M51 Sign-Off Queue",
+                rec.display_name,
+                dict(SIGNOFF_STATES).get(rec.signoff_state),
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -265,9 +362,9 @@ class _MasterApproval(models.AbstractModel):
             raise UserError("%s needs the Accounting Administrator role." % what)
 
     def action_record_adviser_verification(self, reference=None):
-        """Record the adviser's written confirmation of a proposal, or of a
-        seeded row already in force (which clears its verify flag and changes
-        nothing else)."""
+        """Step one: record the adviser's written confirmation of a proposal,
+        or of a seeded row already in force (which clears its verify flag and
+        changes nothing else). The row then waits for the CFO."""
         self._fix_require_manager("Recording the adviser's confirmation")
         for rec in self:
             ref = (reference or rec.adviser_reference_input or "").strip()
@@ -286,30 +383,68 @@ class _MasterApproval(models.AbstractModel):
             )
         return True
 
+    def _fix_require_cfo(self, what):
+        if self.env.su or self.env.user.has_group(CFO_GROUP):
+            return
+        group = self.env.ref(CFO_GROUP, raise_if_not_found=False)
+        raise UserError("%s needs the %s role." % (what, group.name if group else CFO_GROUP))
+
     def action_activate(self):
-        """Second step: an accounting manager who did not propose the row
-        activates it, once the adviser's confirmation is recorded."""
-        self._fix_require_manager("Activating a statutory master row")
+        """Second step: the CFO, who neither proposed the row nor recorded the
+        confirmation, activates it once the adviser's confirmation is recorded.
+        (The CFO need not hold the accounting ACLs: the check is here.)"""
+        self._fix_require_cfo("Activating a statutory master row")
         for rec in self:
             if rec.state != "proposed":
                 raise UserError("%s is not a proposal." % rec.display_name)
-            if not self.env.su and self.env.user in (rec.proposed_by_id | rec.create_uid):
+            makers = rec.proposed_by_id | rec.create_uid | rec.adviser_verified_by_id
+            if not self.env.su and self.env.user in makers:
                 raise UserError(
-                    "Segregation of duties: %s was proposed by you; a different accounting "
-                    "manager activates it." % rec.display_name
+                    "Segregation of duties: you proposed %s or recorded its confirmation; the "
+                    "CFO who did neither activates it." % rec.display_name
                 )
             if rec.verify_with_adviser:
                 raise UserError(
                     "%s is flagged verify-with-adviser: record the adviser's written "
                     "confirmation before it is activated." % rec.display_name
                 )
-            rec._fix_master_supersede()
-            rec._guarded().write(
+            row = rec.sudo()
+            row._fix_master_supersede()
+            row._guarded().write(
                 {
                     "state": "active",
                     "activated_by_id": self.env.uid,
                     "activated_at": fields.Datetime.now(),
+                    "cfo_signed_by_id": self.env.uid,
+                    "cfo_signed_at": fields.Datetime.now(),
                 }
+            )
+        return True
+
+    def action_cfo_signoff(self):
+        """Second step for a row already in force: the CFO accepts the adviser's
+        confirmation someone else recorded. Changes nothing but the sign-off."""
+        self._fix_require_cfo("Signing off a statutory master row")
+        for rec in self:
+            if rec.state != "active":
+                raise UserError("%s is not in force; a proposal is activated." % rec.display_name)
+            if rec.signoff_state != "cfo":
+                raise UserError(
+                    "%s: %s."
+                    % (
+                        rec.display_name,
+                        "record the adviser's written confirmation first"
+                        if rec.signoff_state == "adviser"
+                        else "it is already signed off",
+                    )
+                )
+            if not self.env.su and self.env.user == rec.adviser_verified_by_id:
+                raise UserError(
+                    "Segregation of duties: you recorded the adviser's confirmation of %s; the "
+                    "CFO who did not signs it off." % rec.display_name
+                )
+            rec.sudo()._guarded().write(
+                {"cfo_signed_by_id": self.env.uid, "cfo_signed_at": fields.Datetime.now()}
             )
         return True
 
@@ -475,6 +610,7 @@ class FixTaxRate(models.Model):
         for ptype in dict.fromkeys([payee_type or "any", "any"]):
             row = self._company_first([*base, ("payee_type", "=", ptype)], company)
             if row:
+                row._fix_signoff_check()
                 return self.browse(row.id)
         raise UserError(
             "No effective %s rate for %r on %s in %s — maintain it in the Tax Rate Master "
@@ -496,6 +632,8 @@ class FixTaxRate(models.Model):
             *Rate._window_domain(on_date),
         ]
         reduced = Rate._company_first(window, company, limit=None)
+        if signoff_enforced(self.env):
+            reduced = reduced.filtered(lambda r: r.signoff_state == "signed")
         return tax_logic.VatRates(
             standard=Decimal(str(standard.rate)),
             reduced=frozenset(Decimal(str(r.rate)) for r in reduced),
@@ -559,6 +697,7 @@ class FixTaxParameter(models.Model):
                 "Statutory parameter %r has no row valid on %s for %s — maintain it "
                 "under Tax Rate Master > Statutory Parameters." % (key, on_date, company.name)
             )
+        row._fix_signoff_check()
         return row.value
 
 
@@ -760,6 +899,44 @@ class FixStatutoryDueRule(models.Model):
                 len(open_lines),
             )
         return "open", "Record the filing evidence when done"
+
+    @api.model
+    def _cron_deadline_reminders(self):
+        """AUT-TAX-07 / BRU-TAX-09 (ir.cron, daily): an open obligation due within
+        the reminder window, or overdue, is a to-do for the Accounting
+        Administrators; close to the deadline or past it, for the CFO too. One
+        to-do per person, obligation and period. Posts nothing, files nothing."""
+        today = fields.Date.context_today(self)
+        ahead = int(float_param(self.env, DEADLINE_REMINDER_PARAM, DEADLINE_REMINDER_DEFAULT))
+        urgent = int(float_param(self.env, DEADLINE_ESCALATE_PARAM, DEADLINE_ESCALATE_DEFAULT))
+        back = int(float_param(self.env, DEADLINE_LOOKBACK_PARAM, DEADLINE_LOOKBACK_DEFAULT))
+        count = 0
+        for company in self.env["res.company"].sudo().search([]):
+            rows = self.sudo().calendar(
+                today - timedelta(days=back), today + timedelta(days=ahead), company
+            )
+            for row in rows:
+                if row["status"] not in ("due", "overdue"):
+                    continue
+                late = row["status"] == "overdue"
+                groups = [MANAGER_GROUP]
+                if late or (row["due_date"] - today).days <= urgent:
+                    groups.append(CFO_GROUP)
+                summary = "%s: %s %s" % (
+                    "OVERDUE" if late else "Statutory deadline",
+                    row["rule"].name,
+                    row["period"],
+                )
+                note = "%s for %s is due on %s. %s." % (
+                    row["rule"].name,
+                    row["period"],
+                    row["due_date"],
+                    row["detail"],
+                )
+                count += len(
+                    tax_alert(row["rule"], company, summary, note, groups, row["due_date"])
+                )
+        return count
 
 
 class FixStatutoryFiling(models.Model):

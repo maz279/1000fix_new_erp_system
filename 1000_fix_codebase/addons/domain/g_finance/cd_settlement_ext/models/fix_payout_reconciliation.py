@@ -7,6 +7,11 @@
 # amount, per payee). A run with nothing released to treasury has nothing
 # to reconcile, and the outcome (state) is the run's, never typed.
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    GROUP_ADMINISTRATOR,
+    require_role,
+)
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
@@ -102,7 +107,10 @@ class FixPayoutReconciliation(models.Model):
         tracking=True,
     )
 
-    break_notes = fields.Text(string="Break Notes / অসঙ্গতি বিবরণ")
+    break_notes = fields.Text(string="Break Notes / অসঙ্গতি বিবরণ", readonly=True)
+    ran_by_id = fields.Many2one("res.users", string="Last Run By", readonly=True, copy=False)
+    resolved_by_id = fields.Many2one("res.users", string="Resolved By", readonly=True, copy=False)
+    resolved_at = fields.Datetime(string="Resolved On", readonly=True, copy=False)
     line_ids = fields.One2many(
         "fix.payout.reconciliation.line", "reconciliation_id", string="Break Lines"
     )
@@ -115,6 +123,10 @@ class FixPayoutReconciliation(models.Model):
             "rail_count",
             "rail_amount",
             "line_ids",
+            "break_notes",
+            "ran_by_id",
+            "resolved_by_id",
+            "resolved_at",
         }
 
     @api.model_create_multi
@@ -133,7 +145,7 @@ class FixPayoutReconciliation(models.Model):
         it (executed with an imported statement line)."""
         self.ensure_one()
         out = {}
-        for line in self.payout_run_id.line_ids.filtered(lambda ln: ln.amount > 0.005):
+        for line in self.payout_run_id._fix_active_lines().filtered(lambda ln: ln.amount > 0.005):
             pay = line.payment_execution_id.sudo()
             confirmed = bool(pay) and pay.state == "executed" and bool(pay.statement_line_id)
             amount = (
@@ -170,9 +182,11 @@ class FixPayoutReconciliation(models.Model):
         for rec in self:
             if not rec.payout_run_id:
                 raise UserError("Select a payout run to reconcile")
+            if rec.state == "resolved":
+                raise UserError("Reconciliation %s is resolved: open a new one." % rec.name)
 
             run = rec.payout_run_id
-            lines = run.line_ids.filtered(lambda ln: ln.amount > 0.005)
+            lines = run._fix_active_lines().filtered(lambda ln: ln.amount > 0.005)
             if not lines.filtered("payment_execution_id"):
                 raise UserError(
                     "Payout run %s has released nothing to treasury (%s): there is no "
@@ -191,9 +205,7 @@ class FixPayoutReconciliation(models.Model):
                         "system_amount": line.amount,
                         "rail_amount": amount,
                         "discrepancy": round(line.amount - amount, 2),
-                        "record_date": fields.Date.to_date(
-                            line.payment_execution_id.create_date
-                        )
+                        "record_date": fields.Date.to_date(line.payment_execution_id.create_date)
                         if line.payment_execution_id
                         else fields.Date.context_today(rec),
                         "status": "discrepancy" if confirmed else "unmatched",
@@ -201,8 +213,9 @@ class FixPayoutReconciliation(models.Model):
                 )
             rec._guarded().write(
                 {
+                    "ran_by_id": self.env.uid,
                     "system_count": len(lines),
-                    "system_amount": run.approved_total or run.total_payable,
+                    "system_amount": round(sum(lines.mapped("amount")), 2),
                     "rail_count": len([1 for _a, ok in bank.values() if ok]),
                     "rail_amount": round(sum(a for a, ok in bank.values() if ok), 2),
                 }
@@ -229,6 +242,53 @@ class FixPayoutReconciliation(models.Model):
                 )
             else:
                 rec._guarded().write({"state": "balanced"})
+
+    def _fix_add_break_note(self, note):
+        self.ensure_one()
+        stamp = "%s %s: %s" % (fields.Date.context_today(self), self.env.user.name, note.strip())
+        return "%s\n%s" % (self.break_notes, stamp) if self.break_notes else stamp
+
+    def action_investigate(self, note=""):
+        """A detected break is taken up: who, and what is being checked."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Investigating a payout break")
+        if not (note or "").strip():
+            raise UserError("Say what is being investigated.")
+        for rec in self:
+            if rec.state != "break_detected":
+                raise UserError(
+                    "Reconciliation %s shows no open break (%s)." % (rec.name, rec.state)
+                )
+            rec._guarded().write(
+                {"state": "investigating", "break_notes": rec._fix_add_break_note(note)}
+            )
+        return True
+
+    def action_resolve_break(self, note=""):
+        """The break is explained (BRU-REV-13): an Accounting Administrator who
+        did not run the reconciliation records why the difference stands. The
+        figures are not touched; re-running shows whether the money now agrees."""
+        require_role(self.env, GROUP_ADMINISTRATOR, "Resolving a payout break")
+        if not (note or "").strip():
+            raise UserError("Record what explains the break.")
+        for rec in self:
+            if rec.state not in ("break_detected", "investigating"):
+                raise UserError(
+                    "Reconciliation %s shows no open break (%s)." % (rec.name, rec.state)
+                )
+            if not self.env.su and rec.ran_by_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you ran %s; another Accounting Administrator resolves "
+                    "its break." % rec.name
+                )
+            rec._guarded().write(
+                {
+                    "state": "resolved",
+                    "break_notes": rec._fix_add_break_note(note),
+                    "resolved_by_id": self.env.uid,
+                    "resolved_at": fields.Datetime.now(),
+                }
+            )
+        return True
 
 
 class FixPayoutReconciliationLine(models.Model):

@@ -26,5 +26,13 @@
             <field name="method">consume_asset_event</field>
             <field name="module">cd_fixed_asset_ext</field>
         </record>
+        <!-- A08 M49-10, BRU-FXA-18: a disposal marked for physical disposal opens an M18 collection -->
+        <record id="consumer_asset_disposed_m18" model="fix.event.consumer">
+            <field name="name">M49: a routed disposal opens its M18 e-waste collection</field>
+            <field name="event_type">asset.disposed</field>
+            <field name="model">fix.asset.disposal</field>
+            <field name="method">consume_asset_disposed_m18</field>
+            <field name="module">cd_fixed_asset_ext</field>
+        </record>
     </data>
 </odoo>
