@@ -155,6 +155,10 @@ export const SCREENS = {
       { m: 'action_start_repair', l: 'Back on Bench (Rework)' }
     ] },
   'M31-costing': { kind: 'table_report', module: 'M31', report: 'cost_per_repair', period: false },
+  /* M31 sweep audit 2026-11-06 (D17): the genealogy and burn-in packs get
+   * their own screens - their tiles previously opened the nearest grids. */
+  'M31-rpt-genealogy': { kind: 'table_report', module: 'M31', report: 'parts_genealogy', title: 'Parts Genealogy Trace', period: false },
+  'M31-rpt-burnin': { kind: 'table_report', module: 'M31', report: 'burn_in', title: 'Burn-In Failure Report', period: false },
   'M31-throughput': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
   'M31-methods': { kind: 'table_report', module: 'M31', report: 'rework_loops', period: false },
 
@@ -358,12 +362,12 @@ export const SCREENS = {
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
-  "M31:Bench Utilisation by Workshop": "M31-benchmaster",
+  "M31:Bench Utilisation by Workshop": "M31-transfer",
   "M31:Repair Cycle Time by Level": "M31-throughput",
   "M31:Internal Rework Loop Analysis": "M31-methods",
   "M31:Workshop Cost per Repair": "M31-costing",
-  "M31:Parts Genealogy Trace": "M31-parts",
-  "M31:Burn-In Failure Report": "M31-testing"
+  "M31:Parts Genealogy Trace": "M31-rpt-genealogy",
+  "M31:Burn-In Failure Report": "M31-rpt-burnin"
 };
 
 /* data-entry form chips: repair orders are created from the M01 service
