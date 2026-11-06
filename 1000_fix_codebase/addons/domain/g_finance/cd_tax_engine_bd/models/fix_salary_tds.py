@@ -303,7 +303,7 @@ class FixTaxChallanSalary(models.Model):
                 ch.operating_unit_id,
             )
             rows.write({"state": "deposited"})
-            ch.write({"state": "deposited", "move_id": move.id})
+            ch._guarded().write({"state": "deposited", "move_id": move.id})
             publish(
                 self.env,
                 "tax_challan.deposited",
@@ -329,7 +329,9 @@ class FixTdsReturnSalary(models.Model):
 
     def action_prepare(self):
         res = super().action_prepare()
-        Line = self.env["fix.tds.return.line"]
+        # in-process prepare token: the A08 M51-1 line gate allows builds
+        # only from Prepare (this extension IS Prepare's salary leg)
+        Line = self.env["fix.tds.return.line"].with_context(fix_tds_return_prepare=True)
         for ret in self:
             start, end = quarter_bounds(ret.quarter)
             rows = (
@@ -368,7 +370,9 @@ class FixTdsReturnSalary(models.Model):
                     for row in rows
                 ]
             )
-            ret.write({"total_withheld": money(ret.total_withheld + sum(rows.mapped("amount")))})
+            ret._guarded().write(
+                {"total_withheld": money(ret.total_withheld + sum(rows.mapped("amount")))}
+            )
         return res
 
 

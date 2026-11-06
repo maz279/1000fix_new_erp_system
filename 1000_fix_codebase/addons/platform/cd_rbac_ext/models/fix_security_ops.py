@@ -77,10 +77,27 @@ class FixJmlEvent(models.Model):
     def _apply_role_grant(self, user, role):
         """Grant every Odoo group the role maps to. Runs the SoD gate first
         (A12 R2: all held roles x the new role)."""
-        self.env["fix.sod.control"].check_user_assignment(user, role)
-        groups = self.env["fix.sod.control"]._role_groups(role)
+        Sod = self.env["fix.sod.control"]
+        Sod.check_user_assignment(user, role)
+        groups = Sod._role_groups(role)
         if not groups:
             raise UserError("Role %s maps to no Odoo group, so it cannot be granted" % role.code)
+        # A08 S4: the group write below runs as a service (sudo), and the
+        # res.users SoD door lets superuser writes through as "data loading".
+        # So this workflow grant checks the GROUP-pair duties itself, strict,
+        # before anything changes. Role pairs stay with the A12/A10 gates
+        # above: a request's approval is the waiver for a warn role control,
+        # which a group-pair exception record is not.
+        index = Sod._fix_index()
+        before = Sod._fix_conflicts(user=user, index=index)
+        after = Sod._fix_conflicts(user=user, extra_groups=groups, index=index)
+        Sod._fix_enforce(
+            user,
+            before,
+            before | (after - before).filtered(lambda c: c.control_type == "group"),
+            "role %s granted" % role.code,
+            strict=True,
+        )
         user.sudo().write({"group_ids": [(4, gid) for gid in groups.ids]})
         user.invalidate_recordset(["group_ids"])
         return groups

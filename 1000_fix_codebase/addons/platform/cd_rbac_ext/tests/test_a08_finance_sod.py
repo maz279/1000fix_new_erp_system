@@ -53,6 +53,12 @@ def _user(env, label, groups=()):
     )
 
 
+def _access_approver(env):
+    """A real Access Approver (A12 X1): the one role that may decide an
+    access request, and never the requester/beneficiary of it."""
+    return _user(env, "Access Approver", [env.ref("cd_rbac_ext.group_access_approver")])
+
+
 @pytest.fixture
 def granters(odoo_env):
     """A non-admin access administrator (Access Rights + HR Officer, not Settings) and
@@ -121,7 +127,8 @@ def _grant(env, path, actor, target, group):
         request = env["fix.access.request"].create(
             {"user_id": target.id, "role_id": role.id, "reason": "SoD probe"}
         )
-        request.action_approve()
+        approver = _access_approver(env)
+        request.with_user(approver).action_approve()
         request.with_user(actor).action_grant()
     elif path == "jml_apply":
         role = _role(env, group)
@@ -413,7 +420,8 @@ def test_role_pair_control_is_refused_at_access_request_and_assign_role(odoo_env
     request = env["fix.access.request"].create(
         {"user_id": holder.id, "role_id": rb.id, "reason": "probe"}
     )
-    request.action_approve()
+    approver = _access_approver(env)
+    request.with_user(approver).action_approve()
     with pytest.raises(ValidationError, match="Probe pair"), env.cr.savepoint():
         request.with_user(granters["non_admin"]).action_grant()
     emp = _employee(env, holder)
@@ -430,11 +438,15 @@ def test_superuser_grant_is_allowed_and_logged_but_workflow_grant_is_not(odoo_en
     audit = env["fix.security.audit"].search([("object_ref", "=", "res.users,%s" % holder.id)])
     assert any(control.code in (a.detail or "") for a in audit)
     # The explicit workflow grant is checked whoever calls it, even sudo().
+    # (A12 X1 composition: the decision needs a real Access Approver, and
+    # the grant needs the intact approved request — superuser staging of the
+    # DECISION is refused, so the approver is staged through the group.)
     other = _user(env, "Holder 2", [ga])
+    approver = _access_approver(env)
     request = env["fix.access.request"].create(
         {"user_id": other.id, "role_id": _role(env, gb).id, "reason": "probe"}
     )
-    request.action_approve()
+    request.with_user(approver).action_approve()
     with pytest.raises(ValidationError, match=control.code), env.cr.savepoint():
         request.sudo().action_grant()
 

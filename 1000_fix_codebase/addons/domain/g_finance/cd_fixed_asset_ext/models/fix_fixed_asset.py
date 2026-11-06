@@ -779,6 +779,12 @@ class FixCwipEntry(models.Model):
         )
         if taken:
             raise UserError(self.env._("These costs are already booked to %s.", taken.name))
+        already = lines.filtered(lambda ln: ln in self.cost_line_ids)
+        if already:
+            # booked-once applies to the SAME project too (B5 contract): an
+            # (4, id) relink of an already-linked line is a silent no-op
+            # otherwise, and the double booking went unrefused
+            raise UserError(self.env._("These costs are already booked to %s.", self.name))
         self._guarded().write({"cost_line_ids": [(4, ln.id) for ln in lines]})
         return True
 

@@ -328,18 +328,28 @@ class FixTdsReturnA08(models.Model):
 
 class FixTdsReturnLineA08(models.Model):
     """The detail lines are rebuilt by the return's preparation only (A08
-    M51-1): a typed line with a typed challan number is not a deposit."""
+    M51-1): a typed line with a typed challan number is not a deposit.
+
+    The salary-TDS extension of action_prepare (fix_salary_tds.py) also
+    builds lines from the salary rows; it runs in-process, so it carries
+    the same in-process token the base preparation uses."""
 
     _inherit = "fix.tds.return.line"
 
+    _PREPARE_CTX = "fix_tds_return_prepare"
+
     @api.model_create_multi
     def create(self, vals_list):
-        if not self.env.su:
+        if not self.env.su and not self.env.context.get(self._PREPARE_CTX):
             raise UserError("TDS return lines are built by Prepare from Deductions")
         return super().create(vals_list)
 
     def write(self, vals):
-        if not self.env.su and set(vals) - {"message_follower_ids"}:
+        if (
+            not self.env.su
+            and not self.env.context.get(self._PREPARE_CTX)
+            and set(vals) - {"message_follower_ids"}
+        ):
             raise UserError("TDS return lines are built by Prepare from Deductions")
         return super().write(vals)
 
