@@ -162,7 +162,7 @@ export const SCREENS = {
     stateField: 'state' },
   'M03-journeys': { kind: 'model_list', model: 'fix.custody.scan', create: false,
     cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'scanned_by_user_id', 'location_branch_id', 'device_serial', 'exception_reason'] },
-  'M03-manifest': { kind: 'table_report', module: 'M03', report: 'cycle_time', period: false },
+  'M03-manifest': { kind: 'table_report', module: 'M03', report: 'manifest_register', title: 'Item Manifests', period: false },
   'M03-custody': { kind: 'model_list', model: 'fix.custody.scan', create: false,
     cols: ['consignment_id', 'step', 'scanned_at', 'exception_reason', 'device_serial'],
     domain: [['exception_reason', '!=', false]] },
@@ -181,7 +181,7 @@ export const SCREENS = {
     cols: ['name', 'rider_id', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id', 'dest_branch_id'],
     domain: [['rider_id', '!=', false]] },
   'M03-routes': { kind: 'table_report', module: 'M03', report: 'reverse_volume', period: false },
-  'M03-app': { kind: 'table_report', module: 'M03', report: 'cycle_time', period: false },
+  'M03-app': { kind: 'table_report', module: 'M03', report: 'rider_day', title: 'Rider App (P09) Preview', period: false },
   'M03-couriers': { kind: 'model_list', model: 'fix.courier.partner', cols: ['name', 'code', 'service_area', 'base_rate', 'cod_supported', 'cod_cycle_days', 'active'] },
   'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [
       { m: 'action_pick_up', l: 'Handed to Courier' },
@@ -197,11 +197,17 @@ export const SCREENS = {
       { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
       { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' }
     ] },
-  'M03-charges': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Charges', period: false },
+  'M03-charges': { kind: 'table_report', module: 'M03', report: 'zone_charges', title: 'Distance & Zone Charging', period: false },
   'M03-cod': { kind: 'table_report', module: 'M03', report: 'cod_settlement', period: false },
 
   /* computed pack that had no screen (closure 2026-10-28) */
   'M03-rpt-damage': { kind: 'table_report', module: 'M03', report: 'damage_claims', title: "Damage & Claims", period: false },
+  /* M03 sweep audit 2026-11-06 (D17): the registry report tiles now open
+   * their own computed reports instead of the nearest grid. */
+  'M03-rpt-cycletime': { kind: 'table_report', module: 'M03', report: 'cycle_time', title: 'Consignment Cycle Time', period: false },
+  'M03-rpt-custody': { kind: 'table_report', module: 'M03', report: 'custody_exceptions', title: 'Custody Exception Register', period: false },
+  'M03-rpt-courier': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Performance', period: false },
+  'M03-rpt-reverse': { kind: 'table_report', module: 'M03', report: 'reverse_volume', title: 'Reverse Logistics Volume', period: false },
 
   /* ===== service data-entry forms (registry names) ===== */
   'M03-form-consignment': {
@@ -351,12 +357,12 @@ export const SCREENS = {
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
   'M03:Damage & Claims': 'M03-rpt-damage',
-  "M03:Consignment Cycle Time": "M03-cons",
-  "M03:Custody Exception Register": "M03-seals",
-  "M03:Courier Performance (Pathao/RedX/Steadfast)": "M03-couriers",
+  "M03:Consignment Cycle Time": "M03-rpt-cycletime",
+  "M03:Custody Exception Register": "M03-rpt-custody",
+  "M03:Courier Performance (Pathao/RedX/Steadfast)": "M03-rpt-courier",
   "M03:COD Settlement Report": "M03-cod",
-  "M03:Reverse Logistics Volume": "M03-routes",
-  "M03:Damage & Insurance Claims": "M03-exc"
+  "M03:Reverse Logistics Volume": "M03-rpt-reverse",
+  "M03:Damage & Insurance Claims": "M03-rpt-damage"
 };
 
 /* data-entry form chips: consignments are created from the M01 service
