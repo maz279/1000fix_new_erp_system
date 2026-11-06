@@ -1316,9 +1316,13 @@ def test_s1_cooling_off_before_first_payment(c):
     approve(c, bill(c, 10000.0))
     r = run(c)
     r.with_user(c.acc1).action_propose()
+    # the payee drops out of the run with the reason, so nothing is payable yet
+    assert "cooling-off" in r.line_ids.skip_reason
     assert refused(c.env, lambda: r.with_user(c.acc1).action_submit())
     c.env["ir.config_parameter"].sudo().set_param("cd_ap_ext.bank_cooling_off_hours", "0")
+    r.with_user(c.acc1).action_propose()  # the wait is over: propose again
     r.with_user(c.acc1).action_submit()
+    assert r.state == "to_approve"
 
 
 def test_s1_supplier_accounts_go_through_m42(c):

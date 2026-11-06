@@ -250,6 +250,17 @@ class FixPaymentRun(models.Model):
                     }
                 )
             run.line_ids._guarded()._apply_skip_rules()
+            # A08 S1: one vendor with no confirmed account must not stop the run
+            # for everyone else. The line drops out with its reason on the form;
+            # its bills stay in the pool for the next run once the account is
+            # confirmed. A line that goes bad later is still refused at submit,
+            # approve and release: only the proposal skips.
+            for line in run.line_ids.filtered(lambda ln: ln.state == "proposed"):
+                problems = run._line_problems(line)
+                if problems:
+                    line._guarded().write(
+                        {"state": "skipped", "skip_reason": "; ".join(problems)[:250]}
+                    )
             run._guarded().write({"state": "proposed"})
         return True
 

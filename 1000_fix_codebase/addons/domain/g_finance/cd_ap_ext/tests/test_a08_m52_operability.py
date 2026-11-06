@@ -33,11 +33,13 @@ from odoo.addons.cd_ap_ext.tests.test_a08_m52_controls import (
     claim,
     disbursed_advance,
     refused,
+    run,
     treasury_execute,
     treasury_fail,
 )
 from odoo.addons.cd_cash_position.models.treasury_common import post_treasury_move
 from odoo.addons.cd_p03_portal.controllers.form_fields import editable_by_model
+from odoo.exceptions import UserError
 
 pytestmark = [pytest.mark.financial]
 
@@ -823,3 +825,54 @@ def test_evidence_upload_helper_needs_a_file(c):  # noqa: F811
     assert len(profile.psr_attachment_ids) == count
     # the form re-posts nothing it does not hold: the upload field reads back empty
     assert not profile.psr_evidence_file
+
+
+def test_s1_a_payee_with_no_account_is_an_exception_not_a_block(c, m52_js):  # noqa: F811
+    """One vendor with no confirmed account used to stop the run for everyone:
+    submit refused the whole run, and the form never showed which line was at fault."""
+    good = bill(c, 10000.0)
+    approve(c, good)
+    stranger = c.env["res.partner"].create({"name": "A08 Vendor With No Bank"})
+    stuck = bill(c, 7000.0, vendor=stranger)
+    approve(c, stuck)
+    r = run(c)
+    r.with_user(c.acc1).action_propose()
+    lines = {line.partner_id: line for line in r.line_ids}
+    assert lines[stranger].state == "skipped"
+    assert "no bank account" in lines[stranger].skip_reason
+    assert lines[c.vendor.commercial_partner_id].state == "proposed"
+    # the run goes ahead for the payable vendor, and only for them
+    r.with_user(c.acc1).action_submit()
+    assert r.state == "to_approve"
+    assert r.total_amount == lines[c.vendor.commercial_partner_id].amount
+    # the skipped bill stays in the pool, not locked to this run
+    assert stuck.payment_state == "not_paid"
+    # the run's form shows the payees and why one dropped out, and edits none of them
+    form = m52_js["screens"]["M52-form-aprun"]
+    assert form["lines"]["field"] == "line_ids" and form["lines"]["readonlyGrid"] is True
+    shown = {f["name"] for f in form["lines"]["fields"]}
+    assert {"partner_id", "amount", "state", "skip_reason"} <= shown
+
+
+def test_s1_every_payee_unpayable_still_refuses_at_submit(c):  # noqa: F811
+    stranger = c.env["res.partner"].create({"name": "A08 Only Vendor With No Bank"})
+    approve(c, bill(c, 7000.0, vendor=stranger))
+    r = run(c)
+    r.with_user(c.acc1).action_propose()
+    assert set(r.line_ids.mapped("state")) <= {"skipped", "proposed"}
+    if not r.line_ids.filtered(lambda line: line.state == "proposed"):
+        with pytest.raises(UserError, match="Nothing payable"), c.env.cr.savepoint():
+            r.with_user(c.acc1).action_submit()
+
+
+def test_s1_an_account_that_goes_bad_after_the_proposal_is_refused_at_submit(c):  # noqa: F811
+    """Only the proposal skips: a line that was payable and stopped being so is a
+    refusal at submit, so a bank edit cannot slip past as a quiet skip."""
+    approve(c, bill(c, 10000.0))
+    r = run(c)
+    r.with_user(c.acc1).action_propose()
+    line = r.line_ids.filtered(lambda ln: ln.state == "proposed")
+    assert line
+    line.bank_account_id.sudo().write({"acc_number": "A08-CHANGED-AFTER-PROPOSAL"})
+    with pytest.raises(UserError, match="cannot be submitted"), c.env.cr.savepoint():
+        r.with_user(c.acc1).action_submit()

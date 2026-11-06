@@ -504,6 +504,7 @@ export const SCREENS = {
     model: 'fix.sod.mitigation',
     title: 'SoD Exception',
     back: 'M29-sod-exceptions',
+    status: { field: 'state', labels: { draft: 'Requested', approved: 'Approved', rejected: 'Rejected', revoked: 'Revoked' } },
     sections: [
       { title: 'Exception', note: 'A time-boxed exception lets one person hold both sides of a duty conflict. It takes effect only when someone other than the grantee and the requester approves it, and it ends on its own date.',
         fields: [
@@ -514,8 +515,7 @@ export const SCREENS = {
           { name: 'requested_by_id', readonly: true, label: 'Requested By' },
           { name: 'approved_by_id', readonly: true, label: 'Approved By' },
           { name: 'decided_on', readonly: true, label: 'Decided On' },
-          { name: 'is_live', readonly: true, label: 'In Force Today' },
-          { name: 'state', readonly: true, label: 'State' }
+          { name: 'is_live', readonly: true, label: 'In Force Today' }
         ] },
       { title: 'Justification', fields: [
           { name: 'mitigating_control', type: 'text', required: true, label: 'Mitigating Control' },

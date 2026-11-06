@@ -459,7 +459,22 @@ export const SCREENS = {
           { name: 'currency_id', required: true, label: "Currency" },
           { name: 'state', readonly: true, label: "State" }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'Payees in this run',
+      note: 'Build Proposal fills these. A payee with no confirmed bank account is Skipped with its reason and stays in the pool for the next run: confirm the account under Bank Accounts to Confirm.',
+      readonlyGrid: true,
+      fields: [
+        { name: 'partner_id', readonly: true, label: 'Payee' },
+        { name: 'bank_account_id', readonly: true, label: 'Bank Account' },
+        { name: 'gross_amount', readonly: true, label: 'Bills Gross' },
+        { name: 'tds_amount', readonly: true, label: 'TDS' },
+        { name: 'amount', readonly: true, label: 'To Pay' },
+        { name: 'state', readonly: true, label: 'State' },
+        { name: 'skip_reason', readonly: true, label: 'Why Skipped' }
+      ]
+    }
   },
 
 

@@ -1094,7 +1094,11 @@ def test_m63_40_coverage_sweep(c):
         "TOTAL approvable=%d routed=%d bespoke_models=%d"
         % (len(rows), sum(r[3] for r in rows), len(bespoke))
     )
-    unrouted = [r[1] for r in rows if not r[3]]
+    # fix.risk.register (A10 P1-5, M60-7) routes by appetite inside its own method:
+    # within appetite the Risk Owner signs; above it action_accept_residual raises
+    # the M63 request. test_a10_p15_risk_control proves both paths.
+    routed_by_condition = {"fix.risk.register"}
+    unrouted = [r[1] for r in rows if not r[3] and r[1] not in routed_by_condition]
     assert not unrouted, (
         "GAP: %d of %d approvable models are NOT routed (their approve method runs directly, "
         "outside the inbox): %s" % (len(unrouted), len(rows), ", ".join(unrouted))

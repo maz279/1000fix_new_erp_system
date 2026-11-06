@@ -209,8 +209,9 @@ def test_no_model_is_mastered_by_two_a04_modules():
     [
         ("M37-form-kit", "component_ids"),
         ("M36-form-estimate", "line_ids"),
-        ("M08-form-contract", "entitlement_ids"),
-        ("M09-form-claim", "evidence_ids"),
+        # these two keep their registry ids since the A04 screen-id restoration
+        ("M08-record", "entitlement_ids"),
+        ("M09-record", "evidence_ids"),
     ],
 )
 def test_named_forms_show_the_collection_that_defines_them(sid, field):

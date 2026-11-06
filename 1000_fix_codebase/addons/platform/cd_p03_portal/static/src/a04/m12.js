@@ -304,7 +304,7 @@ export const SCREENS = {
         { name: 'rail_type', label: 'Rail Type', required: true },
         { name: 'rail_status', label: 'Rail Status', readonly: true },
         { name: 'rail_batch_id', label: 'Rail Batch Reference', readonly: true },
-        { name: 'bank_confirmation_ref', label: 'Bank Confirmation Ref' },
+        { name: 'bank_confirmation_ref', readonly: true, label: 'Bank Confirmation Ref' },
         { name: 'beftn_file', label: 'BEFTN Batch File Content', readonly: true },
         { name: 'beftn_filename', label: 'BEFTN Filename', readonly: true }
       ] },

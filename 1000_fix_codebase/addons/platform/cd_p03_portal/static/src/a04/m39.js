@@ -165,7 +165,7 @@ export const SCREENS = {
       { tab: 'dunning', title: 'Dunning Escalation Ladder & Service Lock',
         note: 'Stage 1 (Day 3 SMS), Stage 2 (Day 7 Warning Email), Stage 3 (Day 14 Automated Service Order Lock).',
         fields: [
-          { name: 'dunning_step', required: true, label: 'Current Dunning Stage' },
+          { name: 'dunning_step', readonly: true, label: 'Current Dunning Stage' },
           { name: 'days_overdue', readonly: true, label: 'Days In Arrears' },
           { name: 'grace_period_days', label: 'Contractual Grace Period (Days)' }
         ] },

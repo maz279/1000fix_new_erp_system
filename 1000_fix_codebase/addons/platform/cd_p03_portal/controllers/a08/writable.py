@@ -780,7 +780,6 @@ WRITABLE = {
     ),
     "fix.payout.run": frozenset(
         {
-            "bank_confirmation_ref",
             "company_id",
             "currency_id",
             "name",
@@ -820,7 +819,6 @@ WRITABLE = {
     ),
     "fix.referral": frozenset(
         {
-            "base_amount",
             "company_id",
             "convert_invoice_id",
             "currency_id",
@@ -896,7 +894,6 @@ WRITABLE = {
             "contract_value",
             "currency_id",
             "customer_id",
-            "dunning_step",
             "grace_period_days",
             "name",
             "next_invoice_date",

@@ -2214,6 +2214,18 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         return v === undefined || v === null ? "" : v;
     }
 
+    /* Text of a read-only grid cell: a many2one arrives as {id, label}. */
+    formLineDisplay(rowIndex, name) {
+        const raw = this.formLineValue(rowIndex, name);
+        const meta = this.formLineMeta(name);
+        if (raw && typeof raw === "object") return raw.label || "";
+        if (meta.type === "selection") {
+            const hit = (meta.choices || []).find((c) => c.key === raw);
+            return hit ? this.t(hit.label) : raw;
+        }
+        return raw;
+    }
+
     formLineSelectValue(rowIndex, name) {
         const raw = this.formLineValue(rowIndex, name);
         if (raw && typeof raw === "object") return raw.id;
@@ -2294,7 +2306,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
         let lines = null;
         const lineCfg = this.formLineCfg;
-        if (lineCfg) {
+        if (lineCfg && !lineCfg.readonlyGrid) {
             const rows = [];
             for (const row of gl.form.lineValues || []) {
                 const vals = {};

@@ -61,7 +61,8 @@ def forms(root=STATIC):
                 if not re.search(r"\breadonly:\s*true", f.group(2))
             }
             grid = re.search(r"\bfield:\s*'([a-z0-9_]+)'", lines)
-            if grid:
+            # readonlyGrid: the grid only shows the children, so the form edits nothing there
+            if grid and "readonlyGrid: true" not in lines:
                 editable.add(grid.group(1))
             yield js.parent.name, sid, model.group(1), editable
 

@@ -415,7 +415,7 @@ export const SCREENS = {
         { name: 'payout_state', label: 'Payout State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'base_amount', label: 'Referred Revenue (Gross)' },
+        { name: 'base_amount', readonly: true, label: 'Referred Revenue (Gross)' },
         { name: 'commission_amount', label: 'Commission Earned', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
