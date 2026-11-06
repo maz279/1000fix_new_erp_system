@@ -73,7 +73,9 @@ def _capitalised(c, code, cost=40000.0):
         [("source_model", "=", "fix.equipment"), ("source_res_id", "=", eq.id)]
     )
     mine = _as(c, c.acct, "fix.asset.finance.request").browse(req.id)
-    mine.write({"category_id": c.category.id})
+    mine.write(
+        {"category_id": c.category.id, "acquisition_line_id": _shared._cost_item(c, cost).id}
+    )
     mine.action_accept()
     return eq
 
@@ -189,6 +191,12 @@ def test_a_received_transfer_of_a_capitalised_item_raises_one_draft_m49_transfer
         {"equipment_transfer_id": False},
     )
     _as(c, c.acct, "fix.asset.transfer").browse(draft.id).action_confirm()
+    # A08 M49-12: the asset moves only when the receiver acknowledges (here the keeper
+    # has no login, so finance does, as someone other than the sender)
+    assert draft.state == "confirmed" and asset.operating_unit_id == c.ou
+    other = _shared._user(c.env, "a07p1_brg_acct2", c.co, ou2, _shared.ACCOUNTANT)
+    other.write({"assigned_operating_unit_ids": [(4, c.ou.id), (4, ou2.id)]})
+    c.env["fix.asset.transfer"].with_user(other).browse(draft.id).action_acknowledge()
     assert draft.state == "done" and asset.operating_unit_id == ou2 and asset.custodian_id == keeper
 
 

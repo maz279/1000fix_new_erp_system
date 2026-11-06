@@ -130,23 +130,23 @@ def test_inputs_are_pulled_from_the_system_never_typed(m):
     company = [("company_id", "=", env.company.id)]
     base = {
         "complaints": env["fix.complaint"].sudo().search_count(company),
-        "critical": env["fix.complaint"].sudo().search_count(
-            [*company, ("severity", "=", "critical")]
-        ),
+        "critical": env["fix.complaint"]
+        .sudo()
+        .search_count([*company, ("severity", "=", "critical")]),
         "ncrs": env["fix.ncr"].sudo().search_count(company),
         "capas": env["fix.capa"].sudo().search_count(company),
         "copq": round(
             sum(
                 float(c.amount or 0.0)
-                for c in env["fix.qms.copq"].sudo().search(
-                    [*company, ("period", "<=", fields.Date.today().strftime("%Y-%m"))]
-                )
+                for c in env["fix.qms.copq"]
+                .sudo()
+                .search([*company, ("period", "<=", fields.Date.today().strftime("%Y-%m"))])
             ),
             2,
         ),
     }
     _source_data(env)
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     assert rec.inputs_missing == 6  # nothing pulled yet
     # the pull is the Quality Manager's act
     with pytest.raises(UserError, match="Only the Quality Manager"):
@@ -162,9 +162,7 @@ def test_inputs_are_pulled_from_the_system_never_typed(m):
     )
     assert "%d critical" % (base["critical"] + 1) in by_kind["customer_feedback"].summary
     assert "%d NCR(s) raised" % (base["ncrs"] + 1) in by_kind["process_performance"].summary
-    assert "CoPQ BDT %.2f" % (base["copq"] + 12500.0) in (
-        by_kind["process_performance"].summary
-    )
+    assert "CoPQ BDT %.2f" % (base["copq"] + 12500.0) in (by_kind["process_performance"].summary)
     assert "%d CAPA(s) opened" % (base["capas"] + 1) in by_kind["nonconformities"].summary
     assert all(i.pulled_on for i in rec.input_ids)
     # typed inputs are not inputs: the snapshot fields are guarded
@@ -189,9 +187,7 @@ def test_the_window_is_since_the_previous_review(m):
     first = _review(
         env, name="P16 first", review_date=fields.Date.add(fields.Date.today(), days=-10)
     )
-    first.action_ids = [
-        (0, 0, {"name": "Retrain the front desk", "owner_id": m.owner_emp.id})
-    ]
+    first.action_ids = [(0, 0, {"name": "Retrain the front desk", "owner_id": m.owner_emp.id})]
     later = _review(env, name="P16 second")
     later.with_user(m.qm).action_pull_inputs()
     prior = later.input_ids.filtered(lambda i: i.kind == "prior_actions")
@@ -201,7 +197,7 @@ def test_the_window_is_since_the_previous_review(m):
 # ------------------------------------------------------------- holding it
 def test_holding_requires_a_chairperson_and_the_complete_set(m):
     env = m.env
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     with pytest.raises(UserError, match="Only the Quality Manager"):
         rec.with_user(m.clerk).action_hold()
     rec.chairperson_id = m.tier5_emp.id
@@ -221,7 +217,7 @@ def test_holding_requires_a_chairperson_and_the_complete_set(m):
 # ------------------------------------------------------------- the outputs
 def test_outputs_are_tracked_actions_completed_by_owner_or_qm(m):
     env = m.env
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     rec.chairperson_id = m.tier5_emp.id
     rec.with_user(m.qm).action_pull_inputs()
     rec.with_user(m.qm).action_hold()
@@ -252,7 +248,7 @@ def test_outputs_are_tracked_actions_completed_by_owner_or_qm(m):
 
 def test_a_decision_only_as_prose_tracks_nothing(m):
     env = m.env
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     rec.chairperson_id = m.tier5_emp.id
     rec.with_user(m.qm).action_pull_inputs()
     rec.with_user(m.qm).action_hold()
@@ -270,14 +266,12 @@ def test_a_decision_only_as_prose_tracks_nothing(m):
 def test_the_closure_is_top_managements_routed_decision(m):
     env = m.env
     _tier5_only(env, m.tier5)
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     rec.chairperson_id = m.tier5_emp.id
     rec.with_user(m.qm).action_pull_inputs()
     rec.with_user(m.qm).action_hold()
     rec.decisions = "Calibration budget raised; CoPQ trend reviewed."
-    rec.action_ids = [
-        (0, 0, {"name": "Raise the calibration budget", "owner_id": m.owner_emp.id})
-    ]
+    rec.action_ids = [(0, 0, {"name": "Raise the calibration budget", "owner_id": m.owner_emp.id})]
     # the QM's press does NOT close — it asks top management
     rec.with_user(m.qm).action_close(justification="Outputs tracked; ready to close")
     assert rec.state == "held" and not rec.closed_by_id
@@ -290,8 +284,11 @@ def test_the_closure_is_top_managements_routed_decision(m):
     task = Task.search([("res_model", "=", "fix.qms.review"), ("res_id", "=", rec.id)])
     assert task.assigned_user_id == m.tier5 and task.state == "pending"
     assert not Task.search(
-        [("res_model", "=", "fix.qms.review"), ("res_id", "=", rec.id),
-         ("assigned_user_id", "=", m.qm.id)]
+        [
+            ("res_model", "=", "fix.qms.review"),
+            ("res_id", "=", rec.id),
+            ("assigned_user_id", "=", m.qm.id),
+        ]
     )
     # the decision applies the closure and stamps the APPROVER
     task.with_user(m.tier5).action_approve(comment="Approved at the board review")
@@ -320,13 +317,11 @@ def test_no_one_closes_their_own_review(m):
     dual = _user(env, "dual", [QM_GROUP, TIER_5])
     _tier5_only(env, dual)
     _emp(env, dual, "Dual Hat")
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     rec.chairperson_id = m.tier5_emp.id
     rec.with_user(dual).action_pull_inputs()
     rec.with_user(dual).action_hold()
-    rec.action_ids = [
-        (0, 0, {"name": "Approve the audit plan", "owner_id": m.owner_emp.id})
-    ]
+    rec.action_ids = [(0, 0, {"name": "Approve the audit plan", "owner_id": m.owner_emp.id})]
     with pytest.raises(UserError, match="No one can approve"):
         rec.with_user(dual).action_close()
     assert rec.state == "held" and rec.approval_state != "approved"
@@ -335,13 +330,11 @@ def test_no_one_closes_their_own_review(m):
 def test_moving_what_was_reviewed_voids_the_pending_closure(m):
     env = m.env
     _tier5_only(env, m.tier5)
-    rec = _review(env, review_date=fields.Date.today())
+    rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
     rec.chairperson_id = m.tier5_emp.id
     rec.with_user(m.qm).action_pull_inputs()
     rec.with_user(m.qm).action_hold()
-    rec.action_ids = [
-        (0, 0, {"name": "Publish the QMS dashboard", "owner_id": m.owner_emp.id})
-    ]
+    rec.action_ids = [(0, 0, {"name": "Publish the QMS dashboard", "owner_id": m.owner_emp.id})]
     rec.with_user(m.qm).action_close()
     assert rec.approval_state == "pending"
     # the closure was decided ON this record: rewriting the decisions under
@@ -357,11 +350,11 @@ def test_the_management_review_pack_reads_the_record(m):
     from odoo.addons.cd_p03_portal.controllers.a10 import m23
 
     env = m.env
-    rec = _review(env, name="P16 pack review", review_date=fields.Date.today())
+    rec = _review(
+        env, name="P16 pack review", review_date=fields.Date.context_today(env["res.partner"])
+    )
     rec.chairperson_id = m.tier5_emp.id
-    rec.action_ids = [
-        (0, 0, {"name": "Staff the calibration cell", "owner_id": m.owner_emp.id})
-    ]
+    rec.action_ids = [(0, 0, {"name": "Staff the calibration cell", "owner_id": m.owner_emp.id})]
     out = m23.management_review_pack(env)
     rows = {(r["section"], r["metric"]): r for r in out["rows"]}
     inputs = rows[("Review", "ISO 9.3.2 inputs pulled")]

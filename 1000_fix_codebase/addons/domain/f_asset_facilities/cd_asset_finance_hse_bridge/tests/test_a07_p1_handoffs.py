@@ -106,6 +106,53 @@ def c(odoo_env):
     return x
 
 
+def _cost_item(c, amount):
+    """A08 BRU-FXA-01: an asset enters the register with its ledger consequence, so
+    accepting a capitalisation names the posted journal item carrying its cost."""
+    env = c.env
+    if not c.category.asset_account_id:
+        c.category.asset_account_id = env["account.account"].create(
+            {
+                "code": "A7A%s" % c.co.id,
+                "name": "A07 Test Asset Account",
+                "account_type": "asset_fixed",
+                "company_ids": [(6, 0, c.co.ids)],
+            }
+        )
+    # this fixture's company is brand new: it has no chart or journal of its own
+    other = env["account.account"].search(
+        [("account_type", "=", "asset_current"), ("company_ids", "in", c.co.id)], limit=1
+    ) or env["account.account"].create(
+        {
+            "code": "A7C%s" % c.co.id,
+            "name": "A07 Test Clearing",
+            "account_type": "asset_current",
+            "company_ids": [(6, 0, c.co.ids)],
+        }
+    )
+    journal = env["account.journal"].search(
+        [("type", "=", "general"), ("company_id", "=", c.co.id)], limit=1
+    ) or env["account.journal"].create(
+        {"name": "A07 Test", "code": "A7GL", "type": "general", "company_id": c.co.id}
+    )
+    move = env["account.move"].create(
+        {
+            "journal_id": journal.id,
+            "company_id": c.co.id,
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {"account_id": c.category.asset_account_id.id, "name": "cost", "debit": amount},
+                ),
+                (0, 0, {"account_id": other.id, "name": "cost", "credit": amount}),
+            ],
+        }
+    )
+    move.action_post()
+    return move.line_ids.filtered(lambda line: line.debit)
+
+
 def _as(c, user, model):
     ctx = dict(c.env.context, allowed_company_ids=c.co.ids)
     return c.env(user=user.id, context=ctx)[model]
@@ -178,10 +225,11 @@ def test_equipment_registration_raises_one_capitalisation_request(c):
     # a plain user neither sees nor decides it
     _refused(_as(c, c.clerk, "fix.asset.finance.request").browse(req.id).action_accept)
     # the accountant: a category first, then a DRAFT asset, nothing posted
+    item = _cost_item(c, 90000.0)
     moves_before = c.env["account.move"].search_count([("company_id", "=", c.co.id)])
     mine = _as(c, c.acct, "fix.asset.finance.request").browse(req.id)
     _refused(mine.action_accept, match="category")
-    mine.write({"category_id": c.category.id})
+    mine.write({"category_id": c.category.id, "acquisition_line_id": item.id})
     mine.action_accept()
     assert req.state == "accepted" and req.decided_by_id == c.acct
     asset = req.fixed_asset_id
@@ -206,7 +254,9 @@ def test_equipment_write_off_raises_a_draft_disposal_through_m49(c):
     )
     cap = c.env["fix.asset.finance.request"].search([("source_res_id", "=", eq.id)])
     acct_req = _as(c, c.acct, "fix.asset.finance.request")
-    acct_req.browse(cap.id).write({"category_id": c.category.id})
+    acct_req.browse(cap.id).write(
+        {"category_id": c.category.id, "acquisition_line_id": _cost_item(c, 40000.0).id}
+    )
     acct_req.browse(cap.id).action_accept()
     _as(c, c.acct, "fix.fixed.asset").browse(cap.fixed_asset_id.id).action_activate()
     # M45's approved write-off event (contract payload)
