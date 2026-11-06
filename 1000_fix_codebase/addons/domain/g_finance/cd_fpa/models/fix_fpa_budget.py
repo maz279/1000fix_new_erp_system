@@ -1,6 +1,26 @@
 # fix_fpa_budget — M54 budget versions (draft -> submitted -> approved with
 # segregation of duties), budget lines measured against the posted GL, and
 # driver-based scenario / forecast versions.
+#
+# A08 remediation (B3, 4 Nov 2026; M54-1, -2, -5, -6, -8, P1-5):
+#   - state and the submit/approve stamps are guarded (fix.dofa.mixin): only the
+#     transitions write them, so "approved" can no longer be typed (ORM or P03);
+#   - approval is a routed M63 request on the version's planned total, decided by
+#     a holder of the DOFA tier (Tier 4 = CFO up to cd_fpa.budget_board_threshold,
+#     Tier 5 = MD / Board above it) who is also an Accounting Administrator and
+#     is not the preparer (creator of the version, its budgets or lines, their last
+#     editor) or the submitter;
+#   - an approved version is immutable; a revision is a NEW version
+#     (action_create_revision) with its own approval, and approving it supersedes
+#     the original (BRU-FPA-09/13, T-10, FR-FPA-034);
+#   - one approved budget/forecast version per company and fiscal year (index).
+#
+# Role map (M54-8, decision B1/B3 pending): the spec's approvers are the CFO and,
+# above threshold, the CEO/Board. Odoo has no such groups; they are the DOFA tier
+# groups of cd_entity_config: tier_4 "CFO / CCO / COO" and tier_5 "Managing
+# Director / Board", intersected with account.group_account_manager (so a CCO or
+# COO with Tier 4 but no finance role does not approve budgets). Preparation and
+# submission are open to the Accountant AND the Accounting Administrator.
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -18,18 +38,54 @@ DRIVER_KEYS = [
 ]
 MANAGER_GROUP = "account.group_account_manager"
 USER_GROUP = "account.group_account_user"
+# Spec M54 §8.2: "Approved by the CFO and, above threshold, the CEO or board".
+# The spec gives no figure (decision B3); default BDT 10,000,000.
+PARAM_BOARD_THRESHOLD = "cd_fpa.budget_board_threshold"
+DEFAULT_BOARD_THRESHOLD = 10000000.0
+# Fields a version may still receive once it left draft (everything else is the
+# approved content; the stamps among them are guarded).
+_VERSION_UNLOCKED = {
+    "state",
+    "submitted_by",
+    "submitted_at",
+    "approved_by",
+    "approved_at",
+    "rejection_reason",
+    "message_main_attachment_id",
+    "dofa_justification",
+    "dofa_approved",
+    "dofa_approved_by",
+    "dofa_approved_at",
+    "dofa_approved_tier",
+    "dofa_approved_amount",
+    "approval_state",
+    "approval_request_id",
+    "approval_amount_changed_by_id",
+}
+
+
+def _float_param(env, key, default):
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    try:
+        return float(raw) if raw not in (None, False, "") else float(default)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 class FixBudgetVersion(models.Model):
     """A budget / forecast / scenario version. Budgets and lines are editable
-    only while the version is draft; approval needs a Finance Manager who
-    did not submit it (segregation of duties). Approving a budget or
-    forecast version supersedes the earlier approved one of the same year."""
+    only while the version is draft; approval is a routed request decided by
+    a CFO (or, above the threshold, Board) holder who neither prepared nor
+    submitted it. Approving a budget or forecast version supersedes the
+    earlier approved one of the same year."""
 
     _name = "fix.budget.version"
     _description = "Budget Version"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "date_from desc, id desc"
+    _approval_domain = "budget_version"
+    _approval_routed = True
+    _approval_apply_method = "action_dofa_approve"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -59,6 +115,14 @@ class FixBudgetVersion(models.Model):
         string="Compared With",
         help="The version this scenario is read against",
     )
+    revision_of_id = fields.Many2one(
+        "fix.budget.version",
+        string="Revision Of",
+        readonly=True,
+        copy=False,
+        help="The approved version this revision replaces once it is approved itself.",
+    )
+    revision_no = fields.Integer(string="Revision", readonly=True, copy=False, default=0)
     base_date_from = fields.Date(
         string="Drivers Measured From", help="Window the base driver values are measured on"
     )
@@ -82,6 +146,23 @@ class FixBudgetVersion(models.Model):
     approved_at = fields.Datetime(readonly=True, copy=False)
     rejection_reason = fields.Text(copy=False)
 
+    _one_approved_per_year = models.UniqueIndex(
+        "(company_id, version_type, fiscal_year) "
+        "WHERE state = 'approved' AND version_type IN ('budget', 'forecast')",
+        "One approved budget (and one approved forecast) per company and fiscal year.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "submitted_by",
+            "submitted_at",
+            "approved_by",
+            "approved_at",
+            "revision_of_id",
+            "revision_no",
+        }
+
     @api.depends(
         "budget_ids.line_ids.planned_amount", "budget_ids.line_ids.account_id.account_type"
     )
@@ -95,11 +176,57 @@ class FixBudgetVersion(models.Model):
                     cost += line.planned_amount
             ver.planned_revenue, ver.planned_cost, ver.planned_margin = rev, cost, rev - cost
 
+    @api.depends("planned_revenue", "planned_cost")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
     @api.constrains("date_from", "date_to")
     def _check_window(self) -> None:
         for ver in self:
             if ver.date_from > ver.date_to:
                 raise ValidationError("Version %s ends before it starts" % ver.name)
+
+    # ------------------------------------------------------------ DOFA
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        lines = self.sudo().budget_ids.line_ids
+        return round(sum(abs(line.planned_amount) for line in lines), 2)
+
+    def _dofa_thresholds(self):
+        return [
+            (_float_param(self.env, PARAM_BOARD_THRESHOLD, DEFAULT_BOARD_THRESHOLD), "tier_4"),
+            (float("inf"), "tier_5"),
+        ]
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "budget version %s (BDT %.2f planned)" % (self.name, self._dofa_amount())
+
+    def _fpa_conflicted_users(self):
+        """The preparer (whoever created or last edited the version, its
+        budgets or its lines) and the submitter never approve it (BRU-FPA-11)."""
+        self.ensure_one()
+        rec = self.sudo()
+        budgets = rec.budget_ids
+        lines = budgets.line_ids
+        users = (
+            rec.create_uid
+            | budgets.mapped("create_uid")
+            | budgets.mapped("write_uid")
+            | lines.mapped("create_uid")
+            | lines.mapped("write_uid")
+            | rec.submitted_by
+            | rec.approval_request_id.requested_by_id
+        )
+        return users.filtered(lambda u: not u._is_superuser())
+
+    def _approval_excluded(self):
+        return (super()._approval_excluded() | self._fpa_conflicted_users()).sudo()
+
+    def _approval_holders(self, group):
+        users = super()._approval_holders(group)
+        return users.filtered(lambda u: u.has_group(MANAGER_GROUP))
 
     # ------------------------------------------------------------ workflow
 
@@ -107,20 +234,13 @@ class FixBudgetVersion(models.Model):
         for ver in self:
             if ver.state != "draft":
                 raise UserError(
-                    "Version %s is %s — only a draft version can be changed; reject or copy it"
+                    "Version %s is %s — only a draft version can be changed; an approved "
+                    "budget is revised as a new version (Create Revision)."
                     % (ver.name, dict(VERSION_STATES)[ver.state].lower())
                 )
 
     def write(self, vals):
-        locked = set(vals) - {
-            "state",
-            "submitted_by",
-            "submitted_at",
-            "approved_by",
-            "approved_at",
-            "rejection_reason",
-            "message_main_attachment_id",
-        }
+        locked = set(vals) - _VERSION_UNLOCKED
         if locked:
             self._check_editable()
         return super().write(vals)
@@ -138,14 +258,23 @@ class FixBudgetVersion(models.Model):
         if not self.env.su and not self.env.user.has_group(xmlid):
             raise AccessError("%s needs the %s role" % (what, self.env.ref(xmlid).name))
 
+    def _require_preparer(self, what):
+        """M54-8: the Accountant and the Accounting Administrator both prepare."""
+        if self.env.su:
+            return
+        if not (self.env.user.has_group(USER_GROUP) or self.env.user.has_group(MANAGER_GROUP)):
+            raise AccessError("%s needs the Accountant or Accounting Administrator role" % what)
+
     def action_submit(self):
-        self._require_group(USER_GROUP, "Submitting a budget version")
+        """Submit for approval: the version is locked and routed to a CFO (or
+        Board, above the threshold) holder who did not prepare or submit it."""
+        self._require_preparer("Submitting a budget version")
         for ver in self:
             if ver.state != "draft":
                 raise UserError("Only a draft version can be submitted")
             if not ver.budget_ids.line_ids:
                 raise UserError("Version %s has no budget lines to submit" % ver.name)
-            ver.write(
+            ver._guarded().write(
                 {
                     "state": "submitted",
                     "submitted_by": self.env.uid,
@@ -153,36 +282,73 @@ class FixBudgetVersion(models.Model):
                     "rejection_reason": False,
                 }
             )
-        return True
-
-    def action_approve(self):
-        self._require_group(MANAGER_GROUP, "Approving a budget version")
-        for ver in self:
-            if ver.state != "submitted":
-                raise UserError("Only a submitted version can be approved")
-            if ver.submitted_by == self.env.user:
-                raise UserError(
-                    "Segregation of duties: %s submitted version %s and cannot approve it"
-                    % (self.env.user.name, ver.name)
-                )
-            if ver.version_type in ("budget", "forecast"):
-                self.search(
-                    [
-                        ("id", "!=", ver.id),
-                        ("company_id", "=", ver.company_id.id),
-                        ("version_type", "=", ver.version_type),
-                        ("fiscal_year", "=", ver.fiscal_year),
-                        ("state", "=", "approved"),
-                    ]
-                ).write({"state": "superseded"})
-            ver.write(
-                {
-                    "state": "approved",
-                    "approved_by": self.env.uid,
-                    "approved_at": fields.Datetime.now(),
-                }
+            ver.action_request_approval(
+                justification=ver.dofa_justification
+                or "Budget version %s (%s) submitted for approval" % (ver.name, ver.fiscal_year)
             )
         return True
+
+    def _fpa_assert_decider(self):
+        self.ensure_one()
+        if self.env.su:
+            return
+        self._require_group(MANAGER_GROUP, "Approving a budget version")
+        task = self._approval_task()
+        clash = (self.env.user | task.on_behalf_of_id) & self._fpa_conflicted_users()
+        if clash:
+            raise UserError(
+                "Segregation of duties: %s prepared or submitted version %s and cannot approve "
+                "it (BRU-FPA-11)." % (", ".join(clash.mapped("name")), self.name)
+            )
+
+    def action_dofa_approve(self):
+        """The engine's apply method, run from the approver's inbox task."""
+        self._approval_assert_routed()
+        for ver in self:
+            ver._fpa_assert_decider()
+            if ver.state != "submitted":
+                raise UserError("Only a submitted version can be approved")
+        if self.env.su:
+            # trusted code (seeds, migrations): no DOFA stamp to grant
+            for ver in self:
+                ver._fpa_mark_approved()
+            return True
+        result = super().action_dofa_approve()
+        for ver in self:
+            ver._fpa_mark_approved()
+        return result
+
+    def action_approve(self):
+        """Kept for old callers and screens: a budget is approved from the M63
+        inbox, so a direct call is refused by the routing guard."""
+        return self.action_dofa_approve()
+
+    def _fpa_mark_approved(self):
+        self.ensure_one()
+        if self.version_type in ("budget", "forecast"):
+            previous = self.sudo().search(
+                [
+                    ("id", "!=", self.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("version_type", "=", self.version_type),
+                    ("fiscal_year", "=", self.fiscal_year),
+                    ("state", "=", "approved"),
+                ]
+            )
+            previous._guarded().write({"state": "superseded"})
+            # the one-approved-per-year index: supersede before approving
+            previous.flush_recordset(["state"])
+        self._guarded().write(
+            {"state": "approved", "approved_by": self.env.uid, "approved_at": fields.Datetime.now()}
+        )
+        self.message_post(body="Version approved by %s." % self.env.user.name)
+
+    def _approval_on_rejected(self, comment):
+        for ver in self.sudo():
+            ver._guarded().write(
+                {"state": "rejected", "rejection_reason": comment or ver.rejection_reason or "Rejected"}
+            )
+        return super()._approval_on_rejected(comment)
 
     def action_reject(self):
         self._require_group(MANAGER_GROUP, "Rejecting a budget version")
@@ -193,16 +359,78 @@ class FixBudgetVersion(models.Model):
                 raise UserError(
                     "Write the rejection reason on version %s (open the record) first" % ver.name
                 )
-            ver.write({"state": "rejected"})
+            if not self.env.su and self.env.user in ver._fpa_conflicted_users():
+                raise UserError("Segregation of duties: the preparer or submitter cannot reject.")
+            if ver.approval_state == "pending":
+                ver._approval_void("rejected by %s: %s" % (self.env.user.name, ver.rejection_reason))
+            ver._guarded().write({"state": "rejected"})
         return True
 
     def action_reset_draft(self):
-        self._require_group(USER_GROUP, "Re-opening a budget version")
+        self._require_preparer("Re-opening a budget version")
         for ver in self:
             if ver.state != "rejected":
                 raise UserError("Only a rejected version returns to draft")
-            ver.write({"state": "draft", "submitted_by": False, "submitted_at": False})
+            ver._guarded().write({"state": "draft", "submitted_by": False, "submitted_at": False})
         return True
+
+    def action_create_revision(self):
+        """BRU-FPA-09/13: an approved version is never edited. A revision is a
+        new DRAFT version carrying the same budgets and lines, prepared and
+        approved on its own; approving it supersedes the original."""
+        self._require_preparer("Revising a budget version")
+        revisions = self.browse()
+        for ver in self:
+            if ver.state != "approved":
+                raise UserError("Only an approved version is revised.")
+            number = ver.revision_no + 1
+            rev = (
+                self._guarded()
+                .with_context(mail_create_nolog=True)
+                .create(
+                    {
+                        "name": "%s (Rev %d)" % (ver.name.split(" (Rev ")[0], number),
+                        "company_id": ver.company_id.id,
+                        "operating_unit_id": ver.operating_unit_id.id,
+                        "version_type": ver.version_type,
+                        "fiscal_year": ver.fiscal_year,
+                        "date_from": ver.date_from,
+                        "date_to": ver.date_to,
+                        "currency_id": ver.currency_id.id,
+                        "base_version_id": ver.id,
+                        "revision_of_id": ver.id,
+                        "revision_no": number,
+                    }
+                )
+            )
+            for budget in ver.budget_ids:
+                self.env["fix.budget"].create(
+                    {
+                        "name": budget.name,
+                        "version_id": rev.id,
+                        "budget_type": budget.budget_type,
+                        "operating_unit_id": budget.operating_unit_id.id,
+                        "line_ids": [
+                            (
+                                0,
+                                0,
+                                {
+                                    "account_id": line.account_id.id,
+                                    "branch_id": line.branch_id.id,
+                                    "business_line_id": line.business_line_id.id,
+                                    "cost_centre": line.cost_centre,
+                                    "date_from": line.date_from,
+                                    "date_to": line.date_to,
+                                    "planned_amount": line.planned_amount,
+                                },
+                            )
+                            for line in budget.line_ids
+                        ],
+                    }
+                )
+            ver.message_post(body="Revision %s opened by %s." % (rev.name, self.env.user.name))
+            revisions |= rev
+        return revisions
 
     # ------------------------------------------------------------ drivers
 

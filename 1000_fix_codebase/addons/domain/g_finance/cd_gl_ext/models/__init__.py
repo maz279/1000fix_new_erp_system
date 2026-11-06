@@ -6,4 +6,5 @@ from . import (
     fix_fx_revaluation,
     fix_gl_engine,
     fix_gl_ext,
+    fix_gl_posting_control,
 )

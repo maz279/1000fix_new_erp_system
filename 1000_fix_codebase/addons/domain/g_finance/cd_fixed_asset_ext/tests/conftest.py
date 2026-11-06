@@ -23,6 +23,8 @@ def m49(odoo_env):
     """Accounts, journal, a configured category and three users."""
     env = odoo_env
     company = env.company
+    # a disposal sale is invoiced through M20, which issues a Mushak 6.3
+    company.vat = "1234567890123"
     tag = next(_SEQ)
 
     def acc(code, name, account_type):

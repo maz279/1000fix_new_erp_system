@@ -81,9 +81,10 @@ export const SCREENS = {
     cols: ['name','version_id','budget_type','fiscal_year','planned_amount','actual_amount','variance','state'],
     stateField: 'state', actions: [{m:'action_refresh_actuals',l:'Refresh Actuals'}] },
   'M54-workflow': { kind: 'model_list', model: 'fix.budget.version',
-    cols: ['name','version_type','fiscal_year','date_from','date_to','planned_revenue','planned_cost','state','submitted_by','approved_by'],
+    cols: ['name','version_type','fiscal_year','date_from','date_to','planned_revenue','planned_cost','dofa_tier_required','approval_state','state','submitted_by','approved_by'],
     stateField: 'state', domain: [['version_type','in',['budget','forecast']]],
-    actions: [{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'},{m:'action_reject',l:'Reject'},{m:'action_reset_draft',l:'Back to Draft'}] },
+    // Approval is decided from the M63 approval inbox (CFO / Board tier), never here.
+    actions: [{m:'action_submit',l:'Submit for Approval'},{m:'action_reject',l:'Reject'},{m:'action_reset_draft',l:'Back to Draft'},{m:'action_create_revision',l:'Create Revision'}] },
   'M54-bva': { kind: 'table_report', module: 'M54', report: 'budget_variance' },
   // Planning
   'M54-rolling': { kind: 'table_report', module: 'M54', report: 'rolling_forecast' },
@@ -91,7 +92,7 @@ export const SCREENS = {
     cols: ['name','fiscal_year','date_from','date_to','base_version_id','planned_revenue','planned_cost','planned_margin','state'],
     stateField: 'state', domain: [['version_type','=','scenario']],
     context: { default_version_type: 'scenario' },
-    actions: [{m:'action_load_drivers',l:'Load Drivers'},{m:'action_generate_plan',l:'Generate Plan'},{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'}] },
+    actions: [{m:'action_load_drivers',l:'Load Drivers'},{m:'action_generate_plan',l:'Generate Plan'},{m:'action_submit',l:'Submit for Approval'}] },
   'M54-board': { kind: 'table_report', module: 'M54', report: 'board_pack' },
   'M54-boardpacks': { kind: 'model_list', model: 'fix.board.pack',
     cols: ['name','date_from','date_to','assembled_by','issued_by','export_filename','state'],
@@ -130,8 +131,8 @@ export const SCREENS = {
           { name: 'budget_type', required: true, label: "Budget Type" },
           { name: 'fiscal_year', required: true, label: "Fiscal Year" },
           { name: 'currency_id', required: true, label: "Currency" },
-          { name: 'state', required: true, label: "State" },
-          { name: 'version_id', label: "Budget Version" },
+          { name: 'state', readonly: true, label: "State (follows the version)" },
+          { name: 'version_id', required: true, label: "Budget Version" },
           { name: 'date_from', label: "From" }
         ] }
     ]
@@ -185,7 +186,12 @@ Object.assign(SCREENS, {
           { name: 'date_to', required: true, label: 'To' },
           { name: 'base_version_id', label: 'Base Version (scenarios)' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'revision_of_id', readonly: true, label: 'Revision Of' },
+          { name: 'dofa_tier_required', readonly: true, label: 'Approval Tier (from the planned total)' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'submitted_by', readonly: true, label: 'Submitted By' },
+          { name: 'approved_by', readonly: true, label: 'Approved By' }
         ] }
     ]
   },
@@ -223,7 +229,10 @@ Object.assign(SCREENS, {
           { name: 'pool_id', required: true, label: 'Cost Pool' },
           { name: 'date_from', label: 'From' },
           { name: 'date_to', label: 'To' },
-          { name: 'operating_unit_id', label: 'Operating Unit' }
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'computed_by', readonly: true, label: 'Computed By' },
+          { name: 'posted_by', readonly: true, label: 'Posted By (reviewer)' }
         ] }
     ]
   },
@@ -242,7 +251,9 @@ Object.assign(SCREENS, {
           { name: 'date_from', required: true, label: 'From' },
           { name: 'date_to', required: true, label: 'To' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'assembled_by', readonly: true, label: 'Assembled By' },
+          { name: 'issued_by', readonly: true, label: 'Issued By' }
         ] }
     ]
   }

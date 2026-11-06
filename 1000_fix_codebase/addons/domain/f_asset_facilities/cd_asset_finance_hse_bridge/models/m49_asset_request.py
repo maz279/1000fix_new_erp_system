@@ -83,6 +83,13 @@ class FixAssetFinanceRequest(models.Model):
         string="M49 Asset",
         help="Dispose: the M49 asset this derecognises. Capitalise: the draft asset created",
     )
+    acquisition_line_id = fields.Many2one(
+        "account.move.line",
+        string="Acquisition Journal Item",
+        help="Capitalise: the POSTED journal item that carries the cost on the category's "
+        "asset account (the bill, or M19's re-class of an expensed bill). It becomes the "
+        "M19 capitalisation seam that puts the asset into service (A08 BRU-FXA-01).",
+    )
     disposal_kind = fields.Selection(DISPOSAL_KINDS, string="Disposal Type")
     disposal_id = fields.Many2one("fix.asset.disposal", string="Draft Disposal", readonly=True)
     state = fields.Selection(
@@ -133,6 +140,7 @@ class FixAssetFinanceRequest(models.Model):
                 "acquisition_date",
                 "category_id",
                 "fixed_asset_id",
+                "acquisition_line_id",
                 "disposal_kind",
                 "operating_unit_id",
                 "decision_note",
@@ -488,6 +496,7 @@ class FixAssetFinanceRequest(models.Model):
             raise UserError("The asset category belongs to another company.")
         if not (self.amount or 0.0) > 0.0:
             raise UserError("The amount to capitalise must be above zero.")
+        seam = self._m49_acquisition_seam()
         asset = self.env["fix.fixed.asset"].create(
             {
                 "company_id": self.company_id.id,
@@ -497,7 +506,7 @@ class FixAssetFinanceRequest(models.Model):
                 "custodian_id": self.custodian_id.id,
                 "gross": self.amount,
                 "purchase_date": self.acquisition_date or fields.Date.context_today(self),
-                "state": "draft",
+                "seam_id": seam.id,
             }
         )
         self.write({"fixed_asset_id": asset.id})
@@ -506,6 +515,52 @@ class FixAssetFinanceRequest(models.Model):
         self.message_post(
             body="Accepted: draft asset %s registered in M49 (not in service; M49 Activate "
             "starts its depreciation)." % asset.display_name
+        )
+
+    def _m49_acquisition_seam(self):
+        """A08 (BRU-FXA-01 / BRU-FXA-02): an asset enters the register with its
+        ledger consequence. The chosen journal item must be posted, on the
+        category's asset account, for the amount capitalised, and not already
+        a seam; it becomes the M19 capitalisation seam M49's Activate needs."""
+        self.ensure_one()
+        line = self.acquisition_line_id.sudo()
+        if not line:
+            raise UserError(
+                "Choose the posted journal item that carries the cost of %s on the asset "
+                "account (the bill, or an M19 re-class of an expensed bill) before accepting."
+                % self.name
+            )
+        account = self.category_id.asset_account_id
+        if not account:
+            raise UserError(
+                "Configure the asset account of category %s first." % self.category_id.name
+            )
+        if line.parent_state != "posted" or line.account_id != account:
+            raise UserError(
+                "%s is not a posted item on %s, the asset account of %s."
+                % (line.display_name, account.display_name, self.category_id.name)
+            )
+        if abs((line.balance or 0.0) - (self.amount or 0.0)) > 0.005:
+            raise UserError(
+                "The journal item carries %.2f; the amount to capitalise is %.2f."
+                % (line.balance, self.amount)
+            )
+        Seam = self.env["fix.fixed.asset.seam"].sudo()
+        if Seam.search_count([("move_line_id", "=", line.id)]):
+            raise UserError("%s is already the source of another asset." % line.display_name)
+        ou = self.operating_unit_id or self.env["operating.unit"].sudo().search(
+            [("company_id", "=", self.company_id.id)], limit=1
+        )
+        return Seam.create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": ou.id,
+                "name": ("%s %s" % (self.name, self.source_ref or "")).strip(),
+                "move_line_id": line.id,
+                "amount": self.amount,
+                "currency_id": self.currency_id.id,
+                "asset_category": self.category_id.code,
+            }
         )
 
     def _m49_accept_dispose(self):

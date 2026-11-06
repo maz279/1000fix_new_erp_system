@@ -23,7 +23,7 @@ from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import (
     compute_pnl,
     compute_trial_balance,
 )
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
 from .p03_service_order_api import _require_internal, _user_error
@@ -40,6 +40,23 @@ def _fy_window(today=None):
     return start, datetime.date(start.year + 1, 6, 30)
 
 
+FINANCE_READ_GROUPS = (
+    "account.group_account_readonly",
+    "account.group_account_invoice",
+    "account.group_account_user",
+    "account.group_account_manager",
+)
+
+
+def _require_finance(env):
+    """The ledger screens read as the system (balances across journals), so
+    the caller must hold a finance role first (A08: a plain internal user used
+    to read every posted entry, close and posting-log row here)."""
+    _require_internal(env)
+    if not env.su and not any(env.user.has_group(g) for g in FINANCE_READ_GROUPS):
+        raise AccessError("The general ledger screens need a finance (accounting) role.")
+
+
 def _parse_date(value, fallback):
     if not value:
         return fallback
@@ -53,7 +70,7 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/coa", type="jsonrpc", auth="user", readonly=True)
     def gl_coa(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         company = env.company
         chart = (
@@ -123,7 +140,7 @@ class P03GlApiController(http.Controller):
     @http.route("/p03/gl/accounts", type="jsonrpc", auth="user", readonly=True)
     def gl_accounts(self, **kw):
         """The company's Odoo accounts for the JE editor's account picker."""
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         accounts = (
             env["account.account"]
@@ -156,7 +173,7 @@ class P03GlApiController(http.Controller):
         limit=60,
         **kw,
     ):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         domain = [("company_id", "=", env.company.id)]
         if state:
@@ -198,10 +215,10 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/je", type="jsonrpc", auth="user", readonly=True)
     def gl_je(self, move_id=None, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         move = env["account.move"].sudo().browse(int(move_id)).exists()
-        if not move:
+        if not move or move.company_id not in env.companies:
             return {"success": False, "error": "Journal entry not found"}
         dims = (
             env["fix.journal.dimension"].sudo().search([("move_line_id", "in", move.line_ids.ids)])
@@ -260,7 +277,7 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/statements", type="jsonrpc", auth="user", readonly=True)
     def gl_statements(self, report="trial_balance", date_from=None, date_to=None, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         fy_from, fy_to = _fy_window()
         date_from = _parse_date(date_from, fy_from)
@@ -285,9 +302,13 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/dimensions", type="jsonrpc", auth="user", readonly=True)
     def gl_dimensions(self, limit=80, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        dims = env["fix.journal.dimension"].sudo().search([], order="id desc", limit=limit)
+        dims = (
+            env["fix.journal.dimension"]
+            .sudo()
+            .search([("company_id", "in", env.companies.ids)], order="id desc", limit=limit)
+        )
         rows = dims.mapped(
             lambda d: {
                 "id": d.id,
@@ -317,7 +338,11 @@ class P03GlApiController(http.Controller):
                 groups = (
                     env["fix.journal.dimension"]
                     .sudo()
-                    ._read_group([(field, "!=", False)], [field], ["__count"])
+                    ._read_group(
+                        [(field, "!=", False), ("company_id", "in", env.companies.ids)],
+                        [field],
+                        ["__count"],
+                    )
                 )
                 counts[field] = len(groups)
             except Exception:
@@ -328,9 +353,9 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/close", type="jsonrpc", auth="user", readonly=True)
     def gl_close(self, close_id=None, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        domain = []
+        domain = [("company_id", "in", env.companies.ids)]
         if close_id:
             domain.append(("id", "=", int(close_id)))
         closes = env["fix.period.close"].sudo().search(domain, order="period_end desc")
@@ -421,10 +446,16 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/periods", type="jsonrpc", auth="user", readonly=True)
     def gl_periods(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        closes = env["fix.period.close"].sudo().search([], order="period_end desc")
-        bridges = env["fix.fiscal.period.bridge"].sudo().search([])
+        closes = (
+            env["fix.period.close"]
+            .sudo()
+            .search([("company_id", "in", env.companies.ids)], order="period_end desc")
+        )
+        bridges = env["fix.fiscal.period.bridge"].sudo().search(
+            [("period_close_id", "in", closes.ids)]
+        )
         bridge_by_close = {b.period_close_id.id: b for b in bridges}
         company = env.company.sudo()
         rows = closes.mapped(
@@ -432,7 +463,8 @@ class P03GlApiController(http.Controller):
                 "id": c.id,
                 "period_end": str(c.period_end),
                 "state": c.state,
-                "locked": bool(bridge_by_close.get(c.id) and bridge_by_close[c.id].is_locked),
+                # read from the company lock date, never from a tick (M19-16)
+                "locked": bool(c.is_locked),
                 "locked_at": str(bridge_by_close[c.id].locked_at)
                 if bridge_by_close.get(c.id)
                 else "",
@@ -450,36 +482,39 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/periods/lock", type="jsonrpc", auth="user", readonly=False)
     def gl_periods_lock(self, close_id=None, **kw):
+        """Re-apply the company lock of a CLOSED, ended period. Accounting
+        Administrator only, and as the caller: the bridge used to be created
+        and locked as superuser for any internal user (A08 M19-6, P10)."""
         _require_internal(request.env)
         env = request.env
-        close = env["fix.period.close"].browse(int(close_id))
-        bridge = (
-            env["fix.fiscal.period.bridge"]
-            .sudo()
-            .search([("period_close_id", "=", close.id)], limit=1)
-        )
-        if not bridge:
-            bridge = (
-                env["fix.fiscal.period.bridge"]
-                .sudo()
-                .create({"company_id": close.company_id.id, "period_close_id": close.id})
-            )
         try:
             with env.cr.savepoint():
+                if not env.su and not env.user.has_group("account.group_account_manager"):
+                    raise UserError("Locking the ledger needs the Accounting Administrator role.")
+                close = env["fix.period.close"].browse(int(close_id)).exists()
+                if not close:
+                    raise UserError("Period close not found")
+                bridge = env["fix.fiscal.period.bridge"].search(
+                    [("period_close_id", "=", close.id)], limit=1
+                )
+                if not bridge:
+                    bridge = env["fix.fiscal.period.bridge"].create(
+                        {"company_id": close.company_id.id, "period_close_id": close.id}
+                    )
                 result = bridge.action_lock_journals()
             return {
                 "success": True,
                 "message": "Journals locked to %s" % result["lock_date"],
                 "result": result,
             }
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"success": False, "error": str(exc)}
 
     # ------------------------------------------------------------- suspense
 
     @http.route("/p03/gl/suspense", type="jsonrpc", auth="user", readonly=True)
     def gl_suspense(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         company = env.company
         # W2 inventory suspense: entries still pending their GL cutover
@@ -546,7 +581,7 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/recon", type="jsonrpc", auth="user", readonly=True)
     def gl_recon(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
         company = env.company
 
@@ -664,9 +699,13 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/audit", type="jsonrpc", auth="user", readonly=True)
     def gl_audit(self, limit=40, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        logs = env["fix.journal.posting.log"].sudo().search([], order="id desc", limit=limit)
+        logs = (
+            env["fix.journal.posting.log"]
+            .sudo()
+            .search([("company_id", "in", env.companies.ids)], order="id desc", limit=limit)
+        )
         events = (
             env["fix.event.outbox"]
             .sudo()
@@ -705,9 +744,13 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/templates", type="jsonrpc", auth="user", readonly=True)
     def gl_templates(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        templates = env["fix.journal.template"].sudo().search([], order="name")
+        templates = (
+            env["fix.journal.template"]
+            .sudo()
+            .search([("company_id", "in", env.companies.ids)], order="name")
+        )
         return {
             "rows": templates.mapped(
                 lambda t: {
@@ -753,6 +796,11 @@ class P03GlApiController(http.Controller):
         cron, never silently."""
         _require_internal(request.env)
         env = request.env
+        if not env.su and not env.user.has_group("account.group_account_user"):
+            return {
+                "success": False,
+                "error": "Saving a recurring journal template needs the Accountant role.",
+            }
         try:
             lines = lines or []
             if len(lines) < 2:
@@ -781,24 +829,19 @@ class P03GlApiController(http.Controller):
                     )
                 )
             with env.cr.savepoint():
-                template = (
-                    env["fix.journal.template"]
-                    .sudo()
-                    .create(
-                        {
-                            "name": name or ref or "Workspace accrual template",
-                            "journal_id": journal.id,
-                            "company_id": env.company.id,
-                            "memo": ref or "",
-                            "schedule": schedule
-                            if schedule in ("monthly", "quarterly", "yearly")
-                            else "monthly",
-                            "next_run_date": _parse_date(next_run_date, datetime.date.today()),
-                            "auto_reverse": bool(auto_reverse),
-                            "state": "draft",
-                            "line_ids": line_vals,
-                        }
-                    )
+                template = env["fix.journal.template"].create(
+                    {
+                        "name": name or ref or "Workspace accrual template",
+                        "journal_id": journal.id,
+                        "company_id": env.company.id,
+                        "memo": ref or "",
+                        "schedule": schedule
+                        if schedule in ("monthly", "quarterly", "yearly")
+                        else "monthly",
+                        "next_run_date": _parse_date(next_run_date, datetime.date.today()),
+                        "auto_reverse": bool(auto_reverse),
+                        "line_ids": line_vals,
+                    }
                 )
             return {
                 "success": True,
@@ -806,16 +849,22 @@ class P03GlApiController(http.Controller):
                 % template.name,
                 "template_id": template.id,
             }
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"success": False, "error": str(exc)}
+        except Exception as exc:
+            return {"success": False, "error": _user_error(exc)}
 
     # ----------------------------------------------------------- allocations
 
     @http.route("/p03/gl/allocations", type="jsonrpc", auth="user", readonly=True)
     def gl_allocations(self, **kw):
-        _require_internal(request.env)
+        _require_finance(request.env)
         env = request.env
-        rules = env["fix.allocation.rule"].sudo().search([], order="name")
+        rules = (
+            env["fix.allocation.rule"]
+            .sudo()
+            .search([("company_id", "in", env.companies.ids)], order="name")
+        )
         return {
             "rows": rules.mapped(
                 lambda r: {
@@ -909,6 +958,12 @@ class P03GlApiController(http.Controller):
                     "success": False,
                     "error": "Entry is not balanced: debit %.2f vs credit %.2f" % (debit, credit),
                 }
+            reason = (kw.get("reason") or ref or "").strip()
+            if not reason:
+                return {
+                    "success": False,
+                    "error": "State the reason / narrative of the manual journal (BRU-FIN-16).",
+                }
             move_vals = {
                 "journal_id": journal.id,
                 "company_id": env.company.id,
@@ -921,15 +976,15 @@ class P03GlApiController(http.Controller):
             # means the transaction would otherwise commit the half-entry.
             with env.cr.savepoint():
                 move, log = create_journal_entry_draft(
-                    env, move_vals, dimension_by_line, source="manual"
+                    env, move_vals, dimension_by_line, source="manual", reason=reason
                 )
             return {
                 "success": True,
-                "message": "Draft %s created — awaiting review (SoD)" % (move.name or ""),
+                "message": "Draft %s created — routed for approval (SoD)" % (move.name or ""),
                 "move_id": move.id,
                 "log_id": log.id,
             }
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"success": False, "error": str(exc)}
         except Exception as exc:
             return {"success": False, "error": _user_error(exc)}
@@ -945,11 +1000,11 @@ class P03GlApiController(http.Controller):
         _require_internal(request.env)
         env = request.env
         try:
-            move = env["account.move"].sudo().browse(int(move_id))
-            if not move.exists():
+            move = env["account.move"].browse(int(move_id)).exists()
+            if not move:
                 return {"success": False, "error": "Journal entry not found"}
             with env.cr.savepoint():
                 posted, _dims = approve_journal_entry(env, move)
             return {"success": True, "message": "%s posted" % (posted.name or "")}
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"success": False, "error": str(exc)}

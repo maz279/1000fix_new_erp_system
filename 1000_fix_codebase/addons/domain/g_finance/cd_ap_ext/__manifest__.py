@@ -38,6 +38,9 @@ CD-M52-01: the accounts-payable core.
         "cd_requisition",
         "cd_gl_ext",
         "cd_cash_position",
+        # M49 capital invoices: a capital bill line books its posted cost to a
+        # CWIP project (no cycle: cd_fixed_asset_ext does not depend on AP)
+        "cd_fixed_asset_ext",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

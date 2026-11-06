@@ -4,6 +4,13 @@
 # Each entry: model -> {"order", "limit", "actions"}. Reads also need the
 # user's own read access on the model (accounting groups apply).
 #
+# A08 workflow audit (M50-4, X02): every workflow step is an ACTION here and
+# runs the model's own checks (two-person release, DOFA routing, maker-checker,
+# imported-statement evidence); no state, stamp or match field is writable
+# from the workspace forms (the models guard them; writable.py is generated
+# from the forms in static/src/a08/m50.js). KPIs and reports read in the
+# caller's environment, filtered to the caller's company.
+#
 # The computations live in cd_cash_position (models/treasury_reports.py) and
 # are imported lazily: cd_p03_portal does not depend on the treasury addon,
 # so a database without it gets an honest "not installed" answer.
@@ -11,7 +18,16 @@ SURFACES = {
     "fix.payment.execution": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_release", "action_confirm_bank", "action_mark_failed", "action_retry"},
+        "actions": {
+            "action_prepare",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_release",
+            "action_confirm_bank",
+            "action_mark_failed",
+            "action_retry",
+            "action_cancel",
+        },
     },
     "fix.bank.statement.import": {"order": "id desc", "limit": 100, "actions": {"action_import"}},
     "fix.bank.statement.line": {
@@ -33,7 +49,14 @@ SURFACES = {
     "fix.cod.settlement": {
         "order": "settlement_date desc, id desc",
         "limit": 200,
-        "actions": {"action_load_orders", "action_submit", "action_settle", "action_dispute"},
+        "actions": {
+            "action_load_orders",
+            "action_submit",
+            "action_approve_shortage",
+            "action_settle",
+            "action_dispute",
+            "action_mark_recovered",
+        },
     },
     "fix.imprest.fund": {"order": "name", "limit": 100, "actions": {"action_request_topup"}},
     "fix.imprest.voucher": {
@@ -65,10 +88,19 @@ SURFACES = {
     "fix.bank.facility": {
         "order": "name",
         "limit": 100,
-        "actions": {"action_activate", "action_generate_schedule", "action_close"},
+        "actions": {
+            "action_activate",
+            "action_generate_schedule",
+            "action_close",
+            "action_acknowledge_expiry",
+        },
     },
     "fix.facility.repayment": {"order": "due_date, id", "limit": 300, "actions": {"action_pay"}},
-    "fix.facility.covenant": {"order": "facility_id, id", "limit": 200, "actions": {"action_test"}},
+    "fix.facility.covenant": {
+        "order": "facility_id, id",
+        "limit": 200,
+        "actions": {"action_approve", "action_test"},
+    },
     "fix.cash.forecast.item": {"order": "direction, name", "limit": 200, "actions": set()},
 }
 

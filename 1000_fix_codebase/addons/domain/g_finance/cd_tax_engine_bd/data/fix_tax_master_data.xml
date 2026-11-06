@@ -196,6 +196,42 @@
         <field name="date_from">2025-07-01</field>
         <field name="source_note">PwC: 4% for BDT 3m-5m turnover. FY2026-27 introduced a simplified fixed-amount turnover tax for small retailers.</field>
     </record>
+    <!-- A08 M51-5: the reduced VAT rates the determination accepts were an
+         in-code set (5 / 7.5 / 10). They are master rows now, read by
+         fix.tax.rate._fix_vat_rates; flagged for the adviser. -->
+    <record id="tax_rate_vat_reduced_5" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_5</field>
+        <field name="name">Reduced VAT rate 5%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">5</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source: reduced rates 5 / 7.5 / 10% on scheduled supplies. Verify the scheduled supplies with the adviser.</field>
+    </record>
+    <record id="tax_rate_vat_reduced_7_5" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_7_5</field>
+        <field name="name">Reduced VAT rate 7.5%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">7.5</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source, see reduced_5.</field>
+    </record>
+    <record id="tax_rate_vat_reduced_10" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">vat</field>
+        <field name="code">reduced_10</field>
+        <field name="name">Reduced VAT rate 10%</field>
+        <field name="section">VAT &amp; SD Act 2012 - Third Schedule</field>
+        <field name="rate">10</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2025-07-01</field>
+        <field name="source_note">Secondary source, see reduced_5.</field>
+    </record>
 
     <!-- ===================== Statutory parameters ===================== -->
     <record id="tax_param_non_filer" model="fix.tax.parameter">

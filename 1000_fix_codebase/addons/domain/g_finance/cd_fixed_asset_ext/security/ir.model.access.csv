@@ -15,8 +15,8 @@ access_fix_asset_depreciation_run_readonly,fix.asset.depreciation.run readonly,m
 access_fix_asset_depreciation_run_user,fix.asset.depreciation.run user,model_fix_asset_depreciation_run,account.group_account_user,1,1,1,1
 access_fix_asset_depreciation_run_manager,fix.asset.depreciation.run manager,model_fix_asset_depreciation_run,account.group_account_manager,1,1,1,1
 access_fix_asset_depreciation_line_readonly,fix.asset.depreciation.line readonly,model_fix_asset_depreciation_line,account.group_account_readonly,1,0,0,0
-access_fix_asset_depreciation_line_user,fix.asset.depreciation.line user,model_fix_asset_depreciation_line,account.group_account_user,1,1,1,1
-access_fix_asset_depreciation_line_manager,fix.asset.depreciation.line manager,model_fix_asset_depreciation_line,account.group_account_manager,1,1,1,1
+access_fix_asset_depreciation_line_user,fix.asset.depreciation.line user,model_fix_asset_depreciation_line,account.group_account_user,1,0,0,0
+access_fix_asset_depreciation_line_manager,fix.asset.depreciation.line manager,model_fix_asset_depreciation_line,account.group_account_manager,1,0,0,0
 access_fix_asset_transfer_readonly,fix.asset.transfer readonly,model_fix_asset_transfer,account.group_account_readonly,1,0,0,0
 access_fix_asset_transfer_user,fix.asset.transfer user,model_fix_asset_transfer,account.group_account_user,1,1,1,0
 access_fix_asset_transfer_manager,fix.asset.transfer manager,model_fix_asset_transfer,account.group_account_manager,1,1,1,1

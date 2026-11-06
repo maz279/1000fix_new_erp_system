@@ -323,13 +323,24 @@ class TestPostingLogAndReview:
                 "group_ids": [(6, 0, [env.ref("account.group_account_user").id])],
             }
         )
+        # A08 S2: the checker is an Accounting Administrator holding the DOFA
+        # tier of the entry (a manual journal is a routed approval).
         checker = env["res.users"].create(
             {
                 "name": "GL Checker",
                 "login": "gl-checker@test.local",
                 "email": "gl-checker@test.local",
                 "company_ids": all_companies,
-                "group_ids": [(6, 0, [env.ref("account.group_account_manager").id])],
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            env.ref("account.group_account_manager").id,
+                            env.ref("cd_entity_config.group_dofa_tier_2").id,
+                        ],
+                    )
+                ],
             }
         )
         return maker, checker
@@ -377,13 +388,14 @@ class TestPostingLogAndReview:
                 {"account_id": accs["income"].id, "debit": 0.0, "credit": 80.0},
             ],
         )
+        move_vals["ref"] = "Accrual of September utilities"
         move, log = create_journal_entry_draft(odoo_env(user=maker.id), move_vals, {})
         assert move.state == "draft"
         assert log.state == "requested"
         assert log.requested_by == maker
 
-        # SoD: the maker cannot approve their own entry
-        with pytest.raises(UserError, match="Segregation of duties"), odoo_env.cr.savepoint():
+        # SoD: the maker cannot approve their own entry (it is not routed to him)
+        with pytest.raises(UserError, match="accounting manager"), odoo_env.cr.savepoint():
             approve_journal_entry(odoo_env(user=maker.id), move, {})
 
         posted, dims = approve_journal_entry(odoo_env(user=checker.id), move, {})
@@ -410,17 +422,15 @@ class TestPostingLogAndReview:
                 "group_ids": [(6, 0, [odoo_env.ref("account.group_account_user").id])],
             }
         )
-        move, _log = create_journal_entry_draft(
-            odoo_env(user=maker.id),
-            _move_vals(
-                accs["journal"],
-                [
-                    {"account_id": accs["expense"].id, "debit": 40.0, "credit": 0.0},
-                    {"account_id": accs["income"].id, "debit": 0.0, "credit": 40.0},
-                ],
-            ),
-            {},
+        vals = _move_vals(
+            accs["journal"],
+            [
+                {"account_id": accs["expense"].id, "debit": 40.0, "credit": 0.0},
+                {"account_id": accs["income"].id, "debit": 0.0, "credit": 40.0},
+            ],
         )
+        vals["ref"] = "Stationery accrual"
+        move, _log = create_journal_entry_draft(odoo_env(user=maker.id), vals, {})
         with pytest.raises(UserError, match="accounting manager"), odoo_env.cr.savepoint():
             approve_journal_entry(odoo_env(user=stranger.id), move, {})
 
@@ -436,7 +446,6 @@ class TestJournalTemplates:
             "journal_id": accs["journal"].id,
             "schedule": "monthly",
             "next_run_date": date(2026, 10, 1),
-            "state": "active",
             "memo": "ACCRUAL-UTIL",
             "line_ids": [
                 (
@@ -452,8 +461,14 @@ class TestJournalTemplates:
                 (0, 0, {"account_id": accs["income"].id, "debit": 0.0, "credit": 300.0}),
             ],
         }
+        state = overrides.pop("state", "active")
         vals.update(overrides)
-        return env["fix.journal.template"].create(vals)
+        template = env["fix.journal.template"].create(vals)
+        # A08 M19-9: a template is never born active; the (superuser) test
+        # fixture activates it through the approval step itself.
+        if state == "active":
+            template.sudo().action_activate()
+        return template
 
     def test_generate_entry_posts_and_advances(self, odoo_env):
         company = _fresh_company(odoo_env, "tmpl")
@@ -579,17 +594,20 @@ class TestJournalTemplates:
 
 
 class TestAllocationRules:
+    # A08 M19-14: a rule is never born active; the superuser fixture activates
+    # it through the approval step itself.
     def _rule(self, env, company, accs, source, lines):
-        return env["fix.allocation.rule"].create(
+        rule = env["fix.allocation.rule"].create(
             {
                 "name": "Rent allocation",
                 "company_id": company.id,
                 "journal_id": accs["journal"].id,
                 "source_account_id": source.id,
-                "state": "active",
                 "line_ids": lines,
             }
         )
+        rule.sudo().action_activate()
+        return rule
 
     def test_run_posts_clearing_and_targets(self, odoo_env):
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

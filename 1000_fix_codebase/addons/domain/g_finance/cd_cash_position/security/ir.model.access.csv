@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_payment_execution_request,fix.payment.execution.request,model_fix_payment_execution,base.group_user,1,0,1,0
+access_fix_payment_execution_request,fix.payment.execution.request,model_fix_payment_execution,base.group_user,1,0,0,0
 access_fix_payment_execution_account_readonly,fix.payment.execution.account.readonly,model_fix_payment_execution,account.group_account_readonly,1,0,0,0
 access_fix_payment_execution_account_user,fix.payment.execution.account.user,model_fix_payment_execution,account.group_account_user,1,1,1,0
 access_fix_payment_execution_account_manager,fix.payment.execution.account.manager,model_fix_payment_execution,account.group_account_manager,1,1,1,1
@@ -46,11 +46,17 @@ access_fix_facility_repayment_account_readonly,fix.facility.repayment.account.re
 access_fix_facility_repayment_account_user,fix.facility.repayment.account.user,model_fix_facility_repayment,account.group_account_user,1,1,0,0
 access_fix_facility_repayment_account_manager,fix.facility.repayment.account.manager,model_fix_facility_repayment,account.group_account_manager,1,1,1,1
 access_fix_facility_covenant_account_readonly,fix.facility.covenant.account.readonly,model_fix_facility_covenant,account.group_account_readonly,1,0,0,0
-access_fix_facility_covenant_account_user,fix.facility.covenant.account.user,model_fix_facility_covenant,account.group_account_user,1,1,0,0
+access_fix_facility_covenant_account_user,fix.facility.covenant.account.user,model_fix_facility_covenant,account.group_account_user,1,0,0,0
 access_fix_facility_covenant_account_manager,fix.facility.covenant.account.manager,model_fix_facility_covenant,account.group_account_manager,1,1,1,1
 access_fix_covenant_test_account_readonly,fix.covenant.test.account.readonly,model_fix_covenant_test,account.group_account_readonly,1,0,0,0
-access_fix_covenant_test_account_user,fix.covenant.test.account.user,model_fix_covenant_test,account.group_account_user,1,0,1,0
-access_fix_covenant_test_account_manager,fix.covenant.test.account.manager,model_fix_covenant_test,account.group_account_manager,1,1,1,0
+access_fix_covenant_test_account_user,fix.covenant.test.account.user,model_fix_covenant_test,account.group_account_user,1,0,0,0
+access_fix_covenant_test_account_manager,fix.covenant.test.account.manager,model_fix_covenant_test,account.group_account_manager,1,0,0,0
 access_fix_cash_forecast_item_account_readonly,fix.cash.forecast.item.account.readonly,model_fix_cash_forecast_item,account.group_account_readonly,1,0,0,0
 access_fix_cash_forecast_item_account_user,fix.cash.forecast.item.account.user,model_fix_cash_forecast_item,account.group_account_user,1,1,1,0
 access_fix_cash_forecast_item_account_manager,fix.cash.forecast.item.account.manager,model_fix_cash_forecast_item,account.group_account_manager,1,1,1,1
+access_fix_cheque_book_account_readonly,fix.cheque.book.account.readonly,model_fix_cheque_book,account.group_account_readonly,1,0,0,0
+access_fix_cheque_book_account_user,fix.cheque.book.account.user,model_fix_cheque_book,account.group_account_user,1,0,0,0
+access_fix_cheque_book_account_manager,fix.cheque.book.account.manager,model_fix_cheque_book,account.group_account_manager,1,1,1,0
+access_fix_facility_amendment_account_readonly,fix.facility.amendment.account.readonly,model_fix_facility_amendment,account.group_account_readonly,1,0,0,0
+access_fix_facility_amendment_account_user,fix.facility.amendment.account.user,model_fix_facility_amendment,account.group_account_user,1,1,1,0
+access_fix_facility_amendment_account_manager,fix.facility.amendment.account.manager,model_fix_facility_amendment,account.group_account_manager,1,1,1,0

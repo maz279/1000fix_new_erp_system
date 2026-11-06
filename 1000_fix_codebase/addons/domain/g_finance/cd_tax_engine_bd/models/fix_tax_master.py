@@ -6,13 +6,21 @@
 # Rows that could not be confirmed against a primary NBR text are seeded
 # with verify_with_adviser=True and say so on every screen that shows them.
 from datetime import date, timedelta
+from decimal import Decimal
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from . import return_logic
+from . import return_logic, tax_logic
 
-TAX_KINDS = [("vat", "VAT"), ("tds", "TDS (income tax at source)"), ("vds", "VDS (VAT at source)")]
+TAX_KINDS = [
+    ("vat", "VAT"),
+    ("tds", "TDS (income tax at source)"),
+    ("vds", "VDS (VAT at source)"),
+    # A08 M49-8 / BRU-FXA-13: the ITA 2023 Third Schedule depreciation rates
+    # are M51 master data (M49 holds no tax rate of its own).
+    ("depreciation", "Tax depreciation (ITA 2023 Third Schedule)"),
+]
 PAYEE_TYPES = [("any", "Any payee"), ("company", "Company"), ("individual", "Individual")]
 
 PARAMETER_KEYS = [
@@ -29,6 +37,8 @@ OBLIGATIONS = [
     ("wht_return", "Quarterly withholding tax return"),
     ("company_itr", "Company income tax return (annual)"),
 ]
+# Obligations whose status the ERP reads from its own returns and deposits.
+ERP_TRACKED_OBLIGATIONS = ("vat_91_return", "tds_deposit", "vds_deposit", "wht_return")
 FREQUENCIES = [("monthly", "Monthly"), ("quarterly", "Quarterly"), ("annual", "Annual")]
 
 # Account roles shared by the AP sub-ledger (cd_ap_ext) and the challans:
@@ -36,7 +46,10 @@ FREQUENCIES = [("monthly", "Monthly"), ("quarterly", "Quarterly"), ("annual", "A
 # FAILS CLOSED — a tax liability never lands on a guessed account.
 TAX_ACCOUNT_ROLES = {
     "vat_output": ("cd_tax_engine_bd.vat_output_account_code", "210100"),
-    "vat_input": ("cd_tax_engine_bd.vat_input_account_code", "110500"),
+    # A08 M51-8: the old default 110500 is "Work in Progress" in the loaded
+    # chart, so AP input VAT (60,337.50 on fix_dev) landed in WIP. There is
+    # no safe default: the input-VAT account is configuration, refused unset.
+    "vat_input": ("cd_tax_engine_bd.vat_input_account_code", None),
     # chart loader: 252000 "Tax Payable" -> 2-30-30-010 TDS payable
     "tds_payable": ("cd_tax_engine_bd.account_code.tds_payable", "252000"),
     "vds_payable": ("cd_tax_engine_bd.account_code.vds_payable", None),
@@ -85,20 +98,239 @@ class FixJournalPostingLogTax(models.Model):
     )
 
 
+MANAGER_GROUP = "account.group_account_manager"
+MASTER_STATES = [
+    ("proposed", "Proposed (awaiting activation)"),
+    ("active", "Active"),
+    ("retired", "Retired"),
+]
+# Fields of a statutory master row that never freeze: annotations only.
+MASTER_FREE_FIELDS = frozenset(
+    {"source_note", "adviser_reference_input", "message_follower_ids", "activity_ids"}
+)
+NON_FILER_FLOOR_PARAM = "cd_tax_engine_bd.non_filer_multiplier_floor"
+# ITA 2023: a payee without proof of return suffers the rate +50% (x1.5).
+NON_FILER_FLOOR_DEFAULT = 1.5
+
+
+def float_param(env, key, default):
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    try:
+        return float(raw) if raw not in (None, False, "") else float(default)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+class _MasterApproval(models.AbstractModel):
+    """Two-step change of a statutory master row (A08 M51-6, BRU-TAX-22/23).
+
+    A user's new row is a PROPOSAL: it is never used (find_rate, get_value,
+    the calendar and the VAT determination read ACTIVE rows only), it is
+    flagged "verify with adviser", and an accounting manager who is not its
+    proposer activates it only after the adviser's written confirmation is
+    recorded on it. An active row is never edited in place: a change is a new
+    proposal, whose activation closes (or retires) the row it supersedes.
+    Rows written by trusted system code (seed data, sudo) are active at once."""
+
+    _name = "fix.tax.master.approval.mixin"
+    _inherit = ["fix.guarded.mixin"]
+    _description = "Statutory master row: two-step activation"
+
+    state = fields.Selection(
+        MASTER_STATES, string="Status", required=True, default="active", tracking=True, index=True
+    )
+    verify_with_adviser = fields.Boolean(
+        string="Verify with Adviser",
+        default=True,
+        help="The company's VAT/tax adviser must confirm (or correct) this row before it is "
+        "relied on. A proposal so flagged cannot be activated until the adviser's written "
+        "confirmation is recorded on it.",
+    )
+    proposed_by_id = fields.Many2one("res.users", string="Proposed By", readonly=True, copy=False)
+    adviser_reference = fields.Char(
+        string="Adviser Confirmation",
+        readonly=True,
+        copy=False,
+        help="Reference of the adviser's written confirmation (letter, e-mail, opinion no.)",
+    )
+    adviser_reference_input = fields.Char(
+        string="Adviser Confirmation (to record)",
+        copy=False,
+        help="Type the adviser's confirmation reference, then Record Adviser Confirmation",
+    )
+    adviser_verified_by_id = fields.Many2one(
+        "res.users", string="Confirmation Recorded By", readonly=True, copy=False
+    )
+    adviser_verified_at = fields.Datetime(
+        string="Confirmation Recorded On", readonly=True, copy=False
+    )
+    activated_by_id = fields.Many2one("res.users", string="Activated By", readonly=True, copy=False)
+    activated_at = fields.Datetime(string="Activated On", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "verify_with_adviser",
+            "proposed_by_id",
+            "adviser_reference",
+            "adviser_verified_by_id",
+            "adviser_verified_at",
+            "activated_by_id",
+            "activated_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "proposed":
+            locked |= {n for n, f in self._fields.items() if f.store} - MASTER_FREE_FIELDS
+        return locked
+
+    # ---- per-model hooks ----------------------------------------------------
+    def _fix_master_key_domain(self):
+        """Domain of the rows sharing this row's statutory key (rate code,
+        parameter key, obligation, tariff code). Override."""
+        raise NotImplementedError
+
+    def _fix_master_supersede(self):
+        """Activation of this row: retire the active rows it replaces.
+        The effective-dated rows override this to close windows instead."""
+        self.ensure_one()
+        older = self.search(
+            [*self._fix_master_key_domain(), ("state", "=", "active"), ("id", "!=", self.id)]
+        )
+        older._guarded().write({"state": "retired"})
+
+    # ---- ORM ------------------------------------------------------------------
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self._fix_guard_open():
+            return super().create(vals_list)
+        guarded = self._fix_guarded_fields()
+        for vals in vals_list:
+            typed = (guarded & set(vals)) - {"verify_with_adviser", "state"}
+            if typed:
+                self._fix_guard_refuse(typed)
+            if vals.get("state") not in (None, False, "proposed"):
+                self._fix_guard_refuse({"state"})
+            vals["state"] = "proposed"
+            vals["proposed_by_id"] = self.env.uid
+            # a user's statutory change is always confirmed by the adviser
+            vals["verify_with_adviser"] = True
+        records = super(_MasterApproval, self._guarded()).create(vals_list)
+        return records.with_env(self.env)
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            frozen = self.filtered(lambda r: r.state != "proposed")
+            moving = set(vals) - MASTER_FREE_FIELDS
+            if frozen and moving:
+                changed = {
+                    name
+                    for rec in frozen
+                    for name in moving
+                    if name in rec._fields and rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+                if changed:
+                    raise UserError(
+                        "%s is an active statutory master row and is never edited in place "
+                        "(BRU-TAX-23). Propose a new row with its own Valid From; activating "
+                        "it by a second manager closes this one." % frozen[:1].display_name
+                    )
+            business = moving - self._fix_guarded_fields()
+            verified = (self - frozen).filtered("adviser_verified_by_id")
+            if business and verified:
+                # an edited proposal loses the adviser's confirmation it was given
+                res = super().write(vals)
+                verified._guarded().write(
+                    {
+                        "verify_with_adviser": True,
+                        "adviser_reference": False,
+                        "adviser_verified_by_id": False,
+                        "adviser_verified_at": False,
+                    }
+                )
+                return res
+        return super().write(vals)
+
+    @api.ondelete(at_uninstall=False)
+    def _fix_unlink_proposals_only(self):
+        if self.env.su:
+            return
+        if any(rec.state != "proposed" for rec in self):
+            raise UserError("A statutory master row in force is retired, never deleted.")
+
+    # ---- workflow ---------------------------------------------------------------
+    def _fix_require_manager(self, what):
+        if not self.env.su and not self.env.user.has_group(MANAGER_GROUP):
+            raise UserError("%s needs the Accounting Administrator role." % what)
+
+    def action_record_adviser_verification(self, reference=None):
+        """Record the adviser's written confirmation of a proposal, or of a
+        seeded row already in force (which clears its verify flag and changes
+        nothing else)."""
+        self._fix_require_manager("Recording the adviser's confirmation")
+        for rec in self:
+            ref = (reference or rec.adviser_reference_input or "").strip()
+            if not ref:
+                raise UserError("State the reference of the adviser's written confirmation.")
+            if rec.state not in ("proposed", "active"):
+                raise UserError("A retired row is not confirmed.")
+            rec._guarded().write(
+                {
+                    "verify_with_adviser": False,
+                    "adviser_reference": ref,
+                    "adviser_reference_input": False,
+                    "adviser_verified_by_id": self.env.uid,
+                    "adviser_verified_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_activate(self):
+        """Second step: an accounting manager who did not propose the row
+        activates it, once the adviser's confirmation is recorded."""
+        self._fix_require_manager("Activating a statutory master row")
+        for rec in self:
+            if rec.state != "proposed":
+                raise UserError("%s is not a proposal." % rec.display_name)
+            if not self.env.su and self.env.user in (rec.proposed_by_id | rec.create_uid):
+                raise UserError(
+                    "Segregation of duties: %s was proposed by you; a different accounting "
+                    "manager activates it." % rec.display_name
+                )
+            if rec.verify_with_adviser:
+                raise UserError(
+                    "%s is flagged verify-with-adviser: record the adviser's written "
+                    "confirmation before it is activated." % rec.display_name
+                )
+            rec._fix_master_supersede()
+            rec._guarded().write(
+                {
+                    "state": "active",
+                    "activated_by_id": self.env.uid,
+                    "activated_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_reject_proposal(self):
+        self._fix_require_manager("Rejecting a statutory proposal")
+        for rec in self:
+            if rec.state != "proposed":
+                raise UserError("Only a proposal is rejected.")
+            rec._guarded().write({"state": "retired"})
+        return True
+
+
 class _EffectiveDated(models.AbstractModel):
-    """Shared validity window + the adviser flag of every statutory row."""
+    """Shared validity window of every effective-dated statutory row."""
 
     _name = "fix.tax.effective.mixin"
+    _inherit = ["fix.tax.master.approval.mixin"]
     _description = "Effective-dated statutory master row"
 
     date_from = fields.Date(string="Valid From", required=True, default=fields.Date.today)
     date_to = fields.Date(string="Valid To", help="Empty = open-ended")
-    verify_with_adviser = fields.Boolean(
-        string="Verify with Adviser",
-        default=True,
-        help="Seeded from secondary sources: the company's VAT/tax adviser must "
-        "confirm (or correct) this row before it is relied on.",
-    )
     source_note = fields.Text(string="Source / Note")
 
     @api.constrains("date_from", "date_to")
@@ -108,20 +340,42 @@ class _EffectiveDated(models.AbstractModel):
                 raise ValidationError("Valid To cannot be before Valid From")
 
     def _overlaps(self, domain):
-        """True when another row of the same key overlaps this one's window."""
+        """True when another ACTIVE row of the same key overlaps this active
+        row's window (a proposal is not in force, so it never collides)."""
         self.ensure_one()
+        if self.state != "active":
+            return False
         far = date(9999, 12, 31)
-        for other in self.search([*domain, ("id", "!=", self.id)]):
+        for other in self.search([*domain, ("id", "!=", self.id), ("state", "=", "active")]):
             if self.date_from <= (other.date_to or far) and other.date_from <= (
                 self.date_to or far
             ):
                 return True
         return False
 
+    def _fix_master_supersede(self):
+        """Close the window of the active row this one replaces the day
+        before it starts; retire one that would start on or after it."""
+        self.ensure_one()
+        far = date(9999, 12, 31)
+        older = self.search(
+            [*self._fix_master_key_domain(), ("state", "=", "active"), ("id", "!=", self.id)]
+        )
+        for old in older:
+            if not (
+                old.date_from <= (self.date_to or far) and self.date_from <= (old.date_to or far)
+            ):
+                continue
+            if old.date_from < self.date_from:
+                old._guarded().write({"date_to": self.date_from - timedelta(days=1)})
+            else:
+                old._guarded().write({"state": "retired"})
+
     @api.model
     def _company_first(self, domain, company, limit=1):
-        """Rows for the company, else the statutory defaults (no company)."""
+        """ACTIVE rows for the company, else the statutory defaults (no company)."""
         Model = self.sudo()
+        domain = [*domain, ("state", "=", "active")]
         rows = Model.search([*domain, ("company_id", "=", company.id)], limit=limit)
         return rows or Model.search([*domain, ("company_id", "=", False)], limit=limit)
 
@@ -173,7 +427,17 @@ class FixTaxRate(models.Model):
     )
     active = fields.Boolean(default=True)
 
-    @api.constrains("rate", "tax_kind", "code", "payee_type", "date_from", "date_to", "company_id")
+    def _fix_master_key_domain(self):
+        return [
+            ("company_id", "=", self.company_id.id),
+            ("tax_kind", "=", self.tax_kind),
+            ("code", "=", self.code),
+            ("payee_type", "=", self.payee_type),
+        ]
+
+    @api.constrains(
+        "rate", "tax_kind", "code", "payee_type", "date_from", "date_to", "company_id", "state"
+    )
     def _check_rate(self):
         for row in self:
             if not 0 <= row.rate <= 100:
@@ -217,6 +481,27 @@ class FixTaxRate(models.Model):
             "(never guessed on statutory money)." % (tax_kind.upper(), code, on_date, company.name)
         )
 
+    @api.model
+    def _fix_vat_rates(self, on_date=None, company=None):
+        """The VAT rates in force (A08 M51-5): the active standard row and
+        every active reduced row (codes reduced_*) on the supply date, the
+        company's own first. What the sales determination charges."""
+        company = company or self.env.company
+        on_date = on_date or fields.Date.context_today(self)
+        Rate = self.sudo()
+        standard = Rate.find_rate("vat", "standard", on_date, company)
+        window = [
+            ("tax_kind", "=", "vat"),
+            ("code", "=like", "reduced_%"),
+            *Rate._window_domain(on_date),
+        ]
+        reduced = Rate._company_first(window, company, limit=None)
+        return tax_logic.VatRates(
+            standard=Decimal(str(standard.rate)),
+            reduced=frozenset(Decimal(str(r.rate)) for r in reduced),
+            source="master",
+        )
+
 
 class FixTaxParameter(models.Model):
     """Statutory scalar parameters (thresholds, multipliers, windows)."""
@@ -244,11 +529,21 @@ class FixTaxParameter(models.Model):
         for row in self:
             row.display_name = "%s = %g" % (labels.get(row.key, row.key or ""), row.value)
 
-    @api.constrains("key", "value", "date_from", "date_to", "company_id")
+    def _fix_master_key_domain(self):
+        return [("company_id", "=", self.company_id.id), ("key", "=", self.key)]
+
+    @api.constrains("key", "value", "date_from", "date_to", "company_id", "state")
     def _check_parameter(self):
         for row in self:
             if row.value < 0:
                 raise ValidationError("A statutory parameter cannot be negative")
+            if row.key == "non_filer_multiplier":
+                floor = float_param(row.env, NON_FILER_FLOOR_PARAM, NON_FILER_FLOOR_DEFAULT)
+                if row.value < floor - 1e-9:
+                    raise ValidationError(
+                        "The non-filer multiplier cannot be below the statutory %.3g "
+                        "(ITA 2023: +50%%; system parameter %s)" % (floor, NON_FILER_FLOOR_PARAM)
+                    )
             if row._overlaps([("company_id", "=", row.company_id.id), ("key", "=", row.key)]):
                 raise ValidationError(
                     "Parameter %s already has a row valid in an overlapping window" % row.key
@@ -304,7 +599,12 @@ class FixStatutoryDueRule(models.Model):
     )
     active = fields.Boolean(default=True)
 
-    @api.constrains("due_day", "month_offset", "obligation", "date_from", "date_to", "company_id")
+    def _fix_master_key_domain(self):
+        return [("company_id", "=", self.company_id.id), ("obligation", "=", self.obligation)]
+
+    @api.constrains(
+        "due_day", "month_offset", "obligation", "date_from", "date_to", "company_id", "state"
+    )
     def _check_rule(self):
         for rule in self:
             if not 1 <= rule.due_day <= 31:
@@ -375,9 +675,13 @@ class FixStatutoryDueRule(models.Model):
         company = company or self.env.company
         today = fields.Date.context_today(self)
         rows = []
-        own = self.sudo().search([("company_id", "=", company.id)])
+        own = self.sudo().search([("company_id", "=", company.id), ("state", "=", "active")])
         defaults = self.sudo().search(
-            [("company_id", "=", False), ("obligation", "not in", own.mapped("obligation"))]
+            [
+                ("company_id", "=", False),
+                ("state", "=", "active"),
+                ("obligation", "not in", own.mapped("obligation")),
+            ]
         )
         for rule in own | defaults:
             lookback = (rule.month_offset or 0) + 13
@@ -408,12 +712,20 @@ class FixStatutoryDueRule(models.Model):
         """(status, detail) for one period: done / nothing_due / open."""
         self.ensure_one()
         env = self.env
-        evidence = env["fix.statutory.filing"].search(
-            [("rule_id", "=", self.id), ("period_key", "=", key), ("company_id", "=", company.id)],
-            limit=1,
-        )
-        if evidence:
-            return "done", "Filed %s, ref %s" % (evidence.filed_on, evidence.reference)
+        # A08 M51-1 (S01): the obligations the ERP files or deposits itself are
+        # "done" only from their own records; typed evidence counts for the
+        # others (e.g. the annual company return) only.
+        if self.obligation not in ERP_TRACKED_OBLIGATIONS:
+            evidence = env["fix.statutory.filing"].search(
+                [
+                    ("rule_id", "=", self.id),
+                    ("period_key", "=", key),
+                    ("company_id", "=", company.id),
+                ],
+                limit=1,
+            )
+            if evidence:
+                return "done", "Filed %s, ref %s" % (evidence.filed_on, evidence.reference)
         if self.obligation == "vat_91_return":
             ret = env["fix.vat.return"].search(
                 [("company_id", "=", company.id), ("period", "=", key)], limit=1
@@ -478,3 +790,12 @@ class FixStatutoryFiling(models.Model):
     reference = fields.Char(string="Acknowledgement / Reference", required=True)
     note = fields.Text()
     attachment_ids = fields.Many2many("ir.attachment", string="Evidence Files")
+
+    @api.constrains("rule_id")
+    def _check_obligation(self):
+        for rec in self:
+            if rec.rule_id.obligation in ERP_TRACKED_OBLIGATIONS:
+                raise ValidationError(
+                    "%s is filed or deposited through the ERP itself (its return or challan "
+                    "records it); typed filing evidence is not accepted for it." % rec.rule_id.name
+                )

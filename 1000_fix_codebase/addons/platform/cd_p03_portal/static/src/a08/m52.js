@@ -92,11 +92,11 @@ export const SCREENS = {
     stateField: 'state', actions: [{m:'action_approve',l:'Approve & Post'},{m:'action_cancel',l:'Cancel'}] },
   'M52-claims': { kind: 'model_list', model: 'fix.expense.claim',
     cols: ['employee_id','description','expense_date','amount','advance_id','state'],
-    stateField: 'state', actions: [{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'},{m:'action_reject',l:'Reject'}] },
+    stateField: 'state', actions: [{m:'action_submit',l:'Submit'},{m:'action_manager_approve',l:'Line Manager Approve'},{m:'action_approve',l:'Finance Approve'},{m:'action_reject',l:'Reject'}] },
   'M52-advances': { kind: 'model_list', model: 'fix.employee.advance',
     cols: ['name','employee_id','advance_type','purpose','amount','settled_amount','recovered_amount','balance','state'],
     stateField: 'state',
-    actions: [{m:'action_approve',l:'Approve'},{m:'action_confirm_disbursement',l:'Confirm Disbursement'},{m:'action_settle',l:'Settle Against Claims'},{m:'action_record_recovery',l:'Recover Balance'}] },
+    actions: [{m:'action_approve',l:'Approve'},{m:'action_confirm_disbursement',l:'Confirm Disbursement'},{m:'action_sync_disbursement',l:'Read Bank Status'},{m:'action_settle',l:'Settle Against Claims'},{m:'action_record_recovery',l:'Recover Balance'}] },
   'M52-perdiem': { kind: 'model_list', model: 'fix.expense.rate',
     cols: ['rate_type','grade_id','location','vehicle','rate','date_from','date_to'] },
   'M52-policy': { kind: 'model_list', model: 'fix.expense.policy',
@@ -142,7 +142,8 @@ export const SCREENS = {
         { name: 'product_id', required: true, label: 'Product' },
         { name: 'description', required: true, label: 'Description' },
         { name: 'quantity', required: true, label: 'Quantity' },
-        { name: 'unit_price', required: true, label: 'Unit Price' }
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'cwip_id', label: 'CWIP Project (capital purchase)' }
       ]
     }
   },
@@ -155,14 +156,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Submitted', approved: 'Approved', paid: 'Paid', rejected: 'Rejected' } },
     sections: [
-      { title: 'Claim Header', note: 'Submission runs the expense policy: per-line and per-day limits by category and employee grade; breaches are recorded on the claim, and only accounting can approve or pay.',
+      { title: 'Claim Header', note: 'A claim is its lines: submission runs the expense policy (limits by category and grade, receipts, a receipt claimed once). The line manager approves, then accounting; claims in a 30-day window are summed for the manager threshold.',
         fields: [
           { name: 'description', required: true, label: 'Description' },
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'expense_date', required: true, label: 'Expense Date' },
           { name: 'advance_id', label: 'Settles Advance' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'amount', label: 'Claimed Amount (no lines)' }
+          { name: 'amount', readonly: true, label: 'Claimed Amount (sum of the lines)' }
         ] }
     ],
     lines: {
@@ -292,15 +293,15 @@ export const SCREENS = {
     title: "AP Approval Rule",
     back: 'M52-matrix',
     sections: [
-      { title: "AP Approval Rule", note: "The value band and role ladder that decide who approves an AP document.",
+      { title: "AP Approval Rule", note: "The value band and role ladder that decide who approves a vendor bill. Read-only here: a matrix row changes through a matrix change request proposed by one accounting manager and confirmed by another (A08 M52-12).",
         fields: [
-          { name: 'company_id', required: true, label: "Company" },
-          { name: 'name', required: true, label: "Name" },
-          { name: 'level', required: true, label: "Level" },
-          { name: 'currency_id', required: true, label: "Currency" },
-          { name: 'amount_min', required: true, label: "Applies From (gross)" },
-          { name: 'group_id', required: true, label: "Approver Group" },
-          { name: 'active', label: "Active" }
+          { name: 'company_id', readonly: true, label: "Company" },
+          { name: 'name', readonly: true, label: "Name" },
+          { name: 'level', readonly: true, label: "Level" },
+          { name: 'currency_id', readonly: true, label: "Currency" },
+          { name: 'amount_min', readonly: true, label: "Applies From (gross)" },
+          { name: 'group_id', readonly: true, label: "Approver Group" },
+          { name: 'active', readonly: true, label: "Active" }
         ] }
     ]
   },
@@ -310,14 +311,14 @@ export const SCREENS = {
     title: "Payment Run",
     back: 'M52-runs',
     sections: [
-      { title: "Payment Run", note: "A payment run: the documents selected, the total and the bank file produced.",
+      { title: "Payment Run", note: "Propose, submit, approve and release are actions (three different people prepare, approve and release). The approval pins each line's payee account, amount and bills; a later change voids it.",
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'rail', required: true, label: "Rail" },
           { name: 'payment_date', required: true, label: "Payment Date" },
           { name: 'due_by', required: true, label: "Bills Due By" },
           { name: 'currency_id', required: true, label: "Currency" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },

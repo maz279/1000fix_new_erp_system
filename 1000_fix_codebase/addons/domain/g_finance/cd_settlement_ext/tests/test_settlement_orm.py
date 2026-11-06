@@ -1,21 +1,15 @@
 # cd_settlement_ext — live-ORM behaviour of M53: commission accrual (FF-91),
-# SoD-gated payout runs on the INT-007 rail, statements, reconciliation and
-# the seller settlement API. DoD-03 statutory set.
-#
-# The INT-007 rail is the in-memory library (no network); outcomes it cannot
-# produce on demand (FAILED) come from a stub rail.
+# SoD-gated payout runs paid through treasury (M50), statements,
+# reconciliation and the seller settlement API. DoD-03 statutory set.
 from __future__ import annotations
 
-import base64
 import json
 from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from odoo.exceptions import AccessError, UserError
-
-from libs.py.payout_rail import INT007PayoutRail, PayoutStatus
+from odoo.exceptions import UserError
 
 pytestmark = [pytest.mark.financial]
 
@@ -121,21 +115,12 @@ def _run(book, **vals):
     )
 
 
-def _approved_run(book):
-    manager = _user(
-        book.env, "finance_manager_karim", "base.group_user", "account.group_account_manager"
-    )
-    run = _run(book)
-    run.with_user(manager).action_approve()
-    return run
-
-
 # --------------------------------------------------------------------------- commission ledger
 
 
 class TestCommissionLedger:
     def test_commission_and_net_entitlement(self, book):
-        assert book.c1.name == f"COM/{YEAR}/New"
+        assert book.c1.name.startswith(f"COM/{YEAR}/") and book.c1.name != f"COM/{YEAR}/New"
         assert _money(book.c1.commission_amount) == D("1000.00")
         assert _money(book.c1.net_payable) == D("8550.00")  # 10,000 - 1,000 - 450
         assert _money(book.c2.commission_amount) == D("250.05")  # 2,500.50 x 10%
@@ -260,383 +245,218 @@ class TestCommissionLedger:
 
 
 # --------------------------------------------------------------------------- payout run
+#
+# A08 F2 / FR-REV-034 (rewritten 4 Nov 2026): the run no longer pays on its
+# own INT-007 rail or BEFTN file — those tests asserted the defect the audit
+# found (M53 paid without treasury and "confirmed" on a typed reference). A
+# run is prepared, approved from the M63 inbox by an Accounting
+# Administrator who did not prepare it, pinned, released to M50 as one
+# payment instruction per payee and completed by the imported bank
+# statement debit.
+
+
+def _confirm_bank(partner, routing):
+    """M52 dual control (B2): the payee account confirmed by a second person."""
+    bank = partner.bank_ids[:1]
+    bank._fix_confirming().write({"fix_routing_number": routing})
+    bank._fix_confirming()._fix_mark_confirmed("call-back on the number on file (test)", None)
+    return bank
+
+
+def _age(env, rows):
+    """FLAW-12.2: marketplace rows are collectable once the 7-day buyer
+    dispute window has passed — age them past it (as in TestEscrow)."""
+    env.cr.execute(
+        "UPDATE fix_commission_ledger SET create_date = create_date - interval '8 days' "
+        "WHERE id IN %s",
+        (tuple(rows.ids),),
+    )
+    rows.invalidate_recordset()
+    rows._compute_escrow_release()
+    rows.flush_recordset()
+
+
+def _treasury(book):
+    """Users and the paying bank account for the M50 leg."""
+    env = book.env
+    journal = env["account.journal"].create(
+        {"name": "Payout Bank", "code": "PYB%s" % str(book.seller_a.id)[-2:], "type": "bank",
+         "company_id": env.company.id}
+    )
+    param = env["ir.config_parameter"]
+    param.set_param("cd_settlement_ext.payout_journal_code", journal.code)
+    param.set_param("cd_cash_position.release_single_ceiling", "5000000")
+    _confirm_bank(book.seller_a, "060272531")
+    _confirm_bank(book.seller_b, "175260162")
+    accrue = book.c1 | book.c2 | book.c3
+    accrue.action_post_to_gl()
+    _age(env, accrue)
+    return SimpleNamespace(
+        journal=journal,
+        preparer=_user(env, "payout_prep_rahim", "base.group_user", "account.group_account_user"),
+        clerk=_user(env, "treasury_clerk_mitu", "base.group_user", "account.group_account_user"),
+        approver=_user(env, "fin_mgr_karim", "base.group_user", "account.group_account_manager"),
+        releaser=_user(env, "fin_mgr_nasrin", "base.group_user", "account.group_account_manager"),
+    )
+
+
+def _inbox_approve(env, record, user):
+    task = env["fix.workflow.task"].sudo().search(
+        [("res_model", "=", record._name), ("res_id", "=", record.id),
+         ("state", "=", "pending"), ("assigned_user_id", "=", user.id)],
+        limit=1,
+    )
+    assert task, "no M63 task for %s" % user.login
+    task.with_user(user).action_approve()
+    record.invalidate_recordset()
+
+
+def _approved(book, t):
+    run = book.env["fix.payout.run"].with_user(t.preparer).create(
+        {"period": "2026-10", "company_id": book.env.company.id}
+    )
+    run.action_collect_accrued()
+    run.action_prepare()
+    _inbox_approve(book.env, run, t.approver)
+    return run.with_env(book.env)
+
+
+def _bank_debit(env, pay):
+    line = env["fix.bank.statement.line"].create(
+        {
+            "company_id": pay.company_id.id,
+            "journal_id": (pay.released_journal_id or pay.journal_id).id,
+            "date": date.today(),
+            "amount": -pay.released_amount,
+            "reference": pay.name,
+            "statement_file_hash": "test-%s" % pay.id,
+        }
+    )
+    line._fix_match_document("matched_payment_id", pay, "manual")
+
+
+def _release_all(book, t, run, confirm=True):
+    run.with_user(t.preparer).action_request_payments()
+    for pay in run.line_ids.mapped("payment_execution_id"):
+        pay.with_user(t.clerk).action_prepare()
+        pay.with_user(t.releaser).action_release()
+        if confirm:
+            _bank_debit(book.env, pay)
+    run.invalidate_recordset()
 
 
 class TestPayoutRun:
     def test_totals_and_reference(self, book):
         run = _run(book)
-        assert run.name == f"PAY/{YEAR}/New"
+        assert run.name.startswith(f"PAY/{YEAR}/") and run.name != f"PAY/{YEAR}/New"
         assert _money(run.total_gross) == D("16500.50")
         assert _money(run.total_tds) == D("640.00")
         assert _money(run.total_payable) == D("14410.45")  # 8,550.00 + 2,250.45 + 3,610.00
         assert run.seller_count == 2
         assert _run(book, name="PAY/MANUAL/9").name == "PAY/MANUAL/9"
 
-    def test_sod_gate(self, book):
-        manager = _user(
-            book.env, "finance_manager_karim", "base.group_user", "account.group_account_manager"
-        )
-        clerk = _user(book.env, "payout_clerk_rahim", "base.group_user")
-        empty = book.env["fix.payout.run"].create({"period": "2026-10"})
+    def test_prepare_route_and_approve(self, book):
+        t = _treasury(book)
+        empty = book.env["fix.payout.run"].with_user(t.preparer).create({"period": "2026-10"})
         with pytest.raises(UserError, match="No commissions attached"), book.env.cr.savepoint():
-            empty.action_approve()
-        own = _run(book, prepared_by_id=manager.id)
-        with pytest.raises(UserError, match="Preparer cannot approve"), book.env.cr.savepoint():
-            own.with_user(manager).action_approve()
-        run = _run(book)
-        with pytest.raises(AccessError, match="Only Finance Managers"), book.env.cr.savepoint():
-            run.with_user(clerk).action_approve()
-        run.with_user(manager).action_approve()
-        assert (run.state, run.approved_by_id, run.sod_verified) == ("approved", manager, True)
+            empty.action_prepare()
+        run = book.env["fix.payout.run"].with_user(t.approver).create({"period": "2026-10"})
+        run.action_collect_accrued()
+        run.action_prepare()
+        # the preparing manager is never asked, and cannot approve directly
+        assigned = run.approval_request_id.sudo().task_ids.mapped("assigned_user_id")
+        assert t.approver not in assigned and t.releaser in assigned
+        with pytest.raises(UserError), book.env.cr.savepoint():
+            run.with_user(t.approver).action_approve()
+        with pytest.raises(UserError), book.env.cr.savepoint():
+            run.with_user(t.clerk).action_approve()
+        _inbox_approve(book.env, run, t.releaser)
+        assert (run.state, run.approved_by_id, run.sod_verified) == ("approved", t.releaser, True)
+        assert _money(run.approved_total) == D("14410.45")
+        assert sorted(run.line_ids.mapped("amount")) == [3610.0, 10800.45]
         assert _events(book.env, "payout.approved", run.id) == [
             {
                 "payout_run": run.name,
                 "total_payable": 14410.45,
                 "total_tds": 640.0,
                 "seller_count": 2,
-                "approved_by": manager.name,
+                "approved_by": t.releaser.name,
             }
         ]
 
     def test_execution_requires_approval(self, book):
         run = _run(book)
-        with pytest.raises(UserError, match="Approve before executing"), book.env.cr.savepoint():
-            run.action_execute()
-        with pytest.raises(UserError, match="must be SoD-approved"), book.env.cr.savepoint():
-            run.action_submit_payout()
-        with (
-            pytest.raises(UserError, match="Approve payout run before generating BEFTN"),
-            book.env.cr.savepoint(),
+        for call in (
+            run.action_execute,
+            run.action_submit_payout,
+            run.action_generate_beftn,
+            run.action_request_payments,
         ):
-            run.action_generate_beftn()
+            with pytest.raises(UserError, match="only an approved run"), book.env.cr.savepoint():
+                call()
 
-    def test_confirmed_api_payout_finalises(self, book, monkeypatch):
-        # WIRE-STUB at the rail seam: the ORM state machine is under test here;
-        # the rail's own suite (libs/py/payout_rail) proves the HTTP contract,
-        # including its fail-closed refusal without an endpoint.
-        from decimal import Decimal as _D
-
-        from odoo.addons.cd_settlement_ext.models import fix_settlement_ext as mod
-
-        from libs.py.payout_rail import (
-            PayoutBatchResult,
-            PayoutStatus,
-            RecipientResult,
-        )
-
-        class _WireRail:
-            def __init__(self, *a, **k):
-                pass
-
-            def submit_payout_batch(self, req, **kwargs):
-                results = tuple(
-                    RecipientResult(
-                        seller_ref=r.seller_ref,
-                        status=PayoutStatus.CONFIRMED,
-                        rail_tx_id=f"TX-{r.seller_ref}",
-                        amount_bdt=r.amount_bdt,
-                    )
-                    for r in req.recipients
-                )
-                return PayoutBatchResult(
-                    batch_ref=req.batch_ref,
-                    rail_batch_id=f"RAIL-{req.batch_ref}-W1",
-                    idempotency_key=req.idempotency_key,
-                    status=PayoutStatus.CONFIRMED,
-                    submission_time="2026-10-22T00:00:00+00:00",
-                    recipient_results=results,
-                    total_amount=req.total_amount,
-                    recipient_count=req.recipient_count,
-                    confirmed_count=req.recipient_count,
-                    confirmed_amount=req.total_amount,
-                    failed_count=0,
-                    failed_amount=_D("0.00"),
-                    unknown_count=0,
-                    unknown_amount=_D("0.00"),
-                    rail_type="api",
-                )
-
-        monkeypatch.setattr(mod, "INT007PayoutRail", _WireRail)
-        run = _approved_run(book)
-        run.action_execute()
-        assert run.state == "executed"
-        assert run.rail_status == "confirmed"
-        assert run.idempotency_key.startswith(f"IDEMP-{run.name}-")
-        assert run.rail_batch_id.startswith(f"RAIL-{run.name}-")
+    def test_treasury_pays_and_the_bank_statement_completes_the_run(self, book):
+        t = _treasury(book)
+        run = _approved(book, t)
+        _release_all(book, t, run)
+        assert run.state == "executed" and run.rail_status == "confirmed"
         assert set((book.c1 | book.c2 | book.c3).mapped("state")) == {"paid"}
-
-        statements = {s.seller_partner_id: s for s in run.statement_ids}
-        a, b = statements[book.seller_a], statements[book.seller_b]
-        assert [
-            _money(v) for v in (a.gross_gmv, a.commission_amount, a.tds_withheld, a.net_payable)
-        ] == [
-            D("12500.50"),
-            D("1250.05"),
-            D("450.00"),
-            D("10800.45"),
-        ]
-        assert [
-            _money(v) for v in (b.gross_gmv, b.commission_amount, b.tds_withheld, b.net_payable)
-        ] == [
-            D("4000.00"),
-            D("200.00"),
-            D("190.00"),
-            D("3610.00"),
-        ]
-        assert a.withholding_cert_ref == f"NBR-TDS52-{YEAR}-{book.seller_a.id:04d}-0001"
-        assert b.withholding_cert_ref == f"NBR-TDS52-{YEAR}-{book.seller_b.id:04d}-0002"
-        assert {a.state, b.state} == {"issued"}
-
-        move = run.gl_move_id
-        lines = {line.name.split(":")[0]: line for line in move.line_ids}
-        # discharge the seller liability 15,050.45 = net 14,410.45 + TDS 640.00
-        assert _money(lines["Discharge Seller Liability"].debit) == D("15050.45")
-        assert _money(lines["Statutory TDS Withheld (ITA 2023 s.140)"].credit) == D("640.00")
-        assert _money(lines["Net Disbursed Funds via api"].credit) == D("14410.45")
-        assert _events(book.env, "payout.executed", run.id) == [
-            {
-                "payout_run": run.name,
-                "rail_type": "api",
-                "rail_status": "confirmed",
-                "sellers_paid": 2,
-                "total_disbursed": 14410.45,
-                "tds_withheld": 640.0,
-            }
-        ]
-        # the GL discharge is posted once
-        run.action_post_payout_to_gl()
-        assert (
-            book.env["account.move"].search_count([("ref", "=", f"PAYOUT-DISCHARGE-{run.name}")])
-            == 1
+        pays = run.line_ids.mapped("payment_execution_id")
+        assert set(pays.mapped("state")) == {"executed"} and all(pays.mapped("source_posts_gl"))
+        assert not pays.mapped("move_id")  # M50 books nothing: the run discharges once
+        bank_code = t.journal.default_account_id.code
+        rows = sorted(
+            (line.account_id.code, line.debit, line.credit) for line in run.gl_move_id.line_ids
         )
-
-    def test_timeout_is_unknown_until_the_bank_confirms(self, book):
-        """Regression: the read-back passed CONFIRMED as the outcome itself,
-        so every timed-out payout was finalised as paid with invented
-        transaction ids. Without a bank response it stays pending."""
-        run = _approved_run(book)
-        rail = INT007PayoutRail()
-        run.action_submit_payout(simulate_timeout=True, rail_instance=rail)
-        assert (run.state, run.rail_status) == ("executing", "unknown")  # never 'failed'
-        assert not run.statement_ids
-        key = run.idempotency_key
-        run.action_query_status(rail_instance=rail)
-        assert (run.state, run.rail_status) == ("executing", "pending_bank_confirmation")
-        assert not run.statement_ids and not run.gl_move_id
-        assert set((book.c1 | book.c2 | book.c3).mapped("state")) == {"earned"}
-        assert run.idempotency_key == key
-        # the bank's reference, recorded by a finance manager, finalises it
-        manager = _user(
-            book.env, "finance_manager_salma", "base.group_user", "account.group_account_manager"
+        assert rows == sorted(
+            [("200200", 15050.45, 0.0), ("210100", 0.0, 640.0), (bank_code, 0.0, 14410.45)]
         )
-        run.with_user(manager).action_confirm_bank_settlement("BEFTN-STL-20261023-0042")
-        assert (run.state, run.rail_status) == ("executed", "confirmed")
-        assert run.bank_confirmation_ref == "BEFTN-STL-20261023-0042"
-        assert run.bank_confirmed_by_id == manager
-        assert run.gl_move_id and len(run.statement_ids) == 2
+        st_a = run.statement_ids.filtered(lambda s: s.seller_partner_id == book.seller_a)
+        assert st_a.state == "issued" and _money(st_a.net_payable) == D("10800.45")
+        assert st_a.withholding_cert_ref.startswith("TDSC/")
+        (event,) = _events(book.env, "payout.executed", run.id)
+        assert (event["sellers_paid"], event["total_disbursed"]) == (2, 14410.45)
+        # a second release cannot pay again
+        with pytest.raises(UserError), book.env.cr.savepoint():
+            run.with_user(t.preparer).action_request_payments()
 
-    def test_read_back_with_a_real_bank_response(self, book):
-        run = _approved_run(book)
-        run.action_submit_payout(simulate_timeout=True, rail_instance=INT007PayoutRail())
-        # a bank response without the bank's reference is not a confirmation
-        run.action_query_status(rail_instance=_BankQueryRail(PayoutStatus.CONFIRMED, ""))
-        assert (run.state, run.rail_status) == ("executing", "pending_bank_confirmation")
-        run.action_query_status(rail_instance=_BankQueryRail(PayoutStatus.CONFIRMED, "BK-77"))
-        assert (run.state, run.rail_status, run.bank_confirmation_ref) == (
-            "executed",
-            "confirmed",
-            "BK-77",
-        )
+    def test_a_failed_bank_payment_does_not_complete_the_run(self, book):
+        t = _treasury(book)
+        run = _approved(book, t)
+        _release_all(book, t, run, confirm=False)
+        pay = run.line_ids.mapped("payment_execution_id")[:1]
+        pay.sudo().write({"failure_reason": "account closed"})
+        pay.with_user(t.clerk).action_mark_failed()
+        run.invalidate_recordset()
+        assert run.state == "executing" and run.rail_status == "failed" and not run.gl_move_id
+        assert set((book.c1 | book.c2 | book.c3).mapped("state")) == {"accrued"}
 
-    def test_read_back_reporting_failure(self, book):
-        run = _approved_run(book)
-        run.action_submit_payout(simulate_timeout=True, rail_instance=INT007PayoutRail())
-        run.action_query_status(rail_instance=_BankQueryRail(PayoutStatus.FAILED, ""))
-        assert (run.state, run.rail_status) == ("executing", "failed")
-        with (
-            pytest.raises(UserError, match=r"reported payout .* as FAILED"),
-            book.env.cr.savepoint(),
-        ):
-            run.action_confirm_bank_settlement("BK-1")
-        assert run.state == "executing"
-
-    def test_bank_confirmation_needs_reference_manager_and_pending_state(self, book):
-        run = _approved_run(book)
-        with (
-            pytest.raises(UserError, match="not awaiting bank confirmation"),
-            book.env.cr.savepoint(),
-        ):
-            run.action_confirm_bank_settlement("BK-1")
-        run.action_generate_beftn()
-        with (
-            pytest.raises(UserError, match="Enter the bank's settlement reference"),
-            book.env.cr.savepoint(),
-        ):
-            run.action_confirm_bank_settlement()
-        clerk = _user(book.env, "payout_clerk_jamal", "base.group_user")
-        with (
-            pytest.raises(AccessError, match="Only Finance Managers"),
-            book.env.cr.savepoint(),
-        ):
-            run.with_user(clerk).action_confirm_bank_settlement("BK-1")
-        assert run.state == "file_generated"
-        # the form route: reference keyed into the field, then the button
-        run.bank_confirmation_ref = "  BK-REF-9  "
-        run.action_confirm_bank_settlement()
-        assert (run.state, run.bank_confirmation_ref) == ("executed", "BK-REF-9")
-
-    def test_failed_rail_outcome_does_not_finalise(self, book):
-        run = _approved_run(book)
-        run.idempotency_key = "IDEMP-FIXED-KEY"
-        run.action_submit_payout(rail_instance=_StubRail(PayoutStatus.FAILED))
-        assert (run.state, run.rail_status, run.rail_batch_id) == ("approved", "failed", "STUB-1")
-        assert run.idempotency_key == "IDEMP-FIXED-KEY"  # reused, never regenerated
-        run.action_query_status(rail_instance=_StubRail(PayoutStatus.FAILED))
-        assert (run.state, run.rail_status) == ("approved", "failed")
-
-    def test_query_needs_a_rail_reference(self, book):
-        run = _approved_run(book)
-        with pytest.raises(UserError, match="No rail batch reference"), book.env.cr.savepoint():
-            run.action_query_status()
-
-    def test_beftn_fallback_file_is_not_a_confirmed_payment(self, book):
-        """Regression: generating the BEFTN file marked the payout confirmed,
-        the commissions paid and posted the GL discharge - although the file
-        had not even been uploaded to the bank."""
-        run = _approved_run(book)
-        run.action_generate_beftn(rail_instance=INT007PayoutRail())
-        assert (run.state, run.rail_type, run.rail_status) == (
-            "file_generated",
-            "beftn",
-            "file_generated",
-        )
-        assert run.beftn_filename == "BEFTN_PAY_%d_New.txt" % YEAR
-        content = base64.b64decode(run.beftn_file).decode("ascii")
-        assert all(len(row) == 128 for row in content.splitlines())
-        assert run.idempotency_key.startswith(f"IDEMP-BEFTN-{run.name}-")
-        assert run.rail_batch_id.startswith(f"BEFTN-{run.name}-")
-        assert not run.gl_move_id and not run.statement_ids
-        assert set((book.c1 | book.c2 | book.c3).mapped("state")) == {"earned"}
-        assert not _events(book.env, "payout.executed", run.id)
-
-        run.action_confirm_bank_settlement("BEFTN-SETTLED-0091")
-        assert (run.state, run.rail_status) == ("executed", "confirmed")
-        assert set((book.c1 | book.c2 | book.c3).mapped("state")) == {"paid"}
-        lines = {line.name.split(":")[0]: line for line in run.gl_move_id.line_ids}
-        assert _money(lines["Net Disbursed Funds via beftn"].credit) == D("14410.45")
-
-    def test_beftn_file_carries_the_recorded_bank_details(self, book):
-        """Regression: the file's originating routing was the payout
-        library's built-in sponsor routing, not the company's account."""
-        run = _approved_run(book)
-        run.action_generate_beftn()  # default rail: built from the company account
-        rows = base64.b64decode(run.beftn_file).decode("ascii").splitlines()
-        file_header, entries = rows[0], [r for r in rows if r.startswith("6")]
-        assert file_header[13:23].strip() == COMPANY_ROUTING
-        assert file_header[63:86].strip() == book.env.company.name[:23]
-        by_ref = {e[39:54].strip(): e for e in entries}
-        a = by_ref["SLR-%04d" % book.seller_a.id]
-        b = by_ref["SLR-%04d" % book.seller_b.id]
-        assert (a[3:12], a[12:29].strip(), a[29:39]) == ("060272531", "2050123456789", "0001080045")
-        assert (b[3:12], b[12:29].strip(), b[29:39]) == ("175260162", "0911100012345", "0000361000")
-
-    def test_every_missing_bank_detail_is_named(self, book):
-        """All gaps — the company's and every seller's — in ONE refusal."""
-        company = book.env["res.company"].create({"name": "1000FiX No-Bank Payouts Ltd"})
-        nobank = _seller(book.env, "Cash Only Traders", account=None)
-        bad = _seller(book.env, "Misrouted Mobiles", routing="BRAC-DHK")
-        extra = _commission(book.env, nobank, 500.0, 0.1) | _commission(book.env, bad, 800.0, 0.1)
-        run = _run(book, company_id=company.id)
-        run.commission_ids |= extra
-        run.state = "approved"
-        with pytest.raises(UserError) as refused, book.env.cr.savepoint():
-            run.action_generate_beftn()
-        message = str(refused.value)
-        assert "company 1000FiX No-Bank Payouts Ltd: no bank account" in message
-        assert "seller Cash Only Traders: no bank account" in message
-        assert "seller Misrouted Mobiles: routing 'BRAC-DHK' is not a 9-digit" in message
-        assert "Bengal Gadget House" not in message  # complete details pass
-        assert (run.state, run.beftn_file) == ("approved", False)
-
-    def test_company_routing_must_be_valid(self, book):
-        company = book.env["res.company"].create({"name": "1000FiX Bad-Routing Payouts Ltd"})
-        _bank_account(book.env, company.partner_id, "12345", "1101000011111")
-        run = _run(book, company_id=company.id)
-        run.state = "approved"
-        with (
-            pytest.raises(
-                UserError, match="company 1000FiX Bad-Routing Payouts Ltd: routing '12345'"
-            ),
-            book.env.cr.savepoint(),
-        ):
-            run.action_submit_payout()
-
-    def test_beftn_keeps_an_existing_idempotency_key(self, book):
-        run = _approved_run(book)
-        run.idempotency_key = "IDEMP-KEEP"
-        run.action_generate_beftn()
-        assert run.idempotency_key == "IDEMP-KEEP"
-
-    def test_seller_without_bank_account_is_refused(self, book):
-        """Regression: a seller without bank details was paid into a
-        hard-coded placeholder account via the sponsor routing number."""
-        nobank = _seller(book.env, "Cash Only Traders", account=None)
-        _commission(book.env, nobank, 500.0, 0.1)
-        run = _approved_run(book)
-        run.commission_ids |= book.env["fix.commission.ledger"].search(
-            [("seller_partner_id", "=", nobank.id)]
-        )
-        with (
-            pytest.raises(UserError, match="seller Cash Only Traders: no bank account"),
-            book.env.cr.savepoint(),
-        ):
-            run.action_submit_payout(rail_instance=INT007PayoutRail())
+    def test_a_typed_bank_reference_confirms_nothing(self, book):
+        t = _treasury(book)
+        run = _approved(book, t)
+        with pytest.raises(UserError, match="never by a typed reference"), book.env.cr.savepoint():
+            run.with_user(t.approver).action_confirm_bank_settlement("BANK-REF-1")
         assert run.state == "approved"
 
-    def test_invalid_routing_number_is_refused(self, book):
-        """Regression: an invalid routing number was silently replaced by
-        a hard-coded sponsor routing number."""
-        bad = _seller(book.env, "Misrouted Mobiles", routing="BRAC-DHK")
-        _commission(book.env, bad, 500.0, 0.1)
-        run = _approved_run(book)
-        run.commission_ids |= book.env["fix.commission.ledger"].search(
-            [("seller_partner_id", "=", bad.id)]
-        )
-        with (
-            pytest.raises(
-                UserError,
-                match="seller Misrouted Mobiles: routing 'BRAC-DHK' is not a 9-digit BEFTN",
-            ),
-            book.env.cr.savepoint(),
-        ):
-            run.action_generate_beftn()
+    def test_an_unconfirmed_payee_account_is_not_paid(self, book):
+        t = _treasury(book)
+        run = _approved(book, t)
+        # someone with the rights edits seller B's number after approval
+        book.seller_b.bank_ids[:1].write({"acc_number": "0911100099999"})
+        with pytest.raises(UserError), book.env.cr.savepoint():
+            run.with_user(t.preparer).action_request_payments()
+        assert not run.line_ids.mapped("payment_execution_id")
 
-
-class _StubRail:
-    """Stands in for the INT-007 gateway with a fixed outcome (no network)."""
-
-    def __init__(self, status):
-        self.status = status
-
-    def _result(self):
-        return SimpleNamespace(rail_batch_id="STUB-1", status=self.status)
-
-    def submit_payout_batch(self, request, rail_type="api", simulate_timeout=False):
-        return self._result()
-
-    def read_back_status(self, batch_ref, rail_batch_id, simulate_rail_outcome=None):
-        return self._result()
-
-
-class _BankQueryRail:
-    """A rail with a REAL bank status query (the seam action_query_status
-    trusts): returns the bank's status and settlement reference."""
-
-    def __init__(self, status, bank_reference):
-        self.status, self.bank_reference = status, bank_reference
-
-    def query_bank_status(self, batch_ref, rail_batch_id):
-        return SimpleNamespace(status=self.status, bank_reference=self.bank_reference)
+    def test_a_payee_without_an_account_is_not_paid(self, book):
+        t = _treasury(book)
+        nobank = _seller(book.env, "Comilla Mobile Hub", account=None)
+        c4 = _commission(book.env, nobank, 1000.0, 0.10)
+        c4.action_post_to_gl()
+        _age(book.env, c4)
+        run = _approved(book, t)
+        assert nobank in run.line_ids.mapped("partner_id")
+        with pytest.raises(UserError, match="No payee bank account"), book.env.cr.savepoint():
+            run.with_user(t.preparer).action_request_payments()
 
 
 # --------------------------------------------------------------------------- statements / reconciliation
@@ -652,15 +472,23 @@ class TestSellerStatement:
                 "gross_gmv": 5000.0,
                 "commission_amount": 500.0,
                 "tds_withheld": 225.0,
-                "net_payable": 4275.0,
-                "withholding_cert_ref": "NBR-TDS52-X",
+                "net_payable": 1.0,  # A08 M53-8: a typed net is ignored
             }
         )
-        assert stmt.name == f"STM/{YEAR}/New"
-        assert stmt.state == "draft"
-        assert "Section 52 of the Income Tax Act 2023" in stmt.statutory_note
+        assert stmt.name.startswith(f"STM/{YEAR}/") and stmt.state == "draft"
+        assert _money(stmt.net_payable) == D("4275.00")  # 5,000 - 500 - 225
+        assert "section 140 of the Income Tax Act 2023" in stmt.statutory_note
+        assert "ধারা ১৪০" in stmt.statutory_note
+        # A08 M53-8: issued only for a payout run whose money has moved
+        with pytest.raises(UserError, match="executed payout run"), odoo_env.cr.savepoint():
+            stmt.action_issue_statement()
+        run = odoo_env["fix.payout.run"].create({"period": "2026-10"})
+        stmt.payout_run_id = run
+        with pytest.raises(UserError, match="executed payout run"), odoo_env.cr.savepoint():
+            stmt.action_issue_statement()
+        run.state = "executed"
         stmt.action_issue_statement()
-        assert stmt.state == "issued"
+        assert stmt.state == "issued" and stmt.withholding_cert_ref.startswith("TDSC/")
         assert _events(odoo_env, "seller.statement_issued", stmt.id) == [
             {
                 "statement_ref": stmt.name,
@@ -669,17 +497,9 @@ class TestSellerStatement:
                 "gross_gmv": 5000.0,
                 "tds_withheld": 225.0,
                 "net_disbursed": 4275.0,
-                "cert_ref": "NBR-TDS52-X",
+                "cert_ref": stmt.withholding_cert_ref,
             }
         ]
-        # A08 M53: settled only once the money really moved (executed run)
-        with pytest.raises(UserError, match="not confirmed as paid"), odoo_env.cr.savepoint():
-            stmt.action_settle_statement()
-        run = odoo_env["fix.payout.run"].create({"period": "2026-10"})
-        stmt.payout_run_id = run
-        with pytest.raises(UserError, match="not confirmed as paid"), odoo_env.cr.savepoint():
-            stmt.action_settle_statement()
-        run.state = "executed"
         stmt.action_settle_statement()
         assert stmt.state == "settled"
         assert stmt.settled_by_id == odoo_env.user
@@ -693,8 +513,6 @@ class TestSellerStatement:
                 "gross_gmv": 0.0,
                 "commission_amount": 0.0,
                 "tds_withheld": 0.0,
-                "net_payable": 0.0,
-                "withholding_cert_ref": "NBR-TDS52-Y",
             }
         )
         assert named.name == "STM/MANUAL/1"
@@ -704,20 +522,39 @@ class TestPayoutReconciliation:
     def _recon(self, env, run, **vals):
         return env["fix.payout.reconciliation"].create({"payout_run_id": run.id, **vals})
 
-    def test_confirmed_run_balances_on_the_rail_figures(self, book):
-        run = _run(book, rail_status="confirmed")
-        recon = self._recon(book.env, run, rail_count=3, rail_amount=14410.45)
-        assert recon.name == f"REC/{YEAR}/New"
+    def test_the_bank_side_comes_from_the_m50_instructions(self, book):
+        t = _treasury(book)
+        run = _approved(book, t)
+        recon = self._recon(book.env, run)
+        assert recon.name.startswith(f"REC/{YEAR}/")
+        with pytest.raises(UserError, match="released nothing"), book.env.cr.savepoint():
+            recon.action_run_reconciliation()
+        _release_all(book, t, run, confirm=False)
         recon.action_run_reconciliation()
-        assert (recon.system_count, recon.rail_count) == (3, 3)
-        assert _money(recon.system_amount) == D("14410.45")
-        assert _money(recon.rail_amount) == D("14410.45")
-        assert (recon.count_matched, recon.amount_matched, recon.state) == (True, True, "balanced")
+        # released but not yet on the statement: both payees are breaks
+        assert (recon.system_count, recon.rail_count) == (2, 0)
+        assert (recon.count_matched, recon.amount_matched, recon.state) == (
+            False,
+            False,
+            "break_detected",
+        )
+        assert recon.unmatched_count == 2 and _money(recon.unmatched_amount) == D("14410.45")
+        (event,) = _events(book.env, "platform.reconciliation_divergence", recon.id)
+        assert (event["count_diff"], event["amount_diff"]) == (2, 14410.45)
+        for pay in run.line_ids.mapped("payment_execution_id"):
+            _bank_debit(book.env, pay)
+        recon2 = self._recon(book.env, run)
+        recon2.action_run_reconciliation()
+        assert (recon2.system_count, recon2.rail_count) == (2, 2)
+        assert _money(recon2.rail_amount) == D("14410.45")
+        assert (recon2.count_matched, recon2.amount_matched, recon2.state) == (
+            True,
+            True,
+            "balanced",
+        )
 
-    def test_count_and_amount_breaks_reported_separately(self, book):
-        run = _run(book, rail_status="confirmed")
-        recon = self._recon(book.env, run, rail_count=2, rail_amount=14000.0, name="REC/MANUAL/2")
-        assert recon.name == "REC/MANUAL/2"
+    def test_break_lines_age(self, book):
+        recon = self._recon(book.env, _run(book))
         line_model = book.env["fix.payout.reconciliation.line"]
         aged = line_model.create(
             {
@@ -728,42 +565,13 @@ class TestPayoutReconciliation:
             }
         )
         fresh = line_model.create(
-            {
-                "reconciliation_id": recon.id,
-                "seller_partner_id": book.seller_a.id,
-                "discrepancy": 10.0,
-            }
+            {"reconciliation_id": recon.id, "seller_partner_id": book.seller_a.id, "discrepancy": 10.0}
         )
         assert (aged.age_days, aged.is_aged) == (40, True)
         assert (fresh.age_days, fresh.is_aged) == (0, False)
-        recon.action_run_reconciliation()
-        assert (recon.count_matched, recon.amount_matched) == (False, False)
+        recon.invalidate_recordset()
         assert (recon.unmatched_count, recon.aged_unmatched_count) == (2, 1)
-        assert _money(recon.unmatched_amount) == D("420.45")
         assert _money(recon.aged_unmatched_amount) == D("410.45")
-        assert recon.state == "break_detected"
-        assert _events(book.env, "platform.reconciliation_divergence", recon.id) == [
-            {
-                "reconciliation_ref": "REC/MANUAL/2",
-                "payout_run": run.name,
-                "count_diff": 1,
-                "amount_diff": 410.45,  # 14,410.45 - 14,000.00
-                "aged_unmatched": 1,
-            }
-        ]
-
-    def test_rail_figures_are_never_copied_from_the_system(self, book):
-        """Regression: with no rail figures entered, a 'confirmed' run copied
-        the SYSTEM count/amount into the rail side and always balanced."""
-        for rail_status in ("confirmed", "draft"):
-            run = _run(book, rail_status=rail_status)
-            recon = self._recon(book.env, run)
-            with (
-                pytest.raises(UserError, match="Enter the rail / bank statement"),
-                book.env.cr.savepoint(),
-            ):
-                recon.action_run_reconciliation()
-            assert (recon.rail_count, recon.rail_amount, recon.state) == (0, 0.0, "draft")
 
     def test_undated_break_line_is_not_aged(self, book):
         recon = self._recon(book.env, _run(book))

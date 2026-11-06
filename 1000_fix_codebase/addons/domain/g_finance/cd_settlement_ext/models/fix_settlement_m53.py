@@ -12,6 +12,12 @@
 #                                   provision per period, posted to the GL
 #
 # Technician incentives are NOT here: they moved to Payroll (A09).
+#
+# A08 remediation (B4), M53-4/-7/-11: a referral is converted from the
+# referred customer's PAID invoice (the base is never typed) and accrued only
+# with that evidence; the escrow flag and every adjustment / provision state,
+# figure and stamp is guarded (escrow is lifted only by its release, a
+# provision posts only the figures its computation produced).
 import re
 from datetime import date, timedelta
 
@@ -21,6 +27,11 @@ from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    require_role,
+)
 
 from .fix_settlement_ext import _configured_account, _configured_journal
 
@@ -209,8 +220,68 @@ class FixReferral(models.Model):
     payout_state = fields.Selection(
         related="commission_ledger_id.state", string="Payout State", readonly=True
     )
+    invoice_id = fields.Many2one(
+        "fix.ar.invoice",
+        string="Referred Customer's Invoice",
+        readonly=True,
+        copy=False,
+        index=True,
+        help="The paid M20 invoice of the referred customer the commission base comes from.",
+    )
+    converted_by_id = fields.Many2one("res.users", string="Converted By", readonly=True, copy=False)
+    converted_at = fields.Datetime(string="Converted On", readonly=True, copy=False)
+
+    _invoice_unique = models.Constraint(
+        "UNIQUE (invoice_id)", "An invoice evidences one referral conversion"
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "commission_ledger_id",
+            "invoice_id",
+            "converted_by_id",
+            "converted_at",
+        }
+
+    def _fix_referral_evidence(self, evidence=None):
+        """The base is the referred customer's PAID invoice (revenue, VAT
+        excluded), in the referral's company; each invoice is used once."""
+        self.ensure_one()
+        invoice = evidence
+        if isinstance(evidence, int):
+            invoice = self.env["fix.ar.invoice"].browse(evidence)
+        invoice = invoice.sudo().exists() if invoice else self.env["fix.ar.invoice"]
+        if not invoice:
+            raise UserError(
+                "Referral %s is converted from the referred customer's paid invoice: name the "
+                "invoice (the base is never typed)." % self.name
+            )
+        if not self.referred_partner_id:
+            raise UserError("Referral %s names no referred customer." % self.name)
+        if (
+            invoice.customer_id.commercial_partner_id
+            != self.referred_partner_id.commercial_partner_id
+        ):
+            raise UserError(
+                "Invoice %s is not the referred customer's (%s)."
+                % (invoice.name, self.referred_partner_id.name)
+            )
+        if invoice.company_id != self.company_id:
+            raise UserError("Invoice %s belongs to another company." % invoice.name)
+        if invoice.state != "paid":
+            raise UserError(
+                "Invoice %s is %s: a referral converts on the referred customer's PAID invoice."
+                % (invoice.name, invoice.state)
+            )
+        return {
+            "base_amount": invoice.taxable_amount,
+            "invoice_id": invoice.id,
+            "converted_by_id": self.env.uid,
+            "converted_at": fields.Datetime.now(),
+        }
 
     def action_accrue_commission(self):
+        require_role(self.env, GROUP_ACCOUNTANT, "Accruing a referral commission")
         Scheme = self.env["fix.commission.scheme"]
         Ledger = self.env["fix.commission.ledger"]
         today = fields.Date.context_today(self)
@@ -219,6 +290,17 @@ class FixReferral(models.Model):
                 raise UserError("Referral %s has not earned its commission yet" % ref.name)
             if ref.commission_ledger_id:
                 raise UserError("Referral %s is already in the commission ledger" % ref.name)
+            if not self.env.su:
+                if not ref.invoice_id or ref.invoice_id.sudo().state != "paid":
+                    raise UserError(
+                        "Referral %s carries no paid invoice of the referred customer: nothing "
+                        "accrues (A08 M53-4)." % ref.name
+                    )
+                if abs(ref.base_amount - ref.invoice_id.sudo().taxable_amount) > 0.005:
+                    raise UserError(
+                        "Referral %s base %.2f is not its invoice's %.2f."
+                        % (ref.name, ref.base_amount, ref.invoice_id.sudo().taxable_amount)
+                    )
             partner = ref.partner_id
             rate = partner.commission_rate
             if not 0 < rate <= 1:
@@ -236,7 +318,7 @@ class FixReferral(models.Model):
                 )
             if scheme.commission_rate:
                 rate = scheme.commission_rate
-            ledger = Ledger.create(
+            ledger = Ledger._guarded().create(
                 {
                     "company_id": ref.company_id.id,
                     "operating_unit_id": ref.operating_unit_id.id,
@@ -250,8 +332,8 @@ class FixReferral(models.Model):
                     "rail": "BEFTN",
                 }
             )
-            ref.commission_ledger_id = ledger
-            ledger.action_post_to_gl()
+            ref.sudo()._guarded().write({"commission_ledger_id": ledger.id})
+            ledger.with_env(self.env).action_post_to_gl()
 
 
 # ---------------------------------------------------------------------------
@@ -264,8 +346,32 @@ class FixSettlementAdjustment(models.Model):
 
     _name = "fix.settlement.adjustment"
     _description = "Settlement Escrow / Clawback"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "id desc"
+
+    ADJ_LOCKED = ("adjustment_type", "seller_partner_id", "commission_ids", "amount", "company_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "requested_by_id",
+            "decided_by_id",
+            "decided_at",
+            "move_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.ADJ_LOCKED)
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = set(self.ADJ_LOCKED) & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError("An active escrow / clawback is fixed; cancel it and raise a new one.")
+        return super().write(vals)
 
     name = fields.Char(string="Reference", default="New", readonly=True, copy=False)
     company_id = fields.Many2one(
@@ -349,7 +455,7 @@ class FixSettlementAdjustment(models.Model):
             self.seller_partner_id = self.dispute_id.seller_id.partner_id
 
     def _stamp(self, state):
-        self.write(
+        self._guarded().write(
             {"state": state, "decided_by_id": self.env.user.id, "decided_at": fields.Datetime.now()}
         )
 
@@ -378,8 +484,8 @@ class FixSettlementAdjustment(models.Model):
                         "Commissions are already in approved payout run(s) %s"
                         % ", ".join(in_flight.mapped("name"))
                     )
-                rows.write({"escrow_hold": True})
-                rec.amount = sum(rows.mapped("net_payable"))
+                rows.sudo()._guarded().write({"escrow_hold": True})
+                rec._guarded().write({"amount": sum(rows.mapped("net_payable"))})
                 rec._stamp("active")
             else:
                 if rec.amount <= 0:
@@ -425,7 +531,7 @@ class FixSettlementAdjustment(models.Model):
                 raise AccessError(
                     "Segregation of duties: the requester cannot release escrow %s" % rec.name
                 )
-            rec.commission_ids.write({"escrow_hold": False})
+            rec.commission_ids.sudo()._guarded().write({"escrow_hold": False})
             rec._stamp("released")
 
     def action_forfeit(self):
@@ -470,14 +576,14 @@ class FixSettlementAdjustment(models.Model):
                         ),
                     ],
                 )
-            rec.commission_ids.write({"state": "forfeited"})
-            rec.move_id = move.id if move else False
+            rec.commission_ids.sudo()._guarded().write({"state": "forfeited", "escrow_hold": False})
+            rec._guarded().write({"move_id": move.id if move else False})
             rec._stamp("forfeited")
 
     def action_cancel(self):
         for rec in self:
             if rec.state == "draft":
-                rec.state = "cancelled"
+                rec._guarded().write({"state": "cancelled"})
                 continue
             if rec.adjustment_type == "clawback" and rec.state == "active" and not rec.recovery_ids:
                 if not _is_manager(self.env):
@@ -574,8 +680,43 @@ class FixWarrantyProvision(models.Model):
 
     _name = "fix.warranty.provision"
     _description = "Warranty Provision (IAS 37)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period desc, id desc"
+
+    PROVISION_FIGURES = (
+        "policy_id",
+        "revenue_in_warranty",
+        "lookback_orders",
+        "lookback_reworks",
+        "rework_rate",
+        "cost_ratio",
+        "required_balance",
+        "opening_balance",
+        "movement",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # A08 M53-11: the figures are measured, the stamps are evidence
+        return super()._fix_guarded_fields() | set(self.PROVISION_FIGURES) | {
+            "state",
+            "move_id",
+            "computed_by_id",
+            "computed_at",
+            "posted_by_id",
+            "note",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= {"period", "company_id"}
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open() and {"period", "company_id"} & set(vals):
+            if self.filtered(lambda r: r.state != "draft"):
+                raise UserError("A computed provision keeps its period; open a new one.")
+        return super().write(vals)
 
     _period_unique = models.Constraint(
         "UNIQUE (company_id, period)", "One warranty provision per company per period"
@@ -635,78 +776,88 @@ class FixWarrantyProvision(models.Model):
             if not PERIOD_RE.match(rec.period or ""):
                 raise ValidationError("The period must be written YYYY-MM (e.g. 2026-10)")
 
+    def _fix_measure(self):
+        """The provision figures measured from posted data (no side effect)."""
+        self.ensure_one()
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        Order = self.env["fix.service.order"].sudo()
+        rec = self
+        end = rec.period_end
+        policy = self.env["fix.warranty.provision.policy"]._find(rec.company_id, end)
+        if not policy:
+            raise UserError(
+                "No warranty provision policy is in force on %s — set the warranty "
+                "period and rework cost ratio first" % end
+            )
+        repair = [
+            ("company_id", "=", rec.company_id.id),
+            ("source_model", "=", "fix.service.order"),
+            ("state", "in", ("issued", "paid", "credited")),
+        ]
+        in_warranty = Invoice.search(
+            [
+                *repair,
+                ("invoice_date", ">", end - timedelta(days=policy.warranty_days)),
+                ("invoice_date", "<=", end),
+            ]
+        )
+        window_start = end - relativedelta(months=policy.lookback_months)
+        history = Invoice.search_count(
+            [*repair, ("invoice_date", ">", window_start), ("invoice_date", "<=", end)]
+        )
+        reworks = Order.search_count(
+            [
+                ("company_id", "=", rec.company_id.id),
+                ("is_rework", "=", True),
+                ("create_date", ">", fields.Datetime.to_datetime(window_start)),
+                ("create_date", "<", fields.Datetime.to_datetime(end + timedelta(days=1))),
+            ]
+        )
+        rate = min(reworks / history, 1.0) if history else 0.0
+        revenue = sum(in_warranty.mapped("taxable_amount"))
+        required = round(revenue * rate * policy.cost_ratio, 2)
+        last = self.search(
+            [
+                ("company_id", "=", rec.company_id.id),
+                ("state", "=", "posted"),
+                ("period", "<", rec.period),
+            ],
+            order="period desc",
+            limit=1,
+        )
+        opening = last.required_balance if last else 0.0
+        notes = []
+        if not history:
+            notes.append("No invoiced repairs in the history window: rework rate 0.")
+        return {
+            "policy_id": policy.id,
+            "revenue_in_warranty": revenue,
+            "lookback_orders": history,
+            "lookback_reworks": reworks,
+            "rework_rate": rate,
+            "cost_ratio": policy.cost_ratio,
+            "required_balance": required,
+            "opening_balance": opening,
+            "movement": round(required - opening, 2),
+            "note": " ".join(notes) or False,
+        }
+
     def action_compute(self):
         """Measure the provision from posted data: AR repair invoices and
         the rework orders flagged by M01 (BRU-SRM-06)."""
-        Invoice = self.env["fix.ar.invoice"]
-        Order = self.env["fix.service.order"]
+        require_role(self.env, GROUP_ACCOUNTANT, "Computing the warranty provision")
         for rec in self:
             if rec.state == "posted":
                 raise UserError("Provision %s is posted" % rec.name)
-            end = rec.period_end
-            policy = self.env["fix.warranty.provision.policy"]._find(rec.company_id, end)
-            if not policy:
-                raise UserError(
-                    "No warranty provision policy is in force on %s — set the warranty "
-                    "period and rework cost ratio first" % end
-                )
-            repair = [
-                ("company_id", "=", rec.company_id.id),
-                ("source_model", "=", "fix.service.order"),
-                ("state", "in", ("issued", "paid", "credited")),
-            ]
-            in_warranty = Invoice.search(
-                [
-                    *repair,
-                    ("invoice_date", ">", end - timedelta(days=policy.warranty_days)),
-                    ("invoice_date", "<=", end),
-                ]
-            )
-            window_start = end - relativedelta(months=policy.lookback_months)
-            history = Invoice.search_count(
-                [*repair, ("invoice_date", ">", window_start), ("invoice_date", "<=", end)]
-            )
-            reworks = Order.search_count(
-                [
-                    ("company_id", "=", rec.company_id.id),
-                    ("is_rework", "=", True),
-                    ("create_date", ">", fields.Datetime.to_datetime(window_start)),
-                    ("create_date", "<", fields.Datetime.to_datetime(end + timedelta(days=1))),
-                ]
-            )
-            rate = min(reworks / history, 1.0) if history else 0.0
-            revenue = sum(in_warranty.mapped("taxable_amount"))
-            required = round(revenue * rate * policy.cost_ratio, 2)
-            last = self.search(
-                [
-                    ("company_id", "=", rec.company_id.id),
-                    ("state", "=", "posted"),
-                    ("period", "<", rec.period),
-                ],
-                order="period desc",
-                limit=1,
-            )
-            opening = last.required_balance if last else 0.0
-            notes = []
-            if not history:
-                notes.append("No invoiced repairs in the history window: rework rate 0.")
-            rec.write(
+            vals = rec._fix_measure()
+            vals.update(
                 {
-                    "policy_id": policy.id,
-                    "revenue_in_warranty": revenue,
-                    "lookback_orders": history,
-                    "lookback_reworks": reworks,
-                    "rework_rate": rate,
-                    "cost_ratio": policy.cost_ratio,
-                    "required_balance": required,
-                    "opening_balance": opening,
-                    "movement": round(required - opening, 2),
                     "computed_by_id": self.env.user.id,
                     "computed_at": fields.Datetime.now(),
-                    "note": " ".join(notes) or False,
                     "state": "computed",
                 }
             )
+            rec._guarded().write(vals)
 
     def action_post(self):
         """Book the movement (finance manager, not the person who computed)."""
@@ -715,10 +866,20 @@ class FixWarrantyProvision(models.Model):
                 raise UserError("Compute provision %s before posting it" % rec.name)
             if not _is_manager(self.env):
                 raise AccessError("Only a finance manager can post the warranty provision")
-            if rec.computed_by_id == self.env.user:
+            if self.env.user in (rec.computed_by_id | rec.create_uid) and not self.env.su:
                 raise AccessError(
                     "Segregation of duties: %s computed %s and cannot post it"
                     % (self.env.user.name, rec.name)
+                )
+            # what posts is what the data says now, never a figure carried
+            # over from a write
+            measured = rec._fix_measure()
+            if abs(measured["movement"] - rec.movement) > 0.005 or abs(
+                measured["required_balance"] - rec.required_balance
+            ) > 0.005:
+                raise UserError(
+                    "Provision %s no longer matches its data (movement %.2f now %.2f): compute "
+                    "it again before posting." % (rec.name, rec.movement, measured["movement"])
                 )
             later = self.search(
                 [
@@ -757,7 +918,7 @@ class FixWarrantyProvision(models.Model):
                 move = _post_settlement_move(
                     self.env, company, rec.period_end, "WARRANTY-PROV-%s" % rec.period, lines
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "posted",
                     "move_id": move.id if move else False,

@@ -459,4 +459,126 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- A08 S1: payee bank-detail changes (two people, call-back recorded) -->
+    <record id="view_fix_payee_bank_change_tree" model="ir.ui.view">
+        <field name="name">fix.payee.bank.change.list</field>
+        <field name="model">fix.payee.bank.change</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="acc_number"/>
+                <field name="proposed_by_id"/>
+                <field name="confirmed_by_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_payee_bank_change_form" model="ir.ui.view">
+        <field name="name">fix.payee.bank.change.form</field>
+        <field name="model">fix.payee.bank.change</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_propose" type="object" string="Propose" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_confirm" type="object" string="Confirm (second person)"
+                            class="btn-primary" invisible="state != 'proposed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,proposed,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state != 'draft'"/>
+                            <field name="partner_bank_id" readonly="state != 'draft'"/>
+                            <field name="acc_number" readonly="state != 'draft'"/>
+                            <field name="bank_id" readonly="state != 'draft'"/>
+                            <field name="routing_number" readonly="state != 'draft'"/>
+                            <field name="acc_holder_name" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="verification_ref" readonly="state != 'draft'"/>
+                            <field name="verified_by_id" readonly="state != 'draft'"/>
+                            <field name="evidence_attachment_ids" widget="many2many_binary"/>
+                            <field name="proposed_by_id"/>
+                            <field name="proposed_at"/>
+                            <field name="confirmed_by_id"/>
+                            <field name="confirmed_at"/>
+                            <field name="result_bank_id"/>
+                            <field name="reject_reason"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_payee_bank_change" model="ir.actions.act_window">
+        <field name="name">Payee Bank-Detail Changes</field>
+        <field name="res_model">fix.payee.bank.change</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- A08 M52-12: AP approval-matrix changes (proposed by one manager, applied by another) -->
+    <record id="view_fix_ap_approval_rule_change_tree" model="ir.ui.view">
+        <field name="name">fix.ap.approval.rule.change.list</field>
+        <field name="model">fix.ap.approval.rule.change</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="rule_id"/>
+                <field name="level"/>
+                <field name="amount_min"/>
+                <field name="group_id"/>
+                <field name="proposed_by_id"/>
+                <field name="decided_by_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ap_approval_rule_change_form" model="ir.ui.view">
+        <field name="name">fix.ap.approval.rule.change.form</field>
+        <field name="model">fix.ap.approval.rule.change</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_apply" type="object" string="Confirm and Apply"
+                            class="btn-primary" invisible="state != 'proposed'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state != 'proposed'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="company_id"/>
+                            <field name="rule_id"/>
+                            <field name="name"/>
+                            <field name="level"/>
+                            <field name="amount_min"/>
+                            <field name="group_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="reason"/>
+                            <field name="proposed_by_id"/>
+                            <field name="decided_by_id"/>
+                            <field name="decided_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_ap_approval_rule_change" model="ir.actions.act_window">
+        <field name="name">AP Approval-Matrix Changes</field>
+        <field name="res_model">fix.ap.approval.rule.change</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
 </odoo>

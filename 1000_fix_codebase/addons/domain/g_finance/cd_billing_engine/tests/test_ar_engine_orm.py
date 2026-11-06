@@ -352,33 +352,26 @@ class TestArGlPosting:
         )  # the mirror
 
     def test_writeoff_authority_matrix(self, odoo_env):
+        """A08 S3 (rewritten: the old test asserted the base.group_system
+        threshold the audit found). A write-off is REQUESTED; it posts only
+        once approved on the finance ladder — never by the requester."""
         shop = _gl_company(odoo_env, "woff")
         order = _closed_order(shop, JOB)
         invoice = shop.env["fix.ar.invoice"].from_closed_service_order(order, Datetime.now())
-        invoice.action_write_off(reason="uncollectable walk-in")  # small: fine
-        assert invoice.state == "written_off"
-        # a large write-off needs a manager: a plain employee user is refused
+        request = invoice.action_write_off(reason="uncollectable walk-in", recovery_history="calls")
+        assert invoice.state == "issued" and request.state == "requested"
+        request.action_approve()  # trusted code within the direct band
+        assert request.state == "posted" and invoice.state == "written_off"
+        # a user without an accounting role cannot even request one
         big = [(None, "Big job", 1.0, 100000.0, "labour")]  # 115000 total
         order2 = _closed_order(shop, big)
         invoice2 = shop.env["fix.ar.invoice"].from_closed_service_order(order2, Datetime.now())
-        # the M19 SoD lesson, plus the OU rule on fix.* models: the maker may
-        # see every company AND operating unit, or the record rule denies the
-        # read before the authority check runs
-        all_companies = [(6, 0, odoo_env["res.company"].search([]).ids)]
-        all_ous = [(6, 0, odoo_env["operating.unit"].search([]).ids)]
-        maker = odoo_env["res.users"].create(
-            {
-                "name": "AR Maker",
-                "login": f"ar-maker-{shop.company.id}",
-                "email": "m@x.local",
-                "company_ids": all_companies,
-                "operating_unit_ids": all_ous,
-            }
-        )
-        with pytest.raises(UserError, match="managerial approval"):
-            odoo_env(user=maker.id)["fix.ar.invoice"].browse(invoice2.id).action_write_off(
-                reason="big loss"
-            )
+        maker = _finance_user(shop, "ar-maker")
+        from odoo.exceptions import AccessError
+
+        with pytest.raises(AccessError):
+            invoice2.with_user(maker).action_write_off(reason="big loss")
+        assert invoice2.state == "issued"
 
 
 # ---------------------------------------------------------------------------
@@ -395,7 +388,9 @@ class TestCreditNoteApplication:
                 "reason_code": "goodwill",
             }
         )
-        note.action_submit()  # below threshold → approved
+        note.action_submit()  # A08 S3: submit approves nothing
+        assert note.state == "pending_approval"
+        note.action_approve()  # trusted code within the direct band
         note.action_issue()
         assert note.state == "issued" and note.posted_move_id
         assert invoice.state == "issued"  # NOT fully credited
@@ -424,6 +419,7 @@ class TestCreditNoteApplication:
             }
         )
         note.action_submit()
+        note.action_approve()
         note.action_issue()
         assert invoice.state == "credited"
         assert _money(invoice.amount_residual) == D("0.00")
@@ -796,6 +792,18 @@ class TestVdsCertificatesReceived:
         assert Cert.claimable_for_period("2026-10", shop.company) == cert
         with pytest.raises(UserError, match="return reference"), shop.env.cr.savepoint():
             cert.action_mark_claimed("")
+        # A08 M20-13: a typed reference claims nothing; the filed 9.1 that
+        # lists the certificate does
+        with pytest.raises(UserError, match="no filed return"), shop.env.cr.savepoint():
+            cert.action_mark_claimed("9.1/2026-10")
+        odoo_env["fix.vat.return"].create(
+            {
+                "company_id": shop.company.id,
+                "period": "2026-10",
+                "state": "filed",
+                "vds_certificate_ids": json.dumps([cert.id]),
+            }
+        )
         cert.action_mark_claimed("9.1/2026-10")
         assert (cert.state, cert.claimed_return_ref) == ("claimed", "9.1/2026-10")
         assert not Cert.claimable_for_period("2026-10", shop.company)
@@ -883,8 +891,15 @@ class TestCloseOutAndHold:
         order = _closed_order(shop, JOB)
         with pytest.raises(UserError, match="Credit hold"), shop.env.cr.savepoint():
             shop.env["fix.ar.invoice"].from_closed_service_order(order, Datetime.now())
-        profile.with_user(clerk).action_toggle_hold()
-        assert (profile.credit_hold, profile.hold_reason) == (False, False)
+        # A08 M20-12 (BRU-ARB-14): the accountant who placed it cannot
+        # release it; an Accounting Administrator does
+        from odoo.exceptions import AccessError
+
+        with pytest.raises(AccessError), shop.env.cr.savepoint():
+            profile.with_user(clerk).action_toggle_hold()
+        senior = _finance_user(shop, "hold-senior", "account.group_account_manager")
+        profile.with_user(senior).action_toggle_hold()
+        assert (profile.credit_hold, profile.hold_reason, profile.hold_by) == (False, False, senior)
         # no reason given: an explicit manual-hold note naming the user
         profile.with_user(clerk).action_toggle_hold()
         assert (

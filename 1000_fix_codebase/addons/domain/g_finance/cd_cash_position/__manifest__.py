@@ -18,6 +18,14 @@ account.journal + res.partner.bank), cash-in-transit, rider COD settlement
 (finance side), petty cash imprest, cheque register, gateway/MFS settlement
 with three-way match, facilities & covenants, recurring cash items, and the
 computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
+
+A08 workflow audit (2026-11-04): two-person payment release with DOFA
+routing above the single-releaser ceiling (M63), pinned instructions, bank
+confirmation only from an imported statement debit, guarded state / stamp /
+match fields on every treasury model, cheque books and bounce unwinding,
+imprest count against pending vouchers, frozen facility schedules with
+amendments, approved covenants, the payment.requested consumer and the
+auto-match / covenant crons.
 """,
     "version": "19.0.1.3.0",
     "license": "LGPL-3",
@@ -32,6 +40,7 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         "cd_front_desk",
         "cd_gl_ext",
         "cd_storefront",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

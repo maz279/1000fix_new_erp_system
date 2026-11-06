@@ -10,13 +10,35 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .ap_gl import ap_account, ap_journal, post_ap_move
+from .fix_ap_controls import require_finance
 from .fix_ap_ext import _q
+
+# A08 M52-12 (F3): the creator rewrote created_by and approved his own
+# 15,000 debit note. Stamps and state change only through the actions.
+NOTE_GUARDED = {
+    "state",
+    "created_by",
+    "approved_by",
+    "move_id",
+    "input_credit_id",
+    "payment_run_id",
+}
+NOTE_TERMS = {
+    "invoice_id",
+    "note_type",
+    "mushak_ref",
+    "note_date",
+    "reason",
+    "amount",
+    "vat_amount",
+    "company_id",
+}
 
 
 class FixVendorNote(models.Model):
     _name = "fix.vendor.note"
     _description = "Vendor Debit / Credit Note (Mushak 6.7 / 6.8)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "note_date desc, id desc"
 
     name = fields.Char(compute="_compute_name", store=True)
@@ -85,6 +107,35 @@ class FixVendorNote(models.Model):
     input_credit_id = fields.Many2one("fix.input.vat.credit", readonly=True, copy=False)
     payment_run_id = fields.Many2one("fix.payment.run", readonly=True, copy=False)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | NOTE_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(note.state != "draft" for note in self):
+            locked |= NOTE_TERMS
+        return locked
+
+    def write(self, vals):
+        if NOTE_TERMS & set(vals) and not self._fix_guard_open():
+            fixed = self.filtered(lambda n: n.state != "draft")
+            changed = [
+                n
+                for n in NOTE_TERMS & set(vals)
+                if any(note._fix_guard_differs(n, vals[n], note[n]) for note in fixed)
+            ]
+            if changed:
+                raise UserError(
+                    "Note %s is %s: %s can no longer change."
+                    % (fixed[0].name, fixed[0].state, ", ".join(sorted(changed)))
+                )
+        return super().write(vals)
+
+    def unlink(self):
+        if self.filtered(lambda n: n.state != "draft") and not self.env.su:
+            raise UserError("Only a draft vendor note is deleted.")
+        return super().unlink()
+
     @api.depends("note_type", "mushak_ref", "invoice_id.invoice_ref")
     def _compute_name(self):
         for note in self:
@@ -118,6 +169,7 @@ class FixVendorNote(models.Model):
 
     def action_approve(self):
         """Approve and post. SoD: the approver did not create the note."""
+        require_finance(self.env, "Approving a vendor note")
         for note in self:
             if note.state != "draft":
                 raise UserError("Only a draft note is approved")
@@ -125,21 +177,21 @@ class FixVendorNote(models.Model):
                 raise UserError("A note adjusts an approved, posted bill")
             if not (note.mushak_ref or "").strip():
                 raise UserError("Enter the vendor's Mushak 6.7 / 6.8 number first")
-            if note.created_by == self.env.user:
+            if self.env.user in (note.created_by | note.create_uid):
                 raise UserError("Segregation of duties: the note's creator cannot approve it")
             if note.invoice_id.payment_state == "paid" and note.note_type == "decrease":
                 # still allowed: the vendor then owes a refund, netted next run
                 pass
             note._post()
             note._record_vat_adjustment()
-            note.write({"state": "approved", "approved_by": self.env.user.id})
+            note._guarded().write({"state": "approved", "approved_by": self.env.user.id})
         return True
 
     def action_cancel(self):
         for note in self:
             if note.state != "draft":
                 raise UserError("Only a draft note can be cancelled (reverse a posted one)")
-            note.state = "cancelled"
+            note._guarded().write({"state": "cancelled"})
         return True
 
     def _post(self):
@@ -178,7 +230,7 @@ class FixVendorNote(models.Model):
             lines,
             inv.operating_unit_id,
         )
-        self.move_id = move.id
+        self._guarded().write({"move_id": move.id})
 
     def _record_vat_adjustment(self):
         """The note's VAT is an input-VAT adjustment of its own period's 9.1."""
@@ -199,10 +251,12 @@ class FixVendorNote(models.Model):
                 "taxable_amount": self.amount,
                 "vat_amount": self.vat_amount,
                 "adjustment_type": self.note_type,
+                # the supplier 6.3 credit this 6.7 / 6.8 adjusts (M51 checks it)
+                "original_credit_id": inv.input_credit_id.id or False,
                 "currency_id": inv.currency_id.id,
                 "source_ref": self.name,
                 "vendor_invoice_id": inv.id,
             }
         )
         credit.action_check_eligibility()
-        self.input_credit_id = credit.id
+        self._guarded().write({"input_credit_id": credit.id})

@@ -1,27 +1,36 @@
 # fix_asset_lifecycle — M49 asset lifecycle documents:
-#   * fix.asset.transfer    — branch / custodian moves with a history
+#   * fix.asset.transfer    — branch / custodian moves, acknowledged by the receiver
 #   * fix.asset.revaluation — IAS 16 revaluation, IAS 36 impairment / reversal
 #   * fix.asset.disposal    — sale / scrap / write-off with gain or loss
-# Revaluations and disposals are approved by an accounting manager who is not
-# the requester (SoD) and post through account.move on the category accounts.
+#
+# A08 workflow audit (2026-11-04): an accountant wrote a disposal 'approved'
+# and 'posted', a revaluation 'posted' with a typed cost_delta of 1,000,000;
+# managers rewrote requested_by_id and approved their own; proceeds were cut
+# 100,000 -> 1 after approval; a 40,000,000 write-off and a 780,000 surplus
+# were approved by one manager; a revaluation needed no valuer report; the
+# custodian moved by a plain write. Revaluations and disposals are routed by
+# amount through the M63 inbox (fix.asset.dofa.mixin), approve and post are
+# separate steps, approved terms are pinned, a write-off needs an incident
+# reference, a sale is invoiced through M20, and a transfer moves the asset
+# only when the receiver acknowledges it.
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .fix_asset_common import (
-    MANAGER_GROUP,
     USER_GROUP,
-    check_sod,
+    disposal_ladder,
     money,
     post_entry,
     require_accounts,
     require_group,
+    revaluation_ladder,
 )
 
 
 class FixAssetTransfer(models.Model):
     _name = "fix.asset.transfer"
     _description = "Asset Transfer"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "date desc, id desc"
 
     name = fields.Char(string="Reference", readonly=True, copy=False, default="/")
@@ -47,12 +56,52 @@ class FixAssetTransfer(models.Model):
     to_custodian_id = fields.Many2one("hr.employee", string="To Custodian", tracking=True)
     reason = fields.Text(string="Reason")
     state = fields.Selection(
-        [("draft", "Draft"), ("done", "Done"), ("cancelled", "Cancelled")],
+        [
+            ("draft", "Draft"),
+            ("confirmed", "Awaiting Acknowledgement"),
+            ("done", "Done"),
+            ("cancelled", "Cancelled"),
+        ],
         default="draft",
         required=True,
         tracking=True,
     )
     done_by_id = fields.Many2one("res.users", string="Confirmed By", readonly=True, copy=False)
+    acknowledged_by_id = fields.Many2one(
+        "res.users", string="Acknowledged By", readonly=True, copy=False
+    )
+    acknowledged_at = fields.Datetime(string="Acknowledged On", readonly=True, copy=False)
+
+    _TERMS = frozenset({"asset_id", "operating_unit_id", "to_custodian_id", "date"})
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "from_operating_unit_id",
+            "from_custodian_id",
+            "done_by_id",
+            "acknowledged_by_id",
+            "acknowledged_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= set(self._TERMS)
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open() and set(vals) & self._TERMS:
+            done = self.filtered(lambda t: t.state != "draft")
+            if any(
+                t._fix_guard_differs(n, vals[n], t[n])
+                for t in done
+                for n in set(vals) & self._TERMS
+            ):
+                raise UserError(
+                    self.env._("A confirmed transfer cannot change; cancel it instead.")
+                )
+        return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -62,9 +111,8 @@ class FixAssetTransfer(models.Model):
         return super().create(vals_list)
 
     def action_confirm(self):
-        """Move the asset. The from-side is captured at confirmation, so the
-        history shows exactly where the asset was. No GL entry: the asset
-        account is company-wide; the branch is a posting dimension."""
+        """Send the asset: the from-side is captured; the asset moves when the
+        receiver acknowledges (BRU-FXA-09)."""
         require_group(self.env, USER_GROUP, "Confirming a transfer")
         for rec in self:
             if rec.state != "draft":
@@ -78,32 +126,77 @@ class FixAssetTransfer(models.Model):
                 raise UserError(
                     self.env._("Choose a different branch or custodian — nothing would move.")
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "from_operating_unit_id": asset.operating_unit_id.id,
                     "from_custodian_id": asset.custodian_id.id,
                     "operating_unit_id": to_ou.id,
                     "to_custodian_id": to_custodian.id,
-                    "state": "done",
+                    "state": "confirmed",
                     "done_by_id": self.env.user.id,
                 }
             )
-            asset.write({"operating_unit_id": to_ou.id, "custodian_id": to_custodian.id})
+        return True
+
+    def action_acknowledge(self):
+        """The receiver acknowledges: the receiving custodian (their user), or,
+        when the custodian has no login, a finance user other than the sender.
+        Only then do the asset's branch and custodian change."""
+        for rec in self:
+            if rec.state != "confirmed":
+                raise UserError(self.env._("Only a confirmed transfer is acknowledged."))
+            receiver = rec.to_custodian_id.sudo().user_id
+            if not self.env.su:
+                if receiver and receiver != self.env.user:
+                    raise UserError(
+                        self.env._(
+                            "%s is acknowledged by the receiving custodian %s.",
+                            rec.name,
+                            rec.to_custodian_id.name,
+                        )
+                    )
+                if not receiver:
+                    require_group(self.env, USER_GROUP, "Acknowledging a transfer")
+                    if self.env.user == rec.done_by_id:
+                        raise UserError(
+                            self.env._(
+                                "Segregation of duties: the sender of %s does not acknowledge "
+                                "its receipt.",
+                                rec.name,
+                            )
+                        )
+            asset = rec.asset_id
+            if asset.state != "active":
+                raise UserError(self.env._("Only active assets can be transferred."))
+            asset._guarded().write(
+                {
+                    "operating_unit_id": rec.operating_unit_id.id,
+                    "custodian_id": rec.to_custodian_id.id,
+                }
+            )
+            rec._guarded().write(
+                {
+                    "state": "done",
+                    "acknowledged_by_id": self.env.uid,
+                    "acknowledged_at": fields.Datetime.now(),
+                }
+            )
         return True
 
     def action_cancel(self):
         for rec in self:
-            if rec.state != "draft":
-                raise UserError(self.env._("Only draft transfers can be cancelled."))
-            rec.state = "cancelled"
+            if rec.state not in ("draft", "confirmed"):
+                raise UserError(self.env._("Only an open transfer can be cancelled."))
+            rec._guarded().write({"state": "cancelled"})
         return True
 
 
 class FixAssetRevaluation(models.Model):
     _name = "fix.asset.revaluation"
     _description = "Asset Revaluation / Impairment"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.asset.dofa.mixin"]
     _order = "date desc, id desc"
+    _approval_domain = "asset_revaluation"
 
     name = fields.Char(string="Reference", readonly=True, copy=False, default="/")
     asset_id = fields.Many2one(
@@ -139,12 +232,27 @@ class FixAssetRevaluation(models.Model):
         "amount — higher of fair value less costs of disposal and value in use (IAS 36.18).",
     )
     basis = fields.Text(string="Basis / Valuer Report")
+    valuer_report_ids = fields.Many2many(
+        "ir.attachment",
+        "fix_asset_revaluation_valuer_report_rel",
+        "revaluation_id",
+        "attachment_id",
+        string="Valuer Report",
+        help="The independent valuer's report (revaluation) or the impairment test",
+    )
     requested_by_id = fields.Many2one(
         "res.users", string="Requested By", default=lambda self: self.env.user, readonly=True
     )
     approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    posted_by_id = fields.Many2one("res.users", string="Posted By", readonly=True, copy=False)
     state = fields.Selection(
-        [("draft", "Draft"), ("posted", "Posted"), ("cancelled", "Cancelled")],
+        [
+            ("draft", "Draft"),
+            ("submitted", "Submitted"),
+            ("approved", "Approved"),
+            ("posted", "Posted"),
+            ("cancelled", "Cancelled"),
+        ],
         default="draft",
         required=True,
         tracking=True,
@@ -159,6 +267,69 @@ class FixAssetRevaluation(models.Model):
         string="To Profit or Loss (Loss +, Gain -)", readonly=True, copy=False
     )
     move_id = fields.Many2one("account.move", string="Journal Entry", readonly=True, copy=False)
+
+    _TERMS = frozenset({"asset_id", "kind", "date", "new_value"})
+
+    # ---- DOFA --------------------------------------------------------------
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        if self.state == "posted":
+            return abs(self.cost_delta - self.accum_delta)
+        return abs((self.new_value or 0.0) - (self.asset_id.sudo().book_nbv or 0.0))
+
+    def _dofa_thresholds(self):
+        return revaluation_ladder(self.env)
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (change in carrying amount, %s)" % (self._dofa_amount(), self.name)
+
+    @api.depends("new_value", "asset_id", "state")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _fix_terms_fields(self) -> set:
+        return set(self._TERMS)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "requested_by_id",
+            "approved_by_id",
+            "posted_by_id",
+            "carrying_amount",
+            "cost_delta",
+            "accum_delta",
+            "surplus_amount",
+            "pl_amount",
+            "move_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= set(self._TERMS) | {"basis", "valuer_report_ids"}
+        return locked
+
+    def write(self, vals):
+        moving = set(vals) & (self._TERMS | {"basis", "valuer_report_ids"})
+        if self and moving and not self._fix_guard_open():
+            frozen = self.filtered(lambda r: r.state in ("posted", "cancelled"))
+            if any(r._fix_guard_differs(n, vals[n], r[n]) for r in frozen for n in moving):
+                raise UserError(self.env._("A posted or cancelled revaluation cannot change."))
+            moved = self.filtered(
+                lambda r: (
+                    r.state in ("submitted", "approved")
+                    and any(r._fix_guard_differs(n, vals[n], r[n]) for n in moving)
+                )
+            )
+            res = super().write(vals)
+            for rec in moved:
+                # the approval covered the figures and evidence it was given for
+                rec.sudo()._dofa_void_approval("the revaluation terms changed")
+                rec.sudo()._guarded().write({"state": "draft", "approved_by_id": False})
+            return res
+        return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -222,13 +393,48 @@ class FixAssetRevaluation(models.Model):
             )
         return carrying, 0.0, -gain, 0.0, -gain
 
-    def action_post(self):
-        """Approve and post (accounting manager, not the requester)."""
-        require_group(self.env, MANAGER_GROUP, "Posting a revaluation / impairment")
+    def action_submit(self):
+        """Request the CFO-tier approval, with the evidence attached
+        (A08 M49-9: the valuer report is required for a revaluation)."""
+        require_group(self.env, USER_GROUP, "Submitting a revaluation / impairment")
         for rec in self:
             if rec.state != "draft":
-                raise UserError(self.env._("Only draft documents can be posted."))
-            check_sod(self.env, rec.requested_by_id, rec.name)
+                raise UserError(self.env._("Only draft documents can be submitted."))
+            if rec.asset_id.state != "active":
+                raise UserError(self.env._("Only active assets can be revalued or impaired."))
+            if not (rec.basis or "").strip():
+                raise UserError(self.env._("State the basis of %s (valuer / test).", rec.name))
+            if rec.kind == "revaluation" and not rec.valuer_report_ids:
+                raise UserError(
+                    self.env._("Attach the valuer's report to revaluation %s.", rec.name)
+                )
+            rec._split()  # refuses a revaluation that changes nothing
+            rec._guarded().write({"state": "submitted"})
+            if rec._approval_needed():
+                rec.action_request_approval(justification=rec.basis)
+        return True
+
+    def _fix_before_approve(self):
+        if self.state != "submitted":
+            raise UserError(self.env._("Only submitted revaluations are approved."))
+
+    def _fix_after_approve(self):
+        self._fix_stamp_approved({"state": "approved"})
+
+    def _approval_on_rejected(self, comment):
+        self.sudo()._guarded().write({"state": "draft"})
+
+    def action_post(self):
+        """Post an APPROVED revaluation / impairment (a separate step from the
+        approval): Dr/Cr asset and accumulated, surplus (OCI) and P&L."""
+        require_group(self.env, USER_GROUP, "Posting a revaluation / impairment")
+        for rec in self:
+            if rec.state != "approved":
+                raise UserError(
+                    self.env._("%s is %s: it is posted once approved.", rec.name, rec.state)
+                )
+            if rec._approval_needed():
+                rec._dofa_assert_approved("Posting %s" % rec.name)
             asset = rec.asset_id
             if asset.state != "active":
                 raise UserError(self.env._("Only active assets can be revalued or impaired."))
@@ -258,11 +464,19 @@ class FixAssetRevaluation(models.Model):
                 lines.append((cat.revaluation_surplus_account_id, 0.0, surplus, label))
             if pl:
                 lines.append((cat.impairment_account_id, pl, 0.0, label))
-            move = post_entry(self.env, asset.company_id, cat.journal_id, rec.date, rec.name, lines)
-            rec.write(
+            move = post_entry(
+                self.env,
+                asset.company_id,
+                cat.journal_id,
+                rec.date,
+                rec.name,
+                lines,
+                asset.operating_unit_id,
+            )
+            rec._guarded().write(
                 {
                     "state": "posted",
-                    "approved_by_id": self.env.user.id,
+                    "posted_by_id": self.env.uid,
                     "carrying_amount": carrying,
                     "cost_delta": cost_delta,
                     "accum_delta": accum_delta,
@@ -275,17 +489,21 @@ class FixAssetRevaluation(models.Model):
 
     def action_cancel(self):
         for rec in self:
-            if rec.state != "draft":
-                raise UserError(self.env._("Only draft documents can be cancelled."))
-            rec.state = "cancelled"
+            if rec.state in ("posted", "cancelled"):
+                raise UserError(self.env._("Only an unposted document can be cancelled."))
+            if rec.approval_state == "pending":
+                rec.sudo()._approval_void("the revaluation was cancelled")
+            rec.sudo()._dofa_void_approval("the revaluation was cancelled")
+            rec._guarded().write({"state": "cancelled"})
         return True
 
 
 class FixAssetDisposal(models.Model):
     _name = "fix.asset.disposal"
     _description = "Asset Disposal / Write-Off"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.asset.dofa.mixin"]
     _order = "date desc, id desc"
+    _approval_domain = "asset_disposal"
 
     name = fields.Char(string="Reference", readonly=True, copy=False, default="/")
     asset_id = fields.Many2one(
@@ -315,17 +533,27 @@ class FixAssetDisposal(models.Model):
     proceeds = fields.Monetary(string="Proceeds", tracking=True)
     proceeds_account_id = fields.Many2one(
         "account.account",
-        string="Proceeds Account",
-        help="Receivable / bank clearing account the sale proceeds are debited to.",
+        string="Proceeds Clearing Account",
+        help="The account the M20 sale invoice credits and this disposal debits with the "
+        "proceeds (clears to zero).",
     )
     reason = fields.Text(string="Reason")
+    incident_ref = fields.Char(
+        string="Incident Reference",
+        tracking=True,
+        help="Loss / theft / destruction: the incident (police GD, HSE case) reference "
+        "(BRU-FXA-19)",
+    )
+    insurance_claim_ref = fields.Char(string="Insurance Claim", tracking=True)
     requested_by_id = fields.Many2one(
         "res.users", string="Requested By", default=lambda self: self.env.user, readonly=True
     )
     approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    posted_by_id = fields.Many2one("res.users", string="Posted By", readonly=True, copy=False)
     state = fields.Selection(
         [
             ("draft", "Draft"),
+            ("submitted", "Submitted"),
             ("approved", "Approved"),
             ("posted", "Posted"),
             ("cancelled", "Cancelled"),
@@ -341,6 +569,76 @@ class FixAssetDisposal(models.Model):
     nbv = fields.Monetary(string="Net Book Value", readonly=True, copy=False)
     gain_loss = fields.Monetary(string="Gain (+) / Loss (-)", readonly=True, copy=False)
     move_id = fields.Many2one("account.move", string="Journal Entry", readonly=True, copy=False)
+    sale_invoice_ref = fields.Char(string="M20 Sale Invoice", readonly=True, copy=False)
+    sale_invoice_res_id = fields.Integer(string="M20 Sale Invoice ID", readonly=True, copy=False)
+
+    _TERMS = frozenset(
+        {"asset_id", "kind", "date", "partner_id", "proceeds", "proceeds_account_id"}
+    )
+
+    # ---- DOFA --------------------------------------------------------------
+    def _dofa_amount(self) -> float:
+        """What leaves the books: the larger of the NBV and the proceeds."""
+        self.ensure_one()
+        if self.state == "posted":
+            return max(abs(self.nbv), abs(self.proceeds or 0.0))
+        nbv = self.asset_id.sudo().book_nbv if self.asset_id else 0.0
+        return max(abs(nbv or 0.0), abs(self.proceeds or 0.0))
+
+    def _dofa_thresholds(self):
+        return disposal_ladder(self.env, write_off=self.kind == "write_off")
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (disposal %s)" % (self._dofa_amount(), self.name)
+
+    @api.depends("proceeds", "asset_id", "kind", "state")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _fix_terms_fields(self) -> set:
+        return set(self._TERMS)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "requested_by_id",
+            "approved_by_id",
+            "posted_by_id",
+            "cost",
+            "accumulated",
+            "nbv",
+            "gain_loss",
+            "move_id",
+            "sale_invoice_ref",
+            "sale_invoice_res_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= set(self._TERMS) | {"incident_ref", "reason"}
+        return locked
+
+    def write(self, vals):
+        moving = set(vals) & (self._TERMS | {"incident_ref"})
+        if self and moving and not self._fix_guard_open():
+            frozen = self.filtered(lambda r: r.state in ("posted", "cancelled"))
+            if any(r._fix_guard_differs(n, vals[n], r[n]) for r in frozen for n in moving):
+                raise UserError(self.env._("A posted or cancelled disposal cannot change."))
+            moved = self.filtered(
+                lambda r: (
+                    r.state in ("submitted", "approved")
+                    and any(r._fix_guard_differs(n, vals[n], r[n]) for n in moving)
+                )
+            )
+            res = super().write(vals)
+            for rec in moved:
+                # A08 M49-4: approved at 100,000, posted at 1.00 — no more
+                rec.sudo()._dofa_void_approval("the disposal terms changed after approval")
+                rec.sudo()._guarded().write({"state": "draft", "approved_by_id": False})
+            return res
+        return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -359,23 +657,89 @@ class FixAssetDisposal(models.Model):
                     self.env._("A write-off has no proceeds — use Sale or Scrap.")
                 )
 
-    def action_approve(self):
-        require_group(self.env, MANAGER_GROUP, "Approving a disposal")
+    def action_submit(self):
+        """Route the disposal for approval by the authority its amount needs."""
+        require_group(self.env, USER_GROUP, "Submitting a disposal")
         for rec in self:
             if rec.state != "draft":
-                raise UserError(self.env._("Only draft disposals can be approved."))
-            check_sod(self.env, rec.requested_by_id, rec.name)
-            rec.write({"state": "approved", "approved_by_id": self.env.user.id})
+                raise UserError(self.env._("Only draft disposals can be submitted."))
+            if rec.asset_id.state != "active":
+                raise UserError(self.env._("%s is not an active asset.", rec.asset_id.display_name))
+            if rec.kind == "write_off" and not (
+                (rec.incident_ref or "").strip() and (rec.reason or "").strip()
+            ):
+                raise UserError(
+                    self.env._(
+                        "A write-off for loss, theft or destruction needs the incident reference "
+                        "and the reason (BRU-FXA-19)."
+                    )
+                )
+            if rec.proceeds and not (rec.partner_id and rec.proceeds_account_id):
+                raise UserError(
+                    self.env._("A sale names the buyer and the proceeds clearing account.")
+                )
+            rec._guarded().write({"state": "submitted"})
+            if rec._approval_needed():
+                rec.action_request_approval(
+                    justification=rec.reason or rec.incident_ref or rec.kind
+                )
+            else:
+                rec._guarded().write({"state": "approved"})
         return True
+
+    def _fix_before_approve(self):
+        if self.state != "submitted":
+            raise UserError(self.env._("Only submitted disposals can be approved."))
+
+    def _fix_after_approve(self):
+        self._fix_stamp_approved({"state": "approved"})
+
+    def _approval_on_rejected(self, comment):
+        self.sudo()._guarded().write({"state": "draft"})
+
+    def _fix_sale_invoice(self):
+        """The M20 sale invoice of the proceeds (B4's AR API): it credits the
+        proceeds clearing account; this disposal debits it."""
+        self.ensure_one()
+        if "fix.ar.invoice" not in self.env or not hasattr(
+            self.env["fix.ar.invoice"], "_fix_ar_invoice_from_source"
+        ):
+            raise UserError(
+                self.env._(
+                    "A disposal sale is invoiced through AR (M20): the AR invoice API "
+                    "(fix.ar.invoice._fix_ar_invoice_from_source) is not installed."
+                )
+            )
+        invoice = self.env["fix.ar.invoice"]._fix_ar_invoice_from_source(
+            self,
+            self.partner_id,
+            [
+                {
+                    "description": "Sale of asset %s" % self.asset_id.display_name,
+                    "taxable_amount": self.proceeds,
+                }
+            ],
+            "Asset disposal %s approved by %s" % (self.name, self.approved_by_id.name or "-"),
+            credit_account=self.proceeds_account_id,
+            operating_unit=self.asset_id.operating_unit_id or None,
+            invoice_date=self.date,
+        )
+        self._guarded().write(
+            {"sale_invoice_ref": invoice.name or str(invoice.id), "sale_invoice_res_id": invoice.id}
+        )
+        return invoice
 
     def action_post(self):
         """Derecognise the asset (IAS 16.67-71): Dr accumulated depreciation,
-        Dr proceeds, Cr asset cost; the difference is the gain or loss. Run the
-        month's depreciation before disposing so the NBV is current."""
+        Dr proceeds clearing, Cr asset cost; the difference is the gain or
+        loss. Only an APPROVED disposal, at the terms approved; a sale is
+        invoiced to the buyer through M20 first."""
         require_group(self.env, USER_GROUP, "Posting a disposal")
         for rec in self:
             if rec.state != "approved":
                 raise UserError(self.env._("Approve the disposal before posting it."))
+            if rec._approval_needed():
+                rec._dofa_assert_approved("Posting %s" % rec.name)
             asset = rec.asset_id
             if asset.state != "active":
                 raise UserError(self.env._("%s is not an active asset.", asset.display_name))
@@ -398,6 +762,8 @@ class FixAssetDisposal(models.Model):
             require_accounts(cat, needed, "Disposal")
             if rec.proceeds and not rec.proceeds_account_id:
                 raise UserError(self.env._("Choose the proceeds account for %s.", rec.name))
+            if rec.proceeds:
+                rec._fix_sale_invoice()
             label = "%s %s" % (rec.name, asset.display_name)
             lines = [
                 (cat.accumulated_account_id, accumulated, 0.0, label),
@@ -409,10 +775,19 @@ class FixAssetDisposal(models.Model):
             elif gain_loss < 0:
                 lines.append((cat.loss_account_id, -gain_loss, 0.0, label))
             lines = [ln for ln in lines if ln[0]]
-            move = post_entry(self.env, asset.company_id, cat.journal_id, rec.date, rec.name, lines)
-            rec.write(
+            move = post_entry(
+                self.env,
+                asset.company_id,
+                cat.journal_id,
+                rec.date,
+                rec.name,
+                lines,
+                asset.operating_unit_id,
+            )
+            rec._guarded().write(
                 {
                     "state": "posted",
+                    "posted_by_id": self.env.uid,
                     "cost": cost,
                     "accumulated": accumulated,
                     "nbv": nbv,
@@ -420,12 +795,15 @@ class FixAssetDisposal(models.Model):
                     "move_id": move.id,
                 }
             )
-            asset._mark_disposed(rec.date)
+            asset._mark_disposed(rec.date, move)
         return True
 
     def action_cancel(self):
         for rec in self:
-            if rec.state not in ("draft", "approved"):
+            if rec.state in ("posted", "cancelled"):
                 raise UserError(self.env._("A posted disposal cannot be cancelled."))
-            rec.state = "cancelled"
+            if rec.approval_state == "pending":
+                rec.sudo()._approval_void("the disposal was cancelled")
+            rec.sudo()._dofa_void_approval("the disposal was cancelled")
+            rec._guarded().write({"state": "cancelled"})
         return True

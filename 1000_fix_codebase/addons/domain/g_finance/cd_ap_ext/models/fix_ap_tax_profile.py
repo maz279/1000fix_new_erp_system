@@ -2,7 +2,13 @@
 import re
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
+
+_MATRIX_KEY = "fix_ap_matrix_change"
+_MATRIX_TOKEN = object()
+# A matrix level is decided by accounting: its group must be (or imply) one
+# of these (A08 M52-12: level 2 was re-pointed to base.group_user).
+MATRIX_GROUPS = ("account.group_account_user", "account.group_account_manager")
 
 
 class FixVendorTaxProfile(models.Model):
@@ -37,7 +43,21 @@ class FixVendorTaxProfile(models.Model):
         string="Return-Filing Proof (PSR) Ref", tracking=True, help="Proof of submission of return"
     )
     psr_valid_until = fields.Date(string="PSR Valid Until", tracking=True)
-    psr_attachment_ids = fields.Many2many("ir.attachment", string="PSR Evidence")
+    psr_attachment_ids = fields.Many2many(
+        "ir.attachment",
+        string="PSR Evidence",
+        help="A08 M52-10: the PSR counts only with the proof attached (and a TIN on file).",
+    )
+    # A08 M52-10: a TDS exemption is evidence, not a tick on the bill line.
+    tds_exempt_certificate_ref = fields.Char(string="TDS Exemption Certificate No", tracking=True)
+    tds_exempt_valid_until = fields.Date(string="Exemption Valid Until", tracking=True)
+    tds_exempt_attachment_ids = fields.Many2many(
+        "ir.attachment",
+        "fix_vendor_tax_profile_tds_exempt_att_rel",
+        "profile_id",
+        "attachment_id",
+        string="Exemption Certificate",
+    )
     psr_valid = fields.Boolean(
         string="PSR Valid Today", compute="_compute_psr_valid", search="_search_psr_valid"
     )
@@ -57,7 +77,7 @@ class FixVendorTaxProfile(models.Model):
     )
     note = fields.Text()
 
-    @api.depends("psr_reference", "psr_valid_until")
+    @api.depends("psr_reference", "psr_valid_until", "psr_attachment_ids", "tin")
     def _compute_psr_valid(self):
         today = fields.Date.context_today(self)
         for prof in self:
@@ -65,7 +85,15 @@ class FixVendorTaxProfile(models.Model):
 
     def _search_psr_valid(self, operator, value):
         today = fields.Date.context_today(self)
-        valid = ["&", ("psr_reference", "!=", False), ("psr_valid_until", ">=", today)]
+        valid = [
+            "&",
+            "&",
+            "&",
+            ("tin", "!=", False),
+            ("psr_reference", "!=", False),
+            ("psr_attachment_ids", "!=", False),
+            ("psr_valid_until", ">=", today),
+        ]
         positive = (operator == "=") == bool(value)
         return valid if positive else ["!", *valid]
 
@@ -78,9 +106,27 @@ class FixVendorTaxProfile(models.Model):
                 raise ValidationError("A BIN is 13 digits")
 
     def is_filer_on(self, on_date):
-        """True when a return-filing proof is recorded and valid on on_date."""
+        """True when a return-filing proof is recorded, EVIDENCED (attachment)
+        and valid on on_date, for a payee with a TIN. A08 M52-10: a typed
+        reference 'x' to 2099 used to clear the non-filer uplift."""
         self.ensure_one()
-        return bool(self.psr_reference and self.psr_valid_until and self.psr_valid_until >= on_date)
+        return bool(
+            (self.tin or "").strip()
+            and (self.psr_reference or "").strip()
+            and self.psr_valid_until
+            and self.psr_valid_until >= on_date
+            and self.psr_attachment_ids
+        )
+
+    def is_tds_exempt_on(self, on_date):
+        """An exemption certificate with its number, file and expiry, valid on on_date."""
+        self.ensure_one()
+        return bool(
+            (self.tds_exempt_certificate_ref or "").strip()
+            and self.tds_exempt_valid_until
+            and self.tds_exempt_valid_until >= on_date
+            and self.tds_exempt_attachment_ids
+        )
 
     @api.model
     def for_partner(self, partner, company=None):
@@ -127,6 +173,50 @@ class FixApApprovalRule(models.Model):
         for rule in self:
             if rule.level < 1 or rule.amount_min < 0:
                 raise ValidationError("Levels start at 1 and minimums are not negative")
+
+    @api.constrains("group_id")
+    def _check_group(self):
+        allowed = self.env["res.groups"]
+        for xmlid in MATRIX_GROUPS:
+            allowed |= self.env.ref(xmlid, raise_if_not_found=False) or self.env["res.groups"]
+        for rule in self:
+            group = rule.group_id.sudo()
+            if not (group & allowed or group.all_implied_ids & allowed):
+                raise ValidationError(
+                    "Matrix level %d must be decided by an accounting group (Accountant or "
+                    "Accounting Administrator, or a group that implies one): %s does not."
+                    % (rule.level, group.display_name)
+                )
+
+    # ---- dual control (A08 M52-12) ------------------------------------------
+    def _fix_matrix_writing(self):
+        return self.with_context(**{_MATRIX_KEY: _MATRIX_TOKEN})
+
+    def _fix_matrix_open(self):
+        return self.env.su or self.env.context.get(_MATRIX_KEY) is _MATRIX_TOKEN
+
+    def _fix_matrix_refuse(self):
+        raise UserError(
+            "The AP approval matrix changes through a matrix change request, proposed by one "
+            "accounting manager and confirmed by another (A08 M52-12)."
+        )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_matrix_open():
+            self._fix_matrix_refuse()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        tracked = {"name", "level", "amount_min", "group_id", "active", "company_id", "currency_id"}
+        if tracked & set(vals) and not self._fix_matrix_open():
+            self._fix_matrix_refuse()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self._fix_matrix_open():
+            self._fix_matrix_refuse()
+        return super().unlink()
 
     @api.model
     def levels_for(self, amount, company):

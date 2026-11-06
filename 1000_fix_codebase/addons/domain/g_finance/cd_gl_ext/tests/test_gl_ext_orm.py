@@ -512,8 +512,9 @@ class TestPeriodClose:
             odoo_env.cr.savepoint(),
         ):
             line.action_mark_done()
+        # A08 M19-5: "done" is reached only through Mark Done, with evidence
         with (
-            pytest.raises(ValidationError, match="without an evidence reference"),
+            pytest.raises(UserError, match="completed with its evidence"),
             odoo_env.cr.savepoint(),
         ):
             line.action_set_state("done")

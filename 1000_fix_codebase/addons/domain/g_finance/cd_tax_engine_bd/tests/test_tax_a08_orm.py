@@ -10,6 +10,7 @@ import io
 import json
 import zipfile
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from odoo.addons.cd_tax_engine_bd.models.fix_tax_compliance import quarter_bounds
@@ -70,6 +71,10 @@ def _deduction(t, kind="tds", amount=500.0, on="2026-09-10", **vals):
             "tax_kind": kind,
             "partner_id": t["supplier"].id,
             "partner_tin": "123456789012",
+            # A08 M51-7: PSR / bank evidence default to the unfavourable value;
+            # these deductions state the evidence
+            "psr_received": True,
+            "paid_by_bank": True,
             "rate_id": rate.id,
             "section": rate.section,
             "document_date": on,
@@ -146,13 +151,19 @@ class TestStatutoryCalendar:
         assert by_ob[("vds_deposit", "2026-09")]["status"] == "nothing_due"
         assert by_ob[("wht_return", "2026-Q1")]["detail"] == "No return prepared"
         line.state = "deposited"
-        env["fix.statutory.filing"].create(
-            {
-                "rule_id": env.ref("cd_tax_engine_bd.due_rule_vat_91").id,
-                "period_key": "2026-09",
-                "filed_on": "2026-10-12",
-                "reference": "IVAS-ACK-1",
-            }
+        # A08 M51-1 (S01): typed evidence never marks the ERP-filed 9.1 done ...
+        with pytest.raises(ValidationError, match="typed filing evidence"), env.cr.savepoint():
+            env["fix.statutory.filing"].create(
+                {
+                    "rule_id": env.ref("cd_tax_engine_bd.due_rule_vat_91").id,
+                    "period_key": "2026-09",
+                    "filed_on": "2026-10-12",
+                    "reference": "IVAS-ACK-1",
+                }
+            )
+        # ... the filed return does (system arrangement of a filed return)
+        env["fix.vat.return"].create(
+            {"period": "2026-09", "state": "filed", "nbr_confirmation": "IVAS-ACK-1"}
         )
         rows = {
             (r["rule"].obligation, r["period"]): r
@@ -185,6 +196,10 @@ class TestChallan:
         )
         challan.action_link_open_deductions()
         assert challan.withholding_line_ids == a | b
+        # A08 M51-11: the deposit is confirmed after the receipt is verified
+        with pytest.raises(UserError, match="not verified"), env.cr.savepoint():
+            challan.action_confirm_deposit()
+        challan.action_record_verification("IBAS-2026-0001")
         with pytest.raises(UserError, match="does not equal"), env.cr.savepoint():
             challan.action_confirm_deposit()
         challan.amount = 1000.0
@@ -211,6 +226,7 @@ class TestChallan:
             {"challan_no": "AC-X", "challan_date": "2026-10-12", "tax_kind": "tds", "amount": 100.0}
         )
         line.challan_id = challan
+        challan.action_record_verification("IBAS-X")
         with pytest.raises(UserError, match="challan_journal_code"), env.cr.savepoint():
             challan.action_confirm_deposit()
         assert challan.state == "draft" and line.state == "withheld"
@@ -244,7 +260,7 @@ class TestInputCreditAndVatReturn:
         no_bin.action_check_eligibility()
         assert (no_bin.state, no_bin.ineligible_reason) == (
             "ineligible",
-            "Supplier BIN missing or not 13 digits",
+            "Supplier BIN missing or not a real 13-digit BIN",
         )
         enlisted = self._credit(tax, supplier_enlisted=True)
         enlisted.action_check_eligibility()
@@ -276,9 +292,10 @@ class TestInputCreditAndVatReturn:
         )
         good = self._credit(tax)
         good.action_check_eligibility()
-        later = self._credit(tax, claim_period="2026-10")
+        # a different supplier 6.3 (A08 M51-3: one 6.3 is claimed once)
+        later = self._credit(tax, claim_period="2026-10", supplier_mushak_no="63-56")
         later.action_check_eligibility()
-        dec = self._credit(tax, adjustment_type="decrease", vat_amount=200.0)
+        dec = self._credit(tax, adjustment_type="decrease", vat_amount=200.0, taxable_amount=0.0)
         dec.action_check_eligibility()
         ret = env["fix.vat.return"].create({"period": "2026-09"})
         ret.action_prepare()
@@ -346,7 +363,7 @@ class TestVdsReceivedClaim:
     as the 9.1's VDS credit, cleared Dr VAT payable / Cr VDS receivable on
     filing, and marked claimed exactly once."""
 
-    def test_prepare_and_file_claims_the_certificates(self, tax):
+    def test_prepare_and_file_claims_the_certificates(self, tax, monkeypatch):
         env = tax["env"]
         if "fix.vds.certificate.received" not in env:
             pytest.skip("cd_billing_engine VDS certificates not installed")
@@ -401,6 +418,13 @@ class TestVdsReceivedClaim:
         ret.action_prepare()
         assert ret.vds_received_credit == 450.0
         assert ret.net_payable_after_vds == ret.net_payable - 450.0
+        # A08 M51-1: filing recomputes the sub-ledger reconciliation; this suite
+        # tests the VDS claim, so the GL side is arranged to agree with the return
+        monkeypatch.setattr(
+            type(ret),
+            "_gl_vat_balances",
+            lambda self: (Decimal(str(self.output_vat)), Decimal(str(self.input_vat))),
+        )
         ret.action_file("IVAS-ACK-A08")
         assert cert.state == "claimed"
         lines = {ln.account_id.code: (ln.debit, ln.credit) for ln in ret.vds_claim_move_id.line_ids}

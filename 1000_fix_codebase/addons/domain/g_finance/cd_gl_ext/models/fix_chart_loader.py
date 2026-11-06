@@ -291,6 +291,12 @@ class FixChartLoader(models.Model):
     def action_load_from_csv(self, csv_text: str | None = None) -> dict:
         """Load Chart of Accounts from CSV text or file path."""
         self.ensure_one()
+        # The statutory master file is governed content (AF-09): an Accounting
+        # Administrator's reload of it may move control flags. A custom CSV
+        # never does; that change is a fix.chart.control.change (M19-8).
+        master_reload = not csv_text and (
+            self.env.su or self.env.user.has_group("account.group_account_manager")
+        )
         if not csv_text:
             candidates = [
                 Path(__file__).resolve().parents[4] / self.source_file,
@@ -338,6 +344,10 @@ class FixChartLoader(models.Model):
                 "active": rec.active,
             }
             if existing:
+                if master_reload:
+                    from .fix_gl_posting_control import control_change_context
+
+                    existing = existing.with_context(**control_change_context())
                 existing.write(vals)
             else:
                 acc_model.create(vals)

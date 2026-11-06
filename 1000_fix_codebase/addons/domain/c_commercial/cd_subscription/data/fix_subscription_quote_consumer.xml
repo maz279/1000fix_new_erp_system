@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription — the A04 hand-off: an accepted SUBSCRIPTION quotation (M41,
+     quote_type = subscription) becomes its subscription, once per quotation
+     (fix.subscription.consume_quotation_accepted). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_quotation_accepted_subscription" model="fix.event.consumer">
+            <field name="name">M39: subscription from an accepted subscription quotation</field>
+            <field name="event_type">quotation.accepted</field>
+            <field name="model">fix.subscription</field>
+            <field name="method">consume_quotation_accepted</field>
+            <field name="module">cd_subscription</field>
+        </record>
+    </data>
+</odoo>

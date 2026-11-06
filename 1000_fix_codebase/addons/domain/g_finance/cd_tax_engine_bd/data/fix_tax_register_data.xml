@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M51-9: the Mushak serial of register rows issued for native account.move
+  sales invoices and for 6.7 / 6.8 notes when the billing engine (M20, which
+  owns the per-company fiscal-year Mushak sequence) is not installed.
+
+  The invoice.created consumer (T04): the register rebuilds from the event
+  stream. The relay delivers each event once; the consumer adopts the row the
+  billing engine wrote in the same transaction (idempotent on the event id).
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="seq_fix_mushak_native" model="ir.sequence">
+            <field name="name">Mushak 6.3 / 6.7 / 6.8 Serial (native invoices)</field>
+            <field name="code">cd_tax_engine_bd.mushak_native</field>
+            <field name="prefix">M%(range_year)s-</field>
+            <field name="padding">6</field>
+            <field name="implementation">no_gap</field>
+            <field name="use_date_range" eval="True"/>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="consumer_invoice_created_mushak_register" model="fix.event.consumer">
+            <field name="name">M51: the Mushak register consumes invoice.created</field>
+            <field name="event_type">invoice.created</field>
+            <field name="model">fix.mushak.register</field>
+            <field name="method">consume_invoice_created</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+
+    </data>
+</odoo>

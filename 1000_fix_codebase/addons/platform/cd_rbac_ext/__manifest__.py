@@ -13,8 +13,9 @@ Owns:
 - fix.role (53 roles per the reconciled register, mapped to the estate's
   permission groups — data/fix_role_group_map.xml, A12 R1)
 - fix.isolation.tier (T0 public ... T5 residency-classified, as record rules)
-- fix.sod.control (61 segregation-of-duties controls from SP-006, enforced
-  at every grant path — A12 R2)
+- fix.sod.control (61 segregation-of-duties controls from SP-006 plus the
+  A08 finance duty rule set, enforced at every grant path — A12 R2)
+- fix.sod.mitigation (time-boxed, approved SoD exceptions, FR-SEC-024)
 - fix.field.rule (the field-rule REGISTER: it records the intended field
   visibility/masking; no runtime engine reads it — stated honestly)
 - fix.access.request (X1: operational two-person approval, SoD gate at
@@ -23,7 +24,7 @@ Owns:
   ALL groups, unassigns ITSM assets, audits)
 - access certification, privileged sessions (R3 crons: elevation expiry,
   close-out, session timeout), encryption keys (custodian-only, real
-  rotation), the hash-chained security audit trail (R5) and incidents.
+  rotation), the hash-chained security audit trail (A12 R5) and incidents.
 """,
     "version": "19.0.1.2.0",
     "license": "LGPL-3",
@@ -32,6 +33,7 @@ Owns:
     "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox"],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_sod_groups.xml",
         "security/cd_rbac_ext_security.xml",
         # the groups XML must load BEFORE the ACL CSV: the CSV grants rows to
         # group_access_approver / group_key_custodian defined there
@@ -41,6 +43,7 @@ Owns:
         "data/fix_roles.xml",
         "data/fix_role_group_map.xml",
         "data/fix_sod_controls.xml",
+        "data/fix_sod_finance_controls.xml",
         "data/fix_event_consumers.xml",
         "data/fix_a12_crons.xml",
         "data/fix_access_cron.xml",

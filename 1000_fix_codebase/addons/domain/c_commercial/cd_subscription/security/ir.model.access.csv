@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_subscription,fix.subscription,model_fix_subscription,base.group_user,1,1,1,0
+access_fix_subscription,fix.subscription,model_fix_subscription,base.group_user,1,0,0,0
 access_fix_subscription_account_readonly,fix.subscription.account.readonly,model_fix_subscription,account.group_account_readonly,1,0,0,0
 access_fix_subscription_account_user,fix.subscription.account.user,model_fix_subscription,account.group_account_user,1,1,1,0
 access_fix_revenue_schedule,fix.revenue.schedule,model_fix_revenue_schedule,base.group_user,1,0,0,0
@@ -7,7 +7,7 @@ access_fix_revenue_schedule_account_readonly,fix.revenue.schedule.account.readon
 access_fix_revenue_schedule_account_user,fix.revenue.schedule.account.user,model_fix_revenue_schedule,account.group_account_user,1,1,1,0
 access_fix_revenue_schedule_account_manager,fix.revenue.schedule.account.manager,model_fix_revenue_schedule,account.group_account_manager,1,1,1,0
 access_fix_revenue_recognition_line_account_readonly,fix.revenue.recognition.line.account.readonly,model_fix_revenue_recognition_line,account.group_account_readonly,1,0,0,0
-access_fix_revenue_recognition_line_account_user,fix.revenue.recognition.line.account.user,model_fix_revenue_recognition_line,account.group_account_user,1,0,1,0
+access_fix_revenue_recognition_line_account_user,fix.revenue.recognition.line.account.user,model_fix_revenue_recognition_line,account.group_account_user,1,0,0,0
 access_fix_subscription_charge,fix.subscription.charge,model_fix_subscription_charge,base.group_user,1,0,0,0
 access_fix_subscription_charge_account_readonly,fix.subscription.charge.account.readonly,model_fix_subscription_charge,account.group_account_readonly,1,0,0,0
 access_fix_subscription_charge_account_user,fix.subscription.charge.account.user,model_fix_subscription_charge,account.group_account_user,1,1,1,0
@@ -15,7 +15,7 @@ access_fix_performance_obligation_account_readonly,fix.performance.obligation.ac
 access_fix_performance_obligation_account_user,fix.performance.obligation.account.user,model_fix_performance_obligation,account.group_account_user,1,1,1,1
 access_fix_performance_obligation_account_manager,fix.performance.obligation.account.manager,model_fix_performance_obligation,account.group_account_manager,1,1,1,1
 access_fix_subscription_account_manager,fix.subscription.account.manager,model_fix_subscription,account.group_account_manager,1,1,1,0
-access_fix_revenue_recognition_line_account_manager,fix.revenue.recognition.line.account.manager,model_fix_revenue_recognition_line,account.group_account_manager,1,0,1,0
+access_fix_revenue_recognition_line_account_manager,fix.revenue.recognition.line.account.manager,model_fix_revenue_recognition_line,account.group_account_manager,1,0,0,0
 access_fix_subscription_charge_account_manager,fix.subscription.charge.account.manager,model_fix_subscription_charge,account.group_account_manager,1,1,1,0
 access_fix_subscription_usage,fix.subscription.usage,model_fix_subscription_usage,base.group_user,1,0,0,0
 access_fix_subscription_usage_officer,fix.subscription.usage.officer,model_fix_subscription_usage,group_subscription_officer,1,1,1,1

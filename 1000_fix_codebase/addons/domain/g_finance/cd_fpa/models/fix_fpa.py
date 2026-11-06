@@ -1,6 +1,16 @@
 # fix_fpa — M54: budgets and cost-allocation cycles (P09-M07, A08 rebuild).
+#
+# A08 remediation (B3, 4 Nov 2026; M54-4, -7):
+#   - fix.budget: no budget without a version; its state follows the version and
+#     is never typed; "Actual" is computed from the posted GL, never stored or
+#     typed (BRU-FPA-02); the planned figure is the sum of its lines.
+#   - fix.cost.allocation: state and the compute/post stamps are guarded, the
+#     receiver lines are written only by the compute, the post RECOMPUTES the
+#     split from the ledger and refuses a cycle that no longer agrees, and the
+#     user who computed a cycle does not post it. The allocation is raised to
+#     M19 through its posting API (source "allocation", BRU-FPA-01).
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 VERSION_STATES = [
     ("draft", "Draft"),
@@ -11,22 +21,22 @@ VERSION_STATES = [
 ]
 # fields a budget may still receive once its version left draft
 _BUDGET_UNLOCKED = {
-    "actual_amount",
     "actuals_refreshed_at",
-    "state",
     "message_main_attachment_id",
 }
+ACCOUNT_USER = "account.group_account_user"
+ACCOUNT_MANAGER = "account.group_account_manager"
 
 
 class FixBudget(models.Model):
     """An operating or capital budget inside a budget version. Planned is the
-    sum of its lines; actual is refreshed from the POSTED GL. The M49<->M54
+    sum of its lines; actual is read from the POSTED GL. The M49<->M54
     break (AR-006 pair 14): M54 consumes depreciation EVENTS; M49 never
     reads budgets."""
 
     _name = "fix.budget"
     _description = "Budget"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "fiscal_year desc, id desc"
 
     company_id = fields.Many2one(
@@ -55,45 +65,50 @@ class FixBudget(models.Model):
         currency_field="currency_id",
         compute="_compute_planned",
         store=True,
-        readonly=False,
+        readonly=True,
     )
     actual_amount = fields.Monetary(
-        string="Actual", currency_field="currency_id", help="Refreshed from the posted GL"
+        string="Actual",
+        currency_field="currency_id",
+        compute="_compute_actual",
+        help="Read live from the posted GL on the budget's lines; never typed.",
     )
     actuals_refreshed_at = fields.Datetime(string="Actuals Refreshed", readonly=True)
     variance = fields.Monetary(
-        compute="_compute_variance",
+        compute="_compute_actual",
         string="Variance (Planned − Actual)",
         currency_field="currency_id",
-        store=True,
     )
     state = fields.Selection(
         VERSION_STATES,
         compute="_compute_state",
         store=True,
-        readonly=False,
+        readonly=True,
         default="draft",
         required=True,
         tracking=True,
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "actuals_refreshed_at"}
+
     @api.depends("line_ids.planned_amount")
     def _compute_planned(self) -> None:
         for rec in self:
-            if rec.line_ids:
-                rec.planned_amount = sum(rec.line_ids.mapped("planned_amount"))
-            else:
-                rec.planned_amount = rec.planned_amount or 0.0
+            rec.planned_amount = sum(rec.line_ids.mapped("planned_amount"))
 
-    @api.depends("planned_amount", "actual_amount")
-    def _compute_variance(self) -> None:
+    def _compute_actual(self) -> None:
+        engine = self.env["fix.fpa.engine"]
+        lines = self.mapped("line_ids").filtered("id")
+        actuals = engine.line_actuals(lines) if lines else {}
         for rec in self:
+            rec.actual_amount = sum(actuals.get(line.id, 0.0) for line in rec.line_ids)
             rec.variance = rec.planned_amount - rec.actual_amount
 
     @api.depends("version_id.state")
     def _compute_state(self) -> None:
         for rec in self:
-            rec.state = rec.version_id.state if rec.version_id else (rec.state or "draft")
+            rec.state = rec.version_id.state if rec.version_id else "draft"
 
     @api.onchange("version_id")
     def _onchange_version(self) -> None:
@@ -107,17 +122,25 @@ class FixBudget(models.Model):
         versions = self.env["fix.budget.version"]
         for vals in vals_list:
             version = versions.browse(vals.get("version_id"))
-            if version:
-                version._check_editable()
-                vals.setdefault("fiscal_year", version.fiscal_year)
-                vals.setdefault("date_from", version.date_from)
-                vals.setdefault("date_to", version.date_to)
-                vals.setdefault("company_id", version.company_id.id)
+            if not version:
+                raise ValidationError(
+                    "A budget belongs to a budget version: plan it inside a version so it is "
+                    "submitted and approved (A08 M54-7)."
+                )
+            version._check_editable()
+            vals.setdefault("fiscal_year", version.fiscal_year)
+            vals.setdefault("date_from", version.date_from)
+            vals.setdefault("date_to", version.date_to)
+            vals.setdefault("company_id", version.company_id.id)
         return super().create(vals_list)
 
     def write(self, vals):
+        if "version_id" in vals and not vals["version_id"]:
+            raise ValidationError("A budget belongs to a budget version.")
         if set(vals) - _BUDGET_UNLOCKED:
             self.version_id._check_editable()
+            if "version_id" in vals:
+                self.env["fix.budget.version"].browse(vals["version_id"])._check_editable()
         return super().write(vals)
 
     def unlink(self):
@@ -141,33 +164,28 @@ class FixBudget(models.Model):
                 )
 
     def action_refresh_actuals(self):
-        """Measure every line against the posted GL and store the total."""
-        engine = self.env["fix.fpa.engine"]
+        """Measure every line against the posted GL (the actual is always live;
+        this stamps when it was last looked at)."""
         for rec in self:
             if not rec.line_ids:
                 raise UserError(
                     "Budget %s has no lines (account, period) — nothing to measure against "
                     "the GL" % rec.name
                 )
-            actuals = engine.line_actuals(rec.line_ids)
-            rec.write(
-                {
-                    "actual_amount": sum(actuals.values()),
-                    "actuals_refreshed_at": fields.Datetime.now(),
-                }
-            )
+            rec._guarded().write({"actuals_refreshed_at": fields.Datetime.now()})
         return True
 
 
 class FixCostAllocation(models.Model):
     """An allocation cycle: one run of a cost pool for a period. Compute
     gathers the pool's posted cost and splits it on the pool's basis; Post
-    books it (Dr absorbed overhead per receiver with its dimension, Cr the
-    pool clearing account); Reverse books the mirror entry."""
+    (by someone other than the computer) recomputes the split and books it
+    through the M19 API (Dr absorbed overhead per receiver with its dimension,
+    Cr the pool clearing account); Reverse books the mirror entry."""
 
     _name = "fix.cost.allocation"
     _description = "Cost Allocation Cycle"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "date_to desc, id desc"
 
     company_id = fields.Many2one(
@@ -184,9 +202,14 @@ class FixCostAllocation(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     direct_cost = fields.Monetary(
-        string="Pool Cost", currency_field="currency_id", help="Posted cost gathered by the pool"
+        string="Pool Cost",
+        currency_field="currency_id",
+        readonly=True,
+        help="Posted cost gathered by the pool",
     )
-    allocated_overhead = fields.Monetary(string="Allocated Overhead", currency_field="currency_id")
+    allocated_overhead = fields.Monetary(
+        string="Allocated Overhead", currency_field="currency_id", readonly=True
+    )
     total_cost = fields.Monetary(
         compute="_compute_total", string="Total", currency_field="currency_id", store=True
     )
@@ -209,6 +232,32 @@ class FixCostAllocation(models.Model):
     computed_by = fields.Many2one("res.users", readonly=True, copy=False)
     posted_by = fields.Many2one("res.users", readonly=True, copy=False)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "direct_cost",
+            "allocated_overhead",
+            "move_id",
+            "reversal_move_id",
+            "computed_by",
+            "posted_by",
+        }
+
+    def write(self, vals):
+        cycle = {"pool_id", "date_from", "date_to", "company_id", "currency_id"} & set(vals)
+        if cycle and not self._fix_guard_open():
+            if any(rec.state in ("posted", "reversed") for rec in self):
+                raise UserError("A posted allocation is frozen; reverse it instead.")
+            result = super().write(vals)
+            # the computed split belonged to the old cycle
+            for rec in self.filtered(lambda r: r.state == "computed"):
+                rec.line_ids.sudo()._guarded().unlink()
+                rec._guarded().write(
+                    {"state": "draft", "direct_cost": 0.0, "allocated_overhead": 0.0, "computed_by": False}
+                )
+            return result
+        return super().write(vals)
+
     @api.depends("direct_cost", "allocated_overhead")
     def _compute_total(self) -> None:
         for rec in self:
@@ -220,6 +269,10 @@ class FixCostAllocation(models.Model):
             if rec.date_from and rec.date_to and rec.date_from > rec.date_to:
                 raise ValidationError("Allocation %s ends before it starts" % rec.name)
 
+    def _require(self, xmlid, what):
+        if not self.env.su and not self.env.user.has_group(xmlid):
+            raise AccessError("%s needs the %s role." % (what, self.env.ref(xmlid).name))
+
     def _require_cycle(self):
         for rec in self:
             if not rec.pool_id or not rec.date_from or not rec.date_to:
@@ -227,47 +280,51 @@ class FixCostAllocation(models.Model):
                     "Allocation %s needs a cost pool and a period before it can run" % rec.name
                 )
 
-    def action_compute(self):
-        self._require_cycle()
+    def _fpa_split(self):
+        """(pool amount, [receiver line vals]) computed from the posted ledger
+        and the pool's basis — the same computation for compute and post."""
+        self.ensure_one()
         engine = self.env["fix.fpa.engine"]
+        pool = self.pool_id
+        amount = round(engine.pool_amount(pool, self.date_from, self.date_to), 2)
+        if amount <= 0:
+            raise UserError(
+                "Pool %s gathered no posted cost between %s and %s — nothing to allocate"
+                % (pool.code, self.date_from, self.date_to)
+            )
+        drivers = self._drivers()
+        total_driver = sum(drivers.values())
+        if total_driver <= 0:
+            raise UserError(
+                "Pool %s: the allocation basis (%s) measured zero for every receiver "
+                "in the period" % (pool.code, pool.allocation_basis)
+            )
+        lines, running = [], 0.0
+        receivers = sorted(drivers.items(), key=lambda kv: kv[0])
+        for idx, (receiver, qty) in enumerate(receivers):
+            share = qty / total_driver
+            part = round(amount - running, 2) if idx == len(receivers) - 1 else round(amount * share, 2)
+            running = round(running + part, 2)
+            vals = {"driver_qty": qty, "share_pct": round(100 * share, 4), "amount": part}
+            vals["branch_id" if pool.receiver_type == "branch" else "business_line_id"] = receiver
+            lines.append(vals)
+        return amount, lines
+
+    def action_compute(self):
+        self._require(ACCOUNT_USER, "Computing a cost allocation")
+        self._require_cycle()
         for rec in self:
             if rec.state not in ("draft", "computed"):
                 raise UserError("Allocation %s is already posted" % rec.name)
-            pool = rec.pool_id
-            amount = round(engine.pool_amount(pool, rec.date_from, rec.date_to), 2)
-            if amount <= 0:
-                raise UserError(
-                    "Pool %s gathered no posted cost between %s and %s — nothing to allocate"
-                    % (pool.code, rec.date_from, rec.date_to)
-                )
-            drivers = rec._drivers()
-            total_driver = sum(drivers.values())
-            if total_driver <= 0:
-                raise UserError(
-                    "Pool %s: the allocation basis (%s) measured zero for every receiver "
-                    "in the period" % (pool.code, pool.allocation_basis)
-                )
-            lines, running = [], 0.0
-            receivers = sorted(drivers.items(), key=lambda kv: kv[0])
-            for idx, (receiver, qty) in enumerate(receivers):
-                share = qty / total_driver
-                part = (
-                    round(amount - running, 2)
-                    if idx == len(receivers) - 1
-                    else round(amount * share, 2)
-                )
-                running += part
-                vals = {"driver_qty": qty, "share_pct": round(100 * share, 4), "amount": part}
-                vals["branch_id" if pool.receiver_type == "branch" else "business_line_id"] = (
-                    receiver
-                )
-                lines.append((0, 0, vals))
-            rec.line_ids.unlink()
-            rec.write(
+            amount, lines = rec._fpa_split()
+            rec.line_ids.sudo()._guarded().unlink()
+            self.env["fix.cost.allocation.line"].sudo()._guarded().create(
+                [dict(vals, allocation_id=rec.id) for vals in lines]
+            )
+            rec._guarded().write(
                 {
-                    "line_ids": lines,
                     "direct_cost": amount,
-                    "allocated_overhead": round(running, 2),
+                    "allocated_overhead": round(sum(v["amount"] for v in lines), 2),
                     "state": "computed",
                     "computed_by": self.env.uid,
                 }
@@ -295,9 +352,15 @@ class FixCostAllocation(models.Model):
     def action_post(self):
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
+        self._require(ACCOUNT_USER, "Posting a cost allocation")
         for rec in self:
             if rec.state != "computed" or not rec.line_ids:
                 raise UserError("Compute allocation %s before posting it" % rec.name)
+            if not self.env.su and self.env.user in (rec.computed_by | rec.create_uid):
+                raise UserError(
+                    "Segregation of duties: %s prepared or computed allocation %s and cannot "
+                    "post it; another accountant reviews and posts it." % (self.env.user.name, rec.name)
+                )
             pool = rec.pool_id
             missing = [
                 label
@@ -327,6 +390,16 @@ class FixCostAllocation(models.Model):
                 raise UserError(
                     "Pool %s is already allocated for an overlapping period (%s)"
                     % (pool.code, clash.name)
+                )
+            # BRU-FPA-04/07: the posted figures are the ledger's, recomputed now.
+            amount, fresh = rec._fpa_split()
+            key = "branch_id" if pool.receiver_type == "branch" else "business_line_id"
+            stored = sorted((ln[key].id, round(ln.amount, 2)) for ln in rec.line_ids)
+            recomputed = sorted((v[key], round(v["amount"], 2)) for v in fresh)
+            if stored != recomputed or round(rec.direct_cost - amount, 2) != 0:
+                raise UserError(
+                    "Allocation %s no longer agrees with the ledger (pool cost %.2f, computed "
+                    "%.2f); compute it again before posting." % (rec.name, amount, rec.direct_cost)
                 )
             line_vals, dims = [], {}
             for idx, line in enumerate(rec.line_ids):
@@ -358,7 +431,7 @@ class FixCostAllocation(models.Model):
                         "name": "%s — pool %s cleared" % (rec.name, pool.code),
                         "account_id": pool.clearing_account_id.id,
                         "debit": 0.0,
-                        "credit": rec.allocated_overhead,
+                        "credit": round(sum(v["amount"] for v in fresh), 2),
                     },
                 )
             )
@@ -373,36 +446,53 @@ class FixCostAllocation(models.Model):
                 },
                 dims,
                 source="allocation",
+                source_ref=rec.name,
             )
-            rec.write({"move_id": move.id, "state": "posted", "posted_by": self.env.uid})
+            rec._guarded().write({"move_id": move.id, "state": "posted", "posted_by": self.env.uid})
             rec.message_post(body="Allocation posted: %s" % move.display_name)
         return True
 
     def action_reverse(self):
+        from odoo.addons.cd_gl_ext.models.fix_gl_ext import m19_context
+
+        self._require(ACCOUNT_USER, "Reversing a cost allocation")
         for rec in self:
             if rec.state != "posted" or not rec.move_id:
                 raise UserError("Only a posted allocation can be reversed")
             reversal = rec.move_id._reverse_moves(
                 [{"ref": "Reversal of %s" % rec.name, "date": rec.move_id.date}]
             )
-            reversal.action_post()
-            rec.write({"reversal_move_id": reversal.id, "state": "reversed"})
+            reversal.with_context(**m19_context("cost_allocation"))._post(soft=False)
+            rec._guarded().write({"reversal_move_id": reversal.id, "state": "reversed"})
             rec.message_post(body="Allocation reversed: %s" % reversal.display_name)
         return True
 
     def action_reset_draft(self):
+        self._require(ACCOUNT_USER, "Resetting a cost allocation")
         for rec in self:
             if rec.state not in ("computed", "reversed"):
                 raise UserError("Only a computed or reversed allocation returns to draft")
-            rec.line_ids.unlink()
-            rec.write({"state": "draft", "move_id": False, "reversal_move_id": False})
+            rec.line_ids.sudo()._guarded().unlink()
+            rec._guarded().write(
+                {
+                    "state": "draft",
+                    "move_id": False,
+                    "reversal_move_id": False,
+                    "direct_cost": 0.0,
+                    "allocated_overhead": 0.0,
+                    "computed_by": False,
+                    "posted_by": False,
+                }
+            )
         return True
 
 
 class FixCostAllocationLine(models.Model):
+    """One receiver of a computed allocation. Written only by the compute."""
+
     _name = "fix.cost.allocation.line"
     _description = "Cost Allocation Receiver"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
     allocation_id = fields.Many2one(
         "fix.cost.allocation", required=True, ondelete="cascade", index=True
@@ -418,6 +508,22 @@ class FixCostAllocationLine(models.Model):
     driver_qty = fields.Float(string="Driver Quantity")
     share_pct = fields.Float(string="Share %", digits=(16, 4))
     amount = fields.Monetary(currency_field="currency_id")
+
+    _LINE_FIELDS = {"allocation_id", "branch_id", "business_line_id", "driver_qty", "share_pct", "amount"}
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self._LINE_FIELDS
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError("Allocation receivers are written by Compute, never typed (BRU-FPA-04).")
+        return super().create(vals_list)
+
+    def unlink(self):
+        if not self._fix_guard_open():
+            raise UserError("Allocation receivers are written by Compute, never typed (BRU-FPA-04).")
+        return super().unlink()
 
     @api.depends("branch_id", "business_line_id")
     def _compute_receiver_name(self) -> None:

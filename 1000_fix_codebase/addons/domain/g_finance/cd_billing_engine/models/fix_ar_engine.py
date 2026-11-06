@@ -26,6 +26,8 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
+from .fix_finance_approval import GROUP_ACCOUNTANT, GROUP_ADMINISTRATOR, float_param, require_role
+
 _logger = logging.getLogger(__name__)
 
 # Account roles for AR postings: default code + label. Overridable per
@@ -47,6 +49,11 @@ AR_ACCOUNTS = {
     # (cd_settlement_ext hand-back). MD-035 4-90-10-010 "Other income" is
     # Odoo 450000, the account rentals use for damage recovery income.
     "claim_recovery": ("450000", "Damage Claim Recovery Income (liable courier)"),
+    # A08 M20-5/-6: the IFRS 9 loss allowance and its expense. No default
+    # code: the chart has no account that is certainly the allowance, so a
+    # write-off without a posted ECL run or this parameter expenses in full.
+    "ecl_provision": (None, "Expected Credit Loss Allowance (IFRS 9)"),
+    "ecl_expense": (None, "Impairment Loss on Receivables (IFRS 9)"),
 }
 
 # The eight capture tenders (FR-ARB-019) and the GL role each clears into.
@@ -75,6 +82,12 @@ METHOD_ROLE = {
     "adjustment": None,
 }
 
+# Hours a payment link stays valid (FR-ARB-015); 48 h is the engine's
+# original default.
+PARAM_LINK_HOURS = "cd_billing_engine.payment_link_hours"
+DEFAULT_LINK_HOURS = 48.0
+_HOLD_TOKEN = object()
+
 NID_CASH_THRESHOLD_PARAM = "cd_billing_engine.nid_cash_threshold"
 NID_CASH_THRESHOLD_DEFAULT = 50000  # BDT — the rule is M51's (FR-ARB-026)
 
@@ -90,6 +103,8 @@ def _ar_account(env, company, role):
         env["ir.config_parameter"].sudo().get_param(f"cd_billing_engine.account_code.{role}")
         or default_code
     )
+    if not code:
+        return env["account.account"]
     return (
         env["account.account"]
         .with_company(company)
@@ -137,7 +152,11 @@ def _post_ar_move(env, company, entry_date, ref, lines, dimension_by_line, sourc
             for account_id, name, debit, credit, partner_id in lines
         ],
     }
-    move, _dims = post_with_dimensions(env, move_vals, dimension_by_line, source=source)
+    Move = env["account.move"]
+    if hasattr(Move, "_fix_post_via_m19"):
+        move = Move._fix_post_via_m19(move_vals, source, dimension_by_line=dimension_by_line)
+    else:
+        move, _dims = post_with_dimensions(env, move_vals, dimension_by_line, source=source)
     return move, None
 
 
@@ -315,7 +334,7 @@ class FixArReceipt(models.Model):
 
     _name = "fix.ar.receipt"
     _description = "AR Receipt"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "receipt_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -365,6 +384,46 @@ class FixArReceipt(models.Model):
     gl_note = fields.Char(readonly=True, copy=False)
     reversal_reason = fields.Char(readonly=True)
 
+    RECEIPT_GUARDED = {
+        "state",
+        "account_id",
+        "posted_move_id",
+        "gl_note",
+        "reversal_reason",
+    }
+    # Frozen once the receipt is confirmed: its GL entry carries them
+    # (A08 M20-4: the amount was raised to 11,500 after a 1,000 posting).
+    RECEIPT_LOCKED = (
+        "amount",
+        "method",
+        "customer_id",
+        "currency_id",
+        "receipt_date",
+        "company_id",
+        "reference",
+        "nid_captured",
+        "name",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.RECEIPT_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.RECEIPT_LOCKED)
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = set(self.RECEIPT_LOCKED) & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError(
+                    "A confirmed receipt is frozen with its GL posting (%s); reverse it and "
+                    "capture a new one." % ", ".join(sorted(touched))
+                )
+        return super().write(vals)
+
     @api.depends("amount", "allocation_ids.amount", "state")
     def _compute_allocation(self):
         for rec in self:
@@ -381,7 +440,7 @@ class FixArReceipt(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.ar.receipt")
+                    self.env["ir.sequence"].sudo().next_by_code("fix.ar.receipt")
                     or "RCP/%s/New" % fields.Date.today().year
                 )
         return super().create(vals_list)
@@ -394,20 +453,26 @@ class FixArReceipt(models.Model):
             return NID_CASH_THRESHOLD_DEFAULT
 
     def action_confirm(self):
+        # a Billing clerk captures the draft; an Accountant confirms the posting
+        require_role(self.env, GROUP_ACCOUNTANT, "Confirming a receipt")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only draft receipts can be confirmed")
             if rec.amount <= 0:
                 raise UserError("Receipt amount must be positive")
             threshold = rec._nid_threshold()
-            if (
-                rec.method == "cash"
-                and rec.amount > threshold
-                and not (rec.nid_captured or "").strip()
-            ):
-                raise UserError(
-                    "Cash above BDT %s requires the customer NID (FR-ARB-026)" % threshold
-                )
+            if rec.method == "cash" and rec.amount > threshold:
+                nid = (rec.nid_captured or "").strip()
+                if not nid:
+                    raise UserError(
+                        "Cash above BDT %s requires the customer NID (FR-ARB-026)" % threshold
+                    )
+                # BRU-ARB-07: a National ID is 10 (smart card), 13 or 17 digits
+                if not (nid.isdigit() and len(nid) in (10, 13, 17)):
+                    raise UserError(
+                        "Customer NID %r is not a National ID (10, 13 or 17 digits) — "
+                        "FR-ARB-026" % nid
+                    )
             role = METHOD_ROLE.get(rec.method)
             account = _ar_account(rec.env, rec.company_id, role) if role else None
             if not account:
@@ -439,7 +504,7 @@ class FixArReceipt(models.Model):
                     .branch_id
                 )
                 if invoice_branch:
-                    rec.branch_id = invoice_branch
+                    rec.write({"branch_id": invoice_branch.id})
             ar = _ar_account(rec.env, rec.company_id, "ar")
             note = None
             move = None
@@ -471,7 +536,7 @@ class FixArReceipt(models.Model):
                     raise
             else:
                 note = "GL not posted: AR control account unconfigured"
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "confirmed",
                     "account_id": account.id,
@@ -495,6 +560,7 @@ class FixArReceipt(models.Model):
     def action_reverse(self, reason):
         """FR-ARB-027: reversal with reason — only receipts with nothing
         applied (un-allocate first); posts the mirror move."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Reversing a receipt")
         for rec in self:
             if rec.state != "confirmed":
                 raise UserError("Only confirmed receipts can be reversed")
@@ -527,7 +593,7 @@ class FixArReceipt(models.Model):
                         },
                         source="receipt",
                     )
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "reversed",
                     "reversal_reason": reason[:500],
@@ -600,6 +666,25 @@ class FixArAllocation(models.Model):
     allocated_at = fields.Datetime(default=fields.Datetime.now, required=True)
     allocated_by = fields.Many2one("res.users", default=lambda self: self.env.user)
 
+    @api.model
+    def _fix_check_totals(self, receipts, invoices):
+        """A08 M20-4: checked on the RESULT, after every row of the call is in
+        place (a per-row check let one 11,500 receipt pay two 11,500 invoices
+        in one create, and a write raised an allocation past its receipt)."""
+        for receipt in receipts:
+            allocated = sum(receipt.allocation_ids.mapped("amount"))
+            if allocated > receipt.amount + 0.005:
+                raise UserError(
+                    "Receipt %s of %.2f would be allocated %.2f: an allocation never exceeds "
+                    "what the receipt has unapplied." % (receipt.name, receipt.amount, allocated)
+                )
+        for invoice in invoices:
+            if invoice._raw_residual() < -0.005:
+                raise UserError(
+                    "Invoice %s would be over-settled by %.2f: an allocation never exceeds the "
+                    "invoice residual." % (invoice.name, -invoice._raw_residual())
+                )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -633,12 +718,20 @@ class FixArAllocation(models.Model):
             vals["operating_unit_id"] = (
                 vals.get("operating_unit_id") or receipt.operating_unit_id.id
             )
+            if not self.env.su:
+                vals["allocated_by"] = self.env.uid
         allocations = super().create(vals_list)
+        allocations.invalidate_recordset()
+        self._fix_check_totals(allocations.receipt_id, allocations.invoice_id)
+        allocations._fix_flip_paid()
+        return allocations
+
+    def _fix_flip_paid(self):
         # the evidence-bearing paid transition: fully applied => paid
-        for invoice in allocations.invoice_id:
+        for invoice in self.invoice_id:
             if invoice.state == "issued" and invoice.amount_residual <= 0.005:
                 receipt_refs = ", ".join(invoice.allocation_ids.mapped("receipt_id.name"))
-                invoice.write({"state": "paid", "paid_date": fields.Date.today()})
+                invoice._guarded().write({"state": "paid", "paid_date": fields.Date.today()})
                 publish(
                     invoice.env,
                     "invoice.paid",
@@ -651,7 +744,34 @@ class FixArAllocation(models.Model):
                         "evidence": "receipts %s" % receipt_refs,
                     },
                 )
-        return allocations
+
+    def write(self, vals):
+        if not self.env.su:
+            if {"receipt_id", "invoice_id", "company_id", "allocated_by", "allocated_at"} & set(
+                vals
+            ):
+                raise UserError(
+                    "An allocation applies one receipt to one invoice; remove it and allocate "
+                    "again rather than re-pointing it."
+                )
+            if "amount" in vals and (vals.get("amount") or 0.0) <= 0:
+                raise UserError("Allocation amount must be positive")
+        receipts_before = self.receipt_id
+        invoices_before = self.invoice_id
+        result = super().write(vals)
+        if "amount" in vals:
+            self.invalidate_recordset()
+            self._fix_check_totals(receipts_before | self.receipt_id, invoices_before)
+            paid_short = self.invoice_id.filtered(
+                lambda i: i.state == "paid" and i.amount_residual > 0.005
+            )
+            if paid_short:
+                raise UserError(
+                    "Invoice %s is paid on this allocation; reduce it only by reversing the "
+                    "payment, not by editing the evidence." % ", ".join(paid_short.mapped("name"))
+                )
+            self._fix_flip_paid()
+        return result
 
     def unlink(self):
         for rec in self:
@@ -718,14 +838,63 @@ class FixCreditProfile(models.Model):
             rec.exposure = sum(open_residuals.mapped("amount_residual"))
             rec.over_limit = bool(rec.credit_limit) and rec.exposure > rec.credit_limit
 
+    HOLD_STAMPS = ("hold_by", "hold_date", "hold_placed_by_id")
+
+    hold_placed_by_id = fields.Many2one(
+        "res.users", string="Hold Placed By", readonly=True, copy=False
+    )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            for vals in vals_list:
+                if set(self.HOLD_STAMPS) & {k for k, v in vals.items() if v}:
+                    raise UserError("Hold stamps are set by placing or releasing the hold.")
+                if vals.get("credit_hold"):
+                    vals["hold_placed_by_id"] = self.env.uid
+                    vals["hold_by"] = self.env.uid
+                    vals["hold_date"] = fields.Datetime.now()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su and self.env.context.get("fix_credit_hold_toggle") is not _HOLD_TOKEN:
+            if set(self.HOLD_STAMPS) & set(vals):
+                raise UserError("Hold stamps are set by placing or releasing the hold.")
+            if "credit_hold" in vals:
+                if not vals["credit_hold"] and self.filtered("credit_hold"):
+                    raise UserError(
+                        "A credit hold is released only by an Accounting Administrator through "
+                        "Release Hold (BRU-ARB-14), never by editing the profile."
+                    )
+                if vals["credit_hold"] and self.filtered(lambda r: not r.credit_hold):
+                    vals = dict(
+                        vals,
+                        hold_placed_by_id=self.env.uid,
+                        hold_by=self.env.uid,
+                        hold_date=fields.Datetime.now(),
+                    )
+        return super().write(vals)
+
     def action_toggle_hold(self, reason=None):
         """Place or release a credit hold (FR-ARB-031). Placing one records
         the reason (the given one, the one already typed on the profile, or
         an explicit manual-hold note naming the user); both directions are
-        stamped with who and when and logged in the chatter."""
+        stamped with who and when and logged in the chatter.
+
+        A08 M20-12 (BRU-ARB-14): RELEASING needs a role senior to the one that
+        raises the commitment — the Accounting Administrator — and never the
+        person who placed the hold."""
         now = fields.Datetime.now()
         for rec in self:
+            rec = rec.with_context(fix_credit_hold_toggle=_HOLD_TOKEN)
             if rec.credit_hold:
+                if not self.env.su:
+                    require_role(self.env, GROUP_ADMINISTRATOR, "Releasing a credit hold")
+                    if rec.hold_placed_by_id == self.env.user:
+                        raise UserError(
+                            "Segregation of duties: you placed the hold on %s; another "
+                            "Accounting Administrator releases it." % rec.customer_id.name
+                        )
                 rec.write(
                     {
                         "credit_hold": False,
@@ -739,12 +908,14 @@ class FixCreditProfile(models.Model):
                 why = (reason or rec.hold_reason or "").strip() or (
                     "Manual hold placed by %s" % self.env.user.name
                 )
+                require_role(self.env, GROUP_ACCOUNTANT, "Placing a credit hold")
                 rec.write(
                     {
                         "credit_hold": True,
                         "hold_reason": why,
                         "hold_by": self.env.user.id,
                         "hold_date": now,
+                        "hold_placed_by_id": self.env.user.id,
                     }
                 )
                 rec.message_post(body="Credit hold placed: %s" % why)
@@ -753,6 +924,15 @@ class FixCreditProfile(models.Model):
 # ---------------------------------------------------------------------------
 # A6 — disputes (FR-ARB-036)
 # ---------------------------------------------------------------------------
+DISPUTE_OUTCOMES = [
+    ("upheld_credit", "Upheld — credit note issued"),
+    ("partially_upheld", "Partially upheld"),
+    ("rejected", "Rejected — invoice stands"),
+    ("withdrawn", "Withdrawn by the customer"),
+    ("payment_plan", "Settled by payment plan"),
+]
+
+
 class FixArDispute(models.Model):
     """A disputed amount on an invoice. An OPEN dispute suspends dunning for
     the disputed amount only — the undisputed remainder keeps dunning
@@ -760,7 +940,7 @@ class FixArDispute(models.Model):
 
     _name = "fix.ar.dispute"
     _description = "AR Dispute"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -775,8 +955,59 @@ class FixArDispute(models.Model):
         [("open", "Open"), ("resolved", "Resolved")], default="open", required=True, tracking=True
     )
     resolution_note = fields.Char()
+    outcome_code = fields.Selection(
+        DISPUTE_OUTCOMES,
+        string="Outcome",
+        readonly=True,
+        copy=False,
+        help="BRU-ARB-17: a dispute closes with an outcome code.",
+    )
     resolved_by = fields.Many2one("res.users", readonly=True)
     resolved_at = fields.Datetime(readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "outcome_code",
+            "resolved_by",
+            "resolved_at",
+            "resolution_note",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "open" for r in self):
+            locked |= {"invoice_id", "amount_disputed", "reason"}
+        return locked
+
+    @api.model
+    def _fix_check_cap(self, invoices):
+        """A08 M20-10: the open disputes of an invoice never exceed what is
+        still open on it (23,000 was disputed on an 11,500 invoice)."""
+        for invoice in invoices:
+            disputed = sum(
+                self.search([("invoice_id", "=", invoice.id), ("state", "=", "open")]).mapped(
+                    "amount_disputed"
+                )
+            )
+            if disputed > invoice.amount_residual + 0.005:
+                raise UserError(
+                    "Open disputes on invoice %s would total %.2f, above its open amount %.2f."
+                    % (invoice.name, disputed, invoice.amount_residual)
+                )
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = {"invoice_id", "amount_disputed", "reason"} & set(vals)
+            if touched and self.filtered(lambda r: r.state != "open"):
+                raise UserError("A resolved dispute is closed evidence and is not edited.")
+            if "amount_disputed" in vals and (vals.get("amount_disputed") or 0.0) <= 0:
+                raise UserError("Disputed amount must be positive")
+        before = self.invoice_id
+        result = super().write(vals)
+        if {"amount_disputed", "invoice_id"} & set(vals):
+            self._fix_check_cap(before | self.invoice_id)
+        return result
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -792,15 +1023,33 @@ class FixArDispute(models.Model):
             vals["operating_unit_id"] = (
                 vals.get("operating_unit_id") or invoice.operating_unit_id.id
             )
-        return super().create(vals_list)
+        disputes = super().create(vals_list)
+        self._fix_check_cap(disputes.invoice_id)
+        return disputes
 
-    def action_resolve(self, note=""):
+    def action_resolve(self, note="", outcome_code=None):
+        """BRU-ARB-17: close with an outcome code and a note, decided by an
+        accountant other than the one who raised the dispute."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Resolving a dispute")
+        if outcome_code not in dict(DISPUTE_OUTCOMES):
+            raise UserError(
+                "A dispute closes with an outcome code (BRU-ARB-17): one of %s"
+                % ", ".join(dict(DISPUTE_OUTCOMES))
+            )
+        if not (note or "").strip():
+            raise UserError("Record the resolution (what was decided and why)")
         for rec in self:
             if rec.state != "open":
                 continue
-            rec.write(
+            if not self.env.su and rec.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you raised dispute %s; another person resolves it."
+                    % rec.display_name
+                )
+            rec._guarded().write(
                 {
                     "state": "resolved",
+                    "outcome_code": outcome_code,
                     "resolution_note": (note or "")[:500],
                     "resolved_by": rec.env.user.id,
                     "resolved_at": fields.Datetime.now(),
@@ -952,6 +1201,7 @@ class FixArPaymentLink(models.Model):
 
     _name = "fix.ar.payment.link"
     _description = "AR Payment Link"
+    _inherit = ["fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -959,11 +1209,19 @@ class FixArPaymentLink(models.Model):
     )
     invoice_id = fields.Many2one("fix.ar.invoice", required=True, ondelete="cascade", index=True)
     currency_id = fields.Many2one(related="invoice_id.currency_id")
-    amount = fields.Monetary(related="invoice_id.total_payable", currency_field="currency_id")
+    amount = fields.Monetary(
+        currency_field="currency_id",
+        readonly=True,
+        help="What the link collects: the invoice residual when the link is made "
+        "(A08 M20-14: it asked the invoice total).",
+    )
     token = fields.Char(
         default=lambda self: uuid.uuid4().hex, required=True, copy=False, index=True
     )
-    expires_at = fields.Datetime(default=lambda self: fields.Datetime.now() + timedelta(hours=48))
+    expires_at = fields.Datetime(
+        required=True,
+        default=lambda self: fields.Datetime.now() + timedelta(hours=self._link_hours()),
+    )
     state = fields.Selection(
         [("new", "New"), ("used", "Used"), ("expired", "Expired")],
         default="new",
@@ -974,12 +1232,31 @@ class FixArPaymentLink(models.Model):
         default="Token only — bKash/Nagad/SSLCommerz checkout is porting phase"
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"amount", "state", "used_at"}
+
+    @api.model
+    def _link_hours(self) -> float:
+        return float_param(self.env, PARAM_LINK_HOURS, DEFAULT_LINK_HOURS)
+
     @api.model_create_multi
     def create(self, vals_list):
+        now = fields.Datetime.now()
+        limit = now + timedelta(hours=self._link_hours())
         for vals in vals_list:
             invoice = self.env["fix.ar.invoice"].browse(vals.get("invoice_id"))
             if invoice.state != "issued":
                 raise UserError("Payment links attach to issued invoices only")
+            if invoice.amount_residual <= 0.005:
+                raise UserError("Invoice %s has nothing outstanding to collect" % invoice.name)
+            expires = (
+                fields.Datetime.to_datetime(vals["expires_at"]) if vals.get("expires_at") else limit
+            )
+            if expires <= now or expires > limit + timedelta(minutes=1):
+                raise UserError(
+                    "A payment link expires within %g hours of issue (%s)."
+                    % (self._link_hours(), PARAM_LINK_HOURS)
+                )
             existing = self.search(
                 [("invoice_id", "=", invoice.id), ("state", "=", "new")], limit=1
             )
@@ -988,7 +1265,25 @@ class FixArPaymentLink(models.Model):
                     "Invoice %s already has an active link (%s)" % (invoice.name, existing.token)
                 )
             vals["company_id"] = vals.get("company_id") or invoice.company_id.id
-        return super().create(vals_list)
+            vals["expires_at"] = expires
+        links = super().create(vals_list)
+        for link in links:
+            link._guarded().write({"amount": link.invoice_id.amount_residual})
+        return links
+
+    def write(self, vals):
+        if not self._fix_guard_open() and {"invoice_id", "expires_at", "token"} & set(vals):
+            raise UserError("A payment link is fixed when made; let it expire and make a new one.")
+        return super().write(vals)
+
+    @api.model
+    def _cron_expire(self):
+        """Expire every new link past its expiry (FR-ARB-015)."""
+        due = self.sudo().search(
+            [("state", "=", "new"), ("expires_at", "<", fields.Datetime.now())]
+        )
+        due._guarded().write({"state": "expired"})
+        return len(due)
 
     def is_expired(self) -> bool:
         self.ensure_one()

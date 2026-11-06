@@ -84,8 +84,28 @@ def fpa(odoo_env):
         clearing=account("690002", "Overhead pool clearing", "expense"),
         bank=account("110001", "Bank", "asset_cash"),
     )
+    # A08 P1-5: a submitted budget is routed to a CFO-tier Accounting
+    # Administrator; the company needs one for a submission to be accepted.
+    cfo = env["res.users"].create(
+        {
+            "name": f"FPA CFO {tag}",
+            "login": f"fpa-cfo-{tag}@test.local",
+            "company_id": company.id,
+            "company_ids": [Command.set([company.id])],
+            "group_ids": [
+                Command.set(
+                    [
+                        env.ref("base.group_user").id,
+                        env.ref("account.group_account_manager").id,
+                        env.ref("cd_entity_config.group_dofa_tier_4").id,
+                    ]
+                )
+            ],
+        }
+    )
     return SimpleNamespace(
-        env=env, company=company, ou=ou, dhk=dhk, ctg=ctg, journal=journal, acc=acc, tag=tag
+        env=env, company=company, ou=ou, dhk=dhk, ctg=ctg, journal=journal, acc=acc, tag=tag,
+        cfo=cfo,
     )
 
 
@@ -137,15 +157,21 @@ def _user(env, *groups):
 # --------------------------------------------------------------------------- legacy fields
 
 
-def test_budget_variance_follows_actuals(odoo_env):
-    budget = odoo_env["fix.budget"].create(
-        {"name": "FY2027 Dhaka workshop", "fiscal_year": "FY2027", "planned_amount": 500000.0}
+def test_budget_needs_a_version_and_actual_is_never_typed(odoo_env):
+    """A08 M54-7 (rewritten: this test used to type a version-less budget's plan
+    and its "Actual" - the defect). A budget lives in a version; its plan is the
+    sum of its lines and its actual is read from the ledger."""
+    with pytest.raises(ValidationError, match="belongs to a budget version"):
+        odoo_env["fix.budget"].create(
+            {"name": "FY2027 Dhaka workshop", "fiscal_year": "FY2027", "planned_amount": 500000.0}
+        )
+    version = odoo_env["fix.budget.version"].create(
+        {"name": "FY27", "fiscal_year": "FY2027-T", "date_from": date(2026, 7, 1), "date_to": date(2027, 6, 30)}
     )
+    budget = odoo_env["fix.budget"].create({"name": "FY2027 Dhaka workshop", "version_id": version.id})
     assert budget.currency_id == odoo_env.ref("base.BDT")
-    assert _money(budget.variance) == D("500000.00")
-    budget.actual_amount = 512345.67
-    assert _money(budget.variance) == D("-12345.67")  # overspend is negative
-    assert budget.state == "draft"
+    assert budget.state == "draft" and budget.planned_amount == 0.0
+    assert budget.actual_amount == 0.0 and budget.variance == 0.0
 
 
 def test_cost_allocation_total(odoo_env):
@@ -384,7 +410,7 @@ def test_budget_actuals_follow_the_posted_gl_and_dimensions(fpa):
 
 
 def test_refresh_without_lines_is_refused(fpa):
-    budget = fpa.env["fix.budget"].create({"name": "Legacy", "fiscal_year": "FY2032"})
+    budget = fpa.env["fix.budget"].create({"name": "Legacy", "version_id": _version(fpa).id})
     with pytest.raises(UserError, match="no lines"), fpa.env.cr.savepoint():
         budget.action_refresh_actuals()
 
@@ -399,9 +425,15 @@ def _line(fpa, amount=1000.0):
 
 
 def test_version_workflow_enforces_segregation_of_duties(fpa):
+    """A08 P1-5: approval is a routed M63 request decided by a CFO-tier Accounting
+    Administrator who did not submit it (rewritten: a manager used to approve
+    directly by calling action_approve)."""
     env = fpa.env
     accountant = _user(env, "account.group_account_user")
-    manager = _user(env, "account.group_account_manager", "account.group_account_user")
+    manager = _user(
+        env, "account.group_account_manager", "account.group_account_user",
+        "cd_entity_config.group_dofa_tier_4",
+    )
     version = _version(fpa)
     _budget(fpa, version, [_line(fpa)])
 
@@ -411,13 +443,19 @@ def test_version_workflow_enforces_segregation_of_duties(fpa):
     version.with_user(manager).action_submit()
     assert version.state == "submitted" and version.submitted_by == manager
     assert version.budget_ids.state == "submitted"
-    with pytest.raises(UserError, match="Segregation of duties"), env.cr.savepoint():
+    with pytest.raises(UserError, match="approver's inbox"), env.cr.savepoint():
         version.with_user(manager).action_approve()
-    with pytest.raises(AccessError), env.cr.savepoint():
+    with pytest.raises(UserError), env.cr.savepoint():
         version.with_user(accountant).action_approve()
+    Task = env["fix.workflow.task"]
+    assert not Task.search([("res_model", "=", version._name), ("res_id", "=", version.id),
+                            ("assigned_user_id", "=", manager.id)])
 
-    other_manager = _user(env, "account.group_account_manager", "account.group_account_user")
-    version.with_user(other_manager).action_approve()
+    other_manager = fpa.cfo  # holds the tier when the request is routed
+    task = Task.search([("res_model", "=", version._name), ("res_id", "=", version.id),
+                        ("assigned_user_id", "=", other_manager.id), ("state", "=", "pending")])
+    assert task
+    task.with_user(other_manager).action_approve()
     assert version.state == "approved" and version.approved_by == other_manager
     assert version.budget_ids.state == "approved"
 

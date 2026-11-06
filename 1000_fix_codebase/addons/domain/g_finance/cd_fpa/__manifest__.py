@@ -9,7 +9,7 @@ Built on the existing estate (the layered model: compose, never
 duplicate). AS-02 chatter + AS-03 company/OU on every transactional
 model; AS-10 Monetary on every money field; events registered (AS-08).
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "FP&A, Cost Accounting & Budgeting",
@@ -20,6 +20,8 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_gl_ext",
         "cd_fixed_asset_ext",
         "cd_event_outbox",
+        # A08 P1-5: budget approval is a routed (M63) DOFA request.
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

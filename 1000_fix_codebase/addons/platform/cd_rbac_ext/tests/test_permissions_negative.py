@@ -240,6 +240,7 @@ class TestSodControlsNegative:
 
         class MockRecord:
             def __init__(self, role_a, role_b):
+                self.control_type = "role"  # A08 S4: controls now pair roles or groups
                 self.role_a_id = role_a
                 self.role_b_id = role_b
 

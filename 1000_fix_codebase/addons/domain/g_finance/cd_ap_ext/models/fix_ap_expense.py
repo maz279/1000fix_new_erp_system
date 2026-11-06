@@ -3,12 +3,26 @@
 # master, an expense policy enforced on SUBMISSION, segregation of duties on
 # approval, GL posting, and employee advances & floats with settlement
 # against claims and recovery of any unspent balance.
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
 from .ap_gl import ap_account, ap_journal, post_ap_move
+from .fix_ap_controls import (
+    DEFAULT_CLAIM_MANAGER_THRESHOLD,
+    DEFAULT_CLAIM_SPLIT_DAYS,
+    GROUP_MANAGER,
+    PARAM_CLAIM_MANAGER_STEP,
+    PARAM_CLAIM_MANAGER_THRESHOLD,
+    PARAM_CLAIM_SPLIT_DAYS,
+    bool_param,
+    float_param,
+    is_finance,
+    require_finance,
+)
 from .fix_ap_ext import _q
 
 
@@ -171,11 +185,21 @@ class FixExpensePolicy(models.Model):
 
 
 class FixExpenseClaim(models.Model):
-    """T02: employee expense on the M21-core employee master (MV-01)."""
+    """T02: employee expense on the M21-core employee master (MV-01).
+
+    A08 audit (2026-11-04), M52-7: plain users keep creating and submitting
+    their OWN claims, but the workflow fields are guarded (the owner wrote
+    state='submitted' to skip the policy), the claimed amount comes from the
+    lines only (a lineless 24,999 claim skipped every policy check), a
+    receipt is claimed once (BRU-APE-15), an employee's claims inside a
+    rolling window are summed for the manager threshold (split claims), a
+    line manager approves before finance (spec §8.2), and the maker never
+    checks: claimant, submitter, creator and line manager are excluded from
+    finance approval."""
 
     _name = "fix.expense.claim"
     _description = "Expense Claim"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "expense_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -193,7 +217,7 @@ class FixExpenseClaim(models.Model):
         currency_field="currency_id",
         compute="_compute_amount",
         store=True,
-        readonly=False,
+        help="The sum of the expense lines. A claim has no amount of its own.",
     )
     expense_date = fields.Date(default=fields.Date.today, required=True)
     advance_id = fields.Many2one(
@@ -212,50 +236,103 @@ class FixExpenseClaim(models.Model):
         tracking=True,
     )
     submitted_by = fields.Many2one("res.users", readonly=True, copy=False)
+    submitted_at = fields.Datetime(readonly=True, copy=False)
+    manager_approved_by = fields.Many2one(
+        "res.users", string="Line Manager Approval", readonly=True, copy=False
+    )
+    manager_approved_at = fields.Datetime(readonly=True, copy=False)
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     policy_notes = fields.Text(readonly=True)
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
-    # above this a finance manager (account.group_account_manager) approves
+    # Kept for old callers: the default of the configurable threshold.
     APPROVAL_THRESHOLD = 25000
+
+    CLAIM_GUARDED = {
+        "state",
+        "submitted_by",
+        "submitted_at",
+        "manager_approved_by",
+        "manager_approved_at",
+        "approved_by",
+        "policy_notes",
+        "move_id",
+        "amount",
+    }
+    CLAIM_TERMS = {
+        "employee_id",
+        "description",
+        "expense_date",
+        "advance_id",
+        "operating_unit_id",
+        "currency_id",
+        "company_id",
+    }
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.CLAIM_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(c.state not in ("draft", "rejected") for c in self):
+            locked |= self.CLAIM_TERMS | {"line_ids"}
+        return locked
 
     @api.depends("line_ids.amount")
     def _compute_amount(self):
         for claim in self:
-            if claim.line_ids:
-                claim.amount = _q(sum(claim.line_ids.mapped("amount")))
-            else:
-                claim.amount = claim.amount or 0.0  # no lines: the typed amount stands
+            claim.amount = _q(sum(claim.line_ids.mapped("amount")))
 
     @api.model_create_multi
     def create(self, vals_list):
-        # A claim created together with its lines in ONE request (the
-        # workspace form's path) can have its stored amount computed before
-        # the one2many lands; re-derive from the now-attached lines.
+        if not self.env.su and not is_finance(self.env):
+            employees = (
+                self.env["hr.employee"]
+                .sudo()
+                .browse([v["employee_id"] for v in vals_list if v.get("employee_id")])
+            )
+            others = employees.filtered(lambda e: e.user_id != self.env.user)
+            if others:
+                raise UserError(
+                    "You file expense claims for yourself only (%s is another employee)."
+                    % others[0].name
+                )
         claims = super().create(vals_list)
-        claims.filtered(lambda c: c.line_ids)._compute_amount()
+        claims.filtered(lambda c: c.line_ids)._guarded()._compute_amount()
         return claims
 
     def write(self, vals):
-        # employees keep self-service write on their drafts; approval fields
-        # are set by the accounting workflow only (A08 rule 5)
-        sensitive = {"approved_by", "move_id"} & set(vals) or vals.get("state") in (
-            "approved",
-            "paid",
-        )
-        if (
-            sensitive
-            and not self.env.su
-            and not self.env.user.has_group("account.group_account_user")
-        ):
-            raise UserError("Only accounting approves or pays expense claims")
+        if self.CLAIM_TERMS & set(vals) and not self._fix_guard_open():
+            fixed = self.filtered(lambda c: c.state not in ("draft", "rejected"))
+            changed = [
+                n
+                for n in self.CLAIM_TERMS & set(vals)
+                if any(c._fix_guard_differs(n, vals[n], c[n]) for c in fixed)
+            ]
+            if changed:
+                raise UserError(
+                    "Claim EXP/%s is %s: %s can no longer change."
+                    % (fixed[0].id, fixed[0].state, ", ".join(sorted(changed)))
+                )
+        if "employee_id" in vals and not self.env.su and not is_finance(self.env):
+            employee = self.env["hr.employee"].sudo().browse(vals["employee_id"])
+            if employee.user_id != self.env.user:
+                raise UserError("You file expense claims for yourself only.")
         return super().write(vals)
 
+    def unlink(self):
+        if not self.env.su and self.filtered(lambda c: c.state not in ("draft", "rejected")):
+            raise UserError("Only a draft or rejected expense claim is deleted.")
+        return super().unlink()
+
+    # ------------------------------------------------------------ policy --
     def _policy_breaches(self):
         """Every policy breach of the claim (empty = compliant)."""
         self.ensure_one()
         breaches = []
-        grade = self.employee_id.expense_grade_id
-        Policy = self.env["fix.expense.policy"]
+        if not self.line_ids:
+            breaches.append("a claim needs at least one expense line (category, date, receipt)")
+        grade = self.employee_id.sudo().expense_grade_id
+        Policy = self.env["fix.expense.policy"].sudo()
         per_day = {}
         for line in self.line_ids:
             policy = Policy.for_line(line.category_id, grade, self.company_id)
@@ -272,7 +349,7 @@ class FixExpenseClaim(models.Model):
             if (
                 policy.receipt_required_above
                 and line.amount > policy.receipt_required_above
-                and not line.receipt_attachment_ids
+                and not line.sudo().receipt_attachment_ids
             ):
                 breaches.append(
                     "%s: receipt required above BDT %.2f" % (label, policy.receipt_required_above)
@@ -285,56 +362,201 @@ class FixExpenseClaim(models.Model):
                     "%s: BDT %.2f per day above the daily limit %.2f"
                     % (label, per_day[key], policy.limit_per_day)
                 )
+        breaches += self._duplicate_receipts()
         return list(dict.fromkeys(breaches))
 
+    def _receipt_checksums(self):
+        self.ensure_one()
+        return {
+            att.checksum: line
+            for line in self.line_ids
+            for att in line.sudo().receipt_attachment_ids
+            if att.checksum
+        }
+
+    def _duplicate_receipts(self):
+        """BRU-APE-15: the same receipt (content hash) is claimed once, on any
+        live claim of the company."""
+        self.ensure_one()
+        found = []
+        seen = {}
+        for line in self.line_ids:
+            for att in line.sudo().receipt_attachment_ids:
+                if not att.checksum:
+                    continue
+                if att.checksum in seen and seen[att.checksum] != line.id:
+                    found.append("%s: the same receipt is attached twice" % att.name)
+                seen[att.checksum] = line.id
+        if not seen:
+            return found
+        Line = self.env["fix.expense.claim.line"].sudo()
+        others = Line.search(
+            [
+                ("claim_id", "!=", self.id),
+                ("claim_id.company_id", "=", self.company_id.id),
+                ("claim_id.state", "not in", ("draft", "rejected")),
+                ("receipt_attachment_ids.checksum", "in", list(seen)),
+            ]
+        )
+        for other in others:
+            claim = other.claim_id
+            found.append(
+                "receipt already claimed on EXP/%s (%s, %s) — a receipt is reimbursed once"
+                % (claim.id, claim.employee_id.name, claim.state)
+            )
+        return found
+
+    def _window_total(self):
+        """This claim plus the employee's other live claims dated inside the
+        rolling split-detection window (A08 M52-7: two 20,000 claims the same
+        day passed one accountant under the 25,000 threshold)."""
+        self.ensure_one()
+        days = int(float_param(self.env, PARAM_CLAIM_SPLIT_DAYS, DEFAULT_CLAIM_SPLIT_DAYS))
+        total = self.amount
+        if days <= 0:
+            return total
+        others = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("employee_id", "=", self.employee_id.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "in", ("submitted", "approved", "paid")),
+                ("expense_date", ">", self.expense_date - timedelta(days=days)),
+                ("expense_date", "<", self.expense_date + timedelta(days=days)),
+            ]
+        )
+        return _q(total + sum(others.mapped("amount")))
+
+    # ------------------------------------------------------------ people --
+    def _claimant_user(self):
+        return self.employee_id.sudo().user_id
+
+    def _line_manager_user(self):
+        employee = self.employee_id.sudo()
+        manager = employee.parent_id
+        user = manager.user_id if manager else self.env["res.users"]
+        if user and user == employee.user_id:
+            return self.env["res.users"]
+        return user
+
+    def _manager_step_needed(self):
+        self.ensure_one()
+        return bool(
+            bool_param(self.env, PARAM_CLAIM_MANAGER_STEP, True) and self._line_manager_user()
+        )
+
+    def _makers(self):
+        self.ensure_one()
+        claim = self.sudo()
+        return claim.create_uid | claim.submitted_by | claim._claimant_user()
+
+    # ------------------------------------------------------------ actions --
     def action_submit(self) -> None:
-        """Submit: a positive amount and the expense policy enforced (a
-        breach BLOCKS, with every breach listed)."""
+        """Submit: at least one line, a positive amount, and the expense policy
+        enforced (a breach BLOCKS, with every breach listed). The claimant
+        submits their own claim; accounting submits for an employee without a
+        login."""
         for claim in self:
             if claim.state not in ("draft", "rejected"):
                 raise UserError("Claim is already %s" % claim.state)
-            # A claim created together with its lines in one request (the
-            # workspace form saves header + lines together) can still carry
-            # the pre-lines compute result; lines are the single source of
-            # the claimed amount.
-            if claim.line_ids:
-                claim.amount = _q(sum(claim.line_ids.mapped("amount")))
-            if (claim.amount or 0.0) <= 0:
-                raise UserError("A claim must carry a positive amount")
+            if (
+                not self.env.su
+                and not is_finance(self.env)
+                and claim._claimant_user() != self.env.user
+            ):
+                raise UserError("You submit your own expense claims only.")
+            claim._guarded()._compute_amount()
             breaches = claim._policy_breaches()
             if breaches:
-                claim.policy_notes = "\n".join(breaches)
+                claim._guarded().write({"policy_notes": "\n".join(breaches)})
                 raise UserError("Expense policy breached:\n%s" % "\n".join(breaches))
-            claim.write(
-                {"state": "submitted", "submitted_by": self.env.user.id, "policy_notes": False}
+            if (claim.amount or 0.0) <= 0:
+                raise UserError("A claim must carry a positive amount")
+            claim._guarded().write(
+                {
+                    "state": "submitted",
+                    "submitted_by": self.env.user.id,
+                    "submitted_at": fields.Datetime.now(),
+                    "policy_notes": False,
+                    "manager_approved_by": False,
+                    "manager_approved_at": False,
+                }
             )
 
+    def action_manager_approve(self):
+        """The line manager approves before finance (spec M52 §8.2)."""
+        for claim in self:
+            if claim.state != "submitted":
+                raise UserError("Only a submitted claim is approved by the line manager.")
+            manager = claim._line_manager_user()
+            if not manager:
+                raise UserError("%s has no line manager with a login." % claim.employee_id.name)
+            if not self.env.su and self.env.user != manager:
+                raise UserError(
+                    "Claim EXP/%s is approved by %s's line manager (%s)."
+                    % (claim.id, claim.employee_id.name, manager.name)
+                )
+            if self.env.user in claim._makers():
+                raise UserError("Segregation of duties: a claim is approved by someone else")
+            if claim.manager_approved_by:
+                raise UserError("Claim EXP/%s is already manager-approved." % claim.id)
+            claim.sudo()._guarded().write(
+                {"manager_approved_by": self.env.uid, "manager_approved_at": fields.Datetime.now()}
+            )
+        return True
+
     def action_approve(self) -> None:
-        """Approve a SUBMITTED claim. SoD: neither the submitter nor the
-        claimant approves; above the threshold an accounting manager does.
+        """Finance verification of a SUBMITTED claim. SoD: neither the claimant,
+        the submitter, the creator nor the line manager who approved it;
+        above the threshold (this claim plus the employee's claims in the
+        split window) an accounting manager. The policy is checked again.
         Posts Dr expense / Cr employee payable; payment is requested unless
         the claim settles an advance (the advance settlement pays the rest)."""
+        require_finance(self.env, "Approving an expense claim")
         user = self.env.user
+        threshold = float_param(
+            self.env, PARAM_CLAIM_MANAGER_THRESHOLD, DEFAULT_CLAIM_MANAGER_THRESHOLD
+        )
         for claim in self:
             # an approved/paid/rejected claim must not raise a second
             # payment.requested (re-approval re-requested payment)
             if claim.state != "submitted":
                 raise UserError("Only submitted claims can be approved (%s)" % claim.state)
-            if claim.amount <= 0:
-                raise UserError("A claim must carry a positive amount")
-            if user == claim.submitted_by or user == claim.employee_id.user_id:
+            if not claim.line_ids or claim.amount <= 0:
+                raise UserError("A claim must carry a positive amount on its expense lines")
+            if user in (claim._makers() | claim.manager_approved_by):
                 raise UserError("Segregation of duties: a claim is approved by someone else")
-            if claim.amount > self.APPROVAL_THRESHOLD and not user.has_group(
-                "account.group_account_manager"
-            ):
+            if claim._manager_step_needed() and not claim.manager_approved_by:
                 raise UserError(
-                    "Claims above BDT %d are approved by an accounting manager"
-                    % self.APPROVAL_THRESHOLD
+                    "Claim EXP/%s awaits its line manager's approval (%s) before finance."
+                    % (claim.id, claim._line_manager_user().name)
+                )
+            breaches = claim._policy_breaches()
+            if breaches:
+                raise UserError("Expense policy breached:\n%s" % "\n".join(breaches))
+            window = claim._window_total()
+            if window > threshold and not (self.env.su or user.has_group(GROUP_MANAGER)):
+                raise UserError(
+                    "Claims above BDT %.0f are approved by an accounting manager (EXP/%s with "
+                    "%s's other claims in the last %d days: BDT %.2f)"
+                    % (
+                        threshold,
+                        claim.id,
+                        claim.employee_id.name,
+                        int(
+                            float_param(self.env, PARAM_CLAIM_SPLIT_DAYS, DEFAULT_CLAIM_SPLIT_DAYS)
+                        ),
+                        window,
+                    )
                 )
             claim._post()
-            claim.write({"state": "approved", "approved_by": user.id})
+            claim._guarded().write({"state": "approved", "approved_by": user.id})
             if not claim.advance_id:
-                # Payment rides the same event path as vendor invoices (M50 executes)
+                employee = claim.employee_id.sudo()
+                partner = employee.work_contact_id or employee.user_id.partner_id
+                bank = claim.env["fix.employee.advance"]._bank_of(employee)
+                # Payment rides the same event path as vendor invoices: M50's
+                # registered consumer turns it into a pinned execution.
                 publish(
                     self.env,
                     "payment.requested",
@@ -346,6 +568,10 @@ class FixExpenseClaim(models.Model):
                         "currency": claim.currency_id.name,
                         "invoice_ref": "EXP/%s" % claim.id,
                         "operating_unit_id": claim.operating_unit_id.id,
+                        "company_id": claim.company_id.id,
+                        "payee_partner_id": partner.id or False,
+                        "partner_bank_id": bank.id or False,
+                        "approved_by": user.id,
                     },
                 )
 
@@ -353,33 +579,36 @@ class FixExpenseClaim(models.Model):
         for claim in self:
             if claim.state != "submitted":
                 raise UserError("Only a submitted claim can be rejected")
-            claim.state = "rejected"
+            deciders_ok = (
+                self.env.su or is_finance(self.env) or (self.env.user == claim._line_manager_user())
+            )
+            if not deciders_ok:
+                raise UserError("A claim is rejected by accounting or the line manager.")
+            if self.env.user in claim._makers():
+                raise UserError("Segregation of duties: a claim is decided by someone else")
+            claim.sudo()._guarded().write({"state": "rejected"})
 
     def _post(self):
         self.ensure_one()
         env, company = self.env, self.company_id
-        partner = self.employee_id.work_contact_id or self.employee_id.user_id.partner_id
-        label = "Expense claim EXP/%s %s" % (self.id, self.employee_id.name)
+        employee = self.employee_id.sudo()
+        partner = employee.work_contact_id or employee.user_id.partner_id
+        label = "Expense claim EXP/%s %s" % (self.id, employee.name)
         default_expense = None
         lines = []
-        if self.line_ids:
-            for line in self.line_ids:
-                account = line.category_id.account_id
-                if not account:
-                    default_expense = default_expense or ap_account(env, company, "expense")
-                    account = default_expense
-                lines.append(
-                    (
-                        account,
-                        "%s %s" % (label, line.category_id.name),
-                        _q(line.amount),
-                        0.0,
-                        partner,
-                    )
-                )
-        else:
+        for line in self.line_ids:
+            account = line.category_id.account_id
+            if not account:
+                default_expense = default_expense or ap_account(env, company, "expense")
+                account = default_expense
             lines.append(
-                (ap_account(env, company, "expense"), label, _q(self.amount), 0.0, partner)
+                (
+                    account,
+                    "%s %s" % (label, line.category_id.name),
+                    _q(line.amount),
+                    0.0,
+                    partner,
+                )
             )
         lines.append(
             (ap_account(env, company, "employee_payable"), label, 0.0, _q(self.amount), partner)
@@ -393,7 +622,7 @@ class FixExpenseClaim(models.Model):
             lines,
             self.operating_unit_id,
         )
-        self.move_id = move.id
+        self._guarded().write({"move_id": move.id})
 
 
 class FixExpenseClaimLine(models.Model):
@@ -433,7 +662,7 @@ class FixExpenseClaimLine(models.Model):
             rate = self.env["fix.expense.rate"].find(
                 line.line_type,
                 line.date,
-                grade=line.claim_id.employee_id.expense_grade_id,
+                grade=line.claim_id.employee_id.sudo().expense_grade_id,
                 location=line.location,
                 vehicle=line.vehicle,
                 company=line.claim_id.company_id,
@@ -464,18 +693,32 @@ class FixExpenseClaimLine(models.Model):
             self._apply_rate()  # per-diem / mileage come from the master only
         return res
 
+    def unlink(self):
+        self._check_claim_editable()
+        return super().unlink()
+
     def _check_claim_editable(self):
+        if self.env.su:
+            return
         if self.claim_id.filtered(lambda c: c.state not in ("draft", "rejected")):
             raise UserError("Lines of a submitted claim cannot change")
 
 
 class FixEmployeeAdvance(models.Model):
     """Employee advance / float: approved, disbursed through treasury,
-    settled against approved expense claims, any unspent balance recovered."""
+    settled against approved expense claims, any unspent balance recovered.
+
+    A08 audit (2026-11-04), M52-8: requested_by was rewritten to self-approve
+    40,000; state='disbursed' was written with nothing paid; the amount was
+    raised after approval (disbursement JE 50,000, bank 5,000); Settle posted
+    twice; a second advance was approved while the first was unpaid. The
+    workflow fields are guarded, the amount is pinned to the approval and to
+    treasury's execution, settlement posts only what is new, and an approved
+    or disbursed advance blocks a further one (BRU-APE-17)."""
 
     _name = "fix.employee.advance"
     _description = "Employee Advance / Float"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "request_date desc, id desc"
 
     name = fields.Char(readonly=True, copy=False, default="New")
@@ -496,11 +739,34 @@ class FixEmployeeAdvance(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     amount = fields.Monetary(currency_field="currency_id", required=True, tracking=True)
+    approved_amount = fields.Monetary(
+        currency_field="currency_id", readonly=True, copy=False, help="The amount approved."
+    )
     claim_ids = fields.One2many("fix.expense.claim", "advance_id", string="Claims Settled")
     settled_amount = fields.Monetary(
         currency_field="currency_id", compute="_compute_balance", store=True
     )
+    settled_posted = fields.Monetary(
+        string="Settlement Posted",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        default=0.0,
+        help="What the settlement entries have already moved from the advance.",
+    )
+    excess_requested = fields.Monetary(
+        currency_field="currency_id", readonly=True, copy=False, default=0.0
+    )
     recovered_amount = fields.Monetary(currency_field="currency_id", readonly=True, default=0.0)
+    recovery_state = fields.Selection(
+        [("none", "None"), ("requested", "Payroll Deduction Requested"), ("done", "Recovered")],
+        default="none",
+        readonly=True,
+        copy=False,
+    )
+    recovery_requested_amount = fields.Monetary(
+        currency_field="currency_id", readonly=True, copy=False
+    )
     balance = fields.Monetary(
         string="Open Balance", currency_field="currency_id", compute="_compute_balance", store=True
     )
@@ -522,20 +788,66 @@ class FixEmployeeAdvance(models.Model):
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     execution_id = fields.Many2one("fix.payment.execution", readonly=True, copy=False)
     disbursement_move_id = fields.Many2one("account.move", readonly=True, copy=False)
+    disbursement_reversal_move_id = fields.Many2one(
+        "account.move",
+        readonly=True,
+        copy=False,
+        help="Posted when the bank returned the disbursement after clearing.",
+    )
     settlement_move_id = fields.Many2one("account.move", readonly=True, copy=False)
     recovery_method = fields.Selection(
         [("cash", "Cash / bank refund"), ("payroll", "Payroll deduction (A09)")],
         help="How an unspent balance is recovered",
     )
 
-    @api.depends("amount", "recovered_amount", "claim_ids.state", "claim_ids.amount", "state")
+    ADV_GUARDED = {
+        "state",
+        "requested_by",
+        "approved_by",
+        "approved_amount",
+        "execution_id",
+        "disbursement_move_id",
+        "disbursement_reversal_move_id",
+        "settlement_move_id",
+        "settled_posted",
+        "excess_requested",
+        "recovered_amount",
+        "recovery_state",
+        "recovery_requested_amount",
+    }
+    ADV_TERMS = {
+        "amount",
+        "employee_id",
+        "currency_id",
+        "company_id",
+        "operating_unit_id",
+        "advance_type",
+    }
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.ADV_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(a.state != "draft" for a in self):
+            locked |= self.ADV_TERMS
+        return locked
+
+    @api.depends(
+        "amount", "recovered_amount", "claim_ids.state", "claim_ids.amount", "claim_ids.move_id"
+    )
     def _compute_balance(self):
         for adv in self:
-            settled = sum(
-                adv.claim_ids.filtered(lambda c: c.state in ("approved", "paid")).mapped("amount")
-            )
+            settled = sum(adv._settling_claims().mapped("amount"))
             adv.settled_amount = min(settled, adv.amount)
             adv.balance = _q(adv.amount - adv.settled_amount - adv.recovered_amount)
+
+    def _settling_claims(self):
+        """Approved claims with a posted GL entry (a forged state settles nothing)."""
+        self.ensure_one()
+        return self.claim_ids.sudo().filtered(
+            lambda c: c.state in ("approved", "paid") and c.move_id.state == "posted"
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -544,16 +856,32 @@ class FixEmployeeAdvance(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.employee.advance") or "ADV"
         return super().create(vals_list)
 
+    def write(self, vals):
+        if self.ADV_TERMS & set(vals) and not self._fix_guard_open():
+            fixed = self.filtered(lambda a: a.state != "draft")
+            changed = [
+                n
+                for n in self.ADV_TERMS & set(vals)
+                if any(a._fix_guard_differs(n, vals[n], a[n]) for a in fixed)
+            ]
+            if changed:
+                raise UserError(
+                    "Advance %s is %s: %s is fixed by the approval."
+                    % (fixed[0].name, fixed[0].state, ", ".join(sorted(changed)))
+                )
+        return super().write(vals)
+
     @api.constrains("amount")
     def _check_amount(self):
         for adv in self:
             if adv.amount <= 0:
                 raise ValidationError("An advance is a positive amount")
 
-    def _employee_bank(self):
+    @api.model
+    def _bank_of(self, employee):
         """The employee's primary bank account (HR-restricted field, read as
-        superuser only to address the disbursement)."""
-        employee = self.employee_id.sudo()
+        superuser only to address the payment)."""
+        employee = employee.sudo()
         bank = self.env["res.partner.bank"]
         if "primary_bank_account_id" in employee._fields:
             bank = employee.primary_bank_account_id
@@ -561,64 +889,81 @@ class FixEmployeeAdvance(models.Model):
             bank = employee.bank_account_ids[:1]
         return bank
 
+    def _employee_bank(self):
+        return self._bank_of(self.employee_id)
+
     def _partner(self):
-        return self.employee_id.work_contact_id or self.employee_id.user_id.partner_id
+        employee = self.employee_id.sudo()
+        return employee.work_contact_id or employee.user_id.partner_id
+
+    def _open_advances(self):
+        self.ensure_one()
+        return self.sudo().search(
+            [
+                ("employee_id", "=", self.employee_id.id),
+                ("state", "in", ("approved", "disbursed")),
+                ("advance_type", "=", "advance"),
+                ("id", "!=", self.id),
+            ]
+        )
 
     def action_approve(self):
-        """Approve (SoD: not the requester, not the employee) and hand the
-        disbursement to treasury as a payment execution."""
+        """Approve (SoD: not the requester, the creator or the employee) and
+        hand the disbursement to treasury as a pinned payment request."""
+        require_finance(self.env, "Approving an employee advance")
         user = self.env.user
         for adv in self:
             if adv.state != "draft":
                 raise UserError("Advance %s is %s" % (adv.name, adv.state))
-            if user in (adv.requested_by, adv.employee_id.user_id):
+            if user in (adv.requested_by | adv.create_uid | adv.employee_id.sudo().user_id):
                 raise UserError("Segregation of duties: an advance is approved by someone else")
-            open_advances = self.search(
-                [
-                    ("employee_id", "=", adv.employee_id.id),
-                    ("state", "=", "disbursed"),
-                    ("advance_type", "=", "advance"),
-                    ("id", "!=", adv.id),
-                ]
-            )
+            open_advances = adv._open_advances()
             if adv.advance_type == "advance" and open_advances:
                 raise UserError(
-                    "%s still holds unsettled advance %s — settle it first"
-                    % (adv.employee_id.name, open_advances[0].name)
+                    "%s still holds unsettled advance %s (%s) — settle it first (BRU-APE-17)"
+                    % (adv.employee_id.name, open_advances[0].name, open_advances[0].state)
                 )
             if "fix.payment.execution" not in self.env:
                 raise UserError("Treasury (cd_cash_position) is not installed")
             Execution = self.env["fix.payment.execution"]
             journal = ap_journal(self.env, adv.company_id, "payment")
-            vals = {
-                "company_id": adv.company_id.id,
-                "operating_unit_id": adv.operating_unit_id.id,
-                "source_model": adv._name,
-                "source_id": adv.id,
-                "payee": "employee:%s %s" % (adv.employee_id.id, adv.employee_id.name),
-                "currency_id": adv.currency_id.id,
-                "amount": adv.amount,
-                "method": "bank_transfer",
-            }
-            optional = {
-                "partner_id": adv._partner().id,
-                "partner_bank_id": adv._employee_bank().id or False,
-                "journal_id": journal.id,
-                "rail": "beftn",  # treasury may change the rail before release
-                # the advance books its own disbursement entry: treasury posts nothing
-                "source_posts_gl": True,
-            }
-            vals.update({k: v for k, v in optional.items() if k in Execution._fields})
-            execution = Execution.create(vals)
-            adv.write({"state": "approved", "approved_by": user.id, "execution_id": execution.id})
+            label = "employee:%s %s" % (adv.employee_id.id, adv.employee_id.sudo().name)
+            # the ONLY way to ask treasury to pay (B1 contract): a pinned
+            # draft execution for this payee, account and amount
+            execution = Execution._fix_request_payment(
+                adv._name,
+                adv.id,
+                adv._partner(),
+                adv._employee_bank(),
+                adv.amount,
+                adv.currency_id,
+                adv.name,
+                user,
+                method="bank_transfer",
+                rail="beftn",  # treasury may change the rail before release
+                journal_id=journal.id,
+                company_id=adv.company_id.id,
+                operating_unit_id=adv.operating_unit_id.id,
+                payee=label,
+            )
+            adv._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by": user.id,
+                    "approved_amount": adv.amount,
+                    "execution_id": execution.id,
+                }
+            )
         return True
 
     def action_confirm_disbursement(self):
-        """Once treasury executed the payment: Dr employee advance / Cr bank."""
+        """Once treasury executed the payment: Dr employee advance / Cr bank,
+        for the amount the bank paid, which must be the approved amount."""
+        require_finance(self.env, "Confirming an advance disbursement")
         for adv in self:
             if adv.state != "approved":
                 raise UserError("Advance %s is not awaiting disbursement" % adv.name)
-            execution = adv.execution_id
+            execution = adv.execution_id.sudo()
             asserted = (
                 "confirmation_source" in execution._fields
                 and execution.confirmation_source == "caller_asserted"
@@ -626,7 +971,13 @@ class FixEmployeeAdvance(models.Model):
             if execution.state != "executed" or asserted:
                 raise UserError(
                     "Treasury has no bank confirmation of the disbursement of %s yet (%s)"
-                    % (adv.name, adv.execution_id.state or "no execution")
+                    % (adv.name, execution.state or "no execution")
+                )
+            paid = _q(execution.amount)
+            if abs(paid - _q(adv.amount)) > 0.005 or abs(paid - _q(adv.approved_amount)) > 0.005:
+                raise UserError(
+                    "Advance %s: approved %.2f, now %.2f, the bank paid %.2f — they must agree."
+                    % (adv.name, adv.approved_amount, adv.amount, paid)
                 )
             env, company = self.env, adv.company_id
             journal = (
@@ -634,7 +985,7 @@ class FixEmployeeAdvance(models.Model):
                 if "journal_id" in execution._fields and execution.journal_id
                 else ap_journal(env, company, "payment")
             )
-            label = "Advance %s %s" % (adv.name, adv.employee_id.name)
+            label = "Advance %s %s" % (adv.name, adv.employee_id.sudo().name)
             move = post_ap_move(
                 env,
                 company,
@@ -645,57 +996,111 @@ class FixEmployeeAdvance(models.Model):
                     (
                         ap_account(env, company, "employee_advance"),
                         label,
-                        adv.amount,
+                        paid,
                         0.0,
                         adv._partner(),
                     ),
-                    (journal.default_account_id, label, 0.0, adv.amount, adv._partner()),
+                    (journal.default_account_id, label, 0.0, paid, adv._partner()),
                 ],
                 adv.operating_unit_id,
             )
-            adv.write({"state": "disbursed", "disbursement_move_id": move.id})
+            adv._guarded().write({"state": "disbursed", "disbursement_move_id": move.id})
         return True
 
-    def action_settle(self):
-        """Settle against the approved claims linked to the advance:
-        Dr employee payable / Cr employee advance for the settled part. A
-        claim total above the advance is paid to the employee (payment
-        request); an unspent balance must be recovered before closing."""
+    def action_sync_disbursement(self):
+        """Read the disbursement back from treasury (M50). A disbursement
+        failed or cancelled AFTER it was executed and booked (a bounce after
+        clearing) is reversed here: the advance booked its own entry
+        (source_posts_gl), so Dr bank / Cr employee advance, and the advance
+        returns to approved, awaiting treasury's re-execution."""
+        require_finance(self.env, "Reading an advance disbursement back")
         for adv in self:
-            if adv.state != "disbursed":
-                raise UserError("Only a disbursed advance is settled")
-            claims = adv.claim_ids.filtered(lambda c: c.state in ("approved", "paid"))
-            if not claims:
-                raise UserError("No approved claims are linked to %s" % adv.name)
-            env, company = self.env, adv.company_id
-            settled = adv.settled_amount
-            label = "Advance settlement %s" % adv.name
+            execution = adv.execution_id.sudo()
+            if adv.state != "disbursed" or execution.state not in ("failed", "cancelled"):
+                continue
+            if adv.settled_posted > 0.005 or adv.recovered_amount > 0.005:
+                raise UserError(
+                    "Advance %s was settled or recovered before the bank returned its "
+                    "disbursement: reverse those entries first." % adv.name
+                )
+            original = adv.disbursement_move_id.sudo()
+            label = "Reversal of %s: disbursement of %s returned by the bank (%s)" % (
+                original.name or adv.name,
+                adv.name,
+                execution.failure_reason or execution.state,
+            )
             move = post_ap_move(
-                env,
-                company,
-                ap_journal(env, company, "purchase"),
+                self.env,
+                adv.company_id,
+                original.journal_id,
                 fields.Date.context_today(self),
                 label,
                 [
-                    (
-                        ap_account(env, company, "employee_payable"),
-                        label,
-                        settled,
-                        0.0,
-                        adv._partner(),
-                    ),
-                    (
-                        ap_account(env, company, "employee_advance"),
-                        label,
-                        0.0,
-                        settled,
-                        adv._partner(),
-                    ),
+                    (ml.account_id, label, ml.credit, ml.debit, ml.partner_id)
+                    for ml in original.line_ids
                 ],
                 adv.operating_unit_id,
             )
-            excess = _q(sum(claims.mapped("amount")) - adv.amount)
-            if excess > 0:
+            adv._guarded().write({"state": "approved", "disbursement_reversal_move_id": move.id})
+            adv.message_post(body=label)
+        return True
+
+    def action_settle(self):
+        """Settle against the approved, posted claims linked to the advance:
+        Dr employee payable / Cr employee advance for what is NEW since the
+        last settlement (a second press posts nothing). A claim total above
+        the advance is paid to the employee (payment request, once); an
+        unspent balance must be recovered before closing."""
+        require_finance(self.env, "Settling an employee advance")
+        for adv in self:
+            if adv.state != "disbursed":
+                raise UserError("Only a disbursed advance is settled")
+            claims = adv._settling_claims()
+            if not claims:
+                raise UserError("No approved claims are linked to %s" % adv.name)
+            env, company = self.env, adv.company_id
+            delta = _q(adv.settled_amount - adv.settled_posted)
+            excess = _q(sum(claims.mapped("amount")) - adv.amount - adv.excess_requested)
+            if delta <= 0.005 and excess <= 0.005:
+                raise UserError(
+                    "%s has nothing new to settle: %.2f already settled."
+                    % (adv.name, adv.settled_posted)
+                )
+            vals = {}
+            if delta > 0.005:
+                label = "Advance settlement %s" % adv.name
+                move = post_ap_move(
+                    env,
+                    company,
+                    ap_journal(env, company, "purchase"),
+                    fields.Date.context_today(self),
+                    label,
+                    [
+                        (
+                            ap_account(env, company, "employee_payable"),
+                            label,
+                            delta,
+                            0.0,
+                            adv._partner(),
+                        ),
+                        (
+                            ap_account(env, company, "employee_advance"),
+                            label,
+                            0.0,
+                            delta,
+                            adv._partner(),
+                        ),
+                    ],
+                    adv.operating_unit_id,
+                )
+                vals.update(
+                    {
+                        "settlement_move_id": move.id,
+                        "settled_posted": _q(adv.settled_posted + delta),
+                    }
+                )
+            if excess > 0.005:
+                employee = adv.employee_id.sudo()
                 publish(
                     env,
                     "payment.requested",
@@ -707,22 +1112,33 @@ class FixEmployeeAdvance(models.Model):
                         "currency": adv.currency_id.name,
                         "invoice_ref": "%s/EXCESS" % adv.name,
                         "operating_unit_id": adv.operating_unit_id.id,
+                        "company_id": adv.company_id.id,
+                        "payee_partner_id": adv._partner().id or False,
+                        "partner_bank_id": adv._bank_of(employee).id or False,
+                        "approved_by": self.env.uid,
                     },
                 )
-            adv.settlement_move_id = move.id
+                vals["excess_requested"] = _q(adv.excess_requested + excess)
             if adv.balance <= 0.005:
-                adv.state = "settled"
+                vals["state"] = "settled"
+            adv._guarded().write(vals)
         return True
 
     def action_record_recovery(self):
         """Recover the unspent balance: cash/bank refund posts Dr bank / Cr
-        advance; payroll deduction is requested from payroll (A09) as an
-        event and closes the advance on its confirmation."""
+        advance; payroll deduction is requested from payroll (A09) ONCE and
+        closes on payroll's confirmation (action_confirm_payroll_recovery)."""
+        require_finance(self.env, "Recovering an advance balance")
         for adv in self:
             if adv.state != "disbursed" or adv.balance <= 0.005:
                 raise UserError("%s has no open balance to recover" % adv.name)
             if not adv.recovery_method:
                 raise UserError("Choose the recovery method first")
+            if adv.recovery_state == "requested":
+                raise UserError(
+                    "A payroll deduction of BDT %.2f is already requested for %s; it closes when "
+                    "payroll confirms it." % (adv.recovery_requested_amount, adv.name)
+                )
             env, company = self.env, adv.company_id
             amount = adv.balance
             if adv.recovery_method == "cash":
@@ -746,7 +1162,13 @@ class FixEmployeeAdvance(models.Model):
                     ],
                     adv.operating_unit_id,
                 )
-                adv.write({"recovered_amount": adv.recovered_amount + amount, "state": "settled"})
+                adv._guarded().write(
+                    {
+                        "recovered_amount": adv.recovered_amount + amount,
+                        "recovery_state": "done",
+                        "state": "settled",
+                    }
+                )
             else:
                 publish(
                     env,
@@ -757,10 +1179,65 @@ class FixEmployeeAdvance(models.Model):
                         "employee_id": adv.employee_id.id,
                         "amount": amount,
                         "currency": adv.currency_id.name,
+                        "company_id": adv.company_id.id,
+                        "advance": adv.name,
                     },
+                )
+                adv._guarded().write(
+                    {"recovery_state": "requested", "recovery_requested_amount": amount}
                 )
                 adv.message_post(
                     body="Payroll deduction of BDT %.2f requested from payroll (A09); the "
                     "advance closes when payroll confirms the deduction." % amount
                 )
+        return True
+
+    def action_confirm_payroll_recovery(self, amount, reference):
+        """Payroll (A09) confirms the deduction it made: Dr salary payable /
+        Cr employee advance. Called by payroll's consumer of
+        advance.recovery_requested (system) or by accounting."""
+        if not (self.env.su or is_finance(self.env)):
+            raise UserError("A payroll recovery is confirmed by payroll or accounting.")
+        for adv in self:
+            if adv.recovery_state != "requested":
+                raise UserError("%s has no payroll deduction awaiting confirmation." % adv.name)
+            amount = _q(amount)
+            if amount <= 0 or amount > _q(adv.recovery_requested_amount) + 0.005:
+                raise UserError(
+                    "Payroll confirmed %.2f for %s; %.2f was requested."
+                    % (amount, adv.name, adv.recovery_requested_amount)
+                )
+            if not (reference or "").strip():
+                raise UserError("Name the payslip / payroll run that made the deduction.")
+            env, company = self.env, adv.company_id
+            label = "Advance %s recovered through payroll (%s)" % (adv.name, reference.strip())
+            post_ap_move(
+                env,
+                company,
+                ap_journal(env, company, "purchase"),
+                fields.Date.context_today(self),
+                label,
+                [
+                    (
+                        ap_account(env, company, "salary_payable"),
+                        label,
+                        amount,
+                        0.0,
+                        adv._partner(),
+                    ),
+                    (
+                        ap_account(env, company, "employee_advance"),
+                        label,
+                        0.0,
+                        amount,
+                        adv._partner(),
+                    ),
+                ],
+                adv.operating_unit_id,
+            )
+            recovered = _q(adv.recovered_amount + amount)
+            vals = {"recovered_amount": recovered, "recovery_state": "done"}
+            if _q(adv.amount - adv.settled_amount - recovered) <= 0.005:
+                vals["state"] = "settled"
+            adv._guarded().write(vals)
         return True

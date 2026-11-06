@@ -548,43 +548,46 @@ class FixFpaEngineReports(models.AbstractModel):
     # ---------------------------------------------------------- budgeting
 
     def approved_budget_lines(self, d_from, d_to, version_id=None, version_type="budget"):
+        """Lines of THE approved version in force (one per company, type and
+        fiscal year — a database constraint), overlapping the window. A version
+        asked for by id is read only when it is approved (BRU-FPA-10)."""
         domain = [
             ("date_from", "<=", d_to),
             ("date_to", ">=", d_from),
             ("company_id", "in", self._companies()),
+            ("version_id.state", "=", "approved"),
         ]
         if version_id:
             domain.append(("version_id", "=", int(version_id)))
         else:
-            domain += [
-                ("version_id.state", "=", "approved"),
-                ("version_id.version_type", "=", version_type),
-            ]
+            domain.append(("version_id.version_type", "=", version_type))
         return self.env["fix.budget.line"].search(domain)
 
     @api.model
     def report_budget_variance(self, date_from=None, date_to=None, version_id=None, **_kw):
         d_from, d_to = as_window(date_from, date_to)
         lines = self.approved_budget_lines(d_from, d_to, version_id)
-        actuals = self.line_actuals(lines)
+        actuals = self.line_actuals(lines, d_from, d_to)
         rows = []
         for ln in lines:
             actual = actuals.get(ln.id, 0.0)
-            var = actual - ln.planned_amount if ln.is_revenue else ln.planned_amount - actual
+            planned = self.planned_in_window(ln, d_from, d_to)
+            win_from, win_to = self.clip(ln, d_from, d_to)
+            var = actual - planned if ln.is_revenue else planned - actual
             rows.append(
                 {
                     "version": ln.version_id.name,
-                    "period": f"{ln.date_from:%b %Y}"
-                    if ln.date_from.replace(day=1) == ln.date_to.replace(day=1)
-                    else f"{ln.date_from} – {ln.date_to}",
+                    "period": f"{win_from:%b %Y}"
+                    if win_from.replace(day=1) == win_to.replace(day=1)
+                    else f"{win_from} – {win_to}",
                     "account": ln.account_id.display_name,
                     "branch": ln.branch_id.display_name or "",
                     "business_line": ln.business_line_id.display_name or "",
                     "cost_centre": ln.cost_centre or "",
-                    "planned": money(ln.planned_amount),
+                    "planned": money(planned),
                     "actual": money(actual),
                     "variance": money(var),
-                    "variance_pct": pct(var, ln.planned_amount),
+                    "variance_pct": pct(var, planned),
                     "flag": "Favourable" if var >= 0 else "Adverse",
                 }
             )
@@ -622,8 +625,9 @@ class FixFpaEngineReports(models.AbstractModel):
             "rows": rows,
             "totals": totals,
             "notes": [
-                "Lines of APPROVED budget versions overlapping the window; actual = posted GL "
-                "on the line's account, period and dimension filters.",
+                "Lines of THE approved budget version overlapping the window. Budget and "
+                "actual are both measured over the part of each line inside the window (plan "
+                "pro rata to days); actual = posted GL on the line's account and dimensions.",
                 "Variance is signed favourable-positive: revenue above budget or cost below it.",
                 f"{adverse} adverse line(s).",
             ],
@@ -725,11 +729,11 @@ class FixFpaEngineReports(models.AbstractModel):
         add("P&L", "Operating result", money(gross - t["opex"]))
 
         lines = self.approved_budget_lines(d_from, d_to)
-        actuals = self.line_actuals(lines)
+        actuals = self.line_actuals(lines, d_from, d_to)
         var = sum(
-            (actuals.get(ln.id, 0.0) - ln.planned_amount)
+            (actuals.get(ln.id, 0.0) - self.planned_in_window(ln, d_from, d_to))
             if ln.is_revenue
-            else (ln.planned_amount - actuals.get(ln.id, 0.0))
+            else (self.planned_in_window(ln, d_from, d_to) - actuals.get(ln.id, 0.0))
             for ln in lines
         )
         add("Budget", "Approved budget lines", None, f"{len(lines)} lines")

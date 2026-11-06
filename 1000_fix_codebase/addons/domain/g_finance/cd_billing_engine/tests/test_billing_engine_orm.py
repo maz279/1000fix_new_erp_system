@@ -402,10 +402,16 @@ class TestCreditNote:
         )
 
     def test_threshold_routes_approval(self, shop):
-        small = self._note(shop, 25000.0)
-        large = self._note(shop, 25000.01)
+        """A08 S3 (rewritten: a note at or below the old 25,000 line used to be
+        approved at submit with no approver). Submitting approves nothing; the
+        05-04 §7 band (BDT 10,000) decides who approves."""
+        small = self._note(shop, 10000.0)
+        large = self._note(shop, 10000.01)
         (small | large).action_submit()
-        assert (small.state, large.state) == ("approved", "pending_approval")
+        assert (small.state, large.state) == ("pending_approval", "pending_approval")
+        assert not (small.approved_by or large.approved_by)
+        assert small._dofa_current_tier() == "tier_0"
+        assert large._dofa_current_tier() == "tier_2"
 
     def test_manager_authority_above_threshold(self, shop):
         note = self._note(shop, 30000.0)
@@ -416,12 +422,12 @@ class TestCreditNote:
                 "group_ids": [(6, 0, [shop.env.ref("base.group_user").id])],
             }
         )
-        with (
-            pytest.raises(UserError, match="above BDT 25000 require managerial approval"),
-            shop.env.cr.savepoint(),
-        ):
-            note.with_user(clerk).sudo().action_approve()
-        note.action_approve()  # superuser holds base.group_system
+        note.action_submit()
+        # A08 S3: above the band the approval is the Accounting Administrator's
+        # M63 inbox decision; a direct call by a user is refused
+        with pytest.raises(UserError, match="inbox"), shop.env.cr.savepoint():
+            note.with_user(clerk).action_approve()
+        note.action_approve()  # trusted code (superuser)
         assert (note.state, note.approved_by) == ("approved", shop.env.user)
 
     def test_issue_applies_credit_partially_then_fully(self, shop):
@@ -432,6 +438,7 @@ class TestCreditNote:
         with pytest.raises(UserError, match="Approve before issuing"), shop.env.cr.savepoint():
             note.action_issue()
         note.action_submit()
+        note.action_approve()
         note.action_issue()
         invoice = note.invoice_id
         assert note.state == "issued"
@@ -448,7 +455,7 @@ class TestCreditNote:
         settle = self._note(shop, 64000.0)
         settle.invoice_id = invoice
         settle.action_submit()
-        settle.action_approve()  # above BDT 25,000 — superuser holds the group
+        settle.action_approve()  # above the band — trusted code
         settle.action_issue()
         invoice.invalidate_recordset()
         assert invoice.state == "credited"
@@ -474,17 +481,18 @@ class TestConsolidatedBill:
             }
         )
         bill.action_generate()
-        assert bill.invoice_ids == in_period | draft_in_period
-        assert _money(bill.total_taxable) == D("1200.50")
-        assert _money(bill.total_vat) == D("180.08")
-        assert _money(bill.total_payable) == D("1380.58")
+        # A08 M20-14 (rewritten: a draft — no number, no Mushak — was billed)
+        assert bill.invoice_ids == in_period and draft_in_period not in bill.invoice_ids
+        assert _money(bill.total_taxable) == D("1000.00")
+        assert _money(bill.total_vat) == D("150.00")
+        assert _money(bill.total_payable) == D("1150.00")
         assert bill.state == "generated"
         assert _events(shop.env, "consolidated_bill.generated", bill.id) == [
             {
                 "bill_ref": "CB-2026-09",
                 "customer_id": shop.customer.id,
-                "total_payable": 1380.58,
-                "invoice_count": 2,
+                "total_payable": 1150.0,
+                "invoice_count": 1,
             }
         ]
 

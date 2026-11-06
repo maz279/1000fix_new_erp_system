@@ -3,12 +3,31 @@
 # Each entry: model -> {"order", "limit", "actions"}. Reads also need the
 # user's own read access on the model (accounting/payroll groups apply).
 # REPORTS are computed over posted/real records with the caller's env.
+#
+# A08 audit (2026-11-04) M52-13: every transition is an action (the workflow
+# and stamp fields are guarded on the models, so a /p03/model/write of
+# approval_state / state / payment_state / submitted_by is refused), and the
+# KPIs and reports read AS THE CALLER, filtered to the caller's companies
+# (the run summary and the TDS register read every row as superuser).
 from collections import defaultdict
 from datetime import date
 
 from odoo import fields
 
 SURFACES = {
+    # A08 S1 (M52-1): a payee bank-detail change is a proposal a second
+    # person confirms; the account is not payable until then.
+    "fix.payee.bank.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_propose", "action_confirm", "action_reject"},
+    },
+    # A08 M52-12: an AP approval-matrix change needs a second person.
+    "fix.ap.approval.rule.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_apply", "action_reject"},
+    },
     "fix.vendor.invoice": {
         "order": "invoice_date desc, id desc",
         "limit": 200,
@@ -23,7 +42,7 @@ SURFACES = {
     "fix.expense.claim": {
         "order": "expense_date desc, id desc",
         "limit": 200,
-        "actions": {"action_submit", "action_approve", "action_reject"},
+        "actions": {"action_submit", "action_manager_approve", "action_approve", "action_reject"},
     },
     "fix.ap.approval.rule": {"order": "level", "limit": 50, "actions": set()},
     "fix.payment.run": {
@@ -49,6 +68,7 @@ SURFACES = {
         "actions": {
             "action_approve",
             "action_confirm_disbursement",
+            "action_sync_disbursement",
             "action_settle",
             "action_record_recovery",
         },
@@ -69,21 +89,36 @@ def _num(v):
     return round(float(v or 0.0), 2)
 
 
+def _companies(env):
+    return [("company_id", "in", env.companies.ids)]
+
+
 def kpis(env):
     """Real M52 tile metrics (None = the model is unreadable for the caller)."""
     out = {}
     month_start = _today(env).replace(day=1)
+    co = _companies(env)
     try:
         Bill = env["fix.vendor.invoice"]
         out["vendor_bills_open"] = Bill.search_count(
-            [("approval_state", "=", "approved"), ("payment_state", "!=", "paid")]
+            [*co, ("approval_state", "=", "approved"), ("payment_state", "!=", "paid")]
         )
-        out["bills_to_approve"] = Bill.search_count([("approval_state", "=", "to_approve")])
+        out["bills_to_approve"] = Bill.search_count([*co, ("approval_state", "=", "to_approve")])
+        out["match_exceptions"] = Bill.search_count(
+            [*co, ("match_state", "in", ("unmatched", "blocked"))]
+        )
     except Exception:
-        out["vendor_bills_open"] = out["bills_to_approve"] = None
+        out["vendor_bills_open"] = out["bills_to_approve"] = out["match_exceptions"] = None
+    try:
+        out["expense_claims_pending"] = env["fix.expense.claim"].search_count(
+            [*co, ("state", "=", "submitted")]
+        )
+    except Exception:
+        out["expense_claims_pending"] = None
     try:
         lines = env["fix.withholding.line"].search(
             [
+                *co,
                 ("tax_kind", "=", "tds"),
                 ("document_date", ">=", month_start),
                 ("state", "!=", "cancelled"),
@@ -94,7 +129,7 @@ def kpis(env):
         out["tds_mtd"] = None
     try:
         out["payment_runs_open"] = env["fix.payment.run"].search_count(
-            [("state", "in", ("proposed", "to_approve", "approved", "released"))]
+            [*co, ("state", "in", ("proposed", "to_approve", "approved", "released"))]
         )
     except Exception:
         out["payment_runs_open"] = None
@@ -104,7 +139,7 @@ def kpis(env):
         # basis as the Duplicate Prevention Log).
         year_start = _today(env).replace(month=1, day=1)
         bills = env["fix.vendor.invoice"].search(
-            [("approval_state", "!=", "rejected"), ("invoice_date", ">=", year_start)]
+            [*co, ("approval_state", "!=", "rejected"), ("invoice_date", ">=", year_start)]
         )
         by_ref, by_amount = defaultdict(list), defaultdict(list)
         for bill in bills:
@@ -149,12 +184,15 @@ def ap_ageing(env, date_from=None, date_to=None, **params):
     as_of = fields.Date.to_date(date_to) if date_to else _today(env)
     bills = env["fix.vendor.invoice"].search(
         [
+            *_companies(env),
             ("approval_state", "=", "approved"),
             ("payment_state", "!=", "paid"),
             ("invoice_date", "<=", as_of),
         ]
     )
-    notes = env["fix.vendor.note"].search([("state", "=", "approved"), ("note_date", "<=", as_of)])
+    notes = env["fix.vendor.note"].search(
+        [*_companies(env), ("state", "=", "approved"), ("note_date", "<=", as_of)]
+    )
     by_vendor = defaultdict(lambda: dict.fromkeys([k for k, _ in BUCKETS], 0.0))
     for bill in bills:
         days = (as_of - (bill.due_date or bill.invoice_date)).days
@@ -296,6 +334,7 @@ def expense_by_category(env, date_from=None, date_to=None, **params):
     d_to = fields.Date.to_date(date_to) if date_to else _today(env)
     claims = env["fix.expense.claim"].search(
         [
+            *_companies(env),
             ("state", "in", ("approved", "paid")),
             ("expense_date", ">=", d_from),
             ("expense_date", "<=", d_to),
@@ -327,7 +366,9 @@ def expense_by_category(env, date_from=None, date_to=None, **params):
 def duplicate_bills(env, date_from=None, date_to=None, **params):
     """Duplicate-prevention log: bills sharing a vendor and invoice reference
     (refused at submission), and same-vendor same-amount same-date pairs."""
-    bills = env["fix.vendor.invoice"].search([("approval_state", "!=", "rejected")])
+    bills = env["fix.vendor.invoice"].search(
+        [*_companies(env), ("approval_state", "!=", "rejected")]
+    )
     by_ref, by_amount = defaultdict(list), defaultdict(list)
     for bill in bills:
         vendor = bill.vendor_id.commercial_partner_id.id
@@ -376,7 +417,10 @@ def tds_register(env, date_from=None, date_to=None, **params):
         domain.append(("document_date", ">=", date_from))
     if date_to:
         domain.append(("document_date", "<=", date_to))
-    lines = env["fix.withholding.line"].sudo().search(domain)
+    try:
+        lines = env["fix.withholding.line"].search(domain + _companies(env))
+    except Exception:  # the caller cannot read the tax sub-ledger
+        lines = env["fix.withholding.line"]
     rows = []
     for line in lines:
         rows.append(
@@ -437,7 +481,10 @@ def tds_register(env, date_from=None, date_to=None, **params):
 def payment_run_summary(env, date_from=None, date_to=None, **params):
     """Payment run summary: one row per run with bill counts, deductions and
     the net released to the bank, on the rails actually used."""
-    runs = env["fix.payment.run"].sudo().search([])
+    try:
+        runs = env["fix.payment.run"].search(_companies(env))
+    except Exception:  # the caller holds no accounting role
+        runs = env["fix.payment.run"]
     rows = []
     for run in runs:
         lines = run.line_ids

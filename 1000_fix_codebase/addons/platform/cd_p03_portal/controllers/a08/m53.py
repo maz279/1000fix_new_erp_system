@@ -5,6 +5,8 @@
 import datetime
 
 SURFACES = {
+    # A08 M53-1/3: payout-run rows are pinned at approval; read-only here.
+    "fix.payout.run.line": {"order": "id desc", "limit": 500, "actions": set()},
     # --- revenue (IFRS 15) ---
     "fix.performance.obligation": {
         "order": "subscription_id, id",
@@ -14,7 +16,7 @@ SURFACES = {
     "fix.revenue.schedule": {
         "order": "start_date desc, id desc",
         "limit": 200,
-        "actions": {"action_recognize_period"},
+        "actions": {"action_recognize_period", "action_request_cfo_approval"},
     },
     "fix.subscription": {
         "order": "next_invoice_date, id desc",
@@ -68,14 +70,14 @@ SURFACES = {
     "fix.payout.run": {
         "order": "id desc",
         "limit": 100,
+        # A08 F2: approval is decided from the M63 inbox; money moves only as
+        # M50 payment instructions confirmed from the bank statement
         "actions": {
             "action_collect_accrued",
-            "action_approve",
-            "action_submit_payout",
-            "action_generate_beftn",
+            "action_prepare",
+            "action_request_payments",
             "action_query_status",
-            "action_confirm_bank_settlement",
-            "action_post_payout_to_gl",
+            "action_cancel",
         },
     },
     "fix.seller.statement": {
@@ -283,7 +285,7 @@ def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
 def rev_rec_by_stream(env, date_from=None, date_to=None, **params):
     """Revenue recognition by stream: contracted, recognised to date and the
     deferred remainder, per revenue stream across all schedules."""
-    schedules = env["fix.revenue.schedule"].sudo().search([])
+    schedules = env["fix.revenue.schedule"].search([("company_id", "in", env.companies.ids)])
     groups = {}
     for sch in schedules:
         key = _stream_label(env, sch)
@@ -333,12 +335,12 @@ def rev_rec_by_stream(env, date_from=None, date_to=None, **params):
 def commission_accrual(env, date_from=None, date_to=None, **params):
     """Commission accrual: every ledger entry with its scheme rate, TDS and
     net, and the accrual state."""
-    domain = []
+    domain = [("company_id", "in", env.companies.ids)]
     if date_from:
         domain.append(("create_date", ">=", date_from))
     if date_to:
         domain.append(("create_date", "<=", date_to))
-    lines = env["fix.commission.ledger"].sudo().search(domain)
+    lines = env["fix.commission.ledger"].search(domain)
     rows = []
     for ln in lines:
         rows.append(
@@ -376,7 +378,7 @@ def commission_accrual(env, date_from=None, date_to=None, **params):
             "tds": round(sum(r["tds"] for r in rows), 2),
             "net": round(sum(r["net"] for r in rows), 2),
         },
-        "notes": "TDS withheld at source per ITA 2023 section 52 on seller commissions.",
+        "notes": "TDS withheld at source per ITA 2023 section 140 on commissions, from the scheme in force and the payee's PSR.",
         "empty": "No commission entries recorded.",
     }
 
@@ -384,7 +386,7 @@ def commission_accrual(env, date_from=None, date_to=None, **params):
 def payout_reconciliation(env, date_from=None, date_to=None, **params):
     """Payout reconciliation: each rail statement vs the system's payout run,
     with count and amount match flags and the unmatched remainder."""
-    recs = env["fix.payout.reconciliation"].sudo().search([])
+    recs = env["fix.payout.reconciliation"].search([("company_id", "in", env.companies.ids)])
     rows = []
     for r in recs:
         rows.append(
@@ -446,12 +448,15 @@ def payout_reconciliation(env, date_from=None, date_to=None, **params):
 def clawback_register(env, date_from=None, date_to=None, **params):
     """Clawback & escrow register: adjustments held against future payouts,
     with recovery progress."""
-    domain = [("adjustment_type", "in", ("clawback", "escrow"))]
+    domain = [
+        ("adjustment_type", "in", ("clawback", "escrow")),
+        ("company_id", "in", env.companies.ids),
+    ]
     if date_from:
         domain.append(("create_date", ">=", date_from))
     if date_to:
         domain.append(("create_date", "<=", date_to))
-    adjustments = env["fix.settlement.adjustment"].sudo().search(domain)
+    adjustments = env["fix.settlement.adjustment"].search(domain)
     rows = []
     for a in adjustments:
         rows.append(

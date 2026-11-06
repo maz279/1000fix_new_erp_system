@@ -942,6 +942,9 @@ def test_submit_needs_generated_packs(odoo_env):
 def test_submit_records_the_acknowledgement(odoo_env):
     nil = _generated(odoo_env, "NILSUB")
     nil.filing_reference = "  EVAT-ACK-778812  "  # slip number keyed in from the NBR portal
+    # A08 M19-12: the filing is recorded only for a closed (locked) period
+    _start, end = nil._period_bounds()
+    nil.entity_id.company_id.sudo().fiscalyear_lock_date = end
     assert nil.action_submit_to_nbr() is True
     assert nil.state == "acknowledged"
     assert nil.filing_reference == "EVAT-ACK-778812"

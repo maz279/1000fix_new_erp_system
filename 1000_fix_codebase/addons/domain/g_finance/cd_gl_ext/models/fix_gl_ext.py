@@ -8,17 +8,67 @@
 #   - the W2 inventory suspense reconciliation stub (AR-006 §5.4)
 #   - journal.posted / period.closed events through the outbox (AS-08)
 #
+# A08 remediation (B3, 4 Nov 2026):
+#   - F4  closing a period sets the company lock date in the same transaction;
+#         the close is an Accounting Administrator act on a period that has
+#         ended; state and stamps are guarded (M19-1, -5, -6).
+#   - S2  THE M19 posting API. Every journal entry posts through
+#         post_with_dimensions() / post_existing_moves() (or the account.move
+#         wrappers _fix_post_via_m19 / _fix_m19_post): the API carries an
+#         in-process token that the account.move._post guard
+#         (fix_gl_posting_control.py) requires for manual entries. A manual
+#         journal is drafted by create_journal_entry_draft() and posted only
+#         when its routed fix.journal.approval is approved (M19-2, -8).
+#
 # AS-10: every amount below is fields.Monetary with an explicit currency_id.
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28: the only event client
 
 from . import coa_logic
 
 _logger = logging.getLogger(__name__)
+
+ACCOUNT_USER = "account.group_account_user"
+ACCOUNT_MANAGER = "account.group_account_manager"
+
+# --------------------------------------------------------------------------
+# The M19 posting token. An object, never a flag: JSON-RPC can put any key in
+# the context, but not this object. post_with_dimensions / post_existing_moves
+# are the only code that obtains it.
+# --------------------------------------------------------------------------
+M19_TOKEN_KEY = "fix_m19_posting"
+M19_SOURCE_KEY = "fix_m19_source"
+_M19_TOKEN = object()
+
+
+def m19_context(source):
+    """Context that lets account.move._post accept a posting from `source`."""
+    return {M19_TOKEN_KEY: _M19_TOKEN, M19_SOURCE_KEY: source or "api"}
+
+
+def has_m19_token(env) -> bool:
+    return env.context.get(M19_TOKEN_KEY) is _M19_TOKEN
+
+
+def m19_source(env):
+    return env.context.get(M19_SOURCE_KEY) if has_m19_token(env) else None
+
+
+def has_role(env, xmlid) -> bool:
+    """Superuser code (crons, seeds, service calls) is trusted."""
+    return env.su or env.user.has_group(xmlid)
+
+
+def require_role(env, xmlid, what):
+    if not has_role(env, xmlid):
+        group = env.ref(xmlid, raise_if_not_found=False)
+        raise AccessError(
+            "%s needs the %s role, which you do not hold." % (what, group.name if group else xmlid)
+        )
 
 
 def _split_dims(value) -> set:
@@ -85,16 +135,66 @@ class FixJournalDimension(models.Model):
                 )
 
 
+# The 10 statutory close steps of SOP SP-020: (sequence, step, owner role,
+# target day, blocking, owning group xmlid). A step is completed by a holder
+# of its owning group (A08 M19-5: one accountant used to clear every owner's
+# step, the CFO's included, with the evidence "x").
+STANDARD_CLOSE_STEPS = [
+    (10, "Subledger Cut-Off & Physical Inventory Counts", "Supply Chain Lead", 0, True,
+     "stock.group_stock_manager"),
+    (20, "Bank Statement Feeds Import & Automated Reconciliation", "Treasury Lead", 1, True,
+     ACCOUNT_USER),
+    (30, "AR Billing & Auto-Invoice Clearance", "Billing Specialist", 2, True, ACCOUNT_USER),
+    (40, "AP Three-Way Match & Vendor Invoice Clearance", "AP Accountant", 3, True, ACCOUNT_USER),
+    (50, "VAT Sub-Ledger & Mushak 9.1 Return Preparation", "Tax Manager", 3, True, ACCOUNT_USER),
+    (60, "Inventory Suspense Account Zero-Balance Clearance", "Inventory Accountant", 4, True,
+     ACCOUNT_USER),
+    (70, "Fixed Asset Capitalisation Interface Review", "Asset Accountant", 4, False, ACCOUNT_USER),
+    (80, "Inter-Branch & Operating Unit Dimension Balancing", "GL Lead", 5, True, ACCOUNT_USER),
+    (90, "Accruals, Depreciation & Tax Withholding Postings", "Senior Accountant", 5, True,
+     ACCOUNT_USER),
+    (100, "General Ledger Lock & Financial Statements Generation", "Chief Financial Officer", 5,
+     True, ACCOUNT_MANAGER),
+]
+
+# Records a close step's evidence may point at ("model,id"). The record must
+# exist: an evidence string that names nothing is not evidence (M19-5).
+EVIDENCE_MODELS = (
+    "account.move",
+    "account.bank.statement",
+    "account.bank.statement.line",
+    "fix.journal.posting.log",
+    "fix.financial.report.bridge",
+    "fix.chart.loader",
+    "fix.fx.revaluation",
+    "fix.allocation.rule",
+    "fix.inventory.valuation.suspense",
+    "fix.mushak.register",
+    "fix.mushak.return",
+    "fix.vat.return",
+    "fix.depreciation.run",
+    "ir.attachment",
+)
+
+
+def dhaka_today(record):
+    """Today in the user's (Bangladesh) calendar, not UTC."""
+    return fields.Date.context_today(record)
+
+
 class FixPeriodClose(models.Model):
     """The 5-day month-end close process (T06 / CD-M19-05).
 
     A close checklist instance per company+period. Each line is a close step
     with an owner and a target day-offset; the close is DONE only when every
-    blocking step is cleared. Day 0 = period end."""
+    blocking step is cleared. Day 0 = period end. Closing sets the company
+    Global Lock Date to the period end in the same transaction: nobody posts
+    into a closed period except through an approved, time-boxed reopen
+    (fix.period.reopen)."""
 
     _name = "fix.period.close"
     _description = "Period Close Checklist"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period_end desc, company_id"
     _company_period_unique = models.Constraint(
         "UNIQUE (company_id, period_end)", "One close checklist per company and period"
@@ -144,8 +244,14 @@ class FixPeriodClose(models.Model):
         currency_field="currency_id",
         help="Balance in the W2 inventory suspense account at period start",
     )
-    suspense_closing = fields.Monetary(string="Suspense Closing", currency_field="currency_id")
-    suspense_reconciled = fields.Boolean(string="Suspense Reconciled", default=False)
+    suspense_closing = fields.Monetary(
+        string="Suspense Closing",
+        currency_field="currency_id",
+        readonly=True,
+        help="What is still pending after the suspense reconciliation — computed by it, "
+        "never typed.",
+    )
+    suspense_reconciled = fields.Boolean(string="Suspense Reconciled", default=False, readonly=True)
     cutover_voucher_ref = fields.Char(string="Suspense Cutover Voucher Ref", readonly=True)
     cutover_move_id = fields.Many2one(
         "account.move",
@@ -155,9 +261,58 @@ class FixPeriodClose(models.Model):
         "general ledger. Required to reconcile the suspense.",
     )
     closed_at = fields.Datetime(readonly=True)
+    closed_by_id = fields.Many2one("res.users", string="Closed By", readonly=True, copy=False)
+    ready_by_id = fields.Many2one("res.users", string="Ready Check By", readonly=True, copy=False)
+    lock_date_set = fields.Date(
+        string="Lock Date Set",
+        readonly=True,
+        copy=False,
+        help="The company Global Lock Date this close set (or found already set).",
+    )
+    reopen_ids = fields.One2many("fix.period.reopen", "close_id", string="Reopen Requests")
+    is_locked = fields.Boolean(
+        string="Ledger Locked",
+        compute="_compute_is_locked",
+        help="True when the company Global Lock Date covers this period end — read "
+        "from the company, never ticked.",
+    )
     close_duration_days = fields.Float(
         compute="_compute_duration", store=True, string="Close Duration (days)"
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "closed_at",
+            "closed_by_id",
+            "ready_by_id",
+            "lock_date_set",
+            "suspense_closing",
+            "suspense_reconciled",
+            "cutover_voucher_ref",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields() | {"is_locked", "target_completion_date"}
+        if any(c.state == "closed" for c in self):
+            locked |= {"period_end", "company_id", "cutover_move_id", "suspense_opening"}
+        return locked
+
+    def write(self, vals):
+        frozen = {"period_end", "company_id", "cutover_move_id", "suspense_opening"}
+        if (
+            frozen & set(vals)
+            and not self._fix_guard_open()
+            and any(c.state == "closed" for c in self)
+        ):
+            raise UserError("A closed period's facts are frozen; reopen it through an approval.")
+        return super().write(vals)
+
+    @api.depends("company_id.fiscalyear_lock_date", "period_end")
+    def _compute_is_locked(self):
+        for close in self:
+            lock = close.company_id.sudo().fiscalyear_lock_date
+            close.is_locked = bool(lock and close.period_end and lock >= close.period_end)
 
     @api.depends("period_end")
     def _compute_target_completion(self):
@@ -184,50 +339,27 @@ class FixPeriodClose(models.Model):
     def action_generate_standard_steps(self):
         """Generate the 10 statutory close steps from SOP SP-020."""
         self.ensure_one()
-        steps_data = [
-            (10, "Subledger Cut-Off & Physical Inventory Counts", "Supply Chain Lead", 0, True),
-            (
-                20,
-                "Bank Statement Feeds Import & Automated Reconciliation",
-                "Treasury Lead",
-                1,
-                True,
-            ),
-            (30, "AR Billing & Auto-Invoice Clearance", "Billing Specialist", 2, True),
-            (40, "AP Three-Way Match & Vendor Invoice Clearance", "AP Accountant", 3, True),
-            (50, "VAT Sub-Ledger & Mushak 9.1 Return Preparation", "Tax Manager", 3, True),
-            (
-                60,
-                "Inventory Suspense Account Zero-Balance Clearance",
-                "Inventory Accountant",
-                4,
-                True,
-            ),
-            (70, "Fixed Asset Capitalisation Interface Review", "Asset Accountant", 4, False),
-            (80, "Inter-Branch & Operating Unit Dimension Balancing", "GL Lead", 5, True),
-            (90, "Accruals, Depreciation & Tax Withholding Postings", "Senior Accountant", 5, True),
-            (
-                100,
-                "General Ledger Lock & Financial Statements Generation",
-                "Chief Financial Officer",
-                5,
-                True,
-            ),
-        ]
-        line_model = self.env["fix.period.close.line"]
-        for seq, name, role, day, blocking in steps_data:
+        require_role(self.env, ACCOUNT_USER, "Starting a period close")
+        if self.state != "open":
+            raise UserError("The close steps are generated once, on an open close.")
+        line_model = self.env["fix.period.close.line"]._guarded()
+        for seq, name, role, day, blocking, group_xmlid in STANDARD_CLOSE_STEPS:
+            group = self.env.ref(group_xmlid, raise_if_not_found=False) or self.env.ref(
+                ACCOUNT_USER
+            )
             line_model.create(
                 {
                     "close_id": self.id,
                     "sequence": seq,
                     "name": name,
                     "owner_role": role,
+                    "owner_group_id": group.id,
                     "target_day": day,
                     "blocking": blocking,
                     "state": "pending",
                 }
             )
-        self.write({"state": "in_progress"})
+        self._guarded().write({"state": "in_progress"})
         return True
 
     def action_reconcile_inventory_suspense(self) -> dict:
@@ -243,6 +375,9 @@ class FixPeriodClose(models.Model):
         against an invented voucher "GL-CUTOVER-W2-M15-<id>" and force the
         suspense balance to zero without any journal entry.)"""
         self.ensure_one()
+        require_role(self.env, ACCOUNT_USER, "Reconciling the inventory suspense")
+        if self.state == "closed":
+            raise UserError("The period is closed; the suspense cutover belongs to an open close.")
         suspense_model = self.env["fix.inventory.valuation.suspense"]
         domain = [
             ("status", "=", "pending_gl_cutover"),
@@ -293,7 +428,7 @@ class FixPeriodClose(models.Model):
                 entry.action_reconcile_to_gl(voucher_ref)
 
         remaining = round(sum(suspense_model.search(domain).mapped("total_valuation")), 2)
-        self.write(
+        self._guarded().write(
             {
                 "suspense_closing": remaining,
                 "suspense_reconciled": remaining == 0,
@@ -322,7 +457,12 @@ class FixPeriodClose(models.Model):
         }
 
     def action_ready(self):
+        require_role(self.env, ACCOUNT_USER, "The close ready check")
         for close in self:
+            if close.state not in ("open", "in_progress"):
+                raise UserError("Only an open close in progress can be checked ready.")
+            if not close.line_ids:
+                raise UserError("Generate the close steps first; a close with no steps is not ready.")
             blocking = close.line_ids.filtered(lambda line: line.blocking and line.state != "done")
             if blocking:
                 raise UserError("Close steps still open: %s" % ", ".join(blocking.mapped("name")))
@@ -331,13 +471,72 @@ class FixPeriodClose(models.Model):
                     "Suspense account must be zero at close (AR-006 §5.4) — "
                     "balance: %.2f" % close.suspense_closing
                 )
-            close.state = "ready_to_close"
+            close._guarded().write({"state": "ready_to_close", "ready_by_id": self.env.uid})
+
+    def _fix_check_bank_reconciled(self):
+        """M50-6 / BRU-TRE-19: no close while imported bank statement lines up
+        to the period end are unmatched. The treasury model (cd_cash_position,
+        which depends on cd_gl_ext) is looked up softly."""
+        self.ensure_one()
+        if "fix.bank.statement.line" not in self.env:
+            return
+        Line = self.env["fix.bank.statement.line"]
+        if not hasattr(Line, "_fix_reconciliation_blockers"):
+            return
+        blockers = Line._fix_reconciliation_blockers(self.company_id, self.period_end)
+        if blockers:
+            raise UserError(
+                "Period %s cannot close: %d imported bank statement line(s) up to the period end "
+                "are unmatched (%s). Reconcile them in Treasury first (BRU-TRE-19)."
+                % (
+                    self.period_end,
+                    len(blockers),
+                    ", ".join(str(b.display_name) for b in blockers[:5]),
+                )
+            )
+
+    def _fix_set_company_lock(self):
+        """Move the company Global Lock Date forward to this period end. Odoo's
+        own lock validation (unreconciled statement lines, unhashed entries)
+        refuses it and so blocks the close: the close and the lock are one act."""
+        self.ensure_one()
+        company = self.company_id.sudo()
+        if not company.fiscalyear_lock_date or company.fiscalyear_lock_date < self.period_end:
+            company.with_context(**{FISCAL_LOCK_KEY: _FISCAL_LOCK_TOKEN}).write(
+                {"fiscalyear_lock_date": self.period_end}
+            )
+        return company.fiscalyear_lock_date
 
     def action_close(self):
+        """Hard-close the period (FR-FIN-019, BRU-FIN-05/06): an Accounting
+        Administrator closes a period that has ENDED, after the ready check;
+        the company lock date is set in the same transaction, so a later
+        posting dated in the period is refused (manual) or lands in the open
+        period (sub-ledger)."""
+        require_role(self.env, ACCOUNT_MANAGER, "Closing a period")
+        today = dhaka_today(self)
         for close in self:
             if close.state != "ready_to_close":
                 raise UserError("Run the ready check before closing")
-            close.write({"state": "closed", "closed_at": fields.Datetime.now()})
+            if close.period_end >= today:
+                raise UserError(
+                    "Period %s has not ended (today is %s): a period closes after its last day."
+                    % (close.period_end, today)
+                )
+            close._fix_check_bank_reconciled()
+            lock = close._fix_set_company_lock()
+            close._guarded().write(
+                {
+                    "state": "closed",
+                    "closed_at": fields.Datetime.now(),
+                    "closed_by_id": self.env.uid,
+                    "lock_date_set": lock,
+                }
+            )
+            close.message_post(
+                body="Period %s closed by %s; company Global Lock Date %s."
+                % (close.period_end, self.env.user.name, lock)
+            )
             publish(
                 close.env,
                 "period.closed",
@@ -359,6 +558,21 @@ class FixPeriodClose(models.Model):
                     target_days,
                 )
 
+    def action_request_reopen(self, user_id=None, reason=None, end_datetime=None):
+        """Raise a time-boxed reopen (lock exception) for one user; an
+        Accounting Administrator other than the closer approves it."""
+        self.ensure_one()
+        reopen = self.env["fix.period.reopen"].create(
+            {
+                "close_id": self.id,
+                "user_id": int(user_id) if user_id else self.env.uid,
+                "reason": reason or False,
+                "end_datetime": end_datetime or False,
+            }
+        )
+        reopen.action_submit()
+        return reopen
+
     def action_fail_close_target(self):
         """Report-only helper for the G3 gate: which closes exceeded 5 days."""
         return self.search_read(
@@ -367,17 +581,37 @@ class FixPeriodClose(models.Model):
         )
 
 
+# Company lock writes made by the close itself (fix_gl_posting_control's
+# res.company guard lets these through).
+FISCAL_LOCK_KEY = "fix_m19_close_lock"
+_FISCAL_LOCK_TOKEN = object()
+
+
+def has_fiscal_lock_token(env) -> bool:
+    return env.context.get(FISCAL_LOCK_KEY) is _FISCAL_LOCK_TOKEN
+
+
 class FixPeriodCloseLine(models.Model):
-    """One step of the close checklist with its owner and day-offset target."""
+    """One step of the close checklist with its owner and day-offset target.
+
+    The step is completed by a holder of its owning group, on evidence that
+    points at a real record (``model,id``), a posted entry number, or a file
+    attached to the step."""
 
     _name = "fix.period.close.line"
     _description = "Period Close Step"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    _order = "close_id, sequence"
 
     close_id = fields.Many2one("fix.period.close", required=True, ondelete="cascade")
     sequence = fields.Integer(default=10)
     name = fields.Char(string="Step", required=True)
     owner_role = fields.Char(string="Owning Role", help="R-nn role accountable for this step")
+    owner_group_id = fields.Many2one(
+        "res.groups",
+        string="Owning Group",
+        help="Only a holder of this group completes the step.",
+    )
     target_day = fields.Integer(string="Target Day", help="Day offset from period end (0..5)")
     blocking = fields.Boolean(
         default=True, help="A blocking step must clear before the period can close"
@@ -390,6 +624,23 @@ class FixPeriodCloseLine(models.Model):
     evidence_ref = fields.Char(
         string="Evidence Reference", help="Report ID or reconciliation record proving the step"
     )
+    evidence_model = fields.Char(string="Evidence Model", readonly=True)
+    evidence_res_id = fields.Integer(string="Evidence Record", readonly=True)
+    done_by_id = fields.Many2one("res.users", string="Done By", readonly=True, copy=False)
+    done_at = fields.Datetime(string="Done At", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "evidence_ref",
+            "evidence_model",
+            "evidence_res_id",
+            "done_by_id",
+            "done_at",
+            "owner_group_id",
+            "owner_role",
+            "blocking",
+        }
 
     @api.constrains("state", "evidence_ref")
     def _check_done_has_evidence(self):
@@ -400,24 +651,113 @@ class FixPeriodCloseLine(models.Model):
                     "(report ID or reconciliation record)." % line.name
                 )
 
+    def _check_owner(self):
+        """The acting user must hold the step's owning group. Records are read
+        as the system: a step owner outside finance (the supply chain lead)
+        has no access to the close itself."""
+        user = self.env.user
+        for line in self.sudo():
+            if line.close_id.state == "closed":
+                raise UserError("The period is closed; its steps are frozen.")
+            if self.env.su:
+                continue
+            group = line.owner_group_id
+            if group and group not in user.sudo().all_group_ids:
+                raise AccessError(
+                    "Close step '%s' is owned by %s (%s); you do not hold that role."
+                    % (line.name, line.owner_role or "its owner", group.name)
+                )
+
+    def _resolve_evidence(self, evidence, trusted=False):
+        """(model, res_id) of the record the evidence names, or refuse."""
+        self.ensure_one()
+        text = (evidence or "").strip()
+        for sep in (",", ":"):
+            if sep in text:
+                model, _sep, rid = text.partition(sep)
+                model, rid = model.strip(), rid.strip()
+                if model in EVIDENCE_MODELS and model in self.env and rid.isdigit():
+                    record = self.env[model].sudo().browse(int(rid)).exists()
+                    if record:
+                        if "company_id" in record._fields and record.company_id and (
+                            record.company_id != self.close_id.company_id
+                        ):
+                            break
+                        return model, record.id
+                break
+        company = self.close_id.company_id
+        move = (
+            self.env["account.move"]
+            .sudo()
+            .search(
+                [("name", "=", text), ("state", "=", "posted"), ("company_id", "=", company.id)],
+                limit=1,
+            )
+        )
+        if move:
+            return "account.move", move.id
+        attachment = (
+            self.env["ir.attachment"]
+            .sudo()
+            .search(
+                [("res_model", "=", self._name), ("res_id", "=", self.id), ("name", "=", text)],
+                limit=1,
+            )
+        )
+        if attachment:
+            return "ir.attachment", attachment.id
+        if trusted:
+            # trusted code (seeds, migrations) records a free-text reference
+            return False, 0
+        raise UserError(
+            "Evidence '%s' names no record. Give a posted entry number, a file attached to the "
+            "step, or a record reference such as 'account.bank.statement,42'." % text
+        )
+
     def action_mark_done(self, evidence: str = ""):
-        """Complete a close step on real evidence. There is no default: the
-        step used to be marked done with the evidence "VERIFIED" whenever
-        none was given. Without evidence the step stays as it is."""
+        """Complete a close step on real evidence, by the step's owner. There
+        is no default: the step used to be marked done with the evidence
+        "VERIFIED" whenever none was given, and later with any string."""
         evidence = (evidence or "").strip()
         if not evidence:
             raise UserError(
                 "Provide the evidence reference (report ID / reconciliation record) "
                 "proving the close step before marking it done."
             )
-        for line in self:
-            line.write({"state": "done", "evidence_ref": evidence})
+        self._check_owner()
+        uid, trusted = self.env.uid, self.env.su
+        for line in self.sudo():
+            model, res_id = line._resolve_evidence(evidence, trusted=trusted)
+            line._guarded().write(
+                {
+                    "state": "done",
+                    "evidence_ref": evidence,
+                    "evidence_model": model,
+                    "evidence_res_id": res_id,
+                    "done_by_id": uid,
+                    "done_at": fields.Datetime.now(),
+                }
+            )
         return True
 
     def action_set_state(self, new_state: str):
+        """Move a step between pending and in progress. Done is reached only
+        through action_mark_done (with evidence)."""
         if new_state not in ("pending", "in_progress", "done"):
             raise UserError(f"Invalid state: {new_state}")
-        self.write({"state": new_state})
+        if new_state == "done":
+            raise UserError("A step is completed with its evidence (Mark Done), not by a state change.")
+        self._check_owner()
+        self.sudo()._guarded().write(
+            {
+                "state": new_state,
+                "evidence_ref": False,
+                "evidence_model": False,
+                "evidence_res_id": 0,
+                "done_by_id": False,
+                "done_at": False,
+            }
+        )
         return True
 
 
@@ -565,9 +905,12 @@ def _attach_dimensions(env, move, dimension_by_line):
     return dimensions
 
 
-def _log_posting(env, move, source, requested_by, template, state="posted"):
+def _log_posting(
+    env, move, source, requested_by, template, state="posted", source_ref=None, posted_by=None
+):
     """Append the immutable posting-log row (FR-FIN-042). Created sudo: the
     audit trail must never be the reason a posting fails on permissions."""
+    poster = posted_by or getattr(env, "uid", None)
     return (
         env["fix.journal.posting.log"]
         .with_context(force_edit=True)
@@ -578,9 +921,10 @@ def _log_posting(env, move, source, requested_by, template, state="posted"):
                 "move_id": move.id,
                 "move_name": move.name or "",
                 "source": source,
+                "source_ref": source_ref or False,
                 "state": state,
                 "requested_by": requested_by or getattr(env, "uid", None),
-                "posted_by": getattr(env, "uid", None) if state == "posted" else False,
+                "posted_by": poster if state == "posted" else False,
                 "posted_at": fields.Datetime.now() if state == "posted" else False,
                 "template_id": template.id if template else False,
                 "currency_id": move.currency_id.id,
@@ -590,25 +934,7 @@ def _log_posting(env, move, source, requested_by, template, state="posted"):
     )
 
 
-# Sources that count as DIRECT manual postings for the COA-02 control-account
-# rule. Engine/subledger sources (settlement, suspense, platform API seams)
-# may legitimately post on control accounts.
-MANUAL_POSTING_SOURCES = ("manual", "template", "allocation")
-
-
-def post_with_dimensions(env, move_vals, dimension_by_line, source="api", template=None):
-    """T03/T09 helper: post an account.move and attach the 7-dimension tags
-    to every line in the SAME transaction, then emit journal.posted.
-
-    dimension_by_line: {line_index: {"branch_id": int, "cost_centre": str,
-    "business_line": str, "project_ref": str, "brand": str, "channel": str}}.
-    FR-FIN-011: lines on accounts linked to the statutory chart are checked
-    against the MD-035 posting rules before anything posts. Returns
-    (move, dimensions)."""
-    move = env["account.move"].create(move_vals)
-    _validate_move_against_chart(env, move, dimension_by_line, source)
-    move.action_post()
-    dimensions = _attach_dimensions(env, move, dimension_by_line)
+def _publish_posted(env, move, source):
     publish(
         env,
         "journal.posted",
@@ -622,68 +948,173 @@ def post_with_dimensions(env, move_vals, dimension_by_line, source="api", templa
             "source": source,
         },
     )
-    _log_posting(env, move, source, getattr(env, "uid", None), template, state="posted")
+
+
+# Sources that count as DIRECT manual postings for the COA-02 control-account
+# rule. Engine/subledger sources (settlement, suspense, platform API seams)
+# may legitimately post on control accounts.
+MANUAL_POSTING_SOURCES = ("manual", "template", "allocation")
+
+
+def _m19_post(env, moves, source):
+    """Post `moves` through the guarded account.move._post with the M19
+    token. Manual-style sources are refused on a closed period (no silent
+    re-date); sub-ledger sources follow Odoo's lock behaviour."""
+    moves.with_env(env).with_context(**m19_context(source))._post(soft=False)
+
+
+def post_with_dimensions(
+    env, move_vals, dimension_by_line, source="api", template=None, source_ref=None
+):
+    """THE M19 posting API (T03/T09, A08 S2). Post an account.move and attach
+    the 7-dimension tags to every line in the SAME transaction, append the
+    immutable posting-log row and emit journal.posted.
+
+    dimension_by_line: {line_index: {"branch_id": int, "cost_centre": str,
+    "business_line": str, "project_ref": str, "brand": str, "channel": str}}.
+    FR-FIN-011: lines on accounts linked to the statutory chart are checked
+    against the MD-035 posting rules before anything posts. `source` is a
+    fix.journal.posting.log source; "manual" is refused here (a manual
+    journal is drafted by create_journal_entry_draft and posted by its
+    approval). Returns (move, dimensions)."""
+    if source == "manual" and not env.su:
+        raise UserError(
+            "A manual journal entry is drafted for review (create_journal_entry_draft) and "
+            "posted by its approver; it cannot be posted directly (BRU-FIN-11)."
+        )
+    move = env["account.move"].create(move_vals)
+    _validate_move_against_chart(env, move, dimension_by_line or {}, source)
+    _m19_post(env, move, source)
+    dimensions = _attach_dimensions(env, move, dimension_by_line or {})
+    _publish_posted(env, move, source)
+    _log_posting(
+        env, move, source, getattr(env, "uid", None), template, state="posted", source_ref=source_ref
+    )
     return move, dimensions
 
 
-def create_journal_entry_draft(env, move_vals, dimension_by_line, source="manual", template=None):
-    """Maker step of the JE review flow (FR-FIN-014/015): create the entry
-    as a DRAFT with its COA rules checked and its dimensions attached, and
-    queue it in the posting log as awaiting review. The checker posts it via
-    approve_journal_entry."""
+def post_existing_moves(env, moves, source="api", source_ref=None, dimension_by_line=None):
+    """The M19 posting API for sub-ledgers that build a DRAFT move first
+    (depreciation runs, impairments, lease charges...): validate against the
+    chart, post with the token, log and publish each. Returns the moves."""
+    if source == "manual" and not env.su:
+        raise UserError(
+            "A manual journal entry is posted by its approver through the M19 maker-checker."
+        )
+    for move in moves.with_env(env):
+        if move.state != "draft":
+            raise UserError("%s is not a draft entry." % move.display_name)
+        _validate_move_against_chart(env, move, dimension_by_line or {}, source)
+        _m19_post(env, move, source)
+        if dimension_by_line:
+            _attach_dimensions(env, move, dimension_by_line)
+        _publish_posted(env, move, source)
+        _log_posting(env, move, source, getattr(env, "uid", None), None, source_ref=source_ref)
+    return moves
+
+
+def _move_snapshot(move) -> str:
+    """What a journal approval covers: date, journal and every line."""
+    import json
+
+    move = move.sudo()
+    lines = sorted(
+        (
+            line.account_id.id,
+            line.partner_id.id or 0,
+            line.currency_id.id or 0,
+            round(line.debit, 2),
+            round(line.credit, 2),
+            round(line.amount_currency, 2),
+        )
+        for line in move.line_ids
+    )
+    return json.dumps(
+        {
+            "date": str(move.date),
+            "journal": move.journal_id.id,
+            "company": move.company_id.id,
+            "lines": lines,
+        },
+        sort_keys=True,
+    )
+
+
+def create_journal_entry_draft(
+    env, move_vals, dimension_by_line, source="manual", template=None, reason=None
+):
+    """Maker step of the JE review flow (FR-FIN-014/015, AUT-FIN-14): create
+    the entry as a DRAFT with its COA rules checked and its dimensions
+    attached, queue it in the posting log as awaiting review, and route its
+    fix.journal.approval to a DOFA-tier Accounting Administrator who is not
+    the preparer. The approver posts it through approve_journal_entry (or
+    from the M63 inbox)."""
+    require_role(env, ACCOUNT_USER, "Drafting a manual journal entry")
+    move_vals = dict(move_vals)
+    move_vals.setdefault("move_type", "entry")
+    if move_vals.get("move_type") != "entry":
+        raise UserError("A manual journal is a journal entry (move_type 'entry').")
     move = env["account.move"].create(move_vals)
-    _validate_move_against_chart(env, move, dimension_by_line, source)
-    _attach_dimensions(env, move, dimension_by_line)
+    _validate_move_against_chart(env, move, dimension_by_line or {}, source)
+    move._fix_check_not_in_closed_period()
+    _attach_dimensions(env, move, dimension_by_line or {})
     log = _log_posting(env, move, source, getattr(env, "uid", None), template, state="requested")
+    approval = env["fix.journal.approval"]._guarded().create(
+        {
+            "move_id": move.id,
+            "company_id": move.company_id.id,
+            "source": source,
+            "reason": reason or move.ref or False,
+            "log_id": log.id,
+        }
+    )
+    approval.action_request_approval(justification=reason or move.ref or None)
     return move, log
 
 
 def approve_journal_entry(env, move, dimension_by_line=None):
-    """Checker step of the JE review flow. Segregation of duties is enforced
-    in Python, not just the UI: the approver must differ from the requester
-    and hold the accounting manager group (FR-FIN-015). Dimensions were
-    attached when the draft was created; an optional dimension_by_line
-    re-annotates (used only by engine callers)."""
-    approver = env.user
-    log = (
-        env["fix.journal.posting.log"]
-        .sudo()
-        .search([("move_id", "=", move.id), ("state", "=", "requested")], limit=1)
-    )
-    if log and log.requested_by.id == approver.id:
+    """Checker step of the JE review flow. The entry must have been drafted
+    through create_journal_entry_draft (an entry with no approval cannot be
+    approved by anyone — A08 M19-2/J04); the checker decides the routed
+    approval task assigned to them, and the approval's own checks apply: the
+    Accounting Administrator group, the DOFA tier of the amount, a different
+    person from the preparer, and the entry unchanged since it was routed."""
+    approval = env["fix.journal.approval"].sudo().search([("move_id", "=", move.id)], limit=1)
+    if not approval:
         raise UserError(
-            "Segregation of duties (FR-FIN-015): %s requested this entry and "
-            "cannot approve their own posting." % approver.name
+            "Entry %s was not drafted through the M19 maker-checker; it has no approval to "
+            "decide. Draft it for review instead." % (move.display_name,)
         )
-    if not approver.has_group("account.group_account_manager"):
-        raise UserError(
-            "Only the accounting manager group may approve journal entries (FR-FIN-015)."
+    if env.su:
+        approval.with_env(env)._fix_post_approved(system=True)
+    else:
+        if not env.user.has_group(ACCOUNT_MANAGER):
+            raise UserError(
+                "Only the accounting manager group may approve journal entries (FR-FIN-015)."
+            )
+        task = (
+            env["fix.workflow.task"]
+            .sudo()
+            .search(
+                [
+                    ("request_id", "=", approval.approval_request_id.id),
+                    ("state", "=", "pending"),
+                    ("assigned_user_id", "=", env.uid),
+                ],
+                limit=1,
+            )
+            if approval.approval_request_id
+            else env["fix.workflow.task"]
         )
-    move.action_post()
+        if not task:
+            raise UserError(
+                "Entry %s is not awaiting your approval: it is routed to the DOFA-tier "
+                "Accounting Administrators other than its preparer (segregation of duties, "
+                "FR-FIN-015)." % (move.display_name,)
+            )
+        task.with_env(env).action_approve()
     dimensions = env["fix.journal.dimension"]
     if dimension_by_line:
         existing = env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
         dimensions = existing | _attach_dimensions(env, move, dimension_by_line)
-    publish(
-        env,
-        "journal.posted",
-        "account.move",
-        move.id,
-        {
-            "company_id": move.company_id.id,
-            "amount": float(move.amount_total),
-            "currency": move.currency_id.name,
-            "line_count": len(move.line_ids),
-            "source": log.source if log else "manual",
-        },
-    )
-    if log:
-        log.with_context(force_edit=True).sudo().write(
-            {
-                "state": "posted",
-                "posted_by": approver.id,
-                "posted_at": fields.Datetime.now(),
-                "move_name": move.name or log.move_name,
-            }
-        )
     return move, dimensions

@@ -56,11 +56,13 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_release" type="object" string="Release to Bank" class="btn-primary" invisible="state != 'pending'"/>
-                    <button name="action_confirm_bank" type="object" string="Confirm Bank Debit" class="btn-primary" invisible="state != 'sent'"/>
+                    <button name="action_prepare" type="object" string="Prepare for Release" class="btn-primary" invisible="state != 'pending'"/>
+                    <button name="action_release" type="object" string="Release to Bank" class="btn-primary" invisible="state != 'prepared'" groups="account.group_account_manager"/>
+                    <button name="action_confirm_bank" type="object" string="Confirm from Statement" class="btn-primary" invisible="state != 'sent'"/>
                     <button name="action_mark_failed" type="object" string="Bank Rejected" invisible="state != 'sent'"/>
                     <button name="action_retry" type="object" string="Re-queue" invisible="state != 'failed'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="pending,sent,executed"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('pending', 'prepared', 'failed')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,prepared,sent,executed"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
@@ -82,6 +84,18 @@
                             <field name="journal_id"/>
                             <field name="debit_account_id"/>
                             <field name="value_date"/>
+                            <field name="duplicate_reason"/>
+                            <field name="dofa_justification"/>
+                        </group>
+                        <group string="Authorisation">
+                            <field name="source_ref"/>
+                            <field name="source_approved_by_id"/>
+                            <field name="prepared_by_id"/>
+                            <field name="approval_state"/>
+                            <field name="dofa_tier_required"/>
+                            <field name="dofa_approved_by"/>
+                            <field name="released_amount"/>
+                            <field name="released_acc_number"/>
                         </group>
                         <group string="Bank Confirmation">
                             <field name="bank_reference"/>
@@ -96,6 +110,7 @@
                             <field name="sent_by_id"/>
                             <field name="executed_at"/>
                             <field name="move_id"/>
+                            <field name="reversal_move_id"/>
                             <field name="gl_note"/>
                         </group>
                     </group>

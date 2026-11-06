@@ -352,14 +352,26 @@ def test_budget_variance_reads_approved_versions_only(world):
     )
     assert _run(world, "budget_variance")["rows"] == []  # draft: not reported
     submitter = _user(env, "account.group_account_user")
+    # A08 P1-5: a submission is routed to a CFO-tier Accounting Administrator,
+    # so the company needs one; the (superuser) test then approves directly.
+    _user(
+        env,
+        "base.group_user",
+        "account.group_account_manager",
+        "cd_entity_config.group_dofa_tier_4",
+    )
     version.with_user(submitter).action_submit()
     version.action_approve()
     out = _run(world, "budget_variance")
     (row,) = out["rows"]
+    # A08 M54-6: the plan is measured over the REPORT window (today only), pro
+    # rata to days of the month-to-date line; the actual over the same window.
+    days = (world.today - world.today.replace(day=1)).days + 1
+    planned = round(45000.0 / days, 2)
     assert (row["planned"], row["actual"], row["variance"], row["flag"]) == (
-        45000.0,
+        planned,
         50000.0,
-        -5000.0,
+        round(planned - 50000.0, 2),
         "Adverse",
     )
     kp = m54.kpis(env)

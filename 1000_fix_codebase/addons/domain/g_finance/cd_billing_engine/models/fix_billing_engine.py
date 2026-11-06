@@ -8,18 +8,57 @@
 # (P06-M02-T08 atomic posting).
 #
 # Call direction (AR-006 section 4.1): this module CALLS M51's
-# determination synchronously (import tax_logic) and CONSUMES nothing
-# back; M50's bank/cash events are consumed for receipts — M20 never
-# calls M50 synchronously (pair 6).
+# determination synchronously and CONSUMES nothing back; M50's bank/cash
+# events are consumed for receipts — M20 never calls M50 synchronously
+# (pair 6).
+#
+# A08 remediation (B4, 4 Nov 2026), M20-1..M20-15:
+#   * every workflow field (invoice / credit note state, numbers, stamps, GL
+#     links) is guarded: it changes only through its action (F3, M20-2);
+#   * VAT on every user-entered line is M51's determination, never typed
+#     (BRU-ARB-03/04, M20-8); an issued invoice and its lines are frozen;
+#   * a manual invoice is issued by a second person (BRU-ARB-02); cancelling
+#     an issued invoice is an Accounting Administrator's act (FR-ARB-011);
+#   * credit notes: never auto-approved; the approver is never the raiser;
+#     <= the direct band a second Accountant, above it the Accounting
+#     Administrator through M63 (fix.finance.dofa.mixin); total credits never
+#     exceed the invoice; the amount is frozen at submit (S3, M20-1/-3/-7);
+#   * write-offs are requested, approved on the same ladder and written off
+#     against the IFRS 9 loss allowance first (fix.ar.writeoff, M20-6);
+#   * dunning suppressions are kept with who / why / until (BRU-ARB-16);
+#   * consolidated bills take issued invoices only (M20-14);
+#   * the per-company sequences are copied as the system (M20-9).
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
+from .fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    GROUP_ADMINISTRATOR,
+    float_param,
+    require_role,
+)
+
 TWO_PLACES = Decimal("0.01")
+
+# Credit-note and write-off ladders (spec 05-04 §7: credit note <= BDT 10,000
+# Finance Officer, above it Finance Manager). The CFO band is off (0) until
+# the business rules it (A08 report §7, B3); the M30 DOFA ladder overrides.
+PARAM_CREDIT_DIRECT = "cd_billing_engine.credit_note_direct_limit"
+PARAM_CREDIT_CFO = "cd_billing_engine.credit_note_cfo_limit"
+PARAM_WRITEOFF_DIRECT = "cd_billing_engine.writeoff_direct_limit"
+PARAM_WRITEOFF_CFO = "cd_billing_engine.writeoff_cfo_limit"
+DEFAULT_DIRECT_LIMIT = 10000.0
+# Days a payment-plan / strategic dunning suppression lasts when no end is given.
+PARAM_SUPPRESSION_DAYS = "cd_billing_engine.dunning_suppression_days"
+DEFAULT_SUPPRESSION_DAYS = 30
+
+# Invoice sources whose lines come from a system determination (not typed).
+SYSTEM_SOURCES = ("fix.service.order",)
 
 
 def allocate_discount(grosses: list[Decimal], discount: Decimal) -> list[Decimal]:
@@ -41,6 +80,27 @@ def allocate_discount(grosses: list[Decimal], discount: Decimal) -> list[Decimal
     return shares
 
 
+def m51_determine(env, lines, on_date=None, company=None):
+    """M51's sales VAT determination (B5 contract, A08 M51-5): the Tax Rate
+    Master in force and the tariff rows. Falls back to the pure engine only
+    where the M51 service is not installed."""
+    Treatment = env["fix.vat.treatment"]
+    try:
+        if hasattr(Treatment, "_fix_determine_tax"):
+            return Treatment._fix_determine_tax(lines, on_date=on_date, company=company)
+        return tax_logic.determine_tax(lines)
+    except tax_logic.DeterminationError as exc:
+        raise UserError("VAT determination (M51) refused: %s" % exc) from exc
+
+
+def _issue_mushak_row(env, vals):
+    """Write a Mushak 6.3 row through M51's issuing service."""
+    Register = env["fix.mushak.register"]
+    if hasattr(Register, "_fix_issue_register_row"):
+        return Register._fix_issue_register_row(vals)
+    return Register.sudo().create(vals)
+
+
 class FixArInvoice(models.Model):
     """A customer invoice in the AR engine, feeding Odoo account.move.
 
@@ -50,13 +110,17 @@ class FixArInvoice(models.Model):
 
     _name = "fix.ar.invoice"
     _description = "AR Invoice"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "invoice_date desc, id desc"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _source_key_unique = models.Constraint(
         "UNIQUE (source_model, source_id)",
         "One invoice per source document — the auto-generation guard",
+    )
+    _source_ref_unique = models.Constraint(
+        "UNIQUE (source_model, source_ref)",
+        "One invoice per external source reference",
     )
 
     company_id = fields.Many2one(
@@ -74,6 +138,13 @@ class FixArInvoice(models.Model):
         string="Source Model", required=True, index=True, help="e.g. fix.service.order"
     )
     source_id = fields.Integer(string="Source ID", required=True, index=True)
+    source_ref = fields.Char(
+        string="Source Reference",
+        index=True,
+        copy=False,
+        help="The external source reference (contract billing line, OEM claim, "
+        "subscription charge) of an invoice raised through _fix_draft_invoice_from_source.",
+    )
     invoice_date = fields.Date(default=fields.Date.today, required=True)
     state = fields.Selection(
         [
@@ -144,6 +215,21 @@ class FixArInvoice(models.Model):
     vds_certificate_ids = fields.One2many(
         "fix.vds.certificate.received", "invoice_id", string="VDS Certificates (Mushak 6.6)"
     )
+    writeoff_ids = fields.One2many("fix.ar.writeoff", "invoice_id", string="Write-offs")
+    # A08 B4: who issued / cancelled, and the credit account of a system invoice
+    issued_by_id = fields.Many2one("res.users", string="Issued By", readonly=True, copy=False)
+    cancelled_by_id = fields.Many2one(
+        "res.users", string="Cancellation Approved By", readonly=True, copy=False
+    )
+    cancel_reason = fields.Char(string="Cancellation Reason", readonly=True, copy=False)
+    revenue_account_id = fields.Many2one(
+        "account.account",
+        string="Credit Account (system invoice)",
+        readonly=True,
+        copy=False,
+        help="Set by the AR invoice API for a non-service supply (e.g. an asset "
+        "disposal): the issue credits this account instead of service revenue.",
+    )
     amount_paid = fields.Monetary(
         string="Paid",
         currency_field="currency_id",
@@ -165,12 +251,68 @@ class FixArInvoice(models.Model):
         help="VAT the customer deducted at source and certified on a Mushak 6.6 that "
         "finance has verified and settled against this invoice",
     )
+    written_off_amount = fields.Monetary(
+        string="Written Off",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+    )
     amount_residual = fields.Monetary(
         string="Residual",
         currency_field="currency_id",
         compute="_compute_payment",
         store=True,
     )
+
+    INVOICE_GUARDED = {
+        "state",
+        "name",
+        "mushak_id",
+        "posted_move_id",
+        "gl_note",
+        "paid_date",
+        "generated_at",
+        "generation_seconds",
+        "issued_by_id",
+        "cancelled_by_id",
+        "cancel_reason",
+        "revenue_account_id",
+    }
+    # Frozen once the invoice is issued (Mushak 6.3 and GL carry them).
+    INVOICE_LOCKED = (
+        "customer_id",
+        "company_id",
+        "operating_unit_id",
+        "branch_id",
+        "currency_id",
+        "invoice_date",
+        "loyalty_points_redeemed",
+        "loyalty_discount_amount",
+        "manual_reason",
+        "source_model",
+        "source_id",
+        "source_ref",
+        "line_ids",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.INVOICE_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.INVOICE_LOCKED)
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = set(self.INVOICE_LOCKED) & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError(
+                    "An issued invoice is frozen (its Mushak 6.3 and GL entry carry %s): "
+                    "correct it with a credit note or cancel it." % ", ".join(sorted(touched))
+                )
+        return super().write(vals)
 
     @api.depends("line_ids.taxable_amount", "line_ids.vat_amount", "loyalty_discount_amount")
     def _compute_totals(self):
@@ -187,6 +329,8 @@ class FixArInvoice(models.Model):
         "credit_note_ids.state",
         "vds_certificate_ids.vds_amount",
         "vds_certificate_ids.state",
+        "writeoff_ids.amount",
+        "writeoff_ids.state",
     )
     def _compute_payment(self):
         for inv in self:
@@ -199,10 +343,26 @@ class FixArInvoice(models.Model):
                     lambda c: c.state in ("settled", "claimed")
                 ).mapped("vds_amount")
             )
-            inv.amount_residual = max(
-                inv.total_payable - inv.amount_paid - inv.credited_amount - inv.vds_settled_amount,
-                0.0,
+            inv.written_off_amount = sum(
+                inv.writeoff_ids.filtered(lambda w: w.state == "posted").mapped("amount")
             )
+            inv.amount_residual = max(inv._raw_residual(), 0.0)
+
+    def _raw_residual(self) -> float:
+        """Total less every settlement document, NOT clamped at zero: a
+        negative figure is an over-settlement the allocation check refuses."""
+        self.ensure_one()
+        paid = sum(self.allocation_ids.mapped("amount"))
+        credited = sum(
+            self.credit_note_ids.filtered(lambda n: n.state == "issued").mapped("amount")
+        )
+        vds = sum(
+            self.vds_certificate_ids.filtered(lambda c: c.state in ("settled", "claimed")).mapped(
+                "vds_amount"
+            )
+        )
+        written = sum(self.writeoff_ids.filtered(lambda w: w.state == "posted").mapped("amount"))
+        return self.total_payable - paid - credited - vds - written
 
     # Invoices billed for a subscription / AMC cycle charge are a CONTRACT
     # LIABILITY until the performance obligations are satisfied (IFRS 15):
@@ -215,6 +375,15 @@ class FixArInvoice(models.Model):
     def _revenue_role(self) -> str:
         self.ensure_one()
         return "deferred_revenue" if self.source_model in self.DEFERRED_SOURCES else "revenue"
+
+    def _revenue_account(self):
+        """The account the issue credits: the API's explicit account, else the role's."""
+        from .fix_ar_engine import _ar_account
+
+        self.ensure_one()
+        if self.revenue_account_id:
+            return self.revenue_account_id
+        return _ar_account(self.env, self.company_id, self._revenue_role())
 
     # ------------------------------------------------------------------
     # M20 engine depth: terms, credit holds, GL posting, lifecycle actions
@@ -278,30 +447,37 @@ class FixArInvoice(models.Model):
     INVOICE_SEQUENCE_CODE = "fix.ar.invoice"
 
     @api.model
-    def _invoice_sequence(self, company):
-        """The company's own invoice-number sequence — copied once from the
-        module template (the Mushak pattern, without fiscal-year ranges:
-        FR-ARB-005 gapless per entity)."""
+    def _company_sequence(self, code, template_xmlid, label, company, missing):
+        """The company's own copy of a module sequence, made as the system:
+        the template copy needs ir.sequence write rights an accountant does
+        not hold (A08 M20-9 — the first invoice of a company was refused)."""
         Sequence = self.env["ir.sequence"].sudo()
-        seq = Sequence.search(
-            [("code", "=", self.INVOICE_SEQUENCE_CODE), ("company_id", "=", company.id)], limit=1
-        )
+        seq = Sequence.search([("code", "=", code), ("company_id", "=", company.id)], limit=1)
         if not seq:
-            template = self.env.ref(
-                "cd_billing_engine.seq_fix_ar_invoice", raise_if_not_found=False
-            )
+            template = self.env.ref(template_xmlid, raise_if_not_found=False)
             if not template:
-                raise UserError(
-                    "The invoice numbering sequence is missing — upgrade cd_billing_engine."
-                )
-            seq = template.copy(
+                raise UserError(missing)
+            seq = template.sudo().copy(
                 {
-                    "name": "AR Invoice No — %s" % company.name,
+                    "name": "%s — %s" % (label, company.name),
                     "company_id": company.id,
                     "date_range_ids": [],
                 }
             )
         return seq
+
+    @api.model
+    def _invoice_sequence(self, company):
+        """The company's own invoice-number sequence — copied once from the
+        module template (the Mushak pattern, without fiscal-year ranges:
+        FR-ARB-005 gapless per entity)."""
+        return self._company_sequence(
+            self.INVOICE_SEQUENCE_CODE,
+            "cd_billing_engine.seq_fix_ar_invoice",
+            "AR Invoice No",
+            company,
+            "The invoice numbering sequence is missing — upgrade cd_billing_engine.",
+        )
 
     def _next_invoice_no(self) -> str:
         self.ensure_one()
@@ -316,17 +492,20 @@ class FixArInvoice(models.Model):
 
         for inv in self:
             if inv.total_payable <= 0.005:
-                inv.gl_note = "Zero-total invoice — no GL effect"
-                return
+                inv._guarded().write({"gl_note": "Zero-total invoice — no GL effect"})
+                continue
             company = inv.company_id
             ar = _ar_account(inv.env, company, "ar")
-            revenue = _ar_account(inv.env, company, inv._revenue_role())
+            revenue = inv._revenue_account()
             vat = _ar_account(inv.env, company, "vat_output")
             if not (ar and revenue and vat):
-                inv.gl_note = (
-                    "GL not posted: AR/revenue/VAT account unconfigured for %s" % company.name
+                inv._guarded().write(
+                    {
+                        "gl_note": "GL not posted: AR/revenue/VAT account unconfigured for %s"
+                        % company.name
+                    }
                 )
-                return
+                continue
             # loyalty reduces revenue; if it ever exceeded the taxable value,
             # the VAT credit is reduced rather than inventing a negative line
             vat_credit = inv.vat_amount
@@ -370,10 +549,16 @@ class FixArInvoice(models.Model):
                 dims,
                 source="ar",
             )
-            inv.write({"posted_move_id": move.id if move else False, "gl_note": note or False})
+            inv._guarded().write(
+                {"posted_move_id": move.id if move else False, "gl_note": note or False}
+            )
             if move and inv.mushak_id:
-                # the flag the register has carried unset since day one
-                inv.mushak_id.sudo().posted = True
+                # T08: the register row is marked posted only with its GL entry
+                mushak = inv.mushak_id.sudo()
+                if hasattr(mushak, "_fix_mark_posted"):
+                    mushak._fix_mark_posted(move)
+                else:
+                    mushak.write({"posted": True})
 
     def _post_reversal_gl(self, label, debit_lines, credit_lines):
         """A mirror posting for cancellations/write-offs; refuses (never
@@ -415,7 +600,12 @@ class FixArInvoice(models.Model):
 
     def action_cancel(self, reason=""):
         """FR-ARB-011: unpaid invoices only, approved reason, number
-        retained; the GL mirror is posted when the issue was posted."""
+        retained; the GL mirror is posted when the issue was posted.
+
+        A08 M20-8 (spec state table "Finance Manager"): cancelling an ISSUED
+        invoice is decided by an Accounting Administrator who neither raised
+        nor issued it. A draft (no number, no Mushak, no GL) may be dropped
+        by its maker."""
         from .fix_ar_engine import _ar_account
 
         for inv in self:
@@ -425,15 +615,23 @@ class FixArInvoice(models.Model):
                 inv.amount_paid > 0.005
                 or inv.credited_amount > 0.005
                 or inv.vds_settled_amount > 0.005
+                or inv.written_off_amount > 0.005
             ):
                 raise UserError(
                     "Paid/credited invoices cannot be cancelled — issue a credit note instead"
                 )
             if not (reason or "").strip():
                 raise UserError("A cancellation reason is required (FR-ARB-011)")
+            if inv.state == "issued" and not self.env.su:
+                require_role(self.env, GROUP_ADMINISTRATOR, "Cancelling an issued invoice")
+                if self.env.user in (inv.create_uid | inv.issued_by_id):
+                    raise UserError(
+                        "Segregation of duties: you raised or issued invoice %s; another "
+                        "Accounting Administrator approves its cancellation." % inv.name
+                    )
             if inv.posted_move_id:
                 ar = _ar_account(inv.env, inv.company_id, "ar")
-                revenue = _ar_account(inv.env, inv.company_id, inv._revenue_role())
+                revenue = inv._revenue_account()
                 vat = _ar_account(inv.env, inv.company_id, "vat_output")
                 vat_credit = min(inv.vat_amount, inv.total_payable)
                 revenue_credit = inv.total_payable - vat_credit
@@ -445,7 +643,13 @@ class FixArInvoice(models.Model):
                     ],
                     [("ar", ar, inv.total_payable, inv.customer_id.id)],
                 )
-            inv.state = "cancelled"
+            inv._guarded().write(
+                {
+                    "state": "cancelled",
+                    "cancel_reason": reason[:500],
+                    "cancelled_by_id": self.env.uid,
+                }
+            )
             publish(
                 inv.env,
                 "invoice.cancelled",
@@ -454,46 +658,35 @@ class FixArInvoice(models.Model):
                 {"invoice": inv.name, "reason": reason[:500]},
             )
 
-    def action_write_off(self, reason=""):
-        """FR-ARB-041: authority-matrix write-off — above BDT 25,000 a
-        manager approves (the credit-note ladder)."""
-        from .fix_ar_engine import _ar_account
-
+    def action_write_off(self, reason="", recovery_history=""):
+        """FR-ARB-041 / BRU-ARB-12: REQUEST the write-off of the open
+        residual. The request (fix.ar.writeoff) is approved on the finance
+        ladder by someone other than the requester and only then posts,
+        against the IFRS 9 loss allowance first. Returns the request."""
+        WriteOff = self.env["fix.ar.writeoff"]
+        requests = WriteOff
         for inv in self:
-            if inv.state != "issued":
-                raise UserError("Only issued invoices can be written off")
-            if inv.amount_residual <= 0.005:
-                raise UserError("Nothing residual to write off on %s" % inv.name)
-            if not (reason or "").strip():
-                raise UserError("A write-off reason is required (FR-ARB-041)")
-            if inv.amount_residual > 25000 and not self.env.user.has_group("base.group_system"):
-                raise UserError(
-                    "Write-offs above BDT 25,000 require managerial approval (05-04 section 7)"
-                )
-            writeoff = _ar_account(inv.env, inv.company_id, "writeoff_expense")
-            ar = _ar_account(inv.env, inv.company_id, "ar")
-            inv._post_reversal_gl(
-                "WRITE-OFF INV %s — %s" % (inv.name, reason),
-                [("writeoff_expense", writeoff, inv.amount_residual, False)],
-                [("ar", ar, inv.amount_residual, inv.customer_id.id)],
+            requests |= WriteOff.create(
+                {
+                    "invoice_id": inv.id,
+                    "reason": reason,
+                    "recovery_history": recovery_history or reason,
+                }
             )
-            inv.state = "written_off"
-            publish(
-                inv.env,
-                "invoice.written_off",
-                "fix.ar.invoice",
-                inv.id,
-                {"invoice": inv.name, "amount": inv.amount_residual, "reason": reason[:500]},
-            )
+        requests.action_submit()
+        return requests
 
     @api.model
     def create_manual_invoice(self, vals, lines, reason_code):
         """FR-ARB-010: the manual exception path. A reason code is mandatory
         and the invoice starts as draft — issue (Mushak + number + GL) is a
-        separate deliberate step."""
+        separate deliberate step, by a second person (BRU-ARB-02). VAT on the
+        lines is M51's determination: a typed VAT that differs is refused."""
         if not (reason_code or "").strip():
             raise UserError("Manual invoices need a reason code (FR-ARB-010)")
         vals = dict(vals)
+        for key in ("source_model", "source_id", "line_ids"):
+            vals.pop(key, None)
         vals.update({"source_model": "manual", "source_id": 0, "manual_reason": reason_code})
         invoice = self.create(vals)
         # keep the one-invoice-per-source guard meaningful for manual rows;
@@ -504,9 +697,185 @@ class FixArInvoice(models.Model):
             self.env["fix.ar.invoice.line"].create(dict(line, invoice_id=invoice.id))
         return invoice
 
+    @api.model
+    def _fix_ar_invoice_from_source(
+        self,
+        source,
+        customer,
+        lines,
+        reason,
+        credit_account=None,
+        operating_unit=None,
+        branch=None,
+        invoice_date=None,
+        issue=True,
+    ):
+        """CONTRACT (B4 -> B5, A08 P2 "disposal -> M20 invoice"): raise the AR
+        invoice of an approved non-service supply (an asset disposal sale)
+        and, by default, issue it: number, Mushak 6.3 and GL in one go.
+
+        source          the approved source record (one invoice per source);
+        customer        res.partner billed;
+        lines           [{"description", "taxable_amount", "vat_treatment_code"?,
+                         "product_id"?}] — VAT is M51's determination;
+        reason          why the invoice exists (the source's approval);
+        credit_account  account.account the issue credits (e.g. disposal
+                        proceeds clearing); empty = service revenue.
+        Idempotent: a second call for the same source returns the invoice."""
+        source.ensure_one()
+        company = (
+            source.company_id if "company_id" in source._fields else False
+        ) or self.env.company
+        ou = operating_unit or (
+            source.operating_unit_id if "operating_unit_id" in source._fields else False
+        )
+        return self._fix_source_invoice(
+            source._name,
+            source.id,
+            None,
+            customer,
+            lines,
+            reason,
+            company,
+            credit_account=credit_account,
+            operating_unit=ou,
+            branch=branch,
+            invoice_date=invoice_date,
+            issue=issue,
+        )
+
+    @api.model
+    def _fix_draft_invoice_from_source(
+        self,
+        source_model,
+        source_ref,
+        customer,
+        lines,
+        reason,
+        company=None,
+        operating_unit=None,
+        branch=None,
+        invoice_date=None,
+        credit_account=None,
+    ):
+        """CONTRACT (B4 -> A04 bridge): a DRAFT AR invoice for an external
+        source (contract billing, an OEM warranty claim, a subscription
+        charge) identified by (source_model, source_ref). Idempotent: a second
+        call for the same pair returns the existing invoice, whatever its
+        state. VAT is the M51 determination; Finance issues the draft (number,
+        Mushak 6.3, GL) by action_issue.
+
+        lines: [{"description", "taxable_amount", "vat_treatment_code"?, "product_id"?}]"""
+        source_ref = str(source_ref or "").strip()
+        if not source_model or not source_ref or source_model == "manual":
+            raise UserError("A source invoice names its source model and reference.")
+        existing = self.sudo().search(
+            [("source_model", "=", source_model), ("source_ref", "=", source_ref)], limit=1
+        )
+        if existing:
+            return self.browse(existing.id)
+        import zlib
+
+        key = -(zlib.crc32(("%s|%s" % (source_model, source_ref)).encode()) & 0x7FFFFFFF) - 1
+        return self._fix_source_invoice(
+            source_model,
+            key,
+            source_ref,
+            customer,
+            lines,
+            reason,
+            company or self.env.company,
+            credit_account=credit_account,
+            operating_unit=operating_unit,
+            branch=branch,
+            invoice_date=invoice_date,
+            issue=False,
+        )
+
+    @api.model
+    def _fix_source_invoice(
+        self,
+        source_model,
+        source_id,
+        source_ref,
+        customer,
+        lines,
+        reason,
+        company,
+        credit_account=None,
+        operating_unit=None,
+        branch=None,
+        invoice_date=None,
+        issue=True,
+    ):
+        Invoice = self.sudo()
+        existing = Invoice.search(
+            [("source_model", "=", source_model), ("source_id", "=", source_id)], limit=1
+        )
+        if existing:
+            return self.browse(existing.id)
+        if not lines:
+            raise UserError("The source invoice needs at least one line")
+        if not (reason or "").strip():
+            raise UserError("State why the invoice is raised (the source approval)")
+        ou = operating_unit or self.env["operating.unit"].sudo().search(
+            [("company_id", "=", company.id)], limit=1
+        )
+        if not ou:
+            raise UserError("Company %s has no operating unit to invoice from" % company.name)
+        invoice = Invoice._guarded().create(
+            {
+                "company_id": company.id,
+                "operating_unit_id": ou.id,
+                "branch_id": branch.id if branch else False,
+                "customer_id": customer.id,
+                "source_model": source_model,
+                "source_id": source_id,
+                "source_ref": source_ref or False,
+                "invoice_date": invoice_date or fields.Date.context_today(self),
+                "manual_reason": reason.strip()[:250],
+                "revenue_account_id": credit_account.id if credit_account else False,
+            }
+        )
+        Treatment = self.env["fix.vat.treatment"].sudo()
+        for line in lines:
+            vals = {
+                "invoice_id": invoice.id,
+                "description": line.get("description") or reason,
+                "taxable_amount": line["taxable_amount"],
+                "product_id": line.get("product_id") or False,
+            }
+            code = line.get("vat_treatment_code")
+            if code:
+                row = (
+                    Treatment._fix_treatment_for(code, company)
+                    if hasattr(Treatment, "_fix_treatment_for")
+                    else Treatment.search([("code", "=", code)], limit=1)
+                )
+                if not row:
+                    raise UserError("No active VAT treatment %s in M51" % code)
+                vals["vat_treatment_id"] = row.id
+            self.env["fix.ar.invoice.line"].sudo()._fix_with_determination(vals)
+        if issue:
+            invoice.action_issue()
+        return self.browse(invoice.id)
+
+    def _fix_assert_issuer(self):
+        """BRU-ARB-02: a manually raised invoice is issued by a second person."""
+        self.ensure_one()
+        if self.env.su or self.source_model != "manual":
+            return
+        if self.create_uid == self.env.user:
+            raise UserError(
+                "A manual invoice is approved and issued by someone other than the person who "
+                "raised it (BRU-ARB-02): %s raised %s." % (self.env.user.name, self.display_name)
+            )
+
     def action_issue(self):
         """Issue a manual/draft invoice: draws the gapless number, writes the
-        Mushak 6.3 row, posts to GL, publishes invoice.created."""
+        Mushak 6.3 row, posts to GL, publishes invoice.created. An Accountant
+        issues (a Billing clerk raises the draft: the M20-15 role split)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Issuing an invoice")
         for inv in self:
             if inv.state != "draft":
                 raise UserError("Only draft invoices can be issued")
@@ -516,14 +885,17 @@ class FixArInvoice(models.Model):
                 raise UserError("Invoice total must be positive")
             if not (inv.manual_reason or "").strip():
                 raise UserError("Manual invoices need a reason code (FR-ARB-010)")
+            inv._fix_assert_issuer()
             # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
             if hasattr(inv.customer_id, "_fix_assert_party_usable_downstream"):
                 inv.customer_id._fix_assert_party_usable_downstream("an invoice")
             inv._credit_hold_check()
             company = inv.company_id
-            mushak = self.env["fix.mushak.register"].create(
+            mushak = _issue_mushak_row(
+                self.env,
                 {
                     "operating_unit_id": inv.operating_unit_id.id,
+                    "company_id": company.id,
                     "mushak_no": self._next_mushak_no(company, inv.invoice_date),
                     "invoice_ref": "AR/%s" % inv.id,
                     "invoice_date": inv.invoice_date,
@@ -534,10 +906,17 @@ class FixArInvoice(models.Model):
                     "taxable_amount": inv.taxable_amount,
                     "vat_amount": inv.vat_amount,
                     "total_payable": inv.total_payable,
-                    "treatment_summary": "manual entry (%s)" % inv.manual_reason,
+                    "treatment_summary": inv._treatment_summary(),
+                },
+            )
+            inv._guarded().write(
+                {
+                    "name": inv._next_invoice_no(),
+                    "mushak_id": mushak.id,
+                    "state": "issued",
+                    "issued_by_id": self.env.uid,
                 }
             )
-            inv.write({"name": inv._next_invoice_no(), "mushak_id": mushak.id, "state": "issued"})
             publish(
                 inv.env,
                 "invoice.created",
@@ -559,8 +938,24 @@ class FixArInvoice(models.Model):
                     "operating_unit_id": inv.operating_unit_id.id,
                 },
             )
-            inv.write({"generated_at": fields.Datetime.now(), "generation_seconds": 0.0})
+            inv._guarded().write({"generated_at": fields.Datetime.now(), "generation_seconds": 0.0})
             inv._post_issue_gl()
+
+    def _treatment_summary(self) -> str:
+        self.ensure_one()
+        parts = []
+        for line in self.line_ids:
+            row = line.vat_treatment_id
+            parts.append(
+                "%s: %s"
+                % (
+                    line.product_id.default_code or line.description or "LINE",
+                    row.treatment_type if row else "standard (M51 determination)",
+                )
+            )
+        reason = (self.manual_reason or "").strip()
+        head = "manual entry (%s)" % reason if self.source_model == "manual" else reason
+        return "\n".join([head, *parts]) if head else "\n".join(parts)
 
     @api.model
     def from_closed_service_order(self, order, closed_event_at) -> "FixArInvoice":
@@ -622,7 +1017,9 @@ class FixArInvoice(models.Model):
                 estimate.line_ids, quantities, prices, discounts, strict=True
             )
         ]
-        determination = tax_logic.determine_tax(lines)
+        determination = m51_determine(
+            self.env, lines, on_date=fields.Date.context_today(self), company=order.company_id
+        )
 
         invoice = self.create(
             {
@@ -641,7 +1038,7 @@ class FixArInvoice(models.Model):
         # estimate lines sharing a code (e.g. two "SVC" labour lines) onto
         # the last line's amounts and mis-stated the invoice.
         for line, det in zip(estimate.line_ids, determination.lines, strict=True):
-            self.env["fix.ar.invoice.line"].create(
+            self.env["fix.ar.invoice.line"].sudo().create(
                 {
                     "invoice_id": invoice.id,
                     "product_id": line.product_id.id,
@@ -654,9 +1051,11 @@ class FixArInvoice(models.Model):
 
         # Mushak register row — same transaction (T08 atomicity)
         company = invoice.company_id
-        mushak = self.env["fix.mushak.register"].create(
+        mushak = _issue_mushak_row(
+            self.env,
             {
                 "operating_unit_id": invoice.operating_unit_id.id,
+                "company_id": company.id,
                 "mushak_no": self._next_mushak_no(company, invoice.invoice_date),
                 "invoice_ref": "AR/%s" % invoice.id,
                 "invoice_date": invoice.invoice_date,
@@ -668,16 +1067,18 @@ class FixArInvoice(models.Model):
                 "vat_amount": invoice.vat_amount,
                 "total_payable": invoice.total_payable,
                 "treatment_summary": "\n".join(
-                    "%s: %s @ %s%%" % (d.product_code, d.treatment, d.rate)
+                    "%s: %s @ %s%%"
+                    % (d.product_code, d.treatment, format(Decimal(str(d.rate)).normalize(), "f"))
                     for d in determination.lines
                 ),
-            }
+            },
         )
-        invoice.write(
+        invoice._guarded().write(
             {
                 "mushak_id": mushak.id,
                 "state": "issued",
                 "name": invoice._next_invoice_no(),
+                "issued_by_id": self.env.uid,
             }
         )
 
@@ -703,7 +1104,9 @@ class FixArInvoice(models.Model):
             },
         )
         elapsed = time.monotonic() - started
-        invoice.write({"generated_at": fields.Datetime.now(), "generation_seconds": elapsed})
+        invoice._guarded().write(
+            {"generated_at": fields.Datetime.now(), "generation_seconds": elapsed}
+        )
         # the M19 posting the docstrings always claimed (skips with an
         # honest gl_note when the company's GL is unconfigured)
         invoice._post_issue_gl()
@@ -715,24 +1118,13 @@ class FixArInvoice(models.Model):
     def _mushak_sequence(self, company):
         """The company's own Mushak 6.3 ir.sequence — copied once from the
         module's template (data/ir_sequence_data.xml)."""
-        Sequence = self.env["ir.sequence"].sudo()
-        seq = Sequence.search(
-            [("code", "=", self.MUSHAK_SEQUENCE_CODE), ("company_id", "=", company.id)], limit=1
+        return self._company_sequence(
+            self.MUSHAK_SEQUENCE_CODE,
+            "cd_billing_engine.seq_fix_mushak_63",
+            "Mushak 6.3 Serial",
+            company,
+            "The Mushak 6.3 numbering sequence is missing — upgrade cd_billing_engine.",
         )
-        if not seq:
-            template = self.env.ref("cd_billing_engine.seq_fix_mushak_63", raise_if_not_found=False)
-            if not template:
-                raise UserError(
-                    "The Mushak 6.3 numbering sequence is missing — upgrade cd_billing_engine."
-                )
-            seq = template.copy(
-                {
-                    "name": "Mushak 6.3 Serial — %s" % company.name,
-                    "company_id": company.id,
-                    "date_range_ids": [],
-                }
-            )
-        return seq
 
     @api.model
     def _next_mushak_no(self, company, invoice_date=None) -> str:
@@ -802,7 +1194,7 @@ class FixArInvoice(models.Model):
         """The evidence-bearing paid transition for the close-out and VDS
         settlement paths (receipt allocations keep their own)."""
         for invoice in self:
-            invoice.write({"state": "paid", "paid_date": fields.Date.today()})
+            invoice._guarded().write({"state": "paid", "paid_date": fields.Date.today()})
             publish(
                 self.env,
                 "invoice.paid",
@@ -862,6 +1254,10 @@ class FixArInvoice(models.Model):
 
 
 class FixArInvoiceLine(models.Model):
+    """One invoice line. VAT is M51's determination of the taxable value and
+    the line's treatment (BRU-ARB-03/04): a typed VAT that differs is refused.
+    Lines of an issued invoice never change."""
+
     _name = "fix.ar.invoice.line"
     _description = "AR Invoice Line"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -870,18 +1266,127 @@ class FixArInvoiceLine(models.Model):
     product_id = fields.Many2one("product.product", string="Product")
     description = fields.Char()
     currency_id = fields.Many2one(related="invoice_id.currency_id")
+    vat_treatment_id = fields.Many2one(
+        "fix.vat.treatment",
+        string="VAT Treatment (M51 tariff)",
+        help="The M51 tariff row that decides the line's treatment. Empty: M51's "
+        "determination by product code, else the standard rate in force.",
+    )
     taxable_amount = fields.Monetary(string="Taxable Value", currency_field="currency_id")
     vat_amount = fields.Monetary(string="VAT", currency_field="currency_id")
     line_total = fields.Monetary(string="Line Total", currency_field="currency_id")
 
+    TAX_INPUTS = ("taxable_amount", "vat_amount", "line_total", "vat_treatment_id", "product_id")
+
+    @api.model
+    def _fix_determined(self, invoice, taxable, product, treatment):
+        """M51's determined line for (taxable, product, treatment)."""
+        try:
+            amount = Decimal(str(taxable or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
+            line = tax_logic.TaxLine(
+                product_code=(product.default_code if product else "") or "SVC",
+                qty=Decimal("1"),
+                unit_price=amount,
+                treatment=treatment.treatment_type if treatment else "",
+                rate_override=(
+                    Decimal(str(treatment.rate))
+                    if treatment and treatment.treatment_type == "reduced"
+                    else None
+                ),
+            )
+        except tax_logic.DeterminationError as exc:
+            raise UserError("VAT determination (M51) refused: %s" % exc) from exc
+        det = m51_determine(
+            self.env, [line], on_date=invoice.invoice_date, company=invoice.company_id
+        )
+        return det.lines[0]
+
+    @api.model
+    def _fix_apply_determination(self, vals, line=None):
+        """Fill vals' VAT and total from M51; refuse a typed VAT that differs."""
+        Invoice = self.env["fix.ar.invoice"]
+        invoice = Invoice.browse(vals["invoice_id"]) if vals.get("invoice_id") else line.invoice_id
+        taxable = vals["taxable_amount"] if "taxable_amount" in vals else (line.taxable_amount if line else 0.0)
+        product = (
+            self.env["product.product"].browse(vals["product_id"])
+            if vals.get("product_id")
+            else (line.product_id if line and "product_id" not in vals else self.env["product.product"])
+        )
+        treatment = (
+            self.env["fix.vat.treatment"].browse(vals["vat_treatment_id"])
+            if vals.get("vat_treatment_id")
+            else (
+                line.vat_treatment_id
+                if line and "vat_treatment_id" not in vals
+                else self.env["fix.vat.treatment"]
+            )
+        )
+        det = self._fix_determined(invoice, taxable, product, treatment)
+        vat = float(det.vat_amount)
+        if "vat_amount" in vals and abs((vals.get("vat_amount") or 0.0) - vat) > 0.005:
+            raise UserError(
+                "VAT on an AR invoice line is M51's determination (BRU-ARB-03/04): BDT %.2f on "
+                "a taxable value of %.2f (%s @ %s%%), not the BDT %.2f entered."
+                % (vat, float(det.taxable_amount), det.treatment, det.rate, vals["vat_amount"] or 0.0)
+            )
+        vals["vat_amount"] = vat
+        vals["line_total"] = float(det.taxable_amount) + vat
+        return vals
+
+    @api.model
+    def _fix_with_determination(self, vals):
+        """Create one line with M51's VAT (the system API path)."""
+        vals = self._fix_apply_determination(dict(vals))
+        return self.create(vals)
+
+    def _fix_assert_draft(self, invoices):
+        frozen = invoices.filtered(lambda i: i.state != "draft")
+        if frozen:
+            raise UserError(
+                "Invoice %s is issued: its lines are frozen with the Mushak 6.3 and the GL "
+                "entry. Correct it with a credit note." % ", ".join(frozen.mapped("display_name"))
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            Invoice = self.env["fix.ar.invoice"]
+            for vals in vals_list:
+                invoice = Invoice.browse(vals.get("invoice_id"))
+                self._fix_assert_draft(invoice)
+                self._fix_apply_determination(vals)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su:
+            self._fix_assert_draft(self.mapped("invoice_id"))
+            if "invoice_id" in vals:
+                self._fix_assert_draft(self.env["fix.ar.invoice"].browse(vals["invoice_id"]))
+            if set(self.TAX_INPUTS) & set(vals):
+                for line in self:
+                    line_vals = dict(vals)
+                    self._fix_apply_determination(line_vals, line=line)
+                    super(FixArInvoiceLine, line).write(line_vals)
+                return True
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self._fix_assert_draft(self.mapped("invoice_id"))
+        return super().unlink()
+
 
 class FixDunning(models.Model):
     """Collections ladder (T05): ageing buckets, reminder steps from the
-    NT-006 finance SMS ladder, escalation."""
+    NT-006 finance SMS ladder, escalation.
+
+    A08 M20-11 (BRU-ARB-15/16): a suppression records who, why and until
+    when. The nightly run lifts only the dispute suppressions it set itself;
+    a payment-plan or strategic suppression stays until its end date."""
 
     _name = "fix.dunning"
     _description = "Dunning Run"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -929,6 +1434,27 @@ class FixDunning(models.Model):
             ("strategic", "Strategic Customer"),
         ],
     )
+    suppressed_by_id = fields.Many2one(
+        "res.users", string="Suppressed By", readonly=True, copy=False
+    )
+    suppressed_at = fields.Datetime(string="Suppressed On", readonly=True, copy=False)
+    suppressed_until = fields.Date(string="Suppressed Until", readonly=True, copy=False)
+    suppression_note = fields.Char(string="Suppression Note", readonly=True, copy=False)
+
+    DUNNING_GUARDED = {
+        "step",
+        "step_date",
+        "overdue_amount",
+        "suppressed",
+        "suppression_reason",
+        "suppressed_by_id",
+        "suppressed_at",
+        "suppressed_until",
+        "suppression_note",
+    }
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.DUNNING_GUARDED
 
     # the NT-006 ladder: step -> (next step, grace days before advancing)
     LADDER = {"reminder": ("final", 7), "final": ("escalate", 14)}
@@ -958,6 +1484,14 @@ class FixDunning(models.Model):
                 run.days_overdue = 0
                 run.bucket = "current"
 
+    def _manual_suppression_active(self, today) -> bool:
+        self.ensure_one()
+        return (
+            self.suppressed
+            and self.suppression_reason in ("payment_plan", "strategic")
+            and (not self.suppressed_until or self.suppressed_until >= today)
+        )
+
     @api.model
     def action_run_dunning(self, as_of=None):
         """FR-ARB-032/033/036: the dunning engine. Scans issued+overdue
@@ -968,7 +1502,7 @@ class FixDunning(models.Model):
         today = as_of or fields.Date.today()
         Dispute = self.env["fix.ar.dispute"]
         Invoice = self.env["fix.ar.invoice"]
-        created = advanced = suppressed = skipped = 0
+        created = advanced = suppressed = skipped = kept = 0
         invoices = Invoice.search([("state", "=", "issued")]).filtered(
             lambda inv: inv.amount_residual > 0.005
         )
@@ -984,16 +1518,43 @@ class FixDunning(models.Model):
             )
             dunnable = inv.amount_residual - disputed
             existing = self.search([("invoice_id", "=", inv.id)], limit=1)
+            if existing and existing._manual_suppression_active(today):
+                # BRU-ARB-15/16: a recorded payment-plan / strategic
+                # suppression stands until its end date
+                kept += 1
+                continue
             if dunnable <= 0.005:
                 if existing and not existing.suppressed:
-                    existing.write({"suppressed": True, "suppression_reason": "dispute"})
+                    existing._guarded().write(
+                        {
+                            "suppressed": True,
+                            "suppression_reason": "dispute",
+                            "suppressed_by_id": False,
+                            "suppressed_at": fields.Datetime.now(),
+                            "suppressed_until": False,
+                            "suppression_note": "Open dispute covers the residual",
+                        }
+                    )
                     suppressed += 1
                 elif not existing:
                     skipped += 1
                 continue
             if existing:
                 if existing.suppressed:
-                    existing.write({"suppressed": False, "suppression_reason": False})
+                    note = (
+                        "dispute resolved"
+                        if existing.suppression_reason == "dispute"
+                        else "suppression expired %s" % existing.suppressed_until
+                    )
+                    existing._guarded().write(
+                        {
+                            "suppressed": False,
+                            "suppression_reason": False,
+                            "suppressed_until": False,
+                            "suppression_note": False,
+                        }
+                    )
+                    existing.message_post(body="Dunning resumed: %s." % note)
                 nxt, grace = self.LADDER.get(existing.step, (False, 0))
                 if (
                     nxt
@@ -1001,12 +1562,14 @@ class FixDunning(models.Model):
                     and (today - existing.step_date).days >= grace
                     and existing.step != "escalate"
                 ):
-                    existing.write({"step": nxt, "step_date": today, "overdue_amount": dunnable})
+                    existing._guarded().write(
+                        {"step": nxt, "step_date": today, "overdue_amount": dunnable}
+                    )
                     advanced += 1
                 else:
-                    existing.write({"overdue_amount": dunnable})
+                    existing._guarded().write({"overdue_amount": dunnable})
             else:
-                self.create(
+                self._guarded().create(
                     {
                         "company_id": inv.company_id.id,
                         "operating_unit_id": inv.operating_unit_id.id,
@@ -1023,26 +1586,92 @@ class FixDunning(models.Model):
             "advanced": advanced,
             "suppressed": suppressed,
             "fully_disputed_skipped": skipped,
+            "suppression_kept": kept,
         }
 
     def _cron_run_dunning(self):
         """Daily cron entry: run the ladder."""
         self.action_run_dunning()
 
-    def action_suppress(self, reason):
+    def action_suppress(self, reason, until=None, note=None):
+        """BRU-ARB-16: suppress dunning with a reason, the suppressor and an
+        end date (default: the configured number of days)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Suppressing dunning")
+        if reason not in ("dispute", "payment_plan", "strategic"):
+            raise UserError("Pick a suppression reason (FR-ARB-033)")
+        end = fields.Date.to_date(until) if until else None
+        if end is None and reason != "dispute":
+            days = int(float_param(self.env, PARAM_SUPPRESSION_DAYS, DEFAULT_SUPPRESSION_DAYS))
+            end = fields.Date.add(fields.Date.context_today(self), days=days)
+        if end and end < fields.Date.context_today(self):
+            raise UserError("A suppression ends in the future, not on %s" % end)
         for run in self:
-            if reason not in ("dispute", "payment_plan", "strategic"):
-                raise UserError("Pick a suppression reason (FR-ARB-033)")
-            run.write({"suppressed": True, "suppression_reason": reason})
+            run._guarded().write(
+                {
+                    "suppressed": True,
+                    "suppression_reason": reason,
+                    "suppressed_by_id": self.env.uid,
+                    "suppressed_at": fields.Datetime.now(),
+                    "suppressed_until": end or False,
+                    "suppression_note": (note or "")[:250] or False,
+                }
+            )
+            run.message_post(
+                body="Dunning suppressed (%s) by %s until %s."
+                % (reason, self.env.user.name, end or "the dispute closes")
+            )
+
+    def action_lift_suppression(self, note=None):
+        """End a suppression early (logged)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Lifting a dunning suppression")
+        for run in self:
+            run._guarded().write(
+                {
+                    "suppressed": False,
+                    "suppression_reason": False,
+                    "suppressed_until": False,
+                    "suppression_note": (note or "")[:250] or False,
+                }
+            )
+            run.message_post(body="Dunning suppression lifted by %s." % self.env.user.name)
+
+
+CREDIT_GUARDED = {
+    "state",
+    "approved_by",
+    "approved_at",
+    "requested_by_id",
+    "submitted_at",
+    "tier_basis_amount",
+    "issued_at",
+    "posted_move_id",
+    "gl_note",
+    "rejected_reason",
+    "mushak_note_id",
+}
+# Frozen once a credit note is submitted: the approval covers them.
+CREDIT_LOCKED = ("amount", "invoice_id", "reason_code", "company_id", "operating_unit_id")
+CREDIT_OPEN_STATES = ("pending_approval", "approved", "issued")
 
 
 class FixCreditNote(models.Model):
-    """Credit notes with approval authority (T06, 05-04 section 7 — the
-    authority matrix is a segregation-of-duties control)."""
+    """Credit notes with approval authority (T06, 05-04 §7 — the authority
+    matrix is a segregation-of-duties control, SOD-04).
+
+    A08 S3: never auto-approved. <= the direct band a second Accountant
+    approves; above it the Accounting Administrator through the M63 inbox;
+    the raiser / submitter never approves. The approval covers the amount
+    frozen at submit; total credits never exceed the invoice."""
 
     _name = "fix.credit.note"
     _description = "Credit Note"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.finance.dofa.mixin"]
+    _approval_domain = "credit_note"
+    _fin_direct_param = PARAM_CREDIT_DIRECT
+    _fin_direct_default = DEFAULT_DIRECT_LIMIT
+    _fin_cfo_param = PARAM_CREDIT_CFO
+    _fin_cfo_default = 0.0
+    _fin_what = "Credit note"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -1076,26 +1705,196 @@ class FixCreditNote(models.Model):
         required=True,
         tracking=True,
     )
-    approved_by = fields.Many2one("res.users", readonly=True)
+    approved_by = fields.Many2one("res.users", readonly=True, copy=False)
+    approved_at = fields.Datetime(readonly=True, copy=False)
+    requested_by_id = fields.Many2one(
+        "res.users", string="Submitted By", readonly=True, copy=False
+    )
+    submitted_at = fields.Datetime(readonly=True, copy=False)
+    tier_basis_amount = fields.Monetary(
+        string="Cumulative Credit (tier basis)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="This credit plus every other open credit on the invoice at submit: the "
+        "approval tier is cumulative per invoice, so a credit split into pieces "
+        "reaches the same approver as the whole.",
+    )
+    rejected_reason = fields.Char(readonly=True, copy=False)
     issued_at = fields.Datetime(readonly=True, copy=False)
     posted_move_id = fields.Many2one("account.move", string="GL Move", readonly=True, copy=False)
     gl_note = fields.Char(readonly=True, copy=False)
-    APPROVAL_THRESHOLD = 25000  # above BDT 25,000 a manager approves (05-04 section 7)
+    mushak_note_id = fields.Many2one(
+        "fix.mushak.register", string="Mushak 6.7", readonly=True, copy=False
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | CREDIT_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(CREDIT_LOCKED)
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = set(CREDIT_LOCKED) & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError(
+                    "A submitted credit note is fixed (%s): the approval covers what was "
+                    "submitted. Reject it and raise a new one." % ", ".join(sorted(touched))
+                )
+        return super().write(vals)
+
+    # ---- the ladder ---------------------------------------------------------
+    def _other_open_credit(self) -> float:
+        self.ensure_one()
+        if not self.invoice_id:
+            return 0.0
+        others = self.invoice_id.credit_note_ids.filtered(
+            lambda n: n.id != self.id and n.state in CREDIT_OPEN_STATES
+        )
+        return sum(others.mapped("amount"))
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        if self.state != "draft" and self.tier_basis_amount:
+            return self.tier_basis_amount
+        return (self.amount or 0.0) + self._other_open_credit()
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (cumulative credit on %s)" % (
+            self._dofa_amount(),
+            self.invoice_id.name or "the invoice",
+        )
+
+    @api.depends("amount", "tier_basis_amount", "state")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _fin_requester(self):
+        return self.requested_by_id
+
+    @api.model
+    def _fix_request_credit(self, invoice, amount, reason_code, note=None):
+        """CONTRACT (B4 -> A04 bridge): request a credit note against an AR
+        invoice. The note is created and SUBMITTED: it then runs the routed
+        approval (a second Accountant within the band, the Accounting
+        Administrator above it) and the cumulative limit (credits never exceed
+        the invoice). Nothing is approved or issued here. Returns the note."""
+        if not invoice or invoice._name != "fix.ar.invoice":
+            raise UserError("A credit note is requested against an AR invoice.")
+        invoice = invoice.sudo()
+        if reason_code not in dict(self._fields["reason_code"].selection):
+            raise UserError("Unknown credit-note reason %r (BRU-ARB-10 taxonomy)." % reason_code)
+        credit = self.create(
+            {
+                "company_id": invoice.company_id.id,
+                "operating_unit_id": invoice.operating_unit_id.id,
+                "invoice_id": invoice.id,
+                "amount": amount,
+                "reason_code": reason_code,
+            }
+        )
+        if note:
+            credit.message_post(body=note)
+        credit.action_submit()
+        return credit
+
+    # ---- checks -------------------------------------------------------------
+    def _check_credit_cap(self):
+        """Total credits on the invoice (open and issued) never exceed it."""
+        for note in self:
+            invoice = note.invoice_id
+            if not invoice:
+                continue
+            if note.amount <= 0:
+                raise UserError("A credit note amount must be positive")
+            total = note.amount + note._other_open_credit()
+            if total > invoice.total_payable + 0.005:
+                raise UserError(
+                    "Credit %.2f would take the credits on invoice %s to %.2f, above the "
+                    "invoice total %.2f: credits never exceed the invoice."
+                    % (note.amount, invoice.name, total, invoice.total_payable)
+                )
 
     def action_submit(self):
+        """Submit for approval: the amount is frozen, the cumulative tier
+        basis pinned, and an above-band note routed to M63. Nothing is
+        approved here."""
         for note in self:
-            note.state = "pending_approval" if note.amount > self.APPROVAL_THRESHOLD else "approved"
+            if note.state != "draft":
+                raise UserError("Only a draft credit note is submitted (%s)" % note.state)
+            if note.invoice_id.state not in ("issued", "paid"):
+                raise UserError(
+                    "Credit notes apply to issued/paid invoices only (state: %s)"
+                    % note.invoice_id.state
+                )
+            note._check_credit_cap()
+            note._guarded().write(
+                {
+                    "state": "pending_approval",
+                    "requested_by_id": self.env.uid,
+                    "submitted_at": fields.Datetime.now(),
+                    "tier_basis_amount": note.amount + note._other_open_credit(),
+                }
+            )
+            note._fin_route(
+                "Credit note of BDT %.2f on invoice %s (%s)"
+                % (note.amount, note.invoice_id.name, note.reason_code)
+            )
+        return True
 
     def action_approve(self):
+        """Within the direct band: a second Accountant approves here. Above it
+        the approval comes from the Accounting Administrator's M63 inbox task
+        (a direct call is refused by the routing guard)."""
         for note in self:
-            if note.amount > self.APPROVAL_THRESHOLD and not self.env.user.has_group(
-                "base.group_system"
-            ):
-                raise UserError(
-                    "Credits above BDT %d require managerial approval (05-04 section 7)"
-                    % self.APPROVAL_THRESHOLD
+            if note.state != "pending_approval":
+                raise UserError("Only a submitted credit note is approved (%s)" % note.state)
+            if note._dofa_current_tier() == "tier_0":
+                note._fin_approve_direct()
+            else:
+                note.action_dofa_approve()
+        return True
+
+    def _fin_before_approve(self):
+        self.ensure_one()
+        if self.state != "pending_approval":
+            raise UserError("Only a submitted credit note is approved (%s)" % self.state)
+        if self.invoice_id.state not in ("issued", "paid"):
+            raise UserError("Invoice %s is %s" % (self.invoice_id.name, self.invoice_id.state))
+        self._check_credit_cap()
+
+    def _fin_after_approve(self):
+        self.ensure_one()
+        self.sudo()._guarded().write(
+            {"state": "approved", "approved_by": self.env.uid, "approved_at": fields.Datetime.now()}
+        )
+
+    def action_reject(self, reason=""):
+        """The approver declines (a checker, never the submitter)."""
+        if not (reason or "").strip():
+            raise UserError("State why the credit note is rejected")
+        for note in self:
+            if note.state not in ("pending_approval", "approved"):
+                raise UserError("Only a submitted or approved credit note is rejected")
+            if not self.env.su:
+                require_role(self.env, GROUP_ACCOUNTANT, "Rejecting a credit note")
+                if self.env.user in (note.requested_by_id | note.create_uid):
+                    raise UserError("You raised this credit note; another person decides it.")
+            note._fin_void("rejected: %s" % reason)
+            note._guarded().write({"state": "rejected", "rejected_reason": reason[:250]})
+        return True
+
+    def _approval_on_rejected(self, comment):
+        for note in self.sudo():
+            if note.state in ("pending_approval", "approved"):
+                note._guarded().write(
+                    {"state": "rejected", "rejected_reason": (comment or "M63 rejection")[:250]}
                 )
-            note.write({"state": "approved", "approved_by": self.env.user.id})
 
     def action_issue(self):
         """Issue = apply + post. Partial credits keep the invoice issued with
@@ -1105,20 +1904,19 @@ class FixCreditNote(models.Model):
         for note in self:
             if note.state != "approved":
                 raise UserError("Approve before issuing")
+            note._fin_assert_approved()
             invoice = note.invoice_id
             if invoice.state not in ("issued", "paid"):
                 raise UserError(
                     "Credit notes apply to issued/paid invoices only (state: %s)" % invoice.state
                 )
-            if note.amount > invoice.total_payable + 0.005:
-                raise UserError(
-                    "Credit %s exceeds invoice total %s" % (note.amount, invoice.total_payable)
-                )
-            note.write({"state": "issued", "issued_at": fields.Datetime.now()})
+            note._check_credit_cap()
+            note._guarded().write({"state": "issued", "issued_at": fields.Datetime.now()})
             note._post_credit_gl()
+            note._register_mushak_note()
             # partial application: only fully-credited invoices flip state
-            if invoice.amount_residual <= 0.005:
-                invoice.state = "credited"
+            if invoice.state == "issued" and invoice.amount_residual <= 0.005:
+                invoice._guarded().write({"state": "credited"})
             publish(
                 self.env,
                 "credit_note.issued",
@@ -1133,6 +1931,31 @@ class FixCreditNote(models.Model):
                 },
             )
 
+    def _vat_split(self):
+        self.ensure_one()
+        invoice = self.invoice_id
+        ratio = (invoice.vat_amount / invoice.total_payable) if invoice.total_payable else 0.0
+        vat_part = self.amount * ratio
+        return self.amount - vat_part, vat_part
+
+    def _register_mushak_note(self):
+        """The Mushak 6.7 against the invoice's 6.3 (M51's correction service)."""
+        Register = self.env["fix.mushak.register"]
+        for note in self:
+            original = note.invoice_id.mushak_id
+            if not original or not hasattr(Register, "_fix_issue_note"):
+                continue
+            taxable, vat = note._vat_split()
+            row = Register._fix_issue_note(
+                original,
+                "credit_note",
+                round(taxable, 2),
+                round(vat, 2),
+                "Credit note #%s (%s)" % (note.id, note.reason_code),
+                ref="CN/%s" % note.id,
+            )
+            note._guarded().write({"mushak_note_id": row.id})
+
     def _post_credit_gl(self):
         """The statutory mirror posting (FR-ARB-039): Dr Revenue + Dr VAT
         pro-rata / Cr AR — only when the invoice itself posted to GL."""
@@ -1141,18 +1964,20 @@ class FixCreditNote(models.Model):
         for note in self:
             invoice = note.invoice_id
             if not invoice.posted_move_id:
-                note.gl_note = "GL not posted: invoice %s has no GL move" % invoice.name
+                note._guarded().write(
+                    {"gl_note": "GL not posted: invoice %s has no GL move" % invoice.name}
+                )
                 continue
             company = invoice.company_id
             ar = _ar_account(note.env, company, "ar")
-            revenue = _ar_account(note.env, company, invoice._revenue_role())
+            revenue = invoice._revenue_account()
             vat = _ar_account(note.env, company, "vat_output")
             if not (ar and revenue and vat):
-                note.gl_note = "GL not posted: accounts unconfigured for %s" % company.name
+                note._guarded().write(
+                    {"gl_note": "GL not posted: accounts unconfigured for %s" % company.name}
+                )
                 continue
-            ratio = (invoice.vat_amount / invoice.total_payable) if invoice.total_payable else 0.0
-            vat_part = note.amount * ratio
-            revenue_part = note.amount - vat_part
+            revenue_part, vat_part = note._vat_split()
             _dims = invoice._ar_posting_dims(invoice.branch_id.id)
             dims = dict.fromkeys(range(3), _dims)
             move, gl_note = _post_ar_move(
@@ -1174,16 +1999,282 @@ class FixCreditNote(models.Model):
                 dims,
                 source="ar",
             )
-            note.write({"posted_move_id": move.id if move else False, "gl_note": gl_note or False})
+            note._guarded().write(
+                {"posted_move_id": move.id if move else False, "gl_note": gl_note or False}
+            )
+
+
+WRITEOFF_GUARDED = {
+    "state",
+    "amount",
+    "requested_by_id",
+    "requested_at",
+    "move_id",
+    "allowance_amount",
+    "expense_amount",
+    "allowance_account_id",
+    "rejected_reason",
+}
+
+
+class FixArWriteoff(models.Model):
+    """An AR write-off (spec §9 fix.ar.writeoff, FR-ARB-041 / BRU-ARB-12):
+    requested with a reason and the recovery history, approved on the
+    finance ladder by someone other than the requester, then posted —
+    against the IFRS 9 loss allowance first (Dr allowance), the excess only
+    to bad-debt expense; never both (A08 M20-6: the loss was expensed twice).
+    The amount is the residual at request and is pinned."""
+
+    _name = "fix.ar.writeoff"
+    _description = "AR Write-off"
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.finance.dofa.mixin"]
+    _order = "id desc"
+    _approval_domain = "ar_writeoff"
+    _fin_direct_param = PARAM_WRITEOFF_DIRECT
+    _fin_direct_default = DEFAULT_DIRECT_LIMIT
+    _fin_cfo_param = PARAM_WRITEOFF_CFO
+    _fin_cfo_default = 0.0
+    _fin_what = "Write-off"
+
+    name = fields.Char(default="New", readonly=True, copy=False, index=True)
+    invoice_id = fields.Many2one(
+        "fix.ar.invoice", string="Invoice", required=True, ondelete="restrict", index=True
+    )
+    company_id = fields.Many2one(related="invoice_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(related="invoice_id.operating_unit_id", store=True)
+    customer_id = fields.Many2one(related="invoice_id.customer_id", store=True, index=True)
+    currency_id = fields.Many2one(related="invoice_id.currency_id")
+    amount = fields.Monetary(
+        string="Amount Written Off", currency_field="currency_id", readonly=True, copy=False
+    )
+    reason = fields.Char(required=True)
+    recovery_history = fields.Text(
+        string="Recovery History",
+        required=True,
+        help="BRU-ARB-12: the collection steps taken before the write-off",
+    )
+    state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("requested", "Requested"),
+            ("posted", "Approved & Posted"),
+            ("rejected", "Rejected"),
+        ],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+    requested_by_id = fields.Many2one("res.users", string="Requested By", readonly=True, copy=False)
+    requested_at = fields.Datetime(readonly=True, copy=False)
+    allowance_account_id = fields.Many2one(
+        "account.account", string="Loss Allowance Account", readonly=True, copy=False
+    )
+    allowance_amount = fields.Monetary(
+        string="Charged to Loss Allowance", currency_field="currency_id", readonly=True, copy=False
+    )
+    expense_amount = fields.Monetary(
+        string="Charged to Bad-Debt Expense", currency_field="currency_id", readonly=True, copy=False
+    )
+    move_id = fields.Many2one("account.move", string="GL Move", readonly=True, copy=False)
+    rejected_reason = fields.Char(readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | WRITEOFF_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= {"invoice_id", "reason", "recovery_history"}
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = {"invoice_id", "reason", "recovery_history"} & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError("A requested write-off is fixed; reject it and request again.")
+        return super().write(vals)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("name", "New") == "New":
+                vals["name"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("fix.ar.writeoff") or "WO/New"
+                )
+        return super().create(vals_list)
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        return self.amount if self.state != "draft" else (self.invoice_id.amount_residual or 0.0)
+
+    @api.depends("amount", "state")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _fin_requester(self):
+        return self.requested_by_id
+
+    def action_submit(self):
+        require_role(self.env, GROUP_ACCOUNTANT, "Requesting a write-off")
+        for wo in self:
+            if wo.state != "draft":
+                raise UserError("Only a draft write-off is requested")
+            invoice = wo.invoice_id
+            if invoice.state != "issued":
+                raise UserError("Only issued invoices can be written off")
+            if invoice.amount_residual <= 0.005:
+                raise UserError("Nothing residual to write off on %s" % invoice.name)
+            if not (wo.reason or "").strip():
+                raise UserError("A write-off reason is required (FR-ARB-041)")
+            if not (wo.recovery_history or "").strip():
+                raise UserError("Record the recovery history first (BRU-ARB-12)")
+            if invoice.writeoff_ids.filtered(lambda w: w.id != wo.id and w.state == "requested"):
+                raise UserError("Invoice %s already has a write-off awaiting approval" % invoice.name)
+            wo._guarded().write(
+                {
+                    "state": "requested",
+                    "amount": invoice.amount_residual,
+                    "requested_by_id": self.env.uid,
+                    "requested_at": fields.Datetime.now(),
+                }
+            )
+            wo._fin_route("Write-off of BDT %.2f on %s: %s" % (wo.amount, invoice.name, wo.reason))
+        return True
+
+    def action_approve(self):
+        for wo in self:
+            if wo.state != "requested":
+                raise UserError("Only a requested write-off is approved")
+            if wo._dofa_current_tier() == "tier_0":
+                wo._fin_approve_direct()
+            else:
+                wo.action_dofa_approve()
+        return True
+
+    def action_reject(self, reason=""):
+        if not (reason or "").strip():
+            raise UserError("State why the write-off is rejected")
+        for wo in self:
+            if wo.state != "requested":
+                raise UserError("Only a requested write-off is rejected")
+            if not self.env.su:
+                require_role(self.env, GROUP_ACCOUNTANT, "Rejecting a write-off")
+                if self.env.user in (wo.requested_by_id | wo.create_uid):
+                    raise UserError("You requested this write-off; another person decides it.")
+            wo._fin_void("rejected: %s" % reason)
+            wo._guarded().write({"state": "rejected", "rejected_reason": reason[:250]})
+        return True
+
+    def _approval_on_rejected(self, comment):
+        for wo in self.sudo().filtered(lambda w: w.state == "requested"):
+            wo._guarded().write(
+                {"state": "rejected", "rejected_reason": (comment or "M63 rejection")[:250]}
+            )
+
+    def _fin_before_approve(self):
+        self.ensure_one()
+        if self.state != "requested":
+            raise UserError("Only a requested write-off is approved")
+        invoice = self.invoice_id
+        if invoice.state != "issued":
+            raise UserError("Invoice %s is %s" % (invoice.name, invoice.state))
+        if abs(invoice.amount_residual - self.amount) > 0.005:
+            raise UserError(
+                "Invoice %s now has %.2f outstanding, not the %.2f requested: request the "
+                "write-off again." % (invoice.name, invoice.amount_residual, self.amount)
+            )
+
+    def _allowance(self):
+        """(allowance account, available credit balance) of the IFRS 9 loss
+        allowance: the provision account of the company's posted ECL runs,
+        else the configured role cd_billing_engine.account_code.ecl_provision."""
+        from .fix_ar_engine import _ar_account
+
+        self.ensure_one()
+        company = self.invoice_id.company_id
+        run = (
+            self.env["fix.ar.impairment"]
+            .sudo()
+            .search(
+                [("company_id", "=", company.id), ("state", "=", "posted")],
+                order="as_of desc, id desc",
+                limit=1,
+            )
+        )
+        account = run.provision_account_id or _ar_account(self.env, company, "ecl_provision")
+        if not account:
+            return self.env["account.account"], 0.0
+        lines = (
+            self.env["account.move.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("parent_state", "=", "posted"),
+                    ("account_id", "=", account.id),
+                ]
+            )
+        )
+        return account, max(-sum(lines.mapped("balance")), 0.0)
+
+    def _fin_after_approve(self):
+        """Post: Dr loss allowance (up to its balance) + Dr bad-debt expense
+        (the excess) / Cr AR, then close the invoice as written off."""
+        from .fix_ar_engine import _ar_account
+
+        self.ensure_one()
+        wo = self.sudo()
+        invoice = wo.invoice_id
+        company = invoice.company_id
+        allowance_acc, available = wo._allowance()
+        use = round(min(wo.amount, available), 2) if allowance_acc else 0.0
+        excess = round(wo.amount - use, 2)
+        debit_lines = []
+        if use > 0.005:
+            debit_lines.append(("ecl_provision", allowance_acc, use, invoice.customer_id.id))
+        if excess > 0.005:
+            debit_lines.append(
+                ("writeoff_expense", _ar_account(wo.env, company, "writeoff_expense"), excess, False)
+            )
+        move = invoice._post_reversal_gl(
+            "WRITE-OFF INV %s — %s" % (invoice.name, wo.reason),
+            debit_lines,
+            [("ar", _ar_account(wo.env, company, "ar"), wo.amount, invoice.customer_id.id)],
+        )
+        wo._guarded().write(
+            {
+                "state": "posted",
+                "move_id": move.id,
+                "allowance_account_id": allowance_acc.id if use > 0.005 else False,
+                "allowance_amount": use,
+                "expense_amount": excess,
+            }
+        )
+        invoice._guarded().write({"state": "written_off"})
+        publish(
+            wo.env,
+            "invoice.written_off",
+            "fix.ar.invoice",
+            invoice.id,
+            {
+                "invoice": invoice.name,
+                "amount": wo.amount,
+                "allowance_used": use,
+                "expense": excess,
+                "reason": (wo.reason or "")[:500],
+            },
+        )
 
 
 class FixArConsolidatedBill(models.Model):
     """Consolidated corporate billing hook (T03, P04/P06-M03).
-    Aggregates multiple closed/issued fix.ar.invoice records for a corporate partner into a monthly consolidated billing cycle."""
+    Aggregates multiple ISSUED fix.ar.invoice records for a corporate partner
+    into a monthly consolidated billing cycle (A08 M20-14: drafts — no number,
+    no Mushak — are never billed)."""
 
     _name = "fix.ar.consolidated.bill"
     _description = "Consolidated AR Bill"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period_end desc, id desc"
 
     company_id = fields.Many2one(
@@ -1222,6 +2313,9 @@ class FixArConsolidatedBill(models.Model):
         tracking=True,
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state"}
+
     @api.depends(
         "invoice_ids.taxable_amount", "invoice_ids.vat_amount", "invoice_ids.total_payable"
     )
@@ -1233,17 +2327,36 @@ class FixArConsolidatedBill(models.Model):
 
     def action_generate(self):
         for bill in self:
+            if bill.state != "draft":
+                raise UserError("Bill %s is already %s" % (bill.bill_ref, bill.state))
             if not bill.invoice_ids:
                 invoices = self.env["fix.ar.invoice"].search(
                     [
+                        ("company_id", "=", bill.company_id.id),
                         ("customer_id", "=", bill.customer_id.id),
                         ("invoice_date", ">=", bill.period_start),
                         ("invoice_date", "<=", bill.period_end),
-                        ("state", "in", ["draft", "issued"]),
+                        ("state", "=", "issued"),
                     ]
                 )
                 bill.invoice_ids = [(6, 0, invoices.ids)]
-            bill.state = "generated"
+            unissued = bill.invoice_ids.filtered(lambda i: i.state != "issued")
+            if unissued:
+                raise UserError(
+                    "A consolidated bill carries issued invoices only; %s %s not issued."
+                    % (
+                        ", ".join(i.name if i.name != "New" else "#%s" % i.id for i in unissued),
+                        "is" if len(unissued) == 1 else "are",
+                    )
+                )
+            foreign = bill.invoice_ids.filtered(
+                lambda i, b=bill: i.customer_id.commercial_partner_id
+                != b.customer_id.commercial_partner_id
+                or i.company_id != b.company_id
+            )
+            if foreign:
+                raise UserError("A consolidated bill carries this customer's invoices only.")
+            bill._guarded().write({"state": "generated"})
             publish(
                 self.env,
                 "consolidated_bill.generated",
@@ -1263,7 +2376,7 @@ class FixArConsolidatedBill(models.Model):
         for bill in self:
             if bill.state != "generated":
                 raise UserError("Generate the bill before sending")
-            bill.state = "sent"
+            bill._guarded().write({"state": "sent"})
             publish(
                 self.env,
                 "consolidated_bill.sent",
@@ -1271,3 +2384,13 @@ class FixArConsolidatedBill(models.Model):
                 bill.id,
                 {"bill_ref": bill.bill_ref, "customer_id": bill.customer_id.id},
             )
+
+
+# re-exported for the settlement / subscription modules
+__all__ = [
+    "FixArInvoice",
+    "FixCreditNote",
+    "FixArWriteoff",
+    "ValidationError",
+    "AccessError",
+]

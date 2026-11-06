@@ -554,7 +554,9 @@ class TestConcessionDocument:
         c.action_close("Refund credited.")
         note = env["fix.credit.note"].search([("complaint_id", "=", c.id)])
         assert (note.invoice_id, note.amount, note.reason_code) == (invoice, 2000.0, "goodwill")
-        assert note.state == "approved", "submitted into M20's own authority rule"
+        # A08 S3 (M20-1): M20's own authority rule no longer auto-approves a
+        # credit note; it waits for a finance approver who did not raise it.
+        assert note.state == "pending_approval", "submitted into M20's own authority rule"
         [event] = _events(env, "complaint.concession_settled", c.id)
         assert '"settled": true' in event.payload
 

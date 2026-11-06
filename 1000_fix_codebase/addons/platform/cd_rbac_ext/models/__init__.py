@@ -11,6 +11,10 @@ from . import (
     fix_role,
     fix_security_ops,
     fix_sod_control,
+    # A08 S4 additions (B6): grant-path SoD hooks and time-boxed mitigations.
+    # They only _inherit models loaded above, so order stays safe.
+    fix_sod_grant_hooks,
+    fix_sod_mitigation,
     res_users_ext,
     res_users_sod,
     residency_mixin,

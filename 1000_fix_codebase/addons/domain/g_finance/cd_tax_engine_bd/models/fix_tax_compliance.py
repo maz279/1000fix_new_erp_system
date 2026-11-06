@@ -23,9 +23,20 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish  # FF-28
 
 from . import return_logic
-from .fix_tax_master import add_months, period_of, tax_account
+from .fix_tax_master import add_months, float_param, period_of, tax_account
 
 TWO = Decimal("0.01")
+FINANCE_USER_GROUPS = ("account.group_account_user", "account.group_account_manager")
+RATIO_TOLERANCE_PARAM = "cd_tax_engine_bd.input_vat_ratio_tolerance"
+RATIO_TOLERANCE_DEFAULT = 1.0  # BDT: per-line rounding on the supplier's 6.3
+
+
+def require_finance(env, what):
+    if env.su or any(env.user.has_group(g) for g in FINANCE_USER_GROUPS):
+        return
+    raise UserError("%s needs the Accountant role." % what)
+
+
 PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 QUARTER_RE = re.compile(r"^\d{4}-Q[1-4]$")
 ITA_SECTIONS = ("89", "90", "94", "109")
@@ -103,6 +114,9 @@ def post_tax_move(
     dims = (
         {i: {"operating_unit_id": ou.id} for i in range(len(move_vals["line_ids"]))} if ou else {}
     )
+    Move = env["account.move"]
+    if hasattr(Move, "_fix_post_via_m19"):  # B3's documented M19 API
+        return Move._fix_post_via_m19(move_vals, source, source_ref=ref, dimension_by_line=dims)
     move, _dims = post_with_dimensions(env, move_vals, dims, source=source)
     return move
 
@@ -114,7 +128,7 @@ class FixWithholdingLine(models.Model):
 
     _name = "fix.withholding.line"
     _description = "TDS / VDS Deduction"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "document_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -142,15 +156,17 @@ class FixWithholdingLine(models.Model):
     # (s.142 proof-of-submission of return, s.143/163 no TIN, and the non-bank
     # payment rule). They are recorded separately so the certificate can state
     # which default raised the rate.
+    # A08 M51-7 (W07): both evidence flags default to the UNFAVOURABLE value —
+    # a deduction that states no PSR / bank evidence suffers the uplift.
     psr_received = fields.Boolean(
         string="PSR on file",
-        default=True,
+        default=False,
         help="Proof of Submission of Return held on the document date (s.142). "
         "Missing PSR raises the rate by 50%.",
     )
     paid_by_bank = fields.Boolean(
         string="Paid through bank",
-        default=True,
+        default=False,
         help="Payment made by bank transfer/cheque. A cash payment raises the rate by 50%.",
     )
     payee_has_tin = fields.Boolean(
@@ -186,6 +202,12 @@ class FixWithholdingLine(models.Model):
     )
     amount = fields.Monetary(string="Deducted", currency_field="currency_id", required=True)
     source_ref = fields.Char(string="Source Document", index=True)
+    source_model = fields.Char(
+        string="Source Model",
+        index=True,
+        help="The model of the payment the deduction was withheld from (fix.vendor.invoice "
+        "for AP bills; e.g. a trade-in payout for A05). Empty = an AP vendor bill.",
+    )
     state = fields.Selection(
         [
             ("withheld", "Withheld"),
@@ -205,20 +227,118 @@ class FixWithholdingLine(models.Model):
     certificate_id = fields.Many2one(
         "fix.withholding.certificate", string="Certificate", readonly=True, copy=False
     )
+    move_id = fields.Many2one(
+        "account.move",
+        string="Liability Entry",
+        readonly=True,
+        copy=False,
+        index=True,
+        help="The posted GL entry that credits the TDS / VDS payable for this deduction "
+        "(the vendor bill's posting).",
+    )
+
+    # ---------------------------------------------------------------- guard --
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "certificate_id", "move_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "withheld":
+            locked |= {n for n, f in self._fields.items() if f.store}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
+        Rate = self.env["fix.tax.rate"].sudo()
         for vals in vals_list:
+            rate = Rate.browse(vals["rate_id"]) if vals.get("rate_id") else Rate
+            if rate and "rate" not in vals:
+                vals["rate"] = rate.rate
+            if rate and not vals.get("section"):
+                vals["section"] = rate.section
+            uplifted = vals.get("tax_kind") != "vds" and (not rate or rate.non_filer_applies)
+            if "multiplier" not in vals and not uplifted:
+                vals["multiplier"] = 1.0
             if "multiplier" not in vals:
                 defaults = 0
-                if vals.get("psr_received") is False or vals.get("non_filer"):
+                if not vals.get("psr_received", False) or vals.get("non_filer"):
                     defaults += 1
-                if vals.get("paid_by_bank") is False:
+                if not vals.get("paid_by_bank", False):
                     defaults += 1
                 if not (vals.get("partner_tin") or "").strip():
                     defaults += 1
                 vals["multiplier"] = round(1.5**defaults, 3)
+        if not self._fix_guard_open():
+            # A08 M51-8: a deduction is the tax side of a posted liability.
+            raise UserError(
+                "A TDS / VDS deduction is recorded with the GL entry that posts its "
+                "liability (the approved vendor bill), through "
+                "fix.withholding.line._fix_record_deductions(vals, move) — never typed."
+            )
         return super().create(vals_list)
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            done = self.filtered(lambda line: line.state != "withheld")
+            moving = {k for k in vals if not k.startswith(("message_", "activity_"))}
+            if done and moving:
+                changed = {
+                    name
+                    for line in done
+                    for name in moving
+                    if name in line._fields
+                    and line._fix_guard_differs(name, vals[name], line[name])
+                }
+                if changed:
+                    raise UserError(
+                        "Deduction %s is %s: a deposited or certified deduction is never "
+                        "edited." % (done[:1].source_ref or done[:1].id, done[:1].state)
+                    )
+        return super().write(vals)
+
+    @api.model
+    def _fix_record_deductions(self, vals_list, move):
+        """CONTRACT (B5 -> B2, A08 M51-8): record the TDS / VDS deductions of a
+        POSTED liability entry (the approved vendor bill's posting). The entry
+        must credit the configured TDS / VDS payable account with at least the
+        deductions recorded against it, so no deduction exists without its GL
+        liability. Returns the lines in the caller's environment."""
+        if not move or move.state != "posted":
+            raise UserError("Deductions are recorded against a POSTED GL entry")
+        vals_list = [dict(vals, move_id=move.id) for vals in vals_list]
+        lines = self._guarded().create(vals_list)
+        return self.browse(lines.ids)
+
+    @api.constrains("move_id", "amount", "tax_kind", "state")
+    def _check_gl_liability(self):
+        for move in self.mapped("move_id"):
+            lines = self.sudo().search([("move_id", "=", move.id), ("state", "!=", "cancelled")])
+            if move.state != "posted":
+                raise ValidationError("The liability entry %s is not posted" % move.name)
+            for kind in set(lines.mapped("tax_kind")):
+                account = tax_account(self.env, move.company_id, "%s_payable" % kind)
+                credited = sum(
+                    move.sudo()
+                    .line_ids.filtered(lambda ml, a=account: ml.account_id == a)
+                    .mapped("credit")
+                )
+                owed = sum(lines.filtered(lambda ln, k=kind: ln.tax_kind == k).mapped("amount"))
+                if money(owed) > money(credited) + 0.01:
+                    raise ValidationError(
+                        "%s deductions of %.2f exceed the %.2f the entry %s credits to %s: "
+                        "every deduction posts its liability to the GL."
+                        % (kind.upper(), owed, credited, move.name, account.display_name)
+                    )
+
+    @api.constrains("rate", "rate_id")
+    def _check_rate_row(self):
+        for line in self:
+            row = line.rate_id.sudo()
+            if row and abs((line.rate or 0.0) - row.rate) > 0.0005:
+                raise ValidationError(
+                    "The deduction cites rate row %s (%g%%) but withholds at %g%%: the "
+                    "rate comes from the Tax Rate Master." % (row.display_name, row.rate, line.rate)
+                )
 
     @api.depends("partner_tin")
     def _compute_payee_has_tin(self):
@@ -233,13 +353,28 @@ class FixWithholdingLine(models.Model):
         "paid_by_bank",
         "partner_tin",
         "non_filer",
+        "tax_kind",
+        "rate_id.non_filer_applies",
     )
     def _compute_uplift(self):
         """ITA 2023: each of the three defaults multiplies the statutory rate by 1.5.
         The components stay visible so the certificate and the register can state
-        exactly which default applied."""
+        exactly which default applied. The uplift is an INCOME-TAX rule: a VDS
+        (VAT at source) line, or a rate row the master marks non_filer_applies =
+        False, carries no default (and so no multiplier floor)."""
         for line in self:
             defaults = 0
+            if line.tax_kind == "vds" or (
+                line.rate_id and not line.rate_id.sudo().non_filer_applies
+            ):
+                line.defaults_count = 0
+                line.effective_rate = round((line.rate or 0.0) * (line.multiplier or 1.0), 3)
+                line.expected_amount = round(
+                    (line.base_amount or 0.0) * line.effective_rate / 100.0, 2
+                )
+                shortfall = round(line.expected_amount - (line.amount or 0.0), 2)
+                line.statutory_shortfall = shortfall if shortfall > 0.5 else 0.0
+                continue
             if not line.psr_received or line.non_filer:
                 defaults += 1
             if not line.paid_by_bank:
@@ -263,18 +398,22 @@ class FixWithholdingLine(models.Model):
 
     @api.constrains("amount", "expected_amount", "multiplier", "defaults_count")
     def _check_statutory_amount(self):
-        """New deductions must equal base x effective rate and may not use a multiplier
-        below 1.5 per recorded default. Historical rows that breach the floor are NOT
-        refused here (that would block an upgrade); they carry a statutory_shortfall and
-        the register reports them for remediation."""
+        """A deduction equals base x effective rate, and its multiplier is never
+        below 1.5 per recorded default (A08 M51-7, W06: a new no-TIN row at x1.0
+        used to pass as a "legacy row"; the context bypass is gone too).
+        Constraints run when these fields are written, so historical rows are
+        re-checked only when edited; action_apply_statutory_uplift brings one
+        to the statutory minimum."""
         for line in self:
             if line.state == "cancelled":
                 continue
-            if line.env.context.get("statutory_remediation"):
-                continue
             minimum = round(1.5 ** (line.defaults_count or 0), 3)
             if (line.multiplier or 1.0) < minimum - 1e-6:
-                continue  # legacy row: surfaced as a shortfall, fixed by the action
+                raise ValidationError(
+                    "Multiplier %.3f is below the statutory %.3f for %d default(s) (missing "
+                    "PSR / cash payment / no TIN, ITA 2023): the deduction would "
+                    "under-withhold." % (line.multiplier or 1.0, minimum, line.defaults_count)
+                )
             if abs((line.amount or 0.0) - (line.expected_amount or 0.0)) > 0.51:
                 raise ValidationError(
                     "Deducted %.2f but the statutory amount is %.2f "
@@ -290,12 +429,13 @@ class FixWithholdingLine(models.Model):
     def action_apply_statutory_uplift(self):
         """Remediate a legacy under-withheld row: set the multiplier to the statutory
         minimum for its recorded defaults and recompute the withheld amount."""
+        require_finance(self.env, "Applying the statutory uplift")
         for line in self:
+            if line.state != "withheld":
+                raise UserError("Only an undeposited deduction is remediated")
             minimum = round(1.5 ** (line.defaults_count or 0), 3)
             amount = round((line.base_amount or 0.0) * (line.rate or 0.0) * minimum / 100.0, 2)
-            line.with_context(statutory_remediation=True).write(
-                {"multiplier": minimum, "amount": amount}
-            )
+            line.write({"multiplier": minimum, "amount": amount})
 
     @api.depends("document_date")
     def _compute_period(self):
@@ -329,6 +469,10 @@ class FixWithholdingLine(models.Model):
             "base_amount": self.base_amount,
             "rate_percent": self.rate * self.multiplier,
             "withheld_amount": self.amount,
+            # the payment the certificate covers: an AP bill or another source
+            # (A05 trade-in payouts) — the certificate is never free-standing
+            "source_model": self.source_model or False,
+            "source_ref": self.source_ref or False,
             "challan_no": self.challan_id.challan_no,
             "challan_date": self.challan_id.challan_date,
             "bank_branch": " / ".join(
@@ -340,16 +484,27 @@ class FixWithholdingLine(models.Model):
     def action_issue_certificate(self):
         """Issue the deductee certificate (Mushak 6.6 for VDS, the income-tax
         withholding certificate for TDS) — only once the money is deposited:
-        the certificate states the challan."""
+        the certificate states the challan. A08 M51-4: a certificate exists
+        only through this action, for a deduction its verified challan paid."""
+        require_finance(self.env, "Issuing a withholding certificate")
         for line in self:
             if line.state != "deposited":
                 raise UserError(
                     "Deduction %s is %s — a certificate is issued after the challan deposit"
                     % (line.source_ref or line.id, line.state)
                 )
-            cert = self.env["fix.withholding.certificate"].create(line._certificate_vals())
+            challan = line.challan_id
+            if not challan or challan.state != "deposited" or not challan.verified_by_id:
+                raise UserError(
+                    "Deduction %s has no deposited, verified challan — no certificate"
+                    % (line.source_ref or line.id)
+                )
+            cert = (
+                self.env["fix.withholding.certificate"]._guarded().create(line._certificate_vals())
+            )
+            line._guarded().write({"certificate_id": cert.id})
             cert.action_issue()
-            line.write({"certificate_id": cert.id, "state": "certified"})
+            line._guarded().write({"state": "certified"})
         return True
 
 
@@ -359,7 +514,7 @@ class FixTaxChallan(models.Model):
 
     _name = "fix.tax.challan"
     _description = "Tax Challan (A-Challan / e-Payment)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "challan_date desc, id desc"
     _challan_no_unique = models.Constraint(
         "UNIQUE (company_id, challan_no)", "This challan number is already recorded"
@@ -406,14 +561,111 @@ class FixTaxChallan(models.Model):
         tracking=True,
     )
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
+    # A08 M51-11: the challan number was typed and never checked. The deposit
+    # is confirmed only after a second person records the verification of the
+    # receipt (iBAS++ / bank e-payment confirmation reference).
+    verification_ref = fields.Char(
+        string="Receipt Verification",
+        readonly=True,
+        copy=False,
+        help="Reference of the iBAS++ / bank confirmation the challan was verified against",
+    )
+    verified_by_id = fields.Many2one("res.users", string="Verified By", readonly=True, copy=False)
+    verified_at = fields.Datetime(string="Verified On", readonly=True, copy=False)
+    receipt_reference = fields.Char(
+        string="iBAS++ / Bank Confirmation",
+        copy=False,
+        help="The confirmation reference of the receipt, recorded by the verifier",
+    )
 
-    @api.depends("tax_kind", "withholding_line_ids.amount", "vat_return_id.net_payable")
+    _VERIFIED_TERMS = frozenset(
+        {
+            "challan_no",
+            "challan_date",
+            "amount",
+            "tax_kind",
+            "period",
+            "vat_return_id",
+            "payment_mode",
+            "bank_name",
+            "bank_branch",
+            "economic_code",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "move_id",
+            "verification_ref",
+            "verified_by_id",
+            "verified_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= {n for n, f in self._fields.items() if f.store}
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            moving = {k for k in vals if not k.startswith(("message_", "activity_"))}
+            done = self.filtered(lambda ch: ch.state != "draft")
+            if done and any(
+                ch._fix_guard_differs(n, vals[n], ch[n])
+                for ch in done
+                for n in moving
+                if n in ch._fields
+            ):
+                raise UserError(
+                    "Challan %s is %s and cannot change" % (done[:1].challan_no, done[:1].state)
+                )
+            verified = (self - done).filtered("verified_by_id")
+            if verified and moving & self._VERIFIED_TERMS:
+                # the verification covered the terms it was given for
+                res = super().write(vals)
+                verified._guarded().write(
+                    {"verification_ref": False, "verified_by_id": False, "verified_at": False}
+                )
+                return res
+        return super().write(vals)
+
+    @api.depends("tax_kind", "withholding_line_ids.amount", "vat_return_id.net_payable_after_vds")
     def _compute_liability(self):
         for ch in self:
             if ch.tax_kind == "vat":
-                ch.liability_total = ch.vat_return_id.net_payable
+                # A08 M51-11: the VDS customers deducted is already deposited
+                # on the company's behalf; the challan settles what remains.
+                ch.liability_total = ch.vat_return_id.net_payable_after_vds
             else:
                 ch.liability_total = sum(ch.withholding_line_ids.mapped("amount"))
+
+    def action_record_verification(self, reference=None):
+        """Second person: record that the challan number, date and amount were
+        verified against the iBAS++ / bank e-payment confirmation."""
+        require_finance(self.env, "Verifying a challan")
+        for ch in self:
+            ref = (reference or ch.receipt_reference or "").strip()
+            if not ref:
+                raise UserError(
+                    "State the iBAS++ / bank confirmation reference the challan matches."
+                )
+            if ch.state != "draft":
+                raise UserError("Challan %s is already %s" % (ch.challan_no, ch.state))
+            if not self.env.su and self.env.user == ch.create_uid:
+                raise UserError(
+                    "Segregation of duties: challan %s was recorded by you; another "
+                    "accountant verifies it against the receipt." % ch.challan_no
+                )
+            ch._guarded().write(
+                {
+                    "verification_ref": ref,
+                    "verified_by_id": self.env.uid,
+                    "verified_at": fields.Datetime.now(),
+                }
+            )
+        return True
 
     @api.constrains("period", "amount")
     def _check_challan(self):
@@ -426,6 +678,7 @@ class FixTaxChallan(models.Model):
     def action_link_open_deductions(self):
         """Link every withheld, undeposited deduction of the challan's tax and
         period (the usual monthly deposit)."""
+        require_finance(self.env, "Linking deductions to a challan")
         for ch in self:
             if ch.state != "draft" or ch.tax_kind == "vat":
                 raise UserError("Only a draft TDS/VDS challan links deductions")
@@ -451,9 +704,15 @@ class FixTaxChallan(models.Model):
         """Confirm the deposit: the challan must settle exactly the linked
         liabilities; posts Dr tax liability / Cr bank and marks the
         deductions deposited. Fails closed on any missing configuration."""
+        require_finance(self.env, "Confirming a challan deposit")
         for ch in self:
             if ch.state != "draft":
                 raise UserError("Challan %s is already %s" % (ch.challan_no, ch.state))
+            if not ch.verified_by_id:
+                raise UserError(
+                    "Challan %s is not verified against the iBAS++ / bank receipt yet"
+                    % ch.challan_no
+                )
             company = ch.company_id
             if ch.tax_kind == "vat":
                 ret = ch.vat_return_id
@@ -496,8 +755,8 @@ class FixTaxChallan(models.Model):
                 ch.operating_unit_id,
             )
             if partner_lines:
-                partner_lines.write({"state": "deposited"})
-            ch.write({"state": "deposited", "move_id": move.id})
+                partner_lines._guarded().write({"state": "deposited"})
+            ch._guarded().write({"state": "deposited", "move_id": move.id})
             publish(
                 self.env,
                 "tax_challan.deposited",
@@ -519,7 +778,7 @@ class FixInputVatCredit(models.Model):
 
     _name = "fix.input.vat.credit"
     _description = "Input VAT Credit (Mushak 6.1)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -559,6 +818,13 @@ class FixInputVatCredit(models.Model):
         store=True,
     )
     source_ref = fields.Char(string="Source Document", index=True)
+    original_credit_id = fields.Many2one(
+        "fix.input.vat.credit",
+        string="Original Invoice Credit",
+        index=True,
+        ondelete="restrict",
+        help="For a debit / credit note (6.8 / 6.7): the credit of the supplier 6.3 it adjusts",
+    )
     claim_period = fields.Char(
         string="Claim Period", help="YYYY-MM — the Mushak 9.1 period the credit is claimed in"
     )
@@ -608,12 +874,68 @@ class FixInputVatCredit(models.Model):
             y, m = add_months(row.invoice_date.year, row.invoice_date.month, window)
             row.claim_deadline = "%04d-%02d" % (y, m)
 
+    # Fields whose change makes an eligibility verdict stale.
+    _BUSINESS_FIELDS = frozenset(
+        {
+            "partner_id",
+            "supplier_bin",
+            "supplier_mushak_no",
+            "supplier_enlisted",
+            "invoice_date",
+            "taxable_amount",
+            "vat_amount",
+            "adjustment_type",
+            "original_credit_id",
+            "currency_id",
+            "company_id",
+            "claim_period",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # A08 M51-3: eligibility is set by action_check_eligibility only.
+        return super()._fix_guarded_fields() | {"state", "ineligible_reason", "vat_return_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state == "claimed":
+            locked |= set(self._BUSINESS_FIELDS)
+        return locked
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get("claim_period") and vals.get("invoice_date"):
                 vals["claim_period"] = str(vals["invoice_date"])[:7]
         return super().create(vals_list)
+
+    def write(self, vals):
+        business = set(vals) & self._BUSINESS_FIELDS
+        if self and business and not self._fix_guard_open():
+            claimed = self.filtered(lambda r: r.state == "claimed")
+            if claimed and any(
+                r._fix_guard_differs(n, vals[n], r[n]) for r in claimed for n in business
+            ):
+                raise UserError(
+                    "Input credit %s is claimed in the Mushak 9.1 %s: it is frozen (a "
+                    "correction is a 6.7 / 6.8 adjustment)."
+                    % (
+                        claimed[:1].supplier_mushak_no or claimed[:1].id,
+                        claimed[:1].vat_return_id.period,
+                    )
+                )
+            # a verdict on other terms is stale: back to Pending Check
+            checked = self.filtered(
+                lambda r: (
+                    r.state in ("eligible", "ineligible")
+                    and any(r._fix_guard_differs(n, vals[n], r[n]) for n in business)
+                )
+            )
+            res = super().write(vals)
+            if checked:
+                checked._guarded().write({"state": "pending", "ineligible_reason": False})
+            return res
+        return super().write(vals)
 
     @api.constrains("claim_period", "invoice_date", "vat_amount", "adjustment_type")
     def _check_claim(self):
@@ -637,32 +959,195 @@ class FixInputVatCredit(models.Model):
                     )
 
     def _ineligibility(self):
-        """The reason this credit cannot be claimed, or '' when it can."""
+        """The reason this credit cannot be claimed, or '' when it can
+        (VAT & SD Act 2012 s.46; A08 M51-3)."""
         self.ensure_one()
         if self.adjustment_type == "decrease":
             return ""  # a decreasing adjustment is always reported, never optional
         if self.vat_amount <= 0:
             return "No input VAT on the invoice"
-        if not re.fullmatch(r"\d{13}", (self.supplier_bin or "").strip()):
-            return "Supplier BIN missing or not 13 digits"
+        bin_no = (self.supplier_bin or "").strip()
+        if not re.fullmatch(r"\d{13}", bin_no) or len(set(bin_no)) < 2:
+            return "Supplier BIN missing or not a real 13-digit BIN"
         if not (self.supplier_mushak_no or "").strip():
             return "Supplier Mushak 6.3 number missing"
         if self.supplier_enlisted:
             return "Supplier is turnover-tax enlisted, not VAT-registered"
+        if self.adjustment_type == "increase":
+            original = self.original_credit_id
+            if not original:
+                return "Debit note (6.8) not linked to the supplier 6.3 credit it adjusts"
+            if original.state not in ("eligible", "claimed"):
+                return "The original invoice credit is not eligible (%s)" % (
+                    original.ineligible_reason or original.state
+                )
+        reason = self._ratio_problem()
+        if reason:
+            return reason
+        if self.adjustment_type == "invoice":
+            dup = self._duplicate_of()
+            if dup:
+                return "Supplier Mushak 6.3 %s (BIN %s) is already recorded on credit %s" % (
+                    self.supplier_mushak_no,
+                    self.supplier_bin,
+                    dup.source_ref or dup.id,
+                )
         return ""
 
+    def _ratio_problem(self):
+        """The VAT must be the taxable value at a VAT rate in force (Tax Rate
+        Master), within the rounding tolerance."""
+        self.ensure_one()
+        if (self.taxable_amount or 0.0) <= 0.0:
+            return "Taxable value missing: the VAT cannot be checked against a scheduled rate"
+        rates = self.env["fix.tax.rate"]._fix_vat_rates(self.invoice_date, self.company_id)
+        tolerance = float_param(self.env, RATIO_TOLERANCE_PARAM, RATIO_TOLERANCE_DEFAULT)
+        for rate in {rates.standard, *rates.reduced}:
+            if abs(self.vat_amount - self.taxable_amount * float(rate) / 100.0) <= tolerance:
+                return ""
+        return "VAT %.2f on taxable %.2f (%.2f%%) matches no VAT rate in force" % (
+            self.vat_amount,
+            self.taxable_amount,
+            self.vat_amount * 100.0 / self.taxable_amount,
+        )
+
+    def _duplicate_of(self):
+        """Another credit for the same supplier 6.3 (BIN + number) that is
+        eligible, claimed, or pending and recorded earlier: a supplier 6.3
+        is claimed once."""
+        self.ensure_one()
+        others = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", self.company_id.id),
+                ("adjustment_type", "=", "invoice"),
+                ("supplier_bin", "=", (self.supplier_bin or "").strip()),
+                ("supplier_mushak_no", "=", (self.supplier_mushak_no or "").strip()),
+            ]
+        )
+        return others.filtered(
+            lambda o: (
+                o.state in ("eligible", "claimed") or (o.state == "pending" and o.id < self.id)
+            )
+        )[:1]
+
     def action_check_eligibility(self):
-        for row in self:
+        require_finance(self.env, "Checking input VAT eligibility")
+        for row in self.sorted("id"):
             if row.state == "claimed":
                 raise UserError("A claimed credit is part of a 9.1 return — not re-checked")
             reason = row._ineligibility()
-            row.write(
+            row._guarded().write(
                 {
                     "state": "ineligible" if reason else "eligible",
                     "ineligible_reason": reason or False,
                 }
             )
         return True
+
+    @api.model
+    def _fix_propose_vat_input_reclass(self, company=None, wip_code="110500", create_draft=False):
+        """A08 M51-8 data correction — a PROPOSAL, never posted here.
+
+        AP posted input VAT to 110500 "Work in Progress" (the old default code
+        of the vat_input role collided with the chart). This finds the input
+        VAT lines the AP sub-ledger posted on that account (label "Input VAT
+        ...") and proposes ONE re-class: Dr the configured input-VAT account /
+        Cr 110500 for their total. With create_draft=True it creates the entry
+        as a DRAFT journal entry for a second person to review and post.
+        Refused when cd_tax_engine_bd.vat_input_account_code is not set."""
+        company = company or self.env.company
+        target = tax_account(self.env, company, "vat_input")
+        wip = (
+            self.env["account.account"]
+            .sudo()
+            .search([("code", "=", wip_code), ("company_ids", "in", company.id)], limit=1)
+        )
+        if not wip:
+            raise UserError("No account %s in %s" % (wip_code, company.name))
+        if wip == target:
+            raise UserError("The configured input-VAT account is %s itself" % wip_code)
+        lines = (
+            self.env["account.move.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("account_id", "=", wip.id),
+                    ("parent_state", "=", "posted"),
+                    ("name", "=like", "Input VAT %"),
+                ],
+                order="date, id",
+            )
+        )
+        total = money(sum(lines.mapped("balance")))
+        debit, credit = (total, 0.0) if total > 0 else (0.0, -total)
+        entry = [
+            {
+                "account": target.code,
+                "label": "Re-class AP input VAT from %s" % wip_code,
+                "debit": debit,
+                "credit": credit,
+            },
+            {
+                "account": wip.code,
+                "label": "Re-class AP input VAT to %s" % target.code,
+                "debit": credit,
+                "credit": debit,
+            },
+        ]
+        result = {
+            "company": company.name,
+            "source_lines": [
+                {
+                    "move": ln.move_id.name,
+                    "date": str(ln.date),
+                    "label": ln.name,
+                    "partner": ln.partner_id.display_name or "",
+                    "amount": money(ln.balance),
+                }
+                for ln in lines
+            ],
+            "total": total,
+            "entry": entry,
+            "move_id": False,
+        }
+        if create_draft and total:
+            journal = (
+                self.env["account.journal"]
+                .sudo()
+                .search([("company_id", "=", company.id), ("type", "=", "general")], limit=1)
+            )
+            if not journal:
+                raise UserError("No general journal in %s for the re-class" % company.name)
+            move = (
+                self.env["account.move"]
+                .sudo()
+                .create(
+                    {
+                        "move_type": "entry",
+                        "company_id": company.id,
+                        "journal_id": journal.id,
+                        "date": fields.Date.context_today(self),
+                        "ref": "A08 M51-8 re-class of AP input VAT from %s" % wip_code,
+                        "line_ids": [
+                            (
+                                0,
+                                0,
+                                {
+                                    "account_id": acc.id,
+                                    "name": row["label"],
+                                    "debit": row["debit"],
+                                    "credit": row["credit"],
+                                },
+                            )
+                            for acc, row in zip((target, wip), entry, strict=True)
+                        ],
+                    }
+                )
+            )
+            result["move_id"] = move.id
+        return result
 
 
 class FixTaxAuditPack(models.Model):
@@ -672,8 +1157,36 @@ class FixTaxAuditPack(models.Model):
 
     _name = "fix.tax.audit.pack"
     _description = "Tax Audit Support Pack"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "date_to desc, id desc"
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "attachment_id",
+            "manifest",
+            "pack_sha256",
+            "file_count",
+            "generated_at",
+            "generated_by",
+            "integrity_status",
+        }
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            sealed = self.filtered(lambda p: p.state == "generated")
+            if sealed and {"date_from", "date_to", "company_id"} & set(vals):
+                raise UserError("A generated audit pack is sealed; create a new pack to re-run")
+        return super().write(vals)
+
+    seal_id = fields.Many2one(
+        "fix.tax.audit.pack.seal", string="Seal", compute="_compute_seal", compute_sudo=True
+    )
+
+    def _compute_seal(self):
+        Seal = self.env["fix.tax.audit.pack.seal"].sudo()
+        for pack in self:
+            pack.seal_id = Seal.search([("pack_id", "=", pack.id)], order="id", limit=1)
 
     name = fields.Char(compute="_compute_name", store=True)
     company_id = fields.Many2one(
@@ -904,7 +1417,10 @@ class FixTaxAuditPack(models.Model):
 
     def action_generate(self):
         """Build the bundle: one CSV per register, a manifest.json with each
-        file's SHA-256 and row count, zipped and attached to the pack."""
+        file's SHA-256 and row count, zipped and attached to the pack. The
+        hashes are sealed in an append-only record OUTSIDE the pack (A08
+        M51-10), which verification reads."""
+        require_finance(self.env, "Generating a tax audit pack")
         for pack in self:
             if pack.state == "generated":
                 raise UserError("Pack already generated — create a new pack to re-run")
@@ -943,34 +1459,89 @@ class FixTaxAuditPack(models.Model):
                     "company_id": pack.company_id.id,
                 }
             )
-            pack.write(
+            digest = hashlib.sha256(raw).hexdigest()
+            manifest_text = manifest_bytes.decode("utf-8")
+            pack._guarded().write(
                 {
                     "state": "generated",
                     "attachment_id": attachment.id,
-                    "manifest": manifest_bytes.decode("utf-8"),
-                    "pack_sha256": hashlib.sha256(raw).hexdigest(),
+                    "manifest": manifest_text,
+                    "pack_sha256": digest,
                     "file_count": len(files),
                     "generated_at": fields.Datetime.now(),
                     "generated_by": self.env.user.id,
                     "integrity_status": "intact",
                 }
             )
+            self.env["fix.tax.audit.pack.seal"].sudo().create(
+                {
+                    "pack_id": pack.id,
+                    "company_id": pack.company_id.id,
+                    "pack_sha256": digest,
+                    "manifest": manifest_text,
+                    "attachment_id": attachment.id,
+                    "sealed_by": self.env.uid,
+                }
+            )
         return True
 
     def action_verify(self):
-        """Re-read the stored bundle and check every file against the manifest."""
+        """Re-read the stored bundle and check it against the SEAL — the hash
+        and manifest recorded outside the pack at generation (a re-hashed pack
+        record or a replaced bundle reads tampered)."""
+        require_finance(self.env, "Verifying a tax audit pack")
         for pack in self:
-            if pack.state != "generated" or not pack.attachment_id:
+            seal = pack.sudo().seal_id
+            if pack.state != "generated" or not seal:
                 raise UserError("Generate the pack first")
-            raw = base64.b64decode(pack.attachment_id.datas or b"")
-            ok = hashlib.sha256(raw).hexdigest() == pack.pack_sha256
+            attachment = seal.attachment_id.sudo()
+            raw = base64.b64decode(attachment.datas or b"") if attachment else b""
+            ok = (
+                bool(raw)
+                and hashlib.sha256(raw).hexdigest() == seal.pack_sha256
+                and pack.pack_sha256 == seal.pack_sha256
+                and pack.attachment_id == seal.attachment_id
+            )
             if ok:
-                manifest = json.loads(pack.manifest or "{}")
-                with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-                    for entry in manifest.get("files", []):
-                        data = zf.read(entry["name"])
-                        if hashlib.sha256(data).hexdigest() != entry["sha256"]:
-                            ok = False
-                            break
-            pack.integrity_status = "intact" if ok else "tampered"
+                try:
+                    manifest = json.loads(seal.manifest or "{}")
+                    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                        for entry in manifest.get("files", []):
+                            data = zf.read(entry["name"])
+                            if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                                ok = False
+                                break
+                except (zipfile.BadZipFile, KeyError, ValueError):
+                    ok = False
+            pack._guarded().write({"integrity_status": "intact" if ok else "tampered"})
         return True
+
+
+class FixTaxAuditPackSeal(models.Model):
+    """The append-only seal of a generated audit pack (A08 M51-10): the
+    bundle hash and manifest live HERE, outside the pack an accountant can
+    edit. Created by the system at generation; never written or deleted."""
+
+    _name = "fix.tax.audit.pack.seal"
+    _description = "Tax Audit Pack Seal"
+    _order = "id desc"
+
+    pack_id = fields.Many2one("fix.tax.audit.pack", required=True, index=True, ondelete="restrict")
+    company_id = fields.Many2one("res.company", required=True, index=True)
+    pack_sha256 = fields.Char(string="Bundle SHA-256", required=True)
+    manifest = fields.Text(required=True)
+    attachment_id = fields.Many2one("ir.attachment", string="Bundle", ondelete="restrict")
+    sealed_by = fields.Many2one("res.users", required=True)
+    sealed_at = fields.Datetime(required=True, default=fields.Datetime.now)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            raise UserError("An audit pack seal is written by the pack generation only.")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        raise UserError("An audit pack seal is append-only.")
+
+    def unlink(self):
+        raise UserError("An audit pack seal is append-only.")

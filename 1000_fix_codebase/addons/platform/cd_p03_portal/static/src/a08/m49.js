@@ -33,7 +33,8 @@ export const MODULE = {
       { id: 'M49-dualbook', en: 'Book vs Tax Depreciation', bn: 'হিসাব বনাম কর অবচয়', t: 'r' },
       { id: 'M49-schedules', en: 'Schedules & Movements', bn: 'সূচি', t: 'r' },
       { id: 'M49-nbv', en: 'NBV by Category', bn: 'শ্রেণিভিত্তিক নিট মূল্য', t: 'r' },
-      { id: 'M49-taxrates', en: 'Tax Depreciation Rates', bn: 'কর অবচয়ের হার', t: 'g' }
+      { id: 'M49-gl-recon', en: 'Register to GL Reconciliation', bn: 'রেজিস্টার ও খতিয়ান মিলকরণ', t: 'r' },
+      { id: 'M49-taxrates', en: 'Tax Depreciation Rates', bn: 'কর অবচয়ের হার', t: 'r' }
     ]},
     { en: 'Lifecycle', screens: [
       { id: 'M49-impairment', en: 'Revaluation & Impairment', bn: 'পুনর্মূল্যায়ন', t: 'g' },
@@ -68,7 +69,7 @@ export const SCREENS = {
   // Capex
   'M49-requests': { kind: 'model_list', model: 'fix.capex.request',
     cols: ['name','title','request_date','operating_unit_id','budget_id','amount','requested_by_id','state'],
-    stateField: 'state', actions: [{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'},
+    stateField: 'state', actions: [{m:'action_submit',l:'Submit for Approval'},{m:'action_recall_approval',l:'Recall Approval Request'},
       {m:'action_reject',l:'Reject'},{m:'action_create_cwip',l:'Open CWIP Project'}] },
   'M49-budget': { kind: 'model_list', model: 'fix.capex.budget',
     cols: ['name','fiscal_year','date_from','date_to','operating_unit_id','amount','committed_amount','actual_amount','available_amount','state'],
@@ -82,8 +83,8 @@ export const SCREENS = {
     cols: ['name','capex_request_id','category_id','operating_unit_id','amount','state','asset_id'],
     stateField: 'state', actions: [{m:'action_capitalise',l:'Capitalise'}] },
   'M49-transfer': { kind: 'model_list', model: 'fix.asset.transfer',
-    cols: ['name','asset_id','date','from_operating_unit_id','operating_unit_id','from_custodian_id','to_custodian_id','state'],
-    stateField: 'state', actions: [{m:'action_confirm',l:'Confirm Transfer'},{m:'action_cancel',l:'Cancel'}] },
+    cols: ['name','asset_id','date','from_operating_unit_id','operating_unit_id','from_custodian_id','to_custodian_id','acknowledged_by_id','state'],
+    stateField: 'state', actions: [{m:'action_confirm',l:'Send (Confirm Transfer)'},{m:'action_acknowledge',l:'Acknowledge Receipt'},{m:'action_cancel',l:'Cancel'}] },
   'M49-categories': { kind: 'model_list', model: 'fix.asset.category',
     cols: ['code','name','useful_life_months','salvage_percent','tax_rate_code','journal_id','asset_account_id','expense_account_id'] },
   // Depreciation
@@ -93,15 +94,15 @@ export const SCREENS = {
   'M49-dualbook': { kind: 'table_report', module: 'M49', report: 'dual_book' },
   'M49-schedules': { kind: 'table_report', module: 'M49', report: 'movement_schedule' },
   'M49-nbv': { kind: 'table_report', module: 'M49', report: 'nbv_by_category' },
-  'M49-taxrates': { kind: 'model_list', model: 'fix.asset.tax.rate',
-    cols: ['code','name','rate_percent','date_from','date_to','legal_reference','verified'] },
+  'M49-taxrates': { kind: 'table_report', module: 'M49', report: 'tax_depreciation_rates',
+    title: 'Tax Depreciation Rates (M51 master)', period: false },
   // Lifecycle
   'M49-impairment': { kind: 'model_list', model: 'fix.asset.revaluation',
     cols: ['name','asset_id','kind','date','new_value','carrying_amount','surplus_amount','pl_amount','state'],
-    stateField: 'state', actions: [{m:'action_post',l:'Approve & Post'},{m:'action_cancel',l:'Cancel'}] },
+    stateField: 'state', actions: [{m:'action_submit',l:'Submit for CFO Approval'},{m:'action_post',l:'Post (approved)'},{m:'action_cancel',l:'Cancel'}] },
   'M49-disposal': { kind: 'model_list', model: 'fix.asset.disposal',
     cols: ['name','asset_id','kind','date','proceeds','nbv','gain_loss','state'],
-    stateField: 'state', actions: [{m:'action_approve',l:'Approve'},{m:'action_post',l:'Post'},{m:'action_cancel',l:'Cancel'}] },
+    stateField: 'state', actions: [{m:'action_submit',l:'Submit for Approval'},{m:'action_post',l:'Post (approved)'},{m:'action_cancel',l:'Cancel'}] },
   'M49-disposal-gl': { kind: 'table_report', module: 'M49', report: 'disposal_gains' },
   'M49-verify': { kind: 'model_list', model: 'fix.asset.verification.campaign',
     cols: ['name','date','operating_unit_id','expected_count','found_count','misplaced_count','missing_count','unregistered_count','state'],
@@ -118,6 +119,7 @@ export const SCREENS = {
     cols: ['lease_id','sequence','period_start','opening','payment','interest','principal','closing','depreciation','state'],
     stateField: 'state', create: false, actions: [{m:'action_post',l:'Post Month'}] },
   'M49-lease-summary': { kind: 'table_report', module: 'M49', report: 'lease_summary' },
+  'M49-gl-recon': { kind: 'table_report', module: 'M49', report: 'register_gl_reconciliation', title: 'Register to GL Reconciliation', period: false },
 
 
   /* ===== A08 master-data forms (D365 in-workspace) ===== */
@@ -126,7 +128,7 @@ export const SCREENS = {
     model: 'fix.capex.budget',
     title: "Capex Budget",
     back: 'M49-budget',
-    status: { field: 'state', labels: { draft: "Draft", approved: "Approved", locked: "Locked" } },
+    status: { field: 'state', labels: { draft: "Draft", approved: "Approved", closed: "Closed" } },
     sections: [
       { title: "Budget",
         note: "A capex budget per fiscal year and asset category; committed/actual/available are computed from the requests raised against it.",
@@ -137,9 +139,9 @@ export const SCREENS = {
           { name: 'date_to', required: true, label: "To" },
           { name: 'category_id', label: "Asset Category" },
           { name: 'amount', required: true, label: "Budget Amount" },
-          { name: 'prepared_by_id', label: "Prepared By" },
-          { name: 'approved_by_id', label: "Approved By" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'prepared_by_id', readonly: true, label: "Prepared By" },
+          { name: 'approved_by_id', readonly: true, label: "Approved By" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -148,7 +150,7 @@ export const SCREENS = {
     model: 'fix.cwip.entry',
     title: "CWIP Entry",
     back: 'M49-cwip',
-    status: { field: 'state', labels: { draft: "Draft", capitalised: "Capitalised", cancelled: "Cancelled" } },
+    status: { field: 'state', labels: { open: "Open", capitalised: "Capitalised" } },
     sections: [
       { title: "Work in Progress",
         note: "Construction-work-in-progress accumulates here until the asset is capitalised; the useful life and salvage move onto the fixed asset.",
@@ -156,10 +158,10 @@ export const SCREENS = {
           { name: 'name', required: true, label: "CWIP Reference" },
           { name: 'capex_request_id', label: "Capex Request" },
           { name: 'category_id', label: "Asset Category" },
-          { name: 'amount', required: true, label: "Amount" },
+          { name: 'amount', readonly: true, label: "Posted Cost Booked" },
           { name: 'life_months', label: "Useful Life (months)" },
           { name: 'salvage', label: "Salvage Value" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] },
       { title: "Description",
         fields: [
@@ -201,7 +203,7 @@ export const SCREENS = {
           { name: 'date_from', required: true, label: "From" },
           { name: 'date_to', label: "To" },
           { name: 'legal_reference', label: "Legal Reference" },
-          { name: 'verified', label: "Verified" }
+          { name: 'verified', readonly: true, label: "Verified (legacy; the M51 master is used)" }
         ] }
     ]
   },
@@ -218,8 +220,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Campaign Name" },
           { name: 'date', required: true, label: "Date" },
           { name: 'responsible_id', label: "Responsible" },
-          { name: 'expected_count', label: "Expected Count" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'expected_count', readonly: true, label: "Expected Count" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -262,13 +264,15 @@ Object.assign(SCREENS, {
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'request_date', required: true, label: 'Request Date' },
-          { name: 'requested_by_id', label: 'Requested By' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
           { name: 'category_id', label: 'Asset Category' },
           { name: 'budget_id', label: 'Capex Budget' },
           { name: 'amount', required: true, label: 'Requested Amount' },
           { name: 'life_months', label: 'Useful Life (Months)' },
           { name: 'operating_unit_id', label: 'Branch' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'justification', type: 'text', label: 'Business Justification' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -286,14 +290,15 @@ Object.assign(SCREENS, {
           { name: 'name', required: true, label: 'Asset Name' },
           { name: 'code', label: 'Asset Code' },
           { name: 'category_id', label: 'Asset Category' },
-          { name: 'custodian_id', label: 'Custodian' },
-          { name: 'operating_unit_id', label: 'Branch' },
+          { name: 'custodian_id', label: 'Custodian (initial; then by transfer)' },
+          { name: 'operating_unit_id', label: 'Branch (initial; then by transfer)' },
+          { name: 'seam_id', label: 'M19 Capitalisation Seam' },
           { name: 'gross', required: true, label: 'Gross' },
           { name: 'salvage', label: 'Salvage Value' },
           { name: 'life_months', required: true, label: 'Useful Life (Months)' },
           { name: 'purchase_date', required: true, label: 'Acquisition Date' },
           { name: 'depreciation_start', label: 'Depreciation Start' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -304,15 +309,16 @@ Object.assign(SCREENS, {
     title: 'Asset Transfer',
     back: 'M49-transfer',
     status: { field: 'state', labels: {
-      draft: 'Draft', done: 'Done', cancelled: 'Cancelled' } },
+      draft: 'Draft', confirmed: 'Awaiting Acknowledgement', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Transfer', note: 'Branch or custodian transfer of one asset; confirming it moves the asset\'s current location and custodian.',
+      { title: 'Transfer', note: 'Branch or custodian transfer of one asset; the asset moves when the receiver acknowledges it.',
         fields: [
           { name: 'asset_id', required: true, label: 'Asset' },
           { name: 'date', required: true, label: 'Transfer Date' },
           { name: 'operating_unit_id', label: 'To Branch' },
           { name: 'to_custodian_id', label: 'To Custodian' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'reason', type: 'text', label: 'Reason' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -323,16 +329,21 @@ Object.assign(SCREENS, {
     title: 'Asset Disposal',
     back: 'M49-disposal',
     status: { field: 'state', labels: {
-      draft: 'Draft', posted: 'Posted', cancelled: 'Cancelled' } },
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved', posted: 'Posted', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Disposal', note: 'Sale, scrap or write-off. Posting derecognises the asset and books the gain or loss against the carrying amount.',
+      { title: 'Disposal', note: 'Sale, scrap or write-off, approved by the authority its amount needs; a sale is invoiced through AR. Posting derecognises the asset and books the gain or loss.',
         fields: [
           { name: 'asset_id', required: true, label: 'Asset' },
           { name: 'kind', required: true, label: 'Disposal Kind' },
           { name: 'date', required: true, label: 'Disposal Date' },
           { name: 'partner_id', label: 'Buyer' },
           { name: 'proceeds', label: 'Proceeds' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'proceeds_account_id', label: 'Proceeds Clearing Account' },
+          { name: 'incident_ref', label: 'Incident Reference (write-off)' },
+          { name: 'insurance_claim_ref', label: 'Insurance Claim' },
+          { name: 'reason', type: 'text', label: 'Reason' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -343,15 +354,17 @@ Object.assign(SCREENS, {
     title: 'Revaluation / Impairment',
     back: 'M49-impairment',
     status: { field: 'state', labels: {
-      draft: 'Draft', posted: 'Posted', cancelled: 'Cancelled' } },
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved', posted: 'Posted', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Adjustment', note: 'IAS 16 revaluation, IAS 36 impairment or its reversal. The carrying amount before and the deltas are computed by the engine on posting.',
+      { title: 'Adjustment', note: 'IAS 16 revaluation, IAS 36 impairment or its reversal, with the valuer report; approved by the CFO tier, then posted. The carrying amount before and the deltas are computed on posting.',
         fields: [
           { name: 'asset_id', required: true, label: 'Asset' },
           { name: 'kind', required: true, label: 'Adjustment Kind' },
           { name: 'date', required: true, label: 'Date' },
           { name: 'new_value', required: true, label: 'New Value' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'basis', type: 'text', label: 'Basis / Valuer' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },

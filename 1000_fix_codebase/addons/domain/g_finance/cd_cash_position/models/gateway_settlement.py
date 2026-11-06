@@ -8,6 +8,13 @@
 #   2. the report's net total <-> the bank credit (a statement line);
 # and only a fully matched batch posts: Dr bank (net) + Dr fees / Cr the
 # channel clearing account the receipts debited (gross).
+#
+# A08 workflow audit (M50-9, P1-3): batch state, line match_state and the
+# receipt / bank evidence are guarded; report lines are the provider's
+# figures and cannot be edited; and action_post RE-RUNS the three-way match
+# (each line's receipt re-found at its gross, gross - fee - VAT = net, the
+# bank credit an imported CREDIT equal to the net total) instead of trusting
+# a stored "matched" state. A forged or stale match is refused.
 from __future__ import annotations
 
 import base64
@@ -20,7 +27,13 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from .treasury_common import bank_account_of, post_treasury_move, treasury_account
+from .treasury_common import (
+    GROUP_ACCOUNTANT,
+    bank_account_of,
+    post_treasury_move,
+    require_role,
+    treasury_account,
+)
 
 PROVIDERS = [
     ("bkash", "bKash"),
@@ -117,7 +130,7 @@ def parse_settlement_csv(content: str) -> list[dict]:
 class FixGatewaySettlement(models.Model):
     _name = "fix.gateway.settlement"
     _description = "Gateway / MFS Settlement Batch"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "settlement_date desc, id desc"
 
     name = fields.Char(string="Batch Ref", readonly=True, copy=False, index=True)
@@ -173,6 +186,30 @@ class FixGatewaySettlement(models.Model):
     )
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
 
+    _BATCH_GUARDED = frozenset({"name", "state", "statement_line_id", "report_hash", "move_id"})
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self._BATCH_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(b.state != "draft" for b in self):
+            locked |= {"report_file", "provider", "journal_id", "currency_id", "company_id"}
+        return locked
+
+    def write(self, vals):
+        if self and not (self.env.su or self._fix_guard_has_token()):
+            frozen = {"report_file", "provider", "journal_id", "currency_id", "company_id"}
+            for b in self.filtered(lambda x: x.state != "draft"):
+                changed = [f for f in frozen & set(vals) if b._fix_guard_differs(f, vals[f], b[f])]
+                if changed:
+                    raise UserError(
+                        "%s's report was imported: %s cannot change." % (b.name, ", ".join(changed))
+                    )
+            if "line_ids" in vals:
+                raise UserError("Settlement lines come only from the provider's report.")
+        return super().write(vals)
+
     @api.depends(
         "line_ids.gross",
         "line_ids.fee",
@@ -196,11 +233,24 @@ class FixGatewaySettlement(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not (self.env.su or self._fix_guard_has_token()):
+                vals.pop("name", None)
+                if vals.get("line_ids"):
+                    raise UserError("Settlement lines come only from the provider's report.")
             if not vals.get("name"):
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.gateway.settlement") or "GWS"
+                    self.env["ir.sequence"].sudo().next_by_code("fix.gateway.settlement") or "GWS"
                 )
-        return super().create(vals_list)
+        if self.env.su or self._fix_guard_has_token():
+            return super().create(vals_list)
+        guarded = self._fix_guarded_fields() - {"name"}
+        for vals in vals_list:
+            bad = [k for k in guarded & set(vals) if vals[k] not in (False, None, "")]
+            if vals.get("state", "draft") != "draft":
+                bad.append("state")
+            if bad:
+                self._fix_guard_refuse(set(bad))
+        return super(FixGatewaySettlement, self._guarded()).create(vals_list).with_env(self.env)
 
     def provider_label(self):
         self.ensure_one()
@@ -209,6 +259,7 @@ class FixGatewaySettlement(models.Model):
     # ---------------------------------------------------------------- import
 
     def action_import_report(self):
+        require_role(self.env, GROUP_ACCOUNTANT, "Importing a settlement report")
         for b in self:
             if b.state != "draft":
                 raise UserError("The report is imported once, on a draft batch.")
@@ -221,7 +272,7 @@ class FixGatewaySettlement(models.Model):
             rows = parse_settlement_csv(content)
             if not rows:
                 raise UserError("The settlement report has no transaction lines.")
-            b.write(
+            b._guarded().write(
                 {
                     "report_hash": digest,
                     "line_ids": [
@@ -259,6 +310,8 @@ class FixGatewaySettlement(models.Model):
                 [
                     ("company_id", "=", b.company_id.id),
                     ("match_state", "=", "unmatched"),
+                    ("statement_file_hash", "!=", False),
+                    ("amount", ">", 0),
                     ("journal_id", "in", (b.journal_id.id, False)),
                     ("date", ">=", b.settlement_date - timedelta(days=1)),
                     ("date", "<=", b.settlement_date + timedelta(days=10)),
@@ -266,13 +319,14 @@ class FixGatewaySettlement(models.Model):
             )
             hits = lines.filtered(lambda ln, b=b: abs(ln.amount - b.total_net) < 0.005)
             if len(hits) == 1:
-                b.statement_line_id = hits.id
-                hits.write(
+                b._guarded().write({"statement_line_id": hits.id})
+                hits._guarded().write(
                     {
                         "match_state": "auto",
                         "matched_gateway_id": b.id,
                         "matched_kind": "gateway",
                         "matched_invoice_ref": b.name,
+                        "matched_by_id": self.env.uid,
                     }
                 )
 
@@ -280,12 +334,61 @@ class FixGatewaySettlement(models.Model):
         for b in self:
             if b.state in ("draft", "posted"):
                 continue
+            b.invalidate_recordset(["exception_count", "bank_matched", "total_net"])
             if b.exception_count:
-                b.state = "exceptions"
+                state = "exceptions"
             elif b.bank_matched:
-                b.state = "matched"
+                state = "matched"
             else:
-                b.state = "imported"
+                state = "imported"
+            if state != b.state:
+                b._guarded().write({"state": state})
+
+    def _fix_three_way_problems(self):
+        """Re-run the three-way match from the evidence, not from the stored
+        state: [] when the batch may post, else what fails."""
+        self.ensure_one()
+        problems = []
+        if not self.line_ids:
+            problems.append("the batch has no report lines")
+        for ln in self.line_ids:
+            if abs(ln.gross - ln.fee - ln.fee_vat - ln.net) > 0.01:
+                problems.append("line %s does not add up" % ln.trx_id)
+                continue
+            if ln.gross < 0:
+                problems.append("line %s is a refund / chargeback for review" % ln.trx_id)
+                continue
+            found = ln._find_receipt()
+            if len(found) != 1:
+                problems.append(
+                    "line %s has %s receipt(s) booked" % (ln.trx_id, len(found) or "no")
+                )
+                continue
+            model, res_id, _name, amount = found[0]
+            if abs(amount - ln.gross) > 0.005:
+                problems.append(
+                    "line %s: receipt %s differs from gross %s" % (ln.trx_id, amount, ln.gross)
+                )
+            elif (ln.receipt_model, ln.receipt_res_id) != (model, res_id):
+                problems.append("line %s: the matched receipt changed" % ln.trx_id)
+            dup = self.env["fix.gateway.settlement.line"].search_count(
+                [
+                    ("trx_id", "=ilike", ln.trx_id.strip()),
+                    ("id", "!=", ln.id),
+                    ("company_id", "=", ln.company_id.id),
+                ]
+            )
+            if dup:
+                problems.append("line %s is in another settlement" % ln.trx_id)
+        net = round(sum(self.line_ids.mapped("net")), 2)
+        bank = self.statement_line_id
+        if not bank:
+            problems.append("no bank credit is matched")
+        elif not bank.statement_file_hash:
+            problems.append("the bank credit was not imported from a statement")
+        elif bank.amount <= 0 or abs(bank.amount - net) > 0.005:
+            problems.append("the bank credited %s but the report nets %s" % (bank.amount, net))
+        return problems
 
     def action_match(self):
         """Re-run the three-way match (after receipts or the bank statement
@@ -300,12 +403,19 @@ class FixGatewaySettlement(models.Model):
 
     def action_post(self):
         """Dr bank (net) + Dr fees (+ VAT on fees) / Cr channel clearing
-        (gross) — only for a fully three-way matched batch."""
+        (gross) — only for a batch whose three-way match holds NOW."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Posting a gateway settlement")
         for b in self:
             if b.state != "matched":
                 raise UserError(
                     "%s is not three-way matched (receipts, report and bank credit) — not posted."
                     % b.name
+                )
+            problems = b._fix_three_way_problems()
+            if problems:
+                b._recompute_match()
+                raise UserError(
+                    "%s is not three-way matched — not posted: %s." % (b.name, "; ".join(problems))
                 )
             bank = bank_account_of(b.journal_id)
             clearing = treasury_account(self.env, b.company_id, "channel_clearing")
@@ -346,14 +456,14 @@ class FixGatewaySettlement(models.Model):
                 lines,
                 source="treasury",
             )
-            b.write({"state": "posted", "move_id": move.id})
+            b._guarded().write({"state": "posted", "move_id": move.id})
         return True
 
 
 class FixGatewaySettlementLine(models.Model):
     _name = "fix.gateway.settlement.line"
     _description = "Gateway Settlement Line"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "batch_id, id"
 
     batch_id = fields.Many2one(
@@ -386,6 +496,32 @@ class FixGatewaySettlementLine(models.Model):
         default="missing_receipt",
         required=True,
     )
+
+    _LINE_GUARDED = frozenset(
+        {
+            "match_state",
+            "receipt_model",
+            "receipt_res_id",
+            "receipt_name",
+            "receipt_amount",
+            "trx_id",
+            "txn_date",
+            "gross",
+            "fee",
+            "fee_vat",
+            "net",
+            "batch_id",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self._LINE_GUARDED
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not (self.env.su or self._fix_guard_has_token()):
+            raise UserError("Settlement lines come only from the provider's report.")
+        return super().create(vals_list)
 
     def _find_receipt(self):
         """(model, id, name, amount) of the receipt booked for this trx id."""
@@ -422,8 +558,9 @@ class FixGatewaySettlementLine(models.Model):
 
     def _match_receipt(self):
         for ln in self:
+            ln = ln._guarded()
             if ln.gross < 0:
-                ln.match_state = "refund"
+                ln.write({"match_state": "refund"})
                 continue
             dup = self.search_count(
                 [
@@ -433,7 +570,7 @@ class FixGatewaySettlementLine(models.Model):
                 ]
             )
             if dup:
-                ln.match_state = "duplicate"
+                ln.write({"match_state": "duplicate"})
                 continue
             found = ln._find_receipt()
             if not found:

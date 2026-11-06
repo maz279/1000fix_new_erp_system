@@ -61,65 +61,40 @@ class TestCommissionLedger(unittest.TestCase):
 
 
 class TestPayoutRun(unittest.TestCase):
-    def test_requires_commissions(self):
-        src = inspect.getsource(FixPayoutRun.action_approve)
-        self.assertIn("No commissions", src)
+    """A08 F2 (rewritten 4 Nov 2026): the source-grep tests asserted the old
+    in-method SoD strings and the INT-007 rail. The behaviour is proven live in
+    test_a08_m53_controls.py and test_settlement_orm.py; these pin the design."""
 
-    def test_execute_from_approved(self):
-        src = inspect.getsource(FixPayoutRun.action_execute)
-        self.assertIn("approved", src)
+    def test_approval_is_routed_through_m63(self):
+        from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+            FixFinanceDofaMixin,
+        )
 
-    def test_payout_events(self):
-        src = inspect.getsource(FixPayoutRun)
-        self.assertIn("payout.approved", src)
-        self.assertIn("payout.executed", src)
+        self.assertTrue(FixFinanceDofaMixin._approval_routed)
+        self.assertEqual(FixFinanceDofaMixin._approval_apply_method, "action_dofa_approve")
+        self.assertIn("fix.finance.dofa.mixin", FixPayoutRun._inherit)
 
-    def test_int007_rail_integration_methods(self):
-        """INT-007 rail methods: submission, read-back query, BEFTN fallback."""
-        src = inspect.getsource(FixPayoutRun)
-        self.assertIn("action_submit_payout", src)
-        self.assertIn("action_query_status", src)
-        self.assertIn("action_generate_beftn", src)
-        self.assertIn("idempotency_key", src)
-        self.assertIn("rail_status", src)
+    def test_payouts_are_paid_as_m50_instructions(self):
+        from odoo.addons.cd_settlement_ext.models.fix_settlement_ext import FixPayoutRunLine
 
-    def test_payout_gl_posting(self):
-        """GL posting on payout execution: discharge liability, credit statutory TDS & bank."""
-        src = inspect.getsource(FixPayoutRun.action_post_payout_to_gl)
-        self.assertIn("post_with_dimensions", src)
-        self.assertIn("200200", src)  # Seller Liability debited
-        self.assertIn("210100", src)  # Statutory TDS credited under ITA 2023 §52
-        self.assertIn("101000", src)  # Disbursement Bank credited
+        self.assertEqual(FixPayoutRunLine._name, "fix.payout.run.line")
+        self.assertTrue(FixPayoutRunLine._fix_posts_own_payment)
+
+    def test_cfo_band_is_configuration(self):
+        from odoo.addons.cd_settlement_ext.models import fix_settlement_ext as mod
+
+        self.assertEqual(FixPayoutRun._fin_cfo_param, mod.PARAM_PAYOUT_CFO)
+        self.assertEqual(mod.DEFAULT_PAYOUT_CFO, 2000000.0)
 
 
 class TestPayoutRunSoDAuthority(unittest.TestCase):
-    """R05-M02-T04: Two-person Segregation of Duties (SoD) gate and negative tests."""
+    """R05-M02-T04: the SoD stamps are guarded workflow fields (A08 M53-2)."""
 
-    def test_sod_fields_exist(self):
-        src = inspect.getsource(FixPayoutRun)
-        self.assertIn("prepared_by_id", src)
-        self.assertIn("approved_by_id", src)
-        self.assertIn("approved_date", src)
-        self.assertIn("sod_verified", src)
-        self.assertIn("total_tds", src)
+    def test_sod_fields_exist_and_are_guarded(self):
+        from odoo.addons.cd_settlement_ext.models.fix_settlement_ext import PAYOUT_GUARDED
 
-    def test_sod_self_approval_prevented_in_action_approve(self):
-        """Negative test: preparer cannot approve own payout run."""
-        src = inspect.getsource(FixPayoutRun.action_approve)
-        self.assertIn("rec.prepared_by_id and self.env.user.id == rec.prepared_by_id.id", src)
-        self.assertIn("SoD Violation: Preparer cannot approve their own payout run", src)
-
-    def test_sod_manager_authority_required(self):
-        """Negative test: approver must have group_account_manager or group_system."""
-        src = inspect.getsource(FixPayoutRun.action_approve)
-        self.assertIn("account.group_account_manager", src)
-        self.assertIn("Only Finance Managers can approve payout runs", src)
-
-    def test_sod_audit_trail_recorded(self):
-        """Approved run sets approved_by_id, approved_date, and sod_verified."""
-        src = inspect.getsource(FixPayoutRun.action_approve)
-        self.assertIn('"approved_by_id": self.env.user.id', src)
-        self.assertIn('"sod_verified": True', src)
+        for name in ("prepared_by_id", "approved_by_id", "approved_date", "sod_verified", "state"):
+            self.assertIn(name, PAYOUT_GUARDED)
 
 
 class TestSellerStatementModel(unittest.TestCase):

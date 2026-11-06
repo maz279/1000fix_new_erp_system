@@ -1,5 +1,12 @@
 # cd_cash_position — live-ORM behaviour of M50 treasury: the payment-request
 # seam, bank-feed import (INT-006) and auto-reconciliation, cash position.
+#
+# A08 workflow audit (2026-11-04): the seam tests consumed events for source
+# documents that did not exist (vendor invoice 41, AR invoice 9) and took the
+# payee and amount from the payload; the matching ladder confirmed OUTGOING
+# payments from bank CREDITS on hand-typed lines. Both were the defects
+# (M50-3, M50-18). The consumer now re-reads a real requesting document and
+# the ladder runs on imported DEBITS.
 from __future__ import annotations
 
 import hashlib
@@ -43,65 +50,81 @@ def _request(model, source_id, payload):
     return {"aggregate": model, "aggregate_id": source_id, "payload": payload}
 
 
+def _approved_claim(env, ou, amount=640.0, name="Rafiq"):
+    employee = env["hr.employee"].create({"name": name})
+    claim = env["fix.expense.claim"].create(
+        {
+            "operating_unit_id": ou.id,
+            "employee_id": employee.id,
+            "description": "Fuel",
+            "amount": amount,
+        }
+    )
+    # arrangement: the claim's lines and approval are M52's workflow; its amount
+    # (the sum of its lines) and state are set directly
+    env.flush_all()
+    env.cr.execute(
+        "UPDATE fix_expense_claim SET amount=%s, state='approved' WHERE id=%s", (amount, claim.id)
+    )
+    claim.invalidate_recordset()
+    return employee, claim
+
+
 # --------------------------------------------------------------------------- payment execution
 
 
 class TestPaymentExecutionSeam:
-    def test_vendor_request_consumed_once(self, odoo_env):
+    def test_claim_request_consumed_once_as_pinned_draft(self, odoo_env):
         ou = _ou(odoo_env)
         executions = odoo_env["fix.payment.execution"]
-        event = _request(
-            "fix.vendor.invoice", 41, {"vendor_id": 7, "amount": 4500.0, "operating_unit_id": ou.id}
-        )
+        _employee, claim = _approved_claim(odoo_env, ou)
+        event = _request("fix.expense.claim", claim.id, {"amount": 640.0})
         payment = executions.consume_payment_requested(event)
-        assert (payment.source_model, payment.source_id) == ("fix.vendor.invoice", 41)
-        assert (payment.payee, payment.operating_unit_id) == ("vendor:7", ou)
-        assert _money(payment.amount) == D("4500.00")
-        assert (payment.state, payment.method) == ("pending", "bank_transfer")
+        assert (payment.source_model, payment.source_id) == ("fix.expense.claim", claim.id)
+        assert _money(payment.amount) == D("640.00")
+        assert (payment.state, payment.method, payment.source_pinned) == (
+            "pending",
+            "bank_transfer",
+            True,
+        )
         assert executions.consume_payment_requested(event) == payment
         assert (
             executions.search_count(
-                [("source_model", "=", "fix.vendor.invoice"), ("source_id", "=", 41)]
+                [("source_model", "=", "fix.expense.claim"), ("source_id", "=", claim.id)]
             )
             == 1
         )
 
-    def test_explicit_payee_wins(self, odoo_env):
-        event = _request(
-            "fix.ar.invoice",
-            9,
-            {"payee": "Karim Electronics", "amount": 10.0, "operating_unit_id": _ou(odoo_env).id},
+    def test_payload_cannot_name_the_payee_or_the_amount(self, odoo_env):
+        """The payload is a pointer: the claim's own amount and employee are
+        paid, and a payload that disagrees is refused."""
+        _employee, claim = _approved_claim(odoo_env, _ou(odoo_env), amount=10.0)
+        with pytest.raises(UserError, match="document says"), odoo_env.cr.savepoint():
+            odoo_env["fix.payment.execution"].consume_payment_requested(
+                _request("fix.expense.claim", claim.id, {"payee": "Karim", "amount": 1000.0})
+            )
+        pay = odoo_env["fix.payment.execution"].consume_payment_requested(
+            _request("fix.expense.claim", claim.id, {"payee": "Karim Electronics"})
         )
-        assert (
-            odoo_env["fix.payment.execution"].consume_payment_requested(event).payee
-            == "Karim Electronics"
-        )
+        assert pay.payee != "Karim Electronics" and _money(pay.amount) == D("10.00")
 
     def test_expense_request_takes_ou_from_the_claim(self, odoo_env):
         """Regression: operating_unit_id is required on the execution but
         was never set — every consumed payment.requested failed."""
         ou = _ou(odoo_env)
-        employee = odoo_env["hr.employee"].create({"name": "Rafiq"})
-        claim = odoo_env["fix.expense.claim"].create(
-            {
-                "operating_unit_id": ou.id,
-                "employee_id": employee.id,
-                "description": "Fuel",
-                "amount": 640.0,
-            }
-        )
+        employee, claim = _approved_claim(odoo_env, ou)
         payment = odoo_env["fix.payment.execution"].consume_payment_requested(
             _request("fix.expense.claim", claim.id, {"employee_id": employee.id, "amount": 640.0})
         )
         assert payment.operating_unit_id == ou
-        assert payment.payee == "employee:%s" % employee.id
+        assert payment.payee.startswith("employee:%s" % employee.id)
 
     @pytest.mark.parametrize(
         ("model", "source_id"),
         [("legacy.bill", 3), ("res.partner", 1), ("fix.vendor.invoice", 999999)],
     )
-    def test_request_without_resolvable_ou_is_refused(self, odoo_env, model, source_id):
-        with pytest.raises(UserError, match="carries no operating unit"), odoo_env.cr.savepoint():
+    def test_request_for_no_real_document_is_refused(self, odoo_env, model, source_id):
+        with pytest.raises(UserError), odoo_env.cr.savepoint():
             odoo_env["fix.payment.execution"].consume_payment_requested(
                 _request(model, source_id, {"amount": 1.0})
             )
@@ -252,16 +275,16 @@ class TestAutoMatch:
             }
         )
 
-    def _line(self, env, amount, reference="", narration="", company=None):
-        return env["fix.bank.statement.line"].create(
-            {
-                "company_id": (company or env.company).id,
-                "date": date(2026, 10, 15),
-                "amount": amount,
-                "reference": reference,
-                "narration": narration,
-            }
+    def _line(self, env, amount, reference="", narration=""):
+        """An imported statement line (hand-typed lines are not evidence)."""
+        feed = "Date,Amount,Reference,Description\n2026-10-15,%.2f,%s,%s\n" % (
+            amount,
+            reference,
+            narration or "line %s %s" % (reference, amount),
         )
+        Line = env["fix.bank.statement.line"]
+        digest = Line.import_bank_feed(feed)["file_hash"]
+        return Line.search([("statement_file_hash", "=", digest)])
 
     def test_matching_ladder(self, odoo_env):
         env = odoo_env
@@ -270,12 +293,14 @@ class TestAutoMatch:
         ap = self._payment(env, "fix.vendor.invoice", 9, 4500.0)
         other = self._payment(env, "legacy.bill", 3, 300.0, payee="Rahim Traders")
 
-        # pending lines are processed newest first (_order: date desc, id desc)
-        second_claim = self._line(env, 640.0, reference="EXP/7")  # EXP/7 used by then
-        amount_only = self._line(env, 4500.0, narration="unknown sender")  # no ref, no payee
-        payee_and_amount = self._line(env, 300.0, narration="paid Rahim Traders")
-        ref_only = self._line(env, 600.0, narration="claim EXP/7 part")  # amount differs
-        ref_and_amount = self._line(env, 1150.0, reference="AR/5")
+        # pending lines are processed newest first (_order: date desc, id desc);
+        # outgoing payments are confirmed by bank DEBITS only (A08 M50-3)
+        second_claim = self._line(env, -640.0, reference="EXP/7")  # EXP/7 used by then
+        amount_only = self._line(env, -4500.0, narration="unknown sender")  # no ref, no payee
+        payee_and_amount = self._line(env, -300.0, narration="paid Rahim Traders")
+        ref_only = self._line(env, -600.0, narration="claim EXP/7 part")  # amount differs
+        ref_and_amount = self._line(env, -1150.0, reference="AR/5")
+        credit = self._line(env, 1150.0, reference="AR/5 refund")  # money IN: never a payment
 
         # A08: a reference alone no longer matches — the amount must agree
         # too, so EXP/7 is free for the line that carries the right amount.
@@ -286,6 +311,7 @@ class TestAutoMatch:
         assert (second_claim.matched_payment_id, second_claim.matched_invoice_ref) == (exp, "EXP/7")
         assert payee_and_amount.matched_payment_id == other
         assert amount_only.match_state == "unmatched"
+        assert credit.match_state == "unmatched"
         assert (
             ap.id
             not in (ref_and_amount | second_claim | payee_and_amount)
@@ -298,7 +324,7 @@ class TestAutoMatch:
         payments (cross-entity reconciliation)."""
         other_co = odoo_env["res.company"].create({"name": "1000FiX Ctg Ltd"})
         self._payment(odoo_env, "fix.ar.invoice", 5, 1150.0, company=other_co)
-        line = self._line(odoo_env, 1150.0, reference="AR/5")
+        line = self._line(odoo_env, -1150.0, reference="AR/5")
         assert odoo_env["fix.bank.statement.line"].auto_match() == 0
         assert line.match_state == "unmatched"
 

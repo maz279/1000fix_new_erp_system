@@ -1,5 +1,11 @@
-# cd_cash_position tests — M50 core (P06-M04).
-import inspect
+# cd_cash_position tests — M50 core (P06-M04): registry-free checks.
+#
+# A08 workflow audit (2026-11-04): the source-grep tests that lived here
+# (inspect.getsource(...) contains "payment.executed" / "payload" /
+# "fix.cash.shift") proved nothing about behaviour and were removed; the
+# behaviour they pointed at is executed in test_treasury_a08.py (payment.executed
+# published once, on the bank's confirmation), test_cash_position_orm.py (the
+# payment.requested consumer, the drawer total) and test_a08_m50_controls.py.
 
 
 class TestPaymentExecution:
@@ -9,23 +15,23 @@ class TestPaymentExecution:
 
         assert hasattr(FixPaymentExecution, "_request_key_unique")  # Odoo 19 models.Constraint attr
 
-    def test_execution_publishes_confirmation(self):
-        source = inspect.getsource(
-            __import__(
-                "odoo.addons.cd_cash_position.models.fix_cash_position",
-                fromlist=["FixPaymentExecution"],
-            ).FixPaymentExecution._publish_executed
-        )
-        assert '"payment.executed"' in source
+    def test_release_ladder_defaults_route_every_release(self):
+        """No dual-authorisation value in the M50 spec (BRU-TRE-12 'the
+        configured value'): the single-releaser ceiling defaults to 0 and the
+        bands are the 05-04 §7 cash-commitment bands."""
+        from odoo.addons.cd_cash_position.models import fix_cash_position as m
 
-    def test_consumes_events_not_calls(self):
-        source = inspect.getsource(
-            __import__(
-                "odoo.addons.cd_cash_position.models.fix_cash_position",
-                fromlist=["FixPaymentExecution"],
-            ).FixPaymentExecution.consume_payment_requested
-        )
-        assert "payment.requested" in source or "payload" in source
+        assert m.DEFAULT_RELEASE_LADDER == {
+            m.PARAM_SINGLE_CEILING: 0.0,
+            m.PARAM_TIER2: 50000.0,
+            m.PARAM_TIER3: 500000.0,
+            m.PARAM_TIER4: 2000000.0,
+        }
+
+    def test_self_posting_sources(self):
+        from odoo.addons.cd_cash_position.models.fix_cash_position import SELF_POSTING_SOURCES
+
+        assert {"fix.payment.run.line", "fix.employee.advance"} == SELF_POSTING_SOURCES
 
 
 class TestBankReconciliation:
@@ -47,15 +53,3 @@ class TestBankReconciliation:
         assert has_token("paid AR/5 ok", "AR/5")
         assert not has_token("paid AR/55", "AR/5")
         assert not has_token("", "AR/5")
-
-
-class TestCashPosition:
-    def test_consumes_m04_drawers(self):
-        """T07: the position sums open fix.cash.shift expected closings."""
-        source = inspect.getsource(
-            __import__(
-                "odoo.addons.cd_cash_position.models.fix_cash_position",
-                fromlist=["FixCashPosition"],
-            ).FixCashPosition._compute_drawers
-        )
-        assert "fix.cash.shift" in source

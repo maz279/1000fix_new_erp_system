@@ -673,8 +673,16 @@ class P03ArApiController(http.Controller):
         try:
             with request.env.cr.savepoint():
                 note = request.env["fix.credit.note"].browse(int(note_id))
+                # A08 S3 (M20-1/7): a credit note is approved by someone other
+                # than its raiser, through its own approval (a second
+                # Accountant within the band, the M63 inbox above it). Issuing
+                # never approves on the caller's behalf.
                 if note.state == "pending_approval":
-                    note.action_approve()  # only a manager reaches here with ACL rights
+                    return {
+                        "success": False,
+                        "error": "Credit note %s is awaiting approval by someone other than "
+                        "its raiser; it can be issued once approved." % note.display_name,
+                    }
                 note.action_issue()
                 return {
                     "success": True,

@@ -28,11 +28,97 @@ ACCOUNT_ROLES = {
     # A04 hand-off closure (2026-11-05): the tender-bond encashment leg — the
     # procuring entity encashed a bank guarantee, a realised loss.
     "bond_encashment_loss": "Bank guarantee encashment loss (tender bonds, PPR r.25)",
+    "cheque_returned": "Returned (bounced) customer cheques receivable",
 }
+
+GROUP_ACCOUNTANT = "account.group_account_user"
+GROUP_ADMIN = "account.group_account_manager"
 
 
 def param(env, key, default=None):
     return env["ir.config_parameter"].sudo().get_param(key) or default
+
+
+def float_param(env, key, default):
+    """A numeric system parameter; an unset or unreadable value gives the
+    documented default (never a silent zero)."""
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    if raw in (None, False, ""):
+        return float(default)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def bool_param(env, key, default=True):
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    if raw in (None, False, ""):
+        return default
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def has_role(env, xmlid) -> bool:
+    """Superuser code (crons, seeds, service calls) is trusted; a person must
+    hold the group."""
+    if env.su or env.user.has_group(xmlid):
+        return True
+    # an Accounting Administrator can do what an accountant does
+    return xmlid == GROUP_ACCOUNTANT and env.user.has_group(GROUP_ADMIN)
+
+
+ROLE_LABELS = {GROUP_ACCOUNTANT: "Accountant", GROUP_ADMIN: "Accounting Administrator"}
+
+
+def require_role(env, xmlid, what):
+    if not has_role(env, xmlid):
+        group = env.ref(xmlid, raise_if_not_found=False)
+        label = ROLE_LABELS.get(xmlid) or (group.name if group else xmlid)
+        raise UserError("%s needs the %s role, which you do not hold." % (what, label))
+
+
+def treasury_alert(record, summary, note, deadline=None):
+    """Raise a treasury incident on `record`: a chatter note plus a to-do
+    activity for each Accounting Administrator of its company (the M50
+    escalation roles have no dedicated groups yet). No duplicate activity
+    while one with the same summary is still open."""
+    env = record.env
+    company = record.company_id if "company_id" in record._fields else env.company
+    record.sudo().message_post(body="%s: %s" % (summary, note))
+    open_same = record.sudo().activity_ids.filtered(lambda a: a.summary == summary)
+    if open_same:
+        return open_same
+    group = env.ref(GROUP_ADMIN, raise_if_not_found=False)
+    users = (
+        group.sudo().all_user_ids.filtered(
+            lambda u: u.active and not u.share and company in u.company_ids
+        )
+        if group
+        else env["res.users"]
+    )
+    activities = env["mail.activity"]
+    for user in users:
+        activities |= record.sudo().activity_schedule(
+            "mail.mail_activity_data_todo",
+            date_deadline=deadline,
+            summary=summary,
+            note=note,
+            user_id=user.id,
+        )
+    return activities
+
+
+def require_other_person(env, users, what):
+    """Maker-checker: the acting user must not be any of `users` (the maker,
+    submitter, preparer...). Superuser service code acts for nobody."""
+    if env.su:
+        return
+    users = users.filtered(lambda u: u)
+    if env.user in users:
+        raise UserError(
+            "Segregation of duties: %s must be done by someone other than %s."
+            % (what, ", ".join(users.mapped("name")))
+        )
 
 
 def treasury_account(env, company, role, required=True):

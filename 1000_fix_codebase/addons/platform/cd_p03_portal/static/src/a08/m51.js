@@ -67,21 +67,20 @@ export const SCREENS = {
   'M51-rpt-sdat': { kind: 'table_report', module: 'M51', report: 'sd_at_liability',
     title: 'SD & AT Liability', period: false },
 
-  'M51-mushak61': { kind: 'model_list', model: 'fix.input.vat.credit',
+  'M51-mushak61': { kind: 'model_list', model: 'fix.input.vat.credit', create: false,
     cols: ['invoice_date','partner_id','supplier_bin','supplier_mushak_no','adjustment_type','taxable_amount','vat_amount','claim_period','state'] },
   'M51-mushak62': { kind: 'model_list', model: 'fix.mushak.register', create: false,
     cols: ['mushak_no','invoice_ref','invoice_date','customer_name','customer_bin','taxable_amount','vat_amount','total_payable','posted'] },
   'M51-mushak63': { kind: 'model_list', model: 'fix.mushak.register', create: false,
-    cols: ['mushak_no','invoice_ref','invoice_date','customer_name','taxable_amount','vat_amount','total_payable','posted'],
-    actions: [{m:'action_mark_posted',l:'Mark GL Posted'},{m:'action_rebuild_from_events',l:'Rebuild from Events'}] },
+    cols: ['mushak_no','row_type','invoice_ref','invoice_date','customer_name','taxable_amount','vat_amount','total_payable','original_id','posted'] },
   'M51-vat91': { kind: 'model_list', model: 'fix.vat.return',
     cols: ['period','total_taxable','output_vat','input_vat','vds_received_credit','net_payable','net_payable_after_vds','due_date','subledger_status','state','filed_at','nbr_confirmation'],
     stateField: 'state',
     actions: [{m:'action_prepare',l:'Prepare from Registers'},{m:'action_subledger_reconciliation',l:'Reconcile Sub-Ledger'},{m:'action_file_online',l:'File Online (NBR)'}] },
   'M51-challans': { kind: 'model_list', model: 'fix.tax.challan',
-    cols: ['challan_no','challan_date','tax_kind','period','bank_name','economic_code','amount','liability_total','state'],
+    cols: ['challan_no','challan_date','tax_kind','period','bank_name','economic_code','amount','liability_total','verified_by_id','state'],
     stateField: 'state',
-    actions: [{m:'action_link_open_deductions',l:'Link Open Deductions'},{m:'action_confirm_deposit',l:'Confirm Deposit & Post'}] },
+    actions: [{m:'action_link_open_deductions',l:'Link Open Deductions'},{m:'action_record_verification',l:'Record Receipt Verification'},{m:'action_confirm_deposit',l:'Confirm Deposit & Post'}] },
   'M51-input': { kind: 'model_list', model: 'fix.input.vat.credit',
     cols: ['partner_id','supplier_mushak_no','invoice_date','vat_amount','signed_vat','claim_period','claim_deadline','ineligible_reason','vat_return_id','state'],
     stateField: 'state', actions: [{m:'action_check_eligibility',l:'Check Eligibility'}] },
@@ -94,9 +93,10 @@ export const SCREENS = {
     actions: [{m:'action_issue_certificate',l:'Issue Mushak 6.6'}] },
   'M51-certs': { kind: 'model_list', model: 'fix.withholding.certificate', create: false,
     cols: ['certificate_no','certificate_type','supplier_name','base_amount','rate_percent','withheld_amount','challan_no','state'],
-    stateField: 'state', actions: [{m:'action_issue',l:'Issue Certificate'}] },
+    stateField: 'state' },
   'M51-determination': { kind: 'model_list', model: 'fix.vat.treatment',
-    cols: ['code','name','treatment_type','rate','active'] },
+    cols: ['code','name','treatment_type','rate','active','verify_with_adviser','state'],
+    stateField: 'state', actions: [{m:'action_record_adviser_verification',l:'Record Adviser Confirmation'},{m:'action_activate',l:'Activate (2nd Manager)'},{m:'action_reject_proposal',l:'Reject Proposal'}] },
   'M51-nid': { kind: 'table_report', module: 'M51', report: 'mushak_610' },
   'M51-notes': { kind: 'table_report', module: 'M51', report: 'note_register' },
   'M51-calendar': { kind: 'table_report', module: 'M51', report: 'statutory_calendar' },
@@ -104,11 +104,14 @@ export const SCREENS = {
     cols: ['name','date_from','date_to','file_count','pack_sha256','attachment_id','integrity_status','state'],
     stateField: 'state', actions: [{m:'action_generate',l:'Generate Pack'},{m:'action_verify',l:'Verify Checksums'}] },
   'M51-rates': { kind: 'model_list', model: 'fix.tax.rate',
-    cols: ['tax_kind','code','name','section','payee_type','rate','non_filer_applies','date_from','date_to','verify_with_adviser'] },
+    cols: ['tax_kind','code','name','section','payee_type','rate','non_filer_applies','date_from','date_to','verify_with_adviser','state'],
+    stateField: 'state', actions: [{m:'action_record_adviser_verification',l:'Record Adviser Confirmation'},{m:'action_activate',l:'Activate (2nd Manager)'},{m:'action_reject_proposal',l:'Reject Proposal'}] },
   'M51-params': { kind: 'model_list', model: 'fix.tax.parameter',
-    cols: ['key','value','date_from','date_to','verify_with_adviser'] },
+    cols: ['key','value','date_from','date_to','verify_with_adviser','state'],
+    stateField: 'state', actions: [{m:'action_record_adviser_verification',l:'Record Adviser Confirmation'},{m:'action_activate',l:'Activate (2nd Manager)'},{m:'action_reject_proposal',l:'Reject Proposal'}] },
   'M51-duerules': { kind: 'model_list', model: 'fix.statutory.due.rule',
-    cols: ['obligation','name','frequency','due_day','month_offset','roll_to_working_day','date_from','date_to','verify_with_adviser'] },
+    cols: ['obligation','name','frequency','due_day','month_offset','roll_to_working_day','date_from','date_to','verify_with_adviser','state'],
+    stateField: 'state', actions: [{m:'action_record_adviser_verification',l:'Record Adviser Confirmation'},{m:'action_activate',l:'Activate (2nd Manager)'},{m:'action_reject_proposal',l:'Reject Proposal'}] },
   'M51-filings': { kind: 'model_list', model: 'fix.statutory.filing',
     cols: ['rule_id','period_key','filed_on','reference'] },
 
@@ -122,13 +125,15 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: "Draft", filed: "Filed", accepted: "Accepted" } },
     sections: [
       { title: "Return",
-        note: "One return per period. Output/input VAT, net payable and the VDS credit are computed from the ledger; the subledger variance compares against the subledger.",
+        note: "One return per period. Output/input VAT, net payable and the VDS credit are computed from the registers; the sub-ledger status is recomputed against the GL; it is filed online by the filing approver, never by its preparer.",
         fields: [
           { name: 'period', required: true, label: "Period (YYYY-MM)" },
-          { name: 'due_date', label: "Due Date" },
-          { name: 'nil_return', label: "Nil Return" },
-          { name: 'nbr_confirmation', label: "NBR Confirmation" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'due_date', readonly: true, label: "Due Date" },
+          { name: 'nil_return', readonly: true, label: "Nil Return" },
+          { name: 'subledger_status', readonly: true, label: "Sub-ledger" },
+          { name: 'prepared_by_id', readonly: true, label: "Prepared By" },
+          { name: 'nbr_confirmation', readonly: true, label: "NBR Confirmation (IVAS)" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -146,6 +151,8 @@ export const SCREENS = {
           { name: 'treatment_type', required: true, label: "Treatment Type" },
           { name: 'rate', label: "Rate %" },
           { name: 'truncated_base', label: "Truncated Base %" },
+          { name: 'adviser_reference_input', label: "Adviser Confirmation (to record)" },
+          { name: 'state', readonly: true, label: "Status" },
           { name: 'active', label: "Active" }
         ] }
     ]
@@ -162,7 +169,8 @@ export const SCREENS = {
         fields: [
           { name: 'date_from', required: true, label: "From" },
           { name: 'date_to', required: true, label: "To" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'integrity_status', readonly: true, label: "Integrity (vs seal)" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -179,7 +187,9 @@ export const SCREENS = {
           { name: 'value', required: true, label: "Value" },
           { name: 'date_from', required: true, label: "From" },
           { name: 'date_to', label: "To" },
-          { name: 'verify_with_adviser', label: "Verify With Adviser" },
+          { name: 'verify_with_adviser', readonly: true, label: "Verify With Adviser" },
+          { name: 'adviser_reference_input', label: "Adviser Confirmation (to record)" },
+          { name: 'state', readonly: true, label: "Status" },
           { name: 'source_note', label: "Source Note" }
         ] }
     ]
@@ -200,6 +210,9 @@ export const SCREENS = {
           { name: 'due_day', required: true, label: "Due Day" },
           { name: 'month_offset', required: true, label: "Month Offset" },
           { name: 'roll_to_working_day', label: "Roll to Working Day" },
+          { name: 'date_from', required: true, label: "Valid From" },
+          { name: 'adviser_reference_input', label: "Adviser Confirmation (to record)" },
+          { name: 'state', readonly: true, label: "Status" },
           { name: 'active', label: "Active" }
         ] }
     ]
@@ -257,7 +270,10 @@ Object.assign(SCREENS, {
           { name: 'economic_code', label: 'Economic Code' },
           { name: 'bank_name', label: 'Bank' },
           { name: 'bank_branch', label: 'Branch' },
-          { name: 'vat_return_id', label: 'VAT Return (9.1)' }
+          { name: 'vat_return_id', label: 'VAT Return (9.1)' },
+          { name: 'receipt_reference', label: 'iBAS++ / Bank Confirmation (verifier)' },
+          { name: 'verified_by_id', readonly: true, label: 'Verified By' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -272,9 +288,10 @@ Object.assign(SCREENS, {
       { title: 'Quarterly Return', note: 'The return summarises the quarter\'s withholding; the fiscal year and due date compute from the quarter.',
         fields: [
           { name: 'quarter', required: true, label: 'Quarter' },
-          { name: 'total_withheld', label: 'Total Withheld' },
-          { name: 'state', required: true, label: 'State' },
-          { name: 'nbr_acknowledgment', label: 'NBR Acknowledgement' }
+          { name: 'total_withheld', readonly: true, label: 'Total Withheld' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'nbr_acknowledgment', label: 'NBR Acknowledgement (filing approver)' }
         ] }
     ]
   },
@@ -294,6 +311,7 @@ Object.assign(SCREENS, {
           { name: 'taxable_amount', label: 'Taxable Value' },
           { name: 'vat_amount', required: true, label: 'Input VAT' },
           { name: 'adjustment_type', required: true, label: 'Adjustment Type' },
+          { name: 'original_credit_id', label: 'Original Invoice Credit (6.7 / 6.8)' },
           { name: 'source_ref', label: 'Source Document' },
           { name: 'supplier_enlisted', label: 'Turnover-Enlisted' }
         ] }
@@ -331,6 +349,10 @@ Object.assign(SCREENS, {
           { name: 'rate', required: true, label: 'Rate (%)' },
           { name: 'payee_type', required: true, label: 'Payee Type' },
           { name: 'non_filer_applies', label: 'Non-Filer Multiplier Applies' },
+          { name: 'date_from', required: true, label: 'Valid From' },
+          { name: 'date_to', label: 'Valid To' },
+          { name: 'adviser_reference_input', label: 'Adviser Confirmation (to record)' },
+          { name: 'state', readonly: true, label: 'Status' },
           { name: 'active', label: 'Active' }
         ] }
     ]
