@@ -276,8 +276,13 @@ def channel_intake_report(env, date_from=None, date_to=None, channel=None, group
         domain.append(("create_date", ">=", date_from))
     if date_to:
         domain.append(("create_date", "<=", date_to + " 23:59:59"))
+    # D10 (M01 audit 2026-11-06): rows, filter options and exports show the
+    # selection LABELS — and the pill value rides back as a label, so map it
+    # to the key before it reaches the domain.
+    service_labels = dict(_orders(env)._fields["service_type"].selection)
+    label_to_key = {label: key for key, label in service_labels.items()}
     if channel and channel != "All":
-        domain.append(("service_type", "=", channel))
+        domain.append(("service_type", "=", label_to_key.get(channel, channel)))
 
     granularity = group_by if group_by in ("day", "week", "month") else "day"
     rows = []
@@ -290,7 +295,7 @@ def channel_intake_report(env, date_from=None, date_to=None, channel=None, group
         rows.append(
             {
                 "day": bucket if isinstance(bucket, str) else _fmt_day(bucket),
-                "service_type": service_type,
+                "service_type": service_labels.get(service_type, service_type),
                 "orders": count,
             }
         )
@@ -436,8 +441,11 @@ def rework_analysis_report(env, **params):
         by_state[order.state] = by_state.get(order.state, 0) + 1
         model = order.device_id.device_model_id.name or "—"
         by_model[model] = by_model.get(model, 0) + 1
+    # D10 (M01 audit 2026-11-06): state rows carry the selection label, not
+    # the raw key (qc_failed → "QC Rework").
+    state_labels = dict(Order._fields["state"].selection)
     rows = [
-        {"dimension": "state: %s" % state, "orders": count}
+        {"dimension": "state: %s" % state_labels.get(state, state), "orders": count}
         for state, count in sorted(by_state.items())
     ] + [
         {"dimension": "model: %s" % model, "orders": count}

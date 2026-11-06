@@ -152,8 +152,16 @@ const STATE_OF_STAGE = {
 };
 
 const SERVICE_TYPE_LABELS = {
-    walk_in: "Walk-in Counter", collection: "Collection / Drop-off",
-    onsite: "On-site Visit", mail_in: "Mail-in", corporate: "Corporate B2B",
+    // mirrors fix.service.order.service_type (16 channels) — D10 fix, M01
+    // audit 2026-11-06: legends/tables must never fall back to raw keys.
+    walk_in: "Walk-in Counter", collection: "Collection/Delivery",
+    onsite: "On-site", mail_in: "Mail-in", corporate: "Corporate/Bulk",
+    web_portal: "Web Portal (P01)", mobile_app: "Customer Mobile App (P04)",
+    whatsapp: "WhatsApp (M27)", ai_assistant: "AI Assistant (M32)",
+    hotline: "Hotline 16743", email: "Email Intake",
+    b2b_bulk: "B2B Portal Bulk Upload", marketplace: "Marketplace (M12)",
+    partner_referral: "Partner Referral (M40)", msp_alert: "MSP Alert (M05)",
+    pm_schedule: "Contract Preventive Schedule (M08)",
 };
 
 const STATE_LABELS = {
@@ -1354,11 +1362,14 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     }
 
     /* Channel mix as [{key, count}] — Owl expressions cannot carry object
-     * literals ({} breaks its expression parser), so this stays in JS. */
+     * literals ({} breaks its expression parser), so this stays in JS.
+     * D10 (M01 audit 2026-11-06): the intake table shows the channel LABEL. */
     get soChannelMix() {
         const gl = this.state.gl;
         const mix = (gl && gl.data && gl.data.stats && gl.data.stats.channel_mix) || {};
-        return Object.entries(mix).map(([key, count]) => ({ key, count }));
+        return Object.entries(mix).map(([key, count]) => ({
+            key: SERVICE_TYPE_LABELS[key] || key, count,
+        }));
     }
 
     get soScopeTitle() {
