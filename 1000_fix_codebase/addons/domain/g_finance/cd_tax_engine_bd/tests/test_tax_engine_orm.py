@@ -53,6 +53,44 @@ def _register_row(env, mushak_no, invoice_date, taxable, vat, **extra):
     return env["fix.mushak.register"].create(vals)
 
 
+def _posted_entry(env, amount):
+    """A posted GL entry standing for the supply's posting (arrangement)."""
+    company = env.company
+    Account = env["account.account"]
+    a1 = Account.create(
+        {
+            "code": "M51T901",
+            "name": "AR test",
+            "account_type": "asset_receivable",
+            "reconcile": True,
+            "company_ids": [(6, 0, company.ids)],
+        }
+    )
+    a2 = Account.create(
+        {
+            "code": "M51T902",
+            "name": "Revenue test",
+            "account_type": "income",
+            "company_ids": [(6, 0, company.ids)],
+        }
+    )
+    journal = env["account.journal"].create(
+        {"name": "M51 posting test", "code": "M51PT", "type": "general", "company_id": company.id}
+    )
+    move = env["account.move"].create(
+        {
+            "journal_id": journal.id,
+            "date": "2026-09-02",
+            "line_ids": [
+                (0, 0, {"name": "AR", "account_id": a1.id, "debit": amount}),
+                (0, 0, {"name": "Rev", "account_id": a2.id, "credit": amount}),
+            ],
+        }
+    )
+    move.action_post()
+    return move
+
+
 def _invoice_event(env, mushak_no, event_id="evt-1"):
     return {
         "event_id": event_id,
@@ -110,7 +148,7 @@ class TestVatTreatment:
 
     def test_standard_rate_is_fixed(self, odoo_env):
         with (
-            pytest.raises(ValidationError, match="must carry the 15% rate"),
+            pytest.raises(ValidationError, match="carries the standard rate in force"),
             odoo_env.cr.savepoint(),
         ):
             self._row(odoo_env, "T-STD10", "standard_15", 10.0)
@@ -142,14 +180,14 @@ class TestVatTreatment:
 class TestMushakRegister:
     def test_bins_are_thirteen_digits(self, odoo_env):
         with (
-            pytest.raises(ValidationError, match="Supplier BIN must be exactly 13 digits"),
+            pytest.raises(ValidationError, match="Supplier BIN must be a real 13-digit BIN"),
             odoo_env.cr.savepoint(),
         ):
             _register_row(
                 odoo_env, "2026-000001", date(2026, 9, 1), 100.0, 15.0, supplier_bin="12345"
             )
         with (
-            pytest.raises(ValidationError, match="Customer BIN must be 13 digits"),
+            pytest.raises(ValidationError, match="Customer BIN must be a real 13-digit BIN"),
             odoo_env.cr.savepoint(),
         ):
             _register_row(
@@ -198,9 +236,15 @@ class TestMushakRegister:
         assert first.source_event_id == "evt-a"
 
     def test_mark_posted_publishes_registration(self, odoo_env):
+        """A08 M51-2 (M04): `posted` needs the posted GL entry of the supply.
+        Without one the row is refused; with it the registration publishes."""
         row = _register_row(odoo_env, "2026-000050", date(2026, 9, 2), 1000.0, 150.0)
-        row.action_mark_posted()
-        assert row.posted is True
+        with pytest.raises(UserError, match="no posted GL entry"), odoo_env.cr.savepoint():
+            row.action_mark_posted()
+        assert row.posted is False
+        move = _posted_entry(odoo_env, 1150.0)
+        row._fix_mark_posted(move)
+        assert (row.posted, row.move_id) == (True, move)
         assert _events(odoo_env, "mushak.registered", row.id) == [
             {"mushak_no": "2026-000050", "vat_amount": 150.0, "invoice_date": "2026-09-02"}
         ]
@@ -350,7 +394,11 @@ class TestVatReturnPreparation:
 
 
 class TestVatReturnFiling:
-    def _return(self, env, **vals):
+    def _return(self, env, gl=(450.0, 50.0), **vals):
+        """A prepared return (system arrangement) whose VAT GL carries
+        `gl` = (output, input): filing recomputes the reconciliation."""
+        if gl is not None:
+            _vat_gl(env, output_posted=gl[0], input_posted=gl[1])
         base = {
             "period": "2026-09",
             "total_taxable": 3000.0,
@@ -364,7 +412,24 @@ class TestVatReturnFiling:
         return env["fix.vat.return"].create(base)
 
     def test_manual_confirmation_is_mandatory(self, tax_env):
+        """A08 M51-1: a user never files on a typed confirmation (online only);
+        the system entry point still needs a reference and the filing gate."""
         ret = self._return(tax_env)
+        accountant = (
+            tax_env["res.users"]
+            .with_context(no_reset_password=True)
+            .create(
+                {
+                    "name": "M51 typed filer",
+                    "login": "m51-typed-filer",
+                    "group_ids": [(6, 0, [tax_env.ref("account.group_account_user").id])],
+                    "company_ids": [(6, 0, tax_env.companies.ids)],
+                    "company_id": tax_env.company.id,
+                }
+            )
+        )
+        with pytest.raises(UserError, match="typed confirmation"), tax_env.cr.savepoint():
+            ret.with_user(accountant).action_file("TYPED-12345")
         with (
             pytest.raises(UserError, match="NBR portal confirmation reference"),
             tax_env.cr.savepoint(),
@@ -466,25 +531,28 @@ class TestVatReturnFiling:
     def test_return_without_matching_breakdown_is_not_filed(self, tax_env):
         """Regression: filing declared the whole return on the 15% line even
         when no per-treatment breakdown existed."""
-        ret = self._return(tax_env, treatment_breakdown=False)
+        ret = self._return(tax_env, gl=None, treatment_breakdown=False)
         client = _StubClient()
         with pytest.raises(UserError, match="no per-treatment breakdown"), tax_env.cr.savepoint():
             ret.action_file_online(client=client)
         assert client.built is None and ret.state == "prepared"
 
     def test_already_filed_return_refused(self, tax_env):
-        ret = self._return(tax_env, state="filed")
+        ret = self._return(tax_env, gl=None, state="filed")
         with pytest.raises(UserError, match="already filed"), tax_env.cr.savepoint():
             ret.action_file_online(client=_StubClient())
 
     def test_unreconciled_subledger_blocks_filing(self, tax_env):
-        ret = self._return(tax_env, subledger_status="variance_detected")
+        """A08 M51-1 (M07): the status is recomputed at filing, so a typed
+        'reconciled' cannot pass a GL that disagrees."""
+        ret = self._return(tax_env, gl=(300.0, 50.0), subledger_status="reconciled")
         with pytest.raises(UserError, match="IRB-09"), tax_env.cr.savepoint():
             ret.action_file_online(client=_StubClient())
+        assert ret.state == "prepared"
 
     def test_online_filing_without_company_bin_refused(self, nobin_env):
         """Regression: filing fell back to the invented BIN 1000000000000."""
-        ret = self._return(nobin_env)
+        ret = self._return(nobin_env, gl=None)
         with pytest.raises(UserError, match="no valid 13-digit BIN"), nobin_env.cr.savepoint():
             ret.action_file_online(client=_StubClient())
 
@@ -574,6 +642,9 @@ def _vat_gl(env, output_posted=None, input_posted=None, when="2026-09-15"):
 
     out_acc = acc("210100", "VAT Output Payable", "liability_current")
     in_acc = acc("110500", "VAT Input Credit", "asset_current")
+    # A08 M51-8: the input-VAT role has no default code: it is configured
+    icp = env["ir.config_parameter"].sudo()
+    icp.set_param("cd_tax_engine_bd.vat_input_account_code", "110500")
     bank = acc("100199", "Clearing", "asset_current")
     journal = env["account.journal"].create(
         {"name": "VAT test", "code": "VATT", "type": "general", "company_id": company.id}
@@ -644,7 +715,7 @@ class TestVatSubledger:
 
     def test_unconfigured_gl_accounts_refuse(self, tax_env):
         ret = self._return(tax_env)
-        with pytest.raises(UserError, match="needs GL account 210100"), tax_env.cr.savepoint():
+        with pytest.raises(UserError, match="No GL account for the vat_"), tax_env.cr.savepoint():
             ret.action_subledger_reconciliation()
         assert ret.subledger_status == "pending"
 
@@ -669,16 +740,24 @@ class TestTdsReturn:
         """Regression: filing without an acknowledgment minted
         NBR-TDS-<quarter>-<id> and recorded the return as filed."""
         model = odoo_env["fix.tds.return"]
-        q1 = model.create({"quarter": "2026-Q1", "fiscal_year": "FY2027", "total_withheld": 10.0})
-        q2 = model.create({"quarter": "2026-Q2", "fiscal_year": "FY2027"})
-        q3 = model.create({"quarter": "2026-Q3", "fiscal_year": "FY2027"})
+        # prepared returns (system arrangement): A08 M51-1 files only from prepared
+        q1 = model.create(
+            {
+                "quarter": "2026-Q1",
+                "fiscal_year": "FY2027",
+                "total_withheld": 10.0,
+                "state": "prepared",
+            }
+        )
+        q2 = model.create({"quarter": "2026-Q2", "fiscal_year": "FY2027", "state": "prepared"})
+        q3 = model.create({"quarter": "2026-Q3", "fiscal_year": "FY2027", "state": "prepared"})
         q1.action_file("NBR-ACK-778")
         with (
             pytest.raises(UserError, match="Enter the NBR acknowledgment number"),
             odoo_env.cr.savepoint(),
         ):
             q2.action_file()
-        assert (q2.state, q2.nbr_acknowledgment) == ("draft", False)
+        assert (q2.state, q2.nbr_acknowledgment) == ("prepared", False)
         # the form route: the user keys the number in, then presses the button
         q3.nbr_acknowledgment = "NBR-TDS-ACK-9912"
         q3.action_file()
@@ -720,18 +799,69 @@ def _vendor_invoice(env):
     )
 
 
+def _deposited_certificate(env, **vals):
+    """A draft certificate for a deduction its verified challan deposited
+    (system arrangement: A08 M51-4 issues no free-standing certificate)."""
+    invoice = _vendor_invoice(env)
+    challan = env["fix.tax.challan"].create(
+        {
+            "challan_no": "CH-CERT-%s" % invoice.id,
+            "challan_date": date(2026, 9, 20),
+            "tax_kind": "vds",
+            "amount": 15000.0,
+            "state": "deposited",
+            "verification_ref": "IBAS-OK",
+            "verified_by_id": env.uid,
+        }
+    )
+    rate = env.ref("cd_tax_engine_bd.tax_rate_vds_rent")
+    line = env["fix.withholding.line"].create(
+        {
+            "tax_kind": "vds",
+            "partner_id": invoice.vendor_id.id,
+            "partner_tin": "123456789012",
+            "psr_received": True,
+            "paid_by_bank": True,
+            "rate_id": rate.id,
+            "document_date": date(2026, 9, 10),
+            "base_amount": 100000.0,
+            "amount": 15000.0,
+            "vendor_invoice_id": invoice.id,
+            "challan_id": challan.id,
+            "state": "deposited",
+        }
+    )
+    base = {
+        "vendor_invoice_id": invoice.id,
+        "supplier_name": "Apex Logistics Ltd.",
+        "supplier_bin": COMPANY_BIN,
+        "base_amount": 100000.0,
+        "rate_percent": 15.0,
+        "withheld_amount": 15000.0,
+        "challan_no": challan.challan_no,
+    }
+    base.update(vals)
+    cert = env["fix.withholding.certificate"].create(base)
+    line.certificate_id = cert
+    return cert
+
+
 class TestWithholdingCertificate:
     def _cert(self, env, **vals):
-        base = {
-            "vendor_invoice_id": _vendor_invoice(env).id,
-            "supplier_name": "Apex Logistics Ltd.",
-            "supplier_bin": COMPANY_BIN,
-            "base_amount": 100000.0,
-            "rate_percent": 15.0,
-            "withheld_amount": 15000.0,
-        }
-        base.update(vals)
-        return env["fix.withholding.certificate"].create(base)
+        return _deposited_certificate(env, **vals)
+
+    def test_free_standing_certificate_is_never_issued(self, odoo_env):
+        """A08 M51-4 (W03): a certificate with no deposited deduction is refused."""
+        cert = odoo_env["fix.withholding.certificate"].create(
+            {
+                "vendor_invoice_id": _vendor_invoice(odoo_env).id,
+                "supplier_name": "Any supplier",
+                "supplier_bin": COMPANY_BIN,
+                "withheld_amount": 7750.0,
+            }
+        )
+        with pytest.raises(UserError, match="certifies no deduction"), odoo_env.cr.savepoint():
+            cert.action_issue()
 
     def test_mushak_66_numbering_and_event(self, odoo_env):
         cert = self._cert(odoo_env)

@@ -1,6 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_partner,fix.partner,model_fix_partner,base.group_user,1,1,1,0
-access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,1,1,0
+access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,0,1,0
+access_fix_referral_manager,fix.referral.manager,model_fix_referral,group_fix_referral_manager,1,1,1,0
 access_fix_partner_portal,fix.partner,model_fix_partner,group_fix_partner_portal,1,0,0,0
 access_fix_referral_portal,fix.referral,model_fix_referral,group_fix_partner_portal,1,0,1,0
 access_fix_partner_authorisation,fix.partner.authorisation,model_fix_partner_authorisation,base.group_user,1,1,1,1

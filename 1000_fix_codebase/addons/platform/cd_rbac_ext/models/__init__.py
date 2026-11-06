@@ -7,5 +7,7 @@ from . import (
     fix_role,
     fix_security_ops,
     fix_sod_control,
+    fix_sod_grant_hooks,
+    fix_sod_mitigation,
     residency_mixin,
 )

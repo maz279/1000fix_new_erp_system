@@ -94,6 +94,21 @@ The module depends on the following prerequisite modules:
    - Verify access control rights in `security/ir.model.access.csv`.
    - Ensure company and operating unit isolation policies (`res.company`, `fix.operating.unit`) are active.
 
+### 4.3 A08 controls: configuration keys (system parameters)
+| Key | Default | Meaning |
+|---|---|---|
+| `cd_ap_ext.bank_cooling_off_hours` | `0` | Hours after a payee account is confirmed before it can be paid (BRU-APE-09; business decision B4). |
+| `cd_ap_ext.claim_manager_threshold` | `25000` | Expense claims above this (with the employee's other live claims in the split window) need an Accounting Administrator. |
+| `cd_ap_ext.claim_split_window_days` | `30` | Rolling window for split-claim detection (`0` = off). |
+| `cd_ap_ext.claim_line_manager_step` | on | The claimant's line manager (employee manager with a login) approves before finance (spec §8.2). `0` = off. |
+| `cd_ap_ext.higher_level_may_approve_lower` | on | An approver of a higher AP-matrix level may sign a lower level (managers sign level 1); one user still signs one level. |
+| `cd_ap_ext.account_code.salary_payable` | none | GL account for advances recovered through payroll; unset = the recovery is refused. |
+
+Payee bank accounts are paid only once confirmed by a second person
+(`fix.payee.bank.change`, or `fix.supplier.bank.change` for M42 suppliers).
+AP approval-matrix rows change only through `fix.ap.approval.rule.change`
+(proposed by one Accounting Administrator, applied by another).
+
 ---
 
 ## 5. Troubleshooting & Diagnostic Playbooks

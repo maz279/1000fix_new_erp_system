@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription — A08 M53-15: revenue recognition ran only when someone pressed
+     the button (2 live schedules had recognised nothing since June). The daily
+     job recognises every active schedule up to today; each run posts its GL. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_revenue_recognition" model="ir.cron">
+            <field name="name">M53: daily revenue recognition (IFRS 15 schedules)</field>
+            <field name="model_id" ref="model_fix_revenue_schedule"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_recognize()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

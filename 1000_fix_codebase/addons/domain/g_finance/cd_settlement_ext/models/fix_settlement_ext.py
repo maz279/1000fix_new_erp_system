@@ -1,23 +1,40 @@
 # fix_settlement_ext — M53 W7: commission ledger + payout runs (P10-M02 / R08-M02).
+#
+# A08 remediation (B4, 4 Nov 2026), M53-1/-2/-3/-4/-5/-7/-12/-15, F2:
+#   * a commission row comes from a referral or a marketplace order, never
+#     typed; its rate is the scheme's in force (BRU-REV-10), its TDS is
+#     measured from the scheme and the payee's evidenced PSR (the M52 tax
+#     profile), and both are locked at accrual with the gross, rate, payee
+#     and escrow flag (LP-07); state, GL link and escrow flag are guarded;
+#   * a payout run is PREPARED (frozen), APPROVED from the M63 inbox by an
+#     Accounting Administrator who did not prepare it (DOFA Tier 4 above the
+#     CFO band), and the approval PINS the payee lines: payee, bank account
+#     (number snapshot), amount. Approval happens only from "prepared", so an
+#     executed run is never approved — or paid — again (BRU-REV-18);
+#   * money moves only as M50 payment instructions (fix.payment.execution,
+#     B1's _fix_request_payment), one per pinned payee line, each released by
+#     treasury (two-person) and confirmed by an imported bank statement debit
+#     (FR-REV-034/036); every payee account passes B2's
+#     _fix_assert_payable_bank first. M53's own rail / BEFTN file is retired:
+#     it paid without treasury and was "confirmed" by a typed reference;
+#   * the run completes when every instruction is bank-confirmed; only then
+#     are statements issued and the payable discharged in the GL.
 from __future__ import annotations
 
-import base64
-import uuid
 from datetime import datetime, time, timedelta
-from decimal import Decimal
 
 import pytz
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    GROUP_ADMINISTRATOR,
+    float_param,
+    require_role,
+)
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
-from libs.py.payout_rail import (
-    INT007PayoutRail,
-    PayoutBatchRequest,
-    PayoutRecipient,
-    PayoutStatus,
-)
 
 # Settlement GL accounts by role: (default code, label). The code is looked up
 # in the company's chart; a database may override it with the system
@@ -37,6 +54,45 @@ SETTLEMENT_ACCOUNTS = {
     "warranty_expense": (None, "Workmanship Warranty Expense (IAS 37)"),
     "warranty_provision": (None, "Workmanship Warranty Provision (IAS 37)"),
 }
+
+# The payout approval ladder (spec 05-04 §7 "Marketplace seller payout —
+# Finance Manager"; M53 §8 "Finance Manager / CFO"): every payout is approved
+# by the Accounting Administrator; above the CFO band by DOFA Tier 4. The CFO
+# band default is the only CFO band 05-04 §7 states (BDT 2,000,000); the M30
+# DOFA ladder overrides it when ruled.
+PARAM_PAYOUT_CFO = "cd_settlement_ext.payout_cfo_limit"
+DEFAULT_PAYOUT_CFO = 2000000.0
+# ITA 2023 s.264/265 non-filer uplift on TDS (the engine's existing 50%).
+PARAM_NON_FILER_UPLIFT = "cd_settlement_ext.tds_non_filer_uplift"
+DEFAULT_NON_FILER_UPLIFT = 0.5
+# Optional: the bank journal (code) treasury pays payouts from.
+PARAM_PAYOUT_JOURNAL = "cd_settlement_ext.payout_journal_code"
+
+LEDGER_GUARDED = {
+    "state",
+    "gl_move_id",
+    "escrow_hold",
+    "tds_amount",
+    "psr_verified",
+    "psr_slip_number",
+    "commission_rate",
+    "referral_id",
+    "marketplace_order_id",
+}
+# LP-07: what an accrued row never changes (reversible only by contra-posting).
+LEDGER_LOCKED = (
+    "gross_amount",
+    "commission_rate",
+    "commission_amount",
+    "seller_partner_id",
+    "tds_amount",
+    "psr_verified",
+    "psr_slip_number",
+    "scheme_id",
+    "source_type",
+    "company_id",
+    "currency_id",
+)
 
 
 def _configured_account(env, company, role):
@@ -86,11 +142,18 @@ def _configured_journal(env, company):
     return journal
 
 
+def _routing_of(bank) -> str:
+    if not bank:
+        return ""
+    routing = bank["fix_routing_number"] if "fix_routing_number" in bank._fields else ""
+    return (routing or bank.bank_id.bic or "").strip()
+
+
 def _bank_details(partner) -> tuple[str, str]:
     """(account number, routing number) of the partner's first bank account,
     exactly as recorded — empty strings when absent, never a default."""
     bank = partner.bank_ids[:1]
-    return (bank.acc_number or "").strip(), (bank.bank_id.bic or "").strip()
+    return (bank.acc_number or "").strip(), _routing_of(bank)
 
 
 def _is_routing(routing: str) -> bool:
@@ -105,7 +168,7 @@ class FixCommissionLedger(models.Model):
 
     _name = "fix.commission.ledger"
     _description = "Commission Ledger Entry"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -132,15 +195,23 @@ class FixCommissionLedger(models.Model):
         store=True,
     )
     tds_amount = fields.Monetary(
-        string="TDS Withheld (ITA 2023 s.140)", currency_field="currency_id"
+        string="TDS Withheld (ITA 2023 s.140)",
+        currency_field="currency_id",
+        readonly=True,
+        help="Measured from the commission scheme and the payee's evidenced return-filing "
+        "proof (PSR); locked at accrual.",
     )
     psr_verified = fields.Boolean(
         string="Proof of Submission of Return (PSR) Verified",
         default=False,
+        readonly=True,
         tracking=True,
-        help="Statutory Proof of Submission of Return verified under ITA 2023 s.264/265",
+        help="Read from the payee's tax profile (M52 fix.vendor.tax.profile: PSR reference, "
+        "validity and evidence), never ticked by hand (ITA 2023 s.264/265).",
     )
-    psr_slip_number = fields.Char(string="PSR Acknowledgement Slip Number", tracking=True)
+    psr_slip_number = fields.Char(
+        string="PSR Acknowledgement Slip Number", readonly=True, tracking=True
+    )
     net_payable = fields.Monetary(
         string="Net Payable to Seller",
         currency_field="currency_id",
@@ -171,6 +242,14 @@ class FixCommissionLedger(models.Model):
     referral_id = fields.Many2one(
         "fix.referral", string="Referral", index=True, ondelete="restrict", copy=False
     )
+    marketplace_order_id = fields.Many2one(
+        "fix.marketplace.order",
+        string="Marketplace Order",
+        index=True,
+        ondelete="restrict",
+        copy=False,
+        help="The commissioned M12 order the row was raised from (A08 M53-4).",
+    )
     scheme_id = fields.Many2one("fix.commission.scheme", string="Commission Scheme")
     escrow_hold = fields.Boolean(
         string="Held in Escrow",
@@ -178,6 +257,13 @@ class FixCommissionLedger(models.Model):
         copy=False,
         tracking=True,
         help="Held by an active escrow (open marketplace dispute): never collected into a payout",
+    )
+
+    _referral_unique = models.Constraint(
+        "UNIQUE (referral_id)", "A referral earns one commission row"
+    )
+    _marketplace_order_unique = models.Constraint(
+        "UNIQUE (marketplace_order_id)", "A marketplace order earns one commission row"
     )
 
     # FLAW-12.2: the statutory-style buyer dispute window. `escrow_hold` above
@@ -300,6 +386,15 @@ class FixCommissionLedger(models.Model):
         "account.move", string="General Ledger Move", readonly=True, copy=False
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | LEDGER_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "earned" for r in self):
+            locked |= set(LEDGER_LOCKED)
+        return locked
+
     @api.depends("gross_amount", "commission_rate")
     def _compute_commission(self):
         for rec in self:
@@ -320,39 +415,83 @@ class FixCommissionLedger(models.Model):
         self.ensure_one()
         return "partner_payable" if self.source_type == "partner_referral" else "seller_payable"
 
+    # ---- scheme, TDS and PSR (measured, never typed) ------------------------
+    def _fix_psr(self):
+        """(verified, slip) from the payee's M52 tax profile: a PSR reference
+        valid today, with its evidence recorded there."""
+        self.ensure_one()
+        if "fix.vendor.tax.profile" not in self.env:
+            return False, False
+        profile = self.env["fix.vendor.tax.profile"].for_partner(
+            self.seller_partner_id, self.company_id
+        )
+        if profile and profile.is_filer_on(fields.Date.context_today(self)):
+            return True, profile.psr_reference
+        return False, False
+
+    def _fix_measure_tds(self):
+        """TDS = the scheme's rate on its base, uplifted for a non-filer
+        (ITA 2023 s.264/265), with the PSR read from the tax profile."""
+        for rec in self:
+            if not rec.scheme_id:
+                # no withholding rate on the row's scheme: the figure the
+                # trusted source stated stands (zero by default)
+                continue
+            psr, slip = rec._fix_psr()
+            tds = 0.0
+            if rec.scheme_id:
+                tds = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
+                if not psr:
+                    uplift = float_param(
+                        rec.env, PARAM_NON_FILER_UPLIFT, DEFAULT_NON_FILER_UPLIFT
+                    )
+                    tds = round(tds * (1.0 + uplift), 2)
+            rec._guarded().write(
+                {"tds_amount": tds, "psr_verified": psr, "psr_slip_number": slip or False}
+            )
+
+    @api.model
+    def _fix_scheme_rate(self, vals):
+        """BRU-REV-10: the scheme in force sets the rate; a scheme rate of 0
+        means the rate agreed on the source (partner / marketplace order)."""
+        scheme = self.env["fix.commission.scheme"].browse(vals.get("scheme_id"))
+        if scheme and scheme.commission_rate:
+            vals["commission_rate"] = scheme.commission_rate
+        return vals
+
     @api.model_create_multi
     def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError(
+                "Commission rows are raised from a commissioned referral (Accrue Commission) "
+                "or a marketplace order (commission.earned), never typed (A08 M53-4)."
+            )
+        typed_tds = []
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.commission.ledger")
+                    self.env["ir.sequence"].sudo().next_by_code("fix.commission.ledger")
                     or f"COM/{fields.Date.today().year}/New"
                 )
+            self._fix_scheme_rate(vals)
+            # trusted code (seeds, a migration) may state a figure it already has
+            typed_tds.append(self.env.su and "tds_amount" in vals)
         records = super().create(vals_list)
-        for rec, vals in zip(records, vals_list, strict=True):
-            # the scheme's effective-dated TDS rate, unless a figure was given
-            if rec.scheme_id and "tds_amount" not in vals:
-                base_tds = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
-                # ITA 2023 s.142/264/265: 50% penalty rate uplift if PSR is unverified
-                if not rec.psr_verified:
-                    base_tds = round(base_tds * 1.50, 2)
-                rec.tds_amount = base_tds
+        for rec, typed in zip(records, typed_tds, strict=True):
+            if not typed:
+                rec._fix_measure_tds()
         return records
 
     def write(self, vals):
-        for rec in self:
-            if rec.state in ("accrued", "paid") and not self.env.su:
-                # Reversible only by contra-posting per LP-07
-                restricted_fields = {
-                    "gross_amount",
-                    "commission_rate",
-                    "commission_amount",
-                    "seller_partner_id",
-                }
-                if any(f in vals for f in restricted_fields):
-                    raise UserError(
-                        "LP-07 Violation: Accrued commission entries cannot be modified. Use contra-posting."
-                    )
+        if not self.env.su:
+            for rec in self:
+                if rec.state in ("accrued", "paid", "forfeited"):
+                    # Reversible only by contra-posting per LP-07
+                    if set(LEDGER_LOCKED) & set(vals):
+                        raise UserError(
+                            "LP-07 Violation: Accrued commission entries cannot be modified. "
+                            "Use contra-posting."
+                        )
         return super().write(vals)
 
     def _post_partner_accrual(self):
@@ -403,7 +542,7 @@ class FixCommissionLedger(models.Model):
             {0: dims, 1: dims},
             source="settlement",
         )
-        self.write({"state": "accrued", "gl_move_id": move.id})
+        self._guarded().write({"state": "accrued", "gl_move_id": move.id})
         publish(
             self.env,
             "commission.accrued",
@@ -418,6 +557,27 @@ class FixCommissionLedger(models.Model):
             },
         )
 
+    def _fix_assert_source(self):
+        """A08 M53-4: a row accrues only with its source document."""
+        for rec in self:
+            if rec.env.su:
+                continue
+            if rec.source_type == "partner_referral":
+                ref = rec.referral_id
+                if not ref or ref.state != "commissioned":
+                    raise UserError(
+                        "Commission %s has no commissioned referral behind it: nothing accrues."
+                        % rec.name
+                    )
+            elif not rec.marketplace_order_id:
+                raise UserError(
+                    "Commission %s has no marketplace order behind it: nothing accrues." % rec.name
+                )
+            if rec.commission_rate <= 0:
+                raise UserError(
+                    "Commission %s carries no rate from its scheme or source." % rec.name
+                )
+
     def action_post_to_gl(self):
         """Post commission accrual to GL through M19 (cd_gl_ext).
         Strictly enforces FF-91 (MS-01):
@@ -425,9 +585,13 @@ class FixCommissionLedger(models.Model):
         - Commission Earned is credited to Revenue (400100).
         - Seller Share is credited to Liability (200200).
         - Customer Clearing / Bank is debited (101000)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Accruing a commission")
         for rec in self:
             if rec.state != "earned":
                 continue
+            rec._fix_assert_source()
+            # TDS and PSR are measured again at accrual, then locked (LP-07)
+            rec._fix_measure_tds()
             if rec.source_type == "partner_referral":
                 rec._post_partner_accrual()
                 continue
@@ -501,7 +665,7 @@ class FixCommissionLedger(models.Model):
             }
 
             move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "accrued",
                     "gl_move_id": move.id,
@@ -525,16 +689,95 @@ class FixCommissionLedger(models.Model):
                 },
             )
 
+    # ---- the M12 -> M53 seam --------------------------------------------------
+    @api.model
+    def consume_commission_earned(self, event: dict):
+        """R8 consumer of commission.earned (A08 M53-15). A commissioned
+        marketplace order becomes ONE earned ledger row at the seller scheme's
+        rate; the payload is a claim — the order is re-read. Referral events
+        are accrued by finance (Accrue Commission), not here."""
+        if not self.env.su:
+            raise AccessError("The commission consumer runs only from the event relay.")
+        if (event.get("aggregate") or "fix.marketplace.order") != "fix.marketplace.order":
+            return {"skipped": event.get("aggregate")}
+        try:
+            order_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            order_id = 0
+        order = self.env["fix.marketplace.order"].sudo().browse(order_id).exists()
+        if not order:
+            raise UserError("Commission refused: there is no marketplace order #%s." % order_id)
+        existing = self.sudo().search([("marketplace_order_id", "=", order.id)], limit=1)
+        if existing:
+            return {"id": existing.id, "created": False}
+        if order.state not in ("commissioned", "paid"):
+            raise UserError("Commission refused: order %s is %s." % (order.name, order.state))
+        quote = order.selected_quote_id
+        seller = quote.seller_id
+        if not seller.partner_id:
+            raise UserError("Commission refused: order %s names no seller party." % order.name)
+        gross = quote.quoted_price if quote else (order.budget or 0.0)
+        tier = seller.tier if "tier" in seller._fields else False
+        scheme = self.env["fix.commission.scheme"]._find(
+            "seller", fields.Date.context_today(self), order.company_id, seller_tier=tier
+        )
+        row = self._guarded().create(
+            {
+                "company_id": order.company_id.id,
+                "operating_unit_id": order.operating_unit_id.id,
+                "source_type": "marketplace",
+                "seller_partner_id": seller.partner_id.id,
+                "marketplace_order_id": order.id,
+                "source_ref": order.name,
+                "gross_amount": gross,
+                "commission_rate": order.commission_rate,
+                "scheme_id": scheme.id or False,
+            }
+        )
+        return {"id": row.id, "created": True}
+
+
+PAYOUT_GUARDED = {
+    "state",
+    "prepared_by_id",
+    "prepared_at",
+    "approved_by_id",
+    "approved_date",
+    "sod_verified",
+    "approved_total",
+    "approved_commission_ids",
+    "line_ids",
+    "gl_move_id",
+    "idempotency_key",
+    "rail_status",
+    "rail_batch_id",
+    "bank_confirmation_ref",
+    "bank_confirmed_by_id",
+    "bank_confirmed_at",
+    "beftn_file",
+    "beftn_filename",
+}
+# Frozen once the run is prepared: the approval covers exactly these rows.
+PAYOUT_LOCKED = ("commission_ids", "clawback_ids", "company_id", "period", "currency_id")
+
 
 class FixPayoutRun(models.Model):
-    """Payout run: money to 500-2,000 sellers.
-    Enforces two-person Segregation of Duties (SoD) gate, INT-007 multi-rail dispatch,
-    7-day idempotency, first-class unknown state (FF-85), and BEFTN fallback."""
+    """Payout run: money to 500-2,000 sellers and partners.
+
+    draft (collect) -> prepared (frozen; routed to M63) -> approved (pinned
+    payee lines) -> executing (one M50 instruction per payee) -> executed
+    (every instruction bank-confirmed; statements issued; payable
+    discharged). Preparer != approver != releaser (M50)."""
 
     _name = "fix.payout.run"
     _description = "Payout Run / পরিশোধ চক্র"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.finance.dofa.mixin"]
     _order = "period desc, id desc"
+    _approval_domain = "payout_run"
+    _fin_direct_param = None
+    _fin_cfo_param = PARAM_PAYOUT_CFO
+    _fin_cfo_default = DEFAULT_PAYOUT_CFO
+    _fin_what = "Payout run"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -565,10 +808,12 @@ class FixPayoutRun(models.Model):
     state = fields.Selection(
         [
             ("draft", "Draft / খসড়া"),
+            ("prepared", "Prepared — Awaiting Approval / প্রস্তুত"),
             ("approved", "Approved (SoD Verified) / অনুমোদিত"),
-            ("executing", "Executing / চলমান"),
-            ("file_generated", "BEFTN File Generated (Unconfirmed) / ফাইল তৈরি"),
+            ("executing", "Released to Treasury (M50) / চলমান"),
+            ("file_generated", "BEFTN File Generated (legacy) / ফাইল তৈরি"),
             ("executed", "Executed / সমাপ্ত"),
+            ("cancelled", "Cancelled / বাতিল"),
         ],
         default="draft",
         required=True,
@@ -576,12 +821,30 @@ class FixPayoutRun(models.Model):
     )
 
     # Segregation of Duties fields
-    prepared_by_id = fields.Many2one(
-        "res.users", string="Prepared By", default=lambda self: self.env.user, readonly=True
+    prepared_by_id = fields.Many2one("res.users", string="Prepared By", readonly=True, copy=False)
+    prepared_at = fields.Datetime(string="Prepared On", readonly=True, copy=False)
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_date = fields.Datetime(string="Approved Date", readonly=True, copy=False)
+    sod_verified = fields.Boolean(string="SoD Verified", readonly=True, default=False, copy=False)
+    approved_total = fields.Monetary(
+        string="Approved Net Total",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The net the approver signed off (F2): a different total is not paid.",
     )
-    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
-    approved_date = fields.Datetime(string="Approved Date", readonly=True)
-    sod_verified = fields.Boolean(string="SoD Verified", readonly=True, default=False)
+    approved_commission_ids = fields.Many2many(
+        "fix.commission.ledger",
+        "fix_payout_run_approved_commission_rel",
+        "run_id",
+        "commission_id",
+        string="Approved Commissions",
+        readonly=True,
+        copy=False,
+    )
+    line_ids = fields.One2many(
+        "fix.payout.run.line", "run_id", string="Pinned Payee Lines", readonly=True
+    )
 
     commission_ids = fields.Many2many("fix.commission.ledger", string="Commissions")
     clawback_ids = fields.Many2many(
@@ -602,15 +865,17 @@ class FixPayoutRun(models.Model):
         store=True,
     )
 
-    # INT-007 Payout Rail Integration Fields
+    # Kept for the run's history: the INT-007 / BEFTN fields of runs paid
+    # before the M50 seam (read-only, no longer written).
     idempotency_key = fields.Char(string="Idempotency Key (7-Day TTL)", copy=False, readonly=True)
     rail_type = fields.Selection(
         [
             ("api", "Direct API (Mobile Money / Bank Gateway)"),
             ("beftn", "BEFTN Standard Batch File (128-byte)"),
+            ("m50", "Treasury (M50 payment instructions)"),
         ],
         string="Disbursement Rail",
-        default="api",
+        default="m50",
         required=True,
     )
     rail_status = fields.Selection(
@@ -631,10 +896,8 @@ class FixPayoutRun(models.Model):
     bank_confirmation_ref = fields.Char(
         string="Bank Settlement Reference",
         copy=False,
-        tracking=True,
-        help="The reference the BANK issued for this disbursement (BEFTN settlement / "
-        "bank statement reference), entered by a finance manager. Required to "
-        "confirm a payout that has no confirmed rail response.",
+        readonly=True,
+        help="Legacy: the bank reference recorded on runs paid before the M50 seam.",
     )
     bank_confirmed_by_id = fields.Many2one(
         "res.users", string="Bank Confirmation Recorded By", readonly=True, copy=False
@@ -652,6 +915,26 @@ class FixPayoutRun(models.Model):
     reconciliation_ids = fields.One2many(
         "fix.payout.reconciliation", "payout_run_id", string="Reconciliation Runs"
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | PAYOUT_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(PAYOUT_LOCKED)
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            touched = set(PAYOUT_LOCKED) & set(vals)
+            if touched and self.filtered(lambda r: r.state != "draft"):
+                raise UserError(
+                    "Payout run %s is prepared: its commissions and clawbacks are fixed — the "
+                    "approval covers exactly them (F2). Cancel it and prepare a new run."
+                    % ", ".join(self.mapped("name"))
+                )
+        return super().write(vals)
 
     @api.depends(
         "commission_ids.net_payable",
@@ -699,6 +982,20 @@ class FixPayoutRun(models.Model):
                 available -= take
         return out
 
+    def _fix_held_payees(self, partners):
+        """Payees whose M12 seller record carries a payout hold (dispute,
+        quality investigation, KYC; FR-REV-035). Read softly: the field is
+        the marketplace's."""
+        if "fix.marketplace.seller" not in self.env:
+            return self.env["res.partner"]
+        Seller = self.env["fix.marketplace.seller"].sudo()
+        if "payout_hold" not in Seller._fields or not partners:
+            return self.env["res.partner"]
+        held = Seller.search(
+            [("payout_hold", "=", True), ("partner_id", "in", partners.commercial_partner_id.ids)]
+        )
+        return held.mapped("partner_id")
+
     def action_collect_accrued(self):
         """Fill a draft run with every accrued commission (sellers AND
         partners) not held in escrow and not already in another open run,
@@ -710,7 +1007,7 @@ class FixPayoutRun(models.Model):
             busy = self.search(
                 [
                     ("id", "!=", run.id),
-                    ("state", "!=", "executed"),
+                    ("state", "not in", ("executed", "cancelled")),
                     ("company_id", "=", run.company_id.id),
                 ]
             ).mapped("commission_ids")
@@ -718,12 +1015,19 @@ class FixPayoutRun(models.Model):
                 [
                     ("company_id", "=", run.company_id.id),
                     ("state", "=", "accrued"),
+                    ("gl_move_id", "!=", False),
                     ("escrow_hold", "=", False),
                     # FLAW-12.2: the buyer dispute window must have elapsed.
                     ("escrow_window_elapsed", "=", True),
                     ("id", "not in", busy.ids),
                 ]
             )
+            # FR-REV-035: a seller on payout hold is skipped (paid once released)
+            held = self._fix_held_payees(rows.mapped("seller_partner_id"))
+            if held:
+                rows = rows.filtered(
+                    lambda r, h=held: r.seller_partner_id.commercial_partner_id not in h
+                )
             # No Python re-confirm here, deliberately. The domain above and
             # `escrow_window_elapsed` are both derived from `create_date`, so
             # they cannot disagree, and a second guard would only make the
@@ -749,363 +1053,404 @@ class FixPayoutRun(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.payout.run")
+                    self.env["ir.sequence"].sudo().next_by_code("fix.payout.run")
                     or f"PAY/{fields.Date.today().year}/New"
                 )
         return super().create(vals_list)
 
-    def action_approve(self):
-        """Two-person Segregation of Duties (SoD) gate.
-        Rule 1: Preparer cannot approve their own payout run.
-        Rule 2: Approver must possess financial managerial authority."""
-        for rec in self:
-            if not rec.commission_ids:
-                raise UserError("No commissions attached to this payout run.")
-            held = rec.commission_ids.filtered("escrow_hold")
-            if held:
-                raise UserError(
-                    "Payout run %s carries commissions held in escrow (%s) — remove them or "
-                    "release the escrow first." % (rec.name, ", ".join(held.mapped("name")))
-                )
-            if rec.prepared_by_id and self.env.user.id == rec.prepared_by_id.id:
-                raise UserError("SoD Violation: Preparer cannot approve their own payout run.")
-            if not (
-                self.env.user.has_group("account.group_account_manager")
-                or self.env.user.has_group("base.group_system")
-            ):
-                raise AccessError("SoD Violation: Only Finance Managers can approve payout runs.")
+    # ---- the ladder -----------------------------------------------------------
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        if self.state not in ("draft", "prepared") and self.approved_total:
+            return self.approved_total
+        return self.total_payable
 
-            rec.write(
+    @api.depends("total_payable", "approved_total", "state")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _fin_requester(self):
+        return self.prepared_by_id
+
+    def _fin_extra_conflicts(self):
+        """SOD-06 / BRU-REV-23: a payee may not approve their own payout, nor
+        anyone who changed a payee's bank account since it was confirmed."""
+        self.ensure_one()
+        users = self.env["res.users"]
+        payees = self.commission_ids.mapped("seller_partner_id").commercial_partner_id
+        users |= self.env["res.users"].sudo().search([("partner_id", "in", payees.ids)])
+        for bank in payees.bank_ids.sudo():
+            if "fix_changed_by_id" in bank._fields:
+                users |= bank.fix_changed_by_id
+        return users
+
+    def _fix_check_rows(self):
+        self.ensure_one()
+        if not self.commission_ids:
+            raise UserError("No commissions attached to this payout run.")
+        held = self.commission_ids.filtered("escrow_hold")
+        if held:
+            raise UserError(
+                "Payout run %s carries commissions held in escrow (%s) — remove them or "
+                "release the escrow first." % (self.name, ", ".join(held.mapped("name")))
+            )
+        unposted = self.commission_ids.filtered(lambda c: c.state != "accrued" or not c.gl_move_id)
+        if unposted:
+            raise UserError(
+                "Payout run %s carries commissions never accrued to the GL (%s): the discharge "
+                "would debit a payable that was never credited."
+                % (self.name, ", ".join(unposted.mapped("name")))
+            )
+        held = self._fix_held_payees(self.commission_ids.mapped("seller_partner_id"))
+        if held:
+            raise UserError(
+                "Payout run %s pays %s, on payout hold (FR-REV-035): remove them or release "
+                "the hold first." % (self.name, ", ".join(held.mapped("name")))
+            )
+        foreign = self.commission_ids.filtered(lambda c: c.company_id != self.company_id)
+        if foreign:
+            raise UserError("Payouts cannot cross legal entities (BRU-REV-24).")
+        other = self.search(
+            [
+                ("id", "!=", self.id),
+                ("state", "not in", ("draft", "cancelled")),
+                ("commission_ids", "in", self.commission_ids.ids),
+            ],
+            limit=1,
+        )
+        if other:
+            raise UserError(
+                "Commissions of %s are already in payout run %s: a commission is paid once "
+                "(BRU-REV-18)." % (self.name, other.name)
+            )
+
+    def action_prepare(self):
+        """The preparer freezes the run and asks for its approval (M63)."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Preparing a payout run")
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft payout run is prepared (%s)" % rec.state)
+            rec._fix_check_rows()
+            rec._guarded().write(
                 {
-                    "state": "approved",
-                    "approved_by_id": self.env.user.id,
-                    "approved_date": fields.Datetime.now(),
-                    "sod_verified": True,
+                    "state": "prepared",
+                    "prepared_by_id": self.env.uid,
+                    "prepared_at": fields.Datetime.now(),
                 }
             )
-            publish(
-                self.env,
-                "payout.approved",
-                "fix.payout.run",
-                rec.id,
-                {
-                    "payout_run": rec.name,
-                    "total_payable": float(rec.total_payable),
-                    "total_tds": float(rec.total_tds),
-                    "seller_count": rec.seller_count,
-                    "approved_by": self.env.user.name,
-                },
+            rec._fin_route(
+                "Payout run %s (%s): %d payee(s), net BDT %.2f"
+                % (rec.name, rec.period, rec.seller_count, rec.total_payable)
             )
+        return True
 
-    def action_execute(self):
-        """Execute payout run (alias for action_submit_payout)."""
-        for rec in self:
-            if rec.state != "approved":
-                raise UserError("Approve before executing")
-        return self.action_submit_payout()
+    def action_approve(self):
+        """Approval comes from the Accounting Administrator's (above the CFO
+        band, the CFO's) M63 inbox task: a direct call is refused by the
+        routing guard. Superuser code is trusted."""
+        return self.action_dofa_approve()
 
-    def _check_bank_details(self) -> None:
-        """Refuse the payout unless EVERY party has real bank details: the
-        paying company (originating account) and each seller (beneficiary).
-
-        Nothing is ever defaulted — the former fallbacks paid a seller with
-        no account into a placeholder account through the sponsor routing
-        number, and the rail's BEFTN header carried a library-default
-        originating routing. All gaps are listed in one named error."""
+    def _fin_before_approve(self):
         self.ensure_one()
-        problems = []
-        parties = [("company", self.company_id.partner_id, self.company_id.name)] + [
-            ("seller", seller, seller.name)
-            for seller in self.commission_ids.mapped("seller_partner_id")
-        ]
-        for role, partner, name in parties:
-            acc_num, routing = _bank_details(partner)
-            if not acc_num:
-                problems.append("%s %s: no bank account" % (role, name))
-            elif not _is_routing(routing):
-                problems.append(
-                    "%s %s: routing %r is not a 9-digit BEFTN routing number"
-                    % (role, name, routing)
-                )
-        if problems:
+        if self.state != "prepared":
             raise UserError(
-                "Payout %s refused — bank details missing or invalid for: %s"
-                % (self.name, "; ".join(problems))
+                "Payout run %s is %s: a run is approved once, from prepared — an approved or "
+                "executed run is never approved (or paid) again (BRU-REV-18)."
+                % (self.name, self.state)
             )
+        self._fix_check_rows()
 
-    def _default_rail(self) -> INT007PayoutRail:
-        """The INT-007 rail originating from the company's OWN bank account."""
-        company = self.company_id
-        return INT007PayoutRail(
-            originating_routing=_bank_details(company.partner_id)[1],
-            company_name=company.name,
-            company_id=company.company_registry or company.vat or str(company.id),
+    def _fix_payee_lines(self):
+        """[(payee, bank, net, tds, gross, commissions)] per payee, after clawbacks."""
+        self.ensure_one()
+        deductions = self._clawback_deductions()
+        out = []
+        for payee in self.commission_ids.mapped("seller_partner_id"):
+            rows = self.commission_ids.filtered(lambda c, p=payee: c.seller_partner_id == p)
+            net = sum(rows.mapped("net_payable")) - sum(
+                amount for _c, amount in deductions.get(payee, [])
+            )
+            out.append(
+                (
+                    payee,
+                    payee.bank_ids[:1],
+                    round(net, 2),
+                    round(sum(rows.mapped("tds_amount")), 2),
+                    round(sum(rows.mapped("gross_amount")), 2),
+                    rows,
+                )
+            )
+        return out
+
+    def _fin_after_approve(self):
+        """Pin what is paid (F2): one line per payee with the bank account and
+        its number as they stand at approval, and the run's net total."""
+        self.ensure_one()
+        run = self.sudo()
+        Line = self.env["fix.payout.run.line"].sudo()
+        for payee, bank, net, tds, gross, rows in run._fix_payee_lines():
+            Line.create(
+                {
+                    "run_id": run.id,
+                    "partner_id": payee.id,
+                    "partner_bank_id": bank.id or False,
+                    "acc_number": (bank.acc_number or "").strip() or False,
+                    "routing_number": _routing_of(bank) or False,
+                    "amount": max(net, 0.0),
+                    "tds_amount": tds,
+                    "gross_amount": gross,
+                    "commission_ids": [(6, 0, rows.ids)],
+                }
+            )
+        run._guarded().write(
+            {
+                "state": "approved",
+                "approved_by_id": self.env.uid,
+                "approved_date": fields.Datetime.now(),
+                "sod_verified": True,
+                "approved_total": run.total_payable,
+                "approved_commission_ids": [(6, 0, run.commission_ids.ids)],
+            }
+        )
+        publish(
+            self.env,
+            "payout.approved",
+            "fix.payout.run",
+            run.id,
+            {
+                "payout_run": run.name,
+                "total_payable": float(run.total_payable),
+                "total_tds": float(run.total_tds),
+                "seller_count": run.seller_count,
+                "approved_by": self.env.user.name,
+            },
         )
 
-    def _prepare_payout_recipients(self) -> list[PayoutRecipient]:
+    def _fix_assert_pinned(self):
+        """What is paid is what was approved: the commission set, the total
+        and each payee's account number."""
         self.ensure_one()
-        self._check_bank_details()
-        # Aggregate net payable per seller
-        seller_totals: dict[models.Model, dict] = {}
-        for c in self.commission_ids:
-            seller = c.seller_partner_id
-            if seller not in seller_totals:
-                seller_totals[seller] = {
-                    "net_payable": Decimal("0.00"),
-                    "gross": Decimal("0.00"),
-                    "tds": Decimal("0.00"),
-                    "comm": Decimal("0.00"),
-                }
-            seller_totals[seller]["net_payable"] += Decimal(str(c.net_payable))
-            seller_totals[seller]["gross"] += Decimal(str(c.gross_amount))
-            seller_totals[seller]["tds"] += Decimal(str(c.tds_amount or 0.0))
-            seller_totals[seller]["comm"] += Decimal(str(c.commission_amount))
-
-        deductions = self._clawback_deductions()
-        recipients = []
-        for seller, amounts in seller_totals.items():
-            amounts["net_payable"] -= sum(
-                (Decimal(str(amt)) for _c, amt in deductions.get(seller, [])), Decimal("0.00")
+        if set(self.commission_ids.ids) != set(self.approved_commission_ids.ids):
+            raise UserError(
+                "Payout run %s carries other commissions than were approved: approval voided — "
+                "nothing is paid." % self.name
             )
-            if amounts["net_payable"] <= 0:
-                continue  # fully recovered by a clawback: nothing to disburse
-            acc_num, routing = _bank_details(seller)  # validated: never invented
-            recipients.append(
-                PayoutRecipient(
-                    seller_ref=f"SLR-{seller.id:04d}",
-                    seller_name=seller.name,
-                    account_number=acc_num,
-                    routing_number=routing,
-                    amount_bdt=amounts["net_payable"],
-                    disbursement_ref=f"DISB-{self.name}-{seller.id}",
+        if abs(self.total_payable - self.approved_total) > 0.005:
+            raise UserError(
+                "Payout run %s now totals %.2f; %.2f was approved. Nothing is paid."
+                % (self.name, self.total_payable, self.approved_total)
+            )
+        for line in self.line_ids.filtered(lambda ln: ln.amount > 0.005):
+            if not line.partner_bank_id:
+                raise UserError(
+                    "No payee bank account for %s: nothing is paid (a confirmed account is "
+                    "recorded first, under M52's dual control)." % line.partner_id.name
                 )
+            bank = line.partner_bank_id.sudo().exists()
+            if not bank:
+                raise UserError(
+                    "The approved account of %s no longer exists: nothing is paid."
+                    % line.partner_id.name
+                )
+            if (bank.acc_number or "").strip() != (line.acc_number or ""):
+                raise UserError(
+                    "The bank account of %s changed after approval (%s approved): the "
+                    "approval covered the account it was given for (F2)."
+                    % (line.partner_id.name, line.acc_number)
+                )
+            if bank.partner_id.commercial_partner_id != line.partner_id.commercial_partner_id:
+                raise UserError("The approved account no longer belongs to %s." % line.partner_id.name)
+
+    def _payout_journal(self):
+        code = self.env["ir.config_parameter"].sudo().get_param(PARAM_PAYOUT_JOURNAL)
+        if not code:
+            return self.env["account.journal"]
+        return self.env["account.journal"].sudo().search(
+            [("code", "=", code), ("company_id", "=", self.company_id.id), ("type", "=", "bank")],
+            limit=1,
+        )
+
+    def action_request_payments(self):
+        """Release the approved run to treasury (FR-REV-034): one M50 payment
+        instruction per pinned payee line, after B2's payee-account gate.
+        Treasury prepares, releases (two-person) and confirms from the bank
+        statement; nothing is paid here."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Releasing a payout run to treasury")
+        Execution = self.env["fix.payment.execution"]
+        Bank = self.env["res.partner.bank"]
+        if not hasattr(Execution, "_fix_request_payment"):
+            raise UserError("Treasury's payment-request service (M50) is not installed.")
+        if not hasattr(Bank, "_fix_assert_payable_bank"):
+            raise UserError("The payee bank-account control (M52) is not installed.")
+        for run in self:
+            if run.state != "approved":
+                raise UserError(
+                    "Payout run %s is %s: only an approved run is released to treasury."
+                    % (run.name, run.state)
+                )
+            run._fin_assert_approved()
+            run._fix_assert_pinned()
+            journal = run._payout_journal()
+            for line in run.line_ids.filtered(lambda ln: ln.amount > 0.005):
+                Bank._fix_assert_payable_bank(line.partner_bank_id)
+                options = {
+                    "company_id": run.company_id.id,
+                    "operating_unit_id": run.operating_unit_id.id or False,
+                    "method": "bank_transfer",
+                    "rail": "beftn",
+                }
+                if journal:
+                    options["journal_id"] = journal.id
+                pay = Execution._fix_request_payment(
+                    "fix.payout.run.line",
+                    line.id,
+                    line.partner_id,
+                    line.partner_bank_id,
+                    line.amount,
+                    run.currency_id,
+                    "%s / %s" % (run.name, line.partner_id.name),
+                    run.approved_by_id,
+                    **options,
+                )
+                line.sudo().write({"payment_execution_id": pay.id})
+            run._guarded().write({"state": "executing", "rail_type": "m50", "rail_status": "executing"})
+            run.message_post(
+                body="Released to treasury: %d payment instruction(s), net BDT %.2f."
+                % (len(run.line_ids.filtered("payment_execution_id")), run.approved_total)
             )
-        return recipients
+            run._fix_sync_payments()
+        return True
+
+    # Old entry points: the run no longer pays by itself.
+    def action_execute(self):
+        return self.action_request_payments()
 
     def action_submit_payout(self, simulate_timeout=False, rail_instance=None):
-        """Submit payout batch to INT-007 seller payout rail with 7-day idempotency."""
-        for rec in self:
-            if rec.state != "approved":
-                raise UserError(
-                    "Payout run must be SoD-approved before dispatching to payout rail."
-                )
-
-            if not rec.idempotency_key:
-                rec.idempotency_key = f"IDEMP-{rec.name}-{uuid.uuid4().hex[:12]}"
-
-            recipients = rec._prepare_payout_recipients()
-            req = PayoutBatchRequest(
-                batch_ref=rec.name,
-                period=rec.period,
-                recipients=tuple(recipients),
-                idempotency_key=rec.idempotency_key,
-                total_amount=Decimal(str(rec.total_payable)),
-                recipient_count=len(recipients),
-            )
-
-            rail = rail_instance or rec._default_rail()
-            result = rail.submit_payout_batch(
-                req, rail_type="api", simulate_timeout=simulate_timeout
-            )
-
-            rec.write(
-                {
-                    "rail_batch_id": result.rail_batch_id,
-                    "rail_status": result.status.value,
-                }
-            )
-
-            if result.status == PayoutStatus.CONFIRMED:
-                rec._finalize_payout_execution()
-            elif result.status == PayoutStatus.UNKNOWN:
-                rec.state = "executing"
-                # IN-007 §3.4: Customer/seller sees 'We are confirming payment', not 'failed'
-
-    def action_query_status(self, rail_instance=None):
-        """Read-back query resolving UNKNOWN state (IN-007 §5.4, FF-85).
-
-        Only a REAL bank response may resolve the run. A rail exposes that as
-        ``query_bank_status(batch_ref, rail_batch_id)`` returning an object
-        with ``status`` (PayoutStatus) and ``bank_reference``. The INT-007
-        library rail has no such bank query — its ``read_back_status`` takes
-        the outcome from the CALLER (this method used to pass CONFIRMED and so
-        finalised every timed-out payout as paid). Without a bank response the
-        run stays ``pending_bank_confirmation`` until a finance manager
-        records the bank's reference (action_confirm_bank_settlement)."""
-        for rec in self:
-            if not rec.rail_batch_id:
-                raise UserError("No rail batch reference recorded to query.")
-
-            rail = rail_instance or rec._default_rail()
-            query = getattr(rail, "query_bank_status", None)
-            response = query(rec.name, rec.rail_batch_id) if query else None
-            status = getattr(response, "status", None)
-            bank_ref = (getattr(response, "bank_reference", "") or "").strip()
-
-            if status == PayoutStatus.CONFIRMED and bank_ref:
-                rec.write({"rail_status": "confirmed", "bank_confirmation_ref": bank_ref})
-                rec._finalize_payout_execution()
-            elif status == PayoutStatus.FAILED:
-                rec.rail_status = "failed"
-            else:
-                if rec.rail_status != "failed":
-                    rec.rail_status = "pending_bank_confirmation"
-                rec.message_post(
-                    body="Read-back: no bank response available for rail batch %s — payout "
-                    "remains pending bank confirmation (not marked paid)." % rec.rail_batch_id
-                )
+        return self.action_request_payments()
 
     def action_generate_beftn(self, rail_instance=None):
-        """Generate the BEFTN standard 128-byte batch file (fallback rail).
+        return self.action_request_payments()
 
-        Generating the file disburses nothing: the file still has to be
-        uploaded to the sponsor bank and settled through BEFTN. The run moves
-        to ``file_generated`` — commissions stay unpaid and no disbursement is
-        posted to the GL until a finance manager records the bank's settlement
-        reference (action_confirm_bank_settlement). It previously marked the
-        payout confirmed, commissions paid and posted the GL discharge."""
-        for rec in self:
-            if rec.state != "approved":
-                raise UserError("Approve payout run before generating BEFTN fallback file.")
-
-            if not rec.idempotency_key:
-                rec.idempotency_key = f"IDEMP-BEFTN-{rec.name}-{uuid.uuid4().hex[:12]}"
-
-            recipients = rec._prepare_payout_recipients()
-            req = PayoutBatchRequest(
-                batch_ref=rec.name,
-                period=rec.period,
-                recipients=tuple(recipients),
-                idempotency_key=rec.idempotency_key,
-                total_amount=Decimal(str(rec.total_payable)),
-                recipient_count=len(recipients),
-            )
-
-            rail = rail_instance or rec._default_rail()
-            result = rail.generate_beftn_fallback_batch(req)
-
-            file_bytes = result.beftn_raw.encode("ascii")
-            rec.write(
-                {
-                    "state": "file_generated",
-                    "rail_type": "beftn",
-                    "rail_status": "file_generated",
-                    "rail_batch_id": result.rail_batch_id,
-                    "beftn_file": base64.b64encode(file_bytes),
-                    "beftn_filename": f"BEFTN_{rec.name.replace('/', '_')}.txt",
-                }
-            )
+    def action_query_status(self, rail_instance=None):
+        """Read the M50 instructions' outcome (bank statement confirmations)."""
+        return self._fix_sync_payments()
 
     def action_confirm_bank_settlement(self, bank_reference: str = ""):
-        """Record the BANK's confirmation of a disbursement and finalise the run.
+        raise UserError(
+            "A payout is confirmed by treasury from the imported bank statement (M50), never "
+            "by a typed reference (A08 M53-3)."
+        )
 
-        The only route to ``executed`` for a payout without a confirmed rail
-        response (BEFTN file runs, timed-out / pending API runs). Requires the
-        bank-issued settlement reference — passed in, or entered on the run's
-        ``bank_confirmation_ref`` field — and a finance manager."""
-        if not (
-            self.env.user.has_group("account.group_account_manager")
-            or self.env.user.has_group("base.group_system")
-        ):
-            raise AccessError("Only Finance Managers can confirm a bank settlement.")
-        for rec in self:
-            if rec.state not in ("executing", "file_generated"):
-                raise UserError(
-                    "Payout %s is not awaiting bank confirmation (state: %s)."
-                    % (rec.name, rec.state)
-                )
-            if rec.rail_status == "failed":
-                raise UserError(
-                    "The rail reported payout %s as FAILED; it cannot be confirmed." % rec.name
-                )
-            ref = (bank_reference or rec.bank_confirmation_ref or "").strip()
-            if not ref:
-                raise UserError(
-                    "Enter the bank's settlement reference for payout %s before confirming "
-                    "it — a disbursement is never confirmed without the bank's evidence." % rec.name
-                )
-            rec.write(
-                {
-                    "bank_confirmation_ref": ref,
-                    "bank_confirmed_by_id": self.env.user.id,
-                    "bank_confirmed_at": fields.Datetime.now(),
-                    "rail_status": "confirmed",
-                }
-            )
-            rec._finalize_payout_execution()
+    def _fix_sync_payments(self):
+        """Complete the run once every instruction is bank-confirmed."""
+        for run in self.sudo():
+            if run.state != "executing":
+                continue
+            lines = run.line_ids.filtered(lambda ln: ln.amount > 0.005)
+            states = lines.mapped("payment_execution_id.state")
+            if any(s == "failed" for s in states):
+                run._guarded().write({"rail_status": "failed"})
+            if lines and all(s == "executed" for s in states) and len(states) == len(lines):
+                run._guarded().write({"rail_status": "confirmed"})
+                run._finalize_payout_execution()
+            elif not lines:
+                run._guarded().write({"rail_status": "confirmed"})
+                run._finalize_payout_execution()
+        return True
 
     def _finalize_payout_execution(self):
         """Finalize executed payout run: mark paid, generate bilingual statements, and post to GL."""
         self.ensure_one()
+        run = self.sudo()
+        if run.state == "executed":
+            return
         # freeze the clawback recoveries BEFORE the run turns executed
-        deductions = self._clawback_deductions()
-        Recovery = self.env["fix.settlement.recovery"]
+        deductions = run._clawback_deductions()
+        Recovery = self.env["fix.settlement.recovery"].sudo()
         for _payee, pairs in deductions.items():
             for claw, amount in pairs:
                 Recovery.create(
-                    {"adjustment_id": claw.id, "payout_run_id": self.id, "amount": amount}
+                    {"adjustment_id": claw.id, "payout_run_id": run.id, "amount": amount}
                 )
                 if claw.remaining_amount <= 0.005:
-                    claw.state = "recovered"
-        self.state = "executed"
-        self.commission_ids.write({"state": "paid"})
+                    claw._guarded().write({"state": "recovered"})
+        run._guarded().write({"state": "executed"})
+        run.commission_ids._guarded().write({"state": "paid"})
 
-        # Generate bilingual statements for each seller
-        stmt_model = self.env["fix.seller.statement"]
-        seller_groups: dict[models.Model, list] = {}
-        for c in self.commission_ids:
-            seller_groups.setdefault(c.seller_partner_id, []).append(c)
-
-        for seq, (seller, comms) in enumerate(seller_groups.items(), start=1):
-            gross_tot = sum(c.gross_amount for c in comms)
-            comm_tot = sum(c.commission_amount for c in comms)
-            tds_tot = sum(c.tds_amount or 0.0 for c in comms)
-            clawback_tot = sum(amt for _c, amt in deductions.get(seller, []))
-            net_tot = sum(c.net_payable for c in comms) - clawback_tot
-            cert_ref = f"NBR-TDS52-{fields.Date.today().year}-{seller.id:04d}-{seq:04d}"
-
-            stmt_model.create(
+        # Generate bilingual statements for each seller (born draft, issued
+        # by the system now that the money has moved)
+        stmt_model = self.env["fix.seller.statement"].sudo()
+        statements = stmt_model
+        for line in run.line_ids:
+            comms = line.commission_ids
+            clawback_tot = sum(amt for _c, amt in deductions.get(line.partner_id, []))
+            statements |= stmt_model._guarded().create(
                 {
-                    "company_id": self.company_id.id,
-                    "operating_unit_id": self.operating_unit_id.id,
-                    "seller_partner_id": seller.id,
-                    "period": self.period,
-                    "gross_gmv": gross_tot,
-                    "commission_amount": comm_tot,
-                    "tds_withheld": tds_tot,
-                    "net_payable": net_tot,
+                    "company_id": run.company_id.id,
+                    "operating_unit_id": run.operating_unit_id.id,
+                    "seller_partner_id": line.partner_id.id,
+                    "payee_type": comms[:1].source_type or "marketplace",
+                    "period": run.period,
+                    "gross_gmv": sum(comms.mapped("gross_amount")),
+                    "commission_amount": sum(comms.mapped("commission_amount")),
+                    "tds_withheld": sum(c.tds_amount or 0.0 for c in comms),
                     "clawback_amount": clawback_tot,
-                    "withholding_cert_ref": cert_ref,
-                    "payout_run_id": self.id,
-                    "state": "issued",
+                    "payout_run_id": run.id,
                 }
             )
+        statements.action_issue_statement()
 
         # Post payout execution to General Ledger
-        self.action_post_payout_to_gl()
+        run.action_post_payout_to_gl()
 
         publish(
             self.env,
             "payout.executed",
             "fix.payout.run",
-            self.id,
+            run.id,
             {
-                "payout_run": self.name,
-                "rail_type": self.rail_type,
-                "rail_status": self.rail_status,
-                "sellers_paid": len(seller_groups),
-                "total_disbursed": float(self.total_payable),
-                "tds_withheld": float(self.total_tds),
+                "payout_run": run.name,
+                "rail_type": run.rail_type,
+                "rail_status": run.rail_status,
+                "sellers_paid": len(run.line_ids),
+                "total_disbursed": float(run.total_payable),
+                "tds_withheld": float(run.total_tds),
             },
         )
+
+    def _fix_disbursement_lines(self):
+        """[(bank account, amount)] the disbursement credits: the GL account of
+        each M50 instruction's paying bank journal (the clearing role when an
+        instruction carries none, e.g. a legacy run)."""
+        self.ensure_one()
+        by_account: dict = {}
+        fallback = None
+        for line in self.line_ids.filtered(lambda ln: ln.amount > 0.005):
+            pay = line.payment_execution_id.sudo()
+            journal = pay and (
+                (pay["released_journal_id"] if "released_journal_id" in pay._fields else False)
+                or pay.journal_id
+            )
+            account = journal.default_account_id if journal else False
+            if not account:
+                fallback = fallback or _configured_account(self.env, self.company_id, "clearing")
+                account = fallback
+            by_account[account] = by_account.get(account, 0.0) + line.amount
+        if not by_account and self.total_payable > 0.005:
+            by_account[_configured_account(self.env, self.company_id, "clearing")] = (
+                self.total_payable
+            )
+        return by_account
 
     def action_post_payout_to_gl(self):
         """Post payout discharge and statutory TDS withholding to General Ledger through M19.
 
-        Only an EXECUTED run (bank- or rail-confirmed) is discharged, once.
-        Each payee type clears its own payable (sellers 200200, partners the
-        configured partner payable); clawbacks recovered in the run credit
-        the customer-refund clearing account they reimburse."""
+        Only an EXECUTED run (bank-confirmed) is discharged, once. Each payee
+        type clears its own payable (sellers 200200, partners the configured
+        partner payable); clawbacks recovered in the run credit the
+        customer-refund clearing account they reimburse; the net credits the
+        bank account treasury paid from (M50 books nothing for a payout line,
+        so the bank is credited once)."""
         for rec in self:
             if rec.gl_move_id:
                 continue
@@ -1117,16 +1462,12 @@ class FixPayoutRun(models.Model):
 
             company = rec.company_id
             journal = _configured_journal(self.env, company)
-            # Account codes per SETTLEMENT_ACCOUNTS: seller payable 200200,
-            # TDS 210100 (ITA 2023 s.140), disbursement bank 101000.
             tds_payable = _configured_account(self.env, company, "tds_payable")
-            disbursement_bank = _configured_account(self.env, company, "clearing")
 
             by_role: dict[str, float] = {}
             for c in rec.commission_ids:
                 role = c._payable_role()
                 by_role[role] = by_role.get(role, 0.0) + c.net_payable + (c.tds_amount or 0.0)
-            net_disbursed = rec.total_payable
             tds_withheld = rec.total_tds
             labels = {
                 "seller_payable": "Discharge Seller Liability",
@@ -1162,15 +1503,9 @@ class FixPayoutRun(models.Model):
                         },
                     )
                 )
-
-            move_vals = {
-                "journal_id": journal.id,
-                "company_id": company.id,
-                "date": fields.Date.context_today(rec),
-                "ref": f"PAYOUT-DISCHARGE-{rec.name}",
-                "line_ids": debit_lines
-                + clawback_lines
-                + [
+            tds_lines = []
+            if tds_withheld > 0.005:
+                tds_lines.append(
                     (
                         0,
                         0,
@@ -1180,18 +1515,28 @@ class FixPayoutRun(models.Model):
                             "debit": 0.0,
                             "credit": tds_withheld,
                         },
-                    ),
-                    (
-                        0,
-                        0,
-                        {
-                            "name": f"Net Disbursed Funds via {rec.rail_type}: {rec.name}",
-                            "account_id": disbursement_bank.id,
-                            "debit": 0.0,
-                            "credit": net_disbursed,
-                        },
-                    ),
-                ],
+                    )
+                )
+            bank_lines = [
+                (
+                    0,
+                    0,
+                    {
+                        "name": f"Net Disbursed Funds via treasury: {rec.name}",
+                        "account_id": account.id,
+                        "debit": 0.0,
+                        "credit": round(amount, 2),
+                    },
+                )
+                for account, amount in rec._fix_disbursement_lines().items()
+            ]
+
+            move_vals = {
+                "journal_id": journal.id,
+                "company_id": company.id,
+                "date": fields.Date.context_today(rec),
+                "ref": f"PAYOUT-DISCHARGE-{rec.name}",
+                "line_ids": debit_lines + clawback_lines + tds_lines + bank_lines,
             }
 
             n_pay = len(debit_lines) + len(clawback_lines)
@@ -1199,14 +1544,103 @@ class FixPayoutRun(models.Model):
                 i: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-PAY"}
                 for i in range(n_pay)
             }
-            dim_by_line[n_pay] = {
-                "operating_unit_id": rec.operating_unit_id.id,
-                "cost_centre": "CC-TAX",
-            }
-            dim_by_line[n_pay + 1] = {
-                "operating_unit_id": rec.operating_unit_id.id,
-                "cost_centre": "CC-TREAS",
-            }
+            for i in range(n_pay, n_pay + len(tds_lines)):
+                dim_by_line[i] = {
+                    "operating_unit_id": rec.operating_unit_id.id,
+                    "cost_centre": "CC-TAX",
+                }
+            for i in range(n_pay + len(tds_lines), n_pay + len(tds_lines) + len(bank_lines)):
+                dim_by_line[i] = {
+                    "operating_unit_id": rec.operating_unit_id.id,
+                    "cost_centre": "CC-TREAS",
+                }
 
             move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
-            rec.gl_move_id = move.id
+            rec._guarded().write({"gl_move_id": move.id})
+
+    def action_cancel(self):
+        """Abandon a run that has not been released to treasury."""
+        require_role(self.env, GROUP_ACCOUNTANT, "Cancelling a payout run")
+        for run in self:
+            if run.state not in ("draft", "prepared", "approved"):
+                raise UserError(
+                    "Payout run %s was released to treasury: it is not cancelled here." % run.name
+                )
+            run._fin_void("the payout run was cancelled")
+            run._guarded().write({"state": "cancelled"})
+        return True
+
+
+class FixPayoutRunLine(models.Model):
+    """One payee of an approved payout run, pinned at approval (F2): the
+    account and its number, the amount. The M50 instruction pays this line,
+    once (fix.payment.execution is unique per source)."""
+
+    _name = "fix.payout.run.line"
+    _description = "Payout Run Payee Line (pinned)"
+    _order = "run_id, id"
+    # M50 posts nothing for this source: the payout run books the discharge.
+    _fix_posts_own_payment = True
+
+    run_id = fields.Many2one("fix.payout.run", required=True, ondelete="restrict", index=True)
+    company_id = fields.Many2one(related="run_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(related="run_id.operating_unit_id", store=True)
+    currency_id = fields.Many2one(related="run_id.currency_id")
+    partner_id = fields.Many2one("res.partner", string="Payee", required=True, readonly=True)
+    partner_bank_id = fields.Many2one(
+        "res.partner.bank", string="Approved Account", readonly=True
+    )
+    acc_number = fields.Char(string="Approved Account No", readonly=True)
+    routing_number = fields.Char(string="Approved Routing No", readonly=True)
+    amount = fields.Monetary(string="Net Paid", currency_field="currency_id", readonly=True)
+    tds_amount = fields.Monetary(string="TDS", currency_field="currency_id", readonly=True)
+    gross_amount = fields.Monetary(string="Gross", currency_field="currency_id", readonly=True)
+    commission_ids = fields.Many2many(
+        "fix.commission.ledger",
+        "fix_payout_run_line_commission_rel",
+        "line_id",
+        "commission_id",
+        string="Commissions",
+        readonly=True,
+    )
+    payment_execution_id = fields.Many2one(
+        "fix.payment.execution", string="Treasury Instruction", readonly=True
+    )
+    payment_state = fields.Selection(related="payment_execution_id.state", string="Payment")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            raise UserError("Payee lines are pinned by the payout approval, never typed.")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su:
+            raise UserError("A pinned payee line is never edited (F2).")
+        if set(vals) - {"payment_execution_id"} and self.filtered("payment_execution_id"):
+            raise UserError("A payee line released to treasury is never edited (F2).")
+        return super().write(vals)
+
+
+class FixPaymentExecutionPayout(models.Model):
+    """The M50 instruction of a payout line reports its outcome to the run."""
+
+    _inherit = "fix.payment.execution"
+
+    def write(self, vals):
+        result = super().write(vals)
+        if "state" in vals:
+            lines = self.sudo().filtered(lambda p: p.source_model == "fix.payout.run.line")
+            if lines:
+                runs = (
+                    self.env["fix.payout.run.line"]
+                    .sudo()
+                    .browse(lines.mapped("source_id"))
+                    .exists()
+                    .mapped("run_id")
+                )
+                runs._fix_sync_payments()
+        return result
+
+
+__all__ = ["GROUP_ADMINISTRATOR"]

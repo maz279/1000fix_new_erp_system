@@ -146,7 +146,47 @@ def certs(odoo_env):
             "bank_branch": "Sonali Bank, Tejgaon Branch",
         }
         base.update(vals)
-        return env["fix.withholding.certificate"].create(base)
+        cert = env["fix.withholding.certificate"].create(base)
+        if base.get("challan_no"):
+            # A08 M51-4: a certificate is issued only for the deduction its
+            # verified challan deposited (system arrangement of that deposit)
+            kind = "vds" if base.get("certificate_type", "mushak_6_6") == "mushak_6_6" else "tds"
+            challan = env["fix.tax.challan"].search(
+                [("challan_no", "=", base["challan_no"]), ("company_id", "=", company.id)]
+            ) or env["fix.tax.challan"].create(
+                {
+                    "challan_no": base["challan_no"],
+                    "challan_date": base.get("challan_date") or date(2026, 10, 8),
+                    "tax_kind": kind,
+                    "amount": base["withheld_amount"],
+                    "state": "deposited",
+                    "verification_ref": "IBAS-OK",
+                    "verified_by_id": env.uid,
+                }
+            )
+            rate = env.ref(
+                "cd_tax_engine_bd.tax_rate_vds_rent"
+                if kind == "vds"
+                else "cd_tax_engine_bd.tax_rate_tds_service_general"
+            )
+            env["fix.withholding.line"].create(
+                {
+                    "tax_kind": kind,
+                    "partner_id": vendor.id,
+                    "partner_tin": "123456789012",
+                    "psr_received": True,
+                    "paid_by_bank": True,
+                    "rate_id": rate.id,
+                    "document_date": date(2026, 10, 5),
+                    "base_amount": base["withheld_amount"] * 100.0 / rate.rate,
+                    "amount": base["withheld_amount"],
+                    "vendor_invoice_id": invoice.id,
+                    "challan_id": challan.id,
+                    "state": "deposited",
+                    "certificate_id": cert.id,
+                }
+            )
+        return cert
 
     return env, make
 
@@ -213,7 +253,9 @@ class TestMushak66Report:
         env, make = certs
         draft = make()
         undeposited = make(challan_no=False)
-        undeposited.action_issue()
+        # A08 M51-4: such a certificate can no longer be issued; a legacy row
+        # issued before the control is arranged directly to test the report
+        undeposited.write({"state": "issued", "certificate_no": "LEGACY-%s" % undeposited.id})
         income_tax = make(certificate_type="section_52_income_tax", supplier_bin=False)
         income_tax.action_issue()
         with pytest.raises(UserError) as refused, env.cr.savepoint():

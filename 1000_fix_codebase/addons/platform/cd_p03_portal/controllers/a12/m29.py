@@ -7,6 +7,17 @@
 import datetime
 
 SURFACES = {
+    # A08 S4 (FR-SEC-024): an SoD exception (mitigation) for a conflicting
+    # grant. Approved by an SoD exception approver who is neither the grantee
+    # nor the requester; state and decision stamps move only by its actions.
+    "fix.sod.mitigation": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject", "action_revoke"},
+        "writable": frozenset(
+            {"control_id", "user_id", "mitigating_control", "reason", "valid_from", "valid_until"}
+        ),
+    },
     "res.users": {"order": "name", "limit": 400, "actions": set()},
     "fix.role": {"order": "code", "limit": 200, "actions": set()},
     "res.groups": {"order": "name", "limit": 300, "actions": set()},
@@ -202,8 +213,12 @@ def sod_results(env, date_from=None, date_to=None, **params):
             {
                 "code": control.code,
                 "control": control.name,
-                "role_a": control.role_a_id.code,
-                "role_b": control.role_b_id.code,
+                "role_a": control.pair_label,
+                "role_b": dict(control._fields["control_type"].selection).get(
+                    control.control_type, control.control_type
+                )
+                if "control_type" in control._fields
+                else control.role_b_id.code,
                 "action": dict(control._fields["conflict_action"].selection).get(
                     control.conflict_action, control.conflict_action
                 ),
@@ -232,8 +247,8 @@ def sod_results(env, date_from=None, date_to=None, **params):
         {
             "code": "Code",
             "control": "Control",
-            "role_a": "Role A",
-            "role_b": "Role B",
+            "role_a": "Conflicting pair",
+            "role_b": "Pair type",
             "action": "Conflict Action",
             "tests": "Tests",
             "last_tested": "Last Tested",
@@ -284,8 +299,43 @@ def auth_trends(env, date_from=None, date_to=None, **params):
     )
 
 
+def sod_violations(env, date_from=None, date_to=None, **params):
+    """A08 S4: who holds a conflicting pair today, mitigated or not, and the
+    controls group membership cannot measure (fix.sod.control report)."""
+    data = env["fix.sod.control"].fix_report_violations()
+    rows = [
+        {
+            "control": r["control"],
+            "pair": r["pair"],
+            "login": r["login"],
+            "mitigated": "Yes, %s until %s" % (r["exception"], r["exception_until"])
+            if r["mitigated"]
+            else "No",
+        }
+        for r in data["violations"]
+    ]
+    return _pack(
+        "SoD Violations — %d user-pair(s), %d unmitigated, %d control(s) not measurable"
+        % (len(rows), data["unmitigated"], len(data["unmeasurable"])),
+        ["control", "pair", "login", "mitigated"],
+        {
+            "control": "Control",
+            "pair": "Conflicting pair",
+            "login": "User",
+            "mitigated": "Mitigated",
+        },
+        rows,
+        [
+            "Existing conflicts are reported, not blocked; a new conflicting grant is refused "
+            "unless an approved, unexpired SoD exception covers it."
+        ],
+        empty="No user holds a conflicting pair.",
+    )
+
+
 REPORTS = {
     "access_review": access_review,
+    "sod_violations": sod_violations,
     "privileged_sessions": privileged_sessions,
     "sensitive_access": sensitive_access,
     "sod_results": sod_results,

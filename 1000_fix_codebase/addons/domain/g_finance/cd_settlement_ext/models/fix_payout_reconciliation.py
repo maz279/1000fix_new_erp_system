@@ -1,4 +1,11 @@
 # fix_payout_reconciliation.py — Payout reconciliation comparing counts & amounts (IN-007 §11, FF-94).
+#
+# A08 remediation (B4, M53-14, BRU-REV-13): the "rail" side was typed — an
+# unpaid draft run reconciled "balanced" and a detected break was written
+# back to balanced. The disbursed side is now READ from the run's M50
+# payment instructions: what the bank statement confirmed (count and
+# amount, per payee). A run with nothing released to treasury has nothing
+# to reconcile, and the outcome (state) is the run's, never typed.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -11,7 +18,7 @@ class FixPayoutReconciliation(models.Model):
 
     _name = "fix.payout.reconciliation"
     _description = "Payout Reconciliation / পরিশোধ সমন্বয়"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "reconciliation_date desc, id desc"
 
     name = fields.Char(
@@ -36,7 +43,12 @@ class FixPayoutReconciliation(models.Model):
 
     # Separate Count and Amount comparisons (FF-94)
     system_count = fields.Integer(string="System Recipient Count", readonly=True)
-    rail_count = fields.Integer(string="Rail Settled Count", default=0)
+    rail_count = fields.Integer(
+        string="Bank-Confirmed Count",
+        default=0,
+        readonly=True,
+        help="Payee instructions the imported bank statement confirmed (M50).",
+    )
     count_matched = fields.Boolean(
         string="Count Matched", compute="_compute_reconciliation", store=True
     )
@@ -45,7 +57,11 @@ class FixPayoutReconciliation(models.Model):
         string="System Total Payable", currency_field="currency_id", readonly=True
     )
     rail_amount = fields.Monetary(
-        string="Rail Settled Amount", currency_field="currency_id", default=0.0
+        string="Bank-Confirmed Amount",
+        currency_field="currency_id",
+        default=0.0,
+        readonly=True,
+        help="The amounts the imported bank statement debited for the run (M50).",
     )
     amount_matched = fields.Boolean(
         string="Amount Matched", compute="_compute_reconciliation", store=True
@@ -91,15 +107,42 @@ class FixPayoutReconciliation(models.Model):
         "fix.payout.reconciliation.line", "reconciliation_id", string="Break Lines"
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "system_count",
+            "system_amount",
+            "rail_count",
+            "rail_amount",
+            "line_ids",
+        }
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.payout.reconciliation")
+                    self.env["ir.sequence"].sudo().next_by_code("fix.payout.reconciliation")
                     or f"REC/{fields.Date.today().year}/New"
                 )
         return super().create(vals_list)
+
+    def _fix_bank_side(self):
+        """{payee: (confirmed amount, confirmed?)} from the run's M50
+        instructions: an instruction counts once the bank statement confirmed
+        it (executed with an imported statement line)."""
+        self.ensure_one()
+        out = {}
+        for line in self.payout_run_id.line_ids.filtered(lambda ln: ln.amount > 0.005):
+            pay = line.payment_execution_id.sudo()
+            confirmed = bool(pay) and pay.state == "executed" and bool(pay.statement_line_id)
+            amount = (
+                (pay["released_amount"] if "released_amount" in pay._fields else 0.0) or pay.amount
+                if confirmed
+                else 0.0
+            )
+            out[line] = (amount, confirmed)
+        return out
 
     @api.depends(
         "system_count",
@@ -128,24 +171,47 @@ class FixPayoutReconciliation(models.Model):
             if not rec.payout_run_id:
                 raise UserError("Select a payout run to reconcile")
 
-            rec.system_count = len(rec.payout_run_id.commission_ids)
-            rec.system_amount = rec.payout_run_id.total_payable
-
-            # The rail side must come from the rail / bank statement. It used
-            # to be copied from the system figures for a "confirmed" run, so
-            # the reconciliation compared the system with itself and always
-            # balanced. Without rail figures there is nothing to reconcile.
-            if not rec.rail_count and not rec.rail_amount:
+            run = rec.payout_run_id
+            lines = run.line_ids.filtered(lambda ln: ln.amount > 0.005)
+            if not lines.filtered("payment_execution_id"):
                 raise UserError(
-                    "Enter the rail / bank statement count and amount for %s before "
-                    "running the reconciliation — they are never copied from the system "
-                    "figures." % (rec.payout_run_id.name,)
+                    "Payout run %s has released nothing to treasury (%s): there is no "
+                    "disbursement to reconcile." % (run.name, run.state)
                 )
+            bank = rec._fix_bank_side()
+            Line = self.env["fix.payout.reconciliation.line"].sudo()
+            rec.line_ids.sudo().unlink()
+            for line, (amount, confirmed) in bank.items():
+                if confirmed and abs(amount - line.amount) <= 0.005:
+                    continue
+                Line.create(
+                    {
+                        "reconciliation_id": rec.id,
+                        "seller_partner_id": line.partner_id.id,
+                        "system_amount": line.amount,
+                        "rail_amount": amount,
+                        "discrepancy": round(line.amount - amount, 2),
+                        "record_date": fields.Date.to_date(
+                            line.payment_execution_id.create_date
+                        )
+                        if line.payment_execution_id
+                        else fields.Date.context_today(rec),
+                        "status": "discrepancy" if confirmed else "unmatched",
+                    }
+                )
+            rec._guarded().write(
+                {
+                    "system_count": len(lines),
+                    "system_amount": run.approved_total or run.total_payable,
+                    "rail_count": len([1 for _a, ok in bank.values() if ok]),
+                    "rail_amount": round(sum(a for a, ok in bank.values() if ok), 2),
+                }
+            )
 
             rec._compute_reconciliation()
 
             if not rec.count_matched or not rec.amount_matched or rec.unmatched_count > 0:
-                rec.state = "break_detected"
+                rec._guarded().write({"state": "break_detected"})
                 publish(
                     self.env,
                     "platform.reconciliation_divergence",
@@ -162,7 +228,7 @@ class FixPayoutReconciliation(models.Model):
                     },
                 )
             else:
-                rec.state = "balanced"
+                rec._guarded().write({"state": "balanced"})
 
 
 class FixPayoutReconciliationLine(models.Model):

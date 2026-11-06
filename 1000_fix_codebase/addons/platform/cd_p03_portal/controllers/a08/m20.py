@@ -25,6 +25,13 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 SURFACES = {
+    # A08 M20-6: a write-off climbs the credit ladder and draws the ECL
+    # allowance first; raised, approved and rejected only by its actions.
+    "fix.ar.writeoff": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
     "fix.ar.impairment": {
         "order": "as_of desc, id desc",
         "limit": 200,
@@ -33,7 +40,8 @@ SURFACES = {
     "fix.ar.invoice": {
         "order": "invoice_date desc, id desc",
         "limit": 200,
-        "actions": {"action_register_paid"},
+        # issue: an Accountant other than the raiser of a manual invoice
+        "actions": {"action_register_paid", "action_issue"},
     },
     "fix.ar.receipt": {
         "order": "receipt_date desc, id desc",
@@ -43,6 +51,8 @@ SURFACES = {
     "fix.credit.note": {
         "order": "create_date desc, id desc",
         "limit": 200,
+        # A08 S3: approve within the direct band (second Accountant); above
+        # it the approval is decided from the M63 inbox, not here
         "actions": {"action_submit", "action_approve", "action_issue"},
     },
     "fix.ar.payment.link": {
@@ -55,7 +65,11 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_verify", "action_settle", "action_cancel"},
     },
-    "fix.ar.consolidated.bill": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.ar.consolidated.bill": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_generate", "action_send"},
+    },
     "fix.ar.dispute": {"order": "id desc", "limit": 400, "actions": set()},
     "fix.dunning": {"order": "id desc", "limit": 400, "actions": set()},
 }
@@ -566,8 +580,26 @@ def collections_productivity(env, date_from=None, date_to=None, **params):
 
 def ecl_provision(env, date_from=None, date_to=None, **params):
     """IFRS 9 expected credit loss: exposure per ageing bucket x the loss rate
-    stated on the run. Shows the movement against the provision already booked."""
-    runs = env["fix.ar.impairment"].sudo().search([], order="as_of desc, id desc", limit=1)
+    stated on the run. Shows the movement against the provision already booked.
+
+    A08 M20-5: read as the caller (finance roles only) in the caller's
+    companies; the latest POSTED run, else the latest computed one — never a
+    draft anyone could type."""
+    Run = env["fix.ar.impairment"]
+    if not Run.has_access("read"):
+        return _pack(
+            "IFRS 9 ECL Provision",
+            ["bucket", "exposure", "rate", "provision"],
+            {"bucket": "Ageing bucket", "exposure": "Exposure", "rate": "Loss rate %",
+             "provision": "Provision"},
+            [],
+            ["The IFRS 9 provision is visible to finance roles only."],
+            empty="Not available to your role.",
+        )
+    domain = [("company_id", "in", env.companies.ids)]
+    runs = Run.search(
+        [*domain, ("state", "=", "posted")], order="as_of desc, id desc", limit=1
+    ) or Run.search([*domain, ("state", "=", "computed")], order="as_of desc, id desc", limit=1)
     rows = []
     if not runs:
         return _pack(

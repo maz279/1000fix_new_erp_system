@@ -8,11 +8,19 @@ from datetime import date, timedelta
 
 from odoo import fields
 
+# A08 workflow audit (2026-11-04) M51-13: the register's engine methods
+# (action_mark_posted, action_rebuild_from_events) and the free-standing
+# certificate issue (action_issue) are no longer workspace actions: a register
+# row is posted by its invoice posting, the register rebuilds from events as an
+# administrator's engine run, and a certificate is issued from its deposited
+# deduction. Statutory master rows change by proposal + activation (M51-6).
+MASTER_ACTIONS = {"action_record_adviser_verification", "action_activate", "action_reject_proposal"}
+
 SURFACES = {
     "fix.mushak.register": {
         "order": "invoice_date desc, id desc",
         "limit": 200,
-        "actions": {"action_mark_posted", "action_rebuild_from_events"},
+        "actions": set(),
     },
     "fix.vat.return": {
         "order": "period desc, id desc",
@@ -24,17 +32,21 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_prepare", "action_file"},
     },
-    "fix.vat.treatment": {"order": "code", "limit": 200, "actions": set()},
-    "fix.withholding.certificate": {"order": "id desc", "limit": 200, "actions": {"action_issue"}},
+    "fix.vat.treatment": {"order": "code", "limit": 200, "actions": set(MASTER_ACTIONS)},
+    "fix.withholding.certificate": {"order": "id desc", "limit": 200, "actions": set()},
     "fix.withholding.line": {
         "order": "document_date desc, id desc",
         "limit": 300,
-        "actions": {"action_issue_certificate"},
+        "actions": {"action_issue_certificate", "action_apply_statutory_uplift"},
     },
     "fix.tax.challan": {
         "order": "challan_date desc, id desc",
         "limit": 200,
-        "actions": {"action_link_open_deductions", "action_confirm_deposit"},
+        "actions": {
+            "action_link_open_deductions",
+            "action_record_verification",
+            "action_confirm_deposit",
+        },
     },
     "fix.input.vat.credit": {
         "order": "invoice_date desc, id desc",
@@ -46,11 +58,23 @@ SURFACES = {
         "limit": 50,
         "actions": {"action_generate", "action_verify"},
     },
-    "fix.tax.rate": {"order": "tax_kind, code, date_from desc", "limit": 300, "actions": set()},
-    "fix.tax.parameter": {"order": "key, date_from desc", "limit": 100, "actions": set()},
-    "fix.statutory.due.rule": {"order": "obligation", "limit": 100, "actions": set()},
+    "fix.tax.rate": {
+        "order": "tax_kind, code, date_from desc",
+        "limit": 300,
+        "actions": set(MASTER_ACTIONS),
+    },
+    "fix.tax.parameter": {
+        "order": "key, date_from desc",
+        "limit": 100,
+        "actions": set(MASTER_ACTIONS),
+    },
+    "fix.statutory.due.rule": {"order": "obligation", "limit": 100, "actions": set(MASTER_ACTIONS)},
     "fix.statutory.filing": {"order": "filed_on desc", "limit": 200, "actions": set()},
 }
+
+
+def _companies(env):
+    return [("company_id", "in", env.companies.ids)]
 
 
 def _today(env):
@@ -65,22 +89,26 @@ def kpis(env):
     """Real M51 tile metrics (None = unreadable for the caller)."""
     out = {}
     try:
-        ret = env["fix.vat.return"].search([], order="period desc", limit=1)
+        ret = env["fix.vat.return"].search(_companies(env), order="period desc", limit=1)
         labels = dict(ret._fields["state"].selection)
         out["vat91_latest"] = "%s %s" % (ret.period, labels.get(ret.state)) if ret else "none"
     except Exception:
         out["vat91_latest"] = None
     try:
-        credits = env["fix.input.vat.credit"].search([("state", "=", "eligible")])
+        credits = env["fix.input.vat.credit"].search([("state", "=", "eligible"), *_companies(env)])
         out["input_credit_open"] = _num(sum(credits.mapped("signed_vat")))
     except Exception:
         out["input_credit_open"] = None
     try:
         out["certificates_due"] = env["fix.withholding.line"].search_count(
-            [("state", "=", "deposited")]
+            [("state", "=", "deposited"), *_companies(env)]
         )
         out["withholding_undeposited"] = _num(
-            sum(env["fix.withholding.line"].search([("state", "=", "withheld")]).mapped("amount"))
+            sum(
+                env["fix.withholding.line"]
+                .search([("state", "=", "withheld"), *_companies(env)])
+                .mapped("amount")
+            )
         )
     except Exception:
         out["certificates_due"] = out["withholding_undeposited"] = None
@@ -155,7 +183,8 @@ def mushak_610(env, date_from=None, date_to=None, **params):
     threshold = env["fix.tax.parameter"].get_value("mushak610_threshold", d_to)
     rows = []
     sales = env["fix.mushak.register"].search(
-        [("invoice_date", ">=", d_from), ("invoice_date", "<=", d_to)], order="invoice_date"
+        [("invoice_date", ">=", d_from), ("invoice_date", "<=", d_to), *_companies(env)],
+        order="invoice_date",
     )
     for s in sales.filtered(lambda r: r.total_payable > threshold):
         rows.append(
@@ -175,6 +204,7 @@ def mushak_610(env, date_from=None, date_to=None, **params):
             ("invoice_date", ">=", d_from),
             ("invoice_date", "<=", d_to),
             ("adjustment_type", "=", "invoice"),
+            *_companies(env),
         ],
         order="invoice_date",
     )
@@ -282,7 +312,7 @@ def note_register(env, date_from=None, date_to=None, **params):
 def vat_return_draft(env, date_from=None, date_to=None, **params):
     """Mushak 9.1 return draft: one row per VAT return with its computation."""
     rows = []
-    for ret in env["fix.vat.return"].sudo().search([]):
+    for ret in env["fix.vat.return"].search(_companies(env)):
         rows.append(
             {
                 "period": ret.period,
@@ -335,24 +365,20 @@ def vat_return_draft(env, date_from=None, date_to=None, **params):
 def vat_reconciliation(env, date_from=None, date_to=None, **params):
     """VAT reconciliation: the return's output/input VAT vs the source
     registers (Mushak sales records and input credits) for the same period."""
-    returns = env["fix.vat.return"].sudo().search([])
-    mushak = env["fix.mushak.register"].sudo().search([])
-    credits = env["fix.input.vat.credit"].sudo().search([])
+    # A08: read as the caller in their companies; the period key is YYYY-MM
+    # (the old "%m-%y" key never matched a return, so every variance read 100%).
+    returns = env["fix.vat.return"].search(_companies(env))
+    mushak = env["fix.mushak.register"].search(_companies(env))
+    credits = env["fix.input.vat.credit"].search([("state", "=", "claimed"), *_companies(env)])
     rows = []
     for ret in returns:
         period = ret.period
         sales_vat = sum(
             m.vat_amount
             for m in mushak
-            if m.invoice_date
-            and "%02d-%s" % (m.invoice_date.month, str(m.invoice_date.year)[2:]) == period
+            if m.invoice_date and m.invoice_date.strftime("%Y-%m") == period
         )
-        credit_vat = sum(
-            c.signed_vat
-            for c in credits
-            if c.invoice_date
-            and "%02d-%s" % (c.invoice_date.month, str(c.invoice_date.year)[2:]) == period
-        )
+        credit_vat = sum(c.signed_vat for c in credits if c.vat_return_id == ret)
         rows.append(
             {
                 "period": period,
@@ -405,17 +431,14 @@ def tds_annual_summary(env, date_from=None, date_to=None, **params):
     if today.month < 7:
         fy_start = fy_start.replace(year=fy_start.year - 1)
     fy_end = fy_start.replace(year=fy_start.year + 1) - timedelta(days=1)
-    lines = (
-        env["fix.withholding.line"]
-        .sudo()
-        .search(
-            [
-                ("tax_kind", "=", "tds"),
-                ("document_date", ">=", fy_start),
-                ("document_date", "<=", fy_end),
-                ("state", "!=", "cancelled"),
-            ]
-        )
+    lines = env["fix.withholding.line"].search(
+        [
+            ("tax_kind", "=", "tds"),
+            ("document_date", ">=", fy_start),
+            ("document_date", "<=", fy_end),
+            ("state", "!=", "cancelled"),
+            *_companies(env),
+        ]
     )
     groups = {}
     for line in lines:
@@ -467,12 +490,12 @@ def tds_annual_summary(env, date_from=None, date_to=None, **params):
 
 def vds_deduction_register(env, date_from=None, date_to=None, **params):
     """VDS deduction register: every VDS line with its challan and state."""
-    domain = [("tax_kind", "=", "vds")]
+    domain = [("tax_kind", "=", "vds"), *_companies(env)]
     if date_from:
         domain.append(("document_date", ">=", date_from))
     if date_to:
         domain.append(("document_date", "<=", date_to))
-    lines = env["fix.withholding.line"].sudo().search(domain)
+    lines = env["fix.withholding.line"].search(domain)
     rows = []
     for line in lines:
         rows.append(

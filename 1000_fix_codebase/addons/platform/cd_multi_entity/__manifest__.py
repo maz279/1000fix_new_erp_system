@@ -18,7 +18,7 @@ Owns:
 
 CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",

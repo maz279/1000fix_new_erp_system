@@ -30,6 +30,8 @@ AP_ACCOUNTS = {
     "expense": (None, "Default purchase / expense account"),
     "employee_payable": (None, "Employee reimbursements payable"),
     "employee_advance": (None, "Employee advances and floats"),
+    # A08 M52-8: an advance recovered through payroll clears against salaries payable
+    "salary_payable": (None, "Salaries payable (payroll recovery of advances)"),
 }
 TAX_ROLES = ("vat_input", "tds_payable", "vds_payable")
 

@@ -1,16 +1,67 @@
 # cd_fixed_asset_ext — live-ORM behaviour of the M49 capex, transfer,
 # revaluation/impairment, disposal, physical verification and IFRS 16 lease
 # documents.
+#
+# A08 (2026-11-04): capex requests, revaluations and disposals are approved
+# from the approver's M63 inbox by the DOFA tier their amount needs (never an
+# Approve button), approve and post are separate, CWIP cost is posted cost
+# booked to the project, a transfer moves the asset on acknowledgement, and a
+# disposal sale is invoiced through M20. The tests below were rewritten from
+# the old direct-approval flow they asserted.
 from __future__ import annotations
 
+import base64
 from datetime import date
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import UserError, ValidationError
 
 from ..models.fix_lease import lease_present_value
-from .conftest import balance
+from .conftest import balance, make_user
+
+TIER = "cd_entity_config.group_dofa_tier_%d"
+
+
+def _tier(m49, n):
+    key = "tier%d" % n
+    if key not in m49:
+        m49[key] = make_user(m49["env"], "account.group_account_manager", TIER % n)
+    return m49[key]
+
+
+def _post_cost(m49, account, amount):
+    env = m49["env"]
+    move = env["account.move"].create(
+        {
+            "journal_id": m49["journal"].id,
+            "date": fields.Date.context_today(env.user),
+            "line_ids": [
+                (0, 0, {"account_id": account.id, "name": "capital bill", "debit": amount}),
+                (
+                    0,
+                    0,
+                    {"account_id": m49["accounts"]["proceeds"].id, "name": "AP", "credit": amount},
+                ),
+            ],
+        }
+    )
+    move.action_post()
+    return move
+
+
+def _approve_and_post(m49, doc, requester, tier=4):
+    """Submit as the requester, approve from the tier holder's inbox, post as
+    another accountant (the separate steps of A08 M49-6 / M49-9)."""
+    _tier(m49, tier)  # the approver exists before the request is routed
+    doc.with_user(requester).action_submit()
+    if doc.approval_state == "pending":
+        approve_via_inbox(doc, _tier(m49, tier))
+    doc.invalidate_recordset()
+    assert doc.state == "approved", doc.state
+    doc.with_user(m49["users"]["accountant"]).action_post()
+
 
 pytestmark = [pytest.mark.financial]
 
@@ -75,16 +126,19 @@ class TestCapex:
                     "category_id": cat.id,
                     "amount": 400000.0,
                     "request_date": date(2026, 8, 1),
+                    "justification": "Mirpur hub opening",
                 }
             )
         )
         assert req.name.startswith("CAPEX/")
-        req.action_submit()
-        with pytest.raises(UserError, match="segregation of duties"), env.cr.savepoint():
-            req.with_user(users["manager"]).action_approve()
-        with pytest.raises(UserError, match="accounting manager"), env.cr.savepoint():
-            req.with_user(users["accountant"]).action_approve()
-        req.with_user(users["manager2"]).action_approve()
+        _tier(m49, 3)
+        req.with_user(users["manager"]).action_submit()
+        assert (req.state, req.dofa_tier_required) == ("submitted", "tier_3")
+        # approval comes from the tier holder's inbox, never a button
+        with pytest.raises(UserError, match="inbox"), env.cr.savepoint():
+            req.with_user(users["manager2"]).action_approve()
+        approve_via_inbox(req, _tier(m49, 3))
+        req.invalidate_recordset()
         assert (req.state, budget.committed_amount, budget.available_amount) == (
             "approved",
             400000.0,
@@ -93,11 +147,11 @@ class TestCapex:
         res = req.with_user(users["accountant"]).action_create_cwip()
         cwip = env["fix.cwip.entry"].browse(res["cwip_ids"])
         assert (req.state, cwip.capex_request_id, cwip.category_id) == ("cwip", req, cat)
-        cwip.amount = 450000.0
-        with pytest.raises(UserError, match="supplementary capex"), env.cr.savepoint():
-            cwip.action_capitalise()
-        cwip.amount = 380000.0
-        asset = cwip.action_capitalise()
+        cwip.with_user(users["accountant"]).action_book_posted_cost(
+            [_post_cost(m49, m49["accounts"]["cwip"], 380000.0).id]
+        )
+        assert cwip.amount == 380000.0
+        asset = cwip.with_user(users["accountant"]).action_capitalise()
         assert (req.state, asset.capex_request_id, budget.actual_amount) == (
             "capitalised",
             req,
@@ -114,13 +168,12 @@ class TestCapex:
                 "budget_id": budget.id,
                 "amount": 150000.0,
                 "request_date": date(2026, 9, 1),
+                "justification": "Delivery van",
             }
         )
-        req.action_submit()
         with pytest.raises(UserError, match="exceeds the budget"), env.cr.savepoint():
-            req.with_user(users["manager"]).action_approve()
-        req.with_user(users["manager"]).action_reject()
-        assert req.state == "rejected"
+            req.action_submit()
+        assert req.state == "draft"
 
     def test_submit_needs_budget_and_amount(self, m49):
         env = m49["env"]
@@ -152,6 +205,8 @@ class TestTransfer:
             {"asset_id": asset.id, "operating_unit_id": ous[1].id, "to_custodian_id": emp.id}
         )
         tr.action_confirm()
+        assert (asset.operating_unit_id, tr.state) == (ous[0], "confirmed")  # until acknowledged
+        tr.action_acknowledge()
         assert (asset.operating_unit_id, asset.custodian_id) == (ous[1], emp)
         assert (tr.from_operating_unit_id, tr.state) == (ous[0], "done")
         assert asset.transfer_ids == tr
@@ -164,39 +219,55 @@ class TestTransfer:
 class TestRevaluationImpairment:
     def _doc(self, m49, asset, kind, value):
         users = m49["users"]
+        att = (
+            m49["env"]["ir.attachment"]
+            .with_user(users["manager"])
+            .create({"name": "valuer.pdf", "datas": base64.b64encode(b"%PDF valuer report")})
+        )
         return (
             m49["env"]["fix.asset.revaluation"]
             .with_user(users["manager"])
-            .create({"asset_id": asset.id, "kind": kind, "new_value": value})
+            .create(
+                {
+                    "asset_id": asset.id,
+                    "kind": kind,
+                    "new_value": value,
+                    "basis": "Independent valuer",
+                    "valuer_report_ids": [(6, 0, att.ids)],
+                }
+            )
             .with_env(m49["env"])
         )
+
+    def _post(self, m49, doc):
+        _approve_and_post(m49, doc, m49["users"]["manager"])
 
     def test_revaluation_up_then_down_and_impairment(self, m49):
         env, acc, users = m49["env"], m49["accounts"], m49["users"]
         asset = _active_asset(m49)
         _depreciate(m49, asset, 1)  # 2,000 -> NBV 98,000
         up = self._doc(m49, asset, "revaluation", 110000.0)
-        with pytest.raises(UserError, match="segregation of duties"), env.cr.savepoint():
-            up.with_user(users["manager"]).action_post()
-        up.with_user(users["manager2"]).action_post()
+        with pytest.raises(UserError, match="once approved"), env.cr.savepoint():
+            up.with_user(users["manager2"]).action_post()
+        self._post(m49, up)
         assert (up.cost_delta, up.surplus_amount, up.pl_amount) == (12000.0, 12000.0, 0.0)
         assert balance(env, acc["surplus"]) == -12000.0
         assert asset.book_nbv == 110000.0 and asset.revaluation_surplus == 12000.0
         # decrease: first against the surplus (IAS 16.40), the rest to P&L
         down = self._doc(m49, asset, "revaluation", 90000.0)
-        down.with_user(users["manager2"]).action_post()
+        self._post(m49, down)
         assert (down.surplus_amount, down.pl_amount) == (-12000.0, 8000.0)
         assert balance(env, acc["impair"]) == 8000.0
         # impairment (IAS 36): no surplus left -> all to P&L, via accumulated
         imp = self._doc(m49, asset, "impairment", 85000.0)
-        imp.with_user(users["manager2"]).action_post()
+        self._post(m49, imp)
         assert (imp.accum_delta, imp.pl_amount, asset.book_nbv) == (5000.0, 5000.0, 85000.0)
         # reversal capped at the net impairment recognised
         too_much = self._doc(m49, asset, "impairment_reversal", 95000.0)
         with pytest.raises(UserError, match="capped"), env.cr.savepoint():
-            too_much.with_user(users["manager2"]).action_post()
+            too_much.with_user(users["manager"]).action_submit()
         rev = self._doc(m49, asset, "impairment_reversal", 88000.0)
-        rev.with_user(users["manager2"]).action_post()
+        self._post(m49, rev)
         assert (rev.accum_delta, asset.book_nbv) == (-3000.0, 88000.0)
         # next month's charge re-spreads the new carrying amount
         assert asset._book_amount(date(2026, 2, 1)) == round(88000.0 / 49, 2)
@@ -205,7 +276,7 @@ class TestRevaluationImpairment:
         asset = _active_asset(m49)
         doc = self._doc(m49, asset, "impairment", 120000.0)
         with pytest.raises(UserError, match="no impairment"), m49["env"].cr.savepoint():
-            doc.with_user(m49["users"]["manager2"]).action_post()
+            doc.with_user(m49["users"]["manager"]).action_submit()
 
 
 # ---------------------------------------------------------------- disposal
@@ -222,6 +293,7 @@ class TestDisposal:
                     "asset_id": asset.id,
                     "kind": "sale",
                     "proceeds": 100000.0,
+                    "partner_id": env["res.partner"].create({"name": "M49 buyer"}).id,
                     "proceeds_account_id": acc["proceeds"].id,
                     "date": date(2026, 2, 15),
                 }
@@ -230,10 +302,10 @@ class TestDisposal:
         )
         with pytest.raises(UserError, match="Approve the disposal"), env.cr.savepoint():
             sale.action_post()
-        with pytest.raises(UserError, match="segregation of duties"), env.cr.savepoint():
-            sale.with_user(users["manager"]).action_approve()
-        sale.with_user(users["manager2"]).action_approve()
-        sale.with_user(users["accountant"]).action_post()
+        with pytest.raises(UserError, match="inbox"), env.cr.savepoint():
+            sale.with_user(users["manager2"]).action_approve()
+        _approve_and_post(m49, sale, users["manager"])
+        assert sale.sale_invoice_res_id  # invoiced to the buyer through M20
         assert (sale.cost, sale.accumulated, sale.nbv, sale.gain_loss) == (
             100000.0,
             2000.0,
@@ -248,8 +320,8 @@ class TestDisposal:
         lost = _active_asset(m49, name="Lost multimeter", gross=5000.0)
         wo = lost.action_dispose()
         doc = env["fix.asset.disposal"].browse(wo["disposal_ids"])
-        doc.with_user(users["manager2"]).action_approve()
-        doc.action_post()
+        doc.write({"incident_ref": "GD-2026-11", "reason": "Lost in transit"})
+        _approve_and_post(m49, doc, users["manager"])
         assert (doc.gain_loss, lost.state) == (-5000.0, "disposed")
         assert balance(env, acc["loss"]) == 5000.0
 

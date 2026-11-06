@@ -114,6 +114,48 @@ def _partner_with_referral(co, base=20000.0, rate=0.05, kind="referral"):
     return party, partner, referral
 
 
+def _confirm_bank(partner, routing):
+    """M52 dual control (B2): a second person confirmed the payee account."""
+    bank = partner.bank_ids[:1]
+    bank._fix_confirming().write({"fix_routing_number": routing})
+    bank._fix_confirming()._fix_mark_confirmed("call-back on the number on file (test)", None)
+    return bank
+
+
+def _inbox_approve(env, record, user):
+    task = env["fix.workflow.task"].sudo().search(
+        [("res_model", "=", record._name), ("res_id", "=", record.id),
+         ("state", "=", "pending"), ("assigned_user_id", "=", user.id)],
+        limit=1,
+    )
+    assert task, "no M63 task for %s" % user.login
+    task.with_user(user).action_approve()
+    record.invalidate_recordset()
+
+
+def _pay_through_treasury(co, run, requester, preparer, releaser):
+    """A08 F2: the approved run is paid as M50 instructions — prepared by an
+    accountant, released by an Accounting Administrator who did not approve
+    the run, confirmed by the imported bank statement debit."""
+    env = co.env
+    run.with_user(requester).action_request_payments()
+    for pay in run.line_ids.mapped("payment_execution_id"):
+        pay.with_user(preparer).action_prepare()
+        pay.with_user(releaser).action_release()
+        line = env["fix.bank.statement.line"].create(
+            {
+                "company_id": co.company.id,
+                "journal_id": (pay.released_journal_id or pay.journal_id).id,
+                "date": date.today(),
+                "amount": -pay.released_amount,
+                "reference": pay.name,
+                "statement_file_hash": "m53-%s" % pay.id,
+            }
+        )
+        line._fix_match_document("matched_payment_id", pay, "manual")
+    run.invalidate_recordset()
+
+
 def _postings(move):
     return sorted(
         (line.account_id.with_company(move.company_id).code, line.debit, line.credit)
@@ -242,11 +284,25 @@ class TestPartnerPayoutWithClawback:
         # with the s.142 no-PSR uplift: TDS 150 (10% x 1.5), net payable 1000-150-300 = 550
         assert (run.total_clawback, run.total_payable, run.total_tds) == (300.0, 550.0, 150.0)
 
-        run.with_user(manager).action_approve()
-        run.action_generate_beftn()
-        assert run.state == "file_generated" and ledger.state == "accrued"
-        run.bank_confirmation_ref = "BEFTN-SETTLED-77"
-        run.with_user(manager).action_confirm_bank_settlement()
+        # A08 F2 (rewritten: the run used to pay on its own BEFTN file and a
+        # typed bank reference): prepared by the clerk, approved from the M63
+        # inbox by the manager, paid through treasury
+        journal = env["account.journal"].create(
+            {"name": "Payout Bank", "code": "PYB", "type": "bank", "company_id": co.company.id}
+        )
+        env["ir.config_parameter"].set_param("cd_settlement_ext.payout_journal_code", "PYB")
+        env["ir.config_parameter"].set_param("cd_cash_position.release_single_ceiling", "5000000")
+        _confirm_bank(party, "060272531")
+        treasurer = co.user("treasurer", "account.group_account_user")
+        releaser = co.user("releaser", "account.group_account_manager")
+        run.with_user(clerk).action_prepare()
+        with pytest.raises(UserError), env.cr.savepoint():
+            run.with_user(clerk).action_approve()
+        _inbox_approve(env, run, manager)
+        assert run.state == "approved" and ledger.state == "accrued"
+        with pytest.raises(UserError, match="typed reference"), env.cr.savepoint():
+            run.with_user(manager).action_confirm_bank_settlement("BEFTN-SETTLED-77")
+        _pay_through_treasury(co, run, clerk, treasurer, releaser)
         assert run.state == "executed" and ledger.state == "paid"
         assert (claw.recovered_amount, claw.remaining_amount, claw.state) == (
             300.0,
@@ -254,14 +310,17 @@ class TestPartnerPayoutWithClawback:
             "recovered",
         )
         assert run.total_clawback == 300.0  # frozen from the recovery lines
-        # Dr partner payable 1000 / Cr TDS 100 / Cr bank 600 / Cr refund clearing 300
-        # s.142 no-PSR uplift: TDS 150 -> bank 550, TDS liability 150
-        assert _postings(run.gl_move_id) == [
-            ("101000", 0.0, 550.0),
-            ("200300", 1000.0, 0.0),
-            ("200400", 0.0, 300.0),
-            ("210100", 0.0, 150.0),
-        ]
+        # Dr partner payable 1000 / Cr TDS 150 (no-PSR uplift) / Cr refund
+        # clearing 300 / Cr the paying bank account 550 (M50 books nothing for
+        # a payout line: the bank is credited once)
+        assert _postings(run.gl_move_id) == sorted(
+            [
+                (journal.default_account_id.code, 0.0, 550.0),
+                ("200300", 1000.0, 0.0),
+                ("200400", 0.0, 300.0),
+                ("210100", 0.0, 150.0),
+            ]
+        )
         (stmt,) = run.statement_ids
         # 850.00 net (after the s.142 no-PSR TDS uplift) - 300.00 clawback = 550.00
         assert (stmt.net_payable, stmt.clawback_amount, stmt.state) == (550.0, 300.0, "issued")
@@ -331,7 +390,7 @@ class TestEscrow:
             run.action_collect_accrued()
         run.commission_ids = [(6, 0, row.ids)]
         with pytest.raises(UserError, match="held in escrow"), env.cr.savepoint():
-            run.with_user(manager).action_approve()
+            run.action_prepare()
         run.commission_ids = [(5,)]
 
         with pytest.raises(AccessError, match="Segregation of duties"), env.cr.savepoint():

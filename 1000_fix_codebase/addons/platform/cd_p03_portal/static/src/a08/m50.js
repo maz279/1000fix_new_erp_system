@@ -73,12 +73,20 @@ export const MODULE = {
   ] }
 };
 
-const PAYMENT_COLS = ['name','payee','amount','method','rail','journal_id','state','bank_reference','bank_confirmed','executed_at'];
+const PAYMENT_COLS = ['name','payee','amount','method','rail','journal_id','state','approval_state','prepared_by_id','sent_by_id','bank_reference','bank_confirmed','executed_at'];
+/* A08 workflow audit (M50-1..4): an accountant prepares, a different
+ * Accounting Administrator releases (DOFA-authorised above the ceiling via
+ * the M63 inbox); the bank's IMPORTED statement debit confirms. Workflow,
+ * stamp and match fields are read-only on every form below. */
 const PAYMENT_ACTIONS = [
+  {m:'action_prepare',l:'Prepare for Release'},
+  {m:'action_request_approval',l:'Request Authorisation'},
+  {m:'action_recall_approval',l:'Recall Authorisation'},
   {m:'action_release',l:'Release to Bank'},
-  {m:'action_confirm_bank',l:'Confirm Bank Debit'},
+  {m:'action_confirm_bank',l:'Confirm from Statement'},
   {m:'action_mark_failed',l:'Bank Rejected'},
-  {m:'action_retry',l:'Re-queue'}
+  {m:'action_retry',l:'Re-queue'},
+  {m:'action_cancel',l:'Cancel'}
 ];
 
 /* in-workspace data screens (checked before any stock Odoo view) */
@@ -91,7 +99,7 @@ export const SCREENS = {
   'M50-ridercod': { kind: 'model_list', create: false, model: 'fix.cod.settlement',
     cols: ['name','rider_id','settlement_date','order_count','expected_amount','remitted_amount','variance','state'],
     stateField: 'state',
-    actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute'}] },
+    actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_approve_shortage',l:'Approve Shortage'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute'},{m:'action_mark_recovered',l:'Shortage Recovered'}] },
   'M50-petty': { kind: 'model_list', model: 'fix.imprest.fund',
     cols: ['name','branch_id','custodian_id','imprest_limit','book_balance','pending_vouchers','replenish_amount','state'],
     stateField: 'state', actions: [{m:'action_request_topup',l:'Request Top-Up'}] },
@@ -153,8 +161,9 @@ export const SCREENS = {
     cols: ['facility_id','sequence','due_date','principal','interest','total','state','is_overdue'],
     stateField: 'state', create: false, actions: [{m:'action_pay',l:'Pay Instalment'}] },
   'M50-covenants': { kind: 'model_list', model: 'fix.facility.covenant',
-    cols: ['facility_id','name','metric','operator','threshold','last_value','last_result','last_tested'],
-    actions: [{m:'action_test',l:'Run Test'}] },
+    cols: ['facility_id','name','metric','operator','threshold','state','last_value','last_result','last_tested'],
+    stateField: 'state',
+    actions: [{m:'action_approve',l:'Approve Covenant'},{m:'action_test',l:'Run Test'}] },
   'M50-fx': { kind: 'table_report', module: 'M50', report: 'fx_holdings', period: false },
   // ---- Reports
   'M50-rpt-position': { kind: 'table_report', module: 'M50', report: 'daily_cash_position', period: false },
@@ -181,7 +190,7 @@ export const SCREENS = {
           { name: 'imprest_limit', required: true, label: "Imprest Limit" },
           { name: 'voucher_limit', label: "Voucher Limit" },
           { name: 'account_id', required: true, label: "Imprest Account" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -202,7 +211,7 @@ export const SCREENS = {
           { name: 'expense_account_id', required: true, label: "Expense Account" },
           { name: 'amount', required: true, label: "Amount" },
           { name: 'receipt_ref', label: "Receipt Ref" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -218,9 +227,11 @@ export const SCREENS = {
         fields: [
           { name: 'fund_id', required: true, label: "Fund" },
           { name: 'count_date', required: true, label: "Count Date" },
-          { name: 'counted_by_id', label: "Counted By" },
+          { name: 'counted_by_id', readonly: true, label: "Counted By" },
           { name: 'counted_amount', required: true, label: "Counted Amount" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'pending_vouchers_amount', readonly: true, label: "Approved Unposted Vouchers" },
+          { name: 'variance', readonly: true, label: "Variance" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -255,14 +266,18 @@ export const SCREENS = {
     status: { field: 'match_state', labels: { unmatched: "Unmatched", matched: "Matched", exception: "Exception" } },
     sections: [
       { title: "Statement Line",
-        note: "One line of an imported bank statement; matching links it to a payment, deposit, cheque or gateway settlement.",
+        note: "One line of an imported bank statement (lines are never typed in). Pick the ONE document it pays or receives, then Confirm Manual Match; the amount and sign must agree.",
         fields: [
-          { name: 'journal_id', label: "Journal" },
-          { name: 'date', required: true, label: "Value Date" },
-          { name: 'amount', required: true, label: "Amount" },
-          { name: 'reference', label: "Reference" },
-          { name: 'narration', label: "Narration" },
-          { name: 'match_state', required: true, label: "Match State" }
+          { name: 'journal_id', readonly: true, label: "Journal" },
+          { name: 'date', readonly: true, label: "Value Date" },
+          { name: 'amount', readonly: true, label: "Amount" },
+          { name: 'reference', readonly: true, label: "Reference" },
+          { name: 'narration', readonly: true, label: "Narration" },
+          { name: 'matched_payment_id', label: "Payment" },
+          { name: 'matched_deposit_id', label: "Cash Deposit" },
+          { name: 'matched_cheque_id', label: "Cheque" },
+          { name: 'matched_gateway_id', label: "Gateway Settlement" },
+          { name: 'match_state', readonly: true, label: "Match State" }
         ] }
     ]
   },
@@ -284,9 +299,11 @@ export const SCREENS = {
           { name: 'amount', required: true, label: "Amount" },
           { name: 'cheque_date', required: true, label: "Cheque Date" },
           { name: 'received_date', required: true, label: "Received Date" },
-          { name: 'is_pdc', label: "Post-Dated" },
+          { name: 'is_pdc', readonly: true, label: "Post-Dated" },
           { name: 'journal_id', label: "Journal" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'source_ref', label: "Source Document" },
+          { name: 'bounce_reason', label: "Bounce Reason" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -304,11 +321,11 @@ export const SCREENS = {
           { name: 'provider_batch_ref', label: "Batch Reference" },
           { name: 'settlement_date', required: true, label: "Settlement Date" },
           { name: 'journal_id', required: true, label: "Journal" },
-          { name: 'total_gross', label: "Gross" },
-          { name: 'total_fee', label: "Fee" },
-          { name: 'total_fee_vat', label: "Fee VAT" },
-          { name: 'total_net', label: "Net" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'total_gross', readonly: true, label: "Gross" },
+          { name: 'total_fee', readonly: true, label: "Fee" },
+          { name: 'total_fee_vat', readonly: true, label: "Fee VAT" },
+          { name: 'total_net', readonly: true, label: "Net" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -352,7 +369,7 @@ export const SCREENS = {
           { name: 'interest_rate', label: "Interest Rate %" },
           { name: 'tenor_months', label: "Tenor (months)" },
           { name: 'repayment_frequency', label: "Repayment Frequency" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -413,7 +430,7 @@ Object.assign(SCREENS, {
           { name: 'format_type', required: true, label: 'Format' },
           { name: 'filename', label: 'File Name' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -424,8 +441,8 @@ Object.assign(SCREENS, {
     title: 'Payment Instruction',
     back: 'M50-beftn',
     status: { field: 'state', labels: {
-      draft: 'Draft', released: 'Released to Bank', confirmed: 'Confirmed by Bank',
-      failed: 'Failed', cancelled: 'Cancelled' } },
+      pending: 'Draft', prepared: 'Prepared — Awaiting Release', sent: 'Released to Bank',
+      executed: 'Confirmed by Bank', failed: 'Failed', cancelled: 'Cancelled' } },
     sections: [
       { title: 'Instruction', note: 'Payment runs release their lines here as individual instructions on the chosen rail; a manual instruction records the same data for one-off payments.',
         fields: [
@@ -435,8 +452,17 @@ Object.assign(SCREENS, {
           { name: 'amount', required: true, label: 'Amount' },
           { name: 'method', required: true, label: 'Method' },
           { name: 'rail', label: 'Rail' },
+          { name: 'journal_id', label: 'Paid From' },
+          { name: 'value_date', label: 'Value Date' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'bank_reference', label: 'Bank Reference' },
+          { name: 'failure_reason', label: 'Bank Rejection Reason' },
+          { name: 'duplicate_reason', label: 'Not a Duplicate Because' },
+          { name: 'dofa_justification', label: 'Authorisation Justification' },
+          { name: 'approval_state', readonly: true, label: 'Authorisation' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'sent_by_id', readonly: true, label: 'Released By' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -459,7 +485,8 @@ Object.assign(SCREENS, {
           { name: 'slip_no', label: 'Deposit Slip No' },
           { name: 'carrier', label: 'Carrier' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'variance_reason', label: 'Variance Explanation' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -478,7 +505,7 @@ Object.assign(SCREENS, {
           { name: 'amount', required: true, label: 'Amount' },
           { name: 'journal_id', required: true, label: 'Bank Journal' },
           { name: 'topup_date', required: true, label: 'Top-Up Date' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   }

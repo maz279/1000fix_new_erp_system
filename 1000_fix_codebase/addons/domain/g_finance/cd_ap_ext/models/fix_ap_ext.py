@@ -23,6 +23,7 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish  # FF-28
 
 from .ap_gl import ap_account, ap_journal, post_ap_move
+from .fix_ap_controls import PARAM_HIGHER_SIGNS_LOWER, bool_param
 
 TWO = Decimal("0.01")
 
@@ -42,7 +43,9 @@ TDS_CATEGORIES = [
     ("manpower_gross", "Cleaning / security / manpower on gross (s.90)"),
 ]
 
-# fields of an approved bill that may no longer change
+# fields of a submitted / approved bill that may no longer change. A08
+# M52-5: bill_type was not locked, so an approved unmatched PO bill was
+# re-typed non_po and became payable without a match.
 LOCKED_FIELDS = {
     "vendor_id",
     "invoice_date",
@@ -52,6 +55,28 @@ LOCKED_FIELDS = {
     "requisition_id",
     "currency_id",
     "company_id",
+    "bill_type",
+    "invoice_ref",
+    "operating_unit_id",
+    "payment_term_days",
+    "due_date",
+    "supplier_mushak_no",
+}
+
+# A08 M52-2/-3/-4 (F3): workflow and stamp fields only a transition sets.
+# approval_state was written to "approved" by an accountant (no GL) and paid;
+# submitted_by was rewritten to self-approve; approval_levels_required was
+# forged to 1 on a 600,000 bill; payment_state reset to not_paid paid twice.
+GUARDED_FIELDS = {
+    "approval_state",
+    "approval_level",
+    "approval_levels_required",
+    "submitted_by",
+    "payment_state",
+    "move_id",
+    "input_credit_id",
+    "match_state",
+    "match_detail",
 }
 
 
@@ -69,7 +94,7 @@ class FixVendorInvoice(models.Model):
 
     _name = "fix.vendor.invoice"
     _description = "Vendor Invoice (three-way match)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "invoice_date desc, id desc"
     _rec_name = "invoice_ref"
 
@@ -337,14 +362,32 @@ class FixVendorInvoice(models.Model):
                 )
 
     # -------------------------------------------------------------- guards --
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | GUARDED_FIELDS
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(inv.approval_state in ("to_approve", "approved") for inv in self):
+            locked |= LOCKED_FIELDS
+        return locked
+
     def write(self, vals):
-        if LOCKED_FIELDS & set(vals) and not self.env.context.get("ap_internal"):
+        # The lock yields to a transition (guard token) or superuser code only:
+        # the old ap_internal context key could be sent by any RPC caller.
+        if LOCKED_FIELDS & set(vals) and not self._fix_guard_open():
             locked = self.filtered(lambda inv: inv.approval_state in ("to_approve", "approved"))
             if locked:
-                raise UserError(
-                    "Bill %s is %s — reset it to draft (reject) before changing amounts"
-                    % (locked[0].invoice_ref, locked[0].approval_state)
-                )
+                changed = [
+                    name
+                    for name in sorted(LOCKED_FIELDS & set(vals))
+                    if name == "line_ids"
+                    or any(inv._fix_guard_differs(name, vals[name], inv[name]) for inv in locked)
+                ]
+                if changed:
+                    raise UserError(
+                        "Bill %s is %s — reset it to draft (reject) before changing %s"
+                        % (locked[0].invoice_ref, locked[0].approval_state, ", ".join(changed))
+                    )
         return super().write(vals)
 
     def unlink(self):
@@ -404,13 +447,15 @@ class FixVendorInvoice(models.Model):
                 )
             inv.line_ids._compute_tds()
             inv._compute_totals()
-            levels = self.env["fix.ap.approval.rule"].levels_for(inv.gross_amount, inv.company_id)
+            inv._check_tds_exemptions()
+            inv._check_capital_lines()
+            levels = inv._ap_levels()
             if not levels:
                 raise UserError(
                     "No approval-matrix level covers BDT %.2f in %s — maintain the AP "
                     "approval matrix first" % (inv.gross_amount, inv.company_id.name)
                 )
-            inv.with_context(ap_internal=True).write(
+            inv._guarded().write(
                 {
                     "approval_state": "to_approve",
                     "approval_level": 0,
@@ -421,23 +466,123 @@ class FixVendorInvoice(models.Model):
             inv._log("submit")
         return True
 
+    def _check_tds_exemptions(self):
+        """A08 M52-10: a ticked TDS exemption needs the vendor's exemption
+        certificate (number, file, expiry) valid on the invoice date."""
+        self.ensure_one()
+        if not self.line_ids.filtered("tds_exempt"):
+            return
+        profile = self._tax_profile()
+        if not (profile and profile.is_tds_exempt_on(self.invoice_date)):
+            raise UserError(
+                "Bill %s claims a TDS exemption, but vendor %s has no exemption certificate "
+                "(number, attached file, valid on %s) on its tax profile. Untick the "
+                "exemption or record the certificate."
+                % (self.invoice_ref, self.vendor_id.display_name, self.invoice_date)
+            )
+
+    def _ap_conflicted_users(self):
+        """Who never approves this bill (A08 M52-3, BRU-APE-04/05): its
+        creator and submitter, whoever already signed a level, the vendor's
+        creator (SOD-01), and a user who both raised the PO and received its
+        goods (SOD-02: any two of the three are allowed, not all three)."""
+        self.ensure_one()
+        inv = self.sudo()
+        users = inv.create_uid | inv.submitted_by
+        users |= inv.approval_log_ids.filtered(lambda log: log.action == "approve").mapped(
+            "user_id"
+        )
+        vendor = inv.vendor_id
+        users |= vendor.create_uid | vendor.commercial_partner_id.create_uid
+        order = inv.requisition_id
+        if order:
+            raisers = order.create_uid
+            if "buyer_id" in order._fields:
+                raisers |= order.buyer_id
+            receivers = self.env["res.users"]
+            if "receipt_ids" in order._fields:
+                posted = order.receipt_ids.filtered(lambda r: r.state == "posted")
+                receivers |= posted.mapped("create_uid")
+                if "receiver_id" in posted._fields:
+                    receivers |= posted.mapped("receiver_id")
+            users |= raisers & receivers
+        # the superuser that loads data and runs services is not a person
+        root = self.env.ref("base.user_root", raise_if_not_found=False)
+        return users.filtered(lambda u: not root or u != root)
+
+    def _ap_may_sign(self, user, rule):
+        """The level's group, or (where policy allows) a higher level's group:
+        a finance manager signs level 1 (A08 M52-11)."""
+        groups = user.all_group_ids
+        if rule.group_id in groups:
+            return True
+        if not bool_param(self.env, PARAM_HIGHER_SIGNS_LOWER, True):
+            return False
+        higher = (
+            self.env["fix.ap.approval.rule"]
+            .sudo()
+            .search([("company_id", "=", self.company_id.id), ("level", ">", rule.level)])
+        )
+        return bool(higher.mapped("group_id") & groups)
+
+    def _ap_levels(self):
+        """The matrix levels this bill needs, in order. The default ladder is
+        the AP matrix's own bands (every active level whose minimum the gross
+        reaches). When an M30 DOFA ladder is RULED for fix.vendor.invoice (the
+        one DoA table, fix.dofa.ladder), it decides how many levels the
+        amount needs: tier_N = the matrix's first N levels, each still signed
+        by its own group under the SoD rules; a matrix with fewer levels than
+        the ruling fails closed."""
+        self.ensure_one()
+        Rule = self.env["fix.ap.approval.rule"]
+        levels = Rule.levels_for(self.gross_amount, self.company_id)
+        ruled = None
+        if "fix.dofa.ladder" in self.env:
+            ruled = self.env["fix.dofa.ladder"].thresholds_for(self._name, company=self.company_id)
+        if not ruled:
+            return levels
+        amount = abs(self.gross_amount or 0.0)
+        tier = next((t for bound, t in ruled if amount <= bound), ruled[-1][1])
+        try:
+            count = max(int(str(tier).rsplit("_", 1)[-1]), 1)
+        except ValueError:
+            count = len(levels) or 1
+        rows = Rule.sudo().search([("company_id", "=", self.company_id.id)], order="level")
+        if len(rows) < count:
+            raise UserError(
+                "The DOFA ladder in force for vendor bills requires %d approval levels for BDT "
+                "%.2f, but the AP matrix of %s has %d. Maintain the matrix first."
+                % (count, amount, self.company_id.name, len(rows))
+            )
+        return Rule.browse(rows[:count].ids)
+
     def _next_level(self):
         self.ensure_one()
-        levels = self.env["fix.ap.approval.rule"].levels_for(self.gross_amount, self.company_id)
+        levels = self._ap_levels()
         return levels[self.approval_level] if self.approval_level < len(levels) else None
 
     def action_approve(self):
-        """Approve the next matrix level. Segregation of duties: the approver
-        is in the level's group, did not submit the bill and did not approve
-        a lower level. The last level posts the bill."""
+        """Approve the next matrix level. The levels are re-derived from the
+        matrix and the live amount at every approval (a stored count is not
+        trusted, A08 M52-3). Segregation of duties: the approver holds the
+        level's group (or a higher level's, where policy allows), and is not
+        the creator, the submitter, an earlier signer, the vendor's creator,
+        or the user who both raised the PO and received it. The last level
+        posts the bill."""
         user = self.env.user
         for inv in self:
             if inv.approval_state != "to_approve":
                 raise UserError("Bill %s is not awaiting approval" % inv.invoice_ref)
-            rule = inv._next_level()
+            levels = inv._ap_levels()
+            if not levels:
+                raise UserError(
+                    "No approval-matrix level covers BDT %.2f in %s"
+                    % (inv.gross_amount, inv.company_id.name)
+                )
+            rule = levels[inv.approval_level] if inv.approval_level < len(levels) else None
             if not rule:
                 raise UserError("Bill %s has no pending approval level" % inv.invoice_ref)
-            if rule.group_id not in user.all_group_ids:
+            if not inv._ap_may_sign(user, rule):
                 raise UserError(
                     "Level %d (%s) must be approved by a member of %s"
                     % (rule.level, rule.name, rule.group_id.display_name)
@@ -447,11 +592,21 @@ class FixVendorInvoice(models.Model):
             earlier = inv.approval_log_ids.filtered(lambda log: log.action == "approve")
             if user in earlier.mapped("user_id"):
                 raise UserError("Segregation of duties: one user approves one level only")
+            if user in inv._ap_conflicted_users():
+                raise UserError(
+                    "Segregation of duties (SOD-01/SOD-02): you created bill %s, created its "
+                    "vendor, or raised and received its purchase order; another approver "
+                    "approves it." % inv.invoice_ref
+                )
             inv._log("approve", rule)
             level = inv.approval_level + 1
-            done = level >= inv.approval_levels_required
-            inv.with_context(ap_internal=True).write(
-                {"approval_level": level, "approval_state": "approved" if done else "to_approve"}
+            done = level >= len(levels)
+            inv._guarded().write(
+                {
+                    "approval_level": level,
+                    "approval_levels_required": len(levels),
+                    "approval_state": "approved" if done else "to_approve",
+                }
             )
             if done:
                 inv._post_approved_bill()
@@ -464,10 +619,10 @@ class FixVendorInvoice(models.Model):
             rule = inv._next_level()
             if rule and rule.group_id not in self.env.user.all_group_ids:
                 raise UserError("Only a %s member can reject at this level" % rule.group_id.name)
+            if self.env.user in (inv.create_uid | inv.submitted_by):
+                raise UserError("Segregation of duties: the maker does not decide the bill")
             inv._log("reject", rule)
-            inv.with_context(ap_internal=True).write(
-                {"approval_state": "rejected", "approval_level": 0}
-            )
+            inv._guarded().write({"approval_state": "rejected", "approval_level": 0})
         return True
 
     def action_reset_draft(self):
@@ -475,12 +630,15 @@ class FixVendorInvoice(models.Model):
             if inv.approval_state != "rejected":
                 raise UserError("Only a rejected bill returns to draft")
             inv._log("reset")
-            inv.with_context(ap_internal=True).write({"approval_state": "draft"})
+            inv._guarded().write({"approval_state": "draft"})
         return True
 
     def _expense_account(self, line):
-        """GRNI clearing for PO-received goods, else the product's expense
+        """A capital line debits its CWIP project's account (M49 hand-off);
+        else GRNI clearing for PO-received goods, else the product's expense
         account, else the configured default expense role."""
+        if line.cwip_id:
+            return line.cwip_id.sudo()._fix_cwip_account()
         if self.requisition_id and line.product_id in self.requisition_id.line_ids.product_id:
             return ap_account(self.env, self.company_id, "grni")
         account = (
@@ -498,11 +656,14 @@ class FixVendorInvoice(models.Model):
         partner = self.vendor_id.commercial_partner_id
         label = "Bill %s %s" % (partner.name, self.invoice_ref)
         lines = []
+        # capital lines are posted one per CWIP project, with the project in
+        # the label, so the posted items can be booked to it (M49-3)
         by_account = defaultdict(float)
         for line in self.line_ids:
-            by_account[self._expense_account(line)] += line.line_total
-        for account, amount in by_account.items():
-            lines.append((account, label, _q(amount), 0.0, partner))
+            by_account[(self._expense_account(line), line.cwip_id)] += line.line_total
+        for (account, cwip), amount in by_account.items():
+            text = "%s CWIP %s" % (label, cwip.sudo().name) if cwip else label
+            lines.append((account, text, _q(amount), 0.0, partner))
         if self.vat_amount:
             lines.append(
                 (
@@ -543,7 +704,8 @@ class FixVendorInvoice(models.Model):
             lines,
             self.operating_unit_id,
         )
-        self.with_context(ap_internal=True).write({"move_id": move.id})
+        self._guarded().write({"move_id": move.id})
+        self._book_capital_cost(move)
         self._create_deductions()
         self._create_input_credit()
         publish(
@@ -560,6 +722,30 @@ class FixVendorInvoice(models.Model):
                 "move_id": move.id,
             },
         )
+
+    def _check_capital_lines(self):
+        """A capital line names an OPEN CWIP project of the bill's company whose
+        category has a CWIP account (refused at submission, not at posting)."""
+        self.ensure_one()
+        for cwip in self.line_ids.mapped("cwip_id").sudo():
+            if cwip.state != "open" or cwip.company_id != self.company_id:
+                raise UserError(
+                    "Bill %s books cost to CWIP project %s, which is not an open project of %s."
+                    % (self.invoice_ref, cwip.name, self.company_id.name)
+                )
+            cwip._fix_cwip_account()
+
+    def _book_capital_cost(self, move):
+        """M49 contract (B5, A08 M49-3): the posted CWIP items of this bill are
+        booked to their projects, so CWIP cost comes from posted bills."""
+        self.ensure_one()
+        for cwip in self.line_ids.mapped("cwip_id").sudo():
+            account = cwip._fix_cwip_account()
+            text = "CWIP %s" % cwip.name
+            items = move.sudo().line_ids.filtered(
+                lambda ml, a=account, t=text: ml.account_id == a and (ml.name or "").endswith(t)
+            )
+            cwip._fix_book_cost(items)
 
     def _create_deductions(self):
         self.ensure_one()
@@ -581,30 +767,28 @@ class FixVendorInvoice(models.Model):
             key = (line.tds_rate_id, line.tds_multiplier)
             groups[key][0] += line.line_total
             groups[key][1] += line.tds_amount
-        for (rate, multiplier), (base, _amount) in groups.items():
-            # ITA 2023: a missing TIN is a 50% default on top of the non-filer
-            # uplift, so the withheld amount is recomputed from the flags rather
-            # than trusting the line-level multiplier alone.
-            defaults = 1 if multiplier > 1 else 0
-            has_tin = bool((profile.tin or "").strip())
-            if not has_tin:
-                defaults += 1
-            statutory = round(1.5**defaults, 3)
-            base_q = _q(base)
-            withheld = _q(base_q * (rate.rate or 0.0) * statutory / 100.0)
+        filer = bool(profile) and profile.is_filer_on(self.invoice_date)
+        for (rate, multiplier), (base, amount) in groups.items():
+            # A08 M52-10: ONE computation. The bill line already applies every
+            # ITA 2023 default (no PSR s.142, no TIN s.143/163) in _compute_tds
+            # and the GL posts that amount; the deduction sent to the return
+            # and the certificate is the same figure. (It used to be recomputed
+            # here as 1.5**2 for a vendor without TIN: GL 1,500, certificate
+            # 2,250.) Payment runs pay by bank rails only (BEFTN/RTGS/NPSB/
+            # cheque), so the non-bank default does not arise on this path.
             vals.append(
                 {
                     **common,
                     "tax_kind": "tds",
                     "rate_id": rate.id,
                     "section": rate.section,
-                    "base_amount": base_q,
+                    "base_amount": _q(base),
                     "rate": rate.rate,
-                    "multiplier": statutory,
-                    "non_filer": multiplier > 1,
-                    "psr_received": multiplier <= 1,
+                    "multiplier": multiplier,
+                    "non_filer": not filer,
+                    "psr_received": filer,
                     "paid_by_bank": True,
-                    "amount": withheld,
+                    "amount": _q(amount),
                 }
             )
         if self.vds_amount:
@@ -617,11 +801,19 @@ class FixVendorInvoice(models.Model):
                     "base_amount": self.subtotal,
                     "rate": self.vds_rate_id.rate,
                     "multiplier": 1.0,
+                    # VAT at source carries none of the ITA 2023 income-tax
+                    # uplifts (PSR / cash payment): state it on the row
+                    "psr_received": True,
+                    "paid_by_bank": True,
+                    "non_filer": False,
                     "amount": self.vds_amount,
                 }
             )
         if vals:
-            self.env["fix.withholding.line"].create(vals)
+            # B5 contract (A08 M51-8): a deduction is recorded with the posted
+            # liability entry that credits its payable account (a plain create
+            # is refused)
+            self.env["fix.withholding.line"]._fix_record_deductions(vals, self.move_id)
 
     def _create_input_credit(self):
         self.ensure_one()
@@ -645,7 +837,7 @@ class FixVendorInvoice(models.Model):
             }
         )
         credit.action_check_eligibility()
-        self.with_context(ap_internal=True).write({"input_credit_id": credit.id})
+        self._guarded().write({"input_credit_id": credit.id})
 
     def action_request_payment(self) -> None:
         """T06: M52 raises payment requests as EVENTS — treasury executes
@@ -662,7 +854,12 @@ class FixVendorInvoice(models.Model):
                     "Bill %s is %s — only approved bills are paid"
                     % (inv.invoice_ref, inv.approval_state)
                 )
-            if inv.payment_state != "not_paid":
+            if not inv.move_id or inv.move_id.state != "posted":
+                raise UserError(
+                    "Bill %s has no posted liability: only a bill approved through the matrix "
+                    "(and so posted to the GL) is paid (A08 M52-2)" % inv.invoice_ref
+                )
+            if inv.payment_state != "not_paid" or inv._ap_live_payment():
                 raise UserError("Bill %s is already %s" % (inv.invoice_ref, inv.payment_state))
             publish(
                 self.env,
@@ -676,8 +873,22 @@ class FixVendorInvoice(models.Model):
                     "invoice_ref": inv.invoice_ref,
                     # M50 executes per OU (fix.payment.execution requires it)
                     "operating_unit_id": inv.operating_unit_id.id,
+                    "company_id": inv.company_id.id,
+                    "payee_partner_id": inv.vendor_id.commercial_partner_id.id,
+                    "approved_by": inv.approval_log_ids.filtered(
+                        lambda log: log.action == "approve"
+                    )[:1].user_id.id,
                 },
             )
+
+    def _ap_live_payment(self):
+        """The open or paid payment lock of this bill (BRU-APE-10)."""
+        self.ensure_one()
+        return (
+            self.env["fix.ap.bill.payment"]
+            .sudo()
+            .search([("bill_id", "=", self.id), ("state", "in", ("open", "paid"))], limit=1)
+        )
 
 
 class FixPurchaseOrderVendorBills(models.Model):
@@ -711,9 +922,21 @@ class FixVendorInvoiceLine(models.Model):
         default="service_general",
         help="The Tax Rate Master code whose effective rate applies",
     )
-    tds_exempt = fields.Boolean(default=False, help="Vendor holds a valid exempt certificate (ATS)")
+    tds_exempt = fields.Boolean(
+        default=False,
+        help="Vendor holds a valid exemption certificate. Honoured only when the vendor's "
+        "tax profile carries the certificate number, file and expiry (A08 M52-10).",
+    )
     tds_rate_id = fields.Many2one(
         "fix.tax.rate", string="TDS Rate Row", compute="_compute_tds", store=True
+    )
+    cwip_id = fields.Many2one(
+        "fix.cwip.entry",
+        string="CWIP Project (capital)",
+        index=True,
+        ondelete="restrict",
+        help="A capital purchase: the line debits the project's CWIP account and the posted "
+        "cost is booked to the project (M49).",
     )
     tds_section = fields.Char(string="ITA 2023 Section", compute="_compute_tds", store=True)
     tds_rate = fields.Float(
@@ -770,11 +993,22 @@ class FixVendorInvoiceLine(models.Model):
                 "tds", line.tds_category or "service_general", inv.invoice_date, company, payee
             )
             multiplier = 1.0
-            if rate.non_filer_applies and not (profile and profile.is_filer_on(inv.invoice_date)):
-                multiplier = Param.get_value("non_filer_multiplier", inv.invoice_date, company)
-            amount = (
-                0.0 if line.tds_exempt else _q(line.line_total * rate.rate * multiplier / 100.0)
+            if rate.non_filer_applies:
+                # ITA 2023 defaults, one uplift each (the rule M51's withholding
+                # line enforces): no valid, evidenced PSR (s.142) and no TIN
+                # (s.143/163).
+                defaults = 0
+                if not (profile and profile.is_filer_on(inv.invoice_date)):
+                    defaults += 1
+                if not (profile and (profile.tin or "").strip()):
+                    defaults += 1
+                if defaults:
+                    uplift = Param.get_value("non_filer_multiplier", inv.invoice_date, company)
+                    multiplier = round(uplift**defaults, 3)
+            exempt = (
+                line.tds_exempt and bool(profile) and profile.is_tds_exempt_on(inv.invoice_date)
             )
+            amount = 0.0 if exempt else _q(line.line_total * rate.rate * multiplier / 100.0)
             line.update(
                 {
                     "tds_rate_id": rate.id,
@@ -786,7 +1020,9 @@ class FixVendorInvoiceLine(models.Model):
             )
 
     def _check_parent_editable(self):
-        if self.env.context.get("ap_internal"):
+        # Only a transition may touch the lines of a submitted bill (not even
+        # superuser code: the approval covers exactly these lines).
+        if self.env["fix.vendor.invoice"]._fix_guard_has_token():
             return
         locked = self.invoice_id.filtered(
             lambda inv: inv.approval_state in ("to_approve", "approved")

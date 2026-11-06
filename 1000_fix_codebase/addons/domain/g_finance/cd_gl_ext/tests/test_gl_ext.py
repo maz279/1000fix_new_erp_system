@@ -107,79 +107,6 @@ class TestPeriodCloseExecution:
         assert close.close_duration_days == 0.0
         assert close.sla_status == "within_sla"
 
-    def test_action_generate_standard_steps(self):
-        close = MagicMock()
-        close.id = 10
-        line_model = MagicMock()
-        close.env = {"fix.period.close.line": line_model}
-        res = FixPeriodClose.action_generate_standard_steps(close)
-        assert res is True
-        assert line_model.create.call_count == 10
-        close.write.assert_called_with({"state": "in_progress"})
-
-    def test_action_ready_blocking_steps_failure(self):
-        close = MagicMock()
-        step = MagicMock(blocking=True, state="pending")
-        step.name = "Inventory Suspense"
-        blocking_rec = MagicMock()
-        blocking_rec.__bool__.return_value = True
-        blocking_rec.mapped.return_value = ["Inventory Suspense"]
-        close.line_ids.filtered.return_value = blocking_rec
-        with pytest.raises(UserError, match="Close steps still open"):
-            FixPeriodClose.action_ready([close])
-
-    def test_action_ready_suspense_balance_failure(self):
-        close = MagicMock()
-        close.line_ids.filtered.return_value = []
-        close.suspense_closing = 2500.00
-        with pytest.raises(UserError, match="Suspense account must be zero"):
-            FixPeriodClose.action_ready([close])
-
-    def test_action_ready_success(self):
-        close = MagicMock()
-        close.line_ids.filtered.return_value = []
-        close.suspense_closing = 0.0
-        FixPeriodClose.action_ready([close])
-        assert close.state == "ready_to_close"
-
-    def test_action_close_not_ready_failure(self):
-        close = MagicMock()
-        close.state = "draft"
-        with pytest.raises(UserError, match="Run the ready check before closing"):
-            FixPeriodClose.action_close([close])
-
-    def test_action_close_success_and_breach_logging(self):
-        close = MagicMock()
-        close.id = 1
-        close.state = "ready_to_close"
-        close.close_duration_days = 3.0
-        close.sla_status = "within_sla"
-        close.CLOSE_TARGET_DAYS = 5
-        close.line_ids = [MagicMock()]
-        close.company_id.id = 1
-        close.period_end = date(2026, 10, 31)
-        close.env = MagicMock()
-
-        with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
-            FixPeriodClose.action_close([close])
-            close.write.assert_called_once()
-            mock_pub.assert_called_once()
-
-        # Breached close logs warning
-        close_breach = MagicMock()
-        close_breach.id = 2
-        close_breach.state = "ready_to_close"
-        close_breach.close_duration_days = 7.0
-        close_breach.sla_status = "breached"
-        close_breach.CLOSE_TARGET_DAYS = 5
-        close_breach.line_ids = []
-        close_breach.company_id.id = 1
-        close_breach.period_end = date(2026, 10, 31)
-        close_breach.env = MagicMock()
-
-        with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish"):
-            FixPeriodClose.action_close([close_breach])
-
     def test_action_fail_close_target(self):
         close = MagicMock()
         close.CLOSE_TARGET_DAYS = 5
@@ -207,7 +134,9 @@ class TestPeriodCloseExecution:
 
         suspense_model = MagicMock()
         suspense_model.search.return_value = pending
-        close.env = {"fix.inventory.valuation.suspense": suspense_model}
+        close.env = MagicMock(su=True)  # trusted caller: the role gate is open
+        close.env.__getitem__.side_effect = {"fix.inventory.valuation.suspense": suspense_model}.get
+        close.state = "in_progress"
 
         with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
             with pytest.raises(UserError, match="Post the suspense cutover journal entry"):
@@ -217,22 +146,11 @@ class TestPeriodCloseExecution:
             mock_pub.assert_not_called()
 
 
-class TestPeriodCloseLineExecution:
-    def test_action_mark_done(self):
-        line = MagicMock()
-        with pytest.raises(UserError, match="Provide the evidence reference"):
-            FixPeriodCloseLine.action_mark_done([line])  # no default "VERIFIED"
-        line.write.assert_not_called()
-        FixPeriodCloseLine.action_mark_done([line], "TB-2026-09")
-        line.write.assert_called_with({"state": "done", "evidence_ref": "TB-2026-09"})
-
-    def test_action_set_state(self):
-        line = MagicMock()
-        FixPeriodCloseLine.action_set_state(line, "done")
-        line.write.assert_called_with({"state": "done"})
-
-        with pytest.raises(UserError, match="Invalid state"):
-            FixPeriodCloseLine.action_set_state(line, "invalid_state")
+# The close-step and close transitions are exercised on the live ORM, as the
+# step owners and the Accounting Administrator, in test_a08_m19_controls.py
+# (P01-P12) and test_gl_ext_orm.py. The MagicMock versions asserted the
+# pre-A08 internals (a free `state` write, any user marking any step done with
+# any string), which are exactly the defects the A08 audit closed.
 
 
 class TestJournalDimension:
@@ -328,7 +246,10 @@ class TestPostWithDimensions:
                 dimension_by_line={0: {"branch_id": 2, "cost_centre": "CC-01"}},
             )
             assert move == move_mock
-            move_mock.action_post.assert_called_once()
+            # posted through the guarded _post with the M19 token (A08 S2)
+            move_mock.with_env.return_value.with_context.return_value._post.assert_called_once_with(
+                soft=False
+            )
             dim_model.create.assert_called_once()
             mock_pub.assert_called_once()
             log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
@@ -472,7 +393,8 @@ class TestChartAccountAndLoader:
         acc_model = MagicMock()
         acc_model.with_context.return_value = acc_model
         acc_model.search.return_value = False
-        loader.env = {"fix.chart.account": acc_model}
+        loader.env = MagicMock(su=True)  # the governed master-file reload
+        loader.env.__getitem__.side_effect = {"fix.chart.account": acc_model}.get
 
         with patch("odoo.addons.cd_gl_ext.models.fix_chart_loader.publish"):
             res = FixChartLoader.action_load_from_csv(loader, csv_text=None)

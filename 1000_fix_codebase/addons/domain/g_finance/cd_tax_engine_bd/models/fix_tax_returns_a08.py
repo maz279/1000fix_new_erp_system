@@ -51,6 +51,14 @@ class FixVatReturnA08(models.Model):
         "account.move", string="VDS Claim Entry", readonly=True, copy=False
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "vds_received_credit",
+            "net_payable_after_vds",
+            "vds_certificate_ids",
+            "vds_claim_move_id",
+        }
+
     @api.constrains("period")
     def _check_period_format(self):
         for ret in self:
@@ -127,9 +135,9 @@ class FixVatReturnA08(models.Model):
             self.operating_unit_id,
         )
         certs.action_mark_claimed("Mushak 9.1 %s (%s)" % (self.period, self.nbr_confirmation or ""))
-        self.vds_claim_move_id = move.id
+        self._guarded().write({"vds_claim_move_id": move.id})
 
-    def action_file(self, nbr_confirmation: str):
+    def action_file(self, nbr_confirmation: str = ""):
         accounts = {r.id: r._vds_claim_accounts() for r in self if r._vds_claim_lines()}
         res = super().action_file(nbr_confirmation)
         for ret in self.filtered(lambda r: r.id in accounts):
@@ -146,7 +154,14 @@ class FixVatReturnA08(models.Model):
     def action_prepare(self):
         """(Re)prepare this period's 9.1 from the Mushak register (output), the
         eligible input credits whose claim period is this period (input) and
-        the VDS certificates received. Refused once filed."""
+        the VDS certificates received. Refused once filed.
+
+        A08: native posted sales invoices of the period are registered first
+        (M51-9), and every credit is re-checked for eligibility before it is
+        claimed (M51-3: a credit typed "eligible" is not taken on trust)."""
+        from .fix_tax_returns import _require_finance
+
+        _require_finance(self.env, "Preparing a VAT return")
         for ret in self:
             if ret.state == "filed":
                 raise UserError("Return %s is filed — it cannot be re-prepared" % ret.period)
@@ -155,7 +170,10 @@ class FixVatReturnA08(models.Model):
                 date(int(ret.period[:4]), int(ret.period[5:7]), 1),
                 date(*add_months(int(ret.period[:4]), int(ret.period[5:7]), 1), 1),
             )
-            rows = self.env["fix.mushak.register"].search(
+            ret._company_bin_checked()
+            Register = self.env["fix.mushak.register"].sudo()
+            Register._fix_register_period_invoices(company, start, nxt)
+            rows = Register.search(
                 [
                     ("company_id", "=", company.id),
                     ("invoice_date", ">=", start),
@@ -165,13 +183,19 @@ class FixVatReturnA08(models.Model):
             register_totals = return_logic.aggregate_register(
                 [(r.taxable_amount, r.vat_amount, r.treatment_summary or "") for r in rows]
             )
-            credits = ret.input_credit_ids | self.env["fix.input.vat.credit"].search(
+            Credit = self.env["fix.input.vat.credit"].sudo()
+            previous = Credit.browse(ret.sudo().input_credit_ids.ids)
+            # release this return's earlier claims, then re-check every candidate
+            previous._guarded().write({"state": "pending", "vat_return_id": False})
+            candidates = previous | Credit.search(
                 [
                     ("company_id", "=", company.id),
-                    ("state", "=", "eligible"),
+                    ("state", "in", ("eligible", "pending")),
                     ("claim_period", "=", ret.period),
                 ]
             )
+            candidates.filtered(lambda c: c.state != "claimed").action_check_eligibility()
+            credits = candidates.filtered(lambda c: c.state == "eligible")
             input_vat = Decimal(str(money(sum(credits.mapped("signed_vat")))))
             prepared = return_logic.prepare_vat_return(
                 ret._company_bin_checked(), ret.period, register_totals, input_vat=input_vat
@@ -184,8 +208,10 @@ class FixVatReturnA08(models.Model):
             unclassified = sorted(
                 k for k in register_totals if k.startswith(return_logic.UNCLASSIFIED_PREFIX)
             )
-            ret.write(
+            ret._guarded().write(
                 {
+                    "prepared_by_id": self.env.uid,
+                    "prepared_at": fields.Datetime.now(),
                     "total_taxable": float(prepared.total_taxable),
                     "output_vat": float(prepared.total_output_vat),
                     "input_vat": float(prepared.total_input_vat),
@@ -213,8 +239,7 @@ class FixVatReturnA08(models.Model):
                     else False,
                 }
             )
-            (ret.input_credit_ids - credits).write({"state": "eligible", "vat_return_id": False})
-            credits.write({"state": "claimed", "vat_return_id": ret.id})
+            credits._guarded().write({"state": "claimed", "vat_return_id": ret.id})
             publish(
                 self.env,
                 "vat_return.prepared",
@@ -246,6 +271,9 @@ class FixTdsReturnA08(models.Model):
 
     def action_prepare(self):
         """Rebuild the return's detail lines from the quarter's TDS deductions."""
+        from .fix_tax_returns import _require_finance
+
+        _require_finance(self.env, "Preparing a TDS return")
         for ret in self:
             if ret.state == "filed":
                 raise UserError("TDS return %s is filed" % ret.quarter)
@@ -259,7 +287,7 @@ class FixTdsReturnA08(models.Model):
                     ("state", "!=", "cancelled"),
                 ]
             )
-            ret.line_ids.unlink()
+            ret.sudo().line_ids.unlink()
             vals = []
             for d in deductions:
                 m = re.search(r"s\.?\s*(\d+)", d.section or "")
@@ -281,12 +309,13 @@ class FixTdsReturnA08(models.Model):
                         "challan_date": d.challan_id.challan_date or False,
                     }
                 )
-            self.env["fix.tds.return.line"].create(vals)
+            self.env["fix.tds.return.line"].sudo().create(vals)
             due = self.env["fix.statutory.due.rule"].due_date_for(
                 "wht_return", end, ret.company_id
             ) or return_logic.tds_return_due_date(ret.quarter)
-            ret.write(
+            ret._guarded().write(
                 {
+                    "prepared_by_id": self.env.uid,
                     "fiscal_year": return_logic.tds_quarter_for_date(start)[1],
                     "total_withheld": money(sum(deductions.mapped("amount"))),
                     "deductor_count": len(deductions.mapped("partner_id")),
@@ -298,7 +327,26 @@ class FixTdsReturnA08(models.Model):
 
 
 class FixTdsReturnLineA08(models.Model):
+    """The detail lines are rebuilt by the return's preparation only (A08
+    M51-1): a typed line with a typed challan number is not a deposit."""
+
     _inherit = "fix.tds.return.line"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            raise UserError("TDS return lines are built by Prepare from Deductions")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su and set(vals) - {"message_follower_ids"}:
+            raise UserError("TDS return lines are built by Prepare from Deductions")
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            raise UserError("TDS return lines are built by Prepare from Deductions")
+        return super().unlink()
 
     withholding_line_id = fields.Many2one(
         "fix.withholding.line", string="Deduction", ondelete="set null"

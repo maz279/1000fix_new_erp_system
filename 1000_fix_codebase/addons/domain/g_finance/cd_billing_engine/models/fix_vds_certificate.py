@@ -17,6 +17,14 @@
 #   certificate_no / certificate_date / customer_bin / challan_no for the
 #   9.1 note; after filing call action_mark_claimed(return_ref) so a
 #   certificate is never claimed twice. claimable_for_period() returns them.
+#
+# A08 remediation (B4, M20-2/-3/-13): state and every stamp are guarded
+# (a preparer rewrote prepared_by_id and verified his own certificate; a
+# draft was written "settled" with no GL); the certificate is frozen once
+# verified (100 verified, 1,500 settled); "claimed" is recorded only for a
+# FILED Mushak 9.1 return (fix.vat.return) that lists the certificate — a
+# typed reference claims nothing.
+import json
 import re
 
 from odoo import api, fields, models
@@ -32,7 +40,7 @@ class FixVdsCertificateReceived(models.Model):
 
     _name = "fix.vds.certificate.received"
     _description = "Customer VDS Certificate (Mushak 6.6 received)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "certificate_date desc, id desc"
 
     _certificate_unique = models.Constraint(
@@ -103,7 +111,43 @@ class FixVdsCertificateReceived(models.Model):
     )
     settled_at = fields.Datetime(string="Settled On", readonly=True, copy=False)
     claimed_return_ref = fields.Char(string="Mushak 9.1 Return Ref", readonly=True, copy=False)
+    claimed_return_id = fields.Many2one(
+        "fix.vat.return", string="Mushak 9.1 Return", readonly=True, copy=False
+    )
     claimed_at = fields.Datetime(string="Claimed On", readonly=True, copy=False)
+
+    VDS_GUARDED = {
+        "state",
+        "prepared_by_id",
+        "verified_by_id",
+        "verified_at",
+        "settled_move_id",
+        "settled_at",
+        "claimed_return_ref",
+        "claimed_return_id",
+        "claimed_at",
+    }
+    # Frozen once a second person has verified the certificate.
+    VDS_LOCKED = (
+        "invoice_id",
+        "vds_amount",
+        "certificate_no",
+        "certificate_date",
+        "period",
+        "company_id",
+        "customer_bin",
+        "challan_no",
+        "challan_date",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.VDS_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.VDS_LOCKED)
+        return locked
 
     # ------------------------------------------------------------------
     @api.model_create_multi
@@ -150,13 +194,13 @@ class FixVdsCertificateReceived(models.Model):
                 )
 
     def write(self, vals):
-        locked = {"invoice_id", "vds_amount", "certificate_no", "period", "company_id"}
-        if locked & set(vals):
+        if not self._fix_guard_open() and set(self.VDS_LOCKED) & set(vals):
             for cert in self:
-                if cert.state in ("settled", "claimed"):
+                if cert.state != "draft":
                     raise UserError(
-                        "Certificate %s is settled — its amount, invoice, number and period "
-                        "are locked" % cert.name
+                        "Certificate %s is %s — its amount, invoice, number and period are "
+                        "locked once verified (cancel it and record it again)"
+                        % (cert.name, cert.state)
                     )
         return super().write(vals)
 
@@ -167,12 +211,12 @@ class FixVdsCertificateReceived(models.Model):
         for cert in self:
             if cert.state != "draft":
                 raise UserError("Only draft certificates can be verified")
-            if cert.prepared_by_id == self.env.user:
+            if self.env.user in (cert.prepared_by_id | cert.create_uid):
                 raise AccessError(
                     "Segregation of duties: %s prepared certificate %s and cannot verify it"
                     % (self.env.user.name, cert.name)
                 )
-            cert.write(
+            cert._guarded().write(
                 {
                     "state": "verified",
                     "verified_by_id": self.env.user.id,
@@ -209,7 +253,7 @@ class FixVdsCertificateReceived(models.Model):
                 [("vds_receivable", vds_acc, cert.vds_amount, invoice.customer_id.id)],
                 [("ar", ar_acc, cert.vds_amount, invoice.customer_id.id)],
             )
-            cert.write(
+            cert._guarded().write(
                 {
                     "state": "settled",
                     "settled_move_id": move.id,
@@ -238,11 +282,40 @@ class FixVdsCertificateReceived(models.Model):
                     "Certificate %s is %s — a settled certificate is reversed by finance "
                     "through a GL correction, not cancelled" % (cert.name, cert.state)
                 )
-            cert.state = "cancelled"
+            cert._guarded().write({"state": "cancelled"})
+
+    def _filed_return(self):
+        """The FILED Mushak 9.1 return of the certificate's period that took
+        it as a VDS adjustment (its preparation lists the certificate)."""
+        self.ensure_one()
+        if "fix.vat.return" not in self.env:
+            return self.env["res.users"].browse()
+        returns = (
+            self.env["fix.vat.return"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("period", "=", self.period),
+                    ("state", "=", "filed"),
+                ]
+            )
+        )
+        for ret in returns:
+            raw = ret.vds_certificate_ids if "vds_certificate_ids" in ret._fields else None
+            try:
+                ids = json.loads(raw or "[]")
+            except (TypeError, ValueError):
+                ids = []
+            if self.id in ids:
+                return ret
+        return returns.browse()
 
     def action_mark_claimed(self, return_ref=""):
         """Called by the Mushak 9.1 preparation once the VDS is taken as an
-        adjustment, so a certificate is claimed exactly once."""
+        adjustment, so a certificate is claimed exactly once. The claim is
+        recorded only against a filed fix.vat.return that lists this
+        certificate (A08 M20-13: any typed reference used to do)."""
         ref = (return_ref or "").strip()
         if not ref:
             raise UserError("The Mushak 9.1 return reference is required to mark a claim")
@@ -251,10 +324,17 @@ class FixVdsCertificateReceived(models.Model):
                 raise UserError(
                     "Only settled certificates can be claimed (%s is %s)" % (cert.name, cert.state)
                 )
-            cert.write(
+            vat_return = cert._filed_return()
+            if not vat_return:
+                raise UserError(
+                    "Certificate %s is claimed by filing the Mushak 9.1 return of %s that "
+                    "includes it (M51); no filed return lists it." % (cert.name, cert.period)
+                )
+            cert._guarded().write(
                 {
                     "state": "claimed",
                     "claimed_return_ref": ref,
+                    "claimed_return_id": vat_return.id,
                     "claimed_at": fields.Datetime.now(),
                 }
             )

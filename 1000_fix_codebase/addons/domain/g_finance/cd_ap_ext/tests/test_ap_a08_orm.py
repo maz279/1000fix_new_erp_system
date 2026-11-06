@@ -5,6 +5,7 @@
 # mileage rates, and employee advances with settlement and recovery.
 from __future__ import annotations
 
+import base64
 import itertools
 import json
 from datetime import date
@@ -28,6 +29,72 @@ def _user(env, ou, *groups):
             "company_ids": [(6, 0, [env.company.id])],
             "operating_unit_ids": [(6, 0, [ou.id])],
             "default_operating_unit_id": ou.id,
+        }
+    )
+
+
+def _evidence(env, name):
+    return env["ir.attachment"].create(
+        {"name": name, "datas": base64.b64encode(name.encode()).decode()}
+    )
+
+
+def _confirm_bank(a, account):
+    """A08 S1: a payee account is paid only after a second person confirms it
+    (call-back recorded); a superuser-created account is not confirmed. An
+    M42 supplier's account is confirmed through the A06 supplier bank-change
+    request, any other payee's through fix.payee.bank.change."""
+    env, partner = a["env"], account.partner_id
+    supplier = (
+        env["fix.supplier"].search([("partner_id", "=", partner.id)], limit=1)
+        if "fix.supplier" in env
+        else None
+    )
+    if supplier:
+        steward = _user(env, a["ou"], "cd_vendor_portal.group_fix_supplier_steward")
+        approver = _user(env, a["ou"], "cd_vendor_portal.group_fix_supplier_approver")
+        change = (
+            env["fix.supplier.bank.change"]
+            .with_user(steward)
+            .create(
+                {
+                    "supplier_id": supplier.id,
+                    "acc_number": account.acc_number,
+                    "routing_number": account.fix_routing_number or False,
+                    "verification_ref": "Called the supplier on the number in its signed form",
+                    "evidence_ref": "dms://bank/a08",
+                }
+            )
+        )
+        change.with_user(steward).action_propose()
+        change.with_user(approver).action_confirm()
+        return account
+    change = (
+        env["fix.payee.bank.change"]
+        .with_user(a["acc3"])
+        .create(
+            {
+                "partner_id": partner.id,
+                "partner_bank_id": account.id,
+                "acc_number": account.acc_number,
+                "routing_number": account.fix_routing_number or False,
+                "verification_ref": "Called the vendor on the number in its signed form",
+            }
+        )
+    )
+    change.with_user(a["acc3"]).action_propose()
+    change.with_user(a["mgr2"]).action_confirm()
+    return account
+
+
+def _treasury_executed(execution, ref):
+    """Treasury (M50), not under test here: the bank executed the instruction.
+    (cd_cash_position's own tests cover prepare / authorise / release.)"""
+    execution.sudo()._guarded().write(
+        {
+            "state": "executed",
+            "bank_reference": ref,
+            "confirmation_source": "bank_reference",
         }
     )
 
@@ -90,6 +157,8 @@ def a08(odoo_env):
             "bin": "9876543210123",
             "psr_reference": "PSR-2026-PADMA",
             "psr_valid_until": "2099-06-30",
+            # A08 M52-10: a PSR counts only with the proof attached
+            "psr_attachment_ids": [(6, 0, _evidence(env, "PSR-2026-PADMA.pdf").ids)],
         }
     )
     return {
@@ -103,7 +172,9 @@ def a08(odoo_env):
         "product": env["product.product"].create({"name": "Logic board"}),
         "acc1": _user(env, ou, "account.group_account_user"),
         "acc2": _user(env, ou, "account.group_account_user"),
+        "acc3": _user(env, ou, "account.group_account_user"),
         "mgr": _user(env, ou, "account.group_account_manager"),
+        "mgr2": _user(env, ou, "account.group_account_manager"),
     }
 
 
@@ -213,7 +284,14 @@ class TestVendorTaxProfile:
         assert (expired.tds_amount, expired.line_ids.tds_multiplier) == (1500.0, 1.5)
         stranger = a08["env"]["res.partner"].create({"name": "No Profile Traders"})
         none = _bill(a08, 10000.0, vendor_id=stranger.id, tds_category="service_general")
-        assert none.tds_amount == 1500.0
+        # A08 M52-10: no PSR and no TIN are two ITA 2023 defaults (s.142,
+        # s.143/163), the rule M51's withholding line enforces; this asserted
+        # 1,500 while the certificate said 2,250.
+        assert (none.tds_amount, none.line_ids.tds_multiplier) == (2250.0, 2.25)
+        a08["profile"].write({"psr_valid_until": date(2099, 6, 30), "psr_attachment_ids": False})
+        # a valid-dated reference without its proof is no PSR
+        typed = _bill(a08, 10000.0, tds_category="service_general")
+        assert typed.line_ids.tds_multiplier == 1.5
 
     def test_payee_type_and_effective_dating(self, a08):
         env = a08["env"]
@@ -400,12 +478,19 @@ class TestPaymentRun:
         with pytest.raises(UserError, match="no routing number"), env.cr.savepoint():
             run.with_user(a08["acc1"]).action_submit()
         acct.fix_routing_number = "175260346"
+        # A08 S1: the account is not paid until a second person confirms it
+        with pytest.raises(UserError, match="not confirmed"), env.cr.savepoint():
+            run.with_user(a08["acc1"]).action_submit()
+        _confirm_bank(a08, acct)
         run.with_user(a08["acc1"]).action_submit()
         with pytest.raises(UserError, match="accounting manager"), env.cr.savepoint():
             run.with_user(a08["acc2"]).action_approve()
         run.with_user(a08["mgr"]).action_approve()
-        run.with_user(a08["acc1"]).action_release()
-        execution = run.line_ids.execution_id
+        # BRU-APE-06: the preparer (acc1) does not release; a third person does
+        with pytest.raises(UserError, match="BRU-APE-06"), env.cr.savepoint():
+            run.with_user(a08["acc1"]).action_release()
+        run.with_user(a08["acc2"]).action_release()
+        execution = run.line_ids.execution_id.sudo()
         assert (execution.source_model, execution.source_id, execution.amount) == (
             "fix.payment.run.line",
             run.line_ids.id,
@@ -418,11 +503,9 @@ class TestPaymentRun:
         )
         assert execution.source_posts_gl  # treasury must not post a second credit
         assert (bill.payment_state, note.state, run.state) == ("in_run", "applied", "released")
-        execution.action_release()
         run.action_sync_bank_status()
         assert run.state == "released"  # the bank has not confirmed yet
-        execution.bank_reference = "BEFTN-TRX-0001"
-        execution.action_confirm_bank()
+        _treasury_executed(execution, "BEFTN-TRX-0001")
         assert not execution.move_id  # the run's own entry is the only posting
         run.action_sync_bank_status()
         assert (bill.payment_state, run.line_ids.state, run.state) == ("paid", "paid", "done")
@@ -625,16 +708,15 @@ class TestEmployeeExpense:
         with pytest.raises(UserError, match="Segregation of duties"), env.cr.savepoint():
             advance.with_user(staff["acc1"]).action_approve()
         advance.with_user(staff["acc2"]).action_approve()
-        assert advance.execution_id.amount == 5000.0
-        execution = advance.execution_id
+        execution = advance.execution_id.sudo()
+        assert execution.amount == 5000.0
         assert execution.source_posts_gl and execution.journal_id == staff["bank"]
         with pytest.raises(UserError, match="no bank confirmation"), env.cr.savepoint():
             advance.action_confirm_disbursement()
-        execution.action_release()
+        execution._guarded().write({"state": "sent"})  # treasury released it (M50)
         with pytest.raises(UserError, match="no bank confirmation"), env.cr.savepoint():
             advance.action_confirm_disbursement()  # sent, not yet confirmed by the bank
-        execution.bank_reference = "BEFTN-77"
-        execution.action_confirm_bank()
+        _treasury_executed(execution, "BEFTN-77")
         advance.action_confirm_disbursement()
         assert advance.state == "disbursed" and advance.disbursement_move_id.state == "posted"
         other = env.ref("cd_ap_ext.expense_category_other")

@@ -10,7 +10,8 @@ CD-M29-nn: the M29 RBAC extension.
 Owns:
 - fix.role (53 roles per the reconciled register, mapped to Keycloak realm roles)
 - fix.isolation.tier (T0 public ... T5 residency-classified, as record rules)
-- fix.sod.control (61 segregation-of-duties controls from SP-006)
+- fix.sod.control (61 SP-006 controls plus the A08 finance duty rule set), checked at every grant path
+- fix.sod.mitigation (time-boxed, approved SoD exceptions, FR-SEC-024)
 - fix.field.rule (the field-level permission engine — security/<module>_field_rules.xml)
 - fix.access.log (privileged session recording, NFR-070/SC-010)
 """,
@@ -18,15 +19,17 @@ Owns:
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Security",
-    "depends": ["base", "mail", "cd_entity_config"],
+    "depends": ["base", "mail", "hr", "cd_entity_config"],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_sod_groups.xml",
         "security/ir.model.access.csv",
         "security/cd_rbac_ext_security.xml",
         "security/fix_role_groups.xml",
         "data/fix_isolation_tiers.xml",
         "data/fix_roles.xml",
         "data/fix_sod_controls.xml",
+        "data/fix_sod_finance_controls.xml",
         "data/access_ops_sequences.xml",
         "data/security_ops_sequences.xml",
         "views/fix_rbac_views.xml",

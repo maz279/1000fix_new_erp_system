@@ -276,7 +276,8 @@ def test_a_refund_instruction_is_pinned_to_its_source(so):
     # the money goes to the payee's own account only
     bank = so.env["res.partner.bank"].create({"acc_number": "A2HB-THIEF-1", "partner_id": thief.id})
     err = _attempt(so.env, lambda: pay.with_user(acct).write({"partner_bank_id": bank.id}))
-    assert "payee's own" in err
+    # (M50's own payee-account check, B1, may answer first: either way refused)
+    assert "payee's own" in err or "belongs to" in err
     own = so.env["res.partner.bank"].create(
         {"acc_number": "A2HB-OWN-1", "partner_id": so.customer.id}
     )
@@ -329,7 +330,9 @@ def test_a_refund_with_an_invoice_raises_a_draft_credit_note(so):
     assert "cannot credit an invoice of" in err
     note.with_user(acct).write({"amount": 2500.0})
     note.with_user(acct).action_submit()
-    assert note.state == "approved"  # below the BDT 25,000 authority line
+    # A08 S3: submitting approves nothing; the submitter never approves it
+    assert note.state == "pending_approval" and not note.approved_by
+    assert "Segregation of duties" in _attempt(so.env, lambda: note.with_user(acct).action_approve())
 
 
 def test_a_forged_refund_event_is_refused(so):
@@ -710,7 +713,8 @@ def test_an_applied_sla_credit_raises_a_draft_credit_note(sla):
     )
     note.with_user(acct).write({"invoice_id": invoice.id})
     note.with_user(acct).action_submit()
-    assert note.state == "approved"
+    # A08 S3: submitting approves nothing (the old auto-approval was the defect)
+    assert note.state == "pending_approval" and not note.approved_by
     # a replay returns the same note
     event = (
         sla.env["fix.event.outbox"]

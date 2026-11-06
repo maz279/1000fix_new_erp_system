@@ -84,7 +84,7 @@ export const SCREENS = {
     back: 'M20-ecl',
     status: { field: 'state', labels: { draft: 'Draft', computed: 'Computed', posted: 'Posted' } },
     sections: [
-      { title: 'Run', note: 'Compute ages every open invoice against its due date and applies the bucket loss rate; Post writes only the movement against the provision already booked.',
+      { title: 'Run', note: 'Compute ages every open invoice against its due date and applies the bucket loss rate; Post (an Accounting Administrator other than the preparer) writes only the movement against the provision already booked, read from the GL, through the M19 API.',
         fields: [
           { name: 'as_of', required: true, label: 'As Of' },
           { name: 'journal_id', required: true, label: 'Journal' },
@@ -95,7 +95,10 @@ export const SCREENS = {
           { name: 'rate_31_60', label: 'Rate 31-60 (%)' },
           { name: 'rate_61_90', label: 'Rate 61-90 (%)' },
           { name: 'rate_90_plus', label: 'Rate 90+ (%)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'existing_provision', readonly: true, label: 'Provision Already Booked (from GL)' },
+          { name: 'computed_by_id', readonly: true, label: 'Computed By' },
+          { name: 'posted_by_id', readonly: true, label: 'Reviewed & Posted By' }
         ] }
     ]
   },
@@ -193,7 +196,7 @@ export const SCREENS = {
     sections: [
       {
         title: 'Credit Request',
-        note: 'FR-ARB-036: a credit note reverses revenue + VAT pro-rata on the original invoice. Above BDT 25,000 a manager approves before issue.',
+        note: 'FR-ARB-036: a credit note reverses revenue + VAT pro-rata on the original invoice. It is never approved by its raiser: up to BDT 10,000 (cumulative on the invoice) a second Accountant approves; above it the Accounting Administrator approves from the M63 inbox. Credits never exceed the invoice.',
         fields: [
           { name: 'invoice_id', required: true, label: 'Original Invoice' },
           { name: 'amount', required: true, label: 'Credit Amount (BDT)' },
@@ -206,7 +209,9 @@ export const SCREENS = {
         note: 'Submit → Approve → Issue from the Credit-Note Register. Issuing posts the GL mirror and updates the invoice residual.',
         fields: [
           { name: 'state', readonly: true, label: 'Status' },
+          { name: 'requested_by_id', readonly: true, label: 'Submitted By' },
           { name: 'approved_by', readonly: true, label: 'Approved By' },
+          { name: 'tier_basis_amount', readonly: true, label: 'Cumulative Credit (tier basis)' },
           { name: 'issued_at', readonly: true, label: 'Issued At' },
           { name: 'posted_move_id', readonly: true, label: 'GL Move' },
           { name: 'gl_note', readonly: true, label: 'GL Note' }
@@ -234,7 +239,7 @@ export const SCREENS = {
         title: 'Token & Status (system)',
         fields: [
           { name: 'token', readonly: true, label: 'Link Token' },
-          { name: 'amount', readonly: true, label: 'Invoice Amount' },
+          { name: 'amount', readonly: true, label: 'Amount Collected (residual at issue)' },
           { name: 'state', readonly: true, label: 'Status' },
           { name: 'used_at', readonly: true, label: 'Used At' },
           { name: 'gateway_note', readonly: true, label: 'Gateway Note' }
@@ -273,6 +278,8 @@ export const SCREENS = {
           { name: 'customer_id', readonly: true, label: 'Customer' },
           { name: 'invoice_vat_amount', readonly: true, label: 'Invoice VAT' },
           { name: 'state', readonly: true, label: 'Status' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'verified_by_id', readonly: true, label: 'Verified By' },
           { name: 'claimed_return_ref', readonly: true, label: 'Claimed in Return' }
         ]
       }

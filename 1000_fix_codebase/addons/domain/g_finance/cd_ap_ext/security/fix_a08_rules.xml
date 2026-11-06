@@ -86,4 +86,64 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+
+    <!-- A08 M52-7 (F6): an employee without an accounting role sees and files
+         only their OWN expense claims (a plain user filed a claim in a
+         colleague's name, and rejected or re-assigned colleagues' claims).
+         Line managers also READ their reports' claims to approve them (the
+         approval itself is a guarded action). Accounting sees every claim.
+         These are GLOBAL rules: the generated operating-unit rule is a group
+         rule, and group rules are OR-ed, so an own-record group rule would be
+         widened back to the whole operating unit. -->
+    <record id="rule_fix_expense_claim_own_read" model="ir.rule">
+        <field name="name">fix.expense.claim: own and reports' claims (read; accounting all)</field>
+        <field name="model_id" ref="model_fix_expense_claim"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('account.group_account_user') or user.has_group('account.group_account_manager') or user.has_group('account.group_account_readonly')) else ['|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_fix_expense_claim_own_write" model="ir.rule">
+        <field name="name">fix.expense.claim: own claims (write; accounting all)</field>
+        <field name="model_id" ref="model_fix_expense_claim"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('account.group_account_user') or user.has_group('account.group_account_manager') or user.has_group('account.group_account_readonly')) else [('employee_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_expense_claim_line_own_read" model="ir.rule">
+        <field name="name">fix.expense.claim.line: own and reports' lines (read; accounting all)</field>
+        <field name="model_id" ref="model_fix_expense_claim_line"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('account.group_account_user') or user.has_group('account.group_account_manager') or user.has_group('account.group_account_readonly')) else ['|', ('claim_id.employee_id.user_id', '=', user.id), ('claim_id.employee_id.parent_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_fix_expense_claim_line_own_write" model="ir.rule">
+        <field name="name">fix.expense.claim.line: own claims' lines (write; accounting all)</field>
+        <field name="model_id" ref="model_fix_expense_claim_line"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('account.group_account_user') or user.has_group('account.group_account_manager') or user.has_group('account.group_account_readonly')) else [('claim_id.employee_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_payee_bank_change_company" model="ir.rule">
+        <field name="name">fix.payee.bank.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_payee_bank_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_bill_payment_company" model="ir.rule">
+        <field name="name">fix.ap.bill.payment: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_bill_payment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_approval_rule_change_company" model="ir.rule">
+        <field name="name">fix.ap.approval.rule.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_approval_rule_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

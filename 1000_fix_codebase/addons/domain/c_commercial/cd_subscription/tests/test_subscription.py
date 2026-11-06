@@ -63,7 +63,8 @@ class TestRevenueRecognition(unittest.TestCase):
 
     def test_completion_boundary(self):
         body = SOURCE[SOURCE.index("def action_recognize_period") :]
-        self.assertIn('state = "complete"', body)
+        # A08: the state moves through the guard (written by the transition)
+        self.assertIn('_guarded().write({"state": "complete"})', body)
 
     def test_fee_over_term_not_point_of_sale(self):
         """BRU-LOY-12's shape: fee revenue over the period, never at sale."""
@@ -137,7 +138,7 @@ class TestDunningAndRefunds(unittest.TestCase):
         """Verifies reminder, final notice, and service hold escalation ladder."""
         self.assertIn("def action_trigger_dunning", SOURCE)
         self.assertIn("subscription.dunning_escalated", SOURCE)
-        self.assertIn('sub.write({"state": "hold"', SOURCE)
+        self.assertIn('sub._guarded().write({"state": "hold"', SOURCE)
         self.assertIn("def action_reinstate", SOURCE)
 
     def test_refund_approval_threshold(self):

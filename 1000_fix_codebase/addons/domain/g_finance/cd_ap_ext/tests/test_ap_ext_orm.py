@@ -2,6 +2,7 @@
 # three-way match and the payment-request event seam. DoD-03 statutory set.
 from __future__ import annotations
 
+import base64
 import json
 from decimal import Decimal
 
@@ -29,14 +30,27 @@ def ap(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     vendor = env["res.partner"].create({"name": "Apex Spare Parts Ltd."})
-    # a filer: valid proof of return on file, so the statutory rate applies
-    # without the non-filer multiplier (see test_ap_a08_orm for the 1.5x path)
+
+    # a filer: a TIN and a valid, EVIDENCED proof of return on file, so the
+    # statutory rate applies without the non-filer multiplier (see
+    # test_ap_a08_orm for the 1.5x path). A08 M52-10: the PSR counts only
+    # with its proof, and a TDS exemption only with the vendor's certificate.
+    def evidence(name):
+        return env["ir.attachment"].create(
+            {"name": name, "datas": base64.b64encode(name.encode()).decode()}
+        )
+
     env["fix.vendor.tax.profile"].create(
         {
             "partner_id": vendor.id,
             "taxpayer_type": "company",
+            "tin": "222233334444",
             "psr_reference": "PSR-2026-APEX",
             "psr_valid_until": "2099-06-30",
+            "psr_attachment_ids": [(6, 0, evidence("PSR-2026-APEX.pdf").ids)],
+            "tds_exempt_certificate_ref": "NBR/EX/2026/0007",
+            "tds_exempt_valid_until": "2099-06-30",
+            "tds_exempt_attachment_ids": [(6, 0, evidence("EX-0007.pdf").ids)],
         }
     )
     screen = env["product.product"].create({"name": "LCD screen 14in"})
@@ -209,21 +223,18 @@ class TestPaymentRequest:
             inv.action_request_payment()
         assert _events(ap["env"], "payment.requested", inv.id) == []
 
-    def test_matched_invoice_raises_payment_event(self, ap):
+    def test_forged_approval_without_liability_is_not_paid(self, ap):
+        """A08 M52-2: this test set approval_state='approved' by hand and
+        asserted the bill was then payable. A bill whose liability was never
+        posted is refused, whoever wrote its state; the proper approval path
+        and its payment.requested payload are in test_a08_m52_controls
+        (test_bill_payment_requested_payload)."""
         po = _po(ap, [(ap["screen"], 1.0, 1.0, 5000.0)])
         inv = _invoice(ap, [(ap["screen"], "Screen", 1.0, 5000.0, {})], po)
-        # the approval workflow itself is covered in test_ap_a08_orm
-        inv.approval_state = "approved"
-        inv.action_request_payment()
-        assert _events(ap["env"], "payment.requested", inv.id) == [
-            {
-                "vendor_id": ap["vendor"].id,
-                "amount": 4500.0,  # 5,000.00 - 10% TDS 500.00
-                "currency": "BDT",
-                "invoice_ref": "APX-2026-0091",
-                "operating_unit_id": ap["ou"].id,
-            }
-        ]
+        inv.approval_state = "approved"  # superuser forgery: no GL entry
+        with pytest.raises(UserError, match="no posted liability"), ap["env"].cr.savepoint():
+            inv.action_request_payment()
+        assert _events(ap["env"], "payment.requested", inv.id) == []
 
 
 class TestExpenseClaim:
@@ -231,14 +242,17 @@ class TestExpenseClaim:
     test_ap_a08_orm (they need the GL roles configured)."""
 
     def _claim(self, ap, amount, **vals):
+        """A claim is its lines (A08 M52-7: a lineless typed amount skipped the
+        expense policy), so the amount rides on one 'other expense' line."""
         env = ap["env"]
         employee = env["hr.employee"].create({"name": "Field Technician Rafiq"})
+        other = env.ref("cd_ap_ext.expense_category_other")
         return env["fix.expense.claim"].create(
             {
                 "operating_unit_id": ap["ou"].id,
                 "employee_id": employee.id,
                 "description": "Travel to client site",
-                "amount": amount,
+                "line_ids": [(0, 0, {"category_id": other.id, "unit_amount": amount})],
                 **vals,
             }
         )

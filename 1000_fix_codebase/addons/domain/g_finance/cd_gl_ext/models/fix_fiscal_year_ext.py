@@ -12,8 +12,8 @@ import json
 import logging
 from decimal import Decimal
 
-from odoo import fields, models
-from odoo.exceptions import UserError
+from odoo import api, fields, models
+from odoo.exceptions import AccessError, UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -266,11 +266,16 @@ def compute_consolidated(env, date_from, date_to, report_type="pnl") -> dict:
 # Models
 # ---------------------------------------------------------------------------
 class FixFiscalYearIntegration(models.Model):
-    """Extension connecting Odoo/OCA fiscal periods with 1000FiX 5-day close (CD-M19-01)."""
+    """Extension connecting Odoo/OCA fiscal periods with 1000FiX 5-day close (CD-M19-01).
+
+    The close itself sets the company lock date (fix.period.close.action_close);
+    this bridge re-applies it idempotently and shows it. ``is_locked`` is READ from
+    the company lock date — it used to be a free tick shown as "locked" on the
+    Periods screen while nothing was locked (A08 M19-16)."""
 
     _name = "fix.fiscal.period.bridge"
     _description = "Fiscal Year and Period Close Bridge"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
     company_id = fields.Many2one(
         "res.company",
@@ -296,9 +301,20 @@ class FixFiscalYearIntegration(models.Model):
     )
     is_locked = fields.Boolean(
         string="Journals Locked",
-        default=False,
+        compute="_compute_is_locked",
+        help="True when the company Global Lock Date covers the period end.",
     )
     locked_at = fields.Datetime(readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"locked_at"}
+
+    @api.depends("company_id.fiscalyear_lock_date", "period_close_id.period_end")
+    def _compute_is_locked(self):
+        for bridge in self:
+            lock = bridge.company_id.sudo().fiscalyear_lock_date
+            end = bridge.period_close_id.period_end
+            bridge.is_locked = bool(lock and end and lock >= end)
 
     def action_lock_journals(self) -> dict:
         """Lock journal dates upon successful 5-day month-end close.
@@ -307,31 +323,26 @@ class FixFiscalYearIntegration(models.Model):
         lock field), so the close sets the company's Global Lock Date
         (fiscalyear_lock_date): no journal can post on or before the closed
         period end. The lock only ever moves FORWARD — re-locking an older
-        period must not unlock periods closed after it."""
+        period must not unlock periods closed after it. Accounting
+        Administrator only, and only for a genuinely closed period that has
+        ended (a forged 2099 close used to freeze the ledger, M19-6)."""
         self.ensure_one()
         if self.period_close_id.state != "closed":
             raise UserError("Cannot lock journals before period close is completed.")
-
+        if not self.env.su and not self.env.user.has_group("account.group_account_manager"):
+            raise AccessError("Locking the ledger needs the Accounting Administrator role.")
+        if self.period_close_id.company_id != self.company_id:
+            raise UserError("The bridge and the close belong to different companies.")
         period_end = self.period_close_id.period_end
-        company = self.company_id.sudo()
-        if not company.fiscalyear_lock_date or company.fiscalyear_lock_date < period_end:
-            company.write({"fiscalyear_lock_date": period_end})
-
-        self.write(
-            {
-                "is_locked": True,
-                "locked_at": fields.Datetime.now(),
-            }
-        )
-        _logger.info(
-            "Journals locked for company %s up to %s",
-            self.company_id.name,
-            company.fiscalyear_lock_date,
-        )
+        if period_end >= fields.Date.context_today(self):
+            raise UserError("Period %s has not ended; it cannot be locked." % period_end)
+        lock = self.period_close_id._fix_set_company_lock()
+        self._guarded().write({"locked_at": fields.Datetime.now()})
+        _logger.info("Journals locked for company %s up to %s", self.company_id.name, lock)
         return {
             "status": "locked",
             "date": str(period_end),
-            "lock_date": str(company.fiscalyear_lock_date),
+            "lock_date": str(lock),
         }
 
 

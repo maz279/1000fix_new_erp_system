@@ -16,11 +16,12 @@ SURFACES = {
     "fix.budget.version": {
         "order": "date_from desc, id desc",
         "limit": 100,
+        # Approval is decided from the M63 inbox (fix.workflow.task), never here.
         "actions": {
             "action_submit",
-            "action_approve",
             "action_reject",
             "action_reset_draft",
+            "action_create_revision",
             "action_load_drivers",
             "action_generate_plan",
         },
@@ -79,21 +80,17 @@ def kpis(env):
     d_from, _fy_to = fy_window(today)
     out = {}
 
+    # The approved version in force, plan and actual both measured over the
+    # fiscal year to date (M54-6).
     lines = engine.approved_budget_lines(d_from, today)
-    actuals = engine.line_actuals(lines)
-    out["fpa_budget_variance_fytd"] = (
-        round(
-            sum(
-                (actuals.get(ln.id, 0.0) - ln.planned_amount)
-                if ln.is_revenue
-                else (ln.planned_amount - actuals.get(ln.id, 0.0))
-                for ln in lines
-            ),
-            2,
-        )
-        if lines
-        else None
-    )
+    actuals = engine.line_actuals(lines, d_from, today)
+
+    def _var(ln):
+        planned = engine.planned_in_window(ln, d_from, today)
+        actual = actuals.get(ln.id, 0.0)
+        return (actual - planned) if ln.is_revenue else (planned - actual)
+
+    out["fpa_budget_variance_fytd"] = round(sum(_var(ln) for ln in lines), 2) if lines else None
 
     league, _unassigned = engine.branch_league(d_from, today)
     active = [r for r in league if r["revenue"] or r["direct"] or r["opex"]]

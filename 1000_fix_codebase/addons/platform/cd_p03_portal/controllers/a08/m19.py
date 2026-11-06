@@ -79,12 +79,20 @@ SURFACES = {
     "fix.allocation.rule": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_run"},
+        "actions": {"action_run", "action_activate", "action_deactivate"},
     },
     "fix.chart.account": {"order": "id desc", "limit": 400, "actions": set()},
-    "fix.fiscal.period.bridge": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.fiscal.period.bridge": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_lock_journals"},
+    },
     "fix.journal.dimension": {"order": "id desc", "limit": 400, "actions": set()},
-    "fix.period.close": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.period.close": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_generate_standard_steps", "action_ready", "action_close"},
+    },
 }
 
 
@@ -144,6 +152,7 @@ def ic_balances(env, date_from=None, date_to=None, **_params):
         [
             ("state", "in", ("pending_matching", "matched", "disputed")),
             ("transaction_date", "<=", as_of),
+            ("company_id", "in", env.companies.ids),
         ]
     )
     pairs = {}
@@ -240,7 +249,11 @@ def close_sla(env, date_from=None, date_to=None, **_params):
             }
         )
     overdue = Close.search(
-        [("state", "!=", "closed"), ("target_completion_date", "<", today)],
+        [
+            ("state", "!=", "closed"),
+            ("target_completion_date", "<", today),
+            ("company_id", "in", env.companies.ids),
+        ],
         order="period_end desc",
     )
     for close in overdue:
@@ -273,7 +286,10 @@ def fx_revaluation(env, date_from=None, date_to=None, **params):
     """Open foreign-currency balances at their closing rate (IAS 21). The gain or
     loss is measured per journal item: booked base vs the same foreign balance at
     the closing rate. Zero when the company holds no open FX balance."""
-    runs = env["fix.fx.revaluation"].sudo().search([], order="rate_date desc, id desc", limit=1)
+    # Read as the caller (finance roles only, A08 F6), in the caller's companies.
+    runs = env["fix.fx.revaluation"].search(
+        [("company_id", "in", env.companies.ids)], order="rate_date desc, id desc", limit=1
+    )
     rows = []
     if not runs:
         return _pack(

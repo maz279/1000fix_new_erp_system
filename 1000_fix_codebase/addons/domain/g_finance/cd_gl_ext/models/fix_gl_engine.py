@@ -53,6 +53,11 @@ class FixJournalPostingLog(models.Model):
             ("ar", "AR Engine (M20)"),
             ("receipt", "AR Receipt (M20)"),
             ("intercompany", "Inter-Company / Inter-Branch (M65)"),
+            ("fx_revaluation", "FX Revaluation (M19)"),
+            ("exchange", "Exchange Difference / Cash Basis (Odoo)"),
+            ("cost_allocation", "Cost Allocation (M54)"),
+            ("impairment", "AR Impairment (M20)"),
+            ("asset", "Fixed Assets (M49)"),
         ],
         required=True,
         default="api",
@@ -71,6 +76,9 @@ class FixJournalPostingLog(models.Model):
     )
     amount = fields.Monetary(string="Amount", currency_field="currency_id")
     note = fields.Char(string="Note")
+    source_ref = fields.Char(
+        string="Source Document", readonly=True, help="The sub-ledger document that posted"
+    )
 
     # The log is append-only evidence: no write, no unlink. The force_edit
     # context exists solely for the posting API's own state transition
@@ -92,6 +100,164 @@ class FixJournalPostingLog(models.Model):
         return super().unlink()
 
 
+# Shared by templates and allocation rules: who may approve a rule that posts
+# unattended, and what counts as its content (A08 M19-9, M19-14).
+_CONTENT_TOKEN = object()
+_CONTENT_KEY = "fix_m19_rule_content"
+
+
+def _content_snapshot(lines, fields_):
+    import json
+
+    def val(line, name):
+        value = line[name]
+        return value.id if isinstance(value, models.BaseModel) else value
+
+    return json.dumps(sorted([[val(line, f) for f in fields_] for line in lines]), default=str)
+
+
+class FixGlRuleApprovalMixin(models.AbstractModel):
+    """A posting rule (recurring template, allocation rule) posts without
+    further review once active, so activation is the approval (BRU-FIN-17):
+    an Accounting Administrator who neither wrote nor last edited the rule.
+    The activation covers the content it saw; any later change of that
+    content returns the rule to draft."""
+
+    _name = "fix.gl.rule.approval.mixin"
+    _description = "GL Posting Rule Activation"
+    _inherit = ["fix.guarded.mixin"]
+
+    _rule_content_fields = ()
+    _rule_line_fields = ()
+
+    activated_by_id = fields.Many2one("res.users", string="Activated By", readonly=True, copy=False)
+    activated_at = fields.Datetime(string="Activated At", readonly=True, copy=False)
+    activation_snapshot = fields.Text(readonly=True, copy=False)
+    last_edited_by_id = fields.Many2one(
+        "res.users",
+        string="Content Last Edited By",
+        readonly=True,
+        copy=False,
+        help="Whoever last changed the rule's content; they never activate it.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "activated_by_id",
+            "activated_at",
+            "activation_snapshot",
+            "last_edited_by_id",
+        }
+
+    def _rule_snapshot(self) -> str:
+        self.ensure_one()
+        head = [
+            self[f].id if isinstance(self[f], models.BaseModel) else self[f]
+            for f in self._rule_content_fields
+        ]
+        return "%s|%s" % (head, _content_snapshot(self.line_ids, self._rule_line_fields))
+
+    def _rule_content_changed(self):
+        """Content changed by a user: remember who, and void an activation."""
+        if self.env.context.get(_CONTENT_KEY) is _CONTENT_TOKEN:
+            return
+        for rule in self.exists():
+            vals = {}
+            if not self.env.su:
+                vals["last_edited_by_id"] = self.env.uid
+            if rule.state != "draft":
+                vals.update(
+                    {
+                        "state": "draft",
+                        "activated_by_id": False,
+                        "activated_at": False,
+                        "activation_snapshot": False,
+                    }
+                )
+                rule.message_post(
+                    body="Content changed after activation by %s: returned to draft; it must be "
+                    "activated again." % self.env.user.name
+                )
+            if vals:
+                rule._guarded().write(vals)
+
+    def write(self, vals):
+        content = set(vals) & (set(self._rule_content_fields) | {"line_ids"})
+        if content and not self._fix_guard_has_token():
+            res = super(
+                FixGlRuleApprovalMixin, self.with_context(**{_CONTENT_KEY: _CONTENT_TOKEN})
+            ).write(vals)
+            self._rule_content_changed()
+            return res
+        return super().write(vals)
+
+    def _rule_activate(self, what):
+        for rule in self:
+            if rule.state == "active":
+                continue
+            if not self.env.su:
+                if not self.env.user.has_group("account.group_account_manager"):
+                    raise UserError("Only an accounting manager can activate a %s." % what)
+                conflicted = rule.create_uid | rule.last_edited_by_id
+                if self.env.user in conflicted:
+                    raise UserError(
+                        "Segregation of duties: %s wrote or last changed %s %s and cannot also "
+                        "activate it." % (self.env.user.name, what, rule.name)
+                    )
+            rule._guarded().write(
+                {
+                    "state": "active",
+                    "activated_by_id": self.env.uid,
+                    "activated_at": fields.Datetime.now(),
+                    "activation_snapshot": rule._rule_snapshot(),
+                }
+            )
+            rule.message_post(body="%s activated by %s." % (what.capitalize(), self.env.user.name))
+        return True
+
+    def _rule_assert_active(self, what):
+        for rule in self:
+            if rule.state != "active" or not rule.activated_by_id:
+                raise UserError("%s %s is not active" % (what.capitalize(), rule.name))
+            if rule.activation_snapshot != rule._rule_snapshot():
+                raise UserError(
+                    "%s %s changed after it was activated; it must be activated again."
+                    % (what.capitalize(), rule.name)
+                )
+
+
+class FixGlRuleLineMixin(models.AbstractModel):
+    """Line changes count as the parent rule's content."""
+
+    _name = "fix.gl.rule.line.mixin"
+    _description = "GL Posting Rule Line"
+    _rule_parent = None
+
+    def _parents(self):
+        return self.mapped(self._rule_parent)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        lines._parents()._rule_content_changed()
+        return lines
+
+    def write(self, vals):
+        parents = self._parents()
+        res = super().write(vals)
+        line_fields = set(parents._rule_line_fields) if parents else set()
+        if set(vals) & (line_fields | {self._rule_parent}):
+            (parents | self._parents())._rule_content_changed()
+        return res
+
+    def unlink(self):
+        parents = self._parents()
+        res = super().unlink()
+        parents.exists()._rule_content_changed()
+        return res
+
+
 class FixJournalTemplate(models.Model):
     """A recurring journal entry — the accrual framework's carrier
     (FR-FIN-013/016).
@@ -100,12 +266,31 @@ class FixJournalTemplate(models.Model):
     posting API; ``auto_reverse`` additionally posts the mirror entry at the
     start of the following period — the D365-style reversing accrual used for
     unbilled WIP and recurring utilities/lease costs. No entry is ever
-    invented: a run only fires when ``next_run_date`` is due."""
+    invented: a run only fires when ``next_run_date`` is due, and only for a
+    template whose activation still covers its content."""
 
     _name = "fix.journal.template"
     _description = "Recurring Journal Template"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.gl.rule.approval.mixin"]
     _order = "name"
+
+    _rule_content_fields = (
+        "journal_id",
+        "company_id",
+        "currency_id",
+        "memo",
+        "schedule",
+        "next_run_date",
+        "auto_reverse",
+    )
+    _rule_line_fields = (
+        "account_id",
+        "debit",
+        "credit",
+        "branch_id",
+        "cost_centre",
+        "business_line",
+    )
 
     name = fields.Char(string="Template Name", required=True)
     company_id = fields.Many2one(
@@ -148,6 +333,9 @@ class FixJournalTemplate(models.Model):
     last_run_date = fields.Date(string="Last Run", readonly=True)
     run_count = fields.Integer(string="Entries Generated", readonly=True, default=0)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"last_move_id", "last_run_date", "run_count"}
+
     @api.constrains("line_ids")
     def _check_balanced(self):
         for template in self:
@@ -181,37 +369,19 @@ class FixJournalTemplate(models.Model):
     # ------------------------------------------------------------------
     # Approval (a template posts unattended once active)
     # ------------------------------------------------------------------
-    activated_by_id = fields.Many2one(
-        "res.users", string="Activated By", readonly=True, copy=False, tracking=True
-    )
-
     def action_activate(self):
         """Approve a draft/paused template for automatic generation. An
         active template posts without further review, so activation is the
-        checker step: accounting manager only, never the template's author
-        (segregation of duties, FR-FIN-015)."""
-        for template in self:
-            if template.state == "active":
-                continue
-            if not self.env.su:
-                if not self.env.user.has_group("account.group_account_manager"):
-                    raise UserError(
-                        "Only an accounting manager can activate a recurring journal template."
-                    )
-                if template.create_uid == self.env.user:
-                    raise UserError(
-                        "Segregation of duties: %s created template %s and cannot also "
-                        "activate it." % (self.env.user.name, template.name)
-                    )
-            template.write({"state": "active", "activated_by_id": self.env.user.id})
-        return True
+        checker step: accounting manager only, never the template's author or
+        its last editor (segregation of duties, FR-FIN-015, BRU-FIN-17)."""
+        return self._rule_activate("recurring journal template")
 
     def action_pause(self):
         """Stop automatic generation (the cron skips paused templates)."""
         for template in self:
             if template.state != "active":
                 raise UserError("Only an active template can be paused.")
-            template.write({"state": "paused"})
+            template._guarded().write({"state": "paused"})
         return True
 
     # ------------------------------------------------------------------
@@ -223,11 +393,11 @@ class FixJournalTemplate(models.Model):
         Debits/credits are swapped on the mirror; every line keeps its
         account and dimensions. Both entries post through the sanctioned
         API, so COA rules and journal.posted events apply."""
+        today = fields.Date.context_today(self)
         for template in self:
-            if template.state != "active":
-                raise UserError("Template %s is not active" % template.name)
+            template._rule_assert_active("template")
             run_date = template.next_run_date
-            if run_date > fields.Date.today():
+            if run_date > today:
                 raise UserError("Template %s is not due until %s" % (template.name, run_date))
 
             move, _dims = template._post_from_template(run_date, reverse=False)
@@ -236,7 +406,8 @@ class FixJournalTemplate(models.Model):
                 reversal, _rev_dims = template._post_from_template(
                     template._next_period_start(run_date), reverse=True
                 )
-            template.write(
+            runner = template._guarded().with_context(**{_CONTENT_KEY: _CONTENT_TOKEN})
+            runner.write(
                 {
                     "last_move_id": move.id,
                     "last_run_date": run_date,
@@ -244,6 +415,8 @@ class FixJournalTemplate(models.Model):
                     "next_run_date": template._advance(run_date),
                 }
             )
+            # The run itself moved the schedule on: the activation still covers it.
+            runner.write({"activation_snapshot": template._rule_snapshot()})
         return True
 
     def _post_from_template(self, entry_date: date, reverse: bool):
@@ -283,6 +456,7 @@ class FixJournalTemplate(models.Model):
             dimension_by_line,
             source="template",
             template=self,
+            source_ref=self.name,
         )
 
     @api.model
@@ -290,12 +464,13 @@ class FixJournalTemplate(models.Model):
         """Daily cron: generate every ACTIVE template whose next_run_date is
         due. Failures are logged per-template — one bad template must not
         stop the others (the run is not a transaction)."""
-        today = fields.Date.today()
+        today = fields.Date.context_today(self)
         due = self.search([("state", "=", "active"), ("next_run_date", "<=", today)])
         generated = 0
         for template in due:
             try:
-                template.action_generate_entry()
+                with self.env.cr.savepoint():
+                    template.action_generate_entry()
                 generated += 1
             except UserError as exc:
                 _logger.error("GL template %s failed to generate: %s", template.name, exc)
@@ -309,6 +484,8 @@ class FixJournalTemplateLine(models.Model):
 
     _name = "fix.journal.template.line"
     _description = "Journal Template Line"
+    _inherit = ["fix.gl.rule.line.mixin"]
+    _rule_parent = "template_id"
 
     template_id = fields.Many2one(
         "fix.journal.template", required=True, ondelete="cascade", index=True
@@ -339,13 +516,18 @@ class FixAllocationRule(models.Model):
     across branches and cost centres).
 
     Running the rule posts ONE balancing entry: the source account is
-    cleared for its period movement, each target receives its share. The
-    run is computed from POSTED move lines — never from a manual figure."""
+    cleared for its period movement, each target receives its share, the
+    last target takes the rounding remainder. The run is computed from
+    POSTED move lines — never from a manual figure — and only for a rule an
+    Accounting Administrator other than its author activated."""
 
     _name = "fix.allocation.rule"
     _description = "GL Allocation Rule"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.gl.rule.approval.mixin"]
     _order = "name"
+
+    _rule_content_fields = ("journal_id", "company_id", "source_account_id", "currency_id")
+    _rule_line_fields = ("account_id", "percent", "branch_id", "cost_centre", "business_line")
 
     name = fields.Char(string="Rule Name", required=True)
     company_id = fields.Many2one(
@@ -372,6 +554,9 @@ class FixAllocationRule(models.Model):
     last_run_date = fields.Date(string="Last Run", readonly=True)
     run_count = fields.Integer(string="Runs", readonly=True, default=0)
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"last_run_id", "last_run_date", "run_count"}
+
     @api.constrains("line_ids")
     def _check_percent(self):
         for rule in self:
@@ -384,23 +569,36 @@ class FixAllocationRule(models.Model):
                     % (rule.name, total)
                 )
 
+    def action_activate(self):
+        self._check_percent()
+        return self._rule_activate("allocation rule")
+
+    def action_deactivate(self):
+        for rule in self:
+            if rule.state != "active":
+                raise UserError("Allocation rule %s is not active." % rule.name)
+            rule._guarded().write(
+                {"state": "draft", "activated_by_id": False, "activated_at": False}
+            )
+        return True
+
     def action_run(self, date_from=None, date_to=None):
         """Post the allocation entry for the source account's POSTED movement
-        in the window (default: current month to date)."""
+        in the window (default: current month to date, in the Dhaka calendar)."""
         from .fix_gl_ext import post_with_dimensions
 
         for rule in self:
-            if rule.state != "active":
-                raise UserError("Allocation rule %s is not active" % rule.name)
-            date_to = date_to or fields.Date.today()
-            date_from = date_from or date_to.replace(day=1)
+            rule._rule_assert_active("allocation rule")
+            rule._check_percent()
+            run_to = date_to or fields.Date.context_today(rule)
+            run_from = date_from or run_to.replace(day=1)
 
             domain = [
                 ("company_id", "=", rule.company_id.id),
                 ("account_id", "=", rule.source_account_id.id),
                 ("parent_state", "=", "posted"),
-                ("date", ">=", date_from),
-                ("date", "<=", date_to),
+                ("date", ">=", run_from),
+                ("date", "<=", run_to),
             ]
             groups = rule.env["account.move.line"]._read_group(
                 domain, [], ["debit:sum", "credit:sum"]
@@ -412,7 +610,7 @@ class FixAllocationRule(models.Model):
                 raise UserError(
                     "Source account %s has no posted movement between %s and %s — "
                     "nothing to allocate."
-                    % (rule.source_account_id.display_name, date_from, date_to)
+                    % (rule.source_account_id.display_name, run_from, run_to)
                 )
 
             line_vals = [
@@ -428,15 +626,23 @@ class FixAllocationRule(models.Model):
                 )
             ]
             dimension_by_line = {0: {}}
-            for idx, target in enumerate(rule.line_ids, start=1):
-                share = round(movement * target.percent / 100.0, 2)
+            targets = rule.line_ids.sorted(lambda t: (t.sequence, t.id))
+            allocated = 0.0
+            for idx, target in enumerate(targets, start=1):
+                if idx == len(targets):
+                    # The last target takes the rounding remainder, so the entry
+                    # balances to the cent (10.01 at 33.33/33.33/33.34).
+                    share = round(movement - allocated, 2)
+                else:
+                    share = round(movement * target.percent / 100.0, 2)
+                allocated = round(allocated + share, 2)
                 line_vals.append(
                     (
                         0,
                         0,
                         {
                             "account_id": target.account_id.id,
-                            "name": "Allocation %d%% — %s" % (target.percent, rule.name),
+                            "name": "Allocation %s%% — %s" % (target.percent, rule.name),
                             "debit": round(share, 2) if share > 0 else 0.0,
                             "credit": round(-share, 2) if share < 0 else 0.0,
                         },
@@ -450,25 +656,29 @@ class FixAllocationRule(models.Model):
 
             move_vals = {
                 "journal_id": rule.journal_id.id,
-                "date": date_to,
-                "ref": "ALLOCATION: %s (%s..%s)" % (rule.name, date_from, date_to),
+                "date": run_to,
+                "ref": "ALLOCATION: %s (%s..%s)" % (rule.name, run_from, run_to),
                 "company_id": rule.company_id.id,
                 "line_ids": line_vals,
             }
             move, _dims = post_with_dimensions(
-                rule.env, move_vals, dimension_by_line, source="allocation"
+                rule.env, move_vals, dimension_by_line, source="allocation", source_ref=rule.name
             )
-            rule.write(
-                {"last_run_id": move.id, "last_run_date": date_to, "run_count": rule.run_count + 1}
+            rule._guarded().write(
+                {"last_run_id": move.id, "last_run_date": run_to, "run_count": rule.run_count + 1}
             )
         return True
 
 
 class FixAllocationRuleLine(models.Model):
-    """One allocation target: account + dimensions + share percentage."""
+    """One allocation target: account + dimensions + share percentage. The
+    rule's targets total 100% after every change of a line, not only when the
+    rule is saved (A08 M19-14: a line write left a rule at 50%)."""
 
     _name = "fix.allocation.rule.line"
     _description = "Allocation Rule Target"
+    _inherit = ["fix.gl.rule.line.mixin"]
+    _rule_parent = "rule_id"
 
     rule_id = fields.Many2one("fix.allocation.rule", required=True, ondelete="cascade", index=True)
     sequence = fields.Integer(default=10)
@@ -479,3 +689,21 @@ class FixAllocationRuleLine(models.Model):
     branch_id = fields.Many2one("fix.branch", string="Branch")
     cost_centre = fields.Char(string="Cost Centre")
     business_line = fields.Char(string="Business Line")
+
+    @api.constrains("percent", "rule_id")
+    def _check_line_percent(self):
+        for line in self:
+            if line.percent <= 0 or line.percent > 100:
+                raise ValidationError("A target share is above 0% and at most 100%.")
+        # Inside the rule's own save the rule constraint checks the total once
+        # every command has run; a direct line change is checked here.
+        if self.env.context.get(_CONTENT_KEY) is not _CONTENT_TOKEN:
+            self.mapped("rule_id")._check_percent()
+
+    def unlink(self):
+        rules = self.mapped("rule_id")
+        in_rule_save = self.env.context.get(_CONTENT_KEY) is _CONTENT_TOKEN
+        res = super().unlink()
+        if not in_rule_save:
+            rules.exists()._check_percent()
+        return res

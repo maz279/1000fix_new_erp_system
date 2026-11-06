@@ -1,9 +1,10 @@
 """M51-core tax tests — P06-M02-T07 (DoD-03: 100% of tax calculation paths).
 
-Every branch of determine_tax/determine_tds is exercised: all five
-treatments, rate overrides valid and invalid, rounding half-up per line,
-negative/discount-overflow rejection, the Mushak-threshold rule, TDS
-categories incl. exempt certificates and unknown categories.
+Every branch of determine_tax is exercised: all five treatments, rate
+overrides valid and invalid, rounding half-up per line, negative/discount-
+overflow rejection, the Mushak-threshold rule, and (A08 M51-5) the rates
+passed in from the effective-dated master. The in-code TDS schedule
+(determine_tds) is gone: withholding is determined from fix.tax.rate only.
 The pure logic imports WITHOUT Odoo (L5-pure), so these run anywhere.
 """
 
@@ -20,11 +21,12 @@ pytestmark = [pytest.mark.tax, pytest.mark.financial]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
 
+import tax_logic
 from tax_logic import (
     DeterminationError,
     TaxLine,
+    VatRates,
     determine_tax,
-    determine_tds,
 )
 
 D = Decimal
@@ -78,10 +80,11 @@ class TestDetermineTaxTreatments(unittest.TestCase):
         self.assertEqual(result.total_vat, D("0.00"))
         self.assertEqual(result.requires_mushak, False)
 
-    def test_reduced_default_rate_is_5(self):
-        result = determine_tax([TaxLine("R", D("1"), D("200"), treatment="reduced")])
-        self.assertEqual(result.lines[0].rate, D("5"))
-        self.assertEqual(result.total_vat, D("10.00"))
+    def test_reduced_without_a_scheduled_rate_is_refused(self):
+        # A08 M51-5: a reduced supply used to be guessed at 5%; the tariff row
+        # names its scheduled rate, the engine never guesses one.
+        with self.assertRaises(DeterminationError):
+            determine_tax([TaxLine("R", D("1"), D("200"), treatment="reduced")])
 
     def test_reduced_override_7_5(self):
         result = determine_tax(
@@ -161,41 +164,42 @@ class TestMushakThreshold(unittest.TestCase):
         self.assertFalse(result.requires_mushak)
 
 
-class TestDetermineTds(unittest.TestCase):
-    def test_service_general_10(self):
-        result = determine_tds("service_general", D("10000"))
-        self.assertEqual(result.rate, D("10"))
-        self.assertEqual(result.tds_amount, D("1000.00"))
+class TestRatesFromTheMaster(unittest.TestCase):
+    """A08 M51-5: the caller passes the master's rates; nothing is hard-coded."""
 
-    def test_supply_of_goods_5(self):
-        result = determine_tds("supply_of_goods", D("10000"))
-        self.assertEqual(result.tds_amount, D("500.00"))
+    def test_standard_rate_comes_from_the_master(self):
+        rates = VatRates(standard=D("10"), reduced=frozenset({D("5")}))
+        result = determine_tax([TaxLine("SVC", D("1"), D("1000"))], rates)
+        self.assertEqual(result.total_vat, D("100.00"))
+        self.assertEqual(result.rates_source, "master")
 
-    def test_transport_3(self):
-        result = determine_tds("transport", D("10000"))
-        self.assertEqual(result.tds_amount, D("300.00"))
-
-    def test_rent_commercial_15(self):
-        result = determine_tds("rent_commercial", D("10000"))
-        self.assertEqual(result.tds_amount, D("1500.00"))
-
-    def test_exempt_certificate_zero_deduction(self):
-        result = determine_tds("service_general", D("10000"), exempt_certificate=True)
-        self.assertEqual(result.tds_amount, D("0.00"))
-        self.assertTrue(result.exempt)
-
-    def test_rounding_half_up(self):
-        result = determine_tds("service_general", D("333.33"))
-        # 333.33 * 10% = 33.333 -> 33.33
-        self.assertEqual(result.tds_amount, D("33.33"))
-
-    def test_unknown_category_rejected(self):
+    def test_reduced_rates_come_from_the_master(self):
+        rates = VatRates(standard=D("15"), reduced=frozenset({D("6")}))
+        ok = determine_tax(
+            [TaxLine("R", D("1"), D("100"), treatment="reduced", rate_override=D("6"))], rates
+        )
+        self.assertEqual(ok.total_vat, D("6.00"))
         with self.assertRaises(DeterminationError):
-            determine_tds("unknown_category", D("100"))
+            determine_tax(
+                [TaxLine("R", D("1"), D("100"), treatment="reduced", rate_override=D("5"))],
+                rates,
+            )
 
-    def test_negative_base_rejected(self):
+    def test_no_standard_rate_fails_closed(self):
         with self.assertRaises(DeterminationError):
-            determine_tds("service_general", D("-1"))
+            determine_tax([TaxLine("SVC", D("1"), D("1"))], VatRates(standard=D("0")))
+
+    def test_legacy_fallback_is_marked(self):
+        result = determine_tax([TaxLine("SVC", D("1"), D("100"))])
+        self.assertEqual(result.rates_source, "legacy")
+
+
+class TestNoSecondTdsSchedule(unittest.TestCase):
+    def test_in_code_tds_schedule_is_gone(self):
+        # M51-5 (T06): the in-code schedule disagreed with the master on rent,
+        # contractor and professional fees; it no longer exists.
+        self.assertFalse(hasattr(tax_logic, "TDS_DEFAULT_RATES"))
+        self.assertFalse(hasattr(tax_logic, "determine_tds"))
 
 
 class TestCallDirectionContract(unittest.TestCase):

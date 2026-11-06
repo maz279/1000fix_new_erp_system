@@ -17,3 +17,6 @@ access_fix_consolidation_line_manager,fix.consolidation.line.manager,model_fix_c
 access_fix_elimination_entry_manager,fix.elimination.entry.manager,model_fix_elimination_entry,account.group_account_manager,1,1,1,1
 access_fix_intercompany_transaction_manager,fix.intercompany.transaction.manager,model_fix_intercompany_transaction,account.group_account_manager,1,1,1,0
 access_fix_nil_return_generator_manager,fix.nil.return.generator.manager,model_fix_nil_return_generator,account.group_account_manager,1,1,1,0
+access_fix_transfer_price_rate_readonly,fix.transfer.price.rate.readonly,model_fix_transfer_price_rate,account.group_account_readonly,1,0,0,0
+access_fix_transfer_price_rate_user,fix.transfer.price.rate.user,model_fix_transfer_price_rate,account.group_account_user,1,1,1,0
+access_fix_transfer_price_rate_manager,fix.transfer.price.rate.manager,model_fix_transfer_price_rate,account.group_account_manager,1,1,1,0

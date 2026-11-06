@@ -34,11 +34,15 @@ CD-M39-01 + M53's W4 slice (P07-M03):
         "cd_billing_engine",
         "cd_tax_engine_bd",
         "cd_gl_ext",
+        # A08 BRU-REV-01: manual schedules route to the CFO through M63
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "security/fix_revenue_rules.xml",
+        "data/fix_revenue_cron.xml",
+        "data/fix_subscription_quote_consumer.xml",
         "views/fix_subscription_views.xml",
     ],
     "installable": True,

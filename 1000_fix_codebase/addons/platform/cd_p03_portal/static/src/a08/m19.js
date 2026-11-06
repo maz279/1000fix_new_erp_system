@@ -97,7 +97,11 @@ export const SCREENS = {
           { name: 'journal_id', required: true, label: 'Journal' },
           { name: 'gain_account_id', label: 'Unrealized FX Gain Account' },
           { name: 'loss_account_id', label: 'Unrealized FX Loss Account' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'computed_by_id', readonly: true, label: 'Computed By' },
+          { name: 'posted_by_id', readonly: true, label: 'Posted By (reviewer)' },
+          { name: 'move_id', readonly: true, label: 'Revaluation Entry' },
+          { name: 'reversal_move_id', readonly: true, label: 'Reversal Entry (next day)' }
         ] }
     ]
   },
@@ -175,8 +179,12 @@ export const SCREENS = {
   /* Allocation rules: the model rejects a rule without targets and refuses
    * targets that do not total 100% — the D365 form edits both in one save. */
   'M19-alloc-rules': { kind: 'model_list', model: 'fix.allocation.rule', stateField: 'state',
-    cols: ['name', 'journal_id', 'source_account_id', 'last_run_date', 'run_count', 'state'],
-    actions: [{ m: 'action_run', l: 'Run Allocation' }] },
+    cols: ['name', 'journal_id', 'source_account_id', 'activated_by_id', 'last_run_date', 'run_count', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate (Accounting Administrator)' },
+      { m: 'action_deactivate', l: 'Deactivate' },
+      { m: 'action_run', l: 'Run Allocation' },
+    ] },
 
   /* ============ D365 IN-WORKSPACE FORM SCREENS (M19 re-audit v2) ========
    * The registry's four data-entry chips + the allocation rule: every one
@@ -198,7 +206,9 @@ export const SCREENS = {
           { name: 'journal_id', required: true, label: 'Allocation Journal' },
           { name: 'source_account_id', required: true, label: 'Source Account to Clear' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', label: 'Rule Status' }
+          { name: 'state', readonly: true, label: 'Rule Status' },
+          { name: 'activated_by_id', readonly: true, label: 'Activated By' },
+          { name: 'last_edited_by_id', readonly: true, label: 'Content Last Edited By' }
         ]
       },
       {
@@ -291,7 +301,9 @@ export const SCREENS = {
           { name: 'schedule', required: true, label: 'Recurrence' },
           { name: 'next_run_date', required: true, label: 'Next Run Date' },
           { name: 'auto_reverse', label: 'Auto-Reversing (Accrual)' },
-          { name: 'state', label: 'Status' }
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'activated_by_id', readonly: true, label: 'Activated By' },
+          { name: 'last_edited_by_id', readonly: true, label: 'Content Last Edited By' }
         ]
       },
       {
@@ -360,7 +372,7 @@ export const SCREENS = {
       { title: "Chart Loader", note: "A chart-of-accounts loader run: the source file, the mapping used and the outcome counts.",
         fields: [
           { name: 'company_id', required: true, label: "Company" },
-          { name: 'state', required: true, label: "State" },
+          { name: 'state', readonly: true, label: "State" },
           { name: 'source_file', label: "Source File" }
         ] }
     ]
@@ -396,7 +408,7 @@ export const SCREENS = {
           { name: 'currency_id', required: true, label: "Consolidation Currency" },
           { name: 'parent_entity_id', required: true, label: "Parent Entity" },
           { name: 'consolidation_date', required: true, label: "Consolidation Date" },
-          { name: 'state', label: "Status" }
+          { name: 'state', readonly: true, label: "Status" }
         ] }
     ]
   },
@@ -425,11 +437,17 @@ export const SCREENS = {
   'M19-chart-account': { kind: 'model_list', model: 'fix.chart.account',
     cols: ['name', 'active', 'company_id', 'operating_unit_id', 'account_code', 'account_type', 'account_subtype'] },
   'M19-fiscal-period-bridge': { kind: 'model_list', model: 'fix.fiscal.period.bridge', create: false,
-    cols: ['company_id', 'operating_unit_id', 'fiscal_year_id', 'period_close_id', 'is_locked'] },
+    cols: ['company_id', 'operating_unit_id', 'fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'],
+    actions: [{ m: 'action_lock_journals', l: 'Re-apply Lock (Accounting Administrator)' }] },
   'M19-journal-dimension': { kind: 'model_list', model: 'fix.journal.dimension', create: false,
     cols: ['company_id', 'operating_unit_id', 'branch_id', 'cost_centre', 'business_line', 'project_ref', 'brand'] },
   'M19-period-close': { kind: 'model_list', model: 'fix.period.close', stateField: 'state', create: false,
-    cols: ['state', 'company_id', 'operating_unit_id', 'period_end', 'started_at', 'currency_id', 'suspense_opening'] },
+    cols: ['state', 'company_id', 'operating_unit_id', 'period_end', 'started_at', 'is_locked', 'closed_by_id', 'lock_date_set'],
+    actions: [
+      { m: 'action_generate_standard_steps', l: 'Generate SOP Steps' },
+      { m: 'action_ready', l: 'Ready Check' },
+      { m: 'action_close', l: 'Close & Lock (Accounting Administrator)' },
+    ] },
 
   'M19-form-chart-account': {
     kind: 'model_form',

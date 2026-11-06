@@ -3,6 +3,15 @@
 # fields, cash-in-transit, rider COD, imprest, cheques, gateway settlement,
 # facilities/covenants and the computed reports. Runs on fix_test inside a
 # rolled-back transaction (odoo_env).
+#
+# A08 workflow audit (2026-11-04): these tests used to release, confirm and
+# match as ONE superuser, confirm a payment from a typed bank reference and
+# match hand-typed statement lines — exactly the defects M50-1/-3 proved. They
+# now follow the controlled path: a maker prepares, a different Accounting
+# Administrator releases, statement lines come from an imported statement
+# file, and confirmation is an imported debit. The DOFA routing itself is
+# covered by test_a08_m50_controls.py; here the single-releaser ceiling is
+# configured high so the mechanics are tested on their own.
 from __future__ import annotations
 
 import base64
@@ -28,6 +37,7 @@ ROLES = (
     "interest_expense",
     "bank_charges",
     "cash_shortage",
+    "cheque_returned",
 )
 
 
@@ -95,6 +105,9 @@ class Kit:
         self.maker = self._user("maker%s" % n)
         self.checker = self._user("checker%s" % n)
         self.vendor = env["res.partner"].create({"name": "Vendor %s" % n})
+        env["ir.config_parameter"].sudo().set_param(
+            "cd_cash_position.release_single_ceiling", "1000000000"
+        )
 
     def _user(self, login):
         env = self.env
@@ -120,7 +133,7 @@ class Kit:
         )
 
     def payee_bank(self, routing="123456789"):
-        return self.env["res.partner.bank"].create(
+        bank = self.env["res.partner.bank"].create(
             {
                 "partner_id": self.vendor.id,
                 "acc_number": "ACC%s" % next(_SEQ),
@@ -128,6 +141,16 @@ class Kit:
                 "fix_account_type": "current",
             }
         )
+        if hasattr(bank, "_fix_mark_confirmed"):  # the A08 B2 payee confirmation
+            bank._fix_mark_confirmed("test call-back", None)
+        return bank
+
+    def release(self, *payments):
+        """Maker prepares, a different Accounting Administrator releases."""
+        for pay in payments:
+            pay.with_user(self.maker).action_prepare()
+        for pay in payments:
+            pay.with_user(self.checker).action_release()
 
     def payment(self, amount=4500.0, **vals):
         base = {
@@ -146,15 +169,16 @@ class Kit:
         return self.env["fix.payment.execution"].create(base)
 
     def line(self, amount, reference="", narration="", day=None):
-        return self.env["fix.bank.statement.line"].create(
-            {
-                "journal_id": self.bank.id,
-                "date": day or fields.Date.context_today(self.env.user),
-                "amount": amount,
-                "reference": reference,
-                "narration": narration,
-            }
+        """One line of an IMPORTED bank statement file (lines are never typed)."""
+        feed = "Date,Amount,Reference,Description\n%s,%.2f,%s,%s\n" % (
+            day or fields.Date.context_today(self.env.user),
+            amount,
+            reference,
+            narration or "line %s" % next(_SEQ),
         )
+        Line = self.env["fix.bank.statement.line"]
+        result = Line.import_bank_feed(feed, journal_id=self.bank.id)
+        return Line.search([("statement_file_hash", "=", result["file_hash"])])
 
     def shift(self, opening, counted, day=None, state="closed"):
         return self.env["fix.cash.shift"].create(
@@ -200,31 +224,37 @@ def test_routing_number_must_be_nine_digits(kit):
 
 
 def test_release_validates_rail_data(kit):
+    """The rail data is checked when the maker prepares the instruction."""
     pay = kit.payment(journal_id=False)
     with pytest.raises(UserError, match="bank account"), kit.env.cr.savepoint():
-        pay.action_release()
+        pay.with_user(kit.maker).action_prepare()
     pay = kit.payment(partner_bank_id=kit.payee_bank(routing=False).id)
     with pytest.raises(UserError, match="routing number"), kit.env.cr.savepoint():
-        pay.action_release()
+        pay.with_user(kit.maker).action_prepare()
     pay = kit.payment(rail=False)
     with pytest.raises(UserError, match="rail"), kit.env.cr.savepoint():
-        pay.action_release()
+        pay.with_user(kit.maker).action_prepare()
+    # an unprepared instruction is never released
+    with pytest.raises(UserError, match="prepared"), kit.env.cr.savepoint():
+        kit.payment().with_user(kit.checker).action_release()
 
 
 def test_release_then_bank_confirmation_posts_and_publishes(kit):
     env = kit.env
     pay = kit.payment(4500.0)
-    pay.action_release()
-    assert pay.state == "sent"
+    kit.release(pay)
+    assert pay.state == "sent" and pay.sent_by_id == kit.checker
     assert pay.instruction_attachment_id.raw.decode().splitlines()[1].startswith(pay.name)
     assert _events(env, "payment.executed", pay.id) == []  # nothing until the bank confirms
-    with pytest.raises(UserError, match="bank's reference"), env.cr.savepoint():
-        pay.action_confirm_bank()
     pay.bank_reference = "BEFTN-77812"
+    # a typed reference with no imported statement debit confirms nothing
+    with pytest.raises(UserError, match="not bank evidence"), env.cr.savepoint():
+        pay.action_confirm_bank()
+    kit.line(-4500.0, reference="BEFTN-77812")
     pay.action_confirm_bank()
     assert (pay.state, pay.confirmation_source, pay.bank_confirmed) == (
         "executed",
-        "bank_reference",
+        "statement",
         True,
     )
     assert _balance(env, kit.bank_acc) == -4500.0
@@ -237,8 +267,9 @@ def test_confirmation_fails_closed_without_clearing_account(kit):
         "cd_cash_position.account_code.outgoing_clearing", ""
     )
     pay = kit.payment(100.0)
-    pay.action_release()
+    kit.release(pay)
     pay.bank_reference = "X1"
+    kit.line(-100.0, reference="X1")
     with pytest.raises(UserError, match="outgoing_clearing"), kit.env.cr.savepoint():
         pay.action_confirm_bank()
     assert pay.state == "sent"
@@ -246,7 +277,7 @@ def test_confirmation_fails_closed_without_clearing_account(kit):
 
 def test_bank_rejection_and_requeue(kit):
     pay = kit.payment(10.0)
-    pay.action_release()
+    kit.release(pay)
     with pytest.raises(UserError, match="rejection reason"), kit.env.cr.savepoint():
         pay.action_mark_failed()
     pay.failure_reason = "Account closed"
@@ -273,7 +304,7 @@ def test_legacy_execute_is_flagged_unconfirmed(kit):
 
 def test_statement_confirms_sent_payment_on_token_and_amount(kit):
     pay = kit.payment(4500.0)
-    pay.action_release()
+    kit.release(pay)
     wrong_amount = kit.line(-4400.0, reference=pay.name)
     right = kit.line(-4500.0, narration="BEFTN %s Vendor" % pay.name)
     assert kit.env["fix.bank.statement.line"].auto_match() == 1
@@ -306,7 +337,7 @@ def test_substring_reference_no_longer_matches(kit):
 def test_ambiguous_payee_amount_stays_unmatched(kit):
     a = kit.payment(300.0, payee="Rahim Traders")
     b = kit.payment(300.0, payee="Rahim Traders")
-    (a | b).action_release()
+    kit.release(a, b)
     line = kit.line(-300.0, narration="paid Rahim Traders")
     assert kit.env["fix.bank.statement.line"].auto_match() == 0
     assert line.match_state == "unmatched"
@@ -314,14 +345,15 @@ def test_ambiguous_payee_amount_stays_unmatched(kit):
 
 def test_manual_match_requires_same_amount(kit):
     pay = kit.payment(250.0)
-    pay.action_release()
+    kit.release(pay)
     line = kit.line(-249.0, narration="unknown")
     line.matched_payment_id = pay.id
     with pytest.raises(UserError, match="Amounts differ"), kit.env.cr.savepoint():
         line.action_confirm_manual_match()
-    line.amount = -250.0
-    line.action_confirm_manual_match()
-    assert (line.match_state, pay.state) == ("manual", "executed")
+    right = kit.line(-250.0, narration="unknown 250")
+    right.matched_payment_id = pay.id
+    right.action_confirm_manual_match()
+    assert (right.match_state, pay.state) == ("manual", "executed")
 
 
 def test_bank_charge_line_is_booked(kit):
@@ -373,6 +405,9 @@ def test_deposit_lifecycle_with_bank_variance(kit):
     kit.line(3990.0, reference="SLP-1")
     assert env["fix.bank.statement.line"].auto_match() == 1
     assert (dep.state, dep.variance_amount) == ("variance", -10.0)
+    with pytest.raises(UserError, match="Record why"), env.cr.savepoint():
+        dep.action_resolve_variance()
+    dep.variance_reason = "Bank counted 10 short"
     dep.action_resolve_variance()
     assert dep.state == "credited"
     assert _balance(env, kit.accounts["cash_in_transit"]) == 0.0
@@ -408,6 +443,8 @@ def _cod_order(kit, amount, delivered=True):
 
 def test_cod_settlement_with_shortage_and_sod(kit):
     env = kit.env
+    # a shortage within the configured tolerance is settled by one manager
+    env["ir.config_parameter"].sudo().set_param("cd_cash_position.cod_shortage_tolerance", "100")
     o1 = _cod_order(kit, 1200.0)
     o2 = _cod_order(kit, 800.0)
     _cod_order(kit, 999.0, delivered=False)
@@ -539,8 +576,11 @@ def test_received_pdc_cheque_and_bounce(kit):
 
 
 def test_cheque_payment_confirms_when_cheque_clears(kit):
-    pay = kit.payment(900.0, method="cheque", rail=False, bank_reference="000123")
-    pay.action_release()
+    kit.env["fix.cheque.book"].create(
+        {"name": "Book 1", "journal_id": kit.bank.id, "first_number": 123, "last_number": 200}
+    )
+    pay = kit.payment(900.0, method="cheque", rail=False)
+    kit.release(pay)
     chq = kit.env["fix.cheque"].search([("payment_execution_id", "=", pay.id)])
     assert (chq.direction, chq.state, chq.cheque_no) == ("issued", "issued", "000123")
     kit.line(-900.0, narration="CHQ 000123 presented")
@@ -691,6 +731,9 @@ def test_term_loan_schedule_payment_and_covenant(kit):
             "threshold": 50.0,
         }
     )
+    with pytest.raises(UserError, match="not approved"), env.cr.savepoint():
+        cov.action_test()
+    cov.action_approve()
     cov.action_test()
     assert cov.last_result == "breach"
     assert cov.test_ids.result == "breach"

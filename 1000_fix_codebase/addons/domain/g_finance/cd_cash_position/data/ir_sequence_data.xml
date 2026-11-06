@@ -9,6 +9,19 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A08 M50-14: the (source_model, source_id) key of a MANUAL instruction.
+             A timestamp made two instructions raised in the same second collide
+             with a raw UniqueViolation; a sequence never repeats. It starts above
+             the old timestamp keys (seconds modulo 10^9). -->
+        <record id="seq_fix_payment_execution_manual" model="ir.sequence">
+            <field name="name">Manual Payment Instruction Key</field>
+            <field name="code">fix.payment.execution.manual</field>
+            <field name="prefix"></field>
+            <field name="padding">0</field>
+            <field name="number_next">1000000001</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_cash_deposit" model="ir.sequence">
             <field name="name">Branch Cash Deposit</field>
             <field name="code">fix.cash.deposit</field>

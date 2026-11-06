@@ -22,6 +22,14 @@
         <field name="company_id" eval="False"/>
     </record>
 
+    <record id="seq_fix_payee_bank_change" model="ir.sequence">
+        <field name="name">Payee Bank-Detail Change</field>
+        <field name="code">fix.payee.bank.change</field>
+        <field name="prefix">PBANK/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
     <!-- Default AP approval matrix: edit to the delegation of authority -->
     <record id="ap_approval_rule_level1" model="fix.ap.approval.rule">
         <field name="company_id" ref="base.main_company"/>

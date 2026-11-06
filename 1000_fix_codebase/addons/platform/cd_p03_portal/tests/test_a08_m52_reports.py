@@ -55,8 +55,18 @@ def ap(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     vendor = env["res.partner"].create({"name": "Karnaphuli Components Ltd."})
+    # A08 M52-10: a PSR counts only with its proof attached, and a vendor with
+    # no TIN pays the non-filer rate; this vendor files, so TDS is the base 5%.
+    psr_proof = env["ir.attachment"].create({"name": "PSR-K.pdf", "datas": "UFNSLUs="})
     env["fix.vendor.tax.profile"].create(
-        {"partner_id": vendor.id, "psr_reference": "PSR-K", "psr_valid_until": "2099-06-30"}
+        {
+            "partner_id": vendor.id,
+            "taxpayer_type": "company",
+            "tin": "123456789013",
+            "psr_reference": "PSR-K",
+            "psr_valid_until": "2099-06-30",
+            "psr_attachment_ids": [(6, 0, psr_proof.ids)],
+        }
     )
     product = env["product.product"].create({"name": "Compressor 1.5T"})
     return {

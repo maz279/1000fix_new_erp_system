@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A08 M49-11: the M49 register events had no consumer. Each is consumed by
+     the register's ledger tie-out (BRU-FXA-02): an event whose journal entry
+     is missing or unposted is flagged on the asset for Finance. M54 (cd_fpa)
+     may subscribe to depreciation.accrued in addition. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_asset_capitalized_gl_tieout" model="fix.event.consumer">
+            <field name="name">M49: asset.capitalized has its posted entry</field>
+            <field name="event_type">asset.capitalized</field>
+            <field name="model">fix.fixed.asset</field>
+            <field name="method">consume_asset_event</field>
+            <field name="module">cd_fixed_asset_ext</field>
+        </record>
+        <record id="consumer_depreciation_accrued_gl_tieout" model="fix.event.consumer">
+            <field name="name">M49: depreciation.accrued has its posted entry</field>
+            <field name="event_type">depreciation.accrued</field>
+            <field name="model">fix.fixed.asset</field>
+            <field name="method">consume_asset_event</field>
+            <field name="module">cd_fixed_asset_ext</field>
+        </record>
+        <record id="consumer_asset_disposed_gl_tieout" model="fix.event.consumer">
+            <field name="name">M49: asset.disposed has its posted entry</field>
+            <field name="event_type">asset.disposed</field>
+            <field name="model">fix.fixed.asset</field>
+            <field name="method">consume_asset_event</field>
+            <field name="module">cd_fixed_asset_ext</field>
+        </record>
+    </data>
+</odoo>

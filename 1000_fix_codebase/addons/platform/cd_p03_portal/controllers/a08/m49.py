@@ -12,11 +12,19 @@ from odoo import fields
 
 _logger = logging.getLogger(__name__)
 
+# A08 workflow audit (2026-11-04) M49-1/M49-6: capex requests, revaluations
+# and disposals are approved from the approver's M63 inbox (routed by amount),
+# never by an Approve button on the record; approve and post are separate.
 SURFACES = {
     "fix.capex.request": {
         "order": "request_date desc, id desc",
         "limit": 200,
-        "actions": {"action_submit", "action_approve", "action_reject", "action_create_cwip"},
+        "actions": {
+            "action_submit",
+            "action_recall_approval",
+            "action_reject",
+            "action_create_cwip",
+        },
     },
     "fix.capex.budget": {
         "order": "date_from desc, id desc",
@@ -33,7 +41,7 @@ SURFACES = {
     "fix.asset.transfer": {
         "order": "date desc, id desc",
         "limit": 200,
-        "actions": {"action_confirm", "action_cancel"},
+        "actions": {"action_confirm", "action_acknowledge", "action_cancel"},
     },
     "fix.asset.depreciation.run": {
         "order": "period_start desc, id desc",
@@ -44,12 +52,12 @@ SURFACES = {
     "fix.asset.revaluation": {
         "order": "date desc, id desc",
         "limit": 200,
-        "actions": {"action_post", "action_cancel"},
+        "actions": {"action_submit", "action_recall_approval", "action_post", "action_cancel"},
     },
     "fix.asset.disposal": {
         "order": "date desc, id desc",
         "limit": 200,
-        "actions": {"action_approve", "action_post", "action_cancel"},
+        "actions": {"action_submit", "action_recall_approval", "action_post", "action_cancel"},
     },
     "fix.asset.verification.campaign": {
         "order": "date desc, id desc",
@@ -251,10 +259,13 @@ def dual_book(env, date_from=None, date_to=None, **_kw):
             }
         )
     cols = ["asset", "category", "book_dep", "tax_dep", "book_nbv", "tax_wdv", "difference"]
-    unverified = env["fix.asset.tax.rate"].search_count([("verified", "=", False)])
+    unverified = env["fix.tax.rate"].search_count(
+        [("tax_kind", "=", "depreciation"), ("verify_with_adviser", "=", True)]
+    )
     notes = [
-        "Tax book: ITA 2023 Third Schedule reducing balance, charged monthly (WDV x rate / 12) "
-        "as a management estimate; the return computation follows the Act's own rules.",
+        "Tax book: ITA 2023 Third Schedule reducing balance on the annual written-down value "
+        "(the year's allowance spread over its months), rates from the M51 Tax Rate Master; "
+        "the return computation follows the Act's own rules.",
         "Difference = carrying amount minus tax WDV (taxable temporary difference when positive). "
         "Deferred tax = difference x the applicable corporate rate, to be confirmed by the tax adviser.",
     ]
@@ -521,7 +532,82 @@ def lease_summary(env, date_from=None, date_to=None, **_kw):
     }
 
 
+def register_gl_reconciliation(env, date_from=None, date_to=None, **_kw):
+    """BRU-FXA-03 (A08 M49-10): the register against its GL control accounts
+    per category, for the caller's companies, read as the caller."""
+    rows = []
+    for company in env.companies:
+        for row in env["fix.fixed.asset"]._fix_register_gl_reconciliation(company):
+            rows.append(dict(row, company=company.name))
+    cols = ["company", "category", "line", "account", "register", "gl", "variance"]
+    out_of_balance = len([r for r in rows if abs(r["variance"]) > 0.005])
+    return {
+        "title": "Register to GL Reconciliation",
+        "cols": cols,
+        "labels": {
+            "company": "Company",
+            "category": "Category",
+            "line": "Line",
+            "account": "Control Account",
+            "register": "Register",
+            "gl": "GL (posted)",
+            "variance": "Variance",
+        },
+        "rows": rows,
+        "notes": [
+            "Cost and accumulated depreciation/impairment of assets in service, and open CWIP, "
+            "against the posted balance of each category's control account. %d line(s) out of "
+            "balance." % out_of_balance
+        ],
+        "empty": "No asset categories with control accounts.",
+    }
+
+
+def tax_depreciation_rates(env, date_from=None, date_to=None, **_kw):
+    """The ITA 2023 Third Schedule rates the tax book uses: M51 master rows of
+    kind 'depreciation' (BRU-FXA-13), with their adviser status. Maintained on
+    the M51 Tax Rate Master screen (proposal + second-manager activation)."""
+    rates = env["fix.tax.rate"].search(
+        [("tax_kind", "=", "depreciation"), ("state", "!=", "retired")],
+        order="code, date_from desc",
+    )
+    states = dict(env["fix.tax.rate"]._fields["state"]._description_selection(env))
+    rows = [
+        {
+            "code": r.code,
+            "name": r.name,
+            "rate": r.rate,
+            "date_from": str(r.date_from),
+            "date_to": str(r.date_to or ""),
+            "adviser": "verify with adviser" if r.verify_with_adviser else "confirmed",
+            "state": states.get(r.state, r.state),
+        }
+        for r in rates
+    ]
+    return {
+        "title": "Tax Depreciation Rates (ITA 2023 Third Schedule, M51 master)",
+        "cols": ["code", "name", "rate", "date_from", "date_to", "adviser", "state"],
+        "labels": {
+            "code": "Class",
+            "name": "Asset Class",
+            "rate": "Rate % a Year",
+            "date_from": "From",
+            "date_to": "To",
+            "adviser": "Adviser",
+            "state": "Status",
+        },
+        "rows": rows,
+        "notes": [
+            "The tax book refuses a rate flagged verify-with-adviser; record the adviser's "
+            "confirmation on the M51 Tax Rate Master."
+        ],
+        "empty": "No tax depreciation rates in the M51 master.",
+    }
+
+
 REPORTS = {
+    "tax_depreciation_rates": tax_depreciation_rates,
+    "register_gl_reconciliation": register_gl_reconciliation,
     "movement_schedule": movement_schedule,
     "dual_book": dual_book,
     "nbv_by_category": nbv_by_category,

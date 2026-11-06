@@ -1,5 +1,13 @@
 # cd_fixed_asset_ext — live-ORM behaviour of the M49 register, CWIP and the
 # dual-book depreciation run.
+#
+# A08 (2026-11-04): assets come into service from a source (the M19
+# capitalisation seam, CWIP capitalisation of an approved capex, a lease);
+# CWIP cost is the posted cost booked to the project; the tax book charges the
+# annual written-down value from the M51 Third Schedule master; asset.capitalized
+# is published on capitalisation only. Tests that asserted the old behaviour
+# (draft assets publishing asset.capitalized, typed CWIP amounts, monthly
+# compounding of the tax book) were rewritten to the controlled paths.
 from __future__ import annotations
 
 import json
@@ -41,6 +49,40 @@ def _asset(env, **vals):
     return env["fix.fixed.asset"].create(base)
 
 
+def _post(env, lines, when):
+    journal = env["account.journal"].search(
+        [("company_id", "=", env.company.id), ("type", "=", "general")], limit=1
+    )
+    move = env["account.move"].create(
+        {
+            "journal_id": journal.id,
+            "date": when,
+            "line_ids": [
+                (0, 0, {"account_id": a.id, "name": "m49", "debit": dr, "credit": cr})
+                for a, dr, cr in lines
+            ],
+        }
+    )
+    move.action_post()
+    return move
+
+
+def _seam(m49, gross, when):
+    """The M19 capitalisation seam of a posted acquisition (arrangement)."""
+    env, acc = m49["env"], m49["accounts"]
+    move = _post(env, [(acc["asset"], gross, 0.0), (acc["proceeds"], 0.0, gross)], when)
+    line = move.line_ids.filtered(lambda ln: ln.account_id == acc["asset"])
+    ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
+    return env["fix.fixed.asset.seam"].create(
+        {
+            "operating_unit_id": ou.id,
+            "name": "SEAM %s" % move.id,
+            "move_line_id": line.id,
+            "amount": gross,
+        }
+    )
+
+
 # context_today, not Date.today(): the product dates these records with
 # fields.Date.context_today, and Bangladesh runs UTC+6 — between 18:00
 # UTC and midnight the two disagree, and on the 1st they disagree by a
@@ -51,15 +93,14 @@ def _this_month(env=None):
 
 
 class TestFixedAsset:
-    def test_straight_line_depreciation_and_capitalisation_event(self, odoo_env):
+    def test_straight_line_depreciation_and_no_event_for_a_draft(self, odoo_env):
         asset = _asset(odoo_env)
         assert _money(asset.monthly_depreciation) == D("2000.00")  # (120,000 - 20,000) / 50
         assert asset.state == "draft"
         assert asset.code and asset.code.startswith("FA-")
         assert asset.depreciation_start == date(2026, 7, 1)
-        assert _events(odoo_env, "asset.capitalized", asset.id) == [
-            {"name": "Diagnostic bench DHK-01", "gross": 120000.0}
-        ]
+        # A08 M49-11: a draft register entry is not a capitalisation
+        assert _events(odoo_env, "asset.capitalized", asset.id) == []
 
     def test_category_defaults_life_salvage_and_label(self, m49):
         cat = m49["category"]
@@ -84,20 +125,32 @@ class TestFixedAsset:
         with pytest.raises(ValidationError, match="salvage above gross"), odoo_env.cr.savepoint():
             _asset(odoo_env, gross=100.0, salvage=200.0)
 
-    def test_activation_needs_a_category(self, m49):
+    def test_activation_needs_a_category_and_a_source(self, m49):
         env = m49["env"]
         bare = _asset(env)
         with pytest.raises(UserError, match="Choose the asset category"), env.cr.savepoint():
             bare.action_activate()
-        asset = _asset(env, category_id=m49["category"].id)
+        no_source = _asset(env, category_id=m49["category"].id)
+        with pytest.raises(UserError, match="no source"), env.cr.savepoint():
+            no_source.action_activate()
+        asset = _asset(
+            env, category_id=m49["category"].id, seam_id=_seam(m49, 120000.0, date(2026, 7, 1)).id
+        )
         asset.action_activate()
-        assert asset.state == "active"
+        assert asset.state == "active" and asset.seam_id.consumed
+        (event,) = _events(env, "asset.capitalized", asset.id)
+        assert event["gross"] == 120000.0 and event["move_id"] == asset.acquisition_move_id.id
 
     def test_accrue_month_posts_gl_and_is_idempotent(self, m49):
         """Defect fixed: the accrual only published an event — no GL entry
         and no protection against a second accrual in the same month."""
         env, acc = m49["env"], m49["accounts"]
-        asset = _asset(env, category_id=m49["category"].id, purchase_date=date(2026, 1, 1))
+        asset = _asset(
+            env,
+            category_id=m49["category"].id,
+            purchase_date=date(2026, 1, 1),
+            seam_id=_seam(m49, 120000.0, date(2026, 1, 1)).id,
+        )
         with pytest.raises(UserError, match="Only ACTIVE assets accrue"), env.cr.savepoint():
             asset.action_accrue_month()
         asset.action_activate()
@@ -113,7 +166,7 @@ class TestFixedAsset:
         assert balance(env, acc["expense"]) == 2000.0
         assert balance(env, acc["accum"]) == -2000.0
         assert _events(env, "depreciation.accrued", asset.id) == [
-            {"asset": "Diagnostic bench DHK-01", "amount": 2000.0}
+            {"asset": "Diagnostic bench DHK-01", "amount": 2000.0, "move_id": line.move_id.id}
         ]
         with pytest.raises(UserError, match="already depreciated"), env.cr.savepoint():
             asset.action_accrue_month()
@@ -207,18 +260,28 @@ class TestDepreciationRun:
         assert env["account.move"].search_count([]) == moves_before
         assert run.state == "computed"
 
-    def test_tax_book_reducing_balance_no_gl(self, m49):
+    def test_tax_book_annual_wdv_no_gl(self, m49):
+        """A08 M49-8: the M51 Third Schedule rate, refused until the adviser
+        confirms it, charged on the annual written-down value."""
         env = m49["env"]
         asset = _asset(
-            env, category_id=m49["category"].id, state="active", gross=120000.0, salvage=0.0
+            env,
+            category_id=m49["category"].id,
+            state="active",
+            gross=120000.0,
+            salvage=0.0,
+            purchase_date=date(2026, 8, 1),
         )
-        rate = env["fix.asset.tax.rate"].rate_for("ITA3-PLANT", date(2026, 8, 1), m49["company"])
-        assert rate and not rate.verified  # seeded master data awaits the adviser
+        rate = env["fix.tax.rate"].find_rate("depreciation", "ITA3-PLANT", date(2026, 8, 1))
+        assert rate.verify_with_adviser  # seeded master data awaits the adviser
         run = env["fix.asset.depreciation.run"].create(
             {"book": "tax", "period_start": date(2026, 8, 1), "asset_ids": [(6, 0, asset.ids)]}
         )
+        with pytest.raises(UserError, match="not yet confirmed"), env.cr.savepoint():
+            run.action_compute()
+        rate.action_record_adviser_verification("ADV-TEST")
         run.action_compute()
-        expected = round(120000.0 * rate.rate_percent / 100.0 / 12.0, 2)
+        expected = round(120000.0 * rate.rate / 100.0 / 12.0, 2)
         assert run.line_ids.amount == expected
         run.action_post()
         assert not run.move_ids and run.line_ids.state == "posted"
@@ -226,7 +289,8 @@ class TestDepreciationRun:
             {"book": "tax", "period_start": date(2026, 9, 1), "asset_ids": [(6, 0, asset.ids)]}
         )
         nxt.action_compute()
-        assert nxt.line_ids.amount == round((120000.0 - expected) * rate.rate_percent / 1200.0, 2)
+        # the same month of the same tax year: the opening WDV does not compound
+        assert nxt.line_ids.amount == expected
         assert asset.tax_wdv == round(120000.0 - expected, 2)
 
     def test_tax_run_without_rate_fails_closed(self, m49):
@@ -266,22 +330,47 @@ class TestDepreciationRun:
         assert asset.book_nbv == 0.0
 
 
+def _approved_request(env, amount, category=None):
+    """An approved capex request (system arrangement of the routed approval,
+    which test_a08_m49_controls exercises through the M63 inbox)."""
+    return env["fix.capex.request"].create(
+        {
+            "title": "Capex %s" % amount,
+            "amount": amount,
+            "category_id": category.id if category else False,
+            "state": "approved",
+            "dofa_approved": True,
+            "dofa_approved_tier": "tier_5",
+            "dofa_approved_amount": amount,
+        }
+    )
+
+
 class TestCwip:
-    def _cwip(self, env, name, amount, company=None, ou=None, category=None):
-        vals = {"name": name, "amount": amount}
-        if company:
-            vals["company_id"] = company.id
-        if ou:
-            vals["operating_unit_id"] = ou.id
-        if category:
-            vals["category_id"] = category.id
-        return env["fix.cwip.entry"].create(vals)
+    def _cwip(self, m49, name, amount, ou=None, category=None):
+        """A CWIP project of an approved capex, with `amount` of posted cost
+        booked to it (A08 M49-3: never a typed amount)."""
+        env, acc = m49["env"], m49["accounts"]
+        cat = category or m49["category"]
+        req = _approved_request(env, max(amount, 1.0) * 2, category)
+        cw = env["fix.cwip.entry"].browse(req.action_create_cwip()["cwip_ids"])
+        cw.write({"name": name, "operating_unit_id": ou.id if ou else False, "category_id": cat.id})
+        if amount:
+            bill = _post(
+                env,
+                [(acc["cwip"], amount, 0.0), (acc["proceeds"], 0.0, amount)],
+                fields.Date.context_today(env.user),
+            )
+            cw._fix_book_cost(bill.line_ids.filtered(lambda ln: ln.account_id == acc["cwip"]))
+        if not category:
+            cw.category_id = False
+        return cw
 
     def test_capitalise_every_entry_and_post_reclass(self, m49):
         env, acc, cat = m49["env"], m49["accounts"], m49["category"]
         ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
-        a = self._cwip(env, "Server room fit-out", 450000.0, ou=ou)
-        b = self._cwip(env, "Van racking", 60000.0)
+        a = self._cwip(m49, "Server room fit-out", 450000.0, ou=ou)
+        b = self._cwip(m49, "Van racking", 60000.0)
         assets = (a | b).action_capitalise(cat, 60, salvage=6000.0)
         assert len(assets) == 2
         assert (a.state, b.state) == ("capitalised", "capitalised")
@@ -293,44 +382,47 @@ class TestCwip:
         )
         assert _money(fit_out.monthly_depreciation) == D("7400.00")
         assert balance(env, acc["asset"]) == 510000.0
-        assert balance(env, acc["cwip"]) == -510000.0
-        assert _events(env, "cwip.capitalised", a.id) == [
-            {"asset": "Server room fit-out", "amount": 450000.0}
-        ]
+        assert balance(env, acc["cwip"]) == 0.0  # booked cost in, capitalised out
+        (event,) = _events(env, "asset.capitalized", fit_out.id)
+        assert (event["gross"], event["cwip_id"], event["move_id"]) == (
+            450000.0,
+            a.id,
+            a.move_id.id,
+        )
 
     def test_category_by_code_and_record_fields(self, m49):
-        env, cat = m49["env"], m49["category"]
-        entry = self._cwip(env, "Workshop", 90000.0, category=cat)
+        cat = m49["category"]
+        entry = self._cwip(m49, "Workshop", 90000.0, category=cat)
         entry.life_months = 36
         asset = entry.action_capitalise()
         assert (asset.category_id, asset.life_months) == (cat, 36)
-        other = self._cwip(env, "Bench", 1000.0)
+        other = self._cwip(m49, "Bench", 1000.0)
         assert other.action_capitalise(cat.code).category_id == cat
 
     def test_refusals(self, m49):
         env, cat = m49["env"], m49["category"]
-        empty = self._cwip(env, "Nothing yet", 0.0, category=cat)
+        empty = self._cwip(m49, "Nothing yet", 0.0, category=cat)
         with pytest.raises(UserError, match="Nothing accumulated"), env.cr.savepoint():
             empty.action_capitalise()
-        no_cat = self._cwip(env, "No category", 10.0)
+        no_cat = self._cwip(m49, "No category", 10.0)
         with pytest.raises(UserError, match="Choose the asset category"), env.cr.savepoint():
             no_cat.action_capitalise()
-        done = self._cwip(env, "Done", 10.0, category=cat)
+        done = self._cwip(m49, "Done", 10.0, category=cat)
         done.action_capitalise()
         with pytest.raises(UserError, match="already capitalised"), env.cr.savepoint():
             done.action_capitalise()
 
     def test_missing_cwip_account_fails_closed(self, m49):
         env, cat = m49["env"], m49["category"]
+        entry = self._cwip(m49, "Fit-out", 1000.0, category=cat)
         cat.cwip_account_id = False
-        entry = self._cwip(env, "Fit-out", 1000.0, category=cat)
         with pytest.raises(UserError, match="CWIP Account"), env.cr.savepoint():
             entry.action_capitalise()
         assert entry.state == "open" and not entry.asset_id
 
     def test_accountant_role_required(self, m49):
         env, cat = m49["env"], m49["category"]
-        entry = self._cwip(env, "Fit-out", 1000.0, category=cat)
+        entry = self._cwip(m49, "Fit-out", 1000.0, category=cat)
         reader = m49["users"]["reader"]
         with pytest.raises(Exception), env.cr.savepoint():  # noqa: B017 — ACL or role refusal
             entry.with_user(reader).action_capitalise()

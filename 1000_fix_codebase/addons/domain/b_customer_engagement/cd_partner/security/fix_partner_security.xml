@@ -9,6 +9,15 @@
         <field name="comment">P12 access: channel and referral partners see their own profile, referrals, and commission status only (EA-05 cross-tenant isolation).</field>
     </record>
 
+    <!-- A08 B4 (M53-4, spec M40 R21): the role that converts a referral and
+         earns its commission. Shipped EMPTY: the business appoints its members
+         (A08 report §7, B1). -->
+    <record id="group_fix_referral_manager" model="res.groups">
+        <field name="name">Referral Conversion Manager (R21 Sales Manager)</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Converts a referral from the referred customer's paid invoice and earns its commission (spec M40 §11 R21; A08 M53-4).</field>
+    </record>
+
     <!-- Partner sees only their own partner profile -->
     <record id="rule_fix_partner_self" model="ir.rule">
         <field name="name">P12 Partner: own partner profile only</field>

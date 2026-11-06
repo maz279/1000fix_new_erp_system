@@ -66,7 +66,8 @@ export const SCREENS = {
     actions: [{m:'action_create_schedule',l:'Create Revenue Schedule'},{m:'action_recognize',l:'Recognise to Today'}] },
   'M53-schedules': { kind: 'model_list', model: 'fix.revenue.schedule',
     cols: ['source_model','description','total_amount','recognized_amount','deferred_balance','start_date','end_date','state'],
-    stateField: 'state', actions: [{m:'action_recognize_period',l:'Recognise to Today (posts GL)'}] },
+    stateField: 'state', actions: [{m:'action_recognize_period',l:'Recognise to Today (posts GL)'},
+      {m:'action_request_cfo_approval',l:'Request CFO Approval (manual schedule)'}] },
   'M53-contract': { kind: 'table_report', module: 'M53', report: 'contract_balances' },
   'M53-bridge': { kind: 'table_report', module: 'M53', report: 'deferred_revenue_bridge' },
   'M53-warranty': { kind: 'model_list', model: 'fix.warranty.provision',
@@ -91,10 +92,12 @@ export const SCREENS = {
   'M53-payouts': { kind: 'model_list', model: 'fix.payout.run',
     cols: ['name','period','total_gross','total_tds','total_clawback','total_payable','seller_count','rail_status','state'],
     stateField: 'state',
-    actions: [{m:'action_collect_accrued',l:'Collect Accrued Commissions'},{m:'action_approve',l:'Approve (SoD)'},
-      {m:'action_submit_payout',l:'Disburse via API Rail'},{m:'action_generate_beftn',l:'Generate BEFTN File'},
-      {m:'action_query_status',l:'Query Bank Status'},{m:'action_confirm_bank_settlement',l:'Confirm Bank Settlement'},
-      {m:'action_post_payout_to_gl',l:'Post Payout to GL'}] },
+    // A08 F2: approval comes from the M63 inbox; money moves only as M50
+    // payment instructions, confirmed by treasury from the bank statement.
+    actions: [{m:'action_collect_accrued',l:'Collect Accrued Commissions'},
+      {m:'action_prepare',l:'Prepare & Request Approval'},
+      {m:'action_request_payments',l:'Release to Treasury (M50)'},
+      {m:'action_query_status',l:'Refresh Payment Status'},{m:'action_cancel',l:'Cancel'}] },
   'M53-sellers': { kind: 'model_list', model: 'fix.seller.statement',
     cols: ['name','seller_partner_id','period','gross_gmv','commission_amount','tds_withheld','clawback_amount','net_payable','state'],
     stateField: 'state',
@@ -129,10 +132,10 @@ export const SCREENS = {
           { name: 'obligation_type', required: true, label: "Type" },
           { name: 'satisfaction', required: true, label: "Satisfaction Method" },
           { name: 'standalone_price', required: true, label: "Standalone Price" },
-          { name: 'allocated_amount', label: "Allocated Amount" },
+          { name: 'allocated_amount', readonly: true, label: "Allocated Amount (price allocation)" },
           { name: 'start_date', label: "Start" },
           { name: 'end_date', label: "End" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -147,11 +150,11 @@ export const SCREENS = {
         note: "Required balance = revenue in warranty x measured rework rate x cost ratio over the lookback window. Opening balance and movement are recorded, not typed.",
         fields: [
           { name: 'period', required: true, label: "Period (YYYY-MM)" },
-          { name: 'period_end', label: "Period End" },
-          { name: 'policy_id', label: "Policy" },
-          { name: 'cost_ratio', label: "Cost Ratio" },
-          { name: 'opening_balance', label: "Opening Balance" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'period_end', readonly: true, label: "Period End" },
+          { name: 'policy_id', readonly: true, label: "Policy (computed)" },
+          { name: 'cost_ratio', readonly: true, label: "Cost Ratio (computed)" },
+          { name: 'opening_balance', readonly: true, label: "Opening Balance (computed)" },
+          { name: 'state', readonly: true, label: "State" }
         ] },
       { title: "Note",
         fields: [
@@ -198,7 +201,7 @@ export const SCREENS = {
           { name: 'next_invoice_date', required: true, label: "Next Invoice" },
           { name: 'grace_period_days', label: "Grace Period (days)" },
           { name: 'consolidated', label: "Consolidated Billing" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -212,15 +215,16 @@ export const SCREENS = {
       { title: "Commission",
         note: "One commission earning per seller and source. Commission amount and TDS are computed from the gross and the scheme rate.",
         fields: [
-          { name: 'seller_partner_id', required: true, label: "Seller" },
-          { name: 'name', required: true, label: "Reference" },
-          { name: 'source_type', required: true, label: "Source Type" },
-          { name: 'source_ref', label: "Source Reference" },
-          { name: 'gross_amount', required: true, label: "Gross Amount" },
-          { name: 'commission_rate', label: "Commission Rate %" },
-          { name: 'tds_amount', label: "TDS" },
-          { name: 'escrow_hold', label: "Escrow Hold" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'seller_partner_id', readonly: true, label: "Seller" },
+          { name: 'name', readonly: true, label: "Reference" },
+          { name: 'source_type', readonly: true, label: "Source Type" },
+          { name: 'source_ref', readonly: true, label: "Source Reference" },
+          { name: 'gross_amount', readonly: true, label: "Gross Amount" },
+          { name: 'commission_rate', readonly: true, label: "Commission Rate (scheme)" },
+          { name: 'tds_amount', readonly: true, label: "TDS (scheme + PSR)" },
+          { name: 'psr_verified', readonly: true, label: "PSR on File (M52 tax profile)" },
+          { name: 'escrow_hold', readonly: true, label: "Escrow Hold" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -235,15 +239,17 @@ export const SCREENS = {
         note: "A period statement for one seller. GMV, commission, TDS and the net payable are computed; the withholding certificate reference is required by statute.",
         fields: [
           { name: 'seller_partner_id', required: true, label: "Seller" },
-          { name: 'name', required: true, label: "Statement" },
+          { name: 'name', readonly: true, label: "Statement" },
           { name: 'period', required: true, label: "Period (YYYY-MM)" },
-          { name: 'date_issued', label: "Issued On" },
+          { name: 'date_issued', readonly: true, label: "Issued On" },
           { name: 'gross_gmv', required: true, label: "Gross GMV" },
           { name: 'commission_amount', required: true, label: "Commission" },
           { name: 'tds_withheld', required: true, label: "TDS Withheld" },
-          { name: 'net_payable', required: true, label: "Net Payable" },
-          { name: 'withholding_cert_ref', required: true, label: "Withholding Certificate" },
-          { name: 'state', required: true, label: "State" }
+          { name: 'platform_fee', label: "Platform Fee" },
+          { name: 'clawback_amount', label: "Clawback" },
+          { name: 'net_payable', readonly: true, label: "Net Payable (computed)" },
+          { name: 'withholding_cert_ref', readonly: true, label: "Withholding Certificate (at issue)" },
+          { name: 'state', readonly: true, label: "State" }
         ] }
     ]
   },
@@ -286,13 +292,19 @@ Object.assign(SCREENS, {
     title: 'Revenue Schedule',
     back: 'M53-schedules',
     sections: [
-      { title: 'Schedule', note: 'The contracted amount is recognised over the schedule window; the recognised amount and deferred balance are maintained by the recognition engine. A manually created schedule records its own source as manual.',
+      { title: 'Schedule', note: 'The contracted amount is recognised over the schedule window; the recognised amount and deferred balance are maintained by the recognition engine. A manually created schedule names its contract, a reason and evidence, and recognises nothing until the CFO approves it through the M63 inbox (BRU-REV-01).',
         fields: [
           { name: 'description', required: true, label: 'Description' },
           { name: 'start_date', required: true, label: 'Start Date' },
           { name: 'end_date', required: true, label: 'End Date' },
           { name: 'total_amount', required: true, label: 'Contracted Amount' },
-          { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'contract_id', label: 'Contract (manual schedule)' },
+          { name: 'subscription_id', label: 'Subscription Contract (manual schedule)' },
+          { name: 'manual_reason', label: 'Reason (manual schedule)', type: 'text' },
+          { name: 'evidence_ref', label: 'Evidence Reference' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'recognized_amount', readonly: true, label: 'Recognised (posted lines)' }
         ] }
     ]
   },
@@ -303,13 +315,14 @@ Object.assign(SCREENS, {
     title: 'Payout Run',
     back: 'M53-payouts',
     status: { field: 'state', labels: {
-      draft: 'Draft', approved: 'Approved (SoD Verified)', executing: 'Executing',
-      file_generated: 'BEFTN File Generated', executed: 'Executed' } },
+      draft: 'Draft', prepared: 'Prepared — Awaiting Approval', approved: 'Approved (SoD Verified)',
+      executing: 'Released to Treasury', file_generated: 'BEFTN File Generated (legacy)',
+      executed: 'Executed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Payout Run', note: 'The run aggregates the period\'s commission ledger into seller payouts with TDS withheld; execution goes through the treasury rails.',
+      { title: 'Payout Run', note: 'The run aggregates the period\'s commission ledger into seller payouts with TDS withheld; it is prepared, approved from the M63 inbox, and paid only as M50 payment instructions that treasury releases and the bank statement confirms.',
         fields: [
           { name: 'period', required: true, label: 'Settlement Period (YYYY-MM)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -328,7 +341,7 @@ Object.assign(SCREENS, {
           { name: 'adjustment_type', required: true, label: 'Type' },
           { name: 'seller_partner_id', required: true, label: 'Seller' },
           { name: 'amount', required: true, label: 'Amount' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },

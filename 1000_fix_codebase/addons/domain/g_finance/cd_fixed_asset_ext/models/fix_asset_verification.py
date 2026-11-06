@@ -22,7 +22,11 @@ RESULTS = [
 class FixAssetVerificationCampaign(models.Model):
     _name = "fix.asset.verification.campaign"
     _description = "Physical Verification Campaign"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state"}
+
     _order = "date desc, id desc"
 
     company_id = fields.Many2one(
@@ -74,7 +78,7 @@ class FixAssetVerificationCampaign(models.Model):
             assets = self.env["fix.fixed.asset"].search(domain)
             if not assets:
                 raise UserError(self.env._("No active assets in the campaign's scope."))
-            Line.create(
+            Line._guarded().create(
                 [
                     {
                         "campaign_id": rec.id,
@@ -85,7 +89,7 @@ class FixAssetVerificationCampaign(models.Model):
                     for a in assets
                 ]
             )
-            rec.state = "in_progress"
+            rec._guarded().write({"state": "in_progress"})
         return True
 
     def action_record_scan(self, tag, operating_unit_id=None):
@@ -103,13 +107,17 @@ class FixAssetVerificationCampaign(models.Model):
             line.write({"scanned_tag": tag, "scanned_operating_unit_id": operating_unit_id})
             line._apply_scan()
         else:
-            line = self.env["fix.asset.verification.line"].create(
-                {
-                    "campaign_id": self.id,
-                    "scanned_tag": tag,
-                    "scanned_operating_unit_id": operating_unit_id,
-                    "operating_unit_id": operating_unit_id,
-                }
+            line = (
+                self.env["fix.asset.verification.line"]
+                ._guarded()
+                .create(
+                    {
+                        "campaign_id": self.id,
+                        "scanned_tag": tag,
+                        "scanned_operating_unit_id": operating_unit_id,
+                        "operating_unit_id": operating_unit_id,
+                    }
+                )
             )
             line._apply_scan()
         return {"line_id": line.id, "result": line.result}
@@ -120,15 +128,17 @@ class FixAssetVerificationCampaign(models.Model):
         for rec in self:
             if rec.state != "in_progress":
                 raise UserError(self.env._("Only campaigns in progress can be closed."))
-            rec.line_ids.filtered(lambda ln: ln.result == "pending").write({"result": "missing"})
-            rec.state = "closed"
+            rec.line_ids.filtered(lambda ln: ln.result == "pending")._guarded().write(
+                {"result": "missing"}
+            )
+            rec._guarded().write({"state": "closed"})
         return True
 
 
 class FixAssetVerificationLine(models.Model):
     _name = "fix.asset.verification.line"
     _description = "Physical Verification Result"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "campaign_id desc, id"
 
     campaign_id = fields.Many2one(
@@ -150,6 +160,22 @@ class FixAssetVerificationLine(models.Model):
         RESULTS, string="Result", default="pending", required=True, tracking=True
     )
     note = fields.Text(string="Note")
+    corrected_by_id = fields.Many2one(
+        "res.users",
+        string="Corrected By",
+        readonly=True,
+        copy=False,
+        help="A result set by hand (no scan) — never by the counter (BRU-FXA-15)",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # A08 M49-1 (probe 51): 'found' was typed with no scan
+        return super()._fix_guarded_fields() | {
+            "result",
+            "scanned_at",
+            "corrected_by_id",
+            "asset_id",
+        }
 
     def _apply_scan(self):
         for line in self:
@@ -163,21 +189,42 @@ class FixAssetVerificationLine(models.Model):
                 result = "misplaced"
             else:
                 result = "found"
-            line.write({"result": result, "scanned_at": fields.Datetime.now()})
+            line._guarded().write({"result": result, "scanned_at": fields.Datetime.now()})
 
     def _check_open(self):
         for line in self:
             if line.campaign_id.state != "in_progress":
                 raise UserError(self.env._("The campaign is not in progress."))
 
+    def _check_corrector(self):
+        """BRU-FXA-15: a result set without a scan is a correction, never made
+        by the counter (the campaign's responsible)."""
+        for line in self:
+            if not self.env.su and self.env.user == line.campaign_id.responsible_id:
+                raise UserError(
+                    self.env._(
+                        "Segregation of duties: the counter of %s does not correct its "
+                        "results by hand; another accountant does.",
+                        line.campaign_id.name,
+                    )
+                )
+
     def action_mark_found(self):
         require_group(self.env, USER_GROUP, "Recording a verification result")
         self._check_open()
-        self.write({"result": "found", "scanned_at": fields.Datetime.now()})
+        self._check_corrector()
+        self._guarded().write(
+            {
+                "result": "found",
+                "scanned_at": fields.Datetime.now(),
+                "corrected_by_id": self.env.uid,
+            }
+        )
         return True
 
     def action_mark_missing(self):
         require_group(self.env, USER_GROUP, "Recording a verification result")
         self._check_open()
-        self.write({"result": "missing"})
+        self._check_corrector()
+        self._guarded().write({"result": "missing", "corrected_by_id": self.env.uid})
         return True

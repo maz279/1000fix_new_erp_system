@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_settlement_ext — A08 remediation (B4, M53-15, P1-6).
+     Payout runs, commission rows and seller statements were named
+     PAY/2026/New, COM/2026/New, STM/2026/New (no sequence existed); the seller
+     withholding certificate number was self-composed. Each now draws from its
+     sequence. The commission.earned consumer turns a commissioned M12 order
+     into its one ledger row (the event had no consumer). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_payout_run" model="ir.sequence">
+            <field name="name">Payout Run</field>
+            <field name="code">fix.payout.run</field>
+            <field name="prefix">PAY/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_commission_ledger" model="ir.sequence">
+            <field name="name">Commission Ledger Entry</field>
+            <field name="code">fix.commission.ledger</field>
+            <field name="prefix">COM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_seller_statement" model="ir.sequence">
+            <field name="name">Seller Settlement Statement</field>
+            <field name="code">fix.seller.statement</field>
+            <field name="prefix">STM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_seller_statement_tds_cert" model="ir.sequence">
+            <field name="name">Withholding Certificate (seller / partner statement)</field>
+            <field name="code">fix.seller.statement.tds_cert</field>
+            <field name="prefix">TDSC/%(year)s/</field>
+            <field name="padding">6</field>
+            <field name="implementation">no_gap</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_payout_reconciliation" model="ir.sequence">
+            <field name="name">Payout Reconciliation</field>
+            <field name="code">fix.payout.reconciliation</field>
+            <field name="prefix">REC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="consumer_commission_earned_marketplace" model="fix.event.consumer">
+            <field name="name">M53: commission row for a commissioned marketplace order</field>
+            <field name="event_type">commission.earned</field>
+            <field name="model">fix.commission.ledger</field>
+            <field name="method">consume_commission_earned</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+    </data>
+</odoo>

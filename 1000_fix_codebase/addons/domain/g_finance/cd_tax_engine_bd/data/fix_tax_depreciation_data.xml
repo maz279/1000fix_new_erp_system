@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A08 M49-8 / BRU-FXA-13: the tax depreciation rates (reducing balance on the
+  annual written-down value) of the Income Tax Act 2023 Third Schedule are M51
+  master data; M49 reads them and holds none of its own. Seeded from the
+  commonly cited ITO 1984 Third Schedule rates, UNVERIFIED against the primary
+  NBR text: every row is flagged verify-with-adviser, and the M49 tax book
+  refuses a flagged rate until the adviser's confirmation is recorded on it.
+-->
+<odoo noupdate="1">
+    <record id="tax_rate_dep_computer" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-COMPUTER</field>
+        <field name="name">Computer hardware</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">30</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default (secondary source): confirm with the tax adviser.</field>
+    </record>
+    <record id="tax_rate_dep_plant" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-PLANT</field>
+        <field name="name">Plant and machinery (general rate)</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">20</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default (secondary source): confirm with the tax adviser.</field>
+    </record>
+    <record id="tax_rate_dep_vehicle" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-VEHICLE</field>
+        <field name="name">Motor vehicles not plying for hire</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">20</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default (secondary source): confirm with the tax adviser (cost ceilings may apply).</field>
+    </record>
+    <record id="tax_rate_dep_furniture" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-FURNITURE</field>
+        <field name="name">Furniture and fittings</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">10</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default (secondary source): confirm with the tax adviser.</field>
+    </record>
+    <record id="tax_rate_dep_office" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-OFFICE</field>
+        <field name="name">Office equipment</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">10</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default (secondary source): confirm with the tax adviser.</field>
+    </record>
+    <record id="tax_rate_dep_building" model="fix.tax.rate">
+        <field name="company_id" eval="False"/>
+        <field name="tax_kind">depreciation</field>
+        <field name="code">ITA3-BUILDING</field>
+        <field name="name">Buildings (general): branch fit-out and leasehold improvements</field>
+        <field name="section">ITA 2023 Third Schedule</field>
+        <field name="rate">10</field>
+        <field name="non_filer_applies" eval="False"/>
+        <field name="date_from">2023-07-01</field>
+        <field name="source_note">Seeded default: the treatment of fit-out in rented premises must be confirmed by the tax adviser.</field>
+    </record>
+</odoo>

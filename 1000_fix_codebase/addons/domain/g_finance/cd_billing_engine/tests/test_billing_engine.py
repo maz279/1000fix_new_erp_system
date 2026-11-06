@@ -39,14 +39,13 @@ class TestAutoInvoice:
         assert "tax_logic.determine_tax" in source
 
     def test_atomic_mushak_write_in_same_method(self):
-        """P06-M02-T08: the Mushak register row is created inside the same
-        method (same transaction) as the invoice."""
-        source = inspect.getsource(
-            __import__(
-                "odoo.addons.cd_billing_engine.models.fix_billing_engine", fromlist=["FixArInvoice"]
-            ).FixArInvoice.from_closed_service_order
-        )
-        assert "fix.mushak.register" in source
+        """P06-M02-T08: the Mushak register row is written in the invoice's
+        transaction through M51's issuing service (A08: register rows are never
+        typed). The behaviour is proven live in test_billing_engine_orm
+        (test_closed_job_invoice_and_mushak_in_one_go); this pins the seam."""
+        from odoo.addons.cd_billing_engine.models import fix_billing_engine as fbe
+
+        assert callable(fbe._issue_mushak_row) and callable(fbe.m51_determine)
 
     def test_nfr040_timing_recorded(self):
         source = inspect.getsource(
@@ -112,10 +111,18 @@ class TestDunning:
 
 
 class TestCreditNote:
-    def test_threshold_is_25000(self):
-        from odoo.addons.cd_billing_engine.models.fix_billing_engine import FixCreditNote
+    def test_direct_band_is_the_05_04_finance_officer_limit(self):
+        """A08 S3 (rewritten: the old constant was the 25,000 base.group_system
+        threshold). 05-04 §7: credit note <= BDT 10,000 Finance Officer, above
+        it Finance Manager — a configurable band, never a self-approval."""
+        from odoo.addons.cd_billing_engine.models.fix_billing_engine import (
+            DEFAULT_DIRECT_LIMIT,
+            PARAM_CREDIT_DIRECT,
+            FixCreditNote,
+        )
 
-        assert FixCreditNote.APPROVAL_THRESHOLD == 25000  # 05-04 section 7
+        assert DEFAULT_DIRECT_LIMIT == 10000.0
+        assert FixCreditNote._fin_direct_param == PARAM_CREDIT_DIRECT
 
     def test_issue_requires_approval(self):
         source = inspect.getsource(

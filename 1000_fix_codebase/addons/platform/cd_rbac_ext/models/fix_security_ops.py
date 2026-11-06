@@ -72,6 +72,10 @@ class FixJmlEvent(models.Model):
             else:
                 if not rec.role_id or not rec.role_id.group_id:
                     raise UserError("Pick a role that is mapped to an Odoo group")
+                # SoD at grant (A12 R2, A08 S4): every held role and group x this role.
+                self.env["fix.access.request"]._fix_sod_check_grant(
+                    user, rec.role_id, "JML %s %s" % (rec.event_type, rec.name)
+                )
                 user.write({"group_ids": [(4, rec.role_id.group_id.id)]})
                 note = "%s granted (%s)" % (rec.role_id.code, rec.role_id.group_id.name)
             rec.write(
@@ -128,7 +132,35 @@ class FixAccessCertification(models.Model):
         for rec in self:
             if rec.decision != "pending":
                 raise UserError("This access line is already decided")
+            rec._fix_sod_refuse_keep()
             rec.write({"decision": "certified", "decided_on": fields.Datetime.now()})
+
+    def _fix_sod_refuse_keep(self):
+        """Certifying ("keep") a role the user holds in an unmitigated SoD conflict
+        is refused (A12 R2): revoke one side or obtain a time-boxed exception."""
+        self.ensure_one()
+        Sod = self.env["fix.sod.control"]
+        Mitigation = self.env["fix.sod.mitigation"].sudo()
+        role = self.role_id.sudo()
+        role_groups = role.group_id.all_implied_ids if role.group_id else role.group_id
+        index = Sod._fix_index()
+        pairs = dict(index["controls"])
+        offending = []
+        for control in Sod._fix_conflicts(user=self.user_id, index=index):
+            if control.conflict_action == "log":
+                continue
+            pair = pairs.get(control)
+            involved = role in (control.role_a_id | control.role_b_id) or bool(
+                pair and role_groups & (pair[0] | pair[1])
+            )
+            if involved and not Mitigation._fix_valid_for(control, self.user_id):
+                offending.append("%s (%s)" % (control.code, control.name))
+        if offending:
+            raise UserError(
+                "Cannot certify %s for %s: it is held in an unmitigated segregation-of-duties "
+                "conflict: %s. Revoke one side, or certify after a time-boxed SoD exception is "
+                "approved." % (role.code, self.user_id.login, "; ".join(offending))
+            )
 
     def action_revoke(self):
         """Removes the role's Odoo group from the user and records the decision."""

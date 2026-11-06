@@ -53,11 +53,105 @@
             <list string="SoD Controls">
                 <field name="code"/>
                 <field name="name"/>
-                <field name="role_a_id"/>
-                <field name="role_b_id"/>
+                <field name="control_type"/>
+                <field name="pair_label"/>
+                <field name="measurable"/>
                 <field name="conflict_action" widget="badge"/>
             </list>
         </field>
+    </record>
+
+    <record id="view_fix_sod_control_form" model="ir.ui.view">
+        <field name="name">fix.sod.control.form</field>
+        <field name="model">fix.sod.control</field>
+        <field name="arch" type="xml">
+            <form string="SoD Control">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="control_type"/>
+                            <field name="conflict_action"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="role_a_id" invisible="control_type != 'role'"/>
+                            <field name="role_b_id" invisible="control_type != 'role'"/>
+                            <field name="group_a_xmlid" invisible="control_type != 'group'"/>
+                            <field name="group_b_xmlid" invisible="control_type != 'group'"/>
+                            <field name="group_a_id" invisible="control_type != 'group'"/>
+                            <field name="group_b_id" invisible="control_type != 'group'"/>
+                            <field name="pair_label"/>
+                            <field name="measurable"/>
+                        </group>
+                    </group>
+                    <field name="rationale"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_sod_mitigation_tree" model="ir.ui.view">
+        <field name="name">fix.sod.mitigation.tree</field>
+        <field name="model">fix.sod.mitigation</field>
+        <field name="arch" type="xml">
+            <list string="SoD Exceptions">
+                <field name="name"/>
+                <field name="control_id"/>
+                <field name="user_id"/>
+                <field name="valid_from"/>
+                <field name="valid_until"/>
+                <field name="approved_by_id"/>
+                <field name="is_live"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_sod_mitigation_form" model="ir.ui.view">
+        <field name="name">fix.sod.mitigation.form</field>
+        <field name="model">fix.sod.mitigation</field>
+        <field name="arch" type="xml">
+            <form string="SoD Exception">
+                <header>
+                    <button name="action_approve" type="object" string="Approve" invisible="state != 'draft'"
+                            groups="cd_rbac_ext.group_fix_sod_exception_approver"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'draft'"
+                            groups="cd_rbac_ext.group_fix_sod_exception_approver"/>
+                    <button name="action_revoke" type="object" string="Revoke" invisible="state != 'approved'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="control_id" readonly="state != 'draft'"/>
+                            <field name="user_id" readonly="state != 'draft'"/>
+                            <field name="valid_from" readonly="state != 'draft'"/>
+                            <field name="valid_until" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="requested_by_id"/>
+                            <field name="approved_by_id"/>
+                            <field name="decided_on"/>
+                            <field name="is_live"/>
+                            <field name="company_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="mitigating_control" readonly="state != 'draft'"/>
+                        <field name="reason" readonly="state != 'draft'"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_sod_mitigation" model="ir.actions.act_window">
+        <field name="name">SoD Exceptions</field>
+        <field name="res_model">fix.sod.mitigation</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_role" model="ir.actions.act_window">
@@ -83,6 +177,8 @@
               action="action_fix_role" sequence="10"/>
     <menuitem id="menu_fix_sod" name="SoD Controls" parent="menu_fix_security_root"
               action="action_fix_sod" sequence="20"/>
+    <menuitem id="menu_fix_sod_mitigation" name="SoD Exceptions" parent="menu_fix_security_root"
+              action="action_fix_sod_mitigation" sequence="25"/>
     <menuitem id="menu_fix_isolation_tier" name="Isolation Tiers" parent="menu_fix_security_root"
               action="action_fix_isolation_tier" sequence="30"/>
 </odoo>

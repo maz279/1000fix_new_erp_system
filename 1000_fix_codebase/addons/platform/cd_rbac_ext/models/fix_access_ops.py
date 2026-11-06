@@ -98,8 +98,19 @@ class FixAccessRequest(models.Model):
                 rec.user_id.write({"group_ids": [(3, group.id)]})
                 rec.state = "revoked"
             else:
+                # SoD at grant (A12 R2, A08 S4): every held role and group x this role.
+                rec._fix_sod_check_grant(rec.user_id, rec.role_id, "access request %s" % rec.name)
                 rec.user_id.write({"group_ids": [(4, group.id)]})
                 rec.state = "granted"
+
+    @api.model
+    def _fix_sod_check_grant(self, user, role, path):
+        """Refuse a grant that creates an unmitigated SoD conflict, whoever calls it."""
+        Sod = self.env["fix.sod.control"]
+        index = Sod._fix_index()
+        before = Sod._fix_conflicts(user=user, index=index)
+        after = Sod._fix_conflicts(user=user, extra_roles=role, index=index)
+        Sod._fix_enforce(user, before, after, path, strict=True)
 
 
 class FixSodTest(models.Model):
@@ -134,18 +145,21 @@ class FixSodTest(models.Model):
         """Measures the conflict for real: users holding BOTH roles' groups."""
         for rec in self:
             control = rec.control_id
-            group_a, group_b = control.role_a_id.group_id, control.role_b_id.group_id
-            if not (group_a and group_b):
+            pair = control._fix_pair_groups()
+            if not pair:
                 raise UserError(
-                    "Both roles on %s need an Odoo group before the test can run" % control.code
+                    "%s cannot be measured by group membership: both sides need a distinct, "
+                    "installed Odoo group that no other role shares (%s)"
+                    % (control.code, control.pair_label)
                 )
+            group_a, group_b = pair
             offenders = (
                 self.env["res.users"]
                 .sudo()
                 .search(
                     [
-                        ("group_ids", "in", group_a.id),
-                        ("group_ids", "in", group_b.id),
+                        ("all_group_ids", "in", group_a.id),
+                        ("all_group_ids", "in", group_b.id),
                         ("active", "=", True),
                     ]
                 )
@@ -154,7 +168,7 @@ class FixSodTest(models.Model):
                 {
                     "users_checked": self.env["res.users"]
                     .sudo()
-                    .search_count([("active", "=", True)]),
+                    .search_count([("active", "=", True), ("share", "=", False)]),
                     "violations_found": len(offenders),
                     "users_in_conflict": ", ".join(offenders.mapped("login"))[:250] or "—",
                     "result": "fail" if offenders else "pass",

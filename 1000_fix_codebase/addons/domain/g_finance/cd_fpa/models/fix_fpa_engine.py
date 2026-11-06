@@ -422,15 +422,43 @@ class FixFpaEngine(models.AbstractModel):
 
     # ------------------------------------------------------------- budgets
 
+    @staticmethod
+    def clip(line, date_from=None, date_to=None):
+        """(from, to) of the line's window inside the report window, or None."""
+        start = max(line.date_from, date_from) if date_from else line.date_from
+        end = min(line.date_to, date_to) if date_to else line.date_to
+        return (start, end) if start <= end else None
+
     @api.model
-    def line_actuals(self, budget_lines):
+    def planned_in_window(self, line, date_from=None, date_to=None):
+        """The part of a line's plan that falls in the report window, pro rata
+        to days (A08 M54-6: a September report used to compare the full-year
+        plan with August+September actuals)."""
+        window = self.clip(line, date_from, date_to)
+        if not window:
+            return 0.0
+        total_days = (line.date_to - line.date_from).days + 1
+        days = (window[1] - window[0]).days + 1
+        if days >= total_days:
+            return line.planned_amount
+        return round(line.planned_amount * days / total_days, 2)
+
+    @api.model
+    def line_actuals(self, budget_lines, date_from=None, date_to=None):
         """{budget line id: actual} from posted GL items matching the line's
-        account, window and dimension filters. Revenue lines are positive
+        account, window and dimension filters — the line's window clipped to
+        the report window when one is given. Revenue lines are positive
         credits, cost/capital lines positive debits."""
         if not budget_lines:
             return {}
         d_from = min(budget_lines.mapped("date_from"))
         d_to = max(budget_lines.mapped("date_to"))
+        if date_from:
+            d_from = max(d_from, date_from)
+        if date_to:
+            d_to = min(d_to, date_to)
+        if d_from > d_to:
+            return {bl.id: 0.0 for bl in budget_lines}
         gl = self.gl_lines(d_from, d_to, account_ids=budget_lines.account_id.ids)
         by_account = defaultdict(list)
         for ln in gl:
@@ -438,8 +466,12 @@ class FixFpaEngine(models.AbstractModel):
         out = {}
         for bl in budget_lines:
             total = 0.0
+            window = self.clip(bl, date_from, date_to)
+            if not window:
+                out[bl.id] = 0.0
+                continue
             for ln in by_account.get(bl.account_id.id, []):
-                if not (bl.date_from <= ln["date"] <= bl.date_to):
+                if not (window[0] <= ln["date"] <= window[1]):
                     continue
                 if bl.branch_id and ln["branch_id"] != bl.branch_id.id:
                     continue

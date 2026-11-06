@@ -65,7 +65,7 @@ def liquid_position(env, company, as_of=None):
     )
     pending = sum(
         env["fix.payment.execution"]
-        .search([("company_id", "=", company.id), ("state", "in", ("pending", "sent"))])
+        .search([("company_id", "=", company.id), ("state", "in", ("pending", "prepared", "sent"))])
         .mapped("amount")
     )
     return _r(bank_gl), _r(drawers), _r(petty), _r(cit), _r(pending)
@@ -628,7 +628,7 @@ def cash_forecast(env, date_from=None, date_to=None, weeks=13, trailing=4, **_kw
     for due, open_amt, total in ap:
         add(due, "ap_out", open_amt, total)
     for pay in env["fix.payment.execution"].search(
-        [("company_id", "=", company.id), ("state", "in", ("pending", "sent"))]
+        [("company_id", "=", company.id), ("state", "in", ("pending", "prepared", "sent"))]
     ):
         add(pay.value_date or today, "payments_out", pay.amount, pay.amount)
     if _has(env, "fix.payout.run"):

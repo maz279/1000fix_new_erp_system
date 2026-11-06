@@ -117,13 +117,16 @@
         <field name="arch" type="xml">
             <form string="Payout Run">
                 <header>
-                    <button name="action_approve" string="Approve (SoD Sign-off)" type="object" class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_submit_payout" string="Disburse via API Rail" type="object" class="btn-success" invisible="state != 'approved'"/>
-                    <button name="action_query_status" string="Query Status (Read-back)" type="object" class="btn-warning" invisible="rail_status not in ('unknown', 'pending_bank_confirmation')"/>
-                    <button name="action_generate_beftn" string="Generate BEFTN Batch (Fallback)" type="object" class="btn-secondary" invisible="state not in ('approved', 'executing')"/>
-                    <!-- Confirmation needs the bank's settlement reference entered first (the action refuses without it). -->
-                    <button name="action_confirm_bank_settlement" string="Confirm Bank Settlement" type="object" class="btn-primary" invisible="state not in ('executing', 'file_generated')" groups="account.group_account_manager"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,executing,file_generated,executed"/>
+                    <!-- A08 F2: prepare (frozen, routed to M63) -> approved from the
+                         Accounting Administrator's inbox -> released to treasury as M50
+                         payment instructions -> executed on the bank statement. -->
+                    <!-- kept as the anchor of inheriting views; approval is decided from the M63 inbox -->
+                    <button name="action_approve" string="Approve" type="object" invisible="1"/>
+                    <button name="action_prepare" string="Prepare &amp; Request Approval" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_request_payments" string="Release to Treasury (M50)" type="object" class="btn-success" invisible="state != 'approved'"/>
+                    <button name="action_query_status" string="Refresh Payment Status" type="object" class="btn-secondary" invisible="state != 'executing'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state not in ('draft', 'prepared', 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,prepared,approved,executing,executed"/>
                 </header>
                 <sheet>
                     <div class="alert alert-success" role="status" invisible="not sod_verified">

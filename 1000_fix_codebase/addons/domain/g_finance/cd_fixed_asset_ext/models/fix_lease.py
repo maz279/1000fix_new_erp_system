@@ -15,6 +15,7 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_asset_common import (
     USER_GROUP,
     add_months,
+    assert_period_open,
     money,
     month_end,
     month_start,
@@ -68,7 +69,7 @@ def lease_schedule(
 class FixLease(models.Model):
     _name = "fix.lease"
     _description = "Lease Contract (IFRS 16)"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "commencement_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -143,6 +144,60 @@ class FixLease(models.Model):
     schedule_line_ids = fields.One2many("fix.lease.schedule.line", "lease_id", string="Schedule")
     liability_balance = fields.Monetary(string="Liability Balance", compute="_compute_balances")
     interest_to_date = fields.Monetary(string="Interest to Date", compute="_compute_balances")
+
+    # A08 M49-4 (probe 62): rent and IBR were changed after recognition with no
+    # remeasurement (IFRS 16.39). Once recognised, the terms are frozen; a
+    # modification is a remeasurement document (not built: refused, not lost).
+    _TERMS = frozenset(
+        {
+            "commencement_date",
+            "term_months",
+            "payment_amount",
+            "payment_timing",
+            "ibr_percent",
+            "prepaid_payments",
+            "initial_direct_costs",
+            "exemption",
+            "category_id",
+            "liability_account_id",
+            "interest_account_id",
+            "payment_account_id",
+            "company_id",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # M49-1 (probe 60): 'active' was written with no liability, ROU or JE
+        return super()._fix_guarded_fields() | {
+            "state",
+            "initial_liability",
+            "rou_amount",
+            "asset_id",
+            "move_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= set(self._TERMS)
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open() and set(vals) & self._TERMS:
+            done = self.filtered(lambda r: r.state != "draft")
+            if any(
+                r._fix_guard_differs(n, vals[n], r[n])
+                for r in done
+                for n in set(vals) & self._TERMS
+            ):
+                raise UserError(
+                    self.env._(
+                        "%s is recognised: its terms are frozen (IFRS 16.39 — a change is a "
+                        "remeasurement, not an edit).",
+                        done[:1].name,
+                    )
+                )
+        return super().write(vals)
 
     @api.depends("commencement_date", "term_months")
     def _compute_end_date(self):
@@ -241,7 +296,10 @@ class FixLease(models.Model):
                         depreciation=dep,
                     )
                 )
-            self.env["fix.lease.schedule.line"].create(vals)
+            assert_period_open(
+                self.env, rec.company_id, rec.commencement_date, "IFRS 16 recognition"
+            )
+            self.env["fix.lease.schedule.line"].sudo().create(vals)
             lines = [
                 (rec.category_id.asset_account_id, rou, 0.0, rec.name),
                 (rec.liability_account_id, 0.0, liability, rec.name),
@@ -254,22 +312,27 @@ class FixLease(models.Model):
                 rec.commencement_date,
                 "IFRS 16 recognition: %s" % rec.name,
                 lines,
+                rec.operating_unit_id,
             )
-            asset = self.env["fix.fixed.asset"].create(
-                {
-                    "company_id": rec.company_id.id,
-                    "operating_unit_id": rec.operating_unit_id.id,
-                    "name": "ROU — %s" % rec.name,
-                    "category_id": rec.category_id.id,
-                    "gross": rou,
-                    "salvage": 0.0,
-                    "life_months": rec.term_months,
-                    "purchase_date": rec.commencement_date,
-                    "lease_id": rec.id,
-                    "state": "active",
-                }
+            asset = (
+                self.env["fix.fixed.asset"]
+                ._guarded()
+                .create(
+                    {
+                        "company_id": rec.company_id.id,
+                        "operating_unit_id": rec.operating_unit_id.id,
+                        "name": "ROU — %s" % rec.name,
+                        "category_id": rec.category_id.id,
+                        "gross": rou,
+                        "salvage": 0.0,
+                        "life_months": rec.term_months,
+                        "purchase_date": rec.commencement_date,
+                        "lease_id": rec.id,
+                    }
+                )
             )
-            rec.write(
+            asset._fix_activate_from_source(move)
+            rec._guarded().write(
                 {
                     "state": "active",
                     "initial_liability": liability,
@@ -298,7 +361,7 @@ class FixLease(models.Model):
 class FixLeaseScheduleLine(models.Model):
     _name = "fix.lease.schedule.line"
     _description = "Lease Schedule Line"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "lease_id, sequence"
 
     lease_id = fields.Many2one(
@@ -325,6 +388,24 @@ class FixLeaseScheduleLine(models.Model):
     _lease_sequence_uniq = models.Constraint(
         "UNIQUE (lease_id, sequence)", "One schedule line per lease month."
     )
+
+    def _fix_guarded_fields(self) -> set:
+        # the schedule is computed at recognition; its figures and posting
+        # state move only by its actions
+        return super()._fix_guarded_fields() | {
+            n
+            for n, f in self._fields.items()
+            if f.store
+            and n not in ("id", "create_uid", "create_date", "write_uid", "write_date")
+            and not n.startswith(("message_", "activity_"))
+            and f.type not in ("one2many", "many2many")
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError(self.env._("The lease schedule is built at commencement."))
+        return super().create(vals_list)
 
     def action_post(self):
         """Post the month: interest accretion and the rent payment on the
@@ -357,7 +438,7 @@ class FixLeaseScheduleLine(models.Model):
                     (lease.payment_account_id, 0.0, line.payment, label),
                 ],
             )
-            line.write({"state": "posted", "move_id": move.id})
+            line._guarded().write({"state": "posted", "move_id": move.id})
             asset = lease.asset_id
             if asset and asset.state == "active":
                 charged = asset.depreciation_line_ids.filtered(
@@ -368,5 +449,5 @@ class FixLeaseScheduleLine(models.Model):
                         asset, line.period_start, "book"
                     )
             if all(ln.state == "posted" for ln in lease.schedule_line_ids):
-                lease.state = "ended"
+                lease._guarded().write({"state": "ended"})
         return True
