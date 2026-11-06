@@ -20,10 +20,11 @@ export const MODULE = {
   desc: 'Data recovery case management, sealed media custody, secure destruction with certificates, backup plans.',
   kpis: [
     { l: 'Active Cases', m: 'active_cases' },
-    { l: 'Recovery Success', m: 'recovery_success' },
+    /* M06 sweep audit 2026-11-06 (D2): rates and durations carry units. */
+    { l: 'Recovery Success', m: 'recovery_success', suffix: '%' },
     { l: 'Cleanroom Slots', m: 'cleanroom_slots' },
     { l: 'Destruction Certs MTD', m: 'destruction_certs_mtd' },
-    { l: 'Eval Turnaround', m: 'eval_turnaround' },
+    { l: 'Eval Turnaround', m: 'eval_turnaround', suffix: 'h' },
     { l: 'Purge Verifications', m: 'purge_verifications' }
   ],
   groups: [

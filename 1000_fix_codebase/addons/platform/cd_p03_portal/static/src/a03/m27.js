@@ -128,7 +128,9 @@ export const SCREENS = {
       { m: 'action_create_field_work_order', l: 'Dispatch Emergency Field Order' },
       { m: 'action_create_complaint', l: 'Create Complaint' }
     ] },
-  'M27-desktop': { kind: 'table_report', module: 'M27', report: 'queue_live', title: 'Agent Desktop Preview', period: false },
+  /* M27 sweep audit 2026-11-06 (D17): the agent-desktop screen gets its own
+   * per-agent pack - it previously borrowed the queue board's metrics. */
+  'M27-desktop': { kind: 'table_report', module: 'M27', report: 'agent_desktop', title: 'Agent Desktop Preview', period: false },
   'M27-states': { kind: 'table_report', module: 'M27', report: 'agent_states', title: 'Agent States & Wrap-Up', period: false },
   'M27-digital': { kind: 'table_report', module: 'M27', report: 'digital_summary', title: 'WhatsApp / Chat / Email / Social', period: true },
 

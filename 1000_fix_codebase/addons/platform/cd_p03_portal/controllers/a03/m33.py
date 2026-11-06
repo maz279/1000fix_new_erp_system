@@ -449,13 +449,27 @@ def kpis(env):
             ]
         ),
     )
-    total_parties = Partner.search_count(
-        ["|", ("customer_rank", ">", 0), ("role_ids", "!=", False)]
+    total_parties = Partner.search_count([])
+    # M33 sweep audit 2026-11-06: the duplicate RATE is the share of PARTIES
+    # sitting in an open candidate pair — never candidate PAIRS over a
+    # customer-role subset (that mix printed 2,17,271.8% on seed data).
+    # Distinct-party count via SQL: the candidate table is six figures.
+    env.cr.execute(
+        """
+        SELECT COUNT(DISTINCT p) FROM (
+            SELECT party_a AS p FROM fix_party_duplicate
+            WHERE state IN ('new', 'reviewed', 'confirmed')
+            UNION
+            SELECT party_b FROM fix_party_duplicate
+            WHERE state IN ('new', 'reviewed', 'confirmed')
+        ) x
+        """
     )
-    open_dups = env["fix.party.duplicate"].search_count(
-        [("state", "in", ("new", "reviewed", "confirmed"))]
+    dup_parties = env.cr.fetchone()[0] or 0
+    safe(
+        "duplicate_rate",
+        lambda: _r(100.0 * dup_parties / total_parties) if total_parties else 0.0,
     )
-    safe("duplicate_rate", lambda: _r(100.0 * open_dups / total_parties) if total_parties else 0.0)
     governed = env["fix.party.role"].search([]).mapped("partner_id")
     scored = env["fix.party.quality"].search([]).mapped("partner_id")
     safe(

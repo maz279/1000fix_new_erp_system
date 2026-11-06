@@ -24,7 +24,7 @@ export const MODULE = {
     ]},
     { en: 'Complaints', screens: [
       { id: 'M34-complaints', en: 'Complaints', bn: 'অভিযোগ', t: 'g' },
-      { id: 'M34-form-complaint', en: 'Complaint Record', bn: 'অভিযোগ রেকর্ড', t: 'f' },
+      { id: 'M34-record', en: 'Complaint Record', bn: 'অভিযোগ রেকর্ড', t: 'f' },
       { id: 'M34-escalation', en: 'Severity & Escalation', bn: 'তীব্রতা ও এসক্যালেশন', t: 'g' },
       { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'g' }
     ]},
@@ -168,7 +168,9 @@ export const SCREENS = {
     ]
   },
 
-  'M34-form-complaint': { kind: 'model_form', model: 'fix.complaint',
+  /* M34 sweep audit 2026-11-06: the registry id for the complaint record
+     * form is M34-record - restored (was renamed in the fragment). */
+  'M34-record': { kind: 'model_form', model: 'fix.complaint',
     title: 'ISO 10002 Customer Complaint & Escalation Master', back: 'M34-complaints',
     status: { field: 'state' },
     tabs: [
@@ -514,13 +516,13 @@ export const FORM_MODELS = {
 export const FORM_CHIPS = {
   'M34:Survey Instrument': 'M34-form-survey-template',
   'M34:Survey': 'M34-form-survey',
-  'M34:Complaint': 'M34-form-complaint',
+  'M34:Complaint': 'M34-record',
   'M34:Goodwill Credit': 'M34-form-goodwill',
   'M34:Detractor Follow-up': 'M34-form-followup',
   'M34:__by_model__': {
     'fix.survey.template': 'M34-form-survey-template',
     'fix.survey': 'M34-form-survey',
-    'fix.complaint': 'M34-form-complaint',
+    'fix.complaint': 'M34-record',
     'fix.credit.note': 'M34-form-goodwill',
     'fix.cx.followup': 'M34-form-followup',
     'fix.cx.throttle': 'M34-form-throttle',
@@ -529,8 +531,8 @@ export const FORM_CHIPS = {
   'M34:__by_screen__': {
     'M34-survey-templates': 'M34-form-survey-template',
     'M34-responses': 'M34-form-survey',
-    'M34-complaints': 'M34-form-complaint',
-    'M34-form-complaint': 'M34-form-complaint',
+    'M34-complaints': 'M34-record',
+    'M34-record': 'M34-record',
     'M34-detractor': 'M34-form-followup',
     'M34-throttle': 'M34-form-throttle',
     'M34-reviews': 'M34-form-review'
@@ -538,5 +540,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M34: { screen: 'M34-form-complaint', model: 'fix.complaint', label: 'Complaint' }
+  M34: { screen: 'M34-record', model: 'fix.complaint', label: 'Complaint' }
 };

@@ -641,9 +641,14 @@ def kpis(env):
     decided = len(renewals.filtered(lambda r: r.state in ("won", "lost")))
     credit_by_contract = {}
     for credit in credits:
-        credit_by_contract[credit.contract_id.id] = credit_by_contract.get(
-            credit.contract_id.id, 0.0
-        ) + (credit.credit_amount or 0.0)
+        # M08 sweep audit 2026-11-06: SLA credits hang off the MSP contract
+        # (credit.msp_contract_id); its contract_id is the AMC link. The old
+        # credit.contract_id read crashed the whole KPI route.
+        amc = credit.msp_contract_id.contract_id
+        if amc:
+            credit_by_contract[amc.id] = credit_by_contract.get(amc.id, 0.0) + (
+                credit.credit_amount or 0.0
+            )
     negative = len(
         active.filtered(lambda c: (c.annual_value or 0.0) - credit_by_contract.get(c.id, 0.0) < 0)
     )

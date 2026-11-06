@@ -26,7 +26,7 @@ export const MODULE = {
     ]},
     { en: 'Brand Claims', screens: [
       { id: 'M09-claims', en: 'Brand Claims', bn: 'ব্র্যান্ড দাবি', t: 'g' },
-      { id: 'M09-form-claim', en: 'Claim Record', bn: 'দাবি রেকর্ড', t: 'f' },
+      { id: 'M09-record', en: 'Claim Record', bn: 'দাবি রেকর্ড', t: 'f' },
       { id: 'M09-evidence', en: 'Evidence Assembly', bn: 'প্রমাণ', t: 'c' },
       { id: 'M09-brandrules', en: 'Brand Rules & Formats', bn: 'ব্র্যান্ড নিয়ম', t: 'g' },
       { id: 'M09-recon', en: 'Brand Reconciliation', bn: 'ব্র্যান্ড মিলকরণ', t: 'c' },
@@ -153,7 +153,7 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Keyed Decision', states: ['submitted', 'in_review'] },
       { m: 'action_close', l: 'Close Claim', states: ['remitted', 'rejected'] }
     ] },
-  'M09-form-claim': {
+  'M09-record': {
 
     lines: {
 
@@ -566,7 +566,7 @@ export const FORM_CHIPS = {
   'M09:Warranty Evidence': 'M09-form-wevidence',
   'M09:Warranty Product': 'M09-form-wproduct',
   'M09:Warranty Reserve': 'M09-form-wprov',
-  'M09:Brand Claim': 'M09-form-claim',
+  'M09:Brand Claim': 'M09-record',
   'M09:Protection Policy': 'M09-form-policy',
   'M09:Claim Appeal': 'M09-form-appeal',
   'M09:Recall Campaign': 'M09-form-recall',
@@ -575,7 +575,7 @@ export const FORM_CHIPS = {
     'fix.warranty.evidence': 'M09-form-wevidence',
     'fix.warranty.product': 'M09-form-wproduct',
     'fix.warranty.provision': 'M09-form-wprov',
-    'fix.warranty.claim': 'M09-form-claim',
+    'fix.warranty.claim': 'M09-record',
     'fix.warranty.provision.policy': 'M09-form-policy',
     'fix.claim.appeal': 'M09-form-appeal',
     'fix.warranty.recall': 'M09-form-recall',
@@ -586,7 +586,7 @@ export const FORM_CHIPS = {
     'M09-evidence': 'M09-form-wevidence',
     'M09-protection': 'M09-form-warranty',
     'M09-reserves': 'M09-form-wprov',
-    'M09-claims': 'M09-form-claim',
+    'M09-claims': 'M09-record',
     'M09-policies': 'M09-form-policy',
     'M09-recalls': 'M09-form-recall',
     'M09-transfer': 'M09-form-transfer',
@@ -595,5 +595,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M09: { screen: 'M09-form-claim', model: 'fix.warranty.claim', label: 'Brand Claim' }
+  M09: { screen: 'M09-record', model: 'fix.warranty.claim', label: 'Brand Claim' }
 };

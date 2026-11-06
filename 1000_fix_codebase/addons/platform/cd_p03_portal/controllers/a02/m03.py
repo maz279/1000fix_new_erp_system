@@ -337,6 +337,166 @@ def _damage_claims_report(env, **params):
     }
 
 
+def _zone_charges_report(env, **params):
+    """Distance & Zone Charging: the freight leg's own charging basis —
+    origin branch → destination branch with weight and the money columns
+    (M03 sweep audit 2026-11-06: the screen previously borrowed the courier
+    report; this is the consignment's own charge register)."""
+    Cons = _cons(env)
+    groups = {}
+    for c in Cons.search([], limit=400):
+        key = (
+            c.origin_branch_id.name or "—",
+            c.dest_branch_id.name or "—",
+        )
+        row = groups.setdefault(
+            key,
+            {
+                "consignments": 0,
+                "chargeable_kg": 0.0,
+                "base_freight": 0.0,
+                "surcharge": 0.0,
+                "insurance": 0.0,
+            },
+        )
+        row["consignments"] += 1
+        row["chargeable_kg"] += c.chargeable_weight_kg or 0.0
+        row["base_freight"] += c.base_freight_bdt or 0.0
+        row["surcharge"] += c.volumetric_surcharge_bdt or 0.0
+        row["insurance"] += c.insurance_fee_bdt or 0.0
+    rows = [
+        {
+            "origin": origin,
+            "destination": destination,
+            "consignments": v["consignments"],
+            "chargeable_kg": round(v["chargeable_kg"], 2) or None,
+            "base_freight": round(v["base_freight"], 2) or None,
+            "surcharge": round(v["surcharge"], 2) or None,
+            "insurance": round(v["insurance"], 2) or None,
+            "total": round(v["base_freight"] + v["surcharge"] + v["insurance"], 2) or None,
+        }
+        for (origin, destination), v in sorted(groups.items())
+    ]
+    return {
+        "title": "Distance & Zone Charging",
+        "cols": [
+            "origin",
+            "destination",
+            "consignments",
+            "chargeable_kg",
+            "base_freight",
+            "surcharge",
+            "insurance",
+            "total",
+        ],
+        "labels": {
+            "origin": "Origin Branch",
+            "destination": "Destination Branch",
+            "consignments": "Consignments",
+            "chargeable_kg": "Chargeable (kg)",
+            "base_freight": "Base Freight (৳)",
+            "surcharge": "Volumetric Surcharge (৳)",
+            "insurance": "Insurance (৳)",
+            "total": "Total (৳)",
+        },
+        "rows": rows,
+        "notes": [
+            "Own-fleet legs only — courier bookings carry their own charges. "
+            "Charge basis: chargeable weight × route, exactly as invoiced per leg."
+        ],
+    }
+
+
+def _manifest_register_report(env, **params):
+    """Item Manifests: the dispatch manifest per consignment — packaging,
+    security bag, seals, weights and declared value (M03 sweep audit
+    2026-11-06: the screen previously borrowed the cycle-time report)."""
+    Cons = _cons(env)
+    type_labels = dict(Cons._fields["consignment_type"].selection)
+    state_labels = dict(Cons._fields["state"].selection)
+    pkg_labels = dict(Cons._fields["packaging_type"].selection)
+    rows = []
+    for c in Cons.search([], order="scheduled_date desc, id desc", limit=200):
+        rows.append(
+            {
+                "name": c.name,
+                "type": type_labels.get(c.consignment_type, c.consignment_type),
+                "state": state_labels.get(c.state, c.state),
+                "packaging": pkg_labels.get(c.packaging_type, c.packaging_type or "—"),
+                "bag": c.security_bag_barcode or "—",
+                "seal": c.outbound_seal_number or "—",
+                "chargeable_kg": c.chargeable_weight_kg or None,
+                "declared": c.declared_value_bdt or None,
+            }
+        )
+    return {
+        "title": "Item Manifests",
+        "cols": ["name", "type", "state", "packaging", "bag", "seal", "chargeable_kg", "declared"],
+        "labels": {
+            "name": "Consignment No.",
+            "type": "Type",
+            "state": "State",
+            "packaging": "Packaging",
+            "bag": "Security Bag",
+            "seal": "Outbound Seal",
+            "chargeable_kg": "Chargeable (kg)",
+            "declared": "Declared Value (৳)",
+        },
+        "rows": rows,
+        "notes": [
+            "The physical dispatch manifest fields each consignment carries; "
+            "weights reconcile at hub intake (variance is flagged on the leg)."
+        ],
+    }
+
+
+def _rider_day_report(env, **params):
+    """Rider App (P09) Preview: the rider's own day — jobs per rider per
+    scheduled date with live state mix (M03 sweep audit 2026-11-06: the
+    screen previously borrowed the cycle-time report)."""
+    Cons = _cons(env)
+    groups = {}
+    for c in Cons.search([("rider_id", "!=", False)], limit=400):
+        stamp = c.scheduled_date or c.create_date
+        day = stamp.date() if hasattr(stamp, "date") else stamp
+        key = (c.rider_id.name, day)
+        row = groups.setdefault(key, {"jobs": 0, "transit": 0, "delivered": 0, "kg": 0.0})
+        row["jobs"] += 1
+        if c.state in ("out_for_delivery", "in_transit"):
+            row["transit"] += 1
+        elif c.state in ("delivered", "returned"):
+            row["delivered"] += 1
+        row["kg"] += c.chargeable_weight_kg or 0.0
+    rows = [
+        {
+            "rider": rider,
+            "day": str(day),
+            "jobs": v["jobs"],
+            "in_progress": v["transit"] or None,
+            "completed": v["delivered"] or None,
+            "chargeable_kg": round(v["kg"], 2) or None,
+        }
+        for (rider, day), v in sorted(groups.items(), key=lambda kv: (kv[0][1], kv[0][0]))
+    ]
+    return {
+        "title": "Rider App (P09) Preview",
+        "cols": ["rider", "day", "jobs", "in_progress", "completed", "chargeable_kg"],
+        "labels": {
+            "rider": "Rider",
+            "day": "Day",
+            "jobs": "Jobs",
+            "in_progress": "Out / In Transit",
+            "completed": "Delivered / Returned",
+            "chargeable_kg": "Chargeable (kg)",
+        },
+        "rows": rows,
+        "notes": [
+            "What P09 shows the rider at day start: assigned legs by date with "
+            "live state mix and carried weight."
+        ],
+    }
+
+
 REPORTS = {
     "cycle_time": _cycle_time_report,
     "custody_exceptions": _custody_exception_report,
@@ -344,6 +504,11 @@ REPORTS = {
     "cod_settlement": _cod_settlement_report,
     "reverse_volume": _reverse_volume_report,
     "damage_claims": _damage_claims_report,
+    # M03 sweep audit 2026-11-06: the three screens that borrowed the nearest
+    # report now have their own computed packs (D14/D17 variant fix).
+    "zone_charges": _zone_charges_report,
+    "manifest_register": _manifest_register_report,
+    "rider_day": _rider_day_report,
 }
 
 

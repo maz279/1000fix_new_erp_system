@@ -133,7 +133,9 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
-  'M04-checklists': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
+  /* M04 sweep audit 2026-11-06: the checklist screen gets its own pack —
+   * it previously duplicated the branch league table verbatim. */
+  'M04-checklists': { kind: 'table_report', module: 'M04', report: 'shift_checklists', title: 'Open/Close Checklists', period: false },
   'M04-dashboard': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
   'M04-receipts': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'customer_id', 'product_id', 'total', 'payment_method', 'state'],
