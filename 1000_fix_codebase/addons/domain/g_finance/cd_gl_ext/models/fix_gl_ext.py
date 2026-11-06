@@ -977,6 +977,58 @@ def _chart_map_for_company(env, company_id):
     return {c.odoo_account_id.id: c for c in chart}
 
 
+def _default_dimension(env, company, dimension):
+    """The configured sub-ledger default for one MD-035 dimension, or False."""
+    icp = env["ir.config_parameter"].sudo()
+    if dimension == "branch":
+        code = icp.get_param("cd_gl_ext.default_branch_code")
+        if not code or "fix.branch" not in env:
+            return False
+        return (
+            env["fix.branch"]
+            .sudo()
+            .search([("code", "=", code), ("company_id", "in", (company.id, False))], limit=1)
+            .id
+            or False
+        )
+    return icp.get_param("cd_gl_ext.default_%s" % dimension) or False
+
+
+def _fill_subledger_dimensions(env, move, dimension_by_line, source):
+    """MD-035 requires a branch or cost centre on bank, VAT, TDS and other
+    accounts. A person posting a manual journal states them, but the automated
+    sub-ledgers (AP, treasury, tax, settlements) have no one to ask: a payment
+    from the head-office bank belongs to no service branch. Without this every
+    such posting was refused once the chart was linked, so no bill could be paid.
+
+    So a sub-ledger line takes the company default for a dimension the chart
+    requires and the caller did not give. Manual and API journals never do, and
+    with no default configured the COA-03 refusal stands. Returns the filled map."""
+    if source in MANUAL_POSTING_SOURCES or source == "api":
+        return dimension_by_line
+    chart_map = _chart_map_for_company(env, move.company_id.id)
+    if not chart_map:
+        return dimension_by_line
+    filled = dict(dimension_by_line or {})
+    for idx, line in enumerate(move.line_ids):
+        chart_account = chart_map.get(line.account_id.id)
+        if not chart_account:
+            continue
+        dims = dict(filled.get(idx) or {})
+        changed = False
+        for dimension in _split_dims(chart_account.requires_dimension):
+            key = "branch_id" if dimension == "branch" else dimension
+            if dims.get(key) or dims.get(dimension):
+                continue
+            value = _default_dimension(env, move.company_id, dimension)
+            if value:
+                dims[key] = value
+                changed = True
+        if changed:
+            filled[idx] = dims
+    return filled
+
+
 def _validate_move_against_chart(env, move, dimension_by_line, source):
     """FR-FIN-011: enforce the MD-035 posting rules on every line whose
     Odoo account is linked to the statutory chart — COA-01 (postable leaf),
@@ -1150,9 +1202,10 @@ def post_with_dimensions(
             "posted by its approver; it cannot be posted directly (BRU-FIN-11)."
         )
     move = env["account.move"].create(move_vals)
-    _validate_move_against_chart(env, move, dimension_by_line or {}, source)
+    dimension_by_line = _fill_subledger_dimensions(env, move, dimension_by_line or {}, source)
+    _validate_move_against_chart(env, move, dimension_by_line, source)
     _m19_post(env, move, source)
-    dimensions = _attach_dimensions(env, move, dimension_by_line or {})
+    dimensions = _attach_dimensions(env, move, dimension_by_line)
     _publish_posted(env, move, source)
     _log_posting(
         env,
@@ -1177,10 +1230,11 @@ def post_existing_moves(env, moves, source="api", source_ref=None, dimension_by_
     for move in moves.with_env(env):
         if move.state != "draft":
             raise UserError("%s is not a draft entry." % move.display_name)
-        _validate_move_against_chart(env, move, dimension_by_line or {}, source)
+        line_dims = _fill_subledger_dimensions(env, move, dimension_by_line or {}, source)
+        _validate_move_against_chart(env, move, line_dims, source)
         _m19_post(env, move, source)
-        if dimension_by_line:
-            _attach_dimensions(env, move, dimension_by_line)
+        if line_dims:
+            _attach_dimensions(env, move, line_dims)
         _publish_posted(env, move, source)
         _log_posting(env, move, source, getattr(env, "uid", None), None, source_ref=source_ref)
     return moves

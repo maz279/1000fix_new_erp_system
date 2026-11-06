@@ -95,7 +95,7 @@ def test_submit_kyc_without_documents_issues_local_z4_token(odoo_env):
         nid_number="1990123456789", trade_license_no="TL-77", tin_number="TIN-9"
     )
     assert seller.kyc_status == "in_review"
-    assert seller.kyc_submission_date == fields.Date.today()
+    assert seller.kyc_submission_date == fields.Date.context_today(seller)  # the local day
     assert seller.nid_number == "1990123456789"
     assert seller.trade_license_no == "TL-77"
     assert seller.tin_number == "TIN-9"
@@ -161,7 +161,7 @@ def test_cfo_approval_records_approver(odoo_env):
     seller.write({"kyc_status": "verified"})
     seller.action_cfo_approve()
     assert seller.cfo_approved is True
-    assert seller.cfo_approval_date == fields.Date.today()
+    assert seller.cfo_approval_date == fields.Date.context_today(seller)  # the local day
     assert seller.cfo_approved_by == odoo_env.user
     assert _events(odoo_env, "seller.cfo_approved", SELLER, seller.id) == [
         {"seller": seller.name, "approver": odoo_env.user.name}

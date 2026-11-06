@@ -125,6 +125,11 @@ def _return(w, order, amount=None, user=None, reason="defective", model="fix.sto
 
 
 def _credit_note(w, amount, partner=None):
+    # A08 M51-9: a posted credit note reaches the Mushak register, which needs the
+    # supplier BIN (a real company has one; the test company may not)
+    company = w.env.company.sudo()
+    if not company.vat or len(set(company.vat)) < 2:
+        company.vat = "1234567890128"
     move = w.env["account.move"].create(
         {
             "move_type": "out_refund",

@@ -763,3 +763,93 @@ def test_screens_the_sweep_called_empty_return_rows_for_a_posted_ledger(c, p03):
 def test_new_validation_refuses_a_mid_month_period_end(c):
     with pytest.raises(ValidationError, match="last day of a month"):
         c.env["fix.period.close"].with_user(c.acct).create({"period_end": date(2026, 10, 15)})
+
+
+def _head_office(env):
+    company = env.company
+    entity = env["fix.entity"].search([("company_id", "=", company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "E%s" % company.id, "legal_name": company.name, "company_id": company.id})
+    ou = env["operating.unit"].search([("company_id", "=", company.id)], limit=1)
+    return env["fix.branch"].create(
+        {
+            "code": "A08HO",
+            "name": "A08 Head Office",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
+    )
+
+
+def _linked_bank(env):
+    """A bank line on an account the statutory chart links and demands a branch for."""
+    company = env.company
+    account = env["account.account"].create(
+        {
+            "code": "990777",
+            "name": "A08 linked bank",
+            "account_type": "asset_current",
+            "company_ids": [(6, 0, company.ids)],
+        }
+    )
+    other = env["account.account"].create(
+        {
+            "code": "990778",
+            "name": "A08 other side",
+            "account_type": "asset_current",
+            "company_ids": [(6, 0, company.ids)],
+        }
+    )
+    env["fix.chart.account"].with_context(active_test=False).create(
+        {
+            "company_id": company.id,
+            "account_code": "1-99-99-777",
+            "name": "A08 Bank",
+            "account_type": "asset",
+            "statutory_group": "Current assets",
+            "is_postable": True,
+            "requires_dimension": "branch",
+            "odoo_account_id": account.id,
+        }
+    )
+    journal = env["account.journal"].search(
+        [("type", "=", "general"), ("company_id", "=", company.id)], limit=1
+    )
+    return {
+        "journal_id": journal.id,
+        "company_id": company.id,
+        "date": fields.Date.context_today(env["account.move"]),
+        "line_ids": [
+            (0, 0, {"account_id": other.id, "name": "x", "debit": 100.0, "credit": 0.0}),
+            (0, 0, {"account_id": account.id, "name": "x", "debit": 0.0, "credit": 100.0}),
+        ],
+    }
+
+
+def test_subledger_posting_takes_the_default_branch_md035_requires(odoo_env):
+    """The E2E finding: with the chart linked, no bill could be marked paid, because
+    the payment line on the bank account had no branch and nothing could supply one."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+
+    env = odoo_env
+    vals = _linked_bank(env)
+    icp = env["ir.config_parameter"].sudo()
+    icp.set_param("cd_gl_ext.default_branch_code", False)
+    with pytest.raises(UserError, match="branch"), env.cr.savepoint():
+        post_with_dimensions(env, dict(vals), {}, source="treasury")
+    branch = _head_office(env)
+    icp.set_param("cd_gl_ext.default_branch_code", branch.code)
+    move, dims = post_with_dimensions(env, dict(vals), {}, source="treasury")
+    assert move.state == "posted" and branch in dims.mapped("branch_id")
+
+
+def test_a_manual_or_api_journal_never_takes_the_default_branch(odoo_env):
+    """A person states the dimension: the default exists only for sub-ledgers."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+
+    env = odoo_env
+    vals = _linked_bank(env)
+    branch = _head_office(env)
+    env["ir.config_parameter"].sudo().set_param("cd_gl_ext.default_branch_code", branch.code)
+    with pytest.raises(UserError, match="branch"), env.cr.savepoint():
+        post_with_dimensions(env, dict(vals), {}, source="api")

@@ -133,6 +133,16 @@ PROPOSED = {
     ),
 }
 
+HEAD_OFFICE_CODE = "HO"
+
+# What MD-035 requires on bank, VAT and TDS lines when an automated sub-ledger posts:
+# a head-office payment belongs to no service branch, so it books to head office.
+DIMENSIONS = {
+    "cd_gl_ext.default_branch_code": HEAD_OFFICE_CODE,
+    "cd_gl_ext.default_cost_centre": "CORP",
+    "cd_gl_ext.default_business_line": "SERVICE",
+}
+
 JOURNALS = {
     "cd_tax_engine_bd.challan_journal_code": "BNK1",
     "cd_settlement_ext.payout_journal_code": "BNK1",
@@ -174,6 +184,29 @@ for key, (code, name, kind, md035) in PROPOSED.items():
             "{} {}{}".format(code, name, f" (MD-035 {md035})" if md035 else " (proposed)")
         )
     put(key, code)
+
+# On fix_dev every branch belongs to a smoke-test entity under another company, so this
+# company has none. The sub-ledger default needs one of its own; re-parenting the 78
+# existing branches is a master-data decision for a person, and is not done here.
+Branch = env["fix.branch"].sudo()
+if not Branch.search([("code", "=", HEAD_OFFICE_CODE), ("company_id", "=", company.id)], limit=1):
+    entity = env["fix.entity"].sudo().search([("company_id", "=", company.id)], limit=1)
+    unit = env["operating.unit"].sudo().search([("company_id", "=", company.id)], limit=1)
+    if entity and unit:
+        Branch.create(
+            {
+                "code": HEAD_OFFICE_CODE,
+                "name": "1000 FiX Head Office",
+                "entity_id": entity.id,
+                "operating_unit_id": unit.id,
+            }
+        )
+        report["branch_created"] = HEAD_OFFICE_CODE
+    else:
+        report["refused"].append(f"no fix.entity or operating unit for {company.name}")
+
+for key, value in DIMENSIONS.items():
+    put(key, value)
 
 for key, code in JOURNALS.items():
     journal = (

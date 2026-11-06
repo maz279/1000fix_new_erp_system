@@ -208,6 +208,13 @@ APPROVERS = [
         ],
     ),
     (
+        # The run's approver, the instruction's authoriser and its releaser are three
+        # different people (M52-6, M50-1), so a payment needs three Administrators.
+        "seed.fin.treasury@1000fix.local",
+        "তৌহিদুল ইসলাম (Treasury Releaser)",
+        ["account.group_account_manager"],
+    ),
+    (
         # Treasury authorisers must hold the DOFA tier AND be an Accounting
         # Administrator (M50-1); without this only `admin` could clear the bands.
         "seed.fin.cfo@1000fix.local",

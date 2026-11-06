@@ -36,6 +36,7 @@ FINANCE_STAFF = {
     "seed.fin.accountant1@1000fix.local",
     "seed.fin.accountant2@1000fix.local",
     "seed.fin.admin@1000fix.local",
+    "seed.fin.treasury@1000fix.local",
     "seed.fin.cfo@1000fix.local",
 }
 SEED_RE = ("seed.", "@1000fix.local")
