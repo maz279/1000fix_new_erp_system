@@ -19,7 +19,7 @@ account.journal + res.partner.bank), cash-in-transit, rider COD settlement
 with three-way match, facilities & covenants, recurring cash items, and the
 computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
 """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -40,6 +40,8 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         # A04 report C7: consumers of the storefront refund and bond
         # encashment hand-offs.
         "data/fix_a04_consumers.xml",
+        # A05 report cross-area follow-up: the e-waste settlement money leg.
+        "data/fix_a05_consumers.xml",
         # A09 Update 3/4: payroll payments reach treasury (M50).
         "data/fix_payroll_treasury_consumers.xml",
         "views/fix_cash_position_views.xml",
