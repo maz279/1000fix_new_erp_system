@@ -56,6 +56,9 @@ auto-match / covenant crons.
         "data/fix_a05_consumers.xml",
         # A09 Update 3/4: payroll payments reach treasury (M50).
         "data/fix_payroll_treasury_consumers.xml",
+        # A08 B1 (F1/E12): deposit matching, LC expiry and the payment
+        # consumer crons.
+        "data/fix_treasury_automation.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

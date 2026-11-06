@@ -365,7 +365,9 @@ def test_the_bank_confirmation_posts_payable_to_bank_once_and_payroll_never_touc
     pay = executions(w)
     assert (pay.state, pay.confirmation_source, pay.bank_reference, pay.bank_confirmed) == (
         "executed",
-        "bank_reference",
+        # the A08 F1 evidence taxonomy renamed the source: the confirmation
+        # is from the imported return FILE, not a typed reference
+        "payroll_return",
         "BB-CONF-1",
         True,
     )
@@ -433,7 +435,7 @@ def test_mfs_files_are_wallet_executions_and_an_unconfigured_wallet_posts_nothin
     mine = w.as_(w.treasury)["fix.payment.execution"].browse(mfs_pay.id)
     mine.write({"journal_id": w.wallet.id})
     mine.action_confirm_bank()
-    assert mine.state == "executed" and mine.confirmation_source == "bank_reference"
+    assert mine.state == "executed" and mine.confirmation_source == "payroll_return"
     assert sorted((ln.account_id, ln.debit, ln.credit) for ln in mine.move_id.line_ids) == sorted(
         [(w.payable, disb.total_amount, 0.0), (w.wallet.default_account_id, 0.0, disb.total_amount)]
     )

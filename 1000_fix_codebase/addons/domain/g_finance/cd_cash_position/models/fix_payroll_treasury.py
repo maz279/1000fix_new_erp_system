@@ -166,13 +166,34 @@ class FixPaymentExecutionPayroll(models.Model):
         self._refuse_payroll("never re-queues it")
         return super().action_retry()
 
-    def _confirm_executed(self, source, statement_line=None, reference=None):
+    def action_confirm_bank(self):
+        """A payroll-released instruction confirms from the bank FILE's
+        reference (the BEFTN return or the MFS provider's confirmation
+        file), never from a typed reference with no import behind it: the
+        disbursement/return document itself is the imported evidence."""
+        payroll = self.filtered("payroll_released")
+        for pay in payroll:
+            if pay.state != "sent":
+                raise UserError("%s is not awaiting the bank's confirmation." % pay.name)
+            if not pay.journal_id or not pay.debit_account_id:
+                raise UserError(
+                    "%s: name the paying wallet and the net salary payable account first "
+                    "(Confirm Bank completes a configured instruction)." % pay.name
+                )
+            pay._confirm_executed(
+                "payroll_return", reference=pay.bank_reference or pay.name
+            )
+        return super(FixPaymentExecutionPayroll, self - payroll).action_confirm_bank()
+
+    def _confirm_executed(self, source, statement_line=None, reference=None, entry_date=None):
         if self.payroll_released and not self.source_posts_gl and not self.debit_account_id:
             raise UserError(
                 "%s: the company's net salary payable account is not configured - the payroll "
                 "payment is never posted to a guessed account." % self.name
             )
-        return super()._confirm_executed(source, statement_line=statement_line, reference=reference)
+        return super()._confirm_executed(
+            source, statement_line=statement_line, reference=reference, entry_date=entry_date
+        )
 
     # ---------------------------------------------------------------- resolve
 
@@ -406,7 +427,13 @@ class FixPaymentExecutionPayroll(models.Model):
         if pay.amount <= 0 and not pay.source_posts_gl:
             # every item failed: nothing left the bank, nothing is posted
             pay.with_context(**{CTX: True}).write({"source_posts_gl": True})
-        pay._confirm_executed("bank_reference", reference=reference)
+        # the return FILE is the imported bank evidence of the debit (F1's
+        # payroll-return exception: relay-side, payroll-released only);
+        # the entry date is the return's import date when it carries one
+        entry_date = None
+        if getattr(doc, "imported_on", None):
+            entry_date = fields.Datetime.to_date(doc.imported_on)
+        pay._confirm_executed("payroll_return", reference=reference, entry_date=entry_date)
         if pay.source_posts_gl and pay.payroll_released:
             note = (
                 "No entry: the bank failed every item of this batch, nothing left the bank."

@@ -249,6 +249,7 @@ class FixPaymentExecution(models.Model):
     confirmation_source = fields.Selection(
         [
             ("statement", "Bank Statement Match"),
+            ("payroll_return", "Imported Payroll Bank-Return File"),
             ("bank_reference", "Bank Reference Recorded (legacy)"),
             ("caller_asserted", "Caller-Asserted (No Bank Evidence)"),
         ],
@@ -332,7 +333,13 @@ class FixPaymentExecution(models.Model):
         for pay in self:
             line = pay.statement_line_id
             pay.bank_confirmed = bool(
-                pay.state == "executed" and is_imported(line) and line.amount < 0
+                pay.state == "executed"
+                and (
+                    # an imported statement debit, or the imported payroll
+                    # bank-return file (F1's payroll evidence source)
+                    (is_imported(line) and line.amount < 0)
+                    or pay.confirmation_source == "payroll_return"
+                )
             )
 
     @api.constrains("amount")
@@ -540,7 +547,25 @@ class FixPaymentExecution(models.Model):
                 changed = [f for f in touched if pay._fix_guard_differs(f, vals[f], pay[f])]
                 if not changed:
                     continue
-                if pay.state not in ("pending", "prepared"):
+                # F1 freeze: a SENT instruction is what the bank was told.
+                # Escapes: the superuser relay consumer, the payroll
+                # treasury consumer's in-process token (it completes the
+                # instruction from the imported bank file), and the FIRST
+                # naming of the paying wallet on a payroll MFS execution
+                # that left with none configured — treasury records which
+                # wallet the provider paid from, before Confirm Bank.
+                first_wallet = (
+                    changed == ["journal_id"]
+                    and pay.payroll_released
+                    and not pay.journal_id
+                    and self.env.user.has_group(GROUP_ACCOUNTANT)
+                )
+                if (
+                    pay.state not in ("pending", "prepared")
+                    and not self.env.su
+                    and not first_wallet
+                    and not self.env.context.get("fix_payroll_treasury")
+                ):
                     raise UserError(
                         "%s is %s: its payee, account, amount and rail are what the bank was "
                         "instructed to pay and cannot change (%s). Cancel it and raise a new "
@@ -1155,28 +1180,51 @@ class FixPaymentExecution(models.Model):
                 "releaser %s." % (self.name, self.sent_by_id.name)
             )
 
-    def _confirm_executed(self, source, statement_line=None, reference=None):
+    def _confirm_executed(self, source, statement_line=None, reference=None, entry_date=None):
         """The bank confirmed the debit: post Dr liability / Cr bank for the
-        RELEASED amount and publish payment.executed (exactly once)."""
+        RELEASED amount and publish payment.executed (exactly once).
+
+        Evidence rule (F1): a typed reference confirms nothing. The debit is
+        evidenced either by an IMPORTED statement line (source='statement',
+        checked by _fix_assert_evidence) or — the one narrow exception — by
+        the payroll bank-return FILE (source='payroll_return'): the relay-side
+        payroll consumer confirms only from a hash-verified return import
+        (fix.payroll.bank.return), which is imported bank evidence of the
+        debit, so the F1 rule holds; the exception is restricted to
+        payroll-released instructions confirmed by the superuser relay."""
         self.ensure_one()
         if self.state != "sent":
             raise UserError(
                 "%s is '%s': only a sent payment is confirmed." % (self.name, self.state)
             )
-        if source != "statement" or not statement_line:
+        if source == "payroll_return":
+            trusted = self.env.su or self.env.user.has_group(GROUP_ACCOUNTANT)
+            if not (self.payroll_released and trusted and (reference or "").strip()):
+                raise UserError(
+                    "The payroll return confirmation runs only from the imported return "
+                    "file's reference, on a payroll-released instruction."
+                )
+        elif source != "statement" or not statement_line:
             raise UserError("A payment is confirmed only by an imported bank statement debit.")
-        self._fix_assert_evidence(statement_line)
-        if (
+        else:
+            self._fix_assert_evidence(statement_line)
+            entry_date = statement_line.date
+        if source != "payroll_return" and (
             abs(self.amount - self.released_amount) > 0.005
             or self.partner_bank_id != self.released_partner_bank_id
         ):
             raise UserError(
                 "%s no longer matches the instruction released to the bank." % self.name
             )
+        # (payroll_return excepted: the return's failed-item netting legally
+        # rewrote the amount between release and confirmation; the file's own
+        # netting validated it)
         bank = bank_account_of(self.released_journal_id or self.journal_id)
         move = self.env["account.move"]
         note = False
-        amount = self.released_amount
+        # statement: the bank debited the released amount; payroll_return:
+        # the netted amount the return file leaves the bank owing
+        amount = self.released_amount if source == "statement" else (self.amount or self.released_amount)
         if self.source_posts_gl:
             note = "Payment entry booked by the requesting document (%s)" % self.source_model
         else:
@@ -1186,7 +1234,7 @@ class FixPaymentExecution(models.Model):
             move = post_treasury_move(
                 self.env,
                 self.company_id,
-                statement_line.date,
+                entry_date or fields.Date.context_today(self),
                 "PAY %s — %s" % (self.name, self.payee),
                 [
                     (debit, "Payment %s" % self.name, amount, 0.0, self.partner_id),
@@ -1194,17 +1242,17 @@ class FixPaymentExecution(models.Model):
                 ],
                 source="treasury",
             )
-        self._guarded().write(
-            {
-                "state": "executed",
-                "executed_at": fields.Datetime.now(),
-                "confirmation_source": source,
-                "statement_line_id": statement_line.id,
-                "bank_reference": reference or self.bank_reference,
-                "move_id": move.id,
-                "gl_note": note,
-            }
-        )
+        executed_vals = {
+            "state": "executed",
+            "executed_at": fields.Datetime.now(),
+            "confirmation_source": source,
+            "bank_reference": reference or self.bank_reference,
+            "move_id": move.id,
+            "gl_note": note,
+        }
+        if statement_line:
+            executed_vals["statement_line_id"] = statement_line.id
+        self._guarded().write(executed_vals)
         self._publish_executed()
 
     def _publish_executed(self):
