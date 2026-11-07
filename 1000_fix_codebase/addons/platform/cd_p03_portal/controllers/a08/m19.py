@@ -84,7 +84,13 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_run", "action_activate", "action_deactivate"},
     },
-    "fix.chart.account": {"order": "id desc", "limit": 400, "actions": set()},
+    # 2026-11-07 audit R2/R9: statutory sequence (account_code, matching the
+    # model's own _order) instead of id desc, and the guarded archive action.
+    "fix.chart.account": {
+        "order": "account_code",
+        "limit": 400,
+        "actions": {"action_archive"},
+    },
     "fix.fiscal.period.bridge": {
         "order": "id desc",
         "limit": 400,
@@ -369,8 +375,101 @@ def fx_revaluation(env, date_from=None, date_to=None, **params):
     )
 
 
+def coa_register(env, **params):
+    """The statutory chart of accounts register (2026-11-07 R1): the SAME read
+    the /p03/gl/coa screen serves — every account with its hierarchy level,
+    posting/control flags, dimensions, statutory group and live ledger balance
+    — as a report pack, so the branded Excel / PDF / CSV exports and the
+    send-by-email flow work off the register view, not just the grid."""
+    company = env.company
+    chart = (
+        env["fix.chart.account"]
+        .sudo()
+        .with_context(active_test=False)
+        .search([("company_id", "=", company.id)], order="account_code")
+    )
+    odoo_ids = chart.mapped("odoo_account_id").ids
+    balances = {}
+    if odoo_ids:
+        groups = (
+            env["account.move.line"]
+            .sudo()
+            ._read_group(
+                [
+                    ("company_id", "=", company.id),
+                    ("parent_state", "=", "posted"),
+                    ("account_id", "in", odoo_ids),
+                ],
+                ["account_id"],
+                ["balance:sum"],
+            )
+        )
+        balances = {account.id: round(balance or 0.0, 2) for account, balance in groups}
+    rows = []
+    for acc in chart:
+        rows.append(
+            {
+                "code": acc.account_code,
+                "name": acc.name,
+                "type": acc.account_type or "",
+                "subtype": acc.account_subtype or "",
+                "group": acc.statutory_group or "",
+                "postable": "postable" if acc.is_postable else "summary",
+                "control": (acc.control_subledger or "") if acc.is_control_account else "",
+                "dims": acc.requires_dimension or "",
+                "deprecated": "deprecated" if acc.is_deprecated else "",
+                "statutory_balance": round(acc.balance or 0.0, 2),
+                "ledger_balance": balances.get(acc.odoo_account_id.id, 0.0)
+                if acc.odoo_account_id
+                else None,
+                "linked": "yes" if acc.odoo_account_id else "no",
+            }
+        )
+    linked = len([r for r in rows if r["linked"] == "yes"])
+    return _pack(
+        "Chart of Accounts Register - %s" % company.name,
+        [
+            "code",
+            "name",
+            "type",
+            "subtype",
+            "group",
+            "postable",
+            "control",
+            "dims",
+            "deprecated",
+            "statutory_balance",
+            "ledger_balance",
+            "linked",
+        ],
+        {
+            "code": "Account Code",
+            "name": "Account Name",
+            "type": "Account Type",
+            "subtype": "Subtype",
+            "group": "Statutory Group",
+            "postable": "Postable",
+            "control": "Control Subledger",
+            "dims": "Required Dimensions",
+            "deprecated": "Deprecated",
+            "statutory_balance": "Statutory Balance (BDT)",
+            "ledger_balance": "Ledger Balance (live, BDT)",
+            "linked": "Linked to Posting Chart",
+        },
+        rows,
+        [
+            "%d accounts, %d linked to the Odoo posting chart; balances from posted "
+            "entries only." % (len(rows), linked),
+            "Control accounts accept subledger postings only (COA-02); deprecated "
+            "accounts are closed for new postings.",
+        ],
+        empty="No accounts in the statutory chart.",
+    )
+
+
 REPORTS = {
     "fx_revaluation": fx_revaluation,
     "ic_balances": ic_balances,
     "close_sla": close_sla,
+    "coa_register": coa_register,
 }

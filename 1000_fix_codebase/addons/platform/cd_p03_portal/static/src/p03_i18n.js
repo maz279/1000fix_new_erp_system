@@ -1601,3 +1601,21 @@ Object.assign(P03_BN, {
   "Verify Evidence": "প্রমাণ যাচাই করুন",
   "Recovery Case": "রিকভারি কেস",
 });
+
+
+/* ---- List export suite (2026-11-07): branded Excel/PDF/email on every
+   model_list grid ---- */
+Object.assign(P03_BN, {
+  "Excel": "এক্সেল",
+  "PDF": "পিডিএফ",
+  "Email": "ইমেইল",
+  "Send by email": "ইমেইলে পাঠান",
+  "To (email addresses, comma separated)": "প্রাপক (ইমেইল ঠিকানা, কমা দিয়ে আলাদা করুন)",
+  "Subject": "বিষয়",
+  "Message": "বার্তা",
+  "Attach as": "সংযুক্তির ধরন",
+  "Send": "পাঠান",
+  "Sending…": "পাঠানো হচ্ছে…",
+  "Queued": "মেইল সারিতে যুক্ত",
+  "The branded attachment is generated from exactly the rows this screen serves.": "ব্র্যান্ডেড সংযুক্তিটি এই স্ক্রিনে দেখানো ঠিক সেই সারিগুলো থেকেই তৈরি হয়।",
+});

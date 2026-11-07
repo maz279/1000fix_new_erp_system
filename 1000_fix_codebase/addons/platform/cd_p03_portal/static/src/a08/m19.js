@@ -6,7 +6,7 @@
 
 export const MODULE = {
   area: 'A08', code: 'M19', en: 'Financial Accounting & GL', title: 'M19 · Financial Accounting & GL',
-  bn: 'আর্থিক হিসাব', icon: '💰',
+  bn: 'আর্থিক হিসাব', icon: '📒',
   desc: 'Chart of accounts, 7-dimension model, subledger posting engine, July–June close, statutory statements.',
   kpis: [
     { l: 'Revenue MTD', m: 'revenue_mtd', prefix: '৳ ' },
@@ -19,14 +19,14 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Record Coverage', screens: [
-      { id: 'M19-chart-account', en: "Chart Account", bn: "Chart Account", t: 'g' },
+      { id: 'M19-chart-account', en: "Chart of Accounts", bn: "হিসাবের ছক", t: 'g' },
       { id: 'M19-fiscal-period-bridge', en: "Fiscal Period Bridge", bn: "Fiscal Period Bridge", t: 'g' },
       { id: 'M19-journal-dimension', en: "Journal Dimension", bn: "Journal Dimension", t: 'g' },
       { id: 'M19-period-close', en: "Period Close", bn: "Period Close", t: 'g' }
     ]},
     { en: 'Ledger', screens: [
       { id: 'M19-fx-revaluation', en: 'FX Revaluation (IAS 21)', bn: 'বৈদেশিক মুদ্রা পুনর্মূল্যায়ন', t: 'g' },
-      { id: 'M19-coa', en: 'Chart of Accounts', bn: 'হিসাবের ছক', t: 'g' },
+      { id: 'M19-coa', en: 'Chart of Accounts (Statutory Register)', bn: 'হিসাবের ছক (বিধিবদ্ধ রেজিস্টার)', t: 'g' },
       { id: 'M19-journals', en: 'Journals', bn: 'জার্নাল', t: 'g' },
       { id: 'M19-je', en: 'Journal Entry', bn: 'জার্নাল এন্ট্রি', t: 'f' },
       { id: 'M19-tb', en: 'Trial Balance', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' },
@@ -569,7 +569,22 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M19-chart-account': { kind: 'model_list', model: 'fix.chart.account',
-    cols: ['name', 'active', 'company_id', 'operating_unit_id', 'account_code', 'account_type', 'account_subtype'] },
+    /* 2026-11-07 audit R2/R6: the CODE leads the grid (D365/SAP/NetSuite/Odoo
+     * convention), then name/type/subtype; company-wide statutory chart, so
+     * the empty operating_unit_id column is dropped (policy: company-level
+     * CoA — the field stays on the model and form). */
+    cols: ['account_code', 'name', 'account_type', 'account_subtype', 'active', 'company_id'],
+    actions: [
+      /* R9: row actions reuse the model's own guarded method — COA-04 refuses
+       * archiving an account that still carries a balance. */
+      { m: 'action_archive', l: 'Archive (COA-04 zero-balance guard)' },
+    ],
+    links: [
+      /* R3: the governance surfaces one click away — no dead ends. */
+      { s: 'M19-coa-loader', l: 'Import — CoA Master Loader' },
+      { s: 'M19-control-changes', l: 'Control Changes approval' },
+      { s: 'M19-coa', l: 'Statutory Register (hierarchy & balances)' },
+    ] },
   'M19-fiscal-period-bridge': { kind: 'model_list', model: 'fix.fiscal.period.bridge', create: false,
     cols: ['company_id', 'operating_unit_id', 'fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'],
     actions: [{ m: 'action_lock_journals', l: 'Re-apply Lock (Accounting Administrator)' }] },
@@ -604,18 +619,62 @@ export const SCREENS = {
   'M19-form-chart-account': {
     kind: 'model_form',
     model: 'fix.chart.account',
-    title: "Chart Account",
+    title: "Chart of Accounts — Account",
     back: 'M19-chart-account',
+    /* 2026-11-07 audit: the old single-section form omitted statutory_group
+     * (required on the model) so + New ALWAYS failed with a NotNullViolation,
+     * and hid every posting-rule field. Tabbed per the D365 multi-tab
+     * standard; control-account status stays read-only here — it changes
+     * only through the Control Changes approval screen (COA-02). */
+    tabs: [
+      { id: 'ident', label: 'Identification', bn: 'শনাক্তকরণ', icon: '🏷️', badge: '7' },
+      { id: 'class', label: 'Classification', bn: 'শ্রেণিবিন্যাস', icon: '🗂️', badge: '3' },
+      { id: 'ctrl', label: 'Posting & Control', bn: 'পোস্টিং ও নিয়ন্ত্রণ', icon: '🛡️', badge: '6' },
+      { id: 'admin', label: 'Lifecycle & Tax', bn: 'জীবনচক্র ও কর', icon: '🗓️', badge: '4' },
+      { id: 'link', label: 'Posting-Chart Link', bn: 'পোস্টিং চার্ট সংযোগ', icon: '🔗', badge: '2' }
+    ],
     sections: [
-      { title: "Chart Account", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { tab: 'ident', title: 'Account Identification',
+        note: "MD-035 statutory chart. The code is four blocks T-GG-SS-NNN; the T block must agree with the account type (1 asset · 2 liability · 3 equity · 4 income · 5 expense) and the code is unique per company.",
         fields: [
-          { name: 'name', required: true, label: "Account Name" },
-          { name: 'company_id', required: true, label: "Company" },
           { name: 'account_code', required: true, label: "Account Code" },
-          { name: 'account_type', required: true, label: "Account Type" },
-          { name: 'active', label: "Active" },
+          { name: 'name', required: true, label: "Account Name" },
+          { name: 'name_bn', label: "Account Name (Bengali) — statutory reports" },
+          { name: 'company_id', required: true, label: "Company" },
           { name: 'operating_unit_id', label: "Operating Unit" },
-          { name: 'account_subtype', label: "Account Subtype" }
+          { name: 'currency_id', label: "Currency (statutory BDT)" },
+          { name: 'active', label: "Active" }
+        ] },
+      { tab: 'class', title: 'Statutory Classification',
+        note: "The statutory group is the mandatory reporting line (COA-05) — without it an account cannot be created. Subtype examples: current_asset, fixed_asset, receivable, payable, bank, cash, stock, tax, revenue, cogs, opex.",
+        fields: [
+          { name: 'account_type', required: true, label: "Account Type" },
+          { name: 'account_subtype', label: "Account Subtype" },
+          { name: 'statutory_group', required: true, label: "Statutory Group (COA-05)" }
+        ] },
+      { tab: 'ctrl', title: 'Posting Rules & Control',
+        note: "COA-01: only level-4 leaf accounts (NNN > 000) may be postable. Control-account status and its subledger binding change only through the Control Changes approval screen — they are shown read-only here (COA-02).",
+        fields: [
+          { name: 'is_postable', label: "Postable (COA-01)" },
+          { name: 'manual_entry_blocked', label: "Block Manual Entry (subledger/system postings only)" },
+          { name: 'is_deprecated', label: "Deprecated (closed for new postings)" },
+          { name: 'requires_dimension', label: "Required Dimensions (COA-03, semicolon separated: branch;cost_centre;business_line)" },
+          { name: 'is_control_account', readonly: true, label: "Control Account" },
+          { name: 'control_subledger', readonly: true, label: "Control Subledger" }
+        ] },
+      { tab: 'admin', title: 'Effective Window & Bangladesh VAT Tagging',
+        note: "Outside the effective window the account is suspended for new postings (kept on reports). VAT-relevant accounts are tagged with the statutory register they feed, so Mushak 6.1 / 6.3 / 6.6 and TDS registers produce straight from the GL.",
+        fields: [
+          { name: 'active_from', label: "Active From" },
+          { name: 'active_to', label: "Active To" },
+          { name: 'vat_relevant', label: "VAT / Mushak Relevant" },
+          { name: 'mushak_register', label: "Mushak Register" }
+        ] },
+      { tab: 'link', title: 'Posting-Chart Link & Balance',
+        note: "The link to the Odoo posting account switches the posting rules on for this account; it is managed by the CoA Master Loader reconciliation, not typed here. The ledger balance is live from posted entries.",
+        fields: [
+          { name: 'odoo_account_id', readonly: true, label: "Linked Odoo Account" },
+          { name: 'balance', readonly: true, label: "Statutory Balance (manual, BDT)" }
         ] }
     ]
   },

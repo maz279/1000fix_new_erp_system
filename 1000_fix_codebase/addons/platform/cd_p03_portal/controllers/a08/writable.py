@@ -316,9 +316,22 @@ WRITABLE = {
             "account_subtype",
             "account_type",
             "active",
+            "active_from",
+            "active_to",
             "company_id",
+            "currency_id",
+            "is_deprecated",
+            "is_postable",
+            "manual_entry_blocked",
+            "mushak_register",
             "name",
+            "name_bn",
             "operating_unit_id",
+            "requires_dimension",
+            # required by the model (COA-05) — without it in the whitelist a
+            # +New from the workspace form could never succeed (2026-11-07)
+            "statutory_group",
+            "vat_relevant",
         }
     ),
     "fix.chart.control.change": frozenset(
