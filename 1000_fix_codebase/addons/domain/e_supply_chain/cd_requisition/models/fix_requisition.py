@@ -63,6 +63,16 @@ DEFAULT_SPLIT_DAYS = 30
 # BRU-PRO-11: goods are matchable only after the inspection outcome is
 # recorded. "0" lets a posted receipt count as accepted at once.
 PARAM_INSPECTION = "cd_requisition.receipt_inspection_required"
+# FR-PRO-027: over-delivery accepted at receipt, as a percentage of the ordered
+# quantity. Default 0: no over-receipt until the business sets a tolerance.
+PARAM_OVER_TOLERANCE = "cd_requisition.receipt_over_tolerance_pct"
+# BRU-PRO-12 / FR-PRO-036: the post-hoc approval window of an emergency
+# purchase (the spec's 48 hours) and the value an emergency release may carry.
+# The spec names no ceiling; with none set the path stops at the lowest DOFA
+# band (cd_requisition.dofa_tier2_max), above which the normal path applies.
+PARAM_EMERGENCY_HOURS = "cd_requisition.emergency_posthoc_hours"
+DEFAULT_EMERGENCY_HOURS = 48
+PARAM_EMERGENCY_MAX = "cd_requisition.emergency_max_amount"
 
 ISSUED_PO_STATES = ("sent", "acknowledged", "partially_received", "received", "closed")
 RECEIVABLE_PO_STATES = ("sent", "acknowledged", "partially_received")
@@ -117,6 +127,12 @@ def to_company_currency(record, amount, currency, company):
             amount or 0.0, company.currency_id, company, fields.Date.context_today(record)
         )
     return amount or 0.0
+
+
+def over_receipt_ceiling(env, qty_ordered):
+    """The most a PO line may receive: the order plus the configured tolerance."""
+    pct = max(float_param(env, PARAM_OVER_TOLERANCE, 0.0), 0.0)
+    return (qty_ordered or 0.0) * (1.0 + pct / 100.0)
 
 
 class FixProcurementDofaMixin(models.AbstractModel):
@@ -234,6 +250,8 @@ class FixRequisition(models.Model):
     _description = "Requisition"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.procurement.dofa.mixin"]
     _approval_domain = "requisition"
+    # A picker read "fix.requisition,12" (A06 final pass, M16 picker sweep).
+    _rec_name = "description"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -246,6 +264,32 @@ class FixRequisition(models.Model):
         string="Business Justification",
         help="Why this is needed. Carried to the approver as the DOFA justification.",
     )
+    # FR-PRO-002 (M16 step 1). The estate names a cost centre as text on the
+    # journal dimensions and expense lines (cd_gl_ext, cd_ap_ext); there is no
+    # master to point at.
+    cost_centre = fields.Char(string="Cost Centre")
+    required_by = fields.Date(string="Required By")
+    # BRU-PRO-12: the emergency path is a controlled exception (see
+    # action_emergency_release); empty on every normal requisition.
+    emergency_state = fields.Selection(
+        [
+            ("pending", "Emergency: Awaiting Post-Hoc Approval"),
+            ("approved", "Emergency: Approved Post-Hoc"),
+            ("overdue", "Emergency: Post-Hoc Approval Overdue"),
+            ("rejected", "Emergency: Rejected Post-Hoc"),
+            ("closed", "Emergency: Closed by CFO"),
+        ],
+        string="Emergency Path",
+        readonly=True,
+        copy=False,
+        index=True,
+        tracking=True,
+    )
+    emergency_reason = fields.Char(readonly=True, copy=False)
+    emergency_released_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    emergency_released_at = fields.Datetime(readonly=True, copy=False)
+    emergency_deadline = fields.Datetime(string="Post-Hoc Approval Due", readonly=True, copy=False)
+    emergency_escalated_at = fields.Datetime(readonly=True, copy=False)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -308,6 +352,12 @@ class FixRequisition(models.Model):
         "cancel_reason",
         "split_prior_amount",
         "split_requisition_ids",
+        "emergency_state",
+        "emergency_reason",
+        "emergency_released_by_id",
+        "emergency_released_at",
+        "emergency_deadline",
+        "emergency_escalated_at",
     }
 
     def _fix_guarded_fields(self) -> set:
@@ -356,19 +406,28 @@ class FixRequisition(models.Model):
         return rec.requested_by.user_id | rec.submitted_by_id
 
     def _a06_before_approve(self):
-        if self.state != "submitted":
+        if self.state != "submitted" and self.emergency_state not in ("pending", "overdue"):
             raise UserError(
                 "Only a submitted requisition can be approved (%s is %s)."
                 % (self.display_name, self.state)
             )
 
     def _a06_after_approve(self):
-        self._guarded().write({"state": "approved"})
+        if self.state == "submitted":
+            self._guarded().write({"state": "approved"})
+        if self.emergency_state in ("pending", "overdue"):
+            self._guarded().write({"emergency_state": "approved"})
 
     def _approval_on_rejected(self, comment):
         for rec in self.sudo():
             if rec.state == "submitted":
                 rec._guarded().write({"state": "rejected"})
+            if rec.emergency_state in ("pending", "overdue"):
+                rec._guarded().write({"emergency_state": "rejected"})
+                rec._a06_emergency_escalate(
+                    "Post-hoc approval of emergency requisition %s was rejected: %s"
+                    % (rec.display_name, comment or "no comment")
+                )
 
     # ---- split detection --------------------------------------------------
     def _split_related(self):
@@ -407,10 +466,11 @@ class FixRequisition(models.Model):
             for rec in self:
                 if not any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in pinned):
                     continue
-                if rec.state in ("converted", "cancelled"):
+                if rec.state in ("converted", "cancelled") or rec.emergency_state:
                     raise UserError(
                         "Requisition %s is %s: its amount, quantity, product, vendor and "
-                        "currency can no longer change." % (rec.display_name, rec.state)
+                        "currency can no longer change."
+                        % (rec.display_name, rec.emergency_state or rec.state)
                     )
                 if rec.state in ("submitted", "approved") or rec.approval_state in (
                     "pending",
@@ -427,6 +487,20 @@ class FixRequisition(models.Model):
         return result
 
     # ---- actions ----------------------------------------------------------
+    def _a06_intake_problems(self):
+        """FR-PRO-002: what a person must state before the demand is submitted.
+        A requisition M43 raises from an approved plan carries the plan as its
+        source and goes straight to approval; it has no person to ask."""
+        self.ensure_one()
+        if "demand_plan_id" in self._fields and self.demand_plan_id:
+            return []
+        problems = []
+        if not (self.cost_centre or "").strip():
+            problems.append("the cost centre")
+        if not self.required_by:
+            problems.append("the required-by date")
+        return problems
+
     def action_submit(self, justification=None):
         """Submit for approval: the tier comes from the amount (plus related
         requisitions in the split window) and the request is routed through
@@ -453,6 +527,12 @@ class FixRequisition(models.Model):
                 )
             if rec.product_id and (rec.qty or 0.0) <= 0.0:
                 raise UserError("Requisition %s needs a positive quantity." % rec.display_name)
+            missing = rec._a06_intake_problems()
+            if missing:
+                raise UserError(
+                    "Requisition %s needs %s before it is submitted."
+                    % (rec.display_name, " and ".join(missing))
+                )
             related = rec._split_related()
             prior = sum(
                 to_company_currency(r, r.estimate_amount, r.currency_id, r.company_id)
@@ -520,22 +600,168 @@ class FixRequisition(models.Model):
             rec._guarded().write({"state": "cancelled", "cancel_reason": reason.strip()})
         return True
 
+    # ---- the emergency path (BRU-PRO-12, FR-PRO-036) ------------------------
+    def _a06_emergency_ceiling(self):
+        ladder_top = float_param(self.env, PARAM_TIER2, DEFAULT_LADDER[PARAM_TIER2])
+        return float_param(self.env, PARAM_EMERGENCY_MAX, ladder_top)
+
+    def _a06_emergency_open_failure(self):
+        """A requester whose emergency purchase was not approved in time, or was
+        rejected, raises no further one until the CFO closes it. Whoever pressed
+        the release counts too: naming a colleague as requester is no way round."""
+        self.ensure_one()
+        return (
+            self.sudo()
+            .search(
+                [
+                    ("id", "!=", self.id),
+                    ("emergency_state", "in", ("overdue", "rejected")),
+                    "|",
+                    ("requested_by", "=", self.requested_by.id),
+                    ("emergency_released_by_id", "=", self.env.uid),
+                ],
+                limit=1,
+            )
+            .with_env(self.env)
+        )
+
+    def action_emergency_release(self, reason=None):
+        """A job-stopping purchase goes ahead before its approval: the
+        requisition may be converted and its PO sent at once, up to the
+        emergency ceiling, while the approval is routed as usual and is due
+        within the window. A named tier holder must exist, or nothing moves."""
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError(
+                    "Only a draft requisition takes the emergency path (%s is %s)."
+                    % (rec.display_name, rec.state)
+                )
+            if rec.urgency != "emergency":
+                raise UserError(
+                    "Requisition %s is not marked Emergency (job-stopped)." % rec.display_name
+                )
+            if len((reason or "").strip()) < 10:
+                raise UserError("State what job stopped and why it cannot wait for approval.")
+            if (rec.estimate_amount or 0.0) <= 0.0:
+                raise UserError("Requisition %s has no value." % rec.display_name)
+            # Related requisitions count here as they do at submission: several
+            # releases just under the ceiling are one purchase.
+            related = rec._split_related()
+            prior = sum(
+                to_company_currency(r, r.estimate_amount, r.currency_id, r.company_id)
+                for r in related.sudo()
+            )
+            amount = to_company_currency(rec, rec.estimate_amount, rec.currency_id, rec.company_id)
+            ceiling = rec._a06_emergency_ceiling()
+            if amount + prior > ceiling + 0.005:
+                raise UserError(
+                    "Requisition %s is BDT %.2f with BDT %.2f of related requisitions; an "
+                    "emergency release is limited to BDT %.2f. Submit it for approval."
+                    % (rec.display_name, amount, prior, ceiling)
+                )
+            failure = rec._a06_emergency_open_failure()
+            if failure:
+                raise UserError(
+                    "BRU-PRO-12: emergency purchase %s of this requester was not approved "
+                    "(%s). No further emergency purchase until the CFO closes it."
+                    % (failure.display_name, failure.emergency_state)
+                )
+            hours = float_param(self.env, PARAM_EMERGENCY_HOURS, DEFAULT_EMERGENCY_HOURS)
+            now = fields.Datetime.now()
+            rec._guarded().write(
+                {
+                    "state": "submitted",
+                    "submitted_at": now,
+                    "submitted_by_id": self.env.uid,
+                    "split_prior_amount": prior,
+                    "split_requisition_ids": [(6, 0, related.ids)],
+                    "approval_state": "none",
+                    "emergency_state": "pending",
+                    "emergency_reason": reason.strip(),
+                    "emergency_released_by_id": self.env.uid,
+                    "emergency_released_at": now,
+                    "emergency_deadline": now + timedelta(hours=hours),
+                }
+            )
+            text = (rec.justification or reason).strip()
+            if rec.dofa_justification != text:
+                rec.write({"dofa_justification": text})
+            rec.action_request_approval()
+            rec.message_post(
+                body="Emergency release: %s. Post-hoc approval due by %s."
+                % (reason.strip(), rec.emergency_deadline)
+            )
+        return True
+
+    def action_emergency_close(self, reason=None):
+        """The CFO authority closes a failed emergency purchase after dealing
+        with it, which lifts the requester's block."""
+        if not (self.env.su or self.env.user.has_group(TIER_GROUP["tier_4"])):
+            raise UserError("Only the CFO authority (DOFA Tier 4) closes a failed emergency.")
+        for rec in self:
+            if rec.emergency_state not in ("overdue", "rejected"):
+                raise UserError("Requisition %s has no failed emergency." % rec.display_name)
+            if len((reason or "").strip()) < 10:
+                raise UserError("State how the failed emergency purchase was dealt with.")
+            rec.sudo()._guarded().write({"emergency_state": "closed"})
+            rec.sudo().message_post(body="Emergency path closed by the CFO: %s" % reason.strip())
+        return True
+
+    def _a06_emergency_escalate(self, summary):
+        """To everyone holding the CFO authority, as a to-do on the requisition."""
+        self.ensure_one()
+        group = self.env.ref(TIER_GROUP["tier_4"], raise_if_not_found=False)
+        today = fields.Date.context_today(self)
+        for user in (group.sudo().all_user_ids if group else self.env["res.users"]).filtered(
+            "active"
+        ):
+            self.sudo().activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=today,
+                summary=summary[:250],
+                user_id=user.id,
+            )
+        self.sudo().message_post(body=summary)
+
+    @api.model
+    def _cron_emergency_posthoc(self):
+        """BRU-PRO-12: an emergency purchase not approved within the window
+        escalates to the CFO and blocks the requester from further ones."""
+        overdue = self.sudo().search(
+            [
+                ("emergency_state", "=", "pending"),
+                ("emergency_deadline", "<", fields.Datetime.now()),
+            ]
+        )
+        for rec in overdue:
+            rec._guarded().write(
+                {"emergency_state": "overdue", "emergency_escalated_at": fields.Datetime.now()}
+            )
+            rec._a06_emergency_escalate(
+                "Emergency requisition %s (BDT %.2f) was not approved by %s."
+                % (rec.display_name, rec.estimate_amount or 0.0, rec.emergency_deadline)
+            )
+        return overdue
+
     def action_convert_to_po(self):
         """Create the PO from an approved requisition, one line at the
         requisition's estimated unit price. The PO keeps the requisition link
         (maverick spend = a PO with no approved requisition) and must itself
-        be approved before it is sent."""
+        be approved before it is sent. An emergency release converts before
+        its post-hoc approval, while that approval is still in time."""
         Order = self.env["fix.purchase.order"]
         for req in self:
             require_role(self.env, GROUP_BUYER, "Converting a requisition to a purchase order")
-            if req.state != "approved":
+            emergency = req.state == "submitted" and req.emergency_state == "pending"
+            if req.state != "approved" and not emergency:
                 raise UserError("Convert an approved requisition")
-            if req._approval_needed() and req.approval_state != "approved":
-                raise UserError(
-                    "Requisition %s carries no routed approval; it cannot be converted."
-                    % req.display_name
-                )
-            req._dofa_assert_approved("Converting requisition %s" % req.display_name)
+            if not emergency:
+                if req._approval_needed() and req.approval_state != "approved":
+                    raise UserError(
+                        "Requisition %s carries no routed approval; it cannot be converted."
+                        % req.display_name
+                    )
+                req._dofa_assert_approved("Converting requisition %s" % req.display_name)
             if not req.product_id or (req.qty or 0.0) <= 0:
                 raise UserError("A requisition needs a product and a positive quantity to convert")
             if not req.vendor_id:
@@ -670,6 +896,11 @@ class FixPurchaseOrder(models.Model):
         "fix.purchase.order", string="Open Change Order", readonly=True, copy=False
     )
     cancel_reason = fields.Char(readonly=True, copy=False)
+    receipt_refs = fields.Char(
+        string="Goods Receipts",
+        compute="_compute_receipt_refs",
+        help="The goods receipts raised against this order and their states.",
+    )
 
     PO_PINNED = (
         "vendor_id",
@@ -718,6 +949,15 @@ class FixPurchaseOrder(models.Model):
     def _compute_total(self):
         for order in self:
             order.amount_total = sum(order.line_ids.mapped("line_total"))
+
+    @api.depends("receipt_ids.name", "receipt_ids.state")
+    def _compute_receipt_refs(self):
+        for order in self:
+            order.receipt_refs = ", ".join(
+                "%s (%s)" % (r.name, r.state)
+                for r in order.sudo().receipt_ids.sorted("id")
+                if r.state != "cancelled"
+            )
 
     # ---- DOFA -------------------------------------------------------------
     def _dofa_amount(self) -> float:
@@ -914,6 +1154,24 @@ class FixPurchaseOrder(models.Model):
                 "(%s is %s)." % (self.display_name, self.state)
             )
 
+    def _a06_emergency_covered(self):
+        """BRU-PRO-12: this PO goes out under its requisition's emergency
+        release, for what the release covered and no more. Its approval is the
+        post-hoc one on the requisition."""
+        self.ensure_one()
+        req = self.sudo().requisition_id
+        if not req or req.emergency_state not in ("pending", "approved"):
+            return False
+        return (
+            self.vendor_id == req.vendor_id
+            and (self.amount_total or 0.0) <= (req.estimate_amount or 0.0) + 0.005
+        )
+
+    def _a06_check_categories(self):
+        """BRU-PRO-02: the vendor is approved for what this PO buys. Filled in by
+        cd_vendor_portal, which owns the supplier register."""
+        return None
+
     # ---- approval request -------------------------------------------------
     def action_request_approval(self, justification=None):
         """Route the PO for approval by amount, after its own checks."""
@@ -926,6 +1184,7 @@ class FixPurchaseOrder(models.Model):
             po._a06_check_content()
             po._a06_check_requisition()
             po._fix_vendor_gate(po.vendor_id, "Requesting approval of PO %s" % po.name)
+            po._a06_check_categories()
             po._a06_check_blanket()
             po._a06_check_award()
             text = (
@@ -990,15 +1249,17 @@ class FixPurchaseOrder(models.Model):
             order._a06_check_content()
             order._a06_check_requisition()
             order._fix_vendor_gate(order.vendor_id, "Sending PO %s" % order.name)
+            order._a06_check_categories()
             order._a06_check_blanket()
             order._a06_check_award()
-            if order._approval_needed() and order.approval_state != "approved":
-                raise UserError(
-                    "PO %s (%s) has not been approved. Request approval: it is routed to a "
-                    "%s holder."
-                    % (order.name, order._dofa_amount_label(), order._dofa_current_tier())
-                )
-            order._dofa_assert_approved("Sending PO %s" % order.name)
+            if not order._a06_emergency_covered():
+                if order._approval_needed() and order.approval_state != "approved":
+                    raise UserError(
+                        "PO %s (%s) has not been approved. Request approval: it is routed to a "
+                        "%s holder."
+                        % (order.name, order._dofa_amount_label(), order._dofa_current_tier())
+                    )
+                order._dofa_assert_approved("Sending PO %s" % order.name)
             for line in order.line_ids:
                 if line.approved_qty and (
                     abs(line.approved_unit_price - line.unit_price) > 0.005
@@ -1068,10 +1329,29 @@ class FixPurchaseOrder(models.Model):
         return True
 
     def _a06_acknowledge(self, channel, confirmed_date, evidence):
+        """M16-11: the vendor's own delivery date is part of the acknowledgement.
+        OTD used to fall back to the buyer's promised date, so it measured the
+        vendor against a date the vendor never gave."""
         self.ensure_one()
         if self.state != "sent":
             raise UserError("Only a sent PO can be acknowledged")
-        confirmed = fields.Date.to_date(confirmed_date) if confirmed_date else self.promised_date
+        if not confirmed_date:
+            raise UserError(
+                "State the delivery date the vendor confirmed for PO %s (YYYY-MM-DD)." % self.name
+            )
+        try:
+            confirmed = fields.Date.to_date(confirmed_date)
+        except (TypeError, ValueError) as exc:
+            raise UserError(
+                "%r is not a date: give the vendor-confirmed delivery date as YYYY-MM-DD."
+                % (confirmed_date,)
+            ) from exc
+        sent_on = fields.Date.to_date(self.sent_at) if self.sent_at else None
+        if sent_on and confirmed < sent_on:
+            raise UserError(
+                "The vendor-confirmed delivery date %s is before PO %s was sent (%s)."
+                % (confirmed, self.name, sent_on)
+            )
         self._guarded().write(
             {
                 "state": "acknowledged",
@@ -1191,10 +1471,30 @@ class FixPurchaseOrder(models.Model):
         return True
 
     # ---- receipts -----------------------------------------------------------
+    def action_start_receipt(self):
+        """The workspace's way from a PO to its goods receipt: a draft receipt
+        holding this order's open lines, to correct and post on the PO Goods
+        Receipts screen. A draft already open is not duplicated."""
+        require_role(self.env, GROUP_RECEIVER, "Starting a goods receipt")
+        Receipt = self.env["fix.purchase.receipt"]
+        refs = []
+        for order in self:
+            order._a06_assert_receivable()
+            draft = order.sudo().receipt_ids.filtered(lambda r: r.state == "draft")[:1]
+            if not draft:
+                draft = Receipt.create({"purchase_order_id": order.id})
+            refs.append(draft.name)
+        return {
+            "note": "Draft goods receipt %s holds the open lines: correct the quantities and "
+            "post it on PO Goods Receipts." % ", ".join(refs)
+        }
+
     def action_record_receipt(self, receipts=None):
-        """GRN intake: {line_id: qty_received_this_delivery}. Creates and posts
-        a fix.purchase.receipt (R5): only on a sent/acknowledged PO, by a
-        Receiver who is neither the requester nor the buyer."""
+        """GRN intake from code: {line_id: qty_received_this_delivery}. Creates
+        and posts a fix.purchase.receipt (R5): only on a sent/acknowledged PO,
+        by a Receiver who is neither the requester nor the buyer. It takes a
+        structure no workspace button can collect, so the screens use
+        action_start_receipt; the staff path of the P05 API and tests use this."""
         receipts = {int(k): v for k, v in (receipts or {}).items()}
         Receipt = self.env["fix.purchase.receipt"]
         for order in self:
@@ -1293,6 +1593,7 @@ class FixPurchaseOrderLine(models.Model):
     approved_qty = fields.Float(string="Approved Quantity", readonly=True, copy=False)
 
     LINE_PINNED = ("product_id", "qty_ordered", "unit_price", "order_id", "description")
+    _rec_names_search = ["order_id.name", "product_id.name"]
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1301,6 +1602,16 @@ class FixPurchaseOrderLine(models.Model):
             "approved_unit_price",
             "approved_qty",
         }
+
+    @api.depends("order_id.name", "product_id.display_name", "qty_ordered", "qty_received")
+    def _compute_display_name(self):
+        for line in self:
+            line.display_name = "%s · %s (ordered %g, received %g)" % (
+                line.order_id.name or "",
+                line.product_id.display_name or line.description or "",
+                line.qty_ordered or 0.0,
+                line.qty_received or 0.0,
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1329,7 +1640,8 @@ class FixPurchaseOrderLine(models.Model):
         for line in self:
             if line.qty_ordered <= 0:
                 raise UserError("Ordered quantity must be positive")
-            if line.qty_received < 0 or line.qty_received > line.qty_ordered + 1e-6:
+            ceiling = over_receipt_ceiling(self.env, line.qty_ordered)
+            if line.qty_received < 0 or line.qty_received > ceiling + 1e-6:
                 raise UserError(
                     "Received %.2f outside 0..%.2f for %s"
                     % (line.qty_received, line.qty_ordered, line.description or "?")

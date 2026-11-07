@@ -54,8 +54,11 @@ export default function PurchaseOrdersPage() {
   }, [reload]);
 
   async function acknowledge(po: PO) {
+    // the delivery date is what on-time delivery is measured against: required
+    const deliveryDate = window.prompt(`${po.ref} — delivery date you confirm (YYYY-MM-DD)`);
+    if (deliveryDate === null) return;
     const d = await callOdoo<{ purchase_order?: { state: string }; error?: { message: string } }>(
-      "/vendor/purchase-orders", { po_id: po.id, action: "acknowledge" });
+      "/vendor/purchase-orders", { po_id: po.id, action: "acknowledge", delivery_date: deliveryDate });
     setNotice(d.error ? d.error.message : `${po.ref}: acknowledged`);
     if (!d.error) reload();
   }

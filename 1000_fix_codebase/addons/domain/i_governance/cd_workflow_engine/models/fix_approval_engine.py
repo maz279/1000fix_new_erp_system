@@ -1397,7 +1397,12 @@ class FixWorkflowTask(models.Model):
             )
 
     def _search_is_mine(self, operator, value):
-        mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
+        # Odoo 19 normalises `= True` to `in {True}` before calling this: read as
+        # "not mine", the M63 inbox listed everyone's tasks except the approver's.
+        if operator in ("in", "not in"):
+            mine = any(value) == (operator == "in")
+        else:
+            mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
         dom = [
             "|",
             ("assigned_user_id", "=", self.env.uid),

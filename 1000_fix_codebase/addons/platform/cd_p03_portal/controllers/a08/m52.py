@@ -37,6 +37,7 @@ SURFACES = {
             "action_approve",
             "action_reject",
             "action_reset_draft",
+            "action_confirm_tds_category",
         },
     },
     "fix.expense.claim": {

@@ -21,7 +21,8 @@ export const MODULE = {
     { en: 'Register', screens: [
       { id: 'M42-suppliers', en: 'Supplier Directory', bn: 'সরবরাহকারী তালিকা', t: 'g' },
       { id: 'M42-segments', en: 'Segmentation', bn: 'সেগমেন্টেশন', t: 'g' },
-      { id: 'M42-docs', en: 'Document Register', bn: 'নথি নিবন্ধন', t: 'g' }
+      { id: 'M42-docs', en: 'Document Register', bn: 'নথি নিবন্ধন', t: 'g' },
+      { id: 'M42-bank', en: 'Bank-Detail Changes', bn: 'ব্যাংক তথ্য পরিবর্তন', t: 'g' }
     ]},
     { en: 'Qualification', screens: [
       { id: 'M42-qualification', en: 'Qualification Workflow', bn: 'যোগ্যতা যাচাই', t: 'g' },
@@ -55,11 +56,19 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M42-bank': { kind: 'model_list', model: 'fix.supplier.bank.change', stateField: 'state',
+    cols: ['name', 'supplier_id', 'acc_number_masked', 'bank_id', 'proposed_by_id', 'confirmed_by_id', 'supplier_payment_block', 'state'],
+    actions: [
+      { m: 'action_propose', l: 'Propose (blocks payment)' },
+      { m: 'action_confirm', l: 'Confirm (second person)' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the bank-detail change is rejected', kwarg: 'reason' }
+    ],
+    note: 'Readable only by Supplier Stewards and Approvers. A proposal blocks payment to the supplier until a second person confirms or rejects it.' },
   'M42-suppliers': { kind: 'model_list', model: 'fix.supplier', stateField: 'status',
     cols: ['name', 'supplier_code', 'partner_id', 'segment', 'category', 'payment_block', 'status'],
     actions: [
       { m: 'action_suspend', l: 'Suspend', ask: 'Reason for suspending the supplier', kwarg: 'reason' },
-      { m: 'action_block', l: 'Block (blacklist)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
+      { m: 'action_block', l: 'Block (CFO / CEO)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
       { m: 'action_request_reinstatement', l: 'Request Reinstatement', ask: 'Why the supplier should be reinstated', kwarg: 'reason' },
       { m: 'action_approve_reinstatement', l: 'Approve Reinstatement (approver)' }
     ] },
@@ -67,7 +76,7 @@ export const SCREENS = {
     cols: ['name', 'segment', 'category', 'status'],
     actions: [
       { m: 'action_suspend', l: 'Suspend', ask: 'Reason for suspending the supplier', kwarg: 'reason' },
-      { m: 'action_block', l: 'Block (blacklist)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
+      { m: 'action_block', l: 'Block (CFO / CEO)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
       { m: 'action_request_reinstatement', l: 'Request Reinstatement', ask: 'Why the supplier should be reinstated', kwarg: 'reason' },
       { m: 'action_approve_reinstatement', l: 'Approve Reinstatement (approver)' }
     ] },
@@ -75,7 +84,7 @@ export const SCREENS = {
     cols: ['name', 'supplier_id', 'doc_type', 'number', 'valid_to', 'is_valid', 'verified_by_id', 'state'],
     actions: [{ m: 'action_verify', l: 'Verify (second person)' }] },
   'M42-qualification': { kind: 'model_list', model: 'fix.supplier.qualification', stateField: 'state',
-    cols: ['name', 'supplier_id', 'stage', 'submitted_on', 'score', 'state'],
+    cols: ['name', 'supplier_id', 'stage', 'submitted_on', 'score', 'scored_by_id', 'state'],
     actions: [
       { m: 'action_start', l: 'Start Review' },
       { m: 'action_approve', l: 'Approve' },
@@ -94,7 +103,7 @@ export const SCREENS = {
       { m: 'action_publish', l: 'Publish' }
     ] },
   'M42-cars': { kind: 'model_list', model: 'fix.supplier.car', stateField: 'state',
-    cols: ['name', 'supplier_id', 'issue', 'severity', 'due_date', 'is_overdue', 'state'],
+    cols: ['name', 'supplier_id', 'issue', 'severity', 'due_date', 'is_overdue', 'actioned_by_id', 'state'],
     actions: [
       { m: 'action_action', l: 'Mark Actioned' },
       { m: 'action_close', l: 'Close CAR' }
@@ -110,7 +119,7 @@ export const SCREENS = {
     actions: [
       { m: 'action_clear', l: 'Clear' },
       { m: 'action_flag', l: 'Flag' },
-      { m: 'action_clear_hit', l: 'Clear Hit (approver)', ask: 'Why the hit is a false positive (evidence reference)', kwarg: 'reason' }
+      { m: 'action_clear_hit', l: 'Clear Hit (approver; sanctions: CFO)', ask: 'Why the hit is a false positive (evidence reference)', kwarg: 'reason' }
     ] },
 
   /* Report chips -> their own computed pack */
@@ -121,6 +130,31 @@ export const SCREENS = {
   'M42-rpt-compliance': { kind: 'table_report', module: 'M42', report: 'compliance_log', title: 'Compliance Screening Log', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
+  'M42-form-bank-change': {
+    kind: 'model_form',
+    model: 'fix.supplier.bank.change',
+    title: 'Bank-Detail Change',
+    back: 'M42-bank',
+    status: { field: 'state', labels: {
+      draft: 'Draft', proposed: 'Proposed', confirmed: 'Confirmed', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Proposed Account', note: 'A steward records the new account with the call-back verification and the evidence, then proposes it: payments to the supplier stop. A second steward or an approver confirms it, which makes it the approved payee account, or rejects it. A proposal cannot be edited; reject it and propose again.',
+        fields: [
+          { name: 'supplier_id', required: true, label: 'Supplier' },
+          { name: 'acc_number', required: true, label: 'New Account Number' },
+          { name: 'bank_id', label: 'Bank' },
+          { name: 'routing_number', label: 'BEFTN Routing Number (9 digits)' },
+          { name: 'acc_holder_name', label: 'Account Holder' },
+          { name: 'verification_ref', required: true, label: 'Call-Back Verification' },
+          { name: 'evidence_ref', required: true, label: 'Evidence File Reference' },
+          { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
+          { name: 'confirmed_by_id', readonly: true, label: 'Confirmed By' },
+          { name: 'supplier_payment_block', readonly: true, label: 'Payment Block' },
+          { name: 'reject_reason', readonly: true, label: 'Rejection Reason' }
+        ] }
+    ]
+  },
+
   'M42-form-supplier': {
     kind: 'model_form',
     model: 'fix.supplier',
@@ -128,14 +162,15 @@ export const SCREENS = {
     back: 'M42-suppliers',
     status: { field: 'status', labels: {
       prospect: 'Prospect', qualified: 'Qualified', active: 'Active',
-      suspended: 'Suspended', deactivated: 'Deactivated' } },
+      suspended: 'Suspended', deactivated: 'Deactivated (Blocked)' } },
     sections: [
-      { title: 'Profile', note: 'One supplier record per partner. The status moves only by its actions: prospect → qualified (qualification approved) → active (activation gate, decided by a Supplier Approver) → suspended / blocked; a suspended or blocked supplier returns only through an approved reinstatement. Bank details change only through a confirmed bank-change request.',
+      { title: 'Profile', note: 'One supplier record per partner. The status moves only by its actions: prospect → qualified (qualification approved) → active (activation gate, decided by a Supplier Approver) → suspended / blocked (blocking is the CFO or CEO\'s); a suspended or blocked supplier returns only through an approved reinstatement. Bank details change only through a confirmed bank-change request. Approved categories are read by the PO gate when it is switched on. The segment sets the review cadence.',
         fields: [
           { name: 'name', required: true, label: 'Supplier Name' },
           { name: 'partner_id', required: true, label: 'Contact Partner' },
           { name: 'segment', required: true, label: 'Segment' },
           { name: 'category', label: 'Spend Category' },
+          { name: 'approved_category_ids', label: 'Approved Product Categories' },
           { name: 'buyer_id', label: 'Buyer' },
           { name: 'onboarded_on', label: 'Onboarded On' },
           { name: 'notes', type: 'text', label: 'Notes' }
@@ -151,14 +186,16 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       valid: 'Valid', pending: 'Pending', expired: 'Expired' } },
     sections: [
-      { title: 'Document', note: 'A document becomes valid only when a second user verifies it against its number and file (Verify). Changing it afterwards returns it to pending; an expired end date makes it invalid and suspends an active supplier.',
+      { title: 'Document', note: 'A document becomes valid only when a second user verifies it against its number and the uploaded file (Verify). Changing it or its file afterwards returns it to pending; an expired end date makes it invalid and suspends an active supplier.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'doc_type', required: true, label: 'Document Type' },
           { name: 'number', label: 'Document Number' },
           { name: 'valid_from', label: 'Valid From' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'file_ref', label: 'File Reference' }
+          { name: 'file', type: 'binary', filename: 'file_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Document File' },
+          { name: 'file_filename', label: 'File Name' },
+          { name: 'file_ref', label: 'Paper File Reference (optional)' }
         ] }
     ]
   },
@@ -171,13 +208,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', in_review: 'In Review', approved: 'Approved', rejected: 'Rejected' } },
     sections: [
-      { title: 'Qualification', note: 'Stage walks documents → site audit → samples → finance → activation. A Supplier Approver who did not score or audit it approves a score at or above the threshold; approval moves the supplier to qualified, and the score is then final.',
+      { title: 'Qualification', note: 'Stage walks documents → site audit → samples → finance → activation. A Supplier Approver who did not score or audit it approves a score at or above the threshold (whoever changes the score becomes its scorer and cannot approve it); approval moves the supplier to qualified, and the score is then final.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'stage', required: true, label: 'Stage' },
           { name: 'submitted_on', required: true, label: 'Submitted On' },
           { name: 'auditor_id', label: 'Auditor' },
           { name: 'score', label: 'Score (0–100)' },
+          { name: 'scored_by_id', readonly: true, label: 'Scored By' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -191,10 +229,10 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', activated: 'Activated', blocked: 'Blocked' } },
     sections: [
-      { title: 'Gate', note: 'Activation requires an approved qualification of this supplier, verified unexpired trade licence, TIN and VAT documents, no unresolved screening hit and no critical open risk; a Supplier Approver other than the preparer activates.',
+      { title: 'Gate', note: 'Activation requires an approved qualification of this supplier, verified unexpired trade licence, TIN and VAT documents, a cleared screening of every required type (sanctions, conflict of interest and anti-bribery by default), no unresolved screening hit and no critical open risk; a Supplier Approver other than the preparer activates.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
-          { name: 'qualification_id', label: 'Qualification' }
+          { name: 'qualification_id', label: 'Qualification', domain: [['state', '=', 'approved']] }
         ] }
     ]
   },
@@ -245,7 +283,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', actioned: 'Actioned', closed: 'Closed' } },
     sections: [
-      { title: 'Corrective Action', note: 'Marking actioned needs the action plan; closing (verification) is done by someone other than the raiser. Overdue is computed against today.',
+      { title: 'Corrective Action', note: 'Marking actioned needs the action plan; closing (verification) is done by someone other than the raiser and the person who actioned it. Overdue is computed against today.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'issue', required: true, label: 'Issue' },
@@ -302,7 +340,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       pending: 'Pending', cleared: 'Cleared', flagged: 'Flagged' } },
     sections: [
-      { title: 'Screening', note: 'A recorded hit is never rewritten: flagging it suspends an active supplier, and only a Supplier Approver other than the recorder clears it, with the reason.',
+      { title: 'Screening', note: 'A recorded hit is never rewritten: flagging a sanctions hit blocks the supplier, any other hit suspends an active one. A Supplier Approver other than the recorder clears a hit with the reason; a sanctions hit takes the CFO or CEO, and a blocked supplier then still needs an approved reinstatement.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'screening_type', required: true, label: 'Screening Type' },
@@ -336,6 +374,7 @@ export const FORM_CHIPS = {
   'M42:CAR': 'M42-form-car',
   'M42:Risk Assessment': 'M42-form-risk',
   'M42:__by_model__': {
+    'fix.supplier.bank.change': 'M42-form-bank-change',
     'fix.supplier': 'M42-form-supplier',
     'fix.supplier.document': 'M42-form-document',
     'fix.supplier.qualification': 'M42-form-qualification',
@@ -351,6 +390,7 @@ export const FORM_CHIPS = {
     'M42-suppliers': 'M42-form-supplier',
     'M42-segments': 'M42-form-supplier',
     'M42-docs': 'M42-form-document',
+    'M42-bank': 'M42-form-bank-change',
     'M42-qualification': 'M42-form-qualification',
     'M42-gate': 'M42-form-activation',
     'M42-requal': 'M42-form-requalification',

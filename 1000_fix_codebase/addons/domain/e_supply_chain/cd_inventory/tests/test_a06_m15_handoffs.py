@@ -44,6 +44,10 @@ def po_world(inv):
     return w
 
 
+def _no_inspection(w):
+    w.env["ir.config_parameter"].sudo().set_param("cd_requisition.receipt_inspection_required", "0")
+
+
 def _receive(w, qty_by_product):
     lines = {
         line.id: qty_by_product[line.product_id]
@@ -56,7 +60,10 @@ def _receive(w, qty_by_product):
 
 # ------------------------------------------------ M15-9: PO receipt -> M15
 def test_m15_09_po_receipt_posts_into_the_m15_ledger(po_world):
+    """With inspection switched off. With it on, goods wait for it: see
+    test_a06_final_m16_bridges.py."""
     w = po_world
+    _no_inspection(w)
     grn = _receive(w, {w.prod: 3, w.other: 9})
     m15 = grn.stock_receipt_ids.filtered(lambda r: r.state == "posted")
     assert len(m15) == 1 and m15.purchase_order_id == w.po
@@ -76,6 +83,7 @@ def test_m15_09_po_receipt_posts_into_the_m15_ledger(po_world):
 
 def test_m15_09b_serialized_po_goods_wait_for_their_serials(po_world):
     w = po_world
+    _no_inspection(w)
     grn = _receive(w, {w.sprod: 2})
     draft = grn.stock_receipt_ids
     assert draft.state == "draft" and len(draft.line_ids) == 2
@@ -114,7 +122,10 @@ def test_m15_09c_no_receiving_location_is_refused(po_world):
 
 
 def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
+    """The consumer: goods already in available stock (inspection off, or a
+    receipt posted before the hold). It now raises the draft RTV too."""
     w = po_world
+    _no_inspection(w)
     grn = _receive(w, {w.prod: 3})
     consumer = w.env.ref("cd_inventory.consumer_inspection_rejected_quarantine")
     assert (consumer.event_type, consumer.method, consumer.active) == (
@@ -140,6 +151,8 @@ def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
     assert w.qty(w.part, w.central, status="quarantine") == 2.0
     q = Quarantine.search([("source_ref", "=", "inspection.rejected:987654")])
     assert len(q) == 1 and q.state == "quarantined"
+    rtv = w.env["fix.stock.rtv"].sudo().search([("quarantine_id", "=", q.id)])
+    assert (rtv.state, rtv.qty, rtv.partner_id) == ("draft", 2.0, w.vendor)
 
 
 def test_m16_07b_real_inspection_rejection_reaches_quarantine(po_world):
@@ -157,7 +170,13 @@ def test_m16_07b_real_inspection_rejection_reaches_quarantine(po_world):
         .search([("event_type", "=", "inspection.rejected"), ("aggregate_id", "=", insp.id)])
     )
     assert len(outbox) == 1
-    w.env["fix.stock.quarantine"].consume_inspection_rejected(outbox._relay_event_dict())
+    # the confirmation itself settled it, held goods being within reach; the
+    # event that still goes out for M42 and others moves nothing twice
+    assert w.qty(w.part, w.central, status="quarantine") == 2.0
+    assert w.qty(w.part, w.central) == 11.0
+    assert (
+        w.env["fix.stock.quarantine"].consume_inspection_rejected(outbox._relay_event_dict()) == 0
+    )
     assert w.qty(w.part, w.central, status="quarantine") == 2.0
 
 

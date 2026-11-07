@@ -369,7 +369,14 @@ WRITABLE = {
         }
     ),
     "fix.purchase.order.line": frozenset(),
-    "fix.purchase.receipt": frozenset(),
+    "fix.purchase.receipt": frozenset(
+        {
+            "delivery_note_ref",
+            "line_ids",
+            "notes",
+            "purchase_order_id",
+        }
+    ),
     "fix.purchase.receipt.line": frozenset(),
     "fix.reorder.rule": frozenset(
         {
@@ -387,6 +394,7 @@ WRITABLE = {
     "fix.requisition": frozenset(
         {
             "branch_id",
+            "cost_centre",
             "description",
             "estimate_amount",
             "justification",
@@ -394,6 +402,7 @@ WRITABLE = {
             "product_id",
             "qty",
             "requested_by",
+            "required_by",
             "urgency",
             "vendor_id",
         }
@@ -518,6 +527,7 @@ WRITABLE = {
     ),
     "fix.supplier": frozenset(
         {
+            "approved_category_ids",
             "buyer_id",
             "category",
             "name",
@@ -533,7 +543,17 @@ WRITABLE = {
             "supplier_id",
         }
     ),
-    "fix.supplier.bank.change": frozenset(),
+    "fix.supplier.bank.change": frozenset(
+        {
+            "acc_holder_name",
+            "acc_number",
+            "bank_id",
+            "evidence_ref",
+            "routing_number",
+            "supplier_id",
+            "verification_ref",
+        }
+    ),
     "fix.supplier.car": frozenset(
         {
             "action_plan",
@@ -548,6 +568,8 @@ WRITABLE = {
     "fix.supplier.document": frozenset(
         {
             "doc_type",
+            "file",
+            "file_filename",
             "file_ref",
             "number",
             "supplier_id",

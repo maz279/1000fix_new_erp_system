@@ -1,6 +1,7 @@
 # A06 · M16 Procurement & Sourcing — surfaces, packs and KPIs over requisitions,
-# RFQs/bids/awards, POs, blankets, expediting and inspection outcomes. The
-# receipt and RTV screens read M15's documents (single-owner surfaces).
+# RFQs/bids/awards, POs, PO goods receipts, blankets, expediting and inspection
+# outcomes. The warehouse stock receipt and RTV screens read M15's documents
+# (single-owner surfaces).
 import datetime
 
 # A06 workflow audit (2026-11-03) M16-9/M16-13: every transition the screens
@@ -25,6 +26,8 @@ SURFACES = {
             "action_reset_draft",
             "action_cancel",
             "action_convert_to_po",
+            "action_emergency_release",
+            "action_emergency_close",
         },
     },
     "fix.purchase.order": {
@@ -39,6 +42,7 @@ SURFACES = {
             "action_create_change_order",
             "action_cancel",
             "action_close",
+            "action_start_receipt",
         },
     },
     "fix.purchase.order.line": {"order": "order_id, id", "limit": 400, "actions": set()},
@@ -47,7 +51,14 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_open", "action_close"},
     },
-    "fix.procurement.bid": {"order": "rfq_id, unit_price", "limit": 400, "actions": set()},
+    # M16-5: read as the caller, so the sealed-bid record rule applies; the sudo
+    # list and form showed every vendor and price on an open RFQ to any employee.
+    "fix.procurement.bid": {
+        "order": "rfq_id, unit_price",
+        "limit": 400,
+        "actions": set(),
+        "rules": True,
+    },
     "fix.procurement.award": {
         "order": "decided_on desc, id desc",
         "limit": 200,
@@ -529,6 +540,136 @@ def three_way(env, date_from=None, date_to=None, **params):
     )
 
 
+def _po_value(line, qty):
+    return qty * (line.approved_unit_price if line.approved_qty else line.unit_price or 0.0)
+
+
+def gr_ir(env, date_from=None, date_to=None, **params):
+    """Goods received against bills, by PO and valued per product, so that a line
+    received and not billed never nets off against another billed and not received.
+    Received is net of what inspection rejected: rejected goods go back to the vendor."""
+    Bill = env.get("fix.vendor.invoice.line")
+    rows = []
+    for order in _orders(env):
+        if order.state in ("draft", "cancelled", "superseded"):
+            continue
+        received = {}
+        for line in order.line_ids:
+            qty = sum(
+                r.qty_received - r.qty_rejected
+                for r in line.receipt_line_ids
+                if r.state == "posted"
+            )
+            received[line.product_id.id] = received.get(line.product_id.id, 0.0) + _po_value(
+                line, qty
+            )
+        invoiced = {}
+        if Bill is not None:
+            for bill in Bill.search(
+                [
+                    ("invoice_id.requisition_id", "=", order.id),
+                    ("invoice_id.approval_state", "!=", "rejected"),
+                ]
+            ):
+                value = (bill.quantity or 0.0) * (bill.unit_price or 0.0)
+                invoiced[bill.product_id.id] = invoiced.get(bill.product_id.id, 0.0) + value
+        not_invoiced = not_received = 0.0
+        for product in set(received) | set(invoiced):
+            gap = received.get(product, 0.0) - invoiced.get(product, 0.0)
+            not_invoiced += max(gap, 0.0)
+            not_received += max(-gap, 0.0)
+        if not_invoiced < 0.005 and not_received < 0.005:
+            continue
+        rows.append(
+            {
+                "po": order.name,
+                "vendor": order.vendor_id.name,
+                "received_value": round(sum(received.values()), 2),
+                "invoiced_value": round(sum(invoiced.values()), 2),
+                "received_not_invoiced": round(not_invoiced, 2),
+                "invoiced_not_received": round(not_received, 2),
+                "state": dict(order._fields["state"].selection).get(order.state),
+            }
+        )
+    rows.sort(key=lambda r: -(r["received_not_invoiced"] + r["invoiced_not_received"]))
+    return _pack(
+        "GR/IR Reconciliation — received not invoiced, invoiced not received",
+        [
+            "po",
+            "vendor",
+            "received_value",
+            "invoiced_value",
+            "received_not_invoiced",
+            "invoiced_not_received",
+            "state",
+        ],
+        {
+            "po": "PO",
+            "vendor": "Vendor",
+            "received_value": "Received Value",
+            "invoiced_value": "Invoiced Value",
+            "received_not_invoiced": "Received, Not Invoiced",
+            "invoiced_not_received": "Invoiced, Not Received",
+            "state": "State",
+        },
+        rows,
+        [
+            "Received comes from POSTED goods receipts, net of quantity rejected at inspection, "
+            "at the approved PO price; invoiced from bills on the PO that were not rejected. "
+            "POs that agree are not listed."
+        ],
+        totals={
+            "po": "Total",
+            "received_not_invoiced": round(sum(r["received_not_invoiced"] for r in rows), 2),
+            "invoiced_not_received": round(sum(r["invoiced_not_received"] for r in rows), 2),
+        },
+        empty="Every issued PO agrees: nothing received and not invoiced, or invoiced and not received.",
+    )
+
+
+def emergency_spend(env, date_from=None, date_to=None, **params):
+    """BRU-PRO-12 / FR-PRO-036: an emergency purchase is counted."""
+    reqs = env["fix.requisition"].search(
+        [*_company_domain(env), ("emergency_state", "!=", False)],
+        order="emergency_released_at desc",
+    )
+    spend = sum(_orders(env).filtered(lambda o: o.state != "cancelled").mapped("amount_total"))
+    total = sum(reqs.mapped("estimate_amount"))
+    rows = [
+        {
+            "requisition": req.description,
+            "branch": req.branch_id.name if req.branch_id else "—",
+            "amount": round(req.estimate_amount or 0.0, 2),
+            "reason": req.emergency_reason or "",
+            "released": str(req.emergency_released_at)[:16] if req.emergency_released_at else "—",
+            "due": str(req.emergency_deadline)[:16] if req.emergency_deadline else "—",
+            "path": dict(req._fields["emergency_state"].selection).get(req.emergency_state),
+        }
+        for req in reqs
+    ]
+    return _pack(
+        "Emergency Purchases — post-hoc approval and share of spend",
+        ["requisition", "branch", "amount", "reason", "released", "due", "path"],
+        {
+            "requisition": "Requisition",
+            "branch": "Branch",
+            "amount": "Amount",
+            "reason": "Reason",
+            "released": "Released",
+            "due": "Post-Hoc Due",
+            "path": "Status",
+        },
+        rows,
+        [
+            "Emergency value %s against %s total PO spend (%.1f%%); the module's target is under "
+            "8%% of spend."
+            % (round(total, 2), round(spend, 2), (total / spend) * 100.0 if spend else 0.0)
+        ],
+        totals={"requisition": "Total", "amount": round(total, 2)},
+        empty="No emergency purchases.",
+    )
+
+
 REPORTS = {
     "spend_by_category": spend_by_category,
     "match_exception": match_exception,
@@ -539,6 +680,8 @@ REPORTS = {
     "consolidation": consolidation,
     "price_history": price_history,
     "three_way": three_way,
+    "gr_ir": gr_ir,
+    "emergency_spend": emergency_spend,
 }
 
 

@@ -2150,7 +2150,8 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 }
                 // a brand-new record with a required child grid starts with
                 // one blank target so the form is usable without hunting
-                if (gl.formCfg.lines && !gl.form.lineValues.length) this.formAddLine();
+                // (fixedRows: the server fills the rows, nothing is keyed in)
+                if (gl.formCfg.lines && !gl.formCfg.lines.fixedRows && !gl.form.lineValues.length) this.formAddLine();
             }
         } catch (e) {
             gl.data = null;
