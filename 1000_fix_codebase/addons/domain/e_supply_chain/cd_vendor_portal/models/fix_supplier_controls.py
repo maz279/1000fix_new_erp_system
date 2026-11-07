@@ -28,6 +28,42 @@ from .fix_supplier import GROUP_APPROVER, GROUP_STEWARD, _not_by, _require
 BANK_KEY = "fix_supplier_bank_change"
 _BANK_TOKEN = object()
 BANK_FIELDS = ("acc_number", "bank_id", "partner_id", "acc_holder_name", "allow_out_payment")
+# BRU-PRO-02 / BRU-SRM2-03: compare the PO's product categories with the
+# categories the supplier is approved for. Off by default: the register holds
+# free-text categories until a steward records the approved ones.
+PARAM_CATEGORY_GATE = "cd_vendor_portal.po_category_gate"
+
+
+class ResPartnerSupplierLink(models.Model):
+    """The supplier register as seen from a partner, for vendor pickers. A picker's
+    filter may not use a groups-restricted field, and a plain link to fix.supplier
+    would raise for a portal user reading a partner, who has no access to it: so
+    this is a computed status, read as the system."""
+
+    _inherit = "res.partner"
+
+    fix_supplier_status = fields.Selection(
+        selection=lambda self: self.env["fix.supplier"]._fields["status"].selection,
+        string="Supplier Status",
+        compute="_compute_fix_supplier_status",
+        search="_search_fix_supplier_status",
+        compute_sudo=True,
+    )
+
+    def _compute_fix_supplier_status(self):
+        Supplier = self.env["fix.supplier"].sudo()
+        records = Supplier.search([("partner_id", "in", self._origin.ids)])
+        status = {supplier.partner_id.id: supplier.status for supplier in records}
+        for partner in self:
+            partner.fix_supplier_status = status.get(partner._origin.id, False)
+
+    def _search_fix_supplier_status(self, operator, value):
+        # Odoo 19 hands `=` and `!=` over as `in` and `not in`, with a set. A partner
+        # with no supplier record never matches: "!= False" lists registered ones.
+        if operator in ("in", "not in"):
+            value = list(value)
+        suppliers = self.env["fix.supplier"].sudo().search([("status", operator, value)])
+        return [("id", "in", suppliers.mapped("partner_id").ids)]
 
 
 class FixPurchaseOrderSupplierGate(models.Model):
@@ -45,6 +81,29 @@ class FixPurchaseOrderSupplierGate(models.Model):
             return ["supplier %s is %s" % (supplier.supplier_code, supplier.status)]
         return supplier._a06_order_problems()
 
+    def _a06_check_categories(self):
+        """Fail closed once switched on: a supplier with no approved categories
+        supplies nothing."""
+        result = super()._a06_check_categories()
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_CATEGORY_GATE)
+        if str(raw or "0").strip().lower() in ("0", "false", "no", "off"):
+            return result
+        Category = self.env["product.category"].sudo()
+        for order in self:
+            supplier = self.env["fix.supplier"]._for_partner(order.vendor_id)
+            approved = Category.search([("id", "child_of", supplier.approved_category_ids.ids)])
+            outside = order.sudo().line_ids.product_id.categ_id - approved
+            if outside:
+                raise UserError(
+                    "BRU-PRO-02: supplier %s is not approved for %s (PO %s)."
+                    % (
+                        supplier.display_name or order.vendor_id.display_name,
+                        ", ".join(outside.mapped("display_name")),
+                        order.name,
+                    )
+                )
+        return result
+
 
 class FixSupplierBankChange(models.Model):
     """A proposed change of a supplier's payee bank account."""
@@ -60,6 +119,10 @@ class FixSupplierBankChange(models.Model):
     )
     company_id = fields.Many2one(related="supplier_id.company_id", store=True, readonly=True)
     acc_number = fields.Char(string="New Account Number", required=True)
+    acc_number_masked = fields.Char(string="New Account", compute="_compute_acc_number_masked")
+    supplier_payment_block = fields.Boolean(
+        string="Payment Block", related="supplier_id.payment_block"
+    )
     bank_id = fields.Many2one("res.bank", string="Bank")
     routing_number = fields.Char(string="BEFTN Routing Number")
     acc_holder_name = fields.Char(string="Account Holder")
@@ -114,6 +177,14 @@ class FixSupplierBankChange(models.Model):
         if self and any(r.state != "draft" for r in self):
             locked |= set(self.CHANGE_TERMS)
         return locked
+
+    @api.depends("acc_number")
+    def _compute_acc_number_masked(self):
+        # The list shows the last four digits; the full number is on the form,
+        # for the people the access rules already let read this model.
+        for rec in self:
+            number = (rec.acc_number or "").strip()
+            rec.acc_number_masked = ("•" * max(len(number) - 4, 0) + number[-4:]) if number else ""
 
     @api.constrains("routing_number")
     def _check_routing(self):

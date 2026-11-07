@@ -250,8 +250,10 @@ def test_critical_closure_without_m23_needs_an_entered_capa_reference(env, ou, m
 
 def test_scores_weight_on_time_and_quality(env, ou):
     vendor = env["res.partner"].create({"name": "CX Vendor A"})
-    card = env["fix.supplier.scorecard"].create(
-        {"vendor_id": vendor.id, "period": "2026-09", "operating_unit_id": ou.id}
+    card = (
+        env["fix.supplier.scorecard"]
+        ._guarded()
+        .create({"vendor_id": vendor.id, "period": "2026-09", "operating_unit_id": ou.id})
     )
     assert (card.on_time_pct, card.score) == (100.0, 100.0)  # nothing late yet
     card.write({"lines_on_time": 3, "lines_late": 1, "rejection_count": 2})
@@ -261,51 +263,48 @@ def test_scores_weight_on_time_and_quality(env, ou):
     assert card.score == 45.0  # quality floors at 0
 
 
-def test_goods_received_events_build_the_scorecard(env, ou):
-    """Regression: a first event for a vendor/period created the card without
-    its required operating unit and failed."""
+def test_scorecard_model_is_deprecated_and_takes_no_new_rows(env, ou):
+    """A06 final pass, M42-6: fix.supplier.performance is the supplier scorecard.
+    Nothing feeds this older model, so it refuses new rows, as a plain user, as the
+    system and from an event; a row that exists is still read and still counts."""
     cards = env["fix.supplier.scorecard"]
     vendor = env["res.partner"].create({"name": "CX Vendor B"})
+    values = {"vendor_id": vendor.id, "period": "2026-10", "operating_unit_id": ou.id}
+    with pytest.raises(UserError, match="no new rows"):
+        cards.create(values)
     assert cards.consume_goods_received({"payload": {}}) is None
+    cards.consume_goods_received({"payload": {"vendor_id": vendor.id, "po_date": "2026-10-03"}})
+    assert not cards.search([("vendor_id", "=", vendor.id)])
+    card = cards._guarded().create(values)  # an old row, as the table holds them
     cards.consume_goods_received({"payload": {"vendor_id": vendor.id, "po_date": "2026-10-03"}})
     cards.consume_goods_received(
         {"payload": {"vendor_id": vendor.id, "po_date": "2026-10-21", "late": True}}
     )
-    card = cards.search([("vendor_id", "=", vendor.id)])
     assert (card.period, card.lines_on_time, card.lines_late) == ("2026-10", 1, 1)
-    assert card.operating_unit_id == ou
-    explicit_ou = env["operating.unit"].create(
-        {
-            "name": "CX Second OU",
-            "code": "CXOU2",
-            "partner_id": vendor.id,
-            "company_id": env.company.id,
-        }
-    )
-    cards.consume_goods_received(
-        {
-            "payload": {
-                "vendor_id": vendor.id,
-                "po_date": "2026-11-02",
-                "operating_unit_id": explicit_ou.id,
-            }
-        }
-    )
+
+
+def test_nothing_consumes_or_schedules_the_deprecated_scorecard(env):
+    """What makes refusing its rows safe; if this fails, read the docstring above."""
+    Consumer = env["fix.event.consumer"].sudo()
+    assert not Consumer.search_count([("model", "=", "fix.supplier.scorecard")])
     assert (
-        cards.search([("vendor_id", "=", vendor.id), ("period", "=", "2026-11")]).operating_unit_id
-        == explicit_ou
+        not env["ir.cron"].sudo().search_count([("model_id.model", "=", "fix.supplier.scorecard")])
     )
 
 
 def test_scorecards_publish_for_the_vendor_portal(env, ou):
     vendor = env["res.partner"].create({"name": "CX Vendor C"})
-    card = env["fix.supplier.scorecard"].create(
-        {
-            "vendor_id": vendor.id,
-            "period": "2026-08",
-            "operating_unit_id": ou.id,
-            "lines_on_time": 4,
-        }
+    card = (
+        env["fix.supplier.scorecard"]
+        ._guarded()
+        .create(
+            {
+                "vendor_id": vendor.id,
+                "period": "2026-08",
+                "operating_unit_id": ou.id,
+                "lines_on_time": 4,
+            }
+        )
     )
     env["fix.supplier.scorecard"].publish_all_scorecards()
     [event] = env["fix.event.outbox"].search(
@@ -332,9 +331,12 @@ def test_scorecard_counters_cannot_be_typed_by_a_user(env, ou):
             }
         )
     )
-    card = env["fix.supplier.scorecard"].create(
-        {"vendor_id": vendor.id, "period": "2026-07", "operating_unit_id": ou.id}
+    card = (
+        env["fix.supplier.scorecard"]
+        ._guarded()
+        .create({"vendor_id": vendor.id, "period": "2026-07", "operating_unit_id": ou.id})
     )
+    card = card.with_env(env)
     for vals in ({"lines_on_time": 100}, {"lines_late": 0, "rejection_count": 3}, {"po_count": 9}):
         with pytest.raises(UserError, match="changes only through its workflow"):
             card.with_user(user).write(vals)

@@ -3324,7 +3324,7 @@
                                         </tbody>
                                     </table>
                                     <div class="d365-lines-bar">
-                                        <button t-if="!formLineCfg.readonlyGrid" class="btn" t-on-click="() => this.formAddLine()">
+                                        <button t-if="!formLineCfg.readonlyGrid &amp;&amp; !formLineCfg.fixedRows" class="btn" t-on-click="() => this.formAddLine()">
                                             <t t-esc='t("+ Add line")'/>
                                         </button>
                                         <span t-if="formLineCfg.total" t-att-class="'d365-line-total' + (formLineTotal == formLineCfg.total.target ? ' ok' : '')">

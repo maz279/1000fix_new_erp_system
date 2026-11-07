@@ -5,6 +5,7 @@
 # after the probe id): the same attack as a NON-ADMIN user created in the
 # transaction, now refused, plus proper-path tests showing a steward and an
 # approver can still onboard, govern and pay a supplier. Rolled back.
+import base64
 import json
 import types
 from datetime import timedelta
@@ -24,6 +25,8 @@ GSA = "cd_vendor_portal.group_fix_supplier_approver"
 CFO = "cd_entity_config.group_dofa_tier_4"
 GUARD = "changes only through its workflow"
 DOCS = ("trade_licence", "tin", "vat")
+SCREENINGS = ("sanctions", "coi", "abac")
+PDF = base64.b64encode(b"%PDF-1.4 a06 m42 evidence")
 
 
 def _user(env, login, groups=()):
@@ -82,6 +85,7 @@ def docs(c, s, verify=True, valid_to=None):
                     "doc_type": t,
                     "number": "%s-%s" % (t, s.id),
                     "file_ref": "dms://suppliers/%s/%s" % (s.id, t),
+                    "file": PDF,
                     "valid_to": valid_to or c.today + timedelta(days=365),
                 }
             )
@@ -89,6 +93,16 @@ def docs(c, s, verify=True, valid_to=None):
     if verify:
         out.with_user(c.steward2).action_verify()
     return out
+
+
+def cleared_screenings(c, s):
+    for key in SCREENINGS:
+        rec = (
+            c.env["fix.supplier.screening"]
+            .with_user(c.steward)
+            .create({"supplier_id": s.id, "screening_type": key, "result": "clear"})
+        )
+        rec.with_user(c.steward).action_clear()
 
 
 def qual(c, s, score=80, approve=True):
@@ -114,6 +128,7 @@ def gate(c, s, q, user=None):
 def active_supplier(c):
     s = supplier(c)
     docs(c, s)
+    cleared_screenings(c, s)
     q = qual(c, s)
     gate(c, s, q).with_user(c.approver).action_activate()
     assert s.status == "active"
@@ -216,7 +231,7 @@ def test_m42_G03_documents_cannot_be_self_certified(c):
         .with_user(c.steward)
         .create({"supplier_id": s.id, "doc_type": "trade_licence"})
     )
-    with pytest.raises(UserError, match="number and the file"):
+    with pytest.raises(UserError, match="number and the uploaded file"):
         bare.with_user(c.steward2).action_verify()
     own = docs(c, s, verify=False)
     with pytest.raises(UserError, match="Segregation"):
@@ -229,6 +244,7 @@ def test_m42_G04_one_user_cannot_create_qualify_and_activate(c):
     emp = c.env["hr.employee"].create({"name": "buyer emp", "user_id": c.approver.id})
     s = supplier(c, buyer_id=emp.id)
     docs(c, s)
+    cleared_screenings(c, s)
     zero = qual(c, s, score=0, approve=False)
     zero.with_user(c.steward).action_start()
     with pytest.raises(UserError, match="threshold"):
@@ -285,9 +301,9 @@ def test_m42_G06_gate_refuses_another_suppliers_qualification(c):
 
 
 def test_m42_G07_blocked_or_suspended_not_reactivated_through_the_gate(c):
-    for how in ("action_suspend", "action_block"):
+    for how, who in (("action_suspend", c.steward), ("action_block", c.cfo_approver)):
         s = active_supplier(c)
-        getattr(s.with_user(c.steward), how)(reason="audit finding")
+        getattr(s.with_user(who), how)(reason="audit finding")
         q = c.env["fix.supplier.qualification"].search([("supplier_id", "=", s.id)], limit=1)
         with pytest.raises(UserError, match="reinstatement"):
             gate(c, s, q).with_user(c.approver).action_activate()
@@ -305,7 +321,10 @@ def test_m42_G07b_reinstatement_needs_a_second_person_and_cfo_for_blocked(c):
         s.with_user(requester).action_approve_reinstatement()
     s.with_user(c.approver).action_approve_reinstatement()
     assert s.status == "active"
-    s.with_user(c.steward).action_block(reason="counterfeit parts")
+    with pytest.raises(UserError, match="Blocking a supplier needs"):
+        s.with_user(c.steward).action_block(reason="counterfeit parts")
+    assert s.status == "active"
+    s.with_user(c.cfo_approver).action_block(reason="counterfeit parts")
     s.with_user(c.steward).action_request_reinstatement(reason="court ruling 2026-11")
     with pytest.raises(UserError, match="CFO"):
         s.with_user(c.approver).action_approve_reinstatement()
@@ -363,7 +382,7 @@ def test_m42_L01b_cron_expires_documents_and_suspends(c):
     assert cron.active and "_cron_lifecycle_sweep" in cron.code
 
 
-def test_m42_L02_flagged_hit_suspends(c):
+def test_m42_L02_flagged_sanctions_hit_blocks(c):
     s = active_supplier(c)
     sc = (
         c.env["fix.supplier.screening"]
@@ -372,7 +391,7 @@ def test_m42_L02_flagged_hit_suspends(c):
     )
     assert _po_gate(c, s.partner_id)  # an unresolved hit already blocks POs
     sc.with_user(c.steward).action_flag()
-    assert s.status == "suspended"
+    assert s.status == "deactivated"
 
 
 def test_m42_L03_failed_requalification_suspends(c):
@@ -423,7 +442,7 @@ def test_m42_Q02_hit_cannot_be_rewritten_only_cleared_by_an_approver(c):
     sc = (
         c.env["fix.supplier.screening"]
         .with_user(c.steward)
-        .create({"supplier_id": s.id, "result": "hit"})
+        .create({"supplier_id": s.id, "screening_type": "abac", "result": "hit"})
     )
     sc.with_user(c.steward).action_flag()
     with pytest.raises(UserError):
@@ -552,7 +571,9 @@ def _issued_po_with_receipt(c, partner, price=1000.0, qty=10.0, accepted=10.0, p
         }
     )
     po.action_send()
-    po.action_acknowledge_on_behalf(evidence="seeded vendor confirmation")
+    po.action_acknowledge_on_behalf(
+        evidence="seeded vendor confirmation", confirmed_date="2099-01-01"
+    )
     po.action_record_receipt({po.line_ids.id: qty})
     rline = po.receipt_ids.line_ids
     insp = env["fix.procurement.inspection"].create(
@@ -879,10 +900,12 @@ def test_m42_proper_path_onboarding_to_po_gate(c):
     docs(c, s)
     q = qual(c, s)
     assert s.status == "qualified" and q.approved_by_id == c.approver
-    c.env["fix.supplier.screening"].with_user(c.steward).create(
-        {"supplier_id": s.id, "screening_type": "sanctions", "result": "clear"}
-    ).with_user(c.steward).action_clear()
-    gate(c, s, q).with_user(c.approver).action_activate()
+    with pytest.raises(UserError, match="no cleared"):
+        gate(c, s, q).with_user(c.approver).action_activate()
+    cleared_screenings(c, s)
+    c.env["fix.supplier.activation"].search([("supplier_id", "=", s.id)]).with_user(
+        c.approver
+    ).action_activate()
     assert s.status == "active" and s.status_changed_by_id == c.approver
     assert _po_gate(c, s.partner_id) == []
 

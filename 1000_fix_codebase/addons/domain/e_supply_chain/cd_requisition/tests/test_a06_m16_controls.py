@@ -23,6 +23,7 @@ GA = "cd_requisition.group_fix_procurement_approver"
 GM = "cd_requisition.group_fix_procurement_manager"
 T = {n: "cd_entity_config.group_dofa_tier_%d" % n for n in range(1, 6)}
 GUARD = "changes only through its workflow"
+ACK_DATE = date.today() + timedelta(days=14)
 
 
 def _user(env, login, groups=()):
@@ -135,6 +136,8 @@ def _req(c, amount=20000.0, user=None, **kw):
         "product_id": c.prod.id,
         "qty": 2,
         "vendor_id": c.vendor.id,
+        "cost_centre": "CC-A06M16T",
+        "required_by": ACK_DATE,
     }
     vals.update(kw)
     return c.env["fix.requisition"].with_user(user or c.requester).create(vals)
@@ -410,8 +413,9 @@ def test_m16_R12_convert_to_prospect_or_unregistered_refused(c):
 
 
 def test_m16_R13_code_created_requisition_is_submitted_not_approved(c):
-    """B3's contract: M43 creates a draft requisition by code and submits it;
-    it goes into the routed approval, never born approved."""
+    """B3's contract: a requisition created by code and submitted goes into the
+    routed approval, never born approved. It states its cost centre and date like
+    any other; only one M43 raises from a plan is exempt (cd_demand_plan's suite)."""
     r = (
         c.env["fix.requisition"]
         .with_user(c.clerk2)
@@ -426,6 +430,10 @@ def test_m16_R13_code_created_requisition_is_submitted_not_approved(c):
             }
         )
     )
+    with pytest.raises(UserError, match="cost centre"):
+        r.with_user(c.clerk2).action_submit()
+    assert r.state == "draft"
+    r.with_user(c.clerk2).write({"cost_centre": "CC-PLAN", "required_by": ACK_DATE})
     r.with_user(c.clerk2).action_submit()
     assert r.state == "submitted" and r.approval_state == "pending"
     assert c.md in r.approval_request_id.task_ids.mapped("assigned_user_id")
@@ -521,14 +529,18 @@ def test_m16_P02b_supplier_suspended_after_approval_blocks_send(c):
 
 def test_m16_P03_price_raised_after_acknowledgement_refused(c):
     po = _sent_po(c)
-    po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03 #4411")
+    po.with_user(c.buyer).action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03 #4411", confirmed_date=ACK_DATE
+    )
     with pytest.raises(UserError, match="change order"):
         po.line_ids.with_user(c.buyer).write({"unit_price": 100000})
 
 
 def test_m16_P04_qty_and_vendor_changed_after_acknowledgement_refused(c):
     po = _sent_po(c)
-    po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03 #4412")
+    po.with_user(c.buyer).action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03 #4412", confirmed_date=ACK_DATE
+    )
     with pytest.raises(UserError):
         po.line_ids.with_user(c.buyer).write({"qty_ordered": 1000})
     with pytest.raises(UserError):
@@ -550,7 +562,9 @@ def test_m16_P05_line_added_after_acknowledgement_refused(c):
 
 def test_m16_P05b_change_order_is_a_new_approved_revision(c):
     po = _sent_po(c)
-    po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03 #4413")
+    po.with_user(c.buyer).action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03 #4413", confirmed_date=ACK_DATE
+    )
     co = c.env["fix.purchase.order"].browse(
         po.with_user(c.buyer).action_create_change_order()["change_order_ids"]
     )
@@ -685,10 +699,10 @@ def test_m16_P16_buyer_cannot_acknowledge_for_vendor_without_evidence(c):
     with pytest.raises(UserError, match="confirmation"):
         po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="")
     po.with_user(c.buyer).action_acknowledge_on_behalf(
-        evidence="vendor letter ref GS/2026/118", confirmed_date="2026-11-20"
+        evidence="vendor letter ref GS/2026/118", confirmed_date=str(ACK_DATE)
     )
     assert po.state == "acknowledged" and po.ack_channel == "buyer_on_behalf"
-    assert po.vendor_confirmed_date == date(2026, 11, 20) and po.ack_by_id == c.buyer
+    assert po.vendor_confirmed_date == ACK_DATE and po.ack_by_id == c.buyer
 
 
 def test_m16_P17_requisition_link_cannot_be_forged(c):
@@ -1168,7 +1182,9 @@ def test_m16_W02_p03_requisition_state_refused(c, p03):
 
 def test_m16_W03_p03_po_line_price_after_ack_refused(c, p03):
     po = _sent_po(c)
-    po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03 #4414")
+    po.with_user(c.buyer).action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03 #4414", confirmed_date=ACK_DATE
+    )
     out = p03.write(
         model="fix.purchase.order",
         record_id=po.id,
@@ -1266,10 +1282,10 @@ def test_m16_V03_portal_cannot_ack_foreign_po(c, portal):
 
 def test_m16_V03b_vendor_acknowledges_own_po_with_date(c, portal):
     po = _sent_po(c)
-    out = portal.ctl.purchase_orders(po_id=po.id, action="acknowledge", delivery_date="2026-11-25")
+    out = portal.ctl.purchase_orders(po_id=po.id, action="acknowledge", delivery_date=str(ACK_DATE))
     assert out == {"purchase_order": {"id": po.id, "state": "acknowledged"}}
     assert po.ack_channel == "portal" and po.ack_by_id == portal.user
-    assert po.vendor_confirmed_date == date(2026, 11, 25)
+    assert po.vendor_confirmed_date == ACK_DATE
     draft = _approved_po(c)
     listed = [row["id"] for row in portal.ctl.purchase_orders()["purchase_orders"]]
     assert po.id in listed and draft.id not in listed
@@ -1349,7 +1365,9 @@ def test_m16_E01_goods_received_carries_vendor_and_dates(c):
 # =================================================================== proper path, end to end
 def test_m16_proper_path_requisition_to_matched_bill(c):
     po = _sent_po(c, 20000, qty=2)
-    po.with_user(c.buyer).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03 #4420")
+    po.with_user(c.buyer).action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03 #4420", confirmed_date=ACK_DATE
+    )
     rline = _receive(c, po, inspect_accept=2)
     assert po.state == "received" and rline.inspection_state == "passed"
     assert po.line_ids.qty_received == 2 and po.line_ids.qty_accepted == 2

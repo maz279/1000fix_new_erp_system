@@ -8,7 +8,7 @@
 # the approval engine leaves them; the role and segregation checks are in
 # test_a06_m16_controls.py.
 import json
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -141,12 +141,12 @@ def test_staff_acknowledgement_is_on_behalf_with_evidence(ctx):
     with pytest.raises(UserError, match="P05 portal"), ctx.env.cr.savepoint():
         po.action_acknowledge()
     po.action_acknowledge_on_behalf(
-        evidence="vendor e-mail 2026-03-02", confirmed_date="2026-03-09"
+        evidence="vendor e-mail 2026-03-02", confirmed_date=str(date.today() + timedelta(days=9))
     )
     assert (po.state, po.ack_channel, po.vendor_confirmed_date) == (
         "acknowledged",
         "buyer_on_behalf",
-        date(2026, 3, 9),
+        date.today() + timedelta(days=9),
     )
     assert po.acknowledged_at
     assert _events(ctx.env, "po.acknowledged", "fix.purchase.order", po.id) == [
@@ -154,7 +154,7 @@ def test_staff_acknowledgement_is_on_behalf_with_evidence(ctx):
             "po_ref": po.name,
             "vendor_id": ctx.vendor.id,
             "channel": "buyer_on_behalf",
-            "confirmed_date": "2026-03-09",
+            "confirmed_date": str(date.today() + timedelta(days=9)),
         }
     ]
 
@@ -239,6 +239,8 @@ def requisition_ctx(ctx):
                 "requested_by": employee.id,
                 "description": "Compressors for Q3 AMC visits",
                 "estimate_amount": amount,
+                "cost_centre": "CC-AMC",
+                "required_by": date.today() + timedelta(days=30),
             }
         )
 

@@ -78,6 +78,8 @@ def _requisition(ctx, approved=True, **vals):
         "qty": 4,
         "vendor_id": ctx["vendor"].id,
         "estimate_amount": 20000,
+        "cost_centre": "CC-OPS",
+        "required_by": "2099-01-01",
         "urgency": "normal",
         "requested_by": ctx["employee"].id,
         "operating_unit_id": ctx["ou"].id,
