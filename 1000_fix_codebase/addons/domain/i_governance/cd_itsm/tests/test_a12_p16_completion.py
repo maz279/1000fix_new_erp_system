@@ -97,9 +97,15 @@ def test_p16_quota_gate_refuses_on_measured_rate(env, consumer, quota):
 
 
 def test_p16_quota_gate_refuses_on_measured_daily(env, consumer, quota):
-    # old requests exhaust the daily quota but leave the per-minute empty
-    _log_api(env, consumer, 5, minutes_ago=120)
-    verdict = env["fix.api.quota"].check_request_allowed(consumer.id)
+    # old requests exhaust the daily quota but leave the per-minute empty. Pinned to
+    # noon: "two hours ago" is yesterday's date in the first two hours of a UTC day
+    noon = fields.Datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+    Log = env["fix.integration.log"].sudo()
+    for _ in range(5):
+        Log._log_request(
+            "api", status="success", consumer=consumer.id, created_at=noon - timedelta(hours=2)
+        )
+    verdict = env["fix.api.quota"].check_request_allowed(consumer.id, at=noon)
     assert verdict["allowed"] is False
     assert "quota" in verdict["reason"]
 
