@@ -20,7 +20,15 @@ from datetime import datetime
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_inventory_approval import check_location_usable, check_quantity, location_class
+from .fix_inventory_approval import (
+    CONTROLLER_GROUP,
+    COST_GROUP,
+    VALUED_CLASSES,
+    check_location_usable,
+    check_quantity,
+    location_class,
+    part_codes,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -34,6 +42,15 @@ RETURN_REASONS = [
     ("defective_new", "Part DOA / defective out of box"),
     ("customer_refusal", "Customer declined estimate"),
     ("excess_draw", "Excess van stock drawn and returned"),
+]
+
+# A06 final pass B4: which class of stock an issue draws (BRU-INV-01/03/04).
+ISSUE_CLASSES = [
+    ("owned", "Own Stock (van stock at a van)"),
+    ("consignment", "Brand Consignment"),
+    ("customer", "Customer Supplied"),
+    ("bench", "Bench / WIP"),
+    ("warranty", "Warranty Reserve"),
 ]
 
 
@@ -91,6 +108,22 @@ class FixStockConsumption(models.Model):
         readonly=True,
         copy=False,
     )
+    issue_class = fields.Selection(
+        ISSUE_CLASSES,
+        string="Issue From Class",
+        default="owned",
+        required=True,
+        help="Which stock class the issue draws. Brand consignment goes only on a warranty "
+        "job for that brand (BRU-INV-01, no override); customer-supplied only on that "
+        "customer's job (BRU-INV-04).",
+    )
+    job_customer_id = fields.Many2one(
+        "res.partner",
+        string="Customer-Supplied For",
+        readonly=True,
+        copy=False,
+        help="The customer whose own part this issue consumed (BRU-INV-04).",
+    )
     lot_id = fields.Many2one(
         "fix.stock.lot", string="Issued Serial / Lot", readonly=True, copy=False
     )
@@ -112,9 +145,12 @@ class FixStockConsumption(models.Model):
     )
 
     consumed_at = fields.Datetime(string="Consumption Timestamp")
-    unit_cost = fields.Float(string="Unit Valuation Cost (BDT)", default=0.0)
+    unit_cost = fields.Float(string="Unit Valuation Cost (BDT)", default=0.0, groups=COST_GROUP)
     total_cost = fields.Float(
-        string="Total Valuation Cost (BDT)", compute="_compute_total_cost", store=True
+        string="Total Valuation Cost (BDT)",
+        compute="_compute_total_cost",
+        store=True,
+        groups=COST_GROUP,
     )
 
     return_reason = fields.Selection(RETURN_REASONS, string="Return Reason")
@@ -128,6 +164,7 @@ class FixStockConsumption(models.Model):
         "product_id",
         "location_id",
         "technician_id",
+        "issue_class",
         "quantity",
         "serial_number",
         "scanned_code",
@@ -140,6 +177,7 @@ class FixStockConsumption(models.Model):
             "consumed_at",
             "unit_cost",
             "ownership_class",
+            "job_customer_id",
             "lot_id",
             "return_reason",
             "returned_at",
@@ -217,15 +255,111 @@ class FixStockConsumption(models.Model):
             work_order_id = work_order.id
         return found[0], found[1], work_order_id
 
+    def _job_service_order(self, job_model, job_id):
+        """The service order behind the job (a field order and a workshop job
+        both hang off one): it says whose job it is and whether it is warranty."""
+        self.ensure_one()
+        if not job_model:
+            return self.env["res.partner"].browse()
+        job = self.env[job_model].sudo().browse(job_id)
+        return job if job_model == "fix.service.order" else job.order_id.sudo()
+
+    def _check_class_rules(self, cls, job_model, job_id, lot):
+        """BRU-INV-01/03/04: what each class of stock may be used on. These are
+        hard blocks: there is no override at any authority level. Returns the
+        customer a customer-supplied part was consumed for."""
+        self.ensure_one()
+        part = self.product_id
+        order = self._job_service_order(job_model, job_id)
+        category = order.order_category if order else False
+        customer = self.env["res.partner"]
+        if cls == "consignment":
+            brand = (order.device_id.sudo().brand_id.name or "").strip().lower() if order else ""
+            own = (part.device_brand or "").strip().lower()
+            if category != "warranty" or not own or own != brand:
+                raise UserError(
+                    "Brand consignment stock of %s goes only on a warranty job for %s's own "
+                    "product (BRU-INV-01). No authority can override this."
+                    % (part.part_number, part.device_brand or "its brand")
+                )
+        elif cls == "customer":
+            customer = order.customer_id.commercial_partner_id if order else customer
+            if not customer:
+                raise UserError(
+                    "A customer-supplied part goes only on that customer's job (BRU-INV-04): "
+                    "%s has no customer." % (self.service_order_ref or "this job")
+                )
+            held = sum(
+                self.env["fix.stock.receipt.line"]
+                .sudo()
+                .search(
+                    [
+                        ("part_id", "=", part.id),
+                        ("is_posted", "=", True),
+                        ("receipt_id.ownership_class", "=", "customer"),
+                        ("receipt_id.location_id", "=", self.location_id.id),
+                        ("receipt_id.partner_id", "child_of", customer.id),
+                    ]
+                )
+                .mapped("qty_accepted")
+            )
+            used = sum(
+                self.sudo()
+                .search(
+                    [
+                        ("product_id", "=", part.id),
+                        ("location_id", "=", self.location_id.id),
+                        ("job_customer_id", "=", customer.id),
+                        ("state", "=", "consumed"),
+                    ]
+                )
+                .mapped("quantity")
+            )
+            if self.quantity > held - used + 1e-9:
+                raise UserError(
+                    "%s holds %s of its own %s here; this job would use %s. A customer-supplied "
+                    "part goes only on that customer's job (BRU-INV-04)."
+                    % (customer.name, round(held - used, 4), part.part_number, self.quantity)
+                )
+        # BRU-INV-03. There is no refurbished class in the ledger: M14 books a
+        # harvested part as owned stock, so only a serial can be traced to it.
+        if lot and category == "warranty":
+            harvested = (
+                self.env["fix.stock.receipt"]
+                .sudo()
+                .search_count(
+                    [("name", "=", lot.source_ref), ("source_model", "=", "fix.tradein.harvest")]
+                )
+            )
+            if harvested:
+                raise UserError(
+                    "Serial %s was harvested from a trade-in: refurbished or harvested parts "
+                    "never go on warranty work (BRU-INV-03)." % lot.name
+                )
+        return customer
+
     def _check_issue(self):
         """Every rule an issue must satisfy before stock moves."""
         self.ensure_one()
         part = self.product_id
         if not part:
             raise ValidationError("No valid spare part assigned to consumption.")
+        # BRU-CAT-10 / B16: a discontinued part is run down (it stays serviceable
+        # for what it covers; buying more is refused at the requisition and PO);
+        # an obsolete one is out of service.
         if part.state == "obsolete":
             raise UserError("%s is obsolete and cannot be issued to a job." % part.part_number)
         check_quantity(part, self.quantity, "issue quantity")
+        # FR-INV-022: the scan confirms the issue, so it must read this part
+        # (or the serial being issued), not any text
+        code = (self.scanned_code or "").strip()
+        if code not in part_codes(part) and not (
+            part.is_serialized and code == (self.serial_number or "").strip()
+        ):
+            raise UserError(
+                "Scanned code %r is not %s: scan the part's barcode, QR code or part number."
+                % (code, part.part_number)
+            )
         location = self.location_id
         check_location_usable(location, self.env)
         if location.location_type in ("quarantine", "scrap"):
@@ -243,17 +377,38 @@ class FixStockConsumption(models.Model):
                         self.technician_id.name,
                     )
                 )
-            hold = (
-                self.env["fix.stock.van.recon"]
-                .sudo()
-                .search([("location_id", "=", location.id), ("state", "=", "discrepancy")], limit=1)
-            )
-            if hold:
+            # M15-14: the custodian himself, not a name typed by someone else
+            if (
+                not self.env.su
+                and self.technician_id.user_id != self.env.user
+                and not self.env.user.has_group(CONTROLLER_GROUP)
+            ):
                 raise UserError(
-                    "Van %s has an unresolved stock discrepancy (%s, variance %s): issues "
-                    "from it are held until an Inventory Controller resolves it "
-                    "(BRU-INV-12)." % (location.code, hold.name, hold.variance)
+                    "Van %s is in the custody of %s: only that technician (or an Inventory "
+                    "Controller) issues from it (FR-INV-028)."
+                    % (location.code, location.technician_id.name)
                 )
+        # BRU-INV-12 / M15-8: the variance blocks the TECHNICIAN's next issue,
+        # wherever it is drawn from, as well as the van it arose on
+        hold = (
+            self.env["fix.stock.van.recon"]
+            .sudo()
+            .search(
+                [
+                    ("state", "=", "discrepancy"),
+                    "|",
+                    ("location_id", "=", location.id),
+                    ("technician_id", "=", self.technician_id.id),
+                ],
+                limit=1,
+            )
+        )
+        if hold:
+            raise UserError(
+                "Van %s has an unresolved stock discrepancy (%s): issues to %s are held until "
+                "an Inventory Controller resolves it (BRU-INV-12)."
+                % (hold.location_id.code, hold.name, hold.technician_id.name or "its technician")
+            )
         if part.is_serialized:
             if not self.serial_number:
                 raise ValidationError(
@@ -293,7 +448,8 @@ class FixStockConsumption(models.Model):
         lot = self._check_issue()
         job_model, job_id, work_order_id = self._resolve_job()
         part = self.product_id
-        cls = location_class(self.location_id)
+        cls = location_class(self.location_id, self.issue_class or "owned")
+        customer = self._check_class_rules(cls, job_model, job_id, lot)
         Onhand = self.env["fix.stock.onhand"]
         bucket = Onhand._bucket(part, self.location_id, cls)
         available = (bucket.qty - bucket.reserved) if bucket else 0.0
@@ -303,17 +459,20 @@ class FixStockConsumption(models.Model):
                 f"{round(available, 4)} available, {self.quantity} requested."
             )
         cost = bucket.unit_cost or 0.0
+        Onhand._fix_check_bins(part, self.location_id, self.quantity)
         Onhand._apply(part, self.location_id, cls, -self.quantity)
         if lot:
-            lot._guarded().write({"status": "issued", "qty": 0.0})
+            lot._fix_move("issued", qty=0.0)
 
         now_utc = fields.Datetime.now()
-        self._guarded().write(
+        # as sudo: a technician holds no rights on the guarded cost
+        self.sudo()._guarded().write(
             {
                 "state": "consumed",
                 "consumed_at": now_utc,
                 "unit_cost": cost,
                 "ownership_class": cls,
+                "job_customer_id": customer.id or False,
                 "lot_id": lot.id or False,
                 "job_model": job_model,
                 "job_res_id": job_id,
@@ -321,11 +480,12 @@ class FixStockConsumption(models.Model):
             }
         )
 
-        # Post GV-005 suspense valuation entry (M15 -> M19 stub)
-        suspense_entry = (
-            self.env["fix.inventory.valuation.suspense"]
-            .sudo()
-            .create(
+        # Post GV-005 suspense valuation entry (M15 -> M19 stub). Consignment and
+        # customer stock is held, never valued (BRU-INV-02): it books nothing.
+        Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+        suspense_entry = Suspense.browse()
+        if cls in VALUED_CLASSES:
+            suspense_entry = Suspense.create(
                 {
                     "company_id": self.company_id.id,
                     "operating_unit_id": self.location_id.operating_unit_id.id or False,
@@ -340,7 +500,6 @@ class FixStockConsumption(models.Model):
                     "status": "pending_gl_cutover",
                 }
             )
-        )
 
         # Emit M15 outbox event: stock.consumed
         event_payload = {
@@ -351,13 +510,14 @@ class FixStockConsumption(models.Model):
             "part_id": part.id,
             "part_number": part.part_number,
             "quantity": self.quantity,
+            "ownership_class": cls,
             "location_id": self.location_id.id,
             "location_code": self.location_id.code,
             "technician_id": self.technician_id.id,
             "serial_number": self.serial_number or "",
             "scanned_code": self.scanned_code,
             "consumed_at": str(now_utc),
-            "suspense_entry_id": suspense_entry.id,
+            "suspense_entry_id": suspense_entry.id or None,
         }
 
         try:
@@ -371,7 +531,7 @@ class FixStockConsumption(models.Model):
             "status": "consumed",
             "consumption_ref": self.name,
             "remaining_qty": part.qty_available,
-            "valuation_entry": suspense_entry.name,
+            "valuation_entry": suspense_entry.name or None,
         }
 
     def action_return_part(self, reason: str | None = None, notes: str = "") -> dict:
@@ -388,24 +548,19 @@ class FixStockConsumption(models.Model):
         check_location_usable(self.location_id, self.env)
         cls = self.ownership_class or location_class(self.location_id)
         defective = reason == "defective_new"
+        cost = self.sudo().unit_cost
         Onhand = self.env["fix.stock.onhand"]
         Onhand._apply(
             part,
             self.location_id,
             cls,
             self.quantity,
-            self.unit_cost,
+            cost,
             status="quarantine" if defective else "unrestricted",
         )
         lot = self.lot_id
         if lot:
-            lot._guarded().write(
-                {
-                    "status": "quarantined" if defective else "in_stock",
-                    "qty": 1.0,
-                    "location_id": self.location_id.id,
-                }
-            )
+            lot._fix_move("quarantined" if defective else "in_stock", self.location_id, 1.0)
         quarantine = self.env["fix.stock.quarantine"]
         if defective:
             quarantine = (
@@ -428,7 +583,7 @@ class FixStockConsumption(models.Model):
             )
 
         now_utc = fields.Datetime.now()
-        self._guarded().write(
+        self.sudo()._guarded().write(
             {
                 "state": "returned",
                 "return_reason": reason,
@@ -438,26 +593,26 @@ class FixStockConsumption(models.Model):
         if notes:
             self.sudo()._guarded().write({"return_notes": notes})
 
-        # Post reverse suspense valuation entry, at the ISSUE cost
-        suspense_entry = (
-            self.env["fix.inventory.valuation.suspense"]
-            .sudo()
-            .create(
+        # Post reverse suspense valuation entry, at the ISSUE cost (the issue of
+        # a non-valued class booked nothing, so neither does its return)
+        Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+        suspense_entry = Suspense.browse()
+        if cls in VALUED_CLASSES:
+            suspense_entry = Suspense.create(
                 {
                     "company_id": self.company_id.id,
                     "operating_unit_id": self.location_id.operating_unit_id.id or False,
                     "consumption_id": self.id,
                     "product_id": part.id,
                     "quantity": -self.quantity,
-                    "unit_cost": self.unit_cost,
-                    "total_valuation": -(self.quantity * self.unit_cost),
+                    "unit_cost": cost,
+                    "total_valuation": -(self.quantity * cost),
                     "entry_type": "return",
                     "source_ref": self.name,
                     "suspense_account_code": "110999",
                     "status": "pending_gl_cutover",
                 }
             )
-        )
 
         # Emit M15 outbox event: stock.returned
         event_payload = {
@@ -470,7 +625,7 @@ class FixStockConsumption(models.Model):
             "location_id": self.location_id.id,
             "return_reason": reason,
             "returned_at": str(now_utc),
-            "suspense_entry_id": suspense_entry.id,
+            "suspense_entry_id": suspense_entry.id or None,
         }
 
         try:

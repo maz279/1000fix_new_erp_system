@@ -13,6 +13,11 @@ import pytest
 SK = "cd_wms_structure.group_storekeeper"
 OP = "cd_wms_structure.group_warehouse_operator"
 IC = "cd_wms_structure.group_inventory_controller"
+SUP = "cd_wms_structure.group_warehouse_supervisor"
+TECH = "cd_wms_structure.group_van_technician"
+COST = "cd_wms_structure.group_stock_cost_viewer"
+BRANCH = "cd_wms_structure.group_inventory_approver_branch"
+FIN = "cd_wms_structure.group_inventory_approver_finance"
 
 _SEQ = itertools.count(1)
 
@@ -111,7 +116,6 @@ class Inv(types.SimpleNamespace):
             "part_id": (part or self.part).id,
             "qty_received": rec,
             "qty_accepted": acc,
-            "unit_cost": cost,
         }
         if serial:
             line["line_no"] = serial
@@ -119,10 +123,15 @@ class Inv(types.SimpleNamespace):
             "partner_id": self.supplier.id,
             "location_id": (location or self.hub).id,
             "operating_unit_id": self.ou.id,
+            "direct_reason": "A06 test delivery",
             "line_ids": [(0, 0, line)],
         }
         vals.update(kw)
-        return self.env["fix.stock.receipt"].with_user(user).create(vals)
+        receipt = self.env["fix.stock.receipt"].with_user(user).create(vals)
+        # the cost is restricted (spec section 13): a cost viewer enters it, here
+        # as trusted set-up, whoever raised the receipt
+        receipt.line_ids.sudo().write({"unit_cost": cost})
+        return receipt
 
     def count(self, user, counted, part=None, location=None, **line_kw):
         line = {"part_id": (part or self.part).id, "counted_qty": counted}
@@ -275,6 +284,7 @@ def inv(odoo_env):
     x.keeper2 = x.user("keeper2", SK)
     x.operator = x.user("operator", OP)
     x.operator2 = x.user("operator2", OP)
+    x.supervisor = x.user("supervisor", SUP)
     x.controller = x.user("controller", IC)
     x.controller2 = x.user("controller2", IC)
     x.techuser = x.user("tech", SK)

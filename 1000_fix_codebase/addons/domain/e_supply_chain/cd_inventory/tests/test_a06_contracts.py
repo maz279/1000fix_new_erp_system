@@ -69,7 +69,7 @@ def test_fix_revalue_moves_value_not_quantity(inv):
     # an issue after the landed-cost revaluation leaves at the new average
     rec = inv.issue(inv.keeper)
     rec.with_user(inv.keeper).action_scan_and_consume()
-    assert rec.unit_cost == 400.0
+    assert rec.sudo().unit_cost == 400.0
 
 
 def test_fix_revalue_of_held_stock_books_nothing(inv):
@@ -171,9 +171,11 @@ def test_s0_integrity_report_pack_reads_as_the_caller(inv):
 
     _baseline(inv, inv.part, 1.0, 500.0, "VAL-DUP-" + inv.tag)
     _baseline(inv, inv.part, 1.0, 500.0, "VAL-DUP-" + inv.tag)
-    pack = m15.suspense_integrity(inv.env(user=inv.keeper.id))
+    pack = m15.suspense_integrity(inv.env(user=inv.controller.id))
     assert pack["rows"] and pack["rows"][0]["status"] == "Baseline loaded more than once"
     assert "suspense_integrity" in m15.REPORTS
+    # value is restricted (spec section 13): a storekeeper gets no figures
+    assert m15.suspense_integrity(inv.env(user=inv.keeper.id))["rows"] == []
 
 
 def test_s0_suspense_reconciled_only_by_the_cutover(inv):

@@ -56,5 +56,50 @@
             <field name="comment">Approves count variances outside tolerance, write-offs and scrap, van variances, transfers, ownership-class changes, RTVs, standard-cost and part-status changes, and unblocks bins. Never on a record they requested, counted, quarantined or blocked.</field>
         </record>
 
+        <!--
+          A06 final pass. New records in this noupdate block are created on
+          upgrade; the existing groups are not rewritten, so each new group
+          names who implies it (implied_by_ids) instead of editing the
+          Inventory Controller record above.
+        -->
+        <record id="group_warehouse_supervisor" model="res.groups">
+            <field name="name">Warehouse Supervisor</field>
+            <field name="privilege_id" ref="privilege_fix_inventory"/>
+            <field name="implied_ids" eval="[(4, ref('group_warehouse_operator'))]"/>
+            <field name="implied_by_ids" eval="[(4, ref('group_inventory_controller'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">The M41 supervisor grant (spec section 13): releases and cancels waves, reassigns tasks, and picks a whole wave without scans as a recorded exception.</field>
+        </record>
+
+        <record id="group_van_technician" model="res.groups">
+            <field name="name">Van Technician</field>
+            <field name="privilege_id" ref="privilege_fix_inventory"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">M15 section 13, R10/R11/R12: raises and confirms part issues and van reconciliations on the van in their own custody only (record rule), nothing else.</field>
+        </record>
+
+        <record id="group_stock_cost_viewer" model="res.groups">
+            <field name="name">Stock Cost Viewer</field>
+            <field name="privilege_id" ref="privilege_fix_inventory"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="implied_by_ids" eval="[(4, ref('group_inventory_controller'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">M15 section 13: unit cost and stock value are visible only to R01-R06, R17, R19, R26, R27. Technicians and store keepers see quantity, location and condition, never cost.</field>
+        </record>
+
+        <record id="group_inventory_approver_branch" model="res.groups">
+            <field name="name">Inventory Approver (Branch)</field>
+            <field name="privilege_id" ref="privilege_fix_inventory"/>
+            <field name="implied_ids" eval="[(4, ref('group_stock_cost_viewer'))]"/>
+            <field name="comment">M15 section 13, R06 Branch Manager: approves transfers and variance resolution (counts and van reconciliations) of their own branch, with the same two-person rule as an Inventory Controller.</field>
+        </record>
+
+        <record id="group_inventory_approver_finance" model="res.groups">
+            <field name="name">Inventory Approver (Finance)</field>
+            <field name="privilege_id" ref="privilege_fix_inventory"/>
+            <field name="implied_ids" eval="[(4, ref('group_stock_cost_viewer'))]"/>
+            <field name="comment">M15 section 13, R26 Finance Manager: approves stock adjustments and write-offs, with the same two-person rule as an Inventory Controller.</field>
+        </record>
+
     </data>
 </odoo>

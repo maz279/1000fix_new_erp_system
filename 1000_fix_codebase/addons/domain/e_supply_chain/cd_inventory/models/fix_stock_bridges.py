@@ -332,6 +332,36 @@ class FixPurchaseReceiptM15(models.Model):
         return created
 
 
+class FixPurchaseOrderLineRetiredPart(models.Model):
+    """A06 final pass B16 (BRU-CAT-10, AUT-CAT-07): a discontinued part is run
+    down and an obsolete one is out of service; neither is bought again. A line
+    already on an order stays receivable."""
+
+    _inherit = "fix.purchase.order.line"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Part = self.env["fix.spare.part"].sudo()
+        Order = self.env["fix.purchase.order"].sudo()
+        for vals in vals_list:
+            order = Order.browse(vals.get("order_id") or 0)
+            if not vals.get("product_id") or not order.exists():
+                continue
+            retired = Part.search(
+                [
+                    ("product_id", "=", vals["product_id"]),
+                    ("company_id", "=", order.company_id.id),
+                    ("state", "!=", "active"),
+                ],
+                limit=1,
+            )
+            if retired:
+                raise UserError(
+                    "%s is %s: it is no longer purchased." % (retired.part_number, retired.state)
+                )
+        return super().create(vals_list)
+
+
 class FixStockQuarantineConsumer(models.Model):
     _inherit = "fix.stock.quarantine"
 

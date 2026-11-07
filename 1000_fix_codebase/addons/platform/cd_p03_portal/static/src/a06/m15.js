@@ -41,7 +41,7 @@ export const MODULE = {
       { id: 'M15-classchange', en: 'Ownership-Class Changes', bn: 'মালিকানা শ্রেণি পরিবর্তন', t: 'g' }
     ]},
     { en: 'Valuation & Analysis', screens: [
-      { id: 'M15-valuation', en: 'Valuation (FIFO/WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
+      { id: 'M15-valuation', en: 'Valuation (WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
       { id: 'M15-ageing', en: 'Ageing & Obsolescence', bn: 'এজিং', t: 'r' },
       { id: 'M15-abc', en: 'ABC / XYZ / Criticality', bn: 'এবিসি শ্রেণিবিন্যাস', t: 'r' },
       { id: 'M15-suspense', en: 'Valuation Suspense Integrity', bn: 'মূল্যায়ন সাসপেন্স যাচাই', t: 'r' }
@@ -71,7 +71,7 @@ export const SCREENS = {
     cols: ['part_id', 'location_id', 'ownership_class', 'stock_status', 'qty', 'reserved', 'available_qty', 'unit_cost'] },
   'M15-ownership': { kind: 'table_report', module: 'M15', report: 'ownership_classes', title: '6 Ownership Classes', period: false },
   'M15-movements': { kind: 'model_list', model: 'fix.stock.consumption', stateField: 'state',
-    cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'state', 'consumed_at'],
+    cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'ownership_class', 'state', 'consumed_at'],
     actions: [
       { m: 'action_scan_and_consume', l: 'Scan & Consume' },
       { m: 'action_return_part', l: 'Return Part', ask: 'Return reason: wrong_diagnosis, defective_new (goes to quarantine), customer_refusal or excess_draw', kwarg: 'reason' }
@@ -95,7 +95,7 @@ export const SCREENS = {
       { m: 'action_resolve', l: 'Resolve Discrepancy (controller)', ask: 'How the van discrepancy was resolved', kwarg: 'note' }
     ] },
   'M15-counts': { kind: 'model_list', model: 'fix.stock.count', stateField: 'state',
-    cols: ['name', 'location_id', 'count_type', 'counted_on', 'counted_by_id', 'reason_code', 'state'],
+    cols: ['name', 'location_id', 'count_type', 'counted_on', 'counted_by_id', 'reason_code', 'variance_value', 'adjustment_value', 'state'],
     actions: [
       { m: 'action_submit', l: 'Submit Count' },
       { m: 'action_approve', l: 'Approve Variance (controller)' },
@@ -109,6 +109,10 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject (controller)' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_receive', l: 'Receive' },
+      { m: 'action_resolve_discrepancy', l: 'Resolve Discrepancy (controller)', asks: [
+        { label: 'Resolution: found, returned or quarantine', kwarg: 'resolution' },
+        { label: 'How the shortage was resolved', kwarg: 'note' }
+      ] },
       { m: 'action_cancel', l: 'Cancel' }
     ] },
   'M15-quarantine': { kind: 'model_list', model: 'fix.stock.quarantine', stateField: 'state',
@@ -137,7 +141,7 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject (controller)', ask: 'Why the class change is rejected', kwarg: 'note' }
     ] },
   'M15-suspense': { kind: 'table_report', module: 'M15', report: 'suspense_integrity', title: 'Valuation Suspense Integrity', period: false },
-  'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (FIFO/WAC)', period: false },
+  'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (WAC)', period: false },
   'M15-ageing': { kind: 'table_report', module: 'M15', report: 'ageeing', title: 'Ageing & Obsolescence', period: false },
   'M15-abc': { kind: 'table_report', module: 'M15', report: 'abc_segmentation', title: 'ABC / XYZ / Criticality', period: false },
 
@@ -167,12 +171,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', inspected: 'Inspected', posted: 'Posted' } },
     sections: [
-      { title: 'Receipt', note: 'Inspection gate: post only after every line has an accepted quantity. Rejected quantity (received minus accepted) is held in quarantine, never dropped. A posted receipt is final.',
+      { title: 'Receipt', note: 'Inspection gate: post only after every line has an accepted quantity. Rejected quantity (received minus accepted) is held in quarantine, never dropped. Against a purchase order the quantity stays within what is open and the cost is the PO price. With no purchase order, record the reason: only an Inventory Controller posts it. A posted receipt is final.',
         fields: [
           { name: 'partner_id', required: true, label: 'Supplier' },
           { name: 'location_id', required: true, label: 'Receiving Location' },
           { name: 'ownership_class', required: true, label: 'Ownership Class' },
-          { name: 'purchase_order_id', label: 'Purchase Order' },
+          { name: 'purchase_order_id', label: 'Purchase Order', domain: [['state', 'in', ['sent', 'acknowledged', 'partially_received', 'received']]] },
+          { name: 'direct_reason', label: 'Reason (no purchase order)' },
           { name: 'source_ref', label: 'Source Reference' },
           { name: 'received_on', required: true, label: 'Received On' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
@@ -184,7 +189,7 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Receipt Lines — accepted ≤ received',
-      note: 'Accepted quantity posts to the location ledger at its weighted-average cost; a serialized part is one unit per line with its serial (received once).',
+      note: 'Accepted quantity posts to the location ledger at its weighted-average cost; a serialized part is one unit per line with its serial (received once). The cost shows only to finance and inventory-manager roles; a PO receipt takes the PO price whatever is typed.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
         { name: 'qty_received', required: true, label: 'Received' },
@@ -203,11 +208,12 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft Scan', consumed: 'Consumed', returned: 'Returned', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Issue', note: 'Saving a draft scan does not move stock. Scan & Consume takes unrestricted, unreserved stock of this location (a van only by its custodian), at its average cost; a serial must be in stock here. An issued record is final.',
+      { title: 'Issue', note: 'Saving a draft scan does not move stock. Scan & Consume takes unrestricted, unreserved stock of this location (a van only by its custodian), at its average cost; the scan must read this part and a serial must be in stock here. Brand consignment goes only on a warranty job for that brand, customer-supplied only on that customer\'s job. An issued record is final.',
         fields: [
           { name: 'product_id', required: true, label: 'Spare Part' },
           { name: 'location_id', required: true, label: 'Deduction Location / Van' },
           { name: 'technician_id', required: true, label: 'Technician' },
+          { name: 'issue_class', required: true, label: 'Issue From Class', value: 'owned' },
           { name: 'quantity', required: true, label: 'Quantity' },
           { name: 'service_order_ref', required: true, label: 'Service Order Ref' },
           { name: 'work_order_ref', label: 'Work Order Ref' },
@@ -224,14 +230,17 @@ export const SCREENS = {
     back: 'M15-transfers',
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Awaiting Approval', approved: 'Approved',
-      dispatched: 'Dispatched', received: 'Received', cancelled: 'Cancelled' } },
+      dispatched: 'Dispatched', discrepancy: 'Received with Discrepancy',
+      received: 'Received', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Transfer', note: 'Submit, then an Inventory Controller who did not raise it approves; dispatch moves the stock into transit (the sender keeps it), and a different person receives it at the dispatch cost.',
+      { title: 'Transfer', note: 'Submit, then an Inventory Controller who did not raise it approves; dispatch moves the stock into transit (the sender keeps it), and a different person records what arrived and receives it at the dispatch cost. A short quantity stays in transit until an approver resolves the discrepancy.',
         fields: [
           { name: 'from_location_id', required: true, label: 'From' },
           { name: 'to_location_id', required: true, label: 'To' },
           { name: 'requested_on', required: true, label: 'Requested On' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'transfer_value', label: 'Transfer Value (BDT)', readonly: true },
+          { name: 'discrepancy_resolution', label: 'Discrepancy Resolution', readonly: true },
           { name: 'requested_by_id', label: 'Requested By', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true },
           { name: 'dispatched_by_id', label: 'Dispatched By', readonly: true },
@@ -241,10 +250,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Transfer Lines',
-      note: 'Each line moves from the source on-hand bucket; a line that would take the source below zero is refused.',
+      note: 'Each line moves from the source on-hand bucket; a line that would take the source below zero is refused. A serialized part travels one serial per line. On arrival, correct Received if less arrived.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
-        { name: 'qty', required: true, label: 'Quantity' }
+        { name: 'qty', required: true, label: 'Quantity' },
+        { name: 'lot_id', label: 'Serial', domain: [['status', '=', 'in_stock']] },
+        { name: 'received_qty', label: 'Received' },
+        { name: 'discrepancy_qty', label: 'Short', readonly: true }
       ]
     }
   },
@@ -266,6 +278,8 @@ export const SCREENS = {
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'reason_code', label: 'Variance Reason (after recount)' },
           { name: 'reason_note', label: 'Variance Explanation' },
+          { name: 'variance_value', label: 'Variance Value, net (BDT)', readonly: true },
+          { name: 'adjustment_value', label: 'Adjustment Value, gross (BDT)', readonly: true },
           { name: 'counted_by_id', label: 'Counted By', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true }
         ] }
@@ -273,11 +287,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Count Lines',
-      note: 'Enter what is physically there. The recount column is used only when the count asks for a recount.',
+      note: 'Enter what is physically there. The recount column is used only when the count asks for a recount. The approver sees the expected quantity and the variance; the counter does not until the count is posted.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
         { name: 'counted_qty', required: true, label: 'Counted' },
-        { name: 'recount_qty', label: 'Recount' }
+        { name: 'recount_qty', label: 'Recount' },
+        { name: 'expected_qty', label: 'Expected', readonly: true },
+        { name: 'variance', label: 'Variance', readonly: true }
       ]
     }
   },
@@ -330,7 +346,8 @@ export const SCREENS = {
     title: 'Serial / Lot',
     back: 'M15-serials',
     status: { field: 'status', labels: {
-      in_stock: 'In Stock', issued: 'Issued', quarantined: 'Quarantined', scrapped: 'Scrapped' } },
+      in_stock: 'In Stock', issued: 'Issued', quarantined: 'Quarantined', scrapped: 'Scrapped',
+      returned: 'Returned to Vendor', in_transit: 'In Transit', staged: 'Staged for Dispatch', shipped: 'Shipped' } },
     sections: [
       { title: 'Lot', note: 'Receipts create lots; issues, quarantine, scrap and RTV move them. Only the warranty date and the reference are maintained here.',
         fields: [
@@ -353,7 +370,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', confirmed: 'Confirmed', discrepancy: 'Discrepancy', resolved: 'Resolved' } },
     sections: [
-      { title: 'Reconciliation', note: 'The expected quantity is the van ledger, taken by the system. A variance outside tolerance is a discrepancy: it holds the van\'s issues until an Inventory Controller resolves it.',
+      { title: 'Reconciliation', note: 'A blind count: the van ledger is taken by the system and shown only to approvers. A variance outside tolerance is a discrepancy: it holds this technician\'s issues until an approver resolves it.',
         fields: [
           { name: 'location_id', required: true, label: 'Van Location' },
           { name: 'technician_id', label: 'Technician (the van custodian)' },
@@ -380,6 +397,7 @@ export const SCREENS = {
           { name: 'part_id', required: true, label: 'Spare Part' },
           { name: 'location_id', required: true, label: 'From Location' },
           { name: 'quarantine_id', label: 'From Quarantine' },
+          { name: 'lot_id', label: 'Serial (serialized part, not from quarantine)', domain: [['status', '=', 'in_stock']] },
           { name: 'qty', required: true, label: 'Quantity' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'requested_on', required: true, label: 'Requested On' },

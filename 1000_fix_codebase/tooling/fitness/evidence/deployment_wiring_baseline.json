@@ -315,8 +315,8 @@
     "stock.consumed",
     "stock.received",
     "stock.returned",
+    "stock.transfer_received",
     "stock.van_variance_detected",
-    "stock.written_off",
     "storefront.order_dispatched",
     "storefront.order_placed",
     "storefront.payment_confirmed",
@@ -372,6 +372,7 @@
     "wfm.adherence_shortfall",
     "wh.putaway_completed",
     "wh.shipped",
+    "wh.short_pick",
     "withholding_certificate.issued",
     "workshop.bench.assigned",
     "workshop.evidence.recorded",
@@ -390,9 +391,6 @@
     "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_accept_return",
     "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_calculate_mass_balance",
     "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_submit_return",
-    "addons/platform/cd_p03_portal/static/src/a06/m15.js:M15-classchange:fix.stock.class.change:action_approve",
-    "addons/platform/cd_p03_portal/static/src/a06/m15.js:M15-classchange:fix.stock.class.change:action_reject",
-    "addons/platform/cd_p03_portal/static/src/a06/m15.js:M15-classchange:fix.stock.class.change:action_submit",
     "addons/platform/cd_p03_portal/static/src/a10/m23.js:M23-external:fix.qms.certification:action_pass"
   ]
 }

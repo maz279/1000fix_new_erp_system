@@ -34,5 +34,14 @@
             <field name="method">consume_tradein_harvested</field>
             <field name="module">cd_ewaste</field>
         </record>
+        <!-- M15 -> M18: stock written off leaves the ledger and enters the
+             e-waste stream for disposal (one collection per write-off). -->
+        <record id="consumer_stock_written_off" model="fix.event.consumer">
+            <field name="name">M15/M18: written-off stock enters the e-waste stream</field>
+            <field name="event_type">stock.written_off</field>
+            <field name="model">fix.ewaste.collection</field>
+            <field name="method">consume_stock_written_off</field>
+            <field name="module">cd_ewaste</field>
+        </record>
     </data>
 </odoo>

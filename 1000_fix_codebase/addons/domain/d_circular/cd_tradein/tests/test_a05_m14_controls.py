@@ -900,7 +900,7 @@ def test_harvest_workflow_hands_parts_to_m15_stock(m):
     receipt = line.receipt_id
     assert line.state == "harvested" and receipt.state == "draft"
     assert (receipt.source_model, receipt.source_res_id) == ("fix.tradein.harvest", line.id)
-    assert receipt.line_ids.qty_accepted == 2 and receipt.line_ids.unit_cost == 1500
+    assert receipt.line_ids.qty_accepted == 2 and receipt.line_ids.sudo().unit_cost == 1500
     event = m.env["fix.event.outbox"].search(
         [("event_type", "=", "tradein.harvested"), ("aggregate_id", "=", line.id)]
     )

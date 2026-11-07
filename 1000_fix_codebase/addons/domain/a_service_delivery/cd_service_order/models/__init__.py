@@ -11,6 +11,7 @@ from . import (
     fix_sla_policy,
     fix_so_approval,
     fix_work_order,
+    fix_work_order_part_m15,
 )
 
 # S9 SLA instance engine: extends fix.sla.policy, so it imports after the

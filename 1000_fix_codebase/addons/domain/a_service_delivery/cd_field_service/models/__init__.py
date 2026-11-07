@@ -3,6 +3,7 @@ from . import (
     fix_field_order,
     fix_field_order_certification,
     fix_field_order_part,
+    fix_field_order_part_m15,
     fix_field_route,
     fix_offline_idempotency_ledger,
     fix_service_order_bridge,

@@ -55,3 +55,5 @@ access_fix_wms_floor_count_operator,fix.wms.floor.count operator,model_fix_wms_f
 access_fix_wms_wave_template_operator,fix.wms.wave.template operator,model_fix_wms_wave_template,cd_wms_structure.group_warehouse_operator,1,1,1,0
 access_fix_wms_packing_station_operator,fix.wms.packing.station operator,model_fix_wms_packing_station,cd_wms_structure.group_warehouse_operator,1,1,1,0
 access_fix_stock_count_snapshot_controller,fix.stock.count.snapshot controller,model_fix_stock_count_snapshot,cd_wms_structure.group_inventory_controller,1,0,0,0
+access_fix_stock_consumption_technician,fix.stock.consumption technician,model_fix_stock_consumption,cd_wms_structure.group_van_technician,1,1,1,0
+access_fix_stock_van_recon_technician,fix.stock.van.recon technician,model_fix_stock_van_recon,cd_wms_structure.group_van_technician,1,1,1,0

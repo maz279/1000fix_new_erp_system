@@ -39,6 +39,7 @@ from datetime import datetime, timedelta
 from typing import Any, Literal, SupportsFloat, SupportsInt, TypedDict
 
 from odoo import SUPERUSER_ID, fields, http
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
@@ -957,15 +958,22 @@ class TechnicianApiController(http.Controller):
         bdt_curr = env.ref("base.BDT", raise_if_not_found=False) or env["res.currency"].search(
             [("name", "=", "BDT")], limit=1
         )
-        part_line = env["fix.work.order.part"].create(
-            {
-                "work_order_id": wo.id,
-                "product_id": prod.id,
-                "quantity": qty,
-                "unit_cost": prod.list_price or 0.0,
-                "currency_id": bdt_curr.id if bdt_curr else 1,
-            }
-        )
+        # A06 M15-10: a part mapped to M15 is issued from the technician's van here;
+        # a refusal (not enough stock, no serial, a held technician) leaves no line
+        try:
+            with env.cr.savepoint():
+                part_line = env["fix.work.order.part"].create(
+                    {
+                        "work_order_id": wo.id,
+                        "product_id": prod.id,
+                        "quantity": qty,
+                        "unit_cost": prod.list_price or 0.0,
+                        "currency_id": bdt_curr.id if bdt_curr else 1,
+                        "fitted_serial_number": kwargs.get("serial_number") or False,
+                    }
+                )
+        except (UserError, ValidationError) as exc:
+            return _error("m15_refused", str(exc))
 
         return {
             "consumed": {
