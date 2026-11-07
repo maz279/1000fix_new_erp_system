@@ -379,11 +379,16 @@ WRITABLE = {
     "fix.spare.part": frozenset(
         {
             "active",
+            "barcode",
             "company_id",
+            "is_serialized",
             "name",
             "name_bn",
             "operating_unit_id",
             "part_number",
+            "product_id",
+            "storage_class",
+            "uom",
         }
     ),
     "fix.stock.class.change": frozenset(
@@ -398,6 +403,7 @@ WRITABLE = {
     ),
     "fix.stock.consumption": frozenset(
         {
+            "issue_class",
             "location_id",
             "product_id",
             "quantity",
@@ -423,11 +429,16 @@ WRITABLE = {
     "fix.stock.location": frozenset(
         {
             "active",
+            "branch_id",
             "code",
             "company_id",
+            "location_type",
             "name",
             "name_bn",
             "operating_unit_id",
+            "parent_id",
+            "technician_id",
+            "van_plate",
         }
     ),
     "fix.stock.lot": frozenset(
@@ -450,6 +461,7 @@ WRITABLE = {
     ),
     "fix.stock.receipt": frozenset(
         {
+            "direct_reason",
             "inspection_notes",
             "line_ids",
             "location_id",
@@ -465,6 +477,7 @@ WRITABLE = {
     "fix.stock.rtv": frozenset(
         {
             "location_id",
+            "lot_id",
             "notes",
             "part_id",
             "partner_id",
@@ -606,6 +619,14 @@ WRITABLE = {
             "ownership_class",
             "storage_class",
             "zone_id",
+        }
+    ),
+    "fix.warehouse.zone": frozenset(
+        {
+            "code",
+            "name",
+            "warehouse_id",
+            "zone_type",
         }
     ),
     "fix.wms.carton": frozenset(

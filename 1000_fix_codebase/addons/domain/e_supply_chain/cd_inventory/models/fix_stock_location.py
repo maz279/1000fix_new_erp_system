@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from .fix_inventory_approval import CONTROLLER_GROUP
 
 _logger = logging.getLogger(__name__)
 
@@ -104,12 +106,38 @@ class FixStockLocation(models.Model):
             "audit_discrepancy_count",
         }
 
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id and not self.env.user.has_group(CONTROLLER_GROUP):
+            locked |= {"location_type", "technician_id"}
+        return locked
+
+    def write(self, vals):
+        # A06 final pass A2 / M15-14: custody decides who draws from a van, so the
+        # custodian and the van's type change only by an Inventory Controller
+        # (a storekeeper naming himself custodian would pass the custody check).
+        if self and not self._fix_guard_open() and not self.env.user.has_group(CONTROLLER_GROUP):
+            for name in ("technician_id", "location_type"):
+                if name in vals and any(
+                    loc._fix_guard_differs(name, vals[name], loc[name]) for loc in self
+                ):
+                    raise AccessError(
+                        "Only an Inventory Controller changes a location's custodian or type."
+                    )
+        return super().write(vals)
+
+    def _location_check_controller(self):
+        if not self.env.su and not self.env.user.has_group(CONTROLLER_GROUP):
+            raise AccessError("Only an Inventory Controller opens or closes a stock location.")
+
     def action_set_active(self):
+        self._location_check_controller()
         self._guarded().write({"state": "active"})
         return True
 
     def action_set_inactive(self):
         """An inactive location moves no stock (every movement checks it)."""
+        self._location_check_controller()
         self._guarded().write({"state": "inactive"})
         return True
 
@@ -121,21 +149,45 @@ class FixStockLocation(models.Model):
                     "Mobile van stock locations must designate a custodian technician."
                 )
 
-    def action_audit_van_stock(self, audited_skus: list[dict] | None = None) -> dict:
-        """Execute mobile van stock physical reconciliation audit."""
+    def action_audit_van_stock(
+        self,
+        audited_skus: list[dict] | None = None,
+        audited_count: float | None = None,
+        discrepancy_count: float | None = None,
+    ) -> dict:
+        """Execute mobile van stock physical reconciliation audit. An Inventory
+        Controller who is not the van's custodian audits it; the RF device sends
+        the audited lines, the workspace button the two totals."""
         self.ensure_one()
         if self.location_type != "van":
             raise ValidationError("Van stock audit can only be performed on van stock locations.")
+        if not self.env.su and (
+            not self.env.user.has_group(CONTROLLER_GROUP)
+            or self.technician_id.user_id == self.env.user
+        ):
+            raise AccessError("An Inventory Controller other than the custodian audits a van.")
 
-        if not audited_skus:
+        if audited_skus:
+            total_audited = len(audited_skus)
+            discrepancies = sum(1 for s in audited_skus if s.get("discrepancy_qty", 0) != 0)
+        else:
+            total_audited = int(audited_count or 0)
+            discrepancies = int(discrepancy_count or 0)
+        if total_audited <= 0:
             # A06 audit M15-16: an audit with no lines used to report 100%
             # accuracy; nothing audited is not an accurate van.
             raise ValidationError("A van stock audit needs at least one audited line.")
-        total_audited = len(audited_skus)
-        discrepancies = sum(1 for s in audited_skus if s.get("discrepancy_qty", 0) != 0)
+        if discrepancies < 0 or discrepancies > total_audited:
+            raise UserError(
+                "%s discrepancies out of %s audited lines is not possible."
+                % (discrepancies, total_audited)
+            )
 
         self._guarded().write(
-            {"last_audit_date": fields.Date.today(), "audit_discrepancy_count": discrepancies}
+            {
+                "last_audit_date": fields.Date.context_today(self),
+                "audit_discrepancy_count": discrepancies,
+            }
         )
 
         # Emit van.reconciled outbox event

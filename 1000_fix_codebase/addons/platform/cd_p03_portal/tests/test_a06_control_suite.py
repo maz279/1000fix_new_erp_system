@@ -18,7 +18,7 @@ import pytest
 from odoo import fields
 from odoo.addons.cd_p03_portal.controllers import a06
 from odoo.addons.cd_p03_portal.controllers.a06.writable import WRITABLE
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 _SEQ = itertools.count(1)
 GUARD_MESSAGE = "changes only through its workflow"
@@ -168,6 +168,14 @@ def test_every_guarded_field_refuses_a_direct_write(odoo_env, clerk_env, model):
         field = record._fields.get(name)
         if not field or field.type not in SIMPLE or not field.store or field.compute:
             continue
+        if not record._has_field_access(field, "read"):
+            # field-restricted (cost, a van's expected quantity; A06 final pass):
+            # this user may not even read it, so the ORM refuses before the guard.
+            # test_a_restricted_field_is_still_guarded_for_who_may_read_it below.
+            with pytest.raises(AccessError):
+                record.write({name: _forged_value(clerk_env, field, False)})
+            checked += 1
+            continue
         value = _forged_value(clerk_env, field, record[name])
         if value is None:
             continue
@@ -175,6 +183,44 @@ def test_every_guarded_field_refuses_a_direct_write(odoo_env, clerk_env, model):
             record.write({name: value})
         checked += 1
     assert checked or not guarded, "%s declares guarded fields but none could be attacked" % model
+
+
+@pytest.mark.parametrize(
+    "model,name",
+    [
+        ("fix.stock.consumption", "unit_cost"),
+        ("fix.stock.quarantine", "unit_cost"),
+        ("fix.stock.rtv", "unit_cost"),
+        ("fix.stock.van.recon", "expected_qty"),
+    ],
+)
+def test_a_restricted_field_is_still_guarded_for_who_may_read_it(odoo_env, model, name):
+    """The field restriction does not replace the guard: an Inventory Controller
+    reads the cost and the expected quantity, and still cannot type them."""
+    n = next(_SEQ)
+    controller = (
+        odoo_env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "A06 Control Suite Controller %d" % n,
+                "login": "a06.control.controller.%d@a06.test" % n,
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            odoo_env.ref("base.group_user").id,
+                            odoo_env.ref("cd_wms_structure.group_inventory_controller").id,
+                        ],
+                    )
+                ],
+            }
+        )
+    )
+    record = odoo_env(user=controller.id)[model].new({})
+    with pytest.raises(UserError, match=GUARD_MESSAGE):
+        record.write({name: 7.0})
 
 
 @pytest.mark.parametrize("model", sorted(a06.SURFACES))

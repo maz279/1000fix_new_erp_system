@@ -18,17 +18,22 @@
 #   - every valued movement books a suspense entry for M19.
 import logging
 
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo import SUPERUSER_ID, api, fields, models
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
 from .fix_inventory_approval import (
+    APPROVER_BRANCH_GROUP,
+    APPROVER_FINANCE_GROUP,
+    CONTROLLER_GROUP,
+    COST_GROUP,
     PARAM_COUNT_TOLERANCE_PCT,
     PARAM_TRANSFER_THRESHOLD,
     PARAM_VAN_TOLERANCE_PCT,
     PARAM_WRITEOFF_THRESHOLD,
     VALUED_CLASSES,
+    VAN_VARIANCE_GROUPS,
     check_location_usable,
     check_quantity,
     inv_param,
@@ -64,6 +69,11 @@ COUNT_REASONS = [
 ]
 
 EPS = 1e-6
+
+# A06 final pass B3: a PO a receipt may be taken against
+RECEIPT_PO_STATES = ("sent", "acknowledged", "partially_received", "received")
+# A06 final pass B15: what happens to a transfer's short quantity
+TRANSFER_RESOLUTIONS = ("found", "returned", "quarantine")
 
 
 def _changes(records, vals):
@@ -122,10 +132,13 @@ class FixStockOnhand(models.Model):
     unit_cost = fields.Monetary(
         string="Unit Cost",
         currency_field="currency_id",
+        groups=COST_GROUP,
         help="Weighted-average cost of the quantity in this bucket.",
     )
+    # A06 final pass B19: weighted average is what runs. FIFO has no cost
+    # layers behind it, so choosing it would be a label only: refused below.
     valuation_method = fields.Selection(
-        [("fifo", "FIFO"), ("wac", "Weighted Average"), ("standard", "Standard Cost")],
+        [("fifo", "FIFO"), ("wac", "WAC (Weighted Average)"), ("standard", "Standard Cost")],
         required=True,
         default="wac",
     )
@@ -160,22 +173,73 @@ class FixStockOnhand(models.Model):
         for rec in self:
             rec.available_qty = round((rec.qty or 0.0) - (rec.reserved or 0.0), 3)
 
+    @api.constrains("valuation_method")
+    def _check_valuation_method(self):
+        for rec in self:
+            if rec.valuation_method != "wac":
+                raise ValidationError(
+                    "FIFO and standard cost are not available: the ledger values every bucket "
+                    "at its weighted average cost and holds no FIFO cost layers."
+                )
+
     # ------------------------------------------------------------------ core
     @api.model
     def _bucket(self, part, location, ownership, status="unrestricted"):
-        return (
-            self.sudo()
+        """The ledger row, as sudo: movements read its cost and write it for
+        users who may see neither (spec section 13). Never returned to a
+        caller outside the ledger's own code."""
+        return self.sudo().search(
+            [
+                ("part_id", "=", part.id),
+                ("location_id", "=", location.id),
+                ("ownership_class", "=", ownership),
+                ("stock_status", "=", status),
+            ],
+            limit=1,
+        )
+
+    @api.model
+    def _fix_check_bins(self, part, location, qty):
+        """BRU-WMS-01 / M41-1 (A06 final pass B9): at a location a warehouse
+        breaks down into bins, the slots are part of the ledger. An M15 issue,
+        transfer, quarantine, RTV or class change names no bin, so it may take
+        only the stock that is NOT slotted; slotted stock leaves through a wave
+        pick or an approved floor count. Refusing is the smaller correct
+        option: choosing a slot would need a bin scan on every M15 screen, and
+        a silent choice would be M41 authoring a movement nobody confirmed."""
+        warehouses = (
+            self.env["fix.warehouse"].sudo().search([("stock_location_id", "=", location.id)])
+        )
+        if not warehouses:
+            return
+        slots = (
+            self.env["fix.wms.slot"]
+            .sudo()
             .search(
                 [
                     ("part_id", "=", part.id),
-                    ("location_id", "=", location.id),
-                    ("ownership_class", "=", ownership),
-                    ("stock_status", "=", status),
-                ],
-                limit=1,
+                    ("bin_id.zone_id.warehouse_id", "in", warehouses.ids),
+                ]
             )
-            .with_env(self.env)
         )
+        binned = sum(slots.mapped("qty"))
+        if binned <= EPS:
+            return
+        rows = self.sudo().search(
+            [
+                ("part_id", "=", part.id),
+                ("location_id", "=", location.id),
+                ("stock_status", "=", "unrestricted"),
+            ]
+        )
+        free = round(sum(rows.mapped("qty")) - binned, 4)
+        if qty > free + EPS:
+            raise UserError(
+                "%s of %s at %s is in warehouse bins; only %s is outside them. Bin stock "
+                "leaves through a wave pick or a floor count, so that the bins and the "
+                "ledger agree (BRU-WMS-01)."
+                % (round(binned, 4), part.part_number, location.code, max(free, 0.0))
+            )
 
     @api.model
     def _apply(
@@ -206,7 +270,10 @@ class FixStockOnhand(models.Model):
         Ledger = self.sudo()
         today = fields.Date.context_today(self)
         if not row and delta > 0:
-            cost = unit_cost if unit_cost is not None else (part.average_cost or part.unit_cost)
+            cost = unit_cost
+            if cost is None:
+                master = part.sudo()
+                cost = master.average_cost or master.unit_cost
             return Ledger.create(
                 {
                     "company_id": location.company_id.id or part.company_id.id,
@@ -219,7 +286,7 @@ class FixStockOnhand(models.Model):
                     "unit_cost": cost or 0.0,
                     "last_move_date": today,
                 }
-            ).with_env(self.env)
+            )
         if not row:
             # A ledger-native movement always demands its bucket; the legacy
             # flag only lets a caller ask "nothing there" without an error.
@@ -349,6 +416,9 @@ class FixStockLot(models.Model):
             ("quarantined", "Quarantined"),
             ("scrapped", "Scrapped"),
             ("returned", "Returned to Vendor"),
+            ("in_transit", "In Transit"),
+            ("staged", "Staged for Dispatch"),
+            ("shipped", "Shipped"),
         ],
         required=True,
         default="in_stock",
@@ -384,6 +454,34 @@ class FixStockLot(models.Model):
     @api.model
     def _fix_find(self, part, name):
         return self.sudo().search([("part_id", "=", part.id), ("name", "=", name)], limit=1)
+
+    def _fix_check_movable(self, part, location):
+        """BRU-WMS-10 / M15-5: a serial moves only when it is this part's, in
+        stock, at the location the movement leaves from."""
+        self.ensure_one()
+        lot = self.sudo()
+        if lot.part_id != part:
+            raise UserError("Serial %s is not a serial of %s." % (lot.name, part.part_number))
+        if lot.status != "in_stock" or lot.location_id != location or (lot.qty or 0.0) < 1.0:
+            raise UserError(
+                "Serial %s is %s at %s, not in stock at %s: it cannot move."
+                % (
+                    lot.name,
+                    dict(lot._fields["status"].selection).get(lot.status),
+                    lot.location_id.code or "-",
+                    location.code,
+                )
+            )
+
+    def _fix_move(self, status, location=None, qty=None):
+        """The serial follows its movement (system path: a technician or an
+        approver holds no lot rights)."""
+        vals = {"status": status}
+        if location is not None:
+            vals["location_id"] = location.id
+        if qty is not None:
+            vals["qty"] = qty
+        self.sudo()._guarded().write(vals)
 
 
 # =========================================================================
@@ -422,6 +520,11 @@ class FixStockReceipt(models.Model):
     source_model = fields.Char(string="Source Document Model", index=True)
     source_res_id = fields.Integer(string="Source Document ID", index=True)
     source_ref = fields.Char(string="Source Reference", index=True)
+    direct_reason = fields.Char(
+        string="Reason (no purchase order)",
+        help="Why these goods are received with no purchase order: an Inventory Controller "
+        "posts such a receipt, on this recorded reason or source reference (A06 M15-9).",
+    )
     received_on = fields.Date(required=True, default=fields.Date.context_today)
     inspection_notes = fields.Char()
     state = fields.Selection(
@@ -445,15 +548,20 @@ class FixStockReceipt(models.Model):
         "source_model",
         "source_res_id",
         "source_ref",
+        "direct_reason",
     )
 
     def _fix_guarded_fields(self) -> set:
+        # source_model / source_res_id mark a system hand-off (M16, M44, M14),
+        # which is exempt from the direct-receipt rule: never typed by a user.
         return super()._fix_guarded_fields() | {
             "state",
             "inspected_by_id",
             "inspected_at",
             "posted_by_id",
             "posted_at",
+            "source_model",
+            "source_res_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -494,12 +602,120 @@ class FixStockReceipt(models.Model):
                     % (rec.name, rec.partner_id.name, po.display_name, vendor.name)
                 )
 
+    # ---- A06 final pass B3 / M15-9: where a manual receipt's goods come from ----
+    def _is_system_handoff(self) -> bool:
+        """M16 goods receipt, M44 import, M14 harvest: their own module already
+        checked the quantity and set the cost (M44's provisional landed cost
+        must not be replaced by the PO price)."""
+        self.ensure_one()
+        return bool(self.source_model)
+
+    def _check_source(self):
+        """A receipt names its purchase order, or records why it has none."""
+        self.ensure_one()
+        if self._is_system_handoff() or self.env.su:
+            return
+        if self.purchase_order_id:
+            self._check_against_po()
+            return
+        if not (self.direct_reason or "").strip() and not (self.source_ref or "").strip():
+            raise UserError(
+                "Receipt %s names no purchase order: record the reason or the source "
+                "document before it is inspected or posted." % self.name
+            )
+        retired = self.line_ids.mapped("part_id").filtered(lambda p: p.state != "active")
+        if retired:
+            raise UserError(
+                "%s is no longer purchased (%s): new stock of it needs an open purchase "
+                "order." % (retired[:1].part_number, retired[:1].state)
+            )
+
+    def _po_lines_for(self, part):
+        self.ensure_one()
+        product = part.sudo().product_id
+        order = self.purchase_order_id.sudo()
+        return order.line_ids.filtered(lambda ln: product and ln.product_id == product)
+
+    def _check_against_po(self):
+        """The accepted quantity of each part stays within what the purchase
+        order still has open across its posted M15 receipts."""
+        self.ensure_one()
+        order = self.purchase_order_id.sudo()
+        if order.state not in RECEIPT_PO_STATES:
+            raise UserError(
+                "Purchase order %s is %s: goods are received only against an issued order."
+                % (order.name, order.state)
+            )
+        Line = self.env["fix.stock.receipt.line"].sudo()
+        for part in self.line_ids.mapped("part_id"):
+            po_lines = self._po_lines_for(part)
+            if not po_lines:
+                raise UserError(
+                    "Purchase order %s does not order %s (map the part to its purchased "
+                    "product if it does)." % (order.name, part.part_number)
+                )
+            ordered = sum(po_lines.mapped("qty_ordered"))
+            done = sum(
+                Line.search(
+                    [
+                        ("part_id", "=", part.id),
+                        ("is_posted", "=", True),
+                        ("receipt_id.purchase_order_id", "=", order.id),
+                        ("receipt_id", "!=", self.id),
+                    ]
+                ).mapped("qty_accepted")
+            )
+            accepted = sum(
+                self.line_ids.filtered(lambda ln, p=part: ln.part_id == p).mapped("qty_accepted")
+            )
+            if accepted > ordered - done + EPS:
+                raise UserError(
+                    "Purchase order %s has %s of %s open; this receipt accepts %s."
+                    % (order.name, round(ordered - done, 4), part.part_number, accepted)
+                )
+
+    def _po_unit_cost(self, part):
+        """The price the order was approved at, in the company's currency
+        (several lines of one part: their weighted average)."""
+        self.ensure_one()
+        po_lines = self._po_lines_for(part)
+        company = self.company_id
+        total = qty = 0.0
+        for line in po_lines:
+            price = line.unit_price or 0.0
+            currency = line.currency_id
+            if currency and company.currency_id and currency != company.currency_id:
+                price = currency._convert(
+                    price, company.currency_id, company, fields.Date.context_today(self)
+                )
+            total += price * (line.qty_ordered or 0.0)
+            qty += line.qty_ordered or 0.0
+        return round(total / qty, 4) if qty else 0.0
+
+    def _line_cost(self, line):
+        """What a posted line is valued at. A PO receipt takes the PO's price,
+        never a typed one; a direct receipt the cost a cost-viewer typed, else
+        the part's average or standard cost; a system hand-off its own."""
+        self.ensure_one()
+        row = line.sudo()
+        if self._is_system_handoff():
+            return row.unit_cost or 0.0
+        master = row.part_id
+        if self.purchase_order_id and (self._po_lines_for(master) or not self.env.su):
+            cost = self._po_unit_cost(master)
+        else:
+            cost = row.unit_cost or master.average_cost or master.unit_cost or 0.0
+        if abs((row.unit_cost or 0.0) - cost) > EPS:
+            row._guarded().write({"unit_cost": cost})
+        return cost
+
     def action_inspect(self):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Inspect a draft receipt")
             if not rec.line_ids:
                 raise UserError("A receipt needs at least one line")
+            rec._check_source()
             if any(line.qty_accepted <= 0 for line in rec.line_ids):
                 raise UserError("The inspection gate requires an accepted quantity on every line")
             for line in rec.line_ids:
@@ -521,10 +737,22 @@ class FixStockReceipt(models.Model):
         for rec in self:
             if rec.state != "inspected":
                 raise UserError("Post an inspected receipt")
+            rec._check_source()
+            if (
+                not self.env.su
+                and not rec._is_system_handoff()
+                and not rec.purchase_order_id
+                and not self.env.user.has_group(CONTROLLER_GROUP)
+            ):
+                raise AccessError(
+                    "Receipt %s names no purchase order: only an Inventory Controller posts "
+                    "a direct receipt." % rec.name
+                )
             check_location_usable(rec.location_id, self.env)
             cls = location_class(rec.location_id, rec.ownership_class)
             for line in rec.line_ids:
                 part = line.part_id
+                cost = rec._line_cost(line)
                 rejected = round((line.qty_received or 0.0) - (line.qty_accepted or 0.0), 4)
                 lot_vals = {}
                 if part.is_serialized:
@@ -543,12 +771,12 @@ class FixStockReceipt(models.Model):
                             "Serial %s of %s has already been received: a serial is "
                             "received once (BRU-INV-14)." % (line.line_no, part.part_number)
                         )
-                Onhand._apply(part, rec.location_id, cls, line.qty_accepted, line.unit_cost or 0.0)
+                Onhand._apply(part, rec.location_id, cls, line.qty_accepted, cost)
                 Suspense._fix_post(
                     "receipt",
                     part,
                     line.qty_accepted,
-                    line.unit_cost,
+                    cost,
                     rec.name,
                     location=rec.location_id,
                     ownership=cls,
@@ -583,14 +811,14 @@ class FixStockReceipt(models.Model):
                         rec.location_id,
                         cls,
                         rejected,
-                        line.unit_cost or 0.0,
+                        cost,
                         status="quarantine",
                     )
                     Suspense._fix_post(
                         "receipt",
                         part,
                         rejected,
-                        line.unit_cost,
+                        cost,
                         rec.name,
                         location=rec.location_id,
                         ownership=cls,
@@ -639,7 +867,7 @@ class FixStockReceipt(models.Model):
                             "part_id": line.part_id.id,
                             "accepted": line.qty_accepted,
                             "rejected": line.qty_rejected,
-                            "unit_cost": line.unit_cost,
+                            "unit_cost": line.sudo().unit_cost,
                         }
                         for line in rec.line_ids
                     ],
@@ -665,7 +893,7 @@ class FixStockReceiptLine(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
-    unit_cost = fields.Monetary(string="Unit Cost", currency_field="currency_id")
+    unit_cost = fields.Monetary(string="Unit Cost", currency_field="currency_id", groups=COST_GROUP)
     source_line_ref = fields.Char(string="Source Line Reference")
     is_posted = fields.Boolean(string="Posted", readonly=True, copy=False)
     lot_id = fields.Many2one("fix.stock.lot", string="Lot Created", readonly=True, copy=False)
@@ -680,6 +908,16 @@ class FixStockReceiptLine(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"is_posted", "lot_id", "quarantine_id"}
+
+    @api.depends("receipt_id.name", "part_id.part_number", "qty_accepted")
+    def _compute_display_name(self):
+        """A put-away picks its receipt line by this name (A06 final pass A3)."""
+        for rec in self:
+            rec.display_name = "%s / %s x %s" % (
+                rec.receipt_id.name or "-",
+                rec.part_id.part_number or "-",
+                rec.qty_accepted,
+            )
 
     @api.depends("qty_received", "qty_accepted")
     def _compute_rejected(self):
@@ -744,6 +982,7 @@ class FixStockTransfer(models.Model):
             ("submitted", "Awaiting Approval"),
             ("approved", "Approved"),
             ("dispatched", "Dispatched"),
+            ("discrepancy", "Received with Discrepancy"),
             ("received", "Received"),
             ("cancelled", "Cancelled"),
         ],
@@ -752,7 +991,20 @@ class FixStockTransfer(models.Model):
     )
     line_ids = fields.One2many("fix.stock.transfer.line", "transfer_id", string="Lines")
     transfer_value = fields.Float(
-        string="Transfer Value (BDT)", compute="_compute_transfer_value", store=False
+        string="Transfer Value (BDT)",
+        compute="_compute_transfer_value",
+        store=False,
+        groups=COST_GROUP,
+    )
+    discrepancy_resolution = fields.Selection(
+        [
+            ("found", "Found: delivered to the destination"),
+            ("returned", "Returned to the sender's stock"),
+            ("quarantine", "Quarantined at the sender for write-off"),
+        ],
+        string="Discrepancy Resolution",
+        readonly=True,
+        copy=False,
     )
 
     _different_locations = models.Constraint(
@@ -769,12 +1021,23 @@ class FixStockTransfer(models.Model):
             "received_on",
             "dispatched_by_id",
             "received_by_id",
+            "discrepancy_resolution",
         }
+
+    def _inv_approver_groups(self) -> tuple:
+        # spec section 13: R06 approves transfers
+        return (*super()._inv_approver_groups(), APPROVER_BRANCH_GROUP)
+
+    def _inv_excluded_users(self):
+        # who dispatched or received a short transfer never closes it
+        return super()._inv_excluded_users() | self.dispatched_by_id | self.received_by_id
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.state != "draft":
-            locked |= set(self._DOC_FIELDS) | {"line_ids"}
+            locked |= set(self._DOC_FIELDS)
+            if self.state != "dispatched":
+                locked |= {"line_ids"}
         return locked
 
     @api.depends("line_ids.qty", "line_ids.part_id", "from_location_id")
@@ -785,7 +1048,7 @@ class FixStockTransfer(models.Model):
             cls = location_class(rec.from_location_id)
             for line in rec.line_ids:
                 bucket = Onhand._bucket(line.part_id, rec.from_location_id, cls)
-                cost = bucket.unit_cost if bucket else line.part_id.average_cost
+                cost = bucket.unit_cost if bucket else line.part_id.sudo().average_cost
                 total += (line.qty or 0.0) * (cost or 0.0)
             rec.transfer_value = round(total, 2)
 
@@ -802,7 +1065,16 @@ class FixStockTransfer(models.Model):
         if self and not self._fix_guard_open():
             frozen = {k: vals[k] for k in self._DOC_FIELDS if k in vals}
             moving = self.filtered(lambda r: r.state != "draft")
-            if (frozen and _changes(moving, frozen)) or ("line_ids" in vals and moving):
+            # the receiver records what arrived on a dispatched transfer's
+            # existing lines (fix.stock.transfer.line.write allows nothing else)
+            receiving = (
+                "line_ids" in vals
+                and all(r.state == "dispatched" for r in moving)
+                and all(cmd[0] == 1 for cmd in vals["line_ids"])
+            )
+            if (frozen and _changes(moving, frozen)) or (
+                "line_ids" in vals and moving and not receiving
+            ):
                 raise UserError(
                     "A submitted, approved or dispatched transfer is final: cancel it and "
                     "raise a new one."
@@ -817,6 +1089,24 @@ class FixStockTransfer(models.Model):
                     % (rec.name, what, dict(self._fields["state"].selection)[rec.state])
                 )
 
+    def _check_serial_lines(self):
+        """BRU-WMS-10 / M15-11: a serialized part travels one serial per line."""
+        self.ensure_one()
+        seen = self.env["fix.stock.lot"]
+        for line in self.line_ids:
+            part = line.part_id
+            if not part.is_serialized:
+                continue
+            if not line.lot_id or abs((line.qty or 0.0) - 1.0) > EPS:
+                raise UserError(
+                    "%s is serialized: transfer it one unit per line, naming the serial."
+                    % part.part_number
+                )
+            if line.lot_id in seen:
+                raise UserError("Serial %s is on this transfer twice." % line.lot_id.name)
+            seen |= line.lot_id
+            line.lot_id._fix_check_movable(part, self.from_location_id)
+
     def action_submit(self):
         self._require(("draft",), "be submitted")
         threshold = inv_param(self.env, PARAM_TRANSFER_THRESHOLD, 0.0)
@@ -825,14 +1115,16 @@ class FixStockTransfer(models.Model):
                 raise UserError("A transfer needs at least one line")
             for line in rec.line_ids:
                 check_quantity(line.part_id, line.qty, "transfer quantity")
+            rec._check_serial_lines()
             rec._inv_stamp_request()
-            if threshold > 0 and rec.transfer_value <= threshold:
+            value = rec.sudo().transfer_value
+            if threshold > 0 and value <= threshold:
                 # below the configured threshold no second person is needed
                 rec._guarded().write(
                     {
                         "state": "approved",
                         "approval_note": "auto-approved: value %.2f within the threshold %.2f"
-                        % (rec.transfer_value, threshold),
+                        % (value, threshold),
                     }
                 )
             else:
@@ -842,7 +1134,7 @@ class FixStockTransfer(models.Model):
     def action_approve(self):
         self._require(("submitted",), "be approved")
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval()
             rec._guarded().write({"state": "approved"})
         return True
@@ -850,7 +1142,7 @@ class FixStockTransfer(models.Model):
     def action_reject(self):
         self._require(("submitted",), "be rejected")
         self._inv_check_approver()
-        self._guarded().write({"state": "cancelled"})
+        self.sudo()._guarded().write({"state": "cancelled"})
         return True
 
     def action_cancel(self):
@@ -874,12 +1166,19 @@ class FixStockTransfer(models.Model):
             if not rec.line_ids:
                 raise UserError("A transfer needs at least one line")
             check_location_usable(rec.from_location_id, self.env)
+            rec._check_serial_lines()
             cls = location_class(rec.from_location_id)
             for line in rec.line_ids:
+                Onhand._fix_check_bins(line.part_id, rec.from_location_id, line.qty)
                 cost = Onhand._fix_move_status(
                     line.part_id, rec.from_location_id, cls, line.qty, "unrestricted", "in_transit"
                 )
-                line._guarded().write({"unit_cost": cost, "is_dispatched": True})
+                line.sudo()._guarded().write(
+                    {"unit_cost": cost, "is_dispatched": True, "received_qty": line.qty}
+                )
+                if line.lot_id:
+                    # the sender keeps it (BRU-INV-16), but it is on the road
+                    line.lot_id._fix_move("in_transit")
             rec._guarded().write(
                 {
                     "state": "dispatched",
@@ -902,26 +1201,119 @@ class FixStockTransfer(models.Model):
             check_location_usable(rec.to_location_id, self.env)
             src_cls = location_class(rec.from_location_id)
             dst_cls = location_class(rec.to_location_id)
+            discrepancies = []
+            moved = []
             for line in rec.line_ids:
+                # A06 final pass B15: what arrived, not what was sent. The short
+                # quantity stays in transit, the sender's (BRU-INV-16), until
+                # the discrepancy is resolved.
+                arrived = line._received_quantity()
+                check_quantity(line.part_id, arrived, "received quantity", allow_zero=True)
+                short = round((line.qty or 0.0) - arrived, 4)
                 if line.is_dispatched:
-                    cost = line.unit_cost
-                    Onhand._apply(
-                        line.part_id, rec.from_location_id, src_cls, -line.qty, status="in_transit"
-                    )
+                    cost = line.sudo().unit_cost
+                    if arrived > EPS:
+                        Onhand._apply(
+                            line.part_id,
+                            rec.from_location_id,
+                            src_cls,
+                            -arrived,
+                            status="in_transit",
+                        )
                 else:
                     # dispatched before the in-transit ledger existed: the stock
                     # never left the source bucket, take it from there
                     source = Onhand._bucket(line.part_id, rec.from_location_id, src_cls)
                     cost = source.unit_cost if source else 0.0
-                    Onhand._apply(line.part_id, rec.from_location_id, src_cls, -line.qty)
-                Onhand._apply(line.part_id, rec.to_location_id, dst_cls, line.qty, cost)
+                    if arrived > EPS:
+                        Onhand._apply(line.part_id, rec.from_location_id, src_cls, -arrived)
+                if arrived > EPS:
+                    Onhand._apply(line.part_id, rec.to_location_id, dst_cls, arrived, cost)
+                    if line.lot_id:
+                        line.lot_id._fix_move("in_stock", rec.to_location_id)
+                line.sudo()._guarded().write(
+                    {"received_qty": arrived, "discrepancy_qty": short if line.is_dispatched else 0}
+                )
+                moved.append({"part_id": line.part_id.id, "sent": line.qty, "received": arrived})
+                if short > EPS and line.is_dispatched:
+                    discrepancies.append(
+                        {"part_id": line.part_id.id, "short": short, "unit_cost": cost}
+                    )
             rec._guarded().write(
                 {
-                    "state": "received",
+                    "state": "discrepancy" if discrepancies else "received",
                     "received_on": fields.Date.context_today(self),
                     "received_by_id": self.env.user.id,
                 }
             )
+            publish(
+                self.env,
+                "stock.transfer_received",
+                "fix.stock.transfer",
+                rec.id,
+                {
+                    "transfer": rec.name,
+                    "from_location_id": rec.from_location_id.id,
+                    "to_location_id": rec.to_location_id.id,
+                    "lines": moved,
+                    "discrepancies": discrepancies,
+                },
+            )
+        return True
+
+    def action_resolve_discrepancy(self, resolution=None, note=None):
+        """AUT-INV-17: an approver who neither dispatched nor received it closes
+        a short transfer: the missing quantity was found (it goes on to the
+        destination), came back to the sender, or goes to quarantine at the
+        sender, from where its write-off follows the normal approval."""
+        resolution = (resolution or "").strip().lower()
+        if resolution not in TRANSFER_RESOLUTIONS:
+            raise UserError("Give the resolution: %s." % ", ".join(TRANSFER_RESOLUTIONS))
+        if not (note or "").strip():
+            raise UserError("Record how the transfer discrepancy was resolved.")
+        self._require(("discrepancy",), "have a discrepancy resolved")
+        self._inv_check_approver()
+        Onhand = self.env["fix.stock.onhand"]
+        for rec in self.sudo():
+            src_cls = location_class(rec.from_location_id)
+            dst_cls = location_class(rec.to_location_id)
+            for line in rec.line_ids.filtered(lambda ln: (ln.discrepancy_qty or 0.0) > EPS):
+                short = line.discrepancy_qty
+                part = line.part_id
+                if resolution == "found":
+                    Onhand._apply(part, rec.from_location_id, src_cls, -short, status="in_transit")
+                    Onhand._apply(part, rec.to_location_id, dst_cls, short, line.unit_cost)
+                    if line.lot_id:
+                        line.lot_id._fix_move("in_stock", rec.to_location_id)
+                elif resolution == "returned":
+                    Onhand._fix_move_status(
+                        part, rec.from_location_id, src_cls, short, "in_transit", "unrestricted"
+                    )
+                    if line.lot_id:
+                        line.lot_id._fix_move("in_stock")
+                else:
+                    Onhand._fix_move_status(
+                        part, rec.from_location_id, src_cls, short, "in_transit", "quarantine"
+                    )
+                    if line.lot_id:
+                        line.lot_id._fix_move("quarantined")
+                    self.env["fix.stock.quarantine"].sudo()._guarded().with_context(
+                        fix_quarantine_in_place=True
+                    ).create(
+                        {
+                            "part_id": part.id,
+                            "location_id": rec.from_location_id.id,
+                            "company_id": rec.company_id.id,
+                            "ownership_class": src_cls,
+                            "lot_id": line.lot_id.id or False,
+                            "qty": short,
+                            "reason": "damaged",
+                            "notes": "Short on transfer %s: %s" % (rec.name, note),
+                            "source_ref": rec.name,
+                        }
+                    )
+            rec._inv_stamp_approval(note)
+            rec._guarded().write({"state": "received", "discrepancy_resolution": resolution})
         return True
 
 
@@ -938,13 +1330,34 @@ class FixStockTransferLine(models.Model):
         "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
     )
     qty = fields.Float(string="Quantity")
-    unit_cost = fields.Float(string="Dispatch Cost (BDT)", readonly=True, copy=False)
+    lot_id = fields.Many2one(
+        "fix.stock.lot",
+        string="Serial",
+        ondelete="restrict",
+        help="The serial this line moves (required for a serialized part: one per line).",
+    )
+    unit_cost = fields.Float(
+        string="Dispatch Cost (BDT)", readonly=True, copy=False, groups=COST_GROUP
+    )
     is_dispatched = fields.Boolean(string="Dispatched", readonly=True, copy=False)
+    received_qty = fields.Float(
+        string="Received",
+        copy=False,
+        help="What physically arrived. Filled with the sent quantity at dispatch; the "
+        "receiver corrects it before Receive when less arrived.",
+    )
+    discrepancy_qty = fields.Float(string="Short", readonly=True, copy=False)
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "Transfer quantity must be positive")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"unit_cost", "is_dispatched"}
+        return super()._fix_guarded_fields() | {"unit_cost", "is_dispatched", "discrepancy_qty"}
+
+    def _received_quantity(self):
+        """What arrived. A line dispatched before the in-transit ledger existed
+        was never put in transit and is taken whole."""
+        self.ensure_one()
+        return self.received_qty if self.is_dispatched else self.qty
 
     def _refuse_unless_draft(self, transfers):
         if not self._fix_guard_open() and transfers.filtered(lambda t: t.state != "draft"):
@@ -960,8 +1373,36 @@ class FixStockTransferLine(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        if self:
-            self._refuse_unless_draft(self.mapped("transfer_id"))
+        if self and not self._fix_guard_open():
+            for line in self:
+                changed = {
+                    k
+                    for k in vals
+                    if k in self._fields and line._fix_guard_differs(k, vals[k], line[k])
+                }
+                if not changed:
+                    continue
+                transfer = line.transfer_id
+                if transfer.state == "draft" and "received_qty" not in changed:
+                    continue
+                if transfer.state == "dispatched" and changed == {"received_qty"}:
+                    # the receiver, never the dispatcher, records what arrived
+                    if transfer.dispatched_by_id == self.env.user:
+                        raise UserError(
+                            "Segregation of duties: you dispatched %s, so a different person "
+                            "records what arrived." % transfer.name
+                        )
+                    value = float(vals["received_qty"] or 0.0)
+                    if value < 0 or value > (line.qty or 0.0) + EPS:
+                        raise UserError(
+                            "Received quantity %s must be between 0 and the %s sent; surplus "
+                            "stock is found by a count." % (value, line.qty)
+                        )
+                    check_quantity(line.part_id, value, "received quantity", allow_zero=True)
+                    continue
+                if "received_qty" in changed and transfer.state != "dispatched":
+                    raise UserError("The received quantity is recorded when the goods arrive.")
+                self._refuse_unless_draft(transfer)
         return super().write(vals)
 
     def unlink(self):
@@ -1021,8 +1462,20 @@ class FixStockCount(models.Model):
     posted_at = fields.Datetime(string="Posted On", readonly=True)
     reason_code = fields.Selection(COUNT_REASONS, string="Variance Reason")
     reason_note = fields.Char(string="Variance Explanation")
+    # the counter sees neither (blind count), and cost is restricted anyway
     variance_value = fields.Float(
-        string="Variance Value (BDT)", compute="_compute_variance_value", store=False
+        string="Variance Value (BDT)",
+        compute="_compute_variance_value",
+        store=False,
+        groups=COST_GROUP,
+        help="Gains less losses, at the cost when each line was snapshotted.",
+    )
+    adjustment_value = fields.Float(
+        string="Adjustment Value (BDT)",
+        compute="_compute_variance_value",
+        store=False,
+        groups=COST_GROUP,
+        help="Gains plus losses: the value the approval matrix decides on (BRU-INV-11).",
     )
     line_ids = fields.One2many("fix.stock.count.line", "count_id", string="Lines")
 
@@ -1047,12 +1500,18 @@ class FixStockCount(models.Model):
         # SOD-05: the counter never approves the adjustment from his count.
         return super()._inv_excluded_users() | self.counted_by_id
 
+    def _inv_approver_groups(self) -> tuple:
+        # spec section 13: R06 variance resolution, R26 adjustments
+        return (*super()._inv_approver_groups(), APPROVER_BRANCH_GROUP, APPROVER_FINANCE_GROUP)
+
     @api.depends("line_ids.counted_qty", "line_ids.recount_qty", "state")
     def _compute_variance_value(self):
         for rec in self:
-            rec.variance_value = round(
-                sum(line._line_delta() * line._snapshot().unit_cost for line in rec.line_ids), 2
-            )
+            rows = [
+                (line._line_delta(), line._snapshot().unit_cost or 0.0) for line in rec.line_ids
+            ]
+            rec.variance_value = round(sum(delta * cost for delta, cost in rows), 2)
+            rec.adjustment_value = round(sum(abs(delta) * cost for delta, cost in rows), 2)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1158,7 +1617,7 @@ class FixStockCount(models.Model):
             if rec.state != "to_approve":
                 raise UserError("Count %s is not awaiting approval." % rec.name)
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval(note)
             if rec._inv_needs_dofa():
                 # above the controller's limit: the CFO decides it in M63 too
@@ -1196,7 +1655,7 @@ class FixStockCount(models.Model):
             if rec.state != "to_approve":
                 raise UserError("Count %s is not awaiting approval." % rec.name)
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval(note or "rejected")
             rec._guarded().write({"state": "cancelled"})
             rec.line_ids.mapped("floor_count_id")._fix_cancel_from_m15()
@@ -1220,7 +1679,7 @@ class FixStockCount(models.Model):
                     unit_cost=None,
                     from_reserved=True,
                 )
-                cost = bucket.unit_cost if bucket else snap.unit_cost
+                cost = bucket.sudo().unit_cost if bucket else snap.unit_cost
                 Suspense._fix_post(
                     "adjustment",
                     line.part_id,
@@ -1320,9 +1779,13 @@ class FixStockCountLine(models.Model):
     @api.depends_context("uid")
     @api.depends("counted_qty", "recount_qty", "count_id.state")
     def _compute_expected(self):
-        from .fix_inventory_approval import CONTROLLER_GROUP
-
-        sees = self.env.su or self.env.user.has_group(CONTROLLER_GROUP)
+        # blind to the counter, also when the workspace reads the row as sudo:
+        # the acting USER decides, not the sudo flag
+        user = self.env.user
+        sees = self.env.uid == SUPERUSER_ID or any(
+            user.has_group(group)
+            for group in (CONTROLLER_GROUP, APPROVER_BRANCH_GROUP, APPROVER_FINANCE_GROUP)
+        )
         for line in self:
             visible = bool(line.id) and (sees or line.count_id.state in ("posted", "cancelled"))
             line.expected_visible = visible
@@ -1349,7 +1812,8 @@ class FixStockCountLine(models.Model):
                 {
                     "line_id": line.id,
                     "expected_qty": bucket.qty if bucket else 0.0,
-                    "unit_cost": (bucket.unit_cost if bucket else 0.0) or line.part_id.average_cost,
+                    "unit_cost": (bucket.unit_cost if bucket else 0.0)
+                    or line.part_id.sudo().average_cost,
                 }
             )
 
@@ -1439,9 +1903,13 @@ class FixStockVanRecon(models.Model):
     )
     technician_id = fields.Many2one("hr.employee", string="Technician")
     recon_date = fields.Date(required=True, default=fields.Date.context_today)
-    expected_qty = fields.Float(string="Expected (pcs)", readonly=True)
+    # BRU-INV-12 / M15-8: the count is blind. The technician sees neither what
+    # the van should hold nor how far off he is, only the outcome (state).
+    expected_qty = fields.Float(string="Expected (pcs)", readonly=True, groups=VAN_VARIANCE_GROUPS)
     counted_qty = fields.Float(string="Counted (pcs)")
-    variance = fields.Float(compute="_compute_variance", store=True, string="Variance")
+    variance = fields.Float(
+        compute="_compute_variance", store=True, string="Variance", groups=VAN_VARIANCE_GROUPS
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -1468,6 +1936,10 @@ class FixStockVanRecon(models.Model):
 
     def _inv_excluded_users(self):
         return super()._inv_excluded_users() | self.confirmed_by_id | self.technician_id.user_id
+
+    def _inv_approver_groups(self) -> tuple:
+        # spec section 13: R06 variance resolution
+        return (*super()._inv_approver_groups(), APPROVER_BRANCH_GROUP)
 
     @api.depends("expected_qty", "counted_qty")
     def _compute_variance(self):
@@ -1508,7 +1980,7 @@ class FixStockVanRecon(models.Model):
             vals.pop("expected_qty", None)
         records = super().create(vals_list)
         for rec in records:
-            rec._guarded().write({"expected_qty": self._van_ledger_qty(rec.location_id)})
+            rec.sudo()._guarded().write({"expected_qty": self._van_ledger_qty(rec.location_id)})
         return records
 
     def write(self, vals):
@@ -1535,7 +2007,7 @@ class FixStockVanRecon(models.Model):
             expected = self._van_ledger_qty(rec.location_id)
             variance = round((rec.counted_qty or 0.0) - expected, 4)
             within = abs(variance) <= EPS or abs(variance) <= abs(expected) * pct / 100.0 + EPS
-            rec._guarded().write(
+            rec.sudo()._guarded().write(
                 {
                     "expected_qty": expected,
                     "state": "confirmed" if within else "discrepancy",
@@ -1569,7 +2041,7 @@ class FixStockVanRecon(models.Model):
         if not (note or "").strip():
             raise UserError("Record how the van discrepancy was resolved.")
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval(note)
             rec._guarded().write({"state": "resolved"})
         return True
@@ -1606,7 +2078,7 @@ class FixStockQuarantine(models.Model):
     ownership_class = fields.Selection(OWNERSHIP_CLASSES, string="Ownership Class")
     lot_id = fields.Many2one("fix.stock.lot", string="Serial / Lot", ondelete="set null")
     qty = fields.Float(string="Quantity")
-    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True)
+    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True, groups=COST_GROUP)
     reason = fields.Selection(
         [
             ("damaged", "Damaged in Handling"),
@@ -1676,6 +2148,7 @@ class FixStockQuarantine(models.Model):
             else:
                 check_location_usable(rec.location_id, self.env)
                 rec._check_lot_for_quarantine()
+                Onhand._fix_check_bins(part, rec.location_id, rec.qty)
                 cost = Onhand._fix_move_status(
                     part,
                     rec.location_id,
@@ -1685,8 +2158,8 @@ class FixStockQuarantine(models.Model):
                     "quarantine",
                 )
                 if rec.lot_id and part.is_serialized:
-                    rec.lot_id._guarded().write({"status": "quarantined"})
-            rec._guarded().write({"unit_cost": cost})
+                    rec.lot_id._fix_move("quarantined")
+            rec.sudo()._guarded().write({"unit_cost": cost})
         return records
 
     def _check_lot_for_quarantine(self):
@@ -1728,9 +2201,14 @@ class FixStockQuarantine(models.Model):
         # §13: the quarantiner never approves the write-off
         return super()._inv_excluded_users()
 
+    def _inv_approver_groups(self) -> tuple:
+        # spec section 13: R26 write-offs
+        return (*super()._inv_approver_groups(), APPROVER_FINANCE_GROUP)
+
     def _writeoff_value(self):
         self.ensure_one()
-        return round((self.qty or 0.0) * (self.unit_cost or 0.0), 2)
+        rec = self.sudo()
+        return round((rec.qty or 0.0) * (rec.unit_cost or 0.0), 2)
 
     def action_release(self):
         Onhand = self.env["fix.stock.onhand"]
@@ -1777,7 +2255,7 @@ class FixStockQuarantine(models.Model):
     def action_approve_scrap(self, note=None):
         self._require(("scrap_pending",), "be approved for write-off")
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval(note)
             if rec._inv_needs_dofa():
                 rec._guarded().write({"state": "scrap_dofa"})
@@ -1811,7 +2289,7 @@ class FixStockQuarantine(models.Model):
     def action_reject_scrap(self, note=None):
         self._require(("scrap_pending",), "be rejected")
         self._inv_check_approver()
-        for rec in self:
+        for rec in self.sudo():
             rec._inv_stamp_approval(note or "write-off rejected")
             rec._guarded().write({"state": "quarantined"})
         return True
@@ -1819,10 +2297,11 @@ class FixStockQuarantine(models.Model):
     def _do_scrap(self):
         self.ensure_one()
         Onhand = self.env["fix.stock.onhand"]
+        cost = self.sudo().unit_cost
         Onhand._apply(
             self.part_id, self.location_id, self.ownership_class, -self.qty, status="quarantine"
         )
-        lot = self.lot_id
+        lot = self.lot_id.sudo()
         if lot and self.part_id.is_serialized:
             lot._guarded().write({"qty": 0.0, "status": "scrapped"})
         elif lot:
@@ -1835,7 +2314,7 @@ class FixStockQuarantine(models.Model):
             "write_off",
             self.part_id,
             -self.qty,
-            self.unit_cost,
+            cost,
             self.name,
             location=self.location_id,
             ownership=self.ownership_class,
@@ -1851,7 +2330,7 @@ class FixStockQuarantine(models.Model):
                 "part_id": self.part_id.id,
                 "location_id": self.location_id.id,
                 "qty": self.qty,
-                "unit_cost": self.unit_cost,
+                "unit_cost": cost,
                 "value": self._writeoff_value(),
                 "reason": self.reason,
                 "approved_by": self.approved_by_id.id or None,
@@ -1891,6 +2370,12 @@ class FixStockRtv(models.Model):
         ondelete="restrict",
         help="Return quarantined stock (it ships from the quarantine status).",
     )
+    lot_id = fields.Many2one(
+        "fix.stock.lot",
+        string="Serial",
+        ondelete="restrict",
+        help="The serial returned (required for a serialized part not sent from quarantine).",
+    )
     qty = fields.Float(string="Quantity")
     reason = fields.Selection(
         [
@@ -1917,7 +2402,7 @@ class FixStockRtv(models.Model):
         required=True,
         default="draft",
     )
-    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True)
+    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True, groups=COST_GROUP)
     shipped_at = fields.Datetime(readonly=True)
     credited_at = fields.Datetime(readonly=True)
     vendor_note_res_id = fields.Integer(
@@ -1931,7 +2416,15 @@ class FixStockRtv(models.Model):
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RTV quantity must be positive")
 
-    _PINNED = ("partner_id", "part_id", "location_id", "quarantine_id", "qty", "company_id")
+    _PINNED = (
+        "partner_id",
+        "part_id",
+        "location_id",
+        "quarantine_id",
+        "lot_id",
+        "qty",
+        "company_id",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1988,6 +2481,19 @@ class FixStockRtv(models.Model):
         self.ensure_one()
         return "quarantine" if self.quarantine_id else "unrestricted"
 
+    def _check_serial(self):
+        """M15-5: a serialized part leaving unrestricted stock names its serial
+        (from quarantine the serial is the quarantine's)."""
+        self.ensure_one()
+        if self.quarantine_id or not self.part_id.is_serialized:
+            return
+        if not self.lot_id or abs((self.qty or 0.0) - 1.0) > EPS:
+            raise UserError(
+                "%s is serialized: return it one unit per RTV, naming the serial."
+                % self.part_id.part_number
+            )
+        self.lot_id._fix_check_movable(self.part_id, self.location_id)
+
     def action_submit(self):
         self._require(("draft",), "be submitted")
         for rec in self:
@@ -1999,6 +2505,7 @@ class FixStockRtv(models.Model):
                 or abs(rec.qty - rec.quarantine_id.qty) > EPS
             ):
                 raise UserError("RTV %s does not match an open quarantine." % rec.name)
+            rec._check_serial()
             rec._inv_stamp_request()
             rec._guarded().write({"state": "submitted"})
         return True
@@ -2039,12 +2546,17 @@ class FixStockRtv(models.Model):
             status = rec._source_status()
             bucket = Onhand._bucket(rec.part_id, rec.location_id, cls, status)
             cost = bucket.unit_cost if bucket else 0.0
+            if status == "unrestricted":
+                rec._check_serial()
+                Onhand._fix_check_bins(rec.part_id, rec.location_id, rec.qty)
             Onhand._apply(rec.part_id, rec.location_id, cls, -rec.qty, status=status)
             if rec.quarantine_id:
                 rec.quarantine_id._guarded().write({"state": "returned"})
                 lot = rec.quarantine_id.lot_id
                 if lot and rec.part_id.is_serialized:
-                    lot._guarded().write({"status": "returned", "qty": 0.0})
+                    lot._fix_move("returned", qty=0.0)
+            elif rec.lot_id and rec.part_id.is_serialized:
+                rec.lot_id._fix_move("returned", qty=0.0)
             self.env["fix.inventory.valuation.suspense"]._fix_post(
                 "rtv",
                 rec.part_id,
@@ -2054,7 +2566,7 @@ class FixStockRtv(models.Model):
                 location=rec.location_id,
                 ownership=cls,
             )
-            rec._guarded().write(
+            rec.sudo()._guarded().write(
                 {"state": "shipped", "unit_cost": cost, "shipped_at": fields.Datetime.now()}
             )
         return True
@@ -2080,7 +2592,7 @@ class FixStockRtv(models.Model):
         self.ensure_one()
         if "fix.vendor.note" not in self.env or "fix.vendor.invoice" not in self.env:
             return False
-        value = round((self.qty or 0.0) * (self.unit_cost or 0.0), 2)
+        value = round((self.qty or 0.0) * (self.sudo().unit_cost or 0.0), 2)
         if value <= 0:
             self._guarded().write({"vendor_note_status": "no value to credit"})
             return False
@@ -2169,7 +2681,7 @@ class FixStockClassChange(models.Model):
         required=True,
         default="draft",
     )
-    unit_cost = fields.Float(string="Unit Cost Moved (BDT)", readonly=True)
+    unit_cost = fields.Float(string="Unit Cost Moved (BDT)", readonly=True, groups=COST_GROUP)
 
     _classes_differ = models.Constraint(
         "CHECK (from_class <> to_class)", "A class change moves stock between two classes"
@@ -2226,6 +2738,7 @@ class FixStockClassChange(models.Model):
             check_location_usable(rec.location_id, self.env)
             source = Onhand._bucket(rec.part_id, rec.location_id, rec.from_class)
             cost = source.unit_cost if source else 0.0
+            Onhand._fix_check_bins(rec.part_id, rec.location_id, rec.qty)
             Onhand._apply(rec.part_id, rec.location_id, rec.from_class, -rec.qty)
             Onhand._apply(rec.part_id, rec.location_id, rec.to_class, rec.qty, cost)
             valued_from = rec.from_class in VALUED_CLASSES
@@ -2241,7 +2754,7 @@ class FixStockClassChange(models.Model):
                     ownership=rec.to_class if valued_to else rec.from_class,
                 )
             rec._inv_stamp_approval(note)
-            rec._guarded().write({"state": "done", "unit_cost": cost})
+            rec.sudo()._guarded().write({"state": "done", "unit_cost": cost})
         return True
 
     def action_reject(self, note=None):

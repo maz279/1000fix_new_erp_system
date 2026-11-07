@@ -620,6 +620,7 @@ class OfflineSyncApiController(http.Controller):
                     "quantity": qty,
                     "unit_cost": prod.list_price or 0.0,
                     "currency_id": bdt_curr.id if bdt_curr else 1,
+                    "fitted_serial_number": payload.get("serial_number") or False,
                 }
             )
 

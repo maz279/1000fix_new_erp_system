@@ -20,6 +20,18 @@ from odoo.exceptions import AccessError, UserError
 CONTROLLER_GROUP = "cd_wms_structure.group_inventory_controller"
 STOREKEEPER_GROUP = "cd_wms_structure.group_storekeeper"
 OPERATOR_GROUP = "cd_wms_structure.group_warehouse_operator"
+SUPERVISOR_GROUP = "cd_wms_structure.group_warehouse_supervisor"
+TECHNICIAN_GROUP = "cd_wms_structure.group_van_technician"
+# A06 final pass B18 (spec section 13): cost and value fields carry this group,
+# so a field read outside it is refused by the ORM and the workspace columns
+# and forms leave it out. The ledger's own code reads cost as sudo.
+COST_GROUP = "cd_wms_structure.group_stock_cost_viewer"
+# A06 final pass B5 (spec section 13): R06 approves transfers and variance
+# resolution of its own branch, R26 adjustments and write-offs.
+APPROVER_BRANCH_GROUP = "cd_wms_structure.group_inventory_approver_branch"
+APPROVER_FINANCE_GROUP = "cd_wms_structure.group_inventory_approver_finance"
+# A06 final pass B10: who may see a van's expected quantity and variance
+VAN_VARIANCE_GROUPS = "%s,%s,%s" % (CONTROLLER_GROUP, APPROVER_BRANCH_GROUP, APPROVER_FINANCE_GROUP)
 
 # ir.config_parameter keys (documented in the runbook) and their defaults.
 PARAM_COUNT_TOLERANCE_PCT = "cd_inventory.count_variance_tolerance_pct"
@@ -33,6 +45,27 @@ VALUED_CLASSES = ("owned", "van", "bench", "warranty")
 
 # Units of measure counted in whole pieces.
 WHOLE_UNITS = {"PCS", "PC", "EA", "NOS", "NO", "UNIT", "UNITS", "SET", "PAIR"}
+
+
+def sees_cost(env) -> bool:
+    """Unit cost and stock value are field-restricted (spec section 13)."""
+    return env.su or env.user.has_group(COST_GROUP)
+
+
+def is_supervisor(env) -> bool:
+    return env.su or env.user.has_group(SUPERVISOR_GROUP)
+
+
+def require_supervisor(env, what):
+    """The M41 supervisor grant (spec section 13): wave release, task
+    reassignment, and the exception of picking without scans."""
+    if not is_supervisor(env):
+        raise AccessError("Only a Warehouse Supervisor can %s." % what)
+
+
+def part_codes(part) -> set:
+    """What a scan of this part may read: barcode, QR or part number."""
+    return {c for c in (part.barcode, part.qr_code, part.part_number) if c}
 
 
 def inv_param(env, key, default=0.0) -> float:
@@ -129,6 +162,11 @@ class FixInventoryApprovalMixin(models.AbstractModel):
         self.ensure_one()
         return self.create_uid | self.requested_by_id
 
+    def _inv_approver_groups(self) -> tuple:
+        """The roles that decide this document (spec section 13). A model
+        widens it; the Inventory Controller decides everything."""
+        return (CONTROLLER_GROUP,)
+
     def _inv_approval_label(self) -> str:
         self.ensure_one()
         return "%s %s" % (self._description, getattr(self, "name", self.id))
@@ -141,11 +179,14 @@ class FixInventoryApprovalMixin(models.AbstractModel):
         if self.env.su:
             return
         user = self.env.user
-        if not user.has_group(CONTROLLER_GROUP):
+        if not any(user.has_group(group) for group in self._inv_approver_groups()):
             raise AccessError(
                 "Only an Inventory Controller can approve %s."
                 % ", ".join(rec._inv_approval_label() for rec in self)
             )
+        # R06 approves within its own branch: the company and OU rules decide
+        if not user.has_group(CONTROLLER_GROUP) and not user.has_group(APPROVER_FINANCE_GROUP):
+            self.check_access("read")
         for rec in self:
             if user in rec._inv_excluded_users():
                 raise UserError(

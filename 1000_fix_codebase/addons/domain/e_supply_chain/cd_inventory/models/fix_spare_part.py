@@ -4,7 +4,7 @@ from __future__ import annotations
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_inventory_approval import CONTROLLER_GROUP, VALUED_CLASSES
+from .fix_inventory_approval import CONTROLLER_GROUP, COST_GROUP, VALUED_CLASSES
 
 
 class FixSparePart(models.Model):
@@ -81,7 +81,7 @@ class FixSparePart(models.Model):
     )
 
     warranty_months = fields.Integer(string="Warranty Period (Months)", default=6)
-    unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0)
+    unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0, groups=COST_GROUP)
     list_price = fields.Float(string="List Price (BDT)", default=0.0)
 
     product_id = fields.Many2one(
@@ -111,6 +111,7 @@ class FixSparePart(models.Model):
         compute="_compute_ledger_totals",
         store=True,
         readonly=True,
+        groups=COST_GROUP,
         help="Weighted average of the owned ledger buckets (consignment and customer "
         "property excluded); the standard cost when nothing is on hand.",
     )
@@ -189,6 +190,16 @@ class FixSparePart(models.Model):
                     "The standard cost of %s changes only through Set Standard Cost by an "
                     "Inventory Controller (issues are valued at the ledger average cost)."
                     % ", ".join(changed.mapped("part_number"))
+                )
+        if self and "is_serialized" in vals and not self._fix_guard_open():
+            # the form now offers it: stock already held has no serials to issue
+            holding = self.filtered(
+                lambda p: bool(p.is_serialized) != bool(vals["is_serialized"]) and p.qty_available
+            )
+            if holding:
+                raise UserError(
+                    "%s holds stock: serial control is changed only when nothing is on hand."
+                    % ", ".join(holding.mapped("part_number"))
                 )
         return super().write(vals)
 

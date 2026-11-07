@@ -23,22 +23,67 @@
 #     decrements M15 and publishes wh.shipped;
 #   - floor counts are blind snapshots that go to an M15 count for approval.
 # Every state, quantity and evidence field is guarded.
+#
+# A06 final pass: pick and put-away confirm by scanning bin and item, whole-wave
+# picking is a supervisor's recorded exception, release raises one pick task per
+# line and needs the supervisor grant, a wave can be cancelled (reservations and
+# picked stock go back), a block closes the whole bin, ship needs a scanned
+# carton manifest, and serials follow the stock from bin to shipment.
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
 from .fix_inventory_approval import (
     PARAM_COUNT_TOLERANCE_PCT,
+    SUPERVISOR_GROUP,
     check_location_usable,
     check_quantity,
     inv_param,
+    is_supervisor,
     location_class,
+    part_codes,
+    require_supervisor,
 )
 
 EPS = 1e-6
+
+
+def _scan_bin(bin_record, code):
+    """BRU-WMS-05: the scan must read this bin (barcode or name)."""
+    code = (code or "").strip()
+    if not code or code not in {bin_record.barcode or "", bin_record.name or ""}:
+        raise UserError("Scanned bin %r is not the bin %s." % (code, bin_record.name))
+    return code
+
+
+def _scan_item(part, code):
+    """BRU-WMS-05: the scan must read this part (barcode, QR, part number)."""
+    code = (code or "").strip()
+    if not code or code not in part_codes(part):
+        raise UserError("Scanned item %r is not %s." % (code, part.part_number))
+    return code
+
+
+def _refuse_reassign(records, vals):
+    """BRU-WMS-14: a task has one operative. A free task may be claimed by the
+    operative himself; taking it from someone, or handing it to someone else, is
+    a supervisor's reassignment."""
+    if "assignee_id" not in vals or not records or records._fix_guard_open():
+        return
+    if is_supervisor(records.env):
+        return
+    me = records.env.user
+    for rec in records:
+        if not rec._fix_guard_differs("assignee_id", vals["assignee_id"], rec.assignee_id):
+            continue
+        target = records.env["hr.employee"].sudo().browse(vals["assignee_id"] or 0)
+        if rec.assignee_id or target.user_id != me:
+            raise AccessError(
+                "%s: only a Warehouse Supervisor reassigns work (BRU-WMS-14)." % rec.name
+            )
 
 
 def _differs(records, vals):
@@ -75,6 +120,74 @@ def _bin_location(bin_record):
     return location
 
 
+class FixWarehouseBinBlock(models.Model):
+    """BRU-WMS-12 (A06 final pass B11): a block closes the BIN, for every part
+    and for a bin with no slot yet; a controller who did not block it reopens it."""
+
+    _name = "fix.warehouse.bin"
+    _inherit = ["fix.warehouse.bin", "fix.inventory.approval.mixin"]
+
+    blocked = fields.Boolean(readonly=True, copy=False)
+    block_reason = fields.Char(string="Block Reason", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"blocked", "block_reason"}
+
+    def _inv_excluded_users(self):
+        # the blocker never unblocks his own block
+        return self.requested_by_id
+
+    def _inv_approval_label(self) -> str:
+        self.ensure_one()
+        return "unblocking bin %s" % self.name
+
+    def _fix_is_blocked(self):
+        """Blocked here, or on one of its slots (a block raised before the block
+        moved to the bin still closes it)."""
+        self.ensure_one()
+        rec = self.sudo()
+        return rec.blocked or bool(
+            self.env["fix.wms.slot"]
+            .sudo()
+            .search_count([("bin_id", "=", rec.id), ("state", "=", "blocked")])
+        )
+
+    def action_block(self, reason=None):
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Give the reason the bin is blocked.")
+        for rec in self:
+            if rec._fix_is_blocked():
+                raise UserError("Bin %s is already blocked." % rec.name)
+            rec._inv_stamp_request()
+            rec._guarded().write({"blocked": True, "block_reason": reason})
+            slots = self.env["fix.wms.slot"].sudo().search([("bin_id", "=", rec.id)])
+            slots._inv_stamp_request()
+            slots._guarded().write({"state": "blocked", "block_reason": reason})
+        return True
+
+    def action_unblock(self, note=None):
+        for rec in self:
+            if not rec._fix_is_blocked():
+                raise UserError("Bin %s is not blocked." % rec.name)
+        self._inv_check_approver()
+        for rec in self.sudo():
+            rec._fix_open_bin(note)
+        return True
+
+    def _fix_open_bin(self, note):
+        self.ensure_one()
+        self._inv_stamp_approval(note)
+        self._guarded().write({"blocked": False})
+        slots = (
+            self.env["fix.wms.slot"]
+            .sudo()
+            .search([("bin_id", "=", self.id), ("state", "=", "blocked")])
+        )
+        slots._inv_stamp_approval(note)
+        slots._guarded().write({"state": "active"})
+
+
 class FixWmsSlot(models.Model):
     """A part's slot: which bin holds it and how it moves. The quantity is
     a breakdown of the M15 location ledger and is moved only by put-away,
@@ -92,6 +205,9 @@ class FixWmsSlot(models.Model):
         "fix.warehouse.bin", string="Bin", required=True, ondelete="cascade", index=True
     )
     zone_id = fields.Many2one(related="bin_id.zone_id", string="Zone", store=True)
+    company_id = fields.Many2one(
+        related="bin_id.zone_id.warehouse_id.company_id", string="Company", store=True, index=True
+    )
     qty = fields.Float(string="Quantity in Bin", readonly=True)
     reserved_qty = fields.Float(string="Allocated to Waves", readonly=True)
     velocity = fields.Selection(
@@ -167,11 +283,15 @@ class FixWmsSlot(models.Model):
 
     def _check_pickable(self):
         for slot in self:
-            if slot.state == "blocked":
+            bin_record = slot.bin_id
+            if slot.state == "blocked" or bin_record._fix_is_blocked():
                 raise UserError(
-                    "Bin %s is blocked for %s (%s): it cannot be picked or filled until an "
-                    "Inventory Controller unblocks it (BRU-WMS-12)."
-                    % (slot.bin_id.name, slot.part_id.part_number, slot.block_reason or "no reason")
+                    "Bin %s is blocked (%s): nothing can be picked from or put into it until "
+                    "an Inventory Controller unblocks it (BRU-WMS-12)."
+                    % (
+                        bin_record.name,
+                        slot.block_reason or bin_record.sudo().block_reason or "no reason",
+                    )
                 )
             if not slot.bin_id.zone_id.reservable:
                 raise UserError(
@@ -180,14 +300,14 @@ class FixWmsSlot(models.Model):
                 )
 
     def action_block(self, reason=None):
+        """The button on a slot row blocks the slot's whole bin (BRU-WMS-12)."""
         reason = (reason or "").strip()
         if not reason:
             raise UserError("Give the reason the bin is blocked.")
         for slot in self:
             if slot.state != "active":
                 raise UserError("Slot %s is already blocked." % slot.bin_id.name)
-            slot._inv_stamp_request()
-            slot._guarded().write({"state": "blocked", "block_reason": reason})
+        self.mapped("bin_id").action_block(reason)
         return True
 
     def action_unblock(self, note=None):
@@ -195,9 +315,8 @@ class FixWmsSlot(models.Model):
             if slot.state != "blocked":
                 raise UserError("Slot %s is not blocked." % slot.bin_id.name)
         self._inv_check_approver()
-        for slot in self:
-            slot._inv_stamp_approval(note)
-            slot._guarded().write({"state": "active"})
+        for bin_record in self.sudo().mapped("bin_id"):
+            bin_record._fix_open_bin(note)
         return True
 
 
@@ -333,18 +452,28 @@ class FixWmsPutaway(models.Model):
     )
     done_at = fields.Datetime(readonly=True)
     done_by_id = fields.Many2one("res.users", string="Done By", readonly=True)
+    scanned_bin = fields.Char(string="Scanned Bin", readonly=True, copy=False)
+    scanned_item = fields.Char(string="Scanned Item", readonly=True, copy=False)
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "Put-away quantity must be positive")
 
     _DOC = ("part_id", "qty", "to_bin_id", "receipt_line_id", "lot_id", "company_id")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "done_at", "done_by_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "done_at",
+            "done_by_id",
+            "scanned_bin",
+            "scanned_item",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.state == "done":
             locked |= set(self._DOC) | {"from_ref", "assignee_id"}
+        elif len(self) == 1 and self.assignee_id and not self.env.user.has_group(SUPERVISOR_GROUP):
+            locked |= {"assignee_id"}
         return locked
 
     @api.model_create_multi
@@ -361,6 +490,7 @@ class FixWmsPutaway(models.Model):
             frozen = {k: vals[k] for k in (*self._DOC, "from_ref", "assignee_id") if k in vals}
             if frozen and _differs(self.filtered(lambda r: r.state == "done"), frozen):
                 raise UserError("A completed put-away is final.")
+            _refuse_reassign(self, vals)
         return super().write(vals)
 
     def _remaining_on_line(self, line):
@@ -369,11 +499,19 @@ class FixWmsPutaway(models.Model):
         )
         return round((line.qty_accepted or 0.0) - sum(done.mapped("qty")), 4)
 
-    def action_complete(self):
+    def action_complete(self, bin_code=None, item_code=None):
+        """BRU-WMS-05: the operative confirms the put-away by scanning the target
+        bin and the item (trusted system code has no scanner)."""
         Slot = self.env["fix.wms.slot"]
         for rec in self:
             if rec.state != "pending":
                 raise UserError("Complete a pending put-away")
+            evidence = {}
+            if not self.env.su:
+                evidence = {
+                    "scanned_bin": _scan_bin(rec.to_bin_id, bin_code),
+                    "scanned_item": _scan_item(rec.part_id, item_code),
+                }
             check_quantity(rec.part_id, rec.qty, "put-away quantity")
             if (
                 not self.env.su
@@ -419,6 +557,8 @@ class FixWmsPutaway(models.Model):
                     "%s is serialized: put away one unit with its serial (BRU-WMS-10)."
                     % rec.part_id.part_number
                 )
+            if rec.lot_id and rec.part_id.is_serialized:
+                rec.lot_id._fix_check_movable(rec.part_id, location)
             if (rec.part_id.storage_class or "general") == "hazardous" and (
                 rec.to_bin_id.storage_class != "hazardous"
             ):
@@ -442,7 +582,12 @@ class FixWmsPutaway(models.Model):
                 }
             )
             rec._guarded().write(
-                {"state": "done", "done_at": fields.Datetime.now(), "done_by_id": self.env.user.id}
+                {
+                    "state": "done",
+                    "done_at": fields.Datetime.now(),
+                    "done_by_id": self.env.user.id,
+                    **evidence,
+                }
             )
             publish(
                 self.env,
@@ -486,6 +631,7 @@ class FixWmsWave(models.Model):
             ("packed", "Packed"),
             ("staged", "Staged"),
             ("shipped", "Shipped"),
+            ("cancelled", "Cancelled"),
         ],
         required=True,
         default="draft",
@@ -497,6 +643,13 @@ class FixWmsWave(models.Model):
     released_by_id = fields.Many2one("res.users", string="Released By", readonly=True)
     shipped_at = fields.Datetime(readonly=True)
     shipped_by_id = fields.Many2one("res.users", string="Shipped By", readonly=True)
+    pick_all_reason = fields.Char(string="Pick-All Exception Reason", readonly=True, copy=False)
+    pick_all_by_id = fields.Many2one(
+        "res.users", string="Pick-All Exception By", readonly=True, copy=False
+    )
+    cancel_reason = fields.Char(string="Cancellation Reason", readonly=True, copy=False)
+    cancelled_by_id = fields.Many2one("res.users", string="Cancelled By", readonly=True, copy=False)
+    cancelled_at = fields.Datetime(string="Cancelled On", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -505,6 +658,11 @@ class FixWmsWave(models.Model):
             "released_by_id",
             "shipped_at",
             "shipped_by_id",
+            "pick_all_reason",
+            "pick_all_by_id",
+            "cancel_reason",
+            "cancelled_by_id",
+            "cancelled_at",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -553,9 +711,12 @@ class FixWmsWave(models.Model):
         return warehouses, location
 
     def action_release(self):
-        """BRU-WMS-13: release only what M15 can allocate."""
+        """BRU-WMS-13: release only what M15 can allocate. A supervisor releases
+        (spec section 13); every line becomes one pick task on the RF queue."""
+        require_supervisor(self.env, "release a wave")
         Onhand = self.env["fix.stock.onhand"]
         Slot = self.env["fix.wms.slot"]
+        Task = self.env["fix.wms.task"].sudo()
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Release a draft wave")
@@ -592,6 +753,17 @@ class FixWmsWave(models.Model):
                 Onhand._fix_reserve(line.part_id, location, cls, line.qty, rec.name)
                 slot._guarded().write({"reserved_qty": (slot.reserved_qty or 0.0) + line.qty})
                 line._guarded().write({"reserved_qty": line.qty})
+                Task.create(
+                    {
+                        "company_id": rec.company_id.id,
+                        "task_type": "pick",
+                        "ref": rec.name,
+                        "wave_line_id": line.id,
+                        "part_id": line.part_id.id,
+                        "bin_id": line.bin_id.id,
+                        "qty": line.qty,
+                    }
+                )
             rec._guarded().write(
                 {
                     "state": "released",
@@ -619,6 +791,8 @@ class FixWmsWave(models.Model):
                 )
             slot._check_pickable()
             picked = min(line.qty or 0.0, slot.qty or 0.0)
+            if line.lot_id and picked > EPS:
+                line.lot_id._fix_move("staged")
             reserved = line.reserved_qty or 0.0
             if reserved:
                 Onhand._fix_unreserve(line.part_id, location, cls, reserved, self.name)
@@ -642,7 +816,27 @@ class FixWmsWave(models.Model):
                     "picked_at": now,
                 }
             )
+            # the line's pick task (raised at release) is finished with the line
+            Task.sudo().search(
+                [("wave_line_id", "=", line.id), ("state", "in", ("open", "assigned"))]
+            )._guarded().write(
+                {"state": "done", "done_at": now, "done_by_id": self.env.user.id, "qty": picked}
+            )
             if short:
+                publish(
+                    self.env,
+                    "wh.short_pick",
+                    "fix.wms.wave.line",
+                    line.id,
+                    {
+                        "wave": self.name,
+                        "part_id": line.part_id.id,
+                        "bin_id": line.bin_id.id,
+                        "requested": line.qty,
+                        "picked": picked,
+                        "shortfall": round((line.qty or 0.0) - picked, 4),
+                    },
+                )
                 # BRU-WMS-07: a short pick raises an immediate count-back
                 Task.sudo().create(
                     {
@@ -669,13 +863,90 @@ class FixWmsWave(models.Model):
         if self.state == "released":
             self._guarded().write({"state": "picking"})
 
-    def action_pick_all(self):
-        """Pick every PENDING line. Idempotent: lines already picked or short
-        are never picked again, so re-running it moves nothing."""
+    def action_pick_all(self, reason=None):
+        """Pick every PENDING line WITHOUT scans. BRU-WMS-05 wants a bin and item
+        scan on every pick, so this is a supervisor's exception with a recorded
+        reason (a scanner is down), never the normal path, and never for a
+        serialized part, whose serial must be scanned. Idempotent: lines already
+        picked or short are never picked again, so re-running it moves nothing."""
+        require_supervisor(self.env, "pick a whole wave without scans")
+        reason = (reason or "").strip()
+        if not reason and not self.env.su:
+            raise UserError("Picking a wave without scans is an exception: record the reason.")
         for rec in self:
             if rec.state not in ("released", "picking"):
                 raise UserError("Pick a released wave")
+            pending = rec.line_ids.filtered(lambda ln: ln.state == "pending")
+            serial = pending.filtered(lambda ln: ln.part_id.is_serialized)
+            if serial:
+                raise UserError(
+                    "%s is serialized: scan-pick it with its serial (BRU-WMS-10)."
+                    % serial[0].part_id.part_number
+                )
             rec._pick_lines(rec.line_ids)
+            if pending:
+                rec._guarded().write(
+                    {"pick_all_reason": reason, "pick_all_by_id": self.env.user.id}
+                )
+        return True
+
+    def action_cancel(self, reason=None):
+        """M41-5: a supervisor cancels a wave that has not been loaded, with a
+        reason: its reservations are released, stock already picked goes back to
+        its bin and to unrestricted, serials back in stock, open pick tasks are
+        cancelled and sealed cartons reopened."""
+        require_supervisor(self.env, "cancel a wave")
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Record why the wave is cancelled.")
+        Onhand = self.env["fix.stock.onhand"]
+        Slot = self.env["fix.wms.slot"]
+        Task = self.env["fix.wms.task"].sudo()
+        for rec in self:
+            if rec.state in ("shipped", "cancelled"):
+                raise UserError("Wave %s is already %s." % (rec.name, rec.state))
+            if rec.stage_ids.filtered(lambda s: s.state != "staging"):
+                raise UserError("Wave %s is loaded: it cannot be cancelled." % rec.name)
+            if rec.state != "draft":
+                _warehouse, location = rec._wave_location()
+                cls = location_class(location)
+                for line in rec.line_ids:
+                    slot = Slot._slot_for(line.part_id, line.bin_id, create=True)
+                    reserved = line.reserved_qty or 0.0
+                    picked = line.picked_qty if line.state in ("picked", "short") else 0.0
+                    if reserved:
+                        Onhand._fix_unreserve(line.part_id, location, cls, reserved, rec.name)
+                    if picked > EPS:
+                        Onhand._fix_move_status(
+                            line.part_id, location, cls, picked, "staged", "unrestricted"
+                        )
+                    if line.lot_id.sudo().status == "staged":
+                        line.lot_id._fix_move("in_stock")
+                    slot._guarded().write(
+                        {
+                            "qty": round((slot.qty or 0.0) + picked, 4),
+                            "reserved_qty": round(
+                                max((slot.reserved_qty or 0.0) - reserved, 0.0), 4
+                            ),
+                        }
+                    )
+            rec.line_ids._guarded().write(
+                {"reserved_qty": 0.0, "picked_qty": 0.0, "state": "cancelled"}
+            )
+            Task.search(
+                [("wave_line_id", "in", rec.line_ids.ids), ("state", "in", ("open", "assigned"))]
+            )._guarded().write({"state": "cancelled"})
+            rec.carton_ids.filtered(lambda c: c.state == "sealed")._guarded().write(
+                {"state": "open", "sealed_by_id": False}
+            )
+            rec._guarded().write(
+                {
+                    "state": "cancelled",
+                    "cancel_reason": reason,
+                    "cancelled_by_id": self.env.user.id,
+                    "cancelled_at": fields.Datetime.now(),
+                }
+            )
         return True
 
     def action_accept_short(self):
@@ -735,12 +1006,12 @@ class FixWmsWave(models.Model):
             if rec.state != "staged":
                 raise UserError("Ship a staged wave")
             stage = rec.stage_ids.filtered(
-                lambda s: s.state == "loaded" and (s.load_ref or "").strip()
+                lambda s: s.state == "loaded" and (s.load_ref or "").strip() and s.manifest_verified
             )
             if not stage:
                 raise UserError(
                     "Wave %s ships from a LOADED staging record with its load / vehicle "
-                    "reference (BRU-WMS-17)." % rec.name
+                    "reference and a scanned carton manifest (BRU-WMS-17)." % rec.name
                 )
             _warehouse, location = rec._wave_location()
             cls = location_class(location)
@@ -761,6 +1032,8 @@ class FixWmsWave(models.Model):
                 shipped.append(
                     {"part_id": line.part_id.id, "qty": line.picked_qty, "unit_cost": cost}
                 )
+                if line.lot_id:
+                    line.lot_id._fix_move("shipped", qty=0.0)
             rec.carton_ids.filtered(lambda c: c.state == "sealed")._guarded().write(
                 {"state": "dispatched"}
             )
@@ -796,11 +1069,15 @@ class FixWmsWaveLine(models.Model):
     _inherit = ["fix.guarded.mixin"]
 
     wave_id = fields.Many2one("fix.wms.wave", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(
+        related="wave_id.company_id", string="Company", store=True, index=True
+    )
     part_id = fields.Many2one(
         "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
     )
     bin_id = fields.Many2one("fix.warehouse.bin", string="Pick Bin", ondelete="set null")
     qty = fields.Float(string="Quantity")
+    lot_id = fields.Many2one("fix.stock.lot", string="Picked Serial", readonly=True, copy=False)
     reserved_qty = fields.Float(string="Allocated", readonly=True)
     picked_qty = fields.Float(string="Picked", readonly=True)
     picked_by_id = fields.Many2one("res.users", string="Picked By", readonly=True)
@@ -833,34 +1110,61 @@ class FixWmsWaveLine(models.Model):
             "state",
             "scanned_bin",
             "scanned_item",
+            "lot_id",
         }
 
-    def action_scan_pick(self, bin_code=None, item_code=None):
+    @api.depends("wave_id.name", "part_id.part_number", "qty")
+    def _compute_display_name(self):
+        """A pick task names its wave line by this (A06 final pass A3)."""
+        for line in self:
+            line.display_name = "%s / %s x %s" % (
+                line.wave_id.name or "-",
+                line.part_id.part_number or "-",
+                line.qty,
+            )
+
+    def action_scan_pick(self, bin_code=None, item_code=None, serial=None):
         """BRU-WMS-05: pick one line by scanning its bin and the item. The
         scans must name the line's bin (barcode or name) and its part
-        (barcode, QR or part number); they are kept as the pick evidence."""
+        (barcode, QR or part number); they are kept as the pick evidence. A
+        serialized part also scans its serial (BRU-WMS-10), which then travels
+        with the pick. A line whose task another operative holds is his."""
+        Task = self.env["fix.wms.task"].sudo()
         for line in self:
             if line.state != "pending":
                 raise UserError("Wave line %s is already %s." % (line.id, line.state))
-            bin_code = (bin_code or "").strip()
-            item_code = (item_code or "").strip()
-            bin_record = line.bin_id
-            if not bin_code or bin_code not in {bin_record.barcode or "", bin_record.name or ""}:
-                raise UserError(
-                    "Scanned bin %r is not the pick bin %s." % (bin_code, bin_record.name)
-                )
+            bin_code = _scan_bin(line.bin_id, bin_code)
             part = line.part_id
-            if not item_code or item_code not in {
-                part.barcode or "",
-                part.qr_code or "",
-                part.part_number or "",
-            }:
-                raise UserError("Scanned item %r is not %s." % (item_code, part.part_number))
+            item_code = _scan_item(part, item_code)
             wave = line.wave_id
             if wave.state not in ("released", "picking"):
                 raise UserError("Wave %s is not released." % wave.name)
+            if not is_supervisor(self.env):
+                others = Task.search(
+                    [("wave_line_id", "=", line.id), ("state", "in", ("open", "assigned"))]
+                ).filtered(lambda t: t.assignee_id and t.assignee_id.user_id != self.env.user)
+                if others:
+                    raise UserError(
+                        "This pick is assigned to %s (BRU-WMS-14)." % others[0].assignee_id.name
+                    )
+            evidence = {"scanned_bin": bin_code, "scanned_item": item_code}
+            if part.is_serialized:
+                if not (serial or "").strip() or abs((line.qty or 0.0) - 1.0) > EPS:
+                    raise UserError(
+                        "%s is serialized: pick one unit per line and scan its serial "
+                        "(BRU-WMS-10)." % part.part_number
+                    )
+                lot = self.env["fix.stock.lot"]._fix_find(part, serial.strip())
+                if not lot:
+                    raise UserError(
+                        "Serial %s of %s was never received." % (serial, part.part_number)
+                    )
+                _warehouse, location = wave._wave_location()
+                lot._fix_check_movable(part, location)
+                evidence["lot_id"] = lot.id
+            # the evidence first: the pick moves the serial it names
+            line._guarded().write(evidence)
             wave._pick_lines(line)
-            line._guarded().write({"scanned_bin": bin_code, "scanned_item": item_code})
         return True
 
     def _refuse_unless_draft(self, waves):
@@ -910,6 +1214,7 @@ class FixWmsCarton(models.Model):
         default="open",
     )
     sealed_by_id = fields.Many2one("res.users", string="Sealed By", readonly=True)
+    load_scanned = fields.Boolean(string="Scanned on Load", readonly=True, copy=False)
 
     _weight_positive = models.Constraint(
         "CHECK (weight_kg >= 0 AND contents_qty >= 0)",
@@ -919,7 +1224,7 @@ class FixWmsCarton(models.Model):
     _DOC = ("wave_id", "carton_size", "weight_kg", "contents_qty")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "sealed_by_id"}
+        return super()._fix_guarded_fields() | {"state", "sealed_by_id", "load_scanned"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -987,9 +1292,16 @@ class FixWmsStage(models.Model):
         default="staging",
     )
     loaded_by_id = fields.Many2one("res.users", string="Loaded By", readonly=True)
+    manifest_scan = fields.Char(string="Scanned Manifest", readonly=True, copy=False)
+    manifest_verified = fields.Boolean(string="Manifest Verified", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "loaded_by_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "loaded_by_id",
+            "manifest_scan",
+            "manifest_verified",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1013,15 +1325,40 @@ class FixWmsStage(models.Model):
                 raise UserError("A loaded staging record is final.")
         return super().write(vals)
 
-    def action_load(self):
+    def action_load(self, carton_scans=None):
+        """BRU-WMS-17: loading scans every carton of the wave (space-separated
+        codes as the RF device sends them). The scan must be the wave's sealed
+        cartons, all of them and nothing else. A stage loaded before the manifest
+        existed runs this again to verify it."""
         for rec in self:
-            if rec.state != "staging":
+            if rec.state not in ("staging", "loaded") or rec.manifest_verified:
                 raise UserError("Load a staging record")
             if not rec.wave_id or rec.wave_id.state != "staged":
                 raise UserError("Only a staged wave is loaded (stage the packed wave first).")
             if not (rec.load_ref or "").strip():
                 raise UserError("Record the load / vehicle reference before loading.")
-            rec._guarded().write({"state": "loaded", "loaded_by_id": self.env.user.id})
+            sealed = rec.wave_id.carton_ids.filtered(lambda c: c.state == "sealed")
+            scanned = set(str(carton_scans or "").replace(",", " ").split())
+            expected = set(sealed.mapped("name"))
+            if scanned != expected:
+                raise UserError(
+                    "The scanned manifest does not match wave %s: missing %s; not on this "
+                    "wave %s (BRU-WMS-17)."
+                    % (
+                        rec.wave_id.name,
+                        ", ".join(sorted(expected - scanned)) or "none",
+                        ", ".join(sorted(scanned - expected)) or "none",
+                    )
+                )
+            sealed._guarded().write({"load_scanned": True})
+            rec._guarded().write(
+                {
+                    "state": "loaded",
+                    "loaded_by_id": self.env.user.id,
+                    "manifest_scan": " ".join(sorted(scanned)),
+                    "manifest_verified": True,
+                }
+            )
         return True
 
     def action_dispatch(self):
@@ -1073,6 +1410,8 @@ class FixWmsTask(models.Model):
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.state in ("done", "cancelled"):
             locked |= {"task_type", "part_id", "bin_id", "qty", "assignee_id", "ref"}
+        elif len(self) == 1 and self.assignee_id and not self.env.user.has_group(SUPERVISOR_GROUP):
+            locked |= {"assignee_id"}
         return locked
 
     @api.model_create_multi
@@ -1103,6 +1442,7 @@ class FixWmsTask(models.Model):
                 self.filtered(lambda t: t.state in ("done", "cancelled")), frozen
             ):
                 raise UserError("A completed or cancelled task is final.")
+            _refuse_reassign(self, vals)
         return super().write(vals)
 
     def action_assign(self):
@@ -1120,11 +1460,14 @@ class FixWmsTask(models.Model):
         """BRU-WMS-14: the assigned operative completes the task, and a task
         that moves stock completes the movement it represents. A pick task
         needs the bin and item scans (BRU-WMS-05): `scan` is "BIN ITEM" as the
-        RF device sends it, or give bin_scan / item_scan."""
+        RF device sends it (then the serial, for a serialized part), or give
+        bin_scan / item_scan."""
+        serial = None
         if scan and not (bin_scan or item_scan):
             parts = str(scan).replace("|", " ").replace(",", " ").split()
             bin_scan = parts[0] if parts else None
             item_scan = parts[1] if len(parts) > 1 else None
+            serial = parts[2] if len(parts) > 2 else None
         for rec in self:
             if rec.state != "assigned":
                 raise UserError(
@@ -1142,12 +1485,12 @@ class FixWmsTask(models.Model):
                         "A pick task completes the wave line it picks: link the wave line."
                     )
                 if line.state == "pending":
-                    line.action_scan_pick(bin_scan, item_scan)
+                    line.action_scan_pick(bin_scan, item_scan, serial)
             elif rec.task_type == "putaway":
                 if not rec.putaway_id:
                     raise UserError("A put-away task completes its put-away: link it.")
                 if rec.putaway_id.state == "pending":
-                    rec.putaway_id.action_complete()
+                    rec.putaway_id.action_complete(bin_scan, item_scan)
             elif rec.task_type == "count":
                 if not rec.floor_count_id or rec.floor_count_id.state in (
                     "draft",

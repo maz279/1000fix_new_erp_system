@@ -287,7 +287,12 @@ class FixReorderRule(models.Model):
                 )
             )
             return False
-        part = self.spare_part_id
+        part = self.spare_part_id.sudo()
+        if not part.product_id:
+            self.message_post(
+                body="%s is not mapped to a purchased product: the requisition is drafted "
+                "without one and a buyer must set it before it converts." % part.part_number
+            )
         try:
             with self.env.cr.savepoint():
                 requisition = (
@@ -299,6 +304,9 @@ class FixReorderRule(models.Model):
                             "operating_unit_id": ou.id,
                             "branch_id": self.branch_id.id,
                             "requested_by": requester.id,
+                            # the conversion to a PO needs both (M15-12)
+                            "product_id": part.product_id.id or False,
+                            "qty": order_qty,
                             "description": "Replenish %s at %s: %s %s (reorder rule %s)"
                             % (
                                 part.part_number,
@@ -352,6 +360,12 @@ class FixReorderRule(models.Model):
             raise UserError("Rule %s is already alerting for this shortage." % self.name)
         if self.state not in ("active", "draft"):
             raise UserError("Rule %s is archived." % self.name)
+        if self.spare_part_id.state != "active":
+            # B16: a discontinued part is run down, never bought again
+            raise UserError(
+                "%s is %s: it is not reordered."
+                % (self.spare_part_id.part_number, self.spare_part_id.state)
+            )
         if self.current_stock > self.min_qty:
             raise UserError(
                 "Stock of %s at %s is %s, above the reorder point %s: nothing to reorder."
@@ -390,7 +404,11 @@ class FixReorderRule(models.Model):
         triggered = []
         for rule in rules:
             rule._compute_current_stock()
-            if rule.state == "active" and rule.current_stock <= rule.min_qty:
+            if (
+                rule.state == "active"
+                and rule.current_stock <= rule.min_qty
+                and rule.spare_part_id.state == "active"
+            ):
                 triggered.append(rule._enter_alert())
             elif rule.state in ("alert", "ordered") and rule.current_stock > rule.min_qty:
                 rule._guarded().write({"state": "active", "requisition_id": False})

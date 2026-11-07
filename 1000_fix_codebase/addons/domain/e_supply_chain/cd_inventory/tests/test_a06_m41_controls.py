@@ -18,6 +18,13 @@ def refused(inv, fn, match=None):
         inv.env.flush_all()
 
 
+def _complete(w, putaway, user=None):
+    """The operative confirms a put-away by scanning the bin and the item."""
+    return putaway.with_user(user or w.operator).action_complete(
+        bin_code=putaway.to_bin_id.name, item_code=putaway.part_id.part_number
+    )
+
+
 @pytest.fixture
 def wms(inv):
     env = inv.env
@@ -81,7 +88,7 @@ def wms(inv):
     w.grn_line = rec.line_ids
     # 10 put away into bin A by an operator
     pa = w.putaway(w.operator, qty=10, bin_rec=w.bin)
-    pa.with_user(w.operator).action_complete()
+    _complete(w, pa)
     w.slot = env["fix.wms.slot"]._slot_for(w.wpart, w.bin)
     return w
 
@@ -99,14 +106,15 @@ def _pack_and_load(w, wave, user=None):
     stage = w.env["fix.wms.stage"].with_user(user).create({"wave_id": wave.id, "lane": "L1"})
     wave.with_user(user).action_stage()
     stage.with_user(user).write({"load_ref": "TRUCK-DHK-11"})
-    stage.with_user(user).action_load()
+    stage.with_user(user).action_load(carton_scans=carton.name)
     return carton, stage
 
 
 def _ship(w, wave, user=None):
     user = user or w.operator
-    wave.with_user(user).action_release()
-    wave.with_user(user).action_pick_all()
+    wave.with_user(w.supervisor).action_release()
+    for line in wave.line_ids:
+        line.with_user(user).action_scan_pick(line.bin_id.name, line.part_id.part_number)
     carton, stage = _pack_and_load(w, wave, user)
     wave.with_user(user).action_ship()
     return carton, stage
@@ -135,40 +143,40 @@ def test_m41_00_reference_full_wave_moves_m15(wms):
 # ===================================================== put-away and bin rules
 def test_m41_01_putaway_over_capacity_refused(wms):
     pa = wms.putaway(wms.operator, qty=50)
-    refused(wms, lambda: pa.with_user(wms.operator).action_complete(), "holds at most")
+    refused(wms, lambda: _complete(wms, pa), "holds at most")
     assert wms.slot.qty == 10
 
 
 def test_m41_02_quarantine_zone_not_filled_or_picked(wms):
     pa = wms.putaway(wms.operator, qty=5, bin_rec=wms.qbin)
-    refused(wms, lambda: pa.with_user(wms.operator).action_complete(), "not reservable")
+    refused(wms, lambda: _complete(wms, pa), "not reservable")
     wms.env["fix.wms.slot"].create({"part_id": wms.wpart.id, "bin_id": wms.qbin.id, "qty": 5})
     wave = wms.wave(qty=5, bin_rec=wms.qbin)
-    refused(wms, lambda: wave.with_user(wms.operator).action_release(), "not reservable")
+    refused(wms, lambda: wave.with_user(wms.supervisor).action_release(), "not reservable")
 
 
 def test_m41_03_inspection_zone_not_picked(wms):
     wms.env["fix.wms.slot"].create({"part_id": wms.wpart.id, "bin_id": wms.ibin.id, "qty": 3})
     wave = wms.wave(qty=3, bin_rec=wms.ibin)
-    refused(wms, lambda: wave.with_user(wms.operator).action_release(), "inspection")
+    refused(wms, lambda: wave.with_user(wms.supervisor).action_release(), "inspection")
     assert wave.state == "draft"
 
 
 def test_m41_04_blocked_slot_not_filled(wms):
     wms.slot.with_user(wms.operator).action_block("racking damaged")
     pa = wms.putaway(wms.operator, qty=2)
-    refused(wms, lambda: pa.with_user(wms.operator).action_complete(), "blocked")
+    refused(wms, lambda: _complete(wms, pa), "blocked")
     assert wms.slot.qty == 10
 
 
 def test_m41_05_blocked_slot_not_picked_and_unblock_by_another_controller(wms):
     wms.slot.with_user(wms.controller).action_block("cycle count")
     wave = wms.wave(qty=4)
-    refused(wms, lambda: wave.with_user(wms.operator).action_release(), "blocked")
+    refused(wms, lambda: wave.with_user(wms.supervisor).action_release(), "blocked")
     refused(wms, lambda: wms.slot.with_user(wms.operator).action_unblock())
     refused(wms, lambda: wms.slot.with_user(wms.controller).action_unblock(), "Segregation")
     wms.slot.with_user(wms.controller2).action_unblock("counted, fine")
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     assert wave.state == "released"
 
 
@@ -180,15 +188,15 @@ def test_m41_06_putaway_only_of_received_stock(wms):
         bin_rec=wms.bin2,
         line=wms.env["fix.stock.receipt.line"],
     )
-    refused(wms, lambda: pa.with_user(wms.operator).action_complete(), "POSTED goods-receipt")
+    refused(wms, lambda: _complete(wms, pa), "POSTED goods-receipt")
     assert not wms.env["fix.wms.slot"]._slot_for(wms.part0, wms.bin2)
 
 
 def test_m41_07_putaway_never_exceeds_what_was_received(wms):
     first = wms.putaway(wms.operator, qty=90, bin_rec=wms.bin2)
-    first.with_user(wms.operator).action_complete()  # 10 + 90 = the 100 received
+    _complete(wms, first)  # 10 + 90 = the 100 received
     second = wms.putaway(wms.operator, qty=1, bin_rec=wms.bin2)
-    refused(wms, lambda: second.with_user(wms.operator).action_complete(), "remains to be put away")
+    refused(wms, lambda: _complete(wms, second), "remains to be put away")
     slots = wms.env["fix.wms.slot"].search([("part_id", "=", wms.wpart.id)])
     assert sum(slots.mapped("qty")) == wms.qty(wms.wpart, wms.central) == 100
 
@@ -248,21 +256,21 @@ def test_m41_10_serial_and_hazard_rules(wms):
     rec.action_post()
     line = rec.line_ids
     no_serial = wms.putaway(wms.operator, qty=1, part=battery, bin_rec=wms.hbin, line=line)
-    refused(wms, lambda: no_serial.with_user(wms.operator).action_complete(), "serial")
+    refused(wms, lambda: _complete(wms, no_serial), "serial")
     plain_bin = wms.putaway(
         wms.operator, qty=1, part=battery, bin_rec=wms.bin2, line=line, lot_id=line.lot_id.id
     )
-    refused(wms, lambda: plain_bin.with_user(wms.operator).action_complete(), "hazardous")
+    refused(wms, lambda: _complete(wms, plain_bin), "hazardous")
     ok = wms.putaway(
         wms.operator, qty=1, part=battery, bin_rec=wms.hbin, line=line, lot_id=line.lot_id.id
     )
-    ok.with_user(wms.operator).action_complete()
+    _complete(wms, ok)
     assert env["fix.wms.slot"]._slot_for(battery, wms.hbin).qty == 1
 
 
 def test_m41_11_putaway_reaches_the_event_log(wms):
     pa = wms.putaway(wms.operator, qty=3, bin_rec=wms.bin2)
-    pa.with_user(wms.operator).action_complete()
+    _complete(wms, pa)
     assert wms.events("wh.putaway_completed", "fix.wms.putaway", pa.id) == 1
     assert pa.done_by_id == wms.operator
 
@@ -307,7 +315,7 @@ def test_m41_14_inbound_dock_completes_with_its_receipt(wms):
 # ===================================================== release / allocation
 def test_m41_15_release_allocates_in_m15(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     assert wms.wpart.qty_reserved == 4
     assert wms.bucket(wms.wpart, wms.central).reserved == 4
     assert (wms.slot.reserved_qty, wave.line_ids.reserved_qty) == (4, 4)
@@ -315,18 +323,18 @@ def test_m41_15_release_allocates_in_m15(wms):
 
 def test_m41_16_release_refused_without_stock(wms):
     wave = wms.wave(qty=50, part=wms.part0, bin_rec=wms.bin2)
-    refused(wms, lambda: wave.with_user(wms.operator).action_release(), "holds no")
+    refused(wms, lambda: wave.with_user(wms.supervisor).action_release(), "holds no")
     assert wave.state == "draft"
 
 
 def test_m41_17_pick_bounded_by_the_bin(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     # the bin physically holds less than was allocated (found at the pick face)
     wms.slot._guarded().sudo().write({"qty": 2, "reserved_qty": 2})
     wave.line_ids._guarded().sudo().write({"reserved_qty": 2})
     wms.env["fix.stock.onhand"]._fix_unreserve(wms.wpart, wms.central, "owned", 2, "test")
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     line = wave.line_ids
     assert (line.picked_qty, line.state, wms.slot.qty) == (2, "short", 0)
     assert wms.qty(wms.wpart, wms.central, status="staged") == 2
@@ -335,17 +343,17 @@ def test_m41_17_pick_bounded_by_the_bin(wms):
 
 def test_m41_18_pick_all_is_idempotent(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     assert (wave.line_ids.picked_qty, wms.slot.qty) == (4, 6)
     assert wms.qty(wms.wpart, wms.central, status="staged") == 4
 
 
 def test_m41_19_over_allocation_refused(wms):
     first, second = wms.wave(qty=8), wms.wave(qty=8)
-    first.with_user(wms.operator).action_release()
-    refused(wms, lambda: second.with_user(wms.operator).action_release(), "over-allocation")
+    first.with_user(wms.supervisor).action_release()
+    refused(wms, lambda: second.with_user(wms.supervisor).action_release(), "over-allocation")
     assert second.state == "draft"
 
 
@@ -359,7 +367,7 @@ def test_m41_20_picked_qty_bounded(wms):
 
 def test_m41_21_pick_evidence_not_typed(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     refused(
         wms,
         lambda: wave.line_ids.with_user(wms.operator).write({"picked_qty": 4, "state": "picked"}),
@@ -376,11 +384,11 @@ def test_m41_22_ship_decrements_m15(wms):
 
 def test_m41_23_short_pick_raises_count_back(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     wms.slot._guarded().sudo().write({"qty": 1, "reserved_qty": 1})
     wave.line_ids._guarded().sudo().write({"reserved_qty": 1})
     wms.env["fix.stock.onhand"]._fix_unreserve(wms.wpart, wms.central, "owned", 3, "test")
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     tasks = wms.env["fix.wms.task"].search(
         [("task_type", "=", "count"), ("bin_id", "=", wms.bin.id)]
     )
@@ -392,8 +400,8 @@ def test_m41_23_short_pick_raises_count_back(wms):
 
 def test_m41_24_zero_crossing_raises_count(wms):
     wave = wms.wave(qty=10)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     assert wms.slot.qty == 0
     tasks = wms.env["fix.wms.task"].search(
         [("task_type", "=", "count"), ("bin_id", "=", wms.bin.id)]
@@ -449,15 +457,15 @@ def test_m41_27_wave_cannot_be_born_shipped(wms):
 
 def test_m41_28_pack_needs_sealed_cartons(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     refused(wms, lambda: wave.with_user(wms.operator).action_packed(), "sealed cartons")
 
 
 def test_m41_29_ship_needs_a_loaded_stage(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     carton = (
         wms.env["fix.wms.carton"]
         .with_user(wms.operator)
@@ -473,7 +481,7 @@ def test_m41_29_ship_needs_a_loaded_stage(wms):
     refused(wms, lambda: wave.with_user(wms.operator).action_ship(), "LOADED")
     refused(wms, lambda: stage.with_user(wms.operator).action_load(), "load / vehicle")
     stage.with_user(wms.operator).write({"load_ref": "TRUCK-1"})
-    stage.with_user(wms.operator).action_load()
+    stage.with_user(wms.operator).action_load(carton_scans=carton.name)
     stage.with_user(wms.operator).action_dispatch()  # dispatching the load ships the wave
     assert (wave.state, stage.state) == ("shipped", "dispatched")
 
@@ -502,7 +510,7 @@ def test_m41_31_shipped_lines_final(wms):
 
 def test_m41_32_no_line_added_after_release(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     refused(
         wms,
         lambda: (
@@ -516,8 +524,8 @@ def test_m41_32_no_line_added_after_release(wms):
 
 def test_m41_33_picked_line_not_deleted(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     refused(wms, lambda: wave.line_ids.with_user(wms.operator).unlink(), "final")
     assert wave.line_ids
 
@@ -529,8 +537,8 @@ def test_m41_34_empty_carton_not_sealed(wms):
 
 def test_m41_35_carton_reconciles_to_picks(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
-    wave.with_user(wms.operator).action_pick_all()
+    wave.with_user(wms.supervisor).action_release()
+    wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     carton = (
         wms.env["fix.wms.carton"]
         .with_user(wms.operator)
@@ -563,7 +571,7 @@ def test_m41_38_unassigned_task_not_done(wms):
 
 def test_m41_39_pick_task_moves_the_stock(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     task = (
         wms.env["fix.wms.task"]
         .with_user(wms.operator)
@@ -801,8 +809,8 @@ def test_m41_54_pick_accuracy_from_executed_picks_only(wms):
         {"picked_qty": 50, "state": "picked"}
     )  # su, never picked by the wave
     picked = wms.wave(qty=4)
-    picked.with_user(wms.operator).action_release()
-    picked.with_user(wms.operator).action_pick_all()
+    picked.with_user(wms.supervisor).action_release()
+    picked.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     rows = m41.pick_accuracy(wms.env(user=wms.operator.id))["rows"]
     assert not [r for r in rows if r["wave"] == typed.name]
     assert next(r for r in rows if r["wave"] == picked.name)["accuracy_pct"] == 100.0
@@ -817,15 +825,15 @@ def test_m41_55_dock_default_window_is_valid(wms):
 def test_m41_04b_bin_ownership_class_enforced_at_putaway(wms):
     wms.bin2.write({"ownership_class": "consignment"})
     pa = wms.putaway(wms.operator, qty=2, bin_rec=wms.bin2)
-    refused(wms, lambda: pa.with_user(wms.operator).action_complete(), "BRU-WMS-03")
+    refused(wms, lambda: _complete(wms, pa), "BRU-WMS-03")
     wms.bin2.write({"ownership_class": "owned"})
-    pa.with_user(wms.operator).action_complete()
+    _complete(wms, pa)
     assert wms.env["fix.wms.slot"]._slot_for(wms.wpart, wms.bin2).qty == 2
 
 
 def test_m41_21b_scan_pick_evidence(wms):
     wave = wms.wave(qty=4)
-    wave.with_user(wms.operator).action_release()
+    wave.with_user(wms.supervisor).action_release()
     line = wave.line_ids
     refused(
         wms,
