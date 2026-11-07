@@ -331,6 +331,15 @@ class FixCertification(models.Model):
             locked = locked | self._FROZEN_AFTER_DRAFT
         return locked
 
+    # No name field: without this, chatter, notifications and pickers showed
+    # the raw "fix.certification,22" (sweep audit D-A09-04).
+    @api.depends("employee_id", "competency_id")
+    def _compute_display_name(self):
+        for rec in self:
+            rec.display_name = " · ".join(
+                part for part in (rec.employee_id.name, rec.competency_id.name) if part
+            ) or self.env._("Certification")
+
     # ---- status ---------------------------------------------------------------
     @api.depends("expires_on")
     def _compute_status(self):

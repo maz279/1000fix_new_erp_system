@@ -21,7 +21,7 @@ export const MODULE = {
     ]},
     { en: 'Employee Master', screens: [
       { id: 'M21-directory', en: 'Directory', bn: 'কর্মী তালিকা', t: 'g' },
-      { id: 'M21-form-employee', en: 'Employee Record', bn: 'কর্মী নথি', t: 'f' },
+      { id: 'M21-employee', en: 'Employee Record', bn: 'কর্মী নথি', t: 'f' },
       { id: 'M21-orgchart', en: 'Org Chart', bn: 'সংগঠন চার্ট', t: 'r' },
       { id: 'M21-positions', en: 'Positions & Jobs', bn: 'পদ', t: 'g' },
       { id: 'M21-education', en: 'Academic Qualifications', bn: 'শিক্ষাগত যোগ্যতা', t: 'g' },
@@ -55,7 +55,7 @@ export const MODULE = {
   forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
-    ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-form-employee', 'M21-education', 'M21-experience'] }],
+    ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-employee', 'M21-education', 'M21-experience'] }],
     ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'] }],
     ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-orgchart'] }],
     ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement'] }],
@@ -178,7 +178,7 @@ export const SCREENS = {
   'M21-rpt-cleanup': { kind: 'table_report', module: 'M21', report: 'data_cleanup', title: 'Data Clean-up Findings (read-only)', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
-  'M21-form-employee': {
+  'M21-employee': {
     kind: 'model_form',
     model: 'hr.employee',
     title: 'Employee Record',
@@ -1430,7 +1430,7 @@ export const FORM_MODELS = {
 
 export const FORM_CHIPS = {
   'M21:Organisation Position': 'M21-form-position',
-  'M21:Employee': 'M21-form-employee',
+  'M21:Employee': 'M21-employee',
   'M21:Transfer': 'M21-form-transfer',
   'M21:Promotion': 'M21-form-transfer',
   'M21:Exit Clearance': 'M21-form-exit',
@@ -1439,7 +1439,7 @@ export const FORM_CHIPS = {
   'M21:__by_model__': {
     'fix.leave.type': 'M21-form-leave-type',
     'fix.org.position': 'M21-form-position',
-    'hr.employee': 'M21-form-employee',
+    'hr.employee': 'M21-employee',
     'fix.employment.contract': 'M21-form-contract',
     'fix.hr.transfer': 'M21-form-transfer',
     'fix.hr.exit': 'M21-form-exit',
@@ -1454,7 +1454,7 @@ export const FORM_CHIPS = {
   'M21:__by_screen__': {
     'M21-leave-type': 'M21-form-leave-type',
     'M21-positions': 'M21-form-position',
-    'M21-directory': 'M21-form-employee',
+    'M21-directory': 'M21-employee',
     'M21-hire': 'M21-form-contract',
     'M21-transfer': 'M21-form-transfer',
     'M21-exit': 'M21-form-exit',
@@ -1470,5 +1470,5 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M21: { screen: 'M21-form-employee', model: 'hr.employee', label: 'Employee' }
+  M21: { screen: 'M21-employee', model: 'hr.employee', label: 'Employee' }
 };

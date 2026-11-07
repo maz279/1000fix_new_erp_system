@@ -95,7 +95,8 @@ def main():
     with open(m21_js_path, encoding="utf-8") as f:
         m21_js = f.read()
 
-    idx_start = m21_js.find("'M21-form-employee':")
+    # The Employee Record form carries its registry id (sweep audit 2026-11-07).
+    idx_start = m21_js.find("'M21-employee':")
     idx_end = m21_js.find("'M21-form-contract':", idx_start)
     emp_cfg_str = m21_js[idx_start:idx_end]
 

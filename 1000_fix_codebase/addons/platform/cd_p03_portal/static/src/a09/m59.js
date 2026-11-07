@@ -22,8 +22,8 @@ export const MODULE = {
     { en: 'Risk', screens: [
       { id: 'M59-hazards', en: 'Hazard Register', bn: 'ঝুঁকি রেজিস্টার', t: 'g' },
       { id: 'M59-jsa', en: 'JSA & Safe Procedures', bn: 'কাজের নিরাপত্তা বিশ্লেষণ', t: 'g' },
-      { id: 'M59-ppe', en: 'PPE Stock Register', bn: 'পিপিই', t: 'g' },
-      { id: 'M59-ppe-issue', en: 'PPE Issue Register', bn: 'পিপিই বিতরণ', t: 'g' }
+      { id: 'M59-ppe', en: 'PPE Issue Register', bn: 'পিপিই বিতরণ', t: 'g' },
+      { id: 'M59-ppe-stock', en: 'PPE Stock Register', bn: 'পিপিই', t: 'g' }
     ]},
     { en: 'Incidents', screens: [
       { id: 'M59-report', en: 'Incident & Near-Miss Reporting', bn: 'ঘটনা রিপোর্ট', t: 'g' },
@@ -56,7 +56,7 @@ export const MODULE = {
     ['2', 'Procedures & Permits', 7, { model: 'fix.hse.jsa', cols: ['name', 'job_type', 'ppe_required', 'approved_on', 'state'], screens: ['M59-jsa'] }],
     ['3', 'Incident Management', 13, { model: 'fix.hse.incident', cols: ['name', 'incident_type', 'severity', 'branch_id', 'state'], screens: ['M59-report', 'M59-investigate'] }],
     ['4', 'Statutory Notification', 5, { model: 'fix.statutory.accident.register', cols: ['register_entry_no', 'employee_id', 'accident_date', 'notice_form_type', 'dife_notified'], screens: ['M59-statutory', 'M59-statutory-accident-register'] }],
-    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe'] }],
+    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe-stock', 'M59-ppe'] }],
     ['6', 'Field & Road Safety', 8, { model: 'fix.hse.roadcheck', cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'passed'], screens: ['M59-road', 'M59-loneworker', 'M59-battery'] }],
     ['7', 'Training & Drills', 6, { model: 'fix.hse.drill', cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'state'], screens: ['M59-drills', 'M59-committee'] }],
     ['8', 'Health & Wellbeing', 7, { model: 'fix.hse.health', cols: ['name', 'employee_id', 'record_type', 'valid_until', 'fitness'], screens: ['M59-wellbeing'] }]
@@ -92,14 +92,14 @@ export const SCREENS = {
       { m: 'action_retire', l: 'Retire' }
     ] },
   /* A09 M59-F13: an issue to one worker, acknowledged by that worker only. */
-  'M59-ppe-issue': { kind: 'model_list', model: 'fix.ppe.issue',
+  'M59-ppe': { kind: 'model_list', model: 'fix.ppe.issue',
     cols: ['employee_id', 'ppe_id', 'quantity', 'issued_on', 'replace_by', 'replacement_alert_level', 'replaced', 'issued_by_id', 'acknowledged', 'acknowledged_on'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge Receipt' }] },
   'M59-committee-members': { kind: 'model_list', model: 'fix.safety.committee.member',
     cols: ['committee_id', 'employee_id', 'side', 'term_start'] },
   'M59-committee-meetings': { kind: 'model_list', model: 'fix.safety.committee.meeting',
     cols: ['committee_id', 'meeting_date', 'minutes', 'actions'] },
-  'M59-ppe': { kind: 'model_list', model: 'fix.ppe.register', stateField: 'state',
+  'M59-ppe-stock': { kind: 'model_list', model: 'fix.ppe.register', stateField: 'state',
     cols: ['name', 'item_type', 'regulatory_standard', 'stock_quantity', 'min_required_quantity', 'state'] },
   'M59-report': { kind: 'model_list', model: 'fix.hse.incident', stateField: 'state',
     cols: ['name', 'incident_type', 'severity', 'branch_id', 'anonymous', 'accident_datetime', 'notice_due', 'notice_form', 'dife_notice_ref', 'state'],
@@ -350,7 +350,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.ppe.register',
     title: 'PPE Inventory Item',
-    back: 'M59-ppe',
+    back: 'M59-ppe-stock',
     status: { field: 'state', labels: { adequate: 'Adequate Stock', low_stock: 'Low Stock Alert' } },
     tabs: [
       { id: 'item', label: 'Equipment Details', bn: 'সরঞ্জামের বিবরণ', icon: '🦺', badge: '3' },
@@ -502,7 +502,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.ppe.issue',
     title: 'PPE Issue',
-    back: 'M59-ppe-issue',
+    back: 'M59-ppe',
     tabs: [
       { id: 'issue', label: 'Issue', bn: 'বিতরণ', icon: '🦺', badge: '6' },
       { id: 'status', label: 'Acknowledgement & Replacement', bn: 'স্বীকৃতি ও প্রতিস্থাপন', icon: '🔁', badge: '4' }
@@ -842,7 +842,7 @@ export const FORM_MODELS = {
   'M59:Incident Report': 'fix.hse.incident',
   'M59:Anonymous Safety Report': 'fix.hse.incident',
   'M59:JSA': 'fix.hse.jsa',
-  'M59:PPE Issue': 'fix.ppe.register',
+  'M59:PPE Issue': 'fix.ppe.issue',
   'M59:Return-to-Work': 'fix.hse.health'
 };
 
@@ -850,7 +850,7 @@ export const FORM_CHIPS = {
   'M59:Incident Report': 'M59-form-incident',
   'M59:Anonymous Safety Report': 'M59-form-anonymous',
   'M59:JSA': 'M59-form-jsa',
-  'M59:PPE Issue': 'M59-form-ppe',
+  'M59:PPE Issue': 'M59-form-ppe-issue',
   'M59:Return-to-Work': 'M59-form-health',
   'M59:__by_model__': {
     'fix.safety.inspection': 'M59-form-inspection',
@@ -875,7 +875,7 @@ export const FORM_CHIPS = {
     'M59-statutory-accident-register': 'M59-form-statutory-register',
     'M59-hazards': 'M59-form-hazard',
     'M59-jsa': 'M59-form-jsa',
-    'M59-ppe': 'M59-form-ppe',
+    'M59-ppe-stock': 'M59-form-ppe',
     'M59-report': 'M59-form-incident',
     'M59-investigate': 'M59-form-incident',
     'M59-loneworker': 'M59-form-loneworker',
@@ -887,7 +887,7 @@ export const FORM_CHIPS = {
     'M59-capa': 'M59-form-capa',
     'M59-root-causes': 'M59-form-root-cause',
     'M59-investigation-team': 'M59-form-investigation-member',
-    'M59-ppe-issue': 'M59-form-ppe-issue'
+    'M59-ppe': 'M59-form-ppe-issue'
   }
 };
 

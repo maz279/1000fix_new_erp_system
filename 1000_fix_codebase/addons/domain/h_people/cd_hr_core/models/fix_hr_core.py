@@ -1415,6 +1415,18 @@ class FixLeaveRequest(models.Model):
         tracking=True,
     )
 
+    # No name field: without this, chatter, notifications and pickers showed
+    # the raw "fix.leave.request,124" (sweep audit D-A09-04).
+    @api.depends("employee_id", "leave_type_id", "date_from", "date_to")
+    def _compute_display_name(self):
+        for rec in self:
+            label = " · ".join(
+                part for part in (rec.employee_id.name, rec.leave_type_id.name) if part
+            ) or self.env._("Leave Request")
+            if rec.date_from and rec.date_to:
+                label = "%s (%s – %s)" % (label, rec.date_from, rec.date_to)
+            rec.display_name = label
+
     @api.depends("date_from", "date_to")
     def _compute_days(self):
         for rec in self:
