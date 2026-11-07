@@ -113,6 +113,7 @@ class P03GlApiController(http.Controller):
                     "requires_dimension": acc.requires_dimension or "",
                     "statutory_group": acc.statutory_group or "",
                     "active": acc.active,
+                    "deprecated": acc.is_deprecated,
                     "manual_balance": round(acc.balance or 0.0, 2),
                     "ledger_balance": balances.get(acc.odoo_account_id.id)
                     if acc.odoo_account_id
@@ -132,6 +133,12 @@ class P03GlApiController(http.Controller):
             "company": company.name,
             "count": len(rows),
             "mapped": len([r for r in rows if r["odoo_account"]]),
+            # R4 (2026-11-07): summary strip inputs — postable / control /
+            # deprecated / unlinked counts, computed on the same read.
+            "postable": len([r for r in rows if r["postable"]]),
+            "control": len([r for r in rows if r["control"]]),
+            "deprecated": len([r for r in rows if r.get("deprecated")]),
+            "unlinked": len([r for r in rows if not r["odoo_account"]]),
             "rows": rows,
         }
 

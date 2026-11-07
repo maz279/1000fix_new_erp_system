@@ -127,6 +127,7 @@ export const SCREENS = {
           { name: 'engine', required: true, label: 'Engine' },
           { name: 'engine_ref', label: 'Engine Reference' },
           { name: 'failure_policy', label: 'Failure Policy' },
+          { name: 'action', required: true, type: 'text', label: 'Action (what runs)' },
           { name: 'active', label: 'Active' }
         ] }
     ]

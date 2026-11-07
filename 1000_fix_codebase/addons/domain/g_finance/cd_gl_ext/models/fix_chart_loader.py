@@ -151,6 +151,67 @@ class FixChartAccount(models.Model):
         string="Linked Odoo Account",
         ondelete="set null",
     )
+    # ---- 2026-11-07 audit R7: professional account-master extensions ----
+    # bilingual estate rule (bn/en fully separated): account names too, not
+    # just UI labels — statutory reports and bilingual documents use name_bn.
+    name_bn = fields.Char(
+        string="Account Name (Bengali)",
+        help="Bengali legal name printed on statutory reports and bilingual documents",
+    )
+    # D365-style effective window: outside [from, to] the account is suspended
+    # for new postings (kept on reports for history).
+    active_from = fields.Date(
+        string="Active From",
+        help="Effective window start; combined with Active To it suspends new postings outside the window",
+    )
+    active_to = fields.Date(
+        string="Active To",
+        help="Effective window end",
+    )
+    # D365 "Do not allow manual entry" — subledger/system postings only.
+    manual_entry_blocked = fields.Boolean(
+        string="Block Manual Entry",
+        default=False,
+        help="Manual journal lines may not target this account — subledger and system postings only",
+    )
+    # Odoo-style deprecated: closed for new postings, kept for reporting.
+    is_deprecated = fields.Boolean(
+        string="Deprecated",
+        default=False,
+        help="Closed for new postings but retained for reporting history",
+    )
+    # Bangladesh VAT practice: tag which statutory register the account feeds
+    # so Mushak 6.1 / 6.3 / 6.6 registers produce straight from the GL.
+    vat_relevant = fields.Boolean(
+        string="VAT / Mushak Relevant",
+        default=False,
+        help="Account feeds a statutory VAT register (Mushak / VDS)",
+    )
+    mushak_register = fields.Selection(
+        [
+            ("purchase_61", "Mushak 6.1 — Purchase Register"),
+            ("sales_63", "Mushak 6.3 — Sales Register"),
+            ("vds_66", "Mushak 6.6 — VDS"),
+            ("tds", "TDS Withholding"),
+        ],
+        string="Mushak Register",
+    )
+
+    @api.constrains("is_deprecated", "is_postable")
+    def _check_deprecated_not_postable(self):
+        for acc in self:
+            if acc.is_deprecated and acc.is_postable:
+                raise ValidationError(
+                    "A deprecated account cannot remain postable — clear Postable before deprecating"
+                )
+
+    @api.constrains("active_from", "active_to")
+    def _check_effective_window(self):
+        for acc in self:
+            if acc.active_from and acc.active_to and acc.active_from > acc.active_to:
+                raise ValidationError(
+                    "Effective window inverted: Active From must not be later than Active To"
+                )
 
     # Every field the per-account rules read re-triggers them: a write of
     # account_type / control flags / dimensions must not bypass validation.

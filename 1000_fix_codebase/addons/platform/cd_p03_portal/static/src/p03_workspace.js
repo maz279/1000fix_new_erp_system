@@ -1734,6 +1734,88 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         this.state.gl.mlSearch = "";
     }
 
+    /* Branded server-side export (user directive 2026-11-07): the workbook /
+     * PDF is rendered by the server from EXACTLY the rows this screen serves,
+     * with the official 1000 FiX letterhead (logo + address + ISO badge). */
+    mlExportServer(fmt) {
+        const gl = this.state.gl;
+        if (!gl || !gl.modelCfg || !gl.modelCfg.model) return;
+        const q = new URLSearchParams({
+            model: gl.modelCfg.model,
+            format: fmt,
+            cols: (gl.modelCfg.cols || []).join(","),
+            lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+        });
+        window.open(`/p03/model/list/export?${q.toString()}`, "_blank");
+    }
+
+    /* Register-screen export (R1): the statutory CoA screen exports the
+     * coa_register pack — hierarchy, flags and live ledger balances — through
+     * the same branded engine as every pack. */
+    coaExport(fmt) {
+        const q = new URLSearchParams({ module: "M19", report: "coa_register", format: fmt });
+        window.open(`/p03/model/report/export?${q.toString()}`, "_blank");
+    }
+
+    mlEmailOpen() {
+        const gl = this.state.gl;
+        if (!gl) return;
+        const today = new Date().toISOString().slice(0, 10);
+        // pack mode (register screens) vs list mode (model_list grids)
+        if (gl.kind === "coa") {
+            gl.mlEmail = {
+                open: true, mode: "pack", module: "M19", report: "coa_register",
+                title: "Chart of Accounts Register",
+                to: "",
+                subject: `1000 FiX — Chart of Accounts Register ${today}`,
+                body: "", format: "xlsx", sending: false, result: null,
+            };
+            return;
+        }
+        if (!gl.modelCfg || !gl.modelCfg.model) return;
+        gl.mlEmail = {
+            open: true, mode: "list",
+            title: (gl.modelCfg.model || "").split(".").pop().replace(/_/g, " "),
+            to: "",
+            subject: `1000 FiX — ${gl.modelCfg.model.split(".").pop()} list export ${today}`,
+            body: "", format: "xlsx", sending: false, result: null,
+        };
+    }
+
+    mlEmailClose() {
+        if (this.state.gl) this.state.gl.mlEmail = null;
+    }
+
+    async mlEmailSend() {
+        const gl = this.state.gl;
+        const dlg = gl && gl.mlEmail;
+        if (!dlg || dlg.sending) return;
+        dlg.sending = true;
+        dlg.result = null;
+        const base = {
+            to: dlg.to,
+            subject: dlg.subject,
+            body: dlg.body,
+            format: dlg.format,
+            lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+        };
+        const payload = dlg.mode === "pack"
+            ? Object.assign(base, { module: dlg.module, report: dlg.report })
+            : Object.assign(base, {
+                model: gl.modelCfg.model,
+                cols: (gl.modelCfg.cols || []).join(","),
+            });
+        try {
+            const res = await this.rpc("/p03/model/list/email", payload);
+            dlg.result = res;
+            if (res && res.ok) this.showToast(this.t(`Emailed ${res.attachment} to ${res.recipients.length} recipient(s)`));
+        } catch (e) {
+            dlg.result = { error: (e && e.message) || "Send failed" };
+        } finally {
+            dlg.sending = false;
+        }
+    }
+
     mlExportCsv() {
         const gl = this.state.gl;
         if (!gl || !gl.data || !gl.modelCfg) return;
@@ -3235,11 +3317,12 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 : (mid === "M25" ? "/p03/bi/kpis"
                 : (mid === "M26" ? "/p03/ml/kpis"
                 : (mod.area === "A12" ? "/p03/platform/kpis"
+                : (mod.area === "A10" ? "/p03/grc/kpis"
                 : (mod.area === "A05" ? "/p03/circular/kpis"
                 : (mod.area === "A09" ? "/p03/people/kpis"
                 : (mod.area === "A07" ? "/p03/asset/kpis"
                 : (mod.area === "A06" ? "/p03/supply/kpis"
-                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")))))))))))))))));
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis"))))))))))))))))));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
