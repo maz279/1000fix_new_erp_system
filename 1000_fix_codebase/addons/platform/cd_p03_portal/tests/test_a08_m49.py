@@ -4,6 +4,7 @@
 #   * every REPORTS function runs against posted data and reconciles;
 #   * the generic action endpoint drives the M49 workflow methods;
 #   * the kpis(env) hook serves every KPI key the registry declares.
+import base64
 import datetime
 import itertools
 import json
@@ -16,6 +17,7 @@ from unittest import mock
 import pytest
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a08 import m49
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "static" / "src"
 _SEQ = itertools.count(1)
@@ -214,6 +216,26 @@ def m49_data(odoo_env):
         )
         for i in (1, 2)
     ]
+    # these documents are approved in the M63 inbox, by someone holding the DOFA tier
+    approver = env["res.users"].create(
+        {
+            "name": f"P49 Approver {tag}",
+            "login": f"p49-approver-{tag}@test.local",
+            "group_ids": [
+                (
+                    6,
+                    0,
+                    [env.ref("account.group_account_manager").id]
+                    + [env.ref("cd_entity_config.group_dofa_tier_%d" % t).id for t in (2, 3, 4, 5)],
+                )
+            ],
+        }
+    )
+    report = (
+        env["ir.attachment"]
+        .with_user(users[0])
+        .create({"name": "valuer.pdf", "datas": base64.b64encode(b"%PDF-1.4 valuer report")})
+    )
     reval = (
         env["fix.asset.revaluation"]
         .with_user(users[0])
@@ -223,17 +245,30 @@ def m49_data(odoo_env):
                 "kind": "revaluation",
                 "new_value": 9000.0,
                 "date": datetime.date(2025, 9, 1),
+                "basis": "Independent valuer, market approach",
+                "valuer_report_ids": [(6, 0, report.ids)],
             }
         )
     )
+    reval.with_user(users[0]).action_submit()
+    approve_via_inbox(reval, approver)
     reval.with_user(users[1]).action_post()
     disposal = (
         env["fix.asset.disposal"]
         .with_user(users[0])
-        .create({"asset_id": sold.id, "kind": "write_off", "date": datetime.date(2025, 9, 15)})
+        .create(
+            {
+                "asset_id": sold.id,
+                "kind": "write_off",
+                "date": datetime.date(2025, 9, 15),
+                "reason": "Obsolete",
+                "incident_ref": "INC-P49",
+            }
+        )
     )
-    disposal.with_user(users[1]).action_approve()
-    disposal.action_post()
+    disposal.with_user(users[0]).action_submit()
+    approve_via_inbox(disposal, approver)
+    disposal.with_user(users[1]).action_post()
     budget = (
         env["fix.capex.budget"]
         .with_user(users[0])
@@ -253,6 +288,8 @@ def m49_data(odoo_env):
         .create(
             {
                 "title": "Benches",
+                "justification": "Bench for the Dhaka hub",
+                "category_id": cat.id,
                 "budget_id": budget.id,
                 "amount": 40000.0,
                 "request_date": datetime.date(2025, 10, 1),
@@ -260,7 +297,7 @@ def m49_data(odoo_env):
         )
     )
     req.action_submit()
-    req.with_user(users[1]).action_approve()
+    approve_via_inbox(req, approver)
     rou_cat = cat.copy({"code": f"P49-ROU-{tag}", "name": f"P49 ROU {tag}", "tax_rate_code": False})
     lease = env["fix.lease"].create(
         {
@@ -325,9 +362,9 @@ def test_dual_book_and_nbv_by_category(m49_data):
     tax_rate = env["fix.asset.tax.rate"].rate_for(
         "ITA3-COMPUTER", datetime.date(2025, 7, 1), env.company
     )
-    first = round(10000.0 * tax_rate.rate_percent / 1200.0, 2)
-    second = round((10000.0 - first) * tax_rate.rate_percent / 1200.0, 2)
-    assert (row["book_dep"], row["tax_dep"]) == (2000.0, round(first + second, 2))
+    # the Third Schedule rate on the opening WDV, spread over the year (M49-8)
+    month = round(10000.0 * tax_rate.rate_percent / 1200.0, 2)
+    assert (row["book_dep"], row["tax_dep"]) == (2000.0, round(month * 2, 2))
     assert row["book_nbv"] == 9000.0 and row["difference"] == round(9000.0 - row["tax_wdv"], 2)
     assert any("not yet verified" in n for n in rep["notes"])
     nbv = m49.REPORTS["nbv_by_category"](env, **FY)
