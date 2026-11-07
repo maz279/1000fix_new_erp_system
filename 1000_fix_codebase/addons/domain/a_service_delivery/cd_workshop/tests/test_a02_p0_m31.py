@@ -403,15 +403,20 @@ def test_another_jobs_photo_does_not_release_this_job(m31):
     job.action_submit_qc()
     _passed_checklist(m31, job.order_id)
     Ev = m31.env["fix.workshop.evidence"].with_user(m31.tech)
+    # refused when it is borrowed
     for ev in other.sudo().evidence_ids:
-        Ev.create(
-            {
-                "job_id": job.id,
-                "name": "borrowed",
-                "evidence_type": ev.evidence_type,
-                "document_id": ev.document_id.id,
-            }
-        )
+        with refused(m31.env, UserError, "another record"):
+            Ev.create(
+                {
+                    "job_id": job.id,
+                    "name": "borrowed",
+                    "evidence_type": ev.evidence_type,
+                    "document_id": ev.document_id.id,
+                }
+            )
+    # and a row already pointing elsewhere (older data) still releases nothing
+    _evidence(m31, job, "post_repair_photo", "test_log")
+    job.sudo().evidence_ids.document_id.sudo()._guarded().write({"res_id": other.id})
     with refused(m31.env, UserError, "evidence pack"):
         _as(m31, m31.qc, job).action_pass_qc()
 
