@@ -19,8 +19,8 @@ MUTATIONS = [
         "id": "X3",
         "label": "two-person DOFA ruling",
         "file": "addons/platform/cd_entity_config/models/fix_dofa_threshold.py",
-        "old": "            if not self.env.su:\n                acting = self.env.user",
-        "new": "            if False:\n                acting = self.env.user",
+        "old": "        if not self._fix_guard_open():\n            return self.action_propose_ruling(",
+        "new": "        if False:\n            return self.action_propose_ruling(",
         "test": "addons/platform/cd_entity_config/tests/test_a12_m30_controls.py",
     },
     {

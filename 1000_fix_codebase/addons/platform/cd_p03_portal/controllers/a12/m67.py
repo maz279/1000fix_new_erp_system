@@ -9,7 +9,24 @@
 # only through the whitelisted actions. KPIs and reports read as the CALLER
 # (R4): no sudo. M67-1: the "invoiced" KPI counts REAL invoices
 # (invoice_id set), not text references.
+#
+# A12 finish (2026-11-07): cost is measured and may be "not measured", so every
+# report that shows it says so instead of printing 0 (BRU-PPM-12); the P&L shows
+# billed revenue and margin (F13); the invoice's name is read as the service
+# role because PMs and sponsors hold no account.move access (F7).
 import datetime
+
+NOT_MEASURED = "not measured"
+
+
+def _cost(project):
+    """The project's measured cost, or the words saying nobody measured it."""
+    return round(float(project.actual_cost or 0.0), 2) if project.cost_measured else NOT_MEASURED
+
+
+def _measured(rows, key):
+    return round(sum(r[key] for r in rows if isinstance(r[key], int | float)), 2)
+
 
 SURFACES = {
     "fix.project": {
@@ -17,10 +34,12 @@ SURFACES = {
         "limit": 300,
         "actions": {
             "action_request_approval",
+            "action_recall_approval",
             "action_activate",
             "action_hold",
             "action_resume",
             "action_cancel",
+            "action_confirm_billing",
             "action_complete",
         },
     },
@@ -32,7 +51,7 @@ SURFACES = {
     "fix.project.task": {
         "order": "id desc",
         "limit": 500,
-        "actions": {"action_start", "action_done", "action_cancel"},
+        "actions": {"action_start", "action_log_hours", "action_done", "action_cancel"},
     },
     "fix.project.template": {
         "order": "project_type, name",
@@ -42,7 +61,7 @@ SURFACES = {
     "fix.project.billing": {
         "order": "due_on desc, id desc",
         "limit": 400,
-        "actions": {"action_mark_ready", "action_mark_invoiced"},
+        "actions": {"action_mark_ready", "action_mark_invoiced", "action_cancel"},
     },
     "fix.project.risk": {
         "order": "opened_on desc, id desc",
@@ -68,8 +87,10 @@ WRITABLE = {
         "date_end",
         "currency_id",
         "budget",
+        "budget_requested",
         "contract_value",
-        "actual_cost",
+        "contract_value_requested",
+        "dofa_justification",
         "operating_unit_id",
     },
     "fix.project.milestone": {"name", "project_id", "due_date", "operating_unit_id"},
@@ -149,8 +170,10 @@ def portfolio_status(env, date_from=None, date_to=None, **params):
             "type": dict(p._fields["project_type"].selection).get(p.project_type),
             "manager": p.manager_id.name if p.manager_id else "—",
             "budget": round(float(p.budget or 0.0), 2),
-            "actual": round(float(p.actual_cost or 0.0), 2),
-            "variance": round(float(p.budget_variance or 0.0), 2),
+            "actual": _cost(p),
+            "variance": round(float(p.budget_variance or 0.0), 2)
+            if p.cost_measured
+            else NOT_MEASURED,
             "state": dict(p._fields["state"].selection).get(p.state, p.state)
             if "state" in p._fields
             else "—",
@@ -172,14 +195,16 @@ def portfolio_status(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Variance is the project's own computed budget minus actual. Activation "
-            "needs the DOFA budget approval; the baseline freezes at activation."
+            "Variance is the project's budget minus its measured cost. Cost comes from "
+            "project-tagged ledger postings and task hours at the configured rate; a project "
+            "with neither says not measured. Activation needs the DOFA budget approval; the "
+            "baseline freezes at activation."
         ],
         totals={
             "project": "Total",
             "budget": round(sum(r["budget"] for r in rows), 2),
-            "actual": round(sum(r["actual"] for r in rows), 2),
-            "variance": round(sum(r["variance"] for r in rows), 2),
+            "actual": _measured(rows, "actual"),
+            "variance": _measured(rows, "variance"),
         },
         empty="No projects registered.",
     )
@@ -304,14 +329,18 @@ def budget_vs_actual(env, date_from=None, date_to=None, **params):
         {
             "project": p.name,
             "budget": round(float(p.budget or 0.0), 2),
-            "actual": round(float(p.actual_cost or 0.0), 2),
-            "variance": round(float(p.budget_variance or 0.0), 2),
-            "burn_pct": round(float(p.actual_cost or 0.0) / float(p.budget or 1.0) * 100.0, 1),
+            "actual": _cost(p),
+            "variance": round(float(p.budget_variance or 0.0), 2)
+            if p.cost_measured
+            else NOT_MEASURED,
+            "burn_pct": round(float(p.actual_cost or 0.0) / float(p.budget) * 100.0, 1)
+            if p.cost_measured
+            else NOT_MEASURED,
         }
         for p in projects
         if (p.budget or 0.0)
     ]
-    rows.sort(key=lambda r: -r["burn_pct"])
+    rows.sort(key=lambda r: -r["burn_pct"] if isinstance(r["burn_pct"], float) else 0.0)
     return _pack(
         "Budget vs Actual",
         ["project", "budget", "actual", "variance", "burn_pct"],
@@ -324,8 +353,9 @@ def budget_vs_actual(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Burn = actual over budget; projects with no budget are not shown. A "
-            "budget above the activated baseline needs a fresh DOFA approval."
+            "Burn = measured cost over budget; projects with no budget are not shown, and a "
+            "project whose cost nothing measures says so. A budget above the activated "
+            "baseline needs a fresh DOFA approval (Requested Budget on the project)."
         ],
         empty="No projects with a budget.",
     )
@@ -352,14 +382,14 @@ def earned_value(env, date_from=None, date_to=None, **params):
         earned_pct = (done / float(len(milestones))) if milestones else 0.0
         pv = round(float(p.budget) * planned_pct, 2)
         ev = round(float(p.budget) * earned_pct, 2)
-        ac = round(float(p.actual_cost or 0.0), 2)
+        ac = round(float(p.actual_cost or 0.0), 2) if p.cost_measured else None
         rows.append(
             {
                 "project": p.name,
                 "budget": round(float(p.budget), 2),
                 "pv": pv,
                 "ev": ev,
-                "ac": ac,
+                "ac": ac if ac is not None else NOT_MEASURED,
                 "spi": round(ev / pv, 2) if pv else None,
                 "cpi": round(ev / ac, 2) if ac else None,
             }
@@ -379,102 +409,140 @@ def earned_value(env, date_from=None, date_to=None, **params):
         rows,
         [
             "EV uses the milestone completion ratio (the only progress measure the model holds). "
-            "Projects without a budget are excluded rather than shown as zero."
+            "Projects without a budget are excluded rather than shown as zero. Actual cost is "
+            "measured, so CPI is stated only where a cost exists."
         ],
         empty="No projects with a budget.",
     )
 
 
 def project_pnl(env, date_from=None, date_to=None, **params):
+    """F13: revenue is what is posted to customers, cost is what is measured, and
+    margin is stated only where both are known."""
     projects = env["fix.project"].search([])
     rows = []
     for p in projects:
         budget = round(float(p.budget or 0.0), 2)
-        actual = round(float(p.actual_cost or 0.0), 2)
-        variance = round(budget - actual, 2)
+        billed = round(float(p.billed_revenue or 0.0), 2)
+        cost = _cost(p)
+        measured = p.cost_measured
         rows.append(
             {
                 "project": p.name,
                 "type": dict(p._fields["project_type"].selection).get(p.project_type),
                 "budget": budget,
-                "actual": actual,
-                "variance": variance,
-                "consumed_pct": round(100.0 * actual / budget, 1) if budget else None,
+                "billed": billed,
+                "retention": round(float(p.retention_held or 0.0), 2),
+                "actual": cost,
+                "margin": round(billed - cost, 2) if measured else NOT_MEASURED,
+                "consumed_pct": round(100.0 * cost / budget, 1) if measured and budget else None,
                 "state": dict(p._fields["state"].selection).get(p.state, p.state),
             }
         )
-    rows.sort(key=lambda r: -(r["variance"] or 0.0))
+    rows.sort(key=lambda r: -r["billed"])
     return _pack(
-        "Project P&L - budget vs actual",
-        ["project", "type", "budget", "actual", "variance", "consumed_pct", "state"],
+        "Project P&L - billed revenue, cost and margin",
+        [
+            "project",
+            "type",
+            "budget",
+            "billed",
+            "retention",
+            "actual",
+            "margin",
+            "consumed_pct",
+            "state",
+        ],
         {
             "project": "Project",
             "type": "Type",
             "budget": "Budget",
-            "actual": "Actual",
-            "variance": "Variance",
+            "billed": "Billed Revenue",
+            "retention": "Retention Held",
+            "actual": "Actual Cost",
+            "margin": "Margin",
             "consumed_pct": "Consumed %",
             "state": "State",
         },
         rows,
         [
-            "Variance = budget - actual. Consumed % is actual over budget; a project with no "
-            "budget shows no percentage."
+            "Billed revenue is posted customer invoices, net of retention. Cost is project-tagged "
+            "ledger postings plus task hours at the configured rate: a project with neither says "
+            "not measured, and has no margin. Consumed % is cost over budget."
         ],
         totals={
             "project": "Total",
             "budget": round(sum(r["budget"] for r in rows), 2),
-            "actual": round(sum(r["actual"] for r in rows), 2),
-            "variance": round(sum(r["variance"] for r in rows), 2),
+            "billed": round(sum(r["billed"] for r in rows), 2),
+            "retention": round(sum(r["retention"] for r in rows), 2),
+            "actual": _measured(rows, "actual"),
+            "margin": _measured(rows, "margin"),
         },
         empty="No projects.",
     )
 
 
 def billing_status(env, date_from=None, date_to=None, **params):
-    """M67-1: billing against the contract ceiling, invoiced = a REAL
-    account.move exists (invoice_id), not a text reference."""
+    """M67-1: billing against the contract ceiling, invoiced = a POSTED invoice
+    exists, not a text reference. F7: PMs and sponsors hold no account.move read,
+    so the invoice's own fields are read as the service role."""
     lines = env["fix.project.billing"].search([])
-    rows = [
-        {
-            "billing": b.name,
-            "project": b.project_id.name,
-            "customer": b.customer_id.name if b.customer_id else "—",
-            "type": dict(b._fields["billing_type"].selection).get(b.billing_type),
-            "amount": round(float(b.amount or 0.0), 2),
-            # display_name: a DRAFT account.move has no sequence name yet, and
-            # the row must still say which real invoice exists (M67-1).
-            "invoice": (b.invoice_id.display_name if b.invoice_id else None)
-            or b.invoice_ref
-            or "—",
-            "real_invoice": "Yes" if b.invoice_id else "",
-            "state": dict(b._fields["state"].selection).get(b.state, b.state),
-        }
-        for b in lines
-    ]
+    rows = []
+    for b in lines:
+        move = b.sudo().invoice_id
+        payment = dict(move._fields["payment_state"].selection).get(move.payment_state)
+        rows.append(
+            {
+                "billing": b.name,
+                "project": b.project_id.name,
+                "customer": b.customer_id.name if b.customer_id else "—",
+                "type": dict(b._fields["billing_type"].selection).get(b.billing_type),
+                "amount": round(float(b.amount or 0.0), 2),
+                "retention": round(float(b.retention_amount or 0.0), 2),
+                "invoice": move.display_name if move else b.invoice_ref or "—",
+                "real_invoice": "Yes" if move.state == "posted" else "",
+                "payment": payment if move.state == "posted" else "—",
+                "state": dict(b._fields["state"].selection).get(b.state, b.state),
+            }
+        )
     invoiced = len([r for r in rows if r["real_invoice"] == "Yes"])
     return _pack(
-        "Billing Status — %d line(s), %d with a real invoice" % (len(rows), invoiced),
-        ["billing", "project", "customer", "type", "amount", "invoice", "real_invoice", "state"],
+        "Billing Status — %d line(s), %d with a posted invoice" % (len(rows), invoiced),
+        [
+            "billing",
+            "project",
+            "customer",
+            "type",
+            "amount",
+            "retention",
+            "invoice",
+            "real_invoice",
+            "payment",
+            "state",
+        ],
         {
             "billing": "Billing",
             "project": "Project",
             "customer": "Customer",
             "type": "Type",
             "amount": "Amount",
+            "retention": "Retention",
             "invoice": "Invoice",
-            "real_invoice": "Real invoice",
+            "real_invoice": "Posted invoice",
+            "payment": "Payment",
             "state": "State",
         },
         rows,
         [
-            "Invoiced means a real customer invoice (account.move) was created from "
-            "the line; a bare reference counts as not invoiced. Total billing may "
-            "not exceed the project's contract value."
+            "Invoiced means Finance posted a customer invoice from the line; a bare reference "
+            "counts as not invoiced. Paid follows the invoice's payment state. Billing net of "
+            "retention may not exceed the project's contract value, or its baselined budget "
+            "where no contract is recorded."
         ],
         totals={
             "billing": "Total",
             "amount": round(sum(r["amount"] for r in rows), 2),
+            "retention": round(sum(r["retention"] for r in rows), 2),
         },
         empty="No billing lines.",
     )
@@ -547,7 +615,7 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
     rows = []
     for p in projects:
         budget = round(float(p.budget or 0.0), 2)
-        actual = round(float(p.actual_cost or 0.0), 2)
+        actual = _cost(p)
         milestones = milestone_model.search([("project_id", "=", p.id)])
         done = len(milestones.filtered(lambda m: m.state == "done"))
         deliver_pct = round(100.0 * done / len(milestones), 1) if milestones else None
@@ -557,13 +625,13 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
                 "type": dict(p._fields["project_type"].selection).get(p.project_type),
                 "budget": budget,
                 "actual": actual,
-                "saved": round(budget - actual, 2),
+                "saved": round(budget - actual, 2) if p.cost_measured else NOT_MEASURED,
                 "milestones_done": "%d/%d" % (done, len(milestones)) if milestones else "-",
                 "delivery_pct": deliver_pct,
                 "benefit_baseline": "not recorded",
             }
         )
-    rows.sort(key=lambda r: -(r["saved"] or 0.0))
+    rows.sort(key=lambda r: -r["saved"] if isinstance(r["saved"], float) else 0.0)
     return _pack(
         "Benefits Realisation - %d project(s), delivery against budget" % len(rows),
         [
@@ -595,8 +663,8 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
         totals={
             "project": "Total",
             "budget": round(sum(r["budget"] for r in rows), 2),
-            "actual": round(sum(r["actual"] for r in rows), 2),
-            "saved": round(sum(r["saved"] for r in rows), 2),
+            "actual": _measured(rows, "actual"),
+            "saved": _measured(rows, "saved"),
         },
         empty="No projects registered.",
     )
@@ -636,7 +704,9 @@ def kpis(env):
         "milestones_overdue": len(milestones.filtered(lambda m: m.overdue)),
         "tasks_open": len(tasks.filtered(lambda t: t.state not in ("done", "cancelled"))),
         "gates_scheduled": len(gates.filtered(lambda g: g.state == "scheduled")),
-        # M67-1: invoiced counts REAL invoices, not text references.
-        "billings_invoiced": len(billings.filtered(lambda b: b.invoice_id)),
+        # M67-1: invoiced counts POSTED invoices, not text references.
+        "billings_invoiced": len(
+            billings.filtered(lambda b: b.invoice_id and b.state in ("invoiced", "paid"))
+        ),
         "portfolio_budget": round(sum(float(p.budget or 0.0) for p in projects), 2),
     }

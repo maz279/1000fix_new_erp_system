@@ -23,7 +23,7 @@ Owns:
 - fix.role (53 roles per the reconciled register, mapped to Keycloak realm roles)
 - fix.isolation.tier (T0 public ... T5 residency-classified, as record rules)
 - fix.sod.control (61 segregation-of-duties controls from SP-006)
-- fix.field.rule (the field-level permission engine — security/<module>_field_rules.xml)
+- fix.field.rule (hidden and masked fields on the P03 read path only: not the ORM, reports or exports)
 - fix.access.log (privileged session recording, NFR-070/SC-010)
 
 ### 1.2 Critical Business Journeys Served

@@ -133,7 +133,8 @@ def test_country_pack_action_load_stamps_loaded_at(odoo_env):
     pack.action_validate()
     pack.sudo().action_certify(note="test gazette basis")
     pack.action_activate()
-    assert pack.action_load() is True
+    # A12 finish E10: the load says what it did, and that is what the screen shows.
+    assert pack.action_load() == {"note": pack.load_summary}
     assert pack.loaded_at
 
 
@@ -282,7 +283,8 @@ def test_marketing_never_uses_the_masking_route(odoo_env):
     with _rejects(odoo_env, ValidationError, match="BD-02"):
         _config(odoo_env, consent_class="marketing", sms_route="masking")
     ok = _config(odoo_env, consent_class="marketing", sms_route="non-masking", frequency_cap=2)
-    assert ok.send_window == "24/7"
+    # A12 finish E20: the class decides the window; 24/7 for marketing was the defect.
+    assert ok.send_window == "10:00-20:00"
 
 
 # --- fix.working.calendar ----------------------------------------------------------------

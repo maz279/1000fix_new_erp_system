@@ -4,6 +4,12 @@
 # created either record (SOD-15), everything moves inside the transaction,
 # the victim is tombstoned (never deleted), a merge event is published for
 # downstream re-pointing, and the merge is reversible inside the window.
+#
+# A12 finish audit (2026-11-07):
+#   E15: a steward holding only R-39 could not finish: the moves ran on his raw
+#   ACLs. They run under sudo now, after the steward and SOD-15 checks.
+#   E20/BRU-MDM-11: fix.mdm.golden.rule decides which attribute values survive,
+#   per rule. The audit stores each outcome and a reversal restores them.
 import json
 from datetime import timedelta
 
@@ -125,6 +131,60 @@ class FixPartyMerge(models.Model):
         days = int(icp.get_param("fix_party.merge_window_days", "14") or 14)
         return days  # Q-04 (7/14/30) is open with the CTO — 14 is the default
 
+    def _golden_candidate(self, partner, field):
+        value = partner[field.name]
+        if field.type == "many2one":
+            value = value.id or False
+        return {
+            "value": value,
+            "write_date": fields.Datetime.to_string(partner.write_date) or "",
+            "verification_status": partner["verification_status"]
+            if "verification_status" in partner._fields
+            else False,
+        }
+
+    def _apply_golden_rules(self, survivor, victim):
+        """Resolve each active res.partner rule between the two parties.
+        Returns (values to write on the survivor, what to store in the audit).
+        A manual-review rule never decides: the survivor's value stays, and
+        the victim's stays readable on its tombstone."""
+        Rule = self.env.get("fix.mdm.golden.rule")
+        if Rule is None:
+            return {}, {}
+        rules = Rule.sudo().search([("model_name", "=", "res.partner")])
+        guarded = set(survivor._fix_guarded_fields()) | {"party_status", "active"}
+        values, audit = {}, {}
+        for rule in rules:
+            field = survivor._fields.get(rule.field_name)
+            if (
+                field is None
+                or rule.field_name in guarded
+                or field.type in ("one2many", "many2many", "binary")
+                or (field.compute and not field.inverse)
+            ):
+                continue
+            kept = self._golden_candidate(survivor, field)
+            other = self._golden_candidate(victim, field)
+            if not kept["value"] and not other["value"]:
+                continue
+            winner = Rule.sudo().resolve(
+                "res.partner",
+                rule.field_name,
+                [dict(kept, party="survivor"), dict(other, party="victim")],
+            )
+            outcome = {
+                "rule": rule.id,
+                "strategy": rule.strategy,
+                "survivor_value": kept["value"],
+                "victim_value": other["value"],
+                "winner": winner["party"] if winner else "manual_review",
+            }
+            if winner and winner["party"] == "victim" and winner["value"] != kept["value"]:
+                values[rule.field_name] = winner["value"]
+                outcome["written"] = True
+            audit[rule.field_name] = outcome
+        return values, audit
+
     def action_execute(self):
         """Execute the supervised merge. All activity transfers (BRU-CPM-05):
         nothing is deleted — the victim is tombstoned as 'merged'."""
@@ -160,6 +220,11 @@ class FixPartyMerge(models.Model):
                     "Segregation of duties: you requested this merge, so another data "
                     "steward must execute it."
                 )
+            # E15: every authority check is above. The steward holds the decision,
+            # not raw write access to parties, consents and documents.
+            actor = self.env.user
+            merge = merge.sudo()
+            survivor, victim = merge.survivor_id, merge.victim_id
             moves, skips = {}, {}
 
             # Roles: move to the survivor; a role_type the survivor already
@@ -185,7 +250,7 @@ class FixPartyMerge(models.Model):
             # Hierarchy edges: re-point edges touching the victim, dropping
             # edges that would duplicate the survivor's own (UNIQUE
             # parent/child/relation) or self-loop.
-            Hierarchy = self.env["fix.party.hierarchy"]
+            Hierarchy = merge.env["fix.party.hierarchy"]
             edges = Hierarchy.search(
                 ["|", ("parent_id", "=", victim.id), ("child_id", "=", victim.id)]
             )
@@ -207,20 +272,25 @@ class FixPartyMerge(models.Model):
             skips["fix.party.hierarchy"] = (kept_edges - edges).ids
             moves["fix.party.hierarchy"] = edges.ids
 
+            golden_values, golden_audit = merge._apply_golden_rules(survivor, victim)
             audit = {
                 "moved": moves,
                 "skipped": skips,
                 "victim_prior_status": victim.party_status,
+                "golden": golden_audit,
             }
             victim._guarded().write({"party_status": "merged", "active": False})
+            if golden_values:
+                # After the tombstone, so a unique attribute is free to move.
+                survivor._guarded().write(golden_values)
             merge._guarded().write(
                 {
                     "state": "executed",
-                    "executed_by": self.env.user.id,
+                    "executed_by": actor.id,
                     "executed_at": fields.Datetime.now(),
                     "reversible_until": fields.Datetime.now()
                     + timedelta(days=merge._merge_window_days()),
-                    "attribute_decisions": json.dumps(audit),
+                    "attribute_decisions": json.dumps(audit, default=str),
                 }
             )
             from libs.py.fix_events import publish
@@ -242,6 +312,7 @@ class FixPartyMerge(models.Model):
                     "executed_at": fields.Datetime.to_string(merge.executed_at),
                 },
             )
+            merge.env["fix.mdm.duplicate"]._sync_from_party_merge(merge)
         return True
 
     def action_reverse(self):
@@ -256,17 +327,27 @@ class FixPartyMerge(models.Model):
                 raise ValidationError("Only an executed merge can be reversed")
             if merge.reversible_until and fields.Datetime.now() > merge.reversible_until:
                 raise ValidationError("The reversal window closed on %s" % merge.reversible_until)
+            # E15: as in the execution, the moves run after the group check.
+            merge = merge.sudo()
             audit = json.loads(merge.attribute_decisions or "{}")
             survivor, victim = merge.survivor_id, merge.victim_id
             for model_name, ids in (audit.get("moved") or {}).items():
                 if not ids or model_name == "fix.party.hierarchy":
                     continue  # hierarchy has no partner_id — steward re-links
-                self.env[model_name].browse(ids).exists().write({"partner_id": victim.id})
+                merge.env[model_name].browse(ids).exists().write({"partner_id": victim.id})
+            # The attributes the golden rules moved go back with the party.
+            restored = {
+                name: outcome["survivor_value"]
+                for name, outcome in (audit.get("golden") or {}).items()
+                if outcome.get("written") and name in survivor._fields
+            }
             # _guarded(), not a context flag: a JSON-RPC caller can set any
             # context key, so a flag would let anyone un-tombstone a party.
             victim._guarded().write(
                 {"party_status": audit.get("victim_prior_status") or "active", "active": True}
             )
+            if restored:
+                survivor._guarded().write(restored)
             merge._guarded().write({"state": "reversed"})
             from libs.py.fix_events import publish
 
@@ -277,4 +358,5 @@ class FixPartyMerge(models.Model):
                 survivor.id,
                 {"survivor_id": survivor.id, "restored_id": victim.id, "merge_id": merge.id},
             )
+            merge.env["fix.mdm.duplicate"]._sync_from_party_merge(merge)
         return True

@@ -1,6 +1,10 @@
 # fix.feature.flag — the feature-flag service (P03-M04-T05, OPS-06/EP-07).
-# Every capability from Wave 1 onward ships behind a flag.
 # Usage: @flag_enabled("my_feature_key") — decorator checks this model.
+#
+# A12 finish E24: the intent was that every capability ships behind a flag. That
+# is NOT the state of this codebase: FLAG_WIRED_KEYS holds what is really wired
+# (one key today, and @flag_enabled has no uses in product code). The claim is
+# narrowed to what holds: a row in this register gates real code.
 import functools
 import logging
 
@@ -85,6 +89,13 @@ class FixFeatureFlag(models.Model):
                 "(@flag_enabled / is_disabled in FLAG_WIRED_KEYS) or do not "
                 "register the flag." % vals["key"]
             )
+        # A12 finish E20: a legacy row no code reads must not toggle as if live.
+        legacy = self.filtered(lambda flag: flag.key not in FLAG_WIRED_KEYS)
+        if legacy and not self.env.su:
+            raise UserError(
+                "No code reads flag %s, so changing it would switch nothing. Delete it."
+                % ", ".join(legacy.mapped("key"))
+            )
         return super().write(vals)
 
     def unlink(self):
@@ -114,15 +125,24 @@ class FixFeatureFlag(models.Model):
         return False
 
     @api.model
-    def is_disabled(self, key: str) -> bool:
+    def is_disabled(self, key: str, branch=None) -> bool:
         """Kill-switch read: True only when the flag EXISTS and is disabled.
 
         The opt-out twin of is_enabled (opt-in, fail-closed): an automated
         control an audit mandates — e.g. SLA escalation — runs by DEFAULT and
         is switched OFF explicitly, never the reverse. A missing row means
         the default behaviour (on); is_enabled's missing row means off.
+
+        A12 finish E24: scope is honoured. A global caller is stopped only by a
+        global row: a Per-Branch row used to stop the cron everywhere. A caller
+        that names a branch is also stopped by a row scoped to that branch.
         """
-        return bool(self.sudo().search([("key", "=", key), ("enabled", "=", False)], limit=1))
+        flag = self.sudo().search([("key", "=", key)], limit=1)
+        if not flag or flag.enabled:
+            return False
+        if flag.scope == "global":
+            return True
+        return bool(flag.scope == "branch" and branch and branch in flag.branch_ids)
 
 
 def flag_enabled(key: str, default: bool = False):

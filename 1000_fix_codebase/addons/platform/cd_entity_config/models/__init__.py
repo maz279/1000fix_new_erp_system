@@ -12,6 +12,7 @@ from . import (
     fix_feature_flag,
     fix_geofence,
     fix_notification_config,
+    fix_param_mask,
     fix_platform_ops,
     fix_platform_ops2,
     fix_stamp_duty_schedule,

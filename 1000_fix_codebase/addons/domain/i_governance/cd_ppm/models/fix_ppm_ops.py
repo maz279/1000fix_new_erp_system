@@ -12,12 +12,26 @@
 #     consumer is shipped by the lead); the overdue-risk cron flags it;
 #   - instantiating a template now carries the gates, the WBS and the
 #     template link/version (BRU-PPM-19).
+#
+# A12 finish build (2026-11-07), findings F4-F6, F9, F14-F16, F19:
+#   - the project manager stops at "ready". A Finance user invoices the line: the
+#     invoice is posted through the M19 API (source "ar"), so "invoiced" means
+#     posted, with its dimensions and its posting log;
+#   - the line follows its move: reset, cancelled, deleted or reversed reopens it,
+#     and "paid" follows the move's payment state (lifecycle row 10);
+#   - retention is deducted on the invoice as its own line, and the ceiling is
+#     measured on what the customer is invoiced, in the project's currency;
+#   - a line can be cancelled, which takes it out of the ceiling and the closure;
+#   - the risk owner and a sponsor work a risk; at or above the closure threshold
+#     only a sponsor who does not manage the project closes it.
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+from .fix_ppm import FINANCE_GROUP, PM_GROUP, SPONSOR_GROUP, ppm_convert
 
 # Escalation thresholds (business decisions, report §7): a risk at or above
 # this severity_score (probability x impact, 1..9) is escalated to the M60
@@ -27,6 +41,22 @@ RISK_ESCALATION_THRESHOLD_PARAM = "fix_ppm.risk_escalation_threshold"
 RISK_ESCALATION_THRESHOLD_DEFAULT = 9
 RISK_OVERDUE_DAYS_PARAM = "fix_ppm.risk_overdue_days"
 RISK_OVERDUE_DAYS_DEFAULT = 7
+# At or above this severity only a sponsor closes the risk (F19, report B6).
+RISK_SPONSOR_CLOSE_PARAM = "fix_ppm.risk_sponsor_close_threshold"
+RISK_SPONSOR_CLOSE_DEFAULT = 9
+
+# Terms frozen once a billing line is ready to invoice.
+BILLING_PINNED = {
+    "amount",
+    "project_id",
+    "milestone_id",
+    "retention_pct",
+    "currency_id",
+    "billing_type",
+}
+# A move in this payment state has been paid by the customer. in_payment: the
+# payment is registered and waits only for the bank statement to match it.
+PAID_PAYMENT_STATES = ("paid", "in_payment")
 
 
 class FixProjectTemplate(models.Model):
@@ -144,11 +174,17 @@ class FixProjectBilling(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     due_on = fields.Date(required=True, default=fields.Date.context_today)
-    invoiced_on = fields.Date()
+    # F16: state, invoice_ref and invoiced_on follow the invoice. Everything
+    # that happens to the move reaches the line in the same transaction, whoever
+    # did it and from whichever screen, with no cron to wait for.
+    invoiced_on = fields.Date(compute="_compute_invoice_status", store=True, readonly=False)
     invoice_ref = fields.Char(
         string="Invoice Reference",
-        help="Display echo of the invoice's name. The invoice itself is the "
-        "account.move in Invoice; the reference is written by Mark Invoiced.",
+        compute="_compute_invoice_status",
+        store=True,
+        readonly=False,
+        help="Display echo of the posted invoice's number. The invoice itself is the "
+        "account.move in Invoice.",
     )
     invoice_id = fields.Many2one(
         "account.move",
@@ -156,20 +192,39 @@ class FixProjectBilling(models.Model):
         readonly=True,
         copy=False,
         index=True,
-        help="The real customer invoice (M20 account.move) created by Mark "
-        "Invoiced. M67-1: 'invoiced' without an invoice is fiction.",
+        help="The real customer invoice (M20 account.move), posted through the M19 API "
+        "by Finance. M67-1: 'invoiced' without an invoice is fiction.",
     )
     retention_pct = fields.Float(default=0.0)
+    retention_amount = fields.Monetary(
+        string="Retention",
+        currency_field="currency_id",
+        compute="_compute_net_amount",
+        help="Held back from the customer on the invoice. Bill it with its own line "
+        "when the retention is released.",
+    )
+    net_amount = fields.Monetary(
+        string="Net Billed",
+        currency_field="currency_id",
+        compute="_compute_net_amount",
+        help="What the customer is invoiced: the amount less retention.",
+    )
+    ready_by_id = fields.Many2one("res.users", string="Marked Ready By", readonly=True, copy=False)
+    cancel_reason = fields.Char(string="Cancelled Because", readonly=True, copy=False)
     state = fields.Selection(
         [
             ("planned", "Planned"),
             ("ready", "Ready to Invoice"),
             ("invoiced", "Invoiced"),
             ("paid", "Paid"),
+            ("cancelled", "Cancelled"),
         ],
         required=True,
         default="planned",
         tracking=True,
+        compute="_compute_invoice_status",
+        store=True,
+        readonly=False,
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -178,15 +233,61 @@ class FixProjectBilling(models.Model):
             "invoice_id",
             "invoiced_on",
             "invoice_ref",
+            "ready_by_id",
+            "cancel_reason",
         }
 
+    def _billing_frozen_fields(self) -> set:
+        """F15: everything the line was raised for, from "ready" on. A customer
+        left blank on a legacy ready line stays open, or the line is stranded."""
+        self.ensure_one()
+        if self.state not in ("ready", "invoiced", "paid", "cancelled"):
+            return set()
+        return BILLING_PINNED | ({"customer_id"} if self.customer_id else set())
+
     def _fix_form_locked_fields(self) -> set:
-        # M67-2 (bl_08): once the line is ready for invoicing, the amount and
-        # the customer it was raised for are pinned.
+        # M67-2 (bl_08): once the line is ready for invoicing, its terms are pinned.
         locked = super()._fix_form_locked_fields()
-        if self and self.state in ("ready", "invoiced", "paid"):
-            locked |= {"amount", "customer_id", "project_id", "milestone_id", "retention_pct"}
+        if self:
+            locked |= self._billing_frozen_fields()
         return locked
+
+    @api.depends("invoice_id", "invoice_id.state", "invoice_id.payment_state", "invoice_id.name")
+    def _compute_invoice_status(self):
+        for rec in self:
+            state, ref, invoiced_on = rec.state or "planned", rec.invoice_ref, rec.invoiced_on
+            move = rec.invoice_id
+            if state != "cancelled":
+                if move.state == "posted" and move.payment_state != "reversed":
+                    state = "paid" if move.payment_state in PAID_PAYMENT_STATES else "invoiced"
+                    ref = move.name
+                    invoiced_on = move.invoice_date
+                elif state in ("invoiced", "paid"):
+                    # Deleted, cancelled, reset to draft or reversed: the revenue
+                    # is gone, so the line goes back to Finance's queue.
+                    state, ref, invoiced_on = "ready", False, False
+            rec.state = state
+            rec.invoice_ref = ref
+            rec.invoiced_on = invoiced_on
+
+    @api.depends("amount", "retention_pct")
+    def _compute_net_amount(self):
+        for rec in self:
+            held = (rec.amount or 0.0) * (rec.retention_pct or 0.0) / 100.0
+            rec.retention_amount = held
+            rec.net_amount = (rec.amount or 0.0) - held
+
+    def _amount_in_project_currency(self, amount):
+        """F15: `amount` of this line in its project's currency."""
+        self.ensure_one()
+        return ppm_convert(
+            self.env,
+            amount,
+            self.currency_id,
+            self.project_id.currency_id,
+            self.company_id,
+            self.due_on or fields.Date.context_today(self),
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -216,48 +317,63 @@ class FixProjectBilling(models.Model):
             if not 0.0 <= rec.retention_pct <= 100.0:
                 raise ValidationError("Retention must be between 0 and 100 %.")
 
-    @api.constrains("amount", "project_id")
-    def _check_contract_ceiling(self):
-        # M67-2 (bl_02): Σ billing of the project may not exceed its approved
-        # contract value. Projects with no contract value recorded are checked
-        # by the DOFA budget approval instead (never both unchecked).
-        for rec in self:
-            project = rec.project_id
-            ceiling = project.contract_value
-            if not ceiling:
-                continue
-            # search, not the cached one2many: during create() the inverse
-            # cache may not carry the line being validated yet.
-            total = sum(
-                self.env["fix.project.billing"]
-                .with_context(active_test=False)
-                .search([("project_id", "=", project.id)])
-                .mapped("amount")
-            )
+    def _assert_within_ceiling(self):
+        """M67-2 (bl_02), F8, F15: the project's billing stays under its ceiling,
+        with every line converted to the project's currency."""
+        for rec in self.filtered(lambda r: r.state != "cancelled"):
+            project = rec.project_id.sudo()
+            ceiling = project._billing_ceiling()
+            total = project._billing_committed()
             if total > ceiling + 0.005:
                 raise ValidationError(
-                    "Billing %s would take project %s to BDT %.2f of BDT %.2f contract "
-                    "value: billing may not exceed the approved contract value."
+                    "Billing %s would take project %s to BDT %.2f of BDT %.2f contract value "
+                    "(the budget stands in where no contract is recorded): billing may not "
+                    "exceed the approved contract value."
                     % (rec.name, project.display_name, total, ceiling)
                 )
 
+    @api.constrains("amount", "project_id", "currency_id", "retention_pct")
+    def _check_contract_ceiling(self):
+        self._assert_within_ceiling()
+
     def write(self, vals):
-        # M67-2 (bl_08): the terms are frozen from "ready" onwards.
-        pinned = {"amount", "customer_id", "project_id", "milestone_id", "retention_pct"}
-        if pinned & set(vals) and not self._fix_guard_open():
-            frozen = self.filtered(lambda r: r.state in ("ready", "invoiced", "paid"))
-            if frozen:
-                raise UserError(
-                    "The amount, customer, project and retention of a billing line "
-                    "are frozen once it is ready to invoice (M67-2). Cancel the line "
-                    "and raise a new one instead."
-                )
+        if not self._fix_guard_open():
+            for rec in self:
+                changed = {
+                    name
+                    for name in rec._billing_frozen_fields() & set(vals)
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+                if changed:
+                    raise UserError(
+                        "The %s of a billing line are frozen once it is ready to invoice "
+                        "(M67-2). Cancel the line and raise a new one instead."
+                        % ", ".join(sorted(rec._fields[n].string for n in changed))
+                    )
+                # F15, BRU-PPM-11: retyping a milestone line skipped the acceptance
+                # gate. What is billed on acceptance stays billed on acceptance.
+                if (
+                    "billing_type" in vals
+                    and rec.billing_type == "milestone"
+                    and vals["billing_type"] != "milestone"
+                ):
+                    raise UserError(
+                        "%s bills a milestone, so it needs that milestone's acceptance. "
+                        "Cancel it and raise a new line if this work is not milestone work."
+                        % rec.name
+                    )
         return super().write(vals)
 
     def action_mark_ready(self):
+        """F14: the project manager's last step. Finance raises the invoice."""
         for rec in self:
             if rec.state != "planned":
                 raise UserError("Only a planned billing line can be marked ready")
+            if rec.project_id.state != "active":
+                raise UserError(
+                    "Project %s is %s: only an active project raises billing."
+                    % (rec.project_id.display_name, rec.project_id.state)
+                )
             if rec.billing_type == "milestone":
                 milestone = rec.milestone_id
                 if not milestone:
@@ -273,7 +389,9 @@ class FixProjectBilling(models.Model):
                     )
             if not rec.customer_id:
                 raise UserError("Record the customer before raising the billable event.")
-            rec._guarded().write({"state": "ready"})
+            # A legacy line can stand above a ceiling it never met.
+            rec._assert_within_ceiling()
+            rec._guarded().write({"state": "ready", "ready_by_id": self.env.user.id})
 
     def _invoice_journal(self):
         self.ensure_one()
@@ -307,61 +425,132 @@ class FixProjectBilling(models.Model):
             )
         return account
 
-    def action_mark_invoiced(self):
-        """Creates the real customer invoice (M20) and stores its id (M67-1)."""
+    def _invoice_lines(self, account):
+        """The invoice's lines. F16: retention is deducted on the invoice as its
+        own line, so the customer sees the gross, the deduction and the net."""
+        self.ensure_one()
+        label = "%s — %s" % (self.name, self.project_id.display_name)
+        lines = [
+            (
+                0,
+                0,
+                {"name": label, "account_id": account.id, "quantity": 1, "price_unit": self.amount},
+            )
+        ]
+        if self.retention_amount:
+            lines.append(
+                (
+                    0,
+                    0,
+                    {
+                        "name": "Retention held %.2f%% — %s" % (self.retention_pct, self.name),
+                        "account_id": account.id,
+                        "quantity": 1,
+                        "price_unit": -self.retention_amount,
+                    },
+                )
+            )
+        return lines
+
+    def _invoice_draft(self):
+        """This line's draft invoice: one a reset left behind, or a new one."""
+        self.ensure_one()
+        if self.invoice_id.state == "draft":
+            return self.invoice_id
+        journal = self._invoice_journal()
+        account = self._invoice_line_account(journal)
+        return self.env["account.move"].create(
+            {
+                "move_type": "out_invoice",
+                "partner_id": self.customer_id.id,
+                "journal_id": journal.id,
+                "company_id": self.company_id.id,
+                "currency_id": self.currency_id.id,
+                "invoice_date": fields.Date.context_today(self),
+                "ref": "%s — %s" % (self.name, self.project_id.display_name),
+                "invoice_line_ids": self._invoice_lines(account),
+            }
+        )
+
+    def _invoice_dimensions(self, move):
+        """Every line of the invoice carries its project (the M19 project
+        dimension). Skipped only for a company with no operating unit, where
+        M19 could not store a dimension row at all."""
+        company = self.company_id
+        if not self.env["operating.unit"].sudo().search_count([("company_id", "=", company.id)]):
+            return None
+        code = self.project_id.code
+        return {index: {"project_ref": code} for index in range(len(move.line_ids))}
+
+    def _billing_assert_finance(self, what):
+        """F14: a Finance user who did not manage the project or ready this line."""
+        if self.env.su:
+            return
+        if not self.env.user.has_group(FINANCE_GROUP):
+            raise AccessError(
+                "%s is done by Finance: you hold no invoicing role. The project manager "
+                "stops at Ready to Invoice." % what
+            )
         for rec in self:
-            if rec.invoice_id:
-                raise UserError("%s already carries invoice %s." % (rec.name, rec.invoice_id.name))
+            record = rec.sudo()
+            if self.env.user in (record.project_id._ppm_delivery_users() | record.ready_by_id):
+                raise UserError(
+                    "Segregation of duties: you run %s or marked %s ready, so another Finance "
+                    "user raises its invoice." % (record.project_id.display_name, record.name)
+                )
+
+    def action_mark_invoiced(self):
+        """F6/F14: Finance raises the customer invoice and posts it through M19.
+        The checks run as the caller; the document is written by the service role,
+        like every engine-posted entry. A posting refused by the chart leaves
+        nothing behind: "invoiced" means posted."""
+        self.check_access("read")
+        self._billing_assert_finance("Invoicing a project's billing")
+        for rec in self.sudo():
+            move = rec.invoice_id
+            if move.state == "posted" and move.payment_state != "reversed":
+                raise UserError("%s already carries invoice %s." % (rec.name, move.name))
             if rec.state != "ready":
                 raise UserError("Only a ready billing line can be invoiced")
             if not rec.customer_id:
                 raise UserError("Record the customer before invoicing.")
-            journal = rec._invoice_journal()
-            account = rec._invoice_line_account(journal)
-            # The invoice is a system-written financial hand-off (BRU-PPM-02):
-            # the checks above ran as the caller, the document is created by
-            # the service role, like every engine-posted journal entry.
-            move = (
-                self.env["account.move"]
-                .sudo()
-                .create(
-                    {
-                        "move_type": "out_invoice",
-                        "partner_id": rec.customer_id.id,
-                        "journal_id": journal.id,
-                        "company_id": rec.company_id.id,
-                        "currency_id": rec.currency_id.id,
-                        "invoice_date": fields.Date.context_today(rec),
-                        "ref": "%s — %s" % (rec.name, rec.project_id.display_name),
-                        "invoice_line_ids": [
-                            (
-                                0,
-                                0,
-                                {
-                                    "name": "%s — %s" % (rec.name, rec.project_id.display_name),
-                                    "account_id": account.id,
-                                    "quantity": 1,
-                                    "price_unit": rec.amount,
-                                },
-                            )
-                        ],
-                    }
-                )
+            rec._assert_within_ceiling()
+            # The line's company, not the Finance user's current one.
+            move = rec.with_company(rec.company_id)._invoice_draft()
+            # The in-process posting API of M19: COA rules, dimensions, the posting
+            # log and journal.posted, under the AR sub-ledger's source.
+            move._fix_m19_post(
+                source="ar",
+                source_ref=rec.name,
+                dimension_by_line=rec._invoice_dimensions(move),
             )
-            rec._guarded().write(
-                {
-                    "state": "invoiced",
-                    "invoice_id": move.id,
-                    # a DRAFT move has no sequence name yet; the echo carries
-                    # its display name until posting names it (M67-1).
-                    "invoice_ref": move.name or move.display_name,
-                    "invoiced_on": fields.Date.context_today(rec),
-                }
-            )
+            rec._guarded().write({"invoice_id": move.id})
             rec.message_post(
-                body="Customer invoice %s created for BDT %.2f (account.move %d)."
-                % (move.name, rec.amount, move.id)
+                body="Customer invoice %s posted for %s %.2f by %s."
+                % (move.name, rec.currency_id.name, move.amount_total, self.env.user.name)
             )
+
+    def action_cancel(self, reason=None):
+        """F9: a mistaken line leaves the ceiling and the closure with a reason.
+        Billed revenue is not cancelled here: Finance reverses the invoice, which
+        reopens the line."""
+        if not (reason or "").strip():
+            raise UserError("State why this billing line is cancelled.")
+        self.check_access("read")
+        user = self.env.user
+        if not (self.env.su or user.has_group(PM_GROUP) or user.has_group(FINANCE_GROUP)):
+            raise AccessError("A billing line is cancelled by a project manager or by Finance.")
+        for rec in self.sudo():
+            if rec.state not in ("planned", "ready"):
+                raise UserError(
+                    "%s is %s. Finance reverses the invoice first; that reopens the line."
+                    % (rec.name, rec.state)
+                )
+            # A draft left on the line must not be posted later by someone else.
+            if rec.invoice_id.state == "draft":
+                rec.invoice_id.button_cancel()
+            rec._guarded().write({"state": "cancelled", "cancel_reason": reason})
+            rec.message_post(body="Billing line cancelled by %s: %s" % (user.name, reason))
 
 
 class FixProjectRisk(models.Model):
@@ -415,6 +604,12 @@ class FixProjectRisk(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state", "closed_on", "escalated"}
 
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state == "closed":
+            locked.add("mitigation")
+        return locked
+
     @api.depends("probability", "impact")
     def _compute_severity(self):
         scale = {"low": 1, "medium": 2, "high": 3}
@@ -422,22 +617,24 @@ class FixProjectRisk(models.Model):
             rec.severity_score = scale.get(rec.probability, 1) * scale.get(rec.impact, 1)
 
     @api.model
-    def _escalation_threshold(self) -> int:
+    def _int_param(self, key, default) -> int:
         icp = self.env["ir.config_parameter"].sudo()
         try:
-            return int(
-                icp.get_param(RISK_ESCALATION_THRESHOLD_PARAM) or RISK_ESCALATION_THRESHOLD_DEFAULT
-            )
+            return int(icp.get_param(key) or default)
         except (TypeError, ValueError):
-            return RISK_ESCALATION_THRESHOLD_DEFAULT
+            return default
+
+    @api.model
+    def _escalation_threshold(self) -> int:
+        return self._int_param(RISK_ESCALATION_THRESHOLD_PARAM, RISK_ESCALATION_THRESHOLD_DEFAULT)
 
     @api.model
     def _overdue_days(self) -> int:
-        icp = self.env["ir.config_parameter"].sudo()
-        try:
-            return int(icp.get_param(RISK_OVERDUE_DAYS_PARAM) or RISK_OVERDUE_DAYS_DEFAULT)
-        except (TypeError, ValueError):
-            return RISK_OVERDUE_DAYS_DEFAULT
+        return self._int_param(RISK_OVERDUE_DAYS_PARAM, RISK_OVERDUE_DAYS_DEFAULT)
+
+    @api.model
+    def _sponsor_close_threshold(self) -> int:
+        return self._int_param(RISK_SPONSOR_CLOSE_PARAM, RISK_SPONSOR_CLOSE_DEFAULT)
 
     def _publish_escalation(self, reason):
         for rec in self.filtered(lambda r: r.state != "closed"):
@@ -455,6 +652,11 @@ class FixProjectRisk(models.Model):
                     "project": rec.project_id.name,
                     "project_id": rec.project_id.id,
                     "severity": rec.severity_score,
+                    # F5: the register scores likelihood and impact separately;
+                    # without them severity 9 landed as 3 x 3 = 9 of 25.
+                    "probability": rec.probability,
+                    "impact": rec.impact,
+                    "mitigation": rec.mitigation or "",
                     "kind": rec.kind,
                     "reason": reason,
                 },
@@ -478,36 +680,81 @@ class FixProjectRisk(models.Model):
         return recs
 
     def write(self, vals):
+        if "mitigation" in vals and not self._fix_guard_open():
+            for rec in self.filtered(lambda r: r.state == "closed"):
+                if rec._fix_guard_differs("mitigation", vals["mitigation"], rec.mitigation):
+                    raise UserError(
+                        "The mitigation of closed risk %s is what it was closed on. Reopen the "
+                        "risk to change it." % rec.name
+                    )
         result = super().write(vals)
         if {"probability", "impact"} & set(vals):
             # ...and the moment its severity reaches the threshold.
             threshold = self._escalation_threshold()
-            self.filtered(lambda r: r.severity_score >= threshold)._publish_escalation(
-                "severity raised to %d (threshold %d)" % (threshold, threshold)
-            )
+            for rec in self.filtered(lambda r: r.severity_score >= threshold):
+                rec._publish_escalation(
+                    "severity raised to %d (threshold %d)" % (rec.severity_score, threshold)
+                )
         return result
 
-    def action_mitigate(self):
-        for rec in self:
+    def _risk_worker(self):
+        """F19: a project manager, a sponsor or the risk's own owner works a risk.
+        The owner and the sponsor hold no write on the register, so the transition
+        runs as the service role once this check has passed."""
+        self.check_access("read")
+        if self.env.su:
+            return self
+        user = self.env.user
+        if not (user.has_group(PM_GROUP) or user.has_group(SPONSOR_GROUP)):
+            for rec in self:
+                if rec.sudo().owner_id != user:
+                    raise AccessError(
+                        "Risk %s is worked by its owner, a project manager or a sponsor." % rec.name
+                    )
+        return self.sudo()
+
+    def _risk_assert_may_close(self):
+        """F19: a severe risk is not closed by the person whose project carries it."""
+        if self.env.su:
+            return
+        threshold = self._sponsor_close_threshold()
+        for rec in self.sudo().filtered(lambda r: r.severity_score >= threshold):
+            user = self.env.user
+            if user in rec.project_id._ppm_delivery_users() or not user.has_group(SPONSOR_GROUP):
+                raise UserError(
+                    "Risk %s has severity %d: at or above %d a sponsor who does not manage the "
+                    "project closes it." % (rec.name, rec.severity_score, threshold)
+                )
+
+    def action_mitigate(self, mitigation=None):
+        """F4: the button prompts for the mitigation, and this stores it."""
+        for rec in self._risk_worker():
             if rec.state != "open":
                 raise UserError("Only an open risk can move to mitigating")
-            if not (rec.mitigation or "").strip():
+            vals = {"state": "mitigating"}
+            if (mitigation or "").strip():
+                vals["mitigation"] = mitigation.strip()
+            elif not (rec.mitigation or "").strip():
                 raise UserError("Record the mitigation plan before the risk moves to mitigating.")
-            rec._guarded().write({"state": "mitigating"})
+            rec._guarded().write(vals)
 
-    def action_close(self):
-        for rec in self:
+    def action_close(self, mitigation=None):
+        self._risk_assert_may_close()
+        for rec in self._risk_worker():
             if rec.state not in ("open", "mitigating"):
                 raise UserError("This risk is already closed")
-            if not (rec.mitigation or "").strip():
+            vals = {"state": "closed", "closed_on": fields.Date.context_today(rec)}
+            if (mitigation or "").strip():
+                vals["mitigation"] = mitigation.strip()
+            elif not (rec.mitigation or "").strip():
                 raise UserError(
                     "A risk cannot be closed with no mitigation recorded: state what "
                     "was done about it (M67-8)."
                 )
-            rec._guarded().write({"state": "closed", "closed_on": fields.Date.context_today(rec)})
+            rec._guarded().write(vals)
 
     def action_reopen(self):
-        for rec in self:
+        for rec in self._risk_worker():
             if rec.state != "closed":
                 raise UserError("Only a closed risk can be reopened.")
             rec._guarded().write({"state": "open", "closed_on": False})
@@ -526,12 +773,14 @@ class FixProjectRisk(models.Model):
 
     @api.model
     def consume_project_risk_escalated(self, event):
-        """project.risk_escalated: the in-project echo of the M60 hand-off
-        (the enterprise register entry is created by the cd_grc consumer)."""
+        """project.risk_escalated: the in-project echo of the M60 hand-off. This
+        consumer only knows the event left the project. The cd_grc consumer posts
+        on the risk when the register entry exists: live, this echo said
+        "delivered" on all three events while that consumer was dead."""
         risk = self.browse(event.get("aggregate_id") or 0).exists()
         if risk:
             risk.message_post(
-                body="Escalation %s delivered to the enterprise risk register consumers."
-                % event.get("event_id")
+                body="Escalation %s handed to the event relay for the enterprise risk "
+                "register." % event.get("event_id")
             )
         return True

@@ -34,11 +34,15 @@
         <record id="role_r01" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration')] if g])]"/>
         </record>
+        <!-- R-02 carries the CAB seat (N-M28-6): a default for an appointment the business
+             confirms (B-1), so a CAB member arrives through an approved request. -->
         <record id="role_r02" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_itsm.group_itsm_change_manager', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_itsm.group_itsm_change_manager', raise_if_not_found=False), ref('cd_itsm.group_itsm_cab_member', raise_if_not_found=False)] if g])]"/>
         </record>
+        <!-- R-03 does not carry the Administration workspace (the system console): SOD-22 pairs
+             R-03 with R-01 and needs the two sides told apart (E6). -->
         <record id="role_r03" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r04" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration')] if g])]"/>
@@ -103,8 +107,11 @@
         <record id="role_r22" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_party_master')] if g])]"/>
         </record>
+        <!-- R-23 approves what marketing raises: it releases promotions and price changes
+             raised by someone else. SOD-39 pairs it with R-50, which stays on the portal
+             base, so the two sides are told apart (E6). -->
         <record id="role_r23" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_fix_portal_user')] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_rate_card.group_price_releaser', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r24" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_catalogue')] if g])]"/>
@@ -163,8 +170,9 @@
         <record id="role_r32" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_equipment_register.group_quality_manager', raise_if_not_found=False)] if g])]"/>
         </record>
+        <!-- R-33 carries Integration Admin (N-M28-6, default for B-3) and Security Officer. -->
         <record id="role_r33" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_entity_config.group_platform_admin', raise_if_not_found=False), ref('cd_itsm.group_itsm_agent', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_entity_config.group_platform_admin', raise_if_not_found=False), ref('cd_itsm.group_itsm_agent', raise_if_not_found=False), ref('cd_itsm.group_integration_admin', raise_if_not_found=False), ref('group_security_officer')] if g])]"/>
         </record>
         <record id="role_r34" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_fix_portal_user')] if g])]"/>

@@ -27,12 +27,16 @@ def _role(env, code, name=None):
 
 def _user(env, name):
     n = next(_SEQ)
-    return env["res.users"].with_context(no_reset_password=True).create(
-        {
-            "name": "A10 P13 %s %d" % (name, n),
-            "login": "a10p13.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
-            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
-        }
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "A10 P13 %s %d" % (name, n),
+                "login": "a10p13.%s.%d@a10.test" % (name.replace(" ", "").lower(), n),
+                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+            }
+        )
     )
 
 
@@ -54,9 +58,7 @@ def test_employee_role_writes_gate_on_the_full_set(odoo_env):
     counter = _role(env, "R-P13k2", "Inventory Manager")
     viewer = _role(env, "R-P13k3", "Viewer")
     _control(env, "SOD-P13k", keeper, counter)
-    emp = env["hr.employee"].create(
-        {"name": "A10 P13 Keeper", "primary_role_id": keeper.id}
-    )
+    emp = env["hr.employee"].create({"name": "A10 P13 Keeper", "primary_role_id": keeper.id})
     with _rejects(env, ValidationError, match="SoD control SOD-P13k"):
         emp.write({"additional_role_ids": [(4, counter.id)]})
     emp.write({"additional_role_ids": [(4, viewer.id)]})  # a compatible role passes
@@ -78,7 +80,7 @@ def test_the_gate_spans_the_linked_users_group_roles(odoo_env):
     env = odoo_env
     group = env["res.groups"].create({"name": "A10 P13 bridge group"})
     bridge = env["fix.role"].create(
-        {"code": "R-P13g1", "name": "Group Side", "group_id": group.id}
+        {"code": "R-P13g1", "name": "Group Side", "group_ids": [(6, 0, group.ids)]}
     )
     master = _role(env, "R-P13g2", "Employee Side")
     _control(env, "SOD-P13g", bridge, master)
@@ -88,8 +90,12 @@ def test_the_gate_spans_the_linked_users_group_roles(odoo_env):
     env["hr.employee"].create(
         {"name": "A10 P13 Linked", "user_id": other.id, "primary_role_id": master.id}
     )
+    # (by someone who hands out groups: superuser code passes this door and is
+    # recorded on the audit trail, cd_rbac_ext test_superuser_write_is_recorded)
+    admin = _user(env, "Access Admin")
+    admin.write({"group_ids": [(4, env.ref("base.group_erp_manager").id)]})
     with _rejects(env, ValidationError, match="SoD control SOD-P13g"):
-        other.write({"group_ids": [(4, group.id)]})
+        other.with_user(admin).write({"group_ids": [(4, group.id)]})
     # group side first: the user already holds the bridge, so any employee
     # role write for them must surface the same conflict
     linked = _user(env, "Linked")

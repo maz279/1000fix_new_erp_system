@@ -2116,9 +2116,16 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         gl.form.error = null;
         gl.form.unavailable = false;
         try {
+            const formFields = gl.formCfg.sections.flatMap((s) => s.fields);
+            // the status badge reads its field from the loaded values, so it must
+            // be requested even when no section shows it (A12 finish E22)
+            const statusField = gl.formCfg.status && gl.formCfg.status.field;
+            if (statusField && !formFields.some((f) => f.name === statusField)) {
+                formFields.push({ name: statusField, readonly: true });
+            }
             const res = await this.rpc("/p03/model/form", {
                 model: gl.formCfg.model,
-                fields: gl.formCfg.sections.flatMap((s) => s.fields),
+                fields: formFields,
                 record_id: gl.form.recordId || false,
                 // bilingual labels: field/selection text follows the UI language
                 lang: this.state.lang === "bn" ? "bn_BD" : "en_US",

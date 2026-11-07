@@ -5,7 +5,7 @@ access_fix_branch,fix.branch,model_fix_branch,base.group_user,1,0,0,0
 access_fix_branch_admin,fix.branch admin,model_fix_branch,cd_entity_config.group_platform_admin,1,1,1,1
 access_fix_zone,fix.zone,model_fix_zone,base.group_user,1,0,0,0
 access_fix_zone_admin,fix.zone admin,model_fix_zone,cd_entity_config.group_platform_admin,1,1,1,1
-access_fix_geofence,fix.geofence,model_fix_geofence,base.group_user,1,1,1,0
+access_fix_geofence,fix.geofence,model_fix_geofence,base.group_user,1,0,0,0
 access_fix_geofence_admin,fix.geofence admin,model_fix_geofence,cd_entity_config.group_platform_admin,1,1,1,1
 access_fix_working_calendar,fix.working.calendar,model_fix_working_calendar,base.group_user,1,0,0,0
 access_fix_working_calendar_admin,fix.working.calendar admin,model_fix_working_calendar,cd_entity_config.group_platform_admin,1,1,1,1
@@ -24,6 +24,9 @@ access_fix_notification_config,fix.notification.config,model_fix_notification_co
 access_fix_notification_config_admin,fix.notification.config admin,model_fix_notification_config,cd_entity_config.group_platform_admin,1,1,1,1
 access_fix_platform_announcement,fix.platform.announcement,model_fix_platform_announcement,base.group_user,1,0,0,0
 access_fix_platform_announcement_admin,fix.platform.announcement admin,model_fix_platform_announcement,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_platform_announcement_ack,fix.platform.announcement.ack,model_fix_platform_announcement_ack,base.group_user,1,0,0,0
+access_ir_config_parameter_platform_admin,ir.config_parameter platform admin read,base.model_ir_config_parameter,cd_entity_config.group_platform_admin,1,0,0,0
+access_ir_cron_platform_admin,ir.cron platform admin read,base.model_ir_cron,cd_entity_config.group_platform_admin,1,0,0,0
 access_fix_platform_environment,fix.platform.environment,model_fix_platform_environment,base.group_user,1,0,0,0
 access_fix_platform_environment_admin,fix.platform.environment admin,model_fix_platform_environment,cd_entity_config.group_platform_admin,1,1,1,1
 access_fix_platform_release,fix.platform.release,model_fix_platform_release,base.group_user,1,0,0,0
@@ -38,9 +41,9 @@ access_fix_mdm_steward_steward,fix.mdm.steward steward,model_fix_mdm_steward,cd_
 access_fix_mdm_dq_rule,fix.mdm.dq.rule,model_fix_mdm_dq_rule,base.group_user,1,0,0,0
 access_fix_mdm_dq_rule_steward,fix.mdm.dq.rule steward,model_fix_mdm_dq_rule,cd_entity_config.group_mdm_domain_steward,1,1,1,1
 access_fix_mdm_code_list,fix.mdm.code.list,model_fix_mdm_code_list,base.group_user,1,0,0,0
-access_fix_mdm_code_list_steward,fix.mdm.code.list steward,model_fix_mdm_code_list,cd_entity_config.group_mdm_domain_steward,1,1,1,1
+access_fix_mdm_code_list_steward,fix.mdm.code.list steward,model_fix_mdm_code_list,cd_entity_config.group_mdm_domain_steward,1,1,1,0
 access_fix_mdm_code_entry,fix.mdm.code.entry,model_fix_mdm_code_entry,base.group_user,1,0,0,0
-access_fix_mdm_code_entry_steward,fix.mdm.code.entry steward,model_fix_mdm_code_entry,cd_entity_config.group_mdm_domain_steward,1,1,1,1
+access_fix_mdm_code_entry_steward,fix.mdm.code.entry steward,model_fix_mdm_code_entry,cd_entity_config.group_mdm_domain_steward,1,1,1,0
 access_fix_mdm_duplicate,fix.mdm.duplicate,model_fix_mdm_duplicate,base.group_user,1,0,0,0
 access_fix_mdm_duplicate_steward,fix.mdm.duplicate steward,model_fix_mdm_duplicate,cd_entity_config.group_mdm_domain_steward,1,1,1,1
 access_fix_mdm_xref,fix.mdm.xref,model_fix_mdm_xref,base.group_user,1,0,0,0

@@ -30,6 +30,8 @@ from odoo.addons.cd_service_order.controllers.technician_api import _error, _fmt
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 
 def _su_env():
     return request.env(user=SUPERUSER_ID, su=True)
@@ -97,6 +99,7 @@ class BrandApiController(http.Controller):
     """The P08 brand partner portal API (W4 contract)."""
 
     @http.route("/brand/claims", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/brand/claims")
     def claims(self, **kwargs):
         """Combined endpoint: decide when `claim_id`+`decision` are present,
         otherwise list the resolved brand's claims."""
@@ -152,6 +155,7 @@ class BrandApiController(http.Controller):
         return {"claim": {"id": claim.id, "claim_no": claim.claim_no, "state": claim.state}}
 
     @http.route("/brand/claims/status", type="jsonrpc", auth="bearer", readonly=True)
+    @api_edge("/brand/claims/status")
     def claim_status(self, **kwargs):
         """Single-claim status (webhook-fed path shape: claim_no + brand)."""
         brand, err = resolve_brand(kwargs)
@@ -183,6 +187,7 @@ class BrandApiController(http.Controller):
         }
 
     @http.route("/brand/claims/webhook", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/brand/claims/webhook")
     def claim_webhook(self, **kwargs):
         """T05: Inbound claim-status webhook for brand partner systems."""
         brand, err = resolve_brand(kwargs)
@@ -226,6 +231,7 @@ class BrandApiController(http.Controller):
         }
 
     @http.route("/brand/reconciliation", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/brand/reconciliation")
     def reconciliation(self, **kwargs):
         """Combined endpoint: record a remittance when `bank_ref` is
         present, otherwise the reconciliation view (T08: mismatches are

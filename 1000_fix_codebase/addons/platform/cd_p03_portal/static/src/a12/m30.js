@@ -5,8 +5,9 @@
 export const MODULE = {
   area: 'A12', code: 'M30', en: 'Platform Administration', title: 'M30 · Platform Administration',
   bn: 'প্ল্যাটফর্ম প্রশাসন', icon: '🛠️',
-  desc: 'Branch registry and entity structure, configuration parameters with drift review, feature flag rollout, working calendars and holidays, zones and geofences, and platform announcements.',
+  desc: 'Branch registry and entity structure, configuration parameter and job inventories, feature flag rollout, working calendars and holidays, zones, and platform announcements. The config and job screens are inventories: no config registry, promotion or job registry is built yet.',
   kpis: [
+    { l: 'Rulings Awaiting Countersignature', m: 'dofa_awaiting_countersign' },
     { l: 'Branches Active', m: 'branches_active' },
     { l: 'Branches Total', m: 'branches' },
     { l: 'Flags Enabled', m: 'flags_on' },
@@ -16,27 +17,28 @@ export const MODULE = {
   groups: [
     { en: 'Registry Completion', screens: [
       { id: 'M30-provisioning', en: 'Branch Provisioning (<1d)', bn: 'Branch Provisioning (<1d)', t: 'g' },
-      { id: 'M30-params', en: 'Parameter Registry', bn: 'Parameter Registry', t: 'g' },
-      { id: 'M30-jobs', en: 'Scheduled Job Registry', bn: 'Scheduled Job Registry', t: 'g' },
+      { id: 'M30-params', en: 'Parameter Registry (Inventory Only)', bn: 'Parameter Registry', t: 'g' },
+      { id: 'M30-jobs', en: 'Scheduled Job Registry (Inventory Only)', bn: 'Scheduled Job Registry', t: 'g' },
       { id: 'M30-health', en: 'Platform Health Console', bn: 'Platform Health Console', t: 'g' },
       { id: 'M30-env', en: 'Environments', bn: 'Environments', t: 'g' },
-      { id: 'M30-backup', en: 'Backup & DR', bn: 'Backup & DR', t: 'g' },
+      { id: 'M30-backup', en: 'Backup & DR (Customer Plans)', bn: 'Backup & DR', t: 'g' },
       { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' }
     ]},
     { en: 'Structure', screens: [
       { id: 'M30-branches', en: 'Branch Register (53)', bn: 'শাখা রেজিস্টার', t: 'g' },
       { id: 'M30-entities', en: 'Legal Entities', bn: 'প্রতিষ্ঠান', t: 'g' },
       { id: 'M30-zones', en: 'Dispatch Zones', bn: 'জোন', t: 'g' },
-      { id: 'M30-calendars', en: 'Calendars & Shifts', bn: 'ক্যালেন্ডার', t: 'g' }
+      { id: 'M30-calendars', en: 'Calendars & Shifts', bn: 'ক্যালেন্ডার', t: 'g' },
+      { id: 'M30-calendar-holidays', en: 'Calendar Holidays', bn: 'ক্যালেন্ডার ছুটি', t: 'g' }
     ]},
     { en: 'Configuration', screens: [
-      { id: 'M30-config', en: 'Config Parameters', bn: 'কনফিগ', t: 'g' },
+      { id: 'M30-config', en: 'Config Parameters (Inventory Only)', bn: 'কনফিগ', t: 'g' },
       { id: 'M30-flags', en: 'Feature Flags & Kill Switches', bn: 'ফিচার ফ্ল্যাগ', t: 'g' },
-      { id: 'M30-drift', en: 'Config Drift Review', bn: 'ড্রিফট', t: 'r' }
+      { id: 'M30-drift', en: 'Config Drift Review (Inventory, No Drift Computed)', bn: 'ড্রিফট', t: 'r' }
     ]},
     { en: 'Comms', screens: [
       { id: 'M30-announcements', en: 'System Announcements', bn: 'ঘোষণা', t: 'g' },
-      { id: 'M30-notif', en: 'Notification Config', bn: 'নোটিফিকেশন', t: 'g' }
+      { id: 'M30-notif', en: 'Notification Config (Policy Record)', bn: 'নোটিফিকেশন', t: 'g' }
     ]},
     { en: 'Approval Authority (DOFA)', bn: 'অনুমোদন কর্তৃত্ব', screens: [
       { id: 'M30-dofa-rulings', en: 'Open DOFA Rulings', bn: 'অমীমাংসিত অনুমোদন সিদ্ধান্ত', t: 'r' },
@@ -61,14 +63,27 @@ export const MODULE = {
 export const SCREENS = {
   'M30-rpt-jobs': { kind: 'table_report', module: 'M30', report: 'job_success_rate',
     title: 'Job Success Rate', period: false },
-  'M30-branches': { kind: 'model_list', model: 'fix.branch',
-    cols: ['name', 'code', 'entity_id', 'zone_id', 'active'] },
+  'M30-branches': { kind: 'model_list', model: 'fix.branch', stateField: 'state',
+    cols: ['name', 'code', 'entity_id', 'zone_id', 'manager_id', 'state', 'active'],
+    actions: [
+      { m: 'action_go_live', l: 'Go Live' },
+      { m: 'action_suspend', l: 'Suspend', ask: 'Why is this branch being suspended?', kwarg: 'reason' },
+      { m: 'action_request_closure', l: 'Request Closure', ask: 'Why is this branch closing? A second Platform Admin must confirm.', kwarg: 'reason' },
+      { m: 'action_confirm_closure', l: 'Confirm Closure (second person)' }
+    ] },
   'M30-entities': { kind: 'model_list', model: 'fix.entity',
     cols: ['code', 'legal_name', 'legal_name_bn', 'active'] },
   'M30-zones': { kind: 'model_list', model: 'fix.zone',
     cols: ['code', 'name', 'name_bn', 'active'] },
   'M30-calendars': { kind: 'model_list', model: 'fix.working.calendar',
-    cols: ['name', 'active'] },
+    cols: ['name', 'branch_id', 'pending_closure_name', 'pending_closure_from', 'pending_closure_to', 'active'],
+    actions: [
+      { m: 'action_propose_closure', l: 'Propose Long Closure',
+        asks: [{ label: 'Closure name', kwarg: 'name' }, { label: 'First day (YYYY-MM-DD)', kwarg: 'date_from' }, { label: 'Last day (YYYY-MM-DD)', kwarg: 'date_to' }] },
+      { m: 'action_confirm_closure', l: 'Confirm Closure (second person)' }
+    ] },
+  'M30-calendar-holidays': { kind: 'model_list', model: 'fix.working.calendar.holiday',
+    cols: ['calendar_id', 'name', 'name_bn', 'date_from', 'date_to', 'pack_line_id'] },
   // Parameters are provisioned by platform administrators (deployment config,
   // not ad-hoc master data); this screen is a read-only inventory.
   'M30-config': { kind: 'model_list', model: 'ir.config_parameter', create: false,
@@ -77,8 +92,8 @@ export const SCREENS = {
     cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'] },
   'M30-drift': { kind: 'table_report', module: 'M30', report: 'config_drift', title: 'Config Drift Review', period: false },
   'M30-announcements': { kind: 'model_list', model: 'fix.platform.announcement', stateField: 'state',
-    cols: ['name', 'severity', 'audience', 'publish_on', 'expires_on', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish' }, { m: 'action_retire', l: 'Retire' }] },
+    cols: ['name', 'kind', 'severity', 'audience', 'publish_on', 'expires_on', 'published_by_id', 'acknowledged_count', 'acknowledged_by_me', 'state'],
+    actions: [{ m: 'action_publish', l: 'Publish (second person)' }, { m: 'action_retire', l: 'Retire' }, { m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M30-notif': { kind: 'model_list', model: 'fix.notification.config',
     cols: ['name', 'consent_class', 'channel', 'frequency_cap'] },
 
@@ -93,15 +108,24 @@ export const SCREENS = {
     model: 'fix.branch',
     title: 'Branch',
     back: 'M30-branches',
+    status: { field: 'state', labels: { provisioning: 'Provisioning', live: 'Live', suspended: 'Suspended', closed: 'Closed' } },
     sections: [
-      { title: 'Branch', note: 'The branch master every picker reads. The entity roll-up drives multi-entity reporting (M65).',
+      { title: 'Branch', note: 'The branch master every picker reads. The entity roll-up drives multi-entity reporting (M65). A branch moves through Go Live, Suspend and a two-person closure on the list screen; it is never closed by a toggle.',
         fields: [
           { name: 'name', required: true, label: 'Branch Name' },
+          { name: 'name_bn', label: 'Branch Name (Bengali)' },
           { name: 'code', required: true, label: 'Branch Code' },
           { name: 'entity_id', required: true, label: 'Legal Entity' },
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'zone_id', label: 'Zone' },
-          { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'active', label: 'Active' }
+          { name: 'address_id', label: 'Address' }
+        ] },
+      { title: 'Contact & Calendar', note: 'The working calendar is what SLA clocks resolve through. Manager and calendar changes leave an audit row, and you cannot appoint yourself manager.',
+        fields: [
+          { name: 'manager_id', label: 'Branch Manager' },
+          { name: 'calendar_id', label: 'Working Calendar' },
+          { name: 'phone', label: 'Phone' },
+          { name: 'email', label: 'Email' }
         ] }
     ]
   },
@@ -112,12 +136,13 @@ export const SCREENS = {
     title: 'Feature Flag',
     back: 'M30-flags',
     sections: [
-      { title: 'Feature Flag', note: 'The key gates the feature; scope decides who evaluates it. Enabled flags are live immediately.',
+      { title: 'Feature Flag', note: 'The key gates the feature; scope decides who evaluates it. Enabled flags are live immediately. Only a key the code really reads can be registered, and today that is one kill switch: new capabilities do not yet ship behind flags. Enabled Branches applies only to the Per Branch scope.',
         fields: [
           { name: 'key', required: true, label: 'Flag Key' },
           { name: 'name', required: true, label: 'Description' },
           { name: 'enabled', label: 'Enabled' },
           { name: 'scope', required: true, label: 'Scope' },
+          { name: 'branch_ids', label: 'Enabled Branches' },
           { name: 'default_for_new', label: 'Default for New Branches' }
         ] }
     ]
@@ -130,13 +155,15 @@ export const SCREENS = {
     back: 'M30-announcements',
     status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
     sections: [
-      { title: 'Announcement', note: 'Draft → published → retired. Publishing is the action button on the list screen — the state is never typed in (an announcement is published by decision, not by save). The expiry date retires it from the live count automatically.',
+      { title: 'Announcement', note: 'Draft → published → retired. A second Platform Admin publishes from the list screen: the author cannot. Planned maintenance needs its start time and 72 hours of lead. Users acknowledge on the list screen; that screen is the only place an announcement appears, because no banner pushes it to other screens.',
         fields: [
           { name: 'name', required: true, label: 'Title' },
+          { name: 'kind', required: true, label: 'Kind' },
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'audience', required: true, label: 'Audience' },
           { name: 'publish_on', required: true, label: 'Publish On' },
-          { name: 'expires_on', label: 'Expires On' }
+          { name: 'expires_on', label: 'Expires On' },
+          { name: 'maintenance_start', label: 'Maintenance Starts' }
         ] },
       { title: 'Body', fields: [
           { name: 'body', type: 'text', label: 'Message' }
@@ -149,13 +176,29 @@ export const SCREENS = {
     model: 'fix.entity',
     title: 'Legal Entity',
     back: 'M30-entities',
+    tabs: [
+      { id: 'identity', label: '1. Entity', bn: '১. প্রতিষ্ঠান', icon: '🏢' },
+      { id: 'statutory', label: '2. Statutory', bn: '২. বিধিবদ্ধ', icon: '📜' }
+    ],
     sections: [
-      { title: 'Entity', note: 'A legal company of the group; branches roll up to entities.',
+      { tab: 'identity', title: 'Entity', note: 'A legal company of the group; branches roll up to entities. The company is set when the entity is created and cannot then be moved.',
         fields: [
           { name: 'code', required: true, label: 'Entity Code' },
           { name: 'legal_name', required: true, label: 'Legal Name' },
           { name: 'legal_name_bn', label: 'Legal Name (Bengali)' },
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'operating_unit_id', label: 'Primary Operating Unit' },
+          { name: 'country_id', required: true, label: 'Country' },
+          { name: 'currency_id', label: 'Currency' },
           { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'statutory', title: 'Statutory Registration', note: 'Record the real NBR registrations: the format is checked, whether a number is genuine is not. Changing the VAT due day or calendar rule moves a statutory date, so it also needs a finance manager. Every change here is tracked and audited.',
+        fields: [
+          { name: 'bin_number', label: 'BIN (13 digits)' },
+          { name: 'tin_number', label: 'e-TIN (12 digits)' },
+          { name: 'vat_statutory_day', label: 'VAT Due Day of Month' },
+          { name: 'statutory_calendar_rule', required: true, label: 'Tax Calendar Rule' },
+          { name: 'incorporation_date', label: 'Incorporation Date' }
         ] }
     ]
   },
@@ -165,8 +208,18 @@ export const SCREENS = {
     model: 'fix.working.calendar',
     title: 'Working Calendar',
     back: 'M30-calendars',
+    lines: {
+      field: 'line_ids',
+      title: 'Working Hours',
+      note: 'One window per weekday, local Dhaka time. Every change leaves an audit row.',
+      fields: [
+        { name: 'weekday', label: 'Weekday', required: true },
+        { name: 'hour_from', label: 'From (hour)', required: true },
+        { name: 'hour_to', label: 'To (hour)', required: true }
+      ]
+    },
     sections: [
-      { title: 'Calendar', note: 'Working lines and holidays are held on the calendar; attendance, SLA and payroll windows read it.',
+      { title: 'Calendar', note: 'Attendance, SLA and payroll windows read this calendar. Holidays are on the Calendar Holidays screen; a closure longer than the direct limit is proposed here on the list screen and confirmed by a second Platform Admin.',
         fields: [
           { name: 'name', required: true, label: 'Calendar Name' },
           { name: 'template_id', label: 'Template' },
@@ -183,7 +236,7 @@ export const SCREENS = {
     title: 'Notification Configuration',
     back: 'M30-notif',
     sections: [
-      { title: 'Consent & Channel', note: 'One configuration per consent class and channel; the frequency cap is enforced on send.',
+      { title: 'Consent & Channel', note: 'One configuration per consent class and channel. This register records the NT-003 policy and keeps it consistent (class window, caps, BD-02 route). The notification dispatcher reads its own registry file, not this screen, so a change here does not by itself change what is sent.',
         fields: [
           { name: 'consent_class', required: true, label: 'Consent Class' },
           { name: 'channel', required: true, label: 'Channel' },
@@ -207,6 +260,7 @@ export const SCREENS = {
           { name: 'code', required: true, label: 'Zone Code' },
           { name: 'name', required: true, label: 'Zone Name' },
           { name: 'name_bn', label: 'Zone Name (Bengali)' },
+          { name: 'description', label: 'Description' },
           { name: 'active', label: 'Active' }
         ] }
     ]
@@ -217,9 +271,20 @@ export const SCREENS = {
   'M30-params': { kind: 'model_list', model: 'ir.config_parameter', create: false, cols: ['key', 'create_date', 'write_date'] },
   'M30-jobs': { kind: 'model_list', model: 'ir.cron', create: false, cols: ['name', 'active', 'interval_number', 'nextcall'] },
   'M30-health': { kind: 'table_report', module: 'M30', report: 'platform_health', title: 'Platform Health Console', period: false },
-  'M30-env': { kind: 'model_list', model: 'fix.platform.environment', stateField: 'state', cols: ['name', 'kind', 'base_url', 'release_channel', 'data_residency', 'state'] },
-  'M30-backup': { kind: 'model_list', model: 'fix.data.backup.plan', create: false, cols: ['name', 'state'] },
-  'M30-release': { kind: 'model_list', model: 'fix.platform.release', stateField: 'state', cols: ['version', 'name', 'environment_id', 'planned_on', 'released_on', 'state'], actions: [{ m: 'action_release', l: 'Release' }] },
+  'M30-env': { kind: 'model_list', model: 'fix.platform.environment', stateField: 'state', cols: ['name', 'kind', 'base_url', 'release_channel', 'data_residency', 'masking_state', 'state'],
+    actions: [
+      { m: 'action_go_live', l: 'Go Live' },
+      { m: 'action_mark_degraded', l: 'Mark Degraded', ask: 'What is degraded?', kwarg: 'reason' },
+      { m: 'action_take_offline', l: 'Take Offline', ask: 'Why is this environment going offline?', kwarg: 'reason' },
+      { m: 'action_record_masking', l: 'Record Masking Evidence', ask: 'The run, ticket or report that shows personal data is masked', kwarg: 'evidence' }
+    ] },
+  'M30-backup': { kind: 'model_list', model: 'fix.data.backup.plan', create: false, cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'rto_hours'] },
+  'M30-release': { kind: 'model_list', model: 'fix.platform.release', stateField: 'state', cols: ['version', 'name', 'environment_id', 'itsm_change_id', 'planned_on', 'released_on', 'released_by_id', 'state'],
+    actions: [
+      { m: 'action_start_test', l: 'Start Test' },
+      { m: 'action_release', l: 'Release (second person)' },
+      { m: 'action_rollback', l: 'Roll Back', ask: 'Why is this release being rolled back?', kwarg: 'reason' }
+    ] },
 
 
   /* ===== registry completion forms ===== */
@@ -230,7 +295,7 @@ export const SCREENS = {
     back: 'M30-env',
     status: { field: 'state', labels: { provisioning: "Provisioning", live: "Live", degraded: "Degraded", offline: "Offline" } },
     sections: [
-      { title: "Environment", note: "Each environment states its URL, database, release channel and data residency. Production and DR are separate rows, not labels. The state column is operational fact (badge only) — an environment goes live through provisioning, not a form save.",
+      { title: "Environment", note: "Each environment states its URL, database, release channel and data residency. Production and DR are separate rows, not labels. A new environment starts in Provisioning and moves through the actions on the list screen. A dev or staging copy goes live only after a second person records masking evidence; this system records that statement and does not inspect the data.",
         fields: [
           { name: 'name', required: true, label: "Environment Name" },
           { name: 'kind', required: true, label: "Kind" },
@@ -239,7 +304,26 @@ export const SCREENS = {
           { name: 'release_channel', required: true, label: "Release Channel" },
           { name: 'data_residency', label: "Data Residency" },
           { name: 'owner_id', label: "Owner" },
-          { name: 'notes', type: 'text', label: "Notes" }
+          { name: 'notes', type: 'text', label: "Notes" },
+          { name: 'masking_state', readonly: true, label: "Data Masking" },
+          { name: 'masking_evidence', readonly: true, label: "Masking Evidence" },
+          { name: 'masking_recorded_by_id', readonly: true, label: "Evidence Recorded By" }
+        ] }
+    ]
+  },
+  'M30-form-holiday': {
+    kind: 'model_form',
+    model: 'fix.working.calendar.holiday',
+    title: 'Calendar Holiday',
+    back: 'M30-calendar-holidays',
+    sections: [
+      { title: 'Holiday', note: 'A holiday stops the SLA clock, so each change leaves an audit row. A closure longer than the direct limit (default 3 days) is refused here: propose it on the calendar and a second Platform Admin confirms it. National holidays come from a certified country pack.',
+        fields: [
+          { name: 'calendar_id', required: true, label: 'Calendar' },
+          { name: 'name', required: true, label: 'Holiday' },
+          { name: 'name_bn', label: 'Holiday (Bengali)' },
+          { name: 'date_from', required: true, label: 'From' },
+          { name: 'date_to', required: true, label: 'To' }
         ] }
     ]
   },
@@ -250,15 +334,18 @@ export const SCREENS = {
     back: 'M30-release',
     status: { field: 'state', labels: { planned: "Planned", in_test: "In Test", released: "Released", rolled_back: "Rolled Back" } },
     sections: [
-      { title: "Release", note: "Releasing is the action on the list screen and requires the rollback plan and the linked approved change first — the model refuses otherwise. The state badge is fact, not a field.",
+      { title: "Release", note: "Releasing is the action on the list screen. It needs a target environment, the rollback plan and an approved change that has not shipped in another release, and a person other than the creator or owner presses it. Once released, this record is frozen.",
         fields: [
-          { name: 'version', required: true, readonly: true, label: "Version" },
-          { name: 'name', required: true, readonly: true, label: "Release Name" },
-          { name: 'environment_id', readonly: true, label: "Target Environment" },
+          { name: 'version', required: true, label: "Version" },
+          { name: 'name', required: true, label: "Release Name" },
+          { name: 'environment_id', label: "Target Environment" },
           { name: 'planned_on', required: true, label: "Planned On" },
-          { name: 'owner_id', readonly: true, label: "Release Owner" },
+          { name: 'owner_id', label: "Release Owner" },
           { name: 'itsm_change_id', label: "Approved Change (M66)" },
-          { name: 'rollback_plan', type: 'text', label: "Rollback Plan" }
+          { name: 'change_summary', type: 'text', label: "Change Summary" },
+          { name: 'rollback_plan', type: 'text', label: "Rollback Plan" },
+          { name: 'released_by_id', readonly: true, label: "Released By" },
+          { name: 'rolled_back_reason', readonly: true, label: "Rollback Reason" }
         ] }
     ]
   },
@@ -266,20 +353,23 @@ export const SCREENS = {
 
   /* ==================================================================
    * Approval authority (DOFA) — the ladders as governed configuration.
-   * Putting one in force IS the ruling, which is why it needs a stated
-   * authority and is tracked on the record.
+   * A ruling is two acts by two people: a Tier 4 holder proposes, the named
+   * Tier 5 holder countersigns. Only the countersignature puts it in force.
    * ================================================================== */
   'M30-dofa-rulings': { kind: 'table_report', module: 'M30', report: 'open_dofa_rulings',
     title: 'Open DOFA Rulings', period: false },
   'M30-dofa-coverage': { kind: 'table_report', module: 'M30', report: 'dofa_coverage',
     title: 'DOFA Coverage (one DoA)', period: false },
-  'M30-dofa-ladders': { kind: 'model_list', model: 'fix.dofa.ladder', create: true,
-    cols: ['target_model', 'name', 'basis', 'matches_implementation', 'in_force', 'ruled_by', 'ruled_at', 'ruling_reference'],
+  'M30-dofa-ladders': { kind: 'model_list', model: 'fix.dofa.ladder', create: true, stateField: 'ruling_state',
+    cols: ['target_model', 'name', 'basis', 'version', 'matches_implementation', 'ruling_state', 'proposed_by', 'countersigned_by', 'ruled_by', 'ruled_at', 'ruling_reference', 'proposed_reference'],
     actions: [
-      { m: 'action_put_in_force', l: 'Put In Force (ruling)',
-        ask: 'Ruling reference (minute / memo number)', kwarg: 'reference' }
+      { m: 'action_propose_ruling', l: 'Propose Ruling (Tier 4)',
+        ask: 'Ruling reference (minute / memo number). Choose the countersigner on the ladder form first.', kwarg: 'reference' },
+      { m: 'action_countersign', l: 'Countersign (named Tier 5)',
+        ask: 'Ruling reference: restate exactly what was proposed', kwarg: 'reference' },
+      { m: 'action_withdraw_ruling', l: 'Withdraw / Decline', ask: 'Why is this proposal being withdrawn?', kwarg: 'reason' }
     ],
-    note: 'Exactly one ladder per model may be in force. With none in force the model keeps its own coded default, so behaviour is unchanged until somebody rules. Ruling needs a stated authority and TWO different authority holders (acting + countersigning, Tier 4 and Tier 5).' },
+    note: 'Exactly one ladder per model may be in force. With none in force the model keeps its own coded default, so behaviour is unchanged until somebody rules. A ruling is a Tier 4 proposal plus a Tier 5 countersignature, by two different people, each from their own session.' },
   'M30-dofa-bands': { kind: 'model_list', model: 'fix.dofa.threshold', create: true,
     cols: ['ladder_id', 'upper_bound', 'tier', 'note'],
     note: 'Each band is an inclusive upper bound and the tier that applies at or below it.' },
@@ -296,7 +386,7 @@ export const SCREENS = {
     },
     kind: 'model_form', model: 'fix.dofa.ladder',
     title: 'DOFA Authority Ladder', back: 'M30-dofa-ladders',
-    status: { field: 'in_force', labels: { true: 'In Force', false: 'Not in force' } },
+    status: { field: 'ruling_state', labels: { draft: 'Draft', proposed: 'Awaiting Countersignature', in_force: 'In Force', superseded: 'Superseded' } },
     tabs: [
       { id: 'identity', label: '1. Ladder', bn: '১. ল্যাডার', icon: '⚖️' },
       { id: 'ruling', label: '2. Ruling', bn: '২. সিদ্ধান্ত', icon: '✍️' }
@@ -310,20 +400,41 @@ export const SCREENS = {
           { name: 'name', label: 'Ladder Name', required: true },
           { name: 'target_model', label: 'Governs Model', required: true },
           { name: 'basis', label: 'Basis', required: true },
+          { name: 'version', readonly: true, label: 'Version' },
           { name: 'matches_implementation', label: 'Matches Current Code (fact, not a ruling)' }
         ]
       },
       {
         tab: 'ruling',
         title: 'The Ruling',
-        note: 'Putting a ladder in force changes who may approve what. The ruling itself is made by the Put In Force action on the ladders screen — it asks for the authorising minute or memo, needs two different authority holders (Tier 4 acting, Tier 5 in the pair, the countersigner recorded here), and stamps who ruled and when. Nothing on this tab is typed in.',
+        note: 'A ruling changes who may approve what, so it takes two people. Choose the Tier 5 countersigner here and save. A Tier 4 holder then presses Propose Ruling on the ladders screen and cites the minute or memo. The ladder is NOT in force until the named countersigner presses Countersign from their own login and restates the authority. Everything below the picker is stamped by the system.',
         fields: [
-          { name: 'countersigned_by', label: 'Countersigning Authority' },
+          { name: 'countersigner_choice', label: 'Countersigning Authority (Tier 5 holders)' },
+          { name: 'proposed_by', readonly: true, label: 'Proposed By' },
+          { name: 'proposed_at', readonly: true, label: 'Proposed At' },
+          { name: 'proposed_reference', readonly: true, label: 'Proposed Authority' },
+          { name: 'countersigned_by', readonly: true, label: 'Countersigner' },
+          { name: 'countersigned_at', readonly: true, label: 'Countersigned At (only when they acted)' },
           { name: 'ruling_reference', readonly: true, label: 'Authority (minute / memo)' },
           { name: 'ruled_by', readonly: true, label: 'Ruled By' },
-          { name: 'ruled_at', readonly: true, label: 'Ruled At' }
+          { name: 'ruled_at', readonly: true, label: 'Ruled At' },
+          { name: 'superseded_by_id', readonly: true, label: 'Superseded By' },
+          { name: 'superseded_at', readonly: true, label: 'Superseded At' }
         ]
       }
+    ]
+  },
+  'M30-form-dofa-band': {
+    kind: 'model_form', model: 'fix.dofa.threshold',
+    title: 'Ladder Band', back: 'M30-dofa-bands',
+    sections: [
+      { title: 'Band', note: 'An inclusive upper bound and the tier required at or below it. The bands of a proposed or ruled ladder are frozen: an amendment is a new ladder.',
+        fields: [
+          { name: 'ladder_id', required: true, label: 'Ladder' },
+          { name: 'upper_bound', required: true, label: 'Up To (inclusive)' },
+          { name: 'tier', required: true, label: 'Tier Required' },
+          { name: 'note', label: 'Note' }
+        ] }
     ]
   },
 };
@@ -368,7 +479,10 @@ export const FORM_CHIPS = {
     'fix.entity': 'M30-form-entity',
     'fix.zone': 'M30-form-zone',
     'fix.working.calendar': 'M30-form-calendar',
-    'fix.notification.config': 'M30-form-notif'
+    'fix.working.calendar.holiday': 'M30-form-holiday',
+    'fix.notification.config': 'M30-form-notif',
+    'fix.dofa.ladder': 'M30-form-dofa-ladder',
+    'fix.dofa.threshold': 'M30-form-dofa-band'
   },
   'M30:__by_screen__': {
     'M30-env': 'M30-form-env',
@@ -379,7 +493,10 @@ export const FORM_CHIPS = {
     'M30-entities': 'M30-form-entity',
     'M30-zones': 'M30-form-zone',
     'M30-calendars': 'M30-form-calendar',
-    'M30-notif': 'M30-form-notif'
+    'M30-calendar-holidays': 'M30-form-holiday',
+    'M30-notif': 'M30-form-notif',
+    'M30-dofa-ladders': 'M30-form-dofa-ladder',
+    'M30-dofa-bands': 'M30-form-dofa-band'
   }
 };
 

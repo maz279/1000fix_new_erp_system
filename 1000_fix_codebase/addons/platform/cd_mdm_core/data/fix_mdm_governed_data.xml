@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A12 finish audit B4 (lead default, configurable): the governed-attribute
+     register. A change request may write these and nothing else. Block Direct
+     Edits ships ON for bank and tax, OFF for contact, credit and product, so
+     ordinary contact entry keeps working. A Platform Admin maintains it on the
+     M64 Governed Attributes screen. noupdate: an edited row survives an upgrade.
+     Payment-term rows wait for `account` to be installed: they are ignored until
+     the field exists. -->
+<odoo>
+    <data noupdate="1">
+        <record id="gov_partner_name" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">name</field>
+            <field name="category">contact</field>
+        </record>
+        <record id="gov_partner_phone" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">phone</field>
+            <field name="category">contact</field>
+        </record>
+        <record id="gov_partner_email" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">email</field>
+            <field name="category">contact</field>
+        </record>
+        <record id="gov_partner_vat" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">vat</field>
+            <field name="category">tax</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_partner_company_registry" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">company_registry</field>
+            <field name="category">tax</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_partner_credit_limit" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">credit_limit</field>
+            <field name="category">credit</field>
+        </record>
+        <record id="gov_partner_payment_term" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">property_payment_term_id</field>
+            <field name="category">credit</field>
+        </record>
+        <record id="gov_partner_supplier_payment_term" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner</field>
+            <field name="field_name">property_supplier_payment_term_id</field>
+            <field name="category">credit</field>
+        </record>
+
+        <record id="gov_bank_acc_number" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner.bank</field>
+            <field name="field_name">acc_number</field>
+            <field name="category">bank</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_bank_bank" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner.bank</field>
+            <field name="field_name">bank_id</field>
+            <field name="category">bank</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_bank_holder" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner.bank</field>
+            <field name="field_name">acc_holder_name</field>
+            <field name="category">bank</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_bank_owner" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner.bank</field>
+            <field name="field_name">partner_id</field>
+            <field name="category">bank</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+        <record id="gov_bank_routing" model="fix.mdm.governed.attribute">
+            <field name="model_name">res.partner.bank</field>
+            <field name="field_name">fix_routing_number</field>
+            <field name="category">bank</field>
+            <field name="block_direct_edit" eval="True"/>
+        </record>
+
+        <record id="gov_product_name" model="fix.mdm.governed.attribute">
+            <field name="model_name">product.template</field>
+            <field name="field_name">name</field>
+            <field name="category">product</field>
+        </record>
+        <record id="gov_product_name_bn" model="fix.mdm.governed.attribute">
+            <field name="model_name">product.template</field>
+            <field name="field_name">name_bn</field>
+            <field name="category">product</field>
+        </record>
+        <record id="gov_product_default_code" model="fix.mdm.governed.attribute">
+            <field name="model_name">product.template</field>
+            <field name="field_name">default_code</field>
+            <field name="category">product</field>
+        </record>
+        <record id="gov_product_list_price" model="fix.mdm.governed.attribute">
+            <field name="model_name">product.template</field>
+            <field name="field_name">list_price</field>
+            <field name="category">product</field>
+        </record>
+        <record id="gov_product_category" model="fix.mdm.governed.attribute">
+            <field name="model_name">product.template</field>
+            <field name="field_name">categ_id</field>
+            <field name="category">product</field>
+        </record>
+    </data>
+</odoo>

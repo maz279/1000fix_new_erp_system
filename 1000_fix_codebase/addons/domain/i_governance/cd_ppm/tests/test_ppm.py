@@ -26,6 +26,18 @@ def _events(env, event_type, aggregate_id):
     return [json.loads(e.payload) for e in env["fix.event.outbox"].search(domain, order="id")]
 
 
+def _ready_for_activation(env, project):
+    """The entry conditions of F12 and F17, as the superuser."""
+    if not project.manager_id:
+        project.manager_id = env["hr.employee"].create({"name": "PPM Test Manager"})
+    for key in ("g1_initiation", "g2_planning"):
+        gate = env["fix.project.gate"].create({"project_id": project.id, "gate": key})
+        gate.action_record_decision("pass", checklist_passed=True)
+        gate.action_hold()
+        gate.action_close()
+    return project
+
+
 def _billing(env, project, **extra):
     vals = {
         "project_id": project.id,
@@ -45,8 +57,10 @@ def test_project_types_states_and_relations(odoo_env):
         project = odoo_env["fix.project"].create({"name": "P-%s" % ptype, "project_type": ptype})
         assert project.project_type == ptype
         assert project.state == "draft"
-    project = odoo_env["fix.project"].create({"name": "Ledger move", "project_type": "client"})
-    project.action_activate()
+    project = odoo_env["fix.project"].create(
+        {"name": "Ledger move", "project_type": "client", "contract_value": 1000.0}
+    )
+    _ready_for_activation(odoo_env, project).action_activate()
     assert project.state == "active"
     project.action_hold()
     assert project.state == "on_hold"
@@ -104,7 +118,7 @@ def test_template_instantiation_carries_plan(odoo_env):
 
 def test_progress_recomputed_by_consumer(odoo_env):
     project = odoo_env["fix.project"].create({"name": "Rollout"})
-    project.action_activate()
+    _ready_for_activation(odoo_env, project).action_activate()
     ms1 = odoo_env["fix.project.milestone"].create({"project_id": project.id, "name": "Phase 1"})
     odoo_env["fix.project.milestone"].create({"project_id": project.id, "name": "Phase 2"})
     ms1.action_accept("Signed")
@@ -132,7 +146,9 @@ def test_billing_ceiling_and_cross_project_milestone(odoo_env):
 
 
 def test_mark_ready_needs_accepted_milestone_and_freezes_terms(odoo_env):
-    project = odoo_env["fix.project"].create({"name": "Billable"})
+    project = odoo_env["fix.project"].create({"name": "Billable", "budget": 5000.0})
+    project.sudo()._guarded().write({"dofa_approved": True, "dofa_approved_tier": "tier_2"})
+    _ready_for_activation(odoo_env, project).action_activate()
     milestone = odoo_env["fix.project.milestone"].create(
         {"project_id": project.id, "name": "Delivery"}
     )
@@ -174,9 +190,14 @@ def test_mark_ready_needs_accepted_milestone_and_freezes_terms(odoo_env):
         line_pm.write({"customer_id": odoo_env["res.partner"].create({"name": "Other"}).id})
 
 
-def test_mark_invoiced_creates_the_real_invoice(odoo_env):
-    # M67-1: "invoiced" without an invoice is fiction.
-    project = odoo_env["fix.project"].create({"name": "Invoice me"})
+def test_mark_invoiced_posts_the_real_invoice(odoo_env):
+    # M67-1, F6: "invoiced" without a POSTED invoice is fiction. The old test
+    # asserted the draft (the defect); test_a12f_m67_finish walks this on the
+    # linked chart as the real roles.
+    odoo_env.company.partner_id.vat = "1234567890123"
+    project = odoo_env["fix.project"].create({"name": "Invoice me", "budget": 5000.0})
+    project.sudo()._guarded().write({"dofa_approved": True, "dofa_approved_tier": "tier_2"})
+    _ready_for_activation(odoo_env, project).action_activate()
     milestone = odoo_env["fix.project.milestone"].create(
         {"project_id": project.id, "name": "Delivery"}
     )
@@ -186,20 +207,13 @@ def test_mark_invoiced_creates_the_real_invoice(odoo_env):
     with pytest.raises(UserError, match="Only a ready"), odoo_env.cr.savepoint():
         line.action_mark_invoiced()
     line.action_mark_ready()
-    journals = (
-        odoo_env["account.journal"]
-        .sudo()
-        .search([("type", "=", "sale"), ("company_id", "=", line.company_id.id)])
-    )
-    if not journals:
-        pytest.skip("no sale journal configured on the company")
     line.action_mark_invoiced()
     move = line.invoice_id
     assert move and move.move_type == "out_invoice"
     assert move.partner_id == line.customer_id
-    assert move.state == "draft"
+    assert move.state == "posted"
     assert line.state == "invoiced"
-    assert line.invoice_ref == (move.name or move.display_name)  # display echo
+    assert line.invoice_ref == move.name  # display echo
     assert move.amount_untaxed == line.amount
     with pytest.raises(UserError, match="already carries"), odoo_env.cr.savepoint():
         line.action_mark_invoiced()

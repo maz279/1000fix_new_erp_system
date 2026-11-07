@@ -54,6 +54,12 @@ def admin(make_user):
     return make_user(ADMIN)
 
 
+@pytest.fixture
+def certifier(make_user):
+    """A12 finish E10: a Platform Admin other than the pack's creator."""
+    return make_user(ADMIN)
+
+
 def _pack(odoo_env, user, code, lines=(("BAR", "Barishal", "বরিশাল"),), **vals):
     pack = (
         odoo_env["fix.country.pack"]
@@ -75,16 +81,16 @@ def _pack(odoo_env, user, code, lines=(("BAR", "Barishal", "বরিশাল")
 # --- P1-4: the country-pack lifecycle ----------------------------------------
 
 
-def test_the_full_lifecycle_validate_certify_activate_load_retire(odoo_env, admin):
+def test_the_full_lifecycle_validate_certify_activate_load_retire(odoo_env, admin, certifier):
     pack = _pack(odoo_env, admin, "BD-A12-LIFE")
     assert pack.state == "draft"
 
     pack.with_user(admin).action_validate()
     assert pack.state == "validated"
 
-    pack.with_user(admin).action_certify(note="BBS gazette, 2026 revision")
+    pack.with_user(certifier).action_certify(note="BBS gazette, 2026 revision")
     assert pack.state == "certified"
-    assert pack.certified_by_id == admin and pack.certified_on
+    assert pack.certified_by_id == certifier and pack.certified_on
     audit = (
         odoo_env["fix.security.audit"]
         .sudo()
@@ -125,17 +131,17 @@ def test_certification_is_a_platform_admin_decision(odoo_env, admin, make_user):
     assert pack.state == "validated"
 
 
-def test_certification_needs_a_basis_and_a_validated_pack(odoo_env, admin):
+def test_certification_needs_a_basis_and_a_validated_pack(odoo_env, admin, certifier):
     pack = _pack(odoo_env, admin, "BD-A12-BASIS")
     with _rejects(odoo_env, REFUSED, match="validated"):
-        pack.with_user(admin).action_certify(note="jumping the queue")
+        pack.with_user(certifier).action_certify(note="jumping the queue")
     pack.with_user(admin).action_validate()
     with _rejects(odoo_env, REFUSED, match="basis"):
-        pack.with_user(admin).action_certify()
+        pack.with_user(certifier).action_certify()
     assert pack.state == "validated"
 
 
-def test_loading_requires_certification_not_just_existence(odoo_env, admin):
+def test_loading_requires_certification_not_just_existence(odoo_env, admin, certifier):
     """The P1-4 finding: action_load ran from ANY state before."""
     pack = _pack(odoo_env, admin, "BD-A12-LOAD")
     with _rejects(odoo_env, REFUSED, match="certified, active"):
@@ -147,7 +153,7 @@ def test_loading_requires_certification_not_just_existence(odoo_env, admin):
         pack.with_user(admin).action_load()
     assert not pack.loaded_at
 
-    pack.with_user(admin).action_certify(note="gazette probe")
+    pack.with_user(certifier).action_certify(note="gazette probe")
     with _rejects(odoo_env, REFUSED, match="certified, active"):
         pack.with_user(admin).action_load()
     assert not pack.loaded_at
@@ -175,23 +181,28 @@ def test_pack_state_is_never_typed(odoo_env, admin):
 # --- M65: the locale-pack activation gate ------------------------------------
 
 
-def _locale(odoo_env, user, code, coverage, **vals):
+def _locale(odoo_env, user, code, **vals):
+    # A12 finish E16: coverage is measured, so it is not a create value any more.
     return (
         odoo_env["fix.locale.pack"]
         .with_user(user)
-        .create({"code": code, "name": "Locale %s" % code, "coverage_pct": coverage, **vals})
+        .create({"code": code, "name": "Locale %s" % code, **vals})
     )
 
 
 def test_an_incomplete_locale_does_not_activate(odoo_env, admin):
-    pack = _locale(odoo_env, admin, "bn_A12", 50)
+    pack = _locale(odoo_env, admin, "bn_A12")
+    assert pack.coverage_pct == 0
     with _rejects(odoo_env, REFUSED, match="min_activation_coverage_pct"):
         pack.with_user(admin).action_activate()
     assert pack.state == "draft"
 
 
 def test_a_complete_locale_activates_then_retires(odoo_env, admin):
-    pack = _locale(odoo_env, admin, "bn_A12_OK", 100)
+    # The gate is opened by its parameter, because nothing but the source language
+    # measures 100% here: fr_FR is a real language with no translations loaded.
+    odoo_env["ir.config_parameter"].sudo().set_param("fix_locale.min_activation_coverage_pct", "0")
+    pack = _locale(odoo_env, admin, "fr_FR")
     pack.with_user(admin).action_activate()
     assert pack.state == "active"
     pack.with_user(admin).action_retire()
@@ -202,14 +213,18 @@ def test_a_complete_locale_activates_then_retires(odoo_env, admin):
 
 
 def test_the_coverage_gate_reads_the_config_parameter(odoo_env, admin):
-    odoo_env["ir.config_parameter"].sudo().set_param("fix_locale.min_activation_coverage_pct", "60")
-    pack = _locale(odoo_env, admin, "bn_A12_TUNE", 65)
+    pack = _locale(odoo_env, admin, "fr_FR")
+    with _rejects(odoo_env, REFUSED, match="min_activation_coverage_pct"):
+        pack.with_user(admin).action_activate()
+    odoo_env["ir.config_parameter"].sudo().set_param(
+        "fix_locale.min_activation_coverage_pct", str(pack.coverage_pct)
+    )
     pack.with_user(admin).action_activate()
     assert pack.state == "active"
 
 
 def test_locale_state_is_never_typed(odoo_env, admin):
-    pack = _locale(odoo_env, admin, "bn_A12_GUARD", 100)
+    pack = _locale(odoo_env, admin, "bn_A12_GUARD")
     with _rejects(odoo_env, UserError, match="cannot be set directly"):
         pack.with_user(admin).write({"state": "active"})
     assert pack.state == "draft"

@@ -56,9 +56,9 @@ class ResUsersAccessPosture(models.Model):
     fix_role_codes = fields.Char(
         string="Business Roles Held",
         compute="_compute_access_posture",
-        help="The fix.role codes resolved from the user's real Odoo group "
-        "membership (the same resolution the Access Review pack reports). "
-        "Granted only through approved access requests / JML — never typed.",
+        help="The fix.role codes this user holds: what was assigned, what the employee master "
+        "records, and groups that name one role (the same resolution the Access Review pack "
+        "reports). Granted only through approved access requests / JML — never typed.",
     )
     fix_role_count = fields.Integer(string="Roles Held", compute="_compute_access_posture")
     fix_group_names = fields.Char(
@@ -121,12 +121,39 @@ class ResUsersAccessPosture(models.Model):
 
     # ------------------------------------------------------------------
 
+    def _fix_may_see_posture(self):
+        """E25: someone's permission groups and DOFA tier are not for every
+        colleague: the user himself, Access Rights admins and Access Approvers."""
+        viewer = self.env.user
+        return (
+            self.env.su
+            or viewer == self
+            or viewer.has_group("base.group_erp_manager")
+            or viewer.has_group("cd_rbac_ext.group_access_approver")
+        )
+
     @api.depends_context("uid")
     def _compute_access_posture(self):
         Cert = self.env.get("fix.access.certification")
         Request = self.env.get("fix.access.request")
         Sod = self.env.get("fix.sod.control")
         for user in self:
+            if not user._fix_may_see_posture():
+                user.update(
+                    {
+                        "fix_role_codes": False,
+                        "fix_role_count": 0,
+                        "fix_group_names": False,
+                        "fix_allowed_companies": False,
+                        "fix_workspaces": False,
+                        "fix_dofa_tier": False,
+                        "fix_authority": False,
+                        "fix_approver_groups": False,
+                        "fix_last_certification": False,
+                        "fix_open_requests": 0,
+                    }
+                )
+                continue
             groups = user.sudo().group_ids
             group_ids = set(groups.ids)
 

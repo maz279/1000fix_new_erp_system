@@ -7,6 +7,7 @@ access_fix_consolidation_line_user,fix.consolidation.line.user,model_fix_consoli
 access_fix_elimination_entry_readonly,fix.elimination.entry.readonly,model_fix_elimination_entry,account.group_account_readonly,1,0,0,0
 access_fix_elimination_entry_user,fix.elimination.entry.user,model_fix_elimination_entry,account.group_account_user,1,1,1,1
 access_fix_intercompany_rule_readonly,fix.intercompany.rule.readonly,model_fix_intercompany_rule,account.group_account_readonly,1,0,0,0
+access_fix_intercompany_rule_platform_admin,fix.intercompany.rule platform admin read,model_fix_intercompany_rule,cd_entity_config.group_platform_admin,1,0,0,0
 access_fix_intercompany_rule_user,fix.intercompany.rule.user,model_fix_intercompany_rule,account.group_account_user,1,0,0,0
 access_fix_intercompany_rule_manager,fix.intercompany.rule.manager,model_fix_intercompany_rule,account.group_account_manager,1,1,1,0
 access_fix_intercompany_transaction_readonly,fix.intercompany.transaction.readonly,model_fix_intercompany_transaction,account.group_account_readonly,1,0,0,0

@@ -36,6 +36,8 @@ from odoo.addons.cd_service_order.controllers.technician_api import (
 )
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 _logger = logging.getLogger(__name__)
 
 # A02 audit M02-8 (P2): "arrive" checks the technician in with the position
@@ -103,6 +105,7 @@ class OfflineSyncApiController(http.Controller):
         auth="bearer",
         methods=["POST"],
     )
+    @api_edge("/api/v1/offline/sync")
     def offline_sync(self, **kwargs):
         """SP-07 Upload-first offline synchronization cycle.
 

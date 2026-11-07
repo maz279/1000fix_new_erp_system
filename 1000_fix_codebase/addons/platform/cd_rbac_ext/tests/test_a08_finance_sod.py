@@ -90,7 +90,7 @@ def _control(env, code):
 def _role(env, group):
     n = _n()
     return env["fix.role"].create(
-        {"code": "R-Q%d" % n, "name": "SoD probe role %d" % n, "group_id": group.id}
+        {"code": "R-Q%d" % n, "name": "SoD probe role %d" % n, "group_ids": [(6, 0, group.ids)]}
     )
 
 

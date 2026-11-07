@@ -7,3 +7,6 @@ access_fix_mdm_match_rule_user,fix.mdm.match.rule user,model_fix_mdm_match_rule,
 access_fix_mdm_match_rule_steward,fix.mdm.match.rule steward,model_fix_mdm_match_rule,cd_entity_config.group_mdm_domain_steward,1,1,1,1
 access_fix_mdm_stewardship_user,fix.mdm.stewardship user,model_fix_mdm_stewardship,base.group_user,1,0,0,0
 access_fix_mdm_stewardship_steward,fix.mdm.stewardship steward,model_fix_mdm_stewardship,cd_entity_config.group_mdm_domain_steward,1,1,1,0
+access_fix_mdm_stewardship_admin,fix.mdm.stewardship platform admin,model_fix_mdm_stewardship,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_mdm_governed_attribute_user,fix.mdm.governed.attribute user,model_fix_mdm_governed_attribute,base.group_user,1,0,0,0
+access_fix_mdm_governed_attribute_admin,fix.mdm.governed.attribute platform admin,model_fix_mdm_governed_attribute,cd_entity_config.group_platform_admin,1,1,1,1

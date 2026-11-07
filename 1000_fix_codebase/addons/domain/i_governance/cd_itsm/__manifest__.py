@@ -26,19 +26,28 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         # home module must load first. Acyclic: cd_workflow_engine depends only
         # on base/mail/hr/cd_entity_config/cd_event_outbox/cd_rbac_ext.
         "cd_workflow_engine",
+        # A12 finish M66-10: a retiring asset links its M06 certificate document.
+        # Acyclic: cd_document_core does not depend on cd_itsm.
+        "cd_document_core",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         # A12: roles first so the ACL rows below can reference them.
         "security/fix_itsm_a12_groups.xml",
         "security/ir.model.access.csv",
+        # A12 finish M66: own-record rules for tickets and assets (spec s13).
+        "security/fix_itsm_m66_rules.xml",
         "data/itsm_catalogue_sequences.xml",
         "data/integration_sequences.xml",
         "data/itsm_ops_sequences.xml",
         "data/itsm_core_sequences.xml",
         "data/fix_a12_crons.xml",
+        # A12 finish: the M28 dispatcher, re-validation, feed, retention and expiry crons.
+        "data/fix_a12_m28_crons.xml",
         # A12 D8: chatter relay for the events cd_itsm itself publishes.
         "data/fix_a12_event_consumers.xml",
+        # A12 finish M66: the housekeeping, dead-letter, PIR, problem and licence crons.
+        "data/fix_a12_m66_crons.xml",
         "views/cd_itsm_views.xml",
     ],
     "installable": True,

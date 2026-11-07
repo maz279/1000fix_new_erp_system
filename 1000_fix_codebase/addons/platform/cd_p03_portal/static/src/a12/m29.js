@@ -1,8 +1,8 @@
 /** @odoo-module **/
 /* A12 · Platform & Technology — M29 Identity, Access & Security.
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 78.
- * Scope note: field-level reads are not instrumented, so the sensitive-data
- * pack reports the CLASSIFIED exposure surface, never invented read counts.
+ * Scope note: individual reads are not logged, so the sensitive-data pack
+ * reports the CLASSIFIED exposure surface, never invented read counts.
  *
  * Workspace wiring pass (2026-11-05): the User master is the comprehensive
  * 7-tab form (identity editable; entitlement / DOFA authority / lifecycle
@@ -35,7 +35,9 @@ export const MODULE = {
       { id: 'M29-roles', en: 'Roles & Permission Sets', bn: 'ভূমিকা', t: 'g' },
       { id: 'M29-record', en: 'Record Rules (T0–T5)', bn: 'রেকর্ড নিয়ম', t: 'g' },
       { id: 'M29-fields', en: 'Field-Level Permissions', bn: 'ক্ষেত্র-স্তরের অনুমতি', t: 'g' },
+      { id: 'M29-cert-campaigns', en: 'Certification Campaigns', bn: 'সার্টিফিকেশন ক্যাম্পেইন', t: 'g' },
       { id: 'M29-cert', en: 'Access Certification', bn: 'অ্যাক্সেস সার্টিফিকেশন', t: 'g' },
+      { id: 'M29-assignments', en: 'Role Assignments', bn: 'ভূমিকা বরাদ্দ', t: 'g' },
       { id: 'M29-requests', en: 'Access Requests', bn: 'অ্যাক্সেস অনুরোধ', t: 'g' },
       { id: 'M29-groups', en: 'Odoo Groups', bn: 'গ্রুপ', t: 'g' },
       { id: 'M29-acl', en: 'Model Access', bn: 'মডেল অ্যাক্সেস', t: 'g' }
@@ -60,7 +62,7 @@ export const MODULE = {
   cross: ['M28 credentials', 'M60 controls', 'M24 retention', 'M33 party master'],
   freg: { src: 78, sub: [
     ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-sessions'], domain: [['share', '=', false]] }],
-    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'group_id', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'] }],
+    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'] }],
     ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'] }],
     ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert', 'M29-jml'] }],
     ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod'] }],
@@ -78,20 +80,28 @@ export const SCREENS = {
   'M29-jml': { kind: 'model_list', model: 'fix.jml.event', stateField: 'state',
     cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'effective_on', 'applied_on', 'result_note', 'state'],
     actions: [{ m: 'action_apply', l: 'Apply' }, { m: 'action_cancel', l: 'Cancel' }] },
+  // What "held" means: who was actually given which role. Written by the grant paths only.
+  'M29-assignments': { kind: 'model_list', model: 'fix.role.assignment', create: false,
+    cols: ['user_id', 'role_id', 'source', 'granted_on', 'ended_on', 'end_reason', 'is_live'] },
 
   /* ---- Access ---- */
   'M29-roles': { kind: 'model_list', model: 'fix.role',
-    cols: ['code', 'name', 'group_id', 'keycloak_role', 'active'] },
+    cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'] },
   'M29-record': { kind: 'model_list', model: 'ir.rule',
     cols: ['name', 'model_id', 'groups', 'perm_read', 'perm_write', 'perm_create', 'perm_unlink'] },
   'M29-fields': { kind: 'model_list', model: 'fix.field.rule',
-    cols: ['model_id', 'field_id', 'role_ids', 'permission'] },
+    cols: ['model_id', 'field_id', 'fix_role_roll', 'permission', 'active'] },
+  // E17: one review period. Generate writes a locked line per user and role held.
+  'M29-cert-campaigns': { kind: 'model_list', model: 'fix.access.certification.campaign', stateField: 'state',
+    cols: ['name', 'period', 'due_on', 'line_count', 'pending_count', 'generated_on', 'generated_by_id', 'no_reviewer_note', 'state'],
+    actions: [{ m: 'action_generate', l: 'Generate Lines' }] },
   'M29-cert': { kind: 'model_list', model: 'fix.access.certification', stateField: 'decision',
-    cols: ['name', 'period', 'user_id', 'role_id', 'reviewer_id', 'due_on', 'decided_on', 'decision'],
+    cols: ['name', 'campaign_id', 'period', 'user_id', 'role_id', 'reviewer_id', 'due_on', 'decided_on', 'decision'],
     actions: [{ m: 'action_certify', l: 'Certify' }, { m: 'action_revoke', l: 'Revoke' }] },
   'M29-requests': { kind: 'model_list', model: 'fix.access.request', stateField: 'state',
     cols: ['name', 'request_type', 'user_id', 'role_id', 'requested_by_id', 'approver_id', 'requested_on', 'valid_until', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve' }, { m: 'action_reject', l: 'Reject' },
+    actions: [{ m: 'action_approve', l: 'Approve' },
+              { m: 'action_reject', l: 'Reject', ask: 'Why is this request rejected?', kwarg: 'reason' },
               { m: 'action_grant', l: 'Grant / Revoke' }] },
   'M29-groups': { kind: 'model_list', model: 'res.groups', create: false,
     cols: ['name'] },
@@ -106,7 +116,7 @@ export const SCREENS = {
     cols: ['user_id', 'access_time', 'access_type', 'case_id'] },
   'M29-keys': { kind: 'model_list', model: 'fix.encryption.key', stateField: 'state',
     cols: ['code', 'name', 'purpose', 'algorithm', 'vault_ref', 'last_rotated_on', 'next_rotation_on', 'state'],
-    actions: [{ m: 'action_rotate', l: 'Rotate' }] },
+    actions: [{ m: 'action_rotate', l: 'Register Rotation', ask: 'New vault reference (vault://...) of the key you rotated in the secret manager', kwarg: 'new_vault_ref' }] },
 
   /* ---- Monitoring ---- */
   // Append-only: entries are written by the system, never typed (+ New suppressed).
@@ -116,11 +126,17 @@ export const SCREENS = {
     cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_ref', 'detail', 'entry_hash'],
     actions: [{ m: 'action_verify_chain', l: 'Verify Chain' }] },
   'M29-privileged': { kind: 'model_list', model: 'fix.privileged.session', stateField: 'state',
-    cols: ['name', 'user_id', 'access_kind', 'ticket_ref', 'started_at', 'duration_minutes', 'state'],
-    actions: [{ m: 'action_close', l: 'Close Session' }] },
+    cols: ['name', 'user_id', 'access_kind', 'ticket_ref', 'approver_id', 'started_at', 'expires_at', 'duration_minutes', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve' },
+              { m: 'action_reject', l: 'Reject', ask: 'Why is this session refused?', kwarg: 'reason' },
+              { m: 'action_open', l: 'Open Session' },
+              { m: 'action_close', l: 'Close Session' }] },
   'M29-incidents': { kind: 'model_list', model: 'fix.security.incident', stateField: 'state',
-    cols: ['name', 'title', 'category', 'severity', 'detected_at', 'affected_user_id', 'state'],
-    actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' }, { m: 'action_set_severity', l: 'Set Severity' }] },
+    cols: ['name', 'title', 'category', 'severity', 'severity_pending', 'detected_at', 'affected_user_id', 'state'],
+    actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' },
+              { m: 'action_set_severity', l: 'Propose Severity', ask: 'New severity: low, medium, high or critical', kwarg: 'severity' },
+              { m: 'action_confirm_severity', l: 'Confirm Severity' },
+              { m: 'action_reject_severity', l: 'Refuse Severity Change' }] },
   'M29-sod': { kind: 'model_list', model: 'fix.sod.control',
     cols: ['code', 'name', 'control_type', 'pair_label', 'measurable', 'conflict_action', 'active'] },
   // A08 S4 / FR-SEC-024: the only way past a blocked duty conflict is a time-boxed
@@ -155,7 +171,7 @@ export const SCREENS = {
     back: 'M29-users',
     status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
     tabs: [
-      { id: 'general', label: '1. General & Photo', bn: '১. সাধারণ তথ্য ও ছবি', icon: '👤', badge: '10' },
+      { id: 'general', label: '1. General & Photo', bn: '১. সাধারণ তথ্য ও ছবি', icon: '👤', badge: '9' },
       { id: 'org', label: '2. Organisation & Data Scope', bn: '২. প্রতিষ্ঠান ও ডেটা পরিধি', icon: '🏢', badge: '6' },
       { id: 'prefs', label: '3. Preferences & Comms', bn: '৩. পছন্দ ও যোগাযোগ', icon: '⚙️', badge: '9' },
       { id: 'security', label: '4. Security & Authentication', bn: '৪. নিরাপত্তা ও প্রমাণীকরণ', icon: '🔐', badge: '6' },
@@ -176,10 +192,9 @@ export const SCREENS = {
         fields: [
           { name: 'phone', label: 'Phone' },
           { name: 'mobile_phone', label: 'Work Mobile' },
-          { name: 'work_email', label: 'Work Email' },
-          { name: 'barcode', label: 'Badge / Attendance PIN' }
+          { name: 'work_email', label: 'Work Email' }
         ] },
-      { tab: 'general', title: 'Account State', note: 'Deactivating a leaver here only switches the login off — the JML leaver action additionally removes EVERY group and unassigns ITSM assets. Prefer the JML action for leavers.',
+      { tab: 'general', title: 'Account State', note: 'Deactivating here only switches the login off, and is audited. For a leaver use the JML leaver event: it also removes every group and API key and unassigns ITSM assets. A login deprovisioned by a leaver event comes back only through a joiner event.',
         fields: [
           { name: 'active', label: 'Active' }
         ] },
@@ -191,7 +206,7 @@ export const SCREENS = {
           { name: 'work_location_type', label: 'Location Type' },
           { name: 'employee_id', readonly: true, label: 'Linked Employee (HR Master)' }
         ] },
-      { tab: 'org', title: 'Data Isolation', note: 'Rows are further isolated by the six tiers T0–T5 (Isolation Tier screen); allowed companies is a data-scope change owned by the multi-entity substrate — shown read-only.',
+      { tab: 'org', title: 'Data Isolation', note: 'Rows are scoped by company and by the record rules (Record Rules screen). The tiers T0–T5 on the Isolation Tier screen are a documented register, not a gate. Allowed companies is a data-scope change owned by the multi-entity substrate — shown read-only.',
         fields: [
           { name: 'fix_allowed_companies', readonly: true, label: 'Allowed Companies' }
         ] },
@@ -219,7 +234,7 @@ export const SCREENS = {
           { name: 'create_date', readonly: true, label: 'Created On' },
           { name: 'write_date', readonly: true, label: 'Last Updated' }
         ] },
-      { tab: 'access', title: 'Entitlement (read-only)', note: 'What this user can access — resolved from REAL group membership through the 53-role register (the same measurement the Access Review pack reports). Groups are NOT edited here: every grant goes through an approved access request (two-person, SoD-checked). Use the Access Requests screen to grant or revoke.',
+      { tab: 'access', title: 'Entitlement (read-only)', note: 'What this user holds: roles actually assigned (Role Assignments screen), the employee master, and groups only one role maps to. A group several roles share names none of them. The same measurement the Access Review pack reports. Groups are NOT edited here: every grant goes through an approved access request (two-person, SoD-checked). Use the Access Requests screen to grant or revoke.',
         fields: [
           { name: 'fix_role_codes', readonly: true, label: 'Business Roles Held' },
           { name: 'fix_role_count', readonly: true, label: 'Roles Held' },
@@ -247,7 +262,7 @@ export const SCREENS = {
     back: 'M29-jml',
     status: { field: 'state', labels: { pending: 'Pending', applied: 'Applied', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner or mover grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination); applying a leaver removes ALL groups and deactivates the user. The state moves only through the Apply / Cancel actions.',
+      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination). A mover also revokes the roles previously assigned. A leaver removes ALL groups and API keys and deactivates the user, and cannot be applied before its date. The login is the employee\'s own; type a user only for an employee with no login. A second person applies: not the one affected and not the one who filed it.',
         fields: [
           { name: 'event_type', required: true, label: 'Event Type' },
           { name: 'employee_id', required: true, label: 'Employee' },
@@ -270,15 +285,36 @@ export const SCREENS = {
     back: 'M29-cert',
     status: { field: 'decision', labels: { pending: 'Pending', certified: 'Certified', revoked: 'Revoked' } },
     sections: [
-      { title: 'Certification', note: 'One line per user and role held. Certifying confirms the access is still needed; revoking removes the role\'s Odoo groups from the user — a real change. The decision comes from the Certify / Revoke actions, and only the reviewer (never the user under review) may make it. Unconfirmed lines past their due date are revoked by the close-out cron.',
+      { title: 'Certification', note: 'One line per user and role held, normally generated by a Certification Campaign. Empty reviewer: the user\'s manager, or an Access Approver. User, role and reviewer lock once saved. Certifying confirms the access is still needed; revoking removes the role\'s Odoo groups from the user — a real change. The decision comes from the Certify / Revoke actions, and only the reviewer (never the user under review) may make it. Unconfirmed lines past their due date are revoked by the close-out job.',
         fields: [
           { name: 'period', required: true, label: 'Period' },
+          { name: 'campaign_id', readonly: true, label: 'Campaign' },
           { name: 'user_id', required: true, label: 'User Under Review' },
           { name: 'role_id', required: true, label: 'Role Held' },
           { name: 'reviewer_id', label: 'Reviewer' },
           { name: 'due_on', label: 'Due On (close-out deadline)' },
           { name: 'decided_on', readonly: true, label: 'Decided On' },
           { name: 'note', label: 'Note' }
+        ] }
+    ]
+  },
+
+  'M29-form-campaign': {
+    kind: 'model_form',
+    model: 'fix.access.certification.campaign',
+    title: 'Certification Campaign',
+    back: 'M29-cert-campaigns',
+    status: { field: 'state', labels: { draft: 'Draft', generated: 'Generated' } },
+    sections: [
+      { title: 'Campaign', note: 'Generate Lines writes one locked certification line per internal user and role held, reviewed by the user\'s manager or, failing that, an Access Approver, and never by the user. Lines still pending after the due date are revoked by the close-out job.',
+        fields: [
+          { name: 'period', required: true, label: 'Period (e.g. 2026-Q4)' },
+          { name: 'due_on', required: true, label: 'Due On' },
+          { name: 'line_count', readonly: true, label: 'Lines' },
+          { name: 'pending_count', readonly: true, label: 'Pending' },
+          { name: 'generated_on', readonly: true, label: 'Generated On' },
+          { name: 'generated_by_id', readonly: true, label: 'Generated By' },
+          { name: 'no_reviewer_note', readonly: true, label: 'Skipped (no reviewer)' }
         ] }
     ]
   },
@@ -290,7 +326,7 @@ export const SCREENS = {
     back: 'M29-keys',
     status: { field: 'state', labels: { active: 'Active', rotating: 'Rotating', retired: 'Retired' } },
     sections: [
-      { title: 'Key', note: 'This register stores a VAULT REFERENCE only — key material is never entered into or stored by this database (SEC-101). The reference must start with vault:// or the save is refused. State and the rotation dates are set by the Rotate action (custodian only) — never typed.',
+      { title: 'Key', note: 'This register stores a VAULT REFERENCE only — key material is never entered into or stored by this database (SEC-101), and only custodians can read the reference. It must start with vault://; no secret manager is contacted to confirm the path. After saving, the reference changes only through Register Rotation (custodian only), which records a rotation done in the secret manager, retires this key and starts the clock on its successor.',
         fields: [
           { name: 'code', required: true, label: 'Key Code' },
           { name: 'name', required: true, label: 'Key Name' },
@@ -311,14 +347,15 @@ export const SCREENS = {
     back: 'M29-incidents',
     status: { field: 'state', labels: { open: 'Open', contained: 'Contained', closed: 'Closed' } },
     tabs: [
-      { id: 'facts', label: '1. Incident Facts', bn: '১. ঘটনার তথ্য', icon: '🚨', badge: '6' },
-      { id: 'narrative', label: '2. Narrative & Closure', bn: '২. বিবরণ ও সমাপ্তি', icon: '📝', badge: '4' }
+      { id: 'facts', label: '1. Incident Facts', bn: '১. ঘটনার তথ্য', icon: '🚨', badge: '7' },
+      { id: 'narrative', label: '2. Narrative & Closure', bn: '২. বিবরণ ও সমাপ্তি', icon: '📝', badge: '9' }
     ],
     sections: [
-      { tab: 'facts', title: 'Incident', note: 'Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data-leak needs the breach assessment. Severity is set by the Set Severity action under two-person control — a second person must confirm — so it is never typed here.',
+      { tab: 'facts', title: 'Incident', note: 'Anyone may report an incident and read their own reports; a Security Officer handles it and reads them all. Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data leak needs the breach assessment and stays a data leak. The reporter sets the severity; after that one officer proposes a change and a second officer confirms it. A closed record cannot change.',
         fields: [
           { name: 'title', required: true, label: 'Title' },
           { name: 'category', required: true, label: 'Category' },
+          { name: 'severity', required: true, label: 'Severity' },
           { name: 'detected_at', required: true, label: 'Detected At' },
           { name: 'detected_by_id', label: 'Detected By' },
           { name: 'affected_user_id', label: 'Affected User' },
@@ -330,6 +367,8 @@ export const SCREENS = {
           { name: 'containment', type: 'text', label: 'Containment' },
           { name: 'root_cause', type: 'text', label: 'Root cause (required to close)' },
           { name: 'breach_assessment', type: 'text', label: 'Breach assessment (required to close a data leak)' },
+          { name: 'severity_pending', readonly: true, label: 'Severity Proposed' },
+          { name: 'severity_proposed_by_id', readonly: true, label: 'Severity Proposed By' },
           { name: 'severity_set_by_id', readonly: true, label: 'Severity Set By' },
           { name: 'severity_confirmed_by_id', readonly: true, label: 'Severity Confirmed By' },
           { name: 'resolved_on', readonly: true, label: 'Resolved On' }
@@ -343,12 +382,11 @@ export const SCREENS = {
     title: 'Business Role',
     back: 'M29-roles',
     sections: [
-      { title: 'Role', note: 'Role code is R-nn. Mapping the role to an Odoo group is what lets an access request actually grant it.',
+      { title: 'Role', note: 'Role code is R-nn. The role\'s permission groups, listed below, are what an access request actually grants.',
         fields: [
           { name: 'code', required: true, label: 'Role Code (R-nn)' },
           { name: 'name', required: true, label: 'Role Name' },
           { name: 'name_bn', label: 'Role Name (Bengali)' },
-          { name: 'group_id', label: 'Odoo Group' },
           { name: 'keycloak_role', label: 'Keycloak Realm Role' },
           { name: 'company_id', label: 'Company' },
           { name: 'active', label: 'Active' }
@@ -369,12 +407,13 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'ir.rule',
     title: 'Record Rule',
-    back: 'M29-recordrules',
+    back: 'M29-record',
     sections: [
       { title: 'Record Rule', note: 'A record rule restricts which rows a group can see. A global rule (no group) applies to everyone — treat it as a security change.',
         fields: [
           { name: 'name', required: true, label: 'Rule Name' },
-          { name: 'model_id', required: true, label: 'Model' },
+          { name: 'fix_model_name', required: true, label: 'Model (technical name, e.g. res.partner)' },
+          { name: 'model_id', readonly: true, label: 'Model' },
           { name: 'domain_force', required: true, type: 'text', label: 'Domain' },
           { name: 'perm_read', label: 'Read' },
           { name: 'perm_write', label: 'Write' },
@@ -393,7 +432,8 @@ export const SCREENS = {
       { title: 'Access Right', note: 'One row grants a group CRUD rights on one model. Granting is additive — nothing here removes rights held elsewhere.',
         fields: [
           { name: 'name', required: true, label: 'Description' },
-          { name: 'model_id', required: true, label: 'Model' },
+          { name: 'fix_model_name', required: true, label: 'Model (technical name, e.g. res.partner)' },
+          { name: 'model_id', readonly: true, label: 'Model' },
           { name: 'group_id', label: 'Group' },
           { name: 'perm_read', label: 'Read' },
           { name: 'perm_write', label: 'Write' },
@@ -407,14 +447,16 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.field.rule',
     title: 'Field Rule',
-    back: 'M29-fieldrules',
+    back: 'M29-fields',
     sections: [
-      { title: 'Field Permission', note: 'Hides or masks one field for a set of roles. An empty role list is the deny-all default — it applies to every role, so treat a blank list as a deliberate choice.',
+      { title: 'Field Permission', note: 'Enforced on the P03 workspace screens, in lists and forms: Hidden strips the field, Masked shows ***. Not enforced in the Odoo back end, report packs or exports. An empty role list applies the rule to every caller who is not cleared. A system administrator and a Sensitive Data Clearance holder are always cleared; Read or Write with roles clears those roles for this field.',
         fields: [
-          { name: 'model_id', required: true, label: 'Model' },
-          { name: 'field_id', required: true, label: 'Field' },
+          { name: 'fix_model_name', required: true, label: 'Model (technical name, e.g. res.partner)' },
+          { name: 'fix_field_name', required: true, label: 'Field (technical name, e.g. phone)' },
+          { name: 'model_id', readonly: true, label: 'Model' },
+          { name: 'field_id', readonly: true, label: 'Field' },
           { name: 'permission', required: true, label: 'Permission' },
-          { name: 'fix_role_roll', readonly: true, label: 'Roles (read-only roll)' },
+          { name: 'role_ids', type: 'many2many', label: 'Roles' },
           { name: 'active', label: 'Active' }
         ] }
     ]
@@ -426,7 +468,7 @@ export const SCREENS = {
     title: 'SoD Control',
     back: 'M29-sod',
     sections: [
-      { title: 'Segregation of Duties', note: 'A control states two roles that must never be held by the same person. The action decides whether a conflict blocks the grant or only raises a finding; the SoD Test Runs measure it for real.',
+      { title: 'Segregation of Duties', note: 'A control states two roles that must never be held by the same person. The action decides whether a conflict blocks the grant or only raises a finding, and an approved SoD exception lets one person past it for a stated time. Measurable is false when the two roles share a group. The SoD Test Runs measure it for real.',
         fields: [
           { name: 'code', required: true, label: 'SoD Code' },
           { name: 'name', required: true, label: 'Control Description' },
@@ -457,7 +499,7 @@ export const SCREENS = {
       submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected',
       granted: 'Granted', revoked: 'Revoked' } },
     sections: [
-      { title: 'Request', note: 'Submitted → approved → granted. Granting writes the role\'s Odoo groups onto the user (a real change); a revoke removes them. The decision is made by the Approve / Reject actions — never typed (X1: the requester and the beneficiary cannot decide their own request).',
+      { title: 'Request', note: 'Submitted → approved → granted. Granting writes the role\'s Odoo groups onto the user (a real change); a revoke removes the groups no other assigned role needs. What was approved cannot change after submission. The decision is made by the Approve / Reject actions — never typed (X1: the requester and the beneficiary cannot decide their own request, or execute it). A temporary elevation runs at most the configured number of days and is revoked by a daily job.',
         fields: [
           { name: 'request_type', required: true, label: 'Request Type' },
           { name: 'user_id', required: true, label: 'User' },
@@ -482,17 +524,25 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.privileged.session',
     title: 'Privileged Session',
-    back: 'M29-sessions',
-    status: { field: 'state', labels: { open: 'Open', closed: 'Closed' } },
+    back: 'M29-privileged',
+    status: { field: 'state', labels: { requested: 'Requested', approved: 'Approved', rejected: 'Rejected', open: 'Open', closed: 'Closed', expired: 'Approval Lapsed' } },
     sections: [
-      { title: 'Session', note: 'Opened before sudo/admin work; closing measures the duration from the timestamps. Every privileged session must carry a reason. State changes only through the Close Session action (your own session) or the timeout cron.',
+      { title: 'Break-Glass Request', note: 'Requested in your own name → an Access Approver who is not you approves it, and the approval sets when it expires → you open it, which writes the audit row and notifies the approvers → you close it, or the timeout job does. This record is the control around privileged work: it does not itself hand out database access.',
         fields: [
-          { name: 'user_id', required: true, label: 'User' },
           { name: 'access_kind', required: true, label: 'Access Kind' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'ticket_ref', label: 'Ticket / Change Ref' },
-          { name: 'started_at', label: 'Started At' },
-          { name: 'actions_count', label: 'Actions Performed' },
+          { name: 'duration_hours', label: 'Hours Needed (empty = the maximum allowed)' },
+          { name: 'actions_count', label: 'Actions Performed' }
+        ] },
+      { title: 'Decision & Timing (read-only)', note: 'Stamped by the actions. The duration is measured from the timestamps, never typed.',
+        fields: [
+          { name: 'user_id', readonly: true, label: 'User' },
+          { name: 'approver_id', readonly: true, label: 'Approver' },
+          { name: 'decided_on', readonly: true, label: 'Decided On' },
+          { name: 'decision_note', readonly: true, label: 'Decision Note' },
+          { name: 'expires_at', readonly: true, label: 'Expires At' },
+          { name: 'started_at', readonly: true, label: 'Started At' },
           { name: 'ended_at', readonly: true, label: 'Ended At' },
           { name: 'duration_minutes', readonly: true, label: 'Duration (minutes, measured)' }
         ] }
@@ -531,12 +581,12 @@ export const SCREENS = {
     back: 'M29-sodtests',
     status: { field: 'result', labels: { pass: 'Pass', fail: 'Fail' } },
     sections: [
-      { title: 'Test', note: 'Running the test measures users who actually hold BOTH roles\' Odoo groups — the result and the conflicting logins are computed, not typed.',
+      { title: 'Test', note: 'Running the test measures users who hold BOTH roles (what was assigned, the employee master, groups that name a role). The date, the tester, the counts and the result are stamped by the run, never typed, and a run stays on its control. To re-measure, file a new run; a job also measures every control weekly.',
         fields: [
           { name: 'control_id', required: true, label: 'SoD Control' },
-          { name: 'tested_on', required: true, label: 'Tested On' },
-          { name: 'tested_by_id', label: 'Tested By' },
-          { name: 'users_checked', label: 'Users Checked' },
+          { name: 'tested_on', readonly: true, label: 'Tested On' },
+          { name: 'tested_by_id', readonly: true, label: 'Tested By' },
+          { name: 'users_checked', readonly: true, label: 'Users Checked' },
           { name: 'violations_found', readonly: true, label: 'Conflicts Found' },
           { name: 'users_in_conflict', readonly: true, label: 'Conflicting Users' }
         ] }
@@ -547,9 +597,9 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.sensitive.field',
     title: 'Sensitive Field',
-    back: 'M29-sensitive',
+    back: 'M29-classification',
     sections: [
-      { title: 'Classification', note: 'A field is classified once per company (database UNIQUE). The masking rule states how it is rendered; the lawful basis is the PDPA basis for processing it.',
+      { title: 'Classification', note: 'A field is classified once per company (database UNIQUE). The masking rule is applied on the P03 workspace screens, in lists and forms, to callers without Sensitive Data Clearance; it is not applied in the Odoo back end, report packs or exports. The lawful basis is the PDPA basis for processing it.',
         fields: [
           { name: 'model_name', required: true, label: 'Model' },
           { name: 'field_name', required: true, label: 'Field' },
@@ -573,7 +623,7 @@ export const SCREENS = {
     title: "Isolation Tier",
     back: 'M29-isolation-tier',
     sections: [
-      { title: "Isolation Tier", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Isolation Tier", note: "A documented register: it states what each tier is meant to mean. Nothing reads it to decide access, and the domain here is text, not a live rule. Row scoping is enforced by the Record Rules screen, and residency-classified data by the write-time residency mixin. Only a system administrator edits this.",
         fields: [
           { name: 'code', required: true, label: "Tier" },
           { name: 'name', label: "Name" },
@@ -624,6 +674,7 @@ export const FORM_CHIPS = {
     'ir.model.access': 'M29-form-acl',
     'fix.access.request': 'M29-form-request',
     'fix.access.certification': 'M29-form-cert',
+    'fix.access.certification.campaign': 'M29-form-campaign',
     'fix.jml.event': 'M29-form-jml',
     'fix.sensitive.field': 'M29-form-sensitive',
     'fix.encryption.key': 'M29-form-key',
@@ -642,6 +693,7 @@ export const FORM_CHIPS = {
     'M29-acl': 'M29-form-acl',
     'M29-requests': 'M29-form-request',
     'M29-cert': 'M29-form-cert',
+    'M29-cert-campaigns': 'M29-form-campaign',
     'M29-jml': 'M29-form-jml',
     'M29-classification': 'M29-form-sensitive',
     'M29-keys': 'M29-form-key',

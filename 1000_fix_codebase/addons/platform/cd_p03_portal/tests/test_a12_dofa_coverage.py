@@ -13,29 +13,31 @@ from ..controllers.a12 import m30
 def test_dofa_coverage_lists_every_approval_bearing_model(odoo_env):
     env = odoo_env
     report = m30.dofa_coverage(env)
-    assert set(report["cols"]) == {"model", "ladder", "m63", "authority"}
+    assert {"model", "ladder", "m63", "authority"} <= set(report["cols"])
 
     approvable_cls = type(env["fix.approvable.mixin"])
-    dofa_cls = type(env["fix.dofa.mixin"])
-    expected = {}
+    expected = set()
     for name, cls in env.registry.models.items():
         if getattr(cls, "_abstract", False) or getattr(cls, "_transient", False):
             continue
-        if issubclass(cls, approvable_cls):
-            expected[name] = issubclass(cls, dofa_cls)
+        # A12 finish E21: models that approve without the mixin were outside the
+        # denominator, which is how "46 of 132" came about.
+        approves = any(
+            a.startswith("action_approve") or a == "action_dofa_approve" for a in dir(cls)
+        )
+        if issubclass(cls, approvable_cls) or approves:
+            expected.add(name)
 
     listed = {row["model"] for row in report["rows"]}
-    assert listed == set(expected), "every approval-bearing model appears, nothing else"
+    assert listed == expected, "every approval-bearing model appears, nothing else"
 
 
 def test_the_ladder_column_matches_the_registry(odoo_env):
     env = odoo_env
     report = m30.dofa_coverage(env)
-    approvable_cls = type(env["fix.approvable.mixin"])
     dofa_cls = type(env["fix.dofa.mixin"])
     for row in report["rows"]:
         cls = env.registry.models[row["model"]]
-        assert issubclass(cls, approvable_cls)
         assert (row["ladder"] == "yes") == issubclass(cls, dofa_cls)
 
 
@@ -46,7 +48,7 @@ def test_the_m63_column_matches_the_rule_book(odoo_env):
     for row in report["rows"]:
         assert (row["m63"] == "yes") == (row["model"] in targets)
         if row["authority"] == "none":
-            assert row["ladder"] == "-" and row["m63"] == "-"
+            assert row["ladder"] == "-" and row["m63"] == "-" and row["coded_group"] == "-"
         if row["authority"] == "ladder+m63":
             assert row["ladder"] == "yes" and row["m63"] == "yes"
 

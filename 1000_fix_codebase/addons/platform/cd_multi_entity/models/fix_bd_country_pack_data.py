@@ -1,5 +1,6 @@
 # fix_bd_country_pack_data — Concrete Bangladesh Country Pack on fix.country.pack (CD-M65-01).
 from odoo import api, models
+from odoo.addons.cd_entity_config.models.fix_entity import require_platform_admin
 
 # 8 Divisions of Bangladesh with codes and names
 BANGLADESH_DIVISIONS = [
@@ -139,6 +140,15 @@ STATUTORY_HOLIDAYS_2026 = [
 ]
 
 
+# A12 finish E10: shown on the pack and on the screen. The figures below are source
+# data in code, including moon-dependent dates. Nothing here asserts they are right.
+DRAFT_NOTICE = (
+    "Loaded as DRAFT from the data shipped in this system. It has not been checked: a "
+    "person must verify every line against the official source, then a second Platform "
+    "Admin certifies it. Moon-dependent dates are estimates until gazetted."
+)
+
+
 class FixCountryPackDataLoader(models.AbstractModel):
     """Data loading service that populates the M30 fix.country.pack interface with concrete BD packs."""
 
@@ -146,86 +156,95 @@ class FixCountryPackDataLoader(models.AbstractModel):
     _description = "Bangladesh Country Pack Data Loader"
 
     @api.model
+    def _division_lines(self):
+        lines = [
+            {"code": div["code"], "name": div["name"], "name_bn": div["name_bn"]}
+            for div in BANGLADESH_DIVISIONS
+        ]
+        lines += [
+            {
+                "parent_code": dist["parent"],
+                "code": dist["code"],
+                "name": dist["name"],
+                "name_bn": dist["name_bn"],
+            }
+            for dist in BANGLADESH_DISTRICTS
+        ]
+        return lines
+
+    @api.model
+    def _holiday_lines(self):
+        return [
+            {
+                "code": hol["code"],
+                "name": hol["name"],
+                "name_bn": hol["name_bn"],
+                "date_value": hol["date"],
+            }
+            for hol in STATUTORY_HOLIDAYS_2026
+        ]
+
+    @api.model
     def load_bangladesh_pack(self) -> dict:
-        """Instantiate concrete Bangladesh country pack records on fix.country.pack.
+        """Create the Bangladesh packs as DRAFTS for human certification.
 
-        A12 P1-4: the packs walk the certification lifecycle
-        (validate -> certify -> activate -> load) - a pack never loads
-        straight from draft."""
-        pack_model = self.env["fix.country.pack"]
-        line_model = self.env["fix.country.pack.line"]
-
-        # 1. Divisions & Districts pack
-        div_pack = pack_model.search([("code", "=", "BD-DIV-DIST-2026")], limit=1)
-        if not div_pack:
-            div_pack = pack_model.create(
-                {
-                    "name": "Bangladesh Divisions & 64 Districts",
-                    "code": "BD-DIV-DIST-2026",
-                    "kind": "divisions",
-                    "version": "2026.1",
-                }
+        A12 finish E10: this used to validate, certify, activate and load in one
+        call with a canned "gazette" note, so nobody had checked what it certified.
+        It now stops at draft: the walk to active is a person's work. Idempotent:
+        an existing pack, in whatever state, is left alone."""
+        require_platform_admin(self.env, "The country-pack register")
+        Pack = self.env["fix.country.pack"].sudo()
+        Line = self.env["fix.country.pack.line"].sudo()
+        specs = (
+            (
+                "BD-DIV-DIST-2026",
+                "Bangladesh Divisions & Districts (draft, unverified)",
+                "divisions",
+                self._division_lines(),
+            ),
+            (
+                "BD-HOL-2026",
+                "Bangladesh Public Holidays 2026 (draft, unverified)",
+                "holidays",
+                self._holiday_lines(),
+            ),
+        )
+        created = []
+        for code, name, kind, lines in specs:
+            if Pack.search_count([("code", "=", code)], limit=1):
+                continue
+            # created_by the caller, so the caller cannot then certify it
+            pack = (
+                Pack.with_user(self.env.user)
+                .sudo()
+                .create({"name": name, "code": code, "kind": kind, "version": "2026.1"})
             )
-
-            # Create division lines
-            for div in BANGLADESH_DIVISIONS:
-                line_model.create(
-                    {
-                        "pack_id": div_pack.id,
-                        "code": div["code"],
-                        "name": div["name"],
-                        "name_bn": div["name_bn"],
-                    }
-                )
-
-            # Create district lines
-            for dist in BANGLADESH_DISTRICTS:
-                line_model.create(
-                    {
-                        "pack_id": div_pack.id,
-                        "parent_code": dist["parent"],
-                        "code": dist["code"],
-                        "name": dist["name"],
-                        "name_bn": dist["name_bn"],
-                    }
-                )
-
-            div_pack.action_validate()
-            div_pack.action_certify(note="BBS gazetted divisions & districts, 2026 (MD-005)")
-            div_pack.action_activate()
-            div_pack.action_load()
-
-        # 2. Public Holidays pack
-        hol_pack = pack_model.search([("code", "=", "BD-HOL-2026")], limit=1)
-        if not hol_pack:
-            hol_pack = pack_model.create(
-                {
-                    "name": "Bangladesh Gazette Public Holidays 2026",
-                    "code": "BD-HOL-2026",
-                    "kind": "holidays",
-                    "version": "2026.1",
-                }
-            )
-
-            for hol in STATUTORY_HOLIDAYS_2026:
-                line_model.create(
-                    {
-                        "pack_id": hol_pack.id,
-                        "code": hol["code"],
-                        "name": hol["name"],
-                        "name_bn": hol["name_bn"],
-                        "date_value": hol["date"],
-                    }
-                )
-
-            hol_pack.action_validate()
-            hol_pack.action_certify(note="Bangladesh Gazette public holidays 2026 (MD-005)")
-            hol_pack.action_activate()
-            hol_pack.action_load()
-
+            Line.create([dict(line, pack_id=pack.id) for line in lines])
+            pack.message_post(body=DRAFT_NOTICE)
+            created.append(code)
         return {
             "divisions_count": len(BANGLADESH_DIVISIONS),
             "districts_count": len(BANGLADESH_DISTRICTS),
             "holidays_count": len(STATUTORY_HOLIDAYS_2026),
-            "status": "LOADED",
+            "created": created,
+            "status": "DRAFT",
+            "note": (
+                "%s %s"
+                % (
+                    "Created: %s." % ", ".join(created)
+                    if created
+                    else "The Bangladesh packs already exist; nothing was created.",
+                    DRAFT_NOTICE,
+                )
+            ),
         }
+
+
+class FixCountryPackBangladesh(models.Model):
+    """The screen action (A12 finish E10). A surface action needs a selected row, so
+    a Platform Admin creates or selects any pack row and presses this button."""
+
+    _inherit = "fix.country.pack"
+
+    def action_load_bangladesh_drafts(self):
+        return self.env["fix.country_pack.loader"].load_bangladesh_pack()

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 finish E21: the SoD register measured on a schedule. Results were stale since
+  they were last run by hand, and most controls had never been measured.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_sod_tests_weekly" model="ir.cron">
+            <field name="name">M29: measure the SoD controls</field>
+            <field name="model_id" ref="model_fix_sod_test"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_run_sod_tests()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">weeks</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

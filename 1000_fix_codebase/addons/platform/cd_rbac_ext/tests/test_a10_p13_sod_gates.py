@@ -49,7 +49,7 @@ def _user(env, name, approver=False):
 
 def _grouped_role(env, code, name):
     group = env["res.groups"].create({"name": "A10 P13 group %s" % code})
-    return env["fix.role"].create({"code": code, "name": name, "group_id": group.id})
+    return env["fix.role"].create({"code": code, "name": name, "group_ids": [(6, 0, group.ids)]})
 
 
 # ---------------------------------------------------------- the raw group write
@@ -67,17 +67,25 @@ def test_group_write_refuses_a_register_block_conflict(odoo_env):
         }
     )
     holder = _user(env, "Holder")
-    holder.write({"group_ids": [(4, role_a.group_id.id)]})  # one side is fine
+    # the people who hand out groups: superuser code passes this door and is
+    # recorded on the audit trail (test_superuser_write_is_recorded below)
+    admin = _user(env, "Access Admin")
+    admin.write({"group_ids": [(4, env.ref("base.group_erp_manager").id)]})
+    holder.with_user(admin).write({"group_ids": [(4, role_a.group_ids.id)]})  # one side is fine
     with _rejects(env, ValidationError, match="SoD control SOD-P13a"):
-        holder.write({"group_ids": [(4, role_b.group_id.id)]})
+        holder.with_user(admin).write({"group_ids": [(4, role_b.group_ids.id)]})
     # a user born with both sides is a conflict, not a fresh start
     with _rejects(env, ValidationError, match="SoD control SOD-P13a"):
-        env["res.users"].with_context(no_reset_password=True).create(
+        env["res.users"].with_user(admin).with_context(no_reset_password=True).create(
             {
                 "name": "A10 P13 Born Bad",
                 "login": "a10p13.bornbad@a10.test",
                 "group_ids": [
-                    (6, 0, [env.ref("base.group_user").id, role_a.group_id.id, role_b.group_id.id])
+                    (
+                        6,
+                        0,
+                        [env.ref("base.group_user").id, role_a.group_ids.id, role_b.group_ids.id],
+                    )
                 ],
             }
         )
@@ -90,16 +98,43 @@ def test_group_write_refuses_a_register_block_conflict(odoo_env):
                 "name": "A10 P13 Legacy",
                 "login": "a10p13.legacy@a10.test",
                 "group_ids": [
-                    (6, 0, [env.ref("base.group_user").id, role_a.group_id.id, role_b.group_id.id])
+                    (
+                        6,
+                        0,
+                        [env.ref("base.group_user").id, role_a.group_ids.id, role_b.group_ids.id],
+                    )
                 ],
             }
         )
     )
-    legacy.write({"group_ids": [(3, role_b.group_id.id)]})
-    assert role_b.group_id not in legacy.group_ids
+    legacy.write({"group_ids": [(3, role_b.group_ids.id)]})
+    assert role_b.group_ids not in legacy.group_ids
     # a group outside the register passes untouched
     passer = env["res.groups"].create({"name": "A10 P13 unregistered group"})
-    holder.write({"group_ids": [(4, passer.id)]})
+    holder.with_user(admin).write({"group_ids": [(4, passer.id)]})
+
+
+def test_superuser_write_is_recorded(odoo_env):
+    env = odoo_env
+    role_a = _grouped_role(env, "R-P13s1", "Vendor Creator")
+    role_b = _grouped_role(env, "R-P13s2", "Invoice Approver")
+    env["fix.sod.control"].create(
+        {
+            "code": "SOD-P13s",
+            "name": "Superuser conflict is logged (P13)",
+            "role_a_id": role_a.id,
+            "role_b_id": role_b.id,
+            "conflict_action": "block",
+        }
+    )
+    holder = _user(env, "Service Holder")
+    holder.sudo().write({"group_ids": [(4, role_a.group_ids.id), (4, role_b.group_ids.id)]})
+    rows = (
+        env["fix.security.audit"]
+        .sudo()
+        .search([("object_ref", "=", "res.users,%d" % holder.id), ("detail", "like", "SOD-P13s")])
+    )
+    assert rows and "superuser" in rows[0].detail
 
 
 # ------------------------------------------------------- the access request path
@@ -118,12 +153,12 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
     )
     beneficiary = _user(env, "Beneficiary")
     approver = _user(env, "Approver", approver=True)
-    beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
+    beneficiary.write({"group_ids": [(4, role_a.group_ids.id)]})
     # the raw write is the register's own semantics: a warn control logs and
     # passes — the approval it asks for lives on the request channel
-    beneficiary.write({"group_ids": [(4, role_b.group_id.id)]})
-    assert role_b.group_id in beneficiary.group_ids
-    beneficiary.write({"group_ids": [(3, role_b.group_id.id)]})  # back to one side
+    beneficiary.write({"group_ids": [(4, role_b.group_ids.id)]})
+    assert role_b.group_ids in beneficiary.group_ids
+    beneficiary.write({"group_ids": [(3, role_b.group_ids.id)]})  # back to one side
     # no waiver on the request: no expiry -> refused
     req = env["fix.access.request"].create(
         {
@@ -144,6 +179,7 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
             "user_id": beneficiary.id,
             "role_id": role_b.id,
             "reason": "I promise to be careful",
+            "request_type": "elevate",
             "valid_until": fields.Date.today() + datetime.timedelta(days=7),
         }
     )
@@ -153,7 +189,7 @@ def test_warn_conflict_needs_a_real_waiver_to_grant(odoo_env):
     req.write({"valid_until": fields.Date.today() + datetime.timedelta(days=7)})
     req.action_grant()
     assert req.state == "granted"
-    assert role_b.group_id in beneficiary.group_ids
+    assert role_b.group_ids in beneficiary.group_ids
     assert "SoD waiver applied — control SOD-P13w" in req.message_ids[0].body
 
 
@@ -172,7 +208,7 @@ def test_block_conflict_is_refused_even_with_a_full_waiver(odoo_env):
     )
     beneficiary = _user(env, "Preparer")
     approver = _user(env, "CFO", approver=True)
-    beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
+    beneficiary.write({"group_ids": [(4, role_a.group_ids.id)]})
     req = env["fix.access.request"].create(
         {
             "user_id": beneficiary.id,
@@ -185,7 +221,7 @@ def test_block_conflict_is_refused_even_with_a_full_waiver(odoo_env):
     with _rejects(env, ValidationError, match="SOD-P13b.*only override"):
         req.action_grant()
     assert req.state == "approved"  # nothing was granted
-    assert role_b.group_id not in beneficiary.group_ids
+    assert role_b.group_ids not in beneficiary.group_ids
 
 
 def test_expired_access_loses_its_group_and_waiver(odoo_env):
@@ -203,7 +239,7 @@ def test_expired_access_loses_its_group_and_waiver(odoo_env):
     )
     beneficiary = _user(env, "Expired")
     approver = _user(env, "Still There", approver=True)
-    beneficiary.write({"group_ids": [(4, role_a.group_id.id)]})
+    beneficiary.write({"group_ids": [(4, role_a.group_ids.id)]})
     req = env["fix.access.request"].create(
         {
             "user_id": beneficiary.id,
@@ -216,14 +252,14 @@ def test_expired_access_loses_its_group_and_waiver(odoo_env):
     )
     req.with_user(approver).action_approve()
     req.action_grant()  # the window is open today
-    assert role_b.group_id in beneficiary.group_ids
+    assert role_b.group_ids in beneficiary.group_ids
     # time passes: the window closes and the cron takes the access with it
     req.write({"valid_until": fields.Date.today() - datetime.timedelta(days=1)})
     Request = env["fix.access.request"]
-    assert Request.cron_revoke_expired() >= 1
+    assert Request.cron_expire_elevations() >= 1
     req.invalidate_recordset()
     assert req.state == "revoked"
-    assert role_b.group_id not in beneficiary.group_ids
+    assert role_b.group_ids not in beneficiary.group_ids
     assert "Expired on" in req.message_ids[0].body
     # the clock is idempotent within the day
     assert not Request.search(

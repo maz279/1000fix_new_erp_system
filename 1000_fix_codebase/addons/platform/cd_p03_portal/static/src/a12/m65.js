@@ -4,7 +4,7 @@
 export const MODULE = {
   area: 'A12', code: 'M65', en: 'Multi-Entity & Localisation', title: 'M65 · Multi-Entity & Localisation',
   bn: 'মাল্টি-এন্টিটি ও লোকালাইজেশন', icon: '🌐',
-  desc: 'Legal entity structure, country packs (divisions, holidays, postcodes), locale packs with number formats and coverage, and jurisdiction rules per authority.',
+  desc: 'Legal entity structure, country packs (divisions, holidays, postcodes), locale packs with number formats and measured coverage, and a jurisdiction register. The jurisdiction register is documentation: no calculation reads it. Storefront checkout is the only reader of the gateway register.',
   kpis: [
     { l: 'Entities', m: 'entities' },
     { l: 'Country Packs', m: 'country_packs' },
@@ -18,7 +18,7 @@ export const MODULE = {
       { id: 'M65-bengali', en: 'Bengali Support (bn-BD)', bn: 'Bengali Support (bn-BD)', t: 'g' },
       { id: 'M65-translations', en: 'Translation Infrastructure', bn: 'Translation Infrastructure', t: 'g' },
       { id: 'M65-intercompany', en: 'Intercompany', bn: 'Intercompany', t: 'g' },
-      { id: 'M65-gateways', en: 'Payment Gateways (Razorpay/KBZPay/eSewa)', bn: 'পেমেন্ট গেটওয়ে', t: 'g' },
+      { id: 'M65-gateways', en: 'Payment Gateways (Storefront Checkout Only)', bn: 'পেমেন্ট গেটওয়ে', t: 'g' },
       { id: 'M65-assessment', en: 'Expansion Assessment', bn: 'Expansion Assessment', t: 'g' }
     ]},
     { en: 'Structure', screens: [
@@ -33,7 +33,7 @@ export const MODULE = {
     { en: 'Localisation', screens: [
       { id: 'M65-locales', en: 'Locale Packs', bn: 'লোকেল', t: 'g' },
       { id: 'M65-readiness', en: 'Locale Readiness', bn: 'প্রস্তুতি', t: 'r' },
-      { id: 'M65-jurisdictions', en: 'Jurisdiction Rules', bn: 'এখতিয়ার', t: 'g' }
+      { id: 'M65-jurisdictions', en: 'Jurisdiction Rules (Documentation Only)', bn: 'এখতিয়ার', t: 'g' }
     ]}
   ],
   reports: ['Entity Structure', 'Country Pack Status', 'Locale Readiness'],
@@ -54,17 +54,19 @@ export const SCREENS = {
     cols: ['code', 'legal_name', 'legal_name_bn', 'active'] },
   'M65-structure': { kind: 'table_report', module: 'M65', report: 'entity_structure', title: 'Entity Structure', period: false },
   'M65-packs': { kind: 'model_list', model: 'fix.country.pack', stateField: 'state',
-    cols: ['name', 'code', 'kind', 'version', 'certified_on', 'loaded_at', 'state'],
-    /* A12 P1-4 lifecycle: draft → validated → certified (admin + gazette note)
-       → active → load → retire. Only a CERTIFIED pack activates; only an
-       ACTIVE pack loads. */
-    actions: [{ m: 'action_validate', l: 'Validate' },
-              { m: 'action_certify', l: 'Certify', ask: 'Certification note (gazette / source reference)', kwarg: 'note' },
+    cols: ['name', 'code', 'kind', 'version', 'certified_by_id', 'certified_on', 'loaded_at', 'load_summary', 'state'],
+    /* A12 P1-4 lifecycle: draft → validated → certified (a second admin, stating
+       what they checked) → active → load → retire. Only a CERTIFIED pack
+       activates; only an ACTIVE pack loads and counts. */
+    actions: [{ m: 'action_load_bangladesh_drafts', l: 'Load Bangladesh Drafts (needs verifying)' },
+              { m: 'action_validate', l: 'Validate' },
+              { m: 'action_back_to_draft', l: 'Back To Draft' },
+              { m: 'action_certify', l: 'Certify (second person)', ask: 'What did you verify this pack against? Name the gazette or circular and its date. You are confirming you checked it yourself.', kwarg: 'note' },
               { m: 'action_activate', l: 'Activate' },
               { m: 'action_load', l: 'Load Pack Data' },
               { m: 'action_retire', l: 'Retire' }] },
   'M65-packlines': { kind: 'model_list', model: 'fix.country.pack.line',
-    cols: ['pack_id', 'parent_code', 'code', 'name', 'name_bn', 'active'] },
+    cols: ['pack_id', 'parent_code', 'code', 'name', 'name_bn', 'date_value'] },
   'M65-packstatus': { kind: 'table_report', module: 'M65', report: 'country_pack_status', title: 'Country Pack Status', period: false },
   'M65-locales': { kind: 'model_list', model: 'fix.locale.pack', stateField: 'state',
     cols: ['code', 'name', 'number_format', 'date_format', 'coverage_pct', 'state'],
@@ -81,14 +83,14 @@ export const SCREENS = {
     back: 'M65-locales',
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
     sections: [
-      { title: 'Locale', note: 'A locale code is unique per company. Activation is coverage-gated (default 100%); the state badge is set by the Activate/Retire buttons, never typed.',
+      { title: 'Locale', note: 'A locale code is unique per company. Coverage is measured from the translations loaded in the system, never typed. Activation is coverage-gated (default 100%) and makes the language available; retiring it removes the language if nobody uses it. Translations themselves are loaded by the language-install tool.',
         fields: [
           { name: 'code', required: true, label: 'Locale Code' },
           { name: 'name', required: true, label: 'Locale Name' },
           { name: 'number_format', required: true, label: 'Number Format' },
           { name: 'first_day_of_week', required: true, label: 'First Day of Week' },
           { name: 'date_format', required: true, label: 'Date Format' },
-          { name: 'coverage_pct', label: 'Translation Coverage %' }
+          { name: 'coverage_pct', readonly: true, label: 'Translation Coverage % (measured)' }
         ] }
     ]
   },
@@ -99,7 +101,7 @@ export const SCREENS = {
     title: 'Jurisdiction Rule',
     back: 'M65-jurisdictions',
     sections: [
-      { title: 'Rule', note: 'One statutory requirement per authority: what is required, how often, and the penalty for non-compliance.',
+      { title: 'Rule', note: 'DOCUMENTATION ONLY. This register records one requirement per authority: what is required, how often, and the penalty. No calculation reads it: tax, the VAT calendar and payroll have their own rules, so editing this row changes nothing else. A person must verify the content. Changes are tracked.',
         fields: [
           { name: 'jurisdiction', required: true, label: 'Jurisdiction' },
           { name: 'rule_area', required: true, label: 'Rule Area' },
@@ -117,9 +119,22 @@ export const SCREENS = {
     model: 'fix.country.pack',
     title: 'Country Pack',
     back: 'M65-packs',
+    lines: {
+      field: 'line_ids',
+      title: 'Lines',
+      readonlyGrid: true,
+      note: 'Read-only here: add or correct a line on the Pack Lines screen while the pack is a draft.',
+      fields: [
+        { name: 'code', label: 'Code' },
+        { name: 'parent_code', label: 'Parent Code' },
+        { name: 'name', label: 'Name (English)' },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'date_value', label: 'Date' }
+      ]
+    },
     status: { field: 'state', labels: { draft: 'Draft', validated: 'Validated', certified: 'Certified', active: 'Active', retired: 'Retired' } },
     sections: [
-      { title: 'Pack', note: 'Lines (divisions, holidays, postcodes) are loaded only after the pack is certified and activated. The lifecycle badge is set by the Validate/Certify/Activate/Load/Retire buttons, never typed.',
+      { title: 'Pack', note: 'A pack is reference data, and this system does not vouch for it: a person must verify every line against the official source, and a Platform Admin other than the creator certifies it. Once validated the pack is frozen. Only an active, loaded pack counts: Load copies holidays into national calendars and divisions into the address hierarchy, and postcodes nowhere. Load Bangladesh Drafts on the list screen creates the shipped data as unverified drafts.',
         fields: [
           { name: 'name', required: true, label: 'Pack Name' },
           { name: 'code', required: true, label: 'Pack Code' },
@@ -135,14 +150,14 @@ export const SCREENS = {
     title: 'Pack Line',
     back: 'M65-packlines',
     sections: [
-      { title: 'Line', note: 'A line is one division/district, holiday or postcode inside its pack. parent_code links the hierarchy.',
+      { title: 'Line', note: 'A line is one division/district, holiday or postcode inside its pack. parent_code links the hierarchy; a holiday needs its date. Lines can change only while the pack is a draft.',
         fields: [
           { name: 'pack_id', required: true, label: 'Country Pack' },
           { name: 'code', required: true, label: 'Code' },
           { name: 'name', required: true, label: 'Name (English)' },
-          { name: 'name_bn', label: 'Name (Bengali)' },
+          { name: 'name_bn', required: true, label: 'Name (Bengali)' },
           { name: 'parent_code', label: 'Parent Code' },
-          { name: 'active', label: 'Active' }
+          { name: 'date_value', label: 'Date (holiday packs)' }
         ] }
     ]
   },
@@ -152,13 +167,28 @@ export const SCREENS = {
     model: 'fix.entity',
     title: 'Legal Entity',
     back: 'M65-entities',
+    tabs: [
+      { id: 'identity', label: '1. Entity', bn: '১. প্রতিষ্ঠান', icon: '🏢' },
+      { id: 'statutory', label: '2. Statutory', bn: '২. বিধিবদ্ধ', icon: '📜' }
+    ],
     sections: [
-      { title: 'Entity', note: 'A legal company of the group; the entity roll-up drives consolidated reporting.',
+      { tab: 'identity', title: 'Entity', note: 'A legal company of the group; the entity roll-up drives consolidated reporting. The company is set when the entity is created and cannot then be moved.',
         fields: [
           { name: 'code', required: true, label: 'Entity Code' },
           { name: 'legal_name', required: true, label: 'Legal Name' },
           { name: 'legal_name_bn', label: 'Legal Name (Bengali)' },
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'country_id', required: true, label: 'Country' },
+          { name: 'currency_id', label: 'Currency' },
           { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'statutory', title: 'Statutory Registration', note: 'Record the real NBR registrations: the format is checked, whether a number is genuine is not. Changing the VAT due day or calendar rule moves a statutory date, so it also needs a finance manager. Every change here is tracked and audited.',
+        fields: [
+          { name: 'bin_number', label: 'BIN (13 digits)' },
+          { name: 'tin_number', label: 'e-TIN (12 digits)' },
+          { name: 'vat_statutory_day', label: 'VAT Due Day of Month' },
+          { name: 'statutory_calendar_rule', required: true, label: 'Tax Calendar Rule' },
+          { name: 'incorporation_date', label: 'Incorporation Date' }
         ] }
     ]
   },
@@ -166,15 +196,17 @@ export const SCREENS = {
   /* registry completion screens */
   'M65-bengali': { kind: 'table_report', module: 'M65', report: 'bengali_support', title: 'Bengali Support (bn-BD)', period: false },
   'M65-translations': { kind: 'table_report', module: 'M65', report: 'translation_completeness', title: 'Translation Infrastructure', period: false },
-  'M65-intercompany': { kind: 'model_list', model: 'fix.intercompany.rule', create: false, cols: ['name', 'model_id'] },
-  'M65-gateways': { kind: 'model_list', model: 'fix.payment.gateway', stateField: 'state', cols: ['provider', 'country_code', 'mode', 'currencies', 'settlement_cycle_days', 'state'],
+  'M65-intercompany': { kind: 'model_list', model: 'fix.intercompany.rule', create: false, cols: ['name', 'code', 'scope', 'transaction_type'] },
+  'M65-gateways': { kind: 'model_list', model: 'fix.payment.gateway', stateField: 'state', cols: ['name', 'provider', 'country_code', 'mode', 'currencies', 'settlement_cycle_days', 'approval_state', 'state'],
     /* A12 P1-4: Activate is M63-routed (no button) - Route sends the draft or
        suspended rail to the coded approver group; every transition is written
-       to the security audit chain. Credential rotation takes TWO inputs
-       (vault ref + reason) and runs from the server, not this one-prompt UI. */
+       to the security audit chain. A12 finish E8: rotating a live credential
+       is routed too, and stays inside its vault namespace. */
     actions: [{ m: 'action_request_approval', l: 'Route Activation', ask: 'Why should this gateway go live?', kwarg: 'justification' },
               { m: 'action_recall_approval', l: 'Recall Request' },
-              { m: 'action_suspend', l: 'Suspend', ask: 'Why is this gateway being suspended?', kwarg: 'reason' }] },
+              { m: 'action_suspend', l: 'Suspend', ask: 'Why is this gateway being suspended?', kwarg: 'reason' },
+              { m: 'action_rotate_credential', l: 'Rotate Credential',
+                asks: [{ label: 'New vault reference (vault://...)', kwarg: 'new_ref' }, { label: 'Why is it being rotated?', kwarg: 'reason' }] }] },
   'M65-assessment': { kind: 'table_report', module: 'M65', report: 'expansion_assessment', title: 'Expansion Assessment', period: false },
 
 
@@ -186,7 +218,7 @@ export const SCREENS = {
     back: 'M65-gateways',
     status: { field: 'state', labels: { draft: "Draft", active: "Active", suspended: "Suspended" } },
     sections: [
-      { title: "Payment Gateway", note: "A gateway holds a VAULT REFERENCE only - API keys are never entered here (SEC-101); the reference must start with vault:// and is settable only while the rail is a DRAFT. Going live is M63-routed and audited; the state badge is never typed.",
+      { title: "Payment Gateway", note: "A gateway holds a VAULT REFERENCE only - API keys are never entered here (SEC-101). Give it when you create the rail; afterwards use Rotate Credential, which on a live rail goes to an approver. No integration reads this reference yet, so rotating it does not change a live secret. Going live is M63-routed and audited. Once past draft the rail's identity is frozen. Storefront checkout is the only reader of this register.",
         fields: [
           { name: 'provider', required: true, label: "Provider" },
           { name: 'country_code', required: true, label: "Country Code" },

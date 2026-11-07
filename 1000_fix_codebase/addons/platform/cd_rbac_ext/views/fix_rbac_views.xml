@@ -27,7 +27,7 @@
                             <field name="name"/>
                             <field name="name_bn"/>
                             <field name="keycloak_role"/>
-                            <field name="group_id"/>
+                            <field name="group_ids" widget="many2many_tags"/>
                             <field name="active" widget="boolean_toggle"/>
                         </group>
                         <group>

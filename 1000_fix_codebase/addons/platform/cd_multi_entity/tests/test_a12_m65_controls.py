@@ -353,10 +353,23 @@ def test_nil_return_evidence_is_never_typed(odoo_env, nil_world):
 
 
 def _release(odoo_env, tag, change=None):
+    # A12 finish E7: a release names its target environment before it ships.
+    target = (
+        odoo_env["fix.platform.environment"]
+        .sudo()
+        .create(
+            {
+                "name": "A12 target %s" % tag,
+                "kind": "production",
+                "base_url": "https://a12.example",
+            }
+        )
+    )
     vals = {
         "name": "A12 release %s" % tag,
         "version": "1.%d.0" % odoo_env["fix.platform.release"].search_count([]),
         "rollback_plan": "roll back to the previous tag",
+        "environment_id": target.id,
     }
     if change is not None:
         vals["itsm_change_id"] = change.id

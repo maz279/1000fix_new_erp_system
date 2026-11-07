@@ -32,6 +32,8 @@ SURFACES = {
     # only their own device logs, and res.users reads respect Odoo's rules
     "res.users": {"order": "name", "limit": 400, "actions": set(), "rules": True},
     "fix.role": {"order": "code", "limit": 200, "actions": set()},
+    # who was actually given what: system-written, no action, no input (E3/E5)
+    "fix.role.assignment": {"order": "granted_on desc, id desc", "limit": 500, "actions": set()},
     "res.groups": {"order": "name", "limit": 300, "actions": set()},
     "fix.field.rule": {"order": "id", "limit": 400, "actions": set()},
     "fix.isolation.tier": {"order": "code", "limit": 50, "actions": set()},
@@ -49,7 +51,7 @@ SURFACES = {
     "fix.privileged.session": {
         "order": "started_at desc, id desc",
         "limit": 400,
-        "actions": {"action_close"},
+        "actions": {"action_approve", "action_reject", "action_open", "action_close"},
     },
     "fix.sensitive.field": {"order": "model_name, field_name", "limit": 400, "actions": set()},
     "res.device.log": {
@@ -68,6 +70,11 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_certify", "action_revoke"},
     },
+    "fix.access.certification.campaign": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_generate"},
+    },
     "fix.encryption.key": {
         "order": "code",
         "limit": 200,
@@ -83,7 +90,15 @@ SURFACES = {
     "fix.security.incident": {
         "order": "detected_at desc, id desc",
         "limit": 400,
-        "actions": {"action_contain", "action_close", "action_set_severity"},
+        "actions": {
+            "action_contain",
+            "action_close",
+            "action_set_severity",
+            "action_confirm_severity",
+            "action_reject_severity",
+        },
+        # E16: a reporter sees their own reports; breach text is for the officer
+        "rules": True,
     },
     "ir.rule": {"order": "model_id, id", "limit": 400, "actions": set()},
     "ir.model.access": {"order": "model_id, id", "limit": 800, "actions": set()},
@@ -109,7 +124,6 @@ WRITABLE = {
         "mobile_phone",
         "work_email",
         "image_1920",
-        "barcode",
         "active",
         "lang",
         "tz",
@@ -129,14 +143,22 @@ WRITABLE = {
         "code",
         "name",
         "name_bn",
-        "group_id",
         "keycloak_role",
         "active",
         "description",
         "company_id",
     ),
     "res.groups": (),
-    "fix.field.rule": ("model_id", "field_id", "permission", "active"),
+    "fix.role.assignment": (),
+    "fix.field.rule": (
+        "model_id",
+        "field_id",
+        "fix_model_name",
+        "fix_field_name",
+        "role_ids",
+        "permission",
+        "active",
+    ),
     "fix.isolation.tier": (
         "code",
         "name",
@@ -178,14 +200,13 @@ WRITABLE = {
         "valid_until",
     ),
     # the measurement (result/violations/users_in_conflict) is computed
-    "fix.sod.test": ("control_id", "tested_on", "tested_by_id", "users_checked"),
-    # closure stamps the end; duration is measured
+    "fix.sod.test": ("control_id",),
+    # the holder is the caller; the decision, the clock and the closure are actions
     "fix.privileged.session": (
-        "user_id",
         "access_kind",
         "reason",
         "ticket_ref",
-        "started_at",
+        "duration_hours",
         "actions_count",
     ),
     "fix.sensitive.field": (
@@ -200,9 +221,10 @@ WRITABLE = {
     ),
     "res.device.log": (),
     "fix.jml.event": ("event_type", "employee_id", "user_id", "role_id", "effective_on"),
-    # the decision (decision/decided_on) is the reviewer's action only;
-    # due_on stays editable — it is the close-out deadline the cron enforces
+    # the decision (decision/decided_on) is the reviewer's action only; only an
+    # Access Approver or Access Rights admin writes this register at all (E4)
     "fix.access.certification": ("period", "user_id", "role_id", "reviewer_id", "due_on", "note"),
+    "fix.access.certification.campaign": ("period", "due_on"),
     # state and the rotation dates change only through action_rotate
     "fix.encryption.key": (
         "code",
@@ -216,9 +238,11 @@ WRITABLE = {
     # system-written register: nothing may be typed
     "fix.security.audit": (),
     # severity is the two-person action; state/resolution are the lifecycle
+    # severity is typed by the reporter at filing, and locked after (E15)
     "fix.security.incident": (
         "title",
         "category",
+        "severity",
         "detected_at",
         "detected_by_id",
         "affected_user_id",
@@ -231,6 +255,7 @@ WRITABLE = {
     "ir.rule": (
         "name",
         "model_id",
+        "fix_model_name",
         "domain_force",
         "perm_read",
         "perm_write",
@@ -240,6 +265,7 @@ WRITABLE = {
     "ir.model.access": (
         "name",
         "model_id",
+        "fix_model_name",
         "group_id",
         "perm_read",
         "perm_write",
@@ -268,23 +294,28 @@ def _caller_search(env, model, domain, order=None, limit=None):
 
 
 def access_review(env, date_from=None, date_to=None, **params):
-    """Per user: active flag, role count, group count, last login."""
-    users = _caller_search(env, "res.users", [("share", "=", False)])
-    roles = _caller_search(env, "fix.role", [])
-    group_to_roles = {}
-    for role in roles:
-        for group in role.group_id | role.group_ids:
-            group_to_roles.setdefault(group.id, []).append(role)
+    """Per user: active flag, role count, group count, last login. Roles are what the
+    user holds (assigned, on the employee master, or named by a group), not every role
+    sharing one of their groups (E5). A colleague's access is for the people who review
+    it; anyone else sees their own line (E25)."""
+    Sod = env["fix.sod.control"]
+    domain = [("share", "=", False)]
+    if not (
+        env.user.has_group("base.group_erp_manager")
+        or env.user.has_group("cd_rbac_ext.group_access_approver")
+    ):
+        domain.append(("id", "=", env.uid))
+    users = _caller_search(env, "res.users", domain)
     rows = []
     for user in users:
-        user_roles = [r.code for g in user.group_ids for r in group_to_roles.get(g.id, [])]
+        codes = sorted(Sod.user_held_roles(user).mapped("code"))
         rows.append(
             {
                 "login": user.login,
                 "user": user.name,
-                "roles": ", ".join(sorted(set(user_roles))) or "—",
-                "role_count": len(set(user_roles)),
-                "groups": len(user.group_ids),
+                "roles": ", ".join(codes) or "—",
+                "role_count": len(codes),
+                "groups": len(user.sudo().group_ids),
                 "last_login": user.login_date.strftime("%d %b %Y") if user.login_date else "Never",
                 "active": "Yes" if user.active else "No",
             }
@@ -305,8 +336,10 @@ def access_review(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Roles are the business roles (fix.role) mapped to the user's Odoo groups; a user with "
-            "no mapped role is an access-review finding, not an error."
+            "Roles are what the user was actually given: an approved request or JML event, the "
+            "employee master, or a group only one role maps to. A group several roles share names "
+            "none of them. A user with groups and no role was given access outside the register: "
+            "that is an access-review finding, not an error."
         ],
         empty="No internal users.",
     )
@@ -389,9 +422,10 @@ def sensitive_access(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Scope note: field-level reads are not instrumented in this build. This pack reports "
-            "the classified surface (which fields are sensitive and whether a masking rule is set), "
-            "not read counts — nothing here is estimated."
+            "Masking rules apply on the P03 screens (lists and forms) to callers without clearance; "
+            "they do not apply to the Odoo back end, report packs or exports. Individual reads are "
+            "not logged, so this pack reports the classified surface, not read counts: nothing "
+            "here is estimated."
         ],
         empty="No sensitive fields classified yet.",
     )
@@ -452,9 +486,10 @@ def sod_results(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Each test measures users who actually hold BOTH roles' Odoo groups; an untested "
-            "control shows 'Not tested' rather than an assumed pass. Grants are blocked at "
-            "the gate for every 'block' control."
+            "Each test measures users who hold BOTH roles: what was assigned, the employee master "
+            "and groups that name a role. A job re-measures every control weekly; an untested "
+            "control shows 'Not tested' rather than an assumed pass. A 'block' control refuses "
+            "the grant unless an approved SoD exception covers it."
         ],
         empty="No active SoD controls.",
     )

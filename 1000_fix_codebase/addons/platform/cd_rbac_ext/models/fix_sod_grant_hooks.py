@@ -25,7 +25,7 @@ def _command_ids(commands):
     for cmd in commands or []:
         if isinstance(cmd, int):
             ids.add(cmd)
-        elif isinstance(cmd, (list, tuple)) and cmd:
+        elif isinstance(cmd, list | tuple) and cmd:
             if cmd[0] == Command.LINK and len(cmd) > 1:
                 ids.add(cmd[1])
             elif cmd[0] == Command.SET and len(cmd) > 2:
@@ -103,9 +103,14 @@ class ResGroupsSod(models.Model):
         index = self.env["fix.sod.control"]._fix_index()
         touched = self._fix_sod_affected_users(vals)
         before = touched._fix_sod_snapshot(index)
+        portal_before = touched.filtered(lambda u: u._fix_is_portal_with_workspace())
         res = super().write(vals)
         self.env["res.groups"].invalidate_model(["all_user_ids", "all_implied_ids"])
         touched |= self.sudo().with_context(active_test=False).all_user_ids
+        # the group door must refuse what the user door refuses (E25); holders
+        # from before this write are a clean-up, not a reason to fail an upgrade
+        touched.invalidate_recordset(["group_ids", "all_group_ids", "share"])
+        (touched - portal_before)._check_no_workspace_on_portal_user()
         # Enforce as the CALLER (touched was read with sudo).
         touched.with_env(self.env)._fix_sod_check(
             before, index, "group membership changed (%s)" % self[:1].name

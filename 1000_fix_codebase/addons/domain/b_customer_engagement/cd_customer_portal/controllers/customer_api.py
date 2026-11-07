@@ -40,6 +40,8 @@ from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 from odoo.tools import misc
 
+from libs.py.fix_api_edge import api_edge
+
 from . import otp_delivery
 
 _logger = logging.getLogger(__name__)
@@ -199,6 +201,7 @@ class CustomerApiController(http.Controller):
     # --- Phone OTP Auth & Registration -------------------------------------
 
     @http.route("/customer/auth/otp/send", type="jsonrpc", auth="public", readonly=False)
+    @api_edge("/customer/auth/otp/send")
     def otp_send(self, **kwargs):
         """Send an OTP by SMS to an 11-digit Bangladesh mobile number (login/registration).
 
@@ -247,6 +250,7 @@ class CustomerApiController(http.Controller):
         return result
 
     @http.route("/customer/auth/otp/verify", type="jsonrpc", auth="public", readonly=False)
+    @api_edge("/customer/auth/otp/verify")
     def otp_verify(self, **kwargs):
         """Verify OTP, establish the phone's own portal session and return its profile.
 
@@ -545,6 +549,7 @@ class CustomerApiController(http.Controller):
         auth="public",
         readonly=True,
     )
+    @api_edge("/customer/tracking")
     def tracking(self, **kwargs):
         """Live tracking: order state, technician, milestone stages, SLA clocks (W4/PP5).
         Supports querying by order_id or order reference `ref` (G2-05/T04).

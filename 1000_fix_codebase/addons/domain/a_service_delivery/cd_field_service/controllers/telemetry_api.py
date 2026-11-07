@@ -12,6 +12,8 @@ from odoo.addons.cd_service_order.controllers.technician_api import (
 )
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 _logger = logging.getLogger(__name__)
 
 
@@ -22,6 +24,7 @@ class TelemetryApiController(http.Controller):
         auth="bearer",
         methods=["POST"],
     )
+    @api_edge("/api/v1/telemetry/ping")
     def telemetry_ping(self, **kwargs):
         employee, err = resolve_technician(kwargs)
         if err:

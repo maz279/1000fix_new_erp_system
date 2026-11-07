@@ -60,30 +60,71 @@ class FixSodControl(models.Model):
 
     @api.model
     def _role_groups(self, role):
-        """Every Odoo group a role maps to (the M2M register + legacy M2O)."""
-        return (role.group_id | role.group_ids) if role else self.env["res.groups"]
+        """Every Odoo group a role maps to: the reviewed m2m register. The old
+        fix.role.group_id scratch map is not read (E7); a migration clears it."""
+        return role.sudo().group_ids if role else self.env["res.groups"]
+
+    @api.model
+    def _fix_role_map(self):
+        """{role id: set of group ids} for every active role, read once per check."""
+        roles = self.env["fix.role"].sudo().search([("active", "=", True)])
+        return {role.id: set(role.group_ids.ids) for role in roles}
+
+    @api.model
+    def _fix_infer_role_ids(self, group_ids, role_map=None):
+        """Roles that direct group membership alone names, for access handed
+        out outside the register. A group several roles share does not name
+        any of them. A role is named by a group only it maps to, or by its
+        whole group set when no other role has the same set and no named role
+        contains it: holding one shared group is never "holding" three roles."""
+        role_map = self._fix_role_map() if role_map is None else role_map
+        held = set(group_ids)
+        counts = {}
+        for groups in role_map.values():
+            for gid in groups:
+                counts[gid] = counts.get(gid, 0) + 1
+        named = {
+            rid
+            for rid, groups in role_map.items()
+            if any(counts[g] == 1 and g in held for g in groups)
+        }
+        whole = {rid for rid, groups in role_map.items() if groups and groups <= held} - named
+        for rid in sorted(whole):
+            groups = role_map[rid]
+            twin = any(o != rid and role_map[o] == groups for o in role_map)
+            contained = any(o != rid and groups < role_map[o] for o in named | whole)
+            if not twin and not contained:
+                named.add(rid)
+        return named
 
     @api.model
     def roles_for_groups(self, group_ids):
-        """Active roles whose mapped groups intersect `group_ids` (ids or records)."""
+        """Active roles that these groups name (see _fix_infer_role_ids)."""
         if not group_ids:
             return self.env["fix.role"]
         if isinstance(group_ids, int):
             wanted = {group_ids}
         else:
             wanted = {g if isinstance(g, int) else g.id for g in group_ids}
-        roles = self.env["fix.role"].sudo().search([("active", "=", True)])
-        return roles.filtered(lambda r, w=wanted: w & set(self._role_groups(r).ids))
+        return self.env["fix.role"].sudo().browse(sorted(self._fix_infer_role_ids(wanted)))
 
     @api.model
     def user_held_roles(self, user):
-        """Every active role the user holds, measured through real group
-        membership (the R1 role -> group mapping). Runs sudo internally: it
-        is a governance read of group membership, not a data read."""
+        """Every active role the user holds: what was assigned (fix.role.assignment),
+        what the employee master records, and what direct group membership
+        unambiguously names. Sudo inside: a governance read, not a data read."""
         user = user if hasattr(user, "_name") else self.env["res.users"].browse(user)
-        groups = set(user.sudo().group_ids.ids)
-        roles = self.env["fix.role"].sudo().search([("active", "=", True)])
-        return roles.filtered(lambda r, g=groups: g & set(self._role_groups(r).ids))
+        return self._fix_held_roles(user=user.sudo(), employees=self._fix_user_employees(user))
+
+    @api.model
+    def user_holds_role(self, user, role) -> bool:
+        """True when the user holds the role, or holds its whole group set
+        (roles sharing an identical set cannot be told apart, so a reviewer may
+        still review either; SoD does not count them)."""
+        groups = set(role.sudo().group_ids.ids)
+        if role in self.user_held_roles(user):
+            return True
+        return bool(groups) and groups <= set(user.sudo().group_ids.ids)
 
     # ------------------------------------------------------------------
     # The gates
@@ -116,17 +157,17 @@ class FixSodControl(models.Model):
     def check_user_assignment(self, user, role) -> bool:
         """A12 R2 SoD gate — the cross-builder contract.
 
-        Tests EVERY role the user already holds (through real Odoo group
-        membership) against the incoming role, not just one pair.
+        Tests EVERY role the user already holds against the incoming role,
+        not just one pair. An approved, unexpired SoD exception for the user and
+        control lets that control through (FR-SEC-024).
 
         Callable as:
             env["fix.sod.control"].check_user_assignment(user, role)
         with `user` a res.users record or id, `role` a fix.role record or
         id. Returns True when permitted; raises ValidationError listing
         every blocking control when the grant would create a conflict.
-        Never call it under a waiver assumption: a waiver path (FR-SEC-024)
-        is a business decision and is not shipped.
         """
+        user = user if hasattr(user, "_name") else self.env["res.users"].browse(user)
         role = role if hasattr(role, "_name") else self.env["fix.role"].browse(role)
         if not role:
             return True
@@ -146,6 +187,7 @@ class FixSodControl(models.Model):
             lambda c, r=role, h=held: (c.role_a_id == r and c.role_b_id in h)
             or (c.role_b_id == r and c.role_a_id in h)
         )
+        conflicts = conflicts.filtered(lambda c: not self._fix_excepted(c, user))
         if conflicts:
             raise ValidationError(
                 "SoD conflict: granting %s (%s) to a holder of %s breaks %s. "
@@ -160,12 +202,23 @@ class FixSodControl(models.Model):
         return True
 
     @api.model
+    def _fix_excepted(self, control, user):
+        """The approved, unexpired SoD exceptions covering this user and control."""
+        if not user:
+            return self.env["fix.sod.mitigation"]
+        return self.env["fix.sod.mitigation"].sudo()._fix_valid_for(control, user)
+
+    @api.model
     def check_user_groups(self, user, group_ids) -> bool:
-        """Convenience gate for group-level changes: maps the groups being
-        ADDED to their roles and runs check_user_assignment for each."""
-        for role in self.roles_for_groups(group_ids):
-            self.check_user_assignment(user, role)
-        return True
+        """Convenience gate for group-level changes: refuses the NEW conflicts
+        these groups would create, whoever calls it."""
+        ids = [g if isinstance(g, int) else g.id for g in group_ids]
+        index = self._fix_index()
+        before = self._fix_conflicts(user=user, index=index)
+        after = self._fix_conflicts(
+            user=user, extra_groups=self.env["res.groups"].sudo().browse(ids), index=index
+        )
+        return self._fix_enforce(user, before, after, "groups added", strict=True)
 
     # ---------------------------------------------- the preventive gate (A10 P1-3)
     @api.model
@@ -179,30 +232,35 @@ class FixSodControl(models.Model):
         )
 
     @api.model
-    def check_role_set(self, role_ids, waiver=None) -> "FixSodControl":
+    def check_role_set(self, role_ids, waiver=None, user=None, incoming=None) -> "FixSodControl":
         """The preventive SoD gate over one person's FULL final role set
         (A10 P1-3, M60-4/-5): the register only ever bit on one hand-written
         pair, so a grant could assemble a conflict role by role.
 
-        block -> always refused (a documented GRC exception is the override,
-                 not this path); warn  -> refused unless `waiver` carries an
+        block -> refused unless an approved SoD exception covers `user` (E8);
+        warn  -> refused unless that exception exists or `waiver` carries an
         approver who is not the beneficiary, an expiry and a reason.
-        Returns the waived warn controls so the caller logs them.
+        `incoming`, when given, limits the gate to controls that role is part
+        of: a conflict the person already had is reported, not a reason to
+        refuse something unrelated. Returns the waived warn controls so the
+        caller logs them.
         """
         conflicts = self.conflicts_in_role_set(role_ids)
+        if incoming:
+            conflicts = conflicts.filtered(lambda c: incoming in (c.role_a_id, c.role_b_id))
+        conflicts = conflicts.filtered(lambda c: not self._fix_excepted(c, user))
         for control in conflicts.filtered(lambda c: c.conflict_action == "block"):
             raise ValidationError(
-                "SoD control %s: %s — one person cannot hold both roles. A "
-                "documented GRC exception is the only override." % (control.code, control.name)
+                "SoD control %s: %s — one person cannot hold both roles. An approved SoD "
+                "exception (FR-SEC-024) is the only override." % (control.code, control.name)
             )
-        warn = conflicts.filtered(lambda c: c.conflict_action != "block")
+        warn = conflicts.filtered(lambda c: c.conflict_action == "warn")
         if warn:
             if not waiver:
                 raise ValidationError(
                     "SoD control(s) %s — this combination needs a waiver: an "
                     "approved access request whose approver is someone else "
-                    "and which states when the exception expires."
-                    % ", ".join(warn.mapped("code"))
+                    "and which states when the exception expires." % ", ".join(warn.mapped("code"))
                 )
             if not waiver.get("approver_id"):
                 raise ValidationError("The SoD waiver has no approver.")
@@ -210,7 +268,8 @@ class FixSodControl(models.Model):
                 raise ValidationError("The conflicted user cannot approve their own SoD waiver.")
             if not waiver.get("valid_until"):
                 raise ValidationError(
-                    "The SoD waiver has no expiry — state when the exception ends."
+                    "SoD control(s) %s: the SoD waiver has no expiry — state when the "
+                    "exception ends." % ", ".join(warn.mapped("code"))
                 )
             if fields.Date.to_date(waiver["valid_until"]) < fields.Date.context_today(self):
                 raise ValidationError("The SoD waiver has already expired.")
@@ -219,20 +278,17 @@ class FixSodControl(models.Model):
         return warn
 
     @api.model
-    def gate_role_set(self, role_ids, user=None) -> "FixSodControl":
-        """The register's own semantics for DIRECT writes (A10 P1-3):
-        block refuses; warn is allowed but logged — the approval a warn
-        control asks for lives on the access request, so a direct write
-        leaves this warning as the trail the access review reads instead
-        of an approval record. The strict waiver gate is check_role_set,
-        used by the access-request channel."""
-        conflicts = self.conflicts_in_role_set(role_ids)
+    def _fix_gate(self, conflicts, user=None) -> "FixSodControl":
+        """The register's semantics for DIRECT writes (A10 P1-3): block refuses
+        unless an approved SoD exception covers the user; warn is allowed but
+        logged, because the approval it asks for lives on the access request."""
+        conflicts = conflicts.filtered(lambda c: not self._fix_excepted(c, user))
         for control in conflicts.filtered(lambda c: c.conflict_action == "block"):
             raise ValidationError(
-                "SoD control %s: %s — one person cannot hold both roles. A "
-                "documented GRC exception is the only override." % (control.code, control.name)
+                "SoD control %s: %s — one person cannot hold both roles. An approved SoD "
+                "exception (FR-SEC-024) is the only override." % (control.code, control.name)
             )
-        warn = conflicts.filtered(lambda c: c.conflict_action != "block")
+        warn = conflicts.filtered(lambda c: c.conflict_action == "warn")
         for control in warn:
             _logger.warning(
                 "SoD control %s (%s): %s holds both roles after a direct "
@@ -244,19 +300,12 @@ class FixSodControl(models.Model):
             )
         return warn
 
-    # ------------------------------------------------ register bridges (A10 P1-3)
     @api.model
-    def _role_of_group(self) -> dict:
-        """The group→role side of the register bridge: fix.role rows that
-        map to a real Odoo group. Empty until mappings are authored — the
-        gate then honestly reports nothing rather than guessing."""
-        return {
-            r.group_id.id: r.id
-            for r in self.env["fix.role"]
-            .sudo()
-            .search([("group_id", "!=", False), ("active", "=", True)])
-        }
+    def gate_role_set(self, role_ids, user=None) -> "FixSodControl":
+        """_fix_gate over a person's full role set."""
+        return self._fix_gate(self.conflicts_in_role_set(role_ids), user)
 
+    # ------------------------------------------------ register bridges (A10 P1-3)
     @api.model
     def _employee_role_ids(self, user) -> set:
         """The business roles the user's employee record carries (hr lives
@@ -270,14 +319,8 @@ class FixSodControl(models.Model):
 
     @api.model
     def _user_role_ids(self, user) -> set:
-        """Everything the register knows about a user today: the roles the
-        employee master records plus the roles their Odoo groups map to."""
-        if not user:
-            return set()
-        role_of_group = self._role_of_group()
-        return self._employee_role_ids(user) | {
-            role_of_group[g] for g in user.sudo().group_ids.ids if g in role_of_group
-        }
+        """Everything the register knows about a user today (user_held_roles)."""
+        return set(self.user_held_roles(user).ids) if user else set()
 
     @staticmethod
     def _final_groups(current, commands) -> set:
@@ -299,44 +342,38 @@ class FixSodControl(models.Model):
     @api.model
     def _check_users_group_write(self, users, commands):
         """The res.users write gate: a group ADDITION is the moment a person
-        gains power, so the person's whole final register set — group-mapped
-        roles plus their employee roles — is checked. Removals and groups
-        outside the register change no business role and pass untouched;
-        module installs are vendor acts recorded in the server log."""
-        if self.env.context.get("install_mode"):
+        gains power, so the conflicts this write CREATES are gated. A conflict
+        the person already had, removals and groups outside the register pass.
+        Superuser code passes here and is recorded by the res.users door
+        (fix_sod_grant_hooks._fix_enforce); workflow grants check strictly first."""
+        if self.env.su or self.env.context.get("install_mode"):
             return
-        role_of_group = self._role_of_group()
-        if not role_of_group:
-            return
+        role_map = self._fix_role_map()
+        mapped = set().union(*role_map.values()) if role_map else set()
         for user in users:
             current = set(user.sudo().group_ids.ids)
             final = self._final_groups(current, commands)
-            if not {role_of_group[g] for g in final - current if g in role_of_group}:
+            if not (final - current) & mapped:
                 continue  # nothing from the register is being added
-            self.gate_role_set(
-                {role_of_group[g] for g in final if g in role_of_group}
-                | self._employee_role_ids(user),
-                user=user,
+            standing = self._fix_standing_role_ids(user)
+            explained = self._fix_explained_groups(standing)
+            before = standing | self._fix_infer_role_ids(current - explained, role_map)
+            after = standing | self._fix_infer_role_ids(final - explained, role_map)
+            self._fix_gate(
+                self.conflicts_in_role_set(after) - self.conflicts_in_role_set(before), user
             )
 
     @api.model
     def _check_new_user_groups(self, vals_list):
         """The res.users create gate: a user born holding a conflicting
         register pair is a conflict, not a fresh start."""
-        if self.env.context.get("install_mode"):
+        if self.env.su or self.env.context.get("install_mode"):
             return
-        role_of_group = self._role_of_group()
-        if not role_of_group:
-            return
+        role_map = self._fix_role_map()
         for vals in vals_list:
             commands = vals.get("group_ids") or vals.get("groups_id")
             if not commands:
                 continue
-            role_ids = {
-                role_of_group[g]
-                for g in self._final_groups(set(), commands)
-                if g in role_of_group
-            }
+            role_ids = self._fix_infer_role_ids(self._final_groups(set(), commands), role_map)
             if len(role_ids) >= 2:
                 self.gate_role_set(role_ids)
-

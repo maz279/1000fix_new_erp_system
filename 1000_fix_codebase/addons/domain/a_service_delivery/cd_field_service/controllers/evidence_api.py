@@ -22,6 +22,8 @@ from odoo.addons.cd_service_order.controllers.technician_api import (
 from odoo.exceptions import UserError
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 _logger = logging.getLogger(__name__)
 
 # In-memory chunk buffer for active multipart uploads, keyed by
@@ -48,6 +50,7 @@ class OfflineEvidenceApiController(http.Controller):
         auth="bearer",
         methods=["POST"],
     )
+    @api_edge("/api/v1/offline/evidence/chunk")
     def upload_chunk(self, **kwargs):
         """Upload a single chunk of evidence for a record assigned to the caller.
 

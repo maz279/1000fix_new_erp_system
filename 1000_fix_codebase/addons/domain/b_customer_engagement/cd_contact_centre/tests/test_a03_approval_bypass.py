@@ -66,12 +66,15 @@ T5 = "cd_entity_config.group_dofa_tier_5"
 
 
 def rule_in_force(env, make_user, ladder, reference):
-    """A12 X3 / M30-1: a DOFA ruling is two-person — a Tier 4 actor and a
-    DIFFERENT Tier 5 countersigner. The A03 fixtures acted alone; they now
-    rule with a countersigner, exactly as the workspace action does."""
-    ladder.with_user(make_user(T4)).action_put_in_force(
-        reference=reference, countersigned_by=make_user(T5).id
+    """A12 X3 / M30-1: a DOFA ruling is two-person — a Tier 4 proposes and a
+    DIFFERENT Tier 5 countersigns, each acting for themselves, exactly as the
+    workspace does. A citation carries a number."""
+    t5 = make_user(T5)
+    reference = "%s-1" % reference
+    ladder.with_user(make_user(T4)).action_propose_ruling(
+        reference=reference, countersigned_by=t5.id
     )
+    ladder.with_user(t5).action_countersign(reference=reference)
 
 
 @pytest.fixture

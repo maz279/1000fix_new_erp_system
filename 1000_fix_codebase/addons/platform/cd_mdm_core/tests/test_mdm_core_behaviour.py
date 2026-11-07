@@ -274,8 +274,12 @@ def test_quality_index_is_the_weighted_dama_score(odoo_env):
 )
 def test_audit_measures_the_domain_master_and_emits(odoo_env, domain, model, domain_filter):
     rec = _steward(odoo_env, domain)
-    expected = odoo_env[model].search_count(domain_filter)
-    measured = rec._measure_domain(domain)
+    # E27: a card measures its company and what every company shares.
+    scope = ["|", ("company_id", "=", False), ("company_id", "=", rec.company_id.id)]
+    expected = odoo_env[model].search_count(
+        domain_filter + scope if "company_id" in odoo_env[model]._fields else domain_filter
+    )
+    measured = rec._measure_domain(domain, rec.company_id)
 
     rec.action_audit_data_quality()
 
@@ -305,7 +309,9 @@ def test_audit_measures_the_domain_master_and_emits(odoo_env, domain, model, dom
 def test_party_scores_are_computed_from_real_partners(odoo_env, monkeypatch):
     from odoo.addons.cd_mdm_core.models import fix_mdm_stewardship as mod
 
-    # measure exactly the partners this test creates
+    # measure exactly the partners this test creates, with no declared DQ rule
+    # in the blend (E27 has its own tests)
+    odoo_env["fix.mdm.dq.rule"].search([]).write({"active": False})
     rules = dict(mod.DOMAIN_RULES["party"], domain=[("name", "=like", "MDM %")])
     monkeypatch.setitem(mod.DOMAIN_RULES, "party", rules)
     odoo_env["res.partner"].create(

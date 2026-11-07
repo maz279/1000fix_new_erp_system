@@ -92,6 +92,14 @@ def _locked_fields(records) -> set:
     return set(hook()) if hook else set()
 
 
+def _read_policy(env, model, names) -> dict:
+    """A12 M29 E28: {field: hidden | full | last4 | hash} for this caller, from the
+    field rules and the sensitive-field classification. Empty for a cleared caller."""
+    if "fix.field.rule" not in env:
+        return {}
+    return env["fix.field.rule"]._fix_read_policy(model, names)
+
+
 # A08 (finance) + A02 (service operations) + A03 (customer experience) + A11
 # (insights) surfaces, merged: the generic endpoints serve exactly what the
 # per-module files declare.
@@ -228,6 +236,10 @@ class P03GenericApiController(http.Controller):
                     else:
                         row[c] = v
                 rows.append(row)
+            policy = _read_policy(env, model, cols)
+            if policy:
+                for row in rows:
+                    env["fix.field.rule"]._fix_apply_policy(row, policy)
             # total beyond the page: "200 of 15,413" — a bare "200 records"
             # reads as the whole base when the limit clipped it
             total = (
@@ -520,9 +532,17 @@ class P03GenericApiController(http.Controller):
                 else:
                     rec = env[model].sudo().browse(int(record_id)).exists()
             out_fields = self._form_field_meta(env, model, fields, rec or None)
+            policy = _read_policy(env, model, [f["name"] for f in out_fields])
+            out_fields = [f for f in out_fields if policy.get(f["name"]) != "hidden"]
             record = None
             if rec:
                 record = self._form_record(rec, out_fields)
+                if policy:
+                    env["fix.field.rule"]._fix_apply_policy(record, policy)
+            for entry in out_fields:
+                if entry["name"] in policy:
+                    # masked: shown as text, never an input the save could write back
+                    entry.update(readonly=True, type="char", required=False, choices=[])
             line_payload = None
             if lines and lines.get("field"):
                 line_payload = self._form_lines(env, model, lines, record_id)
@@ -651,6 +671,14 @@ class P03GenericApiController(http.Controller):
         # is dropped and only a CHANGE is refused. On create they are dropped
         # so the model's defaults and computes apply.
         fields_meta = env[model]._fields
+        # E28: what this caller cannot read, this caller cannot echo back or
+        # overwrite blind: a field the model restricts by group, and on an existing
+        # record a hidden or masked one (the form shows ***, not the value)
+        readable = env[model].fields_get(list(vals), attributes=["type"])
+        vals = {k: v for k, v in vals.items() if k in readable or k not in fields_meta}
+        if record_id:
+            for name in _read_policy(env, model, list(vals)):
+                vals.pop(name, None)
         current = env[model].browse(int(record_id)).exists() if record_id else env[model]
         if record_id and not current:
             return {"error": "Record not found"}

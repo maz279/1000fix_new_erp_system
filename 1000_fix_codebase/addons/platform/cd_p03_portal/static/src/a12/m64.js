@@ -8,6 +8,9 @@ export const MODULE = {
   kpis: [
     { l: 'Steward Open', m: 'steward_open' },
     { l: 'Steward Total', m: 'steward_total' },
+    { l: 'Change Requests Open', m: 'change_requests_open' },
+    { l: 'Changes Applied', m: 'change_requests_applied' },
+    { l: 'Duplicates Pending', m: 'duplicates_pending' },
     { l: 'Active DQ Rules', m: 'dq_rules' },
     { l: 'Measured Violations', m: 'dq_violations_measured' },
     { l: 'Published Lists', m: 'code_lists' },
@@ -18,7 +21,8 @@ export const MODULE = {
       { id: 'M64-mdm-golden-rule', en: "Mdm Golden Rule", bn: "Mdm Golden Rule", t: 'g' },
       { id: 'M64-mdm-stewardship', en: "Mdm Stewardship", bn: "Mdm Stewardship", t: 'g' },
       { id: 'M64-mdm-change-request', en: "Mdm Change Request", bn: "Mdm Change Request", t: 'g' },
-      { id: 'M64-mdm-match-rule', en: "Mdm Match Rule", bn: "Mdm Match Rule", t: 'g' }
+      { id: 'M64-mdm-match-rule', en: "Mdm Match Rule", bn: "Mdm Match Rule", t: 'g' },
+      { id: 'M64-governed', en: 'Governed Attributes', bn: 'নিয়ন্ত্রিত বৈশিষ্ট্য', t: 'g' }
     ]},
     { en: 'Registry Completion', screens: [
       { id: 'M64-dedupe', en: 'Duplicate Detection', bn: 'Duplicate Detection', t: 'g' },
@@ -40,13 +44,13 @@ export const MODULE = {
     ]}
   ],
   reports: ['Steward Request Backlog', 'DQ Rule Register', 'Code List Usage', 'Golden Record Coverage'],
-  forms: ['Steward Request', 'DQ Rule', 'Code List Entry'],
+  forms: ['Change Request', 'Steward Request', 'DQ Rule', 'Code List Entry'],
   cross: ['M30 branch master', 'M33 golden party', 'M25 DQ dashboards'],
   freg: { src: 52, sub: [
     ['1', 'Stewardship', 10, { model: 'fix.mdm.steward', cols: ['name', 'request_type', 'res_model', 'steward_id', 'state'], screens: ['M64-stewardship', 'M64-mdm-stewardship', 'M64-domains'] }],
     ['2', 'Data Quality', 12, { model: 'fix.mdm.dq.rule', cols: ['code', 'name', 'res_model', 'rule_type', 'severity'], screens: ['M64-rules', 'M64-scoring'] }],
     ['3', 'Code Lists', 9, { model: 'fix.mdm.code.list', cols: ['code', 'name', 'domain_area', 'state'], screens: ['M64-codelists', 'M64-entries', 'M64-xref'] }],
-    ['4', 'Golden Records', 8, { model: 'fix.mdm.golden.rule', cols: ['model_name', 'field_name', 'strategy', 'sequence', 'active'], screens: ['M64-mdm-golden-rule', 'M64-mdm-match-rule'] }],
+    ['4', 'Golden Records', 8, { model: 'fix.mdm.golden.rule', cols: ['model_name', 'field_name', 'strategy', 'sequence', 'active'], screens: ['M64-mdm-golden-rule', 'M64-mdm-match-rule', 'M64-governed'] }],
     ['5', 'Workflows', 7, { model: 'fix.mdm.change.request', cols: ['reference', 'title', 'model_name', 'priority', 'state'], screens: ['M64-mdm-change-request', 'M64-impact'] }],
     ['6', 'Audit', 6, { model: 'fix.mdm.duplicate', cols: ['name', 'res_model', 'decision', 'decided_by_id', 'decided_on'], screens: ['M64-lineage', 'M64-dedupe'] }]
   ] }
@@ -66,7 +70,7 @@ export const SCREENS = {
           { name: 'model_name', required: true, label: "Master Model" },
           { name: 'field_name', required: true, label: "Field" },
           { name: 'strategy', required: true, label: "Survivorship Strategy" },
-          { name: 'priority_source_ids', label: "Priority Sources (in order)" },
+          { name: 'priority_source_ids', label: "Priority Sources (ranked by each source's sequence)" },
           { name: 'sequence', label: "Sequence" },
           { name: 'description', label: "Description" },
           { name: 'active', label: "Active" }
@@ -99,7 +103,7 @@ export const SCREENS = {
     /* A12 P1-2: approval itself is M63-routed (no Approve button) - the
        steward decides from the approver's inbox; here we review, route,
        recall, reject (needs a decision note) and apply the approved change. */
-    actions: [{ m: 'action_review', l: 'Start Review' },
+    actions: [{ m: 'action_review', l: 'Start Review (another steward)' },
               { m: 'action_request_approval', l: 'Route for Approval', ask: 'Justification for the steward decision', kwarg: 'justification' },
               { m: 'action_recall_approval', l: 'Recall Approval' },
               { m: 'action_apply', l: 'Apply Approved Change' }] },
@@ -109,11 +113,11 @@ export const SCREENS = {
     actions: [{ m: 'action_evaluate', l: 'Run Evaluator' }] },
   'M64-scoring': { kind: 'table_report', module: 'M64', report: 'golden_coverage', title: 'Golden Coverage', period: false },
   'M64-codelists': { kind: 'model_list', model: 'fix.mdm.code.list', stateField: 'state',
-    cols: ['code', 'name', 'domain_area', 'version', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish List' }, { m: 'action_new_version', l: 'New Version' },
+    cols: ['code', 'name', 'domain_area', 'version', 'effective_from', 'effective_to', 'state'],
+    actions: [{ m: 'action_publish', l: 'Publish List (second steward)' }, { m: 'action_new_version', l: 'New Version' },
               { m: 'action_retire', l: 'Retire List' }] },
   'M64-entries': { kind: 'model_list', model: 'fix.mdm.code.entry',
-    cols: ['list_id', 'value', 'label', 'label_bn', 'active'] },
+    cols: ['list_id', 'value', 'label', 'label_bn', 'effective_from', 'effective_to', 'active'] },
 
   /* Report chips */
   'M64-rpt-backlog': { kind: 'table_report', module: 'M64', report: 'steward_backlog', title: 'Steward Request Backlog', period: false },
@@ -127,16 +131,17 @@ export const SCREENS = {
     title: 'Steward Request',
     back: 'M64-stewardship',
     status: { field: 'state', labels: {
-      submitted: 'Submitted', in_review: 'In Review', approved: 'Approved', rejected: 'Rejected' } },
+      submitted: 'Submitted', in_review: 'In Review', approved: 'Approved', rejected: 'Rejected', applied: 'Applied' } },
     sections: [
-      { title: 'Request', note: 'Submitted → in review → routed approval (M63) → applied. The state badge is the workflow - it is decided by the buttons, never typed. Rejection happens from the approver’s inbox, carrying its note as the task comment.',
+      { title: 'Request', note: 'Raised by a steward. Another steward starts the review; the raiser routes it; a steward decides from the M63 inbox, where a rejection carries its note; Apply lands it. Update writes the proposed values, Deactivate archives the record, Merge opens a duplicate pair and routes its M33 merge. A new record is raised in its own module: Create is refused. The state badge is decided by the buttons, never typed.',
         fields: [
           { name: 'request_type', required: true, label: 'Request Type' },
           { name: 'res_model', required: true, label: 'Master Model' },
-          { name: 'record_ref', label: 'Record Reference' },
+          { name: 'record_ref', label: 'Record ID (database id)', bn: 'রেকর্ড আইডি' },
+          { name: 'merge_with_ref', label: 'Merge Into (record id, merge only)', bn: 'যার সাথে একীভূত হবে' },
           { name: 'steward_id', label: 'Assigned Steward' },
           { name: 'reason', required: true, type: 'text', label: 'Reason' },
-          { name: 'proposed_changes', type: 'text', label: 'Proposed Changes (one field=value per line)' }
+          { name: 'proposed_changes', type: 'text', label: 'Proposed Changes (one field=value per line, or a JSON object)', bn: 'প্রস্তাবিত পরিবর্তন (প্রতি লাইনে একটি field=value, অথবা JSON)' }
         ] }
     ]
   },
@@ -167,12 +172,14 @@ export const SCREENS = {
     title: 'Code List Entry',
     back: 'M64-entries',
     sections: [
-      { title: 'Entry', note: 'A value is unique inside its list (database UNIQUE). The Bengali label carries the bn_BD rendering.',
+      { title: 'Entry', note: 'A value is unique inside its list (database UNIQUE). The Bengali label carries the bn_BD rendering. A published or retired list cannot change: cut a new version.',
         fields: [
           { name: 'list_id', required: true, label: 'Code List' },
           { name: 'value', required: true, label: 'Value' },
           { name: 'label', required: true, label: 'Label (English)' },
           { name: 'label_bn', label: 'Label (Bengali)' },
+          { name: 'effective_from', label: 'Effective From', bn: 'কার্যকর শুরু' },
+          { name: 'effective_to', label: 'Effective To', bn: 'কার্যকর শেষ' },
           { name: 'active', label: 'Active' }
         ] }
     ]
@@ -185,22 +192,27 @@ export const SCREENS = {
     back: 'M64-codelists',
     status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
     sections: [
-      { title: 'Code List', note: 'Draft → published (frozen) → new version for changes. The state badge is set by the Publish/New Version/Retire buttons, never typed.',
+      { title: 'Code List', note: 'Draft → published (frozen) by a second steward → new version for changes, same code. Publishing a version retires the one it supersedes. The state badge is set by the buttons, never typed.',
         fields: [
           { name: 'code', required: true, label: 'List Code' },
           { name: 'name', required: true, label: 'List Name' },
           { name: 'domain_area', label: 'Domain' },
-          { name: 'version', label: 'Version' }
+          { name: 'version', label: 'Version' },
+          { name: 'effective_from', label: 'Effective From', bn: 'কার্যকর শুরু' },
+          { name: 'effective_to', readonly: true, label: 'Effective To', bn: 'কার্যকর শেষ' }
         ] }
     ]
   },
 
   /* registry completion screens */
-  'M64-dedupe': { kind: 'model_list', model: 'fix.mdm.duplicate', stateField: 'decision', cols: ['name', 'res_model', 'record_a_ref', 'record_b_ref', 'score', 'decision'],
+  'M64-dedupe': { kind: 'model_list', model: 'fix.mdm.duplicate', stateField: 'decision', cols: ['name', 'res_model', 'record_a_ref', 'record_b_ref', 'score', 'match_factors', 'survivor_ref', 'decision'],
     /* A12: Merge no longer writes the master - it routes an M33 fix.party.merge
        (itself M63-approved); the decision lands when that merge executes. */
-    actions: [{ m: 'action_merge', l: 'Merge (routes M33)', ask: 'Why should this pair be merged?', kwarg: 'justification' },
-              { m: 'action_keep_separate', l: 'Keep Separate' },
+    actions: [{ m: 'action_merge', l: 'Merge (routes M33)',
+                asks: [{ kwarg: 'survivor', label: 'Which record survives? Enter the Record A or Record B reference (blank keeps Record A)' },
+                       { kwarg: 'justification', label: 'Why should this pair be merged? (required below the score threshold)' }] },
+              { m: 'action_keep_separate', l: 'Keep Separate', ask: 'Why are they kept separate?', kwarg: 'note' },
+              { m: 'action_false_positive', l: 'False Positive', ask: 'Why is this not a duplicate?', kwarg: 'note' },
               { m: 'action_sync_merge_state', l: 'Sync Merge State' }] },
   'M64-xref': { kind: 'model_list', model: 'fix.mdm.xref', cols: ['code_list', 'source_system', 'source_value', 'canonical_value', 'confidence'] },
   'M64-impact': { kind: 'table_report', module: 'M64', report: 'impact_analysis', title: 'Impact Analysis', period: false },
@@ -215,12 +227,12 @@ export const SCREENS = {
     back: 'M64-dedupe',
     status: { field: 'decision', labels: { pending: "Pending", merged: "Merged", kept_separate: "Kept Separate", false_positive: "False Positive" } },
     sections: [
-      { title: "Duplicate Candidate", note: "A candidate pair from the detection run with its match score and factors. Merge routes an M33 golden-party merge (M63-approved); nothing is deleted silently, the survivor is chosen at merge time and the decision badge is set by that workflow, never typed.",
+      { title: "Duplicate Candidate", note: "A candidate pair from the daily detection run, or raised by a steward. The score is measured by detection and is never typed: a pair below the threshold needs a justification to merge. Merge asks which record survives and routes an M33 golden-party merge (M63-approved); the golden rules decide which values survive; nothing is deleted silently, and the decision badge follows that merge.",
         fields: [
           { name: 'res_model', required: true, label: "Master Model" },
           { name: 'record_a_ref', required: true, label: "Record A" },
           { name: 'record_b_ref', required: true, label: "Record B" },
-          { name: 'score', label: "Match Score" },
+          { name: 'score', readonly: true, label: "Match Score" },
           { name: 'match_factors', label: "Match Factors" },
           { name: 'decision_note', type: 'text', label: "Decision Note" }
         ] }
@@ -250,7 +262,7 @@ export const SCREENS = {
   'M64-mdm-golden-rule': { kind: 'model_list', model: 'fix.mdm.golden.rule',
     cols: ['active', 'sequence', 'model_name', 'field_name', 'strategy'] },
   'M64-mdm-stewardship': { kind: 'model_list', model: 'fix.mdm.stewardship',
-    cols: ['name', 'company_id', 'operating_unit_id', 'domain', 'lead_steward_id', 'overall_quality_score', 'audit_state'],
+    cols: ['name', 'company_id', 'operating_unit_id', 'domain', 'lead_steward_id', 'owner_id', 'overall_quality_score', 'audit_state', 'last_audit_date'],
     actions: [{ m: 'action_audit_data_quality', l: 'Audit Data Quality' }] },
   'M64-mdm-change-request': { kind: 'model_list', model: 'fix.mdm.change.request', stateField: 'state',
     cols: ['reference', 'title', 'state', 'company_id', 'operating_unit_id', 'model_name', 'record_id', 'priority'],
@@ -259,10 +271,32 @@ export const SCREENS = {
     actions: [{ m: 'action_submit', l: 'Submit' },
               { m: 'action_request_approval', l: 'Route to Steward', ask: 'Why is this master-data change needed?', kwarg: 'justification' },
               { m: 'action_recall_approval', l: 'Recall' },
-              { m: 'action_reject', l: 'Reject' },
+              { m: 'action_reject', l: 'Reject', ask: 'Why is this change rejected?', kwarg: 'comment' },
+              { m: 'action_cancel', l: 'Cancel Request' },
               { m: 'action_apply', l: 'Apply Approved Change' }] },
   'M64-mdm-match-rule': { kind: 'model_list', model: 'fix.mdm.match.rule',
     cols: ['active', 'sequence', 'model_name', 'field_name', 'match_type', 'weight', 'normalize'] },
+  'M64-governed': { kind: 'model_list', model: 'fix.mdm.governed.attribute',
+    cols: ['model_name', 'field_name', 'category', 'block_direct_edit', 'note', 'active'] },
+
+  'M64-form-governed': {
+    kind: 'model_form',
+    model: 'fix.mdm.governed.attribute',
+    title: 'Governed Attribute',
+    title_bn: 'নিয়ন্ত্রিত বৈশিষ্ট্য',
+    back: 'M64-governed',
+    sections: [
+      { title: 'Governed Attribute', note: 'What a change request may write. Anything off this register is refused, and so are access control, technical configuration and workflow fields. Block Direct Edits refuses a change of a stored value outside a change request, while the parameter fix.mdm.enforce_direct_edit_block is on. A Platform Admin maintains this register.',
+        fields: [
+          { name: 'model_name', required: true, label: 'Master Model', bn: 'মাস্টার মডেল' },
+          { name: 'field_name', required: true, label: 'Attribute', bn: 'বৈশিষ্ট্য' },
+          { name: 'category', required: true, label: 'Category', bn: 'শ্রেণি' },
+          { name: 'block_direct_edit', label: 'Block Direct Edits', bn: 'সরাসরি সম্পাদনা বন্ধ' },
+          { name: 'note', label: 'Note', bn: 'নোট' },
+          { name: 'active', label: 'Active', bn: 'সক্রিয়' }
+        ] }
+    ]
+  },
 
   'M64-form-mdm-stewardship': {
     kind: 'model_form',
@@ -270,11 +304,12 @@ export const SCREENS = {
     title: "Mdm Stewardship",
     back: 'M64-mdm-stewardship',
     sections: [
-      { title: "Mdm Stewardship", note: "The measured quality scores and audit stamps are computed by the Audit Data Quality action and the evaluator - they are never typed here.",
+      { title: "Mdm Stewardship", note: "The measured quality scores and audit stamps are computed daily, and by the Audit Data Quality action, and blend the DQ rules' measured results - they are never typed here. A Platform Admin appoints the lead steward, who must hold the steward role, and the business owner.",
         fields: [
           { name: 'name', required: true, label: "Stewardship Domain Title" },
           { name: 'domain', required: true, label: "Data Domain" },
           { name: 'lead_steward_id', required: true, label: "Lead Data Steward" },
+          { name: 'owner_id', label: "Business Owner", bn: 'ব্যবসায়িক মালিক' },
           { name: 'operating_unit_id', label: "Operating Unit" }
         ] }
     ]
@@ -284,17 +319,21 @@ export const SCREENS = {
     model: 'fix.mdm.change.request',
     title: "Mdm Change Request",
     back: 'M64-mdm-change-request',
-    status: { field: 'state' },
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', under_review: 'Under Review', approved: 'Approved',
+      rejected: 'Rejected', implemented: 'Applied', cancelled: 'Cancelled' } },
     sections: [
-      { title: "Mdm Change Request", note: "Proposed values are held on the request - never written to the master until a steward approves and Apply runs. The state badge is decided by Submit/Route/Apply, never typed.",
+      { title: "Mdm Change Request", note: "Proposed values are held on the request - never written to the master until a steward approves and Apply runs. Only attributes on the Governed Attributes register can change. Submit tests the values, measures the impact and freezes the request. The state badge is decided by Submit/Route/Apply, never typed.",
         fields: [
           { name: 'title', required: true, label: "Title" },
           { name: 'description', type: 'text', label: "Description" },
           { name: 'model_name', required: true, label: "Target Model" },
           { name: 'record_id', required: true, label: "Target Record ID" },
-          { name: 'proposed_changes', type: 'text', label: "Proposed Changes (one field=value per line; frozen at submit)" },
+          { name: 'proposed_changes', type: 'text', label: "Proposed Changes (one field=value per line, or a JSON object; frozen at submit)", bn: 'প্রস্তাবিত পরিবর্তন (প্রতি লাইনে একটি field=value, অথবা JSON)' },
           { name: 'priority', required: true, label: "Priority" },
-          { name: 'review_notes', type: 'text', label: "Review Notes" },
+          { name: 'impact_summary', type: 'text', readonly: true, label: "Impact (measured at submit)", bn: 'প্রভাব (জমা দেওয়ার সময় পরিমাপ)' },
+          { name: 'current_values', type: 'text', readonly: true, label: "Current Values (at submit)", bn: 'বর্তমান মান (জমা দেওয়ার সময়)' },
+          { name: 'review_notes', type: 'text', label: "Review Notes (the deciding steward's)", bn: 'পর্যালোচনার নোট' },
           { name: 'operating_unit_id', label: "Operating Unit" }
         ] }
     ]
@@ -314,16 +353,19 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_MODELS = {
+  'M64:Change Request': 'fix.mdm.change.request',
   'M64:Steward Request': 'fix.mdm.steward',
   'M64:DQ Rule': 'fix.mdm.dq.rule',
   'M64:Code List Entry': 'fix.mdm.code.entry'
 };
 
 export const FORM_CHIPS = {
+  'M64:Change Request': 'M64-form-mdm-change-request',
   'M64:Steward Request': 'M64-form-steward',
   'M64:DQ Rule': 'M64-form-dq',
   'M64:Code List Entry': 'M64-form-entry',
   'M64:__by_model__': {
+    'fix.mdm.governed.attribute': 'M64-form-governed',
     'fix.mdm.match.rule': 'M64-form-matchrule',
     'fix.mdm.golden.rule': 'M64-form-goldenrule',
     'fix.mdm.stewardship': 'M64-form-mdm-stewardship',
@@ -336,6 +378,7 @@ export const FORM_CHIPS = {
     'fix.mdm.code.list': 'M64-form-list'
   },
   'M64:__by_screen__': {
+    'M64-governed': 'M64-form-governed',
     'M64-mdm-match-rule': 'M64-form-matchrule',
     'M64-mdm-golden-rule': 'M64-form-goldenrule',
     'M64-mdm-stewardship': 'M64-form-mdm-stewardship',
@@ -350,5 +393,6 @@ export const FORM_CHIPS = {
 };
 
 export const CREATE = {
-  M64: { screen: 'M64-form-steward', model: 'fix.mdm.steward', label: 'Steward Request' }
+  /* E13: a change request is what anyone may raise; a steward request is a steward's. */
+  M64: { screen: 'M64-form-mdm-change-request', model: 'fix.mdm.change.request', label: 'Change Request' }
 };

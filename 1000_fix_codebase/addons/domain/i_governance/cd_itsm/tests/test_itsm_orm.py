@@ -38,7 +38,11 @@ def _ticket(env, **extra):
 def test_ticket_lifecycle_and_sequence(odoo_env):
     ticket = _ticket(odoo_env)
     assert ticket.name != "client-supplied"
+    # M66-14: the old assertion accepted the "ITSM/New" fallback every live ticket
+    # carried. The number is real and unique.
     assert ticket.name.startswith("ITSM/")
+    assert "New" not in ticket.name
+    assert _ticket(odoo_env).name != ticket.name
     assert ticket.state == "new"
     assert _events(odoo_env, "itsm.ticket_created", ticket.id) == [
         {"title": "POS printer offline", "priority": "high"}
@@ -105,17 +109,46 @@ def test_cron_escalate_sla(odoo_env):
     odoo_env["fix.itsm.ticket"].cron_escalate_sla()
     ticket.invalidate_recordset()
     assert ticket.escalated is True
-    assert ticket.priority == "high"  # one step up, never fabricated beyond urgent
-    # Already escalated tickets are not touched again.
+    assert ticket.priority == "high"  # one step up per pass
+    assert ticket.escalation_level == 1
+    # M66-7: 12 hours late is past two tiers, so the next pass climbs again...
     odoo_env["fix.itsm.ticket"].cron_escalate_sla()
     ticket.invalidate_recordset()
-    assert ticket.priority == "high"
+    assert ticket.priority == "urgent"
+    assert ticket.escalation_level == 2
+    # ...and it is never fabricated beyond urgent.
+    odoo_env["ir.config_parameter"].sudo().set_param("cd_itsm.sla_escalation_tiers", "0,1,2")
+    odoo_env["fix.itsm.ticket"].cron_escalate_sla()
+    ticket.invalidate_recordset()
+    assert ticket.priority == "urgent"
+    assert ticket.escalation_level == 3
 
 
-def test_cron_escalate_sla_names_its_recipient(odoo_env):
-    """M66-7: with cd_itsm.sla_escalation_manager unset, nobody is notified —
-    the escalation still applies, but no recipient is invented."""
+def test_cron_escalate_sla_with_no_manager_still_tells_the_queue(odoo_env):
+    """M66-7: 158 live tickets escalated and nobody was told. With no manager set,
+    the agent the queue rotates the ticket to gets the activity; no manager is
+    invented."""
     odoo_env["ir.config_parameter"].sudo().set_param("cd_itsm.sla_escalation_manager", False)
+    agent_user = (
+        odoo_env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Queue Agent",
+                "login": "m66.queue.agent@a12.test",
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            odoo_env.ref("base.group_user").id,
+                            odoo_env.ref("cd_itsm.group_itsm_agent").id,
+                        ],
+                    )
+                ],
+            }
+        )
+    )
     ticket = _ticket(odoo_env)
     _age_ticket_beyond_sla(odoo_env, ticket)
     odoo_env["fix.itsm.ticket"].cron_escalate_sla()
@@ -126,4 +159,7 @@ def test_cron_escalate_sla_names_its_recipient(odoo_env):
         .sudo()
         .search([("res_model", "=", "fix.itsm.ticket"), ("res_id", "=", ticket.id)])
     )
-    assert not activities
+    assert activities, "the escalation told nobody"
+    assert ticket._queue_agents(ticket.company_id)
+    assert activities.user_id & ticket._queue_agents(ticket.company_id)
+    assert agent_user.has_group("cd_itsm.group_itsm_agent")

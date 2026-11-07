@@ -1,8 +1,11 @@
 # fix.notification.config — M30's notification configuration (P04-M05-T06).
-# The dispatcher (services/notification-dispatcher) reads routing, quiet-hours
-# and frequency policy from HERE — the runtime copy of the NT-001/NT-002/NT-003
-# decisions. "Customer notification preference is a consent-adjacent obligation,
-# not a convenience."
+# The NT-001/NT-002/NT-003 decisions as governed data. "Customer notification
+# preference is a consent-adjacent obligation, not a convenience."
+#
+# A12 finish E24: the dispatcher (services/notification-dispatcher) does NOT read
+# this model: it reads templates/nt-registry.json. So this register records the
+# policy and enforces its own consistency; it does not change what the dispatcher
+# sends. The screen says the same.
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -20,6 +23,14 @@ QUIET_HOUR_WINDOWS = [
 # Marketing and service messages carry a 7-day rolling cap by policy, so a
 # stored 0 ("uncapped") on those classes is a policy breach, not a default.
 CAPPED_CLASSES = ("marketing", "service")
+# NT-003 §2.1 per class (A12 finish E20): a window wider than the class's own let
+# marketing send outside the BTRC hours, with every other control satisfied.
+CLASS_WINDOWS = {
+    "security": "24/7",
+    "transactional": "24/7",
+    "service": "08:00-21:00",
+    "marketing": "10:00-20:00",
+}
 
 
 class FixNotificationConfig(models.Model):
@@ -107,6 +118,9 @@ class FixNotificationConfig(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         require_platform_admin(self.env, "The notification-policy register")
+        for vals in vals_list:
+            if not vals.get("send_window") and vals.get("consent_class") in CLASS_WINDOWS:
+                vals["send_window"] = CLASS_WINDOWS[vals["consent_class"]]
         return super().create(vals_list)
 
     def write(self, vals):
@@ -128,9 +142,15 @@ class FixNotificationConfig(models.Model):
         "sms_route",
         "frequency_cap",
         "combined_cap_non_transactional",
+        "send_window",
     )
     def _check_caps(self):
         for config in self:
+            window = CLASS_WINDOWS.get(config.consent_class)
+            if window and config.send_window != window:
+                raise ValidationError(
+                    "NT-003: %s messages use the %s send window." % (config.consent_class, window)
+                )
             if config.frequency_cap < 0 or config.combined_cap_non_transactional < 0:
                 raise ValidationError("Frequency caps cannot be negative")
             if config.consent_class == "marketing" and config.sms_route == "masking":

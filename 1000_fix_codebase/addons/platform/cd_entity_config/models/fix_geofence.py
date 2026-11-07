@@ -7,6 +7,8 @@ import json
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .fix_entity import require_platform_admin
+
 _REQUIRED_GEOFENCE_TYPES = ("circle", "polygon")
 
 
@@ -29,6 +31,21 @@ class FixGeofence(models.Model):
     # polygon: {"points": [[lat, lng], ...]} (min 3)
     geometry_json = fields.Text(string="Geometry (JSON)", required=True)
     active = fields.Boolean(default=True, tracking=True)
+
+    # A12 finish E25: the zone is Platform Admin master data, and any internal user
+    # could still redraw the fence that dispatch and attendance read.
+    @api.model_create_multi
+    def create(self, vals_list):
+        require_platform_admin(self.env, "The geofence register")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        require_platform_admin(self.env, "The geofence register")
+        return super().write(vals)
+
+    def unlink(self):
+        require_platform_admin(self.env, "The geofence register")
+        return super().unlink()
 
     @api.constrains("geofence_type", "geometry_json")
     def _check_geometry(self):

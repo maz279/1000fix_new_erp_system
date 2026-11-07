@@ -6,31 +6,62 @@ import datetime
 from odoo.exceptions import AccessError, UserError
 
 SURFACES = {
-    "fix.branch": {"order": "name", "limit": 300, "actions": set()},
+    "fix.branch": {
+        "order": "name",
+        "limit": 300,
+        # A12 finish E20 (BRU-ADM-05): a row whose stored company was lost is still
+        # shown through its entity, or nobody could ever find it to repair it.
+        "company_paths": ("company_id", "entity_id.company_id"),
+        "actions": {
+            "action_go_live",
+            "action_suspend",
+            "action_request_closure",
+            "action_confirm_closure",
+        },
+    },
     "fix.entity": {"order": "legal_name", "limit": 100, "actions": set()},
     "fix.zone": {"order": "name", "limit": 100, "actions": set()},
-    "fix.working.calendar": {"order": "name", "limit": 100, "actions": set()},
+    "fix.working.calendar": {
+        "order": "name",
+        "limit": 100,
+        "actions": {"action_propose_closure", "action_confirm_closure"},
+    },
+    "fix.working.calendar.holiday": {
+        "order": "date_from desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
     "fix.notification.config": {"order": "id", "limit": 100, "actions": set()},
     "fix.feature.flag": {"order": "key", "limit": 300, "actions": set()},
     "ir.config_parameter": {"order": "key", "limit": 500, "actions": set()},
     "ir.cron": {"order": "name", "limit": 300, "actions": set()},
-    "fix.platform.environment": {"order": "kind, name", "limit": 100, "actions": set()},
+    "fix.platform.environment": {
+        "order": "kind, name",
+        "limit": 100,
+        "actions": {
+            "action_go_live",
+            "action_mark_degraded",
+            "action_take_offline",
+            "action_record_masking",
+        },
+    },
     "fix.platform.release": {
         "order": "planned_on desc, id desc",
         "limit": 200,
-        "actions": {"action_release"},
+        "actions": {"action_start_test", "action_release", "action_rollback"},
     },
     "fix.platform.announcement": {
         "order": "publish_on desc, id desc",
         "limit": 200,
-        "actions": {"action_publish", "action_retire"},
+        "actions": {"action_publish", "action_retire", "action_acknowledge"},
     },
-    # DOFA authority ladders as governed data. Putting one in force IS the
-    # ruling, so the action is exposed here rather than buried in the ORM.
+    # DOFA authority ladders as governed data. A12 finish E1: a ruling is two acts
+    # by two sessions, so the workspace proposes and countersigns. action_put_in_force
+    # is deliberately NOT here: for a person it is only the proposal.
     "fix.dofa.ladder": {
-        "order": "target_model, basis",
+        "order": "target_model, basis, version",
         "limit": 200,
-        "actions": {"action_put_in_force"},
+        "actions": {"action_propose_ruling", "action_countersign", "action_withdraw_ruling"},
     },
     "fix.dofa.threshold": {
         "order": "ladder_id, upper_bound",
@@ -59,20 +90,25 @@ WRITABLE = {
         "email",
         "manager_id",
         "calendar_id",
-        "legacy_reference",
-        "active",
     ),
     "fix.entity": (
         "code",
         "legal_name",
         "legal_name_bn",
+        "company_id",
         "operating_unit_id",
         "country_id",
         "currency_id",
+        "bin_number",
+        "tin_number",
+        "vat_statutory_day",
+        "statutory_calendar_rule",
+        "incorporation_date",
         "active",
     ),
     "fix.zone": ("name", "name_bn", "code", "description", "active"),
-    "fix.working.calendar": ("name", "template_id", "branch_id", "timezone", "active"),
+    "fix.working.calendar": ("name", "template_id", "branch_id", "timezone", "active", "line_ids"),
+    "fix.working.calendar.holiday": ("calendar_id", "name", "name_bn", "date_from", "date_to"),
     "fix.notification.config": (
         "consent_class",
         "channel",
@@ -102,10 +138,19 @@ WRITABLE = {
         "owner_id",
         "notes",
     ),
-    # D8 hand-off: a release is linked to its approved M66 change here, and
-    # the plan/date stay editable pre-release. The go-live state moves only
-    # through action_release (model-side gate, B5).
-    "fix.platform.release": ("planned_on", "rollback_plan", "itsm_change_id"),
+    # A12 finish E7: + New could never save, because version and name were
+    # required and not here. Editable until release (the model then freezes them);
+    # the state moves only through the actions (model-side gate, B5).
+    "fix.platform.release": (
+        "version",
+        "name",
+        "environment_id",
+        "owner_id",
+        "planned_on",
+        "change_summary",
+        "rollback_plan",
+        "itsm_change_id",
+    ),
     # Announcement content is authored here; state moves only through
     # action_publish / action_retire (M30-11: born-published was an attack).
     "fix.platform.announcement": (
@@ -115,11 +160,20 @@ WRITABLE = {
         "publish_on",
         "expires_on",
         "body",
+        "kind",
+        "maintenance_start",
     ),
     # A draft ladder's identity, its bands (the form's child grid) and the
     # countersigning authority holder. in_force / ruled_by / ruled_at /
     # ruling_reference are the SYSTEM-set ruling stamp (X3) and are refused.
-    "fix.dofa.ladder": ("name", "target_model", "basis", "countersigned_by", "threshold_ids"),
+    "fix.dofa.ladder": (
+        "name",
+        "target_model",
+        "basis",
+        "countersigned_by",
+        "countersigner_choice",
+        "threshold_ids",
+    ),
     "fix.dofa.threshold": ("ladder_id", "upper_bound", "tier", "note"),
 }
 
@@ -163,18 +217,20 @@ def branch_registry(env, date_from=None, date_to=None, **params):
             "code": getattr(b, "code", None) or "—",
             "entity": b.entity_id.legal_name if b.entity_id else "—",
             "zone": b.zone_id.name if getattr(b, "zone_id", False) else "—",
+            "state": dict(b._fields["state"].selection).get(b.state, b.state),
             "active": "Yes" if getattr(b, "active", True) else "No",
         }
         for b in branches
     ]
     return _pack(
         "Branch Registry — %d branch(es)" % len(rows),
-        ["branch", "code", "entity", "zone", "active"],
+        ["branch", "code", "entity", "zone", "state", "active"],
         {
             "branch": "Branch",
             "code": "Code",
             "entity": "Entity",
             "zone": "Zone",
+            "state": "Status",
             "active": "Active",
         },
         rows,
@@ -207,7 +263,11 @@ def flag_rollout(env, date_from=None, date_to=None, **params):
             "default_on": "Default for New",
         },
         rows,
-        ["Flag keys gate feature availability; scope decides who evaluates them."],
+        [
+            "Flag keys gate feature availability; scope decides who evaluates them.",
+            "Only keys the code really reads may be registered, and today that is one kill "
+            "switch. New capabilities do not yet ship behind flags.",
+        ],
         empty="No feature flags defined.",
     )
 
@@ -229,6 +289,8 @@ def config_drift(env, date_from=None, date_to=None, **params):
         [
             "Grouped by first key segment (cd_ap_ext, cd_billing_engine, ...). Values are "
             "deliberately NOT shown — parameters carry credentials-adjacent config.",
+            "This is an inventory. No config registry, approval or environment promotion "
+            "exists yet, and no drift is computed (BRU-ADM-02/03 are not built).",
         ],
         empty="No config parameters.",
     )
@@ -405,6 +467,8 @@ def job_success_rate(env, date_from=None, date_to=None, **params):
             "Scheduled-job failure counts show '-' until the monitoring feed supplies "
             "them: ir.cron holds no counter, and a hard-coded 0 claimed no silent "
             "failures (BRU-ADM-12).",
+            "This is an inventory of Odoo's job table. No job registry with owner, expected "
+            "duration or failure impact exists yet (BRU-ADM-11/12 are not built).",
         ],
         "empty": "No scheduled jobs or data loads recorded.",
     }
@@ -432,6 +496,9 @@ def open_dofa_rulings(env, date_from=None, date_to=None, **params):
                     "ladder": ladder.name,
                     "basis": dict(ladder._fields["basis"].selection).get(
                         ladder.basis, ladder.basis
+                    ),
+                    "status": dict(ladder._fields["ruling_state"].selection).get(
+                        ladder.ruling_state, ladder.ruling_state
                     ),
                     "in_force": "YES" if ladder.in_force else "",
                     "is_today": "YES" if ladder.matches_implementation else "",
@@ -463,6 +530,7 @@ def open_dofa_rulings(env, date_from=None, date_to=None, **params):
             "ladder",
             "basis",
             "is_today",
+            "status",
             "in_force",
             "bands",
             "ruled_by",
@@ -474,6 +542,7 @@ def open_dofa_rulings(env, date_from=None, date_to=None, **params):
             "Ladder",
             "Basis",
             "What The Code Does Today",
+            "Status",
             "In Force",
             "Bands (bound→tier)",
             "Ruled By",
@@ -489,10 +558,10 @@ def open_dofa_rulings(env, date_from=None, date_to=None, **params):
             "already implements. It is a fact about the code, not a ruling - "
             "so for each model one option is 'keep what we do' and the other "
             "changes the bands. The choice is not symmetrical.",
-            "Putting a ladder in force requires a stated authority AND two "
-            "different authority holders (one Tier 4, one Tier 5) - the "
-            "minute, memo or approval, and the countersigning user, are "
-            "recorded on the ruling.",
+            "A ruling takes two acts by two people: a Tier 4 holder proposes it, citing "
+            "the minute or memo and naming a Tier 5 holder, and that Tier 5 holder "
+            "countersigns from their own session by restating the authority. Only the "
+            "countersignature puts the ladder in force.",
             "Unresolved today: %s." % (", ".join(unresolved) or "none"),
             "These are business decisions. The engineering blocker (the "
             "ladders were Python lists, so a ruling needed a code change and a "
@@ -506,76 +575,91 @@ def open_dofa_rulings(env, date_from=None, date_to=None, **params):
 def dofa_coverage(env, date_from=None, date_to=None, **params):
     """P1-5 / M30-3: which approval-bearing models does an authority govern?
 
-    Computed from the live registry and the two live authority sources,
-    never typed: every concrete model inheriting fix.approvable.mixin is
-    listed with whether the M30 DOFA ladder can rule it (the model carries
-    fix.dofa.mixin) and whether the M63 rule book (fix.approval.matrix)
-    targets it by name. 'none' rows are the migration backlog P1-5 exists
-    to empty; 'ladder+m63' rows are the single-DoA conflicts the business
-    must consolidate into one table. The other legacy authorities — coded
-    DOFA constants and fix.grc.authority — are the tables P1-5 retires, so
-    they are deliberately NOT counted as coverage here.
+    Computed from the live registry and the live authority sources, never typed.
+
+    A12 finish E21: the first version said "46 of 132 governed" and that was wrong
+    three ways. "Ladder" only meant the model carries the mixin, and two had a
+    ruling in force; "none" hid models whose approver is a group named in code; and
+    44 more models with an approve action were outside the denominator. Each is now
+    its own column. This report is the WORKING LIST for the one-DoA migration (P1-5,
+    decision B4): it reports the 130 or so models, and migrating them is that work.
     """
     approvable_cls = type(env["fix.approvable.mixin"])
     dofa_cls = type(env["fix.dofa.mixin"])
     m63_rows = env["fix.approval.matrix"].search([])
     m63_targets = {row.res_model for row in m63_rows if row.res_model}
     domain_rows = len(m63_rows) - len([r for r in m63_rows if r.res_model])
+    in_force = {
+        ladder.target_model for ladder in env["fix.dofa.ladder"].search([("in_force", "=", True)])
+    }
     rows = []
     for name, cls in sorted(env.registry.models.items()):
         if getattr(cls, "_abstract", False) or getattr(cls, "_transient", False):
             continue
-        if not issubclass(cls, approvable_cls):
+        approvable = issubclass(cls, approvable_cls)
+        approve_action = any(
+            attr.startswith("action_approve") or attr == "action_dofa_approve" for attr in dir(cls)
+        )
+        if not (approvable or approve_action):
             continue
         ladder = issubclass(cls, dofa_cls)
         m63 = name in m63_targets
+        coded = getattr(cls, "_approval_group", None)
         if ladder and m63:
             authority = "ladder+m63"
         elif ladder:
             authority = "ladder"
         elif m63:
             authority = "m63"
+        elif coded:
+            authority = "coded_group"
         else:
             authority = "none"
         rows.append(
             {
                 "model": name,
+                "source": "routed approval" if approvable else "approve action only",
                 "ladder": "yes" if ladder else "-",
+                "in_force": "yes" if name in in_force else "-",
                 "m63": "yes" if m63 else "-",
+                "coded_group": coded or "-",
                 "authority": authority,
             }
         )
     counts = {}
     for row in rows:
         counts[row["authority"]] = counts.get(row["authority"], 0) + 1
-    governed = len(rows) - counts.get("none", 0)
     return {
-        "title": "DOFA Coverage - %d of %d approval-bearing models governed "
-        "(ladder %d, m63 %d, both %d, none %d)"
+        "title": "DOFA Coverage - %d approval-bearing models: ladder-capable %d (ruling in force "
+        "on %d), m63 %d, both %d, coded group %d, none %d"
         % (
-            governed,
             len(rows),
-            counts.get("ladder", 0),
+            counts.get("ladder", 0) + counts.get("ladder+m63", 0),
+            len([r for r in rows if r["in_force"] == "yes"]),
             counts.get("m63", 0),
             counts.get("ladder+m63", 0),
+            counts.get("coded_group", 0),
             counts.get("none", 0),
         ),
-        "cols": ["model", "ladder", "m63", "authority"],
+        "cols": ["model", "source", "ladder", "in_force", "m63", "coded_group", "authority"],
         "labels": {
             "model": "Approval-Bearing Model",
-            "ladder": "DOFA Ladder",
+            "source": "Found By",
+            "ladder": "DOFA Ladder (mixin)",
+            "in_force": "Ruling In Force",
             "m63": "M63 Rule Book",
+            "coded_group": "Coded Group",
             "authority": "Authority",
         },
         "rows": rows,
         "notes": [
-            "Coverage is computed from the registry at report time: a model is "
-            "ladder-governed only while it carries fix.dofa.mixin, and m63-governed "
-            "only while an approval-matrix row names it.",
+            "Coverage is computed from the registry at report time. 'DOFA Ladder' means the "
+            "model CAN read a ladder; without a ruling in force it keeps its coded default.",
             "%d approval-matrix row(s) carry no model name and apply to their whole "
             "decision domain; they are not counted as named coverage." % domain_rows,
-            "Rows with authority 'none' are the P1-5 migration backlog; rows with "
-            "'ladder+m63' must be consolidated to ONE authority (one DoA).",
+            "This is the working list for one DoA (P1-5, business decision B4). Rows with "
+            "authority 'none' and 'approve action only' are the backlog; 'ladder+m63' rows "
+            "must be consolidated to ONE authority. No model is migrated by this report.",
         ],
         "empty": "No approval-bearing models are installed.",
     }
@@ -604,6 +688,9 @@ def kpis(env):
     announcements = env["fix.platform.announcement"].search([("state", "=", "published")])
     today = datetime.date.today()
     return {
+        "dofa_awaiting_countersign": env["fix.dofa.ladder"].search_count(
+            [("ruling_state", "=", "proposed")]
+        ),
         "branches": len(branches),
         "branches_active": len(branches.filtered(lambda b: b.active)),
         "flags_on": len(flags.filtered(lambda f: f.enabled)),

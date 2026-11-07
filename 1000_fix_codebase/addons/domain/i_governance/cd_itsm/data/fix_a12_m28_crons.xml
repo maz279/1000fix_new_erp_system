@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 finish build (M28-1, M28-3, M28-7, M28-8, M28-10): each of these bodies was
+  either missing or had no record, so it never ran.
+
+  - cron_dispatch_webhooks: the webhook dispatcher. Real HTTP needs
+    fix.integration.dispatch_enabled; while off, it records "not sent".
+  - cron_revalidate_subscriptions: pauses a subscription whose host left the allow-list.
+  - cron_ingest_ledger_conflicts: feeds the conflict register from the offline ledger.
+  - cron_purge_retention: applies topic retention (BRU-IPF-22).
+  - cron_alert_expiring: 30-day credential expiry alert (FR-IPF-041).
+  - cron_reconcile: nightly reconciliation (BRU-IPF-19). No role switches this off:
+    a suppression holds back one check's alert, for a limited time, with a second person.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_webhook_dispatch" model="ir.cron">
+            <field name="name">M28: dispatch webhooks for active subscriptions</field>
+            <field name="model_id" ref="model_fix_webhook_delivery"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispatch_webhooks()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_webhook_revalidate" model="ir.cron">
+            <field name="name">M28: pause webhook subscriptions off the allow-list</field>
+            <field name="model_id" ref="model_fix_event_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_revalidate_subscriptions()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_sync_conflict_ingest" model="ir.cron">
+            <field name="name">M28: raise sync conflicts from the offline ledger</field>
+            <field name="model_id" ref="model_fix_sync_conflict"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_ingest_ledger_conflicts()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_event_retention_purge" model="ir.cron">
+            <field name="name">M28: purge events past their topic retention</field>
+            <field name="model_id" ref="model_fix_event_topic"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_purge_retention()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_credential_expiry_alert" model="ir.cron">
+            <field name="name">M28: alert credentials nearing expiry</field>
+            <field name="model_id" ref="model_fix_connector_credential"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_alert_expiring()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_integration_reconcile" model="ir.cron">
+            <field name="name">M28: nightly integration reconciliation</field>
+            <field name="model_id" ref="model_fix_integration_reconciliation_run"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_reconcile()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

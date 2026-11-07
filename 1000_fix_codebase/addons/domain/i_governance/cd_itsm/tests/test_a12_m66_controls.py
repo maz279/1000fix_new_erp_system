@@ -123,14 +123,43 @@ def _events(env, event_type, aggregate_id):
 # ---------------------------------------------------------------------------
 
 
-def test_p1_1_standard_change_is_pre_approved_by_policy(env, agent):
-    change = _change(env, change_type="standard")
-    # the desk submits; policy — not a person — clears a standard change
+def _authorised_template(env, change_mgr, agent, code="A12-STD-1"):
+    template = (
+        env["fix.itsm.change.template"]
+        .with_user(agent)
+        .create(
+            {
+                "code": code,
+                "name": "Firmware on a test switch",
+                "implementation_plan": "Stage firmware, flash stack A then B, verify LLDP.",
+                "test_plan": "Ping sweep, VLAN 20 throughput, failover drill.",
+                "rollback_plan": "Boot previous image from the secondary partition.",
+                "risk_probability": "1",
+                "risk_impact": "2",
+                "max_window_hours": 4,
+            }
+        )
+    )
+    template.with_user(change_mgr).action_authorise()
+    return template
+
+
+def test_p1_1_standard_change_from_a_template_is_pre_approved_by_policy(env, agent, change_mgr):
+    template = _authorised_template(env, change_mgr, agent)
+    change = _change(env, change_type="standard", template_id=template.id)
+    # the desk submits; the authorised template — not a person — clears it
     change.with_user(agent).action_submit()
     assert change.state == "approved"
     assert change.approval_state == "approved"
     assert not change.approval_request_id  # nothing was routed
     assert not change.approved_by_id  # policy, not a person
+
+
+def test_p1_1_a_standard_change_with_no_template_is_routed(env, agent, change_mgr):
+    change = _change(env, change_type="standard")
+    change.with_user(agent).action_submit()
+    assert change.state == "draft"
+    assert change.approval_state == "pending"
 
 
 def test_p1_1_normal_change_routes_to_the_change_manager(env, change_mgr):
@@ -255,7 +284,7 @@ def test_p1_1_rejection_leaves_no_approved_change(env, change_mgr):
 def test_p1_1_implement_needs_rollback_plans_and_segregation(env, change_mgr, plain):
     requester_user = plain
     requester_emp = _employee(env, "Requester Probe", requester_user)
-    # A standard change with no rollback: pre-approved, but NOT implementable.
+    # No rollback plan, standard or not: not approvable at all (BRU-ITS-06).
     sloppy = _change(
         env,
         change_type="standard",
@@ -263,10 +292,9 @@ def test_p1_1_implement_needs_rollback_plans_and_segregation(env, change_mgr, pl
         implementer_id=_employee(env, "Sloppy implementer").id,
         rollback_plan=False,
     )
-    sloppy.action_submit()
-    assert sloppy.state == "approved"
-    with pytest.raises(UserError, match="No rollback plan"):
-        sloppy.action_implement()
+    with pytest.raises(UserError, match="rollback plan"):
+        sloppy.action_submit()
+    assert sloppy.state == "draft"
     # Proper change: requester and implementer are different people.
     implementer_emp = _employee(env, "Implementer Probe")
     change = _change(env, requested_by_id=requester_emp.id, implementer_id=implementer_emp.id)
@@ -301,7 +329,7 @@ def test_p1_1_implement_needs_rollback_plans_and_segregation(env, change_mgr, pl
     assert payloads[0]["risk_score"] == 4
 
 
-def test_p1_1_emergency_change_records_its_pir_before_closeout(env, cab_member):
+def test_p1_1_emergency_change_rolls_back_and_records_its_pir(env, cab_member):
     implementer_emp = _employee(env, "Night engineer")
     change = _change(
         env,
@@ -312,14 +340,18 @@ def test_p1_1_emergency_change_records_its_pir_before_closeout(env, cab_member):
     approve_via_inbox(change, cab_member)
     change.action_implement()
     assert change.state == "implemented"
-    with pytest.raises(UserError, match="post-implementation review"):
-        change.action_rollback()  # no: an emergency leaves evidence first
+    # N-M66-2: a rollback no longer waits for a review, but it says why.
+    with pytest.raises(UserError, match="rollback reason"):
+        change.action_rollback()
     with pytest.raises(UserError, match="PIR notes are required"):
         change.action_record_pir("   ")
     change.action_record_pir("Root cause was a lacp flap; monitor for 48h.")
     assert change.state == "reviewed"
     assert change.pir_by_id
     assert change.pir_on
+    change.action_rollback()  # the review is the reason
+    assert change.state == "rolled_back"
+    assert change.rollback_reason == "Root cause was a lacp flap; monitor for 48h."
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +372,7 @@ def test_m66_5_plain_user_cannot_work_or_forgive_a_ticket(env, plain, agent):
         Ticket.browse(ticket.id).write({"state": "resolved", "resolution": "Forgiven"})
     # The agent's path still works end to end.
     AgentTicket = env["fix.itsm.ticket"].with_user(agent)
-    AgentTicket.browse(ticket.id).action_assign(assigned_to=_employee(env, "Agent Ali"))
+    AgentTicket.browse(ticket.id).action_assign(assigned_to=_employee(env, "Agent Ali", agent))
     AgentTicket.browse(ticket.id).action_start()
     AgentTicket.browse(ticket.id).action_resolve("Driver reinstalled")
     assert ticket.state == "resolved"
@@ -351,17 +383,23 @@ def test_m66_5_close_belongs_to_the_requester_or_the_desk(env, make_user, agent)
     requester_emp = _employee(env, "Requester Probe", requester_user)
     ticket = _ticket(env, requester_id=requester_emp.id)
     agent_ticket = env["fix.itsm.ticket"].with_user(agent)
-    agent_ticket.browse(ticket.id).action_assign(assigned_to=_employee(env, "Agent Ali"))
+    agent_ticket.browse(ticket.id).action_assign(assigned_to=_employee(env, "Agent Ali", agent))
     agent_ticket.browse(ticket.id).action_resolve("Driver reinstalled")
     stranger = make_user()  # an internal user who is neither
-    with pytest.raises(UserError, match="requester or the service desk"):
+    with pytest.raises(REFUSED):
         env["fix.itsm.ticket"].with_user(stranger).browse(ticket.id).action_close()
-    # The requester is the rightful owner of the close (action_close admits
-    # him), but the shipped ACL keeps group_user READ-only on tickets (B3/lead
-    # integration base): the desk closes. Flagged for the lead in the report —
-    # either a verified requester-close service path or desk-only closes.
-    with pytest.raises(AccessError):
-        env["fix.itsm.ticket"].with_user(requester_user).browse(ticket.id).action_close()
+    # N-M66-4: the requester is the rightful owner of the close. He holds no write
+    # access, so the transition runs as sudo after that check.
+    env["fix.itsm.ticket"].with_user(requester_user).browse(ticket.id).action_close()
+    assert ticket.state == "closed"
+    assert ticket.closed_on
+
+
+def test_m66_5_the_desk_also_closes_a_resolved_ticket(env, make_user, agent):
+    ticket = _ticket(env)
+    agent_ticket = env["fix.itsm.ticket"].with_user(agent)
+    agent_ticket.browse(ticket.id).action_assign(assigned_to=_employee(env, "Agent Ali", agent))
+    agent_ticket.browse(ticket.id).action_resolve("Driver reinstalled")
     agent_ticket.browse(ticket.id).action_close()
     assert ticket.state == "closed"
 
@@ -400,7 +438,8 @@ def test_m66_7_escalated_ticket_activities_go_to_the_configured_manager(env, mak
         .sudo()
         .search([("res_model", "=", "fix.itsm.ticket"), ("res_id", "=", ticket.id)])
     )
-    assert activities and set(activities.mapped("user_id")) == {manager}
+    # The manager is told on top of the agent the queue rotates the ticket to.
+    assert activities and manager in activities.mapped("user_id")
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +447,7 @@ def test_m66_7_escalated_ticket_activities_go_to_the_configured_manager(env, mak
 # ---------------------------------------------------------------------------
 
 
-def test_m66_9_retirement_needs_certificate_and_publishes_the_asset_facts(env):
+def test_m66_9_retirement_needs_certificate_and_a_second_person_then_publishes(env):
     employee = _employee(env, "Holder Karim")
     asset = env["fix.itsm.asset"].create(
         {
@@ -427,6 +466,10 @@ def test_m66_9_retirement_needs_certificate_and_publishes_the_asset_facts(env):
     asset.action_send_repair()
     asset.action_recover()  # back to stock, unassigned
     asset.action_retire(wipe_certificate="WIPE-2026-101")
+    assert asset.state == "in_stock", "one person retired an asset"
+    assert asset.writeoff_state == "requested"
+    assert not _events(env, "itsm.asset_retired", asset.id)
+    asset.action_approve_writeoff()
     assert asset.state == "retired"
     payloads = _events(env, "itsm.asset_retired", asset.id)
     assert payloads == [{"asset_tag": "A12-RET-1", "asset_kind": "laptop", "serial": "C02X1234"}]
@@ -443,6 +486,16 @@ def test_m66_10_11_13_registers_are_read_only_for_staff(env, plain):
     # base.group_user keeps READ on every register (B3/lead by design); the
     # write/create/unlink are the service desk's alone.
     for model, vals in (
+        (
+            "fix.itsm.change.template",
+            {
+                "code": "F",
+                "name": "F",
+                "implementation_plan": "i",
+                "test_plan": "t",
+                "rollback_plan": "r",
+            },
+        ),
         ("fix.itsm.problem", {"title": "Forged problem", "severity": "high"}),
         ("fix.itsm.licence", {"name": "Forged licence", "vendor": "X"}),
         ("fix.itsm.ci", {"name": "Forged CI", "ci_key": "forged-ci"}),
@@ -520,7 +573,8 @@ def test_r4_every_js_button_is_whitelisted():
 def test_x5_kpis_and_reports_read_in_the_caller_scope(env, plain):
     from odoo.addons.cd_p03_portal.controllers.a12 import m66 as m66_ctrl
 
-    ticket = _ticket(env)
+    # The caller is the requester: an employee reads his own tickets (spec s13).
+    ticket = _ticket(env, requester_id=_employee(env, "Requester Plain", plain).id)
     ticket.sudo().action_assign(assigned_to=_employee(env, "Agent Ali"))
     caller = env(user=plain)  # Environment.__call__: the portal's caller env
     kpis = m66_ctrl.kpis(caller)

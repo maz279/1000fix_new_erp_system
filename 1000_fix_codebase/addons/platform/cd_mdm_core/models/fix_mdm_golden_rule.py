@@ -6,6 +6,10 @@
 # never read, so the survivor was whichever record the search happened to
 # return first. It now orders candidates by their source's position in
 # priority_source_ids (unknown sources last, then most recent).
+#
+# A12 finish audit (E20): the priority order is each source's match-rule
+# sequence (a many2many stores no order of its own), and fix.party.merge now
+# calls resolve() per rule, storing each outcome in the merge audit.
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -52,8 +56,9 @@ class FixMdmGoldenRule(models.Model):
     )
     priority_source_ids = fields.Many2many(
         "fix.mdm.match.rule",
-        string="Source Priority Order",
-        help="Only used with strategy=highest_priority_source",
+        string="Priority Sources",
+        help="Only used with strategy=highest_priority_source. Ranked by each source's "
+        "sequence, lowest first.",
     )
     description = fields.Text()
     active = fields.Boolean(default=True)
@@ -115,7 +120,12 @@ class FixMdmGoldenRule(models.Model):
             # its source by match-rule id ("source_rule_id") or its key
             # ("source"). With no order configured the documented fallback is
             # the first non-empty candidate.
-            ranked = {r.id: pos for pos, r in enumerate(rule.priority_source_ids)}
+            ranked = {
+                r.id: pos
+                for pos, r in enumerate(
+                    rule.priority_source_ids.sorted(lambda s: (s.sequence, s.id))
+                )
+            }
             if not ranked:
                 return non_empty[0]
 

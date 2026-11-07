@@ -96,7 +96,7 @@ def allowlist(env):
 
 
 def _subscription(env, consumer, topic, url="https://hooks.probe.internal/hook"):
-    return env["fix.event.subscription"].create(
+    sub = env["fix.event.subscription"].create(
         {
             "consumer_id": consumer.id,
             "topic_id": topic.id,
@@ -104,6 +104,9 @@ def _subscription(env, consumer, topic, url="https://hooks.probe.internal/hook")
             "secret_ref": "vault://secrets/probe-hmac",
         }
     )
+    # Already past go-live: test_a12f_m28_second_pass walks that decision.
+    sub._guarded().write({"approval_state": "approved"})
+    return sub
 
 
 def _dead_delivery(env):
@@ -160,13 +163,17 @@ def test_m28_2_non_admin_cannot_create_or_lift_api_masters(env, plain, endpoint,
 def test_m28_2_integration_admin_still_configures_and_quota_takes_effect_directly(
     env, iadmin, endpoint, quota
 ):
-    # the legitimate role can register and re-limit; the new limit applies
-    # without any pause/resume state dance
+    # the legitimate role can register and lower a limit; the new limit applies
+    # without any pause/resume state dance. Raising one takes a second admin
+    # (finish build M28-2): this test used to assert a direct raise, the defect.
     env["fix.api.endpoint"].with_user(iadmin).create(
         {"code": "GOOD", "name": "good", "path": "/api/v1/good", "auth_type": "api_key"}
     )
-    env["fix.api.quota"].with_user(iadmin).browse(quota.id).write({"requests_per_min": 120})
-    assert quota.requests_per_min == 120 and quota.state == "active"
+    lower = quota.requests_per_min - 1
+    env["fix.api.quota"].with_user(iadmin).browse(quota.id).write({"requests_per_min": lower})
+    assert quota.requests_per_min == lower and quota.state == "active"
+    with pytest.raises(REFUSED):
+        env["fix.api.quota"].with_user(iadmin).browse(quota.id).write({"requests_per_min": 120})
 
 
 def test_m28_2_quota_state_is_measured_not_typed(env, iadmin, quota):
@@ -253,7 +260,8 @@ def test_m28_1_https_host_must_be_allowlisted(env, iadmin, consumer, topic, allo
             "secret_ref": "vault://secrets/hmac",
         }
     )
-    assert sub.state == "active"
+    # Y05: registered by a person, it waits for go-live (second-pass walk).
+    assert sub.state == "draft"
 
 
 def test_m28_1_webhook_secret_required_and_vault_prefixed(env, iadmin, consumer, topic, allowlist):
@@ -343,9 +351,9 @@ def test_m28_6_replay_privileged_audited_idempotent(env, plain, iadmin):
     entry = env["fix.event.dlq"].search([("delivery_id", "=", delivery.id)])
     # a plain employee may not even read the DLQ, let alone replay it
     with pytest.raises(AccessError):
-        env["fix.event.dlq"].with_user(plain).browse(entry.ids).action_replay()
+        env["fix.event.dlq"].with_user(plain).browse(entry.ids).action_replay(reason="x")
     # the integration admin replays: the delivery is re-enqueued for the relay
-    env["fix.event.dlq"].with_user(iadmin).browse(entry.ids).action_replay()
+    env["fix.event.dlq"].with_user(iadmin).browse(entry.ids).action_replay(reason="fixed")
     assert entry.state == "replayed"
     assert entry.replayed_by == iadmin
     assert delivery.state == "failed" and delivery.attempts == 0
@@ -356,7 +364,7 @@ def test_m28_6_replay_privileged_audited_idempotent(env, plain, iadmin):
     assert audit, "replay left no security-audit row"
     # idempotent: replaying a replayed entry is refused, nothing re-enqueued
     with pytest.raises(REFUSED):
-        env["fix.event.dlq"].with_user(iadmin).browse(entry.ids).action_replay()
+        env["fix.event.dlq"].with_user(iadmin).browse(entry.ids).action_replay(reason="again")
     # a replay that dead-letters AGAIN resurfaces as pending (BRU-IPF-14)
     delivery.sudo().write(
         {"state": "dead", "delivered_at": fields.Datetime.now() + timedelta(minutes=1)}
@@ -374,8 +382,10 @@ def test_m28_6_replay_refuses_rows_with_no_delivery_and_discard_is_privileged(en
         )
     )
     with pytest.raises(REFUSED):
-        env["fix.event.dlq"].with_user(iadmin).browse(orphan.id).action_replay()
-    env["fix.event.dlq"].with_user(iadmin).browse(orphan.id).action_discard()
+        env["fix.event.dlq"].with_user(iadmin).browse(orphan.id).action_replay(reason="x")
+    # Y05: one admin's discard is a request now; this test asserted it took effect at
+    # once. test_a12f_m28_second_pass walks the second admin's decision.
+    env["fix.event.dlq"].sudo().browse(orphan.id).action_discard(reason="seed row")
     assert orphan.state == "discarded"
     audit = (
         env["fix.security.audit"]
@@ -507,9 +517,7 @@ def _conflict(env):
     # P1-6 completion: a resolution now APPLIES the chosen value, so the
     # target must exist (a dangling target refuses - see
     # test_a12_p16_completion.test_p16_resolve_refuses_when_target_gone).
-    partner = env["res.partner"].create(
-        {"name": "M28 Conflict Target", "phone": "+8801700000000"}
-    )
+    partner = env["res.partner"].create({"name": "M28 Conflict Target", "phone": "+8801700000000"})
     return env["fix.sync.conflict"].create(
         {
             "device_ref": "PROBE-DEV-1",
@@ -556,8 +564,8 @@ def test_m28_9_connector_health_is_measured_not_typed(env, plain, iadmin):
             {"state": "live", "last_latency_ms": 12}
         )
     with pytest.raises(AccessError):
-        env["fix.connector"].with_user(plain).browse(connector.id).action_mark_live()
-    env["fix.connector"].with_user(iadmin).browse(connector.id).action_mark_live()
+        env["fix.connector"].with_user(plain).browse(connector.id).action_mark_live(reason="x")
+    env["fix.connector"].with_user(iadmin).browse(connector.id).action_mark_live(reason="seen ok")
     assert connector.state == "live"
 
 

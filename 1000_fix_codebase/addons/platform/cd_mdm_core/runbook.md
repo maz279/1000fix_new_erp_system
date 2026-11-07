@@ -145,3 +145,21 @@ py -3.12 -m pytest addons/platform/cd_mdm_core -q -o 'addopts='
 ---
 
 *Last Updated: 2026-10-20 · Approved by: 1000FiX Architecture Review Board (ARB)*
+
+---
+
+## 8. A12 finish: what to configure (2026-11-07)
+
+| Key | Default | Meaning |
+|---|---|---|
+| `fix.mdm.enforce_direct_edit_block` | `on` | `off` blocks nothing; `on` blocks register rows flagged Block Direct Edits (shipped for bank and tax); `all` blocks every governed attribute |
+| `fix_mdm.merge_score_threshold` | `80` | Below this score a merge needs a justification |
+| `fix_mdm.dup_candidate_min_score` | `40` | Detection raises a pair at or above this score |
+| `fix_mdm.dup_detect_max_pairs` | `200` | Pairs one detection run may raise |
+| `fix_mdm.dup_detect_max_block` | `50` | A key shared by more records than this raises no pairs |
+
+The governed register is the M64 Governed Attributes screen, kept by a Platform Admin. Its shipped contents are a default for the business to confirm (finding B4).
+
+Crons: `M64: detect duplicate master records` and `M64: audit the data-quality scorecards`, both daily.
+
+Other modules read a code list through `fix.mdm.code.list.values_for(code, on_date)` and `label_for(code, value)`. No module consumes them yet: the first consumer is a business decision (finding B10).

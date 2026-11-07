@@ -223,12 +223,8 @@ msgstr ""
 
 #. module: cd_mdm_core
 #: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
-msgid "Proposed Changes"
-msgstr ""
-
-#. module: cd_mdm_core
 #: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__proposed_changes
-msgid "Proposed Changes (JSON)"
+msgid "Proposed Changes"
 msgstr ""
 
 #. module: cd_mdm_core
@@ -311,4 +307,69 @@ msgstr ""
 #. module: cd_mdm_core
 #: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__validity_score
 msgid "Validity Score (%)"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__impact_reference_count
+msgid "Referencing Records"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__impact_summary
+msgid "Impact"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__owner_id
+msgid "Business Owner"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__model_name
+msgid "Master Model"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__field_name
+msgid "Attribute"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__block_direct_edit
+msgid "Block Direct Edits"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__note
+msgid "Note"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__bank
+msgid "Bank Details"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__tax
+msgid "Tax Identity"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__credit
+msgid "Credit Terms"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__contact
+msgid "Contact"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__product
+msgid "Product Master"
+msgstr ""
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__other
+msgid "Other"
 msgstr ""

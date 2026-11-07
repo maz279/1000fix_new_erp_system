@@ -34,16 +34,21 @@ def test_catalogue_is_the_sla_source(odoo_env):
 
 def test_problem_known_error_needs_workaround_and_state(odoo_env):
     problem = _problem(odoo_env, root_cause="Firmware 3.2 race")
+    problem.action_investigate()
     # M66-10: no workaround, no known error.
     with pytest.raises(UserError, match="workaround"), odoo_env.cr.savepoint():
         problem.action_known_error()
     problem.workaround = "Swap to USB queue; fix in 3.3"
     problem.action_known_error()
     assert (problem.state, problem.known_error) == ("known_error", True)
-    # From the wrong state it is refused.
+    # From the wrong state it is refused: open, before any investigation (M66-9),
+    # and again once it is a known error.
     problem2 = _problem(odoo_env, root_cause="x", workaround="y")
+    with pytest.raises(UserError, match="under investigation"), odoo_env.cr.savepoint():
+        problem2.action_known_error()
+    problem2.action_investigate()
     problem2.action_known_error()
-    with pytest.raises(UserError, match="open or under investigation"), odoo_env.cr.savepoint():
+    with pytest.raises(UserError, match="under investigation"), odoo_env.cr.savepoint():
         problem2.action_known_error()
     # A resolved problem names its root cause.
     problem2.action_resolve()
@@ -87,15 +92,13 @@ def test_problem_state_is_guarded(odoo_env):
 
 
 def test_licence_seats_and_computed_state(odoo_env):
-    # M66-11: assigned may never exceed owned.
-    with pytest.raises(ValidationError, match="seats assigned"), odoo_env.cr.savepoint():
-        odoo_env["fix.itsm.licence"].create(
-            {"name": "Office", "vendor": "MS", "seats_owned": 10, "seats_assigned": 11}
-        )
+    # M66-11: seats are records, so utilisation is counted, never typed.
     licence = odoo_env["fix.itsm.licence"].create(
-        {"name": "Office", "vendor": "MS", "seats_owned": 10, "seats_assigned": 4}
+        {"name": "Office", "vendor": "MS", "seats_owned": 10}
     )
-    assert licence.utilisation_pct == 40.0
+    assert licence.seats_assigned == 0 and licence.utilisation_pct == 0.0
+    licence.action_assign_seat(employee=odoo_env["hr.employee"].create({"name": "Seat Holder"}))
+    assert licence.seats_assigned == 1 and licence.utilisation_pct == 10.0
     with pytest.raises(ValidationError, match="non-negative"), odoo_env.cr.savepoint():
         licence.seats_owned = -1
     # The status is the renewal date, not an opinion.
@@ -117,7 +120,13 @@ def test_ci_cannot_run_on_retired_asset(odoo_env):
         {"name": "Reporting DB", "ci_key": "a12-ci-rpt", "asset_id": asset.id}
     )
     assert ci.life_status == "in_service"
+    # An asset running an in-service CI is not retired at all (M66-10).
+    with pytest.raises(UserError, match="M66-13"), odoo_env.cr.savepoint():
+        asset.action_retire("WIPE-2026-118")
+    ci.life_status = "retired"
     asset.action_retire("WIPE-2026-118")
+    asset.action_approve_writeoff()
+    assert asset.state == "retired"
     with pytest.raises(UserError, match="under repair"), odoo_env.cr.savepoint():
         asset.action_recover()  # retirement is one-way: recover is for repair only
     with pytest.raises(ValidationError, match="retired"), odoo_env.cr.savepoint():

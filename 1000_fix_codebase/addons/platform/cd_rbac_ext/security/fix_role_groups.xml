@@ -96,4 +96,20 @@
         <field name="comment">May write the encryption-key register and rotate keys. Ships EMPTY: appointing custodians is a business decision.</field>
     </record>
 
+    <!-- A12 finish E16: who handles security incidents and reads their breach assessment.
+         Anyone may report one. Appointments are a business decision (BD4). -->
+    <record id="group_security_officer" model="res.groups">
+        <field name="name">Security Officer (M29)</field>
+        <field name="privilege_id" ref="privilege_fix_security_authority"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Handles security incidents: contain, close, propose and confirm severity (two different officers). Reads every incident; anyone else reads the ones they reported. Ships EMPTY.</field>
+    </record>
+
+    <!-- A12 finish E28: exempt from hidden and masked fields on the P03 screens. -->
+    <record id="group_sensitive_data_clearance" model="res.groups">
+        <field name="name">Sensitive Data Clearance (M29)</field>
+        <field name="privilege_id" ref="privilege_fix_security_authority"/>
+        <field name="comment">Sees fields that field rules hide or mask, and classified fields in clear, on the P03 screens. Ships EMPTY: clearance is a business decision.</field>
+    </record>
+
 </odoo>

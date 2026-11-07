@@ -3,7 +3,7 @@
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -35,6 +35,13 @@ def require_platform_admin(env, what):
         "%s is statutory platform master data. Only a Platform Admin "
         "(cd_entity_config.group_platform_admin) may change it." % what
     )
+
+
+def audit_event(env, event, object_ref, detail):
+    """One row in the security audit chain (cd_rbac_ext, which loads after this
+    module). Tolerant only so a partial registry during an upgrade cannot break."""
+    if "fix.security.audit" in env:
+        env["fix.security.audit"].log_event(event, object_ref, detail)
 
 
 class FixEntity(models.Model):
@@ -108,6 +115,16 @@ class FixEntity(models.Model):
 
     def write(self, vals):
         require_platform_admin(self.env, "The legal-entity register")
+        # A12 finish E9: company_id is now on the form so an entity can be born
+        # there. Moving an existing one would re-scope every branch under it.
+        if "company_id" in vals and not self.env.su:
+            new_company = vals["company_id"]
+            new_company = new_company.id if hasattr(new_company, "id") else new_company
+            if any(rec.company_id.id != new_company for rec in self):
+                raise UserError(
+                    "The company of a legal entity is structural: every branch and "
+                    "record rule resolves through it. It cannot be moved by an edit."
+                )
         return super().write(vals)
 
     def unlink(self):

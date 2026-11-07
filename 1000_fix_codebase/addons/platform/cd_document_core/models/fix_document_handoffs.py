@@ -16,8 +16,11 @@ class FixDocumentItsmHandoff(models.Model):
         Idempotent: the note body carries the event id; a redelivery finds
         it on the last message and does not re-post.
         """
+        # N-M66-3: the asset id is the event's aggregate_id. The publisher sends no
+        # asset_id in the payload, so reading only the payload left this consumer
+        # finding nothing while the delivery still read as done.
         payload = event.get("payload") or {}
-        asset_id = payload.get("asset_id") or payload.get("id")
+        asset_id = event.get("aggregate_id") or payload.get("asset_id") or payload.get("id")
         if not asset_id:
             return 0
         asset_label = payload.get("asset_tag") or payload.get("name") or str(asset_id)

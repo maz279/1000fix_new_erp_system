@@ -18,6 +18,8 @@ SURFACES = {
             "action_activate",
             "action_load",
             "action_retire",
+            "action_back_to_draft",
+            "action_load_bangladesh_drafts",
         },
     },
     "fix.country.pack.line": {"order": "pack_id", "limit": 500, "actions": set()},
@@ -53,7 +55,6 @@ WRITABLE = {
         "number_format",
         "first_day_of_week",
         "date_format",
-        "coverage_pct",
     ),
     "fix.jurisdiction.rule": (
         "jurisdiction",
@@ -68,16 +69,14 @@ WRITABLE = {
         "provider",
         "country_code",
         "currencies",
-        # mode/credential_ref are settable only while the record is a DRAFT:
-        # once active, fix.guarded.mixin's _fix_form_locked_fields freezes
-        # both at this endpoint AND on the model, so listing them here only
-        # enables the initial draft creation (vault reference, sandbox).
+        # credential_ref enters at creation only (afterwards: Rotate); mode is
+        # always system-set. `active` is deliberately absent: archiving a
+        # suspended rail reopened checkout (A12 finish E5).
         "mode",
         "credential_ref",
         "settlement_cycle_days",
         "supports_refund",
         "supports_partial_refund",
-        "active",
     ),
 }
 
@@ -131,13 +130,24 @@ def country_pack_status(env, date_from=None, date_to=None, **params):
             "lines": len(p.line_ids),
             "certified": str(p.certified_on or "—"),
             "loaded": str(p.loaded_at or "—")[:19],
+            "load_summary": p.load_summary or "—",
             "state": dict(p._fields["state"].selection).get(p.state, p.state),
         }
         for p in packs
     ]
     return _pack(
         "Country Pack Status",
-        ["pack", "code", "kind", "version", "lines", "certified", "loaded", "state"],
+        [
+            "pack",
+            "code",
+            "kind",
+            "version",
+            "lines",
+            "certified",
+            "loaded",
+            "load_summary",
+            "state",
+        ],
         {
             "pack": "Pack",
             "code": "Code",
@@ -146,6 +156,7 @@ def country_pack_status(env, date_from=None, date_to=None, **params):
             "lines": "Lines",
             "certified": "Certified On",
             "loaded": "Loaded At",
+            "load_summary": "What The Load Did",
             "state": "State",
         },
         rows,
@@ -153,6 +164,10 @@ def country_pack_status(env, date_from=None, date_to=None, **params):
             "Country packs carry divisions/districts, holidays and postcodes. Only a "
             "CERTIFIED pack can be activated and only an ACTIVE pack can be loaded "
             "(P1-4): loading requires certification, not just existence.",
+            "Certification is a person's statement that they checked the pack against the "
+            "official source. This system does not verify statutory content; the person "
+            "who certifies must not be the person who created the pack.",
+            "Only an active, loaded holiday pack moves the VAT due date.",
         ],
         empty="No country packs loaded.",
     )
@@ -182,9 +197,12 @@ def locale_readiness(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Coverage is the measured translated-string share of the pack. A draft pack "
-            "activates only at the configured minimum coverage "
-            "(ir.config_parameter fix_locale.min_activation_coverage_pct, default 100%).",
+            "Coverage is measured: the share of menus and field labels holding a translation "
+            "in this language; strings inside code are not counted. A draft pack activates "
+            "only at the configured minimum coverage (ir.config_parameter "
+            "fix_locale.min_activation_coverage_pct, default 100%), and activating it makes "
+            "the language available. Translations themselves come from the language-install "
+            "tool.",
         ],
         empty="No locale packs defined.",
     )
@@ -261,7 +279,7 @@ def gateway_readiness(env, date_from=None, date_to=None, **params):
             "provider": g.provider,
             "country": g.country_code or "—",
             "mode": dict(g._fields["mode"].selection).get(g.mode, g.mode),
-            "credential": "set" if g.credential_ref else "missing",
+            "credential": "set" if g.sudo().credential_ref else "missing",
             "settlement_days": g.settlement_cycle_days,
             "state": dict(g._fields["state"].selection).get(g.state, g.state),
         }
@@ -281,9 +299,14 @@ def gateway_readiness(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Activation is routed (M63) and every transition is written to the security "
-            "audit chain. Checkout calls assert_live_for_checkout(): only an ACTIVE "
-            "gateway in LIVE mode with a credential set may take a payment; anything "
-            "else is refused rather than retried on a rail that is not live.",
+            "audit chain. Storefront checkout calls assert_live_for_checkout(): only an "
+            "ACTIVE gateway in LIVE mode, for this company and country, may take an order.",
+            "Storefront checkout is the ONLY reader of this register. Front-desk bKash, "
+            "payment links, billing and subscriptions do not consult it, and a rail with "
+            "no row (Nagad today) is not gated.",
+            "The credential reference is a pointer no integration reads: the storefront's "
+            "secret is a system parameter. Rotating it records a routed decision and does "
+            "not change a live secret.",
         ],
         empty="No payment gateways configured.",
     )
@@ -291,10 +314,13 @@ def gateway_readiness(env, date_from=None, date_to=None, **params):
 
 def expansion_assessment(env, date_from=None, date_to=None, **params):
     """Readiness for a new country: packs loaded, jurisdiction rules captured and
-    gateways configured per country code."""
-    packs = env["fix.country.pack"].search([])
+    gateways configured per country code.
+
+    A12 finish E18: Nepal read Ready with an empty draft pack and a sandbox rail.
+    Only a certified, active pack with lines and a gateway live for money count."""
+    packs = env["fix.country.pack"].search([("state", "=", "active")]).filtered("line_ids")
     rules = env["fix.jurisdiction.rule"].search([("active", "=", True)])
-    gateways = env["fix.payment.gateway"].search([("state", "=", "active")])
+    gateways = env["fix.payment.gateway"].search([("state", "=", "active"), ("mode", "=", "live")])
     countries = {}
     for pack in packs:
         cc = (pack.code or "")[:2] or "??"
@@ -325,15 +351,20 @@ def expansion_assessment(env, date_from=None, date_to=None, **params):
         ["country", "packs", "jurisdiction_rules", "gateways", "readiness"],
         {
             "country": "Country",
-            "packs": "Country Packs",
+            "packs": "Active Packs With Lines",
             "jurisdiction_rules": "Jurisdiction Rules",
-            "gateways": "Active Gateways",
+            "gateways": "Live Gateways",
             "readiness": "Readiness",
         },
         rows,
         [
-            "A country is Ready only when a pack, at least one jurisdiction rule and an active "
-            "gateway all exist; otherwise the missing pieces are named."
+            "A country is Ready only when a certified, active pack with lines, at least one "
+            "jurisdiction rule and a gateway live for money all exist; otherwise the missing "
+            "pieces are named.",
+            "Jurisdiction rules are documentation that a person typed: no calculation reads "
+            "them, so counting one is not evidence of compliance.",
+            "Jurisdiction literals in code (BD weekends, VAT days, statutory forms) are not "
+            "yet driven by these registers (BRU-GLO-01/04 are not built).",
         ],
         empty="No country data.",
     )

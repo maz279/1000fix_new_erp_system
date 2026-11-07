@@ -28,6 +28,8 @@ from odoo import SUPERUSER_ID, http
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 _logger = logging.getLogger(__name__)
 
 GATEWAY_SECRET_PARAM = "cd_storefront.gateway_secret.%s"  # noqa: S105 - a parameter key, not a secret
@@ -195,6 +197,7 @@ class StorefrontApiController(http.Controller):
     """M38 Storefront Customer API endpoints."""
 
     @http.route("/storefront/catalogue", type="jsonrpc", auth="public", readonly=True)
+    @api_edge("/storefront/catalogue")
     def catalogue(self, category=None, search=None, limit=50, **kwargs):
         """Browse M37 catalogue products (parts, accessories, refurbished devices)."""
         env = _su_env()
@@ -222,6 +225,7 @@ class StorefrontApiController(http.Controller):
         return {"products": items, "count": len(items)}
 
     @http.route("/storefront/cart", type="jsonrpc", auth="public")
+    @api_edge("/storefront/cart")
     def get_or_update_cart(self, product_id=None, quantity=1, **kwargs):
         """Get the caller's active cart or add/update item lines.
 
@@ -272,6 +276,7 @@ class StorefrontApiController(http.Controller):
         return _cart_payload(cart)
 
     @http.route("/storefront/checkout", type="jsonrpc", auth="public")
+    @api_edge("/storefront/checkout")
     def checkout(
         self,
         cart_id=None,
@@ -335,6 +340,7 @@ class StorefrontApiController(http.Controller):
         }
 
     @http.route("/storefront/orders/track", type="jsonrpc", auth="public", readonly=True)
+    @api_edge("/storefront/orders/track")
     def track_order(self, order_name=None, order_id=None, **kwargs):
         """Track customer storefront order and reverse logistics consignment.
 
@@ -466,6 +472,7 @@ class StorefrontApiController(http.Controller):
         methods=["POST"],
         csrf=False,
     )
+    @api_edge("/storefront/payment/callback/<string:rail>", http_route=True)
     def payment_callback(self, rail, **kwargs):
         """The gateway's server-to-server payment notice (bKash / Nagad /
         SSLCOMMERZ IPN). See handle_gateway_callback."""

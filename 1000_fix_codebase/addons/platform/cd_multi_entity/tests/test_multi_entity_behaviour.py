@@ -717,6 +717,12 @@ def _holiday(env, day):
             "date_value": day,
         }
     )
+    # A12 finish E6: only an active, loaded pack moves a statutory date.
+    if pack.state == "draft":
+        pack.action_validate()
+        pack.action_certify(note="test gazette basis")
+        pack.action_activate()
+    pack.action_load()
 
 
 def test_december_return_is_due_in_january_of_the_next_year(odoo_env):
@@ -963,15 +969,15 @@ def test_bangladesh_pack_loads_divisions_districts_and_holidays_once(odoo_env):
 
     result = Loader.load_bangladesh_pack()
 
-    assert result == {
-        "divisions_count": 8,
-        "districts_count": 64,
-        "holidays_count": len(STATUTORY_HOLIDAYS_2026),
-        "status": "LOADED",
-    }
+    assert result["divisions_count"] == 8 and result["districts_count"] == 64
+    assert result["holidays_count"] == len(STATUTORY_HOLIDAYS_2026)
+    # A12 finish E10: drafts. The loader used to certify itself with a canned note.
+    assert result["status"] == "DRAFT" and "must verify" in result["note"]
     div_pack = Pack.search([("code", "=", "BD-DIV-DIST-2026")])
     hol_pack = Pack.search([("code", "=", "BD-HOL-2026")])
-    assert div_pack.loaded_at and hol_pack.loaded_at
+    assert (div_pack | hol_pack).mapped("state") == ["draft", "draft"]
+    assert not (div_pack | hol_pack).filtered("certified_by_id")
+    assert not (div_pack | hol_pack).filtered("loaded_at")
     assert len(div_pack.line_ids) == len(BANGLADESH_DIVISIONS) + len(BANGLADESH_DISTRICTS)
     gazipur = div_pack.line_ids.filtered(lambda line: line.code == "BD-14")
     assert (gazipur.parent_code, gazipur.name_bn) == ("BD-30", "গাজীপুর")
@@ -982,7 +988,12 @@ def test_bangladesh_pack_loads_divisions_districts_and_holidays_once(odoo_env):
     assert Pack.search_count([("code", "in", ["BD-DIV-DIST-2026", "BD-HOL-2026"])]) == 2
     assert len(div_pack.line_ids) == 72
 
-    # the loaded holidays drive the statutory calendar: 16 Dec 2026 is a
-    # Wednesday holiday, so a due date landing on it moves to Thursday
+    # a draft pack moves no statutory date; once a person has walked it, its
+    # holidays do: 16 Dec 2026 is a Wednesday, so a due date on it moves to Thursday
     entity = _entity(odoo_env, vat_statutory_day=16)
+    assert entity.get_vat_return_due_date(2026, 11) == date(2026, 12, 16)
+    hol_pack.action_validate()
+    hol_pack.action_certify(note="test gazette basis")
+    hol_pack.action_activate()
+    hol_pack.action_load()
     assert entity.get_vat_return_due_date(2026, 11) == date(2026, 12, 16) + timedelta(days=1)

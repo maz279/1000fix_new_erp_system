@@ -212,7 +212,8 @@ def test_apply_is_refused_without_the_steward_group(odoo_env, clerk, stewards):
         )
     )
     cr.with_user(clerk).action_submit()
-    approve_via_inbox(cr, stewards["b"], requester=clerk)
+    # BRU-MDM-22: a request is routed with its reason.
+    approve_via_inbox(cr, stewards["b"], requester=clerk, justification="source document")
     with _rejects(odoo_env, UserError, match="[Ss]teward"):
         cr.with_user(clerk).action_apply()
     assert cr.state == "approved" and partner.phone == "01700000001"
@@ -233,7 +234,7 @@ def test_a_rejected_request_keeps_the_master_untouched(odoo_env, clerk, stewards
         )
     )
     cr.with_user(clerk).action_submit()
-    cr.with_user(clerk).action_request_approval()
+    cr.with_user(clerk).action_request_approval(justification="source document")
     task = inbox_task(cr, stewards["b"])
     task.with_user(stewards["b"]).action_reject("not the same customer")
     assert cr.state == "rejected"
@@ -265,7 +266,8 @@ def test_steward_request_is_reviewed_decided_and_applied(odoo_env, stewards):
     req = _steward_request(odoo_env, stewards["a"], partner)
     assert req.state == "submitted"
 
-    req.with_user(stewards["a"]).action_review()
+    # E14: another steward starts the review, never the requester.
+    req.with_user(stewards["b"]).action_review()
     assert req.state == "in_review"
 
     # The proposer never decides it: routing excludes them.
@@ -286,7 +288,7 @@ def test_steward_request_is_reviewed_decided_and_applied(odoo_env, stewards):
 def test_steward_request_proposer_cannot_decide_even_via_the_group(odoo_env, stewards):
     partner = _partner(odoo_env, "A12 SoD Target")
     req = _steward_request(odoo_env, stewards["a"], partner)
-    req.with_user(stewards["a"]).action_review()
+    req.with_user(stewards["b"]).action_review()
     req.with_user(stewards["a"]).action_request_approval()
     # Test surgery: hand the proposer the deciding task anyway; the SoD check
     # inside the apply still refuses (the check binds inside the inbox).
@@ -335,7 +337,8 @@ def _code_list(odoo_env, user, entries=(("DV", "Dhaka"), ("CTG", "Chattogram")))
 
 def test_publishing_freezes_the_list(odoo_env, stewards):
     lst = _code_list(odoo_env, stewards["a"])
-    lst.with_user(stewards["a"]).action_publish()
+    # E25: a second person publishes.
+    lst.with_user(stewards["b"]).action_publish()
     assert lst.state == "published" and lst.published_on
 
     entry = lst.entry_ids[0]
@@ -352,7 +355,7 @@ def test_publishing_freezes_the_list(odoo_env, stewards):
 
 def test_changes_ship_as_a_new_version(odoo_env, stewards):
     lst = _code_list(odoo_env, stewards["a"])
-    lst.with_user(stewards["a"]).action_publish()
+    lst.with_user(stewards["b"]).action_publish()
     new = lst.with_user(stewards["a"]).action_new_version()
     assert new.state == "draft" and new != lst
     assert {e.value for e in new.entry_ids} == {"DV", "CTG"}
@@ -502,7 +505,8 @@ def test_merge_delegates_to_m33_and_stays_pending_until_it_executes(odoo_env, st
 
 def test_a_low_score_merge_needs_a_note(odoo_env, stewards, dup_pair):
     dup, _a, _b, _party_steward = dup_pair
-    dup.with_user(stewards["a"]).write({"score": 55.0})
+    # E18: the score is the detection run's: only system code sets it.
+    dup.sudo().write({"score": 55.0})
     with _rejects(odoo_env, REFUSED, match=""):
         dup.with_user(stewards["a"]).action_merge()
     dup.with_user(stewards["a"]).action_merge(justification="confirmed by both stores")

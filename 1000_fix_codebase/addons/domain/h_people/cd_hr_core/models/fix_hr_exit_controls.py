@@ -323,8 +323,38 @@ class FixHrExitControls(models.Model):
                     "Employee holds assigned toolkit custody (%s): Asset Return Receipt reference "
                     "or scan is required." % rec.employee_id.sudo().toolkit_custody_ref
                 )
+            if tick == "clearance_assets":
+                rec._fix_refuse_outstanding_itsm_assets()
             rec._guarded().write({tick: True, "%s_by_id" % tick: self.env.uid})
         return True
+
+    def _fix_refuse_outstanding_itsm_assets(self):
+        """BRU-ITS-13: a leaver with an outstanding IT asset blocks final settlement
+        until it is recovered or its write-off is approved. Read by name and as sudo:
+        cd_itsm loads after this module, and the clearing officer has no register
+        access."""
+        self.ensure_one()
+        if "fix.itsm.asset" not in self.env:
+            return
+        employee = self.employee_id
+        assets = (
+            self.env["fix.itsm.asset"]
+            .sudo()
+            .search(
+                [
+                    ("state", "in", ("in_service", "repair", "recovery_due")),
+                    "|",
+                    ("assigned_to_id", "=", employee.id),
+                    ("recovery_from_id", "=", employee.id),
+                ]
+            )
+        )
+        if assets:
+            raise UserError(
+                "%s still holds IT asset(s) %s: recover them or get the write-off approved "
+                "before the assets clearance (BRU-ITS-13)."
+                % (employee.sudo().name, ", ".join(assets.mapped("asset_tag")))
+            )
 
     def action_clear_it(self):
         return self._fix_tick("clearance_it")
@@ -345,6 +375,8 @@ class FixHrExitControls(models.Model):
             rec._hr_require(OFFICER, "Clearing an exit")
             if not rec._all_cleared():
                 raise UserError("Every clearance line must be ticked by its owner before clearing")
+            # An asset allocated after the tick still blocks (BRU-ITS-13).
+            rec._fix_refuse_outstanding_itsm_assets()
             rec.employee_id.sudo().write(
                 {"form7_last_event_date": rec.last_working_day or fields.Date.context_today(self)}
             )

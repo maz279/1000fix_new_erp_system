@@ -1,43 +1,58 @@
-# A12 R2 (M29-4): the SoD gate on the last grant path — a direct write of
-# res.users.group_ids (Odoo Settings, an ORM script, any future surface).
-# The access-request, JML and certification paths already gate their grants;
-# this override catches everything else. Removals never conflict; additions
-# are mapped back to roles and checked against every role the user holds.
-from odoo import models
-
-
-def _added_group_ids(current_ids, commands):
-    """The group ids a group_ids command list ADDS for a user holding
-    `current_ids` (removals and no-op echoes are ignored)."""
-    if not isinstance(commands, list):
-        return set()
-    result = set(current_ids)
-    for cmd in commands:
-        if not cmd:
-            continue
-        op = cmd[0]
-        if op in (3, 2):  # unlink / remove
-            result.discard(cmd[1])
-        elif op == 4:  # link
-            result.add(cmd[1])
-        elif op == 5:  # clear all
-            result = set()
-        elif op == 6:  # replace with ids
-            result = set(cmd[2])
-        elif op == 0 or op == 1:  # new record command — not a group link; ignore
-            continue
-    return result - set(current_ids)
+# res.users guards owned by M29 (A12 R2, A12 finish E24, E25). The SoD gates on
+# group writes live in res_users_sod.py and fix_sod_grant_hooks.py.
+from odoo import api, models
+from odoo.exceptions import UserError, ValidationError
 
 
 class ResUsers(models.Model):
     _inherit = "res.users"
     _description = "Res Users M29 SoD Gate"
 
+    def _fix_is_portal_with_workspace(self) -> bool:
+        """An external (share) identity holding an internal P03 workspace group."""
+        self.ensure_one()
+        base = self.env.ref("cd_rbac_ext.group_fix_portal_user", raise_if_not_found=False)
+        user = self.sudo()
+        return bool(base and user.share and base in user.all_group_ids)
+
+    @api.constrains("group_ids")
+    def _check_no_workspace_on_portal_user(self):
+        for user in self:
+            if user._fix_is_portal_with_workspace():
+                raise ValidationError(
+                    "%s is an external (portal) identity: internal workspace groups cannot be "
+                    "given to it." % user.sudo().login
+                )
+
     def write(self, vals):
-        if not self.env.su and "group_ids" in vals:
-            Sod = self.env["fix.sod.control"]
-            for user in self:
-                added = _added_group_ids(user.sudo().group_ids.ids, vals["group_ids"])
-                if added:
-                    Sod.check_user_groups(user, added)
-        return super().write(vals)
+        reactivated = deactivated = self.browse()
+        if "active" in vals and not self.env.su:
+            if vals["active"]:
+                reactivated = self.filtered(lambda u: not u.sudo().active)
+                if (
+                    self.env["fix.jml.event"]
+                    .sudo()
+                    .search_count(
+                        [
+                            ("user_id", "in", reactivated.ids),
+                            ("event_type", "=", "leaver"),
+                            ("state", "=", "applied"),
+                        ]
+                    )
+                ):
+                    raise UserError(
+                        "This login was deprovisioned by a leaver event. It returns only "
+                        "through an approved joiner event, so the access is approved, "
+                        "SoD-checked and audited."
+                    )
+            else:
+                deactivated = self.filtered(lambda u: u.sudo().active)
+        res = super().write(vals)
+        for users, what in ((reactivated, "reactivated"), (deactivated, "deactivated")):
+            for user in users:
+                self.env["fix.security.audit"].log_event(
+                    "user_active",
+                    "res.users,%d" % user.id,
+                    "login %s %s by %s" % (user.sudo().login, what, self.env.user.name),
+                )
+        return res

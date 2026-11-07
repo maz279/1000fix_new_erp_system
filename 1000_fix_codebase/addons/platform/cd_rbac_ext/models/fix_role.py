@@ -43,7 +43,10 @@ class FixRole(models.Model):
         help="Which isolation tiers this role may access",
     )
     group_id = fields.Many2one(
-        "res.groups", string="Odoo Group", help="The Odoo group this role maps to (legacy 1:1 link)"
+        "res.groups",
+        string="Legacy Group (unused)",
+        help="Retired scratch link: nothing reads it (A12 finish E6/E7). The role's groups are "
+        "Permission Groups below.",
     )
     # A12 R1 (M29-1): a role maps to the SET of permission groups it needs —
     # the shipped 53-role -> group mapping is data/fix_role_group_map.xml.
@@ -106,7 +109,7 @@ class FixRoleDisplayRoll(models.Model):
 
     def _compute_display_rolls(self):
         for rec in self:
-            groups = (rec.group_id | rec.group_ids).mapped("name")
+            groups = rec.group_ids.sudo().mapped("name")
             rec.fix_group_roll = ", ".join(sorted(groups)) if groups else "—"
             tiers = rec.tier_ids.mapped("code")
             rec.fix_tier_roll = ", ".join(sorted(tiers)) if tiers else "All tiers"

@@ -19,7 +19,6 @@
 #     governed list is now FROZEN - changes go through a new version.
 #   * fix.locale.pack activated from any state; activation is now a guarded
 #     draft->active transition with a minimum translation coverage gate.
-import json
 import logging
 import re
 from collections import Counter
@@ -46,6 +45,11 @@ def _require_steward_group(env, what):
 
 
 class FixPlatformAnnouncement(models.Model):
+    """A12 finish E15: the author no longer publishes alone, dates must make
+    sense, a maintenance notice carries its lead time (BRU-ADM-19), and users
+    acknowledge it on the announcement screen. That screen is the only consumer:
+    no banner pushes an announcement into other screens."""
+
     _name = "fix.platform.announcement"
     _description = "Platform Announcement"
     _inherit = ["fix.guarded.mixin"]
@@ -73,21 +77,100 @@ class FixPlatformAnnouncement(models.Model):
         required=True,
         default="draft",
     )
+    kind = fields.Selection(
+        [("general", "General"), ("maintenance", "Planned Maintenance")],
+        required=True,
+        default="general",
+    )
+    maintenance_start = fields.Datetime(
+        help="When the maintenance window opens: publishing needs the configured lead time "
+        "(ir.config_parameter fix_announcement.maintenance_lead_hours, default 72)."
+    )
+    published_by_id = fields.Many2one("res.users", string="Published By", readonly=True, copy=False)
+    ack_ids = fields.One2many("fix.platform.announcement.ack", "announcement_id", readonly=True)
+    acknowledged_count = fields.Integer(string="Acknowledged", compute="_compute_acknowledgements")
+    acknowledged_by_me = fields.Boolean(
+        string="Acknowledged By Me", compute="_compute_acknowledgements"
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state"}
+        return super()._fix_guarded_fields() | {"state", "published_by_id"}
+
+    @api.depends_context("uid")
+    def _compute_acknowledgements(self):
+        Ack = self.env["fix.platform.announcement.ack"].sudo()
+        for rec in self:
+            acks = Ack.search([("announcement_id", "=", rec.id)]) if rec.id else Ack
+            rec.acknowledged_count = len(acks)
+            rec.acknowledged_by_me = self.env.uid in acks.user_id.ids
+
+    @api.constrains("publish_on", "expires_on")
+    def _check_dates(self):
+        for rec in self:
+            if rec.expires_on and rec.publish_on and rec.expires_on < rec.publish_on:
+                raise ValidationError("An announcement cannot expire before it is published.")
 
     def action_publish(self):
+        lead = int(
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("fix_announcement.maintenance_lead_hours", "72")
+        )
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Publish a draft announcement")
-            rec._guarded().write({"state": "published"})
+            if not rec.env.su and rec.env.user == rec.create_uid:
+                raise UserError(
+                    "A second person publishes: you wrote '%s'. Ask another Platform Admin "
+                    "to review and publish it." % rec.name
+                )
+            if rec.kind == "maintenance":
+                if not rec.maintenance_start:
+                    raise UserError("State when the maintenance window of '%s' opens." % rec.name)
+                hours = (rec.maintenance_start - fields.Datetime.now()).total_seconds() / 3600.0
+                if hours < lead:
+                    raise UserError(
+                        "Planned maintenance is announced %d hours ahead (BRU-ADM-19): "
+                        "'%s' opens in %.0f hours. Move the window or the date."
+                        % (lead, rec.name, hours)
+                    )
+            rec._guarded().write({"state": "published", "published_by_id": rec.env.uid})
 
     def action_retire(self):
         for rec in self:
             if rec.state == "retired":
                 raise UserError("The announcement is already retired")
             rec._guarded().write({"state": "retired"})
+
+    def action_acknowledge(self):
+        """The reader says they have seen it. Sudo after the check: no user
+        needs write access to the acknowledgement register."""
+        Ack = self.env["fix.platform.announcement.ack"].sudo()
+        for rec in self:
+            if rec.state != "published":
+                raise UserError("Only a published announcement can be acknowledged.")
+            done = Ack.search_count(
+                [("announcement_id", "=", rec.id), ("user_id", "=", self.env.uid)]
+            )
+            if not done:
+                Ack.create({"announcement_id": rec.id, "user_id": self.env.uid})
+        return True
+
+
+class FixPlatformAnnouncementAck(models.Model):
+    _name = "fix.platform.announcement.ack"
+    _description = "Platform Announcement Acknowledgement"
+    _order = "acknowledged_at desc"
+
+    announcement_id = fields.Many2one(
+        "fix.platform.announcement", required=True, ondelete="cascade", index=True
+    )
+    user_id = fields.Many2one("res.users", required=True, ondelete="cascade", index=True)
+    acknowledged_at = fields.Datetime(required=True, default=fields.Datetime.now)
+
+    _one_per_user = models.Constraint(
+        "UNIQUE (announcement_id, user_id)", "A user acknowledges an announcement once."
+    )
 
 
 class FixMdmSteward(models.Model):
@@ -110,7 +193,8 @@ class FixMdmSteward(models.Model):
     )
     request_type = fields.Selection(
         [
-            ("create", "Create Record"),
+            # Refused at entry (cd_mdm_core): kept so old rows still read.
+            ("create", "Create Record (not available)"),
             ("update", "Update Record"),
             ("merge", "Merge Duplicates"),
             ("deactivate", "Deactivate"),
@@ -120,13 +204,11 @@ class FixMdmSteward(models.Model):
         tracking=True,
     )
     res_model = fields.Char(string="Master Model", required=True, index=True)
-    record_ref = fields.Char(
-        string="Record Reference", help="The target's database id or reference"
-    )
+    record_ref = fields.Char(string="Record ID", help="The target's database id")
     reason = fields.Text(required=True)
     proposed_changes = fields.Text(
-        string="Proposed Changes (JSON)",
-        help="JSON object of {field: new_value} the steward is asked to approve",
+        string="Proposed Changes",
+        help="One field=value per line, or a JSON object, the steward is asked to approve",
     )
     requested_by_id = fields.Many2one(
         "hr.employee",
@@ -196,49 +278,31 @@ class FixMdmSteward(models.Model):
             )
         return record
 
+    # Payload parsing, the governed register and the request-type checks are in
+    # cd_mdm_core (fix_mdm_steward_approval.py), which holds the register.
     def _proposed_values(self) -> dict:
-        self.ensure_one()
-        if not self.proposed_changes:
-            raise ValidationError(
-                "Steward request %s carries no proposed values: nothing to approve." % self.name
-            )
-        try:
-            changes = json.loads(self.proposed_changes)
-        except ValueError as exc:
-            raise ValidationError(
-                "Proposed changes of %s are not valid JSON: %s" % (self.name, exc)
-            ) from exc
-        if not isinstance(changes, dict) or not changes:
-            raise ValidationError(
-                "Steward request %s must propose a JSON object of {field: value}." % self.name
-            )
-        return changes
+        raise UserError("The MDM governance core (cd_mdm_core) is not installed.")
 
-    @api.constrains("res_model", "record_ref", "proposed_changes")
-    def _check_target_and_payload(self):
-        for rec in self:
-            if not rec.proposed_changes:
-                continue  # a request may be raised before the payload is attached
-            changes = rec._proposed_values()
-            target_model = self.env.get(rec.res_model)
-            if target_model is None:
-                raise ValidationError(
-                    "Master model %r does not exist (steward request %s)."
-                    % (rec.res_model, rec.name)
-                )
-            unknown = sorted(set(changes) - set(target_model._fields))
-            if unknown:
-                raise ValidationError(
-                    "%s has no field(s) %s (steward request %s)."
-                    % (rec.res_model, ", ".join(unknown), rec.name)
-                )
+    def _steward_review_stamp(self):
+        raise UserError("The MDM governance core (cd_mdm_core) is not installed.")
+
+    def _apply_to_target(self):
+        raise UserError("The MDM governance core (cd_mdm_core) is not installed.")
 
     # ---- lifecycle ---------------------------------------------------------
     def action_review(self):
+        """E14: another steward starts the review, never the requester. The
+        request is complete from here on: target, payload and a snapshot."""
+        _require_steward_group(self.env, "Reviewing a data steward request")
         for rec in self:
             if rec.state != "submitted":
                 raise UserError("Review a submitted request")
-            rec._guarded().write({"state": "in_review"})
+            if not self.env.su and self.env.user in (rec.requested_by_id.user_id | rec.create_uid):
+                raise UserError(
+                    "Segregation of duties: you raised steward request %s, so a "
+                    "different MDM domain steward starts its review." % rec.name
+                )
+            rec._guarded().write({"state": "in_review", **rec._steward_review_stamp()})
 
     def _decision_checks(self, rec):
         """P1-2: a coded-group steward who is NOT the proposer decides."""
@@ -282,19 +346,7 @@ class FixMdmSteward(models.Model):
                     "Only an approved steward request can be applied (state=%s)." % rec.state
                 )
             _require_steward_group(self.env, "Applying a data steward request")
-            if rec.request_type == "update":
-                changes = rec._proposed_values()
-                target = rec._target_record()
-                unknown = sorted(set(changes) - set(target._fields))
-                if unknown:
-                    raise ValidationError(
-                        "%s no longer carries field(s) %s; re-raise the request."
-                        % (rec.res_model, ", ".join(unknown))
-                    )
-                with rec.env.cr.savepoint():
-                    # sudo: the steward holds the decision, not write access to
-                    # the governed master.
-                    target.sudo().write(changes)
+            outcome = rec._apply_to_target()
             rec._guarded().write(
                 {
                     "state": "applied",
@@ -302,7 +354,7 @@ class FixMdmSteward(models.Model):
                     "applied_at": fields.Datetime.now(),
                 }
             )
-            rec.message_post(body="Applied by %s (state=%s)." % (rec.env.user.name, rec.state))
+            rec.message_post(body="Applied by %s: %s." % (rec.env.user.name, outcome))
 
 
 class FixMdmDqRule(models.Model):
@@ -501,6 +553,8 @@ class FixMdmDqRule(models.Model):
         """Pinned by the lead's ir.cron (daily): evaluate every active DQ rule
         and record the measured result on the rule. Never raises - a rule
         that cannot run is recorded as skipped/error, not a dead cron."""
+        if not self.env.su:
+            raise UserError("The data-quality cron runs as the system only.")
         rules = self.sudo().search([("active", "=", True)])
         for rule in rules:
             try:
@@ -511,10 +565,22 @@ class FixMdmDqRule(models.Model):
 
 
 class FixMdmCodeList(models.Model):
+    """A governed list, versioned: one code, one live version.
+
+    A12 finish audit (E24-E26): a published or retired list is frozen, header
+    and values. A second person publishes (the author and contributors do not),
+    and publishing a new version retires the one it supersedes. Other systems
+    read through values_for / label_for rather than keeping private copies
+    (BRU-MDM-14, BRU-MDM-17)."""
+
     _name = "fix.mdm.code.list"
     _description = "Governed Code List"
-    _inherit = ["fix.guarded.mixin"]
-    _order = "code"
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _order = "code, version desc"
+
+    _code_version_unique = models.Constraint(
+        "UNIQUE (code, version, company_id)", "A list code carries each version once per company"
+    )
 
     code = fields.Char(required=True)
     name = fields.Char(required=True)
@@ -530,15 +596,83 @@ class FixMdmCodeList(models.Model):
         tracking=True,
     )
     published_on = fields.Date(readonly=True, copy=False)
+    effective_from = fields.Date(
+        help="First day this version applies. Blank at publication means the publication date."
+    )
+    effective_to = fields.Date(
+        readonly=True, copy=False, help="Set when the version is superseded or retired."
+    )
+    superseded_by_id = fields.Many2one(
+        "fix.mdm.code.list", string="Superseded By", readonly=True, copy=False
+    )
     entry_ids = fields.One2many("fix.mdm.code.entry", "list_id", string="Entries")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "published_on"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "published_on",
+            "effective_to",
+            "superseded_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            locked |= {"code", "name", "domain_area", "version", "effective_from"}
+        return locked
+
+    def write(self, vals):
+        # E24: the frozen contract includes its header. Same-value posts pass:
+        # the P03 form posts every field it shows.
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(lambda r: r.state != "draft"):
+                changed = [
+                    name
+                    for name in vals
+                    if name in rec._fields
+                    and name not in self._FROZEN_LIST_FREE
+                    and rec._fix_guard_differs(name, vals[name], rec[name])
+                ]
+                if changed:
+                    raise UserError(
+                        "Code list %s is %s: it is frozen. Cut a new version instead."
+                        % (rec.code, rec.state)
+                    )
+        return super().write(vals)
+
+    _FROZEN_LIST_FREE = frozenset(
+        {"message_follower_ids", "message_ids", "message_main_attachment_id"}
+    )
+
+    def unlink(self):
+        # BRU-MDM-13: a value that was ever published stays resolvable.
+        frozen = self.filtered(lambda r: r.state != "draft")
+        if frozen and not self._fix_guard_open():
+            raise UserError(
+                "Code list %s was published: it is retired, never deleted."
+                % ", ".join(frozen.mapped("code")[:3])
+            )
+        return super().unlink()
+
+    def _publication_conflict(self):
+        """E25: who built this draft does not also publish it."""
+        self.ensure_one()
+        if self.env.su:
+            return False
+        builders = (
+            self.create_uid
+            | self.write_uid
+            | self.entry_ids.mapped("create_uid")
+            | self.entry_ids.mapped("write_uid")
+        )
+        return self.env.user in builders
 
     def action_publish(self):
         """P1-2: once published, a governed code list is FROZEN - its values
         are the contract other systems code against. Corrections ship as a
-        new version, never as a silent edit."""
+        new version, never as a silent edit. A second person publishes, and
+        the version this one succeeds retires in the same step."""
+        _require_steward_group(self.env, "Publishing a code list")
         for rec in self:
             if rec.state != "draft":
                 raise UserError(
@@ -546,15 +680,102 @@ class FixMdmCodeList(models.Model):
                 )
             if not rec.entry_ids:
                 raise UserError("Publish a code list with at least one entry.")
-            rec._guarded().write(
-                {"state": "published", "published_on": fields.Date.context_today(rec)}
+            if rec._publication_conflict():
+                raise UserError(
+                    "Segregation of duties: you built code list %s, so a different MDM "
+                    "domain steward publishes it." % rec.code
+                )
+            today = fields.Date.context_today(rec)
+            starts = rec.effective_from or today
+            predecessors = self.search(
+                [
+                    ("code", "=", rec.code),
+                    ("company_id", "=", rec.company_id.id),
+                    ("state", "=", "published"),
+                    ("id", "!=", rec.id),
+                ]
             )
+            predecessors._guarded().write(
+                {"state": "retired", "effective_to": starts, "superseded_by_id": rec.id}
+            )
+            rec._guarded().write(
+                {"state": "published", "published_on": today, "effective_from": starts}
+            )
+            rec.message_post(
+                body="Published by %s, effective %s%s."
+                % (
+                    self.env.user.name,
+                    starts,
+                    "; supersedes version %s" % ", ".join(predecessors.mapped("version"))
+                    if predecessors
+                    else "",
+                )
+            )
+            for old in predecessors:
+                old.message_post(body="Superseded by version %s." % rec.version)
 
     def action_retire(self):
+        _require_steward_group(self.env, "Retiring a code list")
         for rec in self:
             if rec.state == "retired":
                 raise UserError("The code list is already retired")
-            rec._guarded().write({"state": "retired"})
+            rec._guarded().write(
+                {"state": "retired", "effective_to": fields.Date.context_today(rec)}
+            )
+            rec.message_post(body="Retired by %s." % self.env.user.name)
+
+    # ---- the read API other modules use (BRU-MDM-14, BRU-MDM-17) -----------
+    @api.model
+    def _version_on(self, code, on_date=None, company=None):
+        """The version of `code` in force on a date: published or later retired,
+        so a historic document still resolves."""
+        on_date = fields.Date.to_date(on_date) or fields.Date.context_today(self)
+        company = company or self.env.company
+        versions = self.sudo().search(
+            [
+                ("code", "=", code),
+                ("company_id", "=", company.id),
+                ("state", "in", ("published", "retired")),
+            ]
+        )
+        in_force = versions.filtered(
+            lambda v: (not v.effective_from or v.effective_from <= on_date)
+            and (not v.effective_to or on_date < v.effective_to)
+        )
+        return in_force.sorted(lambda v: v.effective_from or fields.Date.to_date("1900-01-01"))[-1:]
+
+    @api.model
+    def values_for(self, code, on_date=None, company=None) -> list:
+        """The values of `code` in force on a date: [{value, label, label_bn}]."""
+        on_date = fields.Date.to_date(on_date) or fields.Date.context_today(self)
+        entries = self._version_on(code, on_date, company).entry_ids.filtered(
+            lambda e: e.active
+            and (not e.effective_from or e.effective_from <= on_date)
+            and (not e.effective_to or on_date < e.effective_to)
+        )
+        return [{"value": e.value, "label": e.label, "label_bn": e.label_bn} for e in entries]
+
+    @api.model
+    def label_for(self, code, value, company=None):
+        """The label of a stored value, whichever version last held it: a value
+        once published stays resolvable (BRU-MDM-13). None when it never existed."""
+        company = company or self.env.company
+        entry = (
+            self.env["fix.mdm.code.entry"]
+            .sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("list_id.code", "=", code),
+                    ("list_id.company_id", "=", company.id),
+                    ("list_id.state", "in", ("published", "retired")),
+                    ("value", "=", value),
+                ],
+                order="id desc",
+                limit=1,
+            )
+        )
+        return entry.label if entry else None
 
     def action_new_version(self):
         """Copy this published list into a fresh draft with a bumped version:
@@ -571,13 +792,26 @@ class FixMdmCodeList(models.Model):
                 new_version = "%d.0" % (major + 1)
             except ValueError:
                 new_version = "2.0"
+            if self.search_count(
+                [
+                    ("code", "=", rec.code),
+                    ("company_id", "=", rec.company_id.id),
+                    ("version", "=", new_version),
+                ]
+            ):
+                raise UserError(
+                    "Version %s of code list %s already exists: finish that one."
+                    % (new_version, rec.code)
+                )
+            # E25: one code, many versions. The list name and code stay, so a
+            # consumer keeps asking for the same list.
             new_list = rec.copy(
                 {
-                    "code": "%s-v%s" % (rec.code, new_version),
-                    "name": "%s (v%s)" % (rec.name, new_version),
+                    "code": rec.code,
+                    "name": rec.name,
                     "version": new_version,
                     "state": "draft",
-                    "published_on": False,
+                    "effective_from": False,
                 }
             )
             rec.entry_ids.copy({"list_id": new_list.id})
@@ -585,8 +819,8 @@ class FixMdmCodeList(models.Model):
         return new_lists
 
     def _entries_frozen(self):
-        """True when any list in self is published and no guard token is held."""
-        frozen = self.filtered(lambda rec: rec.state == "published")
+        """True when any list in self was published and no guard token is held."""
+        frozen = self.filtered(lambda rec: rec.state != "draft")
         return bool(frozen) and not frozen._fix_guard_open()
 
 
@@ -601,18 +835,30 @@ class FixMdmCodeEntry(models.Model):
     label = fields.Char(required=True)
     label_bn = fields.Char(string="Label (Bengali)")
     active = fields.Boolean(default=True)
+    effective_from = fields.Date(help="First day the value applies, inside its list's version.")
+    effective_to = fields.Date(help="First day the value no longer applies.")
 
     _value_unique = models.Constraint(
         "UNIQUE (list_id, value)", "A code value is unique inside its list"
     )
 
+    @api.constrains("effective_from", "effective_to")
+    def _check_effective_dates(self):
+        for rec in self:
+            if rec.effective_from and rec.effective_to and rec.effective_to <= rec.effective_from:
+                raise ValidationError(
+                    "Value %s must start before it ends (BRU-MDM-17)." % rec.value
+                )
+
     def _check_lists_mutable(self, lists):
-        frozen = lists.filtered(lambda rec: rec.state == "published")
+        # BRU-MDM-13: published and retired alike. A retired value still
+        # resolves old documents, so it is neither rewritten nor deleted.
+        frozen = lists.filtered(lambda rec: rec.state != "draft")
         if frozen and not frozen._fix_guard_open():
             raise UserError(
-                "Code list %s is published: its entries are frozen. Cut a new "
-                "version (action_new_version) instead of editing the contract."
-                % ", ".join(frozen.mapped("code")[:3])
+                "Code list %s is %s: its entries are frozen. Cut a new version "
+                "(action_new_version) instead of editing the contract."
+                % (", ".join(frozen.mapped("code")[:3]), frozen[0].state)
             )
 
     @api.model_create_multi
@@ -625,7 +871,11 @@ class FixMdmCodeEntry(models.Model):
 
     def write(self, vals):
         if self:
-            self._check_lists_mutable(self.mapped("list_id"))
+            lists = self.mapped("list_id")
+            # E23: a value moved INTO a published list adds to the contract too.
+            if vals.get("list_id"):
+                lists |= self.env["fix.mdm.code.list"].browse(vals["list_id"])
+            self._check_lists_mutable(lists)
         return super().write(vals)
 
     def unlink(self):
@@ -657,9 +907,14 @@ class FixLocalePack(models.Model):
         string="First Day of Week",
     )
     date_format = fields.Char(default="DD/MM/YYYY", required=True)
+    # A12 finish E16: this was a typed integer, so the activation gate was one
+    # keystroke away while every report called it "measured". Now it is measured,
+    # on every read, so it cannot be typed or go stale.
     coverage_pct = fields.Integer(
         string="Translation Coverage %",
-        help="Measured coverage of the pack against the source strings.",
+        compute="_compute_coverage_pct",
+        help="Measured: the share of menus and field labels holding a translation in "
+        "this language. Strings inside code are not counted.",
     )
     state = fields.Selection(
         [("draft", "Draft"), ("active", "Active"), ("retired", "Retired")],
@@ -674,6 +929,28 @@ class FixLocalePack(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state"}
+
+    @api.depends("code")
+    def _compute_coverage_pct(self):
+        cr = self.env.cr
+        for rec in self:
+            rec.coverage_pct = 0
+            if not rec.code:
+                continue
+            # Translated columns are JSONB keyed by language; `?` asks for the key.
+            cr.execute(
+                """
+                SELECT count(*), count(*) FILTER (WHERE name ? %(lang)s) FROM ir_ui_menu
+                UNION ALL
+                SELECT count(*), count(*) FILTER (WHERE field_description ? %(lang)s)
+                  FROM ir_model_fields
+                """,
+                {"lang": rec.code},
+            )
+            rows = cr.fetchall()
+            total = sum(row[0] for row in rows)
+            translated = sum(row[1] for row in rows)
+            rec.coverage_pct = int(100 * translated / total) if total else 0
 
     @api.model
     def _min_activation_coverage(self) -> int:
@@ -702,21 +979,45 @@ class FixLocalePack(models.Model):
                     "fix_locale.min_activation_coverage_pct)."
                     % (rec.code, rec.coverage_pct or 0, minimum)
                 )
+            # A12 finish E16: activating a locale makes the language available.
+            # Sudo after the check: res.lang is system configuration. Translations
+            # themselves are loaded by the language-install tool, not here.
+            lang = self.env["res.lang"].sudo()._activate_lang(rec.code)
+            if not lang:
+                raise UserError(
+                    "%s is not a language this system knows, so it cannot be activated." % rec.code
+                )
             rec._guarded().write({"state": "active"})
 
     def action_retire(self):
         for rec in self:
             if rec.state != "active":
                 raise UserError("Retire an active locale pack (%s is %s)." % (rec.code, rec.state))
+            # Odoo refuses to archive a language in use, with its own message;
+            # the pack does not then pretend it was retired.
+            others = self.sudo().search_count(
+                [("code", "=", rec.code), ("state", "=", "active"), ("id", "!=", rec.id)]
+            )
+            if not others:
+                lang = self.env["res.lang"].sudo().search([("code", "=", rec.code)], limit=1)
+                if lang:
+                    lang.write({"active": False})
             rec._guarded().write({"state": "retired"})
 
 
 class FixJurisdictionRule(models.Model):
+    """A12 finish E17: a DOCUMENTATION register. Nothing reads it: tax, the VAT
+    calendar and payroll carry their own rules, so editing a row changes no
+    calculation. Changes are tracked; the screen says the same thing."""
+
     _name = "fix.jurisdiction.rule"
     _description = "Jurisdiction Rule"
+    _inherit = ["mail.thread"]
     _order = "jurisdiction"
 
-    jurisdiction = fields.Char(required=True, help="e.g. BD-NBR, BD-DIFE, City Corporation")
+    jurisdiction = fields.Char(
+        required=True, tracking=True, help="e.g. BD-NBR, BD-DIFE, City Corporation"
+    )
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
@@ -730,8 +1031,9 @@ class FixJurisdictionRule(models.Model):
         ],
         required=True,
         default="tax",
+        tracking=True,
     )
-    requirement = fields.Char(required=True)
+    requirement = fields.Char(required=True, tracking=True)
     frequency = fields.Selection(
         [
             ("monthly", "Monthly"),
@@ -741,7 +1043,8 @@ class FixJurisdictionRule(models.Model):
         ],
         required=True,
         default="annual",
+        tracking=True,
     )
-    authority = fields.Char()
-    penalty = fields.Char(string="Penalty for Non-Compliance")
-    active = fields.Boolean(default=True)
+    authority = fields.Char(tracking=True)
+    penalty = fields.Char(string="Penalty for Non-Compliance", tracking=True)
+    active = fields.Boolean(default=True, tracking=True)

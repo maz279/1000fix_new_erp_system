@@ -9,6 +9,7 @@ from . import (
     fix_field_rule,
     fix_isolation_tier,
     fix_role,
+    fix_role_assignment,
     fix_security_ops,
     fix_sod_control,
     # A08 S4 additions (B6): the group-pair extension (same _name, merges

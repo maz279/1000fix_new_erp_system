@@ -14,9 +14,23 @@ SURFACES = {
     "fix.itsm.ticket": {
         "order": "id desc",
         "limit": 400,
-        "actions": {"action_assign", "action_start", "action_resolve", "action_close"},
-        # R4: the ticket list reads in the CALLER's scope (sudo read is the
-        # lead/B1 plumbing change that consumes this flag — see Needs).
+        "actions": {
+            "action_assign",
+            "action_reassign",
+            "action_classify",
+            "action_start",
+            "action_await_user",
+            "action_resume",
+            "action_resolve",
+            "action_close",
+            "action_reopen",
+            "action_request_fulfilment",
+            "action_declare_major",
+            "action_major_update",
+            "action_raise_problem",
+        },
+        # R4: the ticket list reads in the CALLER's scope, so an employee sees his
+        # own tickets and an agent those of his units (spec s13).
         "rules": True,
     },
     "fix.itsm.change": {
@@ -24,12 +38,36 @@ SURFACES = {
         "limit": 300,
         # action_approve is deliberately absent: approval runs through the M63
         # inbox (P1-1), never a direct button.
-        "actions": {"action_submit", "action_implement", "action_record_pir", "action_rollback"},
+        "actions": {
+            "action_submit",
+            "action_recall_approval",
+            "action_implement",
+            "action_emergency_implement",
+            "action_record_pir",
+            "action_rollback",
+        },
+    },
+    "fix.itsm.change.template": {
+        "order": "code",
+        "limit": 300,
+        "actions": {"action_authorise", "action_retire_template"},
     },
     "fix.itsm.asset": {
         "order": "name",
         "limit": 300,
-        "actions": {"action_allocate", "action_send_repair", "action_recover", "action_retire"},
+        "actions": {
+            "action_allocate",
+            "action_accept",
+            "action_record_acceptance",
+            "action_return",
+            "action_send_repair",
+            "action_recover",
+            "action_retire",
+            "action_approve_writeoff",
+            "action_reject_writeoff",
+        },
+        # N-M66-7: an employee sees the assets allocated to him, not the register.
+        "rules": True,
     },
     "fix.itsm.catalogue": {
         "order": "category, name",
@@ -39,9 +77,34 @@ SURFACES = {
     "fix.itsm.problem": {
         "order": "opened_on desc, id desc",
         "limit": 300,
-        "actions": {"action_investigate", "action_known_error", "action_resolve", "action_close"},
+        "actions": {
+            "action_investigate",
+            "action_known_error",
+            "action_resolve",
+            "action_verify",
+            "action_close",
+        },
     },
-    "fix.itsm.licence": {"order": "renewal_on, id", "limit": 300, "actions": set()},
+    "fix.itsm.licence": {
+        "order": "renewal_on, id",
+        "limit": 300,
+        "actions": {"action_assign_seat", "action_record_overuse"},
+        # N-M66-7: the cost fields are restricted to the desk (field groups), which
+        # only holds when the list reads as the caller.
+        "rules": True,
+    },
+    "fix.itsm.licence.seat": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_revoke"},
+        "rules": True,
+    },
+    "fix.itsm.licence.exception": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_close_exception"},
+        "rules": True,
+    },
     "fix.itsm.ci": {"order": "ci_class, name", "limit": 400, "actions": set()},
 }
 
@@ -49,20 +112,28 @@ SURFACES = {
 # (state, resolution, escalated, resolved_on, approved_by_id, implemented_on,
 # the PIR fields, known_error) are absent on purpose: the model guard refuses
 # them anyway, and the whitelist keeps the form from even offering them.
+# assigned_to is absent too (N-M66-5): Assign and Reassign set it, so a ticket
+# never names an assignee while it still reads as new.
 WRITABLE = {
     "fix.itsm.ticket": {
         "title",
         "description",
+        "ticket_type",
         "category",
+        "impact",
+        "urgency",
         "priority",
         "requester_id",
-        "assigned_to",
         "catalogue_id",
         "operating_unit_id",
+        "problem_id",
+        "ci_id",
+        "caused_by_change_id",
     },
     "fix.itsm.change": {
         "title",
         "change_type",
+        "template_id",
         "risk",
         "risk_probability",
         "risk_impact",
@@ -74,7 +145,19 @@ WRITABLE = {
         "rollback_plan",
         "change_window_hours",
         "asset_ids",
+        "ci_ids",
         "release_note",
+    },
+    "fix.itsm.change.template": {
+        "code",
+        "name",
+        "description",
+        "implementation_plan",
+        "test_plan",
+        "rollback_plan",
+        "risk_probability",
+        "risk_impact",
+        "max_window_hours",
     },
     "fix.itsm.asset": {
         "name",
@@ -85,8 +168,7 @@ WRITABLE = {
         "warranty_end",
         "os_version",
         # wipe_certificate is NOT here (M66-9): the evidence is supplied to
-        # action_retire, which stamps it in a guarded write — a direct column
-        # write would let anyone re-paper a retired asset.
+        # action_retire, which stamps it in a guarded write.
     },
     "fix.itsm.catalogue": {
         "code",
@@ -95,6 +177,7 @@ WRITABLE = {
         "description",
         "fulfilment_team",
         "target_hours",
+        "calendar_id",
         "cost_per_request",
         "requires_approval",
         "active",
@@ -107,17 +190,20 @@ WRITABLE = {
         "severity",
         "owner_id",
         "opened_on",
+        "fix_change_id",
     },
     "fix.itsm.licence": {
+        # seats_assigned is NOT here (M66-11): it is counted from the seat records.
         "name",
         "vendor",
         "licence_type",
         "seats_owned",
-        "seats_assigned",
         "unit_cost",
         "purchased_on",
         "renewal_on",
     },
+    "fix.itsm.licence.seat": {"note"},
+    "fix.itsm.licence.exception": {"remediation_due"},
     "fix.itsm.ci": {
         "name",
         "ci_class",
@@ -164,7 +250,9 @@ def sla_report(env, date_from=None, date_to=None, **params):
         }
         for t in tickets
     ]
-    open_count = len([r for r in rows if r["state"] in ("New", "Assigned", "In Progress")])
+    open_count = len(
+        [r for r in rows if r["state"] in ("New", "Assigned", "In Progress", "Awaiting User")]
+    )
     breach_count = len([r for r in rows if r["escalated"] == "Yes"])
     return _pack(
         "ITSM Ticket SLA — %d open of %d, %d escalated" % (open_count, len(rows), breach_count),
@@ -192,9 +280,10 @@ def sla_report(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Age measured from creation; the deadline is the catalogue target hours "
-            "(default 8h) from creation. Escalated tickets passed it: the hourly cron "
-            "raised their priority and flagged them."
+            "Age measured from creation. The deadline is the catalogue target hours "
+            "(default 8h) on the SLA calendar when one is set, plus the time spent "
+            "awaiting the user. Escalated tickets passed it: the hourly cron raises the "
+            "priority one step per tier and gives the agent an activity."
         ],
         empty="No ITSM tickets.",
     )
@@ -275,7 +364,7 @@ def asset_lifecycle(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Warranty shows days left (Expired once past). Retirement needs the "
-            "data-wipe certificate and an unassigned asset (M66-9)."
+            "data-wipe certificate, an unassigned asset and a second person (M66-10)."
         ],
         empty="No IT assets registered.",
     )
@@ -321,7 +410,9 @@ def kpis(env):
     assets = env["fix.itsm.asset"].search([])
     return {
         "tickets_open": len(
-            tickets.filtered(lambda t: t.state in ("new", "assigned", "in_progress"))
+            tickets.filtered(
+                lambda t: t.state in ("new", "assigned", "in_progress", "awaiting_user")
+            )
         ),
         "tickets_escalated": len(tickets.filtered(lambda t: t.escalated)),
         "tickets_total": len(tickets),

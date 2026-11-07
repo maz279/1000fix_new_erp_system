@@ -9,12 +9,24 @@
 #     the measured transaction count and the statutory payloads were writable
 #     directly. They are now guarded (fix.guarded.mixin) and only the actions
 #     may set them.
+#
+# A12 finish E6/E9: a draft or retired pack's holiday moved the statutory VAT date,
+# because the consumer ignored the pack lifecycle. It now reads active, loaded
+# packs only. BIN and TIN have a format check and, with the VAT day and calendar
+# rule, are tracked and audited; the two that move a statutory date also need a
+# finance manager. A format check says nothing about whether a number is REAL.
 import calendar
 import json
+import re
 from datetime import date, timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_entity_config.models.fix_entity import audit_event
 from odoo.exceptions import UserError, ValidationError
+
+FINANCE_MANAGER_GROUP = "account.group_account_manager"
+STATUTORY_DATE_FIELDS = {"vat_statutory_day", "statutory_calendar_rule"}
+STATUTORY_FIELDS = STATUTORY_DATE_FIELDS | {"bin_number", "tin_number", "incorporation_date"}
 
 
 class FixEntityLocalisation(models.Model):
@@ -25,16 +37,19 @@ class FixEntityLocalisation(models.Model):
     bin_number = fields.Char(
         string="Business Identification No (BIN / VAT)",
         size=16,
+        tracking=True,
         help="13-digit statutory VAT registration number under VAT & SD Act 2012",
     )
     tin_number = fields.Char(
         string="Taxpayer Identification No (TIN)",
         size=16,
+        tracking=True,
         help="12-digit e-TIN under Income Tax Act 2023",
     )
     vat_statutory_day = fields.Integer(
         string="VAT Due Day of Month",
         default=15,
+        tracking=True,
         help="Statutory submission day (default 15th per Mushak rules); a day "
         "beyond the month's length clamps to the month's last day",
     )
@@ -63,7 +78,41 @@ class FixEntityLocalisation(models.Model):
         string="Tax Calendar Rule",
         default="mushak_next_working_day",
         required=True,
+        tracking=True,
     )
+
+    @api.constrains("bin_number", "tin_number")
+    def _check_registration_format(self):
+        for rec in self:
+            if rec.bin_number and not re.fullmatch(r"\d{13}", rec.bin_number):
+                raise ValidationError("A BIN is 13 digits (VAT & SD Act 2012).")
+            if rec.tin_number and not re.fullmatch(r"\d{12}", rec.tin_number):
+                raise ValidationError("An e-TIN is 12 digits (Income Tax Act 2023).")
+
+    def write(self, vals):
+        touched = STATUTORY_FIELDS & set(vals)
+        before = {rec.id: {n: rec[n] for n in touched} for rec in self} if touched else {}
+        date_moved = (
+            STATUTORY_DATE_FIELDS & touched
+            and not self.env.su
+            and any(rec[n] != vals[n] for rec in self for n in STATUTORY_DATE_FIELDS & touched)
+        )
+        if date_moved and not self.env.user.has_group(FINANCE_MANAGER_GROUP):
+            raise UserError(
+                "The VAT due day and calendar rule move a statutory date, so changing "
+                "them needs a finance manager as well as a Platform Admin."
+            )
+        result = super().write(vals)
+        for rec in self:
+            moved = [n for n in touched if rec[n] != before[rec.id][n]]
+            if moved:
+                audit_event(
+                    rec.env,
+                    "entity.statutory_changed",
+                    "fix.entity,%d" % rec.id,
+                    "%s changed by %s" % (", ".join(sorted(moved)), rec.env.user.name),
+                )
+        return result
 
     # No default: an assumed incorporation date would make every entity look
     # "newly registered" (nil-return eligibility reads it).
@@ -97,21 +146,20 @@ class FixEntityLocalisation(models.Model):
             while due.weekday() in (4, 5):  # Friday or Saturday
                 due += timedelta(days=1)
 
-            # Check gazetted holidays from country pack lines if available
-            holidays = self.env["fix.country.pack.line"].search(
-                [
-                    ("pack_id.kind", "=", "holidays"),
-                    ("date_value", "=", due),
-                ]
-            )
-            while holidays or due.weekday() in (4, 5):
-                due += timedelta(days=1)
-                holidays = self.env["fix.country.pack.line"].search(
+            # Holidays from certified packs that are active and loaded: a draft,
+            # uncertified or retired pack moves no statutory date (A12 finish E6).
+            def holiday_on(day):
+                return self.env["fix.country.pack.line"].search(
                     [
                         ("pack_id.kind", "=", "holidays"),
-                        ("date_value", "=", due),
+                        ("pack_id.state", "=", "active"),
+                        ("pack_id.loaded_at", "!=", False),
+                        ("date_value", "=", day),
                     ]
                 )
+
+            while holiday_on(due) or due.weekday() in (4, 5):
+                due += timedelta(days=1)
 
         return due
 

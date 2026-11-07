@@ -255,7 +255,7 @@ def test_p16_remote_wins_applies_the_value(env, iadmin):
 def test_p16_merged_applies_nothing(env, iadmin):
     partner = env["res.partner"].create({"name": "P16 Partner M", "street": "original"})
     conflict = _conflict(env, partner)
-    conflict.with_user(iadmin).action_merged()
+    conflict.with_user(iadmin).action_merged(note="agreed by phone")
     partner.invalidate_recordset()
     assert partner.street == "original"
     assert conflict.resolution == "merged"

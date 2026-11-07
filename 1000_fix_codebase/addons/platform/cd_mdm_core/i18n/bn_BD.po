@@ -222,13 +222,9 @@ msgstr "ধ্বনিভিত্তিক (বাংলা-সমর্থি
 
 #. module: cd_mdm_core
 #: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__proposed_changes
 msgid "Proposed Changes"
 msgstr "প্রস্তাবিত পরিবর্তন"
-
-#. module: cd_mdm_core
-#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__proposed_changes
-msgid "Proposed Changes (JSON)"
-msgstr "প্রস্তাবিত পরিবর্তন (JSON)"
 
 #. module: cd_mdm_core
 #: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
@@ -311,3 +307,68 @@ msgstr "জরুরি"
 #: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__validity_score
 msgid "Validity Score (%)"
 msgstr "বৈধতা স্কোর (%)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__impact_reference_count
+msgid "Referencing Records"
+msgstr "উল্লেখকারী রেকর্ড"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__impact_summary
+msgid "Impact"
+msgstr "প্রভাব"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__owner_id
+msgid "Business Owner"
+msgstr "ব্যবসায়িক মালিক"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__model_name
+msgid "Master Model"
+msgstr "মাস্টার মডেল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__field_name
+msgid "Attribute"
+msgstr "বৈশিষ্ট্য"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__block_direct_edit
+msgid "Block Direct Edits"
+msgstr "সরাসরি সম্পাদনা বন্ধ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_governed_attribute__note
+msgid "Note"
+msgstr "নোট"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__bank
+msgid "Bank Details"
+msgstr "ব্যাংকের বিবরণ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__tax
+msgid "Tax Identity"
+msgstr "কর পরিচয়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__credit
+msgid "Credit Terms"
+msgstr "ক্রেডিট শর্ত"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__contact
+msgid "Contact"
+msgstr "যোগাযোগ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__product
+msgid "Product Master"
+msgstr "পণ্য মাস্টার"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_governed_attribute__category__other
+msgid "Other"
+msgstr "অন্যান্য"

@@ -23,3 +23,10 @@ class FixPlatformReleaseItsm(models.Model):
         help="The change request this release ships. A release without an "
         "approved change is refused (D8).",
     )
+
+    # A12 finish E7: one change ships one release. The action says so in words;
+    # this keeps it true when two people release at the same moment.
+    _one_release_per_change = models.UniqueIndex(
+        "(itsm_change_id) WHERE state = 'released' AND itsm_change_id IS NOT NULL",
+        "This ITSM change has already shipped in another release.",
+    )

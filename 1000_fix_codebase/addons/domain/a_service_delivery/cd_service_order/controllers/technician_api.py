@@ -41,6 +41,8 @@ from typing import Any, Literal, SupportsFloat, SupportsInt, TypedDict
 from odoo import SUPERUSER_ID, fields, http
 from odoo.http import request
 
+from libs.py.fix_api_edge import api_edge
+
 _logger = logging.getLogger(__name__)
 
 # The ``{"error": {"code", "message"}}`` object every route returns on refusal.
@@ -491,6 +493,7 @@ class TechnicianApiController(http.Controller):
     # --- 1. Technician Profile & Shift Status -------------------------------
 
     @http.route("/technician/auth/me", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/auth/me")
     def technician_me(self, **kwargs: Any) -> dict[str, Any]:
         """Return technician profile, open attendance status, and active geofence."""
         emp, err = resolve_technician(kwargs)
@@ -529,6 +532,7 @@ class TechnicianApiController(http.Controller):
     # --- 2. Day Queue -------------------------------------------------------
 
     @http.route("/technician/queue", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/queue")
     def technician_queue(self, **kwargs: Any) -> dict[str, Any]:
         """Return the technician's assigned daily work order queue."""
         emp, err = resolve_technician(kwargs)
@@ -602,6 +606,7 @@ class TechnicianApiController(http.Controller):
     # --- 3. Geofenced Clock-In / Out ----------------------------------------
 
     @http.route("/technician/attendance/clock_in", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/attendance/clock_in")
     def attendance_clock_in(self, **kwargs: Any) -> dict[str, Any]:
         """Geofenced mobile clock-in (M55 AUT-WFM-02): the reported position and GPS
         accuracy are evaluated against the technician's own-zone geofences
@@ -679,6 +684,7 @@ class TechnicianApiController(http.Controller):
         }
 
     @http.route("/technician/attendance/clock_out", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/attendance/clock_out")
     def attendance_clock_out(self, **kwargs: Any) -> dict[str, Any]:
         """Mobile shift clock-out computing worked hours."""
         emp, err = resolve_technician(kwargs)
@@ -707,6 +713,7 @@ class TechnicianApiController(http.Controller):
     # --- 4. Work Order Job Status -------------------------------------------
 
     @http.route("/technician/job/status", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/job/status")
     def job_status(self, **kwargs: Any) -> dict[str, Any]:
         """Update work order status (start work, complete work, fail work) on a work
         order assigned to the authenticated technician."""
@@ -781,6 +788,7 @@ class TechnicianApiController(http.Controller):
     # --- 5. Diagnostic Decision Trees & Fault Coding ------------------------
 
     @http.route("/technician/diagnostics/tree", type="jsonrpc", auth="bearer", readonly=True)
+    @api_edge("/technician/diagnostics/tree")
     def diagnostics_tree(self, **kwargs: Any) -> dict[str, Any]:
         """Return the diagnostic question/symptom decision tree nodes."""
         _emp, err = resolve_technician(kwargs)
@@ -819,6 +827,7 @@ class TechnicianApiController(http.Controller):
         return {"trees": result, "total": len(result)}
 
     @http.route("/technician/diagnostics/submit", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/diagnostics/submit")
     def diagnostics_submit(self, **kwargs: Any) -> dict[str, Any]:
         """Attach diagnosed fault code and terminal decision node to a work order
         assigned to the authenticated technician."""
@@ -866,6 +875,7 @@ class TechnicianApiController(http.Controller):
     # --- 6. Van Stock Inventory & Scan-to-Consume ---------------------------
 
     @http.route("/technician/van-stock", type="jsonrpc", auth="bearer", readonly=True)
+    @api_edge("/technician/van-stock")
     def van_stock(self, **kwargs: Any) -> dict[str, Any]:
         """Return the technician's van location(s) and the van parts catalogue."""
         emp, err = resolve_technician(kwargs)
@@ -912,6 +922,7 @@ class TechnicianApiController(http.Controller):
         }
 
     @http.route("/technician/van-stock/consume", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/van-stock/consume")
     def van_stock_consume(self, **kwargs: Any) -> dict[str, Any]:
         """Scan barcode or select part to record consumption against a work order
         assigned to the authenticated technician."""
@@ -983,6 +994,7 @@ class TechnicianApiController(http.Controller):
     # --- 7. SP-07 Offline Journal Replay & Sync -----------------------------
 
     @http.route("/technician/sync", type="jsonrpc", auth="bearer", readonly=False)
+    @api_edge("/technician/sync")
     def technician_sync(self, **kwargs: Any) -> dict[str, Any]:
         """SP-07 upload-first batch replay of offline journal commands, then the delta
         download of the technician's work orders changed after ``last_token``.

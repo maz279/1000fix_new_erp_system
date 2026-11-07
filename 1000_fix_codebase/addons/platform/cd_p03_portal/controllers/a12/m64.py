@@ -32,7 +32,12 @@ SURFACES = {
     "fix.mdm.duplicate": {
         "order": "score desc, id desc",
         "limit": 400,
-        "actions": {"action_merge", "action_keep_separate", "action_sync_merge_state"},
+        "actions": {
+            "action_merge",
+            "action_keep_separate",
+            "action_false_positive",
+            "action_sync_merge_state",
+        },
     },
     "fix.mdm.xref": {"order": "code_list, source_value", "limit": 500, "actions": set()},
     "fix.mdm.golden.rule": {"order": "id desc", "limit": 400, "actions": set()},
@@ -50,10 +55,16 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_reject",
+            "action_cancel",
             "action_apply",
         },
     },
     "fix.mdm.match.rule": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.mdm.governed.attribute": {
+        "order": "model_name, category, field_name",
+        "limit": 300,
+        "actions": set(),
+    },
 }
 
 # R4: the fields a user may legitimately type. Everything else - state,
@@ -66,6 +77,7 @@ WRITABLE = {
         "record_ref",
         "reason",
         "proposed_changes",
+        "merge_with_ref",
         "steward_id",
     ),
     "fix.mdm.dq.rule": (
@@ -78,13 +90,21 @@ WRITABLE = {
         "severity",
         "active",
     ),
-    "fix.mdm.code.list": ("code", "name", "domain_area", "version"),
-    "fix.mdm.code.entry": ("list_id", "value", "label", "label_bn", "active"),
+    "fix.mdm.code.list": ("code", "name", "domain_area", "version", "effective_from"),
+    "fix.mdm.code.entry": (
+        "list_id",
+        "value",
+        "label",
+        "label_bn",
+        "active",
+        "effective_from",
+        "effective_to",
+    ),
+    # score is measured by the detection run (E18), never typed.
     "fix.mdm.duplicate": (
         "res_model",
         "record_a_ref",
         "record_b_ref",
-        "score",
         "match_factors",
         "decision_note",
     ),
@@ -106,7 +126,7 @@ WRITABLE = {
         "description",
         "active",
     ),
-    "fix.mdm.stewardship": ("name", "domain", "lead_steward_id", "operating_unit_id"),
+    "fix.mdm.stewardship": ("name", "domain", "lead_steward_id", "owner_id", "operating_unit_id"),
     "fix.mdm.change.request": (
         "title",
         "description",
@@ -125,6 +145,14 @@ WRITABLE = {
         "weight",
         "normalize",
         "description",
+        "active",
+    ),
+    "fix.mdm.governed.attribute": (
+        "model_name",
+        "field_name",
+        "category",
+        "block_direct_edit",
+        "note",
         "active",
     ),
 }
@@ -476,12 +504,17 @@ def kpis(env):
     lists = env["fix.mdm.code.list"].search([("state", "=", "published")])
     entries = env["fix.mdm.code.entry"].search([])
     change_requests = env["fix.mdm.change.request"].search([])
+    candidates = env["fix.mdm.duplicate"].search([("decision", "=", "pending")])
     return {
         "steward_open": len(reqs.filtered(lambda r: r.state in ("submitted", "in_review"))),
         "steward_total": len(reqs),
         "change_requests_open": len(
             change_requests.filtered(lambda r: r.state in ("submitted", "under_review", "approved"))
         ),
+        "change_requests_applied": len(
+            change_requests.filtered(lambda r: r.state == "implemented")
+        ),
+        "duplicates_pending": len(candidates),
         "dq_rules": len(rules),
         "dq_violations_measured": sum(r.last_violation_count or 0 for r in rules),
         "dq_rules_never_run": len(rules.filtered(lambda r: not r.last_status)),

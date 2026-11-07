@@ -772,6 +772,9 @@ def test_m52_23_accountant_cannot_edit_vendor_bank(c):
 def test_m52_23b_vendor_bank_edited_after_approval_blocks_release(c):
     pm = _user(c.env, "a08b2_pm", ["base.group_partner_manager"])
     r = approved_run(c)
+    # A12 M64 refuses this edit first when its direct-edit block is on; this
+    # test pins the A08 layer behind it, so that layer must see the edit.
+    c.env["ir.config_parameter"].sudo().set_param("fix.mdm.enforce_direct_edit_block", "off")
     c.vbank.with_user(pm).write({"acc_number": "A08B2-SWAPPED-888"})
     assert not c.vbank.fix_confirmed and c.vbank.fix_changed_by_id == pm
     err = refused(c.env, lambda: r.with_user(c.acc2).action_release())

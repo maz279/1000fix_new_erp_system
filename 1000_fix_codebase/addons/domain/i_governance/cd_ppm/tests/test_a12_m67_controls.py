@@ -81,9 +81,25 @@ def _employee(env, name, user=None):
 
 
 def _project(env, **extra):
-    vals = {"name": "Sylhet hub fit-out", "project_type": "client"}
+    vals = {
+        "name": "Sylhet hub fit-out",
+        "project_type": "client",
+        "contract_value": 500000.0,
+    }
     vals.update(extra)
     return env["fix.project"].create(vals)
+
+
+def _ready_for_activation(env, project):
+    """The entry conditions of F12 and F17, as the superuser builds the world."""
+    if not project.manager_id:
+        project.manager_id = _employee(env, "Controls Test Manager")
+    for key in ("g1_initiation", "g2_planning"):
+        gate = env["fix.project.gate"].create({"project_id": project.id, "gate": key})
+        gate.action_record_decision("pass", checklist_passed=True)
+        gate.action_hold()
+        gate.action_close()
+    return project
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +123,7 @@ def test_p1_3_approved_budget_activates_and_freezes_the_baseline(env, tier2, pm_
     task.with_user(tier2).action_approve(comment="Capex plan page 12.")
     assert project.dofa_approved is True
     assert project.dofa_approved_tier == "tier_2"
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     assert project.state == "active"
     assert project.baseline_budget == 250000.0
     # Raising the budget above the baseline is an overrun, not a field edit.
@@ -151,13 +167,13 @@ def test_p1_3_editing_the_budget_after_approval_needs_a_new_round(env, make_user
     # signs them off (W3), and 300k is tier-3 anyway — the decision moves up.
     assert not inbox_task(project, tier2)
     approve_via_inbox(project, tier3)
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     assert project.baseline_budget == 300000.0
 
 
-def test_p1_3_unbudgeted_project_is_tier0_and_activates_freely(env):
-    project = _project(env)  # no budget
-    project.action_activate()
+def test_p1_3_unbudgeted_project_needs_no_dofa_approval(env):
+    project = _project(env)  # no budget: Tier 0, though F12's gates still apply
+    _ready_for_activation(env, project).action_activate()
     assert project.state == "active"
     assert project.baseline_budget == 0.0
 
@@ -199,7 +215,7 @@ def test_m67_6_gate_decision_is_the_reviewers_not_the_managers(env, pm_user, spo
     )
     reviewer = _employee(env, "Reviewer Probe", reviewer_user)
     project = _project(env, manager_id=manager.id)
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     gate = env["fix.project.gate"].create(
         {"project_id": project.id, "gate": "g2_planning", "reviewer_id": reviewer.id}
     )
@@ -250,6 +266,7 @@ def test_m67_6_a_failed_gate_blocks_activation(env, sponsor):
     env["fix.project.gate"].with_user(sponsor).browse(gate.id).action_record_decision(
         "fail", findings="No signed charter."
     )
+    project.manager_id = _employee(env, "Failed Gate Manager")
     with pytest.raises(UserError, match="closed as FAIL"):
         project.action_activate()
     # And a recorded G1 that has not CLOSED with pass/conditional does not
@@ -262,7 +279,7 @@ def test_m67_6_a_failed_gate_blocks_activation(env, sponsor):
 
 def test_m67_6_sponsor_records_the_decision_when_no_reviewer_is_named(env, sponsor):
     project = _project(env)
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     gate = env["fix.project.gate"].create({"project_id": project.id, "gate": "g4_uat"})
     env["fix.project.gate"].with_user(sponsor).browse(gate.id).action_record_decision(
         "conditional", checklist_passed=True, findings="UAT report pending signature."
@@ -278,7 +295,7 @@ def test_m67_6_sponsor_records_the_decision_when_no_reviewer_is_named(env, spons
 def test_bru_ppm_11_manager_cannot_accept_own_milestone(env, pm_user, sponsor):
     manager = _employee(env, "PM Acceptance Probe", pm_user)
     project = _project(env, manager_id=manager.id)
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     milestone = env["fix.project.milestone"].create({"project_id": project.id, "name": "Go-live"})
     Milestone = env["fix.project.milestone"].with_user(pm_user)
     with pytest.raises(UserError, match="cannot accept"):
@@ -373,8 +390,9 @@ def test_r4_every_js_button_is_whitelisted():
 def test_x5_m67_kpis_count_real_invoices(env, plain):
     from odoo.addons.cd_p03_portal.controllers.a12 import m67 as m67_ctrl
 
+    env.company.partner_id.vat = "1234567890123"
     project = _project(env)
-    project.action_activate()
+    _ready_for_activation(env, project).action_activate()
     milestone = env["fix.project.milestone"].create({"project_id": project.id, "name": "Delivery"})
     milestone.action_accept("Client sign-off SO-9001")
     milestone.action_complete()

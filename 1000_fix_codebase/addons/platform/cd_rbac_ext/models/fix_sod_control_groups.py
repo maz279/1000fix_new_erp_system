@@ -5,6 +5,8 @@
 # data/fix_sod_finance_controls.xml) and the grant-path engine the hooks in
 # fix_sod_grant_hooks.py call, while the A12 R2 gates (check_user_assignment,
 # gate_role_set, check_role_set, ...) defined in the base file stay live.
+# A12 finish (E5, E7): holdings come from what was assigned, and role pairs read
+# the fix.role.group_ids register. The legacy fix.role.group_id is not read.
 #
 # A08 S4 / A12 R2 (M29-4): a control pairs two ROLES (the SP-006 register) or
 # two Odoo GROUPS (the finance duty rule set). The check runs at every grant
@@ -48,22 +50,23 @@ class FixSodControlGroups(models.Model):
     pair_label = fields.Char(string="Pair", compute="_compute_pair_label")
     measurable = fields.Boolean(
         compute="_compute_pair_label",
-        help="False when the pair cannot be told apart by group membership: a group is not "
-        "installed, both sides are the same group, or a role's group is shared with another "
-        "role (M29-4). Role pairs are still enforced on explicit role assignments.",
+        help="False when the pair cannot be measured: a group is not installed, a role maps to "
+        "no group, or both sides share a group (M29-4). Role pairs are enforced on what was "
+        "actually assigned either way.",
     )
 
     @api.depends(
         "control_type",
         "role_a_id",
         "role_b_id",
+        "role_a_id.group_ids",
+        "role_b_id.group_ids",
         "group_a_id",
         "group_b_id",
         "group_a_xmlid",
         "group_b_xmlid",
     )
     def _compute_pair_label(self):
-        unique = self._fix_unique_role_groups()
         for rec in self:
             if rec.control_type == "group":
                 ga, gb = rec._fix_group_side("a"), rec._fix_group_side("b")
@@ -73,7 +76,7 @@ class FixSodControlGroups(models.Model):
                 )
             else:
                 rec.pair_label = "%s × %s" % (rec.role_a_id.code or "?", rec.role_b_id.code or "?")
-            rec.measurable = bool(rec._fix_pair_groups(unique))
+            rec.measurable = bool(rec._fix_pair_groups())
 
     @api.constrains("control_type", "role_a_id", "role_b_id")
     def _check_different_roles(self):
@@ -119,71 +122,79 @@ class FixSodControlGroups(models.Model):
 
     @api.model
     def _fix_unique_role_groups(self):
-        """Group ids that exactly one active role maps to (so membership names the role)."""
+        """Group ids exactly one active role maps to (membership names that role)."""
         counts = {}
-        for role in self.env["fix.role"].sudo().search([("group_id", "!=", False)]):
-            counts[role.group_id.id] = counts.get(role.group_id.id, 0) + 1
+        for groups in self._fix_role_map().values():
+            for gid in groups:
+                counts[gid] = counts.get(gid, 0) + 1
         return {gid for gid, n in counts.items() if n == 1}
 
     def _fix_pair_groups(self, unique=None):
-        """(group_a, group_b) whose joint membership IS the conflict, or None."""
+        """A group pair: (group_a, group_b), whose joint membership IS the
+        conflict. A role pair: the two roles' group sets, when they are told
+        apart by them (both mapped, no group shared). None = not measurable."""
         self.ensure_one()
         if self.control_type == "group":
             ga, gb = self._fix_group_side("a"), self._fix_group_side("b")
-        else:
-            if unique is None:
-                unique = self._fix_unique_role_groups()
-            ga, gb = self.role_a_id.group_id.sudo(), self.role_b_id.group_id.sudo()
-            if ga.id not in unique or gb.id not in unique:
+            if not ga or not gb or ga == gb:
                 return None
-        if not ga or not gb or ga == gb:
+            return ga, gb
+        ga, gb = self.role_a_id.sudo().group_ids, self.role_b_id.sudo().group_ids
+        if not ga or not gb or (ga & gb):
             return None
         return ga, gb
 
     @api.model
     def _fix_index(self):
         """Every active control with its resolved pair, computed once per check."""
-        unique = self._fix_unique_role_groups()
         index = []
         for control in self.sudo().search([("active", "=", True)]):
-            index.append((control, control._fix_pair_groups(unique)))
-        return {"controls": index, "unique": unique}
+            index.append((control, control._fix_pair_groups()))
+        return {
+            "controls": index,
+            "unique": self._fix_unique_role_groups(),
+            "role_map": self._fix_role_map(),
+        }
 
     # ------------------------------------------------------------------
     # Holdings and conflicts
     # ------------------------------------------------------------------
     @api.model
-    def _fix_held_roles(self, user=None, employees=None, groups=None, unique=None):
-        """Roles a person holds: by a group that identifies the role, by a granted
-        access request, or as an employee's primary / additional role."""
-        Role = self.env["fix.role"].sudo()
-        held = Role.browse()
-        if groups:
-            if unique is None:
-                unique = self._fix_unique_role_groups()
-            gids = [gid for gid in groups.ids if gid in unique]
-            if gids:
-                held |= Role.search([("group_id", "in", gids)])
+    def _fix_standing_role_ids(self, user, employees=None) -> set:
+        """Roles held by assignment or on the employee master: no inference."""
+        role_ids = set()
         if user:
-            held |= (
-                self.env["fix.access.request"]
-                .sudo()
-                .search(
-                    [
-                        ("user_id", "=", user.id),
-                        ("state", "=", "granted"),
-                        ("request_type", "in", ("grant", "elevate")),
-                    ]
-                )
-                .mapped("role_id")
-            )
+            live = self.env["fix.role.assignment"]._fix_live(user)
+            role_ids |= set(live.mapped("role_id").filtered("active").ids)
+        if employees is None:
+            employees = self._fix_user_employees(user) if user else []
         for emp in employees or []:
             emp = emp.sudo()
             if "primary_role_id" in emp._fields:
-                held |= emp.primary_role_id
+                role_ids |= set(emp.primary_role_id.ids)
             if "additional_role_ids" in emp._fields:
-                held |= emp.additional_role_ids
-        return held
+                role_ids |= set(emp.additional_role_ids.ids)
+        return role_ids
+
+    @api.model
+    def _fix_explained_groups(self, role_ids) -> set:
+        """Groups these roles account for, implied groups included."""
+        roles = self.env["fix.role"].sudo().browse(sorted(role_ids))
+        return set(roles.mapped("group_ids").sudo().all_implied_ids.ids)
+
+    @api.model
+    def _fix_held_roles(self, user=None, employees=None, groups=None, unique=None, role_map=None):
+        """Roles a person holds: assigned (fix.role.assignment), on the employee
+        master, or named by DIRECT group membership the first two do not
+        explain. `groups` adds groups being gained; implied groups never name a
+        role, or every HR Manager would also "hold" the role of what it implies."""
+        Role = self.env["fix.role"].sudo()
+        standing = self._fix_standing_role_ids(user, employees)
+        direct = set(user.sudo().group_ids.ids) if user else set()
+        if groups:
+            direct |= set(groups.ids)
+        free = direct - self._fix_explained_groups(standing)
+        return Role.browse(sorted(standing | self._fix_infer_role_ids(free, role_map)))
 
     @api.model
     def _fix_user_employees(self, user):
@@ -212,20 +223,16 @@ class FixSodControlGroups(models.Model):
             groups = user.with_context(active_test=False).all_group_ids
         if extra_groups:
             groups |= extra_groups.sudo().all_implied_ids
-        if extra_roles:
-            for role in extra_roles.sudo():
-                if role.group_id:
-                    groups |= role.group_id.all_implied_ids
         if employees is None:
             employees = self._fix_user_employees(user)
         roles = self._fix_held_roles(
-            user=user, employees=employees, groups=groups, unique=index["unique"]
+            user=user, employees=employees, groups=extra_groups, role_map=index.get("role_map")
         )
         if extra_roles:
             roles |= extra_roles.sudo()
-        # A business role carries its mapped group's duties even before the group is
+        # A business role carries its mapped groups' duties even before they are
         # provisioned (an M21 role assignment writes the role, not the group).
-        groups |= roles.mapped("group_id").all_implied_ids
+        groups |= roles.mapped("group_ids").sudo().all_implied_ids
         violated = self.browse()
         for control, pair in index["controls"]:
             if control.control_type == "role":

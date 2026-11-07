@@ -140,7 +140,9 @@ class HrEmployeeExt(models.Model):
         # does, against the employee's FULL final set.
         if "primary_role_id" in vals or "additional_role_ids" in vals:
             for rec in self:
-                self.env["fix.sod.control"].gate_role_set(rec._sod_final_role_set(vals))
+                self.env["fix.sod.control"].gate_role_set(
+                    rec._sod_final_role_set(vals), user=rec.sudo().user_id
+                )
         result = super().write(vals)
         # JML event emission on lifecycle changes
         for rec in leavers:
@@ -249,6 +251,7 @@ class HrEmployeeExt(models.Model):
         # set plus the user's register roles, not one hand-picked pair
         # (A10 P1-3: the pair-only check missed additional roles).
         self.env["fix.sod.control"].gate_role_set(
-            self._sod_final_role_set({"additional_role_ids": [(4, role.id)]})
+            self._sod_final_role_set({"additional_role_ids": [(4, role.id)]}),
+            user=self.sudo().user_id,
         )
         self.write({"additional_role_ids": [(4, role.id)]})

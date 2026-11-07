@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A12 finish build (2026-11-07) M66: a cron method with no ir.cron record never
+  runs.
+  - cron_ticket_housekeeping: auto-close after the resolved window, raise a problem
+    for recurring incidents (BRU-ITS-04).
+  - cron_dead_letter_incidents: a dead letter older than an hour is an incident
+    (BRU-IPF-14, M28 to M66).
+  - cron_chase_pir: a change owing a review is chased; an unrouted retro approval is
+    routed again (M66-3, BRU-ITS-10).
+  - cron_problem_verification: tell the owner a clean verification window ended
+    (BRU-ITS-05).
+  - cron_refresh_licences: licence state follows the clock, over-use opens its
+    exception (M66-11, BRU-ITS-17).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_itsm_ticket_housekeeping" model="ir.cron">
+            <field name="name">M66: auto-close resolved tickets and raise recurring problems</field>
+            <field name="model_id" ref="model_fix_itsm_ticket"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_ticket_housekeeping()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_itsm_dead_letter_incidents" model="ir.cron">
+            <field name="name">M66: raise an incident for each dead letter older than an hour</field>
+            <field name="model_id" ref="model_fix_itsm_ticket"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dead_letter_incidents()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_itsm_chase_pir" model="ir.cron">
+            <field name="name">M66: chase overdue post-implementation reviews</field>
+            <field name="model_id" ref="model_fix_itsm_change"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_chase_pir()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_itsm_problem_verification" model="ir.cron">
+            <field name="name">M66: tell problem owners a verification window has ended</field>
+            <field name="model_id" ref="model_fix_itsm_problem"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_problem_verification()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_itsm_licence_refresh" model="ir.cron">
+            <field name="name">M66: refresh licence state and compliance exceptions</field>
+            <field name="model_id" ref="model_fix_itsm_licence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_refresh_licences()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="seq_fix_itsm_licence_exception" model="ir.sequence">
+            <field name="name">ITSM Licence Exception</field>
+            <field name="code">fix.itsm.licence.exception</field>
+            <field name="prefix">LCE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="consumer_itsm_relay_unhealthy" model="fix.event.consumer">
+            <field name="name">M66: a relay dead letter becomes an incident</field>
+            <field name="event_type">outbox.relay_unhealthy</field>
+            <field name="model">fix.itsm.ticket</field>
+            <field name="method">consume_relay_unhealthy</field>
+            <field name="module">cd_itsm</field>
+        </record>
+    </data>
+</odoo>

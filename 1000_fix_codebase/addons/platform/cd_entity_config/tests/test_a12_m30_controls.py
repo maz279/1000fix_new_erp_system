@@ -12,6 +12,10 @@ Note on the superuser exemption: action_put_in_force skips the two-person
 check for env.su, exactly as every fix.guarded.mixin guard does. The
 workspace never runs as superuser, and the lead's existing suites rule as su
 (see test_a03_gap_closure.py) — a test here pins that contract too.
+
+A12 finish E1: for a person action_put_in_force is now only the PROPOSAL; the
+named Tier 5 holder's action_countersign rules. The refusal tests below still
+call it (its checks are the proposal's), and `_rule` walks both acts.
 """
 
 from __future__ import annotations
@@ -75,6 +79,14 @@ def make_user(env):
 def as_user(env, user):
     """The same transaction, a different pair of eyes."""
     return api.Environment(env.cr, user.id, {"lang": "en_US"})
+
+
+def _rule(ladder, proposer, counter, reference):
+    """The sanctioned ruling: two acts by two people."""
+    ladder.with_user(proposer).action_propose_ruling(
+        reference=reference, countersigned_by=counter.id
+    )
+    ladder.with_user(counter).action_countersign(reference=reference)
 
 
 def _estimate_bands(env):
@@ -167,12 +179,16 @@ def test_m30_1_ruling_without_reference_refused(env, make_user, draft_ladder):
 
 
 def test_m30_1_two_person_ruling_works(env, make_user, draft_ladder):
-    """The proper path: a Tier 4 rules, a different Tier 5 countersigns, and
-    both are recorded on the ruling."""
+    """The proper path: a Tier 4 proposes, the named Tier 5 countersigns from
+    their own session, and both are recorded on the ruling. Naming the Tier 5 is
+    not their act: until they countersign, nothing is in force (A12 finish E1)."""
     t4, t5 = make_user(TIER4), make_user(TIER5)
     ladder = draft_ladder()
     ladder.write({"countersigned_by": t5.id})
     ladder.with_user(t4).action_put_in_force(reference="Board minute 2026-11-04")
+    assert ladder.in_force is False and ladder.ruling_state == "proposed"
+    assert env["fix.dofa.ladder"].thresholds_for(DOFA_TARGET) is None
+    ladder.with_user(t5).action_countersign(reference="Board minute 2026-11-04")
     assert ladder.in_force is True
     assert ladder.ruled_by == t4
     assert ladder.countersigned_by == t5
@@ -183,11 +199,16 @@ def test_m30_1_two_person_ruling_works(env, make_user, draft_ladder):
     assert tiers and tiers[0][1] == ladder.threshold_ids.sorted("upper_bound")[0].tier
 
 
-def test_m30_1_tier5_acting_with_tier4_counter_works(env, make_user, draft_ladder):
-    """Either member of the pair may act; the other countersigns."""
+def test_m30_1_countersigner_must_hold_tier5_by_default(env, make_user, draft_ladder):
+    """A12 finish decision E1: the countersigner is a Tier 5 holder, so a junior does
+    not endorse a senior. The old test pinned either order, when the 'countersigner'
+    did nothing. ir.config_parameter fix_dofa.countersign_min_tier=tier_4 reopens it."""
     t4, t5 = make_user(TIER4), make_user(TIER5)
     ladder = draft_ladder()
-    ladder.with_user(t5).action_put_in_force(reference="minute 7", countersigned_by=t4.id)
+    with pytest.raises(UserError, match="Tier 5"), env.cr.savepoint():
+        ladder.with_user(t5).action_put_in_force(reference="minute 7", countersigned_by=t4.id)
+    env["ir.config_parameter"].sudo().set_param("fix_dofa.countersign_min_tier", "tier_4")
+    _rule(ladder, t5, t4, "minute 7")
     assert ladder.in_force is True
     assert ladder.ruled_by == t5
     assert ladder.countersigned_by == t4
@@ -219,8 +240,7 @@ def test_m30_2_ruled_by_retype_refused(env, make_user, draft_ladder):
     t4, t5 = make_user(TIER4), make_user(TIER5)
     other = make_user(TIER4, TIER5)
     ladder = draft_ladder()
-    ladder.write({"countersigned_by": t5.id})
-    ladder.with_user(t4).action_put_in_force(reference="minute 1")
+    _rule(ladder, t4, t5, "minute 1")
     with pytest.raises(UserError, match="workflow action"), env.cr.savepoint():
         ladder.with_user(other).write({"ruled_by": other.id})
 
@@ -242,8 +262,7 @@ def test_m30_2_bands_locked_once_in_force(env, make_user, draft_ladder):
     to do instead (a new ladder)."""
     t4, t5 = make_user(TIER4), make_user(TIER5)
     ladder = draft_ladder()
-    ladder.write({"countersigned_by": t5.id})
-    ladder.with_user(t4).action_put_in_force(reference="minute 2")
+    _rule(ladder, t4, t5, "minute 2")
     band = ladder.threshold_ids.sorted("upper_bound")[:1]
     for attack in (
         lambda: band.with_user(t4).write({"upper_bound": 1.0}),
@@ -260,12 +279,11 @@ def test_m30_2_supersede_retires_the_old_ruling(env, make_user, draft_ladder):
     """Ruling a new ladder for the same target supersedes the old one — the
     retirement is part of the same two-person act, never a silent switch."""
     t4, t5 = make_user(TIER4), make_user(TIER5)
+    t5b = make_user(TIER5)
     old = draft_ladder(name="Old", basis="req_text")
-    old.write({"countersigned_by": t5.id})
-    old.with_user(t4).action_put_in_force(reference="minute 3")
+    _rule(old, t4, t5, "minute 3")
     new = draft_ladder(name="New", basis="ruling")
-    new.write({"countersigned_by": t4.id})
-    new.with_user(t5).action_put_in_force(reference="minute 4")
+    _rule(new, t5, t5b, "minute 4")
     env.cr.flush()  # the index verdict is the database's, read it back
     assert old.in_force is False and new.in_force is True
     assert env["fix.dofa.ladder"].thresholds_for(DOFA_TARGET)
@@ -276,8 +294,7 @@ def test_m30_2_in_force_ladder_not_deletable(env, make_user, draft_ladder):
     default with no trace; superseded, never erased."""
     t4, t5 = make_user(TIER4), make_user(TIER5)
     ladder = draft_ladder()
-    ladder.write({"countersigned_by": t5.id})
-    ladder.with_user(t4).action_put_in_force(reference="minute 5")
+    _rule(ladder, t4, t5, "minute 5")
     with pytest.raises(UserError, match="supersede"), env.cr.savepoint():
         ladder.with_user(t4).unlink()
 
@@ -495,14 +512,14 @@ def test_r4_dofa_stamp_not_writable():
 
 def test_r4_release_whitelist_links_the_approved_change():
     """D8 hand-off: an operator links the release to its approved M66 change;
-    the go-live state stays action-only."""
+    the go-live state stays action-only. A12 finish E7: version and name are in
+    the list because + New could never save without them; the model freezes them
+    all once released."""
     from odoo.addons.cd_p03_portal.controllers.a12 import m30
 
-    assert m30.WRITABLE["fix.platform.release"] == (
-        "planned_on",
-        "rollback_plan",
-        "itsm_change_id",
-    )
+    writable = m30.WRITABLE["fix.platform.release"]
+    assert {"version", "name", "environment_id", "itsm_change_id", "rollback_plan"} <= set(writable)
+    assert not {"state", "released_on", "released_by_id", "rolled_back_reason"} & set(writable)
 
 
 def test_r4_forms_offer_no_lifecycle_inputs():

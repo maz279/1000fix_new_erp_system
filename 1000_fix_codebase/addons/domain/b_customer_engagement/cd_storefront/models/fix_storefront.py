@@ -177,23 +177,28 @@ class FixStorefrontCart(models.Model):
         # in sandbox mode) must not take an order. A rail with no gateway
         # master configured keeps today's behaviour, so tenants that have
         # not set up M65 are not locked out of their own storefront.
+        # A12 finish E5/E12: the row for THIS company and country decides, an
+        # archived row still counts (active_test=False), and a rail known only
+        # elsewhere is not configured here.
         if payment_rail and payment_rail != "cod":
-            gateway = (
+            country = rec.company_id.sudo().country_id.code or "BD"
+            rails = (
                 self.env["fix.payment.gateway"]
                 .sudo()
-                .search([("provider", "=ilike", payment_rail)], limit=1)
+                .with_context(active_test=False)
+                .search([("provider", "=ilike", payment_rail)])
             )
+            gateway = rails.filtered(
+                lambda r: r.company_id == rec.company_id
+                and (r.country_code or "").upper() == country.upper()
+            )
+            if rails and not gateway:
+                raise UserError(
+                    "The %s payment gateway is not configured for %s in this company."
+                    % (payment_rail, country)
+                )
             if gateway:
-                checker = getattr(gateway, "assert_live_for_checkout", None)
-                if callable(checker):
-                    checker("storefront checkout")
-                elif not (gateway.state == "active" and gateway.mode == "live"):
-                    raise UserError(
-                        "The %s payment gateway is not live for checkout "
-                        "(state=%s, mode=%s). Platform operations must "
-                        "activate it before it can take orders."
-                        % (payment_rail, gateway.state or "?", gateway.mode or "?")
-                    )
+                gateway.assert_live_for_checkout("storefront checkout", country_code=country)
 
         # A04 audit M38-8: the refurb device is reserved for this order now,
         # and the delivery slot is booked, both within their limits.

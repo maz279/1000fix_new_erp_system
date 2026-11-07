@@ -36,6 +36,16 @@
 #   * bands are LOCKED once the ladder is in force (a change is a new
 #     version, ruled again) — which also ends the stale stored-tier drift;
 #   * the target must exist and inherit fix.dofa.mixin.
+#
+# A12 finish audit (2026-11-07) E1-E4, E23: that "two people" was one person
+# and a typed name. The T4 named a T5 who never acted, then ruled alone. A ruling
+# is now TWO ACTS BY TWO SESSIONS: a Tier 4 holder PROPOSES (reference, named
+# Tier 5 countersigner), and that Tier 5 holder COUNTERSIGNS by restating the
+# reference. Only the countersignature puts the ladder in force. The workflow
+# engine depends on this module, so this is a dedicated step, not the M63 inbox.
+# Superseding clears the sibling's reference and countersigner (history stays in
+# chatter), so an old stamp can never be reused; a ruled ladder is never deleted
+# or re-pointed; an amended ruling is a new version.
 import logging
 
 from odoo import api, fields, models
@@ -47,6 +57,12 @@ _logger = logging.getLogger(__name__)
 
 TIER4_GROUP = TIER_GROUP["tier_4"]
 TIER5_GROUP = TIER_GROUP["tier_5"]
+
+# Who may countersign (A12 finish E1). Default and conservative: a Tier 5 holder.
+# Set to "tier_4" to let any Tier 4 holder countersign a Tier 5 holder's proposal;
+# the pair must still contain a Tier 5 holder.
+COUNTERSIGN_TIER_PARAM = "fix_dofa.countersign_min_tier"
+RULED_LOCKED_FIELDS = {"target_model", "basis", "company_id"}
 
 
 def _target_is_dofa_governed(env, target) -> bool:
@@ -117,13 +133,16 @@ class FixDofaThreshold(models.Model):
     # lower the in-force band with no re-ruling, and the stored tier on
     # existing records went stale with it. Locked bands make both impossible:
     # a change is a new ladder (a new version), ruled again by two people.
+    # A12 finish E1: a PROPOSED ladder is locked too, or the bands could move
+    # between the proposal and the countersignature. A superseded ladder is
+    # history: re-ruling it re-rules the bands it was ruled with.
     def _assert_bands_editable(self, extra_ladder_ids=()):
         Ladder = self.env["fix.dofa.ladder"]
         ladders = self.mapped("ladder_id") | Ladder.browse([int(i) for i in extra_ladder_ids if i])
-        locked = ladders.filtered(lambda lad: lad.in_force)
+        locked = ladders.filtered(lambda lad: lad.ruling_state != "draft")
         if locked and not self.env.su:
             raise UserError(
-                "The bands of a DOFA ladder in force are the ruling itself "
+                "The bands of a proposed or ruled DOFA ladder are the ruling itself "
                 "(%s). They cannot be edited; create a NEW ladder for %s with "
                 "the amended bands and rule that instead."
                 % (" ,".join(locked.mapped("name")), " ,".join(locked.mapped("target_model")))
@@ -134,7 +153,23 @@ class FixDofaThreshold(models.Model):
         self._assert_bands_editable(v.get("ladder_id") for v in vals_list)
         return super().create(vals_list)
 
+    def _write_changes_nothing(self, vals):
+        # The ladder form posts every band row on save. An unchanged echo must pass,
+        # or a superseded ladder could never be given a new countersigner.
+        for rec in self:
+            for name, value in vals.items():
+                current = rec[name]
+                current = current.id if name == "ladder_id" else current
+                if rec._fields[name].type == "float":
+                    if abs(float(value or 0.0) - float(current or 0.0)) > 1e-6:
+                        return False
+                elif (current or False) != (value or False):
+                    return False
+        return True
+
     def write(self, vals):
+        if self._write_changes_nothing(vals):
+            return True
         # A band moved to another ladder may not leave (or enter) a ruling.
         self._assert_bands_editable([vals.get("ladder_id")] if "ladder_id" in vals else ())
         return super().write(vals)
@@ -195,30 +230,72 @@ class FixDofaLadder(models.Model):
         "'change the bands'. COMPUTED, never stored, so it cannot drift "
         "from the code it claims to describe.",
     )
-    ruled_by = fields.Many2one("res.users", readonly=True, string="Ruled By")
+    ruling_state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("proposed", "Awaiting Countersignature"),
+            ("in_force", "In Force"),
+            ("superseded", "Superseded"),
+        ],
+        string="Ruling Status",
+        compute="_compute_ruling_state",
+        store=True,
+        index=True,
+        help="Computed from the stamps, so it cannot disagree with them.",
+    )
+    version = fields.Integer(
+        default=1,
+        required=True,
+        readonly=True,
+        copy=False,
+        help="An amended ruling is a new version of the same basis. Numbered on create.",
+    )
+    ruled_by = fields.Many2one("res.users", readonly=True, string="Ruled By", copy=False)
+    proposed_by = fields.Many2one("res.users", readonly=True, string="Proposed By", copy=False)
+    proposed_at = fields.Datetime(readonly=True, string="Proposed At", copy=False)
+    proposed_reference = fields.Char(
+        string="Proposed Authority",
+        readonly=True,
+        copy=False,
+        help="The minute or memo the proposer cited. The countersigner restates it.",
+    )
     countersigned_by = fields.Many2one(
         "res.users",
         string="Countersigned By",
         copy=False,
         tracking=True,
-        help="The SECOND authority holder who countersigned the ruling: the "
-        "other of a Tier 4 / Tier 5 pair, a different person from whoever "
-        "rules. Choose them here, then run 'Put In Force' with the ruling "
-        "reference.",
+        help="The Tier 5 holder who must countersign: a different, active "
+        "person from the proposer. Naming them does not count as their act: "
+        "'Countersigned At' is stamped only when they countersign themselves.",
     )
-    ruled_at = fields.Datetime(readonly=True)
+    countersigned_at = fields.Datetime(string="Countersigned At", readonly=True, copy=False)
+    countersigner_choice = fields.Selection(
+        selection="_countersigner_selection",
+        string="Countersigning Authority",
+        compute="_compute_countersigner_choice",
+        inverse="_inverse_countersigner_choice",
+        help="Active Tier 5 holders only (the workspace form's picker).",
+    )
+    ruled_at = fields.Datetime(readonly=True, copy=False)
     ruling_reference = fields.Char(
+        copy=False,
         help="The minute, memo or approval that authorises this ladder. A "
-        "financial-authority change with no stated authority is not a ruling."
+        "financial-authority change with no stated authority is not a ruling.",
+    )
+    superseded_at = fields.Datetime(readonly=True, string="Superseded At", copy=False)
+    superseded_by_id = fields.Many2one(
+        "fix.dofa.ladder", readonly=True, string="Superseded By", copy=False, ondelete="set null"
     )
     threshold_ids = fields.One2many("fix.dofa.threshold", "ladder_id", string="Bands", copy=True)
     company_id = fields.Many2one(
         "res.company", required=True, default=lambda self: self.env.company
     )
 
+    # A12 finish E23: the unique key used to stop at the basis, so a model could
+    # have at most three ladders ever and "create a NEW ladder" was impossible.
     _name_unique = models.Constraint(
-        "UNIQUE (target_model, basis, company_id)",
-        "One ladder per target model, basis and company.",
+        "UNIQUE (target_model, basis, company_id, version)",
+        "One ladder per target model, basis, company and version.",
     )
 
     # A12 M30-2 / d06: two ladders were left in force for one model and the
@@ -238,14 +315,63 @@ class FixDofaLadder(models.Model):
             "ruled_by",
             "ruled_at",
             "ruling_reference",
+            "proposed_by",
+            "proposed_at",
+            "proposed_reference",
+            "countersigned_at",
+            "superseded_at",
+            "superseded_by_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
-        # A ladder in force is the ruling: its target and basis are frozen too.
+        # Once proposed or ruled, what was ruled on is frozen. A superseded
+        # ladder may name a new countersigner: re-ruling it needs a fresh one.
         locked = super()._fix_form_locked_fields()
-        if self and self[:1].in_force:
-            return locked | {"target_model", "basis", "countersigned_by"}
+        state = self[:1].ruling_state if self else "draft"
+        if state != "draft":
+            locked = locked | RULED_LOCKED_FIELDS
+        if state in ("proposed", "in_force"):
+            locked = locked | {"countersigned_by", "countersigner_choice"}
         return locked
+
+    @api.depends("in_force", "proposed_by", "superseded_at")
+    def _compute_ruling_state(self):
+        for rec in self:
+            if rec.in_force:
+                rec.ruling_state = "in_force"
+            elif rec.proposed_by:
+                rec.ruling_state = "proposed"
+            elif rec.superseded_at:
+                rec.ruling_state = "superseded"
+            else:
+                rec.ruling_state = "draft"
+
+    @api.model
+    def _countersign_group(self) -> str:
+        param = self.env["ir.config_parameter"].sudo().get_param(COUNTERSIGN_TIER_PARAM, "tier_5")
+        return TIER4_GROUP if param == "tier_4" else TIER5_GROUP
+
+    def _countersigner_selection(self):
+        # /p03/model/form lists every user for a many2one, so the picker is a
+        # dynamic selection of the people who can actually countersign.
+        group = self.env.ref(self._countersign_group(), raise_if_not_found=False)
+        if not group:
+            return []
+        holders = group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+        return [(str(u.id), u.name) for u in holders.sorted("name")]
+
+    @api.depends("countersigned_by")
+    def _compute_countersigner_choice(self):
+        allowed = {key for key, _label in self._countersigner_selection()}
+        for rec in self:
+            key = str(rec.countersigned_by.id) if rec.countersigned_by else False
+            rec.countersigner_choice = key if key in allowed else False
+
+    def _inverse_countersigner_choice(self):
+        for rec in self:
+            rec.countersigned_by = (
+                int(rec.countersigner_choice) if rec.countersigner_choice else False
+            )
 
     @api.depends("target_model", "threshold_ids.upper_bound", "threshold_ids.tier")
     def _compute_matches_implementation(self):
@@ -309,11 +435,12 @@ class FixDofaLadder(models.Model):
 
         `fix.access.request` and a non-existent model were both accepted and
         shown "in force" while governing nothing. Models not in THIS registry
-        are skipped rather than refused: the ladder data loads with the T0
-        config module, before the domain models that depend on it exist (the
-        same partial-registry reason _compute_matches_implementation skips).
-        The ruling gate (action_put_in_force) refuses an unknown target
-        absolutely — nothing that is not real can ever be ruled.
+        are skipped here: the ladder data loads with the T0 config module, before
+        the domain models that depend on it exist (the same partial-registry reason
+        _compute_matches_implementation skips). Constraints run as superuser, so a
+        person's ghost target is refused in create and write (A12 finish E23). The
+        ruling gate refuses an unknown target absolutely — nothing that is not
+        real can ever be ruled.
         """
         for rec in self:
             target = (rec.target_model or "").strip()
@@ -326,112 +453,277 @@ class FixDofaLadder(models.Model):
                     "read them." % target
                 )
 
+    def _refuse_ghost_target(self, target):
+        if not self.env.su and (target or "").strip() not in self.env:
+            raise ValidationError(
+                "No model named '%s' exists, so a DOFA ladder cannot govern it." % target
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # An amendment is a new version of its basis (E23); the number is
+        # the server's, never typed.
+        for vals in vals_list:
+            self._refuse_ghost_target(vals.get("target_model"))
+            if vals.get("target_model") and vals.get("basis"):
+                company_id = vals.get("company_id") or self.env.company.id
+                latest = self.sudo().search(
+                    [
+                        ("target_model", "=", vals["target_model"]),
+                        ("basis", "=", vals["basis"]),
+                        ("company_id", "=", company_id),
+                    ],
+                    order="version desc",
+                    limit=1,
+                )
+                if latest:
+                    vals["version"] = latest.version + 1
+                else:
+                    vals.pop("version", None)
+        return super().create(vals_list)
+
     def write(self, vals):
-        # countersigned_by is chosen while the ladder is a DRAFT; once in
-        # force it is evidence of who the second signatory was, and stays.
-        if (
-            "countersigned_by" in vals
-            and not self._fix_guard_open()
-            and any(rec.in_force for rec in self)
-        ):
-            self._fix_guard_refuse(["countersigned_by"])
+        # What was ruled on is evidence. The form lock is not enough: an ORM
+        # write re-pointed an in-force ruling at another model (A12 finish E3).
+        if "target_model" in vals:
+            self._refuse_ghost_target(vals["target_model"])
+        if not self._fix_guard_open():
+            if "version" in vals and any(r.version != vals["version"] for r in self):
+                self._fix_guard_refuse(["version"])
+            ruled = self.filtered(lambda r: r.ruling_state != "draft")
+            for name in RULED_LOCKED_FIELDS & set(vals):
+                if any(r._fix_guard_differs(name, vals[name], r[name]) for r in ruled):
+                    raise UserError(
+                        "%s of a proposed or ruled DOFA ladder cannot change: it "
+                        "would move the ruling without a new one. Create a new "
+                        "ladder and rule that." % self._fields[name].string
+                    )
+            if "countersigned_by" in vals and any(
+                r._fix_guard_differs(
+                    "countersigned_by", vals["countersigned_by"], r.countersigned_by
+                )
+                for r in ruled.filtered(lambda r: r.ruling_state in ("proposed", "in_force"))
+            ):
+                self._fix_guard_refuse(["countersigned_by"])
         return super().write(vals)
 
     def unlink(self):
-        # A ruling on record is superseded, never erased: deleting the
-        # in-force ladder would silently return the model to its coded
-        # default with no trace of who changed the authority. (The bands
-        # cascade with a draft ladder at the DB level, which is fine — a
-        # draft governs nothing.)
-        locked = self.filtered("in_force")
+        # A ruling on record is superseded, never erased: deleting a ladder
+        # that was ever proposed or ruled would destroy its chatter, the only
+        # record of who changed the authority (A12 finish E23). The bands
+        # cascade with a draft ladder at the DB level, which is fine — a draft
+        # governs nothing.
+        locked = self.filtered(lambda r: r.ruling_state != "draft")
         if locked and not self.env.su:
             raise UserError(
-                "A ladder in force is the ruling on record for %s. It cannot "
-                "be deleted; rule a new ladder to supersede it."
+                "A ladder proposed or ruled is on record for %s. It cannot be "
+                "deleted; rule a new ladder to supersede it."
                 % ", ".join(locked.mapped("target_model"))
             )
         return super().unlink()
 
     def _ruling_countersigner(self, countersigned_by=None):
-        """Resolve the second signatory: an explicit argument (the workspace
+        """Resolve the named countersigner: an explicit argument (the workspace
         action's kwargs), else the record's countersigned_by field."""
         counter = countersigned_by or self.countersigned_by
         if counter:
             return self.env["res.users"].browse(int(counter)).exists()
         return self.env["res.users"]
 
+    def _ruling_preconditions(self, reference):
+        """What any ruling needs, whoever makes it."""
+        self.ensure_one()
+        if self.in_force:
+            raise UserError(
+                "'%s' is already in force. A ruling is not re-run: rule a new "
+                "version to change it." % self.name
+            )
+        if not (reference or "").strip():
+            raise UserError(
+                "Putting a DOFA ladder in force changes who may approve "
+                "what, so it requires a ruling reference — the minute, "
+                "memo or approval that authorises it."
+            )
+        if not self.threshold_ids:
+            raise UserError(
+                "Ladder '%s' defines no bands, so it would grant no authority at all." % self.name
+            )
+        if not _target_is_dofa_governed(self.env, self.target_model):
+            raise UserError(
+                "'%s' is not a model governed by DOFA (it does not exist "
+                "or does not carry fix.dofa.mixin), so this ladder can "
+                "never apply. Ladders rule the models that read them." % (self.target_model or "—")
+            )
+
+    @staticmethod
+    def _check_reference_cites_something(reference):
+        """'x' is not an authorising minute (A12 finish, 'DOFA cites its authority')."""
+        text = (reference or "").strip()
+        if len(text) < 4 or not any(ch.isdigit() for ch in text):
+            raise UserError(
+                "'%s' does not cite an authority. Give the number of the minute, "
+                "memo or approval, for example 'Board minute 2026-11'." % text
+            )
+
+    def action_propose_ruling(self, reference="", countersigned_by=None):
+        """Step 1 of a ruling: a Tier 4 holder proposes it and names the Tier 5
+        holder who must countersign. Nothing changes until they do."""
+        for rec in self:
+            rec._ruling_preconditions(reference)
+            if rec.ruling_state == "proposed":
+                raise UserError(
+                    "'%s' is already awaiting %s's countersignature. Withdraw "
+                    "the proposal to change it." % (rec.name, rec.countersigned_by.name)
+                )
+            acting = self.env.user
+            if not self.env.su and not acting.has_group(TIER4_GROUP):
+                raise UserError(
+                    "A DOFA ruling is Tier 4 / Tier 5 authority. You do "
+                    "not hold that approval authority."
+                )
+            counter = rec._ruling_countersigner(countersigned_by)
+            if not counter:
+                raise UserError(
+                    "A DOFA ruling needs TWO authority holders: name the "
+                    "countersigning Tier 5 user (a different person) in "
+                    "'Countersigning Authority' before proposing it."
+                )
+            if counter == acting:
+                raise UserError(
+                    "A DOFA ruling needs two DIFFERENT people: the "
+                    "countersigner must not be the user who proposes it."
+                )
+            if not counter.active:
+                raise UserError(
+                    "%s is archived, so they cannot countersign a ruling." % counter.name
+                )
+            if not counter.has_group(TIER4_GROUP):
+                raise UserError(
+                    "%s does not hold DOFA Tier 4 / Tier 5 authority, so "
+                    "they cannot countersign a ruling." % counter.name
+                )
+            if not counter.has_group(rec._countersign_group()):
+                raise UserError(
+                    "%s does not hold Tier 5, and the countersigner of a DOFA "
+                    "ruling must (ir.config_parameter %s)." % (counter.name, COUNTERSIGN_TIER_PARAM)
+                )
+            if not (acting.has_group(TIER5_GROUP) or counter.has_group(TIER5_GROUP)):
+                raise UserError(
+                    "A DOFA ruling needs one Tier 4 holder AND one Tier 5 "
+                    "holder — two different people. Neither of you holds Tier 5."
+                )
+            if not self.env.su:
+                rec._check_reference_cites_something(reference)
+            rec._guarded().write(
+                {
+                    "proposed_by": acting.id,
+                    "proposed_at": fields.Datetime.now(),
+                    "proposed_reference": reference.strip(),
+                    "countersigned_by": counter.id,
+                    "countersigned_at": False,
+                }
+            )
+            rec.message_post(
+                body="Ruling proposed by %s on authority '%s'. It is NOT in force "
+                "until %s countersigns." % (acting.name, reference.strip(), counter.name),
+                partner_ids=counter.partner_id.ids,
+            )
+        return True
+
+    def action_countersign(self, reference=""):
+        """Step 2 of a ruling: the named Tier 5 holder acts, in their own
+        session, and restates the authority. THIS puts the ladder in force."""
+        for rec in self:
+            if rec.ruling_state != "proposed":
+                raise UserError(
+                    "'%s' is not awaiting a countersignature (it is %s)."
+                    % (rec.name, dict(rec._fields["ruling_state"].selection)[rec.ruling_state])
+                )
+            acting = self.env.user
+            if not self.env.su:
+                if acting != rec.countersigned_by:
+                    raise UserError(
+                        "Only %s, the named countersigner, can countersign this ruling."
+                        % rec.countersigned_by.name
+                    )
+                if acting == rec.proposed_by:
+                    raise UserError(
+                        "A DOFA ruling needs two DIFFERENT people: you proposed this one."
+                    )
+                if not acting.has_group(rec._countersign_group()):
+                    raise UserError(
+                        "Countersigning a DOFA ruling needs Tier 5 authority, which "
+                        "%s no longer holds." % acting.name
+                    )
+                proposer = rec.proposed_by
+                if not (proposer.active and proposer.has_group(TIER4_GROUP)):
+                    raise UserError(
+                        "%s no longer holds Tier 4 authority, so their proposal "
+                        "cannot be ruled. Withdraw it." % proposer.name
+                    )
+            typed = (reference or "").strip()
+            if typed.casefold() != (rec.proposed_reference or "").strip().casefold():
+                raise UserError(
+                    "Restate the authority you are countersigning: it must read "
+                    "exactly '%s'." % rec.proposed_reference
+                )
+            # Through action_put_in_force so every override of the ruling
+            # (cd_grc's DoA register resync) runs. The token is an object:
+            # JSON-RPC cannot supply it, so only this path reaches the ruling.
+            rec._guarded().action_put_in_force(
+                reference=rec.proposed_reference, countersigned_by=acting.id
+            )
+        return True
+
+    def action_withdraw_ruling(self, reason=""):
+        """The proposer withdraws, or the named countersigner declines."""
+        for rec in self:
+            if rec.ruling_state != "proposed":
+                raise UserError("Only a proposed ruling can be withdrawn.")
+            acting = self.env.user
+            if not self.env.su and acting not in (rec.proposed_by | rec.countersigned_by):
+                raise UserError(
+                    "Only the proposer or the named countersigner can withdraw this ruling."
+                )
+            if not (reason or "").strip():
+                raise UserError("Say why this proposal is being withdrawn.")
+            rec.message_post(
+                body="Proposal on authority '%s' withdrawn by %s: %s"
+                % (rec.proposed_reference, acting.name, reason.strip())
+            )
+            rec._guarded().write(
+                {
+                    "proposed_by": False,
+                    "proposed_at": False,
+                    "proposed_reference": False,
+                    "countersigned_by": False,
+                }
+            )
+        return True
+
     def action_put_in_force(self, reference="", countersigned_by=None):
         """Make this ladder the one in force. THIS is the ruling.
 
-        Deliberately requires a reference: a change to who may approve what,
-        with nothing recorded about who authorised the change, is not an
-        improvement on a hard-coded list.
+        A12 finish E1 (M30-1): one Tier 4 session named a Tier 5 user who never
+        acted, and ruled alone. For a person this method is now only the
+        PROPOSAL: the countersigner's action_countersign is what reaches the
+        ruling below, through an in-process token that JSON-RPC cannot supply.
 
-        A12 X3 / M30-1: it also requires TWO DIFFERENT authority holders —
-        one Tier 4 and one Tier 5. One unsupervised Tier-4 user could switch
-        off every DOFA approval on a model alone; now the acting user holds
-        Tier 4 (Tier 5 implies it), a DIFFERENT user countersigns, and at
-        least one of the pair holds Tier 5. Both are recorded on the record.
-
-        The superuser is exempt from the two-person check, as it is by every
-        guard in this codebase (fix.guardedMixin._fix_guard_open): the
-        workspace and the ORM never rule as su, and whoever holds the
-        database can rewrite the table directly anyway.
+        The superuser rules directly, as with every guard in this codebase
+        (fix.guarded.mixin._fix_guard_open): the workspace and the ORM never
+        rule as su, and whoever holds the database can rewrite the table anyway.
         """
+        if not self._fix_guard_open():
+            return self.action_propose_ruling(
+                reference=reference, countersigned_by=countersigned_by
+            )
         for rec in self:
-            if not (reference or rec.ruling_reference or "").strip():
-                raise UserError(
-                    "Putting a DOFA ladder in force changes who may approve "
-                    "what, so it requires a ruling reference — the minute, "
-                    "memo or approval that authorises it."
-                )
-            if not rec.threshold_ids:
-                raise UserError(
-                    "Ladder '%s' defines no bands, so it would grant no "
-                    "authority at all." % rec.name
-                )
-            if not _target_is_dofa_governed(self.env, rec.target_model):
-                raise UserError(
-                    "'%s' is not a model governed by DOFA (it does not exist "
-                    "or does not carry fix.dofa.mixin), so this ladder can "
-                    "never apply. Ladders rule the models that read them."
-                    % (rec.target_model or "—")
-                )
+            rec._ruling_preconditions(reference)
+            proposer = rec.proposed_by
             counter = rec._ruling_countersigner(countersigned_by)
-            if not self.env.su:
-                acting = self.env.user
-                if not acting.has_group(TIER4_GROUP):
-                    raise UserError(
-                        "A DOFA ruling is Tier 4 / Tier 5 authority. You do "
-                        "not hold that approval authority."
-                    )
-                if not counter:
-                    raise UserError(
-                        "A DOFA ruling needs TWO authority holders: name the "
-                        "countersigning Tier 4 / Tier 5 user (a different "
-                        "person) in 'Countersigned By' before putting the "
-                        "ladder in force."
-                    )
-                if counter == acting:
-                    raise UserError(
-                        "A DOFA ruling needs two DIFFERENT people: the "
-                        "countersigner must not be the user who rules."
-                    )
-                if not counter.has_group(TIER4_GROUP):
-                    raise UserError(
-                        "%s does not hold DOFA Tier 4 / Tier 5 authority, so "
-                        "they cannot countersign a ruling." % counter.name
-                    )
-                if not (acting.has_group(TIER5_GROUP) or counter.has_group(TIER5_GROUP)):
-                    raise UserError(
-                        "A DOFA ruling needs one Tier 4 holder AND one Tier 5 "
-                        "holder — two different people. Neither of you holds "
-                        "Tier 5."
-                    )
             # Retire the ruling sibling FIRST, then rule: the unique index on
             # (target_model, company_id) WHERE in_force is satisfied at every
-            # statement, and a concurrent ruling loses to the database rather
-            # than to whichever search ran last.
+            # statement, and a concurrent ruling loses to the database.
             siblings = self.sudo().search(
                 [
                     ("target_model", "=", rec.target_model),
@@ -440,23 +732,57 @@ class FixDofaLadder(models.Model):
                     ("id", "!=", rec.id),
                 ]
             )
-            siblings._guarded().write({"in_force": False})
+            for sibling in siblings:
+                # E4: the reference and countersigner go, so a stale stamp can
+                # never be re-used; chatter keeps what they were.
+                sibling.message_post(
+                    body="Superseded by '%s' (authority '%s'). This ruling had been made "
+                    "by %s, countersigned by %s, on authority '%s'."
+                    % (
+                        rec.name,
+                        reference.strip(),
+                        sibling.ruled_by.name or "—",
+                        sibling.countersigned_by.name or "—",
+                        sibling.ruling_reference or "—",
+                    )
+                )
+                sibling._guarded().write(
+                    {
+                        "in_force": False,
+                        "ruling_reference": False,
+                        "countersigned_by": False,
+                        "countersigned_at": False,
+                        "superseded_at": fields.Datetime.now(),
+                        "superseded_by_id": rec.id,
+                    }
+                )
+            # E2 (M30-2): flush NOW. The ORM defers writes and orders the batch
+            # by id and dirty fields; when someone else last wrote the old ladder
+            # it sent the new ladder's in_force=True first, and the partial
+            # unique index raised UniqueViolation on the ordinary supersede.
+            siblings.flush_recordset()
             rec._guarded().write(
                 {
                     "in_force": True,
-                    "ruled_by": self.env.user.id,
+                    "ruled_by": (proposer or self.env.user).id,
                     "ruled_at": fields.Datetime.now(),
-                    "ruling_reference": reference or rec.ruling_reference,
+                    "ruling_reference": reference.strip(),
                     "countersigned_by": counter.id or False,
+                    "countersigned_at": fields.Datetime.now() if counter else False,
+                    "proposed_by": False,
+                    "proposed_at": False,
+                    "proposed_reference": False,
+                    "superseded_at": False,
+                    "superseded_by_id": False,
                 }
             )
             rec.message_post(
-                body="DOFA ladder for %s put in force on the %s basis by %s, "
+                body="DOFA ladder for %s put in force on the %s basis: proposed by %s, "
                 "countersigned by %s. Authority: %s. Superseded: %s."
                 % (
                     rec.target_model,
                     dict(rec._fields["basis"].selection)[rec.basis],
-                    self.env.user.name,
+                    (proposer or self.env.user).name,
                     counter.name or "—",
                     rec.ruling_reference,
                     ", ".join(siblings.mapped("name")) or "none",

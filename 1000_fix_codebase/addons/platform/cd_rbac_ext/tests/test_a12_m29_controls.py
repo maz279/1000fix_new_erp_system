@@ -143,7 +143,8 @@ def test_x1_approver_group_and_requesters_manager_can_approve(odoo_env):
             "parent_id": mgr_emp.id,
         }
     )
-    req2 = _request(env, {"user": requester, "role": role, "by": requester})
+    role2 = _role(env, "R-X02b", _group(env, "A12 X1 GC2"))  # req is still open on role
+    req2 = _request(env, {"user": requester, "role": role2, "by": requester})
     req2.with_user(manager).action_approve()
     assert req2.state == "approved"
     assert req2.approver_id == manager
@@ -186,13 +187,16 @@ def test_x1_grant_provisions_as_a_service_and_audits(odoo_env):
     req = _request(env, {"user": beneficiary, "role": role, "by": requester})
 
     req.with_user(approver).action_approve()
-    # granted by a user with no erp_manager: the service write escalates
-    env["fix.access.request"].browse(req.id).with_user(requester).action_grant()
+    # the requester cannot execute it (E23)...
+    with pytest.raises(UserError, match="never the requester"), env.cr.savepoint():
+        env["fix.access.request"].browse(req.id).with_user(requester).action_grant()
+    # ...the approver can, with no erp_manager: the service write escalates
+    env["fix.access.request"].browse(req.id).with_user(approver).action_grant()
 
     assert req.state == "granted"
     assert {ga.id, gb.id} <= set(beneficiary.sudo().group_ids.ids)
     rows = _audit(env, "grant", "fix.access.request,%d" % req.id)
-    assert rows and "R-X04" in rows[0].detail and rows[0].actor_id.id == requester.id
+    assert rows and "R-X04" in rows[0].detail and rows[0].actor_id.id == approver.id
 
 
 def test_x1_revoke_of_an_unheld_role_is_refused(odoo_env):
@@ -219,7 +223,12 @@ def _leaver_fixture(env, tag, with_assets=True):
     user = _user(env, "a12%s_user" % tag.lower())
     user.sudo().write({"group_ids": [(4, g_role.id), (4, g_extra.id)]})  # incl. a NON-role group
     employee = env["hr.employee"].create(
-        {"name": "A12 %s Leaver" % tag, "employee_code": tag, "user_id": user.id}
+        {
+            "name": "A12 %s Leaver" % tag,
+            "employee_code": tag,
+            "user_id": user.id,
+            "left_date": fields.Date.today(),
+        }
     )
     assets = env["fix.itsm.asset"]
     if with_assets and "fix.itsm.asset" in env:
@@ -314,7 +323,9 @@ def test_x2_consumer_is_idempotent_on_redelivery(odoo_env):
 
 def test_x2_leaver_without_a_linked_user_is_recorded_not_crashed(odoo_env):
     env = odoo_env
-    employee = env["hr.employee"].create({"name": "A12 X2D No Login", "employee_code": "A12X2D"})
+    employee = env["hr.employee"].create(
+        {"name": "A12 X2D No Login", "employee_code": "A12X2D", "left_date": fields.Date.today()}
+    )
     assert env["fix.jml.event"].consume_employee_left(_left_event(employee)) is True
     jml = env["fix.jml.event"].sudo().search([("employee_id", "=", employee.id)])
     assert jml.state == "applied" and "no linked user" in jml.result_note
@@ -553,6 +564,7 @@ def test_r3_session_timeout_cron_force_closes_stale_sessions(odoo_env):
             "user_id": user.id,
             "access_kind": "sudo_admin",
             "reason": "A12 stale session probe",
+            "state": "open",  # E10: a session opens only once approved
             "started_at": fields.Datetime.now() - timedelta(hours=10),
         }
     )
@@ -634,11 +646,12 @@ def test_r5_verifier_recomputes_and_detects_an_in_row_edit(odoo_env):
         # the record cache is per-transaction and survives the raw SQL below:
         # drop it entirely, or verify recomputes from stale pre-edit values
         env.invalidate_all(flush=False)
-        with pytest.raises(
-            UserError, match=r"Chain verified: \d+ entr\(ies\), (\d+) discontinuit"
-        ) as info:
-            Audit.action_verify_chain()
-        return int(re.search(r"(\d+) discontinuit", str(info.value)).group(1))
+        # E27: a clean chain answers with a result; a broken one refuses
+        try:
+            text = Audit.action_verify_chain()["note"]
+        except UserError as exc:
+            text = str(exc)
+        return int(re.search(r"(\d+) discontinuit", text).group(1))
 
     before = _discontinuities()
     victim = env["fix.security.audit"].sudo().search([], order="id desc", limit=1)
@@ -695,13 +708,15 @@ def test_r5_sensitive_field_classification_is_read_only(odoo_env):
 def test_r5_incident_closure_discipline(odoo_env):
     env = odoo_env
     reporter = _user(env, "a12r5_inc")
+    officer = _user(env, "a12r5_off", ["cd_rbac_ext.group_security_officer"])
     Incident = env["fix.security.incident"].with_user(reporter)
 
     # a workflow field cannot be typed at create either
     with pytest.raises(UserError, match="cannot be set directly"), env.cr.savepoint():
         Incident.create({"title": "A12 born closed", "category": "malware", "state": "closed"})
 
-    inc = Incident.create({"title": "A12 leak", "category": "data_leak"})
+    # anyone may report; handling it is the officer's (E16)
+    inc = Incident.create({"title": "A12 leak", "category": "data_leak"}).with_user(officer)
     with pytest.raises(UserError, match="Close a contained incident"), env.cr.savepoint():
         inc.action_close()
     inc.write({"containment": "revoked the sessions and forced a password reset"})
@@ -720,19 +735,22 @@ def test_r5_incident_closure_discipline(odoo_env):
 def test_r5_severity_change_needs_a_second_person(odoo_env):
     env = odoo_env
     reporter = _user(env, "a12r5_sev")
-    colleague = _user(env, "a12r5_sev2")
-    inc = (
+    officer = _user(env, "a12r5_sev1", ["cd_rbac_ext.group_security_officer"])
+    colleague = _user(env, "a12r5_sev2", ["cd_rbac_ext.group_security_officer"])
+    created = (
         env["fix.security.incident"]
         .with_user(reporter)
         .create({"title": "A12 severity probe", "category": "phishing"})
     )
-    with pytest.raises(UserError, match="second person"), env.cr.savepoint():
-        inc.action_set_severity("critical", confirmed_by_id=reporter.id)
-    with pytest.raises(UserError, match="second person"), env.cr.savepoint():
-        inc.action_set_severity("critical")
+    inc = created.with_user(officer)
+    # naming a witness changes nothing: E15, the witness acts himself
     inc.action_set_severity("critical", confirmed_by_id=colleague.id)
+    assert inc.severity == "medium" and inc.severity_pending == "critical"
+    with pytest.raises(UserError, match="second person"), env.cr.savepoint():
+        inc.action_confirm_severity()
+    created.with_user(colleague).action_confirm_severity()
     assert inc.severity == "critical"
-    assert inc.severity_set_by_id == reporter and inc.severity_confirmed_by_id == colleague
+    assert inc.severity_set_by_id == officer and inc.severity_confirmed_by_id == colleague
     assert _audit(env, "incident", "fix.security.incident,%d" % inc.id).filtered(
         lambda r: "severity" in (r.detail or "")
     )
@@ -771,7 +789,6 @@ def test_x5_writable_covers_every_surface_and_excludes_workflow_fields():
         "ruled_on",
         "approver_id",
         "decided_on",
-        "severity",
         "resolved_on",
         "entry_hash",
     }
@@ -790,7 +807,6 @@ def test_x5_workspace_forms_do_not_edit_workflow_fields():
     for name in (
         "state",
         "decision",
-        "severity",
         "resolution",
         "last_rotated_on",
         "next_rotation_on",

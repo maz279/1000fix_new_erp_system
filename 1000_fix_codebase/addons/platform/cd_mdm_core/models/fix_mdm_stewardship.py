@@ -1,10 +1,25 @@
 # fix_mdm_stewardship — M64 Completion: Data Stewardship & Quality Scoring (CD-M64-02).
+#
+# A12 finish audit (2026-11-07):
+#   E27: the score ignored the declared DQ rules and changed with whoever pressed
+#   Audit (8 vs 11 records). It is now measured as the system, over the card's
+#   company, blends the evaluator's results into validity, and runs daily.
+#   E29: a steward appointed himself lead. Appointments are the Platform Admin's,
+#   the lead must hold the steward group, and a domain has a business owner.
+import logging
 import re
 from collections import Counter
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+logger = logging.getLogger(__name__)
+
+STEWARD_GROUP = "cd_entity_config.group_mdm_domain_steward"
+PLATFORM_ADMIN_GROUP = "cd_entity_config.group_platform_admin"
+_APPOINTMENT_FIELDS = frozenset({"lead_steward_id", "owner_id"})
 
 _BD_MOBILE = re.compile(r"^(?:\+?880|0)1[3-9]\d{8}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -115,6 +130,12 @@ class FixMdmStewardship(models.Model):
         required=True,
         tracking=True,
     )
+    owner_id = fields.Many2one(
+        "res.users",
+        string="Business Owner",
+        tracking=True,
+        help="Accountable for the domain's data (BRU-MDM-03). A business appointment.",
+    )
 
     # Data Quality Dimensions (DAMA-DMBOK compliant). MEASURED by
     # action_audit_data_quality over the governed records; 0 until audited
@@ -137,7 +158,8 @@ class FixMdmStewardship(models.Model):
         string="Validity Score (%)",
         default=0.0,
         readonly=True,
-        help="Percentage of records passing format rules (e.g. BD mobile, IMEI, codes).",
+        help="Format checks (e.g. BD mobile, IMEI, codes) averaged with the pass rate of the "
+        "data-quality rules declared on the master, when any have run.",
         tracking=True,
     )
     audit_state = fields.Selection(
@@ -184,6 +206,46 @@ class FixMdmStewardship(models.Model):
             "last_audit_date",
         }
 
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if not self.env.user.has_group(PLATFORM_ADMIN_GROUP):
+            locked |= _APPOINTMENT_FIELDS
+        return locked
+
+    def _assert_may_appoint(self):
+        if not self.env.su and not self.env.user.has_group(PLATFORM_ADMIN_GROUP):
+            raise UserError(
+                "Appointing a lead steward or business owner is a Platform Admin's decision: "
+                "%s does not hold that role." % self.env.user.name
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        self._assert_may_appoint()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if _APPOINTMENT_FIELDS & set(vals) and any(
+            rec._fix_guard_differs(name, vals[name], rec[name])
+            for rec in self
+            for name in _APPOINTMENT_FIELDS & set(vals)
+        ):
+            self._assert_may_appoint()
+        return super().write(vals)
+
+    @api.constrains("lead_steward_id")
+    def _check_lead_holds_the_role(self):
+        # BRU-MDM-19. The superuser account (data loading, seeds) is trusted, as the
+        # field guard trusts it. Not env.su: the ORM runs every constraint as sudo.
+        if self.env.uid == SUPERUSER_ID:
+            return
+        for rec in self:
+            if not rec.lead_steward_id.has_group(STEWARD_GROUP):
+                raise ValidationError(
+                    "%s cannot lead a data domain: the role needs the 'MDM Domain Steward' "
+                    "group." % rec.lead_steward_id.name
+                )
+
     @api.depends("completeness_score", "uniqueness_score", "validity_score")
     def _compute_quality_index(self):
         for rec in self:
@@ -195,16 +257,42 @@ class FixMdmStewardship(models.Model):
             )
 
     @api.model
-    def _measure_domain(self, domain_code: str) -> dict:
+    def _dq_rule_pass_rate(self, model_name, company=None):
+        """The pass rate of the evaluator's latest results on a master, or None
+        when no rule has measured it. Skipped rules measured nothing."""
+        domain = [
+            ("active", "=", True),
+            ("res_model", "=", model_name),
+            ("last_status", "=", "ok"),
+            ("last_records_checked", ">", 0),
+        ]
+        if company:
+            domain.append(("company_id", "=", company.id))
+        rules = self.env["fix.mdm.dq.rule"].sudo().search(domain)
+        checked = sum(rules.mapped("last_records_checked"))
+        if not checked:
+            return None
+        return 100.0 * max(0.0, 1.0 - sum(rules.mapped("last_violation_count")) / checked)
+
+    @api.model
+    def _measure_domain(self, domain_code: str, company=None) -> dict:
         """Measure completeness/uniqueness/validity over the governed records.
 
         Returns {"count", "completeness", "uniqueness", "validity"} (percent,
         2 dp) or {"count": 0} when there is nothing to measure. A required
-        attribute the model does not carry counts as missing."""
+        attribute the model does not carry counts as missing.
+
+        Read as the system (E27): the score belongs to the domain, not to
+        whoever pressed Audit. `company` limits it to that company and to the
+        records every company shares."""
         rules = DOMAIN_RULES[domain_code]
         if rules["model"] not in self.env:
             return {"count": 0}
-        records = self.env[rules["model"]].search(rules["domain"])
+        Model = self.env[rules["model"]].sudo()
+        search_domain = list(rules["domain"])
+        if company and "company_id" in Model._fields:
+            search_domain += ["|", ("company_id", "=", False), ("company_id", "=", company.id)]
+        records = Model.search(search_domain)
         total = len(records)
         if not total:
             return {"count": 0}
@@ -223,12 +311,16 @@ class FixMdmStewardship(models.Model):
         def pct(part, whole):
             return round(100.0 * part / whole, 2) if whole else 0.0
 
+        validity = pct(valid, total)
+        pass_rate = self._dq_rule_pass_rate(rules["model"], company)
+        if pass_rate is not None:
+            validity = round((validity + pass_rate) / 2.0, 2)
         return {
             "count": total,
             "completeness": pct(complete, total),
             # unkeyed records cannot be matched: they are not "unique" either
             "uniqueness": pct(unique, total),
-            "validity": pct(valid, total),
+            "validity": validity,
         }
 
     def action_audit_data_quality(self):
@@ -236,7 +328,7 @@ class FixMdmStewardship(models.Model):
         An empty (or uninstalled) master is reported as no_data with zero
         scores - never a perfect or assumed score."""
         self.ensure_one()
-        measured = self._measure_domain(self.domain)
+        measured = self._measure_domain(self.domain, self.company_id)
         if measured["count"]:
             vals = {
                 "completeness_score": measured["completeness"],
@@ -271,6 +363,20 @@ class FixMdmStewardship(models.Model):
                 "records_audited": self.records_audited_count,
             },
         )
+
+    @api.model
+    def cron_audit_data_quality(self):
+        """E27 (daily): every domain's scorecard. One failing master never stops
+        the others, and leaves its last measurement in place."""
+        if not self.env.su:
+            raise UserError("The scorecard cron runs as the system only.")
+        for card in self.search([]):
+            try:
+                with self.env.cr.savepoint():
+                    card.action_audit_data_quality()
+            except Exception:
+                logger.exception("Scorecard audit failed for domain %s", card.domain)
+        return True
 
     # ---- A12 event consumer (FF-48) ---------------------------------------
     # mdm.quality_audited → chatter: the quality trail lives on the record.

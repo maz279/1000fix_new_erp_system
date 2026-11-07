@@ -22,5 +22,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_privileged_session" model="ir.sequence">
+            <field name="name">Privileged Session</field>
+            <field name="code">fix.privileged.session</field>
+            <field name="prefix">PS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

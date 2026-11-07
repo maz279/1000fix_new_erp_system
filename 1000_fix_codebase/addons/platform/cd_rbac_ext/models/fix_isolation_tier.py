@@ -1,6 +1,8 @@
 # fix.isolation.tier — the six data isolation tiers T0-T5 (P03-M02-T03).
-# Each tier carries the record-rule domain that enforces it; every tier is
-# negative-tested per role (DoD-07).
+# A documented REGISTER (A12 finish E28): it states what each tier is meant to mean.
+# No gate reads role.tier_ids or copies record_rule_domain into an ir.rule; row
+# scoping is enforced by the ordinary ir.rule rows (Record Rules screen) and T5 by
+# residency_mixin. Do not read this table as enforcement.
 from odoo import api, fields, models
 
 
@@ -38,8 +40,8 @@ class FixIsolationTier(models.Model):
     description = fields.Text()
     record_rule_domain = fields.Char(
         string="Record Rule Domain",
-        help="The domain filter that enforces this tier; empty for T0 (no filter). "
-        "T2: [('operating_unit_id','in',user.branch_ids.operating_unit_id.ids)]",
+        help="The domain this tier is meant to apply, recorded as text: no ir.rule is generated "
+        "from it. T2: [('operating_unit_id','in',user.branch_ids.operating_unit_id.ids)]",
     )
     requires_step_up = fields.Boolean(
         default=False, help="T5 only: human access requires step-up authentication (NFR-065)"

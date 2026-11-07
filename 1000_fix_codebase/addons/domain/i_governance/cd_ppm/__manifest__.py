@@ -9,8 +9,10 @@ CD-M67-01 (P10) — Project, Program & Portfolio Management.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Project, Program & Portfolio Management",
-    # account: fix.project.billing.invoice_id -> account.move (A12 M67-1,
-    # "Mark invoiced" creates the real customer invoice).
+    # account: fix.project.billing.invoice_id -> account.move (A12 M67-1).
+    # cd_gl_ext: the M19 API that posts it, and the project dimension that feeds
+    # the measured cost (A12 finish F6, F13). cd_workflow_engine: the M63 routing
+    # fix.project relies on, stated rather than inherited by luck.
     "depends": [
         "base",
         "mail",
@@ -18,6 +20,8 @@ CD-M67-01 (P10) — Project, Program & Portfolio Management.
         "cd_entity_config",
         "cd_hr_core",
         "cd_event_outbox",
+        "cd_gl_ext",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
