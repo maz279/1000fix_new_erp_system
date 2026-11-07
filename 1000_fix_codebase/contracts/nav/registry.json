@@ -9630,13 +9630,13 @@
      "screens": [
       {
        "id": "M51-mushak61",
-       "en": "Mushak 6.1 (Sales)",
+       "en": "Mushak 6.1 (Purchases)",
        "bn": "মুশক ৬.১",
        "t": "g"
       },
       {
        "id": "M51-mushak62",
-       "en": "Mushak 6.2 (Purchases)",
+       "en": "Mushak 6.2 (Sales)",
        "bn": "মুশক ৬.২",
        "t": "g"
       },
@@ -10022,8 +10022,8 @@
       },
       {
        "id": "M53-schemes",
-       "en": "Incentive Schemes",
-       "bn": "প্রণোদনা কর্মসূচি",
+       "en": "Commission Schemes",
+       "bn": "কমিশন কর্মসূচি",
        "t": "g"
       }
      ]

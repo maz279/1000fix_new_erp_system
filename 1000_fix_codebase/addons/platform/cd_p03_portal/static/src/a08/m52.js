@@ -12,6 +12,7 @@ export const MODULE = {
   kpis: [
     { l: 'Payables Open', m: 'vendor_bills_open' },
     { l: 'Bills To Approve', m: 'bills_to_approve' },
+    { l: 'Payment Runs Open', m: 'payment_runs_open' },
     { l: 'Match Exceptions', m: 'match_exceptions' },
     { l: 'Expense Claims Pending', m: 'expense_claims_pending' },
     { l: 'TDS MTD', m: 'tds_mtd', prefix: '৳ ' },

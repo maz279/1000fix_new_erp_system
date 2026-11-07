@@ -17,6 +17,10 @@ export const MODULE = {
     { l: 'Input Credit Open', m: 'input_credit_open' },
     { l: 'Certificates Due', m: 'certificates_due' },
     { l: 'Overdue Obligations', m: 'overdue_obligations' },
+    { l: 'Withholding Undeposited', m: 'withholding_undeposited', prefix: '৳ ' },
+    { l: 'Next Statutory Due', m: 'next_due' },
+    { l: 'Mushak Records', m: 'mushak_records' },
+    { l: 'VAT Returns', m: 'vat_returns_count' },
     { l: 'Rows Awaiting Sign-Off', m: 'signoff_pending' }
   ],
   groups: [

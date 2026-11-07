@@ -339,8 +339,8 @@ window.FX_MODULES.M51 = { area:'A08', en:'Tax & Regulatory (BD)', bn:'কর ও
           {l:'Filing On-Time YTD',v:'100%',st:'ok'} ],
   groups:[
     {en:'VAT', screens:[
-      {id:'M51-mushak61', en:'Mushak 6.1 (Sales)', bn:'মুশক ৬.১', t:'g'},
-      {id:'M51-mushak62', en:'Mushak 6.2 (Purchases)', bn:'মুশক ৬.২', t:'g'},
+      {id:'M51-mushak61', en:'Mushak 6.1 (Purchases)', bn:'মুশক ৬.১', t:'g'},
+      {id:'M51-mushak62', en:'Mushak 6.2 (Sales)', bn:'মুশক ৬.২', t:'g'},
       {id:'M51-mushak63', en:'Mushak 6.3 Records', bn:'মুশক ৬.৩', t:'g'},
       {id:'M51-vat91', en:'VAT Return 9.1 Filing', bn:'ভ্যাট রিটার্ন ৯.১', t:'c'},
       {id:'M51-challans', en:'Challans (A-Challan)', bn:'চালান', t:'g'},
@@ -378,7 +378,7 @@ window.FX_MODULES.M53 = { area:'A08', en:'Revenue Recognition & Settlement', bn:
       {id:'M53-contract', en:'Contract Assets & Liabilities', bn:'চুক্তি সম্পদ', t:'r'} ]},
     {en:'Commission', screens:[
       {id:'M53-ledger', en:'Commission Ledger', bn:'কমিশন লেজার', t:'g'},
-      {id:'M53-schemes', en:'Incentive Schemes', bn:'প্রণোদনা কর্মসূচি', t:'g'} ]},
+      {id:'M53-schemes', en:'Commission Schemes', bn:'কমিশন কর্মসূচি', t:'g'} ]},
     {en:'Settlements', screens:[
       {id:'M53-payouts', en:'Payout Runs', bn:'পেআউট রান', t:'c'},
       {id:'M53-sellers', en:'Seller Statements', bn:'বিক্রেতা বিবৃতি', t:'r'},

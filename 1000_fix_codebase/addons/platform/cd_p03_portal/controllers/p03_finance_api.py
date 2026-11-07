@@ -161,12 +161,13 @@ class P03FinanceApiController(http.Controller):
             }
 
         if module in (None, "M51"):
+            # register/return counts live in controllers/a08/m51.py kpis()
+            # (the module owns every tile metric); only the shared MTD total
+            # is computed here.
             out["M51"] = {
                 "vat_collected_mtd": total(
                     "fix.mushak.register", [("invoice_date", ">=", ms)], "vat_amount"
                 ),
-                "mushak_records": count("fix.mushak.register", []),
-                "vat_returns_count": count("fix.vat.return", []),
             }
 
         if module in (None, "M52"):
@@ -198,10 +199,9 @@ class P03FinanceApiController(http.Controller):
             }
 
         if module in (None, "M54"):
-            out["M54"] = {
-                "budget_total_variance": total("fix.budget", [], "variance"),
-                "budgets_count": count("fix.budget", []),
-            }
+            # budget counts/variance live in controllers/a08/m54.py kpis()
+            # (the module owns every tile metric).
+            out["M54"] = {}
 
         # Per-module metrics declared in controllers/a08/<module>.py (and,
         # since the A03 rebuild, controllers/a03/<module>.py) as an optional

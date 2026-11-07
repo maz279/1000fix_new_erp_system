@@ -108,4 +108,13 @@ def kpis(env):
     out["fpa_job_costing_coverage"] = (
         "%s%%" % pct(sum(1 for j in jobs if j["complete"]), len(jobs)) if jobs else None
     )
+
+    # The whole-budget position (moved from the finance route so the module
+    # owns every tile metric the workspace renders).
+    try:
+        budgets = env["fix.budget"].search([])
+        out["budget_total_variance"] = round(sum(budgets.mapped("variance")), 2)
+        out["budgets_count"] = len(budgets)
+    except Exception:
+        out["budget_total_variance"] = out["budgets_count"] = None
     return out

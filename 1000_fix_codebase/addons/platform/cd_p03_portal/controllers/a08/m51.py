@@ -156,6 +156,12 @@ def kpis(env):
         )
     except Exception:
         out["signoff_pending"] = None
+    try:
+        # moved from the finance route so the module owns every tile metric
+        out["mushak_records"] = env["fix.mushak.register"].search_count(_companies(env))
+        out["vat_returns_count"] = env["fix.vat.return"].search_count(_companies(env))
+    except Exception:
+        out["mushak_records"] = out["vat_returns_count"] = None
     return out
 
 

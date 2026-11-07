@@ -691,5 +691,7 @@ export const FORM_CHIPS = {
 
 /* the module's "+ New" surface */
 export const CREATE = {
-  M19: { model: 'account.move', label: 'Journal Entry' },
+  // The JE editor (M19-je) is the create path for journal entries - without
+  // the screen the button fell through to the recurring-template form.
+  M19: { screen: 'M19-je', model: 'account.move', label: 'Journal Entry' },
 };
