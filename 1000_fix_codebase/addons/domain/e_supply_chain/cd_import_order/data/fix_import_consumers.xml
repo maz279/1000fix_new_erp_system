@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M44 (A06 final pass, BRU-ITC-03): import.irc_expired had no reader. Every open
+  order of the importer is told that nothing progresses until a valid IRC is
+  recorded.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_import_irc_expired" model="fix.event.consumer">
+            <field name="name">M44: tell open import orders their IRC has expired</field>
+            <field name="event_type">import.irc_expired</field>
+            <field name="model">fix.import.order</field>
+            <field name="method">consume_irc_expired</field>
+            <field name="module">cd_import_order</field>
+        </record>
+    </data>
+</odoo>

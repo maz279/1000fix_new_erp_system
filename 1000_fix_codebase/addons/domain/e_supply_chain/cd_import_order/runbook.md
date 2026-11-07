@@ -166,7 +166,12 @@ A plain internal user reads everything and writes nothing.
 | `cd_import_order.account_code.vat_input` | none (REQUIRED) | Import VAT input tax |
 | `cd_import_order.account_code.at_input` | none (REQUIRED) | Advance Tax recoverable |
 | `cd_import_order.account_code.ait_advance` | none (REQUIRED) | AIT paid at import (income-tax advance) |
-| `cd_import_order.account_code.variance` | none (REQUIRED when used) | Landed cost of stock consumed before the final cost (cost-of-sales adjustment) |
+| `cd_import_order.account_code.variance` | none (REQUIRED when used) | Landed cost of stock consumed before the final cost (cost-of-sales adjustment); also an accepted duty variance on a Bill of Entry |
+| `cd_import_order.account_code.lc_clearing` | none (REQUIRED) | LC payments, at the commitment rate, until the supplier's bill settles them. An LC payment is refused until it is set |
+| `cd_import_order.account_code.fx_difference` | none (REQUIRED when used) | Settlement rate against commitment rate on a foreign-currency LC payment |
+| `cd_import_order.advance_cap_pct` | `0` | Share of the invoice value advances may reach before an approval needs a stated reason. 0 = every advance approval states one. Advances never exceed the invoice value |
+| `cd_import_order.irc_expiry_warning_days` | `30` | Days before an IRC lapses that the Import Approvers get a to-do |
+| `cd_import_order.boe_remittance_match_days` | `120` | Days before an unmatched Bill of Entry or LC payment is flagged. Stands for Bangladesh Bank's 4-month guideline; Finance confirms it |
 
 A posting whose account or journal is not configured is refused with the key to set; nothing is posted to a guessed account.
 

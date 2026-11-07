@@ -592,6 +592,7 @@ class FixImportOrderCompliance(models.Model):
                         "%s: classify every line of %s first (%s has no HS)."
                         % (what, rec.name, line.part_id.display_name)
                     )
+                line.sudo()._import_check_hs_of_part(what)
                 for restriction in Restriction._restrictions_for(line, day):
                     if restriction.restriction_type == "prohibited":
                         raise UserError(

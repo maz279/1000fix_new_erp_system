@@ -30,7 +30,9 @@ def ctx(odoo_env):
     env["ir.config_parameter"].sudo().set_param("cd_import_order.landing_charge_pct", "0")
     supplier = env["res.partner"].create({"name": f"Import Supplier {TAG}", "is_company": True})
     product = env["product.product"].create({"name": f"Import Product {TAG}"})
-    part = env["fix.spare.part"].create({"name": f"Import Part {TAG}", "part_number": f"IMP-{TAG}"})
+    part = env["fix.spare.part"].create(
+        {"name": f"Import Part {TAG}", "part_number": f"IMP-{TAG}", "product_id": product.id}
+    )
     tariff = env["fix.import.tariff"].create(
         {
             "hs_code": "8471.30.00",
@@ -74,6 +76,20 @@ def ctx(odoo_env):
         }
     )
     cover.action_verify()
+    # BRU-ITC-03: the B/L and the Bill of Entry need a valid IRC
+    env["fix.import.irc"].create({"irc_no": f"IRC-{TAG}", "valid_to": today + timedelta(days=100)})
+    # scorecard 24: the B/L ships against an approved advance
+    advance = env["fix.import.advance"].create(
+        {
+            "order_id": order.id,
+            "currency_id": env.ref("base.BDT").id,
+            "amount": 100.0,
+            "bank": "Test AD Bank",
+            "guarantee_ref": f"APG-{TAG}",
+        }
+    )
+    advance.action_request()
+    advance.action_approve("Test instrument")
     # BRU-ITC-12: a licensed C&F agent, active in M42
     agent = env["fix.import.cnf.agent"].create(
         {
@@ -229,6 +245,10 @@ def test_arrival_demurrage_and_clearance(ctx):
     # 8 days at port, 5 free -> 3 days of demurrage, computed, not typed
     assert arrival.demurrage_days == 3
     arrival.write({"release_ref": f"RO-{TAG}"})
+    # BRU-ITC-17: past the free time it needs a cause, and still a paid Bill of Entry
+    with pytest.raises(UserError, match="demurrage cause"), env.cr.savepoint():
+        arrival.action_clear()
+    arrival.write({"demurrage_cause": "customs"})
     with pytest.raises(UserError, match="Bill of Entry"), env.cr.savepoint():
         arrival.action_clear()
 

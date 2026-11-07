@@ -13,6 +13,7 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish
 
 from .fix_import_common import (
+    APPROVER,
     OFFICER,
     changes,
     import_account,
@@ -20,6 +21,7 @@ from .fix_import_common import (
     post_import_move,
     refuse_locked,
     require_group,
+    schedule_alert,
     today,
 )
 
@@ -33,6 +35,7 @@ ORDER_STATES = [
     ("cleared", "Cleared by Customs"),
     ("received", "Received"),
     ("landed", "Landed Cost Applied"),
+    ("closed", "Closed"),
 ]
 
 # Pinned once a proforma is approved or an LC leaves draft: the commitment.
@@ -123,17 +126,25 @@ class FixImportOrder(models.Model):
     goods_move_id = fields.Many2one(
         "account.move", string="Goods Receipt Entry", readonly=True, copy=False
     )
+    m16_receipt_id = fields.Many2one(
+        "fix.purchase.receipt", string="M16 Goods Receipt", readonly=True, copy=False
+    )
+    closed_by_id = fields.Many2one("res.users", string="Closed By", readonly=True, copy=False)
+    closed_on = fields.Date(string="Closed On", readonly=True, copy=False)
     state = fields.Selection(ORDER_STATES, default="draft", required=True, tracking=True)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
             "receipt_id",
+            "m16_receipt_id",
             "received_by_id",
             "received_on",
             "goods_move_id",
             "customs_duty",
             "landed_cost",
+            "closed_by_id",
+            "closed_on",
         }
 
     @api.constrains("purchase_order_id", "supplier_id", "company_id")
@@ -183,6 +194,9 @@ class FixImportOrder(models.Model):
         if len(self) == 1 and isinstance(self.id, int):
             if self._import_terms_locked():
                 locked |= set(TERMS_FIELDS) | {"line_ids"}
+                # BRU-ITC-14: a source or date never recorded can still be
+                # recorded (they were optional); once held they are pinned.
+                locked -= {f for f in ("fx_rate_source", "fx_rate_date") if not self[f]}
             if self._import_cif_locked():
                 locked |= set(CIF_FIELDS)
             if self.state != "draft":
@@ -260,6 +274,47 @@ class FixImportOrder(models.Model):
             % (currency.name, self.currency_id.name)
         )
 
+    # ---- commitment gates -----------------------------------------------------
+    def _import_check_fx(self, what):
+        """BRU-ITC-14: a foreign-currency order carries the commitment rate
+        with its source and date before it leaves draft. 1.0 is the field's
+        default, not a rate anyone recorded."""
+        bdt = self.env.ref("base.BDT")
+        for rec in self:
+            if rec.currency_id == bdt:
+                continue
+            missing = []
+            if (rec.fx_rate or 0.0) <= 0 or rec.fx_rate == 1.0:
+                missing.append("the commitment FX rate")
+            if not (rec.fx_rate_source or "").strip():
+                missing.append("the rate source")
+            if not rec.fx_rate_date:
+                missing.append("the rate date")
+            if missing:
+                raise UserError(
+                    "%s: order %s is in %s and has no %s (BRU-ITC-14)."
+                    % (what, rec.name, rec.currency_id.name, ", ".join(missing))
+                )
+            if rec.fx_rate_date > today(rec):
+                raise UserError("%s: the FX rate date of %s is in the future." % (what, rec.name))
+
+    def _import_check_instrument(self, what):
+        """A consignment ships against a payment instrument: an opened LC or
+        an approved advance (scorecard 24)."""
+        su = self.env(su=True)
+        for rec in self:
+            lcs = su["fix.import.lc"].search_count(
+                [("order_id", "=", rec.id), ("state", "in", ("opened", "amended", "closed"))]
+            )
+            advances = su["fix.import.advance"].search_count(
+                [("order_id", "=", rec.id), ("state", "=", "approved")]
+            )
+            if not lcs and not advances:
+                raise UserError(
+                    "%s: order %s has neither an opened LC nor an approved advance: record the "
+                    "payment instrument first." % (what, rec.name)
+                )
+
     def _import_set_state(self, state, allowed):
         """A child transition moves the order. Run as superuser: the child's
         own action already checked the user's role."""
@@ -279,6 +334,16 @@ class FixImportOrder(models.Model):
                     "Import order %s cannot be received: it is %s. Receive it once customs "
                     "has released it (a cleared arrival with a paid Bill of Entry)."
                     % (rec.name, dict(ORDER_STATES)[rec.state])
+                )
+            # M44-7: the state alone is not evidence: a Bill of Entry reversed
+            # after clearance must not let the goods in.
+            live = rec.sudo().boe_ids.filtered(lambda b: b.state != "reversed")
+            if not live.filtered(lambda b: b.state == "paid") or live.filtered(
+                lambda b: b.state != "paid"
+            ):
+                raise UserError(
+                    "Import order %s cannot be received: every live Bill of Entry must be paid, "
+                    "and at least one must exist." % rec.name
                 )
             if rec.receipt_id:
                 raise UserError(
@@ -335,10 +400,14 @@ class FixImportOrder(models.Model):
             }
             if rec.purchase_order_id and "purchase_order_id" in Receipt._fields:
                 receipt_vals["purchase_order_id"] = rec.purchase_order_id.id
+            m16_receipt = rec._import_post_m16_receipt()
+            # A PO-linked import's M15 receipt names its M16 GRN as source, as
+            # the M16 bridge's own receipts do: an inspection rejection on the
+            # GRN then finds this stock and moves it to quarantine.
             for key, value in (
-                ("source_model", rec._name),
-                ("source_res_id", rec.id),
-                ("source_ref", rec.name),
+                ("source_model", m16_receipt._name if m16_receipt else rec._name),
+                ("source_res_id", m16_receipt.id if m16_receipt else rec.id),
+                ("source_ref", m16_receipt.name if m16_receipt else rec.name),
             ):
                 if key in Receipt._fields:
                     receipt_vals[key] = value
@@ -367,6 +436,7 @@ class FixImportOrder(models.Model):
                     "state": "received",
                     "goods_move_id": goods_move.id or False,
                     "receipt_id": receipt.id,
+                    "m16_receipt_id": m16_receipt.id or False,
                     "received_by_id": rec.env.user.id,
                     "received_on": today(rec),
                 }
@@ -392,6 +462,144 @@ class FixImportOrder(models.Model):
             )
         return True
 
+    def _import_post_m16_receipt(self):
+        """M44-1 + M52: the AP three-way match reads posted M16 receipt lines,
+        so a PO-linked import also posts its M16 GRN. The import's own M15
+        receipt and GRNI entry carry the stock and the GL; the GRN is marked
+        with this order and the M16 -> M15 bridge skips a marked GRN, so
+        neither is posted twice. M16's own rules apply: quantity within the
+        PO, the requester and buyer never receive (SOD-02), and the inspection
+        decides the accepted quantity."""
+        self.ensure_one()
+        Receipt = self.env(su=True)["fix.purchase.receipt"]
+        po = self.purchase_order_id.sudo()
+        if not po:
+            return Receipt
+        remaining = {
+            pol.id: max((pol.qty_ordered or 0.0) - (pol.qty_received or 0.0), 0.0)
+            for pol in po.line_ids
+        }
+        lines = []
+        for line in self.line_ids:
+            product = line.part_id.sudo().product_id
+            if not product:
+                raise UserError(
+                    "%s has no purchasing product, so it cannot be matched to PO %s."
+                    % (line.part_id.display_name, po.name)
+                )
+            qty = line.quantity
+            for pol in po.line_ids.filtered(lambda p, pr=product: p.product_id == pr):
+                take = min(qty, remaining[pol.id])
+                if take > 0:
+                    lines.append((0, 0, {"po_line_id": pol.id, "qty_received": take}))
+                    remaining[pol.id] -= take
+                    qty -= take
+            if qty > 1e-6:
+                raise UserError(
+                    "PO %s has %.2f less of %s left to receive than import %s brings."
+                    % (po.name, qty, product.display_name, self.name)
+                )
+        receipt = Receipt.create(
+            {
+                "purchase_order_id": po.id,
+                "delivery_note_ref": self.name,
+                "notes": "Import receipt %s (M44)" % self.name,
+                "line_ids": lines,
+            }
+        )
+        receipt._guarded().write({"import_order_id": self.id})
+        if not self.env.su and self.env.user in receipt._a06_conflicted_receivers():
+            raise UserError(
+                "Segregation of duties (SOD-02): you requested or bought PO %s and cannot "
+                "record its goods receipt." % po.name
+            )
+        receipt.action_post()
+        return receipt
+
+    # ---- close --------------------------------------------------------------
+    def action_close(self):
+        """BRU-ITC-18: a fully received, finally costed order is closed by an
+        Import Approver, with nothing left open against it. Cost documents
+        (agent, port, bank invoices) are not reconciled here yet: BRU-ITC-16
+        has no document model."""
+        require_group(self.env, APPROVER, "Closing an import order")
+        for rec in self:
+            su = rec.sudo()
+            if rec.state != "landed":
+                raise UserError(
+                    "Import order %s is %s: close it once it is received and its final landed "
+                    "cost is applied." % (rec.name, dict(ORDER_STATES)[rec.state])
+                )
+            blockers = []
+            sheets = su.env["fix.import.landed"].search([("order_id", "=", rec.id)])
+            finals = sheets.filtered(lambda s: s.sheet_type == "final")
+            if not finals.filtered(lambda s: s.state == "finalised"):
+                blockers.append("no final landed-cost sheet")
+            if finals.filtered(lambda s: s.state == "draft"):
+                blockers.append("a draft landed-cost sheet")
+            if su.boe_ids.filtered(lambda b: b.state in ("draft", "assessed")):
+                blockers.append("an unpaid Bill of Entry")
+            lcs = su.env["fix.import.lc"].search([("order_id", "=", rec.id)])
+            if lcs.filtered(lambda lc: lc.state in ("applied", "opened", "amended")):
+                blockers.append("an LC not yet closed")
+            if blockers:
+                raise UserError(
+                    "Import order %s cannot close: %s (BRU-ITC-18)."
+                    % (rec.name, ", ".join(blockers))
+                )
+            rec.sudo()._guarded().write(
+                {"state": "closed", "closed_by_id": rec.env.user.id, "closed_on": today(rec)}
+            )
+        return True
+
+    # ---- event consumers ----------------------------------------------------
+    @api.model
+    def consume_irc_expired(self, event):
+        """import.irc_expired: every open order of that importer is told that
+        nothing progresses until a valid IRC is recorded."""
+        irc = self.env["fix.import.irc"].sudo().browse(event.get("aggregate_id") or 0).exists()
+        if not irc:
+            return 0
+        orders = self.sudo().search(
+            [
+                ("company_id", "=", irc.company_id.id),
+                ("state", "not in", ("received", "landed", "closed")),
+            ]
+        )
+        note = (
+            "IRC %s has expired: this order's proforma, LC, B/L and Bill of Entry steps are "
+            "refused until a valid certificate is recorded." % irc.irc_no
+        )
+        for order in orders:
+            order.message_post(body=note)
+            schedule_alert(order, "IRC expired", note, order.create_uid)
+        return len(orders)
+
+
+class FixPurchaseReceiptImport(models.Model):
+    """The mark that keeps an import's M16 GRN from posting stock a second
+    time: its goods entered M15 and the GL through the import receipt."""
+
+    _inherit = "fix.purchase.receipt"
+
+    import_order_id = fields.Many2one(
+        "fix.import.order",
+        string="Import Order (M44)",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="restrict",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"import_order_id"}
+
+    def _fix_post_to_m15(self):
+        self.ensure_one()
+        if self.import_order_id:
+            return self.env["fix.stock.receipt"]
+        return super()._fix_post_to_m15()
+
 
 class FixImportOrderLine(models.Model):
     """What is being imported: the part, quantity and supplier price. The
@@ -402,6 +610,7 @@ class FixImportOrderLine(models.Model):
     _description = "Import Order Line"
     _order = "order_id, id"
     _inherit = ["fix.guarded.mixin"]
+    _rec_names_search = ["order_id.name", "part_id.name", "part_id.part_number", "description"]
 
     order_id = fields.Many2one("fix.import.order", required=True, ondelete="cascade", index=True)
     company_id = fields.Many2one(related="order_id.company_id", store=True, index=True)
@@ -434,6 +643,48 @@ class FixImportOrderLine(models.Model):
     _price_non_negative = models.Constraint(
         "CHECK (unit_price >= 0)", "A unit price cannot be negative"
     )
+
+    @api.depends("order_id.name", "part_id.name", "description", "quantity")
+    def _compute_display_name(self):
+        """A picker names the order: the Bill of Entry's line list is not
+        filtered to its own order (the form's domains are static)."""
+        for rec in self:
+            rec.display_name = "%s / %s x %g" % (
+                rec.order_id.name or "?",
+                rec.part_id.sudo().name or rec.description or "?",
+                rec.quantity or 0.0,
+            )
+
+    @api.constrains("hs_id", "part_id")
+    def _check_hs_of_part(self):
+        """M44-10: a line is classified by its own part's ruling, so another
+        product's lower-duty ruling cannot be used. fix.import.hs is one row
+        per product.product; a spare part names its product in M15."""
+        for rec in self.sudo():
+            rec._import_check_hs_of_part()
+
+    def _import_check_hs_of_part(self, what=None):
+        self.ensure_one()
+        if not self.hs_id:
+            return
+        product = self.part_id.sudo().product_id
+        prefix = "%s: " % what if what else ""
+        if not product:
+            raise ValidationError(
+                "%s%s has no purchasing product in M15, so HS %s cannot be shown to be its "
+                "classification. Name the product on the spare part first."
+                % (prefix, self.part_id.display_name, self.hs_id.hs_code)
+            )
+        if self.hs_id.sudo().product_id != product:
+            raise ValidationError(
+                "%sHS %s is the ruling for %s, not for %s (M44-10)."
+                % (
+                    prefix,
+                    self.hs_id.hs_code,
+                    self.hs_id.sudo().product_id.display_name,
+                    product.display_name,
+                )
+            )
 
     @api.depends(
         "quantity",

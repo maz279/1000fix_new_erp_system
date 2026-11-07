@@ -34,6 +34,7 @@ WRITABLE = {
             "period_end",
             "period_start",
             "product_id",
+            "vendor_id",
         }
     ),
     "fix.demand.policy": frozenset(
@@ -47,12 +48,16 @@ WRITABLE = {
             "pack_size",
             "part_id",
             "product_id",
+            "provisional_daily_demand",
+            "provisional_reason",
             "review_period_days",
             "service_level_pct",
         }
     ),
     "fix.demand.rebalance": frozenset(
         {
+            "benefit_basis",
+            "benefit_value",
             "notes",
             "part_id",
             "product_id",
@@ -87,10 +92,22 @@ WRITABLE = {
             "product_id",
         }
     ),
+    "fix.import.advance": frozenset(
+        {
+            "amount",
+            "bank",
+            "currency_id",
+            "guarantee_ref",
+            "order_id",
+            "purpose",
+        }
+    ),
     "fix.import.arrival": frozenset(
         {
             "bl_no",
             "cnf_agent_id",
+            "demurrage_cause",
+            "demurrage_note",
             "eta",
             "etd",
             "free_days",
@@ -110,7 +127,6 @@ WRITABLE = {
             "line_ids",
             "order_id",
             "payment_ref",
-            "reversal_reason",
         }
     ),
     "fix.import.boe.line": frozenset(),
@@ -154,6 +170,7 @@ WRITABLE = {
     "fix.import.landed": frozenset(
         {
             "allocation_method",
+            "bank_charges",
             "clearing_charges",
             "duty_estimate",
             "freight",
@@ -187,9 +204,12 @@ WRITABLE = {
     "fix.import.lc.payment": frozenset(
         {
             "amount",
+            "boe_id",
             "lc_id",
             "payment_date",
             "reference",
+            "settlement_rate",
+            "settlement_rate_source",
         }
     ),
     "fix.import.lca": frozenset(
@@ -259,6 +279,8 @@ WRITABLE = {
     "fix.import.shipdoc": frozenset(
         {
             "doc_type",
+            "document",
+            "document_name",
             "order_id",
             "received_on",
             "ref",

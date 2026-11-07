@@ -45,6 +45,12 @@ class M43:
                 "unit_cost": 1000.0,
             }
         )
+        self.vendor = env["res.partner"].create(
+            {"name": "M43 Supplier %s" % self.tag, "is_company": True}
+        )
+        self.supplier = env["fix.supplier"].create(
+            {"name": self.vendor.name, "partner_id": self.vendor.id, "status": "active"}
+        )
         self.branch = env["fix.branch"].search([], limit=1) or self._make_branch()
         self.loc = self.location("A")
         self.loc2 = self.location("B")
@@ -187,6 +193,7 @@ class M43:
             "part_id": self.part.id,
             "location_id": self.loc.id,
             "operating_unit_id": self.ou.id,
+            "vendor_id": self.vendor.id,
         }
         vals.update(kw)
         return self.env["fix.demand.plan"].with_user(user or self.planner).create(vals)

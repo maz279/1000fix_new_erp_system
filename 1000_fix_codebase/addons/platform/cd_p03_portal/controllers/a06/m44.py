@@ -8,13 +8,18 @@
 # filtered to the companies the caller has selected, never sudo().search([]).
 import datetime
 
-from .writable import WRITABLE as _WRITABLE
+from odoo import fields
 
 SURFACES = {
     "fix.import.order": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_receive"},
+        "actions": {"action_receive", "action_close"},
+    },
+    "fix.import.advance": {
+        "order": "create_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_request", "action_approve", "action_reject", "action_cancel"},
     },
     "fix.import.proforma": {
         "order": "issued_on desc, id desc",
@@ -60,7 +65,13 @@ SURFACES = {
     "fix.import.boe": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_assess", "action_pay", "action_reverse"},
+        "actions": {
+            "action_assess",
+            "action_accept_variance",
+            "action_cancel_assessed",
+            "action_pay",
+            "action_reverse",
+        },
     },
     "fix.import.boe.line": {"order": "boe_id, id", "limit": 400, "actions": set()},
     "fix.import.landed": {
@@ -68,13 +79,6 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_post_estimate", "action_finalise"},
     },
-}
-
-# Surfaces added by the A06 remediation (tariff master, LC amendments and
-# payments). They are served once the lead regenerates writable.py from the
-# forms in static/src/a06/m44.js (controllers/form_fields.py --a06):
-# controllers/a06/__init__.py requires a WRITABLE entry for every surface.
-NEW_SURFACES = {
     "fix.import.tariff": {
         "order": "hs_code, date_from desc",
         "limit": 300,
@@ -93,7 +97,7 @@ NEW_SURFACES = {
     "fix.import.lc.payment": {
         "order": "payment_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_link_boe"},
     },
     "fix.import.restriction": {
         "order": "hs_code_pattern, date_from desc",
@@ -116,9 +120,6 @@ NEW_SURFACES = {
         "actions": {"action_verify", "action_cancel"},
     },
 }
-for _model, _conf in NEW_SURFACES.items():
-    if _model in _WRITABLE:
-        SURFACES[_model] = _conf
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -449,7 +450,7 @@ def demurrage_avoidance(env, date_from=None, date_to=None, **params):
 def _open_fx_orders(env):
     bdt = env.ref("base.BDT")
     return _orders(env).filtered(
-        lambda o: o.currency_id != bdt and o.state not in ("received", "landed")
+        lambda o: o.currency_id != bdt and o.state not in ("received", "landed", "closed")
     )
 
 
@@ -563,7 +564,163 @@ def cnf_management(env, date_from=None, date_to=None, **params):
     )
 
 
+def boe_remittance(env, date_from=None, date_to=None, **params):
+    """Scorecard 25: every live Bill of Entry against the LC payments linked to
+    it, and every LC payment with no Bill of Entry."""
+    from odoo.addons.cd_import_order.models.fix_import_common import (
+        PARAM_BOE_REMITTANCE_DAYS,
+        param_float,
+    )
+
+    days = int(param_float(env, PARAM_BOE_REMITTANCE_DAYS, 120.0))
+    day = fields.Date.context_today(env["fix.import.boe"])
+    rows = []
+    for bill in _scoped(env, "fix.import.boe", [("state", "in", ("assessed", "paid"))]):
+        payments = env["fix.import.lc.payment"].search([("boe_id", "=", bill.id)])
+        age = (day - bill.boe_date).days if bill.boe_date else 0
+        rows.append(
+            {
+                "kind": "Bill of Entry",
+                "ref": bill.boe_no,
+                "order": bill.order_id.name,
+                "on": str(bill.boe_date or "—"),
+                "age_days": age,
+                "matched": ", ".join(payments.mapped("reference")) or "—",
+                "paid_bdt": round(sum(payments.mapped("amount_bdt")), 2),
+                "status": "Matched"
+                if payments
+                else ("Overdue" if age > days else "Awaiting remittance"),
+            }
+        )
+    for pay in _scoped(env, "fix.import.lc.payment", [("boe_id", "=", False)]):
+        age = (day - pay.payment_date).days if pay.payment_date else 0
+        rows.append(
+            {
+                "kind": "LC payment",
+                "ref": pay.reference,
+                "order": pay.lc_id.order_id.name,
+                "on": str(pay.payment_date or "—"),
+                "age_days": age,
+                "matched": "—",
+                "paid_bdt": round(pay.amount_bdt, 2),
+                "status": "Overdue" if age > days else "Awaiting Bill of Entry",
+            }
+        )
+    rows.sort(key=lambda r: (r["status"] != "Overdue", -r["age_days"]))
+    overdue = len([r for r in rows if r["status"] == "Overdue"])
+    return _pack(
+        "Bill of Entry to Remittance — %d overdue" % overdue,
+        ["kind", "ref", "order", "on", "age_days", "matched", "paid_bdt", "status"],
+        {
+            "kind": "Document",
+            "ref": "Reference",
+            "order": "Import",
+            "on": "Date",
+            "age_days": "Age (days)",
+            "matched": "Matched To",
+            "paid_bdt": "Remitted (BDT)",
+            "status": "Status",
+        },
+        rows,
+        [
+            "Overdue = no match after %d days (cd_import_order.boe_remittance_match_days). The "
+            "default of 120 days stands for Bangladesh Bank's 4-month Bill of Entry guideline; "
+            "Finance confirms it. A daily job flags each overdue document once. An import paid by "
+            "advance has no LC payment to link and shows here until treasury's payment is matched "
+            "outside M44." % days
+        ],
+        empty="No assessed or paid Bill of Entry and no LC payment yet.",
+    )
+
+
+CHECKLIST_DOCS = (
+    ("bl", "Bill of Lading"),
+    ("invoice", "Commercial Invoice"),
+    ("packing", "Packing List"),
+    ("coo", "Certificate of Origin"),
+    ("insurance", "Insurance Certificate"),
+)
+
+
+def _doc_status(docs):
+    """The best status among the documents of one type on an order."""
+    if not docs:
+        return "Missing"
+    for state, text in (("verified", "Verified"), ("received", "Received"), ("pending", "Pending")):
+        hit = docs.filtered(lambda d, s=state: d.state == s)
+        if hit:
+            return "%s (file)" % text if hit.filtered("document") else "%s (no file)" % text
+    return "Missing"
+
+
+def document_checklist(env, date_from=None, date_to=None, **params):
+    """Scorecard 28: which documents each order's ASYCUDA / BSW pack holds."""
+    from odoo.addons.cd_import_order.models.fix_import_common import PARAM_BOE_DOCS, param
+
+    raw = param(env, PARAM_BOE_DOCS) or "bl,invoice,packing"
+    required = [d.strip() for d in raw.split(",") if d.strip()]
+    labels = dict(CHECKLIST_DOCS)
+    rows = []
+    for order in _orders(env):
+        docs = env["fix.import.shipdoc"].search([("order_id", "=", order.id)])
+        row = {"order": order.name, "state": _label(order, "state")}
+        for code, _text in CHECKLIST_DOCS:
+            row[code] = _doc_status(docs.filtered(lambda d, c=code: d.doc_type == c))
+        missing = [
+            labels.get(code, code)
+            for code in required
+            if not docs.filtered(lambda d, c=code: d.doc_type == c and d.state != "pending")
+        ]
+        bills = order.boe_ids.filtered(lambda b: b.state != "reversed")
+        row["boe"] = ", ".join(bills.mapped("boe_no")) or "—"
+        row["asycuda"] = ", ".join(filter(None, bills.mapped("asycuda_ref"))) or "—"
+        row["missing"] = ", ".join(missing) or "—"
+        row["pack"] = "Incomplete" if missing else "Complete"
+        rows.append(row)
+    rows.sort(key=lambda r: (r["pack"] == "Complete", r["order"]))
+    incomplete = len([r for r in rows if r["pack"] == "Incomplete"])
+    return _pack(
+        "Document Checklist — ASYCUDA and BSW document pack, %d incomplete" % incomplete,
+        [
+            "order",
+            "state",
+            "bl",
+            "invoice",
+            "packing",
+            "coo",
+            "insurance",
+            "boe",
+            "asycuda",
+            "missing",
+            "pack",
+        ],
+        {
+            "order": "Import",
+            "state": "State",
+            "bl": "B/L",
+            "invoice": "Invoice",
+            "packing": "Packing List",
+            "coo": "Origin Cert.",
+            "insurance": "Insurance",
+            "boe": "Bill of Entry",
+            "asycuda": "ASYCUDA Ref",
+            "missing": "Missing (required)",
+            "pack": "Pack",
+        },
+        rows,
+        [
+            "This is a checklist and document pack, not a live ASYCUDA or BSW integration: nothing "
+            "is sent to or read from customs, and the ASYCUDA reference is typed from the "
+            "assessment notice. Required documents come from "
+            "cd_import_order.boe_required_documents. Files are attached on each shipping document."
+        ],
+        empty="No import orders yet.",
+    )
+
+
 REPORTS = {
+    "boe_remittance": boe_remittance,
+    "document_checklist": document_checklist,
     "incoterms_fx": incoterms_fx,
     "duty_cascade": duty_cascade,
     "landed_cost_by_shipment": landed_cost_by_shipment,
@@ -593,7 +750,9 @@ def kpis(env):
     )
     commitment = sum(o._invoice_value() * (o.fx_rate or 0.0) for o in _open_fx_orders(env))
     return {
-        "open_imports": len(orders.filtered(lambda o: o.state not in ("received", "landed"))),
+        "open_imports": len(
+            orders.filtered(lambda o: o.state not in ("received", "landed", "closed"))
+        ),
         "lc_open": len(lcs.filtered(lambda ln: ln.state in ("applied", "opened"))),
         "boe_unpaid": len(boes.filtered(lambda b: b.state in ("draft", "assessed"))),
         "demurrage_days": sum(rec.demurrage_days or 0 for rec in arrivals),
