@@ -142,6 +142,45 @@ _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
 _FAILED = "The request could not be completed — try again or contact Finance support."
 # how many many2one choices a form carries before its input turns to server search
 _CHOICE_LIMIT = 300
+# what a picker's filter may test. The filter arrives from the client and runs
+# under sudo, so a free text or amount test would let any internal user guess a
+# field they cannot read, one character at a time (a bank account number, say).
+_CHOICE_DOMAIN_TYPES = {"selection", "boolean", "many2one", "many2many", "one2many"}
+_CHOICE_DOMAIN_OPERATORS = {"=", "!=", "in", "not in", ">"}
+_CHOICE_DOMAIN_NUMERIC = {"float", "integer"}
+
+
+def _choice_domain(env, comodel, domain):
+    """A picker's declared filter, checked, or a refusal. Allows workflow tests
+    (state, flags, links) and "this quantity is above zero"; nothing that can
+    read a value out of a field one guess at a time."""
+    domain = domain or []
+    if not isinstance(domain, list | tuple):
+        raise UserError("This list's filter is not valid")
+    for leaf in domain:
+        if leaf in ("&", "|", "!"):
+            continue
+        if not isinstance(leaf, list | tuple) or len(leaf) != 3:
+            raise UserError("This list's filter is not valid")
+        path, operator, value = leaf
+        if not isinstance(path, str) or operator not in _CHOICE_DOMAIN_OPERATORS:
+            raise UserError("This list's filter is not valid")
+        model = env[comodel]
+        target = None
+        for index, part in enumerate(path.split(".")):
+            target = model._fields.get(part)
+            if target is None or target.groups:
+                raise UserError("This list's filter is not valid")
+            if index < path.count("."):
+                if not target.relational:
+                    raise UserError("This list's filter is not valid")
+                model = env[target.comodel_name]
+        numeric_zero = target.type in _CHOICE_DOMAIN_NUMERIC and operator == ">" and value == 0
+        if target.type not in _CHOICE_DOMAIN_TYPES and not numeric_zero:
+            raise UserError("This list's filter is not valid")
+        if target.type in _CHOICE_DOMAIN_TYPES and operator == ">":
+            raise UserError("This list's filter is not valid")
+    return list(domain)
 
 
 class P03GenericApiController(http.Controller):
@@ -596,7 +635,7 @@ class P03GenericApiController(http.Controller):
             if field_type in ("many2one", "many2many"):
                 comodel = env[model]._fields[name].comodel_name
                 entry["comodel"] = comodel
-                domain = spec.get("domain") or []
+                domain = _choice_domain(env, comodel, spec.get("domain"))
                 entry["choices"] = [
                     {"id": r["id"], "label": r["display_name"]}
                     for r in env[comodel]
@@ -689,10 +728,11 @@ class P03GenericApiController(http.Controller):
             return {"error": "This field has no choices"}
         try:
             env[model].check_access("read")
+            domain = _choice_domain(env, target.comodel_name, kw.get("domain"))
             found = (
                 env[target.comodel_name]
                 .sudo()
-                .name_search(name=(q or "").strip(), domain=kw.get("domain") or [], limit=50)
+                .name_search(name=(q or "").strip(), domain=domain, limit=50)
             )
             return {"choices": [{"id": i, "label": label} for i, label in found]}
         except (UserError, AccessError) as exc:
