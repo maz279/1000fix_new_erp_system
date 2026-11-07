@@ -18,7 +18,11 @@ class FixRiskRegisterProjectHandoff(models.Model):
         """
         payload = event.get("payload") or {}
         title = (payload.get("title") or payload.get("name") or "Project risk").strip()
-        project = (payload.get("project") or {}).get("name") or payload.get("project_name") or ""
+        # M67 publishes the project's name; an older payload carries a dict
+        project = payload.get("project")
+        if isinstance(project, dict):
+            project = project.get("name")
+        project = project or payload.get("project_name") or ""
         event_id = event.get("event_id") or ""
         name = "[M67] %s%s" % (title, " — %s" % project if project else "")
         existing = self.sudo().search([("name", "=", name)], limit=1)

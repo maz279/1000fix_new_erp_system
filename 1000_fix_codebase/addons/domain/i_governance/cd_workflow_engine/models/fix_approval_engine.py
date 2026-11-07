@@ -1412,7 +1412,13 @@ class FixWorkflowTask(models.Model):
             )
 
     def _search_is_mine(self, operator, value):
-        mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
+        # Odoo 19 rewrites ('is_mine', '=', True) to ('in', [True]) before this runs. Reading
+        # only "=" negated the domain: the inbox hid the user's tasks and listed everyone else's.
+        if operator in ("in", "not in"):
+            wanted = any(value) if isinstance(value, list | tuple | set) else bool(value)
+            mine = wanted if operator == "in" else not wanted
+        else:
+            mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
         dom = [
             "|",
             ("assigned_user_id", "=", self.env.uid),

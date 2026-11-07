@@ -216,6 +216,31 @@ APPROVERS = [
         ["cd_device_registry.group_device_quality_manager"],
     ),
     (
+        "seed.a07.device.branch2@1000fix.local",
+        "সেলিনা আক্তার (Device Registry Branch Manager)",
+        ["cd_device_registry.group_device_branch_manager"],
+    ),
+    (
+        "seed.a07.qc.inspector@1000fix.local",
+        "শফিকুল ইসলাম (QC Inspector)",
+        ["cd_workshop.group_fix_workshop_qc_inspector", "cd_service_order.group_so_qc_inspector"],
+    ),
+    (
+        "seed.a07.dispatcher@1000fix.local",
+        "মিজানুর রহমান (Field Service Dispatcher)",
+        ["cd_field_service.group_fix_field_service_user"],
+    ),
+    (
+        "seed.a07.logistics2@1000fix.local",
+        "পারভীন সুলতানা (Fleet Logistics Manager)",
+        ["cd_vehicle_ext.group_logistics_manager"],
+    ),
+    (
+        "seed.a07.hse@1000fix.local",
+        "আবদুল্লাহ আল মামুন (HSE Officer)",
+        ["cd_hse.group_hse_officer"],
+    ),
+    (
         "seed.a07.cal.technician@1000fix.local",
         "আরিফুল ইসলাম (Calibration Technician)",
         ["cd_equipment_register.group_calibration_technician"],

@@ -3211,7 +3211,7 @@
                                                         <span t-if="fm.required" class="d365-req">*</span>
                                                     </label>
                                                     <!-- read-only values render as D365 locked text -->
-                                                    <div t-if="fm.readonly and (fm.type === 'binary' or fm.type === 'file')" class="d365-ro" t-att-id="fldId">
+                                                    <div t-if="fm.readonly &amp;&amp; (fm.type === 'binary' || fm.type === 'file')" class="d365-ro" t-att-id="fldId">
                                                         <a t-if="formFieldValue(field.name)" t-att-href="formFileDownloadHref(field.name)" t-att-download="formFileName(field.name)" target="_blank">
                                                             ⬇️ <t t-esc='t("Download / View")'/>: <t t-esc="formFileName(field.name)"/>
                                                         </a>
@@ -3228,7 +3228,7 @@
                                                         </t>
                                                     </select>
                                                     <!-- many2one on a long comodel: search as you type -->
-                                                    <div t-elif="fm.type === 'many2one' and fm.remote" class="d365-lookup"
+                                                    <div t-elif="fm.type === 'many2one' &amp;&amp; fm.remote" class="d365-lookup"
                                                          t-on-focusout="(ev) => this.formLookupClose(field.name, ev)">
                                                         <input type="search" class="d365-input" autocomplete="off" role="combobox"
                                                                t-att-id="fldId" t-att-name="field.name"
@@ -3379,7 +3379,7 @@
                                             <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
-                                                    <span t-if="lf.readonly or formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
+                                                    <span t-if="lf.readonly || formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
                                                     <select t-elif="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
                                                             t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                             t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">

@@ -115,6 +115,22 @@ def test_completing_an_action_waits_for_its_order(c, op):  # noqa: F811
     assert a.state == "done" and p.outcome == "confirmed"
 
 
+def test_an_action_cannot_finish_while_its_demand_has_no_order(c, op):  # noqa: F811
+    """The journeys on live data finished an action, and recorded its finding as confirmed,
+    with its demand still waiting for a site and no order ever raised."""
+    e, p = _m48(c)
+    c.env["fix.iot.device"].search([("equipment_id", "=", e.id)]).write({"site_id": False})
+    e.write({"branch_id": False})
+    a = _dispatch(c, p)
+    _deliver(c, "iot.action_dispatched", a)
+    demand = c.env["fix.maintenance.demand"].search([("iot_action_id", "=", a.id)])
+    assert demand.state == "pending" and not demand.work_order_id
+    a.write({"outcome_evidence_ref": "JC-9"})
+    with pytest.raises(REFUSED, match="has no order yet"), c.env.cr.savepoint():
+        a.with_user(op).action_done(outcome="confirmed", note="found")
+    assert a.state == "dispatched" and p.outcome == "pending"
+
+
 def test_an_action_with_no_routed_order_completes(c, op):  # noqa: F811
     _e, p = _m48(c)
     a = _dispatch(c, p)

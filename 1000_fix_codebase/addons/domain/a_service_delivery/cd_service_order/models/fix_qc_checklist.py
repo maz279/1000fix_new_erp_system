@@ -85,22 +85,22 @@ class FixQC(models.Model):
     # --- A02 Enterprise Data Capture (M01 QC Checklist Multi-Tab Specification) ---
     visual_inspection_passed = fields.Boolean(
         string="Cosmetic & Housing Assembly Verified",
-        default=True,
+        default=False,
         tracking=True,
     )
     functional_test_passed = fields.Boolean(
         string="Full Hardware & I/O Functional Test Passed",
-        default=True,
+        default=False,
         tracking=True,
     )
     safety_electrical_passed = fields.Boolean(
         string="Electrical Grounding & Thermal Safety Passed",
-        default=True,
+        default=False,
         tracking=True,
     )
     cleaning_sanitization_passed = fields.Boolean(
         string="Ultrasonic / Isopropyl Sanitization Completed",
-        default=True,
+        default=False,
         tracking=True,
     )
     test_report_attachment_id = fields.Many2one(
@@ -158,12 +158,39 @@ class FixQC(models.Model):
                 "inspect it." % order.name
             )
 
+    def _fix_items_from_stages(self):
+        """The form's four inspection stages are the checklist a person completes, so
+        they become its items, passed or not. A checklist with items keeps them; one
+        with no stage ticked has inspected nothing and stays refused."""
+        stages = (
+            "visual_inspection_passed",
+            "functional_test_passed",
+            "safety_electrical_passed",
+            "cleaning_sanitization_passed",
+        )
+        Item = self.env["fix.qc.item"].sudo()
+        for rec in self:
+            if rec.item_ids or not any(rec[name] for name in stages):
+                continue
+            for sequence, name in enumerate(stages, start=1):
+                Item.create(
+                    {
+                        "checklist_id": rec.id,
+                        "name": rec._fields[name].string,
+                        "passed": rec[name],
+                        "sequence": sequence * 10,
+                    }
+                )
+
     def action_complete(self):
         for rec in self:
             if rec.state in _DONE:
                 raise UserError("This QC checklist is already %s." % rec.state)
+            rec._fix_items_from_stages()
             if not rec.item_ids:
-                raise ValidationError("QC checklist must have at least one item.")
+                raise ValidationError(
+                    "QC checklist must have at least one item: tick the stages you inspected."
+                )
             rec._fix_assert_independent()
             passed = rec.all_passed
             employee = self.env.user.employee_id

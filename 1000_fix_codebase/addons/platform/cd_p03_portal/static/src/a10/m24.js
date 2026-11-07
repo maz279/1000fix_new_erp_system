@@ -99,7 +99,7 @@ export const SCREENS = {
       { title: 'Document', note: 'Name, type and retention class; the retention expiry is computed from the class and the creation date, and a legal hold overrides disposal.',
         fields: [
           { name: 'upload_file', type: 'file', required: true, label: 'File' },
-          { name: 'upload_filename', readonly: true, label: 'File Name' },
+          { name: 'upload_filename', label: 'File Name' },
           { name: 'name', required: true, label: 'Document Name' },
           { name: 'name_bn', label: 'Name (Bengali)' },
           { name: 'document_type', required: true, label: 'Document Type' },

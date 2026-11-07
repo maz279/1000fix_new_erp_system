@@ -568,6 +568,8 @@ WRITABLE = {
             "evidence_type",
             "job_id",
             "name",
+            "upload_file",
+            "upload_filename",
         }
     ),
     "fix.workshop.job": frozenset(

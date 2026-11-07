@@ -326,6 +326,10 @@ class FixIotActionSpineLink(models.Model):
                 self.env["fix.facility.work.order"].sudo().search([("iot_action_id", "=", rec.id)])
                 | demands.work_order_id
             )
+            for demand in demands.filtered(lambda d: d.state == "pending"):
+                blockers.append(
+                    "%s has no order yet (%s)" % (demand.name, demand.blocker or "not routed")
+                )
             for wo in orders.filtered(lambda w: w.state in WO_OPEN):
                 blockers.append("work order %s is still open" % wo.name)
             for so in demands.service_order_id.filtered(lambda s: s.state not in SO_CLOSED):

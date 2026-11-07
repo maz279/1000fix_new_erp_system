@@ -323,7 +323,9 @@ export const SCREENS = {
         ] },
       { tab: 'document', title: "cd_document_core Unified Storage Link (AS-01)",
         fields: [
-          { name: 'document_id', required: true, label: "Governed Document Record" },
+          { name: 'upload_file', type: 'file', label: "Evidence File" },
+          { name: 'upload_filename', label: "File Name" },
+          { name: 'document_id', label: "Or an Existing Document" },
           { name: 'attachment_id', label: "Underlying Binary File Attachment", readonly: true },
           { name: 'isolation_tier', label: "Data Residency Isolation Tier", readonly: true }
         ] }

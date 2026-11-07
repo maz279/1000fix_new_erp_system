@@ -262,3 +262,24 @@ def test_bridge_refuses_closed(fx):
     fx.env.invalidate_all()
     with pytest.raises(UserError, match="can no longer be dispatched"):
         fx.order.action_create_field_order()
+
+
+def test_a_suggestion_says_what_the_gate_will_say_about_the_brand(fx):
+    """On live data the board marked technicians certified, then dispatch refused all 21 tried:
+    the board asked about the device type, the gate about the brand as well."""
+    env = fx.env
+    wrong_brand = env["hr.employee"].create({"name": "FX Other Brand Tech"})
+    right_brand = env["hr.employee"].create({"name": "FX Same Brand Tech"})
+    other = env["fix.brand"].create({"name": "FxOtherBrand", "code": "FXOB"})
+    _certify(env, wrong_brand).write({"brand_id": other.id})
+    _certify(env, right_brand).write({"brand_id": fx.order.device_id.device_model_id.brand_id.id})
+    for tech in (wrong_brand, right_brand):
+        env["fix.work.order"].create({"order_id": fx.order.id, "technician_id": tech.id})
+
+    fo = _field_order(fx)
+    suggestions = {s["name"]: s for s in fo.action_suggest_technicians(limit=50)}
+    assert fo._fix_certification_problem(wrong_brand)
+    assert not fo._fix_certification_problem(right_brand)
+    assert "certified" in str(suggestions["FX Same Brand Tech"]["reason"])
+    wrong = str(suggestions["FX Other Brand Tech"]["reason"])
+    assert "certified" not in wrong.replace("not certified", "") and "cert:" in wrong

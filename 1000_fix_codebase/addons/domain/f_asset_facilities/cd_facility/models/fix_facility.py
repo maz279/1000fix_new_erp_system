@@ -983,6 +983,8 @@ class FixFacilityWorkOrder(models.Model):
                         "Only a Facility Manager may take the permit-to-work requirement "
                         "off a high-risk job."
                     )
+            if "actual_cost" in vals and _changes(self, {"actual_cost": vals["actual_cost"]}):
+                self._wo_require_worker("Recording the actual cost")
             frozen = {k: vals[k] for k in WO_FROZEN_FIELDS if k in vals}
             if frozen and _changes(
                 self.filtered(lambda r: r.state in WO_COST_FROZEN_STATES), frozen
@@ -1023,6 +1025,18 @@ class FixFacilityWorkOrder(models.Model):
         if not self.env.su and not self.env.user.has_group("cd_facility.group_facility_manager"):
             raise UserError("%s is done by a Facility Manager." % what)
 
+    def _wo_require_worker(self, what):
+        """Anyone may report a fault. The work belongs to a Facility Manager or to the
+        engineer it is assigned to; a vendor's job is run by the Facility Manager."""
+        if self.env.su or self.env.user.has_group("cd_facility.group_facility_manager"):
+            return
+        for rec in self:
+            if rec.sudo().assigned_to.user_id != self.env.user:
+                raise UserError(
+                    "%s of %s is done by a Facility Manager or its assigned engineer."
+                    % (what, rec.name)
+                )
+
     def action_triage(self, priority=None):
         """Give an open request its priority (BRU-FAC-08). Done again, it
         changes the priority and records who changed it."""
@@ -1052,6 +1066,7 @@ class FixFacilityWorkOrder(models.Model):
         return super().action_request_approval(justification=justification)
 
     def action_schedule(self, date=None):
+        self._wo_require_manager("Scheduling a work order")
         self._wo_require_state(("draft",), "be scheduled")
         self._wo_assert_triaged()
         for rec in self:
@@ -1067,6 +1082,7 @@ class FixFacilityWorkOrder(models.Model):
         return True
 
     def action_start(self):
+        self._wo_require_worker("Starting the work")
         self._wo_require_state(("scheduled",), "be started")
         for rec in self:
             # an estimate raised after scheduling voided the approval
@@ -1078,6 +1094,7 @@ class FixFacilityWorkOrder(models.Model):
     def action_complete(self, notes=None):
         """Complete with evidence (BRU-FAC-07). An actual cost above the
         approved amount needs re-approval first."""
+        self._wo_require_worker("Completing the work")
         self._wo_require_state(("in_progress",), "be completed")
         for rec in self:
             evidence = (notes or rec.completion_notes or "").strip()
