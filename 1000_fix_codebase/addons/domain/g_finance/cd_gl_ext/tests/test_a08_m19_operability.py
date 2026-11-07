@@ -228,11 +228,23 @@ def _vals(c, amount=1000.0, d=None, debit=None, credit=None, ref="A08 op"):
     }
 
 
+def _line_dims(c, lines=2):
+    """The dimensions a person states on a manual journal: on the linked chart a bank
+    line needs a branch, and the screen's journal editor offers one per line."""
+    from odoo.addons.cd_gl_ext.models import fix_gl_ext
+
+    branch = fix_gl_ext._default_dimension(c.env, c.co, "branch")
+    return {
+        i: {"branch_id": branch, "cost_centre": "CORP", "business_line": "SERVICE"}
+        for i in range(lines)
+    }
+
+
 def draft_je(c, user, amount=1000.0, **kw):
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import create_journal_entry_draft
 
     move, log = create_journal_entry_draft(
-        c.env(user=user.id), _vals(c, amount, **kw), {}, source="manual", reason="op"
+        c.env(user=user.id), _vals(c, amount, **kw), _line_dims(c), source="manual", reason="op"
     )
     # The preparer's request ends here. One transaction hosts every user in this
     # test, so without this the line writes would flush under whoever acts next,
@@ -745,9 +757,7 @@ def test_screens_the_sweep_called_empty_return_rows_for_a_posted_ledger(c, p03):
     `.fx-card .fx-table`. Their data is what decides, so it is read here."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
-    post_with_dimensions(
-        c.env(user=c.acct.id), _vals(c, 700.0), {0: {"cost_centre": "CC-OP"}}, source="api"
-    )
+    post_with_dimensions(c.env(user=c.acct.id), _vals(c, 700.0), _line_dims(c), source="api")
     p03.as_user(c.acct)
     for report in ("trial_balance", "pnl", "balance_sheet", "consolidated"):
         data = p03.statements(report=report)
@@ -843,7 +853,8 @@ def test_subledger_posting_takes_the_default_branch_md035_requires(odoo_env):
     assert move.state == "posted" and branch in dims.mapped("branch_id")
 
 
-def test_a_manual_or_api_journal_never_takes_the_default_branch(odoo_env):
+@pytest.mark.parametrize("source", ["manual", "template", "api"])
+def test_a_manual_or_api_journal_never_takes_the_default_branch(odoo_env, source):
     """A person states the dimension: the default exists only for sub-ledgers."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
@@ -852,4 +863,34 @@ def test_a_manual_or_api_journal_never_takes_the_default_branch(odoo_env):
     branch = _head_office(env)
     env["ir.config_parameter"].sudo().set_param("cd_gl_ext.default_branch_code", branch.code)
     with pytest.raises(UserError, match="branch"), env.cr.savepoint():
-        post_with_dimensions(env, dict(vals), {}, source="api")
+        post_with_dimensions(env, dict(vals), {}, source=source)
+
+
+def test_a_left_behind_draft_with_no_dimensions_can_be_routed_and_says_so(c, p03):
+    """The live RDEP rental-deposit drafts: on the bank account with no dimensions and
+    nowhere on screen to add them. Refused for want of a branch, they could never be
+    routed. The approver sees what the entry was given before deciding."""
+    move = c.env["account.move"].create(_vals(c, 1200.0, ref="RDEP left behind"))
+    lines = move.line_ids
+    Dim = c.env["fix.journal.dimension"]
+    assert not Dim.search_count([("move_line_id", "in", lines.ids)])
+    p03.as_user(c.acct2)
+    res = p03.je_route(move_id=move.id, reason="Rental deposit collected")
+    assert res["success"], res
+    bank_line = lines.filtered(lambda line: line.account_id == c.cash)
+    row = Dim.search([("move_line_id", "=", bank_line.id)])
+    assert row.branch_id.code == "HO"
+    assert any("defaults were applied" in (m.body or "") for m in move.message_ids)
+    # routing twice does not stack a second dimension row
+    res = p03.je_route(move_id=move.id, reason="Rental deposit collected")
+    assert len(Dim.search([("move_line_id", "=", bank_line.id)])) == 1
+
+
+@pytest.mark.parametrize("journal_kind", ["manual"])
+def test_a_person_must_still_state_the_branch_on_a_new_journal(c, journal_kind):
+    """The left-behind fill is only for drafts: a new manual journal with no branch
+    is refused at the door, so a person cannot skip the choice by leaving it blank."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import create_journal_entry_draft
+
+    with pytest.raises(UserError, match="branch"), c.env.cr.savepoint():
+        create_journal_entry_draft(c.env(user=c.acct.id), _vals(c, 500.0), {}, source=journal_kind)

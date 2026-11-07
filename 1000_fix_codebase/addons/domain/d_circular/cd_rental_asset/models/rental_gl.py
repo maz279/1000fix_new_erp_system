@@ -15,7 +15,7 @@
 #     for invoices;
 #   * cash/bank/MFS tender accounts are M20's, so a deposit lands where an
 #     invoice receipt of the same tender lands.
-from odoo import fields
+from odoo import fields, models
 from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account, _ar_journal
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import UserError
@@ -89,6 +89,18 @@ def tender_account(env, company, method):
     return account
 
 
+class FixJournalPostingLogRental(models.Model):
+    """Rentals as a posting source in M19's posting log: an automated sub-ledger,
+    so a rental with no booking branch takes the company default (MD-035)."""
+
+    _inherit = "fix.journal.posting.log"
+
+    source = fields.Selection(
+        selection_add=[("rental_subledger", "Rentals Sub-ledger (M13)")],
+        ondelete={"rental_subledger": lambda recs: recs.write({"source": "api"})},
+    )
+
+
 def posting_dims(env, reservation):
     """Dimensions of a rental posting: the booking branch, the configured
     cost centre, the rental business line and the reservation's operating
@@ -145,6 +157,6 @@ def post_rental_move(env, reservation, date, ref, lines):
             ],
         },
         {idx: dims for idx in range(len(lines))},
-        source="api",
+        source="rental_subledger",
     )
     return move

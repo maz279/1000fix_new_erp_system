@@ -792,6 +792,7 @@ class FixFestivalBonusRun(models.Model):
                 idx: {"operating_unit_id": self.operating_unit_id.id or False}
                 for idx in range(len(lines))
             },
+            source="payroll_subledger",
         )
         return move
 
@@ -1695,6 +1696,7 @@ class FixOffcyclePayment(models.Model):
                 "line_ids": [Command.create(line) for line in lines],
             },
             {idx: {"operating_unit_id": False} for idx in range(len(lines))},
+            source="payroll_subledger",
         )
         return move
 

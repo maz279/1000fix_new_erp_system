@@ -1004,7 +1004,7 @@ def _fill_subledger_dimensions(env, move, dimension_by_line, source):
     So a sub-ledger line takes the company default for a dimension the chart
     requires and the caller did not give. Manual and API journals never do, and
     with no default configured the COA-03 refusal stands. Returns the filled map."""
-    if source in MANUAL_POSTING_SOURCES or source == "api":
+    if source in PERSON_STATES_DIMENSIONS:
         return dimension_by_line
     chart_map = _chart_map_for_company(env, move.company_id.id)
     if not chart_map:
@@ -1173,6 +1173,10 @@ def _publish_posted(env, move, source):
 # rule. Engine/subledger sources (settlement, suspense, platform API seams)
 # may legitimately post on control accounts.
 MANUAL_POSTING_SOURCES = ("manual", "template", "allocation")
+# A person states these dimensions: on the journal, or on the template's lines. "api"
+# is a caller that must pass its own. An allocation is split by a rule, with no one
+# to ask, so it takes the default for a dimension its rule leaves blank.
+PERSON_STATES_DIMENSIONS = ("manual", "template", "api")
 
 
 def _m19_post(env, moves, source):
@@ -1333,6 +1337,44 @@ def _check_reviewable_draft(env, move, what):
         )
 
 
+def _fill_left_behind_dimensions(env, move):
+    """A draft raised through the M19 API always has its dimensions: the chart is
+    checked as it is created. One with none was left behind by a sub-ledger (the
+    live RDEP rental-deposit drafts) and the screen has nowhere to add them, so it
+    could never be routed. Such a line takes the sub-ledger default. The entry says
+    so, and the approver sees the dimensions on the entry before deciding."""
+    dims = _dimensions_of_move(env, move)
+    filled = _fill_subledger_dimensions(env, move, dims, "subledger_left_behind")
+    new = {idx: vals for idx, vals in filled.items() if vals != dims.get(idx)}
+    if not new:
+        return
+    existing = (
+        env["fix.journal.dimension"].sudo().search([("move_line_id", "in", move.line_ids.ids)])
+    )
+    lines = list(move.line_ids)
+    for idx, vals in new.items():
+        row = existing.filtered(lambda d, line=lines[idx]: d.move_line_id == line)
+        if row:
+            row.write(
+                {
+                    key: vals[key]
+                    for key in ("branch_id", "cost_centre", "business_line")
+                    if vals.get(key) and not row[key]
+                }
+            )
+    first_time = {
+        idx: vals
+        for idx, vals in new.items()
+        if not existing.filtered(lambda d, line=lines[idx]: d.move_line_id == line)
+    }
+    if first_time:
+        _attach_dimensions(env(su=True), move, first_time)
+    move.sudo().message_post(
+        body="Dimensions the statutory chart requires were missing on this left-behind draft; "
+        "the company defaults were applied when it was routed. Review them before approving."
+    )
+
+
 def route_journal_entry(env, move, reason=None):
     """Send a draft entry for review (M19-2). Three drafts need this: one with
     no approval yet (raised before the maker-checker existed, or by a sub-ledger
@@ -1346,6 +1388,7 @@ def route_journal_entry(env, move, reason=None):
     reason = (reason or "").strip() or (move.ref or "").strip()
     if not reason:
         raise UserError("State the reason / narrative of the manual journal (BRU-FIN-16).")
+    _fill_left_behind_dimensions(env, move)
     _validate_move_against_chart(env, move, _dimensions_of_move(env, move), "manual")
     move._fix_check_not_in_closed_period()
     Approval = env["fix.journal.approval"]

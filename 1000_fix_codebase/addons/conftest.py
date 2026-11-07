@@ -172,6 +172,137 @@ def odoo_env(odoo_registry):
         _discard_env(env)
 
 
+# ---------------------------------------------------------------------------
+# The statutory chart, as on the live database (A08, 7 Nov 2026).
+#
+# Live links MD-035 to the Odoo chart, and that switches on its posting rules:
+# a line on the bank account needs a branch, VAT a branch and cost centre, TDS a
+# cost centre. The test database has no statutory chart, so no ledger test ever
+# met those rules: payments were refused on the first real run, and no bill could
+# be marked paid, while every test passed. So the suites that post to the ledger
+# run on the linked chart, loaded the way production loads it, in the test's own
+# rolled-back transaction. A test ABOUT the chart itself opts out with
+# @pytest.mark.unlinked_chart.
+# ---------------------------------------------------------------------------
+LINKED_CHART_SUITES = (
+    "/g_finance/",
+    "/cd_multi_entity/",
+    "/cd_payroll_bd/",
+    "/cd_import_order/",
+    "/cd_rental_asset/",
+)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "unlinked_chart: this test is about the statutory chart, so it starts without it"
+    )
+
+
+def link_statutory_chart(env):
+    """Load and link MD-035 for the company, with the sub-ledger default dimensions."""
+    company = env.company
+    loader = env["fix.chart.loader"].sudo().create({"company_id": company.id})
+    loader.action_load_from_csv()
+    loader.action_link_odoo_accounts()
+    params = env["ir.config_parameter"].sudo()
+    params.set_param("cd_gl_ext.default_branch_code", "HO")
+    params.set_param("cd_gl_ext.default_cost_centre", "CORP")
+    params.set_param("cd_gl_ext.default_business_line", "SERVICE")
+
+
+def _head_office_branch(env, company):
+    """The default branch, made on first need: a test that sets up its own entity
+    for the company must not meet one this harness already created."""
+    Branch = env["fix.branch"].sudo()
+    branch = Branch.search([("code", "=", "HO"), ("company_id", "=", company.id)], limit=1)
+    if branch:
+        return branch
+    unit = env["operating.unit"].sudo().search([("company_id", "=", company.id)], limit=1)
+    if not unit:
+        return Branch
+    entity = env["fix.entity"].sudo().search([("company_id", "=", company.id)], limit=1)
+    if not entity:
+        entity = (
+            env["fix.entity"]
+            .sudo()
+            .create(
+                {"code": "E%s" % company.id, "legal_name": company.name, "company_id": company.id}
+            )
+        )
+    return Branch.create(
+        {
+            "code": "HO",
+            "name": "Test Head Office",
+            "entity_id": entity.id,
+            "operating_unit_id": unit.id,
+        }
+    )
+
+
+@pytest.fixture(autouse=True)
+def _statutory_chart_as_on_live(request):
+    path = Path(str(request.node.path)).as_posix()
+    if (
+        not any(suite in path for suite in LINKED_CHART_SUITES)
+        or "odoo_env" not in request.fixturenames
+        or request.node.get_closest_marker("unlinked_chart")
+    ):
+        return
+    env = request.getfixturevalue("odoo_env")
+    link_statutory_chart(env)
+
+    # Many finance tests build a private company. Its accounts carry the real chart
+    # codes, so they get the rules those codes carry on live: otherwise those tests
+    # would pass without ever meeting MD-035, which is the gap this closes.
+    from odoo.addons.cd_gl_ext.models import fix_chart_loader, fix_gl_ext
+
+    home = env.company.id
+    chart_map = fix_gl_ext._chart_map_for_company
+    default_dimension = fix_gl_ext._default_dimension
+
+    def linked_chart_map(env_, company_id):
+        found = chart_map(env_, company_id)
+        if found or company_id == home:
+            return found
+        rows = {
+            row.account_code: row
+            for row in env_["fix.chart.account"]
+            .sudo()
+            .with_context(active_test=False)
+            .search([("company_id", "=", home)])
+        }
+        accounts = (
+            env_["account.account"]
+            .sudo()
+            .with_company(company_id)
+            .search(
+                [
+                    ("company_ids", "in", company_id),
+                    ("code", "in", list(fix_chart_loader.ODOO_CHART_MAPPING)),
+                ]
+            )
+        )
+        for account in accounts:
+            row = rows.get(fix_chart_loader.ODOO_CHART_MAPPING[account.code])
+            if row:
+                found[account.id] = row
+        return found
+
+    def linked_default_dimension(env_, company, dimension):
+        value = default_dimension(env_, company, dimension)
+        # the test company has no head office yet, but only if one is configured at all:
+        # with no default the COA-03 refusal must stand, and a test says so
+        code = env_["ir.config_parameter"].sudo().get_param("cd_gl_ext.default_branch_code")
+        if dimension == "branch" and not value and code:
+            return _head_office_branch(env_, company).id or False
+        return value
+
+    monkeypatch = request.getfixturevalue("monkeypatch")
+    monkeypatch.setattr(fix_gl_ext, "_chart_map_for_company", linked_chart_map)
+    monkeypatch.setattr(fix_gl_ext, "_default_dimension", linked_default_dimension)
+
+
 def _discard_env(env) -> None:
     """Roll back and close a test transaction, whatever the test left pending.
 

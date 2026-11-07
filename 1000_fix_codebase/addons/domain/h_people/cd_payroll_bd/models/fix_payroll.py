@@ -1340,6 +1340,7 @@ class FixPayrollPeriod(models.Model):
                     "line_ids": [Command.create(line) for line in lines],
                 },
                 dims,
+                source="payroll_subledger",
             )
             rec._guarded().write({"gl_move_id": move.id, "state": "posted"})
             gross = sum(slips.mapped("gross"))

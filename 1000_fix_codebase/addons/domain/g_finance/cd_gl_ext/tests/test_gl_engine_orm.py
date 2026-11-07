@@ -593,6 +593,7 @@ class TestJournalTemplates:
 # --------------------------------------------------------------------------- allocations
 
 
+@pytest.mark.unlinked_chart  # arrangement posts a bare movement; the subject is the split
 class TestAllocationRules:
     # A08 M19-14: a rule is never born active; the superuser fixture activates
     # it through the approval step itself.
@@ -694,6 +695,7 @@ class TestAllocationRules:
 # --------------------------------------------------------------------------- statements
 
 
+@pytest.mark.unlinked_chart  # arrangement posts bare movements; the subject is the sums
 class TestStatementComputations:
     def _posted_company(self, env, label, income=500.0, expense=300.0):
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

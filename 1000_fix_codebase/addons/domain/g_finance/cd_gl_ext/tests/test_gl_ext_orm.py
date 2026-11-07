@@ -56,6 +56,7 @@ def _account(env, code="1-10-10-010", **overrides):
 # --------------------------------------------------------------------------- fix.chart.account
 
 
+@pytest.mark.unlinked_chart
 class TestChartAccountConstraints:
     def test_valid_leaf_account_defaults_to_bdt(self, odoo_env):
         acc = _account(odoo_env, requires_dimension="branch;cost_centre")
@@ -112,6 +113,7 @@ class TestChartAccountConstraints:
 # --------------------------------------------------------------------------- fix.chart.loader
 
 
+@pytest.mark.unlinked_chart
 class TestChartLoader:
     def test_load_sample_chart_creates_accounts_and_event(self, odoo_env):
         loader = odoo_env["fix.chart.loader"].create({})
@@ -593,6 +595,7 @@ def _bare_company_move_vals(env, company, amount=100.0):
     }
 
 
+@pytest.mark.unlinked_chart  # the API's own mechanics, with a sparse dimension map
 class TestPostWithDimensions:
     def test_posts_move_and_attaches_dimensions(self, odoo_env):
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

@@ -117,6 +117,18 @@ def _vals(c, d, amount=1000.0, debit=None, credit=None, ref="A08 B3 test", **lin
     }
 
 
+def _line_dims(c, lines=2):
+    """The dimensions a person states on a manual journal: on the linked chart a bank
+    line needs a branch, and the screen's journal editor offers one per line."""
+    from odoo.addons.cd_gl_ext.models import fix_gl_ext
+
+    branch = fix_gl_ext._default_dimension(c.env, c.co, "branch")
+    return {
+        i: {"branch_id": branch, "cost_centre": "CORP", "business_line": "SERVICE"}
+        for i in range(lines)
+    }
+
+
 def je(c, user, d, amount=1000.0, post=True, **kw):
     m = c.env["account.move"].with_user(user).create(_vals(c, d, amount, **kw))
     if post:
@@ -176,7 +188,9 @@ def draft_je(c, user, amount=1000.0, d=None, **kw):
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import create_journal_entry_draft
 
     env = c.env(user=user.id)
-    return create_journal_entry_draft(env, _vals(c, d or c.today, amount, **kw), {}, source="manual")
+    return create_journal_entry_draft(
+        env, _vals(c, d or c.today, amount, **kw), _line_dims(c), source="manual"
+    )
 
 
 @pytest.fixture
@@ -207,7 +221,9 @@ def p03(c):
             periods=lambda **kw: orig(gl.P03GlApiController, "gl_periods")(glctl, **kw),
             je_create=lambda **kw: orig(gl.P03GlApiController, "gl_je_create")(glctl, **kw),
             je_approve=lambda **kw: orig(gl.P03GlApiController, "gl_je_approve")(glctl, **kw),
-            tmpl_create=lambda **kw: orig(gl.P03GlApiController, "gl_templates_create")(glctl, **kw),
+            tmpl_create=lambda **kw: orig(gl.P03GlApiController, "gl_templates_create")(
+                glctl, **kw
+            ),
         )
     finally:
         g.request, s.request, gl.request = old
@@ -223,7 +239,9 @@ def test_m19_P01_close_sets_lock_and_posting_stays_out(c):
     close = proper_close(c)
     assert close.state == "closed" and close.closed_by_id == c.mgr
     assert c.co.fiscalyear_lock_date == PE and close.is_locked
-    move, _d = post_with_dimensions(c.env(user=c.acct.id), _vals(c, IN_PERIOD, 500.0), {}, source="api")
+    move, _d = post_with_dimensions(
+        c.env(user=c.acct.id), _vals(c, IN_PERIOD, 500.0), _line_dims(c), source="api"
+    )
     assert move.state == "posted" and move.date > PE
     with pytest.raises(UserError, match="Period closed"):
         draft_je(c, c.acct, 700.0, d=IN_PERIOD)
@@ -244,8 +262,10 @@ def test_m19_P03_close_by_write_refused(c):
     close.with_user(c.acct).action_generate_standard_steps()
     with pytest.raises(UserError, match="changes only through its workflow"):
         close.with_user(c.acct).write({"state": "closed", "closed_at": fields.Datetime.now()})
-    br = c.env["fix.fiscal.period.bridge"].with_user(c.mgr).create(
-        {"period_close_id": close.id, "company_id": c.co.id}
+    br = (
+        c.env["fix.fiscal.period.bridge"]
+        .with_user(c.mgr)
+        .create({"period_close_id": close.id, "company_id": c.co.id})
     )
     with pytest.raises(UserError, match="before period close is completed"):
         br.with_user(c.mgr).action_lock_journals()
@@ -269,7 +289,9 @@ def test_m19_P05_steps_need_owner_and_real_evidence(c):
     with pytest.raises(AccessError, match="owned by"):
         cfo_step.with_user(c.acct).action_mark_done(evidence)
     with pytest.raises(AccessError, match="owned by"):
-        close.line_ids.filtered(lambda s: s.sequence == 10).with_user(c.acct).action_mark_done(evidence)
+        close.line_ids.filtered(lambda s: s.sequence == 10).with_user(c.acct).action_mark_done(
+            evidence
+        )
     with pytest.raises(UserError, match="changes only through its workflow"):
         step20.with_user(c.acct).write({"state": "done", "evidence_ref": "x"})
     with pytest.raises(UserError, match="changes only through its workflow"):
@@ -294,9 +316,8 @@ def test_m19_P06_reopen_by_write_refused(c):
 
 def test_m19_P07_accountant_cannot_move_company_lock_back(c):
     proper_close(c)
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            c.co.with_user(c.acct).write({"fiscalyear_lock_date": date(2026, 8, 31)})
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        c.co.with_user(c.acct).write({"fiscalyear_lock_date": date(2026, 8, 31)})
     with pytest.raises(UserError, match="moves back only through an approved period reopen"):
         c.co.with_user(c.mgr).write({"fiscalyear_lock_date": date(2026, 8, 31)})
 
@@ -312,12 +333,15 @@ def test_m19_P08_lock_exception_only_through_approved_reopen(c):
         )
     assert try_post(c, c.bill, IN_PERIOD, 40000.0) is None
     end = fields.Datetime.now() + timedelta(days=1)
-    with pytest.raises(ValidationError, match="at most"):
-        with c.env.cr.savepoint():
-            c.env["fix.period.reopen"].with_user(c.acct).create(
-                {"close_id": close.id, "user_id": c.acct.id, "reason": "late accrual",
-                 "end_datetime": fields.Datetime.now() + timedelta(days=30)}
-            )
+    with pytest.raises(ValidationError, match="at most"), c.env.cr.savepoint():
+        c.env["fix.period.reopen"].with_user(c.acct).create(
+            {
+                "close_id": close.id,
+                "user_id": c.acct.id,
+                "reason": "late accrual",
+                "end_datetime": fields.Datetime.now() + timedelta(days=30),
+            }
+        )
     reopen = close.with_user(c.acct).action_request_reopen(
         user_id=c.acct.id, reason="Late utility accrual", end_datetime=end
     )
@@ -379,19 +403,23 @@ def test_m19_P11_p03_write_cannot_close(c, p03):
 
 def test_m19_P12_is_locked_is_read_from_the_company(c, p03):
     close = c.env["fix.period.close"].with_user(c.acct).create({"period_end": date(2026, 8, 31)})
-    br = c.env["fix.fiscal.period.bridge"].with_user(c.acct).create(
-        {"period_close_id": close.id, "company_id": c.co.id}
+    br = (
+        c.env["fix.fiscal.period.bridge"]
+        .with_user(c.acct)
+        .create({"period_close_id": close.id, "company_id": c.co.id})
     )
     try:  # a computed field: the tick is refused or changes nothing
         with c.env.cr.savepoint():
             br.with_user(c.acct).write({"is_locked": True})
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: S110 - the assertion below reads the outcome
         pass
     c.env.invalidate_all()
     assert not br.is_locked and not close.is_locked
     close2 = proper_close(c)
-    br2 = c.env["fix.fiscal.period.bridge"].with_user(c.acct).create(
-        {"period_close_id": close2.id, "company_id": c.co.id}
+    br2 = (
+        c.env["fix.fiscal.period.bridge"]
+        .with_user(c.acct)
+        .create({"period_close_id": close2.id, "company_id": c.co.id})
     )
     assert br2.is_locked
     p03.as_user(c.acct)
@@ -408,9 +436,8 @@ def test_m19_J01_maker_checker_proper_path(c):
     move, log = draft_je(c, c.acct, 1000.0)
     approval = move.fix_journal_approval_id
     assert approval.state == "pending" and approval.dofa_tier_required == "tier_2"
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            approve_journal_entry(c.env(user=c.acct.id), move.with_user(c.acct))
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        approve_journal_entry(c.env(user=c.acct.id), move.with_user(c.acct))
     approve_journal_entry(c.env(user=c.mgr.id), move.with_user(c.mgr))
     assert move.state == "posted" and log.state == "posted" and log.posted_by == c.mgr
     assert approval.state == "posted" and approval.dofa_approved_by == c.mgr
@@ -465,7 +492,12 @@ def test_m19_J05_approved_entry_cannot_be_redrafted_and_reposted(c):
     assert move.fix_journal_approval_id.state == "voided"
     dr, cr_ = move.line_ids.sorted(lambda line: -line.debit)
     move.with_user(c.acct).write(
-        {"line_ids": [Command.update(dr.id, {"debit": 1000000.0}), Command.update(cr_.id, {"credit": 1000000.0})]}
+        {
+            "line_ids": [
+                Command.update(dr.id, {"debit": 1000000.0}),
+                Command.update(cr_.id, {"credit": 1000000.0}),
+            ]
+        }
     )
     with pytest.raises(UserError, match="maker-checker"):
         move.with_user(c.acct).action_post()
@@ -476,7 +508,12 @@ def test_m19_J05b_entry_edited_while_pending_is_refused(c):
     move, _log = draft_je(c, c.acct, 1000.0)
     dr, cr_ = move.line_ids.sorted(lambda line: -line.debit)
     move.with_user(c.acct).write(
-        {"line_ids": [Command.update(dr.id, {"debit": 9000.0}), Command.update(cr_.id, {"credit": 9000.0})]}
+        {
+            "line_ids": [
+                Command.update(dr.id, {"debit": 9000.0}),
+                Command.update(cr_.id, {"credit": 9000.0}),
+            ]
+        }
     )
     with pytest.raises(UserError, match="changed after it was routed"):
         approve_as(c, move.fix_journal_approval_id, c.mgr)
@@ -484,20 +521,19 @@ def test_m19_J05b_entry_edited_while_pending_is_refused(c):
 
 
 def test_m19_J06_unbalanced_entry_refused(c):
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            m = c.env["account.move"].create(
-                {
-                    "move_type": "entry",
-                    "journal_id": c.misc.id,
-                    "date": c.today,
-                    "line_ids": [
-                        Command.create({"account_id": c.exp.id, "debit": 1000.0, "credit": 0.0}),
-                        Command.create({"account_id": c.cash.id, "debit": 0.0, "credit": 900.0}),
-                    ],
-                }
-            )
-            m.action_post()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        m = c.env["account.move"].create(
+            {
+                "move_type": "entry",
+                "journal_id": c.misc.id,
+                "date": c.today,
+                "line_ids": [
+                    Command.create({"account_id": c.exp.id, "debit": 1000.0, "credit": 0.0}),
+                    Command.create({"account_id": c.cash.id, "debit": 0.0, "credit": 900.0}),
+                ],
+            }
+        )
+        m.action_post()
 
 
 def _control_chart(c):
@@ -526,13 +562,17 @@ def test_m19_J07_control_account_refuses_manual_lines_on_every_path(c):
     assert try_post(c, c.acct, c.today, 12000.0, debit=c.recv, partner_id=c.partner.id) is None
     with pytest.raises(UserError, match="COA-02"):
         post_with_dimensions(
-            c.env(user=c.acct.id), _vals(c, c.today, 12000.0, debit=c.recv, partner_id=c.partner.id),
-            {}, source="allocation",
+            c.env(user=c.acct.id),
+            _vals(c, c.today, 12000.0, debit=c.recv, partner_id=c.partner.id),
+            {},
+            source="allocation",
         )
     # the owning sub-ledger may post on it
     move, _d = post_with_dimensions(
-        c.env(user=c.acct.id), _vals(c, c.today, 12000.0, debit=c.recv, partner_id=c.partner.id),
-        {}, source="ar",
+        c.env(user=c.acct.id),
+        _vals(c, c.today, 12000.0, debit=c.recv, partner_id=c.partner.id),
+        {},
+        source="ar",
     )
     assert move.state == "posted"
 
@@ -543,8 +583,16 @@ def test_m19_J08_control_flag_change_is_an_approved_proposal(c):
         ch.with_user(c.acct).write({"is_control_account": False, "control_subledger": False})
     with pytest.raises(UserError, match="approved control change"):
         ch.with_user(c.mgr).write({"is_control_account": False, "control_subledger": False})
-    prop = c.env["fix.chart.control.change"].with_user(c.mgr).create(
-        {"account_id": ch.id, "new_is_control": False, "reason": "Re-mapped to a sub-ledger clearing account"}
+    prop = (
+        c.env["fix.chart.control.change"]
+        .with_user(c.mgr)
+        .create(
+            {
+                "account_id": ch.id,
+                "new_is_control": False,
+                "reason": "Re-mapped to a sub-ledger clearing account",
+            }
+        )
     )
     prop.with_user(c.mgr).action_submit()
     assert not task_for(c, prop, c.mgr)
@@ -556,21 +604,26 @@ def test_m19_J08_control_flag_change_is_an_approved_proposal(c):
 
 def test_m19_J09_posting_log_immutable(c):
     _move, log = draft_je(c, c.acct, 1000.0)
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            log.with_user(c.acct).with_context(force_edit=True).write({"amount": 1.0})
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        log.with_user(c.acct).with_context(force_edit=True).write({"amount": 1.0})
 
 
 def test_m19_J10_p03_je_create_plain_user_refused_and_proper_path(c, p03):
     p03.as_user(c.plain)
     res = p03.je_create(
-        lines=[{"account_id": c.exp.id, "debit": 10, "credit": 0}, {"account_id": c.cash.id, "debit": 0, "credit": 10}],
+        lines=[
+            {"account_id": c.exp.id, "debit": 10, "credit": 0, **_line_dims(c)[0]},
+            {"account_id": c.cash.id, "debit": 0, "credit": 10, **_line_dims(c)[1]},
+        ],
         ref="plain",
     )
     assert not res.get("success")
     p03.as_user(c.acct)
     res = p03.je_create(
-        lines=[{"account_id": c.exp.id, "debit": 10, "credit": 0}, {"account_id": c.cash.id, "debit": 0, "credit": 10}],
+        lines=[
+            {"account_id": c.exp.id, "debit": 10, "credit": 0, **_line_dims(c)[0]},
+            {"account_id": c.cash.id, "debit": 0, "credit": 10, **_line_dims(c)[1]},
+        ],
         ref="Petty accrual",
     )
     assert res.get("success"), res
@@ -589,8 +642,12 @@ def _tmpl(c, user, amount=10000.0, **kw):
         "journal_id": c.misc.id,
         "next_run_date": c.today - timedelta(days=1),
         "line_ids": [
-            Command.create({"account_id": c.exp.id, "debit": amount, "credit": 0.0}),
-            Command.create({"account_id": c.cash.id, "debit": 0.0, "credit": amount}),
+            Command.create(
+                {"account_id": c.exp.id, "debit": amount, "credit": 0.0, **_line_dims(c)[0]}
+            ),
+            Command.create(
+                {"account_id": c.cash.id, "debit": 0.0, "credit": amount, **_line_dims(c)[1]}
+            ),
         ],
     }
     vals.update(kw)
@@ -599,9 +656,8 @@ def _tmpl(c, user, amount=10000.0, **kw):
 
 def test_m19_T01_template_activation_sod_and_run(c):
     t = _tmpl(c, c.acct)
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            t.with_user(c.acct).action_activate()
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        t.with_user(c.acct).action_activate()
     t2 = _tmpl(c, c.mgr)
     with pytest.raises(UserError, match="Segregation of duties"):
         t2.with_user(c.mgr).action_activate()
@@ -624,7 +680,12 @@ def test_m19_T03_edit_after_activation_voids_it(c):
     t.with_user(c.mgr).action_activate()
     dr, cr_ = t.line_ids.sorted(lambda line: -line.debit)
     t.with_user(c.acct).write(
-        {"line_ids": [Command.update(dr.id, {"debit": 900000.0}), Command.update(cr_.id, {"credit": 900000.0})]}
+        {
+            "line_ids": [
+                Command.update(dr.id, {"debit": 900000.0}),
+                Command.update(cr_.id, {"credit": 900000.0}),
+            ]
+        }
     )
     assert t.state == "draft" and not t.activated_by_id and t.last_edited_by_id == c.acct
     c.env["fix.journal.template"]._cron_generate_due_entries()
@@ -641,13 +702,19 @@ def test_m19_T04_template_create_via_p03_needs_accountant(c, p03):
     p03.as_user(c.plain)
     res = p03.tmpl_create(
         name="plain accrual",
-        lines=[{"account_id": c.exp.id, "debit": 5000, "credit": 0}, {"account_id": c.cash.id, "debit": 0, "credit": 5000}],
+        lines=[
+            {"account_id": c.exp.id, "debit": 5000, "credit": 0},
+            {"account_id": c.cash.id, "debit": 0, "credit": 5000},
+        ],
     )
     assert not res.get("success")
     p03.as_user(c.acct)
     res = p03.tmpl_create(
         name="rent accrual",
-        lines=[{"account_id": c.exp.id, "debit": 5000, "credit": 0}, {"account_id": c.cash.id, "debit": 0, "credit": 5000}],
+        lines=[
+            {"account_id": c.exp.id, "debit": 5000, "credit": 0},
+            {"account_id": c.cash.id, "debit": 0, "credit": 5000},
+        ],
     )
     assert res.get("success"), res
     t = c.env["fix.journal.template"].browse(res["template_id"])
@@ -661,7 +728,8 @@ def _rule(c, user, pcts, **kw):
         "journal_id": c.misc.id,
         "source_account_id": c.exp.id,
         "line_ids": [
-            Command.create({"account_id": c.targets[i].id, "percent": p}) for i, p in enumerate(pcts)
+            Command.create({"account_id": c.targets[i].id, "percent": p})
+            for i, p in enumerate(pcts)
         ],
     }
     vals.update(kw)
@@ -669,27 +737,28 @@ def _rule(c, user, pcts, **kw):
 
 
 def test_m19_A01_targets_must_total_100(c):
-    with pytest.raises(ValidationError):
-        with c.env.cr.savepoint():
-            _rule(c, c.acct, [60.0, 30.0])
+    with pytest.raises(ValidationError), c.env.cr.savepoint():
+        _rule(c, c.acct, [60.0, 30.0])
 
 
 def test_m19_A02_line_write_keeps_100(c):
     r = _rule(c, c.acct, [60.0, 40.0])
-    with pytest.raises(ValidationError, match="must total 100"):
-        with c.env.cr.savepoint():
-            r.line_ids[0].with_user(c.acct).write({"percent": 10.0})
-            c.env.flush_all()
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            r.line_ids[0].with_user(c.acct).unlink()
-    with pytest.raises(ValidationError):
-        with c.env.cr.savepoint():
-            r.line_ids[0].sudo().unlink()
+    with pytest.raises(ValidationError, match="must total 100"), c.env.cr.savepoint():
+        r.line_ids[0].with_user(c.acct).write({"percent": 10.0})
+        c.env.flush_all()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        r.line_ids[0].with_user(c.acct).unlink()
+    with pytest.raises(ValidationError), c.env.cr.savepoint():
+        r.line_ids[0].sudo().unlink()
     # a balanced re-split in one save is accepted
     l1, l2 = r.line_ids
     r.with_user(c.acct).write(
-        {"line_ids": [Command.update(l1.id, {"percent": 70.0}), Command.update(l2.id, {"percent": 30.0})]}
+        {
+            "line_ids": [
+                Command.update(l1.id, {"percent": 70.0}),
+                Command.update(l2.id, {"percent": 30.0}),
+            ]
+        }
     )
     assert sorted(r.line_ids.mapped("percent")) == [30.0, 70.0]
 
@@ -709,7 +778,12 @@ def test_m19_A03_rule_needs_activation_by_another_manager(c):
     # editing the targets after activation returns it to draft
     l1, l2 = r.line_ids
     r.with_user(c.acct).write(
-        {"line_ids": [Command.update(l1.id, {"percent": 90.0}), Command.update(l2.id, {"percent": 10.0})]}
+        {
+            "line_ids": [
+                Command.update(l1.id, {"percent": 90.0}),
+                Command.update(l2.id, {"percent": 10.0}),
+            ]
+        }
     )
     assert r.state == "draft"
 
@@ -730,15 +804,19 @@ def test_m19_A05_second_run_same_period_refused(c):
     r = _rule(c, c.acct, [50.0, 50.0])
     r.with_user(c.mgr).action_activate()
     r.with_user(c.acct).action_run(c.today.replace(day=1), c.today)
-    with pytest.raises(UserError):
-        with c.env.cr.savepoint():
-            r.with_user(c.acct).action_run(c.today.replace(day=1), c.today)
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        r.with_user(c.acct).action_run(c.today.replace(day=1), c.today)
 
 
 # ====================================================================== FX revaluation
 def _rate(c, d, bdt_per_usd):
     return c.env["res.currency.rate"].create(
-        {"name": d, "currency_id": c.usd.id, "company_id": c.co.id, "inverse_company_rate": bdt_per_usd}
+        {
+            "name": d,
+            "currency_id": c.usd.id,
+            "company_id": c.co.id,
+            "inverse_company_rate": bdt_per_usd,
+        }
     )
 
 
@@ -768,7 +846,12 @@ def _usd_receivable(c, usd=100.0, rate=110.0, d=date(2026, 9, 10)):
 
 
 def _fx(c, user, d=PE, **kw):
-    vals = {"rate_date": d, "journal_id": c.misc.id, "gain_account_id": c.fx_gain.id, "loss_account_id": c.fx_loss.id}
+    vals = {
+        "rate_date": d,
+        "journal_id": c.misc.id,
+        "gain_account_id": c.fx_gain.id,
+        "loss_account_id": c.fx_loss.id,
+    }
     vals.update(kw)
     return c.env["fix.fx.revaluation"].with_user(user).create(vals)
 
@@ -784,8 +867,12 @@ def fx(c):
 
 def _recv_reval_balance(c, d):
     lines = c.env["account.move.line"].search(
-        [("account_id", "=", c.recv.id), ("parent_state", "=", "posted"), ("date", "<=", d),
-         ("move_id.ref", "ilike", "FX revaluation")]
+        [
+            ("account_id", "=", c.recv.id),
+            ("parent_state", "=", "posted"),
+            ("date", "<=", d),
+            ("move_id.ref", "ilike", "FX revaluation"),
+        ]
     )
     return round(sum(lines.mapped("balance")), 2)
 
@@ -796,8 +883,13 @@ def test_m19_F01_revaluation_math_and_review(c, fx):
     move = run.with_user(c.mgr).action_post()
     recv = sum(move.line_ids.filtered(lambda line: line.account_id == c.recv).mapped("balance"))
     gain = sum(move.line_ids.filtered(lambda line: line.account_id == c.fx_gain).mapped("balance"))
-    assert run.net_amount == 1000.0 and recv == 1000.0 and gain == -1000.0 and move.state == "posted"
-    assert run.reversal_move_id.date == PE + timedelta(days=1) and run.reversal_move_id.state == "posted"
+    assert (
+        run.net_amount == 1000.0 and recv == 1000.0 and gain == -1000.0 and move.state == "posted"
+    )
+    assert (
+        run.reversal_move_id.date == PE + timedelta(days=1)
+        and run.reversal_move_id.state == "posted"
+    )
     assert run.posted_by_id == c.mgr and run.computed_by_id == c.acct
 
 
@@ -858,9 +950,8 @@ def test_m19_F05_lines_are_not_writable_and_post_recomputes(c, fx):
     run.with_user(c.acct).action_compute()
     line = run.line_ids[0]
     for user in (c.plain, c.acct, c.mgr):
-        with pytest.raises(AccessError):
-            with c.env.cr.savepoint():
-                line.with_user(user).write({"gain_loss": 1000000.0})
+        with pytest.raises(AccessError), c.env.cr.savepoint():
+            line.with_user(user).write({"gain_loss": 1000000.0})
     # a ledger change after compute makes the post refuse
     _usd_receivable(c, usd=10.0, rate=110.0, d=date(2026, 9, 12))
     with pytest.raises(UserError, match="compute it again"):
@@ -870,12 +961,10 @@ def test_m19_F05_lines_are_not_writable_and_post_recomputes(c, fx):
 def test_m19_F06_plain_user_has_no_access_and_state_is_guarded(c, fx, p03):
     run = _fx(c, c.acct)
     run.with_user(c.acct).action_compute()
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            run.with_user(c.plain).write({"state": "posted"})
-    with pytest.raises(AccessError):
-        with c.env.cr.savepoint():
-            run.with_user(c.plain).read(["state"])
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        run.with_user(c.plain).write({"state": "posted"})
+    with pytest.raises(AccessError), c.env.cr.savepoint():
+        run.with_user(c.plain).read(["state"])
     with pytest.raises(UserError, match="changes only through its workflow"):
         run.with_user(c.acct).write({"state": "posted"})
     p03.as_user(c.plain)
@@ -886,13 +975,11 @@ def test_m19_F06_plain_user_has_no_access_and_state_is_guarded(c, fx, p03):
 
 def test_m19_F07_plain_user_cannot_compute_or_post(c, fx):
     run = _fx(c, c.acct)
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            run.with_user(c.plain).action_compute()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        run.with_user(c.plain).action_compute()
     run.with_user(c.acct).action_compute()
-    with pytest.raises(REFUSED):
-        with c.env.cr.savepoint():
-            run.with_user(c.plain).action_post()
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        run.with_user(c.plain).action_post()
 
 
 def test_m19_F08_gain_loss_only_to_configured_fx_accounts(c, fx):
@@ -966,12 +1053,15 @@ def test_m50_6_unmatched_bank_lines_block_the_close(c):
     is still unmatched blocks the close (cd_cash_position looked up softly)."""
     if "fix.bank.statement.line" not in c.env:
         pytest.skip("cd_cash_position is not installed on this database")
-    line = c.env["fix.bank.statement.line"].sudo().create(
-        {"date": date(2026, 9, 25), "amount": 1500.0, "statement_file_hash": "b3-m50-6-test"}
+    line = (
+        c.env["fix.bank.statement.line"]
+        .sudo()
+        .create(
+            {"date": date(2026, 9, 25), "amount": 1500.0, "statement_file_hash": "b3-m50-6-test"}
+        )
     )
-    with pytest.raises(UserError, match="unmatched"):
-        with c.env.cr.savepoint():
-            proper_close(c)
+    with pytest.raises(UserError, match="unmatched"), c.env.cr.savepoint():
+        proper_close(c)
     assert not c.co.fiscalyear_lock_date
     # the line belongs to October once corrected: September no longer waits on it
     line.sudo()._guarded().write({"date": date(2026, 10, 5)})

@@ -7,7 +7,7 @@
 #   approved (routed, pinned) -> released by a Payroll Disbursement Releaser
 #   who neither prepared nor approved it -> BEFTN file from the pinned payee
 #   -> GL entry on the company's configured payroll accounts.
-from odoo import Command
+from odoo import Command, fields, models
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import AccessError, UserError
 
@@ -121,6 +121,19 @@ def payroll_gl_journal(company, accounts, what):
     return journal
 
 
+class FixJournalPostingLogPayroll(models.Model):
+    """Payroll as a posting source in M19's posting log: an automated sub-ledger, so
+    a salary line with no branch, or a bonus entry that names none, takes the company
+    default the statutory chart requires instead of being refused (MD-035, A08)."""
+
+    _inherit = "fix.journal.posting.log"
+
+    source = fields.Selection(
+        selection_add=[("payroll_subledger", "Payroll Sub-ledger (M56)")],
+        ondelete={"payroll_subledger": lambda recs: recs.write({"source": "api"})},
+    )
+
+
 def post_two_line_entry(env, company, ref, date, amount, label, debit_field, credit_field, ou=None):
     """Dr debit_field / Cr credit_field for `amount`, posted with the OU dimension."""
     currency = company.currency_id
@@ -141,5 +154,6 @@ def post_two_line_entry(env, company, ref, date, amount, label, debit_field, cre
             "line_ids": [Command.create(line) for line in lines],
         },
         {idx: {"operating_unit_id": ou.id if ou else False} for idx in range(len(lines))},
+        source="payroll_subledger",
     )
     return move
