@@ -127,6 +127,13 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_route", "action_dismiss"},
     },
+    # The alerts of all five A07 modules; each module's screen filters its own.
+    "fix.asset.alert": {
+        "order": "state desc, last_raised_on desc, id desc",
+        "limit": 200,
+        "rules": True,
+        "actions": {"action_acknowledge"},
+    },
 }
 
 

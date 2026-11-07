@@ -164,3 +164,63 @@ msgstr "ফ্ল্যাগকারী"
 #: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__cleared_by_id
 msgid "Cleared By"
 msgstr "ফ্ল্যাগ প্রত্যাহারকারী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__name
+msgid "Alert"
+msgstr "সতর্কতা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__event_type
+msgid "Event"
+msgstr "ইভেন্ট"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__res_model
+msgid "Record Type"
+msgstr "রেকর্ডের ধরন"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__res_id
+msgid "Record ID"
+msgstr "রেকর্ড আইডি"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__record_label
+msgid "Record"
+msgstr "রেকর্ড"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__role_group
+msgid "Role"
+msgstr "ভূমিকা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__no_holder
+msgid "No One Holds the Role"
+msgstr "ভূমিকাটি কারও কাছে নেই"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__raise_count
+msgid "Times Raised"
+msgstr "কতবার উঠেছে"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__last_raised_on
+msgid "Last Raised"
+msgstr "সর্বশেষ উঠেছে"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__acknowledged_by_id
+msgid "Acknowledged By"
+msgstr "স্বীকার করেছেন"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_asset_alert__acknowledged_on
+msgid "Acknowledged On"
+msgstr "স্বীকারের সময়"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model,name:cd_asset_workorder_spine.model_fix_asset_alert
+msgid "Asset & Facility Alert"
+msgstr "সম্পদ ও স্থাপনা সতর্কতা"

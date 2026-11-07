@@ -714,6 +714,19 @@ class FixApprovableMixin(models.AbstractModel):
                 rec.write({"dofa_justification": justification})
             rule = rec._approval_rule()
             tier = rec._approval_tier()
+            # Tier 2 and above needs a written justification to be approved. Saying
+            # so here keeps a blank request from waiting on a vote that can only refuse.
+            if (
+                tier
+                and "dofa_justification" in rec._fields
+                and hasattr(rec, "_dofa_tier_rank")
+                and rec._dofa_tier_rank(tier) >= rec._dofa_tier_rank("tier_2")
+                and not (rec.dofa_justification or "").strip()
+            ):
+                raise UserError(
+                    "Write the justification for %s: the approver cannot approve without one."
+                    % rec.display_name
+                )
             approvers = rec._approval_resolve(rule, tier)
             if not approvers:
                 raise UserError(

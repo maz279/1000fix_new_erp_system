@@ -363,6 +363,7 @@ WRITABLE = {
             "unit",
         }
     ),
+    "fix.asset.alert": frozenset(),
     "fix.maintenance.demand": frozenset(
         {
             "branch_id",

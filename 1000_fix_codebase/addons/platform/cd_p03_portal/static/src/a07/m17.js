@@ -17,6 +17,9 @@ export const MODULE = {
     { l: 'Active Warranties', m: 'warranty_active' }
   ],
   groups: [
+    { en: 'Alerts', screens: [
+      { id: 'M17-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Record Coverage', screens: [
       { id: 'M17-device-part-compatibility', en: "Device Part Compatibility", bn: "Device Part Compatibility", t: 'g' }
     ]},
@@ -87,6 +90,11 @@ export const SCREENS = {
     ]
   },
 
+  'M17-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M17']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M17-assets': { kind: 'model_list', model: 'fix.device', stateField: 'state',
     cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'state', 'lifecycle_stage', 'neir_status', 'approval_state'],
     // A07 audit M17-8: the state moves only through these. A Branch Manager

@@ -39,6 +39,9 @@ export const MODULE = {
       { id: 'M45-profiles', en: 'Calibration Profiles', bn: 'ক্যালিব্রেশন প্রোফাইল', t: 'g' },
       { id: 'M45-impacts', en: 'Impact Assessments', bn: 'প্রভাব মূল্যায়ন', t: 'g' }
     ]},
+    { en: 'Alerts', screens: [
+      { id: 'M45-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Maintenance', screens: [
       { id: 'M45-pm', en: 'PM & Corrective', bn: 'পিএম ও সংশোধন', t: 'g' },
       { id: 'M45-usage', en: 'Usage per Job/QC', bn: 'ব্যবহার', t: 'g' }
@@ -59,6 +62,11 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M45-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M45']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M45-register': { kind: 'model_list', model: 'fix.equipment', stateField: 'operational_status',
     cols: ['code', 'name', 'category', 'custodian_id', 'branch_id', 'next_calibration', 'calibration_state', 'operational_status', 'approval_state', 'missing_verification_id'],
     actions: [{ m: 'action_assert_usable', l: 'Assert Usable' },

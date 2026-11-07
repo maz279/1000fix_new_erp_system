@@ -40,6 +40,9 @@ export const MODULE = {
       { id: 'M47-wo', en: 'Facility Work Orders', bn: 'সুবিধা কাজ', t: 'g' },
       { id: 'M47-demand', en: 'Maintenance Demand Queue', bn: 'রক্ষণাবেক্ষণ চাহিদা সারি', t: 'g' }
     ]},
+    { en: 'Alerts', screens: [
+      { id: 'M47-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Safety', screens: [
       { id: 'M47-safety', en: 'Safety Equipment', bn: 'নিরাপত্তা সরঞ্জাম', t: 'g' },
       { id: 'M47-security', en: 'Security & Incidents', bn: 'নিরাপত্তা ঘটনা', t: 'g' },
@@ -64,6 +67,11 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M47-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M47']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M47-sites': { kind: 'model_list', model: 'fix.site', stateField: 'state',
     cols: ['name', 'site_type', 'branch_id', 'accountable_manager_id', 'floor_area_sqm', 'monthly_rent', 'opened_on', 'approval_state', 'state'],
     actions: [

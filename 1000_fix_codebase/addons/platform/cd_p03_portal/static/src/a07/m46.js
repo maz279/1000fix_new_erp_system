@@ -32,6 +32,9 @@ export const MODULE = {
       { id: 'M46-fuel', en: 'Fuel & Efficiency', bn: 'জ্বালানি ও দক্ষতা', t: 'g' },
       { id: 'M46-telematics', en: 'Telematics Health', bn: 'টেলিমেট্রিক্স', t: 'g' }
     ]},
+    { en: 'Alerts', screens: [
+      { id: 'M46-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Safety & Cost', screens: [
       { id: 'M46-accidents', en: 'Accidents & Insurance', bn: 'দুর্ঘটনা ও বীমা', t: 'g' },
       { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'g' },
@@ -54,6 +57,11 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M46-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M46']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M46-vehicles': { kind: 'model_list', model: 'fleet.vehicle',
     cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'compliance_ok', 'dispatch_blockers', 'fix_position_unknown', 'fitness_expiry', 'insurance_expiry'],
     actions: [{ m: 'action_assert_dispatchable', l: 'Assert Dispatchable' }] },

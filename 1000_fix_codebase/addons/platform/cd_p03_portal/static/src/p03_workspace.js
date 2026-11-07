@@ -1215,6 +1215,8 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                     domain: gl.modelCfg.domain || [],
                     state_field: gl.modelCfg.stateField || null,
                     state_filter: gl.mlState || "__all",
+                    // Quick Find reaches rows beyond the loaded page
+                    search: (gl.mlSearch || "").trim() || null,
                     // bilingual headers: field labels follow the UI language
                     lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
                 });
@@ -1727,11 +1729,52 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     }
 
     mlOnSearchInput(ev) {
-        this.state.gl.mlSearch = ev.target.value;
+        const gl = this.state.gl;
+        gl.mlSearch = ev.target.value;
+        // what is loaded filters at once; the server then finds what is not loaded
+        clearTimeout(this._mlSearchTimer);
+        this._mlSearchTimer = setTimeout(() => {
+            if (this.state.gl === gl && gl.kind === "model_list") this.loadGlData();
+        }, 400);
     }
 
     mlClearSearch() {
+        clearTimeout(this._mlSearchTimer);
         this.state.gl.mlSearch = "";
+        this.loadGlData();
+    }
+
+    /* The next page of a list longer than one load. */
+    get mlHasMore() {
+        const data = this.state.gl && this.state.gl.data;
+        return !!(data && data.rows && data.total > data.rows.length);
+    }
+
+    async mlLoadMore() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || gl.mlLoadingMore) return;
+        gl.mlLoadingMore = true;
+        try {
+            const res = await this.rpc("/p03/model/records", {
+                model: gl.modelCfg.model,
+                cols: gl.modelCfg.cols,
+                domain: gl.modelCfg.domain || [],
+                state_field: gl.modelCfg.stateField || null,
+                state_filter: gl.mlState || "__all",
+                search: (gl.mlSearch || "").trim() || null,
+                offset: gl.data.rows.length,
+                lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+            });
+            if (res.error) {
+                this.showToast(res.error);
+            } else {
+                gl.data.rows = [...gl.data.rows, ...res.rows];
+                gl.data.total = res.total;
+            }
+        } finally {
+            gl.mlLoadingMore = false;
+            this.render(true);
+        }
     }
 
     /* Branded server-side export (user directive 2026-11-07): the workbook /
@@ -2219,7 +2262,8 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             } else if (res.record) {
                 gl.form.values = { ...res.record };
             } else {
-                gl.form.values = {};
+                // the model's own tick-box defaults, so the form shows what is saved
+                gl.form.values = { ...(res.defaults || {}) };
                 for (const section of gl.formCfg.sections) {
                     for (const field of section.fields) {
                         if (field.value !== undefined) gl.form.values[field.name] = field.value;
@@ -2249,9 +2293,71 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         return Array.isArray(raw) && raw.some((v) => (v && typeof v === "object" ? v.id : v) === id);
     }
 
+    /* ---- many2one search box, for a comodel too long for a select ---- */
+    _formLookup(name) {
+        const form = this.state.gl.form;
+        form.lookup = form.lookup || {};
+        if (!form.lookup[name]) form.lookup[name] = { term: null, label: "", rows: [], open: false };
+        return form.lookup[name];
+    }
+
+    formLookupText(name) {
+        const box = this._formLookup(name);
+        if (box.term !== null) return box.term;
+        const raw = this.formFieldValue(name);
+        return raw && typeof raw === "object" ? raw.label || "" : box.label;
+    }
+
+    formLookupOpen(name) {
+        return this._formLookup(name).open;
+    }
+
+    formLookupRows(name) {
+        return this._formLookup(name).rows;
+    }
+
+    formLookupInput(name, term) {
+        const gl = this.state.gl;
+        const box = this._formLookup(name);
+        box.term = term;
+        box.open = true;
+        if (!term) {
+            box.label = "";
+            this.formSet(name, false);
+        }
+        clearTimeout(this._formLookupTimer);
+        this._formLookupTimer = setTimeout(async () => {
+            const res = await this.rpc("/p03/model/lookup", { model: gl.formCfg.model, field: name, term });
+            if (box.term === term) {
+                box.rows = res.rows || [];
+                box.error = res.error || null;
+                this.render(true);
+            }
+        }, 250);
+    }
+
+    formLookupPick(name, row) {
+        const box = this._formLookup(name);
+        box.term = null;
+        box.label = row.label;
+        box.open = false;
+        this.formSet(name, row.id);
+    }
+
+    formLookupClose(name, ev) {
+        if (ev.currentTarget.contains(ev.relatedTarget)) return;
+        const box = this._formLookup(name);
+        // leaving text that was never picked must not read as the saved value
+        box.term = null;
+        box.open = false;
+        this.render(true);
+    }
+
     formSet(name, value) {
         const gl = this.state.gl;
         if (!gl || gl.kind !== "model_form") return;
+        gl.form.dirty = gl.form.dirty || {};
+        gl.form.dirty[name] = true;
         // QWeb handlers pass strings: coerce to the model type here (JS
         // scope), never in the template (String/Number are not template
         // globals — the 2026-10-27 "ctx.String is not a function" lesson).
@@ -2383,7 +2489,12 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         for (const section of gl.formCfg.sections) {
             for (const field of section.fields) {
                 const v = gl.form.values[field.name];
-                if (v !== undefined && v !== null && v !== "") values[field.name] = v;
+                if (v !== undefined && v !== null && v !== "") {
+                    values[field.name] = v;
+                } else if (gl.form.recordId && gl.form.dirty && gl.form.dirty[field.name]) {
+                    // a field the user emptied: dropping it read "Saved" and changed nothing
+                    values[field.name] = false;
+                }
             }
         }
         let lines = null;
@@ -2859,6 +2970,10 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     async glPromptOk() {
         const p = this.state.gl.prompt;
         if (!p) return;
+        if (p._ml && p._ml.kwarg === "justification" && !(p.value || "").trim()) {
+            this.showToast(this.t("Write the justification: the approver cannot approve without one."));
+            return;
+        }
         this.state.gl.prompt = null;
         const endpoints = {
             cancel_invoice: ["/p03/ar/invoice/cancel", { invoice_id: p.id, reason: p.value }, "Cancelled — mirror posted"],

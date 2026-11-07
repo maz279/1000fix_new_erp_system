@@ -36,6 +36,9 @@ export const MODULE = {
       { id: 'M48-rul', en: 'RUL Estimation', bn: 'অবশিষ্ট আয়ু', t: 'r' },
       { id: 'M48-routing', en: 'Prescriptive Routing', bn: 'নির্দেশনামূলক রুটিং', t: 'g' }
     ]},
+    { en: 'Alerts', screens: [
+      { id: 'M48-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Governance', screens: [
       { id: 'M48-consent', en: 'Consent & Access Control', bn: 'সম্মতি ও নিয়ন্ত্রণ', t: 'g' },
       { id: 'M48-downsample', en: 'Downsampling Policies', bn: 'ডাউনস্যাম্পলিং নীতি', t: 'g' },
@@ -57,6 +60,11 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M48-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M48']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M48-streams': { kind: 'model_list', model: 'fix.iot.stream', stateField: 'state',
     cols: ['name', 'device_id', 'equipment_id', 'metric', 'unit', 'sample_interval_sec', 'retention_days', 'consent_policy', 'adapter_id', 'last_seen', 'state'],
     actions: [

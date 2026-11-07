@@ -66,6 +66,8 @@ WRITABLE = {
             "name",
             "name_bn",
             "retention_class_id",
+            "upload_file",
+            "upload_filename",
         }
     ),
     "fix.document.template": frozenset(
