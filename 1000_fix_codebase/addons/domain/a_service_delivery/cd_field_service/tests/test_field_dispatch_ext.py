@@ -273,13 +273,21 @@ def test_a_suggestion_says_what_the_gate_will_say_about_the_brand(fx):
     other = env["fix.brand"].create({"name": "FxOtherBrand", "code": "FXOB"})
     _certify(env, wrong_brand).write({"brand_id": other.id})
     _certify(env, right_brand).write({"brand_id": fx.order.device_id.device_model_id.brand_id.id})
+    # the gate rightly refuses the wrong brand on a work order: the roster makes them candidates
     for tech in (wrong_brand, right_brand):
-        env["fix.work.order"].create({"order_id": fx.order.id, "technician_id": tech.id})
+        env["fix.roster.slot"].create(
+            {
+                "employee_id": tech.id,
+                "date": date.today(),
+                "shift_id": _shift(env).id,
+                "branch_id": fx.branch.id,
+            }
+        )
 
     fo = _field_order(fx)
     suggestions = {s["name"]: s for s in fo.action_suggest_technicians(limit=50)}
     assert fo._fix_certification_problem(wrong_brand)
     assert not fo._fix_certification_problem(right_brand)
-    assert "certified" in str(suggestions["FX Same Brand Tech"]["reason"])
-    wrong = str(suggestions["FX Other Brand Tech"]["reason"])
-    assert "certified" not in wrong.replace("not certified", "") and "cert:" in wrong
+    assert "certified" in suggestions["FX Same Brand Tech"]["reasons"]
+    wrong = suggestions["FX Other Brand Tech"]["reasons"]
+    assert "certified" not in wrong and any(r.startswith("cert:") for r in wrong)
