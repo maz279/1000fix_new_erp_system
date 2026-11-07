@@ -3113,7 +3113,7 @@
                                     <p t-if="state.gl.mlEmail.result.ok" style="margin:0; font-size:12px; color: var(--ok, #0E7A6E);">
                                         ✓ <t t-esc='t("Queued")'/> — <t t-esc="state.gl.mlEmail.result.attachment"/> → <t t-esc="state.gl.mlEmail.result.recipients.join(', ')"/> (<t t-esc="state.gl.mlEmail.result.state"/>)
                                     </p>
-                                    <p t-else="" style="margin:0; font-size:12px; color: #b42318;">✗ <t t-esc="state.gl.mlEmail.result.error"/></p>
+                                    <p t-else="" style="margin:0; font-size:12px; color: var(--danger, #b42318);">✗ <t t-esc="state.gl.mlEmail.result.error"/></p>
                                 </div>
                                 <div style="display:flex; justify-content:flex-end; gap:8px;">
                                     <button class="btn btn-sm" t-on-click="() => this.mlEmailClose()"><t t-esc='t("Close")'/></button>
