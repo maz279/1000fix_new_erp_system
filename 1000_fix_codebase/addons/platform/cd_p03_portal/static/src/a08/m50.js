@@ -12,9 +12,10 @@ export const MODULE = {
   desc: 'Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.',
   kpis: [
     { l: 'Recon Exceptions', m: 'unreconciled_bank_lines' },
-    { l: 'Auto-Match Rate', m: 'auto_match_rate' },
+    { l: 'Auto-Match Rate', m: 'auto_match_rate', suffix: '%' },
     { l: 'Cash Position', m: 'cash_position' },
-    { l: 'Branch Cash Uncollected', m: 'branch_cash_uncollected' }
+    { l: 'Branch Cash Uncollected', m: 'branch_cash_uncollected' },
+    { l: 'Payments Awaiting Bank', m: 'payments_awaiting_bank' }
   ],
   groups: [
     { en: 'Cash', screens: [

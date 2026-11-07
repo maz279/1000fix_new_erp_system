@@ -15,7 +15,9 @@
         <header class="fx-topbar" role="banner">
             <!-- Brand & Mega Menu Trigger -->
             <div class="tb-brand" t-on-click="openHome" title="1000 FiX ERP — Role Center Home" style="cursor: pointer;">
-                <span class="tb-logo">F</span>
+                <!-- official 1000 FiX logo (user directive 2026-11-07): the
+                     workspace shell carries the same mark as the documents -->
+                <img src="/cd_p03_portal/static/img/1000fix_logo.png" alt="1000 FiX" style="height: 22px; width: auto;"/>
                 <span><t t-esc='t("1000 FiX ERP")'/></span>
                 <span class="chip ok" style="font-size: 9px; margin-left: 4px;">ISO 9001:2015</span>
             </div>
@@ -1766,7 +1768,10 @@
                                 <p class="pg-sub"><t t-esc='t("Live from the Odoo backend")'/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn" t-on-click="refreshGlScreen"><t t-esc='t("↻ Refresh")'/></button>
+                                <!-- R8 (2026-11-07): model_list screens keep their
+                                     command-bar Refresh only — one button, one
+                                     meaning; other screen kinds keep this one. -->
+                                <button t-if="state.gl.kind !== 'model_list'" class="btn" t-on-click="refreshGlScreen"><t t-esc='t("↻ Refresh")'/></button>
                             </div>
                         </div>
 
@@ -1780,7 +1785,7 @@
                         <!-- ============ CHART OF ACCOUNTS ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'coa' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
                                     <h3><t t-esc='t("Statutory Chart of Accounts —")'/> <t t-esc="state.gl.data.count"/> <t t-esc='t("accounts ·")'/> <t t-esc="state.gl.data.mapped"/> <t t-esc='t("linked to the posting chart")'/></h3>
                                     <div style="display: flex; gap: 8px; align-items: center;">
                                         <select t-att-aria-label='t("Filter by account type")' t-on-change="(ev) => this.state.gl.coaType = ev.target.value">
@@ -1793,6 +1798,41 @@
                                         </select>
                                         <input type="text" t-att-placeholder='t("Search code or name…")' style="width: 180px;" t-on-input="(ev) => this.state.gl.coaSearch = ev.target.value"/>
                                     </div>
+                                </div>
+                                <!-- R4 (2026-11-07): summary strip — the register's
+                                     governance counts at a glance, same data as the
+                                     heading (no separate query, no fake numbers). -->
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
+                                    <span class="chip"><t t-esc='t("Total")'/> <t t-esc="state.gl.data.count"/></span>
+                                    <span class="chip ok"><t t-esc='t("Postable")'/> <t t-esc="state.gl.data.postable"/></span>
+                                    <span class="chip warn"><t t-esc='t("Control")'/> <t t-esc="state.gl.data.control"/></span>
+                                    <span class="chip" t-if="state.gl.data.deprecated"><t t-esc='t("Deprecated")'/> <t t-esc="state.gl.data.deprecated"/></span>
+                                    <span class="chip" t-if="state.gl.data.unlinked"><t t-esc='t("Unlinked to posting chart")'/> <t t-esc="state.gl.data.unlinked"/></span>
+                                </div>
+                                <!-- R1 (2026-11-07): D365 command bar on the register —
+                                     create, governed import, branded exports and email
+                                     from the SAME screen (merge of the two surfaces). -->
+                                <div class="d365-cmdbar" style="display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--surface-100, #f8fafc); border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border-color, #e2e8f0); flex-wrap: wrap;">
+                                    <button class="btn btn-primary btn-sm" t-on-click="() => this.openModuleFormForModel('fix.chart.account', null)" title="Create a new statutory account">
+                                        <span style="margin-right: 4px; font-weight: 700;">+</span> <t t-esc='t("New")'/>
+                                    </button>
+                                    <button class="btn btn-sm" t-on-click="() => this.openScreen('M19-coa-loader')"><t t-esc='t("Import — CoA Master Loader")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.openScreen('M19-control-changes')"><t t-esc='t("Control Changes approval")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('csv')" title="Export current register to CSV">
+                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Export CSV")'/>
+                                    </button>
+                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('xlsx')" title="Branded Excel workbook with the 1000 FiX letterhead (logo + address)">
+                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Excel")'/>
+                                    </button>
+                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('pdf')" title="Branded PDF with the 1000 FiX letterhead (logo + address)">
+                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("PDF")'/>
+                                    </button>
+                                    <button class="btn btn-sm" t-on-click="() => this.mlEmailOpen()" title="Send this register by email as a branded attachment">
+                                        <span style="margin-right: 4px;">✉</span> <t t-esc='t("Email")'/>
+                                    </button>
+                                    <button class="btn btn-sm" t-on-click="() => this.mlRefresh()" title="Refresh the register from Odoo">
+                                        <span style="margin-right: 4px;">↻</span> <t t-esc='t("Refresh")'/>
+                                    </button>
                                 </div>
                                 <div class="tbl-wrap">
                                     <table class="fx-table">
@@ -2910,8 +2950,23 @@
                                         <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
                                             <button class="btn btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
                                         </t>
+                                        <!-- R3 (2026-11-07): declared cross-links to the
+                                             screen's governance siblings — navigation,
+                                             not row actions, so they need no selection. -->
+                                        <t t-foreach="state.gl.modelCfg.links || []" t-as="lnk" t-key="lnk.s">
+                                            <button class="btn btn-sm" t-on-click="() => this.openScreen(lnk.s)" t-att-title="lnk.l"><t t-esc="t(lnk.l)"/></button>
+                                        </t>
                                         <button class="btn btn-sm" t-on-click="() => this.mlExportCsv()" title="Export current rows to CSV">
                                             <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Export CSV")'/>
+                                        </button>
+                                        <button class="btn btn-sm" t-on-click="() => this.mlExportServer('xlsx')" title="Branded Excel workbook with the 1000 FiX letterhead (logo + address)">
+                                            <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Excel")'/>
+                                        </button>
+                                        <button class="btn btn-sm" t-on-click="() => this.mlExportServer('pdf')" title="Branded PDF with the 1000 FiX letterhead (logo + address)">
+                                            <span style="margin-right: 4px;">⤓</span> <t t-esc='t("PDF")'/>
+                                        </button>
+                                        <button class="btn btn-sm" t-on-click="() => this.mlEmailOpen()" title="Send this list by email as a branded attachment">
+                                            <span style="margin-right: 4px;">✉</span> <t t-esc='t("Email")'/>
                                         </button>
                                         <button class="btn btn-sm" t-on-click="() => this.mlRefresh()" title="Refresh records from Odoo">
                                             <span style="margin-right: 4px;">↻</span> <t t-esc='t("Refresh")'/>
@@ -3017,35 +3072,56 @@
                                         </div>
                                     </div>
                                 </t>
-                                <t t-else="">
-                                    <!-- Help text must describe THIS screen.
-                                         The old block was unconditional and
-                                         told every user to "filter by state
-                                         pills" - absent on 234 of 660 list
-                                         screens - and to "click any row to
-                                         open the D365 in-workspace form",
-                                         which a row click does not do: it
-                                         opens the record pane, and the form
-                                         is the Open Full Form button. The
-                                         pill sentence is keyed on the SAME
-                                         expression as the pill strip so the
-                                         two cannot drift (audit 2026-11-01). -->
-                                    <h4><t t-esc='t("Screen Overview")'/></h4>
-                                    <div class="fb-sec">
-                                        <p style="font-size: 12px;">
-                                            <t t-esc='t("Live records from Odoo.") + " "'/>
-                                            <t t-esc='t("Click a column header to sort, or type in Quick Find to filter as you type.") + " "'/>
-                                            <t t-if="mlStates.length"><t t-esc='t("The pills above the table filter by status.")'/></t>
-                                        </p>
-                                    </div>
-                                    <div class="fb-sec">
-                                        <p style="font-size: 11px; color: var(--ink-500);">
-                                            <t t-esc='t("Click a row to inspect it here, then use Open Full Form for the full record.") + " "'/>
-                                            <t t-esc='t("Export CSV and Refresh are on the command bar.")'/>
-                                        </p>
-                                    </div>
-                                </t>
+                                <!-- No-row-selected placeholder removed (user
+                                     request 2026-11-07): the static Screen
+                                     Overview help text rendered here did
+                                     nothing and wasted the FactBox column.
+                                     The aside now stays empty until a row is
+                                     clicked and Record Summary appears. -->
                             </aside>
+                        </div>
+
+                        <!-- Send-by-email dialog for the list export suite
+                             (user directive 2026-11-07): recipients, subject,
+                             note and attachment format; the attachment is the
+                             same branded XLSX/PDF the download buttons give. -->
+                        <div t-if="state.gl.mlEmail &amp;&amp; state.gl.mlEmail.open"
+                             style="position: fixed; inset: 0; background: rgba(16,24,40,.45); z-index: 1055; display: flex; align-items: center; justify-content: center;"
+                             role="dialog" aria-modal="true" aria-label="Send by email">
+                            <div class="fx-card" style="width: 440px; max-width: 92vw; padding: 18px 20px;">
+                                <h4 style="margin: 0 0 4px;"><t t-esc='t("Send by email")'/> — <t t-esc="state.gl.mlEmail.title"/></h4>
+                                <p style="margin: 0 0 12px; font-size: 12px; color: var(--ink-400);"><t t-esc='t("The branded attachment is generated from exactly the rows this screen serves.")'/></p>
+                                <label class="fb-lbl" style="display:block; margin-bottom:2px;"><t t-esc='t("To (email addresses, comma separated)")'/></label>
+                                <input type="text" class="form-control" style="width:100%; margin-bottom:8px; padding:6px 8px; border:1px solid var(--border-color,#cbd5e1); border-radius:4px;"
+                                       t-att-value="state.gl.mlEmail.to"
+                                       t-on-input="(ev) => this.state.gl.mlEmail.to = ev.target.value"
+                                       placeholder="name@example.com, audit@firm.com"/>
+                                <label class="fb-lbl" style="display:block; margin-bottom:2px;"><t t-esc='t("Subject")'/></label>
+                                <input type="text" style="width:100%; margin-bottom:8px; padding:6px 8px; border:1px solid var(--border-color,#cbd5e1); border-radius:4px;"
+                                       t-att-value="state.gl.mlEmail.subject"
+                                       t-on-input="(ev) => this.state.gl.mlEmail.subject = ev.target.value"/>
+                                <label class="fb-lbl" style="display:block; margin-bottom:2px;"><t t-esc='t("Message")'/></label>
+                                <textarea rows="3" style="width:100%; margin-bottom:10px; padding:6px 8px; border:1px solid var(--border-color,#cbd5e1); border-radius:4px; font: inherit;"
+                                          t-att-value="state.gl.mlEmail.body"
+                                          t-on-input="(ev) => this.state.gl.mlEmail.body = ev.target.value"/>
+                                <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                                    <span class="fb-lbl"><t t-esc='t("Attach as")'/></span>
+                                    <label style="font-size:12px; margin:0 10px 0 0;"><input type="radio" value="xlsx" t-att-checked="state.gl.mlEmail.format === 'xlsx'" t-on-change="(ev) => this.state.gl.mlEmail.format = ev.target.value"/> Excel</label>
+                                    <label style="font-size:12px; margin:0;"><input type="radio" value="pdf" t-att-checked="state.gl.mlEmail.format === 'pdf'" t-on-change="(ev) => this.state.gl.mlEmail.format = ev.target.value"/> PDF</label>
+                                </div>
+                                <div t-if="state.gl.mlEmail.result" class="fb-sec" style="margin-bottom:10px;">
+                                    <p t-if="state.gl.mlEmail.result.ok" style="margin:0; font-size:12px; color: var(--ok, #0E7A6E);">
+                                        ✓ <t t-esc='t("Queued")'/> — <t t-esc="state.gl.mlEmail.result.attachment"/> → <t t-esc="state.gl.mlEmail.result.recipients.join(', ')"/> (<t t-esc="state.gl.mlEmail.result.state"/>)
+                                    </p>
+                                    <p t-else="" style="margin:0; font-size:12px; color: var(--danger, #b42318);">✗ <t t-esc="state.gl.mlEmail.result.error"/></p>
+                                </div>
+                                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button class="btn btn-sm" t-on-click="() => this.mlEmailClose()"><t t-esc='t("Close")'/></button>
+                                    <button class="btn btn-primary btn-sm" t-att-disabled="state.gl.mlEmail.sending" t-on-click="() => this.mlEmailSend()">
+                                        <t t-esc='state.gl.mlEmail.sending ? t("Sending…") : t("Send")'/>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- ============ D365 IN-WORKSPACE RECORD FORM (model_form) ============
@@ -3847,7 +3923,7 @@
                 <footer class="fx-statusbar" role="contentinfo">
                     <div class="sb-left">
                         <span class="sb-pulse"><t t-esc='t("● LIVE")'/></span>
-                        <span><t t-esc='t("1000 FiX Services Ltd. — ISO 9001:2015 Certified")'/></span>
+                        <span><t t-esc='t("1000Fix Services Limited — ISO 9001:2015 Certified")'/></span>
                         <span class="sb-sep">|</span>
                         <span><t t-esc='t("Hotline:")'/> <b>16743</b></span>
                     </div>

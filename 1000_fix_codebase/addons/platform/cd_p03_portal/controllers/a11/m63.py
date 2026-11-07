@@ -12,7 +12,7 @@ import datetime
 # Administrator's. Kept in step with the forms by test_a11_e1_e4.py.
 WRITABLE = {
     "fix.automation": frozenset(
-        {"code", "trigger", "engine", "engine_ref", "failure_policy", "active"}
+        {"code", "trigger", "engine", "engine_ref", "failure_policy", "action", "active"}
     ),
     "fix.workflow.instance": frozenset({"automation_id", "res_model", "res_id"}),
     "fix.workflow.task": frozenset(),

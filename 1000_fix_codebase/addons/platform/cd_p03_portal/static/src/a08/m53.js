@@ -15,6 +15,7 @@ export const MODULE = {
     { l: 'Payout Runs Open', m: 'payout_runs_open' },
     { l: 'Deferred Revenue', m: 'deferred_revenue_balance' },
     { l: 'Recognised MTD', m: 'recognised_mtd' },
+    { l: 'Revenue Schedules', m: 'revenue_schedules_count' },
     { l: 'Escrow Held', m: 'escrow_held_amount' }
   ],
   groups: [

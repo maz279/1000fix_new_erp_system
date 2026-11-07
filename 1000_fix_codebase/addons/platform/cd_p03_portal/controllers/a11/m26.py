@@ -31,8 +31,9 @@ SURFACES = {
         "actions": {"action_execute"},
         # G7/R01: a portal write may capture the HUMAN half of a run only —
         # the engine's half (state, output, latency, suggestion) is not
-        # writable from any surface.
-        "writable": {"final_value", "override_reason"},
+        # writable from any surface. The request half (model, input, field
+        # order) is human too: without it the +New run form cannot create.
+        "writable": {"model_id", "input_text", "field_order_id", "final_value", "override_reason"},
     },
     "fix.predictive.maintenance": {
         "order": "write_date desc, id desc",

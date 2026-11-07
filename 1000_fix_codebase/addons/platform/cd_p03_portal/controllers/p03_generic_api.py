@@ -18,6 +18,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
 from . import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12
+from . import brand as _brand
 from .a02 import SURFACES as _A02_SURFACES
 from .a03 import SURFACES as _A03_SURFACES
 from .a04 import SURFACES as _A04_SURFACES
@@ -371,6 +372,22 @@ class P03GenericApiController(http.Controller):
         if format == "xlsx":
             return self._report_xlsx(out, cols, labels, base_name, params or {})
 
+        # 2026-11-07 R1: branded PDF for every report pack (register-style
+        # stationery — logo, address, teal repeating header, page x/y). The
+        # totals line, when a pack declares one, is printed as the last row.
+        if format == "pdf":
+            pdf_rows = list(out.get("rows") or [])
+            totals = out.get("totals")
+            if totals:
+                pdf_rows.append({c: totals.get(c, "") for c in cols})
+            payload = {
+                "rows": pdf_rows,
+                "cols": cols,
+                "labels": labels,
+                "count": len(out.get("rows") or []),
+            }
+            return self._list_pdf(payload, base_name, title=out.get("title"))
+
         import csv
         import io as _io
 
@@ -391,6 +408,368 @@ class P03GenericApiController(http.Controller):
                 ("Content-Disposition", 'attachment; filename="%s.csv"' % base_name),
             ],
         )
+
+    # ------------------------------------------------------------------
+    # List-grid export suite (user directive 2026-11-07): every model_list
+    # screen downloads as a branded Excel workbook, PDF or CSV, and can be
+    # sent by email as an attachment — all from EXACTLY the payload
+    # /p03/model/records serves, so an export can never drift from the grid.
+    # ------------------------------------------------------------------
+    def _ml_flat_cell(self, v):
+        """One model_list cell to its printable form: booleans Yes/No,
+        selection labels, many2one names — the same text the grid shows."""
+        if v is None or v == "":
+            return ""
+        if isinstance(v, bool):
+            return "Yes" if v else "No"
+        if isinstance(v, dict):
+            return v.get("label") or v.get("name") or ""
+        return v
+
+    def _model_list_export_payload(self, model, cols, lang):
+        """{rows (flattened), labels, title, count} for a served model —
+        the /p03/model/records read, reused verbatim."""
+        col_list = [c for c in (cols or "").split(",") if c] or None
+        data = self.model_records(
+            model=model, cols=col_list, domain=[], state_filter=None, lang=lang
+        )
+        if data.get("error"):
+            return None, data["error"]
+        cols_out = [c for c in (col_list or list(data["labels"].keys())) if c in data["labels"]]
+        rows = [{c: self._ml_flat_cell(r.get(c)) for c in cols_out} for r in data.get("rows") or []]
+        return {
+            "rows": rows,
+            "cols": cols_out,
+            "labels": data["labels"],
+            "count": data.get("count", len(rows)),
+        }, None
+
+    @http.route("/p03/model/list/export", type="http", auth="user")
+    def model_list_export(self, model=None, format="xlsx", cols=None, lang=None, **kw):
+        """Download any model_list grid as a branded XLSX / PDF / CSV.
+        The XLSX/PDF artefacts carry the official 1000 FiX letterhead (logo,
+        address, ISO badge) — the professional format users forward."""
+        _require_internal(request.env)
+        if format not in ("xlsx", "pdf", "csv"):
+            return request.make_response("format must be xlsx, pdf or csv", status=400)
+        payload, err = self._model_list_export_payload(model, cols, lang)
+        if err:
+            return request.make_response(err, status=400)
+        base_name = "%s_list_export" % (model or "records").replace(".", "_")
+        _log_report_export(model or "list", "model_list:%s" % model, format, payload, {})
+
+        if format == "xlsx":
+            out = dict(payload, title=(model or "records").replace(".", " ").title(), notes=[])
+            return self._report_xlsx(out, payload["cols"], payload["labels"], base_name, {})
+        if format == "pdf":
+            return self._list_pdf(payload, base_name)
+        import csv
+        import io as _io
+
+        buf = _io.StringIO()
+        buf.write("\ufeff")  # UTF-8 BOM: Excel opens Bengali text correctly
+        writer = csv.writer(buf)
+        writer.writerow([payload["labels"].get(c, c) for c in payload["cols"]])
+        for row in payload["rows"]:
+            writer.writerow([row.get(c, "") for c in payload["cols"]])
+        return request.make_response(
+            buf.getvalue(),
+            headers=[
+                ("Content-Type", "text/csv; charset=utf-8"),
+                ("Content-Disposition", 'attachment; filename="%s.csv"' % base_name),
+            ],
+        )
+
+    def _list_pdf(self, payload, base_name, title=None):
+        """Branded PDF of a model_list grid: official letterhead (logo,
+        company, address, ISO badge) on every page, teal header row,
+        repeating column header across pages, footer contact line + page
+        numbers — the stationery convention of the company's own POs."""
+        import io as _io
+
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas as _canvas
+        from reportlab.platypus import (
+            BaseDocTemplate,
+            Frame,
+            PageTemplate,
+            Paragraph,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+
+        lh = _brand.letterhead(request.env)
+        teal = colors.Color(*[x / 255 for x in _brand.BRAND_TEAL_RGB])
+        ink = colors.Color(*[x / 255 for x in _brand.BRAND_INK_RGB])
+        grey = colors.Color(*[x / 255 for x in _brand.GREY_RGB])
+        cols, labels, rows = payload["cols"], payload["labels"], payload["rows"]
+
+        class _NumberedCanvas(_canvas.Canvas):
+            """Two-pass canvas: 'Page x / y' like the company's PO footer."""
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._saved_states = []
+
+            def showPage(self):
+                self._saved_states.append(dict(self.__dict__))
+                self._startPage()
+
+            def save(self):
+                total = len(self._saved_states)
+                for state in self._saved_states:
+                    self.__dict__.update(state)
+                    self.setFont("Helvetica", 7)
+                    self.setFillColor(grey)
+                    self.drawCentredString(
+                        148.5 * mm, 6.5 * mm, "Page %d / %d" % (self._pageNumber, total)
+                    )
+                    super().showPage()
+                super().save()
+
+        def on_page(canvas, doc):
+            canvas.saveState()
+            # landscape A4: 297mm x 210mm — letterhead zone is the top 26mm
+            # logo top-left (aspect 1200x545 → 48x22pt)
+            try:
+                canvas.drawImage(
+                    str(_brand.logo_path()),
+                    14 * mm,
+                    178 * mm,
+                    width=48,
+                    height=22,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+            except Exception:
+                canvas.setFillColor(ink)
+                canvas.setFont("Helvetica-BoldOblique", 13)
+                canvas.drawString(14 * mm, 178 * mm, lh["name"])
+            canvas.setFillColor(ink)
+            canvas.setFont("Helvetica-Bold", 9)
+            canvas.drawRightString(283 * mm, 196 * mm, lh["name"])
+            canvas.setFillColor(grey)
+            canvas.setFont("Helvetica", 7)
+            y = 191 * mm
+            for line in lh["address_lines"][:4]:
+                canvas.drawRightString(283 * mm, y, line)
+                y -= 3.4 * mm
+            canvas.setFont("Helvetica-Oblique", 6)
+            canvas.setFillColor(teal)
+            canvas.drawRightString(283 * mm, y, _brand.ISO_BADGE)
+            # footer: rule + contact line (page x / y comes from _NumberedCanvas)
+            canvas.setStrokeColor(colors.Color(0.85, 0.85, 0.85))
+            canvas.setLineWidth(0.5)
+            canvas.line(14 * mm, 14 * mm, 283 * mm, 14 * mm)
+            canvas.setFillColor(grey)
+            canvas.setFont("Helvetica", 7)
+            canvas.drawCentredString(148.5 * mm, 10 * mm, lh["contact_line"])
+            canvas.restoreState()
+
+        buf = _io.BytesIO()
+        doc = BaseDocTemplate(
+            buf,
+            pagesize=landscape(A4),
+            leftMargin=14 * mm,
+            rightMargin=14 * mm,
+            topMargin=38 * mm,
+            bottomMargin=18 * mm,
+            title="%s — %s" % (lh["name"], base_name),
+            author=lh["name"],
+        )
+        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="body")
+        doc.addPageTemplates([PageTemplate(id="branded", frames=[frame], onPage=on_page)])
+
+        cell = ParagraphStyle("cell", fontName="Helvetica", fontSize=7.5, leading=9)
+        head = ParagraphStyle(
+            "head", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.white
+        )
+        title_style = ParagraphStyle(
+            "title", fontName="Helvetica", fontSize=15, leading=18, textColor=teal
+        )
+        doc_title = title or base_name.replace("_", " ").title()
+
+        story = [Paragraph(doc_title, title_style), Spacer(0, 3 * mm)]
+        data = [[Paragraph(labels.get(c, c), head) for c in cols]]
+        for row in rows:
+            data.append([Paragraph(str(row.get(c, "")) or "—", cell) for c in cols])
+        weights = []
+        for c in cols:
+            w = max(
+                len(labels.get(c, c)) * 4.6,
+                *([len(str(r.get(c, ""))) * 3.6 for r in rows[:60]] or [20]),
+            )
+            weights.append(max(min(w, 190), 34))
+        scale = doc.width / sum(weights)
+        table = Table(data, colWidths=[w * scale for w in weights], repeatRows=1)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), teal),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.Color(0.96, 0.96, 0.96)],
+                    ),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.Color(0.82, 0.82, 0.82)),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
+        story.append(table)
+        story.append(Spacer(0, 3 * mm))
+        story.append(
+            Paragraph(
+                "%d records · generated %s by %s"
+                % (
+                    payload["count"],
+                    fields.Datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    request.env.user.name or "",
+                ),
+                ParagraphStyle("meta", fontName="Helvetica", fontSize=7, textColor=grey),
+            )
+        )
+        doc.build(story, canvasmaker=_NumberedCanvas)
+        return request.make_response(
+            buf.getvalue(),
+            headers=[
+                ("Content-Type", "application/pdf"),
+                ("Content-Disposition", 'attachment; filename="%s.pdf"' % base_name),
+            ],
+        )
+
+    @http.route("/p03/model/list/email", type="jsonrpc", auth="user", readonly=False)
+    def model_list_email(
+        self,
+        model=None,
+        module=None,
+        report=None,
+        to=None,
+        subject=None,
+        body=None,
+        format="xlsx",
+        cols=None,
+        lang=None,
+        **kw,
+    ):
+        """Email a model_list grid — or a report pack (module+report, R1) — as
+        a branded attachment (XLSX or PDF). Recipients are validated; the mail
+        is queued through Odoo's own mail.mail (SMTP failure reports the
+        mail's state honestly)."""
+        import re as _re
+
+        _require_internal(request.env)
+        env = request.env
+        if format not in ("xlsx", "pdf"):
+            return {"error": "Attachment format must be xlsx or pdf"}
+        emails = [e.strip() for e in _re.split(r"[;,\s]+", to or "") if e.strip()]
+        email_re = _re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+        bad = [e for e in emails if not email_re.match(e)]
+        if bad:
+            return {"error": "Not a valid email address: %s" % ", ".join(bad[:3])}
+        if not emails or len(emails) > 10:
+            return {"error": "Between 1 and 10 recipient emails required"}
+
+        pack_title = None
+        if module and report:
+            # report-pack mode (R1): the same pack the screen renders
+            mod = (
+                a08.MODULES.get(module)
+                or a02.MODULES.get(module)
+                or a03.MODULES.get(module)
+                or a04.MODULES.get(module)
+                or a05.MODULES.get(module)
+                or a06.MODULES.get(module)
+                or a07.MODULES.get(module)
+                or a09.MODULES.get(module)
+                or a10.MODULES.get(module)
+                or a11.MODULES.get(module)
+                or a12.MODULES.get(module)
+            )
+            fn = getattr(mod, "REPORTS", {}).get(report) if mod else None
+            if not fn:
+                return {"error": "Report not available on this surface"}
+            out = fn(env)
+            cols_out = out.get("cols") or []
+            payload = {
+                "rows": out.get("rows") or [],
+                "cols": cols_out,
+                "labels": out.get("labels") or {},
+                "count": len(out.get("rows") or []),
+            }
+            base_name = "%s_%s" % (module, (report or "pack").replace("/", "_"))
+            pack_title = out.get("title")
+        else:
+            payload, err = self._model_list_export_payload(model, cols, lang)
+            if err:
+                return {"error": err}
+            base_name = "%s_list_export" % (model or "records").replace(".", "_")
+
+        def _resp_bytes(response):
+            raw = response.response
+            return raw if isinstance(raw, bytes) else b"".join(raw)
+
+        if format == "xlsx":
+            out = dict(
+                payload,
+                title=pack_title or (model or "records").replace(".", " ").title(),
+                notes=[],
+            )
+            # _report_xlsx writes a download response; reuse its bytes
+            response = self._report_xlsx(out, payload["cols"], payload["labels"], base_name, {})
+            data = _resp_bytes(response)
+        else:
+            response = self._list_pdf(payload, base_name, title=pack_title)
+            data = _resp_bytes(response)
+
+        import base64 as _b64
+
+        lh = _brand.letterhead(env)
+        attachment = env["ir.attachment"].create(
+            {
+                "name": "%s.%s" % (base_name, format),
+                "datas": _b64.b64encode(data).decode(),
+                "public": False,
+            }
+        )
+        default_subject = subject or ("%s — %s" % (lh["name"], base_name.replace("_", " ").title()))
+        body_html = "<p>%s</p><p>%s</p><p style='color:#888;font-size:12px'>%s<br/>%s</p>" % (
+            (body or "Please find the attached export."),
+            "%d records · generated %s"
+            % (payload["count"], fields.Datetime.now().strftime("%Y-%m-%d %H:%M")),
+            lh["name"] + " · " + _brand.ISO_BADGE,
+            lh["contact_line"],
+        )
+        mail = env["mail.mail"].create(
+            {
+                "subject": default_subject,
+                "body_html": body_html,
+                "email_to": ", ".join(emails),
+                "auto_delete": False,
+                "attachment_ids": [(6, 0, [attachment.id])],
+            }
+        )
+        state_before = mail.state
+        try:
+            mail.send(raise_exception=False)
+        except Exception:
+            _logger.exception("list export email send failed for %s", model)
+        return {
+            "ok": True,
+            "mail_id": mail.id,
+            "recipients": emails,
+            "state": mail.state or state_before,
+            "attachment": attachment.name,
+        }
 
     # brand-60 (tokens.json color.brand.60) — the workbook accent
     _XLSX_BRAND = "0E7A6E"
@@ -440,7 +819,6 @@ class P03GenericApiController(http.Controller):
         rows = out.get("rows") or []
         totals = out.get("totals") or {}
 
-        brand_font = Font(bold=True, size=14, color=self._XLSX_BRAND)
         meta_font = Font(size=10, color=self._XLSX_INK)
         meta_label_font = Font(bold=True, size=10, color=self._XLSX_INK)
         head_font = Font(bold=True, color="FFFFFF")
@@ -448,8 +826,34 @@ class P03GenericApiController(http.Controller):
         totals_font = Font(bold=True)
         totals_top = Border(top=Side(style="thin", color=self._XLSX_BRAND))
 
-        ws.cell(row=1, column=1, value="1000 FiX ERP").font = brand_font
-        r = 2
+        # ---- official letterhead (user directive 2026-11-07): logo top-left,
+        # company name + address + ISO badge right-aligned above every export.
+        lh = _brand.letterhead(request.env)
+        lh_font = Font(bold=True, size=11, color=self._XLSX_INK)
+        lh_small = Font(size=9, color="616161")
+        n_cols = max(len(cols), 4)
+        addr_col = max(n_cols - 2, 3)
+        ws.cell(row=1, column=addr_col, value=lh["name"]).font = lh_font
+        ws.cell(row=1, column=addr_col).alignment = Alignment(horizontal="right")
+        for i, line in enumerate(lh["address_lines"][:4]):
+            ws.cell(row=2 + i, column=addr_col, value=line).font = lh_small
+            ws.cell(row=2 + i, column=addr_col).alignment = Alignment(horizontal="right")
+        iso_row = 2 + min(len(lh["address_lines"][:4]), 4)
+        ws.cell(row=iso_row, column=addr_col, value=_brand.ISO_BADGE).font = Font(
+            size=8, italic=True, color=self._XLSX_BRAND
+        )
+        ws.cell(row=iso_row, column=addr_col).alignment = Alignment(horizontal="right")
+        try:
+            from openpyxl.drawing.image import Image as _XLImage
+
+            logo = _XLImage(str(_brand.logo_path()))
+            # ~34px tall in the sheet; aspect from the real file (1200x545)
+            logo.height = 34
+            logo.width = 34 * (1200 / 545)
+            ws.add_image(logo, "A1")
+        except Exception:
+            _logger.exception("letterhead logo missing for %s", base_name)
+        r = 7
         for label, value in self._report_meta(params):
             ws.cell(row=r, column=1, value=label).font = meta_label_font
             ws.cell(row=r, column=2, value=value).font = meta_font

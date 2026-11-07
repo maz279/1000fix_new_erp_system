@@ -11,6 +11,8 @@ export const MODULE = {
   desc: 'Cost pools and posted allocation cycles, job costing with loaded labour, business-line, branch and customer profitability, budget versions with approval, variance, forecast and board pack.',
   kpis: [
     { l: 'Budget Variance FYTD', m: 'fpa_budget_variance_fytd' },
+    { l: 'Budget Variance (Total)', m: 'budget_total_variance', prefix: '৳ ' },
+    { l: 'Budgets', m: 'budgets_count' },
     { l: 'Branch League #1', m: 'fpa_branch_top' },
     { l: 'Negative-Margin Branches', m: 'fpa_negative_branches' },
     { l: 'Job Costing Coverage', m: 'fpa_job_costing_coverage' }
