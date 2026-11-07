@@ -198,6 +198,103 @@ APPROVERS = [
         "সুমাইয়া খাতুন (Accountant 2)",
         ["account.group_account_user"],
     ),
+    # A07: the spec's roles for the five asset and facility modules. Maker and checker
+    # must differ on calibration, off-road, work orders and consent, so some come in pairs.
+    (
+        "seed.a07.device.agent@1000fix.local",
+        "শারমিন সুলতানা (Device Registry Agent)",
+        ["cd_device_registry.group_device_registry_user"],
+    ),
+    (
+        "seed.a07.device.branch@1000fix.local",
+        "ইমরান হোসেন (Device Registry Branch Manager)",
+        ["cd_device_registry.group_device_branch_manager"],
+    ),
+    (
+        "seed.a07.device.quality@1000fix.local",
+        "রুমানা পারভীন (Device Quality Manager)",
+        ["cd_device_registry.group_device_quality_manager"],
+    ),
+    (
+        "seed.a07.cal.technician@1000fix.local",
+        "আরিফুল ইসলাম (Calibration Technician)",
+        ["cd_equipment_register.group_calibration_technician"],
+    ),
+    (
+        "seed.a07.custodian@1000fix.local",
+        "মোস্তফা কামাল (Equipment Custodian)",
+        ["cd_equipment_register.group_equipment_custodian"],
+    ),
+    (
+        "seed.a07.quality1@1000fix.local",
+        "সাবিনা ইয়াসমিন (Quality Manager, Test Equipment)",
+        ["cd_equipment_register.group_quality_manager"],
+    ),
+    (
+        "seed.a07.quality2@1000fix.local",
+        "নাজমুল হক (Quality Manager, Test Equipment)",
+        ["cd_equipment_register.group_quality_manager"],
+    ),
+    (
+        "seed.a07.fleet1@1000fix.local",
+        "রফিকুল ইসলাম (Fleet Officer)",
+        ["fleet.fleet_group_user"],
+    ),
+    (
+        "seed.a07.fleet2@1000fix.local",
+        "শাহানা বেগম (Fleet Officer)",
+        ["fleet.fleet_group_user"],
+    ),
+    (
+        "seed.a07.logistics@1000fix.local",
+        "জসিম উদ্দিন (Fleet Logistics Manager)",
+        ["cd_vehicle_ext.group_logistics_manager"],
+    ),
+    (
+        "seed.a07.facility1@1000fix.local",
+        "মাহমুদা খাতুন (Facility Manager)",
+        ["cd_facility.group_facility_manager"],
+    ),
+    (
+        "seed.a07.facility2@1000fix.local",
+        "কবির আহমেদ (Facility Manager)",
+        ["cd_facility.group_facility_manager"],
+    ),
+    (
+        "seed.a07.branch.lead@1000fix.local",
+        "তানজিনা আক্তার (Branch Operations Lead)",
+        ["cd_facility.group_branch_operations_lead"],
+    ),
+    (
+        "seed.a07.ops.director@1000fix.local",
+        "হাসান মাহমুদ (Operations Director)",
+        ["cd_facility.group_operations_director"],
+    ),
+    (
+        "seed.a07.iot.operator@1000fix.local",
+        "সজীব আহমেদ (IoT Operator)",
+        ["cd_stream_registry.group_iot_operator"],
+    ),
+    (
+        "seed.a07.iot.admin@1000fix.local",
+        "মেহেদী হাসান (IoT Administrator)",
+        ["cd_stream_registry.group_iot_admin"],
+    ),
+    (
+        "seed.a07.iot.manager@1000fix.local",
+        "লুৎফর রহমান (IoT Manager)",
+        ["cd_stream_registry.group_iot_manager"],
+    ),
+    (
+        "seed.a07.consent1@1000fix.local",
+        "ফারজানা হক (IoT Consent Officer)",
+        ["cd_stream_registry.group_iot_consent_officer"],
+    ),
+    (
+        "seed.a07.consent2@1000fix.local",
+        "রেজাউল করিম (IoT Consent Officer)",
+        ["cd_stream_registry.group_iot_consent_officer"],
+    ),
     (
         "seed.fin.admin@1000fix.local",
         "কামরুল হাসান (Accounting Administrator)",

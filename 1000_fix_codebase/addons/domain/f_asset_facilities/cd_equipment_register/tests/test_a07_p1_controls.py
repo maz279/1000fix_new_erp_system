@@ -281,9 +281,15 @@ def test_missing_at_count_takes_the_item_out_of_use_until_found(c):
         lambda: Ver.create({"equipment_id": e.id, "campaign_ref": "%s-AUD2" % TAG}),
         "Store Keeper",
     )
-    c.env["fix.equipment.verification"].with_user(c.keeper).create(
-        {"equipment_id": e.id, "campaign_ref": "%s-AUD2" % TAG}
+    Keeper = c.env["fix.equipment.verification"].with_user(c.keeper)
+    # leaving the ticked box alone does not clear a loss: the count says where it was found
+    assert refused(
+        c.env,
+        lambda: Keeper.create({"equipment_id": e.id, "campaign_ref": "%s-AUD2" % TAG}),
+        "where it was found",
     )
+    assert e.operational_status == "missing"
+    Keeper.create({"equipment_id": e.id, "campaign_ref": "%s-AUD2" % TAG, "location": "Rack 3"})
     assert (e.operational_status, e.missing_verification_id) == (
         "available",
         c.env["fix.equipment.verification"],

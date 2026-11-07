@@ -662,3 +662,108 @@ msgstr "প্রত্যাহারের প্রমাণ"
 #: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__revision_note
 msgid "Last Terms Revision"
 msgstr "শর্তাবলির সর্বশেষ সংশোধন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__api_key_hash
+msgid "Key Hash"
+msgstr "কী হ্যাশ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_set
+msgid "Key Set"
+msgstr "কী সেট করা হয়েছে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_rotated_by
+msgid "Key Rotated By"
+msgstr "কী পরিবর্তন করেছেন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_rotated_on
+msgid "Key Rotated On"
+msgstr "কী পরিবর্তনের সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_severity
+msgid "Proposed Severity"
+msgstr "প্রস্তাবিত গুরুত্ব"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_duration_min
+msgid "Proposed Sustained For (minutes)"
+msgstr "প্রস্তাবিত স্থায়িত্ব (মিনিট)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_cooldown_min
+msgid "Proposed Cooldown (minutes)"
+msgstr "প্রস্তাবিত কুলডাউন (মিনিট)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_severity
+msgid "Severity Before Suppression"
+msgstr "স্থগিতের আগের গুরুত্ব"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_duration_min
+msgid "Sustained For Before Suppression"
+msgstr "স্থগিতের আগের স্থায়িত্ব"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_cooldown_min
+msgid "Cooldown Before Suppression"
+msgstr "স্থগিতের আগের কুলডাউন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approval_routed_group
+msgid "Approval Routed To"
+msgstr "অনুমোদন পাঠানো হয়েছে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancelled_by
+msgid "Cancelled By"
+msgstr "বাতিল করেছেন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancelled_on
+msgid "Cancelled On"
+msgstr "বাতিলের সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancel_reason
+msgid "Why Cancelled"
+msgstr "বাতিলের কারণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_file
+msgid "Disclosure File"
+msgstr "প্রকাশপত্রের ফাইল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_filename
+msgid "Disclosure File Name"
+msgstr "প্রকাশপত্রের ফাইলের নাম"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_name
+msgid "Disclosure On File"
+msgstr "নথিভুক্ত প্রকাশপত্র"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry__anonymised
+msgid "Anonymised"
+msgstr "বেনামী করা হয়েছে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__work_order_created
+msgid "Preventive Work Order Requested"
+msgstr "প্রতিরোধমূলক কার্যাদেশের অনুরোধ করা হয়েছে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_rule__suppression_kind__settings
+msgid "Loosened Settings"
+msgstr "শিথিল করা সেটিংস"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_retention_change__change_type__deactivate
+msgid "Policy Deactivation"
+msgstr "নীতি বন্ধ করা"

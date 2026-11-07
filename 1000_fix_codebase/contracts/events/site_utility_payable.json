@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "site.utility_payable",
+  "description": "Published by cd_facility through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "site.utility_payable"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_facility"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "record",
+        "site",
+        "site_id",
+        "utility_type",
+        "period",
+        "amount"
+      ],
+      "properties": {
+        "record": {
+          "type": "string"
+        },
+        "site": {
+          "type": "string"
+        },
+        "site_id": {
+          "type": "integer"
+        },
+        "utility_type": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_facility",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

@@ -213,7 +213,10 @@ def _wo(c, user=None, **kw):
         "description": "A07P1L generator overhaul",
     }
     vals.update(kw)
-    return c.env[WO].with_user(user or c.clerk).create(vals)
+    order = c.env[WO].with_user(user or c.clerk).create(vals)
+    # a person's request is triaged first (tested in test_a07_m47_operability.py)
+    order.sudo().action_triage("normal")
+    return order
 
 
 def test_raising_publishes_and_a_vendor_job_names_its_vendor(c):

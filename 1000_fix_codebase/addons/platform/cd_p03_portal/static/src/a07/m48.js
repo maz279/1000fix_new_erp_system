@@ -24,7 +24,9 @@ export const MODULE = {
       { id: 'M48-streams', en: 'Stream Registry', bn: 'স্ট্রিম রেজিস্টার', t: 'g' },
       { id: 'M48-adapters', en: 'Protocol Adapters', bn: 'প্রোটোকল অ্যাডাপ্টার', t: 'g' },
       { id: 'M48-health', en: 'Pipeline Observability', bn: 'পাইপলাইন', t: 'r' },
-      { id: 'M48-gaps', en: 'Telemetry Gaps', bn: 'টেলিমেট্রি বিরতি', t: 'g' }
+      { id: 'M48-gaps', en: 'Telemetry Gaps', bn: 'টেলিমেট্রি বিরতি', t: 'g' },
+      { id: 'M48-telemetry', en: 'Telemetry Readings', bn: 'টেলিমেট্রি রিডিং', t: 'g' },
+      { id: 'M48-rollups', en: 'Telemetry Aggregates', bn: 'টেলিমেট্রি সমষ্টি', t: 'g' }
     ]},
     { en: 'Alerting', screens: [
       { id: 'M48-alerts', en: 'Threshold Alerts', bn: 'থ্রেশহোল্ড অ্যালার্ট', t: 'g' },
@@ -37,7 +39,7 @@ export const MODULE = {
       { id: 'M48-routing', en: 'Prescriptive Routing', bn: 'নির্দেশনামূলক রুটিং', t: 'g' }
     ]},
     { en: 'Alerts', screens: [
-      { id: 'M48-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+      { id: 'M48-asset-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
     ]},
     { en: 'Governance', screens: [
       { id: 'M48-consent', en: 'Consent & Access Control', bn: 'সম্মতি ও নিয়ন্ত্রণ', t: 'g' },
@@ -60,7 +62,7 @@ export const MODULE = {
 };
 
 export const SCREENS = {
-  'M48-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+  'M48-asset-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
     note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
     domain: [['module', '=', 'M48']],
     cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
@@ -69,13 +71,18 @@ export const SCREENS = {
     cols: ['name', 'device_id', 'equipment_id', 'metric', 'unit', 'sample_interval_sec', 'retention_days', 'consent_policy', 'adapter_id', 'last_seen', 'state'],
     actions: [
       { m: 'action_activate', l: 'Activate Stream' },
-      { m: 'action_suspend', l: 'Suspend Stream' }
+      { m: 'action_suspend', l: 'Suspend Stream' },
+      { m: 'action_set_consent_policy', l: 'Change Consent Policy (Consent Officer)', asks: [
+        { label: 'New policy: type inherit (module default) or required (consent always required)', kwarg: 'policy' },
+        { label: 'Why is the policy changing?', kwarg: 'reason' }
+      ] }
     ] },
   'M48-adapters': { kind: 'model_list', model: 'fix.iot.adapter', stateField: 'state',
-    cols: ['name', 'protocol', 'endpoint', 'auth_mode', 'credential_ref', 'disabled_by', 'disabled_on', 'state'],
+    cols: ['name', 'protocol', 'endpoint', 'auth_mode', 'credential_ref', 'key_set', 'key_rotated_on', 'disabled_by', 'disabled_on', 'state'],
     actions: [
       /* A07 P1: any internal user may disable (it only stops collection);
-       * enabling needs the IoT Administrator and a credential reference. */
+       * enabling needs the IoT Administrator, a credential reference and a key. */
+      { m: 'action_rotate_key', l: 'Rotate Key (IoT Administrator)', ask: 'Paste a new key of at least 32 characters from your secret store, or leave this blank to have one generated. A generated key is shown only once.', kwarg: 'key' },
       { m: 'action_enable', l: 'Enable Adapter (IoT Administrator)' },
       { m: 'action_disable', l: 'Disable Adapter', ask: 'Why disable this adapter?', kwarg: 'reason' }
     ] },
@@ -89,6 +96,12 @@ export const SCREENS = {
        * apply at once. */
       { m: 'action_pause', l: 'Request Pause (approval)', ask: 'Why pause this rule? (set Suppressed Until on the rule first)', kwarg: 'reason' },
       { m: 'action_change_threshold', l: 'Change Threshold', ask: 'New threshold (tightening applies now; loosening needs the rule Suppression Reason and Suppressed Until, and approval)', kwarg: 'threshold' },
+      { m: 'action_change_settings', l: 'Change Severity, Dwell or Cooldown', asks: [
+        { label: 'Severity: minor or major (leave blank to keep it)', kwarg: 'severity' },
+        { label: 'Sustained for, in minutes (leave blank to keep it)', kwarg: 'duration_min' },
+        { label: 'Cooldown, in minutes (leave blank to keep it)', kwarg: 'cooldown_min' },
+        { label: 'Reason (a lower severity or longer time needs approval, and Suppressed Until on the rule)', kwarg: 'reason' }
+      ] },
       { m: 'action_request_approval', l: 'Re-request Suppression Approval', ask: 'Note for the approver', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Suppression Request' },
       { m: 'action_activate', l: 'Resume Rule / Lift Suppression' }
@@ -102,19 +115,20 @@ export const SCREENS = {
   'M48-scores': { kind: 'table_report', module: 'M48', report: 'asset_health', title: 'Asset Health Scoring', period: false },
   'M48-failure': { kind: 'model_list', model: 'fix.predictive.maintenance',
     cols: ['name', 'equipment_id', 'prediction', 'confidence', 'estimated_days_to_failure', 'model_name', 'model_published', 'outcome', 'outcome_action_id', 'work_order_created'],
-    actions: [{ m: 'action_create_preventive_wo', l: 'Create Preventive WO' }] },
+    actions: [{ m: 'action_create_preventive_wo', l: 'Request Preventive Work Order' }] },
   'M48-rul': { kind: 'table_report', module: 'M48', report: 'rul_estimation', title: 'RUL Estimation', period: false },
   'M48-routing': { kind: 'model_list', model: 'fix.iot.action', stateField: 'state',
-    cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'scheduled_on', 'approval_state', 'approved_by', 'outcome', 'state'],
+    cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'scheduled_on', 'approval_state', 'approved_by', 'spine_work_order_id', 'spine_service_order_id', 'outcome', 'revision_note', 'state'],
     actions: [
       /* A07 P0 recipe (M48-2): an approver other than the proposer decides
-       * from the M63 inbox; this only asks. A07 P1: the Operations Director
-       * (M47 role) decides; the DOFA Tier 2 stand-in until it is installed.
+       * from the M63 inbox; this only asks. The Operations Director (M47 role)
+       * decides; DOFA Tier 2 while nobody holds that role.
        * Dispatch and completion are the IoT Operator's. */
-      { m: 'action_request_approval', l: 'Request Approval (Operations Director)', ask: 'Why is this intervention needed?', kwarg: 'justification' },
+      { m: 'action_request_approval', l: 'Request Approval (Operations Director, or DOFA Tier 2 if none)', ask: 'Why is this intervention needed?', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
       /* A07 P1 M48-12: approved terms are refused; this withdraws the approval. */
       { m: 'action_revise_terms', l: 'Revise Terms (withdraw approval)', ask: 'Why must the approved action change?', kwarg: 'reason' },
+      { m: 'action_cancel', l: 'Cancel Action', ask: 'Why is this action cancelled?', kwarg: 'reason' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_done_confirmed', l: 'Complete: Failure Confirmed', ask: 'What did the intervention find?', kwarg: 'note' },
       { m: 'action_done_not_confirmed', l: 'Complete: Failure Not Confirmed', ask: 'What did the intervention find?', kwarg: 'note' }
@@ -126,13 +140,14 @@ export const SCREENS = {
        * anyone may record a withdrawal (it only stops collection). */
       { m: 'action_verify', l: 'Verify Consent (Consent Officer)' },
       { m: 'action_revoke', l: 'Revoke Consent', ask: 'Withdrawal evidence (letter, call or ticket reference)', kwarg: 'evidence_ref' },
-      { m: 'action_record_treatment', l: 'Record Anonymisation Done', ask: 'How were the readings anonymised?', kwarg: 'note' }
+      { m: 'action_record_treatment', l: 'Anonymise the Held Readings (Consent Officer)', ask: 'This cannot be undone: the readings lose their device and exact time, and location readings and aggregates are deleted. Note for the record: why, and under what authority?', kwarg: 'note' }
     ] },
   'M48-downsample': { kind: 'model_list', model: 'fix.iot.downsample', stateField: 'state',
     cols: ['name', 'stream_id', 'raw_interval_sec', 'target_interval_sec', 'aggregation', 'retention_days', 'compression_pct', 'measured_compression_pct', 'rollup_points', 'last_rollup_on', 'state'],
     actions: [
       /* A07 P1 (BRU-IOT-06): activation is a retention change the CTO approves. */
-      { m: 'action_activate', l: 'Request Activation (CTO approval)' }
+      { m: 'action_activate', l: 'Request Activation (CTO approval)' },
+      { m: 'action_request_deactivation', l: 'Request Switch Off (CTO approval)', ask: 'Why should this policy stop?', kwarg: 'reason' }
     ] },
   'M48-retention': { kind: 'model_list', model: 'fix.iot.retention.change', stateField: 'state',
     cols: ['name', 'change_type', 'stream_id', 'downsample_id', 'current_days', 'proposed_days', 'reason', 'requested_by', 'approval_state', 'applied_by', 'state'],
@@ -142,6 +157,12 @@ export const SCREENS = {
     ] },
   'M48-gaps': { kind: 'model_list', model: 'fix.iot.gap', stateField: 'state', create: false,
     cols: ['name', 'stream_id', 'device_id', 'gap_from', 'gap_to', 'detected_at', 'cause', 'had_reading', 'points_expected', 'state'] },
+  'M48-telemetry': { kind: 'model_list', model: 'fix.iot.telemetry', create: false,
+    note: 'The readings as they arrived. Nobody types or edits them here. A reading with no device was anonymised after its consent was withdrawn.',
+    cols: ['timestamp', 'device_id', 'metric', 'value', 'unit', 'anonymised'] },
+  'M48-rollups': { kind: 'model_list', model: 'fix.iot.telemetry.rollup', create: false,
+    note: 'What the daily retention job aggregated under each active downsampling policy. Nobody types or edits them here.',
+    cols: ['stream_id', 'downsample_id', 'bucket_start', 'bucket_seconds', 'aggregation', 'value', 'points'] },
 
   /* Report chips -> their own computed pack */
   'M48-rpt-coverage': { kind: 'table_report', module: 'M48', report: 'telemetry_coverage', title: 'Telemetry Coverage', period: false },
@@ -155,9 +176,9 @@ export const SCREENS = {
     model: 'fix.iot.stream',
     title: 'Stream Binding',
     back: 'M48-streams',
-    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', suspended: 'Suspended' } },
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', silent: 'Silent', suspended: 'Suspended' } },
     sections: [
-      { title: 'Stream', note: 'A stream binds one device metric to a protocol adapter. It activates only when its device is bound to M45 equipment or an M47 site. The sample interval is the ingest expectation used by Telemetry Coverage and the liveness check (silent after three intervals with no reading), and it must be positive. Raw retention is set at creation; afterwards it changes only through a Retention Change the CTO approves. Consent Always Required tightens the consent check; relaxing it back needs the Consent Officer.',
+      { title: 'Stream', note: 'A stream binds one device metric to a protocol adapter. It activates only when its device is bound to M45 equipment or an M47 site. Its device and metric are fixed once it has left draft. The sample interval is the ingest expectation used by Telemetry Coverage and the liveness check (silent after three intervals with no reading), and it must be positive. Raw retention is set at creation; afterwards it changes only through a Retention Change the CTO approves. Consent Always Required tightens the consent check; only the Consent Officer relaxes it back, with Change Consent Policy.',
         fields: [
           { name: 'name', required: true, label: 'Stream Reference' },
           { name: 'device_id', required: true, label: 'Device' },
@@ -180,7 +201,7 @@ export const SCREENS = {
     back: 'M48-alerts',
     status: { field: 'state', labels: { active: 'Active', paused: 'Paused' } },
     sections: [
-      { title: 'Threshold Rule', note: 'A reading that compares true against the threshold raises an alert at the rule severity. Ingest evaluates only active rules. While the rule\'s last alert is open, further breaches are counted on it; after an alert, none is raised again within the cooldown. Sustained For holds an alert back until the breach has lasted that long only where the dwell switch is on. Stream, operator and threshold are set when the rule is created; afterwards the threshold changes only through Change Threshold, and the stream and operator not at all.',
+      { title: 'Threshold Rule', note: 'A reading that compares true against the threshold raises an alert at the rule severity. Ingest evaluates only active rules. While the rule\'s last alert is open, further breaches are counted on it; after an alert, none is raised again within the cooldown. Sustained For holds an alert back until the breach has lasted that long only where the dwell switch is on. All of these are set when the rule is created. Afterwards the threshold changes only through Change Threshold, severity, Sustained For and Cooldown only through Change Severity, Dwell or Cooldown, and the stream and operator not at all.',
         fields: [
           { name: 'name', required: true, label: 'Rule Reference' },
           { name: 'stream_id', required: true, label: 'Stream' },
@@ -193,13 +214,19 @@ export const SCREENS = {
           { name: 'last_alert_on', label: 'Last Alert Raised', readonly: true },
           { name: 'cooldown_suppressed', label: 'Breaches Held by Cooldown', readonly: true }
         ] },
-      { title: 'Suppression', note: 'Pausing a rule or loosening its threshold is a suppression: give a reason and an expiry here, then Request Pause or Change Threshold. An approver other than the requester and the rule author decides it from the approval inbox. It ends after Suppressed Until, when the rule alerts again at its earlier threshold.',
+      { title: 'Suppression', note: 'Pausing a rule, loosening its threshold, lowering its severity or lengthening its dwell or cooldown is a suppression: give a reason and an expiry here, then use the matching button. An approver other than the requester and the rule author decides it from the approval inbox. It ends after Suppressed Until, when the rule alerts again as it did before.',
         fields: [
           { name: 'suppression_reason', label: 'Suppression Reason' },
           { name: 'suppression_until', label: 'Suppressed Until' },
           { name: 'suppression_kind', label: 'Suppression', readonly: true },
           { name: 'proposed_threshold', label: 'Proposed Threshold', readonly: true },
+          { name: 'proposed_severity', label: 'Proposed Severity', readonly: true },
+          { name: 'proposed_duration_min', label: 'Proposed Sustained For (minutes)', readonly: true },
+          { name: 'proposed_cooldown_min', label: 'Proposed Cooldown (minutes)', readonly: true },
           { name: 'baseline_threshold', label: 'Threshold Before Suppression', readonly: true },
+          { name: 'baseline_severity', label: 'Severity Before Suppression', readonly: true },
+          { name: 'baseline_duration_min', label: 'Sustained For Before Suppression', readonly: true },
+          { name: 'baseline_cooldown_min', label: 'Cooldown Before Suppression', readonly: true },
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'suppression_requested_by', label: 'Requested By', readonly: true },
           { name: 'suppressed_by', label: 'Approved By', readonly: true },
@@ -212,10 +239,10 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.iot.downsample',
     title: 'Downsampling Policy',
-    back: 'M48-streams',
+    back: 'M48-downsample',
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active' } },
     sections: [
-      { title: 'Downsampling', note: 'The target interval cannot be shorter than the raw interval (database CHECK). A draft policy is edited freely; Request Activation sends it to the CTO, and an active policy changes only through a Retention Change. Design Reduction is the planning figure 1 - raw / target. The Retention Compression KPI uses only the Measured Compression, which the daily retention job computes from the aggregates it actually wrote.',
+      { title: 'Downsampling', note: 'The target interval cannot be shorter than the raw interval. A draft policy is edited freely until Request Activation sends it to the CTO: its terms are then frozen until the request is decided or recalled. An active policy changes only through a Retention Change, or Request Switch Off, which returns it to draft once the CTO approves. Design Reduction is the planning figure 1 - raw / target. The Retention Compression KPI uses only the Measured Compression, which the daily retention job computes from the aggregates it actually wrote.',
         fields: [
           { name: 'name', required: true, label: 'Policy Reference' },
           { name: 'stream_id', required: true, label: 'Stream' },
@@ -244,14 +271,17 @@ export const SCREENS = {
     back: 'M48-adapters',
     status: { field: 'state', labels: { enabled: 'Enabled', disabled: 'Disabled' } },
     sections: [
-      { title: 'Adapter', note: 'The endpoint and auth mode are recorded configuration; no live broker connection is claimed by this screen. An enabled adapter must authenticate (Bearer Token or Mutual TLS), and ingest refuses readings through a disabled or unauthenticated one. Never type a password into the endpoint: record where the credential is kept in Credential Reference.',
+      { title: 'Adapter', note: 'The endpoint and auth mode are recorded configuration; no live broker connection is claimed by this screen. A new adapter is disabled. To enable it, choose Bearer Token or Mutual TLS, record where the credential is kept in Credential Reference, and Rotate Key. Readings arrive at POST /iot/v1/ingest with that key in the X-Adapter-Key header, only for this adapter\'s streams; ingest refuses a disabled adapter, an unauthenticated one and one with no key. Never type a password into the endpoint.',
         fields: [
           { name: 'name', required: true, label: 'Adapter Name' },
           { name: 'protocol', required: true, label: 'Protocol' },
           { name: 'endpoint', label: 'Endpoint' },
           { name: 'auth_mode', required: true, label: 'Authentication' },
           { name: 'credential_ref', label: 'Credential Reference' },
-          { name: 'credential_rotated_on', label: 'Credential Rotated On' },
+          { name: 'credential_rotated_on', label: 'Credential Rotated On', readonly: true },
+          { name: 'key_set', label: 'Key Set', readonly: true },
+          { name: 'key_rotated_by', label: 'Key Rotated By', readonly: true },
+          { name: 'key_rotated_on', label: 'Key Rotated On', readonly: true },
           { name: 'state', label: 'State', readonly: true },
           { name: 'disabled_by', label: 'Disabled By', readonly: true },
           { name: 'disabled_on', label: 'Disabled On', readonly: true },
@@ -269,7 +299,7 @@ export const SCREENS = {
       proposed: 'Proposed', approved: 'Approved', dispatched: 'Dispatched',
       done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Action', note: 'Proposed → approved → dispatched → done; the state changes only through the actions. Approval is requested here and decided from the approval inbox by the Operations Director (DOFA Tier 2 until that role is installed), never the proposer, never on a healthy prediction or one whose model is not a published M26 model. Changing the action type, priority or prediction after approval withdraws it. Dispatch (IoT Operator) needs a technician and hands the work order to M01/M02; completion needs the outcome evidence, is recorded by someone other than the technician, and records whether the failure was confirmed.',
+      { title: 'Action', note: 'Proposed → approved → dispatched → done; the state changes only through the actions. Approval is requested here and decided from the approval inbox by the Operations Director (DOFA Tier 2 while nobody holds that role), never the proposer, never on a healthy prediction, one whose model is not a published M26 model, one that already has its outcome, or one with another action under way. Changing the action type, priority or prediction after approval is refused: use Revise Terms. A proposed or approved action can be cancelled with a reason. Dispatch (IoT Operator) needs a technician and hands the work order to M01/M02; completion waits until that order is finished, needs the outcome evidence, is recorded by someone other than the technician, and records whether the failure was confirmed.',
         fields: [
           { name: 'name', required: true, label: 'Action Reference' },
           { name: 'prediction_id', required: true, label: 'Prediction' },
@@ -285,11 +315,47 @@ export const SCREENS = {
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'approved_by', label: 'Approved By', readonly: true },
           { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'revision_note', label: 'Last Terms Revision', readonly: true },
+          { name: 'spine_work_order_id', label: 'Work Order', readonly: true },
+          { name: 'spine_service_order_id', label: 'Service Order (M01)', readonly: true },
           { name: 'dispatched_on', label: 'Dispatched On', readonly: true },
           { name: 'completed_by', label: 'Completed By', readonly: true },
           { name: 'completed_on', label: 'Completed On', readonly: true },
           { name: 'outcome', label: 'Outcome', readonly: true },
-          { name: 'outcome_note', label: 'Outcome Note', readonly: true }
+          { name: 'outcome_note', label: 'Outcome Note', readonly: true },
+          { name: 'cancelled_by', label: 'Cancelled By', readonly: true },
+          { name: 'cancelled_on', label: 'Cancelled On', readonly: true },
+          { name: 'cancel_reason', label: 'Why Cancelled', readonly: true }
+        ] }
+    ]
+  },
+
+  'M48-form-alert': {
+    kind: 'model_form',
+    model: 'fix.iot.alert',
+    title: 'IoT Alert',
+    back: 'M48-lifecycle',
+    status: { field: 'state', labels: { new: 'New', acked: 'Acknowledged', resolved: 'Resolved' } },
+    sections: [
+      { title: 'Alert', note: 'Raised by the rule engine or a device health change; nobody types it. Acknowledge and Resolve are on the Alert Lifecycle list.',
+        fields: [
+          { name: 'name', label: 'Alert', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'stream_id', label: 'Stream', readonly: true },
+          { name: 'rule_id', label: 'Rule', readonly: true },
+          { name: 'severity', label: 'Severity', readonly: true },
+          { name: 'message', label: 'Message', readonly: true },
+          { name: 'trigger_value', label: 'Trigger Value', readonly: true },
+          { name: 'last_value', label: 'Latest Value', readonly: true },
+          { name: 'occurrence_count', label: 'Occurrences', readonly: true },
+          { name: 'last_occurrence_on', label: 'Last Occurrence', readonly: true }
+        ] },
+      { title: 'Handling', fields: [
+          { name: 'acked_by', label: 'Acknowledged By', readonly: true },
+          { name: 'acked_on', label: 'Acknowledged On', readonly: true },
+          { name: 'resolved_by', label: 'Resolved By', readonly: true },
+          { name: 'resolved_on', label: 'Resolved On', readonly: true },
+          { name: 'resolution_note', label: 'Resolution', readonly: true }
         ] }
     ]
   },
@@ -301,7 +367,7 @@ export const SCREENS = {
     back: 'M48-consent',
     status: { field: 'state', labels: { active: 'Active', revoked: 'Revoked' } },
     sections: [
-      { title: 'Consent', note: 'A consent must name its subject (the device, site or customer of its subject type) and cannot end before it is granted. Ingest checks it: an active, verified consent in date covers the device, for the signals it lists. A consent recorded by someone other than a Consent Officer grants nothing until an officer who did not record it verifies it against its evidence; changing a verified consent sends it back for verification. Revoke Consent records who and when, suspends the streams it covered that no other valid consent covers, and applies the treatment agreed at grant to the readings held. A revoked consent is never reactivated, and the state changes only through Revoke.',
+      { title: 'Consent', note: 'A consent must name its subject (the device, site or customer of its subject type) and cannot end before it is granted. Ingest checks it: an active, verified consent in date covers the device, for the signals it lists. A consent grants nothing until it is verified against its evidence: the disclosure file or where the signed form is filed, who granted it, and the signals it lists. A Consent Officer\'s own consent with all of that is verified as recorded; anyone else\'s, or one missing any of it, waits for an officer who did not record it. Changing a verified consent sends it back for verification. Revoke Consent records who and when, suspends the streams it covered that no other valid consent covers, and applies the treatment agreed at grant to the readings held on them. A revoked consent is never reactivated, and the state changes only through Revoke.',
         fields: [
           { name: 'name', required: true, label: 'Consent Reference' },
           { name: 'subject_type', required: true, label: 'Subject Type' },
@@ -313,7 +379,9 @@ export const SCREENS = {
           { name: 'valid_to', label: 'Valid To' },
           { name: 'signal_groups_permitted', label: 'Signals Permitted' },
           { name: 'granted_by', label: 'Granted By' },
-          { name: 'disclosure_document_id', label: 'Disclosure Given' },
+          { name: 'disclosure_name', label: 'Disclosure On File', readonly: true },
+          { name: 'disclosure_file', type: 'file', label: 'Upload the Disclosure Given' },
+          { name: 'disclosure_filename', label: 'Disclosure File Name' },
           { name: 'evidence_ref', label: 'Grant Evidence' },
           { name: 'revocation_treatment', required: true, label: 'Treatment on Revocation' },
           { name: 'state', label: 'State', readonly: true },
@@ -339,14 +407,14 @@ export const SCREENS = {
     title: 'Failure Prediction',
     back: 'M48-failure',
     sections: [
-      { title: 'Prediction', note: 'Confidence must be within 0–1 and days-to-failure cannot be negative (0 means imminent). Model is the code of a published M26 predictive-maintenance model; a prediction whose model is not published is recorded but never applied (no approved action, no work order). Only a failure prediction can create a preventive work order, once. The verified outcome is recorded by completing a prescriptive action, never typed.',
+      { title: 'Prediction', note: 'An IoT Operator records the score a published model produced; once saved, it cannot be rewritten: a re-assessment is a new prediction. Confidence must be within 0–1 and days-to-failure cannot be negative (0 means imminent). Model is the code of a published M26 predictive-maintenance model: saving names the choices if it is not one. Request Preventive Work Order is the IoT Operator\'s, on a failure prediction confident enough; it asks once, and can ask again only if the demand it raised is dismissed. The verified outcome is recorded by completing a prescriptive action, never typed.',
         fields: [
           { name: 'name', required: true, label: 'Prediction Reference' },
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'prediction', required: true, label: 'Prediction' },
-          { name: 'confidence', label: 'Confidence (0-1)' },
+          { name: 'confidence', required: true, label: 'Confidence (0-1)' },
           { name: 'estimated_days_to_failure', label: 'Days to Failure' },
-          { name: 'model_name', label: 'Model' },
+          { name: 'model_name', required: true, label: 'Model' },
           { name: 'model_published', label: 'Model Published (M26)', readonly: true },
           { name: 'feature_window_from', label: 'Feature Window From' },
           { name: 'feature_window_to', label: 'Feature Window To' },
@@ -354,7 +422,8 @@ export const SCREENS = {
           { name: 'outcome_note', label: 'Outcome Note', readonly: true },
           { name: 'outcome_action_id', label: 'Outcome From Action', readonly: true },
           { name: 'outcome_recorded_by', label: 'Outcome Recorded By', readonly: true },
-          { name: 'work_order_created', label: 'Work Order Created', readonly: true }
+          { name: 'last_evaluated', label: 'Last Evaluated', readonly: true },
+          { name: 'work_order_created', label: 'Preventive Work Order Requested', readonly: true }
         ] }
     ]
   },
@@ -366,7 +435,7 @@ export const SCREENS = {
     back: 'M48-retention',
     status: { field: 'state', labels: { draft: 'Draft', requested: 'Awaiting CTO Approval', applied: 'Applied', rejected: 'Rejected' } },
     sections: [
-      { title: 'Change', note: 'BRU-IOT-06: a stream\'s raw retention, a policy\'s compressed retention and a policy\'s activation change only with CTO approval. Name exactly one target. Request CTO Approval routes it to an IoT Manager who neither requested nor created it; the change applies when they approve it from the inbox, and its terms are frozen once requested.',
+      { title: 'Change', note: 'A stream\'s raw retention, a policy\'s compressed retention, and switching a policy on or off change only with CTO approval. Name exactly one target, and one change at a time for it. Request CTO Approval routes it to an IoT Manager who neither requested nor created it; the change applies when they approve it from the inbox, and its terms are frozen once requested.',
         fields: [
           { name: 'name', required: true, label: 'Change Reference' },
           { name: 'change_type', required: true, label: 'Change' },
@@ -460,7 +529,8 @@ export const FORM_CHIPS = {
     'fix.iot.consent': 'M48-form-consent',
     'fix.predictive.maintenance': 'M48-form-prediction',
     'fix.iot.retention.change': 'M48-form-retention',
-    'fix.iot.gap': 'M48-form-gap'
+    'fix.iot.gap': 'M48-form-gap',
+    'fix.iot.alert': 'M48-form-alert'
   },
   'M48:__by_screen__': {
     'M48-iot-device': 'M48-form-iot-device',
@@ -472,7 +542,8 @@ export const FORM_CHIPS = {
     'M48-failure': 'M48-form-prediction',
     'M48-downsample': 'M48-form-downsample',
     'M48-retention': 'M48-form-retention',
-    'M48-gaps': 'M48-form-gap'
+    'M48-gaps': 'M48-form-gap',
+    'M48-lifecycle': 'M48-form-alert'
   }
 };
 

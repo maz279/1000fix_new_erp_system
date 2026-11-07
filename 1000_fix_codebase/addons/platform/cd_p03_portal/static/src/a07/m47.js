@@ -47,6 +47,12 @@ export const MODULE = {
       { id: 'M47-safety', en: 'Safety Equipment', bn: 'নিরাপত্তা সরঞ্জাম', t: 'g' },
       { id: 'M47-security', en: 'Security & Incidents', bn: 'নিরাপত্তা ঘটনা', t: 'g' },
       { id: 'M47-opening', en: 'Site Open / Close Projects', bn: 'সাইট খোলা/বন্ধ', t: 'g' }
+    ]},
+    { en: 'Finance & HSE Hand-offs', screens: [
+      { id: 'M47-costs', en: 'Cost Entries for Accounts Payable', bn: 'হিসাবের জন্য খরচের এন্ট্রি', t: 'g' },
+      { id: 'M47-asset-requests', en: 'Asset Finance Requests', bn: 'সম্পদ অর্থায়ন অনুরোধ', t: 'g' },
+      { id: 'M47-lease-items', en: 'Lease Remeasurement Items', bn: 'লিজ পুনঃপরিমাপ', t: 'g' },
+      { id: 'M47-handoff-exceptions', en: 'Hand-off Problems', bn: 'হস্তান্তর সমস্যা', t: 'g' }
     ]}
   ],
   reports: ['Cost per Site / per Job', 'Lease Expiry Register', 'Licence Compliance', 'Utilities Variance', 'Facility Work Order Performance', 'Branch Asset Register'],
@@ -76,6 +82,8 @@ export const SCREENS = {
     cols: ['name', 'site_type', 'branch_id', 'accountable_manager_id', 'floor_area_sqm', 'monthly_rent', 'opened_on', 'approval_state', 'state'],
     actions: [
       { m: 'action_request_approval', l: 'Request Status-Change Approval (readiness / resume: Operations Director; close / reopen: CFO then CEO)', ask: 'Business justification for the signatories', kwarg: 'justification' },
+      { m: 'action_request_closure', l: 'Request Closure Approval (also for a suspended site: CFO then CEO)', ask: 'Why is this site closing? The signatories read this.', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_open', l: 'Open Site (Readiness Gate)' },
       { m: 'action_resume', l: 'Resume Suspended Site' },
       { m: 'action_close', l: 'Close Site' },
@@ -91,30 +99,39 @@ export const SCREENS = {
       { m: 'action_decide_exit', l: 'CFO Decision: Exit', ask: 'Basis of the exit decision', kwarg: 'notes' },
       { m: 'action_open_modification', l: 'Open Renewal / Modification' },
       { m: 'action_request_approval', l: 'Request Modification Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_apply_modification', l: 'Apply Approved Modification' },
       { m: 'action_discard_modification', l: 'Discard Modification' },
       { m: 'action_expire', l: 'Mark Expired' },
-      { m: 'action_terminate', l: 'Terminate Lease', ask: 'Why is the lease terminated?', kwarg: 'reason' }
+      { m: 'action_terminate', l: 'Terminate Lease', ask: 'Why is the lease terminated?', kwarg: 'reason' },
+      { m: 'action_publish_ifrs16', l: 'Publish to IFRS 16' }
     ] },
-  'M47-lease-schedule': { kind: 'model_list', model: 'fix.site.lease.schedule',
-    cols: ['lease_id', 'site_id', 'period', 'due_date', 'escalation_year', 'rent_due', 'paid_amount', 'paid_on', 'invoice_ref'] },
-  'M47-lease-extracts': { kind: 'model_list', model: 'fix.site.lease.extract',
+  'M47-lease-schedule': { kind: 'model_list', model: 'fix.site.lease.schedule', create: false,
+    note: 'Send a month\'s rent to accounts payable when it falls due. Accounts payable matches it to the landlord\'s bill, and the match fills in what was paid.',
+    cols: ['lease_id', 'site_id', 'period', 'due_date', 'escalation_year', 'rent_due', 'ap_requested_on', 'paid_amount', 'paid_on', 'invoice_ref'],
+    actions: [{ m: 'action_send_to_ap', l: 'Send Rent to Accounts Payable' }] },
+  'M47-lease-extracts': { kind: 'model_list', model: 'fix.site.lease.extract', create: false,
+    note: 'Each row is a version of a lease\'s data, sent to finance when the lease is published, modified or terminated. To send a lease recorded earlier, use Publish to IFRS 16 on its lease.',
     cols: ['lease_id', 'site_id', 'version', 'reason', 'published_at', 'consumed_by_m19_at'] },
   'M47-dates': { kind: 'table_report', module: 'M47', report: 'critical_dates', title: 'Critical-Date Control', period: false },
   'M47-licences': { kind: 'model_list', model: 'fix.site.licence', stateField: 'state',
-    cols: ['name', 'site_id', 'licence_type', 'number', 'issued_on', 'valid_to', 'is_valid', 'state'] },
-  'M47-risk': { kind: 'model_list', model: 'fix.site.risk.exception', stateField: 'state',
+    cols: ['name', 'site_id', 'licence_type', 'number', 'issued_on', 'valid_to', 'evidence_filename', 'is_valid', 'state'] },
+  'M47-risk': { kind: 'model_list', model: 'fix.site.risk.exception', stateField: 'state', create: false,
     cols: ['name', 'site_id', 'licence_id', 'licence_type', 'severity', 'raised_at', 'decided_by_id', 'review_due_on', 'state'],
     actions: [
-      { m: 'action_decide_continue', l: 'Decide: Continue Until (dated)', ask: 'Review date after today (YYYY-MM-DD); record the decision basis on the form first', kwarg: 'review_due_on' },
+      { m: 'action_decide_continue', l: 'Decide: Continue Until (dated)', asks: [
+        { label: 'Review date after today (YYYY-MM-DD)', kwarg: 'review_due_on' },
+        { label: 'Basis of the decision: interim arrangements and why operation continues', kwarg: 'notes' }
+      ] },
       { m: 'action_decide_suspend', l: 'Decide: Suspend Site', ask: 'Basis of the suspension decision', kwarg: 'notes' }
     ] },
   'M47-utilities': { kind: 'model_list', model: 'fix.site.utility',
-    cols: ['name', 'site_id', 'period', 'utility_type', 'amount', 'usage', 'unit', 'flagged', 'review_state'],
+    cols: ['name', 'site_id', 'period', 'utility_type', 'amount', 'usage', 'unit', 'flagged', 'review_state', 'ap_requested_on', 'paid_on'],
     actions: [
       { m: 'action_flag', l: 'Hold for Review' },
       { m: 'action_release', l: 'Review: Release for Payment', ask: 'Review basis (you must not be the recorder)', kwarg: 'notes' },
-      { m: 'action_confirm_anomaly', l: 'Review: Confirm Anomaly', ask: 'Review basis (you must not be the recorder)', kwarg: 'notes' }
+      { m: 'action_confirm_anomaly', l: 'Review: Confirm Anomaly', ask: 'Review basis (you must not be the recorder)', kwarg: 'notes' },
+      { m: 'action_send_to_ap', l: 'Send to Accounts Payable (older bills)' }
     ] },
   'M47-infra': { kind: 'model_list', model: 'fix.site.asset', stateField: 'state',
     cols: ['name', 'site_id', 'asset_type', 'tag', 'installed_on', 'warranty_end', 'value', 'state'],
@@ -122,26 +139,35 @@ export const SCREENS = {
       { m: 'action_maintenance', l: 'Take to Maintenance' },
       { m: 'action_restore', l: 'Restore to Service' },
       { m: 'action_request_approval', l: 'Request Retirement Approval (DOFA)', ask: 'Why should this asset be retired?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_retire', l: 'Retire Asset', ask: 'Retirement reason', kwarg: 'reason' }
     ] },
   'M47-pm': { kind: 'model_list', model: 'fix.site.pm', stateField: 'state',
     cols: ['name', 'site_id', 'service_type', 'provider_id', 'scheduled_on', 'interval_months', 'done_on', 'cost', 'work_order_id', 'state'],
     actions: [{ m: 'action_done', l: 'Mark Done' }] },
   'M47-wo': { kind: 'model_list', model: 'fix.facility.work.order', stateField: 'state',
-    cols: ['name', 'site_id', 'work_type', 'scheduled_date', 'assigned_to', 'estimated_cost', 'actual_cost', 'approval_state', 'state'],
+    cols: ['name', 'site_id', 'work_type', 'priority', 'scheduled_date', 'assigned_to', 'estimated_cost', 'actual_cost', 'approval_state', 'state'],
     actions: [
+      { m: 'action_triage', l: 'Triage', asks: [{ label: 'Priority: emergency, high, normal or low', kwarg: 'priority' }] },
       { m: 'action_request_approval', l: 'Request Spend Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_schedule', l: 'Schedule' },
       { m: 'action_start', l: 'Start' },
       { m: 'action_complete', l: 'Complete', ask: 'Completion evidence: what was done and the evidence reference', kwarg: 'notes' },
-      { m: 'action_verify', l: 'Verify & Close', ask: 'Verification note (optional)', kwarg: 'notes' },
+      { m: 'action_verify', l: 'Verify & Close', ask: 'Verification note (required if an estimated job records no actual cost: say why it cost nothing)', kwarg: 'notes' },
       { m: 'action_reopen', l: 'Reopen', ask: 'Why is the completed work reopened?', kwarg: 'reason' },
       { m: 'action_cancel', l: 'Cancel', ask: 'Cancellation reason (optional)', kwarg: 'reason' },
       { m: 'action_approve_permit', l: 'Approve Permit to Work', ask: 'Permit valid to (YYYY-MM-DD; blank = today only)', kwarg: 'valid_to' }
     ] },
   'M47-safety': { kind: 'model_list', model: 'fix.site.safety', stateField: 'state',
-    cols: ['name', 'site_id', 'equipment_type', 'ref', 'last_check', 'next_check', 'inspection_interval_months', 'last_checked_by_id', 'state'],
-    actions: [{ m: 'action_check', l: 'Record Check', ask: 'Next check date after today (YYYY-MM-DD); blank uses the item\'s inspection interval', kwarg: 'next_check' }] },
+    cols: ['name', 'site_id', 'equipment_type', 'ref', 'last_check', 'last_result', 'next_check', 'inspection_interval_months', 'last_checked_by_id', 'state'],
+    actions: [
+      { m: 'action_check_pass', l: 'Record Check: Passed', ask: 'Next check date after today (YYYY-MM-DD); blank uses the item\'s inspection interval', kwarg: 'next_check' },
+      { m: 'action_check_fail', l: 'Record Check: Failed', asks: [
+        { label: 'Next check date after today (YYYY-MM-DD); blank uses the item\'s inspection interval', kwarg: 'next_check' },
+        { label: 'What failed?', kwarg: 'finding' }
+      ] }
+    ] },
   'M47-security': { kind: 'model_list', model: 'fix.site.incident', stateField: 'state',
     cols: ['name', 'site_id', 'incident_type', 'occurred_on', 'severity', 'injuries_flag', 'hse_notice_due_on', 'hse_case_ref', 'state'],
     actions: [{ m: 'action_close', l: 'Close Incident', ask: 'Resolution: root cause and action taken', kwarg: 'resolution' }] },
@@ -149,15 +175,44 @@ export const SCREENS = {
     cols: ['name', 'site_id', 'project_type', 'planned_on', 'done_on', 'budget', 'approval_state', 'state'],
     actions: [
       { m: 'action_request_approval', l: 'Request Budget Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_start', l: 'Start Project' },
       { m: 'action_revise_budget', l: 'Revise Budget', ask: 'Reason for revising to the Proposed Budget', kwarg: 'reason' },
       { m: 'action_done', l: 'Complete Project' }
     ] },
-  'M47-demand': { kind: 'model_list', model: 'fix.maintenance.demand', stateField: 'state',
-    cols: ['name', 'origin', 'source_ref', 'target', 'site_id', 'scheduled_date', 'blocker', 'work_order_id', 'service_order_id', 'state'],
+  'M47-demand': { kind: 'model_list', model: 'fix.maintenance.demand', stateField: 'state', create: false,
+    cols: ['name', 'origin', 'source_ref', 'target', 'site_id', 'vehicle_id', 'scheduled_date', 'blocker', 'work_order_id', 'service_order_id', 'state'],
     actions: [
       { m: 'action_route', l: 'Route' },
       { m: 'action_dismiss', l: 'Dismiss', ask: 'Reason for dismissing this demand', kwarg: 'reason' }
+    ] },
+  'M47-costs': { kind: 'model_list', model: 'fix.asset.cost.entry', stateField: 'state', create: false,
+    note: 'What the asset registers say is owed: verified work orders, utility bills, rent, fuel and vehicle services. Accounts payable opens a row, chooses the vendor bill and matches it, or rejects it with a reason. Nothing here posts to the ledger.',
+    cols: ['name', 'cost_type', 'source_ref', 'site_id', 'vendor_id', 'invoice_ref', 'amount', 'cost_date', 'vendor_invoice_id', 'source_changed', 'state'],
+    actions: [
+      { m: 'action_match_bill', l: 'Match to Chosen Bill' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why is this cost rejected?', kwarg: 'reason' }
+    ] },
+  'M47-asset-requests': { kind: 'model_list', model: 'fix.asset.finance.request', stateField: 'state', create: false,
+    note: 'Assets acquired, retired or lost in the asset registers, waiting for finance. Accepting creates a draft asset or a draft disposal in the fixed asset register; nothing is posted until that register\'s own steps are done.',
+    cols: ['name', 'kind', 'source_label', 'source_ref', 'operating_unit_id', 'source_amount', 'amount', 'category_id', 'fixed_asset_id', 'disposal_id', 'state'],
+    actions: [
+      { m: 'action_accept', l: 'Accept' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why is this request rejected?', kwarg: 'reason' }
+    ] },
+  'M47-lease-items': { kind: 'model_list', model: 'fix.lease.modification.item', stateField: 'state', create: false,
+    note: 'A recorded lease changed after its IFRS 16 contract began. Finance remeasures the contract, or records that the change alters nothing it measures.',
+    cols: ['name', 'lease_id', 'site_lease_id', 'version', 'reason', 'changes', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_mark_remeasured', l: 'Mark Remeasured', ask: 'How was it remeasured?', kwarg: 'note' },
+      { m: 'action_mark_no_change', l: 'No Accounting Change', ask: 'Why does this change nothing?', kwarg: 'note' }
+    ] },
+  'M47-handoff-exceptions': { kind: 'model_list', model: 'fix.bridge.exception', stateField: 'state', create: false,
+    note: 'A hand-off to finance or HSE that needs a person: each row says what is missing. Supply it, then Retry. An injury reported by someone with no employee record waits here until the HSE officer names the worker.',
+    cols: ['name', 'route', 'source_ref', 'message', 'role_label', 'employee_id', 'attempts', 'state'],
+    actions: [
+      { m: 'action_retry', l: 'Retry' },
+      { m: 'action_resolve', l: 'Resolve by Hand', ask: 'How was this resolved?', kwarg: 'note' }
     ] },
 
   /* Report chips -> their own computed pack */
@@ -216,8 +271,9 @@ export const SCREENS = {
           { name: 'closure_deposit_settled', label: 'Deposit Recovered / Written Off' },
           { name: 'closure_notes', type: 'text', label: 'Recovery Notes' }
         ] },
-      { tab: 'closure', title: 'Status-Change Sign-off', note: 'Opening (readiness gate) and resuming a suspended site need the Operations Director. Closing or reopening needs two routed sign-offs by two different people, neither the requester nor the creator: the CFO (DOFA Tier 4), then the CEO (DOFA Tier 5); request approval once for each. A reopened site returns to Planned. A site is suspended only by the continue-or-suspend decision on an operating-risk exception.',
+      { tab: 'closure', title: 'Status-Change Sign-off', note: 'Opening (readiness gate) and resuming a suspended site need the Operations Director. Closing or reopening needs two routed sign-offs by two different people, neither the requester nor the creator: the CFO (DOFA Tier 4), then the CEO (DOFA Tier 5); request approval once for each. A suspended site that will not resume is closed the same way, with Request Closure Approval, and closing resolves its operating-risk exceptions. A reopened site returns to Planned. A site is suspended only by the continue-or-suspend decision on an operating-risk exception.',
         fields: [
+          { name: 'closure_requested', label: 'Closure Requested', readonly: true },
           { name: 'approval_state', label: 'Approval Request (M63)', readonly: true },
           { name: 'status_opsdir_approved_by_id', label: 'Operations Director Sign-off', readonly: true },
           { name: 'status_opsdir_approved_at', label: 'Operations Director Signed At', readonly: true },
@@ -240,7 +296,7 @@ export const SCREENS = {
       { id: 'modification', label: '2. Renewal / Modification', bn: '২. নবায়ন / পরিবর্তন', icon: '⚖️', badge: '7' }
     ],
     sections: [
-      { tab: 'lease', title: 'Lease', note: 'The end date cannot precede the start (database CHECK). Once recorded, the dates, rent and escalation change only through a renewal or modification. Recording a lease builds its monthly rent schedule (escalated on each anniversary) and publishes the lease data extract for M19 / M49; a lease recorded after its end date is born Expired, and the daily job expires an active lease once its end date passes.',
+      { tab: 'lease', title: 'Lease', note: 'The end date cannot precede the start (database CHECK). Once recorded, the site, lessor, dates, rent, escalation and deposit change only through a renewal or modification; a notice period left blank may be filled in once. Recording a lease builds its monthly rent schedule (escalated on each anniversary) and publishes the lease data extract for M19 / M49; a lease recorded before that existed is sent with Publish to IFRS 16. A lease recorded after its end date is born Expired, and the daily job expires an active lease once its end date passes. A Branch Operations Lead terminates a lease, and finance is told.',
         fields: [
           { name: 'name', required: true, label: 'Lease Reference' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -261,12 +317,15 @@ export const SCREENS = {
           { name: 'terminated_reason', label: 'Termination Reason', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] },
-      { tab: 'modification', title: 'Proposed Terms', note: 'Open Renewal / Modification copies the current terms here. Edit them, request approval (DOFA on the total remaining rent commitment), then apply. Changing a proposal after approval withdraws the approval.',
+      { tab: 'modification', title: 'Proposed Terms', note: 'Open Renewal / Modification copies the current terms here. Edit them, request approval (DOFA on the total remaining rent commitment, or on the rent given up when the term is shortened), then apply. Changing a proposal after approval withdraws the approval.',
         fields: [
           { name: 'modification_open', label: 'Modification Open', readonly: true },
           { name: 'proposed_end_date', label: 'Proposed End Date' },
           { name: 'proposed_monthly_rent', label: 'Proposed Monthly Rent' },
           { name: 'proposed_escalation_pct', label: 'Proposed Escalation %' },
+          { name: 'proposed_deposit', label: 'Proposed Deposit' },
+          { name: 'proposed_notice_period_days', label: 'Proposed Renewal Notice (days)' },
+          { name: 'proposed_lessor_id', label: 'Proposed Lessor' },
           { name: 'modification_reason', label: 'Reason' },
           { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
           { name: 'approval_state', label: 'Approval Request (M63)', readonly: true }
@@ -281,14 +340,16 @@ export const SCREENS = {
     back: 'M47-licences',
     status: { field: 'state', labels: { valid: 'Valid', expired: 'Expired', suspended: 'Suspended' } },
     sections: [
-      { title: 'Statutory Licence', note: 'Valid today is computed on every read: the state must be Valid, an end date must be recorded and it must not have passed (a licence with no end date is not valid). A lapsed licence cannot be made valid again; record the renewal as a new licence. A trade licence renewal is refused while the site\'s fire licence is expired (BRU-FAC-03). The daily job alerts at 90/60/30/15/7 days, marks a lapsed licence Expired and raises an operating-risk exception at an operational site. Licences are edited by a Facility Manager.',
+      { title: 'Statutory Licence', note: 'Valid today is computed on every read: the state must be Valid, an end date must be recorded and it must not have passed (a licence with no end date is not valid). Its end date does not change once recorded, and a lapsed licence cannot be made valid again; record the renewal as a new licence, with its number and its scan. A trade licence renewal is refused while the site\'s fire licence is expired (BRU-FAC-03). The daily job alerts at 90/60/30/15/7 days, marks a lapsed licence Expired and raises an operating-risk exception at an operational site. Licences are edited by a Facility Manager.',
         fields: [
           { name: 'name', required: true, label: 'Licence Reference' },
           { name: 'site_id', required: true, label: 'Site' },
           { name: 'licence_type', required: true, label: 'Licence Type' },
-          { name: 'number', label: 'Licence Number' },
+          { name: 'number', required: true, label: 'Licence Number' },
           { name: 'issued_on', label: 'Issued On' },
           { name: 'valid_to', label: 'Valid To' },
+          { name: 'evidence_file', label: 'Licence Scan (required for a new licence)', type: 'file' },
+          { name: 'evidence_filename', label: 'Scan File Name' },
           { name: 'is_valid', label: 'Valid Today', readonly: true },
           { name: 'state', required: true, label: 'State' }
         ] }
@@ -311,7 +372,7 @@ export const SCREENS = {
       { id: 'origin', label: '5. Asset & Origin', bn: '৫. সম্পদ ও উৎস', icon: '🔗', badge: '7' }
     ],
     sections: [
-      { tab: 'order', title: 'Work Order', note: 'Draft → (spend approval) → scheduled → in progress → completed (with evidence) → verified by someone who neither raised nor completed it. Cancel before completion; Reopen voids a completion.',
+      { tab: 'order', title: 'Work Order', note: 'Draft → (spend approval) → scheduled → in progress → completed (with evidence) → verified by someone who neither raised nor completed it. A request raised by a person is triaged by a Facility Manager before its approval or schedule. A Facility Manager cancels before completion, or reopens to void a completion.',
         fields: [
           { name: 'name', required: true, label: 'Work Order' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -319,6 +380,9 @@ export const SCREENS = {
           { name: 'work_type', required: true, label: 'Work Type' },
           { name: 'assigned_to', label: 'Assigned Engineer' },
           { name: 'scheduled_date', label: 'Scheduled Date' },
+          { name: 'priority', label: 'Priority (Triage)', readonly: true },
+          { name: 'triaged_by_id', label: 'Triaged By', readonly: true },
+          { name: 'triaged_on', label: 'Triaged On', readonly: true },
           { name: 'state', label: 'State (workflow actions)', readonly: true }
         ] },
       { tab: 'cost', title: 'Scope, Cost & Approval', note: 'Any costed work order is approved under DOFA on the higher of the estimate and the actual before it is scheduled; an actual above the approved amount needs re-approval before completion. The cost is frozen once the work is completed.',
@@ -341,7 +405,7 @@ export const SCREENS = {
           { name: 'permit_approved_at', label: 'Permit Approved At', readonly: true },
           { name: 'permit_valid_to', label: 'Permit Valid To', readonly: true }
         ] },
-      { tab: 'evidence', title: 'Completion & Verification (BRU-FAC-07)', note: 'Completion records the evidence and who completed it; verification by a Facility Manager who neither raised nor completed it closes the work order and sends the actual cost (and the vendor invoice reference) to M52.',
+      { tab: 'evidence', title: 'Completion & Verification (BRU-FAC-07)', note: 'Completion records the evidence and who completed it; verification by a Facility Manager who neither raised nor completed it closes the work order and sends the actual cost (and the vendor invoice reference) to accounts payable. An estimated job with no actual cost is verified only with a note saying why it cost nothing.',
         fields: [
           { name: 'completion_notes', type: 'text', label: 'Completion Evidence' },
           { name: 'completed_by_id', label: 'Completed By', readonly: true },
@@ -381,6 +445,7 @@ export const SCREENS = {
           { name: 'site_id', label: 'Site (M47)' },
           { name: 'branch_id', label: 'Branch' },
           { name: 'device_id', label: 'Customer Device (M17)' },
+          { name: 'vehicle_id', label: 'Vehicle (M46)', readonly: true },
           { name: 'technician_id', label: 'Technician / Engineer' },
           { name: 'scheduled_date', label: 'Scheduled Date' },
           { name: 'work_order_id', label: 'Work Order', readonly: true },
@@ -397,7 +462,7 @@ export const SCREENS = {
     back: 'M47-safety',
     status: { field: 'state', labels: { ok: 'OK', due: 'Due', overdue: 'Overdue' } },
     sections: [
-      { title: 'Safety Equipment', note: 'The status is derived from the next check date: overdue once it has passed, due within 30 days. Record Check stamps today as the last check and who did it, and sets the next check date given, or rolls it by the item\'s inspection interval; the next check cannot be pushed later by editing. The daily job reports an overdue item to M59 as unfit.',
+      { title: 'Safety Equipment', note: 'The status is derived from the next check date: overdue once it has passed, due within 30 days. Record Check stamps today as the last check, who did it and whether the item passed, and sets the next check date given, or rolls it by the item\'s inspection interval; the next check cannot be pushed later by editing. An item that failed is Unfit until a later check passes, and M59 raises a hazard for it. The daily job reports an overdue item to M59 as unfit.',
         fields: [
           { name: 'name', required: true, label: 'Check Reference' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -405,6 +470,8 @@ export const SCREENS = {
           { name: 'ref', label: 'Tag / Reference' },
           { name: 'last_check', label: 'Last Check', readonly: true },
           { name: 'last_checked_by_id', label: 'Last Checked By', readonly: true },
+          { name: 'last_result', label: 'Last Result', readonly: true },
+          { name: 'last_finding', label: 'What Failed', readonly: true },
           { name: 'next_check', required: true, label: 'Next Check' },
           { name: 'inspection_interval_months', label: 'Inspection Interval (months)' },
           { name: 'state', label: 'Status (derived)', readonly: true },
@@ -465,7 +532,7 @@ export const SCREENS = {
     title: 'Utility Account',
     back: 'M47-utilities',
     sections: [
-      { title: 'Utility', note: 'One bill per site, period (YYYY-MM) and utility type; a second bill for the same month is refused. On record the bill is compared with its own average over up to the last 3 periods; at the configured multiple (default 2.0, pending business confirmation) it is held from payment. Only a Branch Operations Lead who did not record the bill releases it or confirms the anomaly; the figures of a reviewed bill are frozen.',
+      { title: 'Utility', note: 'One bill per site, period (YYYY-MM) and utility type; a second bill for the same month is refused. On record the bill is compared with its own average over up to the last 3 periods; at the configured multiple (default 2.0, pending business confirmation) it is held from payment. A bill not held goes to accounts payable as a pending cost entry; a held one goes only when a Branch Operations Lead who did not record it releases it, and accounts payable cannot match it while it is held. The match fills in what was paid. The figures of a reviewed or paid bill are frozen.',
         fields: [
           { name: 'name', required: true, label: 'Account Reference' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -479,6 +546,10 @@ export const SCREENS = {
           { name: 'anomaly_basis', label: 'Anomaly Basis', readonly: true },
           { name: 'reviewed_by_id', label: 'Reviewed By', readonly: true },
           { name: 'review_notes', label: 'Review Notes', readonly: true },
+          { name: 'ap_requested_on', label: 'Sent to Accounts Payable On', readonly: true },
+          { name: 'paid_amount', label: 'Paid', readonly: true },
+          { name: 'paid_on', label: 'Paid On', readonly: true },
+          { name: 'invoice_ref', label: 'Invoice Ref', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -491,7 +562,7 @@ export const SCREENS = {
     back: 'M47-pm',
     status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
     sections: [
-      { title: 'PM Job', note: 'Only an open job can be marked done; Mark Done records the done date and, when a repeat interval is set, schedules the next job. The daily job raises a facility work order for an open job once it is due.',
+      { title: 'PM Job', note: 'Only an open job can be marked done, by a Facility Manager; Mark Done records the done date and, when a repeat interval is set, schedules the next job. The daily job raises a facility work order for an open job once it is due, at an operational or suspended site; verifying that order is what completes the job.',
         fields: [
           { name: 'name', required: true, label: 'PM Reference' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -516,7 +587,7 @@ export const SCREENS = {
     back: 'M47-security',
     status: { field: 'state', labels: { open: 'Open', closed: 'Closed' } },
     sections: [
-      { title: 'Incident', note: 'Only an open incident can be closed, with a resolution, by someone other than its reporter: a Facility Manager, or for an injury HSE or a Branch Operations Lead. Recording an incident notifies M59 / M60; an injury carries the BLA 2006 s.80 Inspector-notice date and the bridge links its HSE case. The resolution is frozen once closed.',
+      { title: 'Incident', note: 'Only an open incident can be closed, with a resolution, by someone other than its reporter: a Facility Manager, or for an injury HSE or a Branch Operations Lead. A fire, theft or trespass is logged on the site\'s risk entry (M60) and raises a hazard for the HSE officer (M59). An injury is logged on the risk entry too, carries the BLA 2006 s.80 Inspector-notice date (counted again if the accident date is corrected) and the bridge links its HSE case. The resolution is frozen once closed.',
         fields: [
           { name: 'name', required: true, label: 'Incident Reference' },
           { name: 'site_id', required: true, label: 'Site' },
@@ -569,7 +640,7 @@ export const SCREENS = {
     back: 'M47-risk',
     status: { field: 'state', labels: { open: 'Decision Required', continue: 'Continue (dated)', suspend: 'Site Suspended', resolved: 'Resolved' } },
     sections: [
-      { title: 'Exception (BRU-FAC-02)', note: 'Raised by the daily job when a licence lapses at an operational site. The Operations Director or the CEO (DOFA Tier 5) records a named, dated continue-or-suspend decision; the person responsible for the renewal (the licence recorder, the site\'s accountable manager) cannot. A continue decision lapses on its review date and must be taken again; undecided exceptions are escalated daily. Recording the renewed licence resolves it.',
+      { title: 'Exception (BRU-FAC-02)', note: 'Raised by the daily job when a licence lapses at an operational site. The Operations Director or the CEO (DOFA Tier 5) records a named, dated continue-or-suspend decision; the person responsible for the renewal (the licence recorder, the site\'s accountable manager) cannot. Press the decision button: it asks for the basis and, for a continue decision, the review date. A continue decision lapses on its review date and must be taken again; undecided exceptions are escalated daily. Recording the renewed licence resolves it, and so does closing the site.',
         fields: [
           { name: 'name', label: 'Exception', readonly: true },
           { name: 'site_id', label: 'Site', readonly: true },
@@ -593,13 +664,14 @@ export const SCREENS = {
     title: 'Rent Schedule Row',
     back: 'M47-lease-schedule',
     sections: [
-      { title: 'Scheduled Rent (FR-FAC-012)', note: 'Built by the lease from its terms: one row per month, the rent escalated on each anniversary. Paid amounts and invoice references are matched by M52; nobody edits the rows directly.',
+      { title: 'Scheduled Rent (FR-FAC-012)', note: 'Built by the lease from its terms: one row per month, the rent escalated on each anniversary. Send Rent to Accounts Payable raises a pending cost entry on the landlord; accounts payable matching it to the landlord\'s bill fills in the paid amount, date and invoice reference. Nobody edits the rows directly.',
         fields: [
           { name: 'lease_id', label: 'Lease', readonly: true },
           { name: 'period', label: 'Period', readonly: true },
           { name: 'due_date', label: 'Due Date', readonly: true },
           { name: 'escalation_year', label: 'Lease Year', readonly: true },
           { name: 'rent_due', label: 'Rent Due', readonly: true },
+          { name: 'ap_requested_on', label: 'Sent to Accounts Payable On', readonly: true },
           { name: 'paid_amount', label: 'Paid (M52)', readonly: true },
           { name: 'paid_on', label: 'Paid On', readonly: true },
           { name: 'invoice_ref', label: 'Invoice Ref (M52)', readonly: true },
@@ -614,7 +686,7 @@ export const SCREENS = {
     title: 'Lease Data Extract',
     back: 'M47-lease-extracts',
     sections: [
-      { title: 'IFRS 16 Data Extract (BRU-FAC-13 / -14)', note: 'A versioned, insert-only copy of the accounting-relevant lease data, published to M19 / M49 when a lease is recorded and on every modification. M47 never computes the right-of-use asset or the lease liability.',
+      { title: 'IFRS 16 Data Extract (BRU-FAC-13 / -14)', note: 'A versioned, insert-only copy of the accounting-relevant lease data, published to M19 / M49 when a lease is recorded, on every modification and when it is terminated. A lease recorded before this existed has no extract until a Facility Manager presses Publish to IFRS 16 on it. M47 never computes the right-of-use asset or the lease liability.',
         fields: [
           { name: 'lease_id', label: 'Lease', readonly: true },
           { name: 'version', label: 'Version', readonly: true },
@@ -622,6 +694,124 @@ export const SCREENS = {
           { name: 'published_at', label: 'Published At', readonly: true },
           { name: 'consumed_by_m19_at', label: 'Consumed by M19 At', readonly: true },
           { name: 'payload', type: 'text', label: 'Extract', readonly: true }
+        ] }
+    ]
+  },
+
+  'M47-form-cost': {
+    kind: 'model_form',
+    model: 'fix.asset.cost.entry',
+    title: 'Cost Entry',
+    back: 'M47-costs',
+    status: { field: 'state', labels: { pending: 'Pending AP', matched: 'Matched to Bill', rejected: 'Rejected' } },
+    sections: [
+      { title: 'What Is Owed', note: 'The figures come from the source record. Nothing here posts to the ledger; the vendor bill keeps its own match and approval.',
+        fields: [
+          { name: 'name', label: 'Entry', readonly: true },
+          { name: 'cost_type', label: 'Type', readonly: true },
+          { name: 'source_ref', label: 'Source', readonly: true },
+          { name: 'detail', label: 'Detail', readonly: true },
+          { name: 'site_id', label: 'Site', readonly: true },
+          { name: 'vehicle_id', label: 'Vehicle', readonly: true },
+          { name: 'branch_id', label: 'Branch', readonly: true },
+          { name: 'operating_unit_id', label: 'Cost Centre (Operating Unit)' },
+          { name: 'vendor_id', label: 'Vendor', readonly: true },
+          { name: 'invoice_ref', label: 'Vendor Invoice Ref', readonly: true },
+          { name: 'amount', label: 'Cost', readonly: true },
+          { name: 'cost_date', label: 'Cost Date', readonly: true },
+          { name: 'source_changed', label: 'Source Changed After the Decision', readonly: true }
+        ] },
+      { title: 'Decision', note: 'Choose the vendor bill and save, then Match to Chosen Bill on the list. To reject, say why. A utility bill held for review cannot be matched until it is released.',
+        fields: [
+          { name: 'match_invoice_id', label: 'Bill to Match' },
+          { name: 'decision_note', type: 'text', label: 'Decision Note' },
+          { name: 'vendor_invoice_id', label: 'Matched Bill', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'state', label: 'State (workflow actions)', readonly: true }
+        ] }
+    ]
+  },
+
+  'M47-form-asset-request': {
+    kind: 'model_form',
+    model: 'fix.asset.finance.request',
+    title: 'Asset Finance Request',
+    back: 'M47-asset-requests',
+    status: { field: 'state', labels: { pending: 'Pending Finance', accepted: 'Accepted', rejected: 'Rejected', withdrawn: 'Withdrawn by the Source' } },
+    sections: [
+      { title: 'What the Register Reported', note: 'Raised by the asset register that holds the item.',
+        fields: [
+          { name: 'name', label: 'Request', readonly: true },
+          { name: 'kind', label: 'Kind', readonly: true },
+          { name: 'source_label', label: 'Register', readonly: true },
+          { name: 'source_ref', label: 'Source Item', readonly: true },
+          { name: 'event_type', label: 'Raised By', readonly: true },
+          { name: 'source_amount', label: 'Amount in the Source Register', readonly: true },
+          { name: 'basis', type: 'text', label: 'Basis', readonly: true },
+          { name: 'custodian_id', label: 'Custodian', readonly: true }
+        ] },
+      { title: 'Finance', note: 'To capitalise: choose the category and the posted journal item that carries the cost, then Accept; a draft asset is created. To dispose: choose the asset and the disposal type, then Accept; a draft disposal is created. To reject, say why.',
+        fields: [
+          { name: 'operating_unit_id', label: 'Branch' },
+          { name: 'amount', label: 'Amount to Capitalise' },
+          { name: 'acquisition_date', label: 'Acquisition Date' },
+          { name: 'category_id', label: 'Asset Category' },
+          { name: 'acquisition_line_id', label: 'Acquisition Journal Item' },
+          { name: 'fixed_asset_id', label: 'Fixed Asset' },
+          { name: 'disposal_kind', label: 'Disposal Type' },
+          { name: 'disposal_id', label: 'Draft Disposal', readonly: true },
+          { name: 'decision_note', type: 'text', label: 'Decision Note' },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'state', label: 'State (workflow actions)', readonly: true }
+        ] }
+    ]
+  },
+
+  'M47-form-lease-item': {
+    kind: 'model_form',
+    model: 'fix.lease.modification.item',
+    title: 'Lease Remeasurement Item',
+    back: 'M47-lease-items',
+    status: { field: 'state', labels: { open: 'Open: Remeasure', remeasured: 'Remeasured', no_change: 'No Accounting Change' } },
+    sections: [
+      { title: 'What Changed', note: 'The contract in the book was not changed. Finance remeasures it, or records that this version alters nothing it measures.',
+        fields: [
+          { name: 'name', label: 'Item', readonly: true },
+          { name: 'lease_id', label: 'IFRS 16 Contract', readonly: true },
+          { name: 'site_lease_id', label: 'Site Lease', readonly: true },
+          { name: 'version', label: 'Lease Version', readonly: true },
+          { name: 'reason', label: 'Reason', readonly: true },
+          { name: 'changes', type: 'text', label: 'Terms That Differ', readonly: true },
+          { name: 'extract', type: 'text', label: 'Lease Data of This Version', readonly: true },
+          { name: 'decision_note', type: 'text', label: 'Decision Note' },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'state', label: 'State (workflow actions)', readonly: true }
+        ] }
+    ]
+  },
+
+  'M47-form-handoff-exception': {
+    kind: 'model_form',
+    model: 'fix.bridge.exception',
+    title: 'Hand-off Problem',
+    back: 'M47-handoff-exceptions',
+    status: { field: 'state', labels: { open: 'Open', resolved: 'Resolved' } },
+    sections: [
+      { title: 'What Is Needed', note: 'Supply what the row asks for, save, then Retry on the list. If the hand-off was done another way, Resolve by Hand and say how.',
+        fields: [
+          { name: 'name', label: 'Hand-off', readonly: true },
+          { name: 'route', label: 'Going To', readonly: true },
+          { name: 'source_ref', label: 'Source', readonly: true },
+          { name: 'message', type: 'text', label: 'What Is Needed', readonly: true },
+          { name: 'role_label', label: 'Resolved By (Role)', readonly: true },
+          { name: 'employee_id', label: 'Worker Involved' },
+          { name: 'attempts', label: 'Attempts', readonly: true },
+          { name: 'resolved_by_id', label: 'Resolved By', readonly: true },
+          { name: 'resolved_at', label: 'Resolved At', readonly: true },
+          { name: 'state', label: 'State (workflow actions)', readonly: true }
         ] }
     ]
   },
@@ -668,7 +858,11 @@ export const FORM_CHIPS = {
     'fix.maintenance.demand': 'M47-form-demand',
     'fix.site.risk.exception': 'M47-form-risk',
     'fix.site.lease.schedule': 'M47-form-lease-schedule',
-    'fix.site.lease.extract': 'M47-form-lease-extract'
+    'fix.site.lease.extract': 'M47-form-lease-extract',
+    'fix.asset.cost.entry': 'M47-form-cost',
+    'fix.asset.finance.request': 'M47-form-asset-request',
+    'fix.lease.modification.item': 'M47-form-lease-item',
+    'fix.bridge.exception': 'M47-form-handoff-exception'
   },
   'M47:__by_screen__': {
     'M47-sites': 'M47-form-site',
@@ -685,7 +879,11 @@ export const FORM_CHIPS = {
     'M47-demand': 'M47-form-demand',
     'M47-risk': 'M47-form-risk',
     'M47-lease-schedule': 'M47-form-lease-schedule',
-    'M47-lease-extracts': 'M47-form-lease-extract'
+    'M47-lease-extracts': 'M47-form-lease-extract',
+    'M47-costs': 'M47-form-cost',
+    'M47-asset-requests': 'M47-form-asset-request',
+    'M47-lease-items': 'M47-form-lease-item',
+    'M47-handoff-exceptions': 'M47-form-handoff-exception'
   }
 };
 

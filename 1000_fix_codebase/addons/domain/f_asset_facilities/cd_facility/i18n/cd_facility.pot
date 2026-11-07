@@ -434,6 +434,7 @@ msgstr ""
 
 #. module: cd_facility
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__invoice_ref
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__invoice_ref
 msgid "Invoice Ref (M52)"
 msgstr ""
 
@@ -700,4 +701,115 @@ msgstr ""
 #. module: cd_facility
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__work_order_id
 msgid "Work Order"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_requested
+msgid "Closure Requested"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__priority
+msgid "Priority"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__triaged_by_id
+msgid "Triaged By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__triaged_on
+msgid "Triaged On"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__emergency
+msgid "Emergency (safety-critical)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__high
+msgid "High"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__normal
+msgid "Normal"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__low
+msgid "Low"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_deposit
+msgid "Proposed Deposit"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_notice_period_days
+msgid "Proposed Renewal Notice (days)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_lessor_id
+msgid "Proposed Lessor"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__ap_requested_on
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__ap_requested_on
+msgid "Sent to AP On"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_lease_extract__reason__terminated
+msgid "Lease Terminated"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__evidence_file
+msgid "Licence Scan"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__evidence_filename
+msgid "Scan File Name"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__paid_amount
+msgid "Paid"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__paid_on
+msgid "Paid On"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_result
+msgid "Last Result"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_finding
+msgid "Last Finding"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__last_result__pass
+msgid "Passed"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__last_result__fail
+msgid "Failed"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__state__unfit
+msgid "Unfit: Failed Check"
 msgstr ""

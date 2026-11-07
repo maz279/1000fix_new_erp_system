@@ -32,7 +32,7 @@ CD-M46-01 (P08-M08):
   rules refused at entry, insurer and evidence before a claim closes, and
   the domain events the bridge consumes
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Fleet",

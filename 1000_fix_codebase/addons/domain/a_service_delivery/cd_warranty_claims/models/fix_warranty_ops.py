@@ -146,6 +146,7 @@ class FixWarrantyTransfer(models.Model):
                 transfer_type="sale",
                 reason="Warranty transfer %s" % rec.name,
                 evidence_document_id=rec.evidence_document_id.id,
+                channel="back_office",
             )
             rec._guarded().write(
                 {

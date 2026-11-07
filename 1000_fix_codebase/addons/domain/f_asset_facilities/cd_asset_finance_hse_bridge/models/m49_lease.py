@@ -362,6 +362,9 @@ class FixLeaseModificationItem(models.Model):
             for k, v in terms.items()
             if lease[k] != v
         ]
+        extract = payload.get("extract") or {}
+        if payload.get("reason") == "terminated":
+            changes.insert(0, "Terminated in M47: %s" % (extract.get("terminated_reason") or "-"))
         item = (
             self.sudo()
             ._guarded()

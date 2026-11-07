@@ -137,6 +137,13 @@ def _picker_domain(env, surface, comodel, name) -> list:
     return domain
 
 
+def _picker_source(env, comodel):
+    """Where a picker reads. Names are read sudo, since a clerk may pick a partner they
+    hold no ACL on. A comodel whose own screens are fenced by record rules is read as the
+    caller instead, or a picker would hand over the rows those screens hide."""
+    return env[comodel] if (SURFACES.get(comodel) or {}).get("rules") else env[comodel].sudo()
+
+
 def _child_value_changed(rec, field, value) -> bool:
     """Would this value change a child row? A form re-sends every row it shows,
     so an unchanged echo must not reach a guarded grid (a calibration's readings
@@ -381,10 +388,8 @@ class P03GenericApiController(http.Controller):
             ):
                 return {"error": "This field cannot be searched on this screen."}
             domain = _picker_domain(env, conf, spec.comodel_name, field)
-            found = (
-                env[spec.comodel_name]
-                .sudo()
-                .name_search(term or "", domain, limit=min(int(limit or 30), 50))
+            found = _picker_source(env, spec.comodel_name).name_search(
+                term or "", domain, limit=min(int(limit or 30), 50)
             )
             return {"rows": [{"id": row[0], "label": row[1]} for row in found]}
         except (UserError, AccessError) as exc:
@@ -1133,7 +1138,7 @@ class P03GenericApiController(http.Controller):
                 comodel = env[model]._fields[name].comodel_name
                 entry["comodel"] = comodel
                 domain = _picker_domain(env, SURFACES.get(model), comodel, name)
-                options = env[comodel].sudo()
+                options = _picker_source(env, comodel)
                 entry["remote"] = (
                     field_type == "many2one"
                     and options.search_count(domain, limit=PICKER_LIMIT + 1) > PICKER_LIMIT

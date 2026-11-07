@@ -100,6 +100,17 @@ WO_COST_FROZEN_STATES = ("completed", "verified", "cancelled")
 WO_FROZEN_FIELDS = ("estimated_cost", "actual_cost", "completion_notes")
 WO_PERMIT_STAMPS = ("permit_approved_by_id", "permit_approved_at", "permit_valid_to")
 WO_PERMIT_PINNED = ("high_risk", "hazard_type", "permit_precautions")
+# A work order is raised where the site operates or must be repaired back into
+# operation: fit-out work on a planned site is a site project, and a closed site
+# has nothing left to maintain.
+WO_SITE_STATES = ("active", "suspended")
+# BRU-FAC-08 / FR-FAC-032: the priority a request is triaged to.
+WO_PRIORITIES = [
+    ("emergency", "Emergency (safety-critical)"),
+    ("high", "High"),
+    ("normal", "Normal"),
+    ("low", "Low"),
+]
 
 
 def _changes(records, vals) -> bool:
@@ -258,11 +269,21 @@ class FixSite(models.Model):
         "res.users", string="Status Change: CEO Sign-off", readonly=True, copy=False
     )
     status_ceo_approved_at = fields.Datetime(string="CEO Signed At", readonly=True, copy=False)
+    # A07 operability (2026-11-07): a site suspended over a lapsed licence could
+    # neither resume (the lapse blocks it) nor close (only an operational site
+    # closed), so leaving the premises dead-ended. This says the suspended site's
+    # pending status change is a closure, signed by the CFO and then the CEO.
+    closure_requested = fields.Boolean(
+        string="Closure Requested",
+        readonly=True,
+        copy=False,
+        help="This suspended site is being closed rather than resumed",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return (
             super()._fix_guarded_fields()
-            | {"state", "opened_on", "suspended_reason"}
+            | {"state", "opened_on", "suspended_reason", "closure_requested"}
             | set(SITE_STATUS_STAMPS)
         )
 
@@ -297,10 +318,17 @@ class FixSite(models.Model):
             )
 
     # ---- status-change approval -------------------------------------------
+    def _site_transition_stages(self):
+        """The sign-offs the next status change needs, in order."""
+        self.ensure_one()
+        if self.state == "suspended" and self.closure_requested:
+            return SITE_TRANSITION_STAGES["active"]
+        return SITE_TRANSITION_STAGES.get(self.state, ())
+
     def _site_stage(self):
         """The sign-off the next status change still needs, or None."""
         self.ensure_one()
-        for stage in SITE_TRANSITION_STAGES.get(self.state, ()):
+        for stage in self._site_transition_stages():
             if not self["status_%s_approved_by_id" % stage]:
                 return stage
         return None
@@ -334,7 +362,9 @@ class FixSite(models.Model):
         # a service write: it also runs in the env of a rejecting approver
         for rec in self.sudo():
             if any(rec[f] for f in SITE_STATUS_STAMPS) or rec.approval_state != "none":
-                rec._guarded().write(dict.fromkeys(SITE_STATUS_STAMPS, False))
+                rec._guarded().write(
+                    {**dict.fromkeys(SITE_STATUS_STAMPS, False), "closure_requested": False}
+                )
                 rec._approval_void(reason)
                 rec.message_post(body="Site status-change sign-offs withdrawn: %s." % reason)
 
@@ -418,8 +448,8 @@ class FixSite(models.Model):
         safety = env["fix.site.safety"].sudo().search([("site_id", "=", self.id)])
         if not safety:
             out.append("safety equipment on the register")
-        elif safety.filtered(lambda s: s.state == "overdue"):
-            out.append("no overdue safety equipment")
+        elif safety.filtered(lambda s: s.state in ("overdue", "unfit")):
+            out.append("no overdue or unfit safety equipment")
         for name in READINESS_ATTESTED:
             if not self[name]:
                 out.append(self._fields[name].string.lower())
@@ -465,12 +495,41 @@ class FixSite(models.Model):
             if rec.state == "planned":
                 rec._site_require_lead("The readiness gate")
                 rec._site_check_ready()
+            elif rec.state == "suspended" and rec.closure_requested:
+                rec._site_check_closable()
             elif rec.state == "suspended":
                 rec._site_require_lead("Resuming a suspended site")
                 rec._site_check_resumable()
             elif rec.state == "active":
                 rec._site_check_closable()
         return super().action_request_approval(justification=justification)
+
+    def action_request_closure(self, justification=None):
+        """Route the closure of an operational or suspended site (CFO, then
+        CEO; request once for each). A suspended site's lapse does not block
+        this: leaving the premises is how it ends."""
+        for rec in self:
+            if rec.state not in ("active", "suspended"):
+                raise UserError("Only an operational or a suspended site can be closed.")
+            if rec.state == "suspended" and not rec.closure_requested:
+                # an Operations Director's sign-off to resume is not for this
+                rec._guarded().write(
+                    {
+                        "closure_requested": True,
+                        "status_opsdir_approved_by_id": False,
+                        "status_opsdir_approved_at": False,
+                    }
+                )
+        return self.action_request_approval(justification=justification)
+
+    def action_recall_approval(self):
+        """A recalled closure gives a suspended site back its resumption,
+        unless a signatory has already signed the closure."""
+        result = super().action_recall_approval()
+        self.filtered(
+            lambda r: r.closure_requested and not r.status_cfo_approved_by_id
+        )._guarded().write({"closure_requested": False})
+        return result
 
     def action_approve_status_change(self):
         """The M63 apply method: one sign-off per inbox decision, in order.
@@ -532,14 +591,18 @@ class FixSite(models.Model):
                         what,
                         rec.name,
                         " then ".join(
-                            SITE_STATUS_STAGES[s][1] for s in SITE_TRANSITION_STAGES[rec.state]
+                            SITE_STATUS_STAGES[s][1] for s in rec._site_transition_stages()
                         ),
                     )
                 )
 
     def _site_consume_status_approval(self):
         self._guarded().write(
-            {**dict.fromkeys(SITE_STATUS_STAMPS, False), "approval_state": "none"}
+            {
+                **dict.fromkeys(SITE_STATUS_STAMPS, False),
+                "approval_state": "none",
+                "closure_requested": False,
+            }
         )
 
     def _site_status_event(self, before, reason=None, approver=None):
@@ -619,14 +682,23 @@ class FixSite(models.Model):
 
     def action_close(self):
         for rec in self:
-            if rec.state != "active":
-                raise UserError("Only an operational site can be closed.")
+            if rec.state not in ("active", "suspended"):
+                raise UserError("Only an operational or a suspended site can be closed.")
+            before = rec.state
+            if before == "suspended" and not rec.closure_requested:
+                raise UserError(
+                    "%s is suspended: use Request Closure Approval to close it." % rec.name
+                )
             rec._site_check_closable()
             rec._site_assert_status_approved("Closing")
             open_items = rec._site_open_items()
             approver = rec.status_ceo_approved_by_id.name
-            rec._guarded().write({"state": "closed"})
+            rec._guarded().write({"state": "closed", "suspended_reason": False})
             rec._site_consume_status_approval()
+            # a closed site operates on no licence: nothing is left to decide
+            rec._site_open_exceptions()._exception_resolve(
+                "the site was closed by %s" % self.env.user.name
+            )
             rec.message_post(
                 body="Site closed by %s.%s"
                 % (
@@ -636,7 +708,7 @@ class FixSite(models.Model):
                     else "",
                 )
             )
-            rec._site_status_event("active", "closure approved", approver)
+            rec._site_status_event(before, "closure approved", approver)
         return True
 
     def action_reopen(self):
@@ -797,9 +869,18 @@ class FixFacilityWorkOrder(models.Model):
     )
     permit_approved_at = fields.Datetime(string="Permit Approved At", readonly=True, copy=False)
     permit_valid_to = fields.Date(string="Permit Valid To", readonly=True, copy=False)
+    # A07 operability (2026-11-07) BRU-FAC-08 / FR-FAC-032: a request is triaged
+    # to a priority by a Facility Manager before it is approved or scheduled. A
+    # state was not added: triage is a fact about a draft, not a step after it.
+    priority = fields.Selection(WO_PRIORITIES, string="Priority", readonly=True, copy=False)
+    triaged_by_id = fields.Many2one("res.users", string="Triaged By", readonly=True, copy=False)
+    triaged_on = fields.Datetime(string="Triaged On", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
+            "priority",
+            "triaged_by_id",
+            "triaged_on",
             "state",
             "completed_by_id",
             "completed_at",
@@ -825,14 +906,45 @@ class FixFacilityWorkOrder(models.Model):
                 locked.add("invoice_ref")
         return locked
 
+    def _wo_check_site_open(self, site_ids):
+        """Superuser code decides for itself (the PM job and the spine check it)."""
+        if self._fix_guard_open():
+            return
+        for site in self.env["fix.site"].sudo().browse(site_ids):
+            if site.state not in WO_SITE_STATES:
+                raise UserError(
+                    "%s is %s: a work order is raised on an operational or a suspended site."
+                    % (site.name, dict(site._fields["state"].selection)[site.state])
+                )
+
+    def _wo_person_raised(self) -> bool:
+        """Raised by a person, not by a source's own routing."""
+        self.ensure_one()
+        return not self.pm_id
+
+    def _wo_assert_triaged(self):
+        for rec in self:
+            if not rec.priority and rec._wo_person_raised():
+                raise UserError(
+                    "Triage %s first: a Facility Manager gives it its priority (BRU-FAC-08)."
+                    % rec.name
+                )
+
     @api.model_create_multi
     def create(self, vals_list):
+        # A person's request is triaged by a Facility Manager. What the system
+        # raises (the PM job, the spine's routing) is born triaged at normal.
+        system = self._fix_guard_open()
+        now = fields.Datetime.now()
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.facility.work.order")
                     or f"FWO/{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 )
+            if system and not vals.get("priority"):
+                vals.update(priority="normal", triaged_on=now)
+        self._wo_check_site_open({v["site_id"] for v in vals_list if v.get("site_id")})
         records = super().create(vals_list)
         for rec in records:
             publish(
@@ -887,6 +999,8 @@ class FixFacilityWorkOrder(models.Model):
                     "A scheduled or approved work order stays on its site. Cancel it and raise "
                     "a new one for the other site."
                 )
+            if vals.get("site_id") and _changes(self, {"site_id": vals["site_id"]}):
+                self._wo_check_site_open({vals["site_id"]})
         result = super().write(vals)
         if voided_permit:
             voided_permit._guarded().write(dict.fromkeys(WO_PERMIT_STAMPS, False))
@@ -905,16 +1019,41 @@ class FixFacilityWorkOrder(models.Model):
                     % (rec.name, what, labels[rec.state], ", ".join(labels[s] for s in allowed))
                 )
 
+    def _wo_require_manager(self, what):
+        if not self.env.su and not self.env.user.has_group("cd_facility.group_facility_manager"):
+            raise UserError("%s is done by a Facility Manager." % what)
+
+    def action_triage(self, priority=None):
+        """Give an open request its priority (BRU-FAC-08). Done again, it
+        changes the priority and records who changed it."""
+        self._wo_require_manager("Triage")
+        self._wo_require_state(WO_OPEN_STATES, "be triaged")
+        wanted = (priority or "").strip().lower()
+        if wanted not in dict(WO_PRIORITIES):
+            raise UserError("Give the priority: emergency, high, normal or low.")
+        for rec in self:
+            rec._guarded().write(
+                {
+                    "priority": wanted,
+                    "triaged_by_id": self.env.uid,
+                    "triaged_on": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(body="Triaged as %s by %s." % (wanted, self.env.user.name))
+        return True
+
     def action_request_approval(self, justification=None):
         """Route the repair spend for its DOFA tier (before scheduling, and
         again when the actual cost passes what was approved)."""
         self._wo_require_state(WO_OPEN_STATES, "have its spend approved")
+        self._wo_assert_triaged()
         for rec in self:
             _refuse_if_covered(rec)
         return super().action_request_approval(justification=justification)
 
     def action_schedule(self, date=None):
         self._wo_require_state(("draft",), "be scheduled")
+        self._wo_assert_triaged()
         for rec in self:
             if rec.assigned_type == "vendor" and not rec.vendor_id:
                 raise UserError(
@@ -997,6 +1136,15 @@ class FixFacilityWorkOrder(models.Model):
                     "Record the vendor invoice reference of %s before verifying it: the cost "
                     "goes to M52 against that invoice." % rec.name
                 )
+            # a costed job closed at 0 sends nothing to M52: that needs a reason
+            if rec.estimated_cost and not rec.actual_cost and not (notes or "").strip():
+                raise UserError(
+                    "%s was estimated at %.2f but records no actual cost. Reopen it to record "
+                    "the actual cost, or say in the verification note why the job cost nothing."
+                    % (rec.name, rec.estimated_cost)
+                )
+            # what is closed is what was approved
+            rec._dofa_assert_approved("Verifying work order %s" % rec.name)
             rec._guarded().write(
                 {
                     "state": "verified",
@@ -1094,6 +1242,7 @@ class FixFacilityWorkOrder(models.Model):
         """Reopen a completed (not yet verified) work order. The completion is
         voided: its evidence and completer are cleared and a reopen event
         follows the completion event."""
+        self._wo_require_manager("Reopening a work order")
         self._wo_require_state(("completed",), "be reopened")
         reason = (reason or "").strip()
         if not reason:
@@ -1122,6 +1271,7 @@ class FixFacilityWorkOrder(models.Model):
         return True
 
     def action_cancel(self, reason=None):
+        self._wo_require_manager("Cancelling a work order")
         self._wo_require_state(WO_OPEN_STATES, "be cancelled")
         for rec in self:
             rec._approval_void("the work order was cancelled")

@@ -196,6 +196,7 @@ msgstr ""
 
 #. module: cd_vehicle_ext
 #: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__insurer_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_res_partner__is_insurer
 msgid "Insurer"
 msgstr ""
 
@@ -350,4 +351,69 @@ msgstr ""
 #. module: cd_vehicle_ext
 #: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__recorded_state
 msgid "Recorded State"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__name
+msgid "Booking"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__state
+msgid "State"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__released_on
+msgid "Released On"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__released_by_id
+msgid "Released By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__release_reason
+msgid "Release Reason"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retire_reason
+msgid "Retirement Reason"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retired_on
+msgid "Retired On"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retired_by_id
+msgid "Retired By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_reason
+msgid "Reason (if the fill is genuine)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__no_claim_reason
+msgid "Closed Without a Claim"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields.selection,name:cd_vehicle_ext.selection__fix_vehicle_assignment__state__booked
+msgid "Booked"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields.selection,name:cd_vehicle_ext.selection__fix_vehicle_assignment__state__released
+msgid "Released"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:res.groups,name:cd_vehicle_ext.group_logistics_manager
+msgid "Fleet Logistics Manager"
 msgstr ""

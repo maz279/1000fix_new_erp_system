@@ -271,6 +271,8 @@ WRITABLE = {
             "scheduled_end",
             "scheduled_start",
             "travel_time_est_minutes",
+            "vehicle_driver_id",
+            "vehicle_id",
             "work_summary",
             "zone_id",
         }
@@ -513,6 +515,9 @@ WRITABLE = {
             "currency_id",
             "device_id",
             "end_date",
+            "proof_document_id",
+            "proof_file",
+            "proof_filename",
             "start_date",
             "warranty_type",
         }
@@ -580,6 +585,7 @@ WRITABLE = {
             "dc_power_rail_readings",
             "device_serial",
             "dofa_justification",
+            "equipment_id",
             "flux_solder_spec",
             "ipc_class_target",
             "ipc_visual_inspection_passed",

@@ -712,7 +712,9 @@ def test_warranty_job_is_not_invoiced_to_the_customer(w):
 # =========================================================================== warranty (M01-W1)
 def _proof(w):
     att = w.env["ir.attachment"].create({"name": "receipt.pdf", "datas": b"JVBERg=="})
-    return w.env["fix.document"].create({"name": "Purchase receipt", "attachment_id": att.id})
+    return w.env["fix.document"].create(
+        {"name": "Purchase receipt", "attachment_id": att.id, "document_type": "invoice"}
+    )
 
 
 def test_warranty_is_born_pending_and_gives_no_cover(w):

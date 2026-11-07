@@ -15,39 +15,51 @@ SURFACES = {
     # to work, lease renewal decisions, utility anomaly review and the
     # operating-risk exception decisions; the rent schedule and the IFRS 16
     # extracts are read-only registers.
+    # A07 operability (2026-11-07), M47-14: "rules" reads every estate record as
+    # the caller, so security/fix_facility_scope_rules.xml decides. The default
+    # sudo read showed another company's or unit's rent, deposits and licences.
     "fix.site": {
         "order": "name",
         "limit": 200,
+        "rules": True,
         "actions": {
             "action_open",
             "action_resume",
             "action_close",
             "action_reopen",
             "action_request_approval",
+            "action_request_closure",
+            "action_recall_approval",
         },
     },
     "fix.site.condition": {
         "order": "inspected_on desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": set(),
     },
     "fix.site.asset": {
         "order": "site_id, asset_type, name",
         "limit": 400,
+        "rules": True,
         "actions": {
             "action_maintenance",
             "action_restore",
             "action_retire",
             "action_request_approval",
+            "action_recall_approval",
         },
     },
     "fix.site.lease": {
         "order": "end_date desc, id desc",
         "limit": 200,
+        "rules": True,
         "actions": {
             "action_open_modification",
             "action_discard_modification",
             "action_request_approval",
+            "action_recall_approval",
+            "action_publish_ifrs16",
             "action_apply_modification",
             "action_expire",
             "action_terminate",
@@ -59,38 +71,47 @@ SURFACES = {
     "fix.site.lease.schedule": {
         "order": "lease_id, due_date",
         "limit": 600,
-        "actions": set(),
+        "rules": True,
+        "actions": {"action_send_to_ap"},
     },
     "fix.site.lease.extract": {
         "order": "lease_id, version desc",
         "limit": 300,
+        "rules": True,
         "actions": set(),
     },
     "fix.site.risk.exception": {
         "order": "raised_at desc, id desc",
         "limit": 200,
+        "rules": True,
         "actions": {"action_decide_continue", "action_decide_suspend"},
     },
     "fix.site.licence": {
         "order": "valid_to desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": set(),
     },
     "fix.site.utility": {
         "order": "period desc, id desc",
         "limit": 400,
-        "actions": {"action_flag", "action_release", "action_confirm_anomaly"},
+        "rules": True,
+        "actions": {"action_flag", "action_release", "action_confirm_anomaly", "action_send_to_ap"},
     },
     "fix.site.pm": {
         "order": "scheduled_on desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": {"action_done"},
     },
     "fix.facility.work.order": {
         "order": "scheduled_date desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": {
+            "action_triage",
             "action_request_approval",
+            "action_recall_approval",
             "action_schedule",
             "action_start",
             "action_complete",
@@ -103,20 +124,24 @@ SURFACES = {
     "fix.site.safety": {
         "order": "next_check",
         "limit": 400,
-        "actions": {"action_check"},
+        "rules": True,
+        "actions": {"action_check_pass", "action_check_fail"},
     },
     "fix.site.incident": {
         "order": "occurred_on desc, id desc",
         "limit": 200,
+        "rules": True,
         "actions": {"action_close"},
     },
     "fix.site.project": {
         "order": "planned_on desc, id desc",
         "limit": 200,
+        "rules": True,
         "actions": {
             "action_start",
             "action_done",
             "action_request_approval",
+            "action_recall_approval",
             "action_revise_budget",
         },
     },
@@ -126,6 +151,36 @@ SURFACES = {
         "order": "id desc",
         "limit": 200,
         "actions": {"action_route", "action_dismiss"},
+    },
+    # A07 operability (2026-11-07): the bridge's hand-off queues had only backend
+    # menus. The three finance queues are read company-wide as finance reads (the
+    # ACL admits only the accounting groups); the hand-off problems are readable
+    # by any internal user, so they keep to the caller's units.
+    "fix.asset.cost.entry": {
+        "order": "state, cost_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_match_bill", "action_reject"},
+        "pickers": {"match_invoice_id": [("approval_state", "!=", "rejected")]},
+    },
+    "fix.asset.finance.request": {
+        "order": "state, create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_accept", "action_reject"},
+        "pickers": {
+            "acquisition_line_id": [("parent_state", "=", "posted"), ("debit", ">", 0)],
+            "fixed_asset_id": [("state", "=", "active")],
+        },
+    },
+    "fix.lease.modification.item": {
+        "order": "state, create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_mark_remeasured", "action_mark_no_change"},
+    },
+    "fix.bridge.exception": {
+        "order": "state, create_date desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": {"action_retry", "action_resolve"},
     },
     # The alerts of all five A07 modules; each module's screen filters its own.
     "fix.asset.alert": {
@@ -150,17 +205,16 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _read(env, model, domain=None):
-    """sudo() read fenced to the caller's companies.
+    """What the caller may see of `model`: searched as the caller, so the
+    company and operating-unit rules apply, and then read as sudo, so a report
+    row can name an engineer without the reader holding an HR role.
 
     A07 audit (2026-11-03, M47-14): every KPI and report read with
-    `sudo().search([])`, so a company-B user was shown company A's estate.
-    Sites and work orders carry `company_id`; the other M47 records do not,
-    so they are fenced through their site's company."""
-    if "company_id" in env[model]._fields:
-        scope = _company_domain(env, model)
-    else:
-        scope = [("site_id.company_id", "in", env.user.company_ids.ids)]
-    return env[model].sudo().search(scope + list(domain or []))
+    `sudo().search([])`, so a company-B user was shown company A's estate. The
+    company fence stopped that; another unit's rent still showed until the
+    search became the caller's (2026-11-07)."""
+    scope = _company_domain(env, model) if "company_id" in env[model]._fields else []
+    return env[model].search(scope + list(domain or [])).sudo()
 
 
 def _sites(env):
@@ -178,6 +232,16 @@ def _wo_spend(order):
     reported at its estimate, and open WOs' estimates were reported as spend.
     An estimate is a forecast; only completed work is spend."""
     return (order.actual_cost or 0.0) if order.state in _WO_DONE else 0.0
+
+
+def _pm_spend(pm):
+    """What a building PM job has spent on its own: its cost once done. An open
+    job has spent nothing, and one done under a work order is that order's spend."""
+    if pm.state != "done":
+        return 0.0
+    if pm.work_order_id and pm.work_order_id.state != "cancelled":
+        return 0.0
+    return pm.cost or 0.0
 
 
 def _today(env):
@@ -339,14 +403,16 @@ def branch_assets(env, date_from=None, date_to=None, **params):
     rows = []
     for site in _sites(env):
         site_orders = orders.filtered(lambda o, sid=site.id: o.site_id.id == sid)
+        # retired plant has left the register's count and value
+        plant = site.asset_ids.filtered(lambda a: a.state != "retired")
         rows.append(
             {
                 "site": site.name,
                 "type": dict(site._fields["site_type"].selection).get(site.site_type),
                 "branch": site.branch_id.name if site.branch_id else "—",
                 "area_sqm": round(site.floor_area_sqm or 0.0, 2),
-                "assets": len(site.asset_ids),
-                "asset_value": round(sum(site.asset_ids.mapped("value")), 2),
+                "assets": len(plant),
+                "asset_value": round(sum(plant.mapped("value")), 2),
                 "work_orders": len(site_orders),
                 "spend": round(sum(_wo_spend(o) for o in site_orders), 2),
             }
@@ -368,7 +434,8 @@ def branch_assets(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Plant assets are the site infrastructure register (HVAC, lift, generator, "
-            "fire pump, UPS, CCTV); spend is the actual cost of completed and verified "
+            "fire pump, UPS, CCTV), without retired plant; spend is the actual cost of "
+            "completed and verified "
             "work orders (an open work order's estimate is not spend)."
         ],
         totals={
@@ -398,7 +465,7 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
         rent = (
             sum(site_leases.mapped("current_rent")) if site_leases else (site.monthly_rent or 0.0)
         )
-        pm = sum(pms.filtered(lambda p, sid=site.id: p.site_id.id == sid).mapped("cost"))
+        pm = sum(_pm_spend(p) for p in pms.filtered(lambda p, sid=site.id: p.site_id.id == sid))
         wo = sum(_wo_spend(o) for o in orders.filtered(lambda o, sid=site.id: o.site_id.id == sid))
         rows.append(
             {
@@ -427,8 +494,9 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
             "Monthly rent is this month's scheduled rent of the site's active leases "
             "(escalated on each anniversary); the site record's figure is used only where "
             "no lease is recorded. Utilities, PM and work orders are the recorded records "
-            "(no period filter applied here). Work orders count the actual cost of "
-            "completed and verified work."
+            "(no period filter applied here). Building PM counts jobs done without a work "
+            "order; a job done under a work order is counted once, at that order's actual "
+            "cost. Work orders count the actual cost of completed and verified work."
         ],
         totals={
             "site": "Total",
@@ -716,6 +784,6 @@ def kpis(env):
         "utilities_cost_period": period,
         "open_work_orders": len(orders.filtered(lambda o: o.state not in (*_WO_DONE, "cancelled"))),
         # derived from next_check, not a typed status (M47-9)
-        "safety_overdue": len(safety.filtered(lambda s: s.state == "overdue")),
-        "safety_due": len(safety.filtered(lambda s: s.state in ("due", "overdue"))),
+        "safety_overdue": len(safety.filtered(lambda s: s.state in ("overdue", "unfit"))),
+        "safety_due": len(safety.filtered(lambda s: s.state in ("due", "overdue", "unfit"))),
     }

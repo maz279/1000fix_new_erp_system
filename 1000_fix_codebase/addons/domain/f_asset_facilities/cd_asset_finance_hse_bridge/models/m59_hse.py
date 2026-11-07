@@ -30,6 +30,10 @@ from .fix_bridge_exception import HSE_OFFICER, PARAM_PREFIX, event_source, run_h
 # Form 27(b) minor-injury notice.
 VEHICLE_SEVERITY_PARAM = "vehicle_injury_severity"
 SEVERITIES = ("low", "medium", "high")
+# A07 operability (2026-11-07): what a site incident puts on the M59 hazard
+# register. An injury has its own route (the HSE case).
+INCIDENT_HAZARD_TYPES = ("fire", "theft", "trespass")
+INCIDENT_HAZARD_SEVERITY = {"low": 2, "medium": 3, "high": 4}
 
 
 def _employee_of(env, user, company):
@@ -229,6 +233,9 @@ class FixHseHazardBridge(models.Model):
     site_safety_id = fields.Many2one(
         "fix.site.safety", string="Site Safety Equipment (M47)", readonly=True, copy=False
     )
+    site_incident_id = fields.Many2one(
+        "fix.site.incident", string="Site Incident (M47)", readonly=True, copy=False
+    )
 
     # one OPEN hazard per safety item; a closed one stays the record of the lapse
     _bridge_open_unique = models.UniqueIndex(
@@ -237,7 +244,9 @@ class FixHseHazardBridge(models.Model):
     )
 
     def write(self, vals):
-        if not self.env.su and {"bridge_source_key", "site_safety_id"} & set(vals):
+        if not self.env.su and {"bridge_source_key", "site_safety_id", "site_incident_id"} & set(
+            vals
+        ):
             raise UserError(
                 "The bridge link of %s is set by the hand-off only." % self._description
             )
@@ -264,6 +273,15 @@ class FixHseHazardBridge(models.Model):
                     }
                 )
             return hazard
+        return self._bridge_safety_hazard(
+            item,
+            key,
+            "Inspection due %s not recorded in M47: the item is unfit until "
+            "its check is recorded. The HSE officer rates likelihood and severity." % due,
+        )
+
+    @api.model
+    def _bridge_safety_hazard(self, item, key, controls):
         site = item.site_id
         label = dict(item._fields["equipment_type"].selection).get(item.equipment_type, "")
         return self.sudo().create(
@@ -274,10 +292,68 @@ class FixHseHazardBridge(models.Model):
                 "operating_unit_id": site.operating_unit_id.id,
                 "branch_id": site.branch_id.id,
                 "hazard_type": "other",
-                "controls": "Inspection due %s not recorded in M47: the item is unfit until "
-                "its check is recorded. The HSE officer rates likelihood and severity." % due,
+                "controls": controls,
                 "bridge_source_key": key,
                 "site_safety_id": item.id,
+            }
+        )
+
+    @api.model
+    def consume_site_safety_check_failed(self, event):
+        """site.safety_check_failed (M47) -> ONE open hazard per item, or the
+        finding added to the one already open."""
+        item = event_source(self.env, event, "fix.site.safety")
+        if not item:
+            return False
+        payload = event.get("payload") or {}
+        key = "m59:fix.site.safety:%s" % item.id
+        text = "Failed its check on %s: %s." % (
+            payload.get("checked_on") or "-",
+            payload.get("finding") or "-",
+        )
+        hazard = self.sudo().search(
+            [("bridge_source_key", "=", key), ("state", "!=", "closed")], limit=1
+        )
+        if hazard:
+            if text not in (hazard.controls or ""):
+                hazard.write({"controls": "%s\n%s" % (hazard.controls or "", text)})
+            return hazard
+        return self._bridge_safety_hazard(
+            item,
+            key,
+            "%s The item is unfit until a check passes. The HSE officer rates likelihood and "
+            "severity." % text,
+        )
+
+    @api.model
+    def consume_site_incident(self, event):
+        """site.incident (M47: a fire, a theft or a trespass) -> ONE hazard per
+        incident for the HSE officer to assess. An injury opens its HSE case."""
+        incident = event_source(self.env, event, "fix.site.incident")
+        if not incident or incident.incident_type not in INCIDENT_HAZARD_TYPES:
+            return False
+        key = "m59:fix.site.incident:%s" % incident.id
+        hazard = (
+            self.sudo()
+            .with_context(active_test=False)
+            .search([("bridge_source_key", "=", key)], limit=1)
+        )
+        if hazard:
+            return hazard
+        site = incident.site_id
+        label = dict(incident._fields["incident_type"].selection)[incident.incident_type]
+        return self.sudo().create(
+            {
+                "name": "%s at %s: incident %s" % (label, site.name, incident.name),
+                "company_id": (site.company_id or self.env.company).id,
+                "operating_unit_id": site.operating_unit_id.id,
+                "branch_id": site.branch_id.id,
+                "hazard_type": "other",
+                "severity": INCIDENT_HAZARD_SEVERITY.get(incident.severity, 3),
+                "controls": "Reported in M47 on %s: %s. The HSE officer assesses it and records "
+                "the controls." % (incident.occurred_on, incident.description),
+                "bridge_source_key": key,
+                "site_incident_id": incident.id,
             }
         )
 
@@ -288,12 +364,28 @@ class FixSiteIncidentBridge(models.Model):
     def write(self, vals):
         """An injury ticked after the incident was reported: M47 publishes
         site.incident on create only, so the case is opened from here."""
-        newly = self.filtered(lambda r: not r.injuries_flag) if vals.get("injuries_flag") else None
+        injured = vals.get("injuries_flag") or vals.get("incident_type") == "injury"
+        newly = self.filtered(lambda r: not r.injuries_flag) if injured else None
         result = super().write(vals)
         if newly:
             Case = self.env["fix.hse.incident"].sudo()
             run_hook(self.env, "m59_site_incident", Case._bridge_case_for_site_incident, newly)
+        if "occurred_on" in vals:
+            run_hook(self.env, "m59_site_incident_date", self._bridge_case_redate)
         return result
+
+    def _bridge_case_redate(self):
+        """The accident date moved: the case's reminder follows M47's new date.
+        Its own working-day deadline stays M59's to correct."""
+        Case = self.env["fix.hse.incident"].sudo()
+        for incident in self.sudo():
+            case = Case.search([("site_incident_id", "=", incident.id)], limit=1)
+            if case and case.source_notice_due_on != incident.hse_notice_due_on:
+                case.write({"source_notice_due_on": incident.hse_notice_due_on})
+                case.message_post(
+                    body="M47 corrected the accident date of %s to %s: check the accident date "
+                    "here." % (incident.name, incident.occurred_on)
+                )
 
 
 class FixVehicleAccidentBridge(models.Model):

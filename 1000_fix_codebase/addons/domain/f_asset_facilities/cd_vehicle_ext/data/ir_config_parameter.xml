@@ -56,6 +56,12 @@
         <field name="key">cd_vehicle_ext.fuel_max_km_per_litre</field>
         <field name="value">60</field>
     </record>
+    <!-- BRU-FLT-08: every fuel transaction carries its receipt scan. Off: live
+         fills carry none, and not every pump gives one. A business decision. -->
+    <record id="param_require_fuel_receipt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_fuel_receipt</field>
+        <field name="value">False</field>
+    </record>
     <!-- FR-FLT-036 / BRU-FLT-19: minutes without a ping before a device is
          silent (stale) and its vehicle position-unknown. -->
     <record id="param_telematics_silence_minutes" model="ir.config_parameter">

@@ -431,6 +431,7 @@ msgstr "পরিদর্শককে নোটিশ প্রদানের 
 
 #. module: cd_facility
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__invoice_ref
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__invoice_ref
 msgid "Invoice Ref (M52)"
 msgstr "ইনভয়েস রেফারেন্স (M52)"
 
@@ -698,3 +699,114 @@ msgstr "যাচাইকারী"
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__work_order_id
 msgid "Work Order"
 msgstr "ওয়ার্ক অর্ডার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_requested
+msgid "Closure Requested"
+msgstr "বন্ধের অনুরোধ করা হয়েছে"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__priority
+msgid "Priority"
+msgstr "অগ্রাধিকার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__triaged_by_id
+msgid "Triaged By"
+msgstr "অগ্রাধিকার নির্ধারণ করেছেন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__triaged_on
+msgid "Triaged On"
+msgstr "অগ্রাধিকার নির্ধারণের সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__emergency
+msgid "Emergency (safety-critical)"
+msgstr "জরুরি (নিরাপত্তা-সংকটপূর্ণ)"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__priority__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_deposit
+msgid "Proposed Deposit"
+msgstr "প্রস্তাবিত জামানত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_notice_period_days
+msgid "Proposed Renewal Notice (days)"
+msgstr "প্রস্তাবিত নবায়ন নোটিশ (দিন)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_lessor_id
+msgid "Proposed Lessor"
+msgstr "প্রস্তাবিত ইজারাদাতা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__ap_requested_on
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__ap_requested_on
+msgid "Sent to AP On"
+msgstr "হিসাবে পাঠানোর তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_lease_extract__reason__terminated
+msgid "Lease Terminated"
+msgstr "লিজ বাতিল হয়েছে"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__evidence_file
+msgid "Licence Scan"
+msgstr "লাইসেন্সের স্ক্যান"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__evidence_filename
+msgid "Scan File Name"
+msgstr "স্ক্যান ফাইলের নাম"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__paid_amount
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__paid_on
+msgid "Paid On"
+msgstr "পরিশোধের তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_result
+msgid "Last Result"
+msgstr "সর্বশেষ ফলাফল"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_finding
+msgid "Last Finding"
+msgstr "সর্বশেষ ত্রুটি"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__last_result__pass
+msgid "Passed"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__last_result__fail
+msgid "Failed"
+msgstr "অনুত্তীর্ণ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site_safety__state__unfit
+msgid "Unfit: Failed Check"
+msgstr "অনুপযুক্ত: পরিদর্শনে অনুত্তীর্ণ"

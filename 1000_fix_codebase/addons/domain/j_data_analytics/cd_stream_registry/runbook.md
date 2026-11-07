@@ -73,6 +73,9 @@ The module depends on the following prerequisite modules:
 - **Nightly Reconciliation**: Automated integrity checks run via standard cron schedules to detect orphan records or stalled state transactions.
 - **Data Retention & Pruning**: Outbox payloads and temporary staging buffers are pruned according to data governance retention windows (90-day hot retention).
 
+### 4.1a Connecting a Gateway
+A gateway delivers readings to `POST /iot/v1/ingest` (JSON `{"stream": "<stream reference>", "value": 21.5, "timestamp": "2026-11-07T04:00:00Z"}`, `timestamp` optional; header `X-Adapter-Key`; on a server with several databases also `X-Odoo-Database`). An IoT Administrator chooses Bearer Token or Mutual TLS on the adapter, records the Credential Reference, uses Rotate Key, and Enables it. Only the key's hash is stored; rotating again ends the old key at once. An adapter with no key, disabled, or with authentication None is refused, and so is a stream on another adapter. Consent and every other ingest gate still apply. Answers: 200 recorded; 400 bad body; 401 no or wrong key; 403 adapter or consent refused; 409 stream not active, duplicate or future reading; 413 body over 4 KB.
+
 ### 4.2 Standard Operational Procedures
 1. **Module Deployment**:
    ```bash

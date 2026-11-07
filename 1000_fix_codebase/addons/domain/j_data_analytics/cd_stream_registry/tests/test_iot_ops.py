@@ -28,6 +28,9 @@ def ctx(odoo_env):
             "protocol": "mqtt",
             "endpoint": "mqtt://broker.test",
             "auth_mode": "token",
+            # in service: born disabled, enabled by an administrator with a key
+            "state": "enabled",
+            "api_key_hash": "0" * 64,
         }
     )
     device = env["fix.iot.device"].create(
@@ -152,7 +155,7 @@ def test_prediction_creates_one_work_order(ctx):
     assert prediction.name == f"PDM-{TAG}"
     prediction.action_create_preventive_wo()
     assert prediction.work_order_created is True
-    with pytest.raises(UserError, match="already created"), env.cr.savepoint():
+    with pytest.raises(UserError, match="already requested"), env.cr.savepoint():
         prediction.action_create_preventive_wo()
     healthy = env["fix.predictive.maintenance"].create(
         {"name": f"PDM-H-{TAG}", "equipment_id": equipment.id, "prediction": "healthy"}

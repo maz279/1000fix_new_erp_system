@@ -122,6 +122,7 @@ class FixEquipmentKit(models.Model):
     state = fields.Selection(
         [("available", "Available"), ("issued", "Issued"), ("partial", "Partly Issued")],
         compute="_compute_kit_state",
+        store=True,
         string="Kit Status",
     )
 
@@ -130,7 +131,7 @@ class FixEquipmentKit(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | KIT_ISSUE_FIELDS
 
-    @api.depends("issue_ids.state", "line_ids")
+    @api.depends("issue_ids.state", "issue_ids.equipment_id", "line_ids")
     def _compute_kit_state(self):
         for rec in self:
             open_issues = rec.sudo().issue_ids.filtered(lambda i: i.state == "issued")
@@ -177,6 +178,8 @@ class FixEquipmentKit(models.Model):
     def action_return_kit(self):
         """Return every member still out on the kit issue, with the kit's
         condition, and stamp the completeness check: every member is back."""
+        # releasing the kit below is the system's; returning it is the role's
+        self.check_access("write")
         for rec in self:
             open_issues = rec._m45_open_issues()
             if not open_issues:
@@ -188,11 +191,23 @@ class FixEquipmentKit(models.Model):
                     "Kit %s is incomplete: %s is out on another issue. Return it to the kit "
                     "first." % (rec.name, ", ".join(stray.mapped("name")))
                 )
+            # the last member back releases the kit (_m45_release_when_home)
             open_issues.with_env(self.env).action_return(condition=rec.return_condition or None)
-            rec._guarded().write(
-                {"accountable_employee_id": False, "completeness_checked_at": fields.Datetime.now()}
-            )
         return True
+
+    def _m45_release_when_home(self):
+        """Once no member is out, the kit has no holder and every member is back,
+        however they came back (Return Kit, or one by one on their own issues).
+        The condition on return described that return: it is never reused."""
+        for rec in self:
+            if not rec._m45_open_issues():
+                rec.sudo()._guarded().write(
+                    {
+                        "accountable_employee_id": False,
+                        "completeness_checked_at": fields.Datetime.now(),
+                        "return_condition": False,
+                    }
+                )
 
 
 class FixEquipmentKitLine(models.Model):
@@ -468,6 +483,7 @@ class FixEquipmentIssue(models.Model):
                 equipment._guarded().write({"operational_status": equipment._m45_released_status()})
             days = (rec.returned_on - rec.issued_on).days if rec.issued_on else None
             rec._m45_publish("equipment.returned", condition=cond or None, days_held=days)
+            rec.kit_id._m45_release_when_home()
         return True
 
     # ---- A07 P1 (2026-11-04): custody queries and the nightly job -----------
@@ -681,10 +697,14 @@ class FixEquipmentTransfer(models.Model):
         return True
 
     def action_cancel(self):
-        """Withdraw a transfer that has not been received; nothing moves."""
+        """Withdraw a transfer that has not been received; nothing moves. Whoever
+        raised a draft may withdraw it, since nothing has happened yet; anything
+        else is store-keeper work, like the dispatch and the receipt."""
         for rec in self:
             if rec.state not in ("draft", "dispatched"):
                 raise UserError("Only a draft or dispatched transfer can be cancelled")
+            if rec.state != "draft" or rec.create_uid != self.env.user:
+                rec._m45_check_store_keeper("Cancelling a transfer")
             rec._guarded().write({"state": "cancelled"})
         return True
 
@@ -729,8 +749,9 @@ class FixEquipmentVerification(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.equipment.verification") or "EVER/New"
                 )
-            # the result is derived from what was found, never typed
-            vals["state"] = "missing" if vals.get("found") is False else "verified"
+            # the result is derived from what was found, never typed: anything
+            # falsy is stored as not found, so it must read as missing too
+            vals["state"] = "verified" if vals.get("found", True) else "missing"
         records = super(FixEquipmentVerification, self._guarded()).create(vals_list)
         records = records.with_env(self.env)
         records.filtered(lambda r: r.state == "missing")._m45_mark_missing()
@@ -787,6 +808,13 @@ class FixEquipmentVerification(models.Model):
             m45_require_role(
                 self.env, (ROLE_CUSTODIAN, ROLE_QM), "Recording a missing item as found"
             )
+            # the Found box is ticked by default: leaving a form alone must not
+            # clear a recorded loss
+            if not self.env.su and not (rec.location or "").strip():
+                raise UserError(
+                    "%s is recorded as missing. To record it as found, state where it was "
+                    "found (Location). If it is still missing, untick Found." % equipment.name
+                )
             lost = equipment.missing_verification_id
             equipment._guarded().write({"missing_verification_id": False})
             equipment._m45_sync_status()
@@ -1111,6 +1139,10 @@ class FixEquipmentUsage(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         guarded = super()._fix_guarded_fields() | USAGE_SYSTEM_FIELDS
+        if self:
+            # the date decides which certificate covered the use, and the impact
+            # assessment reads it and the QC result: fixed once recorded
+            guarded |= {"used_on", "qc_result"}
         if any(rec.source_model for rec in self):
             # a use written by another module's record is that record's evidence
             guarded |= {
@@ -1126,29 +1158,70 @@ class FixEquipmentUsage(models.Model):
     # A07 audit (2026-11-03) M45-4 (BRU-EAM-02): usage was recorded on overdue
     # and out-of-service instruments; the fitness gate was only a button. A use
     # is the instrument being put to work, so the gate runs on every user path.
-    # Superuser code (seeds, sudo service calls) stays trusted.
+    # Superuser code (seeds, sudo service calls) stays trusted. A use dated today
+    # meets today's status; a late entry is judged at its own date, so an honest
+    # entry written after a later fail is accepted (and joins the impact below).
     def _m45_check_fit_for_use(self):
         if self.env.su:
             return
+        today = fields.Date.context_today(self)
         for rec in self:
-            rec.equipment_id.action_assert_usable()
+            if rec.used_on > today:
+                raise UserError(
+                    "A use cannot be dated in the future (%s): record it once the instrument "
+                    "has been used." % rec.used_on
+                )
+            if rec.used_on == today:
+                rec.equipment_id.action_assert_usable()
+                continue
+            problem = rec.equipment_id._m45_fitness_problem_on(rec.used_on)
+            if problem:
+                raise UserError(problem)
 
     def _m45_stamp(self):
         for rec in self:
             equipment = rec.equipment_id.sudo()
+            calibration = equipment._m45_calibration_at(rec.used_on)
             rec.sudo()._guarded().write(
                 {
-                    "calibration_id": equipment._m45_latest_calibration().id or False,
-                    "fitness_state_at_use": equipment.calibration_state,
+                    "calibration_id": calibration.id or False,
+                    "fitness_state_at_use": equipment._m45_certificate_state(
+                        calibration, rec.used_on
+                    ),
                     "used_by_id": self.env.uid,
                 }
             )
+
+    def _m45_join_impact_assessments(self):
+        """A use recorded after the assessment was raised, dated inside its suspect
+        window, is as suspect as the ones it already lists. A closed assessment
+        lists it too and says so, for the Quality Manager who closed it."""
+        Impact = self.env["fix.calibration.impact"].sudo()
+        for rec in self:
+            for impact in Impact.search(
+                [
+                    ("equipment_id", "=", rec.equipment_id.id),
+                    ("period_to", ">=", rec.used_on),
+                    "|",
+                    ("period_from", "=", False),
+                    ("period_from", "<=", rec.used_on),
+                ]
+            ):
+                if rec in impact.usage_ids:
+                    continue
+                impact._guarded().write({"usage_ids": [(4, rec.id)]})
+                if impact.state == "closed":
+                    impact.message_post(
+                        body="A use dated %s (%s) was recorded after this assessment was "
+                        "closed. Review it against the disposition." % (rec.used_on, rec.job_ref)
+                    )
 
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         records._m45_check_fit_for_use()
         records._m45_stamp()
+        records._m45_join_impact_assessments()
         return records
 
     def write(self, vals):
@@ -1156,6 +1229,7 @@ class FixEquipmentUsage(models.Model):
         if "equipment_id" in vals:
             self._m45_check_fit_for_use()
             self._m45_stamp()
+            self._m45_join_impact_assessments()
         return res
 
     @api.model

@@ -547,11 +547,8 @@ class P03ServiceOrderApiController(http.Controller):
                 # A device is identified by its serial ONLY — never "the first
                 # device in the registry" (that attached another customer's
                 # device to the new order).
-                device = (
-                    env["fix.device"].search([("serial_number", "=", serial)], limit=1)
-                    if serial
-                    else env["fix.device"].browse()
-                )
+                # A merged duplicate's serial resolves to the surviving device.
+                device = env["fix.device"].resolve_identifier(serial)
                 if not device:
                     if not serial:
                         return {

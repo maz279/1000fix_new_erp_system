@@ -206,5 +206,46 @@
             <field name="module">cd_asset_finance_hse_bridge</field>
         </record>
 
+        <!-- A07 operability (2026-11-07): what the P03 screens say M47 does. -->
+        <record id="consumer_site_utility_payable" model="fix.event.consumer">
+            <field name="name">M52: a utility bill not held, or released after review, becomes a pending cost entry</field>
+            <field name="event_type">site.utility_payable</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_site_utility_payable</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_rent_payment_requested" model="fix.event.consumer">
+            <field name="name">M52: a rent row sent to AP becomes a pending cost entry on the landlord</field>
+            <field name="event_type">lease.rent_payment_requested</field>
+            <field name="model">fix.asset.cost.entry</field>
+            <field name="method">consume_lease_rent_payment_requested</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_incident_risk" model="fix.event.consumer">
+            <field name="name">M60: a site fire, theft, trespass or injury goes on the site's open risk</field>
+            <field name="event_type">site.incident</field>
+            <field name="model">fix.risk.register</field>
+            <field name="method">consume_site_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_incident_hazard" model="fix.event.consumer">
+            <field name="name">M59: a site fire, theft or trespass raises one hazard</field>
+            <field name="event_type">site.incident</field>
+            <field name="model">fix.hse.hazard</field>
+            <field name="method">consume_site_incident</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_site_safety_check_failed" model="fix.event.consumer">
+            <field name="name">M59: a failed site safety check raises one open hazard</field>
+            <field name="event_type">site.safety_check_failed</field>
+            <field name="model">fix.hse.hazard</field>
+            <field name="method">consume_site_safety_check_failed</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
     </data>
 </odoo>

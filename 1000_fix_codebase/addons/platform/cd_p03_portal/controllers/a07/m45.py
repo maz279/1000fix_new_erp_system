@@ -3,6 +3,8 @@
 # verification, out-of-service, PM and usage.
 import datetime
 
+from odoo import fields
+
 from ..p03_service_order_api import _company_domain
 
 SURFACES = {
@@ -19,6 +21,14 @@ SURFACES = {
         "order": "calibrated_on desc, id desc",
         "limit": 400,
         "actions": {"action_accept_calibration", "action_reject_calibration"},
+    },
+    # the readings grid on the calibration form: no screen of its own and nothing
+    # written here; the picker skips profiles that read no measurement points
+    "fix.calibration.reading": {
+        "order": "calibration_id, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"point_id": [("profile_id.verification_only", "=", False)]},
     },
     # A07 P1 (2026-11-04) FR-EAM-007: a kit is issued and returned as one unit
     "fix.equipment.kit": {
@@ -313,7 +323,7 @@ def retrospective_impact(env, date_from=None, date_to=None, **params):
 
 
 def calibration_compliance(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
+    today = fields.Date.context_today(env["fix.equipment"])
     horizon = today + datetime.timedelta(days=30)
     rows = []
     for equipment in _equipment(env):
@@ -326,6 +336,11 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
             status = "failed"
         elif state == "never":
             status = "never calibrated"
+        elif state == "rejected":
+            # a rejected calibration certifies nothing, so it has no next-due
+            status = "rejected at usage decision"
+        elif state == "pending":
+            status = "awaiting usage decision"
         elif equipment.next_calibration <= horizon:
             status = "due within 30 days"
         else:
@@ -360,8 +375,8 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Status counts: " + ", ".join("%s %d" % (k, v) for k, v in sorted(counts.items())),
-            "From the latest calibration only: failed, overdue and never calibrated are "
-            "not current, and the fitness gate refuses them.",
+            "From the latest calibration only: failed, overdue, rejected, awaiting a usage "
+            "decision and never calibrated are not current, and the fitness gate refuses them.",
         ],
         empty="No equipment registered yet.",
     )
@@ -518,7 +533,14 @@ def kpis(env):
         # A07 audit (2026-11-03) M45-1: failed and never-calibrated instruments
         # are not current either (retired items are no longer in use)
         "calibration_not_current": len(in_use.filtered(lambda e: e.calibration_state != "current")),
-        "oos_open": len(_scoped(env, "fix.equipment.oos", [("state", "=", "open")])),
+        # a retired item is out of use for good, not waiting to return to service
+        "oos_open": len(
+            _scoped(
+                env,
+                "fix.equipment.oos",
+                [("state", "=", "open"), ("equipment_id.operational_status", "!=", "retired")],
+            )
+        ),
         "issued_out": len(_scoped(env, "fix.equipment.issue", [("state", "=", "issued")])),
         "kits": len(_scoped(env, "fix.equipment.kit", [("active", "=", True)])),
         "pm_open": len(_scoped(env, "fix.equipment.pm", [("state", "=", "open")])),

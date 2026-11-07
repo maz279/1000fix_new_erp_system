@@ -44,10 +44,50 @@ class FixWarranty(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         if self and any(w.status != "pending" for w in self):
-            locked |= _TERMS
+            locked |= _TERMS | {"proof_file", "proof_filename"}
         return locked
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        from .fix_device import take_upload
+
+        uploads = [take_upload(vals, "proof_file", "proof_filename") for vals in vals_list]
+        records = super().create(vals_list)
+        for rec, (data, filename) in zip(records, uploads, strict=True):
+            if data:
+                rec._attach_proof(data, filename)
+        return records
+
+    def _attach_proof(self, data, filename):
+        """The receipt or card a person uploaded on the warranty form, filed
+        against this warranty. The frozen-terms check below still decides."""
+        from .fix_device import document_from_upload
+
+        self.ensure_one()
+        doc = document_from_upload(
+            self.env,
+            self.device_id,
+            data,
+            filename,
+            "warranty_card",
+            "Warranty proof - %s" % self.device_id.display_name,
+            self._name,
+            self.id,
+        )
+        self.write({"proof_document_id": doc.id})
+        return doc
+
     def write(self, vals):
+        from .fix_device import take_upload
+
+        upload = take_upload(vals, "proof_file", "proof_filename")
+        result = self._write_terms(vals)
+        if upload[0]:
+            for rec in self:
+                rec._attach_proof(*upload)
+        return result
+
+    def _write_terms(self, vals):
         if self and not self._fix_guard_open():
             touched = _TERMS & set(vals)
             for rec in self.filtered(lambda w: w.status != "pending"):
@@ -115,6 +155,10 @@ class FixWarranty(models.Model):
         string="Proof Document",
         help="Purchase receipt or warranty card via the M24-core API",
     )
+    # A07 operability (2026-11-07): Verify needs proof, and no form offered it. A
+    # file uploaded here becomes the document above.
+    proof_file = fields.Binary(string="Upload Proof", store=False)
+    proof_filename = fields.Char(string="Proof File Name", store=False)
     verified_by = fields.Many2one("res.users", readonly=True, copy=False)
     verified_at = fields.Datetime(readonly=True, copy=False)
     void_reason = fields.Text(string="Void Reason", readonly=True, copy=False)
@@ -151,7 +195,7 @@ class FixWarranty(models.Model):
                 rec.verification_blocker = False
             elif not rec.proof_document_id:
                 rec.verification_blocker = (
-                    "Attach the purchase receipt or warranty card, then Verify"
+                    "Attach the purchase receipt or warranty card, then Request Verification"
                 )
             else:
                 rec.verification_blocker = "Proof is attached - ready to Verify"
@@ -188,12 +232,17 @@ class FixWarranty(models.Model):
         proof must be about this device or warranty (a document filed on
         another customer verified cover, M17-13). An unfiled proof is filed
         against the warranty now, so it cannot prove a second one."""
-        from .fix_device import bind_evidence
+        from .fix_device import WARRANTY_PROOF_TYPES, bind_evidence
 
         self.ensure_one()
         self.device_id.assert_identity_resolved("have its warranty verified")
         if self.proof_document_id:
-            bind_evidence(self.proof_document_id, [self, self.device_id], "proof document")
+            bind_evidence(
+                self.proof_document_id,
+                [self, self.device_id],
+                "proof document",
+                WARRANTY_PROOF_TYPES,
+            )
 
     # The daily job is the A02 ir_cron_warranty_expiry (_cron_expire_warranties,
     # fix_warranty_expiry.py, AUT-AST-10): it expires ended cover and calls the

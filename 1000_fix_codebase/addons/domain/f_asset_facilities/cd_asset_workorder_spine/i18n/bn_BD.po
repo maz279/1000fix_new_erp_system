@@ -224,3 +224,13 @@ msgstr "স্বীকারের সময়"
 #: model:ir.model,name:cd_asset_workorder_spine.model_fix_asset_alert
 msgid "Asset & Facility Alert"
 msgstr "সম্পদ ও স্থাপনা সতর্কতা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_device_component__causing_order_id
+msgid "Causing Job"
+msgstr "সংশ্লিষ্ট কাজ"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_device_component__stock_lot_ref_id
+msgid "Stock Lot"
+msgstr "স্টক লট"

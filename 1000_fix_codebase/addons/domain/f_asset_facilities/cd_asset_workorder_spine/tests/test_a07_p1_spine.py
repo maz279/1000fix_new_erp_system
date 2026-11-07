@@ -538,6 +538,8 @@ def test_a_vehicle_booked_on_its_maintenance_day_is_flagged_once(c):
     wo = c.env[WO].search([("vehicle_pm_id", "=", pm.id)])
     day = c.today + timedelta(days=3)
     wo.with_user(c.fm).write({"scheduled_date": day})
+    # M46: a duty booking is made by a fleet officer
+    c.clerk.group_ids = [(4, c.env.ref("fleet.fleet_group_user").id)]
     booking = (
         c.env["fix.vehicle.assignment"]
         .with_user(c.clerk)

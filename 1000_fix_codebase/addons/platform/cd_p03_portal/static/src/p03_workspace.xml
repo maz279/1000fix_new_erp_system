@@ -3379,7 +3379,7 @@
                                             <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
-                                                    <span t-if="lf.readonly" t-esc="formLineDisplay(row_index, lf.name)"/>
+                                                    <span t-if="lf.readonly or formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
                                                     <select t-elif="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
                                                             t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                             t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
@@ -3904,6 +3904,23 @@
                                 <div class="modal-footer">
                                     <button class="btn" t-on-click="() => this.glPromptCancel()"><t t-esc='t("Cancel")'/></button>
                                     <button class="btn btn-primary" t-on-click="() => this.glPromptOk()"><t t-esc='t("Confirm")'/></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- A one-time secret: stays until dismissed -->
+                        <div class="modal-scrim" t-if="state.gl.secretDialog" role="dialog" aria-modal="true" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+                            <div class="modal-dialog" style="max-width: 520px;">
+                                <div class="modal-head"><h3><t t-esc='t("Copy this key now")'/></h3></div>
+                                <div class="modal-body">
+                                    <p t-esc="state.gl.secretDialog.note"/>
+                                    <div class="fld">
+                                        <label for="p03_secret_value"><t t-esc='t("Key (shown once, never again)")'/></label>
+                                        <input id="p03_secret_value" type="text" readonly="readonly" autocomplete="off" t-att-value="state.gl.secretDialog.secret" t-on-focus="(ev) => ev.target.select()"/>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" t-on-click="() => { this.state.gl.secretDialog = null; }"><t t-esc='t("I have copied it")'/></button>
                                 </div>
                             </div>
                         </div>

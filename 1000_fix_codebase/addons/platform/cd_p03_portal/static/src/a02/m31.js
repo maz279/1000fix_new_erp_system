@@ -175,7 +175,7 @@ export const SCREENS = {
       { id: 'soldering', label: '2. Schematic & IPC Rework', bn: '২. স্কিম্যাটিক ও মাইক্রো-সোল্ডারিং', icon: '🔍', badge: '7' },
       { id: 'burnin', label: '3. 240-Min Burn-In Gate', bn: '৩. ২৪০-মিনিট বার্ন-ইন যাচাই', icon: '🔥', badge: '6' },
       { id: 'labor', label: '4. SAM Labor Efficiency', bn: '৪. শ্রম দক্ষতা ও কস্টিং', icon: '⏱️', badge: '6' },
-      { id: 'qc', label: '5. Quality & Evidence Pack', bn: '৫. কিউসি ও প্রমাণক', icon: '🛡️', badge: '8' },
+      { id: 'qc', label: '5. Quality & Evidence Pack', bn: '৫. কিউসি ও প্রমাণক', icon: '🛡️', badge: '9' },
       { id: 'waiver', label: '6. Waiver & BER Write-Off', bn: '৬. ছাড় ও বিইআর রাইট-অফ', icon: '⚖️', badge: '9' }
     ],
     sections: [
@@ -239,7 +239,9 @@ export const SCREENS = {
           { name: 'dofa_writeoff_tier', label: "DOFA Scrap / BER Write-Off Tier (derived)", readonly: true }
         ] },
       { tab: 'qc', title: "Independent Quality Control & Post-Rework Photos",
+        note: "Name the test instrument here and save before Pass QC. It must be fit on the day: calibrated, in service, and if issued, issued to you or to this job's technician. It is fixed once QC passes.",
         fields: [
+          { name: 'equipment_id', label: "Test Instrument Used" },
           { name: 'qc_passed', label: "Independent QC Inspection Passed", readonly: true },
           { name: 'qc_inspector_id', label: "Independent QC Inspector (stamped)", readonly: true },
           { name: 'qc_inspector_user_id', label: "QC Inspected By (user)", readonly: true },

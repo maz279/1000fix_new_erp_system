@@ -31,6 +31,19 @@ def v(odoo_env):
             }
         )
     )
+    officer = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "a7p1tv_officer",
+                "login": "a7p1tv_officer",
+                "group_ids": [
+                    (6, 0, [env.ref("base.group_user").id, env.ref("fleet.fleet_group_user").id])
+                ],
+            }
+        )
+    )
     brand = env["fleet.vehicle.model.brand"].create({"name": "A7P1TV Brand"})
     model = env["fleet.vehicle.model"].create({"name": "A7P1TV Van", "brand_id": brand.id})
 
@@ -50,7 +63,7 @@ def v(odoo_env):
     def assign(rec, day=None):
         return (
             env["fix.vehicle.assignment"]
-            .with_user(clerk)
+            .with_user(officer)
             .create({"vehicle_id": rec.id, "date": day or today})
         )
 
@@ -74,7 +87,7 @@ def test_compliance_gates_dispatch(v):
         assign(bad)
     a = assign(good)
     with pytest.raises(ValidationError, match="not dispatchable"), env.cr.savepoint():
-        a.with_user(clerk).write({"vehicle_id": bad.id})
+        a.with_user(a.create_uid).write({"vehicle_id": bad.id})  # the officer who booked
     assert a.vehicle_id == good
 
 

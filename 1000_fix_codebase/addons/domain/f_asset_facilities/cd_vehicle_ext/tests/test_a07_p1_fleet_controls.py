@@ -82,7 +82,9 @@ def f(odoo_env):
     x.bike_model = env["fleet.vehicle.model"].create(
         {"name": "A7P1F Bike", "brand_id": brand.id, "vehicle_type": "bike"}
     )
-    x.insurer = env["res.partner"].create({"name": "A7P1F Insurer", "is_company": True})
+    x.insurer = env["res.partner"].create(
+        {"name": "A7P1F Insurer", "is_company": True, "is_insurer": True}
+    )
 
     def doc(v, doc_type, valid_to, user=None, scan=True, **kw):
         vals = {"vehicle_id": v.id, "doc_type": doc_type, "number": "N-" + doc_type}
@@ -114,7 +116,8 @@ def f(odoo_env):
     def assign(v, user=None, **kw):
         vals = {"vehicle_id": v.id, "date": x.today}
         vals.update(kw)
-        return env["fix.vehicle.assignment"].with_user(user or x.clerk).create(vals)
+        # booking is the Fleet Officer's (the form and its ACL); M02 dispatch books as itself
+        return env["fix.vehicle.assignment"].with_user(user or x.officer).create(vals)
 
     def check(v, user=None, ok=True, **kw):
         vals = {"vehicle_id": v.id}

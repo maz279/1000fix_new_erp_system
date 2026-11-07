@@ -158,6 +158,11 @@ export const SCREENS = {
           { name: 'approval_state', readonly: true, label: 'M63 Approval (pending/approved by the routed decision)' },
           { name: 'residual_accepted_by_id', readonly: true, label: 'Residual Accepted By (Accept Residual action)' },
           { name: 'residual_accepted_on', readonly: true, label: 'Residual Accepted On' }
+        ] },
+      { title: 'Reported by the Source Modules', note: 'Each lapse, incident and decision the asset and facility modules reported on this subject. It is added to automatically; closing the entry stays with the risk owner.',
+        fields: [
+          { name: 'bridge_subject_ref', readonly: true, label: 'Subject' },
+          { name: 'bridge_lapse_log', type: 'text', readonly: true, label: 'What Was Reported' }
         ] }
     ]
   },

@@ -32,6 +32,7 @@ export const MODULE = {
       { id: 'M02-dispatch', en: 'Dispatch Board (Live)', bn: 'ডিসপ্যাচ বোর্ড', t: 'd' },
       { id: 'M02-map', en: 'Live Technician Map', bn: 'লাইভ ম্যাপ', t: 'd' },
       { id: 'M02-unassigned', en: 'Unassigned Queue', bn: 'অনির্ধারিত সারি', t: 'g' },
+      { id: 'M02-redispatch', en: 'Re-Dispatch Needed', bn: 'পুনরায় ডিসপ্যাচ প্রয়োজন', t: 'g' },
       { id: 'M02-sla-risk', en: 'SLA Risk Board', bn: 'এসএলএ ঝুঁকি', t: 'g' }
     ]},
     { en: 'Work Orders', screens: [
@@ -87,8 +88,15 @@ export const MODULE = {
 export const SCREENS = {
   'M02-dispatch': { kind: 'fs_board' },
   'M02-map': { kind: 'fs_map' },
+  /* M46: the vehicle an order travels in was taken off the road. Open the order
+   * and choose another vehicle (the flag clears), or wait for the van to return. */
+  'M02-redispatch': { kind: 'model_list', model: 'fix.field.order', create: false,
+    note: 'The vehicle these orders travel in was taken off the road. Open the order and choose another vehicle on its Dispatch & Zone tab, or reschedule it after the van returns. The flag clears on its own either way.',
+    domain: [['redispatch_required', '=', true]],
+    stateField: 'state',
+    cols: ['name', 'order_id', 'technician_id', 'scheduled_start', 'state', 'vehicle_id', 'redispatch_required', 'redispatch_offroad_id', 'redispatch_reason', 'redispatch_flagged_at'] },
   'M02-unassigned': { kind: 'model_list', model: 'fix.field.order', create: false,
-    cols: ['name', 'order_id', 'zone_id', 'priority', 'scheduled_start', 'state', 'technician_id'],
+    cols: ['name', 'order_id', 'zone_id', 'priority', 'scheduled_start', 'state', 'technician_id', 'vehicle_id', 'redispatch_required'],
     domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]],
     stateField: 'state',
     /* A02 audit M02-13: the actions the dispatch board does not offer.
@@ -110,7 +118,8 @@ export const SCREENS = {
     ] },
   'M02-record': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'technician_id', 'zone_id', 'scheduled_start', 'state',
-      'dispatched_at', 'arrived_at', 'actual_travel_minutes', 'on_time_arrival', 'completed_at', 'onsite_payment_state'],
+      'dispatched_at', 'arrived_at', 'actual_travel_minutes', 'on_time_arrival', 'completed_at', 'onsite_payment_state',
+      'vehicle_id', 'vehicle_driver_id', 'redispatch_required'],
     stateField: 'state',
     /* A02 audit M02-13: decline, cancel and the cash hand-over had no button.
      * An arrival carries the technician's position (M02-8); completion needs
@@ -230,7 +239,7 @@ export const SCREENS = {
     back: 'M02-record',
     status: { field: 'state' },
     tabs: [
-      { id: 'dispatch', label: '1. Dispatch & Zone', bn: '১. ডিসপ্যাচ ও জোন', icon: '🚐', badge: '5' },
+      { id: 'dispatch', label: '1. Dispatch & Zone', bn: '১. ডিসপ্যাচ ও জোন', icon: '🚐', badge: '15' },
       { id: 'schedule', label: '2. Technician & SLA', bn: '২. টেকনিশিয়ান ও সময়সূচি', icon: '⏱️', badge: '6' },
       { id: 'gps', label: '3. Site GPS & Anti-Spoof', bn: '৩. জিপিএস ও অবস্থান যাচাই', icon: '📍', badge: '8' },
       { id: 'settlement', label: '4. On-Site COD & MFS', bn: '৪. অন-সাইট পেমেন্ট ও নগদ', icon: '💳', badge: '6' },
@@ -247,6 +256,30 @@ export const SCREENS = {
           { name: 'priority', required: true, label: 'SLA Priority Level' },
           { name: 'zone_id', required: true, label: 'Dispatch Territory Zone' },
           { name: 'geofence_id', label: 'Geofence Boundary' }
+        ]
+      },
+      {
+        tab: 'dispatch',
+        title: 'Vehicle',
+        note: 'The vehicle this order travels in, and who drives it (empty = the vehicle\'s assigned driver). Dispatch runs the fleet gate on them: an uninsured or off-road vehicle, or a driver whose licence has expired, is refused, and the refusal says why.',
+        fields: [
+          { name: 'vehicle_id', label: 'Vehicle' },
+          { name: 'vehicle_driver_id', label: 'Vehicle Driver' },
+          { name: 'vehicle_assignment_id', label: 'Vehicle Booking', readonly: true }
+        ]
+      },
+      {
+        tab: 'dispatch',
+        title: 'Re-Dispatch',
+        note: 'Set by the fleet when the vehicle is taken off the road, and cleared when it returns or you choose another vehicle.',
+        fields: [
+          { name: 'redispatch_required', label: 'Re-Dispatch Required', readonly: true },
+          { name: 'redispatch_offroad_id', label: 'Vehicle Off-Road Record', readonly: true },
+          { name: 'redispatch_reason', label: 'Why', readonly: true, type: 'text' },
+          { name: 'redispatch_flagged_at', label: 'Flagged At', readonly: true },
+          { name: 'redispatch_cleared_at', label: 'Cleared At', readonly: true },
+          { name: 'redispatch_cleared_by_id', label: 'Cleared By', readonly: true },
+          { name: 'redispatch_clear_note', label: 'How It Was Cleared', readonly: true, type: 'text' }
         ]
       },
       {

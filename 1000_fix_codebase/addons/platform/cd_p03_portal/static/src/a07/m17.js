@@ -7,7 +7,7 @@
 export const MODULE = {
   area: 'A07', code: 'M17', en: 'Device & Asset Registry', title: 'M17 · Device & Asset Registry',
   bn: 'ডিভাইস ও অ্যাসেট রেজিস্ট্রি', icon: '📱',
-  desc: 'Asset register and record with six identifiers, Asset 360, identity resolution and merge, service history, parts genealogy, repeat-fault detection, custody chain, ownership transfers with evidence, identifier history with NEIR status, merge lineage, corporate estates, a bulk-registration readiness report (no bulk load yet), warranty dates and PM plans.',
+  desc: 'Asset register and record with five identifiers, Asset 360, identity resolution and merge, service history, parts genealogy, repeat-fault detection, custody chain, ownership transfers with evidence, identifier history with NEIR status, merge lineage, corporate estates, a bulk-registration readiness report (no bulk load yet), warranty dates and PM plans.',
   kpis: [
     { l: 'Active Devices', m: 'devices_active' },
     { l: 'Estates', m: 'estates' },
@@ -40,7 +40,8 @@ export const MODULE = {
     ]},
     { en: 'Custody', screens: [
       { id: 'M17-custody', en: 'Custody State & Chain', bn: 'কাস্টডি চেইন', t: 'g' },
-      { id: 'M17-ownership', en: 'Ownership & Transfers', bn: 'মালিকানা হস্তান্তর', t: 'g' }
+      { id: 'M17-ownership', en: 'Ownership & Transfers', bn: 'মালিকানা হস্তান্তর', t: 'g' },
+      { id: 'M17-holds', en: 'Lost / Stolen Holds', bn: 'হারানো / চুরি হোল্ড', t: 'g' }
     ]},
     { en: 'Corporate Estates', screens: [
       { id: 'M17-estates', en: 'Estates (Site/Dept/User)', bn: 'কর্পোরেট এস্টেট', t: 'g' },
@@ -104,10 +105,12 @@ export const SCREENS = {
     // staged on the asset form (Device Registry Agent role).
     actions: [
       { m: 'action_transfer_ownership', l: 'Transfer Ownership (staged on the form)' },
+      { m: 'action_correct_identifier', l: 'Correct Identifier (Quality Manager, staged on the form)' },
       { m: 'action_confirm_identity', l: 'Confirm Provisional Identity' },
       { m: 'action_mark_lost', l: 'Flag Lost / Stolen', ask: 'How was the loss or theft reported?', kwarg: 'reason' },
       { m: 'action_clear_lost', l: 'Clear Lost Flag (Branch Manager)', ask: 'How was it recovered, or why is the report withdrawn?', kwarg: 'reason' },
       { m: 'action_set_vintage', l: 'Lifecycle: Vintage', ask: 'Basis for the decision?', kwarg: 'reason' },
+      { m: 'action_return_to_active', l: 'Lifecycle: Back to Active (from Vintage)', ask: 'Basis for the decision?', kwarg: 'reason' },
       { m: 'action_set_end_of_support', l: 'Lifecycle: End of OEM Support', ask: 'Basis for the decision?', kwarg: 'reason' },
       { m: 'action_set_obsolete', l: 'Lifecycle: Obsolete (customer instruction required)', ask: 'Basis for the end-of-life decision?', kwarg: 'reason' },
       { m: 'action_request_approval', l: 'Request Scrap Approval (Quality Manager)', ask: 'Why should this device be scrapped?', kwarg: 'justification' },
@@ -136,6 +139,8 @@ export const SCREENS = {
     actions: [
       { m: 'action_remove', l: 'Remove Component' },
       { m: 'action_dispose_returned', l: 'Disposition: Returned to Customer' },
+      { m: 'action_dispose_harvested', l: 'Disposition: Harvested' },
+      { m: 'action_dispose_returned_to_brand', l: 'Disposition: Returned to Brand' },
       { m: 'action_dispose_scrapped', l: 'Disposition: Scrapped' }
     ] },
   'M17-custody': { kind: 'model_list', model: 'fix.device.custody', stateField: 'event',
@@ -143,6 +148,10 @@ export const SCREENS = {
   // Ownership rows are written only by Transfer Ownership on the asset.
   'M17-ownership': { kind: 'model_list', create: false, model: 'fix.device.ownership',
     cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date', 'reason', 'recorded_by_id', 'channel'] },
+  // Written by the M17 lost/stolen flag and its clearance; nobody types a hold.
+  'M17-holds': { kind: 'model_list', create: false, model: 'fix.service.order.device.hold', stateField: 'state',
+    note: 'One row for each open service order of a device reported lost or stolen. While a hold is open the order cannot be handed over. A Branch Manager ends it by clearing the lost flag on the Asset Register.',
+    cols: ['name', 'order_id', 'device_id', 'branch_id', 'reason', 'flagged_by_id', 'flagged_at', 'cleared_by_id', 'cleared_at', 'state'] },
   'M17-merges': { kind: 'model_list', create: false, model: 'fix.device.merge', stateField: 'state',
     cols: ['name', 'survivor_id', 'merged_id', 'approved_by_id', 'merged_at', 'reversible_until', 'rows_repointed', 'state'],
     actions: [{ m: 'action_reverse', l: 'Reverse Merge (Quality Manager, inside the window)', ask: 'Why is the merge reversed?', kwarg: 'reason' }] },
@@ -161,11 +170,20 @@ export const SCREENS = {
     cols: ['name', 'device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Grade' }] },
   'M17-wty': { kind: 'model_list', model: 'fix.warranty', stateField: 'status',
-    cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'] },
+    cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status', 'verification_state', 'verification_blocker', 'approval_state'],
+    // Verification is requested here and decided from a Warranty Officer's inbox.
+    actions: [
+      { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' }
+    ] },
   'M17-pm': { kind: 'model_list', model: 'fix.device.pm', stateField: 'state',
     cols: ['name', 'device_id', 'plan_type', 'interval_months', 'last_done', 'next_due', 'due_notified_for', 'state'],
     actions: [
       { m: 'action_complete', l: 'Mark Done' },
+      { m: 'action_reschedule', l: 'Reschedule (Branch Manager)', asks: [
+        { label: 'New due date (YYYY-MM-DD)', kwarg: 'next_due' },
+        { label: 'Why is the plan rescheduled?', kwarg: 'reason' }
+      ] },
       { m: 'action_pause', l: 'Pause Plan' },
       { m: 'action_resume', l: 'Resume Plan' }
     ] },
@@ -181,16 +199,22 @@ export const SCREENS = {
   'M17-form-asset': {
     kind: 'model_form',
     model: 'fix.device',
-    title: 'Asset (6 identifiers)',
+    title: 'Asset (5 identifiers)',
     back: 'M17-assets',
     status: { field: 'state', labels: {
-      provisional: 'Provisional', registered: 'Registered', in_service: 'In Service', repaired: 'Repaired',
-      returned: 'Returned to Owner', transferred: 'Ownership Transferred',
+      provisional: 'Provisional', registered: 'Registered', transferred: 'Ownership Transferred',
       scrapped: 'Scrapped', lost: 'Lost/Stolen' } },
+    tabs: [
+      { id: 'identity', label: '1. Identifiers', bn: '১. শনাক্তকারী', icon: '🏷️' },
+      { id: 'ownership', label: '2. Ownership & Estate', bn: '২. মালিকানা ও এস্টেট', icon: '👤' },
+      { id: 'transfer', label: '3. Ownership Transfer', bn: '৩. মালিকানা হস্তান্তর', icon: '🔁' },
+      { id: 'correction', label: '4. Identifier Correction', bn: '৪. শনাক্তকারী সংশোধন', icon: '✏️' },
+      { id: 'lifecycle', label: '5. Lifecycle', bn: '৫. জীবনচক্র', icon: '📈' }
+    ],
     sections: [
-      { title: 'Identifiers', note: 'At least the serial is mandatory; IMEI-2 and MAC are optional for devices that have them. Once captured, a serial or IMEI is changed only by a Quality Manager correction, which keeps the old value in the identifier history. Case and spacing variants of a registered serial, and an IMEI already on another device, are refused.',
+      { tab: 'identity', title: 'Identifiers', note: 'Give the serial or an IMEI; IMEI-2 and MAC are for devices that have them. Once captured, a serial or IMEI is changed only by a Quality Manager correction, which keeps the old value in the identifier history. Case and spacing variants of a registered serial, and an IMEI already on another device, are refused.',
         fields: [
-          { name: 'serial_number', required: true, label: 'Serial Number' },
+          { name: 'serial_number', label: 'Serial Number' },
           { name: 'imei_1', label: 'IMEI 1' },
           { name: 'imei_2', label: 'IMEI 2' },
           { name: 'mac_address', label: 'MAC Address' },
@@ -199,30 +223,45 @@ export const SCREENS = {
           { name: 'identifier_warning', label: 'Identifier Warning', readonly: true },
           { name: 'neir_status', label: 'NEIR Status', readonly: true }
         ] },
-      { title: 'Ownership & Estate', note: 'The owner changes only by Transfer Ownership. A device joins an estate only when its owner is the estate client or one of its contacts.',
+      { tab: 'identity', title: 'Identity Not Confirmed', note: 'Only when registering a device whose serial and IMEI cannot be read: tick this and say why. It can be taken in and diagnosed, but gets no warranty claim, invoice or transfer until its identifier is captured and Confirm Provisional Identity is pressed.',
+        fields: [
+          { name: 'register_provisional', type: 'boolean', label: 'Register as Provisional' },
+          { name: 'provisional_reason', label: 'Why the Identity Is Unconfirmed' }
+        ] },
+      { tab: 'ownership', title: 'Ownership & Estate', note: 'The owner changes only by Transfer Ownership. A device joins an estate only when its owner is the estate client or one of its contacts.',
         fields: [
           { name: 'owner_id', required: true, label: 'Owner' },
           { name: 'estate_id', label: 'Corporate Estate' },
           { name: 'branch_id', label: 'Registered At' },
           { name: 'purchase_date', label: 'Purchase Date' }
         ] },
-      { title: 'Ownership Transfer', note: 'Fill these, save, then press Transfer Ownership on the asset list (Device Registry Agent). The reason and the evidence the new owner accepted are required; they are cleared once the transfer is recorded. A lost, scrapped, provisional or NEIR-blocked device is not transferred.',
+      { tab: 'transfer', title: 'Ownership Transfer', note: 'Fill these, save, then press Transfer Ownership on the asset list (Device Registry Agent). The type, the reason and the evidence are required: a sale receipt, deed or signed hand-over, uploaded here or chosen from those already filed, and used for one transfer only. The system records the evidence; it does not ask the new owner to accept. They are cleared once the transfer is recorded. A lost, scrapped, provisional or NEIR-blocked device is not transferred.',
         fields: [
           { name: 'transfer_to_partner_id', label: 'Transfer To' },
           { name: 'transfer_type_pending', label: 'Transfer Type' },
           { name: 'transfer_reason', label: 'Transfer Reason' },
+          { name: 'transfer_evidence_file', type: 'file', label: 'Upload Transfer Evidence' },
+          { name: 'transfer_evidence_filename', label: 'Evidence File Name' },
           { name: 'transfer_evidence_document_id', label: 'Transfer Evidence' }
         ] },
-      { title: 'Lifecycle', note: 'State changes only by Flag Lost, Clear Lost Flag (Branch Manager), Confirm Provisional Identity, an ownership transfer or an approved scrap. The lifecycle stage changes only by the Lifecycle buttons (Branch Manager, with a basis); obsolete needs the customer instruction below.',
+      { tab: 'correction', title: 'Identifier Correction', note: 'For a serial or IMEI that is wrong (a board swap, a mistyped intake). Fill these, save, then press Correct Identifier on the asset list (Quality Manager). The old value stays in the identifier history with the reason.',
+        fields: [
+          { name: 'correction_field', label: 'Identifier to Correct' },
+          { name: 'correction_value', label: 'Corrected Value' },
+          { name: 'correction_reason', label: 'Correction Reason' }
+        ] },
+      { tab: 'lifecycle', title: 'Lifecycle', note: 'State changes only by Flag Lost, Clear Lost Flag (Branch Manager), Confirm Provisional Identity, an ownership transfer or an approved scrap. The lifecycle stage changes only by the Lifecycle buttons (Branch Manager, with a basis). Making a customer-owned device obsolete, or scrapping it, needs the customer instruction below.',
         fields: [
           { name: 'state', label: 'State', readonly: true },
           { name: 'lifecycle_stage', label: 'Lifecycle Stage', readonly: true },
+          { name: 'end_of_support_date', label: 'End of Support Date', readonly: true },
           { name: 'eol_customer_instruction', label: 'Customer End-of-Life Instruction' },
           { name: 'lifecycle_reason', label: 'Lifecycle Decision Basis', readonly: true },
           { name: 'lifecycle_decided_by_id', label: 'Lifecycle Decided By', readonly: true },
           { name: 'approval_state', label: 'Scrap Approval', readonly: true },
           { name: 'lost_reason', label: 'Lost / Stolen Report', readonly: true },
-          { name: 'lost_flagged_by_id', label: 'Flagged Lost By', readonly: true }
+          { name: 'lost_flagged_by_id', label: 'Flagged Lost By', readonly: true },
+          { name: 'lost_cleared_by_id', label: 'Lost Flag Cleared By', readonly: true }
         ] }
     ]
   },
@@ -268,6 +307,7 @@ export const SCREENS = {
     ]
   },
 
+  // The chip lands here: a transfer is made on the device, so this says how.
   'M17-form-condition': {
     kind: 'model_form',
     model: 'fix.device.condition',
@@ -343,7 +383,7 @@ export const SCREENS = {
       issued: 'Issued', returned: 'Returned', transferred: 'Transferred',
       lost: 'Lost', found: 'Recovered' } },
     sections: [
-      { title: 'Custody', note: 'Events are permanent: never edited or dated in the future; record the next event instead. A Reported Lost event puts the device in the lost register. A lost, scrapped or NEIR-blocked device is released to no one.',
+      { title: 'Custody', note: 'Events are permanent: never edited or dated in the future; record the next event instead. A Reported Lost event puts the device in the lost register; a Recovered event does not end it, a Branch Manager clearing the flag does. A lost, scrapped or NEIR-blocked device is released to no one.',
         fields: [
           { name: 'device_id', required: true, label: 'Device' },
           { name: 'event', required: true, label: 'Event' },
@@ -354,9 +394,11 @@ export const SCREENS = {
           { name: 'reference', label: 'Reference' },
           { name: 'notes', label: 'Notes' }
         ] },
-      { title: 'Release Evidence', note: 'Issued to Customer goes only to the owner and needs a confirmed condition grade of this device, photographic evidence and the accessory reconciliation (BRU-AST-08).',
+      { title: 'Release Evidence', note: 'Issued to Customer goes only to the owner and needs a confirmed condition grade of this device, a photograph (uploaded here, or chosen from those filed; each hand-over has its own) and the accessory reconciliation.',
         fields: [
           { name: 'condition_id', label: 'Condition Grade at Release' },
+          { name: 'evidence_file', type: 'file', label: 'Upload Photograph' },
+          { name: 'evidence_filename', label: 'Photograph File Name' },
           { name: 'evidence_document_id', label: 'Photographic Evidence' },
           { name: 'accessories_reconciled', label: 'Accessories Reconciled' },
           { name: 'accessory_notes', label: 'Accessory Discrepancies' },
@@ -372,8 +414,13 @@ export const SCREENS = {
     back: 'M17-genealogy',
     status: { field: 'state', labels: {
       installed: 'Installed', removed: 'Removed' } },
+    tabs: [
+      { id: 'part', label: '1. Component', bn: '১. কম্পোনেন্ট', icon: '🔩' },
+      { id: 'origin', label: '2. Origin & Warranty', bn: '২. উৎস ও ওয়ারেন্টি', icon: '📦' },
+      { id: 'removal', label: '3. Removal', bn: '৩. অপসারণ', icon: '♻️' }
+    ],
     sections: [
-      { title: 'Component', note: 'One row per installation; removal is an explicit action with its own date. A serial is installed in one device at a time, and a part the compatibility matrix grades incompatible for the model is refused.',
+      { tab: 'part', title: 'Component', note: 'One row per installation; removal is an explicit action with its own date. A serial is installed in one device at a time, and a part the compatibility matrix grades incompatible for the model is refused.',
         fields: [
           { name: 'device_id', required: true, label: 'Device' },
           { name: 'part_name', required: true, label: 'Part / Component' },
@@ -381,18 +428,50 @@ export const SCREENS = {
           { name: 'product_id', label: 'Part (Catalogue)' },
           { name: 'serial_no', label: 'Component Serial' },
           { name: 'installed_on', required: true, label: 'Installed On' },
+          { name: 'notes', label: 'Notes' }
+        ] },
+      { tab: 'origin', title: 'Origin & Warranty', note: 'Which job fitted it, who fitted it, which stock lot it came from and how long its own warranty runs.',
+        fields: [
+          { name: 'causing_order_id', label: 'Causing Job' },
           { name: 'technician_id', label: 'Fitted By' },
-          { name: 'warranty_until', label: 'Part Warranty Until' },
-          { name: 'ownership_class', label: 'Ownership Class' },
+          { name: 'stock_lot_ref_id', label: 'Stock Lot' },
           { name: 'source_ref', label: 'Source Order / PO' },
+          { name: 'ownership_class', label: 'Ownership Class' },
+          { name: 'warranty_until', label: 'Part Warranty Until' }
+        ] },
+      { tab: 'removal', title: 'Removal', note: 'Set by Remove Component and the Disposition buttons on the Installed Components list.',
+        fields: [
           { name: 'state', label: 'State', readonly: true },
           { name: 'removed_on', label: 'Removed On', readonly: true },
-          { name: 'disposition', label: 'Removed-Part Disposition', readonly: true },
-          { name: 'notes', label: 'Notes' }
+          { name: 'disposition', label: 'Removed-Part Disposition', readonly: true }
         ] }
     ]
   },
 
+
+  'M17-form-hold': {
+    kind: 'model_form',
+    model: 'fix.service.order.device.hold',
+    title: 'Lost / Stolen Hold',
+    back: 'M17-holds',
+    status: { field: 'state', labels: { open: 'Device Reported Lost / Stolen', cleared: 'Flag Cleared' } },
+    sections: [
+      { title: 'Hold', note: 'Raised by the lost or stolen flag on the device, and ended only by a Branch Manager clearing that flag. While it is open the service order cannot be handed over.',
+        fields: [
+          { name: 'name', label: 'Hold', readonly: true },
+          { name: 'order_id', label: 'Service Order', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'branch_id', label: 'Branch', readonly: true },
+          { name: 'reason', type: 'text', label: 'Reported', readonly: true },
+          { name: 'flagged_by_id', label: 'Flagged By', readonly: true },
+          { name: 'flagged_at', label: 'Flagged At', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'cleared_by_id', label: 'Cleared By', readonly: true },
+          { name: 'cleared_at', label: 'Cleared At', readonly: true },
+          { name: 'clear_reason', type: 'text', label: 'Clearance Reason', readonly: true }
+        ] }
+    ]
+  },
 
   'M17-form-merge': {
     kind: 'model_form',
@@ -446,7 +525,7 @@ export const SCREENS = {
     title: "Device Warranty",
     back: 'M17-wty',
     sections: [
-      { title: "Device Warranty", note: "Born pending; a Warranty Officer who did not register it verifies it against proof filed for this device. The end date cannot precede the start; a daily job marks ended cover expired and announces cover about to end.",
+      { title: "Device Warranty", note: "Born pending. Upload the receipt or warranty card below or choose one already filed, save, then press Request Verification on the warranty list; a Warranty Officer who did not register it verifies it from the approvals inbox. The end date cannot precede the start; a daily job marks ended cover expired and announces cover about to end.",
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'device_id', required: true, label: "Device" },
@@ -456,6 +535,12 @@ export const SCREENS = {
           { name: 'status', label: "Status", readonly: true },
           { name: 'currency_id', required: true, label: "Currency" },
           { name: 'coverage_details', type: 'text', label: "Coverage Details" }
+        ] },
+      { title: "Proof of Purchase", note: "A purchase receipt or warranty card. A request for verification with no proof is refused.",
+        fields: [
+          { name: 'proof_file', type: 'file', label: "Upload Proof" },
+          { name: 'proof_filename', label: "Proof File Name" },
+          { name: 'proof_document_id', label: "Proof Document" }
         ] }
     ]
   },
@@ -487,7 +572,7 @@ export const FORM_CHIPS = {
   'M17:Device Warranty': 'M17-form-warranty',
   'M17:Asset (6 identifiers)': 'M17-form-asset',
   'M17:Estate Assignment': 'M17-form-estate',
-  'M17:Ownership Transfer': 'M17-form-transfer',
+  'M17:Ownership Transfer': 'M17-assets',
   'M17:Condition Grading': 'M17-form-condition',
   'M17:__by_model__': {
     'fix.device.part.compatibility': 'M17-form-compat',
@@ -502,7 +587,8 @@ export const FORM_CHIPS = {
     'fix.device.custody': 'M17-form-custody',
     'fix.device.component': 'M17-form-component',
     'fix.device.merge': 'M17-form-merge',
-    'fix.device.identifier': 'M17-form-identifier'
+    'fix.device.identifier': 'M17-form-identifier',
+    'fix.service.order.device.hold': 'M17-form-hold'
   },
   'M17:__by_screen__': {
     'M17-device-part-compatibility': 'M17-form-compat',
@@ -519,7 +605,8 @@ export const FORM_CHIPS = {
     'M17-components': 'M17-form-component',
     'M17-conditions': 'M17-form-condition',
     'M17-merges': 'M17-form-merge',
-    'M17-idhistory': 'M17-form-identifier'
+    'M17-idhistory': 'M17-form-identifier',
+    'M17-holds': 'M17-form-hold'
   }
 };
 

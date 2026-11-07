@@ -341,7 +341,10 @@ def test_typed_compression_no_longer_moves_the_kpi(c):
 
 
 # ================================================= predictions and actions
-def pred(c, **kw):
+def pred(c, user=None, **kw):
+    """Recorded by the IoT Operator; pass `user=c.env.user` for the platform (the
+    superuser), which is the only one the "use" setting of the model check lets
+    record an unpublished model."""
     vals = {
         "name": f"L48-PDM-{TAG}",
         "equipment_id": c.equipment.id,
@@ -351,7 +354,9 @@ def pred(c, **kw):
         "model_name": MODEL,
     }
     vals.update(kw)
-    return c.env["fix.predictive.maintenance"].with_user(c.clerk).create(vals)
+    Prediction = c.env["fix.predictive.maintenance"]
+    model = Prediction if user == c.env.user else Prediction.with_user(user or c.operator)
+    return model.create(vals)
 
 
 def approver(c):
@@ -359,20 +364,24 @@ def approver(c):
 
 
 def test_an_unpublished_model_is_never_applied(c):
-    p = pred(c, model_name="made-up-model-v99")
+    # A person never records one, whatever the setting says
+    assert refused(c.env, lambda: pred(c, model_name="made-up-model-v99"))
+    assert refused(c.env, lambda: pred(c, model_name=False))
+    # one the platform recorded (as the live rows were) is not applied
+    p = pred(c, user=c.env.user, model_name="made-up-model-v99")
     assert not p.model_published
     a = c.env["fix.iot.action"].with_user(c.clerk).create({"prediction_id": p.id})
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
         a.with_user(c.clerk).action_request_approval()
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
-        p.with_user(c.clerk).action_create_preventive_wo()
+        p.with_user(c.operator).action_create_preventive_wo()
     good = pred(c)
     assert good.model_published
-    good.with_user(c.clerk).action_create_preventive_wo()
-    # the strict switch refuses the record itself
+    good.with_user(c.operator).action_create_preventive_wo()
+    # the strict switch refuses the record itself, from the platform too
     c.env["ir.config_parameter"].sudo().set_param(MODEL_CHECK, "create")
-    assert refused(c.env, lambda: pred(c, model_name="made-up-model-v99"))
-    assert refused(c.env, lambda: pred(c, model_name=False))
+    assert refused(c.env, lambda: pred(c, user=c.env.user, model_name="made-up-model-v99"))
+    assert refused(c.env, lambda: pred(c, user=c.env.user, model_name=False))
     pred(c)
 
 

@@ -1372,6 +1372,8 @@ class FixWorkflowTask(models.Model):
     amount = fields.Float(related="request_id.amount")
     tier = fields.Selection(related="request_id.tier")
     requested_by_id = fields.Many2one(related="request_id.requested_by_id")
+    # What the requester wrote: the approver decides on it, from the inbox.
+    justification = fields.Text(related="request_id.justification")
     is_mine = fields.Boolean(compute="_compute_is_mine", search="_search_is_mine")
 
     def _fix_guarded_fields(self) -> set:

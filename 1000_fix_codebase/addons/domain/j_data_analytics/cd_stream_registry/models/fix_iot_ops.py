@@ -1,7 +1,11 @@
 # fix_iot_ops — M48: streams, protocol adapters, threshold rules, downsampling,
 # prescriptive actions and telemetry consent. Devices, telemetry rows, alerts and
 # predictions live in fix_stream_registry.py.
+import hashlib
+import hmac
+import math
 import re
+import secrets
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -27,6 +31,29 @@ def _require_role(env, xmlid, what):
     if not _has_role(env, xmlid):
         group = env.ref(xmlid, raise_if_not_found=False)
         raise AccessError("%s requires the %s role." % (what, group.name if group else xmlid))
+
+
+class IngestRefused(UserError):
+    """A gate in FixIotStream.ingest said no. `code` is what the gateway route
+    answers with; the message, which may name a customer, stays in the server."""
+
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+# A generated key carries 256 bits, so a plain digest is enough: there is nothing
+# to guess, and a slow hash would be paid on every reading.
+MIN_ADAPTER_KEY_LENGTH = 32
+
+
+def adapter_key_hash(key):
+    return hashlib.sha256((key or "").encode("utf-8")).hexdigest()
+
+
+def adapter_key_matches(stored, hashed):
+    """Constant-time; an adapter with no stored key matches nothing."""
+    return hmac.compare_digest(stored or "!", hashed or "?")
 
 
 def _flag(env, param, default="0"):
@@ -92,10 +119,12 @@ _URL_SECRET = re.compile(r"://[^/@\s:]+:[^/@\s]+@")
 # A07 P0 recipe (2026-11-03) M48-2: who approves a prescriptive action. Spec
 # §13 gives R05 Operations Director the approval of proactive interventions.
 # A07 P1 (2026-11-04): the Operations Director role is M47's
-# (cd_facility.group_operations_director, a dependency of this module); it
-# decides when it exists. Until it is installed the P0 stand-in, the DOFA tier
-# labelled "Branch / Operations Manager", decides. A fix.approval.matrix row
-# (decision domain iot_prescriptive_action) can name another group without code.
+# (cd_facility.group_operations_director, a dependency of this module). A
+# fix.approval.matrix row (decision domain iot_prescriptive_action) can name
+# another group without code.
+# A07 (2026-11-07): the fallback to DOFA Tier 2 was dead code, the group always
+# being installed; on live nobody holds it, so no action could be approved. The
+# fallback now applies when the group has no active holder in the record's company.
 ACTION_APPROVER_GROUP = "cd_facility.group_operations_director"
 ACTION_APPROVER_FALLBACK = "cd_entity_config.group_dofa_tier_2"
 # M48-3: BRU-IOT-15/16 make the CTO the approver of a rule suppression. P0 used
@@ -144,10 +173,22 @@ class FixApprovalMatrix(models.Model):
     )
 
 
+# A07 (2026-11-07): what a stream reads. Telemetry belongs to a stream through
+# its device AND metric, so moving either on a stream past draft re-labels every
+# reading it has taken.
+_STREAM_IDENTITY = frozenset({"device_id", "metric"})
+_CONSENT_POLICIES = {
+    "inherit": "inherit",
+    "module default": "inherit",
+    "required": "required",
+    "consent always required": "required",
+}
+
+
 class FixIotStream(models.Model):
     _name = "fix.iot.stream"
     _description = "IoT Stream Binding"
-    _inherit = ["fix.guarded.mixin"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "device_id, metric"
 
     def _fix_guarded_fields(self) -> set:
@@ -158,6 +199,12 @@ class FixIotStream(models.Model):
         # changes only through an approved fix.iot.retention.change. A new
         # stream is born with its retention (an empty recordset is a create).
         return guarded | {"retention_days"} if self else guarded
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(s.state != "draft" for s in self):
+            locked |= _STREAM_IDENTITY
+        return locked
 
     name = fields.Char(required=True, default="New")
     device_id = fields.Many2one(
@@ -220,6 +267,23 @@ class FixIotStream(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(lambda s: s.state != "draft"):
+                changed = [
+                    n
+                    for n in _STREAM_IDENTITY & set(vals)
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if changed:
+                    raise UserError(
+                        "Stream %s is %s: its %s can no longer change, or the readings it holds "
+                        "would be credited to something else. Register a new stream."
+                        % (
+                            rec.name,
+                            dict(self._fields["state"].selection)[rec.state].lower(),
+                            ", ".join(sorted(self._fields[n].string for n in changed)),
+                        )
+                    )
         if self and not self._fix_guard_open() and "consent_policy" in vals:
             relaxing = vals["consent_policy"] != "required" and any(
                 rec._fix_guard_differs("consent_policy", vals["consent_policy"], rec.consent_policy)
@@ -228,6 +292,33 @@ class FixIotStream(models.Model):
             if relaxing:
                 _require_role(self.env, IOT_CONSENT, "Relaxing a stream's consent policy")
         return super().write(vals)
+
+    def action_set_consent_policy(self, policy=None, reason=None):
+        """A07 (2026-11-07): the Consent Officer decides a stream's consent policy.
+        Relaxing was refused to the Administrator, who holds the write access, and
+        the officer has no write access, so nobody could. Written as the platform
+        once the role is checked; the decision and why are in the chatter."""
+        _require_role(self.env, IOT_CONSENT, "Changing a stream's consent policy")
+        code = _CONSENT_POLICIES.get((policy or "").strip().lower())
+        if not code:
+            raise UserError(
+                "Choose the consent policy: inherit (the module default) or required "
+                "(consent always required)."
+            )
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("Give the reason for changing the consent policy.")
+        labels = dict(self._fields["consent_policy"].selection)
+        for rec in self:
+            if rec.consent_policy == code:
+                raise UserError("Stream %s already uses this policy." % rec.name)
+            before = rec.consent_policy
+            rec.sudo()._guarded().write({"consent_policy": code})
+            rec.sudo().message_post(
+                body="Consent policy changed from %s to %s by %s: %s"
+                % (labels[before], labels[code], self.env.user.name, why)
+            )
+        return True
 
     @api.depends("device_id", "metric")
     def _compute_telemetry_ids(self):
@@ -283,18 +374,20 @@ class FixIotStream(models.Model):
                 continue
             valid = consents.filtered(lambda c: c._fix_is_valid())
             if not valid:
-                raise UserError(
+                raise IngestRefused(
+                    "consent_required",
                     "Ingest refused on stream %s: no active, verified, in-date telemetry "
                     "consent covers device %s, and one is required because %s. Record a "
                     "consent for the device, its site or its customer (a Consent Officer "
-                    "verifies it) first." % (rec.name, rec.device_id.display_name, reason)
+                    "verifies it) first." % (rec.name, rec.device_id.display_name, reason),
                 )
             if not valid.filtered(lambda c, m=rec.metric: c._fix_permits(m)):
-                raise UserError(
+                raise IngestRefused(
+                    "signal_not_disclosed",
                     "Ingest refused on stream %s: the consent covering device %s does not "
                     "disclose the signal '%s' (BRU-IOT-05: collecting an undisclosed signal "
                     "is a data-protection incident)."
-                    % (rec.name, rec.device_id.display_name, rec.metric)
+                    % (rec.name, rec.device_id.display_name, rec.metric),
                 )
 
     # ---- lifecycle ----------------------------------------------------------
@@ -346,20 +439,30 @@ class FixIotStream(models.Model):
 
     def _fix_check_adapter(self):
         """A07 P1 (2026-11-04) M48-4 / FR-IOT-009: a disabled adapter stops
-        ingest, and no reading arrives through an unauthenticated one."""
+        ingest, and no reading arrives through an unauthenticated one. A07
+        (2026-11-07): nor through one whose key was never rotated, whatever its
+        state: the auth mode was checked, a credential never."""
         for rec in self:
             adapter = rec.adapter_id.sudo()
             if not adapter:
                 continue
             if adapter.state != "enabled":
-                raise UserError(
+                raise IngestRefused(
+                    "adapter_disabled",
                     "Ingest refused on stream %s: its protocol adapter %s is disabled."
-                    % (rec.name, adapter.name)
+                    % (rec.name, adapter.name),
                 )
             if adapter.auth_mode == "none":
-                raise UserError(
+                raise IngestRefused(
+                    "adapter_unauthenticated",
                     "Ingest refused on stream %s: its protocol adapter %s accepts "
-                    "unauthenticated devices (auth mode None)." % (rec.name, adapter.name)
+                    "unauthenticated devices (auth mode None)." % (rec.name, adapter.name),
+                )
+            if not adapter.api_key_hash:
+                raise IngestRefused(
+                    "adapter_no_key",
+                    "Ingest refused on stream %s: its protocol adapter %s has no key. An IoT "
+                    "Administrator rotates one first." % (rec.name, adapter.name),
                 )
 
     def ingest(self, value, timestamp=None):
@@ -373,13 +476,15 @@ class FixIotStream(models.Model):
         self.ensure_one()
         _require_role(self.env, IOT_ADMIN, "Ingesting telemetry")
         if self.state not in ("active", "silent"):
-            raise UserError("Ingest requires an active stream")
+            raise IngestRefused("stream_not_active", "Ingest requires an active stream")
         self._fix_check_adapter()
         self._fix_check_consent()
         try:
             value = float(value)
         except (TypeError, ValueError) as exc:
-            raise UserError("A telemetry reading must be a number.") from exc
+            raise IngestRefused("invalid_value", "A telemetry reading must be a number.") from exc
+        if not math.isfinite(value):
+            raise IngestRefused("invalid_value", "A telemetry reading must be a finite number.")
         stream = self.sudo()
         vals = {
             "company_id": stream.device_id.company_id.id,
@@ -506,6 +611,10 @@ class FixIotAdapter(models.Model):
             "disabled_by",
             "disabled_on",
             "disable_reason",
+            "api_key_hash",
+            "key_rotated_by",
+            "key_rotated_on",
+            "credential_rotated_on",
         }
 
     name = fields.Char(required=True, default="New")
@@ -537,9 +646,22 @@ class FixIotAdapter(models.Model):
         string="Credential Reference",
         help="Secret-store reference or certificate fingerprint. Never the secret itself.",
     )
-    credential_rotated_on = fields.Date(string="Credential Rotated On")
+    credential_rotated_on = fields.Date(string="Credential Rotated On", readonly=True)
+    # A07 (2026-11-07): the key POST /iot/v1/ingest checks, as a hash: the key
+    # itself is shown once, by action_rotate_key, and never stored.
+    api_key_hash = fields.Char(
+        string="Key Hash", readonly=True, copy=False, groups=IOT_ADMIN, prefetch=False
+    )
+    key_set = fields.Boolean(string="Key Set", compute="_compute_key_set")
+    key_rotated_by = fields.Many2one(
+        "res.users", string="Key Rotated By", readonly=True, copy=False
+    )
+    key_rotated_on = fields.Datetime(string="Key Rotated On", readonly=True, copy=False)
+    # A07 (2026-11-07): an adapter was born enabled with no credential. New ones
+    # are born disabled; stored rows keep their state, and ingest refuses any
+    # adapter with no key.
     state = fields.Selection(
-        [("enabled", "Enabled"), ("disabled", "Disabled")], required=True, default="enabled"
+        [("enabled", "Enabled"), ("disabled", "Disabled")], required=True, default="disabled"
     )
     disabled_by = fields.Many2one("res.users", string="Disabled By", readonly=True, copy=False)
     disabled_on = fields.Datetime(string="Disabled On", readonly=True, copy=False)
@@ -574,6 +696,43 @@ class FixIotAdapter(models.Model):
                     "Reference instead." % rec.name
                 )
 
+    def _compute_key_set(self):
+        for rec in self:
+            rec.key_set = bool(rec.sudo().api_key_hash)
+
+    def action_rotate_key(self, key=None):
+        """Set a new key; the old one stops working at once. The key is generated
+        and shown once, and only its hash is kept. `key`, when given, is one the
+        Administrator made in the secret store: it is not shown back."""
+        _require_role(self.env, IOT_ADMIN, "Rotating an adapter key")
+        self.ensure_one()
+        if self.auth_mode == "none":
+            raise UserError(
+                "Adapter %s accepts no authentication: choose Bearer Token or Mutual TLS first."
+                % self.name
+            )
+        supplied = (key or "").strip()
+        if supplied and len(supplied) < MIN_ADAPTER_KEY_LENGTH:
+            raise UserError(
+                "A key must have at least %d characters. Leave it blank to have one generated."
+                % MIN_ADAPTER_KEY_LENGTH
+            )
+        secret = supplied or secrets.token_urlsafe(32)
+        self.sudo()._guarded().write(
+            {
+                "api_key_hash": adapter_key_hash(secret),
+                "key_rotated_by": self.env.uid,
+                "key_rotated_on": fields.Datetime.now(),
+                "credential_rotated_on": fields.Date.context_today(self),
+            }
+        )
+        if supplied:
+            return {"note": "The new key of adapter %s is in force." % self.name}
+        return {
+            "note": "New key of adapter %s, shown only now: %s" % (self.name, secret),
+            "secret": secret,
+        }
+
     def action_enable(self):
         _require_role(self.env, IOT_ADMIN, "Enabling a protocol adapter")
         for rec in self:
@@ -583,6 +742,8 @@ class FixIotAdapter(models.Model):
                 raise UserError(
                     "Record the credential reference of adapter %s before enabling it." % rec.name
                 )
+            if not rec.sudo().api_key_hash:
+                raise UserError("Rotate a key for adapter %s before enabling it." % rec.name)
             rec._guarded().write(
                 {
                     "state": "enabled",
@@ -615,8 +776,12 @@ class FixIotAdapter(models.Model):
 # A rule's terms: an existing rule's threshold moves only through
 # action_change_threshold, and its operator and stream not at all (turning
 # "> 5" into "< 5", or moving the rule to another stream, silences it as surely
-# as a 1e9 threshold). A new rule is born with all three.
-_RULE_TERMS = frozenset({"threshold", "operator", "stream_id"})
+# as a 1e9 threshold). A new rule is born with all three. A07 (2026-11-07): so
+# do a huge cooldown, a long dwell and a downgraded severity silence it. They
+# change through action_change_settings, on the same terms as the threshold.
+_RULE_SETTINGS = ("severity", "duration_min", "cooldown_min")
+_RULE_TERMS = frozenset({"threshold", "operator", "stream_id", *_RULE_SETTINGS})
+_SEVERITY_RANK = {"minor": 0, "major": 1}
 # The suppression proposal the requester fills in; frozen while it is pending
 # approval or in force.
 _RULE_PROPOSAL = frozenset({"suppression_reason", "suppression_until"})
@@ -647,6 +812,12 @@ class FixIotRule(models.Model):
             "state",
             "baseline_threshold",
             "proposed_threshold",
+            "proposed_severity",
+            "proposed_duration_min",
+            "proposed_cooldown_min",
+            "baseline_severity",
+            "baseline_duration_min",
+            "baseline_cooldown_min",
             "suppression_kind",
             "suppression_requested_by",
             "suppressed_by",
@@ -702,7 +873,7 @@ class FixIotRule(models.Model):
     # Suppression (BRU-IOT-16): what is asked, why, until when, by whom, and
     # who approved it. In force = suppressed_by is set.
     suppression_kind = fields.Selection(
-        [("pause", "Pause"), ("loosen", "Loosened Threshold")],
+        [("pause", "Pause"), ("loosen", "Loosened Threshold"), ("settings", "Loosened Settings")],
         string="Suppression",
         readonly=True,
         copy=False,
@@ -720,6 +891,25 @@ class FixIotRule(models.Model):
         readonly=True,
         copy=False,
         help="Restored when a loosened-threshold suppression is lifted or expires.",
+    )
+    _SEVERITIES = [("minor", "Minor"), ("major", "Major")]
+    proposed_severity = fields.Selection(
+        _SEVERITIES, string="Proposed Severity", readonly=True, copy=False
+    )
+    proposed_duration_min = fields.Integer(
+        string="Proposed Sustained For (minutes)", readonly=True, copy=False
+    )
+    proposed_cooldown_min = fields.Integer(
+        string="Proposed Cooldown (minutes)", readonly=True, copy=False
+    )
+    baseline_severity = fields.Selection(
+        _SEVERITIES, string="Severity Before Suppression", readonly=True, copy=False
+    )
+    baseline_duration_min = fields.Integer(
+        string="Sustained For Before Suppression", readonly=True, copy=False
+    )
+    baseline_cooldown_min = fields.Integer(
+        string="Cooldown Before Suppression", readonly=True, copy=False
     )
     suppression_requested_by = fields.Many2one(
         "res.users", string="Suppression Requested By", readonly=True, copy=False
@@ -896,10 +1086,30 @@ class FixIotRule(models.Model):
             "suppressed_by": False,
             "suppressed_on": False,
             "approval_state": "none",
+            **self._fix_proposal_cleared(),
+            "baseline_severity": False,
+            "baseline_duration_min": 0,
+            "baseline_cooldown_min": 0,
         }
         if self.suppression_kind == "loosen" and self._fix_suppression_in_force():
             vals["threshold"] = self.baseline_threshold
+        if self.suppression_kind == "settings" and self._fix_suppression_in_force():
+            vals.update(
+                {
+                    "severity": self.baseline_severity,
+                    "duration_min": self.baseline_duration_min,
+                    "cooldown_min": self.baseline_cooldown_min,
+                }
+            )
         return vals
+
+    @staticmethod
+    def _fix_proposal_cleared():
+        return {
+            "proposed_severity": False,
+            "proposed_duration_min": 0,
+            "proposed_cooldown_min": 0,
+        }
 
     def _fix_lapse_suppressions(self):
         """End every suppression on these rules whose expiry has passed. Runs
@@ -914,7 +1124,7 @@ class FixIotRule(models.Model):
             ):
                 rec.write(rec._fix_lift_vals())
 
-    def _fix_request_suppression(self, kind, reason=None, proposed_threshold=0.0):
+    def _fix_request_suppression(self, kind, reason=None, proposed_threshold=0.0, proposed=None):
         today = fields.Date.context_today(self)
         for rec in self:
             why = (reason or rec.suppression_reason or "").strip()
@@ -937,6 +1147,7 @@ class FixIotRule(models.Model):
                     "suppression_reason": why,
                     "proposed_threshold": proposed_threshold,
                     "suppression_requested_by": self.env.uid,
+                    **(proposed or {}),
                 }
             )
             rec.action_request_approval(justification=why)
@@ -944,15 +1155,26 @@ class FixIotRule(models.Model):
     def _approval_needed(self) -> bool:
         return bool(self.suppression_kind) and not self._fix_suppression_in_force()
 
-    def _approval_on_rejected(self, comment):
+    def _fix_clear_request(self):
+        """A suppression that did not come into force leaves nothing behind."""
         for rec in self.filtered(lambda r: not r._fix_suppression_in_force()):
             rec._guarded().write(
                 {
                     "suppression_kind": False,
                     "proposed_threshold": 0.0,
                     "suppression_requested_by": False,
+                    **rec._fix_proposal_cleared(),
                 }
             )
+
+    def _approval_on_rejected(self, comment):
+        self._fix_clear_request()
+
+    def _approval_clear_stamp(self, reason):
+        # A07 (2026-11-07): a recalled or voided request kept its kind, so the rule
+        # showed "Pause" for ever. The engine calls this on recall, void and reject.
+        super()._approval_clear_stamp(reason)
+        self._fix_clear_request()
 
     def action_pause(self, reason=None):
         """Request a pause: a suppression, decided from the approver's inbox."""
@@ -989,6 +1211,59 @@ class FixIotRule(models.Model):
                 )
             rec._guarded().write(vals)
 
+    def _fix_settings_looser(self, proposed):
+        """Would these settings alert on fewer readings, or less loudly?"""
+        self.ensure_one()
+        return (
+            _SEVERITY_RANK[proposed["severity"]] < _SEVERITY_RANK[self.severity]
+            or proposed["duration_min"] > (self.duration_min or 0)
+            or proposed["cooldown_min"] > (self.cooldown_min or 0)
+        )
+
+    def _fix_parse_settings(self, severity, duration_min, cooldown_min):
+        """The settings asked for, each kept as it is when left blank."""
+        self.ensure_one()
+        wanted = (severity or "").strip().lower() or self.severity
+        if wanted not in _SEVERITY_RANK:
+            raise UserError("Severity is minor or major.")
+        out = {"severity": wanted}
+        for name, value in (("duration_min", duration_min), ("cooldown_min", cooldown_min)):
+            text = str(value).strip() if value not in (None, False) else ""
+            if not text:
+                out[name] = self[name] or 0
+                continue
+            try:
+                out[name] = int(text)
+            except ValueError as exc:
+                raise UserError("Give the minutes as a whole number.") from exc
+            if out[name] < 0:
+                raise UserError("Dwell and cooldown cannot be negative.")
+        return out
+
+    def action_change_settings(
+        self, severity=None, duration_min=None, cooldown_min=None, reason=None
+    ):
+        """Tightening applies at once; loosening is a suppression request, with a
+        reason and an expiry, decided from the approver's inbox."""
+        for rec in self:
+            proposed = rec._fix_parse_settings(severity, duration_min, cooldown_min)
+            if all(proposed[n] == (rec[n] or 0) for n in proposed):
+                raise UserError("Rule %s already uses these settings." % rec.name)
+            if rec._fix_suppression_frozen():
+                raise UserError(
+                    "Rule %s has a suppression pending approval or in force. Recall the request "
+                    "or lift the suppression first." % rec.name
+                )
+            if rec._fix_settings_looser(proposed):
+                rec._fix_request_suppression(
+                    "settings",
+                    reason,
+                    proposed={"proposed_%s" % n: proposed[n] for n in _RULE_SETTINGS},
+                )
+            else:
+                rec._guarded().write(proposed)
+        return True
+
     def action_approve_suppression(self):
         """The M63 apply method: put the requested suppression in force."""
         self._approval_assert_routed()
@@ -1011,6 +1286,13 @@ class FixIotRule(models.Model):
                 if rec.state != "active":
                     raise UserError("Pause an active rule")
                 vals["state"] = "paused"
+            elif rec.suppression_kind == "settings":
+                vals.update(
+                    {
+                        **{"baseline_%s" % n: rec[n] for n in _RULE_SETTINGS},
+                        **{n: rec["proposed_%s" % n] for n in _RULE_SETTINGS},
+                    }
+                )
             else:
                 if not rec._fix_looser(rec.proposed_threshold, rec.threshold):
                     raise UserError("The proposed threshold no longer loosens rule %s." % rec.name)
@@ -1061,9 +1343,17 @@ class FixIotDownsample(models.Model):
             "last_rollup_on",
         }
 
+    def _fix_change_open(self):
+        """A retention change of this policy that is awaiting approval."""
+        return (
+            self.env["fix.iot.retention.change"]
+            .sudo()
+            .search([("downsample_id", "in", self.ids), ("state", "=", "requested")])
+        )
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
-        if self and any(p.state == "active" for p in self):
+        if self and (any(p.state == "active" for p in self) or self._fix_change_open()):
             locked |= _POLICY_TERMS
         return locked
 
@@ -1075,6 +1365,14 @@ class FixIotDownsample(models.Model):
                     raise UserError(
                         "Downsampling policy %s is active: its terms change only through a "
                         "retention change approved by the CTO (BRU-IOT-06)." % rec.name
+                    )
+            # A07 (2026-11-07): the CTO approves the terms in front of them; they
+            # stayed editable after Request Activation.
+            for rec in self.filtered(lambda p: p._fix_change_open()):
+                if [n for n in touched if rec._fix_guard_differs(n, vals[n], rec[n])]:
+                    raise UserError(
+                        "Downsampling policy %s is awaiting the CTO's approval: its terms are "
+                        "frozen. Recall the request to change them." % rec.name
                     )
         return super().write(vals)
 
@@ -1151,6 +1449,30 @@ class FixIotDownsample(models.Model):
             if rec.state != "draft":
                 raise UserError("Policy %s is already active." % rec.name)
             rec._guarded().write({"state": "active", "activated_on": fields.Datetime.now()})
+
+    def _fix_deactivate(self):
+        """Back to draft: the cron stops aggregating and purging for it, what it
+        wrote stays, and its terms can be edited and sent for activation again."""
+        for rec in self.sudo():
+            if rec.state != "active":
+                raise UserError("Policy %s is not active." % rec.name)
+            rec._guarded().write({"state": "draft", "activated_on": False})
+
+    def action_request_deactivation(self, reason=None):
+        """A07 (2026-11-07): an active policy could never be switched off. Same
+        approval as turning it on."""
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("Give the reason for switching the policy off.")
+        Change = self.env["fix.iot.retention.change"]
+        for rec in self:
+            if rec.state != "active":
+                raise UserError("Policy %s is not active." % rec.name)
+            change = Change.create(
+                {"downsample_id": rec.id, "change_type": "deactivate", "reason": why}
+            )
+            change.action_request_approval()
+        return True
 
     def action_activate(self):
         """Superuser code (seeds, data loading) activates directly. Anyone else
@@ -1304,10 +1626,24 @@ class FixIotPrescriptiveAction(models.Model):
     _approval_group = ACTION_APPROVER_GROUP
     _approval_routed = True
 
+    def _fix_live_approver_group(self):
+        group = self.env.ref(ACTION_APPROVER_GROUP, raise_if_not_found=False)
+        if not group:
+            return ACTION_APPROVER_FALLBACK
+        companies = self.company_id or self.env.company
+        held = group.sudo().all_user_ids.filtered(
+            lambda u: u.active and not u.share and companies & u.company_ids
+        )
+        return ACTION_APPROVER_GROUP if held else ACTION_APPROVER_FALLBACK
+
     def _approval_group_xmlid(self):
-        if self.env.ref(ACTION_APPROVER_GROUP, raise_if_not_found=False):
-            return ACTION_APPROVER_GROUP
-        return ACTION_APPROVER_FALLBACK
+        # A request stays with the group it was routed to: appointing a Director
+        # meanwhile must not leave the Tier 2 approver holding a task they are
+        # refused on. Empty set: asked before any record exists.
+        routed = self.filtered(lambda a: a.approval_state == "pending").mapped(
+            "approval_routed_group"
+        )
+        return routed[0] if routed and routed[0] else self._fix_live_approver_group()
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1320,6 +1656,10 @@ class FixIotPrescriptiveAction(models.Model):
             "outcome",
             "outcome_note",
             "revision_note",
+            "approval_routed_group",
+            "cancelled_by",
+            "cancelled_on",
+            "cancel_reason",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -1400,8 +1740,37 @@ class FixIotPrescriptiveAction(models.Model):
             )
         return True
 
+    def action_cancel(self, reason=None):
+        """A07 (2026-11-07): `cancelled` had no writer. A proposed or approved
+        action is called off with a reason, and any open request or approval goes
+        with it. Once dispatched the work is with the order: complete it instead."""
+        _require_role(self.env, IOT_OPERATOR, "Cancelling a prescriptive action")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("Give the reason for cancelling the action.")
+        for rec in self:
+            if rec.state not in ("proposed", "approved"):
+                raise UserError(
+                    "Only a proposed or approved action is cancelled (%s is %s)."
+                    % (rec.name, rec.state)
+                )
+            rec._approval_void("action cancelled: %s" % why)
+            rec._guarded().write(
+                {
+                    "state": "cancelled",
+                    "cancelled_by": self.env.uid,
+                    "cancelled_on": fields.Datetime.now(),
+                    "cancel_reason": why,
+                }
+            )
+        return True
+
     name = fields.Char(required=True, default="New")
     revision_note = fields.Char(string="Last Terms Revision", readonly=True, copy=False)
+    approval_routed_group = fields.Char(string="Approval Routed To", readonly=True, copy=False)
+    cancelled_by = fields.Many2one("res.users", string="Cancelled By", readonly=True, copy=False)
+    cancelled_on = fields.Datetime(string="Cancelled On", readonly=True, copy=False)
+    cancel_reason = fields.Char(string="Why Cancelled", readonly=True, copy=False)
     prediction_id = fields.Many2one(
         "fix.predictive.maintenance",
         string="Prediction",
@@ -1484,6 +1853,23 @@ class FixIotPrescriptiveAction(models.Model):
                     "Action %s is on prediction %s, which predicts a healthy asset: there is "
                     "no failure to intervene on." % (rec.name, rec.prediction_id.name)
                 )
+            # A07 (2026-11-07): the first finding stands, and two interventions
+            # cannot race to record it.
+            prediction = rec.prediction_id.sudo()
+            if prediction.outcome != "pending":
+                raise UserError(
+                    "Prediction %s already has its outcome: a re-assessment records a new "
+                    "prediction." % prediction.name
+                )
+            busy = prediction.action_ids.filtered(
+                lambda a, r=rec: a != r
+                and (a.state in ("approved", "dispatched") or a.approval_state == "pending")
+            )
+            if busy:
+                raise UserError(
+                    "Prediction %s already has action %s under way: cancel it first."
+                    % (prediction.name, busy[0].name)
+                )
             # A07 P1 (2026-11-04) BRU-IOT-10 / FR-IOT-040: an intervention
             # applies the prediction, so its model must be a published M26 one.
             rec.prediction_id._fix_assert_published_model("Approving action %s" % rec.name)
@@ -1493,6 +1879,8 @@ class FixIotPrescriptiveAction(models.Model):
 
     def action_request_approval(self, justification=None):
         self._fix_check_approvable()
+        for rec in self:
+            rec._guarded().write({"approval_routed_group": rec._fix_live_approver_group()})
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
@@ -1570,6 +1958,11 @@ class FixIotPrescriptiveAction(models.Model):
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Complete a dispatched action")
+            blockers = rec._fix_completion_blockers()
+            if blockers:
+                raise UserError(
+                    "Action %s cannot be completed yet: %s." % (rec.name, "; ".join(blockers))
+                )
             # A07 P1 (2026-11-04) P2: the outcome needs evidence, and spec §13
             # SoD - the person whose intervention is evaluated does not record
             # its outcome.
@@ -1607,6 +2000,11 @@ class FixIotPrescriptiveAction(models.Model):
                     "intervention_performed": True,
                 },
             )
+
+    def _fix_completion_blockers(self):
+        """Why the intervention is not over. The spine bridge names the order it
+        routed: M48 itself never acts on the asset (BRU-IOT-12)."""
+        return []
 
     def action_done_confirmed(self, note=None):
         return self.action_done(outcome="confirmed", note=note)
@@ -1665,7 +2063,33 @@ class FixIotConsent(models.Model):
             locked |= _CONSENT_GRANT
         return locked
 
+    def _fix_attach_disclosure(self, content, filename):
+        self.ensure_one()
+        return self.env["ir.attachment"].create(
+            {
+                "name": (filename or "").strip() or "Disclosure of %s" % self.name,
+                "datas": content,
+                "res_model": self._name,
+                "res_id": self.id,
+            }
+        )
+
     def write(self, vals):
+        content = vals.pop("disclosure_file", None)
+        filename = vals.pop("disclosure_filename", None)
+        if content:
+            for rec in self:
+                # Through the write below, so a changed grant goes back for
+                # verification, and a revoked one refuses it.
+                rec.write(
+                    {
+                        **vals,
+                        "disclosure_document_id": rec._fix_attach_disclosure(content, filename).id,
+                    }
+                )
+            return True
+        if not vals:
+            return True
         # Revocation is final for everyone, superuser code included: a
         # withdrawn consent is never reinstated; a new grant is a new record.
         if (
@@ -1734,6 +2158,14 @@ class FixIotConsent(models.Model):
         ondelete="restrict",
         help="The disclosure / consent form the data subject was shown and signed.",
     )
+    # A07 (2026-11-07): the form offered a picker over every attachment, listing
+    # other records' file names. It now takes the file itself, staged here and
+    # turned into an attachment of this consent on save.
+    disclosure_file = fields.Binary(string="Disclosure File", store=False)
+    disclosure_filename = fields.Char(string="Disclosure File Name", store=False)
+    disclosure_name = fields.Char(
+        string="Disclosure On File", related="disclosure_document_id.name"
+    )
     granted_by = fields.Char(
         string="Granted By",
         help="The person who gave the consent (the data subject or their agent).",
@@ -1796,9 +2228,23 @@ class FixIotConsent(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.iot.consent") or "ICNS/New"
+        uploads = [
+            (v.pop("disclosure_file", None), v.pop("disclosure_filename", None)) for v in vals_list
+        ]
         records = super().create(vals_list)
+        for rec, (content, filename) in zip(records, uploads, strict=True):
+            if content:
+                rec._guarded().write(
+                    {"disclosure_document_id": rec._fix_attach_disclosure(content, filename).id}
+                )
         officer = _has_role(self.env, IOT_CONSENT)
         for rec in records.filtered(lambda c: c.verification == "verified" and officer):
+            # A07 (2026-11-07): an officer's consent was verified by being recorded,
+            # with no evidence at all. It needs what action_verify needs; without
+            # it the consent waits, and grants nothing, like anyone else's.
+            if not self.env.su and rec._fix_evidence_problem():
+                rec._guarded().write({"verification": "pending"})
+                continue
             rec._guarded().write(
                 {"verified_by": self.env.uid, "verified_on": fields.Datetime.now()}
             )
@@ -1898,14 +2344,50 @@ class FixIotConsent(models.Model):
             devices |= candidates.filtered(rec._fix_covers)
         return self.env["fix.iot.stream"].sudo().search([("device_id", "in", devices.ids)])
 
+    def _fix_unconsented(self, streams):
+        """The streams among `streams`, in any state, no valid consent covers."""
+        return streams.filtered(
+            lambda s: not self._fix_for_device(s.device_id).filtered(lambda c: c._fix_is_valid())
+        )
+
     def _fix_uncovered(self, streams):
         """The live streams among `streams` no valid consent covers any more."""
-        return streams.filtered(
-            lambda s: (
-                s.state in ("active", "silent")
-                and not self._fix_for_device(s.device_id).filtered(lambda c: c._fix_is_valid())
+        return self._fix_unconsented(streams).filtered(lambda s: s.state in ("active", "silent"))
+
+    def _fix_held_readings(self, streams):
+        Telemetry = self.env["fix.iot.telemetry"].sudo()
+        readings = Telemetry
+        for stream in streams:
+            readings |= Telemetry.search(
+                [("device_id", "=", stream.device_id.id), ("metric", "=", stream.metric)]
             )
+        return readings
+
+    def _fix_drop_aggregates(self, streams):
+        """The aggregates of `streams` are the subject's readings summed up, and
+        they outlive the raw ones: they go with them. Returns how many."""
+        rollups = (
+            self.env["fix.iot.telemetry.rollup"].sudo().search([("stream_id", "in", streams.ids)])
         )
+        count = len(rollups)
+        rollups.unlink()
+        return count
+
+    def _fix_evidence_problem(self):
+        """What is missing for this consent to be verified, or ""."""
+        self.ensure_one()
+        if not (self.disclosure_document_id or (self.evidence_ref or "").strip()):
+            return (
+                "Consent %s has no evidence: attach the disclosure given or record where "
+                "the signed consent is filed." % self.name
+            )
+        if not (self.granted_by or "").strip():
+            return "Record who granted consent %s." % self.name
+        if not _signal_tokens(self.signal_groups_permitted):
+            return "Consent %s names no signal: list the signals it discloses (BRU-IOT-05)." % (
+                self.name
+            )
+        return ""
 
     def action_verify(self):
         """A07 P1 (2026-11-04): a Consent Officer who did not record the
@@ -1916,18 +2398,9 @@ class FixIotConsent(models.Model):
                 raise UserError("Verify an active consent that is pending verification.")
             if not self.env.su and rec.create_uid == self.env.user:
                 raise UserError("The person who recorded consent %s cannot verify it." % rec.name)
-            if not (rec.disclosure_document_id or (rec.evidence_ref or "").strip()):
-                raise UserError(
-                    "Consent %s has no evidence: attach the disclosure given or record where "
-                    "the signed consent is filed." % rec.name
-                )
-            if not (rec.granted_by or "").strip():
-                raise UserError("Record who granted consent %s." % rec.name)
-            if not _signal_tokens(rec.signal_groups_permitted):
-                raise UserError(
-                    "Consent %s names no signal: list the signals it discloses (BRU-IOT-05)."
-                    % rec.name
-                )
+            problem = rec._fix_evidence_problem()
+            if problem:
+                raise UserError(problem)
             rec._guarded().write(
                 {
                     "verification": "verified",
@@ -1943,11 +2416,14 @@ class FixIotConsent(models.Model):
 
         A07 P1 (2026-11-04) FR-IOT-006: it then applies the treatment agreed at
         grant to the readings already held on those streams - retain (recorded
-        as such), delete (removed, and counted), or anonymise (no automated
-        anonymisation exists for sensor series, so a manual task is opened for
-        the Consent Officer: AUT-IOT-02 "escalate the treatment as a manual
-        task") - and publishes telemetry.consent_revoked with the evidence.
-        Anyone may record a withdrawal: stopping collection is fail-safe."""
+        as such), delete (removed, and counted), or anonymise (a task for the
+        Consent Officer, AUT-IOT-02, who runs it: action_record_treatment) - and
+        publishes telemetry.consent_revoked with the evidence. Anyone may record a
+        withdrawal: stopping collection is fail-safe.
+
+        A07 (2026-11-07): the treatment covers every stream no other valid consent
+        covers, suspended ones too: suspended first, a revocation treated nothing
+        and recorded "applied"."""
         now = fields.Datetime.now()
         for rec in self:
             if rec.state != "active":
@@ -1961,35 +2437,31 @@ class FixIotConsent(models.Model):
                 }
             )
         for rec in self:
-            stopped = rec._fix_uncovered(rec._fix_covered_streams())
+            covered = rec._fix_covered_streams()
+            stopped = rec._fix_uncovered(covered)
             stopped._fix_suspend("consent %s revoked" % rec.name)
-            rec._fix_apply_treatment(stopped)
+            rec._fix_apply_treatment(rec._fix_unconsented(covered), stopped)
 
-    def _fix_apply_treatment(self, streams):
+    def _fix_apply_treatment(self, streams, stopped):
         self.ensure_one()
-        Telemetry = self.env["fix.iot.telemetry"].sudo()
-        readings = Telemetry
-        for stream in streams:
-            readings |= Telemetry.search(
-                [("device_id", "=", stream.device_id.id), ("metric", "=", stream.metric)]
-            )
+        readings = self._fix_held_readings(streams)
         treatment = self.revocation_treatment
         if treatment == "delete":
             count = len(readings)
             readings.unlink()
+            dropped = self._fix_drop_aggregates(streams)
             vals = {
                 "treatment_state": "applied",
                 "readings_treated": count,
-                "treatment_note": "%d reading(s) of %d stream(s) deleted on revocation."
-                % (count, len(streams)),
+                "treatment_note": "%d reading(s) and %d aggregate(s) of %d stream(s) deleted on "
+                "revocation." % (count, dropped, len(streams)),
             }
         elif treatment == "anonymise":
             vals = {
                 "treatment_state": "manual",
                 "readings_treated": 0,
                 "treatment_note": "Anonymisation of %d reading(s) of %d stream(s) awaits the "
-                "Consent Officer: no automated anonymisation exists for these series."
-                % (len(readings), len(streams)),
+                "Consent Officer." % (len(readings), len(streams)),
             }
         else:
             vals = {
@@ -2013,24 +2485,41 @@ class FixIotConsent(models.Model):
                 "treatment": treatment,
                 "treatment_state": vals["treatment_state"],
                 "readings_treated": vals["readings_treated"],
-                "streams_suspended": streams.mapped("name"),
+                "streams_suspended": stopped.mapped("name"),
                 "evidence_ref": self.revocation_evidence_ref or "",
             },
         )
 
     def action_record_treatment(self, note=None):
-        """Close the manual anonymisation task with what was done."""
-        _require_role(self.env, IOT_CONSENT, "Recording a consent treatment")
+        """A07 (2026-11-07): this closed the task on a typed note with 0 readings
+        treated, and every reading untouched. It now does the work: readings of
+        the streams no valid consent covers lose their device and exact time, a
+        location series and the aggregates are deleted, and the count is the
+        count of what happened."""
+        _require_role(self.env, IOT_CONSENT, "Anonymising a consent's readings")
         note = (note or "").strip()
         if not note:
-            raise UserError("Describe how the readings were anonymised.")
+            raise UserError("Add a note for the record: why, and under what authority.")
         for rec in self:
             if rec.treatment_state != "manual":
                 raise UserError("Consent %s has no open treatment task." % rec.name)
+            streams = rec._fix_unconsented(rec._fix_covered_streams())
+            anonymised, deleted = rec._fix_held_readings(streams)._fix_anonymise()
+            dropped = rec._fix_drop_aggregates(streams)
             rec._guarded().write(
                 {
                     "treatment_state": "applied",
-                    "treatment_note": "%s\n%s" % (rec.treatment_note or "", note),
+                    "readings_treated": anonymised + deleted,
+                    "treatment_note": "%s\n%d reading(s) anonymised, %d location reading(s) and "
+                    "%d aggregate(s) deleted by %s: %s"
+                    % (
+                        rec.treatment_note or "",
+                        anonymised,
+                        deleted,
+                        dropped,
+                        self.env.user.name,
+                        note,
+                    ),
                 }
             )
 
@@ -2099,7 +2588,11 @@ class FixIotRetentionChange(models.Model):
         string="Operating Unit",
     )
     change_type = fields.Selection(
-        [("retention", "Retention Change"), ("activate", "Policy Activation")],
+        [
+            ("retention", "Retention Change"),
+            ("activate", "Policy Activation"),
+            ("deactivate", "Policy Deactivation"),
+        ],
         required=True,
         default="retention",
     )
@@ -2154,8 +2647,8 @@ class FixIotRetentionChange(models.Model):
                 raise ValidationError(
                     "A retention change names exactly one target: a stream or a policy."
                 )
-            if rec.change_type == "activate" and not rec.downsample_id:
-                raise ValidationError("Only a downsampling policy is activated.")
+            if rec.change_type in ("activate", "deactivate") and not rec.downsample_id:
+                raise ValidationError("Only a downsampling policy is activated or switched off.")
             if rec.change_type == "retention" and (rec.proposed_days or 0) <= 0:
                 raise ValidationError("The proposed retention must be a positive number of days.")
 
@@ -2171,8 +2664,18 @@ class FixIotRetentionChange(models.Model):
             if rec.state != "draft":
                 raise UserError("Request approval of a draft change.")
             target = rec._fix_target().sudo()
+            # A07 (2026-11-07): each press of Request Activation opened another
+            # request for the same policy.
+            field = "downsample_id" if rec.downsample_id else "stream_id"
+            if self.sudo().search_count([(field, "=", target.id), ("state", "=", "requested")]):
+                raise UserError(
+                    "%s already has a change awaiting the CTO's approval. Recall it first."
+                    % target.name
+                )
             if rec.change_type == "activate" and target.state != "draft":
                 raise UserError("Policy %s is already active." % target.name)
+            if rec.change_type == "deactivate" and target.state != "active":
+                raise UserError("Policy %s is not active." % target.name)
             if rec.change_type == "retention" and rec.proposed_days == target.retention_days:
                 raise UserError(
                     "%s already keeps %s days: nothing to change."
@@ -2214,6 +2717,8 @@ class FixIotRetentionChange(models.Model):
             target = rec._fix_target().sudo()
             if rec.change_type == "activate":
                 target._fix_activate()
+            elif rec.change_type == "deactivate":
+                target._fix_deactivate()
             else:
                 target._guarded().write({"retention_days": rec.proposed_days})
             rec._guarded().write(

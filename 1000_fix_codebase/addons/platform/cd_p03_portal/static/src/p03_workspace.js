@@ -816,6 +816,11 @@ export class P03Workspace extends Component {
         const chipScreen = (P03_FORM_CHIPS && P03_FORM_CHIPS[`${mid}:${formLabel}`]) || null;
         if (chipScreen && P03_DATA_SCREENS[chipScreen]) {
             const cfg = P03_DATA_SCREENS[chipScreen];
+            // a chip for work done on an existing row opens that row's list, not a form
+            if (cfg.kind !== "model_form") {
+                this.openScreen(chipScreen);
+                return;
+            }
             this.openFormScreen(
                 chipScreen,
                 { sc: { en: cfg.title || formLabel, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
@@ -2379,7 +2384,12 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
      * edits header + lines in ONE save. ---- */
     get formLineCfg() {
         const gl = this.state.gl;
-        return (gl && gl.formCfg && gl.formCfg.lines) || null;
+        const cfg = (gl && gl.formCfg && gl.formCfg.lines) || null;
+        // an insert-only grid: entered with the new record, then read-only on it
+        if (cfg && cfg.lockOnRecord && gl.form && gl.form.recordId) {
+            return { ...cfg, readonlyGrid: true };
+        }
+        return cfg;
     }
 
     get formLineFields() {
@@ -2604,7 +2614,9 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
      * into the RPC log. */
     _mlActionResult(res) {
         const r = (res && res.result) || {};
-        if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
+        // shown once and stored nowhere: it must not vanish with a toast
+        if (r.secret) this.state.gl.secretDialog = { note: r.note || "", secret: r.secret };
+        else if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
         else if (r.note) this.showToast(r.note);
     }
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M47 settings (A07 operability, 2026-11-07). -->
+<odoo>
+    <data noupdate="1">
+        <!-- A NEW licence must carry its scan. Licences already on the register keep counting
+             without one. Set to False only to load a batch whose scans follow later. -->
+        <record id="param_require_licence_evidence" model="ir.config_parameter">
+            <field name="key">cd_facility.require_licence_evidence</field>
+            <field name="value">True</field>
+        </record>
+    </data>
+</odoo>

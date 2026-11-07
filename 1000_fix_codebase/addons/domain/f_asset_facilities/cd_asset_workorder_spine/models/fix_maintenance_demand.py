@@ -19,6 +19,8 @@ from odoo.exceptions import AccessError, UserError
 WO_MODEL = "fix.facility.work.order"
 WO_OPEN = ("draft", "scheduled", "in_progress", "completed")
 SO_CLOSED = ("delivered", "closed", "cancelled")
+# Where a work order may be raised (cd_facility: WO_SITE_STATES).
+SITE_OPEN = ("active", "suspended")
 FACILITY_MANAGER = "cd_facility.group_facility_manager"
 SO_COMMERCIAL_APPROVER = "cd_service_order.group_so_commercial_approver"
 DHAKA = "Asia/Dhaka"
@@ -96,6 +98,49 @@ NO_KEY = "-"
 
 def _today(env):
     return fields.Date.context_today(env["res.users"].with_context(tz=DHAKA))
+
+
+class FixDeviceComponentPickers(models.Model):
+    """A07 operability (2026-11-07): the causing job and stock lot of a fitted
+    part are references by id, because the registry loads before M01 and M15, and
+    a person knows neither id. These pick the record and write the reference."""
+
+    _inherit = "fix.device.component"
+
+    causing_order_id = fields.Many2one(
+        "fix.service.order",
+        string="Causing Job",
+        compute="_compute_reference_pickers",
+        inverse="_inverse_causing_order",
+    )
+    stock_lot_ref_id = fields.Many2one(
+        "stock.lot",
+        string="Stock Lot",
+        compute="_compute_reference_pickers",
+        inverse="_inverse_stock_lot",
+    )
+
+    @api.depends("service_order_id", "lot_id")
+    def _compute_reference_pickers(self):
+        Order = self.env["fix.service.order"].sudo()
+        Lot = self.env["stock.lot"].sudo()
+        for rec in self:
+            rec.causing_order_id = Order.browse(rec.service_order_id or 0).exists().id
+            rec.stock_lot_ref_id = Lot.browse(rec.lot_id or 0).exists().id
+
+    def _inverse_causing_order(self):
+        for rec in self:
+            rec.service_order_id = rec.causing_order_id.id or False
+
+    def _inverse_stock_lot(self):
+        for rec in self:
+            rec.lot_id = rec.stock_lot_ref_id.id or False
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state == "removed":
+            locked |= {"causing_order_id", "stock_lot_ref_id"}
+        return locked
 
 
 class FixMaintenanceDemand(models.Model):
@@ -303,6 +348,11 @@ class FixMaintenanceDemand(models.Model):
         site, problem = self._spine_resolve_site()
         if problem:
             return None, [problem]
+        if site.state not in SITE_OPEN:
+            return None, [
+                "site %s is %s: choose an operational or a suspended site"
+                % (site.name, dict(site._fields["state"].selection)[site.state])
+            ]
         return {
             "site_id": site.id,
             "company_id": site.company_id.id,
@@ -452,7 +502,55 @@ class FixMaintenanceDemand(models.Model):
                 }
             )
             rec.message_post(body="Dismissed by %s: %s" % (self.env.user.name, reason))
+            rec._spine_release_prediction(reason)
         return True
+
+    def _spine_release_prediction(self, reason):
+        """A07 (2026-11-07): the prediction's "requested" flag stayed set after its
+        only demand was dismissed, so no preventive order could ever be asked for
+        again. With no demand of the prediction left alive, the request is over."""
+        self.ensure_one()
+        prediction = self.prediction_id.sudo()
+        if not prediction.work_order_created:
+            return
+        if self.sudo().search_count(
+            [("prediction_id", "=", prediction.id), ("state", "!=", "dismissed")], limit=1
+        ):
+            return
+        prediction._guarded().write({"work_order_created": False})
+        prediction.message_post(
+            body="The preventive work order request was withdrawn: demand %s was dismissed "
+            "(%s). It can be requested again." % (self.name, reason)
+        )
+
+    @api.model
+    def _spine_order_closed(self, orders):
+        """A07 operability (2026-11-07) M17: an M17 plan's preventive order closed
+        and the plan stayed due, with Mark Done the only way on. Closing the order
+        is that visit: the demand is done and the plan rolls. A plan paused since
+        keeps its date; the demand is still done, as its work was."""
+        demands = self.sudo().search(
+            [
+                ("service_order_id", "in", orders.ids),
+                ("device_pm_id", "!=", False),
+                ("state", "=", "routed"),
+            ]
+        )
+        for rec in demands:
+            plan = rec.device_pm_id
+            rolled = plan.state == "active"
+            if rolled:
+                plan.action_complete()
+            rec._guarded().write({"state": "done"})
+            rec.message_post(
+                body="Service order %s closed. %s"
+                % (
+                    rec.service_order_id.name,
+                    "Plan %s rolled on to %s." % (plan.name, plan.next_due)
+                    if rolled
+                    else "Plan %s is paused and keeps its date." % plan.name,
+                )
+            )
 
     def _spine_reopen_after_cancel(self, work_order):
         """The work order raised for this demand was cancelled: the demand
@@ -574,10 +672,26 @@ class FixMaintenanceDemand(models.Model):
         prediction = Pred.browse(event.get("aggregate_id")).exists()
         if not prediction or prediction.prediction != "failure_predicted":
             return False
-        if self._spine_find(prediction) or self._spine_m48_host(prediction):
-            return True  # redelivery, or an action's order already covers it
+        if not prediction.work_order_created:
+            return True  # redelivered after the request was withdrawn by a dismissal
+        if self._spine_m48_host(prediction):
+            return True  # an action's order already covers it
+        earlier = (
+            self.sudo()
+            .with_context(active_test=False)
+            .search(
+                [("source_model", "=", prediction._name), ("source_res_id", "=", prediction.id)]
+            )
+        )
+        if earlier.filtered(lambda d: d.state != "dismissed"):
+            return True  # redelivery
+        # One demand per request: a request made again after a dismissal is a new
+        # source item, or the UNIQUE key would hand back the dismissed demand.
+        key = "request-%d" % (len(earlier) + 1) if earlier else NO_KEY
         vals, customers = self._spine_m48_vals(prediction)
-        demand = self._spine_raise("m48_prediction", prediction, vals, label=prediction.name)
+        demand = self._spine_raise(
+            "m48_prediction", prediction, vals, key=key, label=prediction.name
+        )
         demand._spine_m48_customer_problem(customers)
         return True
 

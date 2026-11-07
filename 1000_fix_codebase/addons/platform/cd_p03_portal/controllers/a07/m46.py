@@ -12,12 +12,24 @@ SURFACES = {
     "fleet.vehicle": {
         "order": "name",
         "limit": 300,
-        "actions": {"action_assert_dispatchable"},
+        # Retire: a Logistics Manager's decision, with a reason (M49 reads it).
+        "actions": {"action_assert_dispatchable", "action_retire"},
+    },
+    # The catalogue a vehicle's required model comes from.
+    "fleet.vehicle.model": {
+        "order": "name",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fleet.vehicle.model.brand": {
+        "order": "name",
+        "limit": 300,
+        "actions": set(),
     },
     "fix.vehicle.assignment": {
         "order": "date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_release", "action_reassign"},
     },
     # A07 P0 recipe M46-6: reinstatement is its own action (second person,
     # reason, licence in date); `state` is guarded.
@@ -51,7 +63,7 @@ SURFACES = {
     "fix.vehicle.fuel": {
         "order": "filled_on desc, id desc",
         "limit": 400,
-        "actions": {"action_clear_exception", "action_reject_fill"},
+        "actions": {"action_clear_exception", "action_reject_fill", "action_correct_odometer"},
     },
     "fix.vehicle.telemetry": {
         "order": "last_ping desc, id desc",
@@ -62,7 +74,16 @@ SURFACES = {
         "order": "occurred_on desc, id desc",
         "limit": 200,
         # A07 P0 recipe M46-10: the settlement is DOFA-routed (M63 inbox).
-        "actions": {"action_claim", "action_request_approval", "action_close"},
+        "actions": {
+            "action_claim",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_close",
+            "action_close_no_claim",
+            "action_add_insurer",
+        },
+        # An insurer is not every partner of 15,000.
+        "pickers": {"insurer_id": [("is_insurer", "=", True)]},
     },
 }
 
@@ -248,8 +269,9 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
     date_from, date_to = _day(date_from), _day(date_to)
     vehicles = _vehicles(env)
     fuels = _period_fills(env, vehicles, date_from, date_to)
-    # a PM job belongs to the day it was done, else the day it was scheduled
-    pms = _scoped(env, "fix.vehicle.pm", vehicles).filtered(
+    # a PM job belongs to the day it was done, else the day it was scheduled;
+    # an open job's cost is an estimate, not a cost
+    pms = _scoped(env, "fix.vehicle.pm", vehicles, [("state", "=", "done")]).filtered(
         lambda p: _in_period(p.done_on or p.scheduled_on, date_from, date_to)
     )
     rows = []
@@ -298,7 +320,8 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             _period_note(date_from, date_to),
             "Measured km = last − first fuel odometer in the period. Cost / km = "
             "(fuel of the fills after the first + PM cost) / measured km: the first "
-            "fill's fuel was burnt before the range began.",
+            "fill's fuel was burnt before the range began. PM cost counts completed "
+            "services only.",
             "Provisional (no figure) where the period has fewer than two fills or the "
             "odometer goes backwards. A fill held by a fuel exception rule is left out "
             "until the Logistics Manager reviews it, and the row is provisional. "
@@ -447,7 +470,8 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
                 "vehicle": _vehicle_name(vehicle),
                 "jobs": len(records),
                 "done": len(records.filtered(lambda p: p.state == "done")),
-                "cost": round(sum(records.mapped("cost")), 2),
+                # an open job's figure is an estimate: it is a cost once done
+                "cost": round(sum(records.filtered(lambda p: p.state == "done").mapped("cost")), 2),
                 "last_service": str(max(records.mapped("scheduled_on"))) if records else "—",
             }
         )
@@ -463,7 +487,10 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
             "last_service": "Last Scheduled",
         },
         rows,
-        ["Recorded PM/repair jobs only; parts drawn from M15 are not double-counted here."],
+        [
+            "Recorded PM/repair jobs only; parts drawn from M15 are not double-counted here. "
+            "Cost counts completed jobs: the figure on an open job is an estimate."
+        ],
         totals={
             "vehicle": "Total",
             "jobs": sum(r["jobs"] for r in rows),
@@ -471,6 +498,17 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
             "cost": round(sum(r["cost"] for r in rows), 2),
         },
         empty="No vehicles registered yet.",
+    )
+
+
+def _expiring(docs, today, horizon):
+    """Documents that will really lapse: the current one of its type, not marked
+    expired. A superseded certificate's end date warns of nothing."""
+    return docs.filtered(
+        lambda d: d.is_current
+        and d.state == "valid"
+        and d.valid_to
+        and today <= d.valid_to <= horizon
     )
 
 
@@ -482,7 +520,7 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
     rows = []
     for vehicle in vehicles:
         vehicle_docs = docs.filtered(lambda d, vid=vehicle.id: d.vehicle_id.id == vid)
-        expiring = vehicle_docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
+        expiring = _expiring(vehicle_docs, today, horizon)
         problems = vehicle._fix_document_problems(today, today).get(vehicle.id, [])
         rows.append(
             {
@@ -572,7 +610,52 @@ def incident_summary(env, date_from=None, date_to=None, **params):
     )
 
 
+def insurers(env, date_from=None, date_to=None, **params):
+    """Who the accident form offers as an insurer, and their claims."""
+    ids = env.companies.ids
+    partners = (
+        env["res.partner"]
+        .sudo()
+        .search(
+            [("is_insurer", "=", True), "|", ("company_id", "=", False), ("company_id", "in", ids)],
+            order="name",
+        )
+    )
+    accidents = _scoped(env, "fix.vehicle.accident", _vehicles(env))
+    rows = []
+    for partner in partners:
+        claims = accidents.filtered(lambda a, p=partner.id: a.insurer_id.id == p)
+        rows.append(
+            {
+                "insurer": partner.name,
+                "phone": partner.phone or "—",
+                "email": partner.email or "—",
+                "open": len(claims.filtered(lambda a: a.state != "closed")),
+                "closed": len(claims.filtered(lambda a: a.state == "closed")),
+            }
+        )
+    return _pack(
+        "Insurers — the companies an accident claim can name",
+        ["insurer", "phone", "email", "open", "closed"],
+        {
+            "insurer": "Insurer",
+            "phone": "Phone",
+            "email": "Email",
+            "open": "Open Accidents",
+            "closed": "Closed Accidents",
+        },
+        rows,
+        [
+            "A Fleet Officer adds an insurer from Accidents & Insurance: select the "
+            "accident and press Add Insurer."
+        ],
+        empty="No insurer yet. A Fleet Officer adds one from Accidents & Insurance: select the "
+        "accident and press Add Insurer.",
+    )
+
+
 REPORTS = {
+    "insurers": insurers,
     "driver_behaviour": driver_behaviour,
     "cost_per_km": cost_per_km,
     "fleet_availability": fleet_availability,
@@ -589,9 +672,15 @@ def kpis(env):
     horizon = today + datetime.timedelta(days=90)
     offroad = _scoped(env, "fix.vehicle.offroad", vehicles, [("state", "=", "offroad")])
     docs = _scoped(env, "fix.vehicle.document", vehicles)
-    expiring = docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
+    expiring = _expiring(docs, today, horizon)
     month_start = today.replace(day=1)
-    fuels = _scoped(env, "fix.vehicle.fuel", vehicles, [("filled_on", ">=", month_start)])
+    # accepted spend only: a held fill is not yet a cost, a rejected one never is
+    fuels = _scoped(
+        env,
+        "fix.vehicle.fuel",
+        vehicles,
+        [("filled_on", ">=", month_start), ("review_state", "in", ("none", "cleared"))],
+    )
     accidents_open = len(
         _scoped(env, "fix.vehicle.accident", vehicles, [("state", "!=", "closed")])
     )

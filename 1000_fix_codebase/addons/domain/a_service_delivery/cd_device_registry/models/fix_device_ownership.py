@@ -19,8 +19,10 @@ class FixDeviceOwnership(models.Model):
     def _fix_refuse_unless_transfer(self):
         if not self._fix_guard_open():
             raise UserError(
-                "Ownership history is a permanent record. A row is written only by an "
-                "ownership transfer on the device, and is never edited or deleted."
+                "Ownership history is a permanent record, written only by a transfer on the "
+                "device and never edited or deleted. To transfer a device, select it in the "
+                "Asset Register, fill Ownership Transfer on its form, then press Transfer "
+                "Ownership."
             )
 
     @api.model_create_multi
@@ -55,8 +57,8 @@ class FixDeviceOwnership(models.Model):
         required=True,
     )
     notes = fields.Text()
-    # A07 P1 (2026-11-04) FR-AST-017/018: the transfer reason, the evidence the
-    # acquiring party accepted, who recorded it and through which channel.
+    # A07 P1 (2026-11-04) FR-AST-017/018: the transfer reason, its supporting
+    # evidence, who recorded it and through which channel.
     reason = fields.Char(string="Transfer Reason")
     evidence_document_id = fields.Many2one("fix.document", string="Transfer Evidence")
     recorded_by_id = fields.Many2one("res.users", string="Recorded By")

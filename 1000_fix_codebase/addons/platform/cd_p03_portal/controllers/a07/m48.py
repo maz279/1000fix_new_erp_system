@@ -10,12 +10,12 @@ SURFACES = {
     "fix.iot.stream": {
         "order": "device_id, metric",
         "limit": 300,
-        "actions": {"action_activate", "action_suspend"},
+        "actions": {"action_activate", "action_suspend", "action_set_consent_policy"},
     },
     "fix.iot.adapter": {
         "order": "name",
         "limit": 100,
-        "actions": {"action_enable", "action_disable"},
+        "actions": {"action_enable", "action_disable", "action_rotate_key"},
     },
     # A07 P0 recipe (2026-11-03) M48-3: pausing or loosening a rule is a
     # suppression request routed to an approver; tightening and resuming apply
@@ -26,6 +26,7 @@ SURFACES = {
         "actions": {
             "action_pause",
             "action_change_threshold",
+            "action_change_settings",
             "action_request_approval",
             "action_recall_approval",
             "action_activate",
@@ -46,6 +47,7 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_revise_terms",
+            "action_cancel",
             "action_dispatch",
             "action_done_confirmed",
             "action_done_not_confirmed",
@@ -66,7 +68,7 @@ SURFACES = {
     "fix.iot.downsample": {
         "order": "stream_id",
         "limit": 300,
-        "actions": {"action_activate"},
+        "actions": {"action_activate", "action_request_deactivation"},
     },
     # BRU-IOT-06: retention and downsampling changes, routed to the CTO;
     # action_apply is the engine's apply method, not a workspace button.
@@ -77,6 +79,21 @@ SURFACES = {
     },
     # AUT-IOT-03: the gaps the liveness cron recorded. Read only.
     "fix.iot.gap": {"order": "detected_at desc, id desc", "limit": 400, "actions": set()},
+    # A07 (2026-11-07): the readings and aggregates had no screen, so an officer
+    # could not see what a consent's treatment was about. Read only, as the caller:
+    # readings can be personal data.
+    "fix.iot.telemetry": {
+        "order": "timestamp desc",
+        "limit": 300,
+        "actions": set(),
+        "rules": True,
+    },
+    "fix.iot.telemetry.rollup": {
+        "order": "bucket_start desc",
+        "limit": 300,
+        "actions": set(),
+        "rules": True,
+    },
 }
 
 
@@ -344,10 +361,12 @@ def rul_estimation(env, date_from=None, date_to=None, **params):
 def telemetry_coverage(env, date_from=None, date_to=None, **params):
     cutoff = _telemetry_cutoff(24)
     streams = _visible(env, "fix.iot.stream")
+    live = {s.id for s in streams if s.state in ("active", "silent")}
     # A07 audit (2026-11-03) M48-7: counted per DEVICE, so a temperature stream
     # with 0 readings showed 100% on its device's vibration readings.
     counts = _stream_readings(env, streams, cutoff)
     rows = []
+    low = 0
     for stream in streams:
         expected = 86400 // max(stream.sample_interval_sec or 60, 1)
         actual = counts.get(_key(stream), (0, None))[0]
@@ -364,8 +383,9 @@ def telemetry_coverage(env, date_from=None, date_to=None, **params):
                 "state": dict(stream._fields["state"].selection).get(stream.state),
             }
         )
+        if stream.id in live and coverage < 80:
+            low += 1
     rows.sort(key=lambda r: r["coverage"])
-    low = len([r for r in rows if r["coverage"] < 80])
     return _pack(
         "Telemetry Coverage — expected vs received readings over 24 hours",
         ["stream", "device", "metric", "interval", "expected", "readings", "coverage", "state"],
@@ -382,7 +402,8 @@ def telemetry_coverage(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Coverage compares received readings with 86400 / sample interval; "
-            "%d stream(s) are below 80%%." % low
+            "%d live stream(s) are below 80%%. Draft and suspended streams are listed but "
+            "not counted: they are not meant to be sending." % low
         ],
         empty="No stream bindings configured.",
     )
@@ -523,7 +544,7 @@ def prediction_outcomes(env, date_from=None, date_to=None, **params):
             "confidence": "Confidence %",
             "days": "Days to Failure",
             "outcome": "Verified Outcome",
-            "work_order": "WO Created",
+            "work_order": "WO Requested",
             "model": "Model",
         },
         rows,

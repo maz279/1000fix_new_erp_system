@@ -104,7 +104,10 @@ def _wo(c, user=None, **kw):
         "estimated_cost": 20000.0,
     }
     vals.update(kw)
-    return c.env[WO].with_user(user or c.clerk).create(vals)
+    order = c.env[WO].with_user(user or c.clerk).create(vals)
+    # a person's request is triaged first (tested in test_a07_m47_operability.py)
+    order.sudo().action_triage("normal")
+    return order
 
 
 def _refused(fn, *args, match=None, **kw):
@@ -394,8 +397,9 @@ def test_lease_terms_change_only_through_an_approved_modification(c, p03):
     assert not ls.modification_open and not ls.dofa_approved and ls.approval_state == "none"
     assert _events(c, "lease.modified", ls.id)[0]["after"]["monthly_rent"] == 90000.0
     # terminate needs a reason; terminated is final
-    _refused(ls.action_terminate, match="why")
-    ls.action_terminate(reason="Landlord sold the building")
+    _refused(ls.action_terminate, reason="x", match="Branch Operations Lead")
+    _refused(ls.with_user(c.clerk2).action_terminate, match="why")
+    ls.with_user(c.clerk2).action_terminate(reason="Landlord sold the building")
     assert ls.state == "terminated"
     _refused(ls.action_open_modification, match="cannot be renewed")
 

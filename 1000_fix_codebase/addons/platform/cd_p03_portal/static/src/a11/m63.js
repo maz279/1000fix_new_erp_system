@@ -89,7 +89,7 @@ export const SCREENS = {
     actions: [{ m: 'action_new_version', l: 'New Version' }] },
   'M63-simulation': { kind: 'table_report', module: 'M63', report: 'automation_rate', title: 'Rule Simulation', period: false },
   'M63-inbox': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state',
-    cols: ['name', 'res_name', 'tier', 'amount', 'requested_by_id', 'on_behalf_of_id', 'due_at', 'state'],
+    cols: ['name', 'res_name', 'tier', 'amount', 'requested_by_id', 'justification', 'on_behalf_of_id', 'due_at', 'state'],
     domain: [['is_mine', '=', true], ['state', '=', 'pending']],
     actions: [
       { m: 'action_approve', l: 'Approve' },

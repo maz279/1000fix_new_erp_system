@@ -193,6 +193,7 @@ msgstr "বিমা দাবির রেফারেন্স"
 
 #. module: cd_vehicle_ext
 #: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__insurer_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_res_partner__is_insurer
 msgid "Insurer"
 msgstr "বিমাকারী"
 
@@ -348,3 +349,68 @@ msgstr "যানবাহন"
 #: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__recorded_state
 msgid "Recorded State"
 msgstr "নথিভুক্ত অবস্থা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__name
+msgid "Booking"
+msgstr "বুকিং"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__released_on
+msgid "Released On"
+msgstr "ছাড়ের তারিখ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__released_by_id
+msgid "Released By"
+msgstr "যিনি ছেড়েছেন"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__release_reason
+msgid "Release Reason"
+msgstr "ছাড়ের কারণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retire_reason
+msgid "Retirement Reason"
+msgstr "অবসরের কারণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retired_on
+msgid "Retired On"
+msgstr "অবসরের তারিখ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fix_retired_by_id
+msgid "Retired By"
+msgstr "যিনি অবসর দিয়েছেন"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_reason
+msgid "Reason (if the fill is genuine)"
+msgstr "কারণ (জ্বালানি গ্রহণ সঠিক হলে)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__no_claim_reason
+msgid "Closed Without a Claim"
+msgstr "দাবি ছাড়া বন্ধ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields.selection,name:cd_vehicle_ext.selection__fix_vehicle_assignment__state__booked
+msgid "Booked"
+msgstr "বুক করা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields.selection,name:cd_vehicle_ext.selection__fix_vehicle_assignment__state__released
+msgid "Released"
+msgstr "ছেড়ে দেওয়া"
+
+#. module: cd_vehicle_ext
+#: model:res.groups,name:cd_vehicle_ext.group_logistics_manager
+msgid "Fleet Logistics Manager"
+msgstr "ফ্লিট লজিস্টিকস ম্যানেজার"

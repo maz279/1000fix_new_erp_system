@@ -22,7 +22,7 @@ FLEET_OFFICER_GROUP = "fleet.fleet_group_user"
 LOGISTICS_MANAGER_GROUP = "cd_vehicle_ext.group_logistics_manager"
 ROLE_LABELS = {
     FLEET_OFFICER_GROUP: "Fleet Officer (Fleet: Officer: Manage all vehicles)",
-    LOGISTICS_MANAGER_GROUP: "Logistics Manager",
+    LOGISTICS_MANAGER_GROUP: "Fleet Logistics Manager",
 }
 
 # A07 P1 business switches (ir.config_parameter, data/ir_config_parameter.xml).
@@ -38,9 +38,13 @@ FUEL_KM_PER_LITRE_PARAM = "cd_vehicle_ext.fuel_max_km_per_litre"
 FUEL_KM_PER_LITRE_DEFAULT = 60.0
 TELEMATICS_SILENCE_PARAM = "cd_vehicle_ext.telematics_silence_minutes"
 TELEMATICS_SILENCE_DEFAULT = 60
+TELEMETRY_CLOCK_SKEW_MINUTES = 5
 PM_TOLERANCE_DAYS_PARAM = "cd_vehicle_ext.pm_overdue_tolerance_days"
 PM_TOLERANCE_KM_PARAM = "cd_vehicle_ext.pm_overdue_tolerance_km"
 PM_OFFROAD_PARAM = "cd_vehicle_ext.pm_overdue_takes_offroad"
+# BRU-FLT-08: every fill carries its receipt scan. Off by default: live fills
+# carry none, and pumps do not all give one. A business decision.
+FUEL_RECEIPT_PARAM = "cd_vehicle_ext.require_fuel_receipt"
 
 # BRTA driving-licence vehicle classes (Motor Vehicles / Road Transport Act
 # 2018 licence categories) and what each covers. A heavy licence covers medium
@@ -166,12 +170,25 @@ def dhaka_today(record):
     return fields.Date.context_today(record.with_context(tz=DHAKA_TZ))
 
 
+def like_exact(text):
+    """`text` for a case-blind exact match with =ilike: its % and _ are not wildcards."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _reason(text, what):
     """A stated reason, or a refusal naming what needs one."""
     text = (text or "").strip() if isinstance(text, str) else text
     if not text:
         raise UserError("Give the reason for %s." % what)
     return str(text)
+
+
+class ResPartnerInsurer(models.Model):
+    _inherit = "res.partner"
+
+    # An accident claim names its insurer; among thousands of customers none
+    # could be told apart. Marked by a Fleet Officer (action_add_insurer).
+    is_insurer = fields.Boolean(string="Insurer", copy=False)
 
 
 class FixVehicleLockMixin(models.AbstractModel):
@@ -727,7 +744,15 @@ class FixVehicleDocument(models.Model):
         # A07 P1: once the scan is attached it certifies these facts; a
         # correction is a new document (the old one is superseded).
         if self.has_evidence:
-            return {"vehicle_id", "doc_type", "number", "valid_from", "valid_to", "evidence_file"}
+            return {
+                "vehicle_id",
+                "doc_type",
+                "number",
+                "valid_from",
+                "valid_to",
+                "evidence_file",
+                "evidence_filename",
+            }
         return set()
 
     @api.model_create_multi
@@ -1042,6 +1067,14 @@ class FixVehicleOffroad(models.Model):
                         "evidence scan first." % (rec.name, "; ".join(problems))
                     )
             else:
+                service = rec.pm_id.sudo() if rec.cause == "service" else rec.pm_id.browse()
+                if service and service.state != "done":
+                    # A passed check says the van is safe today, not that the
+                    # overdue service was done: that is what took it off.
+                    raise UserError(
+                        "%s cannot return to service: service %s is not done. Complete it "
+                        "(PM by Odometer, Mark Done) first." % (rec.name, service.name)
+                    )
                 check = rec._fix_return_check()
                 if not check:
                     raise UserError(
@@ -1112,6 +1145,38 @@ class FixVehicleCheck(models.Model):
         }
     )
 
+    def _fix_check_odometer_plausible(self):
+        """A saved check is frozen, and its reading feeds the last odometer the
+        PM due rule reads, so a typo is stopped at entry. A reading below the
+        last accepted one is wrong, or the older one is; one further than a
+        full tank covers means a missing fill or a wrong reading: the fuel
+        rule's own test, since a van cannot pass that distance without
+        refuelling and every fill is recorded. The check itself is never
+        blocked: it saves with no reading. Data loading stays trusted."""
+        Fuel = self.env["fix.vehicle.fuel"]
+        for rec in self.filtered("odometer"):
+            vehicle = rec.vehicle_id.sudo()
+            last = vehicle._fix_last_odometer(exclude=rec)
+            if not last:
+                continue
+            advice = (
+                "Read the odometer again. If the reading is right, the earlier reading or "
+                "a missing fuel fill is the problem: leave Odometer empty to save this "
+                "check, and tell the Fleet Logistics Manager."
+            )
+            if rec.odometer < last:
+                raise UserError(
+                    "Odometer %s is below the last recorded reading of %s km. %s"
+                    % (rec.odometer, last, advice)
+                )
+            ceiling = param_float(self.env, FUEL_KM_PER_LITRE_PARAM, FUEL_KM_PER_LITRE_DEFAULT)
+            jump = rec.odometer - last
+            if ceiling > 0 and jump > Fuel._fix_tank_capacity(vehicle) * ceiling:
+                raise UserError(
+                    "Odometer %s is %s km beyond the last recorded reading of %s km, further "
+                    "than a full tank covers. %s" % (rec.odometer, jump, last, advice)
+                )
+
     def _fix_frozen_fields(self) -> set:
         # Saved = frozen; a new (unsaved) check is fully editable.
         return set(self._CHECK_FIELDS) if isinstance(self.id, int) else set()
@@ -1129,6 +1194,8 @@ class FixVehicleCheck(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.vehicle.check") or "VCHK/New"
                 )
         recs = super().create(vals_list)
+        if not self.env.su:
+            recs._fix_check_odometer_plausible()
         raiser = self.env.user if not self.env.su else None
         for rec in recs:
             failed = [
@@ -1384,6 +1451,16 @@ class FixVehicleFuel(models.Model):
         help="Comma-separated keys of the exception rules this fill breaks.",
     )
     exception_summary = fields.Char(string="Exceptions", compute="_compute_exception_summary")
+    # A genuine fill can break a hard rule (an odometer replaced at a service, a
+    # second fill at the same reading). Stating why holds it for a Logistics
+    # Manager who did not record it, instead of refusing it: a held fill is no
+    # reading and no cost until reviewed, so nothing false gets through.
+    exception_reason = fields.Char(
+        string="Reason (if the fill is genuine)",
+        copy=False,
+        help="Only if the fill breaks an exception rule and is genuine: why. It is then "
+        "held for review.",
+    )
     review_state = fields.Selection(
         [
             ("none", "No Exception"),
@@ -1415,6 +1492,7 @@ class FixVehicleFuel(models.Model):
             "amount",
             "station",
             "receipt_no",
+            "exception_reason",
         }
     )
 
@@ -1430,12 +1508,13 @@ class FixVehicleFuel(models.Model):
     def _fix_frozen_fields(self) -> set:
         if self.review_state in ("cleared", "rejected"):
             # Reviewed: the reviewer signed off these figures (M46-9).
-            return set(self._FILL_FIELDS) | {"receipt_file"}
+            return set(self._FILL_FIELDS) | {"receipt_file", "receipt_filename"}
         if isinstance(self.id, int) and self.create_uid and self.create_uid != self.env.user:
             # M46-9 [E 44]: another user raised a recorded amount 4,500 ->
-            # 99,999. Only the recorder corrects their own fill, and the
-            # correction is re-checked against the rules.
-            return {"amount", "litres", "odometer", "receipt_no"}
+            # 99,999. Only the recorder corrects their own fill, whichever
+            # field it is (the van, the day and the station were left open),
+            # and the correction is re-checked against the rules.
+            return set(self._FILL_FIELDS) | {"receipt_file", "receipt_filename"}
         return set()
 
     @api.depends("exception_flags")
@@ -1579,11 +1658,12 @@ class FixVehicleFuel(models.Model):
                 continue
             flags = rec._fix_exceptions()
             hard = [f for f in flags if f in FUEL_REFUSALS]
-            if hard and not self.env.su:
+            if hard and not self.env.su and not (rec.exception_reason or "").strip():
                 raise UserError(
                     "Fuel transaction refused: %s. Check the receipt and the odometer and "
-                    "record it again; a genuine exception is loaded through the fuel-card "
-                    "import, where it is held for the Logistics Manager's review."
+                    "record it again. If the fill is genuine, say why under Reason (if the "
+                    "fill is genuine) and save: it is held for review by a Fleet Logistics "
+                    "Manager who did not record it, and counts for nothing until then."
                     % "; ".join(FUEL_EXCEPTIONS[f] for f in hard)
                 )
             vals = {"exception_flags": ",".join(flags) or False}
@@ -1602,6 +1682,7 @@ class FixVehicleFuel(models.Model):
                         "driver_id": rec.driver_id.id or False,
                         "rules": flags,
                         "amount": rec.amount,
+                        "reason": rec.exception_reason or "",
                     },
                 )
 
@@ -1623,13 +1704,14 @@ class FixVehicleFuel(models.Model):
                 },
             )
 
-    @staticmethod
-    def _fix_missing_fill_facts(vals):
+    def _fix_missing_fill_facts(self, vals):
         missing = []
         if not vals.get("driver_id"):
             missing.append("the driver")
         if not (vals.get("amount") or 0.0) > 0:
             missing.append("the amount paid")
+        if not vals.get("receipt_file") and param_on(self.env, FUEL_RECEIPT_PARAM):
+            missing.append("the receipt scan")
         return missing
 
     @api.model_create_multi
@@ -1653,12 +1735,13 @@ class FixVehicleFuel(models.Model):
         return recs
 
     def write(self, vals):
-        if not self.env.su and {"driver_id", "amount"} & set(vals):
+        if not self.env.su and {"driver_id", "amount", "receipt_file"} & set(vals):
             for rec in self:
                 missing = self._fix_missing_fill_facts(
                     {
                         "driver_id": vals.get("driver_id", rec.driver_id.id),
                         "amount": vals.get("amount", rec.amount),
+                        "receipt_file": vals.get("receipt_file", rec.receipt_file),
                     }
                 )
                 if missing:
@@ -1700,6 +1783,53 @@ class FixVehicleFuel(models.Model):
     def action_reject_fill(self, reason=None):
         """Held -> rejected: the fill is not accepted (not a reading, not a cost)."""
         return self._fix_review("rejected", _reason(reason, "rejecting the fuel transaction"))
+
+    def action_correct_odometer(self, odometer=None, reason=None):
+        """A wrong reading that was accepted (within a tank's range, so no rule
+        held it) blocks every honest fill after it as "odometer below the
+        previous fill". The reviewer puts it right against the receipt: same
+        role and same second-person rule as a review. The old value stays on
+        the note, and the fill is then reviewed, and locked."""
+        require_role(self.env, LOGISTICS_MANAGER_GROUP, "Correcting a fuel reading")
+        reason = _reason(reason, "correcting the odometer")
+        try:
+            reading = int(float(str(odometer).replace(",", "").strip()))
+        except (TypeError, ValueError) as exc:
+            raise UserError("The corrected odometer must be a number.") from exc
+        if reading <= 0:
+            raise UserError("The corrected odometer must be above zero.")
+        for rec in self:
+            if rec.review_state != "none":
+                raise UserError(
+                    "%s has already been reviewed, or waits for review: only an accepted "
+                    "reading nobody has reviewed is corrected here." % rec.name
+                )
+            if not self.env.su and rec.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you recorded %s; another person must correct "
+                    "its reading." % rec.name
+                )
+            previous, following = rec._fix_neighbours()
+            for other, word, wrong in (
+                (previous, "previous", previous and reading < previous.odometer),
+                (following, "next", following and reading > following.odometer),
+            ):
+                if wrong:
+                    raise UserError(
+                        "%s does not fit: the %s fill %s reads %s km. Correct that fill first "
+                        "if it is the wrong one." % (reading, word, other.name, other.odometer)
+                    )
+            rec._guarded().write(
+                {
+                    "odometer": reading,
+                    "review_state": "cleared",
+                    "reviewed_by_id": self.env.uid,
+                    "reviewed_on": fields.Datetime.now(),
+                    "review_note": "Odometer corrected from %s to %s by %s: %s"
+                    % (rec.odometer, reading, self.env.user.name, reason),
+                }
+            )
+        return True
 
 
 class FixVehicleTelemetry(models.Model):
@@ -1757,11 +1887,49 @@ class FixVehicleTelemetry(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.vehicle.telemetry") or "VTEL/New"
                 )
         recs = super().create(vals_list)
+        # A device clock a few minutes ahead is normal; a ping hours ahead reads
+        # Online until the future arrives. Data loading stays trusted.
+        limit = fields.Datetime.now() + timedelta(minutes=TELEMETRY_CLOCK_SKEW_MINUTES)
         for rec in recs:
+            if not self.env.su and rec.last_ping and rec.last_ping > limit:
+                raise UserError(
+                    "The last ping %s is in the future. Enter the time the device last "
+                    "reported." % rec.last_ping
+                )
             state = rec._fix_state_for(rec.last_ping)
             if state != rec.state:
                 rec._guarded().write({"state": state})
+            if state == "stale" and rec._fix_is_latest_snapshot():
+                # Typed in already silent: the silence job only moves an online
+                # snapshot, so this one would never raise the event, and the
+                # inspection it demands would never exist.
+                rec._fix_emit_silent()
         return recs
+
+    def _fix_is_latest_snapshot(self) -> bool:
+        """No later ping from this device on this vehicle is on record."""
+        self.ensure_one()
+        return not self.sudo().search_count(
+            [
+                ("vehicle_id", "=", self.vehicle_id.id),
+                ("device_ref", "=", self.device_ref or False),
+                ("id", "!=", self.id),
+                ("last_ping", ">", self.last_ping),
+            ]
+        )
+
+    def _fix_emit_silent(self):
+        for rec in self:
+            emit(
+                rec,
+                "vehicle.telematics_silent",
+                {
+                    "vehicle": _vehicle_label(rec.vehicle_id),
+                    "vehicle_id": rec.vehicle_id.id,
+                    "device": rec.device_ref or "",
+                    "last_report": str(rec.last_ping or ""),
+                },
+            )
 
     @api.model
     def cron_telemetry_silence(self):
@@ -1784,16 +1952,7 @@ class FixVehicleTelemetry(models.Model):
         for rec in silent:
             rec._guarded().write({"state": rec._fix_state_for(rec.last_ping)})
             if latest.get((rec.vehicle_id.id, rec.device_ref or "")) == rec:
-                emit(
-                    rec,
-                    "vehicle.telematics_silent",
-                    {
-                        "vehicle": _vehicle_label(rec.vehicle_id),
-                        "vehicle_id": rec.vehicle_id.id,
-                        "device": rec.device_ref or "",
-                        "last_report": str(rec.last_ping or ""),
-                    },
-                )
+                rec._fix_emit_silent()
         return True
 
 
@@ -1873,6 +2032,8 @@ class FixVehicleAccident(models.Model):
     )
     closed_by_id = fields.Many2one("res.users", string="Closed By", readonly=True, copy=False)
     closed_on = fields.Date(string="Closed On", readonly=True, copy=False)
+    # Closed with no claim (action_close_no_claim): why no claim was made.
+    no_claim_reason = fields.Char(string="Closed Without a Claim", readonly=True, copy=False)
 
     # ---- DOFA (fix.dofa.mixin) --------------------------------------------
     def _dofa_thresholds(self):
@@ -1893,7 +2054,12 @@ class FixVehicleAccident(models.Model):
     # ---- guard and state lock ---------------------------------------------
     def _fix_guarded_fields(self) -> set:
         # A07 P0 recipe M46-10 (D1): `reported -> closed` was set by write.
-        return super()._fix_guarded_fields() | {"state", "closed_by_id", "closed_on"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "closed_by_id",
+            "closed_on",
+            "no_claim_reason",
+        }
 
     def _fix_frozen_fields(self) -> set:
         if self.state == "closed":
@@ -1911,6 +2077,7 @@ class FixVehicleAccident(models.Model):
                 "police_ref",
                 "injury",
                 "evidence_file",
+                "evidence_filename",
             }
         if self.state == "claimed":
             # The claim was filed on this vehicle under this reference.
@@ -1925,6 +2092,18 @@ class FixVehicleAccident(models.Model):
             if (rec.damage_cost or 0.0) < 0 or (rec.settlement_amount or 0.0) < 0:
                 raise ValidationError("Accident damage and settlement amounts cannot be negative.")
 
+    def _fix_require_insurer(self, partner_id):
+        """A claim names an insurer: the screen offers only those, and a hand-made
+        call holds the same line. Data loading stays trusted."""
+        if self.env.su or not partner_id:
+            return
+        partner = self.env["res.partner"].sudo().browse(partner_id)
+        if not partner.is_insurer:
+            raise UserError(
+                "%s is not marked as an insurer. A Fleet Officer adds one with Add Insurer "
+                "on Accidents & Insurance." % partner.display_name
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -1932,6 +2111,7 @@ class FixVehicleAccident(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.vehicle.accident") or "VACC/New"
                 )
+            self._fix_require_insurer(vals.get("insurer_id"))
         recs = super().create(vals_list)
         raiser = self.env.user if not self.env.su else None
         for rec in recs:
@@ -1964,6 +2144,8 @@ class FixVehicleAccident(models.Model):
         # DOFA mixin withdraws it when the figure RISES; a settlement accepted
         # below the approved figure is also a different decision, so any
         # change withdraws it and the closer must request approval again.
+        if vals.get("insurer_id") and any(r.insurer_id.id != vals["insurer_id"] for r in self):
+            self._fix_require_insurer(vals["insurer_id"])
         approved = self.filtered("dofa_approved") if "settlement_amount" in vals else self.browse()
         before = {rec.id: rec.settlement_amount or 0.0 for rec in approved}
         res = super().write(vals)
@@ -2064,4 +2246,70 @@ class FixVehicleAccident(models.Model):
                 body="Claim closed by %s with a settlement of %s."
                 % (self.env.user.name, rec._dofa_amount_label())
             )
+        return True
+
+    def action_close_no_claim(self, reason=None):
+        """Reported -> closed with no claim: damage below the excess, the other
+        party paid, a near miss. It could never close without someone inventing
+        a claim reference, and an open accident keeps the van off dispatch
+        after the re-check. Same closer as a claim: a Logistics Manager who did
+        not report it. The off-road record still needs its own re-check."""
+        require_role(self.env, LOGISTICS_MANAGER_GROUP, "Closing an accident with no claim")
+        reason = _reason(reason, "closing the accident with no claim")
+        for rec in self:
+            if rec.state != "reported":
+                raise UserError(
+                    "%s has a claim filed: close it with Close Claim, with the settled amount "
+                    "(0 if declined)." % rec.name
+                )
+            if not self.env.su and rec.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you reported %s; another person must close it."
+                    % rec.name
+                )
+            if rec.settlement_amount:
+                raise UserError(
+                    "%s records a settlement of %s, so there is a claim: file it with its "
+                    "reference, or clear the amount." % (rec.name, rec.settlement_amount)
+                )
+            rec._guarded().write(
+                {
+                    "state": "closed",
+                    "closed_by_id": self.env.uid,
+                    "closed_on": fields.Date.context_today(self),
+                    "no_claim_reason": reason,
+                }
+            )
+            rec.message_post(
+                body="Closed with no claim by %s. Reason: %s" % (self.env.user.name, reason)
+            )
+        return True
+
+    def action_add_insurer(self, insurer=None):
+        """Name the insurer on this accident, marking the partner as an insurer:
+        an existing partner of that exact name, else a new company. A Fleet
+        Officer's decision; the picker then offers it on every accident."""
+        require_role(self.env, FLEET_OFFICER_GROUP, "Adding an insurer")
+        name = insurer.strip() if isinstance(insurer, str) else ""
+        if not name:
+            raise UserError("Give the insurer's name.")
+        Partner = self.env["res.partner"].sudo()
+        found = Partner.search(
+            [
+                ("name", "=ilike", like_exact(name)),
+                "|",
+                ("company_id", "=", False),
+                ("company_id", "in", self.env.companies.ids),
+            ]
+        )
+        if len(found) > 1:
+            raise UserError(
+                "%d partners are named %s. Give the full, exact name of one of them."
+                % (len(found), name)
+            )
+        partner = found or Partner.create({"name": name, "is_company": True})
+        partner.write({"is_insurer": True})
+        for rec in self:
+            rec.write({"insurer_id": partner.id})
+            rec.message_post(body="Insurer %s named by %s." % (partner.name, self.env.user.name))
         return True

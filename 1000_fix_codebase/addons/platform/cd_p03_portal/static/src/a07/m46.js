@@ -20,11 +20,13 @@ export const MODULE = {
     { en: 'Register', screens: [
       { id: 'M46-vehicles', en: 'Vehicle Register', bn: 'যানবাহন রেজিস্টার', t: 'g' },
       { id: 'M46-drivers', en: 'Driver Register', bn: 'চালক রেজিস্টার', t: 'g' },
-      { id: 'M46-assign', en: 'Assignment & Pool', bn: 'অ্যাসাইনমেন্ট', t: 'g' }
+      { id: 'M46-assign', en: 'Assignment & Pool', bn: 'অ্যাসাইনমেন্ট', t: 'g' },
+      { id: 'M46-models', en: 'Vehicle Models', bn: 'যানবাহনের মডেল', t: 'g' },
+      { id: 'M46-brands', en: 'Vehicle Makes', bn: 'যানবাহনের নির্মাতা', t: 'g' }
     ]},
     { en: 'Statutory', screens: [
       { id: 'M46-docs', en: 'Documents & Expiry', bn: 'নথি ও মেয়াদ', t: 'g' },
-      { id: 'M46-renewal', en: 'Renewal & Off-Road', bn: 'নবায়ন ও অফ-রোড', t: 'g' }
+      { id: 'M46-renewal', en: 'Off-Road Records', bn: 'অফ-রোড রেকর্ড', t: 'g' }
     ]},
     { en: 'Operations', screens: [
       { id: 'M46-preuse', en: 'Daily Pre-Use Checks', bn: 'দৈনিক চেক', t: 'g' },
@@ -37,6 +39,7 @@ export const MODULE = {
     ]},
     { en: 'Safety & Cost', screens: [
       { id: 'M46-accidents', en: 'Accidents & Insurance', bn: 'দুর্ঘটনা ও বীমা', t: 'g' },
+      { id: 'M46-insurers', en: 'Insurers', bn: 'বিমাকারী', t: 'g' },
       { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'g' },
       { id: 'M46-cost', en: 'Cost per Kilometre', bn: 'প্রতি কিমি খরচ', t: 'g' }
     ]}
@@ -48,7 +51,7 @@ export const MODULE = {
     ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles'] }],
     ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-renewal'] }],
     ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour'] }],
-    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['vehicle_id', 'date', 'technician_id', 'order_id'], screens: ['M46-assign'] }],
+    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'] }],
     ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-pm'] }],
     ['6', 'Fuel & Odometer', 8, { model: 'fix.vehicle.fuel', cols: ['vehicle_id', 'filled_on', 'litres', 'odometer', 'amount'], screens: ['M46-fuel', 'M46-cost'] }],
     ['7', 'Telematics', 5, { model: 'fix.vehicle.telemetry', cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'state'], screens: ['M46-telematics'] }],
@@ -62,9 +65,21 @@ export const SCREENS = {
     domain: [['module', '=', 'M46']],
     cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
+  /* A retired vehicle stays on the register: its history is still read. */
   'M46-vehicles': { kind: 'model_list', model: 'fleet.vehicle',
-    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'compliance_ok', 'dispatch_blockers', 'fix_position_unknown', 'fitness_expiry', 'insurance_expiry'],
-    actions: [{ m: 'action_assert_dispatchable', l: 'Assert Dispatchable' }] },
+    domain: [['active', 'in', [true, false]]],
+    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'compliance_ok', 'dispatch_blockers', 'fix_position_unknown', 'fitness_expiry', 'insurance_expiry', 'active', 'fix_retire_reason'],
+    actions: [
+      { m: 'action_assert_dispatchable', l: 'Assert Dispatchable' },
+      /* A Fleet Logistics Manager's decision; it raises the disposal request to finance. */
+      { m: 'action_retire', l: 'Retire', ask: 'Why is this vehicle leaving the fleet?', kwarg: 'reason' }
+    ] },
+  'M46-models': { kind: 'model_list', model: 'fleet.vehicle.model',
+    note: 'A Fleet Officer adds a model here before registering the first vehicle of that model. A bike needs a motorcycle licence; a car or van a light one.',
+    cols: ['name', 'brand_id', 'vehicle_type', 'model_year', 'seats'] },
+  'M46-brands': { kind: 'model_list', model: 'fleet.vehicle.model.brand',
+    note: 'The makes a vehicle model can name.',
+    cols: ['name'] },
   'M46-drivers': { kind: 'model_list', model: 'fix.driver', stateField: 'state',
     cols: ['name', 'employee_id', 'license_no', 'license_class', 'license_class_codes', 'license_expiry', 'state', 'suspended_by_id'],
     /* A07 P0 recipe M46-6: both take a reason (kept in the chatter); the
@@ -74,10 +89,22 @@ export const SCREENS = {
       { m: 'action_suspend', l: 'Suspend', ask: 'Reason for the suspension', kwarg: 'reason' },
       { m: 'action_reinstate', l: 'Reinstate', ask: 'Reason for the reinstatement', kwarg: 'reason' }
     ] },
-  /* A07 audit M46-1: assignments are made by M02 dispatch (a field order
-   * that names a vehicle), which runs the gate; hence no create here. */
-  'M46-assign': { kind: 'model_list', create: false, model: 'fix.vehicle.assignment',
-    cols: ['vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'field_order_ids'] },
+  /* M02 dispatch books a van for a field order that names one. A Fleet Officer
+   * also books, changes and releases here; a booking a live field order holds
+   * is changed on that order. Every save runs the dispatch gate. */
+  'M46-assign': { kind: 'model_list', model: 'fix.vehicle.assignment', stateField: 'state',
+    note: 'A booking holds a vehicle for one day. Making or changing one runs the dispatch gate and refuses a van already booked that day. Release frees the day and keeps the booking as history. A booking a live field order travels in is changed on that order.',
+    domain: [['active', 'in', [true, false]]],
+    cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'field_order_ids', 'offroad_conflict_note', 'state', 'release_reason'],
+    actions: [
+      { m: 'action_reassign', l: 'Reassign', asks: [
+        { label: 'New vehicle plate (blank = keep)', kwarg: 'vehicle' },
+        { label: 'New driver name or licence number (blank = keep)', kwarg: 'driver' },
+        { label: 'New technician name (blank = keep)', kwarg: 'technician' },
+        { label: 'Reason for the change', kwarg: 'reason' }
+      ] },
+      { m: 'action_release', l: 'Release', ask: 'Reason for releasing the booking', kwarg: 'reason' }
+    ] },
   'M46-docs': { kind: 'model_list', model: 'fix.vehicle.document', stateField: 'state',
     cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'evidence_status', 'is_current', 'is_valid', 'state'],
     /* A07 P1: Fleet Officer only (record, attach the scan, mark expired). */
@@ -93,25 +120,36 @@ export const SCREENS = {
   'M46-pm': { kind: 'model_list', model: 'fix.vehicle.pm', stateField: 'state',
     cols: ['name', 'vehicle_id', 'pm_type', 'odometer', 'due_odometer', 'due_date', 'is_overdue', 'scheduled_on', 'done_on', 'cost', 'state'],
     actions: [{ m: 'action_done', l: 'Mark Done' }] },
-  'M46-fuel': { kind: 'model_list', model: 'fix.vehicle.fuel',
+  'M46-fuel': { kind: 'model_list', model: 'fix.vehicle.fuel', stateField: 'review_state',
     cols: ['name', 'vehicle_id', 'driver_id', 'filled_on', 'litres', 'odometer', 'amount', 'station', 'receipt_no', 'exception_summary', 'review_state'],
-    /* M46-9: a held fill is reviewed by a Logistics Manager who did not record it. */
+    /* M46-9: a held fill is reviewed by a Fleet Logistics Manager who did not
+     * record it. A wrong reading that was accepted is corrected by the same
+     * person, so one typo does not refuse every later fill. */
     actions: [
       { m: 'action_clear_exception', l: 'Clear Exception', ask: 'What was checked (receipt, odometer, route)?', kwarg: 'note' },
-      { m: 'action_reject_fill', l: 'Reject Fill', ask: 'Reason for rejecting the fill', kwarg: 'reason' }
+      { m: 'action_reject_fill', l: 'Reject Fill', ask: 'Reason for rejecting the fill', kwarg: 'reason' },
+      { m: 'action_correct_odometer', l: 'Correct Odometer', asks: [
+        { label: 'The right odometer reading (km)', kwarg: 'odometer', number: true },
+        { label: 'What shows it (receipt, service record)?', kwarg: 'reason' }
+      ] }
     ] },
   'M46-telematics': { kind: 'model_list', model: 'fix.vehicle.telemetry', stateField: 'state',
     cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'odometer', 'fuel_level_pct', 'state'] },
   'M46-accidents': { kind: 'model_list', model: 'fix.vehicle.accident', stateField: 'state',
     cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'claim_ref', 'insurer_id', 'settlement_amount', 'approval_state', 'state'],
     /* M46-10: the claim carries the insurer's reference; a settlement above
-     * Tier 0 is approved from the approver's inbox (M63); a Logistics Manager
-     * who did not report it closes it, with the insurer and the evidence. */
+     * Tier 0 is approved from the approver's inbox (M63); a Fleet Logistics
+     * Manager who did not report it closes it, with the insurer and the
+     * evidence, or closes it with no claim, with the reason. */
     actions: [
+      { m: 'action_add_insurer', l: 'Add Insurer', ask: "The insurer's full name (an existing partner is marked, otherwise a new company is made)", kwarg: 'insurer' },
       { m: 'action_claim', l: 'File Claim', ask: "Insurer's claim reference (blank = the one on the record)", kwarg: 'claim_ref' },
       { m: 'action_request_approval', l: 'Request Settlement Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
-      { m: 'action_close', l: 'Close Claim', ask: 'Settled amount in BDT (0 if declined)', kwarg: 'settlement' }
+      { m: 'action_recall_approval', l: 'Recall Request' },
+      { m: 'action_close', l: 'Close Claim', ask: 'Settled amount in BDT (0 if declined)', kwarg: 'settlement' },
+      { m: 'action_close_no_claim', l: 'Close With No Claim', ask: 'Why is no claim being made?', kwarg: 'reason' }
     ] },
+  'M46-insurers': { kind: 'table_report', module: 'M46', report: 'insurers', title: 'Insurers', period: false },
   'M46-behaviour': { kind: 'table_report', module: 'M46', report: 'driver_behaviour', title: 'Driver Behaviour', period: false },
   /* M46-11: cost/km and km/l honour the chosen period (fill to fill) */
   'M46-cost': { kind: 'table_report', module: 'M46', report: 'cost_per_km', title: 'Cost per Kilometre' },
@@ -129,8 +167,12 @@ export const SCREENS = {
     model: 'fleet.vehicle',
     title: 'Vehicle',
     back: 'M46-vehicles',
+    tabs: [
+      { id: 'register', label: '1. Register', bn: '১. রেজিস্টার', icon: '🚐', badge: '10' },
+      { id: 'value', label: '2. Value & Retirement', bn: '২. মূল্য ও অবসর', icon: '💰', badge: '8' }
+    ],
     sections: [
-      { title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet); a plate is registered to one active vehicle. The fitness and insurance dates are read from the statutory document register (record a renewal as a document with its scan); dispatch is decided from the register. The licence class required follows the model (bike = motorcycle, car/van = light); raise it for a medium or heavy vehicle.',
+      { tab: 'register', title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet); a plate is registered to one active vehicle. The fitness and insurance dates are read from the statutory document register (record a renewal as a document with its scan); dispatch is decided from the register. The licence class required follows the model (bike = motorcycle, car/van = light); raise it for a medium or heavy vehicle.',
         fields: [
           { name: 'model_id', required: true, label: 'Vehicle Model' },
           { name: 'license_plate', required: true, label: 'Licence Plate' },
@@ -142,6 +184,71 @@ export const SCREENS = {
           { name: 'fitness_expiry', label: 'Fitness Expiry (register)', readonly: true },
           { name: 'insurance_expiry', label: 'Insurance Expiry (register)', readonly: true },
           { name: 'fix_position_unknown', label: 'Position Unknown', readonly: true }
+        ] },
+      { tab: 'value', title: 'Purchase, Cancellation & Retirement', note: 'The purchase value and the cancellation date are kept by a Fleet Logistics Manager. A value above the capitalisation floor raises a capitalisation request to finance; a cancellation date, or Retire on the Vehicle Register, raises a disposal request, and the dispatch gate refuses the vehicle. Retire takes the reason, and refuses while the vehicle is still booked.',
+        fields: [
+          { name: 'net_car_value', label: 'Purchase Value' },
+          { name: 'acquisition_date', label: 'Registration Date' },
+          { name: 'write_off_date', label: 'Plate Cancellation Date' },
+          { name: 'fixed_asset_id', label: 'Fixed Asset', readonly: true },
+          { name: 'active', label: 'In the Fleet', readonly: true },
+          { name: 'fix_retire_reason', label: 'Retirement Reason', readonly: true },
+          { name: 'fix_retired_on', label: 'Retired On', readonly: true },
+          { name: 'fix_retired_by_id', label: 'Retired By', readonly: true }
+        ] }
+    ]
+  },
+
+  'M46-form-model': {
+    kind: 'model_form',
+    model: 'fleet.vehicle.model',
+    title: 'Vehicle Model',
+    back: 'M46-models',
+    sections: [
+      { title: 'Model', note: 'Kept by a Fleet Officer. A vehicle is registered against a model. If the make is not offered, add it on Vehicle Makes first.',
+        fields: [
+          { name: 'brand_id', required: true, label: 'Make' },
+          { name: 'name', required: true, label: 'Model Name' },
+          { name: 'vehicle_type', required: true, label: 'Vehicle Type' },
+          { name: 'model_year', label: 'Model Year' },
+          { name: 'seats', label: 'Seats' }
+        ] }
+    ]
+  },
+
+  'M46-form-brand': {
+    kind: 'model_form',
+    model: 'fleet.vehicle.model.brand',
+    title: 'Vehicle Make',
+    back: 'M46-brands',
+    sections: [
+      { title: 'Make', fields: [{ name: 'name', required: true, label: 'Make' }] }
+    ]
+  },
+
+  'M46-form-assignment': {
+    kind: 'model_form',
+    model: 'fix.vehicle.assignment',
+    title: 'Vehicle Booking',
+    back: 'M46-assign',
+    status: { field: 'state', labels: { booked: 'Booked', released: 'Released' } },
+    sections: [
+      { title: 'Booking', note: 'Kept by a Fleet Officer: one vehicle, one day. The dispatch gate reads the vehicle and the driver when you save: an uninsured vehicle, an expired licence or a van already booked that day is refused. With no driver chosen, the vehicle\'s assigned driver is used. A booking a live field order travels in is changed on that order.',
+        fields: [
+          { name: 'vehicle_id', required: true, label: 'Vehicle' },
+          { name: 'date', required: true, label: 'Day' },
+          { name: 'driver_id', label: 'Driver' },
+          { name: 'technician_id', label: 'Technician' },
+          { name: 'order_id', label: 'Service Order' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ] },
+      { title: 'Status',
+        fields: [
+          { name: 'dispatch_created', label: 'Made by Dispatch', readonly: true },
+          { name: 'offroad_conflict_note', label: 'Off-Road Conflict', readonly: true },
+          { name: 'released_on', label: 'Released On', readonly: true },
+          { name: 'released_by_id', label: 'Released By', readonly: true },
+          { name: 'release_reason', label: 'Release Reason', readonly: true }
         ] }
     ]
   },
@@ -173,8 +280,12 @@ export const SCREENS = {
     model: 'fix.vehicle.fuel',
     title: 'Fuel Transaction',
     back: 'M46-fuel',
+    tabs: [
+      { id: 'fill', label: '1. Fill', bn: '১. জ্বালানি', icon: '⛽', badge: '11' },
+      { id: 'review', label: '2. Exception Review', bn: '২. ব্যতিক্রম পর্যালোচনা', icon: '🔍', badge: '5' }
+    ],
     sections: [
-      { title: 'Fuel', note: 'Litres, amount and odometer are the basis of the efficiency and cost-per-km packs. Every fill names the driver and the amount. A fill is refused when the odometer is below the previous fill, the litres exceed the tank capacity, it repeats a recorded fill (same odometer and litres, or the same receipt at the same station) or the vehicle is off-road. A distance since the previous fill beyond what a full tank covers holds the fill for review by a Logistics Manager who did not record it; a held fill is left out of the cost figures until reviewed. Only the recorder corrects a fill, and a reviewed fill is locked.',
+      { tab: 'fill', title: 'Fuel', note: 'Litres, amount and odometer are the basis of the efficiency and cost-per-km packs. Every fill names the driver and the amount. A fill is refused when the odometer is below the previous fill, the litres exceed the tank capacity, it repeats a recorded fill (same odometer and litres, or the same receipt at the same station) or the vehicle is off-road. If such a fill is genuine, give the reason: it is then held for review by a Fleet Logistics Manager who did not record it. A distance since the previous fill beyond what a full tank covers is held the same way. A held fill is left out of the cost figures until reviewed. Only the recorder corrects a fill, and a reviewed fill is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'driver_id', required: true, label: 'Driver' },
@@ -184,9 +295,11 @@ export const SCREENS = {
           { name: 'amount', required: true, label: 'Amount' },
           { name: 'station', label: 'Station' },
           { name: 'receipt_no', label: 'Receipt No' },
-          { name: 'receipt_file', label: 'Receipt (scan)', type: 'file' }
+          { name: 'receipt_file', label: 'Receipt (scan)', type: 'file' },
+          { name: 'receipt_filename', label: 'Receipt File Name' },
+          { name: 'exception_reason', label: 'Reason (if the fill is genuine)' }
         ] },
-      { title: 'Exception Review',
+      { tab: 'review', title: 'Exception Review',
         fields: [
           { name: 'exception_summary', label: 'Exceptions', readonly: true },
           { name: 'review_state', label: 'Review', readonly: true },
@@ -204,8 +317,12 @@ export const SCREENS = {
     back: 'M46-accidents',
     status: { field: 'state', labels: {
       reported: 'Reported', claimed: 'Claim Filed', closed: 'Closed' } },
+    tabs: [
+      { id: 'incident', label: '1. Incident', bn: '১. ঘটনা', icon: '🚨', badge: '14' },
+      { id: 'settlement', label: '2. Settlement & Close', bn: '২. নিষ্পত্তি ও বন্ধ', icon: '🔐', badge: '7' }
+    ],
     sections: [
-      { title: 'Incident', note: 'Reporting an accident takes the vehicle off-road until a passed re-check by someone else. Reported → claim filed (with the insurer claim reference, by the reporter or a Fleet Officer) → closed by a Logistics Manager who did not report it, once the insurer and the evidence are recorded. A settlement above Tier 0 needs a DOFA approval from the approver inbox, and changing the figure afterwards withdraws it. A closed claim is locked.',
+      { tab: 'incident', title: 'Incident', note: 'Reporting an accident takes the vehicle off-road until a passed re-check by someone else. Reported → claim filed (with the insurer claim reference, by the reporter or a Fleet Officer) → closed by a Fleet Logistics Manager who did not report it, once the insurer and the evidence are recorded. With no claim to make, the same person closes it from Reported with Close With No Claim and the reason. If the insurer is not offered, a Fleet Officer adds it with Add Insurer on the list. A settlement above Tier 0 needs a DOFA approval from the approver inbox, and changing the figure afterwards withdraws it. A closed accident is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'driver_id', label: 'Driver' },
@@ -217,17 +334,20 @@ export const SCREENS = {
           { name: 'police_ref', label: 'Police Reference (GD/case no.)' },
           { name: 'injury', label: 'Injury Involved' },
           { name: 'evidence_file', label: 'Evidence (photos / assessor report)', type: 'file' },
+          { name: 'evidence_filename', label: 'Evidence File Name' },
           { name: 'settlement_amount', label: 'Settlement Amount' },
+          { name: 'hse_case_ref', label: 'HSE Case', readonly: true },
           { name: 'state', label: 'State', readonly: true }
         ] },
-      { title: 'Settlement Approval',
+      { tab: 'settlement', title: 'Settlement Approval',
         fields: [
           { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
           { name: 'dofa_approved_amount', label: 'Amount Approved', readonly: true },
           { name: 'closed_by_id', label: 'Closed By', readonly: true },
-          { name: 'closed_on', label: 'Closed On', readonly: true }
+          { name: 'closed_on', label: 'Closed On', readonly: true },
+          { name: 'no_claim_reason', label: 'Closed Without a Claim', readonly: true }
         ] }
     ]
   },
@@ -272,6 +392,7 @@ export const SCREENS = {
           { name: 'valid_from', label: 'Valid From' },
           { name: 'valid_to', label: 'Valid To' },
           { name: 'evidence_file', label: 'Evidence (scan)', type: 'file' },
+          { name: 'evidence_filename', label: 'Evidence File Name' },
           { name: 'evidence_status', label: 'Evidence', readonly: true },
           { name: 'is_current', label: 'Current', readonly: true },
           { name: 'is_valid', label: 'Valid Today', readonly: true },
@@ -288,7 +409,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       offroad: 'Off Road', returned: 'Returned to Service' } },
     sections: [
-      { title: 'Off-Road', note: 'An open record removes the vehicle from availability until returned. Anyone may report a defect; a failed pre-use check, a reported accident and a lapsed mandatory document open one automatically. Return to Service is a Fleet Officer action by someone other than the person who raised the record: a defect, accident or service record needs a passed pre-use check recorded after the vehicle went off-road; a document record needs the renewal recorded with its scan.',
+      { title: 'Off-Road', note: 'An open record removes the vehicle from availability until returned. Anyone may report a defect; a failed pre-use check, a reported accident and a lapsed mandatory document open one automatically. Return to Service is a Fleet Officer action by someone other than the person who raised the record: a defect, accident or service record needs a passed pre-use check recorded after the vehicle went off-road, and a service record also needs the service marked done; a document record needs the renewal recorded with its scan.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'reason', required: true, label: 'Reason' },
@@ -311,7 +432,7 @@ export const SCREENS = {
     title: 'Pre-Use Check',
     back: 'M46-preuse',
     sections: [
-      { title: 'Daily Check', note: 'Passed is computed: each of the four items must be ticked OK (an unanswered item fails the check); defects are recorded either way. A failed check takes the vehicle off-road at once, until a passed re-check is recorded and someone else returns it to service. A saved check cannot be changed: record a new one.',
+      { title: 'Daily Check', note: 'Passed is computed: each of the four items must be ticked OK (an unanswered item fails the check); defects are recorded either way. A failed check takes the vehicle off-road at once, until a passed re-check is recorded and someone else returns it to service. A saved check cannot be changed: record a new one. A reading below the last recorded one, or further on than a full tank covers, is refused; if it is right, leave Odometer empty and tell the Fleet Logistics Manager.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'driver_id', label: 'Driver' },
@@ -334,7 +455,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       online: 'Online', stale: 'Stale', offline: 'Offline' } },
     sections: [
-      { title: 'Telemetry', note: 'A snapshot of what the device reported, recorded by a Fleet Officer; no live feed is claimed. The state is derived from the last ping: online within the silence interval (cd_vehicle_ext.telematics_silence_minutes), stale after it (the vehicle is position-unknown), offline with no ping. A saved snapshot is not edited.',
+      { title: 'Telemetry', note: 'A snapshot of what the device reported, recorded by a Fleet Officer; no live feed is claimed. The state is derived from the last ping: online within the silence interval (cd_vehicle_ext.telematics_silence_minutes), stale after it (the vehicle is position-unknown, and an inspection of the device is raised), offline with no ping. Enter the last ping in your own local time. A saved snapshot is not edited.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'device_ref', label: 'Telematics Device' },
@@ -378,11 +499,17 @@ export const FORM_CHIPS = {
     'fix.vehicle.document': 'M46-form-document',
     'fix.vehicle.offroad': 'M46-form-offroad',
     'fix.vehicle.check': 'M46-form-check',
-    'fix.vehicle.telemetry': 'M46-form-telemetry'
+    'fix.vehicle.telemetry': 'M46-form-telemetry',
+    'fix.vehicle.assignment': 'M46-form-assignment',
+    'fleet.vehicle.model': 'M46-form-model',
+    'fleet.vehicle.model.brand': 'M46-form-brand'
   },
   'M46:__by_screen__': {
     'M46-vehicles': 'M46-form-vehicle',
     'M46-drivers': 'M46-form-driver',
+    'M46-assign': 'M46-form-assignment',
+    'M46-models': 'M46-form-model',
+    'M46-brands': 'M46-form-brand',
     'M46-docs': 'M46-form-document',
     'M46-renewal': 'M46-form-offroad',
     'M46-preuse': 'M46-form-check',
