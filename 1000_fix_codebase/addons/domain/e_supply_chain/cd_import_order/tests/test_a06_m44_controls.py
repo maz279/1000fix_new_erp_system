@@ -52,6 +52,8 @@ ROLES = (
     "ait_advance",
     "variance",
     "grni",
+    "lc_clearing",
+    "fx_difference",
 )
 FX = 117.5
 
@@ -139,6 +141,8 @@ def c(odoo_env):
         "ait_advance": "asset_current",
         "variance": "expense",
         "grni": "liability_current",
+        "lc_clearing": "asset_current",
+        "fx_difference": "expense",
     }
     for i, role in enumerate(ROLES):
         code = "M44%s%d" % (tag[:3], i)
@@ -218,14 +222,18 @@ def c(odoo_env):
             "operating_unit_id": x.ou.id,
         }
     )
-    x.part = env["fix.spare.part"].create(
-        {"name": "M44T LCD %s" % tag, "part_number": "M44-LCD-%s" % tag}
-    )
-    x.part2 = env["fix.spare.part"].create(
-        {"name": "M44T Battery %s" % tag, "part_number": "M44-BAT-%s" % tag}
-    )
     x.product = env["product.product"].create({"name": "M44T LCD panel %s" % tag})
     x.product2 = env["product.product"].create({"name": "M44T battery %s" % tag})
+    x.part = env["fix.spare.part"].create(
+        {"name": "M44T LCD %s" % tag, "part_number": "M44-LCD-%s" % tag, "product_id": x.product.id}
+    )
+    x.part2 = env["fix.spare.part"].create(
+        {
+            "name": "M44T Battery %s" % tag,
+            "part_number": "M44-BAT-%s" % tag,
+            "product_id": x.product2.id,
+        }
+    )
     x.code = "8524.11.00"
     x.tariff = env["fix.import.tariff"].create(
         {
@@ -245,6 +253,10 @@ def c(odoo_env):
         {"product_id": x.product.id, "hs_code": x.code, "ruling_ref": "RUL-%s" % tag}
     )
     x.hs.action_rule()
+    x.hs2 = env["fix.import.hs"].create(
+        {"product_id": x.product2.id, "hs_code": x.code, "ruling_ref": "RUL2-%s" % tag}
+    )
+    x.hs2.action_rule()
     x.supplier = env["res.partner"].create(
         {"name": "M44T Shenzhen Parts %s" % tag, "is_company": True}
     )
@@ -304,11 +316,12 @@ def _order(c, user=None, **kw):
         "insurance_cost": 100.0,
         "fx_rate": FX,
         "fx_rate_source": "AD bank contract",
+        "fx_rate_date": c.today,
         "incoterm": "fob",
         "location_id": c.loc.id,
         "line_ids": [
             (0, 0, {"part_id": c.part.id, "hs_id": c.hs.id, "quantity": 10, "unit_price": 600.0}),
-            (0, 0, {"part_id": c.part2.id, "hs_id": c.hs.id, "quantity": 20, "unit_price": 200.0}),
+            (0, 0, {"part_id": c.part2.id, "hs_id": c.hs2.id, "quantity": 20, "unit_price": 200.0}),
         ],
     }
     vals.update(kw)
@@ -413,7 +426,37 @@ def shipdoc(c, doc_type, user=None, ref=None):
     )
 
 
+def stage_advance(c, order=None):
+    """Scorecard 24: an approved advance, the instrument a B/L ships against
+    when there is no LC."""
+    advance = (
+        c.env["fix.import.advance"]
+        .with_user(c.officer)
+        .create(
+            {
+                "order_id": (order or c.order).id,
+                "amount": 100.0,
+                "currency_id": c.usd.id,
+                "bank": "Test AD Bank",
+                "guarantee_ref": "APG-%s" % c.tag,
+            }
+        )
+    )
+    advance.action_request()
+    advance.with_user(c.approver).action_approve("Test instrument for the fixture")
+    return advance
+
+
 def stage_shipped(c):
+    if not (
+        c.env["fix.import.lc"].search_count(
+            [("order_id", "=", c.order.id), ("state", "=", "opened")]
+        )
+        or c.env["fix.import.advance"].search_count(
+            [("order_id", "=", c.order.id), ("state", "=", "approved")]
+        )
+    ):
+        stage_advance(c)
     for doc_type in ("bl", "invoice", "packing"):
         shipdoc(c, doc_type).with_user(c.officer).action_receive()
 
@@ -748,7 +791,7 @@ def test_m44_a04_lca_state_via_p03(c, p03):
 
 def test_m44_a05_lca_reapprove_refused(c):
     rec = lca(c, lc(c))
-    rec.with_user(c.approver).action_reject()
+    rec.with_user(c.approver).action_reject("Bank declined")
     _refused(rec.with_user(c.approver2).action_approve, match="applied")
 
 
@@ -767,14 +810,25 @@ def test_m44_h01_hs_code_format_and_tariff(c):
         lambda: (
             c.env["fix.import.hs"]
             .with_user(c.officer)
-            .create({"product_id": c.product2.id, "hs_code": "ABC"})
+            .create(
+                {
+                    "product_id": c.env["product.product"].create({"name": "M44T unclassified"}).id,
+                    "hs_code": "ABC",
+                }
+            )
         ),
         match="not a tariff heading",
     )
     hs = (
         c.env["fix.import.hs"]
         .with_user(c.officer)
-        .create({"product_id": c.product2.id, "hs_code": "9999.99.99", "ruling_ref": "R"})
+        .create(
+            {
+                "product_id": c.env["product.product"].create({"name": "M44T unclassified"}).id,
+                "hs_code": "9999.99.99",
+                "ruling_ref": "R",
+            }
+        )
     )
     _refused(hs.with_user(c.approver).action_rule, match="no active tariff")
 
@@ -833,7 +887,13 @@ def test_m44_h04_classifier_cannot_rule(c):
     hs = (
         c.env["fix.import.hs"]
         .with_user(c.officer)
-        .create({"product_id": c.product2.id, "hs_code": c.code, "ruling_ref": "R2"})
+        .create(
+            {
+                "product_id": c.env["product.product"].create({"name": "M44T unclassified"}).id,
+                "hs_code": c.code,
+                "ruling_ref": "R2",
+            }
+        )
     )
     _refused(hs.with_user(c.officer).action_rule, match="Import Approver")
     c.env.ref(APPROVER).sudo().write({"user_ids": [(4, c.officer.id)]})
@@ -881,7 +941,12 @@ def test_m44_h08_hs_ruled_by_write(c):
     hs = (
         c.env["fix.import.hs"]
         .with_user(c.officer)
-        .create({"product_id": c.product2.id, "hs_code": c.code})
+        .create(
+            {
+                "product_id": c.env["product.product"].create({"name": "M44T unclassified"}).id,
+                "hs_code": c.code,
+            }
+        )
     )
     _refused(hs.with_user(c.officer).write, {"state": "ruled"}, match="workflow")
 
@@ -1130,6 +1195,7 @@ def test_m44_r07_clearance_advances_order_and_publishes(c):
 
 # ================================================================ shipping documents
 def test_m44_s01_shipdoc_verified_only_by_action(c):
+    stage_advance(c)
     doc = shipdoc(c, "bl")
     _refused(doc.with_user(c.officer).write, {"state": "verified"}, match="workflow")
     doc.with_user(c.officer).action_receive()
@@ -1336,8 +1402,9 @@ def test_m44_c04_allocation_lines(c):
     sheet.with_user(c.approver).action_finalise()
     by_part = {ln.part_id: ln.amount for ln in sheet.line_ids}
     assert by_part[c.part2] == pytest.approx(2 * by_part[c.part], abs=0.02)  # 20 vs 10 units
-    weight = landed(c, allocation_method="weight")
-    _refused(weight.with_user(c.approver).action_finalise)
+    # import lines carry no weight: the option that was always refused is gone
+    with pytest.raises(ValueError), c.env.cr.savepoint():
+        landed(c, allocation_method="weight")
 
 
 def test_m44_c05_one_final_sheet_per_order(c):
@@ -1439,7 +1506,7 @@ def test_m44_w02_forms_offer_no_guarded_field(c):
     ff = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ff)
     editable = ff.editable_by_model()
-    for model in list(m44.SURFACES) + list(m44.NEW_SURFACES):
+    for model in m44.SURFACES:
         guarded = (
             c.env[model].browse()._fix_guarded_fields()
             if hasattr(c.env[model], "_fix_guarded_fields")
@@ -1570,8 +1637,16 @@ def test_m44_1_po_link_and_grni_at_receipt(c):
     """M44-1: the import is linked to its M16 PO; the receipt carries the PO
     and posts the goods value once: Dr stock valuation / Cr GRNI."""
     po = c.env["fix.purchase.order"].create(
-        {"vendor_id": c.supplier.id, "operating_unit_id": c.ou.id, "state": "sent"}
+        {
+            "vendor_id": c.supplier.id,
+            "operating_unit_id": c.ou.id,
+            "line_ids": [
+                (0, 0, {"product_id": c.product.id, "qty_ordered": 10, "unit_price": 600.0 * FX}),
+                (0, 0, {"product_id": c.product2.id, "qty_ordered": 20, "unit_price": 200.0 * FX}),
+            ],
+        }
     )
+    po._guarded().write({"state": "sent"})
     stranger = c.env["fix.purchase.order"].create(
         {
             "vendor_id": c.env["res.partner"].create({"name": "M44T other vendor"}).id,
@@ -1778,6 +1853,7 @@ def test_m44_bru12_licence_expiry_cron(c, monkeypatch):
 
 # ================================================================ BRU-ITC-13 insurance
 def test_m44_bru13_shipment_needs_cover_of_consignment_value(c):
+    stage_advance(c)
     doc = shipdoc(c, "bl")
     c.cover.with_user(c.approver).action_cancel()
     _refused(doc.with_user(c.officer).action_receive, match="cargo cover")
@@ -1800,6 +1876,7 @@ def test_m44_bru13_cover_verified_by_another_and_frozen(c):
 def test_m44_bru13_seller_insures_under_cif(c):
     order = _order(c, name="M44T-CIF-%s" % c.tag, incoterm="cif")
     c.order = order
+    stage_advance(c)
     shipdoc(c, "bl").with_user(c.officer).action_receive()
     assert order.state == "shipped"
 

@@ -15,6 +15,24 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="ir_cron_import_demurrage_alert" model="ir.cron">
+            <field name="name">M44: alert shipments past their free days at port</field>
+            <field name="model_id" ref="model_fix_import_arrival"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_demurrage_alert()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_import_boe_remittance" model="ir.cron">
+            <field name="name">M44: flag Bills of Entry and remittances unmatched past the window</field>
+            <field name="model_id" ref="model_fix_import_boe"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_boe_remittance_match()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
         <record id="ir_cron_import_cnf_expire" model="ir.cron">
             <field name="name">M44: expire C&amp;F agents whose licence has lapsed</field>
             <field name="model_id" ref="model_fix_import_cnf_agent"/>

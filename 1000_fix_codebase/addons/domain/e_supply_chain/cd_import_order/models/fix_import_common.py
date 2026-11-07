@@ -27,6 +27,11 @@ PARAM_DUTY_VARIANCE = P + "duty_variance_tolerance"  # BDT, default 0
 PARAM_JOURNAL = P + "journal_code"  # general journal; default: company's first
 PARAM_PAYMENT_JOURNAL = P + "payment_journal_code"  # bank/cash journal; REQUIRED
 PARAM_LC_REQUIRES_FACILITY = P + "lc_requires_facility"  # default "1" (BRU-ITC-06)
+PARAM_ADVANCE_CAP = P + "advance_cap_pct"  # default 0: every advance needs a stated reason
+PARAM_IRC_WARNING_DAYS = P + "irc_expiry_warning_days"  # default 30 (BRU-ITC-03)
+# 120 days stands in for Bangladesh Bank's 4-month Bill of Entry guideline;
+# Finance confirms the figure.
+PARAM_BOE_REMITTANCE_DAYS = P + "boe_remittance_match_days"  # default 120
 
 # role -> label. Each role's account code is the system parameter
 # cd_import_order.account_code.<role>; there is NO default code.
@@ -39,6 +44,8 @@ ACCOUNT_ROLES = {
     "ait_advance": "Advance Income Tax (AIT) paid at import",
     "variance": "Landed-cost variance / cost-of-sales adjustment",
     "grni": "Goods received not invoiced (import goods value awaiting the supplier bill)",
+    "lc_clearing": "LC payments clearing (remitted under an LC, awaiting the supplier bill)",
+    "fx_difference": "Exchange difference on LC settlement (settlement rate vs commitment rate)",
 }
 
 
@@ -109,6 +116,27 @@ def refuse_locked(records, vals, locked, why):
         if names and changes(rec, {n: vals[n] for n in names}):
             labels = ", ".join(sorted(rec._fields[n].string or n for n in names))
             raise UserError("%s cannot be changed on %s: %s" % (labels, rec.display_name, why))
+
+
+def alert_users(record, group_xmlid=None, *fallback):
+    """Who an alert goes to: the role's active users, else the named people."""
+    users = record.env["res.users"]
+    if group_xmlid:
+        users = record.env.ref(group_xmlid).sudo().all_user_ids.filtered("active")
+    if not users:
+        for person in fallback:
+            users |= person
+    return users.filtered("active")
+
+
+def schedule_alert(record, summary, note, users):
+    """A to-do on a record carrying mail.activity.mixin, one per person. The
+    caller stamps its own 'alerted on' field, so a daily job asks once."""
+    su = record.sudo()
+    for user in users:
+        su.activity_schedule(
+            "mail.mail_activity_data_todo", summary=summary, note=note, user_id=user.id
+        )
 
 
 # ---- GL seam ---------------------------------------------------------------

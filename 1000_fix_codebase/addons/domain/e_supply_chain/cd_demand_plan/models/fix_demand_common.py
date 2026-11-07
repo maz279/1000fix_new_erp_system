@@ -153,6 +153,16 @@ def consumed_by_day(env, company, part, location, first: date, days: int) -> lis
     return buckets
 
 
+def has_usable_history(env, company, part, location) -> bool:
+    """BRU-DPL-01 readiness, as the forecast's own test: enough of the last
+    window months carry M15 consumption for a statistical figure."""
+    window = param(env, CFG_FORECAST_WINDOW, 3, int)
+    minimum = param(env, CFG_FORECAST_MIN_HISTORY, 2, int)
+    first = add_months(date.today().replace(day=1), -window)
+    buckets = consumed_by_month(env, company, part, location, first, window)
+    return sum(1 for b in buckets if b > 0) >= minimum
+
+
 def consumed_value(env, company, part, first: date, stop: date) -> float:
     return sum(
         (r["quantity"] or 0.0) * (r["unit_cost"] or 0.0)
@@ -248,8 +258,51 @@ def apply_moq_pack(qty, moq, pack) -> float:
 def observed_lead_times(env, company, products, since: date) -> list:
     """Days from the PO being sent to its posted goods receipt, one sample per
     posted receipt line of these products received since `since`. Lines of a
-    PO never sent (no sent_at) or received before it was sent are ignored."""
-    if not products or "fix.purchase.receipt.line" not in env:
+    PO never sent (no sent_at) or received before it was sent are ignored.
+    BRU-ITC-19: an import with no PO has no M16 receipt, so its own receipt
+    gives the sample; a PO-linked import is already counted by its M16 GRN."""
+    if not products:
+        return []
+    return _m16_lead_times(env, company, products, since) + _m44_lead_times(
+        env, company, products, since
+    )
+
+
+def _m44_lead_times(env, company, products, since: date) -> list:
+    """Days from the commitment (the approved proforma, else the order's
+    creation) to the receipt of an import with no M16 PO."""
+    if "fix.import.order.line" not in env:
+        return []
+    lines = (
+        env["fix.import.order.line"]
+        .sudo()
+        .search(
+            [
+                ("part_id.product_id", "in", products.ids),
+                ("order_id.company_id", "=", company.id),
+                ("order_id.received_on", ">=", since),
+                ("order_id.m16_receipt_id", "=", False),
+            ]
+        )
+    )
+    out = []
+    for line in lines:
+        order = line.order_id
+        proformas = (
+            env["fix.import.proforma"]
+            .sudo()
+            .search([("order_id", "=", order.id), ("state", "=", "approved")])
+        )
+        stamps = [d for d in proformas.mapped("decided_on") if d]
+        start = min(stamps) if stamps else order.create_date
+        days = (order.received_on - start.date()).days
+        if days >= 0:
+            out.append(days)
+    return out
+
+
+def _m16_lead_times(env, company, products, since: date) -> list:
+    if "fix.purchase.receipt.line" not in env:
         return []
     lines = (
         env["fix.purchase.receipt.line"]

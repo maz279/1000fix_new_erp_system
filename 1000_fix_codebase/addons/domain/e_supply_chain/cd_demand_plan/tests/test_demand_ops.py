@@ -85,6 +85,8 @@ def test_rebalance_value_and_guards(m43):
                 "target_location_id": m43.loc2.id,
                 "qty": 10,
                 "transfer_cost": 250,
+                "benefit_value": 400,
+                "benefit_basis": "Avoided emergency buy",
             }
         )
     )

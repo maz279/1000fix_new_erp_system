@@ -24,6 +24,7 @@ from .fix_demand_common import (
     PLANNER,
     apply_moq_pack,
     budget_headroom,
+    has_usable_history,
     months_between,
     on_hand,
     on_order,
@@ -42,7 +43,10 @@ PLAN_PINNED = {
     "period_end",
     "operating_unit_id",
     "company_id",
+    "vendor_id",
 }
+# a plan in these states has reached M16: its figures are history
+PLAN_RELEASED_STATES = ("released", "converted", "closed")
 PLAN_POSITION = (
     "policy_id",
     "forecast_quantity",
@@ -91,6 +95,12 @@ class FixDemandPlan(models.Model):
     location_id = fields.Many2one(
         "fix.stock.location", string="Stock Location", index=True, help="Planning scope"
     )
+    vendor_id = fields.Many2one(
+        "res.partner",
+        string="Supplier",
+        help="The supplier of this planned order. Empty = the last purchase order's supplier. "
+        "It must be active in M42 before release (BRU-DPL-11).",
+    )
 
     # ---- the computed position (never typed)
     policy_id = fields.Many2one(
@@ -127,7 +137,13 @@ class FixDemandPlan(models.Model):
     budget_check = fields.Char(string="Budget Check", readonly=True, copy=False)
 
     state = fields.Selection(
-        [("draft", "Draft"), ("approved", "Approved"), ("released", "Released to M16")],
+        [
+            ("draft", "Draft"),
+            ("approved", "Approved"),
+            ("released", "Released to M16"),
+            ("converted", "Converted to PO"),
+            ("closed", "Closed (received)"),
+        ],
         default="draft",
         required=True,
         tracking=True,
@@ -150,6 +166,18 @@ class FixDemandPlan(models.Model):
     pr_requisition_id = fields.Many2one(
         "fix.requisition", string="Purchase Requisition", readonly=True, copy=False
     )
+    pr_state = fields.Selection(
+        related="pr_requisition_id.state", string="Requisition State", readonly=True
+    )
+    purchase_order_id = fields.Many2one(
+        "fix.purchase.order", string="Purchase Order", readonly=True, copy=False, index=True
+    )
+    actual_lead_time_days = fields.Integer(
+        string="Actual Lead Time (days)",
+        readonly=True,
+        copy=False,
+        help="From the plan's approval to the PO being fully received.",
+    )
 
     _period_order = models.Constraint(
         "CHECK (period_end >= period_start)", "A plan period cannot end before it starts"
@@ -165,6 +193,8 @@ class FixDemandPlan(models.Model):
                 "approved_by_id",
                 "approved_on",
                 "pr_requisition_id",
+                "purchase_order_id",
+                "actual_lead_time_days",
                 "budget_check",
             }
             | set(PLAN_POSITION)
@@ -174,7 +204,7 @@ class FixDemandPlan(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         rec = self[:1]
-        if rec and rec.state == "released":
+        if rec and rec.state in PLAN_RELEASED_STATES:
             locked |= PLAN_PINNED | {"name"}
         return locked
 
@@ -186,7 +216,7 @@ class FixDemandPlan(models.Model):
                 changed = [n for n in pinned if rec._fix_guard_differs(n, vals[n], rec[n])]
                 if not changed:
                     continue
-                if rec.state == "released":
+                if rec.state in PLAN_RELEASED_STATES:
                     raise UserError(
                         "Plan %s is released to M16 (requisition %s); its figures cannot change."
                         % (rec.name, rec.pr_requisition_id.display_name)
@@ -292,6 +322,16 @@ class FixDemandPlan(models.Model):
                     "Plan %s has no active replenishment policy for %s at %s."
                     % (rec.name, rec.part_id.display_name, rec.location_id.display_name)
                 )
+            policy = self.env["fix.demand.policy"].sudo().browse(pos["policy_id"])
+            if policy.provisional_state == "expired" or (
+                policy.provisional_state == "approved"
+                and has_usable_history(self.env, rec.company_id, rec.part_id, rec.location_id)
+            ):
+                raise UserError(
+                    "Policy %s runs on a provisional demand and %s now has real M15 history: "
+                    "revise the policy from history before approving plan %s."
+                    % (policy.name, rec.part_id.display_name, rec.name)
+                )
             months = months_between(rec.period_start, rec.period_end)
             covered = set(filter(None, pos["forecast_months_covered"].split(", ")))
             missing = [m for m in months if m not in covered]
@@ -327,9 +367,9 @@ class FixDemandPlan(models.Model):
 
     # ------------------------------------------------------------ M16 release
     def _pr_price_and_vendor(self, product):
-        """Unit price and preferred vendor for the requisition: the last
-        purchase-order price for the product, else its standard cost. The
-        vendor is proposed only when M42 lists it as an active supplier."""
+        """Unit price and supplier for the requisition: the last purchase-order
+        price for the product, else its standard cost; the plan's supplier,
+        else the last purchase order's."""
         line = (
             self.env["fix.purchase.order.line"]
             .sudo()
@@ -345,16 +385,30 @@ class FixDemandPlan(models.Model):
             )
         )
         price = line.unit_price if line else (product.standard_price or 0.0)
-        vendor = line.order_id.vendor_id if line else self.env["res.partner"]
-        if vendor and "fix.supplier" in self.env:
-            active = (
-                self.env["fix.supplier"]
-                .sudo()
-                .search_count([("partner_id", "=", vendor.id), ("status", "=", "active")])
-            )
-            if not active:
-                vendor = self.env["res.partner"]
+        vendor = self.vendor_id or (line.order_id.vendor_id if line else self.env["res.partner"])
         return price, vendor
+
+    def _refuse_unsourced(self, vendor):
+        """BRU-DPL-11: a planned order is not released without a supplier that
+        is active in M42."""
+        self.ensure_one()
+        if not vendor:
+            raise UserError(
+                "Plan %s cannot be released: it names no supplier and %s has no purchase history "
+                "to take one from (BRU-DPL-11)." % (self.name, self.product_id.display_name)
+            )
+        if "fix.supplier" not in self.env:
+            return
+        partners = vendor | vendor.commercial_partner_id
+        if not (
+            self.env["fix.supplier"]
+            .sudo()
+            .search_count([("partner_id", "in", partners.ids), ("status", "=", "active")])
+        ):
+            raise UserError(
+                "Plan %s cannot be released: %s is not an active supplier in M42 (BRU-DPL-11)."
+                % (self.name, vendor.display_name)
+            )
 
     def action_generate_pr(self):
         """Release the approved quantity to M16 as a DRAFT requisition and
@@ -383,6 +437,7 @@ class FixDemandPlan(models.Model):
                     "so the requisition would carry no value for M16's authority check."
                     % (plan.name, product.display_name)
                 )
+            plan._refuse_unsourced(vendor)
             employee = self.env.user.employee_id
             if not employee:
                 raise UserError(
@@ -418,9 +473,8 @@ class FixDemandPlan(models.Model):
                 "operating_unit_id": ou.id,
                 "company_id": plan.company_id.id,
                 "demand_plan_id": plan.id,
+                "vendor_id": vendor.id,
             }
-            if vendor:
-                vals["vendor_id"] = vendor.id
             requisition = Requisition.create(vals)
             plan._guarded().write(
                 {
@@ -437,15 +491,68 @@ class FixDemandPlan(models.Model):
             )
         return True
 
+    def action_reopen(self, reason=None):
+        """M16 refused the planned order (requisition rejected or cancelled, or
+        its PO cancelled): the plan returns to draft, to be approved again and
+        reissued. The dead requisition keeps its history and stops counting
+        as this plan's requisition."""
+        require_role(self.env, PLANNER, APPROVER, what="Reopening a planned order")
+        for plan in self:
+            req = plan.pr_requisition_id.sudo()
+            order = plan.purchase_order_id.sudo()
+            dead = req.state in ("rejected", "cancelled") or order.state == "cancelled"
+            if plan.state not in ("released", "converted") or not dead:
+                raise UserError(
+                    "Plan %s can be reopened only when M16 has rejected or cancelled its "
+                    "requisition or cancelled its purchase order." % plan.name
+                )
+            why = (reason or "").strip()
+            if not why:
+                raise UserError("State why plan %s is reopened." % plan.name)
+            req.write({"demand_plan_id": False, "reissued_from_plan_id": plan.id})
+            plan.sudo()._guarded().write(
+                {
+                    "state": "draft",
+                    "pr_requisition_id": False,
+                    "purchase_order_id": False,
+                    "budget_check": False,
+                    "approved_by_id": False,
+                    "approved_on": False,
+                    "prepared_by_id": self.env.user.id,
+                    **dict.fromkeys(PLAN_SNAPSHOT, 0.0),
+                }
+            )
+            plan.sudo().message_post(
+                body="Reopened by %s after requisition %s was %s: %s"
+                % (self.env.user.name, req.display_name, req.state, why)
+            )
+        return True
+
+    def _plan_sync_from_po(self, order):
+        """Converted -> Closed once the PO is fully received, with the actual
+        lead time written back."""
+        for plan in self.sudo().filtered(lambda p: p.state == "converted"):
+            received = order.received_on or fields.Date.context_today(plan)
+            days = (received - plan.approved_on.date()).days if plan.approved_on else 0
+            plan._guarded().write({"state": "closed", "actual_lead_time_days": max(days, 0)})
+
 
 class FixRequisitionDemandLink(models.Model):
     """M43-12: the requisition knows the plan that raised it; one per plan
-    (DB unique), and the link is set at creation only."""
+    (DB unique), and the link is set at creation only. M43 step 12: the
+    conversion moves the plan on, read here so cd_requisition stays untouched."""
 
     _inherit = "fix.requisition"
 
     demand_plan_id = fields.Many2one(
         "fix.demand.plan", string="Source Demand Plan", readonly=True, copy=False, index=True
+    )
+    reissued_from_plan_id = fields.Many2one(
+        "fix.demand.plan",
+        string="Plan Reissued After This Requisition",
+        readonly=True,
+        copy=False,
+        index=True,
     )
 
     _demand_plan_unique = models.Constraint(
@@ -460,4 +567,23 @@ class FixRequisitionDemandLink(models.Model):
                         "The source demand plan of a requisition is set when M43 raises it "
                         "and cannot be changed."
                     )
-        return super().write(vals)
+        res = super().write(vals)
+        if vals.get("state") == "converted":
+            for req in self.sudo().filtered("demand_plan_id"):
+                if req.demand_plan_id.state == "released":
+                    req.demand_plan_id._guarded().write(
+                        {"state": "converted", "purchase_order_id": req.purchase_order_id.id}
+                    )
+        return res
+
+
+class FixPurchaseOrderDemandLink(models.Model):
+    _inherit = "fix.purchase.order"
+
+    def write(self, vals):
+        res = super().write(vals)
+        if vals.get("state") == "received":
+            Plan = self.env["fix.demand.plan"].sudo()
+            for order in self.sudo():
+                Plan.search([("purchase_order_id", "=", order.id)])._plan_sync_from_po(order)
+        return res

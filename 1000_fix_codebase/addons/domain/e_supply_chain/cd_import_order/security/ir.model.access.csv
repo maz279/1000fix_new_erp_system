@@ -53,3 +53,6 @@ access_fix_import_cnf_agent_approver,fix.import.cnf.agent.approver,model_fix_imp
 access_fix_import_insurance,fix.import.insurance,model_fix_import_insurance,base.group_user,1,0,0,0
 access_fix_import_insurance_officer,fix.import.insurance.officer,model_fix_import_insurance,group_fix_import_officer,1,1,1,0
 access_fix_import_insurance_approver,fix.import.insurance.approver,model_fix_import_insurance,group_fix_import_approver,1,1,0,0
+access_fix_import_advance,fix.import.advance,model_fix_import_advance,base.group_user,1,0,0,0
+access_fix_import_advance_officer,fix.import.advance.officer,model_fix_import_advance,group_fix_import_officer,1,1,1,0
+access_fix_import_advance_approver,fix.import.advance.approver,model_fix_import_advance,group_fix_import_approver,1,1,0,0
