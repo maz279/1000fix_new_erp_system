@@ -469,19 +469,25 @@ class TestPaymentRun:
             -10000.0,
             85000.0,
         )
-        with pytest.raises(UserError, match="no bank account"), env.cr.savepoint():
+        # A08 S1: an unpayable payee drops out of the proposal with its reason, so it
+        # does not stop the run for other vendors; with no payable line there is no run
+        assert line.state == "skipped" and "no bank account" in line.skip_reason
+        with pytest.raises(UserError, match="Nothing payable"), env.cr.savepoint():
             run.with_user(a08["acc1"]).action_submit()
         acct = env["res.partner.bank"].create(
             {"partner_id": a08["vendor"].id, "acc_number": "0123456789"}
         )
         run.with_user(a08["acc1"]).action_propose()
-        with pytest.raises(UserError, match="no routing number"), env.cr.savepoint():
-            run.with_user(a08["acc1"]).action_submit()
+        assert "no routing number" in run.line_ids.skip_reason
         acct.fix_routing_number = "175260346"
-        # A08 S1: the account is not paid until a second person confirms it
-        with pytest.raises(UserError, match="not confirmed"), env.cr.savepoint():
+        run.with_user(a08["acc1"]).action_propose()
+        # the account is not paid until a second person confirms it
+        assert "not confirmed" in run.line_ids.skip_reason
+        with pytest.raises(UserError, match="Nothing payable"), env.cr.savepoint():
             run.with_user(a08["acc1"]).action_submit()
         _confirm_bank(a08, acct)
+        run.with_user(a08["acc1"]).action_propose()
+        assert run.line_ids.state == "proposed" and not run.line_ids.skip_reason
         run.with_user(a08["acc1"]).action_submit()
         with pytest.raises(UserError, match="accounting manager"), env.cr.savepoint():
             run.with_user(a08["acc2"]).action_approve()
@@ -521,7 +527,8 @@ class TestPaymentRun:
         )
         run = env["fix.payment.run"].create({"rail": "rtgs", "due_by": "2026-10-31"})
         run.action_propose()
-        with pytest.raises(UserError, match="below the BD-RTGS minimum"), env.cr.savepoint():
+        assert "below the BD-RTGS minimum" in run.line_ids.skip_reason
+        with pytest.raises(UserError, match="Nothing payable"), env.cr.savepoint():
             run.action_submit()
 
     def test_nothing_due_is_refused(self, a08):
