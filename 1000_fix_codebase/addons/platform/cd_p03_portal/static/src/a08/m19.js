@@ -32,6 +32,7 @@ export const MODULE = {
       { id: 'M19-tb', en: 'Trial Balance', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' },
       { id: 'M19-dimensions', en: '7-Dimension Model', bn: 'মাত্রা মডেল', t: 'g' },
       { id: 'M19-coa-loader', en: 'CoA Master Loader', bn: 'হিসাবের ছক লোডার', t: 'c' },
+      { id: 'M19-coa-register', en: 'CoA Register Pack', bn: 'হিসাবের ছক রেজিস্টার প্যাক', t: 'r' },
       { id: 'M19-recurring', en: 'Recurring & Accrual Journals', bn: 'পুনরাবৃত্ত ও বকেয়া জার্নাল', t: 'g' },
       { id: 'M19-alloc-rules', en: 'Allocation Rules', bn: 'বরাদ্দ নিয়ম', t: 'g' }
     ]},
@@ -141,6 +142,9 @@ export const SCREENS = {
       { m: 'action_pause', l: 'Pause' },
     ] },
   'M19-close-sla': { kind: 'table_report', module: 'M19', report: 'close_sla', period: false },
+  /* R1 (2026-11-07): the statutory register as a report pack — feeds the
+   * branded Excel/PDF/CSV exports and the send-by-email flow. */
+  'M19-coa-register': { kind: 'table_report', module: 'M19', report: 'coa_register', period: false, title: 'Chart of Accounts Register' },
   'M19-report-bridge': { kind: 'model_list', model: 'fix.financial.report.bridge',
     cols: ['name', 'report_type', 'fiscal_year_id', 'date_from', 'date_to', 'generated_at',
       'line_count', 'headline_amount', 'is_balanced'],
