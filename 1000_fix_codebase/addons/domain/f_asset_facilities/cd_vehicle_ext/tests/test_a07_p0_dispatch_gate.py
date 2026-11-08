@@ -180,7 +180,7 @@ def test_open_offroad_refuses_until_returned(w):
     )
     assert "off-road" in refused(w.env, lambda: w.assign(w.good))
     # A07 P0 recipe M46-8: a passed re-check, and a person other than the opener
-    w.env["fix.vehicle.check"].with_user(w.clerk).create(
+    w.env["fix.vehicle.check"].with_user(w.fleet).create(
         {
             "vehicle_id": w.good.id,
             "tyres_ok": True,
@@ -211,7 +211,7 @@ def test_open_accident_refuses(w, state):
         acc.with_user(w.clerk).write({"insurer_id": insurer.id, "evidence_file": SCAN})
         acc.with_user(w.lm).action_close(settlement=0)
         assert "off-road" in refused(w.env, lambda: w.assign(w.good))
-        w.env["fix.vehicle.check"].with_user(w.clerk).create(
+        w.env["fix.vehicle.check"].with_user(w.fleet).create(
             {
                 "vehicle_id": w.good.id,
                 "tyres_ok": True,
@@ -230,7 +230,7 @@ def test_failed_check_today_refuses_but_yesterdays_does_not(w):
     """A07 P1 (BRU-FLT-04, AUT-FLT-08): yesterday's failed check no longer
     lapses at midnight: it took the vehicle off-road, until a passed re-check
     and a return to service by someone else. Today's failure refuses too."""
-    Check = w.env["fix.vehicle.check"].with_user(w.clerk)
+    Check = w.env["fix.vehicle.check"].with_user(w.fleet)
     Check.create(
         {"vehicle_id": w.good.id, "brakes_ok": False, "checked_on": w.today - timedelta(days=1)}
     )
@@ -245,9 +245,11 @@ def test_failed_check_today_refuses_but_yesterdays_does_not(w):
             "brakes_ok": True,
         }
     )
+    # the officer who recorded the failed check took the van off the road, so
+    # another person (the Logistics Manager) returns it to service
     w.env["fix.vehicle.offroad"].search(
         [("vehicle_id", "=", w.good.id), ("state", "=", "offroad")]
-    ).with_user(w.fleet).action_return()
+    ).with_user(w.lm).action_return()
     assert w.assign(w.good, day=tomorrow)
     Check.create({"vehicle_id": w.good.id, "brakes_ok": False, "defects": "No brakes"})
     assert "pre-use check" in refused(w.env, lambda: w.assign(w.good))
@@ -261,7 +263,7 @@ def test_passed_check_required_only_when_switched_on(w):
     # a future day cannot have today's check yet: not required for it
     assert w.assign(v, day=w.today + timedelta(days=1))
     # A07 P0 recipe M46-7: each item answered OK (they no longer default to True)
-    w.env["fix.vehicle.check"].with_user(w.clerk).create(
+    w.env["fix.vehicle.check"].with_user(w.fleet).create(
         {
             "vehicle_id": v.id,
             "tyres_ok": True,

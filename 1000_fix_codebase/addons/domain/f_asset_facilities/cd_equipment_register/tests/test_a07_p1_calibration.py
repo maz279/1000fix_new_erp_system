@@ -389,6 +389,67 @@ def test_calibration_role_switch(c):
     cal(c, e, user=c.qm)
 
 
+def _decision_todos(r):
+    return r.sudo().activity_ids.filtered(
+        lambda a: (a.summary or "").startswith("Usage decision needed")
+    )
+
+
+def test_b9_each_pending_calibration_is_in_the_quality_managers_todo_list(c):
+    """A07 decision B9 (8 Nov 2026): with the usage decision on, a passing
+    calibration waits for a second Quality Manager. Each one is in their to-do
+    list (never the recorder's), and the decision closes every to-do."""
+    c.env["ir.config_parameter"].sudo().set_param(PARAM_DECISION, "1")
+    e = eq(c)
+    r = cal(c, e, user=c.qm)
+    asked = _decision_todos(r).user_id
+    assert c.qm2 in asked and c.qm not in asked and c.tech not in asked
+    assert e.name in _decision_todos(r)[:1].note
+    r.with_user(c.qm2).action_accept_calibration()
+    assert not _decision_todos(r)
+    # a failed calibration asks nobody: there is nothing to accept
+    assert not _decision_todos(cal(c, eq(c), result="fail"))
+    # a rejection closes them too
+    r2 = cal(c, eq(c))
+    assert _decision_todos(r2)
+    r2.with_user(c.qm).write({"decision_note": "certificate not traceable"})
+    r2.with_user(c.qm).action_reject_calibration()
+    assert not _decision_todos(r2)
+
+
+def test_b9_switch_off_asks_nobody_and_switching_on_asks_for_what_waits(c):
+    e = eq(c)
+    r = cal(c, e)
+    assert not _decision_todos(r) and e.calibration_state == "current"
+    c.env["ir.config_parameter"].sudo().set_param(PARAM_DECISION, "1")
+    e.invalidate_recordset()
+    assert e.calibration_state == "pending"
+    assert c.env["fix.calibration"].action_ask_pending_decisions() >= 1
+    assert {c.qm, c.qm2} <= set(_decision_todos(r).user_id)
+    # asking again adds nobody twice
+    before = len(_decision_todos(r))
+    c.env["fix.calibration"].action_ask_pending_decisions()
+    assert len(_decision_todos(r)) == before
+
+
+def test_b9_both_switches_on_as_decided(c):
+    """The live setting: only the roles record, and a second Quality Manager
+    certifies. The technician records, a Quality Manager accepts."""
+    ICP = c.env["ir.config_parameter"].sudo()
+    ICP.set_param(PARAM_ROLE, "1")
+    ICP.set_param(PARAM_DECISION, "1")
+    e = eq(c)
+    assert refused(c.env, lambda: cal(c, e, user=c.clerk), "Calibration Technician")
+    r = cal(c, e, user=c.tech)
+    assert e.calibration_state == "pending"
+    with pytest.raises(UserError, match="usage decision"):
+        e.with_user(c.clerk).action_assert_usable()
+    assert c.qm in _decision_todos(r).user_id
+    r.with_user(c.qm).action_accept_calibration()
+    assert e.calibration_state == "current"
+    assert e.with_user(c.clerk).action_assert_usable() is True
+
+
 # ============================================================ profile + interval approval (BRU-EAM-13)
 def test_profile_is_the_quality_managers_and_its_interval_changes_by_approval(c):
     e = eq(c)

@@ -372,7 +372,7 @@ def test_an_unpublished_model_is_never_applied(c):
     assert not p.model_published
     a = c.env["fix.iot.action"].with_user(c.clerk).create({"prediction_id": p.id})
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
-        a.with_user(c.clerk).action_request_approval()
+        a.with_user(c.clerk).action_request_approval(justification="bearing noise rising")
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
         p.with_user(c.operator).action_create_preventive_wo()
     good = pred(c)
@@ -402,7 +402,7 @@ def test_dispatch_hands_off_and_completion_needs_evidence_and_another_person(c):
         .with_user(c.clerk)
         .create({"prediction_id": pred(c).id, "action_type": "replace", "technician_id": c.tech.id})
     )
-    approve_via_inbox(a, mgr, requester=c.clerk)
+    approve_via_inbox(a, mgr, requester=c.clerk, justification="bearing noise rising")
     assert refused(c.env, lambda: a.with_user(c.clerk).action_dispatch())  # not an operator
     a.with_user(c.operator).action_dispatch()
     (payload,) = events(c.env, "iot.action_dispatched", a.id)

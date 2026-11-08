@@ -20,6 +20,8 @@ _logger = logging.getLogger(__name__)
 # Manager is new (security/cd_vehicle_ext_groups.xml) and implies it.
 FLEET_OFFICER_GROUP = "fleet.fleet_group_user"
 LOGISTICS_MANAGER_GROUP = "cd_vehicle_ext.group_logistics_manager"
+# A07 decision B10 (8 Nov 2026): who may record a van's pre-use check
+DRIVER_GROUP = "cd_vehicle_ext.group_fleet_driver"
 ROLE_LABELS = {
     FLEET_OFFICER_GROUP: "Fleet Officer (Fleet: Officer: Manage all vehicles)",
     LOGISTICS_MANAGER_GROUP: "Fleet Logistics Manager",
@@ -1186,8 +1188,40 @@ class FixVehicleCheck(models.Model):
         for rec in self:
             rec.passed = all([rec.tyres_ok, rec.lights_ok, rec.fluids_ok, rec.brakes_ok])
 
+    def _fix_check_recorder(self, vals_list):
+        """A07 decision B10 (8 Nov 2026): a PASSED check unblocks the van for
+        dispatch, and any employee could record one on any van. A check is now
+        recorded by the van's assigned driver, holding the Driver role, as that
+        driver; or by a Fleet Officer for any van. Data loading stays trusted."""
+        user = self.env.user
+        if self.env.su or user.has_group(FLEET_OFFICER_GROUP):
+            return
+        Vehicle = self.env["fleet.vehicle"].sudo()
+        for vals in vals_list:
+            vehicle = Vehicle.browse(vals.get("vehicle_id"))
+            driver = vehicle.fix_driver_id
+            own = bool(driver) and driver.employee_id.user_id == user
+            if not (own and user.has_group(DRIVER_GROUP)):
+                raise UserError(
+                    "The pre-use check of %s is recorded by its assigned driver or a Fleet "
+                    "Officer. %s"
+                    % (
+                        _vehicle_label(vehicle),
+                        "You are its assigned driver: ask a Fleet Officer for the Driver role."
+                        if own
+                        else "Ask the Fleet Officer to assign you to this van.",
+                    )
+                )
+            if vals.get("driver_id") and vals["driver_id"] != driver.id:
+                raise UserError(
+                    "Record the pre-use check of %s as yourself, its assigned driver."
+                    % _vehicle_label(vehicle)
+                )
+            vals["driver_id"] = driver.id
+
     @api.model_create_multi
     def create(self, vals_list):
+        self._fix_check_recorder(vals_list)
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (

@@ -321,6 +321,13 @@ APPROVERS = [
         ["cd_stream_registry.group_iot_consent_officer"],
     ),
     (
+        # A07 decision B10 (8 Nov 2026): a van's pre-use check is recorded by
+        # its assigned driver. Holds the role only; a Fleet Officer assigns a van.
+        "seed.a07.driver@1000fix.local",
+        "আব্দুল করিম (Driver)",
+        ["cd_vehicle_ext.group_fleet_driver"],
+    ),
+    (
         "seed.fin.admin@1000fix.local",
         "কামরুল হাসান (Accounting Administrator)",
         [

@@ -558,7 +558,10 @@ class FixEquipment(models.Model):
     def action_request_approval(self, justification=None):
         """Request the write-off. The reason is the approval's justification;
         the engine routes it on the acquisition cost and never to the
-        requester, the item's registrar or whoever last changed the cost."""
+        requester, the item's registrar or whoever last changed the cost.
+        A07 decision B11 (8 Nov 2026): only the people who hold the item, the
+        Equipment Custodian or a Quality Manager, may ask for its write-off."""
+        m45_require_role(self.env, (ROLE_CUSTODIAN, ROLE_QM), "Requesting a write-off")
         for rec in self:
             rec._m45_check_retirable()
             reason = (justification or rec.retirement_reason or "").strip()
@@ -1093,6 +1096,7 @@ class FixCalibration(models.Model):
                     {"equipment": rec.equipment_id.code},
                 )
         recs._m45_after_record()
+        recs._m45_ask_for_decision()
         return recs
 
     def unlink(self):
@@ -1232,6 +1236,47 @@ class FixCalibration(models.Model):
                     "its usage decision." % rec.display_name
                 )
 
+    def _m45_ask_for_decision(self):
+        """A07 decision B9 (8 Nov 2026): with the usage decision on, a passing
+        calibration certifies nothing until a Quality Manager other than its
+        recorder accepts it. Each one is put in the Quality Managers' to-do
+        list, so an instrument does not silently stop being certified."""
+        if not m45_param_on(self.env, PARAM_USAGE_DECISION):
+            return
+        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        group = self.env.ref(ROLE_QM, raise_if_not_found=False)
+        if not (todo and group):
+            return
+        managers = group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+        for rec in self.sudo():
+            if rec.result not in CERTIFYING_RESULTS or rec.decision_state != "pending":
+                continue
+            if rec.superseded_by_id:
+                continue
+            asked = rec.activity_ids.filtered(lambda a, t=todo: a.activity_type_id == t).user_id
+            for user in managers - rec.create_uid - asked:
+                rec.activity_schedule(
+                    activity_type_id=todo.id,
+                    summary=("Usage decision needed: %s" % rec.display_name)[:200],
+                    note="Accept or reject this calibration. Until it is accepted, %s is not "
+                    "certified and QC refuses it." % rec.equipment_id.name,
+                    user_id=user.id,
+                )
+
+    @api.model
+    def action_ask_pending_decisions(self):
+        """For switching the usage decision on: every passing calibration still
+        awaiting acceptance is put in the Quality Managers' to-do list."""
+        pending = self.sudo().search(
+            [
+                ("decision_state", "=", "pending"),
+                ("result", "in", list(CERTIFYING_RESULTS)),
+                ("superseded_by_id", "=", False),
+            ]
+        )
+        pending.with_env(self.env)._m45_ask_for_decision()
+        return len(pending)
+
     def _m45_decide(self, decision):
         for rec in self:
             rec._guarded().write(
@@ -1241,6 +1286,11 @@ class FixCalibration(models.Model):
                     "decided_on": fields.Datetime.now(),
                 }
             )
+            todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+            rec.sudo().activity_ids.filtered(
+                lambda a, t=todo: a.activity_type_id == t
+                and (a.summary or "").startswith("Usage decision needed")
+            ).action_feedback(feedback=dict(rec._fields["decision_state"].selection)[decision])
             rec.message_post(
                 body="Usage decision: %s by %s.%s"
                 % (
