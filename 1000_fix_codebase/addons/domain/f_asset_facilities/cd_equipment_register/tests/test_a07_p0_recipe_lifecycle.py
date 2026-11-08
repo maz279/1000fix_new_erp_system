@@ -258,8 +258,15 @@ def test_branch_and_custodian_are_set_at_registration_then_move_by_transfer(c):
 
 
 def test_writeoff_request_needs_reason_cost_and_a_returned_item(c):
+    # A07 decision B11 (8 Nov 2026): the holder of the item asks, not anyone
+    ready = fit(c, acquisition_cost=18000, retirement_reason="drift beyond repair")
+    for who in (c.clerk, c.cfo):
+        assert refused(
+            c.env, lambda w=who: ready.with_user(w).action_request_approval(), "Custodian"
+        )
+    assert ready.approval_state == "none"
     e = fit(c)
-    req = e.with_user(c.clerk)
+    req = e.with_user(c.keeper)
     assert refused(c.env, lambda: req.action_request_approval(), "Write-Off Reason")
     req.write({"retirement_reason": "drift beyond repair"})
     assert refused(c.env, lambda: req.action_request_approval(), "acquisition cost")
@@ -272,9 +279,9 @@ def test_writeoff_request_needs_reason_cost_and_a_returned_item(c):
 def test_writeoff_up_to_25k_is_a_quality_manager_decision(c, p03):
     e = fit(c, acquisition_cost=18000)
     assert e.dofa_tier_required == "tier_2"
-    e.with_user(c.clerk).action_request_approval(justification="dropped, display dead")
+    e.with_user(c.keeper).action_request_approval(justification="dropped, display dead")
     assert e.approval_state == "pending" and e.retirement_reason == "dropped, display dead"
-    assert c.qm in assigned(e) and c.clerk not in assigned(e)
+    assert c.qm in assigned(e) and c.keeper not in assigned(e)
     # the terms are pinned while pending
     assert refused(c.env, lambda: e.with_user(c.clerk).write({"acquisition_cost": 9000}))
     assert refused(c.env, lambda: e.with_user(c.clerk).write({"retirement_reason": "other"}))
@@ -283,7 +290,7 @@ def test_writeoff_up_to_25k_is_a_quality_manager_decision(c, p03):
     out = p03.action(user=c.qm, model="fix.equipment", ids=[e.id], method="action_approve_writeoff")
     assert out == {"success": False, "error": "Action not available for this surface"}
     assert e.operational_status == "available"
-    approve_via_inbox(e, c.qm, requester=c.clerk)
+    approve_via_inbox(e, c.qm, requester=c.keeper)
     assert (e.operational_status, e.approval_state, e.retired_by_id) == (
         "retired",
         "approved",
@@ -301,10 +308,10 @@ def test_writeoff_above_25k_is_a_cfo_decision(c):
     e = fit(c, acquisition_cost=30000)
     assert e.dofa_tier_required == "tier_4"
     e.with_user(c.clerk).write({"retirement_reason": "lost in transit"})
-    e.with_user(c.clerk).action_request_approval()
+    e.with_user(c.keeper).action_request_approval()
     assert c.cfo in assigned(e) and c.qm not in assigned(e)
     assert not inbox_task(e, c.qm)
-    approve_via_inbox(e, c.cfo, requester=c.clerk)
+    approve_via_inbox(e, c.cfo, requester=c.keeper)
     assert (e.operational_status, e.dofa_approved_tier) == ("retired", "tier_4")
 
 
@@ -321,7 +328,7 @@ def test_the_reporter_cannot_approve_the_writeoff(c):
 
 def test_writeoff_rejection_leaves_the_item_in_service(c):
     e = fit(c, acquisition_cost=5000, retirement_reason="looks worn")
-    e.with_user(c.clerk).action_request_approval()
+    e.with_user(c.keeper).action_request_approval()
     inbox_task(e, c.qm).with_user(c.qm).action_reject(comment="still within tolerance")
     assert (e.approval_state, e.operational_status) == ("rejected", "available")
     e.with_user(c.clerk).write({"acquisition_cost": 6000})  # unpinned again

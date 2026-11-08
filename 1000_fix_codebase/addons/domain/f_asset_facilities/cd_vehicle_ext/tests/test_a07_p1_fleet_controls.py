@@ -159,6 +159,11 @@ def f(odoo_env):
     x.check, x.fill, x.events, x.open_offroad = check, fill, events, open_offroad
     x.driver = driver("A7P1F Driver")
     x.van = vehicle("A7P1F-VAN")
+    # A07 decision B10 (8 Nov 2026): a van's pre-use check is its assigned
+    # driver's. The clerk is that driver, holding the Driver role.
+    x.clerk.write({"group_ids": [(4, env.ref("cd_vehicle_ext.group_fleet_driver").id)]})
+    x.driver.sudo().employee_id.user_id = x.clerk
+    x.van.fix_driver_id = x.driver
     return x
 
 
@@ -213,7 +218,7 @@ def test_role_gated_actions_refuse_a_plain_employee(f):
         .with_user(f.clerk)
         .create({"vehicle_id": f.van.id, "reason": "Brakes"})
     )
-    f.check(f.van, user=f.clerk2)
+    f.check(f.van)  # the driver's re-check
     assert refused(f.env, lambda: off.with_user(f.clerk2).action_return())
     # the officer does them
     d.with_user(f.officer).action_suspend(reason="Speeding")
@@ -502,7 +507,7 @@ def test_failed_check_takes_the_vehicle_offroad_until_someone_else_returns_it(f)
     # the reporter, if an officer, still cannot return what they raised
     chk2 = f.check(f.van, user=f.officer, lights_ok=False)
     assert chk2 and len(f.open_offroad(f.van, "defect")) == 1
-    f.check(f.van, user=f.clerk2)  # the re-check
+    f.check(f.van)  # the driver's re-check
     assert "Segregation" not in (
         refused(f.env, lambda: off.with_user(f.officer).action_return()) or ""
     )

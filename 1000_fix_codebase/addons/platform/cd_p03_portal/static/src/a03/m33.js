@@ -56,6 +56,10 @@ export const MODULE = {
     { en: 'Duplicate Detection Jobs (S8)', bn: 'ডুপ্লিকেট সনাক্তকরণ জব', screens: [
       { id: 'M33-dedup-jobs', en: 'Detection Jobs', bn: 'সনাক্তকরণ জব', t: 'g' },
       { id: 'M33-form-dedup-job', en: 'Detection Job', bn: 'জব ফর্ম', t: 'f' }
+    ]},
+    { en: 'Real-Customer Cut-over', bn: 'রিয়েল কাস্টমার কাট-ওভার', screens: [
+      { id: 'M33-import-batches', en: 'Import Batches', bn: 'ইমপোর্ট ব্যাচ', t: 'g' },
+      { id: 'M33-import-lines', en: 'Import Lines (audit)', bn: 'ইমপোর্ট লাইন (অডিট)', t: 'g' }
     ]}
   ],
   reports: ['Customer Growth by District', 'Data Quality Scorecard', 'Duplicate Merge Audit', 'Consent Coverage Report', 'Credit Exposure by Segment', 'Corporate Hierarchy Map'],
@@ -75,7 +79,8 @@ export const MODULE = {
       ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-rpt-consentcov'] }],
       ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'] }],
       ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'] }],
-      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'] }]
+      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'] }],
+      ['13', 'Real-Customer Cut-over', 5, { model: 'fix.party.import.batch', cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count'], screens: ['M33-import-batches', 'M33-import-lines'] }]
     ]
   }
 };
@@ -751,6 +756,65 @@ export const SCREENS = {
       }
     ]
   },
+
+  /* --- Real-Customer Cut-over (readiness report §7 step 5, 2026-11-08) --- */
+  'M33-import-batches': { kind: 'model_list', model: 'fix.party.import.batch', create: true,
+    cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count', 'error_count'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & match' },
+      { m: 'action_import', l: '3. Import as draft parties' },
+      { m: 'action_decide_registrations', l: '4. Decide registrations (two-tier)' },
+      { m: 'action_assign_roles', l: 'Assign classification roles' },
+      { m: 'action_reconcile', l: '5. Reconcile counts' },
+      { m: 'action_rollback', l: 'Rollback this batch' },
+    ],
+    links: [
+      { s: 'M33-import-lines', l: 'Import Lines (per-row audit)' },
+      { s: 'M33-approval', l: 'Registration Approvals' },
+    ],
+    note: 'The governed party loader: stage the source spreadsheet, validate (every cleansing rule recorded per line), import as draft parties with legacy keys, decide registrations, reconcile counts. Every action appends to the batch decision log.' },
+  'M33-import-lines': { kind: 'model_list', model: 'fix.party.import.line', create: false,
+    cols: ['row_no', 'raw_name', 'legacy_reference', 'clean_name', 'line_state', 'division_id', 'phone_norm', 'email_norm', 'matched_partner_id', 'created_partner_id'],
+    stateField: 'line_state' },
+  'M33-form-party-import': {
+    kind: 'model_form', model: 'fix.party.import.batch',
+    title: 'Party Import Batch', back: 'M33-import-batches',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      imported: 'Imported', approved: 'Registrations decided', reconciled: 'Reconciled' } },
+    tabs: [
+      { id: 'src', label: '1. Source & Rules', bn: '১. সোর্স ও নিয়ম', icon: '📄', badge: '5' },
+      { id: 'out', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '6' },
+      { id: 'log', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'src', title: 'Source Spreadsheet & Lawful Basis',
+        note: "Attach the customer list export, choose the sheet layout and the PDPA lawful basis (legitimate interest is NOT an enumerated basis under Act 63 of 2026). Save, then run Stage → Validate → Import → Decide Registrations → Reconcile from the list's command bar.",
+        fields: [
+          { name: 'name', label: 'Batch', readonly: true },
+          { name: 'source_file', label: 'Source Spreadsheet (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'sheet_kind', label: 'Sheet Layout', required: true },
+          { name: 'import_ref', label: 'Import Reference (legacy grouping)', required: true },
+          { name: 'lawful_basis', label: 'PDPA Lawful Basis', required: true }
+        ] },
+      { tab: 'out', title: 'Counts',
+        fields: [
+          { name: 'line_count', label: 'Source Rows', readonly: true },
+          { name: 'created_count', label: 'Created Parties', readonly: true },
+          { name: 'matched_count', label: 'Matched Existing', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined', readonly: true },
+          { name: 'error_count', label: 'Errors', readonly: true },
+          { name: 'hierarchy_count', label: 'Branch Links (hierarchy)', readonly: true }
+        ] },
+      { tab: 'log', title: 'Audit Trail',
+        fields: [
+          { name: 'decision_log', label: 'Decision Log (who, when, what)', readonly: true, type: 'text' }
+        ] }
+    ]
+  },
 };
 
 /* built-in report chips -> the computed report screen that shows them */
@@ -776,6 +840,7 @@ export const FORM_CHIPS = {
     'fix.dedup.job': 'M33-form-dedup-job',
     'fix.transparency.notice': 'M33-form-transparency',
     'fix.dedup.rule': 'M33-form-dedup-rule',
+    'fix.party.import.batch': 'M33-form-party-import',
     'res.partner': 'M33-form-party',
     'fix.party.role': 'M33-form-role',
     'fix.bd.address': 'M33-form-address',
@@ -791,6 +856,8 @@ export const FORM_CHIPS = {
   },
   'M33:__by_screen__': {
     'M33-dedup-jobs': 'M33-form-dedup-job',
+    'M33-import-batches': 'M33-form-party-import',
+    'M33-import-lines': 'M33-form-party-import',
     'M33-directory': 'M33-form-party',
     'M33-party': 'M33-form-party',
     'M33-form-party': 'M33-form-party',
