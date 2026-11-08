@@ -222,11 +222,12 @@ def test_a_dangling_operator_cannot_or_past_the_company_fence(odoo_env):
             api._choice_domain(odoo_env, "res.partner", domain)
 
 
-def test_search_reads_a_rule_fenced_comodel_as_the_caller(odoo_env):
+def test_search_reads_a_rule_fenced_comodel_as_the_caller(clerk_env):
     """A comodel whose own screens apply record rules is searched as the
     caller, never sudo, so a picker cannot list the rows those screens hide."""
+    assert not clerk_env.su
     fenced = next((m for m, conf in api.SURFACES.items() if conf.get("rules")), None)
     if not fenced:
         pytest.skip("no surface declares rules")
-    assert not api._picker_source(odoo_env, fenced).env.su
-    assert api._picker_source(odoo_env, "res.partner").env.su
+    assert not api._picker_source(clerk_env, fenced).env.su
+    assert api._picker_source(clerk_env, "res.partner").env.su
