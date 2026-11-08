@@ -213,6 +213,10 @@ for _model, _conf in _A11_SURFACES.items():
 # fields never returned over the generic endpoint
 _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
 _FAILED = "The request could not be completed — try again or contact Finance support."
+# Hard ceiling for an explicit limit override (the export path): an artefact
+# must carry the whole grid the screen serves — the real item master is
+# 14k+ rows — while a stray request cannot ask for the estate unbounded.
+_EXPORT_MAX_ROWS = 50_000
 
 
 class P03GenericApiController(http.Controller):
@@ -287,8 +291,9 @@ class P03GenericApiController(http.Controller):
                 ]
             search_domain += self._records_search_domain(env[model], cols, search)
             offset = max(int(offset or 0), 0)
+            effective_limit = min(int(kw.get("limit") or conf["limit"]), _EXPORT_MAX_ROWS)
             records = rec_model.search(
-                search_domain, order=conf["order"], limit=conf["limit"], offset=offset
+                search_domain, order=conf["order"], limit=effective_limit, offset=offset
             )
             raw = records.read(cols) if records else []
             rows = []
@@ -319,7 +324,7 @@ class P03GenericApiController(http.Controller):
             # reads as the whole base when the limit clipped it
             total = (
                 rec_model.search_count(search_domain)
-                if offset or len(rows) >= conf["limit"]
+                if offset or len(rows) >= effective_limit
                 else len(rows)
             )
             return {
@@ -532,12 +537,19 @@ class P03GenericApiController(http.Controller):
             return v.get("label") or v.get("name") or ""
         return v
 
-    def _model_list_export_payload(self, model, cols, lang):
+    def _model_list_export_payload(self, model, cols, lang, limit=None):
         """{rows (flattened), labels, title, count} for a served model —
-        the /p03/model/records read, reused verbatim."""
+        the /p03/model/records read, reused verbatim. The export passes an
+        explicit limit so the artefact carries the WHOLE grid the screen
+        serves (the real item master is 14k+ rows), never one UI page."""
         col_list = [c for c in (cols or "").split(",") if c] or None
         data = self.model_records(
-            model=model, cols=col_list, domain=[], state_filter=None, lang=lang
+            model=model,
+            cols=col_list,
+            domain=[],
+            state_filter=None,
+            lang=lang,
+            limit=limit or _EXPORT_MAX_ROWS,
         )
         if data.get("error"):
             return None, data["error"]
@@ -568,7 +580,20 @@ class P03GenericApiController(http.Controller):
             out = dict(payload, title=(model or "records").replace(".", " ").title(), notes=[])
             return self._report_xlsx(out, payload["cols"], payload["labels"], base_name, {})
         if format == "pdf":
-            return self._list_pdf(payload, base_name)
+            # a printable artefact of 14k rows is hundreds of pages of paper —
+            # the PDF carries the first 2,000 rows and SAYS so; XLSX/CSV carry
+            # every row. (Real-inventory upgrade 2026-11-07.)
+            pdf_payload = payload
+            if len(payload["rows"]) > 2000:
+                pdf_payload = dict(
+                    payload,
+                    rows=payload["rows"][:2000],
+                    notes=[
+                        "Showing the first 2,000 of %s rows — use the Excel export for the full grid."
+                        % len(payload["rows"])
+                    ],
+                )
+            return self._list_pdf(pdf_payload, base_name)
         import csv
         import io as _io
 

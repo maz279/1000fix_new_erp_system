@@ -379,11 +379,36 @@ WRITABLE = {
     "fix.spare.part": frozenset(
         {
             "active",
+            "barcode",
+            "brand_id",
+            "category_id",
             "company_id",
+            "compatible_models",
+            "core_exchange_required",
+            "criticality",
+            "device_brand",
+            "is_serialized",
+            "list_price",
+            "max_qty",
+            "min_qty",
             "name",
             "name_bn",
             "operating_unit_id",
+            "part_category",
             "part_number",
+            "product_default_code",
+            "product_id",
+            "product_legacy_erp_part_number",
+            "product_manufacturer_part_number",
+            "qr_code",
+            "safety_stock",
+            "sales_price",
+            "uom",
+            "warranty_months",
+            # deliberately NOT writable (report R4/R2 governance): unit_cost
+            # (Inventory Controller action only), qty_available / qty_reserved
+            # / average_cost (ledger-computed), legacy_reference (MIG-03),
+            # state (controller actions).
         }
     ),
     "fix.stock.class.change": frozenset(
