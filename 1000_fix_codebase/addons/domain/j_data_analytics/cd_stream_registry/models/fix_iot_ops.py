@@ -1878,6 +1878,14 @@ class FixIotPrescriptiveAction(models.Model):
         return self.state == "proposed"
 
     def action_request_approval(self, justification=None):
+        # A07 decision B11 (8 Nov 2026): the approver decides on the proposer's
+        # reason, as the DOFA rule asks of a Tier 2 work order; a blank request
+        # was accepted and left the approver nothing to weigh.
+        if not self.env.su and not (justification or "").strip():
+            raise UserError(
+                "Say why %s should be approved: the approver decides on your reason."
+                % ", ".join(self.mapped("name"))
+            )
         self._fix_check_approvable()
         for rec in self:
             rec._guarded().write({"approval_routed_group": rec._fix_live_approver_group()})

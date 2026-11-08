@@ -368,7 +368,7 @@ def test_6_an_accident_with_no_claim_closes_and_the_van_returns(f, ui, m46_js): 
     assert acc.state == "closed" and acc.closed_by_id == f.lm
     assert acc.no_claim_reason == why["reason"] and not acc.claim_ref and not acc.settlement_amount
     assert "off-road" in refused(f.env, lambda: f.assign(f.van, user=f.officer))
-    f.check(f.van, user=f.clerk2)
+    f.check(f.van)  # the driver's re-check
     off = f.open_offroad(f.van, "accident")
     assert ui.action(f.officer, model=off._name, ids=off.ids, method="action_return")["success"]
     assert f.assign(f.van, user=f.officer)
@@ -975,7 +975,7 @@ def test_receipt_evidence_is_a_setting_default_off(f, ui):  # noqa: F811
 
 
 def test_a_check_cannot_inflate_the_last_odometer(f, ui):  # noqa: F811
-    van = f.vehicle("A7M46-CHK")
+    van = f.vehicle("A7M46-CHK", fix_driver_id=f.driver.id)  # the clerk drives it
     f.fill(van, 10000)
     ok = {
         "vehicle_id": van.id,
@@ -1058,7 +1058,7 @@ def test_a_service_off_road_returns_only_when_the_service_is_done(f, ui):  # noq
         .create({"vehicle_id": van.id, "due_date": f.today - timedelta(days=9)})
     )
     off = van._fix_take_offroad("service", "Service overdue", pm_id=pm.id)
-    f.check(van, user=f.clerk2)
+    f.check(van, user=f.officer2)  # no driver assigned: a Fleet Officer checks it
     args = {"model": off._name, "ids": off.ids, "method": "action_return"}
     res = ui.action(f.officer, **args)
     assert pm.name in res["error"] and "service" in res["error"].lower()

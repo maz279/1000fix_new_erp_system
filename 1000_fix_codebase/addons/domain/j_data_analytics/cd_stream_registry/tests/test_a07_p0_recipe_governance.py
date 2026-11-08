@@ -193,10 +193,24 @@ def test_proposer_and_requester_never_decide(c):
     assert c.mgr not in assigned(b) and c.clerk2 not in assigned(b)
 
 
+def test_b11_an_action_approval_needs_a_written_reason(c):
+    """A07 decision B11 (8 Nov 2026): the approver decides on the proposer's
+    reason, as the DOFA rule asks of a Tier 2 work order."""
+    a = act(c)
+    for blank in (None, "", "   "):
+        with pytest.raises(UserError, match="Say why"), c.env.cr.savepoint():
+            a.with_user(c.clerk).action_request_approval(justification=blank)
+    assert a.approval_state == "none"
+    a.with_user(c.clerk).action_request_approval(justification="vibration above 7 mm/s")
+    assert a.approval_state == "pending" and c.mgr in assigned(a)
+
+
 def test_no_approval_on_a_healthy_prediction(c):
     healthy = pred(c, prediction="healthy", confidence=0.97, estimated_days_to_failure=240)
     a = act(c, prediction=healthy)
-    assert refused(c.env, lambda: a.with_user(c.clerk).action_request_approval())
+    assert refused(
+        c.env, lambda: a.with_user(c.clerk).action_request_approval(justification="noise")
+    )
     assert a.approval_state == "none"
 
 
@@ -236,7 +250,7 @@ def test_action_full_path_records_the_outcome(c, p03):
 
 def test_not_confirmed_outcome_is_a_false_alarm(c):
     a = act(c, technician_id=c.tech.id)
-    approve_via_inbox(a, c.mgr, requester=c.clerk)
+    approve_via_inbox(a, c.mgr, requester=c.clerk, justification="bearing noise rising")
     a.with_user(c.clerk2).action_dispatch()
     a.with_user(c.clerk2).write({"outcome_evidence_ref": "JC-48-002"})
     a.with_user(c.clerk2).action_done_not_confirmed(note="no wear found")
@@ -245,7 +259,7 @@ def test_not_confirmed_outcome_is_a_false_alarm(c):
 
 def test_approved_terms_are_pinned(c):
     a = act(c, action_type="inspect", priority="low")
-    approve_via_inbox(a, c.mgr, requester=c.clerk)
+    approve_via_inbox(a, c.mgr, requester=c.clerk, justification="bearing noise rising")
     # A07 P1 M48-12: an approved action's terms are refused outright ...
     assert refused(c.env, lambda: a.with_user(c.clerk).write({"priority": "high"}))
     assert (a.state, a.priority) == ("approved", "low")
@@ -257,12 +271,12 @@ def test_approved_terms_are_pinned(c):
     assert "vibration rose" in a.revision_note
     a.with_user(c.clerk).write({"priority": "high"})
     # A change while approval is pending voids the request.
-    a.with_user(c.clerk).action_request_approval()
+    a.with_user(c.clerk).action_request_approval(justification="bearing noise rising")
     req = a.approval_request_id
     a.with_user(c.clerk).write({"action_type": "replace"})
     assert req.state == "voided" and a.approval_state == "none"
     # The proper path again, then dispatched: a change is refused outright.
-    approve_via_inbox(a, c.mgr, requester=c.clerk)
+    approve_via_inbox(a, c.mgr, requester=c.clerk, justification="replace: bearing worn")
     a.with_user(c.clerk).write({"technician_id": c.tech.id})
     a.with_user(c.clerk).action_dispatch()
     other = pred(c, name=f"R48-PDM2-{TAG}")
@@ -274,8 +288,10 @@ def test_action_wrong_state_transitions_refused(c):
     a = act(c, technician_id=c.tech.id)
     assert refused(c.env, lambda: a.with_user(c.clerk).action_dispatch())
     assert refused(c.env, lambda: a.with_user(c.clerk).action_done_confirmed(note="x"))
-    approve_via_inbox(a, c.mgr, requester=c.clerk)
-    assert refused(c.env, lambda: a.with_user(c.clerk).action_request_approval())
+    approve_via_inbox(a, c.mgr, requester=c.clerk, justification="bearing noise rising")
+    assert refused(
+        c.env, lambda: a.with_user(c.clerk).action_request_approval(justification="again")
+    )
     a.with_user(c.clerk).action_dispatch()
     assert refused(c.env, lambda: a.with_user(c.clerk).action_dispatch())
 

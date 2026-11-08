@@ -38,5 +38,15 @@
             <field name="comment">Reviews fuel transactions held by an exception rule (never one they recorded) and closes insurance claims (never one they reported). Holds every Fleet Officer right.</field>
         </record>
 
+        <!-- A07 decision B10 (8 Nov 2026): any employee could record a PASSED
+             pre-use check on any van, unblocking its dispatch. A check is now
+             recorded by the van's assigned driver holding this role (the driver
+             record's employee is the user) or by a Fleet Officer. -->
+        <record id="group_fleet_driver" model="res.groups">
+            <field name="name">Driver</field>
+            <field name="privilege_id" ref="privilege_fleet_operations"/>
+            <field name="comment">Records the daily pre-use check of the van assigned to them (their driver record's employee is this user). A Fleet Officer records checks for any van.</field>
+        </record>
+
     </data>
 </odoo>
