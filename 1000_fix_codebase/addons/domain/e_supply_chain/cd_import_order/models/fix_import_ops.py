@@ -726,17 +726,38 @@ class FixImportLcAmendment(models.Model):
             locked |= set(self._TERMS)
         return locked
 
-    def _dofa_amount(self) -> float:
+    def _amended_amount(self) -> float:
+        """The LC total after the amendment: a blank new amount means the
+        amount is unchanged, as applying the amendment reads it."""
         self.ensure_one()
-        return abs(self._lc_bdt(self.new_amount, self.lc_id)) if self.lc_id else 0.0
+        return self.new_amount if self.new_amount else (self.lc_id.amount or 0.0)
+
+    def _dofa_amount(self) -> float:
+        # An expiry-only amendment is approved at the band of the LC total it
+        # leaves in force; read as BDT 0 it was "nothing to approve" and then
+        # could never be applied.
+        self.ensure_one()
+        return abs(self._lc_bdt(self._amended_amount(), self.lc_id)) if self.lc_id else 0.0
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
         return "the amended LC total of BDT %.2f" % self._dofa_amount()
 
-    @api.depends("new_amount", "lc_id.currency_id", "lc_id.order_id.fx_rate")
+    @api.depends("new_amount", "lc_id.amount", "lc_id.currency_id", "lc_id.order_id.fx_rate")
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
+
+    def _amendment_refuse_noop(self):
+        """An amendment changes the amount, the expiry, or both."""
+        for rec in self:
+            lc = rec.lc_id
+            same_amount = abs(rec._amended_amount() - (lc.amount or 0.0)) <= 0.005
+            same_expiry = not rec.new_expiry or rec.new_expiry == lc.expiry
+            if same_amount and same_expiry:
+                raise UserError(
+                    "Amendment %s changes neither the amount nor the expiry of LC %s."
+                    % (rec.name, lc.lc_no)
+                )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -780,6 +801,7 @@ class FixImportLcAmendment(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Request approval for a draft amendment.")
+        self._amendment_refuse_noop()
         return super().action_request_approval(justification=justification)
 
     def action_apply_amendment(self):
@@ -792,8 +814,9 @@ class FixImportLcAmendment(models.Model):
                 raise UserError("LC %s is %s: only an opened LC is amended." % (lc.lc_no, lc.state))
             if rec.approval_state != "approved":
                 raise UserError("Amendment %s is not approved through the M63 inbox." % rec.name)
+            rec._amendment_refuse_noop()
             rec._dofa_assert_approved("LC amendment %s" % rec.name)
-            new_amount = rec.new_amount if rec.new_amount else lc.amount
+            new_amount = rec._amended_amount()
             if new_amount < lc.paid_amount - 0.005:
                 raise UserError(
                     "The amended LC amount %.2f is below the %.2f already paid under it."

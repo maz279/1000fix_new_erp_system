@@ -13,7 +13,11 @@ from unittest import mock
 
 import pytest
 from odoo.addons.cd_import_order.tests.test_a06_m44_controls import (
+    APPROVER as APPROVER_ROLE,
+)
+from odoo.addons.cd_import_order.tests.test_a06_m44_controls import (
     FX,
+    TIER4,
     _bucket,
     _net,
     _refused,
@@ -33,6 +37,9 @@ from odoo.addons.cd_import_order.tests.test_a06_m44_controls import (
     stage_proforma,
     stage_received,
     stage_shipped,
+)
+from odoo.addons.cd_import_order.tests.test_a06_m44_controls import (
+    OFFICER as OFFICER_ROLE,
 )
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a06 import m44 as m44_ctl
@@ -481,12 +488,24 @@ def test_b2_import_mark_cannot_be_forged_to_skip_stock(c):
     receiver = _user(c.env, "m44f_rcv_%s" % c.tag, c.ou, GROUP_RECEIVER)
     _refused(grn.with_user(receiver).write, {"import_order_id": c.order.id}, match="workflow")
     assert not grn.import_order_id
-    # an ordinary GRN still posts its own M15 receipt
+    # an ordinary GRN still puts its goods into M15 stock. With M16's
+    # inspection required (the default) they land held "In Inspection" and
+    # only the inspection releases them (B2, BRU-PRO-11); without it they are
+    # available at once. Either way the forged mark skipped nothing.
     c.env["ir.config_parameter"].sudo().set_param(
         "cd_inventory.po_receiving_location_id", str(c.loc.id)
     )
     grn.with_user(receiver).action_post()
-    assert grn.stock_receipt_ids and _bucket(c, c.part).qty == 1
+    receipt = grn.stock_receipt_ids
+    assert receipt.state == "posted" and receipt.location_id == c.loc
+    assert receipt.line_ids.part_id == c.part and receipt.line_ids.qty_received == 1
+    Onhand = c.env["fix.stock.onhand"]
+    held = Onhand._bucket(c.part, c.loc, "owned", status="inspection")
+    available = Onhand._bucket(c.part, c.loc, "owned")
+    if receipt.inspection_held:
+        assert held.qty == 1 and not available.qty
+    else:
+        assert available.qty == 1 and not held.qty
 
 
 # ================================================================ B3 reversal
@@ -1086,3 +1105,62 @@ def test_final_proper_path_to_closed(c):
     letter.with_user(c.officer).action_close()
     c.order.with_user(c.approver).action_close()
     assert c.order.state == "closed"
+
+
+# ================================================================ expiry-only LC amendment
+def _amendment(c, letter, user=None, **kw):
+    vals = {"lc_id": letter.id, "reason": "Supplier asked for 30 more days"}
+    vals.update(kw)
+    return c.env["fix.import.lc.amendment"].with_user(user or c.officer).create(vals)
+
+
+def _inbox_task(record, user):
+    return record.approval_request_id.task_ids.filtered(
+        lambda t: t.state == "pending" and t.assigned_user_id == user
+    )
+
+
+def test_expiry_only_amendment_is_approved_and_applied(c):
+    """A blank new amount means "unchanged": the amendment is routed at the
+    LC total it leaves in force, approved from the inbox, then applied."""
+    letter = stage_lc_open(c)
+    old_expiry = letter.expiry
+    new_expiry = old_expiry + timedelta(days=30)
+    am = _amendment(c, letter, new_expiry=new_expiry)
+    assert not am.new_amount
+    assert am._dofa_amount() == pytest.approx(letter.amount)
+    assert am.dofa_tier_required != "tier_0"
+    _refused(am.with_user(c.officer).action_apply_amendment, match="not approved")
+    am.with_user(c.officer).action_request_approval(justification="Shipment window")
+    assert am.approval_state == "pending"
+    task = _inbox_task(am, c.approver)
+    assert task, "routed to %s" % am.approval_request_id.task_ids.mapped("assigned_user_id.name")
+    task.with_user(c.approver).action_approve(comment="Approved")
+    assert am.approval_state == "approved" and am.dofa_approved_by == c.approver
+    assert am.dofa_approved_amount == pytest.approx(1175000.0)
+    am.with_user(c.officer).action_apply_amendment()
+    assert am.state == "applied" and am.old_expiry == old_expiry
+    assert letter.expiry == new_expiry and letter.amount == pytest.approx(1175000.0)
+
+
+def test_amendment_that_changes_nothing_is_refused(c):
+    letter = stage_lc_open(c)
+    for vals in ({}, {"new_amount": letter.amount, "new_expiry": letter.expiry}):
+        am = _amendment(c, letter, **vals)
+        _refused(am.with_user(c.officer).action_request_approval, match="changes neither")
+        assert am.approval_state != "pending"
+        am.with_user(c.officer).action_cancel()
+
+
+def test_requester_cannot_approve_an_expiry_only_amendment(c):
+    both = _user(c.env, "m44f_amend_%s" % c.tag, c.ou, OFFICER_ROLE, APPROVER_ROLE, TIER4)
+    letter = stage_lc_open(c)
+    am = _amendment(c, letter, user=both, new_expiry=letter.expiry + timedelta(days=10))
+    am.with_user(both).action_request_approval(justification="Shipment window")
+    assert not _inbox_task(am, both), "never routed to the person who raised it"
+    _refused(am.with_user(both).action_dofa_approve)
+    assert am.approval_state == "pending"
+    _refused(am.with_user(both).action_apply_amendment, match="not approved")
+    _inbox_task(am, c.approver).with_user(c.approver).action_approve(comment="Approved")
+    am.with_user(both).action_apply_amendment()
+    assert am.state == "applied"
