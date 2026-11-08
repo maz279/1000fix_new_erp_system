@@ -176,6 +176,14 @@ class FixVendorInvoice(models.Model):
     # Computed with the state (A06 S6): read on its own it was a stale column
     # that only refreshed when match_state happened to be read first.
     match_detail = fields.Text(readonly=True, compute="_compute_match", store=True)
+    # A06 M16-8: a line's withholding category was defaulted, not chosen.
+    tds_category_review = fields.Boolean(
+        string="TDS Category to Review",
+        compute="_compute_tds_category_review",
+        store=True,
+        help="A line took the default TDS category because the vendor's tax profile names "
+        "none. AP sets the right one, or confirms the default.",
+    )
     # Approval workflow (A08)
     approval_state = fields.Selection(
         [
@@ -377,6 +385,17 @@ class FixVendorInvoice(models.Model):
             else:
                 inv.match_state = "matched"
                 inv.match_detail = "PO / receipt / invoice reconciled"
+
+    @api.depends("line_ids.tds_category_assumed")
+    def _compute_tds_category_review(self):
+        for inv in self:
+            inv.tds_category_review = any(inv.line_ids.mapped("tds_category_assumed"))
+
+    def action_confirm_tds_category(self):
+        """AP confirms the default category is the right one for these lines."""
+        require_finance(self.env, "Confirming a TDS category")
+        self.line_ids.filtered("tds_category_assumed").write({"tds_category_assumed": False})
+        return True
 
     @api.constrains("vds_rate_id")
     def _check_vds_rate(self):
@@ -1021,6 +1040,12 @@ class FixVendorInvoiceLine(models.Model):
         default="service_general",
         help="The Tax Rate Master code whose effective rate applies",
     )
+    tds_category_assumed = fields.Boolean(
+        string="TDS Category Assumed",
+        readonly=True,
+        copy=False,
+        help="Defaulted because the vendor's tax profile names no category; nobody chose it.",
+    )
     tds_exempt = fields.Boolean(
         default=False,
         help="Vendor holds a valid exemption certificate. Honoured only when the vendor's "
@@ -1146,12 +1171,20 @@ class FixVendorInvoiceLine(models.Model):
             profile = Invoice.browse(vals["invoice_id"])._tax_profile()
             code = (profile.default_tds_category or "").strip()
             vals["tds_category"] = code if code in known else "service_general"
+            # A06 M16-8: nobody chose this category and it may under-withhold, so
+            # the bill says so until AP sets the right one or confirms this one.
+            vals["tds_category_assumed"] = code not in known
         lines = super().create(vals_list)
         lines._check_parent_editable()
         return lines
 
     def write(self, vals):
         self._check_parent_editable()
+        if "tds_category" in vals:
+            # The form echoes every field it shows: only another category is a choice.
+            self.filtered(
+                lambda ln: ln.tds_category_assumed and ln.tds_category != vals["tds_category"]
+            ).write({"tds_category_assumed": False})
         return super().write(vals)
 
     def unlink(self):

@@ -25,6 +25,8 @@ unit-testable without a database (AR-007 section 3.1).
         "cd_event_outbox",
         "cd_employee_core",
         "cd_workflow_engine",
+        # A06 M15-10: a work-order part leaves the M15 ledger
+        "cd_inventory",
     ],
     "data": [
         "data/fix_sla_instance_cron.xml",

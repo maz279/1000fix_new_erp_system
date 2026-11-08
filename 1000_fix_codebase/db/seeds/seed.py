@@ -2844,11 +2844,7 @@ def main() -> int:
                     "state": ["planned", "reported"][i],
                 },
             )
-            ensure(
-                "fix.supplier.scorecard",
-                [("vendor_id", "=", cust[i]), ("period", "=", "2026-Q3")],
-                {"vendor_id": cust[i], "period": "2026-Q3", "operating_unit_id": ou[0]},
-            )
+            # fix.supplier.scorecard is deprecated and takes no new rows (A06 M42-6).
             if slr:
                 ensure(
                     "fix.seller.score",

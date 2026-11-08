@@ -32,28 +32,28 @@
 
         <!-- Executive & Management (R-01 .. R-05): oversight, not operations -->
         <record id="role_r01" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration')] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <!-- R-02 carries the CAB seat (N-M28-6): a default for an appointment the business
              confirms (B-1), so a CAB member arrives through an approved request. -->
         <record id="role_r02" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_itsm.group_itsm_change_manager', raise_if_not_found=False), ref('cd_itsm.group_itsm_cab_member', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_itsm.group_itsm_change_manager', raise_if_not_found=False), ref('cd_itsm.group_itsm_cab_member', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <!-- R-03 does not carry the Administration workspace (the system console): SOD-22 pairs
              R-03 with R-01 and needs the two sides told apart (E6). -->
         <record id="role_r03" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r04" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration')] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r05" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_facility.group_operations_director', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_facility.group_operations_director', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
 
         <!-- Service Operations (R-06 .. R-14) -->
         <record id="role_r06" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_front_desk.group_fd_branch_manager', raise_if_not_found=False), ref('cd_facility.group_branch_operations_lead', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_front_desk.group_fd_branch_manager', raise_if_not_found=False), ref('cd_facility.group_branch_operations_lead', raise_if_not_found=False), ref('cd_wms_structure.group_inventory_approver_branch', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r07" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_service_orders')] if g])]"/>
@@ -65,13 +65,13 @@
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_service_orders'), ref('cd_service_order.group_so_supervisor', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r10" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('group_ws_service_orders')] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('group_ws_service_orders'), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r11" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r12" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_service_order.group_so_qc_inspector', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_service_order.group_so_qc_inspector', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r13" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_itsm.group_itsm_agent', raise_if_not_found=False)] if g])]"/>
@@ -94,7 +94,7 @@
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_wms_structure.group_storekeeper', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r19" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_requisition.group_fix_procurement_buyer', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_requisition.group_fix_procurement_buyer', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r20" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_wms_structure.group_warehouse_operator', raise_if_not_found=False)] if g])]"/>
@@ -122,10 +122,10 @@
 
         <!-- Finance (R-26 .. R-29) -->
         <record id="role_r26" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_service_order.group_so_commercial_approver', raise_if_not_found=False), ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_service_order.group_so_commercial_approver', raise_if_not_found=False), ref('cd_msp_contract.group_msp_credit_approver', raise_if_not_found=False), ref('cd_wms_structure.group_inventory_approver_finance', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r27" model="fix.role">
-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_import_order.group_fix_import_approver', raise_if_not_found=False)] if g])]"/>
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_import_order.group_fix_import_approver', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
         <record id="role_r28" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_device_registry.group_warranty_officer', raise_if_not_found=False)] if g])]"/>

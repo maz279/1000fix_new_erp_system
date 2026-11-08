@@ -34,6 +34,7 @@ WRITABLE = {
             "period_end",
             "period_start",
             "product_id",
+            "vendor_id",
         }
     ),
     "fix.demand.policy": frozenset(
@@ -47,12 +48,16 @@ WRITABLE = {
             "pack_size",
             "part_id",
             "product_id",
+            "provisional_daily_demand",
+            "provisional_reason",
             "review_period_days",
             "service_level_pct",
         }
     ),
     "fix.demand.rebalance": frozenset(
         {
+            "benefit_basis",
+            "benefit_value",
             "notes",
             "part_id",
             "product_id",
@@ -87,10 +92,22 @@ WRITABLE = {
             "product_id",
         }
     ),
+    "fix.import.advance": frozenset(
+        {
+            "amount",
+            "bank",
+            "currency_id",
+            "guarantee_ref",
+            "order_id",
+            "purpose",
+        }
+    ),
     "fix.import.arrival": frozenset(
         {
             "bl_no",
             "cnf_agent_id",
+            "demurrage_cause",
+            "demurrage_note",
             "eta",
             "etd",
             "free_days",
@@ -110,7 +127,6 @@ WRITABLE = {
             "line_ids",
             "order_id",
             "payment_ref",
-            "reversal_reason",
         }
     ),
     "fix.import.boe.line": frozenset(),
@@ -154,6 +170,7 @@ WRITABLE = {
     "fix.import.landed": frozenset(
         {
             "allocation_method",
+            "bank_charges",
             "clearing_charges",
             "duty_estimate",
             "freight",
@@ -187,9 +204,12 @@ WRITABLE = {
     "fix.import.lc.payment": frozenset(
         {
             "amount",
+            "boe_id",
             "lc_id",
             "payment_date",
             "reference",
+            "settlement_rate",
+            "settlement_rate_source",
         }
     ),
     "fix.import.lca": frozenset(
@@ -259,6 +279,8 @@ WRITABLE = {
     "fix.import.shipdoc": frozenset(
         {
             "doc_type",
+            "document",
+            "document_name",
             "order_id",
             "received_on",
             "ref",
@@ -347,7 +369,14 @@ WRITABLE = {
         }
     ),
     "fix.purchase.order.line": frozenset(),
-    "fix.purchase.receipt": frozenset(),
+    "fix.purchase.receipt": frozenset(
+        {
+            "delivery_note_ref",
+            "line_ids",
+            "notes",
+            "purchase_order_id",
+        }
+    ),
     "fix.purchase.receipt.line": frozenset(),
     "fix.reorder.rule": frozenset(
         {
@@ -365,6 +394,7 @@ WRITABLE = {
     "fix.requisition": frozenset(
         {
             "branch_id",
+            "cost_centre",
             "description",
             "estimate_amount",
             "justification",
@@ -372,6 +402,7 @@ WRITABLE = {
             "product_id",
             "qty",
             "requested_by",
+            "required_by",
             "urgency",
             "vendor_id",
         }
@@ -379,11 +410,34 @@ WRITABLE = {
     "fix.spare.part": frozenset(
         {
             "active",
+            "barcode",
+            "brand_id",
+            "category_id",
             "company_id",
+            "compatible_models",
+            "core_exchange_required",
+            "criticality",
+            "device_brand",
+            "is_serialized",
+            "list_price",
+            "max_qty",
+            "min_qty",
+            "model_compatibility_ids",
             "name",
             "name_bn",
             "operating_unit_id",
+            "part_category",
             "part_number",
+            "product_default_code",
+            "product_id",
+            "product_legacy_erp_part_number",
+            "product_manufacturer_part_number",
+            "qr_code",
+            "safety_stock",
+            "sales_price",
+            "storage_class",
+            "uom",
+            "warranty_months",
         }
     ),
     "fix.stock.class.change": frozenset(
@@ -398,6 +452,7 @@ WRITABLE = {
     ),
     "fix.stock.consumption": frozenset(
         {
+            "issue_class",
             "location_id",
             "product_id",
             "quantity",
@@ -423,11 +478,16 @@ WRITABLE = {
     "fix.stock.location": frozenset(
         {
             "active",
+            "branch_id",
             "code",
             "company_id",
+            "location_type",
             "name",
             "name_bn",
             "operating_unit_id",
+            "parent_id",
+            "technician_id",
+            "van_plate",
         }
     ),
     "fix.stock.lot": frozenset(
@@ -450,6 +510,7 @@ WRITABLE = {
     ),
     "fix.stock.receipt": frozenset(
         {
+            "direct_reason",
             "inspection_notes",
             "line_ids",
             "location_id",
@@ -465,6 +526,7 @@ WRITABLE = {
     "fix.stock.rtv": frozenset(
         {
             "location_id",
+            "lot_id",
             "notes",
             "part_id",
             "partner_id",
@@ -496,6 +558,7 @@ WRITABLE = {
     ),
     "fix.supplier": frozenset(
         {
+            "approved_category_ids",
             "buyer_id",
             "category",
             "name",
@@ -511,7 +574,17 @@ WRITABLE = {
             "supplier_id",
         }
     ),
-    "fix.supplier.bank.change": frozenset(),
+    "fix.supplier.bank.change": frozenset(
+        {
+            "acc_holder_name",
+            "acc_number",
+            "bank_id",
+            "evidence_ref",
+            "routing_number",
+            "supplier_id",
+            "verification_ref",
+        }
+    ),
     "fix.supplier.car": frozenset(
         {
             "action_plan",
@@ -526,6 +599,8 @@ WRITABLE = {
     "fix.supplier.document": frozenset(
         {
             "doc_type",
+            "file",
+            "file_filename",
             "file_ref",
             "number",
             "supplier_id",
@@ -606,6 +681,14 @@ WRITABLE = {
             "ownership_class",
             "storage_class",
             "zone_id",
+        }
+    ),
+    "fix.warehouse.zone": frozenset(
+        {
+            "code",
+            "name",
+            "warehouse_id",
+            "zone_type",
         }
     ),
     "fix.wms.carton": frozenset(

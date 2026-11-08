@@ -18,9 +18,9 @@ def test_landed_cost_computed_from_fob_freight_insurance_duty(odoo_env):
 
 
 def test_import_lifecycle_states(odoo_env):
-    """draft -> shipped -> customs -> cleared -> received -> landed."""
+    """draft -> shipped -> customs -> cleared -> received -> landed -> closed."""
     states = [k for k, _v in odoo_env["fix.import.order"]._fields["state"].selection]
-    assert states == ["draft", "shipped", "customs", "cleared", "received", "landed"]
+    assert states == ["draft", "shipped", "customs", "cleared", "received", "landed", "closed"]
 
 
 def test_order_state_is_guarded(odoo_env):

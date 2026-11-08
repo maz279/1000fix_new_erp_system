@@ -80,8 +80,10 @@
                 <field name="part_number"/>
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
-                <field name="category"/>
-                <field name="brand"/>
+                <field name="category_id" optional="show"/>
+                <field name="brand_id"/>
+                <field name="category" optional="hide"/>
+                <field name="brand" optional="hide"/>
                 <field name="barcode" optional="show"/>
                 <field name="is_serialized" optional="show"/>
                 <field name="qty_available"/>
@@ -111,6 +113,8 @@
                     </div>
                     <group>
                         <group string="Categorization &amp; Identification">
+                            <field name="category_id"/>
+                            <field name="brand_id"/>
                             <field name="category"/>
                             <field name="brand"/>
                             <field name="barcode"/>
@@ -126,11 +130,14 @@
                             <field name="max_qty"/>
                             <field name="safety_stock"/>
                             <field name="warranty_months"/>
+                            <field name="product_id"/>
+                            <field name="legacy_reference"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
                     <group string="Hardware Compatibility">
                         <field name="compatible_models" placeholder="Comma-separated models, e.g. Dell Inspiron 15 3501, 3505, 3511"/>
+                        <field name="model_compatibility_ids" widget="many2many_tags"/>
                     </group>
                 </sheet>
             </form>

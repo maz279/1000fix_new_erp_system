@@ -326,6 +326,7 @@ def test_scan_and_consume_deducts_values_and_publishes(ctx):
         "part_id": ctx.part.id,
         "part_number": PN,
         "quantity": 2.0,
+        "ownership_class": "van",
         "location_id": ctx.van.id,
         "location_code": VAN,
         "technician_id": ctx.technician.id,

@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "stock.consumed",
-  "description": "Event emitted when spare parts are scanned and consumed on a repair job (M15, CD-M15-01)",
+  "description": "Event emitted when spare parts are scanned and consumed on a repair job (M15, CD-M15-01) Published by cd_inventory through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
-  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
   "properties": {
     "event_id": {
       "type": "string",
       "format": "uuid",
-      "description": "Unique event identifier for idempotency"
+      "description": "Unique event identifier for idempotency (UUIDv4)"
     },
     "event_type": {
       "type": "string",
@@ -16,7 +22,8 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
     },
     "producer": {
       "type": "string",
@@ -24,23 +31,86 @@
     },
     "payload": {
       "type": "object",
-      "required": ["consumption_id", "consumption_ref", "service_order_ref", "part_id", "part_number", "quantity", "location_id", "technician_id"],
+      "required": [
+        "consumption_id",
+        "consumption_ref",
+        "service_order_ref",
+        "work_order_ref",
+        "part_id",
+        "part_number",
+        "quantity",
+        "ownership_class",
+        "location_id",
+        "location_code",
+        "technician_id",
+        "serial_number",
+        "scanned_code",
+        "consumed_at",
+        "suspense_entry_id"
+      ],
       "properties": {
-        "consumption_id": { "type": "integer" },
-        "consumption_ref": { "type": "string" },
-        "service_order_ref": { "type": "string" },
-        "work_order_ref": { "type": "string" },
-        "part_id": { "type": "integer" },
-        "part_number": { "type": "string" },
-        "quantity": { "type": "number", "minimum": 0.01 },
-        "location_id": { "type": "integer" },
-        "location_code": { "type": "string" },
-        "technician_id": { "type": "integer" },
-        "serial_number": { "type": "string" },
-        "scanned_code": { "type": "string" },
-        "consumed_at": { "type": "string" },
-        "suspense_entry_id": { "type": "integer" }
-      }
+        "consumption_id": {
+          "type": "integer"
+        },
+        "consumption_ref": {
+          "type": "string"
+        },
+        "service_order_ref": {
+          "type": "string"
+        },
+        "work_order_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "part_id": {
+          "type": "integer"
+        },
+        "part_number": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "ownership_class": {
+          "type": "string"
+        },
+        "location_id": {
+          "type": "integer"
+        },
+        "location_code": {
+          "type": "string"
+        },
+        "technician_id": {
+          "type": "integer"
+        },
+        "serial_number": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "scanned_code": {
+          "type": "string"
+        },
+        "consumed_at": {
+          "type": "string"
+        },
+        "suspense_entry_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "x-owner-module": "cd_inventory",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_stock_consumption.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)",
+  "x-curated-description": "Event emitted when spare parts are scanned and consumed on a repair job (M15, CD-M15-01)"
 }

@@ -3244,14 +3244,20 @@
                                                         </div>
                                                     </div>
                                                     <!-- many2one -->
-                                                    <select t-elif="fm.type === 'many2one'" class="d365-input"
-                                                            t-att-id="fldId" t-att-name="field.name"
-                                                            t-on-change="(ev) => this.formSet(field.name, ev.target.value)">
-                                                        <option value=""></option>
-                                                        <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.id">
-                                                            <option t-att-value="opt.id" t-att-selected="formSelectValue(field.name) == opt.id" t-esc="opt.label"/>
-                                                        </t>
-                                                    </select>
+                                                    <t t-elif="fm.type === 'many2one'">
+                                                        <input t-if="fm.truncated" type="search" class="d365-input d365-choice-search"
+                                                               t-att-aria-label="t('Search') + ' ' + t(fm.label || field.name)"
+                                                               t-att-placeholder="t('Type to search all records')"
+                                                               t-on-input="(ev) => this.formChoiceSearch(fm, ev.target.value)"/>
+                                                        <select class="d365-input"
+                                                                t-att-id="fldId" t-att-name="field.name"
+                                                                t-on-change="(ev) => this.formSet(field.name, ev.target.value)">
+                                                            <option value=""></option>
+                                                            <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.id">
+                                                                <option t-att-value="opt.id" t-att-selected="formSelectValue(field.name) == opt.id" t-esc="opt.label"/>
+                                                            </t>
+                                                        </select>
+                                                    </t>
                                                     <!-- many2many: every selected row is saved -->
                                                     <select t-elif="fm.type === 'many2many'" class="d365-input" multiple="multiple" size="5"
                                                             t-att-id="fldId" t-att-name="field.name"
@@ -3380,16 +3386,22 @@
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
                                                     <span t-if="lf.readonly || formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
-                                                    <select t-elif="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
-                                                            t-att-id="lineId" t-att-aria-label="t(lf.label)"
-                                                            t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
-                                                        <option value=""></option>
-                                                        <t t-foreach="lf.choices || []" t-as="opt" t-key="opt.key || opt.id">
-                                                            <option t-att-value="opt.key !== undefined ? opt.key : opt.id"
-                                                                    t-att-selected="formLineSelectValue(row_index, lf.name) == (opt.key !== undefined ? opt.key : opt.id)"
-                                                                    t-esc="t(opt.label)"/>
-                                                        </t>
-                                                    </select>
+                                                    <t t-elif="lf.type === 'selection' || lf.type === 'many2one'">
+                                                        <input t-if="lf.truncated" type="search" class="d365-input d365-choice-search"
+                                                               t-att-aria-label="t('Search') + ' ' + t(lf.label)"
+                                                               t-att-placeholder="t('Type to search all records')"
+                                                               t-on-input="(ev) => this.formChoiceSearch(lf, ev.target.value, true)"/>
+                                                        <select class="d365-input"
+                                                                t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                                t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
+                                                            <option value=""></option>
+                                                            <t t-foreach="lf.choices || []" t-as="opt" t-key="opt.key || opt.id">
+                                                                <option t-att-value="opt.key !== undefined ? opt.key : opt.id"
+                                                                        t-att-selected="formLineSelectValue(row_index, lf.name) == (opt.key !== undefined ? opt.key : opt.id)"
+                                                                        t-esc="t(opt.label)"/>
+                                                            </t>
+                                                        </select>
+                                                    </t>
                                                     <input t-elif="lf.type === 'boolean'" type="checkbox" class="d365-checkbox"
                                                            t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                            t-att-checked="!!formLineValue(row_index, lf.name)"
@@ -3411,7 +3423,7 @@
                                         </tbody>
                                     </table>
                                     <div class="d365-lines-bar">
-                                        <button t-if="!formLineCfg.readonlyGrid" class="btn" t-on-click="() => this.formAddLine()">
+                                        <button t-if="!formLineCfg.readonlyGrid &amp;&amp; !formLineCfg.fixedRows" class="btn" t-on-click="() => this.formAddLine()">
                                             <t t-esc='t("+ Add line")'/>
                                         </button>
                                         <span t-if="formLineCfg.total" t-att-class="'d365-line-total' + (formLineTotal == formLineCfg.total.target ? ' ok' : '')">

@@ -367,8 +367,9 @@ def test_m43_19_generate_pr_requires_approved(m43):
 
 
 def test_m43_20_price_and_vendor_from_last_po(m43):
-    """The requisition is priced from the last purchase-order price; the vendor
-    is proposed only when M42 lists it as an active supplier."""
+    """The requisition is priced from the last purchase-order price. BRU-DPL-11:
+    the last PO's vendor used to be blanked when M42 did not list it and the
+    release went on, unsourced; now the release is refused."""
     vendor = m43.env["res.partner"].create({"name": "M43 Last Vendor"})
     m43.env["fix.purchase.order"].create(
         {
@@ -378,12 +379,20 @@ def test_m43_20_price_and_vendor_from_last_po(m43):
         }
     )
     plan = m43.ready_plan()
-    req = _release(m43, plan)
+    plan.with_user(m43.planner).write({"vendor_id": False})
+    _approve(m43, plan)
+    with pytest.raises(UserError, match="not an active supplier"), m43.env.cr.savepoint():
+        plan.with_user(m43.planner).action_generate_pr()
+    assert plan.state == "approved" and not plan.pr_requisition_id
+    m43.env["fix.supplier"].create(
+        {"name": vendor.name, "partner_id": vendor.id, "status": "active"}
+    )
+    plan.with_user(m43.planner).action_generate_pr()
+    req = plan.sudo().pr_requisition_id
     # the open PO line (1 unit) is on order: projected 5 + 1 - 10 = -4 -> 84
     assert req.qty == pytest.approx(84.0)
     assert req.estimate_amount == pytest.approx(84 * 1200.0)
-    if "fix.supplier" in m43.env:
-        assert not req.vendor_id, "vendor with no active M42 supplier record is not proposed"
+    assert req.vendor_id == vendor
 
 
 # ===================================================================== forecasts
@@ -687,6 +696,8 @@ def _rebalance(m43, user=None, **kw):
         "target_location_id": m43.loc2.id,
         "qty": 5,
         "transfer_cost": 300,
+        "benefit_value": 500,
+        "benefit_basis": "Avoided emergency buy",
     }
     vals.update(kw)
     return m43.env["fix.demand.rebalance"].with_user(user or m43.planner).create(vals)

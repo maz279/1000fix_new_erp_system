@@ -996,7 +996,13 @@ class FixComplaint(models.Model):
 
 
 class FixSupplierScorecard(models.Model):
-    """M42 (T05/T06): the vendor scorecard — computed FROM consumed M16
+    """DEPRECATED (A06 final pass, M42-6): no new rows. The supplier scorecard
+    is fix.supplier.performance (cd_vendor_portal), computed from the same M16
+    facts and read by the M42 screens. This model has no event consumer, no
+    cron and no workspace screen; its rows stay readable as history, in the
+    back-office view only.
+
+    M42 (T05/T06): the vendor scorecard — computed FROM consumed M16
     events (goods.received, po.issued), the asymmetric interface. M42 never
     reads M16 tables and M16 never knows M42 exists."""
 
@@ -1041,6 +1047,15 @@ class FixSupplierScorecard(models.Model):
             "rejection_count",
         }
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_has_token():
+            raise UserError(
+                "Supplier scorecards are kept in M42 (Scorecards, computed from purchase-order "
+                "and receipt facts). This older model takes no new rows."
+            )
+        return super().create(vals_list)
+
     @api.depends("lines_on_time", "lines_late", "rejection_count", "po_count")
     def _compute_scores(self):
         for card in self:
@@ -1061,16 +1076,7 @@ class FixSupplierScorecard(models.Model):
         period = str(payload.get("po_date", fields.Date.today()))[:7]
         card = self.search([("vendor_id", "=", vendor), ("period", "=", period)])
         if not card:
-            # AS-03: the event's operating unit, else the company's first one
-            # (the field is required - the former create omitted it)
-            ou_id = payload.get("operating_unit_id") or (
-                self.env["operating.unit"]
-                .search([("company_id", "=", self.env.company.id)], limit=1)
-                .id
-            )
-            card = self.create(
-                {"vendor_id": vendor, "period": period, "po_count": 0, "operating_unit_id": ou_id}
-            )
+            return  # deprecated: a row that exists still counts, none is created
         late = bool(payload.get("late", False))
         card = card._guarded()
         if late:

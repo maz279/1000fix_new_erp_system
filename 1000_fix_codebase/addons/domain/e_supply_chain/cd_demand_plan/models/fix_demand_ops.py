@@ -44,6 +44,7 @@ from .fix_demand_common import (
     consumed_by_month,
     consumed_value,
     has_role,
+    has_usable_history,
     mean_and_stddev,
     month_end,
     month_start,
@@ -70,6 +71,35 @@ def _refuse_frozen(rec, vals, names, reason):
 
 def _changed(rec, vals, names):
     return [n for n in names & set(vals) if rec._fix_guard_differs(n, vals[n], rec[n])]
+
+
+# =====================================================================
+# Spare part: what M43 publishes to M15 and M41 (step 3)
+# =====================================================================
+class FixSparePartDemandClass(models.Model):
+    _inherit = "fix.spare.part"
+
+    demand_abc_class = fields.Selection(
+        [("a", "A"), ("b", "B"), ("c", "C")], string="Demand ABC Class", readonly=True, copy=False
+    )
+    demand_xyz_class = fields.Selection(
+        [("x", "X"), ("y", "Y"), ("z", "Z")], string="Demand XYZ Class", readonly=True, copy=False
+    )
+    demand_criticality = fields.Selection(
+        [("low", "Low"), ("medium", "Medium"), ("high", "High"), ("critical", "Critical")],
+        string="Demand Criticality",
+        readonly=True,
+        copy=False,
+    )
+    demand_classified_on = fields.Date(string="Demand Classified On", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "demand_abc_class",
+            "demand_xyz_class",
+            "demand_criticality",
+            "demand_classified_on",
+        }
 
 
 # =====================================================================
@@ -133,8 +163,9 @@ class FixDemandForecast(models.Model):
     method = fields.Selection(
         [
             ("moving_average", "Moving Average"),
-            ("exponential", "Exponential Smoothing"),
-            ("seasonal", "Seasonal"),
+            # labelled, never set: the M26 forecast engine is not built
+            ("exponential", "Exponential Smoothing (M26, not built)"),
+            ("seasonal", "Seasonal (M26, not built)"),
             ("manual", "Manual"),
         ],
         required=True,
@@ -144,7 +175,7 @@ class FixDemandForecast(models.Model):
         readonly=True,
     )
     source = fields.Selection(
-        [("history", "History-derived"), ("model", "Model"), ("manual", "Manual")],
+        [("history", "History-derived"), ("model", "Model (M26, not built)"), ("manual", "Manual")],
         required=True,
         default="manual",
         compute="_compute_final",
@@ -419,6 +450,9 @@ class FixDemandSegment(models.Model):
     _inherit = ["fix.guarded.mixin"]
     _order = "product_id"
 
+    company_id = fields.Many2one(
+        "res.company", index=True, default=lambda self: self.env.company, string="Company"
+    )
     product_id = fields.Many2one(
         "product.product", string="Product", required=True, ondelete="cascade", index=True
     )
@@ -478,7 +512,23 @@ class FixDemandSegment(models.Model):
             for rec in self:
                 if rec.criticality != vals["criticality"]:
                     raise UserError("Item criticality is set by a Demand Plan Approver.")
-        return super().write(vals)
+        res = super().write(vals)
+        if "criticality" in vals or "part_id" in vals:
+            self.filtered("classified_on")._publish_to_part()
+        return res
+
+    def _publish_to_part(self):
+        """M43 step 3: the classes reach M15 on the spare part, where M15 and
+        M41 read them. The part's own criticality stays M15's master."""
+        for rec in self.sudo().filtered("part_id"):
+            rec.part_id._guarded().write(
+                {
+                    "demand_abc_class": rec.abc_class,
+                    "demand_xyz_class": rec.xyz_class,
+                    "demand_criticality": rec.criticality,
+                    "demand_classified_on": rec.classified_on,
+                }
+            )
 
     def _is_critical(self) -> bool:
         return self.criticality == "critical" or (
@@ -500,7 +550,9 @@ class FixDemandSegment(models.Model):
         first = add_months(today.replace(day=1), -months)
         stop = today.replace(day=1)
         company = self.env.company
-        segments = self.search([("state", "=", "active"), ("part_id", "!=", False)])
+        segments = self.search(
+            [("state", "=", "active"), ("part_id", "!=", False), ("company_id", "=", company.id)]
+        )
         values = {
             seg.id: consumed_value(self.env, company, seg.part_id, first, stop) for seg in segments
         }
@@ -532,6 +584,7 @@ class FixDemandSegment(models.Model):
                     "assigned_on": today,
                 }
             )
+        segments._publish_to_part()
         return True
 
 
@@ -551,7 +604,10 @@ POLICY_INPUTS = {
     "moq_qty",
     "pack_size",
     "company_id",
+    "provisional_daily_demand",
+    "provisional_reason",
 }
+PROVISIONAL_INPUTS = {"provisional_daily_demand", "provisional_reason"}
 POLICY_HISTORY_KEYS = {
     "product_id",
     "part_id",
@@ -560,7 +616,7 @@ POLICY_HISTORY_KEYS = {
     "lead_time_window_days",
 }
 LEAD_TIME_SOURCES = [
-    ("observed", "Observed (M16 receipts)"),
+    ("observed", "Observed (M16 and M44 receipts)"),
     ("typed", "Typed (no receipt history)"),
     ("override", "Planner override"),
 ]
@@ -587,16 +643,40 @@ class FixDemandPolicy(models.Model):
     avg_daily_demand = fields.Float(string="Avg Daily Demand", readonly=True)
     demand_stddev = fields.Float(string="Demand Std Dev", readonly=True)
     history_computed_on = fields.Datetime(string="History Computed On", readonly=True)
+    # BRU-DPL-01 / M43-3: a part with no history. A planner states a manual daily
+    # demand with a reason; a Demand Plan Approver who did not enter it approves
+    # it; it stands in for the M15 figure until real history exists.
+    provisional_daily_demand = fields.Float(string="Provisional Daily Demand")
+    provisional_reason = fields.Char(string="Provisional Demand Reason")
+    provisional_state = fields.Selection(
+        [
+            ("none", "None"),
+            ("entered", "Awaiting Approval"),
+            ("approved", "Approved"),
+            ("expired", "Expired: real history exists"),
+        ],
+        string="Provisional Demand",
+        default="none",
+        required=True,
+        readonly=True,
+    )
+    provisional_entered_by_id = fields.Many2one(
+        "res.users", string="Provisional Entered By", readonly=True, copy=False
+    )
+    provisional_approved_by_id = fields.Many2one(
+        "res.users", string="Provisional Approved By", readonly=True, copy=False
+    )
+    provisional_approved_on = fields.Datetime(string="Provisional Approved On", readonly=True)
     lead_time_days = fields.Integer(
         string="Lead Time (days)",
         default=7,
-        help="The lead time the formulas use: the observed M16 lead time (rounded up) "
+        help="The lead time the formulas use: the observed lead time (rounded up) "
         "unless the planner overrides it with a rationale",
     )
     lead_time_window_days = fields.Integer(
         string="Lead-Time Window (days)",
         default=lambda self: self._default_lead_window(),
-        help="Posted M16 goods receipts of the last N days the observed lead time uses",
+        help="M16 and M44 goods receipts of the last N days the observed lead time uses",
     )
     observed_lead_time_days = fields.Float(string="Observed Lead Time (days)", readonly=True)
     lead_time_samples = fields.Integer(string="Lead-Time Samples", readonly=True)
@@ -672,6 +752,10 @@ class FixDemandPolicy(models.Model):
             "avg_daily_demand",
             "demand_stddev",
             "history_computed_on",
+            "provisional_state",
+            "provisional_entered_by_id",
+            "provisional_approved_by_id",
+            "provisional_approved_on",
             "observed_lead_time_days",
             "lead_time_samples",
             "lead_time_source",
@@ -697,6 +781,7 @@ class FixDemandPolicy(models.Model):
     def write(self, vals):
         edited = self.browse()
         stale = self.browse()
+        retyped = self.browse()
         if self and not self._fix_guard_open():
             for rec in self:
                 if rec.state != "draft":
@@ -711,6 +796,8 @@ class FixDemandPolicy(models.Model):
                     edited |= rec
                 if _changed(rec, vals, POLICY_HISTORY_KEYS):
                     stale |= rec
+                if _changed(rec, vals, PROVISIONAL_INPUTS):
+                    retyped |= rec
         res = super().write(vals)
         if edited:
             edited._guarded().write({"prepared_by_id": self.env.user.id})
@@ -724,7 +811,21 @@ class FixDemandPolicy(models.Model):
                     "lead_time_samples": 0,
                 }
             )
+        (retyped | stale.filtered(lambda r: r.provisional_state != "none"))._provisional_entered()
         return res
+
+    def _provisional_entered(self):
+        """A typed provisional demand awaits approval; a change voids one given."""
+        for rec in self:
+            vals = {
+                "provisional_state": "entered" if rec.provisional_daily_demand > 0 else "none",
+                "provisional_entered_by_id": self.env.user.id,
+                "provisional_approved_by_id": False,
+                "provisional_approved_on": False,
+            }
+            if rec.provisional_state == "approved" and not rec.history_computed_on:
+                vals.update(avg_daily_demand=0.0, demand_stddev=0.0)
+            rec._guarded().write(vals)
 
     @api.depends("lead_time_days", "observed_lead_time_days", "lead_time_samples")
     def _compute_lead_time_source(self):
@@ -833,7 +934,9 @@ class FixDemandPolicy(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.demand.policy") or "DPOL/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records.filtered(lambda r: r.provisional_daily_demand > 0)._provisional_entered()
+        return records
 
     # ---------------------------------------------------------------- actions
     def action_refresh_from_history(self):
@@ -856,6 +959,7 @@ class FixDemandPolicy(models.Model):
                 rec.env, rec.company_id, rec.part_id, rec.location_id, first, rec.history_days
             )
             mean, std = mean_and_stddev(daily)
+            usable = has_usable_history(rec.env, rec.company_id, rec.part_id, rec.location_id)
             samples = observed_lead_times(
                 rec.env,
                 rec.company_id,
@@ -873,8 +977,65 @@ class FixDemandPolicy(models.Model):
             }
             if samples and not (rec.lead_time_override_rationale or "").strip():
                 vals["lead_time_days"] = ceil(round(vals["observed_lead_time_days"], 6))
+            if rec.provisional_state == "approved":
+                if usable:
+                    # real history exists: the manual figure has done its job
+                    vals["provisional_state"] = "expired"
+                else:
+                    for name in ("avg_daily_demand", "demand_stddev", "history_computed_on"):
+                        del vals[name]
             rec._guarded().write(vals)
         return True
+
+    def action_approve_provisional(self):
+        """BRU-DPL-01: no statistical figure is possible, so a Demand Plan
+        Approver who did not enter it lets the manual demand stand, flagged
+        provisional, until real history exists."""
+        require_role(self.env, APPROVER, what="Approving a provisional demand")
+        for rec in self:
+            if rec.state != "draft" or rec.provisional_state != "entered":
+                raise UserError(
+                    "Approve the provisional demand of a draft policy that has one entered "
+                    "(policy %s is %s, provisional %s)."
+                    % (rec.name, rec.state, rec.provisional_state)
+                )
+            refuse_self_decision(
+                self.env,
+                rec.create_uid | rec.prepared_by_id | rec.provisional_entered_by_id,
+                "The provisional demand of policy %s" % rec.name,
+            )
+            if not (rec.provisional_reason or "").strip():
+                raise UserError("Policy %s: state why a provisional demand is needed." % rec.name)
+            if not rec.part_id:
+                raise UserError("Policy %s has no M15 spare part." % rec.name)
+            if has_usable_history(self.env, rec.company_id, rec.part_id, rec.location_id):
+                raise UserError(
+                    "%s has real M15 history: use Refresh from History, not a provisional demand."
+                    % rec.part_id.display_name
+                )
+            rec._guarded().write(
+                {
+                    "provisional_state": "approved",
+                    "provisional_approved_by_id": self.env.user.id,
+                    "provisional_approved_on": fields.Datetime.now(),
+                    "avg_daily_demand": rec.provisional_daily_demand,
+                    "demand_stddev": 0.0,
+                }
+            )
+        return True
+
+    @api.model
+    def _cron_expire_provisional(self):
+        """Daily: a provisional demand expires once its part has real history.
+        The policy stays in force; a plan on it is refused until it is revised."""
+        policies = self.sudo().search([("provisional_state", "=", "approved")])
+        expired = policies.filtered(
+            lambda p: p.part_id
+            and has_usable_history(p.env, p.company_id, p.part_id, p.location_id)
+        )
+        for rec in expired:
+            rec._guarded().write({"provisional_state": "expired"})
+        return len(expired)
 
     def _publish_to_m15(self):
         """B1 contract: create or update the M15 reorder rule of the part at the
@@ -923,10 +1084,17 @@ class FixDemandPolicy(models.Model):
                     "Policy %s needs its M15 spare part and stock location: the reorder rule "
                     "it publishes is per part and location." % rec.name
                 )
-            if not rec.history_computed_on:
+            if not rec.history_computed_on and rec.provisional_state != "approved":
                 raise UserError(
-                    "Policy %s has no demand statistics: refresh them from M15 history first."
-                    % rec.name
+                    "Policy %s has no demand statistics: refresh them from M15 history first, or "
+                    "have a provisional demand approved for a part with no history." % rec.name
+                )
+            if rec.provisional_state == "approved" and has_usable_history(
+                self.env, rec.company_id, rec.part_id, rec.location_id
+            ):
+                raise UserError(
+                    "%s now has real M15 history: refresh policy %s from it instead of its "
+                    "provisional demand." % (rec.part_id.display_name, rec.name)
                 )
             if rec.lead_time_days <= 0:
                 raise UserError("Policy %s needs a positive lead time" % rec.name)
@@ -1006,7 +1174,16 @@ class FixDemandPolicy(models.Model):
             if rec.state != "active":
                 raise UserError("Pause an active policy")
             rec._guarded().write({"state": "paused"})
+            rec._suspend_m15_rule()
         return True
+
+    def _suspend_m15_rule(self):
+        """A paused policy stops replenishing: its published M15 reorder rule
+        is archived, which the replenishment sweep skips."""
+        self.ensure_one()
+        rule = self.published_rule_id.sudo()
+        if rule and rule.state != "archived":
+            rule._guarded().write({"state": "archived"})
 
     def action_resume(self):
         for rec in self:
@@ -1017,6 +1194,8 @@ class FixDemandPolicy(models.Model):
             else:
                 require_role(self.env, PLANNER, APPROVER, what="Resuming a policy")
             rec._guarded().write({"state": "active"})
+            # publishing restores the archived rule with this version's levels
+            rec._publish_to_m15()
         return True
 
 
@@ -1030,6 +1209,9 @@ class FixDemandReview(models.Model):
     _order = "period desc, id desc"
 
     name = fields.Char(required=True, default="New")
+    company_id = fields.Many2one(
+        "res.company", index=True, default=lambda self: self.env.company, string="Company"
+    )
     period = fields.Char(required=True, help="YYYY-MM")
     owner_id = fields.Many2one("hr.employee", string="Owner")
     due_on = fields.Date(required=True)
@@ -1107,6 +1289,8 @@ REBALANCE_INPUTS = {
     "target_location_id",
     "qty",
     "transfer_cost",
+    "benefit_value",
+    "benefit_basis",
     "proposed_on",
     "company_id",
 }
@@ -1153,6 +1337,14 @@ class FixDemandRebalance(models.Model):
         readonly=True,
     )
     transfer_cost = fields.Monetary(string="Estimated Transfer Cost", currency_field="currency_id")
+    # BRU-DPL-13: a proposal stands only where the benefit exceeds the transfer
+    # cost. The benefit (avoided buy, avoided stockout) is the proposer's estimate
+    # with its basis: nothing in M43 computes it yet.
+    benefit_value = fields.Monetary(string="Estimated Benefit", currency_field="currency_id")
+    benefit_basis = fields.Char(string="Benefit Basis")
+    net_benefit = fields.Monetary(
+        string="Net Benefit", currency_field="currency_id", compute="_compute_net_benefit"
+    )
     source_available = fields.Float(string="Available at Source", compute="_compute_available")
     proposed_on = fields.Date(required=True, default=fields.Date.context_today)
     proposed_by_id = fields.Many2one(
@@ -1182,6 +1374,7 @@ class FixDemandRebalance(models.Model):
             "source_branch",
             "target_branch",
             "source_available",
+            "net_benefit",
             "proposed_by_id",
             "decided_by_id",
             "decided_on",
@@ -1221,6 +1414,11 @@ class FixDemandRebalance(models.Model):
             rec.unit_cost = rec.part_id.unit_cost if rec.part_id else 0.0
             rec.stock_value = round((rec.qty or 0.0) * rec.unit_cost, 2)
 
+    @api.depends("benefit_value", "transfer_cost")
+    def _compute_net_benefit(self):
+        for rec in self:
+            rec.net_benefit = (rec.benefit_value or 0.0) - (rec.transfer_cost or 0.0)
+
     @api.depends("part_id", "source_location_id")
     def _compute_available(self):
         for rec in self:
@@ -1254,6 +1452,13 @@ class FixDemandRebalance(models.Model):
                 )
             if rec.source_location_id == rec.target_location_id:
                 raise UserError("A rebalance moves stock between two different locations")
+            if (rec.benefit_value or 0.0) <= (rec.transfer_cost or 0.0):
+                raise UserError(
+                    "Rebalance %s: the estimated benefit %.2f does not exceed the transfer cost "
+                    "%.2f (BRU-DPL-13)." % (rec.name, rec.benefit_value, rec.transfer_cost)
+                )
+            if not (rec.benefit_basis or "").strip():
+                raise UserError("Rebalance %s: state what the benefit is based on." % rec.name)
             if rec.qty > rec.source_available:
                 raise UserError(
                     "Rebalance %s moves %.2f but only %.2f is available at %s"

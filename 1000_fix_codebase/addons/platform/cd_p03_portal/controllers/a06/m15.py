@@ -9,9 +9,19 @@
 # reads as the CALLER (record rules apply), filtered to env.companies, and
 # values only the owned classes (BRU-INV-02). Every workflow transition the
 # screens need is declared in its surface's `actions`.
+#
+# A06 final pass B18 (spec section 13): cost and value are field-restricted.
+# Technicians and store keepers see quantity, location and condition; a pack
+# they read leaves the cost and value columns out. The value of what they may
+# not see is still needed for ABC, so it is computed as sudo and not shown.
 import datetime
 
-from .writable import WRITABLE as _WRITABLE
+COST_GROUP = "cd_wms_structure.group_stock_cost_viewer"
+VAN_VARIANCE_GROUPS = (
+    "cd_wms_structure.group_inventory_controller",
+    "cd_wms_structure.group_inventory_approver_branch",
+    "cd_wms_structure.group_inventory_approver_finance",
+)
 
 SURFACES = {
     "fix.stock.onhand": {"order": "part_id, location_id", "limit": 400, "actions": set()},
@@ -37,13 +47,14 @@ SURFACES = {
             "action_cancel",
             "action_dispatch",
             "action_receive",
+            "action_resolve_discrepancy",
         },
     },
     "fix.stock.transfer.line": {"order": "transfer_id, id", "limit": 400, "actions": set()},
     "fix.stock.count": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_submit", "action_post", "action_approve", "action_reject"},
+        "actions": {"action_submit", "action_approve", "action_reject"},
     },
     "fix.stock.count.line": {"order": "count_id, id", "limit": 400, "actions": set()},
     "fix.stock.van.recon": {
@@ -78,19 +89,12 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_trigger_reorder", "action_activate", "action_archive_rule"},
     },
-}
-
-# Surfaces whose write whitelist the lead generates from the forms
-# (controllers/form_fields.py --a06). Served once writable.py lists them, so
-# the package never imports a surface without a whitelist.
-_PENDING_SURFACES = {
     "fix.stock.class.change": {
         "order": "create_date desc, id desc",
         "limit": 300,
         "actions": {"action_submit", "action_approve", "action_reject"},
     },
 }
-SURFACES.update({m: c for m, c in _PENDING_SURFACES.items() if m in _WRITABLE})
 
 # The owned classes: consignment and customer property are held, never valued.
 _VALUED = ("owned", "van", "bench", "warranty")
@@ -128,8 +132,40 @@ def _onhand(env):
     return _mine(env, "fix.stock.onhand")
 
 
+def _sees_cost(env):
+    return env.su or env.user.has_group(COST_GROUP)
+
+
+def _sees_van_variance(env):
+    return env.su or any(env.user.has_group(g) for g in VAN_VARIANCE_GROUPS)
+
+
 def _value(rows):
-    return sum((r.qty or 0.0) * (r.unit_cost or 0.0) for r in rows if r.ownership_class in _VALUED)
+    """Value of these ledger rows. As sudo: callers show it only to a cost viewer."""
+    return sum(
+        (r.qty or 0.0) * (r.unit_cost or 0.0) for r in rows.sudo() if r.ownership_class in _VALUED
+    )
+
+
+def _without(pack, *hidden):
+    """The pack without the columns this reader may not see."""
+    pack["cols"] = [c for c in pack["cols"] if c not in hidden]
+    pack["rows"] = [{k: v for k, v in row.items() if k not in hidden} for row in pack["rows"]]
+    pack["labels"] = {k: v for k, v in pack["labels"].items() if k not in hidden}
+    if pack.get("totals"):
+        pack["totals"] = {k: v for k, v in pack["totals"].items() if k not in hidden}
+    return pack
+
+
+def _restricted(title):
+    return _pack(
+        title,
+        [],
+        {},
+        [],
+        ["Stock cost and value are visible to finance and inventory-manager roles only."],
+        empty="Stock cost and value are visible to finance and inventory-manager roles only.",
+    )
 
 
 def ownership_classes(env, date_from=None, date_to=None, **params):
@@ -145,7 +181,7 @@ def ownership_classes(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: -r["value"])
-    return _pack(
+    pack = _pack(
         "6 Ownership Classes — on-hand quantity and value",
         ["ownership", "lines", "qty", "value"],
         {"ownership": "Ownership Class", "lines": "Lines", "qty": "Quantity", "value": "Value"},
@@ -162,6 +198,7 @@ def ownership_classes(env, date_from=None, date_to=None, **params):
         },
         empty="No on-hand rows recorded yet.",
     )
+    return pack if _sees_cost(env) else _without(pack, "value")
 
 
 def availability(env, date_from=None, date_to=None, **params):
@@ -176,11 +213,11 @@ def availability(env, date_from=None, date_to=None, **params):
                 "location": rec.location_id.code,
                 "ownership": _OWNERSHIP_LABELS.get(rec.ownership_class, rec.ownership_class),
                 "available": round(rec.available_qty, 3),
-                "unit_cost": round(rec.unit_cost or 0.0, 2),
+                "unit_cost": round(rec.sudo().unit_cost or 0.0, 2),
             }
         )
     rows.sort(key=lambda r: (r["part"], -r["available"]))
-    return _pack(
+    pack = _pack(
         "Network Availability — available quantity by location",
         ["part", "description", "location", "ownership", "available", "unit_cost"],
         {
@@ -199,6 +236,7 @@ def availability(env, date_from=None, date_to=None, **params):
         totals={"part": "Total", "available": round(sum(r["available"] for r in rows), 3)},
         empty="No available stock recorded yet.",
     )
+    return pack if _sees_cost(env) else _without(pack, "unit_cost")
 
 
 def genealogy(env, date_from=None, date_to=None, **params):
@@ -297,6 +335,8 @@ def van_stock(env, date_from=None, date_to=None, **params):
 
 
 def valuation_by_class(env, date_from=None, date_to=None, **params):
+    if not _sees_cost(env):
+        return _restricted("Stock Valuation by Class — quantity × weighted-average cost")
     rows = []
     for rec in _onhand(env).filtered(lambda r: r.ownership_class in _VALUED):
         rows.append(
@@ -325,9 +365,10 @@ def valuation_by_class(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Each bucket carries its weighted-average cost (receipts average in; issues, "
-            "transfers and scrap leave at it). Consignment and customer property are "
-            "excluded: they are not 1000FiX's inventory."
+            "Weighted average cost (WAC) is the only method in operation: each bucket "
+            "carries its average (receipts average in; issues, transfers and scrap leave "
+            "at it). There are no FIFO cost layers. Consignment and customer property "
+            "are excluded: they are not 1000FiX's inventory."
         ],
         totals={
             "part": "Total",
@@ -390,7 +431,7 @@ def ageeing(env, date_from=None, date_to=None, **params):
 def abc_segmentation(env, date_from=None, date_to=None, **params):
     rows = []
     for rec in _onhand(env).filtered(lambda r: r.ownership_class in _VALUED):
-        value = (rec.qty or 0.0) * (rec.unit_cost or 0.0)
+        value = (rec.qty or 0.0) * (rec.sudo().unit_cost or 0.0)
         last = rec.last_move_date
         if last and (datetime.date.today() - last).days <= 30:
             movement = "X — fast"
@@ -424,7 +465,7 @@ def abc_segmentation(env, date_from=None, date_to=None, **params):
             else ("B" if row["cumulative_pct"] <= 95.0 else "C")
         )
     rows.sort(key=lambda r: -r["value"])
-    return _pack(
+    pack = _pack(
         "ABC / XYZ / Criticality — value Pareto, movement recency, part criticality",
         ["part", "description", "qty", "value", "abc", "cumulative_pct", "movement", "criticality"],
         {
@@ -444,6 +485,7 @@ def abc_segmentation(env, date_from=None, date_to=None, **params):
         ],
         empty="No on-hand rows recorded yet.",
     )
+    return pack if _sees_cost(env) else _without(pack, "value", "cumulative_pct")
 
 
 def accuracy_audit(env, date_from=None, date_to=None, **params):
@@ -507,20 +549,21 @@ def van_variance(env, date_from=None, date_to=None, **params):
     recons = _mine(env, "fix.stock.van.recon")
     rows = []
     for rec in recons:
+        ledger = rec.sudo()
         rows.append(
             {
                 "recon": rec.name,
                 "van": rec.location_id.code,
                 "technician": rec.technician_id.name if rec.technician_id else "—",
                 "date": str(rec.recon_date),
-                "expected": round(rec.expected_qty or 0.0, 3),
+                "expected": round(ledger.expected_qty or 0.0, 3),
                 "counted": round(rec.counted_qty or 0.0, 3),
-                "variance": round(rec.variance or 0.0, 3),
+                "variance": round(ledger.variance or 0.0, 3),
                 "state": dict(rec._fields["state"].selection).get(rec.state),
             }
         )
     rows.sort(key=lambda r: -abs(r["variance"]))
-    return _pack(
+    pack = _pack(
         "Van Stock Variance — daily reconciliation",
         ["recon", "van", "technician", "date", "expected", "counted", "variance", "state"],
         {
@@ -543,6 +586,8 @@ def van_variance(env, date_from=None, date_to=None, **params):
         },
         empty="No van reconciliations recorded yet.",
     )
+    # M15-8: the count is blind: the van's expected quantity is an approver's
+    return pack if _sees_van_variance(env) else _without(pack, "expected", "variance")
 
 
 def transfer_performance(env, date_from=None, date_to=None, **params):
@@ -587,6 +632,8 @@ def transfer_performance(env, date_from=None, date_to=None, **params):
 def suspense_integrity(env, date_from=None, date_to=None, **params):
     """S0 (read-only): is the initial-count baseline loaded twice, and how
     does the pending M19 suspense compare with the on-hand value?"""
+    if not _sees_cost(env):
+        return _restricted("Valuation Suspense Integrity")
     data = env["fix.inventory.valuation.suspense"].get_baseline_integrity()
     rows = []
     for item in data["companies"]:
@@ -659,19 +706,22 @@ REPORTS = {
 def kpis(env):
     """Read as the caller, in the caller's companies; only owned stock is valued."""
     onhand = _onhand(env)
-    value = _value(onhand)
+    value = _value(onhand) if _sees_cost(env) else None
     stocked_parts = len(onhand.filtered(lambda r: (r.qty or 0.0) > 0).mapped("part_id"))
     parts = _mine(env, "fix.spare.part", [("state", "=", "active")])
     stockouts = len(parts.filtered(lambda p: (p.qty_available or 0.0) <= (p.min_qty or 0.0)))
     today = datetime.date.today()
     month_start = today.replace(day=1)
+    # a figure over confirmed recons only: a draft's variance would tell the
+    # counter how far off his typed count is (M15-8)
     van_var = sum(
-        abs(r.variance or 0.0)
+        abs(r.sudo().variance or 0.0)
         for r in _mine(env, "fix.stock.van.recon", [("recon_date", ">=", month_start)])
+        if _sees_van_variance(env) or r.state != "draft"
     )
     company = [("company_id", "in", env.companies.ids)]
     return {
-        "stock_value": round(value, 2),
+        "stock_value": round(value, 2) if value is not None else None,
         "stocked_skus": stocked_parts,
         "stockout_skus": stockouts,
         "pending_counts": env["fix.stock.count"].search_count(

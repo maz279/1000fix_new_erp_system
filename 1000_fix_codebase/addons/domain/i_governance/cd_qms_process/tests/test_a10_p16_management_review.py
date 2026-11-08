@@ -177,9 +177,15 @@ def test_inputs_are_pulled_from_the_system_never_typed(m):
                 "source_count": 0,
             }
         )
-    # pulling again refreshes the same six lines — no duplicates
+    # pulling again refreshes the same six lines — no duplicates. Age the
+    # stamps first so the refresh really rewrites them: a re-pull inside the
+    # same second changed nothing, which hid that the Quality Manager's own
+    # refresh was refused by the guard.
+    stale = fields.Datetime.subtract(fields.Datetime.now(), hours=1)
+    rec.input_ids.sudo().write({"pulled_on": stale})
     rec.with_user(m.qm).action_pull_inputs()
     assert len(rec.input_ids) == 6
+    assert all(i.pulled_on > stale for i in rec.input_ids)
 
 
 def test_the_window_is_since_the_previous_review(m):

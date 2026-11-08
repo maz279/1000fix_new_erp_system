@@ -157,7 +157,7 @@ def test_wave_lifecycle_moves_the_ledger(ctx):
     wave.action_packed()
     stage = env["fix.wms.stage"].create({"wave_id": wave.id, "lane": "L1", "load_ref": "VAN-1"})
     wave.action_stage()
-    stage.action_load()
+    stage.action_load(carton_scans=carton.name)
     wave.action_ship()
     assert wave.state == "shipped"
     assert wave.shipped_at

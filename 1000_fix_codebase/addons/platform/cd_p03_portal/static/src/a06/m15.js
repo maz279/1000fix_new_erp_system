@@ -2,7 +2,10 @@
 /* A06 · Supply Chain — M15 Spare Parts & Inventory (v2 rebuild).
  * Registry-faithful: 5 groups / 16 screens / 6 reports / 5 forms / freg 107,
  * plus one receipts worklist (the registry ships the Goods Receipt form but
- * no list screen, so the inspection gate could not be exercised in-workspace). */
+ * no list screen, so the inspection gate could not be exercised in-workspace).
+ * Real-inventory upgrade (2026-11-07, fit-gap report R4): +Item Master group,
+ * the M15-parts grid and the 7-tab M15-form-part master form — the D365
+ * data-capture surface for the 14,198-row real inventory statement. */
 
 export const MODULE = {
   area: 'A06', code: 'M15', en: 'Spare Parts & Inventory', title: 'M15 · Spare Parts & Inventory',
@@ -17,6 +20,9 @@ export const MODULE = {
     { l: 'Van Variance', m: 'van_variance_pcs', suffix: ' pcs' }
   ],
   groups: [
+    { en: 'Item Master', screens: [
+      { id: 'M15-parts', en: 'Item Master (Real Inventory)', bn: 'আইটেম মাস্টার (প্রকৃত ইনভেন্টরি)', t: 'g' }
+    ]},
     { en: 'Stock Ledger', screens: [
       { id: 'M15-onhand', en: 'On-Hand by Location', bn: 'স্টক অন-হ্যান্ড', t: 'g' },
       { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'g' },
@@ -41,14 +47,14 @@ export const MODULE = {
       { id: 'M15-classchange', en: 'Ownership-Class Changes', bn: 'মালিকানা শ্রেণি পরিবর্তন', t: 'g' }
     ]},
     { en: 'Valuation & Analysis', screens: [
-      { id: 'M15-valuation', en: 'Valuation (FIFO/WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
+      { id: 'M15-valuation', en: 'Valuation (WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
       { id: 'M15-ageing', en: 'Ageing & Obsolescence', bn: 'এজিং', t: 'r' },
       { id: 'M15-abc', en: 'ABC / XYZ / Criticality', bn: 'এবিসি শ্রেণিবিন্যাস', t: 'r' },
       { id: 'M15-suspense', en: 'Valuation Suspense Integrity', bn: 'মূল্যায়ন সাসপেন্স যাচাই', t: 'r' }
     ]}
   ],
   reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock', 'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation'],
-  forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order'],
+  forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
     ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'] }],
@@ -62,16 +68,23 @@ export const MODULE = {
     ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'] }],
     ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'] }],
     ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'] }],
-    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'] }]
+    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'] }],
+    ['13', 'Item Master (real inventory)', 12, { model: 'fix.spare.part', cols: ['part_number', 'name', 'brand_id', 'category_id', 'qty_available', 'unit_cost', 'state'], screens: ['M15-parts'] }]
   ] }
 };
 
 export const SCREENS = {
+  /* Real-inventory master grid (report R4): every loaded row of the real
+   * inventory statement, exportable to branded XLSX/PDF/CSV + email via the
+   * standard chips. Row click opens the 7-tab master form. */
+  'M15-parts': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
+    cols: ['part_number', 'name', 'brand_id', 'category_id', 'product_id', 'qty_available', 'qty_reserved', 'unit_cost', 'state'] },
+
   'M15-onhand': { kind: 'model_list', model: 'fix.stock.onhand',
     cols: ['part_id', 'location_id', 'ownership_class', 'stock_status', 'qty', 'reserved', 'available_qty', 'unit_cost'] },
   'M15-ownership': { kind: 'table_report', module: 'M15', report: 'ownership_classes', title: '6 Ownership Classes', period: false },
   'M15-movements': { kind: 'model_list', model: 'fix.stock.consumption', stateField: 'state',
-    cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'state', 'consumed_at'],
+    cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'ownership_class', 'state', 'consumed_at'],
     actions: [
       { m: 'action_scan_and_consume', l: 'Scan & Consume' },
       { m: 'action_return_part', l: 'Return Part', ask: 'Return reason: wrong_diagnosis, defective_new (goes to quarantine), customer_refusal or excess_draw', kwarg: 'reason' }
@@ -95,7 +108,7 @@ export const SCREENS = {
       { m: 'action_resolve', l: 'Resolve Discrepancy (controller)', ask: 'How the van discrepancy was resolved', kwarg: 'note' }
     ] },
   'M15-counts': { kind: 'model_list', model: 'fix.stock.count', stateField: 'state',
-    cols: ['name', 'location_id', 'count_type', 'counted_on', 'counted_by_id', 'reason_code', 'state'],
+    cols: ['name', 'location_id', 'count_type', 'counted_on', 'counted_by_id', 'reason_code', 'variance_value', 'adjustment_value', 'state'],
     actions: [
       { m: 'action_submit', l: 'Submit Count' },
       { m: 'action_approve', l: 'Approve Variance (controller)' },
@@ -109,6 +122,10 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject (controller)' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_receive', l: 'Receive' },
+      { m: 'action_resolve_discrepancy', l: 'Resolve Discrepancy (controller)', asks: [
+        { label: 'Resolution: found, returned or quarantine', kwarg: 'resolution' },
+        { label: 'How the shortage was resolved', kwarg: 'note' }
+      ] },
       { m: 'action_cancel', l: 'Cancel' }
     ] },
   'M15-quarantine': { kind: 'model_list', model: 'fix.stock.quarantine', stateField: 'state',
@@ -137,7 +154,7 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject (controller)', ask: 'Why the class change is rejected', kwarg: 'note' }
     ] },
   'M15-suspense': { kind: 'table_report', module: 'M15', report: 'suspense_integrity', title: 'Valuation Suspense Integrity', period: false },
-  'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (FIFO/WAC)', period: false },
+  'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (WAC)', period: false },
   'M15-ageing': { kind: 'table_report', module: 'M15', report: 'ageeing', title: 'Ageing & Obsolescence', period: false },
   'M15-abc': { kind: 'table_report', module: 'M15', report: 'abc_segmentation', title: 'ABC / XYZ / Criticality', period: false },
 
@@ -159,6 +176,109 @@ export const SCREENS = {
   'M15-rpt-abc': { kind: 'table_report', module: 'M15', report: 'abc_segmentation', title: 'ABC Segmentation', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
+  /* 7-tab item master (fit-gap report R4): the multi-tab data-capture surface
+   * for the real inventory statement — the three part identities (new-ERP SKU,
+   * previous-ERP number, manufacturer MPN), the governed Group→Category tree,
+   * the brand master, stock policy, costing, warranty, the live per-location
+   * ledger (the file's 96-column matrix as rows) and the lifecycle/legacy
+   * audit trail. Writes go through /p03/model/write guards; ledger quantities
+   * stay ledger-driven (read-only here). */
+  'M15-form-part': {
+    kind: 'model_form',
+    model: 'fix.spare.part',
+    title: 'Inventory Item Master',
+    back: 'M15-parts',
+    status: { field: 'state', labels: {
+      active: 'Active', discontinued: 'Discontinued', obsolete: 'Obsolete' } },
+    tabs: [
+      { id: 'identification', label: '1. Identification', bn: '১. পরিচয়', icon: '🔎', badge: '8' },
+      { id: 'classification', label: '2. Classification', bn: '২. শ্রেণিবিন্যাস', icon: '🏷️', badge: '7' },
+      { id: 'policy', label: '3. Stock Policy', bn: '৩. স্টক নীতি', icon: '📦', badge: '8' },
+      { id: 'costing', label: '4. Costing & Pricing', bn: '৪. মূল্য নির্ধারণ', icon: '💰', badge: '6' },
+      { id: 'warranty', label: '5. Warranty & Compliance', bn: '৫. ওয়ারেন্টি ও কমপ্লায়েন্স', icon: '🛡️', badge: '4' },
+      { id: 'ledger', label: '6. Stock Position', bn: '৬. মজুদ অবস্থান', icon: '📍' },
+      { id: 'lifecycle', label: '7. Lifecycle & Legacy', bn: '৭. জীবনচক্র ও লিগ্যাসি', icon: '🔄', badge: '6' }
+    ],
+    sections: [
+      { tab: 'identification', title: 'Identity & Codes',
+        note: 'The three part identities of the real inventory statement. The New ERP Part No is the SKU (default_code on the purchased-as product); the previous-ERP and manufacturer numbers live on the product template.',
+        fields: [
+          { name: 'name', required: true, label: 'Product Description' },
+          { name: 'name_bn', label: 'বিবরণ (বাংলা)' },
+          { name: 'part_number', required: true, label: 'Part Number / SKU' },
+          { name: 'product_default_code', label: 'New ERP Part No (product SKU)' },
+          { name: 'product_legacy_erp_part_number', label: 'Previous ERP Part No' },
+          { name: 'product_manufacturer_part_number', label: 'Manufacturer Part No (MPN)' },
+          { name: 'barcode', label: 'Barcode (EAN-13 / UPC)' },
+          { name: 'qr_code', label: 'Internal QR Code' },
+          { name: 'uom', label: 'Unit of Measure' }
+        ] },
+      { tab: 'classification', title: 'Group → Category → Brand',
+        note: 'The governed taxonomy seeded from the real file: Level 1 = Group (41), Level 2 = Category (859 group-scoped pairs); Brand = the fix.brand master.',
+        fields: [
+          { name: 'category_id', label: 'Product Category (Group Tree)' },
+          { name: 'brand_id', label: 'Brand (Brand Master)' },
+          { name: 'part_category', label: 'Component Category (enum hint)' },
+          { name: 'device_brand', label: 'Device Brand (legacy text)' },
+          { name: 'compatible_models', label: 'Compatible Models (source text)', type: 'text' },
+          { name: 'model_compatibility_ids', label: 'Compatible Device Models (governed)' },
+          { name: 'product_id', label: 'Purchased As (Product)' }
+        ] },
+      { tab: 'policy', title: 'Stocking Policy',
+        fields: [
+          { name: 'min_qty', label: 'Minimum Reorder Point' },
+          { name: 'max_qty', label: 'Target Max Stock' },
+          { name: 'safety_stock', label: 'Safety Buffer Stock' },
+          { name: 'criticality', label: 'Criticality' },
+          { name: 'is_serialized', label: 'Serialized Component' },
+          { name: 'core_exchange_required', label: 'Core Return Required' },
+          { name: 'storage_class', label: 'Storage Class' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ] },
+      { tab: 'costing', title: 'Costs & Prices (BDT)',
+        note: 'The standard cost changes only through Set Standard Cost by an Inventory Controller; on-hand quantities and the average cost are ledger-driven and never typed.',
+        fields: [
+          { name: 'unit_cost', label: 'Standard Cost', readonly: true },
+          { name: 'average_cost', label: 'Average Cost (ledger)', readonly: true },
+          { name: 'sales_price', label: 'Retail Replacement Price' },
+          { name: 'list_price', label: 'List Price' },
+          { name: 'qty_available', label: 'Quantity On Hand', readonly: true },
+          { name: 'qty_reserved', label: 'Quantity Reserved', readonly: true }
+        ] },
+      { tab: 'warranty', title: 'Warranty & Handling',
+        fields: [
+          { name: 'warranty_months', label: 'Warranty Period (Months)' },
+          { name: 'is_serialized', label: 'Serialized (serial trace on receipt)', readonly: true },
+          { name: 'storage_class', label: 'Storage Class (hazardous gate)', readonly: true },
+          { name: 'company_id', label: 'Company' }
+        ] },
+      { tab: 'lifecycle', title: 'Lifecycle & Legacy Audit',
+        note: 'Status transitions run through the controller actions (discontinue / obsolete / reactivate). legacy_reference is the permanent migration key (MIG-03) — never edited.',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'active', label: 'Active Record Status' },
+          { name: 'legacy_reference', label: 'Legacy Reference (migration key)', readonly: true },
+          { name: 'create_date', label: 'Loaded On', readonly: true },
+          { name: 'write_date', label: 'Last Changed', readonly: true }
+        ] }
+    ],
+    lines: {
+      field: 'onhand_ids',
+      readonlyGrid: true,
+      title: 'Stock Position — per location × ownership class (read-only ledger)',
+      note: 'The live version of the inventory statement\'s per-location quantity matrix. Quantities change only by a movement (receipt, issue, transfer, count) — never on this form.',
+      fields: [
+        { name: 'location_id', label: 'Location', readonly: true },
+        { name: 'ownership_class', label: 'Ownership', readonly: true },
+        { name: 'stock_status', label: 'Status', readonly: true },
+        { name: 'qty', label: 'On Hand', readonly: true },
+        { name: 'reserved', label: 'Reserved', readonly: true },
+        { name: 'unit_cost', label: 'Unit Cost', readonly: true },
+        { name: 'last_move_date', label: 'Last Movement', readonly: true }
+      ]
+    }
+  },
+
   'M15-form-receipt': {
     kind: 'model_form',
     model: 'fix.stock.receipt',
@@ -167,12 +287,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', inspected: 'Inspected', posted: 'Posted' } },
     sections: [
-      { title: 'Receipt', note: 'Inspection gate: post only after every line has an accepted quantity. Rejected quantity (received minus accepted) is held in quarantine, never dropped. A posted receipt is final.',
+      { title: 'Receipt', note: 'Inspection gate: post only after every line has an accepted quantity. Rejected quantity (received minus accepted) is held in quarantine, never dropped. Against a purchase order the quantity stays within what is open and the cost is the PO price. With no purchase order, record the reason: only an Inventory Controller posts it. A posted receipt is final.',
         fields: [
           { name: 'partner_id', required: true, label: 'Supplier' },
           { name: 'location_id', required: true, label: 'Receiving Location' },
           { name: 'ownership_class', required: true, label: 'Ownership Class' },
-          { name: 'purchase_order_id', label: 'Purchase Order' },
+          { name: 'purchase_order_id', label: 'Purchase Order', domain: [['state', 'in', ['sent', 'acknowledged', 'partially_received', 'received']]] },
+          { name: 'direct_reason', label: 'Reason (no purchase order)' },
           { name: 'source_ref', label: 'Source Reference' },
           { name: 'received_on', required: true, label: 'Received On' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
@@ -184,7 +305,7 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Receipt Lines — accepted ≤ received',
-      note: 'Accepted quantity posts to the location ledger at its weighted-average cost; a serialized part is one unit per line with its serial (received once).',
+      note: 'Accepted quantity posts to the location ledger at its weighted-average cost; a serialized part is one unit per line with its serial (received once). The cost shows only to finance and inventory-manager roles; a PO receipt takes the PO price whatever is typed.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
         { name: 'qty_received', required: true, label: 'Received' },
@@ -203,11 +324,12 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft Scan', consumed: 'Consumed', returned: 'Returned', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Issue', note: 'Saving a draft scan does not move stock. Scan & Consume takes unrestricted, unreserved stock of this location (a van only by its custodian), at its average cost; a serial must be in stock here. An issued record is final.',
+      { title: 'Issue', note: 'Saving a draft scan does not move stock. Scan & Consume takes unrestricted, unreserved stock of this location (a van only by its custodian), at its average cost; the scan must read this part and a serial must be in stock here. Brand consignment goes only on a warranty job for that brand, customer-supplied only on that customer\'s job. An issued record is final.',
         fields: [
           { name: 'product_id', required: true, label: 'Spare Part' },
           { name: 'location_id', required: true, label: 'Deduction Location / Van' },
           { name: 'technician_id', required: true, label: 'Technician' },
+          { name: 'issue_class', required: true, label: 'Issue From Class', value: 'owned' },
           { name: 'quantity', required: true, label: 'Quantity' },
           { name: 'service_order_ref', required: true, label: 'Service Order Ref' },
           { name: 'work_order_ref', label: 'Work Order Ref' },
@@ -224,14 +346,17 @@ export const SCREENS = {
     back: 'M15-transfers',
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Awaiting Approval', approved: 'Approved',
-      dispatched: 'Dispatched', received: 'Received', cancelled: 'Cancelled' } },
+      dispatched: 'Dispatched', discrepancy: 'Received with Discrepancy',
+      received: 'Received', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Transfer', note: 'Submit, then an Inventory Controller who did not raise it approves; dispatch moves the stock into transit (the sender keeps it), and a different person receives it at the dispatch cost.',
+      { title: 'Transfer', note: 'Submit, then an Inventory Controller who did not raise it approves; dispatch moves the stock into transit (the sender keeps it), and a different person records what arrived and receives it at the dispatch cost. A short quantity stays in transit until an approver resolves the discrepancy.',
         fields: [
           { name: 'from_location_id', required: true, label: 'From' },
           { name: 'to_location_id', required: true, label: 'To' },
           { name: 'requested_on', required: true, label: 'Requested On' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'transfer_value', label: 'Transfer Value (BDT)', readonly: true },
+          { name: 'discrepancy_resolution', label: 'Discrepancy Resolution', readonly: true },
           { name: 'requested_by_id', label: 'Requested By', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true },
           { name: 'dispatched_by_id', label: 'Dispatched By', readonly: true },
@@ -241,10 +366,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Transfer Lines',
-      note: 'Each line moves from the source on-hand bucket; a line that would take the source below zero is refused.',
+      note: 'Each line moves from the source on-hand bucket; a line that would take the source below zero is refused. A serialized part travels one serial per line. On arrival, correct Received if less arrived.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
-        { name: 'qty', required: true, label: 'Quantity' }
+        { name: 'qty', required: true, label: 'Quantity' },
+        { name: 'lot_id', label: 'Serial', domain: [['status', '=', 'in_stock']] },
+        { name: 'received_qty', label: 'Received' },
+        { name: 'discrepancy_qty', label: 'Short', readonly: true }
       ]
     }
   },
@@ -266,6 +394,8 @@ export const SCREENS = {
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'reason_code', label: 'Variance Reason (after recount)' },
           { name: 'reason_note', label: 'Variance Explanation' },
+          { name: 'variance_value', label: 'Variance Value, net (BDT)', readonly: true },
+          { name: 'adjustment_value', label: 'Adjustment Value, gross (BDT)', readonly: true },
           { name: 'counted_by_id', label: 'Counted By', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true }
         ] }
@@ -273,11 +403,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Count Lines',
-      note: 'Enter what is physically there. The recount column is used only when the count asks for a recount.',
+      note: 'Enter what is physically there. The recount column is used only when the count asks for a recount. The approver sees the expected quantity and the variance; the counter does not until the count is posted.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
         { name: 'counted_qty', required: true, label: 'Counted' },
-        { name: 'recount_qty', label: 'Recount' }
+        { name: 'recount_qty', label: 'Recount' },
+        { name: 'expected_qty', label: 'Expected', readonly: true },
+        { name: 'variance', label: 'Variance', readonly: true }
       ]
     }
   },
@@ -330,7 +462,8 @@ export const SCREENS = {
     title: 'Serial / Lot',
     back: 'M15-serials',
     status: { field: 'status', labels: {
-      in_stock: 'In Stock', issued: 'Issued', quarantined: 'Quarantined', scrapped: 'Scrapped' } },
+      in_stock: 'In Stock', issued: 'Issued', quarantined: 'Quarantined', scrapped: 'Scrapped',
+      returned: 'Returned to Vendor', in_transit: 'In Transit', staged: 'Staged for Dispatch', shipped: 'Shipped' } },
     sections: [
       { title: 'Lot', note: 'Receipts create lots; issues, quarantine, scrap and RTV move them. Only the warranty date and the reference are maintained here.',
         fields: [
@@ -353,7 +486,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', confirmed: 'Confirmed', discrepancy: 'Discrepancy', resolved: 'Resolved' } },
     sections: [
-      { title: 'Reconciliation', note: 'The expected quantity is the van ledger, taken by the system. A variance outside tolerance is a discrepancy: it holds the van\'s issues until an Inventory Controller resolves it.',
+      { title: 'Reconciliation', note: 'A blind count: the van ledger is taken by the system and shown only to approvers. A variance outside tolerance is a discrepancy: it holds this technician\'s issues until an approver resolves it.',
         fields: [
           { name: 'location_id', required: true, label: 'Van Location' },
           { name: 'technician_id', label: 'Technician (the van custodian)' },
@@ -380,6 +513,7 @@ export const SCREENS = {
           { name: 'part_id', required: true, label: 'Spare Part' },
           { name: 'location_id', required: true, label: 'From Location' },
           { name: 'quarantine_id', label: 'From Quarantine' },
+          { name: 'lot_id', label: 'Serial (serialized part, not from quarantine)', domain: [['status', '=', 'in_stock']] },
           { name: 'qty', required: true, label: 'Quantity' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'requested_on', required: true, label: 'Requested On' },
@@ -454,7 +588,8 @@ export const FORM_MODELS = {
   'M15:Stock Issue': 'fix.stock.consumption',
   'M15:Transfer Request': 'fix.stock.transfer',
   'M15:Cycle Count': 'fix.stock.count',
-  'M15:Scrap Order': 'fix.stock.quarantine'
+  'M15:Scrap Order': 'fix.stock.quarantine',
+  'M15:Item Master (7 tabs)': 'fix.spare.part'
 };
 
 export const FORM_CHIPS = {
@@ -463,7 +598,9 @@ export const FORM_CHIPS = {
   'M15:Transfer Request': 'M15-form-transfer',
   'M15:Cycle Count': 'M15-form-count',
   'M15:Scrap Order': 'M15-form-scrap',
+  'M15:Item Master (7 tabs)': 'M15-form-part',
   'M15:__by_model__': {
+    'fix.spare.part': 'M15-form-part',
     'fix.stock.receipt': 'M15-form-receipt',
     'fix.stock.consumption': 'M15-form-issue',
     'fix.stock.transfer': 'M15-form-transfer',
@@ -477,6 +614,7 @@ export const FORM_CHIPS = {
     'fix.stock.class.change': 'M15-form-classchange'
   },
   'M15:__by_screen__': {
+    'M15-parts': 'M15-form-part',
     'M15-onhand': 'M15-form-onhand',
     'M15-movements': 'M15-form-issue',
     'M15-serials': 'M15-form-lot',

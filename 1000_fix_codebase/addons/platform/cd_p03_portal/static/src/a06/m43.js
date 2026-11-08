@@ -71,9 +71,10 @@ export const SCREENS = {
     cols: ['product_id', 'part_id', 'abc_class', 'xyz_class', 'criticality', 'consumption_value', 'demand_cv', 'classified_on', 'state'],
     actions: [{ m: 'action_classify', l: 'Classify from M15 History' }] },
   'M43-safety': { kind: 'model_list', model: 'fix.demand.policy', stateField: 'state',
-    cols: ['name', 'version', 'product_id', 'location_id', 'avg_daily_demand', 'demand_stddev', 'lead_time_days', 'lead_time_source', 'service_level_pct', 'safety_stock', 'reorder_point', 'target_level', 'state'],
+    cols: ['name', 'version', 'product_id', 'location_id', 'avg_daily_demand', 'demand_stddev', 'provisional_state', 'lead_time_days', 'lead_time_source', 'service_level_pct', 'safety_stock', 'reorder_point', 'target_level', 'state'],
     actions: [
       { m: 'action_refresh_from_history', l: 'Refresh from History' },
+      { m: 'action_approve_provisional', l: 'Approve Provisional Demand' },
       { m: 'action_activate', l: 'Activate / Approve' },
       { m: 'action_revise', l: 'Revise (new version)' },
       { m: 'action_pause', l: 'Pause Policy' },
@@ -84,13 +85,14 @@ export const SCREENS = {
     cols: ['name', 'product_id', 'location_id', 'period_start', 'forecast_quantity', 'current_stock', 'on_order_qty', 'reorder_point', 'target_level', 'recommended_order', 'approved_order_qty', 'state'],
     actions: [
       { m: 'action_approve', l: 'Approve Plan' },
-      { m: 'action_generate_pr', l: 'Release PR to M16' }
+      { m: 'action_generate_pr', l: 'Release PR to M16' },
+      { m: 'action_reopen', l: 'Reopen (PR rejected or cancelled)', ask: 'Why the plan is reopened', kwarg: 'reason' }
     ] },
   'M43-reviews': { kind: 'model_list', model: 'fix.demand.review', stateField: 'state',
     cols: ['name', 'period', 'owner_id', 'due_on', 'completed_by_id', 'state'],
     actions: [{ m: 'action_complete', l: 'Complete Review' }] },
   'M43-rebalance': { kind: 'model_list', model: 'fix.demand.rebalance', stateField: 'state',
-    cols: ['name', 'product_id', 'source_location_id', 'target_location_id', 'qty', 'stock_value', 'transfer_cost', 'transfer_id', 'state'],
+    cols: ['name', 'product_id', 'source_location_id', 'target_location_id', 'qty', 'stock_value', 'transfer_cost', 'benefit_value', 'net_benefit', 'transfer_id', 'state'],
     actions: [
       { m: 'action_approve', l: 'Approve (create M15 transfer)' },
       { m: 'action_reject', l: 'Reject' }
@@ -113,19 +115,25 @@ export const SCREENS = {
     model: 'fix.demand.plan',
     title: 'Demand Plan',
     back: 'M43-planned',
-    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', released: 'Released to M16' } },
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', released: 'Released to M16', converted: 'Converted to PO', closed: 'Closed (received)' } },
+    tabs: [
+      { id: 'plan', label: '1. Plan', bn: '১. পরিকল্পনা', icon: '📈', badge: '8' },
+      { id: 'position', label: '2. Position', bn: '২. অবস্থান', icon: '📊', badge: '8' },
+      { id: 'release', label: '3. Approval & M16', bn: '৩. অনুমোদন ও এম১৬', icon: '📝', badge: '7' }
+    ],
     sections: [
-      { title: 'Plan', note: 'Demand is the approved forecasts of the plan months; stock is M15 owned on-hand at the location; ROP and target come from the active policy. Order when projected stock is at or below ROP, up to the target, net of stock on order. Changing an input voids an approval.',
+      { tab: 'plan', title: 'Plan', note: 'Demand is the approved forecasts of the plan months; stock is M15 owned on-hand at the location; ROP and target come from the active policy. Order when projected stock is at or below ROP, up to the target, net of stock on order. Changing an input voids an approval. The supplier must be active in M42 before release; empty takes the last purchase order\'s supplier.',
         fields: [
           { name: 'name', required: true, label: 'Plan' },
           { name: 'product_id', required: true, label: 'Product (M16)' },
           { name: 'part_id', label: 'M15 Spare Part' },
-          { name: 'location_id', label: 'Stock Location' },
+          { name: 'location_id', label: 'Stock Location', domain: [['state', '=', 'active']] },
           { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'vendor_id', label: 'Supplier' },
           { name: 'period_start', required: true, label: 'Period Start' },
           { name: 'period_end', required: true, label: 'Period End' }
         ] },
-      { title: 'Position (computed)', fields: [
+      { tab: 'position', title: 'Position (computed)', fields: [
           { name: 'forecast_quantity', readonly: true, label: 'Forecast Demand' },
           { name: 'current_stock', readonly: true, label: 'Current Stock' },
           { name: 'on_order_qty', readonly: true, label: 'On Order' },
@@ -133,11 +141,17 @@ export const SCREENS = {
           { name: 'target_level', readonly: true, label: 'Target Level' },
           { name: 'projected_stock', readonly: true, label: 'Projected Stock' },
           { name: 'raw_order_qty', readonly: true, label: 'Order Before MOQ / Pack' },
-          { name: 'recommended_order', readonly: true, label: 'Recommended Order' },
-          { name: 'budget_check', readonly: true, label: 'Budget Check' },
+          { name: 'recommended_order', readonly: true, label: 'Recommended Order' }
+        ] },
+      { tab: 'release', title: 'Approval & M16', note: 'A plan moves to Converted when M16 converts its requisition, and to Closed when the PO is fully received, with the actual lead time written back. If M16 rejects or cancels it, Reopen returns the plan to draft to be approved and reissued.',
+        fields: [
           { name: 'approved_order_qty', readonly: true, label: 'Approved Order Qty' },
           { name: 'approved_by_id', readonly: true, label: 'Approved By' },
-          { name: 'pr_requisition_id', readonly: true, label: 'Requisition' }
+          { name: 'budget_check', readonly: true, label: 'Budget Check' },
+          { name: 'pr_requisition_id', readonly: true, label: 'Requisition' },
+          { name: 'pr_state', readonly: true, label: 'Requisition State' },
+          { name: 'purchase_order_id', readonly: true, label: 'Purchase Order' },
+          { name: 'actual_lead_time_days', readonly: true, label: 'Actual Lead Time (days)' }
         ] }
     ]
   },
@@ -149,8 +163,12 @@ export const SCREENS = {
     back: 'M43-models',
     status: { field: 'state', labels: {
       draft: 'Draft', approved: 'Approved', published: 'Published' } },
+    tabs: [
+      { id: 'forecast', label: '1. Forecast', bn: '১. পূর্বাভাস', icon: '📈', badge: '9' },
+      { id: 'computed', label: '2. Computed', bn: '২. গণনা', icon: '🧮', badge: '8' }
+    ],
     sections: [
-      { title: 'Forecast', note: 'Compute from History takes the moving average of the M15 consumption of the window months before the period. An override keeps the statistical value and needs a rationale. Approval is by a Demand Plan Approver who did not prepare it.',
+      { tab: 'forecast', title: 'Forecast', note: 'Compute from History takes the moving average of the M15 consumption of the window months before the period. An override keeps the statistical value and needs a rationale. Approval is by a Demand Plan Approver who did not prepare it.',
         fields: [
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'part_id', label: 'M15 Spare Part' },
@@ -162,7 +180,7 @@ export const SCREENS = {
           { name: 'override_rationale', type: 'text', label: 'Override Rationale' },
           { name: 'notes', label: 'Notes' }
         ] },
-      { title: 'Computed', fields: [
+      { tab: 'computed', title: 'Computed', note: 'The method is a moving average of M15 consumption or a planner override. Exponential and seasonal models need the M26 forecast engine, which is not built.', fields: [
           { name: 'statistical_qty', readonly: true, label: 'Statistical Forecast' },
           { name: 'history_detail', readonly: true, label: 'History Used' },
           { name: 'forecast_qty', readonly: true, label: 'Forecast Qty' },
@@ -202,12 +220,17 @@ export const SCREENS = {
     title: 'Policy Assignment',
     back: 'M43-safety',
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active', paused: 'Paused', superseded: 'Superseded' } },
+    tabs: [
+      { id: 'policy', label: '1. Policy', bn: '১. নীতি', icon: '📋', badge: '11' },
+      { id: 'provisional', label: '2. Provisional Demand', bn: '২. অস্থায়ী চাহিদা', icon: '✋', badge: '5' },
+      { id: 'computed', label: '3. Computed', bn: '৩. গণনা', icon: '🧮', badge: '11' }
+    ],
     sections: [
-      { title: 'Policy', note: 'Demand statistics come from M15 consumption and the lead time from posted M16 receipts (Refresh from History); a typed lead time that differs from the observed one needs a rationale. Orders are at least the MOQ and in whole packs. Safety stock = z × σ × √lead time; ROP = avg daily × lead time + safety stock; target = ROP + avg daily × review period. A-class, critical or unclassified items are activated by a Demand Plan Approver; an active policy changes only through a new version.',
+      { tab: 'policy', title: 'Policy', note: 'Demand statistics come from M15 consumption and the lead time from M16 and M44 receipts (Refresh from History); a typed lead time that differs from the observed one needs a rationale. Orders are at least the MOQ and in whole packs. Safety stock = z × σ × √lead time; ROP = avg daily × lead time + safety stock; target = ROP + avg daily × review period. A-class, critical or unclassified items are activated by a Demand Plan Approver; an active policy changes only through a new version. Pausing suspends the published M15 reorder rule; resuming restores it.',
         fields: [
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'part_id', label: 'M15 Spare Part' },
-          { name: 'location_id', label: 'Stock Location' },
+          { name: 'location_id', label: 'Stock Location', domain: [['state', '=', 'active']] },
           { name: 'history_days', label: 'History Window (days)' },
           { name: 'lead_time_window_days', label: 'Lead-Time Window (days)' },
           { name: 'lead_time_days', label: 'Lead Time (days)' },
@@ -217,10 +240,18 @@ export const SCREENS = {
           { name: 'moq_qty', label: 'Minimum Order Qty' },
           { name: 'pack_size', label: 'Pack Size' }
         ] },
-      { title: 'Computed', fields: [
+      { tab: 'provisional', title: 'Provisional Demand', note: 'For a part with no M15 history: state a manual daily demand and why. A Demand Plan Approver who did not enter it approves it, and it stands in until real history exists; a plan on the policy is then refused until the policy is revised from history.',
+        fields: [
+          { name: 'provisional_daily_demand', label: 'Provisional Daily Demand' },
+          { name: 'provisional_reason', label: 'Why Provisional' },
+          { name: 'provisional_state', readonly: true, label: 'Status' },
+          { name: 'provisional_entered_by_id', readonly: true, label: 'Entered By' },
+          { name: 'provisional_approved_by_id', readonly: true, label: 'Approved By' }
+        ] },
+      { tab: 'computed', title: 'Computed', fields: [
           { name: 'avg_daily_demand', readonly: true, label: 'Avg Daily Demand' },
           { name: 'demand_stddev', readonly: true, label: 'Demand Std Dev' },
-          { name: 'observed_lead_time_days', readonly: true, label: 'Observed Lead Time (M16)' },
+          { name: 'observed_lead_time_days', readonly: true, label: 'Observed Lead Time (M16, M44)' },
           { name: 'lead_time_samples', readonly: true, label: 'Lead-Time Samples' },
           { name: 'lead_time_source', readonly: true, label: 'Lead-Time Source' },
           { name: 'safety_stock', readonly: true, label: 'Safety Stock' },
@@ -258,7 +289,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       proposed: 'Proposed', approved: 'Approved', rejected: 'Rejected' } },
     sections: [
-      { title: 'Proposal', note: 'Approval by a Demand Plan Approver who did not propose it creates a draft M15 transfer. No savings figure is claimed.',
+      { title: 'Proposal', note: 'Approval by a Demand Plan Approver who did not propose it creates a draft M15 transfer, only where the estimated benefit exceeds the transfer cost (BRU-DPL-13). The benefit is the proposer\'s estimate with its basis, not a measured saving.',
         fields: [
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'part_id', label: 'M15 Spare Part' },
@@ -266,10 +297,13 @@ export const SCREENS = {
           { name: 'target_location_id', label: 'To Location' },
           { name: 'qty', required: true, label: 'Quantity' },
           { name: 'transfer_cost', label: 'Estimated Transfer Cost' },
+          { name: 'benefit_value', label: 'Estimated Benefit' },
+          { name: 'benefit_basis', label: 'Benefit Basis' },
           { name: 'proposed_on', required: true, label: 'Proposed On' },
           { name: 'notes', label: 'Notes' },
           { name: 'source_available', readonly: true, label: 'Available at Source' },
           { name: 'stock_value', readonly: true, label: 'Stock Value Moved' },
+          { name: 'net_benefit', readonly: true, label: 'Net Benefit' },
           { name: 'transfer_id', readonly: true, label: 'M15 Transfer' }
         ] }
     ]
@@ -285,7 +319,7 @@ export const SCREENS = {
       { title: 'Scenario', note: 'The projected ROP re-applies the base policy with the demand adjustment and the lead-time delta. Running it changes no policy or plan.',
         fields: [
           { name: 'product_id', required: true, label: 'Product' },
-          { name: 'policy_id', label: 'Base Policy' },
+          { name: 'policy_id', label: 'Base Policy', domain: [['state', 'in', ['active', 'paused']]] },
           { name: 'demand_adjust_pct', label: 'Demand Adjustment %' },
           { name: 'lead_time_delta_days', label: 'Lead Time Delta (days)' },
           { name: 'notes', label: 'Notes' },

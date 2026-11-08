@@ -21,7 +21,8 @@ def _posted_receipt(inv, user=None, **kw):
     user = user or inv.keeper
     rec = inv.receipt(user, **kw)
     rec.with_user(user).action_inspect()
-    rec.with_user(user).action_post()
+    # a receipt with no purchase order is an Inventory Controller's to post
+    rec.with_user(inv.controller).action_post()
     return rec
 
 
@@ -56,7 +57,7 @@ def test_m15_02_standard_cost_changes_only_by_controller(inv):
     # an issue is valued at the ledger's average cost, not the standard cost
     rec = inv.issue(inv.keeper)
     rec.with_user(inv.keeper).action_scan_and_consume()
-    assert rec.unit_cost == 500.0
+    assert rec.sudo().unit_cost == 500.0
 
 
 def test_m15_03_part_cannot_be_born_with_stock(inv):
@@ -72,9 +73,19 @@ def test_m15_03_part_cannot_be_born_with_stock(inv):
     part = (
         inv.env["fix.spare.part"]
         .with_user(inv.keeper)
-        .create({"name": "fresh", "part_number": "A6F-" + inv.tag, "unit_cost": 100.0})
+        .create({"name": "fresh", "part_number": "A6F-" + inv.tag})
     )
     assert part.qty_available == 0.0
+    # nor with a cost: a storekeeper neither reads nor types cost (spec section 13)
+    refused(
+        inv,
+        lambda: (
+            inv.env["fix.spare.part"]
+            .with_user(inv.keeper)
+            .create({"name": "priced", "part_number": "A6K-" + inv.tag, "unit_cost": 100.0})
+        ),
+        "enough rights",
+    )
 
 
 def test_m15_04_obsolete_part_not_issued(inv):
@@ -289,7 +300,7 @@ def test_m15_19_serial_received_once(inv):
         serial=inv.lot1.name,
     )
     rec.with_user(inv.keeper).action_inspect()
-    refused(inv, lambda: rec.with_user(inv.keeper).action_post(), "already been received")
+    refused(inv, lambda: rec.with_user(inv.controller).action_post(), "already been received")
     assert inv.lot1.qty == 1.0
     # one serial = one unit: a two-unit line for one serial is refused
     two = inv.receipt(
@@ -302,7 +313,7 @@ def test_m15_19_serial_received_once(inv):
         serial="NEW-" + inv.tag,
     )
     two.with_user(inv.keeper).action_inspect()
-    refused(inv, lambda: two.with_user(inv.keeper).action_post(), "one serial")
+    refused(inv, lambda: two.with_user(inv.controller).action_post(), "one serial")
     # proper path: a new serial, one unit
     ok = _posted_receipt(
         inv, part=inv.spart, location=inv.central, rec=1, acc=1, cost=8000, serial="SN3-" + inv.tag
@@ -396,9 +407,11 @@ def test_m15_30_consumed_state_not_forged_via_p03(inv):
 def test_m15_31_issued_record_is_final(inv):
     rec = inv.issue(inv.keeper)
     rec.with_user(inv.keeper).action_scan_and_consume()
-    refused(inv, lambda: rec.with_user(inv.keeper).write({"unit_cost": 1.0}), GUARD)
+    # a storekeeper may not even name the cost; a cost viewer hits the guard
+    refused(inv, lambda: rec.with_user(inv.keeper).write({"unit_cost": 1.0}), "enough rights")
+    refused(inv, lambda: rec.with_user(inv.controller).write({"unit_cost": 1.0}), GUARD)
     refused(inv, lambda: rec.with_user(inv.keeper).write({"quantity": 0.01}), "final")
-    assert (rec.unit_cost, rec.quantity) == (500.0, 1.0)
+    assert (rec.sudo().unit_cost, rec.quantity) == (500.0, 1.0)
 
 
 def test_m15_32_return_at_issue_cost(inv):
@@ -463,7 +476,8 @@ def test_m15_38_negative_issue_refused(inv):
 
 def test_m15_39_inactive_location_moves_nothing(inv):
     refused(inv, lambda: inv.central.with_user(inv.keeper).write({"state": "inactive"}), GUARD)
-    inv.central.with_user(inv.keeper).action_set_inactive()
+    refused(inv, lambda: inv.central.with_user(inv.keeper).action_set_inactive(), "Controller")
+    inv.central.with_user(inv.controller).action_set_inactive()
     rec = inv.issue(inv.keeper)
     refused(inv, lambda: rec.with_user(inv.keeper).action_scan_and_consume(), "not active")
 
@@ -690,9 +704,9 @@ def test_m15_55_van_expected_is_the_ledger(inv):
         .with_user(inv.techuser)
         .create({"location_id": inv.van.id, "expected_qty": 0, "counted_qty": 0})
     )
-    assert recon.expected_qty == 3.0
+    assert recon.sudo().expected_qty == 3.0
     recon.with_user(inv.techuser).action_confirm()
-    assert recon.state == "discrepancy" and recon.variance == -3.0
+    assert recon.state == "discrepancy" and recon.sudo().variance == -3.0
     ok = _van_recon(inv, 3)
     ok.with_user(inv.techuser).action_confirm()
     assert ok.state == "confirmed"
@@ -923,12 +937,13 @@ def test_m15_70_issue_valued_at_bucket_cost(inv):
 def test_m15_71_kpi_excludes_held_stock(inv):
     from odoo.addons.cd_p03_portal.controllers.a06 import m15
 
-    base = m15.kpis(inv.env(user=inv.keeper.id))["stock_value"]
+    reader = inv.env(user=inv.controller.id)
+    base = m15.kpis(reader)["stock_value"]
     inv.stock(inv.part, inv.hub, 100.0, 500.0, cls="consignment")
     inv.stock(inv.part, inv.hub, 10.0, 500.0, cls="customer")
-    assert m15.kpis(inv.env(user=inv.keeper.id))["stock_value"] == base
+    assert m15.kpis(reader)["stock_value"] == base
     inv.stock(inv.part, inv.hub, 1.0, 500.0)
-    assert m15.kpis(inv.env(user=inv.keeper.id))["stock_value"] == pytest.approx(base + 500.0)
+    assert m15.kpis(reader)["stock_value"] == pytest.approx(base + 500.0)
 
 
 def test_m15_72_kpi_stays_in_the_callers_companies(inv):

@@ -2041,7 +2041,10 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         if (!gl || gl.kind !== "model_form" || !gl.formCfg) return "";
         const status = gl.formCfg.status;
         if (!status) return "";
-        const raw = gl.form.values ? gl.form.values[status.field] : undefined;
+        const typed = gl.form.values ? gl.form.values[status.field] : undefined;
+        // a workflow state is rarely an input on the form: it is served apart
+        const raw = typed !== undefined ? typed : gl.form.statusValue;
+        if (raw === undefined || raw === null) return "";
         if (status.labels) {
             const key = raw === true ? "true" : raw === false ? "false" : String(raw ?? "");
             if (status.labels[key] !== undefined) return this.t(status.labels[key]);
@@ -2260,8 +2263,10 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 // bilingual labels: field/selection text follows the UI language
                 lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
                 lines: gl.formCfg.lines || false,
+                status_field: (gl.formCfg.status && gl.formCfg.status.field) || false,
             });
             gl.data = res;
+            gl.form.statusValue = res.status_value;
             gl.form.lineMeta = (res.lines && res.lines.fields) || [];
             gl.form.lineValues = ((res.lines && res.lines.rows) || []).map((r) => ({ ...r }));
             gl.form.lineRemoved = [];
@@ -2283,7 +2288,8 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 }
                 // a brand-new record with a required child grid starts with
                 // one blank target so the form is usable without hunting
-                if (gl.formCfg.lines && !gl.form.lineValues.length) this.formAddLine();
+                // (fixedRows: the server fills the rows, nothing is keyed in)
+                if (gl.formCfg.lines && !gl.formCfg.lines.fixedRows && !gl.form.lineValues.length) this.formAddLine();
             }
         } catch (e) {
             gl.data = null;
@@ -2292,6 +2298,37 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
         gl.loading = false;
         this.render(true);
+    }
+
+    /* A many2one whose list exceeds the server's choice limit searches on the
+     * server as the user types. `line` marks a field of the child grid. */
+    formChoiceSearch(meta, query, line) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        clearTimeout(this._choiceTimer);
+        this._choiceTimer = setTimeout(async () => {
+            const params = { field: meta.name, q: query, domain: meta.choice_domain || [] };
+            if (line) {
+                params.model = (gl.data.lines && gl.data.lines.model) || false;
+                params.parent_model = gl.formCfg.model;
+                params.parent_field = gl.formCfg.lines.field;
+            } else {
+                params.model = gl.formCfg.model;
+            }
+            const res = await this.rpc("/p03/model/choices", params);
+            if (!res || res.error) return;
+            const found = new Set(res.choices.map((c) => c.id));
+            const inUse = (meta.choices || []).filter((c) => !found.has(c.id) && this._choiceInUse(meta, c.id, line));
+            meta.choices = [...inUse, ...res.choices];
+            this.render(true);
+        }, 250);
+    }
+
+    _choiceInUse(meta, id, line) {
+        const gl = this.state.gl;
+        const same = (v) => (v && typeof v === "object" ? v.id : v) === id;
+        if (line) return (gl.form.lineValues || []).some((row) => same(row[meta.name]));
+        return same(gl.form.values[meta.name]);
     }
 
     /* A many2many input is a multi-select: the save posts every selected id. */
@@ -2339,7 +2376,9 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
         clearTimeout(this._formLookupTimer);
         this._formLookupTimer = setTimeout(async () => {
-            const res = await this.rpc("/p03/model/lookup", { model: gl.formCfg.model, field: name, term });
+            const meta = ((gl.data && gl.data.fields) || []).find((f) => f.name === name);
+            const domain = (meta && meta.choice_domain) || [];
+            const res = await this.rpc("/p03/model/lookup", { model: gl.formCfg.model, field: name, term, domain });
             if (box.term === term) {
                 box.rows = res.rows || [];
                 box.error = res.error || null;

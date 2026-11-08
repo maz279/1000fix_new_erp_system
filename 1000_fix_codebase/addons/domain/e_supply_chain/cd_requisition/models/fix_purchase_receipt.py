@@ -18,7 +18,13 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
-from .fix_requisition import GROUP_RECEIVER, PARAM_INSPECTION, bool_param, require_role
+from .fix_requisition import (
+    GROUP_RECEIVER,
+    PARAM_INSPECTION,
+    bool_param,
+    over_receipt_ceiling,
+    require_role,
+)
 
 
 class FixPurchaseReceipt(models.Model):
@@ -76,14 +82,41 @@ class FixPurchaseReceipt(models.Model):
         records = super().create(vals_list)
         for rec in records:
             rec.purchase_order_id._a06_assert_receivable()
+            if not rec.line_ids:
+                rec._a06_load_open_lines()
         return records
+
+    def _a06_load_open_lines(self):
+        """The receipt's lines are its PO's open lines, at what is still due: a
+        receipt of another PO's line cannot be keyed, and the receiver corrects
+        the delivered quantities rather than typing the order in again."""
+        self.ensure_one()
+        lines = [
+            {
+                "receipt_id": self.id,
+                "po_line_id": line.id,
+                "qty_received": line.qty_ordered - line.qty_received,
+            }
+            for line in self.purchase_order_id.sudo().line_ids
+            if line.qty_ordered - line.qty_received > 1e-6
+        ]
+        if lines:
+            self.env["fix.purchase.receipt.line"].create(lines)
 
     def write(self, vals):
         if not self._fix_guard_has_token():
             frozen = set(vals) - {"notes"}
             if frozen and any(r.state != "draft" for r in self):
                 raise UserError("A posted goods receipt is final; only its notes can change.")
-        return super().write(vals)
+        repoint = self.browse()
+        if vals.get("purchase_order_id"):
+            repoint = self.filtered(lambda r: r.purchase_order_id.id != vals["purchase_order_id"])
+        result = super().write(vals)
+        for rec in repoint:
+            rec.line_ids.unlink()
+            rec.purchase_order_id._a06_assert_receivable()
+            rec._a06_load_open_lines()
+        return result
 
     def unlink(self):
         if any(r.state == "posted" for r in self):
@@ -124,12 +157,13 @@ class FixPurchaseReceipt(models.Model):
                 same = sum(
                     lines.filtered(lambda ln, p=pol: ln.po_line_id == p).mapped("qty_received")
                 )
-                if already + same > pol.qty_ordered + 1e-6:
+                ceiling = over_receipt_ceiling(self.env, pol.qty_ordered)
+                if already + same > ceiling + 1e-6:
                     raise UserError(
                         "Received %.2f outside 0..%.2f for %s"
                         % (
                             already + same,
-                            pol.qty_ordered,
+                            ceiling,
                             pol.description or pol.product_id.name or "?",
                         )
                     )
@@ -222,9 +256,25 @@ class FixPurchaseReceiptLine(models.Model):
     _qty_positive = models.Constraint(
         "CHECK (qty_received > 0)", "A receipt line receives a positive quantity"
     )
+    _rec_names_search = ["receipt_id.name", "product_id.name"]
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"inspection_required"}
+        return super()._fix_guarded_fields() | {
+            "inspection_required",
+            "qty_accepted",
+            "qty_rejected",
+            "inspection_state",
+        }
+
+    @api.depends("receipt_id.name", "product_id.display_name", "qty_received")
+    def _compute_display_name(self):
+        # An inspection picker read "fix.purchase.receipt.line,7".
+        for line in self:
+            line.display_name = "%s · %s · %g" % (
+                line.receipt_id.name or "",
+                line.product_id.display_name or "",
+                line.qty_received or 0.0,
+            )
 
     @api.depends(
         "receipt_id.state",

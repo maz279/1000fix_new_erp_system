@@ -77,6 +77,12 @@ def test_activation_gate_blocks_then_passes(ctx):
         activation.action_activate()
     for doc_type in ("trade_licence", "tin", "vat"):
         _doc(ctx, doc_type, date.today() + timedelta(days=200))
+    with pytest.raises(UserError, match="no cleared"), env.cr.savepoint():
+        activation.action_activate()
+    for key in ("sanctions", "coi", "abac"):
+        env["fix.supplier.screening"].create(
+            {"supplier_id": supplier.id, "screening_type": key, "result": "clear"}
+        ).action_clear()
     activation.action_activate()
     assert activation.state == "activated"
     assert supplier.status == "active"

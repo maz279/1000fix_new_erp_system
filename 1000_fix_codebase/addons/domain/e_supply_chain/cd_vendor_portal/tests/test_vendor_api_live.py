@@ -152,7 +152,9 @@ def test_list_scopes_to_the_vendor_and_formats_money(api):
 def test_list_filters_by_state(api):
     sent = api.send(api.po())
     api.po()  # stays draft
-    sent.action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03")
+    sent.action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-11-03", confirmed_date="2099-01-01"
+    )
     out = api.ctl.purchase_orders(vendor_id=api.vendor.id, state="acknowledged")
     assert [row["id"] for row in out["purchase_orders"]] == [sent.id]
     assert out["purchase_orders"][0]["acknowledged_at"] == str(sent.acknowledged_at)
@@ -186,7 +188,10 @@ def test_staff_acknowledge_needs_the_vendors_evidence(api):
     out = api.ctl.purchase_orders(po_id=str(order.id), action="acknowledge")
     assert out["error"]["code"] == "po_rejected" and order.state == "sent"
     out = api.ctl.purchase_orders(
-        po_id=str(order.id), action="acknowledge", evidence="vendor letter GS/118"
+        po_id=str(order.id),
+        action="acknowledge",
+        evidence="vendor letter GS/118",
+        delivery_date="2099-01-01",
     )
     assert out == {"purchase_order": {"id": order.id, "state": "acknowledged"}}
     assert order.ack_channel == "buyer_on_behalf" and order.ack_evidence == "vendor letter GS/118"
@@ -444,9 +449,9 @@ def test_a_vendor_sees_only_its_own_pos_and_invoices(api, monkeypatch):
 def test_a_vendor_acknowledges_its_po_but_cannot_record_receipts(api, monkeypatch):
     order = api.send(api.po())
     _as_vendor(api, monkeypatch, _vendor_user(api, api.vendor, "gazi2@vendor.test"))
-    out = api.ctl.purchase_orders(po_id=order.id, action="acknowledge", delivery_date="2026-12-01")
+    out = api.ctl.purchase_orders(po_id=order.id, action="acknowledge", delivery_date="2099-01-01")
     assert out == {"purchase_order": {"id": order.id, "state": "acknowledged"}}
-    assert order.ack_channel == "portal" and str(order.vendor_confirmed_date) == "2026-12-01"
+    assert order.ack_channel == "portal" and str(order.vendor_confirmed_date) == "2099-01-01"
     out = api.ctl.purchase_orders(
         po_id=order.id, action="deliver", receipts={order.line_ids[0].id: 1}
     )

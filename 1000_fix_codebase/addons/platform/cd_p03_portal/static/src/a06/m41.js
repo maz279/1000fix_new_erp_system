@@ -26,6 +26,7 @@ export const MODULE = {
       { id: 'M41-warehouse', en: "Warehouse", bn: "Warehouse", t: 'g' }
     ]},
     { en: 'Structure', screens: [
+      { id: 'M41-wh-zones', en: 'Warehouse Zones', bn: 'ওয়্যারহাউস জোন', t: 'g' },
       { id: 'M41-zones', en: 'Zones, Aisles & Bins', bn: 'জোন ও বিন', t: 'g' },
       { id: 'M41-slotting', en: 'Slotting & Re-Slotting', bn: 'স্লটিং', t: 'g' }
     ]},
@@ -36,6 +37,7 @@ export const MODULE = {
     ]},
     { en: 'Outbound', screens: [
       { id: 'M41-waves', en: 'Wave Planning', bn: 'ওয়েভ প্ল্যানিং', t: 'c' },
+      { id: 'M41-pick-lines', en: 'Pick Lines', bn: 'পিক লাইন', t: 'g' },
       { id: 'M41-picking', en: 'Pick Strategies', bn: 'পিক কৌশল', t: 'g' },
       { id: 'M41-packing', en: 'Packing & Cartons', bn: 'প্যাকিং', t: 'g' },
       { id: 'M41-staging', en: 'Staging & Load', bn: 'স্টেজিং ও লোড', t: 'g' }
@@ -63,13 +65,19 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M41-wh-zones': { kind: 'model_list', model: 'fix.warehouse.zone',
+    cols: ['name', 'code', 'warehouse_id', 'zone_type', 'reservable'] },
   'M41-zones': { kind: 'model_list', model: 'fix.warehouse.bin',
-    cols: ['name', 'zone_id', 'barcode', 'capacity_qty'] },
+    cols: ['name', 'zone_id', 'barcode', 'capacity_qty', 'blocked', 'block_reason'],
+    actions: [
+      { m: 'action_block', l: 'Block Bin', ask: 'Reason the bin is blocked', kwarg: 'reason' },
+      { m: 'action_unblock', l: 'Unblock Bin (controller)', ask: 'Why the block is lifted', kwarg: 'note' }
+    ] },
   'M41-slotting': { kind: 'model_list', model: 'fix.wms.slot', stateField: 'state',
     cols: ['part_id', 'bin_id', 'zone_id', 'qty', 'reserved_qty', 'velocity', 'slot_type', 'last_slotted_on', 'state'],
     actions: [
-      { m: 'action_block', l: 'Block Bin', ask: 'Reason the bin is blocked', kwarg: 'reason' },
-      { m: 'action_unblock', l: 'Unblock (controller)', ask: 'Why the block is lifted', kwarg: 'note' }
+      { m: 'action_block', l: 'Block Whole Bin', ask: 'Reason the bin is blocked', kwarg: 'reason' },
+      { m: 'action_unblock', l: 'Unblock Bin (controller)', ask: 'Why the block is lifted', kwarg: 'note' }
     ] },
   'M41-docks': { kind: 'model_list', model: 'fix.wms.dock', stateField: 'state',
     cols: ['name', 'dock_no', 'partner_id', 'carrier', 'dock_type', 'slot_start', 'slot_end', 'state'],
@@ -82,16 +90,29 @@ export const SCREENS = {
     cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'] },
   'M41-putaway': { kind: 'model_list', model: 'fix.wms.putaway', stateField: 'state',
     cols: ['name', 'part_id', 'qty', 'to_bin_id', 'receipt_line_id', 'assignee_id', 'state'],
-    actions: [{ m: 'action_complete', l: 'Complete Put-Away' }] },
+    actions: [{ m: 'action_complete', l: 'Complete Put-Away', asks: [
+      { label: 'Scan the target bin', kwarg: 'bin_code' },
+      { label: 'Scan the item', kwarg: 'item_code' }
+    ] }] },
   'M41-waves': { kind: 'model_list', model: 'fix.wms.wave', stateField: 'state',
-    cols: ['name', 'wave_date', 'strategy', 'released_at', 'shipped_at', 'state'],
+    cols: ['name', 'wave_date', 'strategy', 'released_at', 'shipped_at', 'pick_all_reason', 'cancel_reason', 'state'],
     actions: [
-      { m: 'action_release', l: 'Release' },
-      { m: 'action_pick_all', l: 'Pick All Lines' },
+      { m: 'action_release', l: 'Release (supervisor)' },
+      { m: 'action_pick_all', l: 'Pick All Without Scans (supervisor exception)', ask: 'Why this wave is picked without scanning', kwarg: 'reason' },
       { m: 'action_accept_short', l: 'Accept Short Pick' },
       { m: 'action_packed', l: 'Mark Packed' },
       { m: 'action_stage', l: 'Mark Staged' },
-      { m: 'action_ship', l: 'Ship Wave' }
+      { m: 'action_ship', l: 'Ship Wave' },
+      { m: 'action_cancel', l: 'Cancel Wave (supervisor)', ask: 'Why the wave is cancelled', kwarg: 'reason' }
+    ] },
+  'M41-pick-lines': { kind: 'model_list', model: 'fix.wms.wave.line', stateField: 'state', create: false,
+    cols: ['wave_id', 'part_id', 'bin_id', 'qty', 'reserved_qty', 'picked_qty', 'lot_id', 'scanned_bin', 'scanned_item', 'state'],
+    actions: [
+      { m: 'action_scan_pick', l: 'Scan Pick', asks: [
+        { label: 'Scan the bin', kwarg: 'bin_code' },
+        { label: 'Scan the item', kwarg: 'item_code' },
+        { label: 'Scan the serial (serialized parts; otherwise leave empty)', kwarg: 'serial' }
+      ] }
     ] },
   'M41-picking': { kind: 'table_report', module: 'M41', report: 'pick_strategy', title: 'Pick Strategies', period: false },
   'M41-packing': { kind: 'model_list', model: 'fix.wms.carton', stateField: 'state',
@@ -100,7 +121,7 @@ export const SCREENS = {
   'M41-staging': { kind: 'model_list', model: 'fix.wms.stage', stateField: 'state',
     cols: ['name', 'wave_id', 'lane', 'load_ref', 'state'],
     actions: [
-      { m: 'action_load', l: 'Load' },
+      { m: 'action_load', l: 'Load', ask: 'Scan every carton of this load, separated by spaces', kwarg: 'carton_scans' },
       { m: 'action_dispatch', l: 'Dispatch' }
     ] },
   'M41-rf': { kind: 'table_report', module: 'M41', report: 'rf_queue', title: 'RF Mobile App', period: false },
@@ -108,7 +129,7 @@ export const SCREENS = {
     cols: ['name', 'task_type', 'ref', 'part_id', 'bin_id', 'qty', 'assignee_id', 'state'],
     actions: [
       { m: 'action_assign', l: 'Assign' },
-      { m: 'action_done', l: 'Complete Task', ask: 'Scan the bin, then the item (pick tasks), e.g. A-01-01 FX-1001', kwarg: 'scan' },
+      { m: 'action_done', l: 'Complete Task', ask: 'Scan the bin, then the item, then any serial (pick and put-away tasks), e.g. A-01-01 FX-1001', kwarg: 'scan' },
       { m: 'action_cancel', l: 'Cancel Task' }
     ] },
   'M41-counting': { kind: 'model_list', model: 'fix.wms.floor.count', stateField: 'state',
@@ -136,7 +157,26 @@ export const SCREENS = {
           { name: 'barcode', label: 'Barcode' },
           { name: 'capacity_qty', label: 'Capacity' },
           { name: 'storage_class', required: true, label: 'Storage Class' },
-          { name: 'ownership_class', required: true, label: 'Ownership Class' }
+          { name: 'ownership_class', required: true, label: 'Ownership Class' },
+          { name: 'blocked', label: 'Blocked', readonly: true },
+          { name: 'block_reason', label: 'Block Reason', readonly: true }
+        ] }
+    ]
+  },
+
+  'M41-form-zone': {
+    kind: 'model_form',
+    model: 'fix.warehouse.zone',
+    title: 'Warehouse Zone',
+    back: 'M41-wh-zones',
+    sections: [
+      { title: 'Zone', note: 'Stock in a quarantine or inspection zone is not reservable or pickable: a put-away or wave from its bins is refused.',
+        fields: [
+          { name: 'warehouse_id', required: true, label: 'Warehouse' },
+          { name: 'name', required: true, label: 'Zone' },
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'zone_type', required: true, label: 'Zone Type' },
+          { name: 'reservable', label: 'Reservable', readonly: true }
         ] }
     ]
   },
@@ -150,8 +190,8 @@ export const SCREENS = {
     sections: [
       { title: 'Slot', note: 'One slot per part and bin. The quantity is moved only by put-away, pick and approved counts; blocking and unblocking are actions (a controller unblocks).',
         fields: [
-          { name: 'part_id', required: true, label: 'Spare Part' },
-          { name: 'bin_id', required: true, label: 'Bin' },
+          { name: 'part_id', required: true, label: 'Spare Part', domain: [['state', '=', 'active']] },
+          { name: 'bin_id', required: true, label: 'Bin', domain: [['zone_id.reservable', '=', true], ['blocked', '=', false]] },
           { name: 'qty', label: 'Quantity in Bin', readonly: true },
           { name: 'reserved_qty', label: 'Allocated to Waves', readonly: true },
           { name: 'velocity', required: true, label: 'Velocity' },
@@ -196,10 +236,10 @@ export const SCREENS = {
       { title: 'Put-Away', note: 'Puts away stock a POSTED goods-receipt line accepted, up to what is not yet put away, into a bin of the same warehouse (capacity, zone, blocked and hazard rules apply).',
         fields: [
           { name: 'part_id', required: true, label: 'Spare Part' },
-          { name: 'receipt_line_id', required: true, label: 'Received Line' },
+          { name: 'receipt_line_id', required: true, label: 'Received Line', domain: [['is_posted', '=', true]] },
           { name: 'qty', required: true, label: 'Quantity' },
-          { name: 'to_bin_id', required: true, label: 'Target Bin' },
-          { name: 'lot_id', label: 'Serial / Lot' },
+          { name: 'to_bin_id', required: true, label: 'Target Bin', domain: [['zone_id.reservable', '=', true], ['blocked', '=', false]] },
+          { name: 'lot_id', label: 'Serial / Lot', domain: [['status', '=', 'in_stock']] },
           { name: 'from_ref', label: 'Source Reference' },
           { name: 'assignee_id', label: 'Assigned To' }
         ] }
@@ -213,13 +253,17 @@ export const SCREENS = {
     back: 'M41-waves',
     status: { field: 'state', labels: {
       draft: 'Draft', released: 'Released', picking: 'Picking', packed: 'Packed',
-      staged: 'Staged', shipped: 'Shipped' } },
+      staged: 'Staged', shipped: 'Shipped', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Wave', note: 'Release allocates every line in M15 and on its bin (over-allocation is refused); Pick All moves the picked stock to staging, once. Pack needs sealed cartons, ship a loaded stage.',
+      { title: 'Wave', note: 'A supervisor releases: every line is allocated in M15 and on its bin (over-allocation is refused) and becomes a pick task. Each line is picked by scanning its bin and item (Pick Lines); picking without scans is a supervisor exception with a reason. Pack needs sealed cartons, ship a loaded stage with a scanned manifest.',
         fields: [
           { name: 'wave_date', required: true, label: 'Wave Date' },
           { name: 'strategy', required: true, label: 'Strategy' },
-          { name: 'warehouse_id', label: 'Warehouse' }
+          { name: 'warehouse_id', label: 'Warehouse' },
+          { name: 'pick_all_reason', label: 'Pick-All Exception Reason', readonly: true },
+          { name: 'pick_all_by_id', label: 'Pick-All Exception By', readonly: true },
+          { name: 'cancel_reason', label: 'Cancellation Reason', readonly: true },
+          { name: 'cancelled_by_id', label: 'Cancelled By', readonly: true }
         ] }
     ],
     lines: {
@@ -227,11 +271,35 @@ export const SCREENS = {
       title: 'Wave Lines',
       note: 'Each line picks a quantity of a part from a bin; picked quantity can never exceed the wave quantity.',
       fields: [
-        { name: 'part_id', required: true, label: 'Spare Part' },
-        { name: 'bin_id', label: 'Pick Bin' },
+        { name: 'part_id', required: true, label: 'Spare Part', domain: [['state', '=', 'active']] },
+        { name: 'bin_id', label: 'Pick Bin', domain: [['zone_id.reservable', '=', true], ['blocked', '=', false]] },
         { name: 'qty', required: true, label: 'Quantity' }
       ]
     }
+  },
+
+  'M41-form-wave-line': {
+    kind: 'model_form',
+    model: 'fix.wms.wave.line',
+    title: 'Pick Line',
+    back: 'M41-pick-lines',
+    status: { field: 'state', labels: {
+      pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Pick Line', note: 'Read-only: a line is picked by the Scan Pick action, which checks the bin, the item and any serial. The wave holds the line.',
+        fields: [
+          { name: 'wave_id', label: 'Wave', readonly: true },
+          { name: 'part_id', label: 'Spare Part', readonly: true },
+          { name: 'bin_id', label: 'Pick Bin', readonly: true },
+          { name: 'qty', label: 'Quantity', readonly: true },
+          { name: 'reserved_qty', label: 'Allocated', readonly: true },
+          { name: 'picked_qty', label: 'Picked', readonly: true },
+          { name: 'lot_id', label: 'Picked Serial', readonly: true },
+          { name: 'scanned_bin', label: 'Scanned Bin', readonly: true },
+          { name: 'scanned_item', label: 'Scanned Item', readonly: true },
+          { name: 'picked_by_id', label: 'Picked By', readonly: true }
+        ] }
+    ]
   },
 
   'M41-form-carton': {
@@ -244,7 +312,7 @@ export const SCREENS = {
     sections: [
       { title: 'Carton', note: 'A carton is sealed for a wave being packed, with its contents and weight; the sealed contents must reconcile to the picked lines.',
         fields: [
-          { name: 'wave_id', required: true, label: 'Wave' },
+          { name: 'wave_id', required: true, label: 'Wave', domain: [['state', '=', 'picking']] },
           { name: 'carton_size', required: true, label: 'Carton Size' },
           { name: 'weight_kg', label: 'Weight (kg)' },
           { name: 'contents_qty', label: 'Contents (pcs)' }
@@ -260,11 +328,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       staging: 'Staging', loaded: 'Loaded', dispatched: 'Dispatched' } },
     sections: [
-      { title: 'Stage & Load', note: 'Load a staged wave with its load / vehicle reference, then dispatch: dispatching ships the wave.',
+      { title: 'Stage & Load', note: 'Load a staged wave with its load / vehicle reference by scanning every sealed carton, then dispatch: dispatching ships the wave.',
         fields: [
-          { name: 'wave_id', required: true, label: 'Wave' },
+          { name: 'wave_id', required: true, label: 'Wave', domain: [['state', 'in', ['packed', 'staged']]] },
           { name: 'lane', required: true, label: 'Staging Lane' },
-          { name: 'load_ref', label: 'Load / Vehicle Ref' }
+          { name: 'load_ref', label: 'Load / Vehicle Ref' },
+          { name: 'manifest_verified', label: 'Manifest Verified', readonly: true },
+          { name: 'manifest_scan', label: 'Scanned Manifest', readonly: true }
         ] }
     ]
   },
@@ -277,16 +347,16 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', assigned: 'Assigned', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Task', note: 'Only the assigned operative completes a task; a pick or put-away task completes the movement it represents, a count task its floor count.',
+      { title: 'Task', note: 'Only the assigned operative completes a task; a pick or put-away task completes the movement it represents, a count task its floor count. An operative may claim a free task; only a supervisor reassigns one.',
         fields: [
           { name: 'task_type', required: true, label: 'Task Type' },
           { name: 'ref', label: 'Reference' },
           { name: 'part_id', label: 'Spare Part' },
           { name: 'bin_id', label: 'Bin' },
           { name: 'qty', label: 'Quantity' },
-          { name: 'wave_line_id', label: 'Wave Line' },
-          { name: 'putaway_id', label: 'Put-Away' },
-          { name: 'floor_count_id', label: 'Floor Count' },
+          { name: 'wave_line_id', label: 'Wave Line', domain: [['state', '=', 'pending']] },
+          { name: 'putaway_id', label: 'Put-Away', domain: [['state', '=', 'pending']] },
+          { name: 'floor_count_id', label: 'Floor Count', domain: [['state', 'in', ['draft', 'recount', 'submitted']]] },
           { name: 'assignee_id', label: 'Assignee' }
         ] }
     ]
@@ -297,7 +367,9 @@ export const SCREENS = {
     model: 'fix.wms.floor.count',
     title: 'Floor Count',
     back: 'M41-counting',
-    status: { field: 'state', labels: { draft: 'Draft', posted: 'Posted' } },
+    status: { field: 'state', labels: {
+      draft: 'Draft', recount: 'Recount Required', submitted: 'Submitted to M15',
+      posted: 'Posted', cancelled: 'Cancelled' } },
     sections: [
       { title: 'Count', note: 'Blind bin count: the system takes the expected quantity. A variance is recounted, then submitted to M15 for Inventory Controller approval; the bin moves when that count posts.',
         fields: [
@@ -345,11 +417,27 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M41-stock-location': { kind: 'model_list', model: 'fix.stock.location', stateField: 'state',
-    cols: ['name', 'code', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'] },
+    cols: ['name', 'code', 'location_type', 'technician_id', 'branch_id', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'],
+    actions: [
+      { m: 'action_set_active', l: 'Activate (controller)' },
+      { m: 'action_set_inactive', l: 'Deactivate (controller)' },
+      { m: 'action_audit_van_stock', l: 'Audit Van Stock (controller)', asks: [
+        { label: 'Lines audited', kwarg: 'audited_count', number: true },
+        { label: 'Lines with a discrepancy', kwarg: 'discrepancy_count', number: true }
+      ] }
+    ] },
   'M41-inventory-valuation-suspense': { kind: 'model_list', model: 'fix.inventory.valuation.suspense',
     cols: ['name', 'company_id', 'product_id', 'operating_unit_id', 'name_bn', 'consumption_id', 'quantity'] },
   'M41-spare-part': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
-    cols: ['name', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn', 'part_number'] },
+    cols: ['name', 'part_number', 'product_id', 'is_serialized', 'uom', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'],
+    actions: [
+      { m: 'action_discontinue', l: 'Discontinue (controller)' },
+      { m: 'action_mark_obsolete', l: 'Mark Obsolete (controller)' },
+      { m: 'action_reactivate', l: 'Reactivate (controller)' },
+      { m: 'action_set_standard_cost', l: 'Set Standard Cost (controller)', asks: [
+        { label: 'New standard cost (BDT)', kwarg: 'cost', number: true }
+      ] }
+    ] },
   'M41-warehouse': { kind: 'model_list', model: 'fix.warehouse',
     cols: ['name', 'code', 'active', 'company_id', 'operating_unit_id', 'branch_id'] },
 
@@ -358,12 +446,17 @@ export const SCREENS = {
     model: 'fix.stock.location',
     title: "Stock Location",
     back: 'M41-stock-location',
-    status: { field: 'state' },
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', inactive: 'Inactive' } },
     sections: [
-      { title: "Stock Location", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Stock Location", note: "A van names its custodian technician: only that technician (or an Inventory Controller) issues from it, and only an Inventory Controller changes the custodian or the location type. An inactive location moves no stock.",
         fields: [
           { name: 'name', required: true, label: "Location Name" },
           { name: 'code', required: true, label: "Location Code" },
+          { name: 'location_type', required: true, label: "Location Type" },
+          { name: 'technician_id', label: "Custodian Technician (vans)" },
+          { name: 'van_plate', label: "Vehicle Plate (vans)" },
+          { name: 'branch_id', label: "Branch Hub" },
+          { name: 'parent_id', label: "Parent Location" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'active', label: "Active" },
           { name: 'operating_unit_id', label: "Operating Unit" },
@@ -396,13 +489,18 @@ export const SCREENS = {
     model: 'fix.spare.part',
     title: "Spare Part",
     back: 'M41-spare-part',
-    status: { field: 'state' },
+    status: { field: 'state', labels: { active: 'Active', discontinued: 'Discontinued', obsolete: 'Obsolete' } },
     sections: [
-      { title: "Spare Part", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Spare Part", note: "Map the part to the product M16 buys it as: a PO goods receipt of an unmapped product does not reach this ledger. A discontinued part is run down and no longer bought; an obsolete part is not issued. Status and standard cost change only by the controller's actions.",
         fields: [
           { name: 'name', required: true, label: "Part Description" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'part_number', required: true, label: "Part Number / SKU" },
+          { name: 'product_id', label: "Purchased As (Product)" },
+          { name: 'barcode', label: "Barcode" },
+          { name: 'uom', label: "Unit of Measure" },
+          { name: 'is_serialized', label: "Serialized (one serial per unit)" },
+          { name: 'storage_class', label: "Storage Class" },
           { name: 'active', label: "Active" },
           { name: 'operating_unit_id', label: "Operating Unit" },
           { name: 'name_bn', label: "যন্ত্রাংশের নাম (বাংলা)" }
@@ -453,9 +551,15 @@ export const FORM_CHIPS = {
   'M41:__by_model__': {
     'fix.stock.location': 'M41-form-stock-location',
     'fix.inventory.valuation.suspense': 'M41-form-inventory-valuation-suspense',
-    'fix.spare.part': 'M41-form-spare-part',
+    /* Real-inventory upgrade 2026-11-07: the spare-part master now opens the
+     * 7-tab M15 form (single surface owner per model) instead of the 6-field
+     * stub below, which stays only as the fallback screen definition. */
+    'fix.spare.part': 'M15-form-part',
     'fix.warehouse': 'M41-form-warehouse',
     'fix.warehouse.bin': 'M41-form-bin',
+    'fix.warehouse.zone': 'M41-form-zone',
+    'fix.wms.wave.line': 'M41-form-wave-line',
+    'fix.stock.receipt': 'M15-form-receipt',
     'fix.wms.slot': 'M41-form-slot',
     'fix.wms.dock': 'M41-form-dock',
     'fix.wms.putaway': 'M41-form-putaway',
@@ -472,11 +576,14 @@ export const FORM_CHIPS = {
     'M41-inventory-valuation-suspense': 'M41-form-inventory-valuation-suspense',
     'M41-spare-part': 'M41-form-spare-part',
     'M41-warehouse': 'M41-form-warehouse',
+    'M41-wh-zones': 'M41-form-zone',
     'M41-zones': 'M41-form-bin',
     'M41-slotting': 'M41-form-slot',
     'M41-docks': 'M41-form-dock',
+    'M41-receiving': 'M15-form-receipt',
     'M41-putaway': 'M41-form-putaway',
     'M41-waves': 'M41-form-wave',
+    'M41-pick-lines': 'M41-form-wave-line',
     'M41-packing': 'M41-form-carton',
     'M41-staging': 'M41-form-stage',
     'M41-tasks': 'M41-form-task',

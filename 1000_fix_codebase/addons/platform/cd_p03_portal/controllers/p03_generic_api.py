@@ -17,6 +17,7 @@ import psycopg2
 import pytz
 from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.fields import Domain
 from odoo.http import request
 
 from . import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12
@@ -221,6 +222,56 @@ for _model, _conf in _A11_SURFACES.items():
 # fields never returned over the generic endpoint
 _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
 _FAILED = "The request could not be completed — try again or contact Finance support."
+# Hard ceiling for an explicit limit override (the export path): an artefact
+# must carry the whole grid the screen serves — the real item master is
+# 14k+ rows — while a stray request cannot ask for the estate unbounded.
+_EXPORT_MAX_ROWS = 50_000
+
+
+# what a picker's filter may test. The filter arrives from the client and runs
+# under sudo, so a free text or amount test would let any internal user guess a
+# field they cannot read, one character at a time (a bank account number, say).
+_CHOICE_DOMAIN_TYPES = {"selection", "boolean", "many2one", "many2many", "one2many"}
+_CHOICE_DOMAIN_OPERATORS = {"=", "!=", "in", "not in", ">"}
+_CHOICE_DOMAIN_NUMERIC = {"float", "integer"}
+
+
+def _choice_domain(env, comodel, domain):
+    """A picker's declared filter, checked, or a refusal. Allows workflow tests
+    (state, flags, links) and "this quantity is above zero"; nothing that can
+    read a value out of a field one guess at a time."""
+    domain = domain or []
+    if not isinstance(domain, list | tuple):
+        raise UserError("This list's filter is not valid")
+    try:
+        # well formed, or a dangling "|" would OR past the company fence it is ANDed with
+        Domain(list(domain))
+    except (ValueError, TypeError) as exc:
+        raise UserError("This list's filter is not valid") from exc
+    for leaf in domain:
+        if leaf in ("&", "|", "!"):
+            continue
+        if not isinstance(leaf, list | tuple) or len(leaf) != 3:
+            raise UserError("This list's filter is not valid")
+        path, operator, value = leaf
+        if not isinstance(path, str) or operator not in _CHOICE_DOMAIN_OPERATORS:
+            raise UserError("This list's filter is not valid")
+        model = env[comodel]
+        target = None
+        for index, part in enumerate(path.split(".")):
+            target = model._fields.get(part)
+            if target is None or target.groups:
+                raise UserError("This list's filter is not valid")
+            if index < path.count("."):
+                if not target.relational:
+                    raise UserError("This list's filter is not valid")
+                model = env[target.comodel_name]
+        numeric_zero = target.type in _CHOICE_DOMAIN_NUMERIC and operator == ">" and value == 0
+        if target.type not in _CHOICE_DOMAIN_TYPES and not numeric_zero:
+            raise UserError("This list's filter is not valid")
+        if target.type in _CHOICE_DOMAIN_TYPES and operator == ">":
+            raise UserError("This list's filter is not valid")
+    return list(domain)
 
 
 class P03GenericApiController(http.Controller):
@@ -295,8 +346,9 @@ class P03GenericApiController(http.Controller):
                 ]
             search_domain += self._records_search_domain(env[model], cols, search)
             offset = max(int(offset or 0), 0)
+            effective_limit = min(int(kw.get("limit") or conf["limit"]), _EXPORT_MAX_ROWS)
             records = rec_model.search(
-                search_domain, order=conf["order"], limit=conf["limit"], offset=offset
+                search_domain, order=conf["order"], limit=effective_limit, offset=offset
             )
             raw = records.read(cols) if records else []
             rows = []
@@ -331,7 +383,7 @@ class P03GenericApiController(http.Controller):
             # reads as the whole base when the limit clipped it
             total = (
                 rec_model.search_count(search_domain)
-                if offset or len(rows) >= conf["limit"]
+                if offset or len(rows) >= effective_limit
                 else len(rows)
             )
             return {
@@ -399,7 +451,10 @@ class P03GenericApiController(http.Controller):
                 or (writable is not None and field not in writable)
             ):
                 return {"error": "This field cannot be searched on this screen."}
-            domain = _picker_domain(env, conf, spec.comodel_name, field)
+            declared = _choice_domain(env, spec.comodel_name, kw.get("domain"))
+            domain = Domain.AND(
+                [Domain(declared), Domain(_picker_domain(env, conf, spec.comodel_name, field))]
+            )
             found = _picker_source(env, spec.comodel_name).name_search(
                 term or "", domain, limit=min(int(limit or 30), 50)
             )
@@ -544,12 +599,19 @@ class P03GenericApiController(http.Controller):
             return v.get("label") or v.get("name") or ""
         return v
 
-    def _model_list_export_payload(self, model, cols, lang):
+    def _model_list_export_payload(self, model, cols, lang, limit=None):
         """{rows (flattened), labels, title, count} for a served model —
-        the /p03/model/records read, reused verbatim."""
+        the /p03/model/records read, reused verbatim. The export passes an
+        explicit limit so the artefact carries the WHOLE grid the screen
+        serves (the real item master is 14k+ rows), never one UI page."""
         col_list = [c for c in (cols or "").split(",") if c] or None
         data = self.model_records(
-            model=model, cols=col_list, domain=[], state_filter=None, lang=lang
+            model=model,
+            cols=col_list,
+            domain=[],
+            state_filter=None,
+            lang=lang,
+            limit=limit or _EXPORT_MAX_ROWS,
         )
         if data.get("error"):
             return None, data["error"]
@@ -580,7 +642,20 @@ class P03GenericApiController(http.Controller):
             out = dict(payload, title=(model or "records").replace(".", " ").title(), notes=[])
             return self._report_xlsx(out, payload["cols"], payload["labels"], base_name, {})
         if format == "pdf":
-            return self._list_pdf(payload, base_name)
+            # a printable artefact of 14k rows is hundreds of pages of paper —
+            # the PDF carries the first 2,000 rows and SAYS so; XLSX/CSV carry
+            # every row. (Real-inventory upgrade 2026-11-07.)
+            pdf_payload = payload
+            if len(payload["rows"]) > 2000:
+                pdf_payload = dict(
+                    payload,
+                    rows=payload["rows"][:2000],
+                    notes=[
+                        "Showing the first 2,000 of %s rows — use the Excel export for the full grid."
+                        % len(payload["rows"])
+                    ],
+                )
+            return self._list_pdf(pdf_payload, base_name)
         import csv
         import io as _io
 
@@ -1047,7 +1122,16 @@ class P03GenericApiController(http.Controller):
         )
 
     @http.route("/p03/model/form", type="jsonrpc", auth="user", readonly=True)
-    def model_form(self, model=None, fields=None, record_id=None, lang=None, lines=None, **kw):
+    def model_form(
+        self,
+        model=None,
+        fields=None,
+        record_id=None,
+        lang=None,
+        lines=None,
+        status_field=None,
+        **kw,
+    ):
         """Schema + values for a D365 in-workspace form screen.
 
         fields: [{name, type?, label?, required?, readonly?}] declared by the
@@ -1097,12 +1181,20 @@ class P03GenericApiController(http.Controller):
             line_payload = None
             if lines and lines.get("field"):
                 line_payload = self._form_lines(env, model, lines, record_id)
+            # The form's status pill reads a workflow field that is usually NOT
+            # one of its inputs (a state is never editable), so it is served on
+            # its own; without this the pill never rendered on such a form.
+            status_value = None
+            status_meta = rec._fields.get(status_field) if rec and status_field else None
+            if status_meta and status_meta.type in ("selection", "char", "boolean"):
+                status_value = rec[status_field]
             return {
                 "model": model,
                 "fields": out_fields,
                 "record": record,
                 "defaults": {} if rec else self._form_defaults(env, model, out_fields),
                 "lines": line_payload,
+                "status_value": status_value,
                 "title": conf.get("form_title") or env[model]._description,
             }
         except (UserError, AccessError) as exc:
@@ -1157,12 +1249,27 @@ class P03GenericApiController(http.Controller):
             if field_type in ("many2one", "many2many"):
                 comodel = env[model]._fields[name].comodel_name
                 entry["comodel"] = comodel
-                domain = _picker_domain(env, SURFACES.get(model), comodel, name)
-                options = _picker_source(env, comodel)
-                entry["remote"] = (
-                    field_type == "many2one"
-                    and options.search_count(domain, limit=PICKER_LIMIT + 1) > PICKER_LIMIT
+                # A06 fragments declare a filter (parts in stock), checked by
+                # _choice_domain; the surface declares its own and fences the
+                # caller's companies (A07). Both apply, combined as parsed domains.
+                declared = _choice_domain(env, comodel, spec.get("domain"))
+                domain = Domain.AND(
+                    [
+                        Domain(declared),
+                        Domain(_picker_domain(env, SURFACES.get(model), comodel, name)),
+                    ]
                 )
+                options = _picker_source(env, comodel)
+                if declared:
+                    entry["choice_domain"] = declared
+                # A longer list used to stop silently at the limit: 15,522
+                # partners offered the first 300, and a record whose value lay
+                # beyond them showed blank. A header many2one becomes a search
+                # box (remote, no list sent); a many2many or a grid cell gets a
+                # search input beside what it shows (truncated).
+                over = options.search_count(domain, limit=PICKER_LIMIT + 1) > PICKER_LIMIT
+                entry["remote"] = field_type == "many2one" and over
+                entry["truncated"] = over
                 entry["choices"] = (
                     []
                     if entry["remote"]
@@ -1171,6 +1278,12 @@ class P03GenericApiController(http.Controller):
                         for r in options.search_read(domain, ["display_name"], limit=PICKER_LIMIT)
                     ]
                 )
+                if record is not None and field_type == "many2one" and len(record) == 1:
+                    current = record[name]
+                    if current and all(c["id"] != current.id for c in entry["choices"]):
+                        entry["choices"].insert(
+                            0, {"id": current.id, "label": current.sudo().display_name}
+                        )
             out_fields.append(entry)
         return out_fields
 
@@ -1211,7 +1324,55 @@ class P03GenericApiController(http.Controller):
             if rec:
                 for child in rec[field_name]:
                     rows.append(self._form_record(child, out_fields))
+                # a row's value beyond the choice limit must still display
+                for meta in out_fields:
+                    if meta["type"] != "many2one":
+                        continue
+                    known = {c["id"] for c in meta["choices"]}
+                    for row in rows:
+                        value = row.get(meta["name"])
+                        if value and value["id"] not in known:
+                            known.add(value["id"])
+                            meta["choices"].append({"id": value["id"], "label": value["label"]})
         return {"field": field_name, "model": comodel, "fields": out_fields, "rows": rows}
+
+    @http.route("/p03/model/choices", type="jsonrpc", auth="user", readonly=True)
+    def model_choices(
+        self, model=None, field=None, q=None, parent_model=None, parent_field=None, **kw
+    ):
+        """Server search for a many2one input whose list exceeds the choice
+        limit. Serves only a field of a served model, or of the child grid a
+        served model declares; returns ids and display names, as the form does.
+        The domain is the one the fragment's field spec declares."""
+        _require_internal(request.env)
+        env = request.env
+        served = model in SURFACES
+        if not served and parent_model in SURFACES and parent_field:
+            parent = env[parent_model]._fields.get(parent_field)
+            served = bool(parent and parent.type == "one2many" and parent.comodel_name == model)
+        if not served or model not in env:
+            return {"error": "Model not served by the workspace screens"}
+        target = env[model]._fields.get(field)
+        if not target or target.type not in ("many2one", "many2many"):
+            return {"error": "This field has no choices"}
+        try:
+            env[model].check_access("read")
+            comodel = target.comodel_name
+            declared = _choice_domain(env, comodel, kw.get("domain"))
+            domain = Domain.AND(
+                [Domain(declared), Domain(_picker_domain(env, SURFACES.get(model), comodel, field))]
+            )
+            found = _picker_source(env, comodel).name_search(
+                name=(q or "").strip(), domain=domain, limit=50
+            )
+            return {"choices": [{"id": i, "label": label} for i, label in found]}
+        except (UserError, AccessError) as exc:
+            return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise
+        except Exception:
+            _logger.exception("p03 model_choices failed for %s.%s", model, field)
+            return {"error": _FAILED}
 
     @http.route("/p03/model/write", type="jsonrpc", auth="user")
     def model_write(self, model=None, record_id=None, values=None, lines=None, **kw):

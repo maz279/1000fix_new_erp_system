@@ -11,14 +11,183 @@
 #     the store to capture the serials and post;
 #   - the inspection.rejected consumer moves the rejected quantity of that
 #     part into quarantine at the receiving location, once per inspection.
+#
+# A06 final pass, M16-7 / BRU-PRO-11 and -16: goods went into available stock
+# at receipt, so a later rejection moved only what was still there, and nothing
+# if it had been issued; serialized parts were skipped altogether. When
+# inspection is required (cd_requisition.receipt_inspection_required) they now
+# wait for it:
+#   - plain parts sit in the on-hand status "inspection", which nothing can
+#     reserve or issue, until the inspection is confirmed. Accepted goes to
+#     unrestricted, rejected to quarantine, in that same transaction;
+#   - serialized parts stay on their draft M15 receipt, which cannot be posted
+#     before the inspection; rejected units leave it and are quarantined;
+#   - a rejection of a mapped part raises a draft RTV for it.
+# A receipt posted before this rule (its goods already unrestricted) keeps the
+# old path through the event consumer.
 import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .fix_inventory_approval import location_class
+
 _logger = logging.getLogger(__name__)
 
 PARAM_PO_RECEIVING_LOCATION = "cd_inventory.po_receiving_location_id"
+HOLD_KEY = "fix_receipt_hold_for_inspection"
+_HOLD = object()  # in-process only: a JSON-RPC context cannot carry this object
+
+
+class FixStockOnhandInspection(models.Model):
+    _inherit = "fix.stock.onhand"
+
+    stock_status = fields.Selection(
+        selection_add=[("inspection", "In Inspection")], ondelete={"inspection": "cascade"}
+    )
+
+    @api.model
+    def _apply(self, part, location, ownership, delta, *args, **kwargs):
+        """A receipt posted for inspection lands in the held status."""
+        if (
+            self.env.context.get(HOLD_KEY) is _HOLD
+            and delta > 0
+            and kwargs.get("status", "unrestricted") == "unrestricted"
+        ):
+            kwargs["status"] = "inspection"
+        return super()._apply(part, location, ownership, delta, *args, **kwargs)
+
+
+class FixStockReceiptInspectionHold(models.Model):
+    _inherit = "fix.stock.receipt"
+
+    inspection_held = fields.Boolean(
+        string="Held for Inspection",
+        readonly=True,
+        copy=False,
+        help="Posted into the In Inspection status; the inspection releases it.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"inspection_held"}
+
+    def _fix_assert_inspected(self):
+        """Goods of a PO receipt enter stock only after their inspection."""
+        if self.env.context.get(HOLD_KEY) is _HOLD:
+            return
+        Line = self.env["fix.purchase.receipt.line"].sudo()
+        for rec in self.filtered(lambda r: r.source_model == "fix.purchase.receipt"):
+            refs = rec.line_ids.mapped("source_line_ref")
+            ids = [int(ref[4:]) for ref in refs if ref and ref.startswith("PRL:")]
+            pending = Line.browse(ids).exists().filtered(lambda r: r.inspection_state == "pending")
+            if pending:
+                raise UserError(
+                    "Receipt %s waits for the inspection of %s (BRU-PRO-11): confirm the "
+                    "inspection outcome first." % (rec.name, pending[0].display_name)
+                )
+
+    def action_inspect(self):
+        self._fix_assert_inspected()
+        return super().action_inspect()
+
+    def action_post(self):
+        self._fix_assert_inspected()
+        return super().action_post()
+
+
+class FixProcurementInspectionM15(models.Model):
+    _inherit = "fix.procurement.inspection"
+
+    def action_confirm(self):
+        result = super().action_confirm()
+        for rec in self:
+            rec.sudo()._fix_settle_m15()
+        return result
+
+    def _fix_settle_m15(self):
+        """Release what this inspection judged, once, in its own transaction."""
+        self.ensure_one()
+        prl = self.receipt_line_id
+        lines = (
+            self.env["fix.stock.receipt.line"]
+            .sudo()
+            .search(
+                [
+                    ("source_line_ref", "=", "PRL:%d" % prl.id),
+                    ("receipt_id.source_model", "=", "fix.purchase.receipt"),
+                    ("receipt_id.source_res_id", "=", prl.receipt_id.id),
+                ]
+            )
+        )
+        held = lines.filtered(lambda ln: ln.receipt_id.inspection_held)
+        draft = lines.filtered(lambda ln: ln.receipt_id.state == "draft")
+        if held:
+            self._fix_release_held(held[:1])
+        elif draft:
+            self._fix_settle_serials(draft)
+
+    def _fix_release_held(self, line):
+        receipt, part = line.receipt_id, line.part_id
+        location = receipt.location_id
+        cls = location_class(location, receipt.ownership_class)
+        Onhand = self.env["fix.stock.onhand"].sudo()
+        accepted, rejected = self.qty_accepted or 0.0, self.qty_rejected or 0.0
+        if accepted > 0:
+            Onhand._fix_move_status(part, location, cls, accepted, "inspection", "unrestricted")
+        vals = {"qty_accepted": accepted}
+        if rejected > 0:
+            Onhand._fix_move_status(part, location, cls, rejected, "inspection", "quarantine")
+            quarantine = self._fix_quarantine_rejected(receipt, part, cls, rejected)
+            vals["quarantine_id"] = quarantine.id
+        line._guarded().write(vals)
+
+    def _fix_settle_serials(self, lines):
+        """Rejected units leave the draft receipt (those with no serial yet
+        first) and enter quarantine, valued at the PO price. The rest are posted
+        with their serials, which the store now may do."""
+        rejected = round(self.qty_rejected or 0.0)
+        if rejected <= 0:
+            return
+        receipt, part = lines[0].receipt_id, lines[0].part_id
+        cost = lines[0].unit_cost or 0.0
+        location = receipt.location_id
+        cls = location_class(location, receipt.ownership_class)
+        self.env["fix.stock.onhand"].sudo()._apply(
+            part, location, cls, rejected, cost, status="quarantine"
+        )
+        self.env["fix.inventory.valuation.suspense"].sudo()._fix_post(
+            "receipt", part, rejected, cost, receipt.name, location=location, ownership=cls
+        )
+        lines.sorted(lambda ln: (bool(ln.line_no), ln.id))[:rejected].unlink()
+        self._fix_quarantine_rejected(receipt, part, cls, rejected)
+        if not receipt.line_ids:
+            receipt.unlink()
+
+    def _fix_quarantine_rejected(self, receipt, part, cls, qty):
+        """The quantity is already in the quarantine status: record it in place.
+        The source key makes the inspection.rejected consumer a no-op."""
+        order = self.receipt_line_id.receipt_id.purchase_order_id
+        quarantine = (
+            self.env["fix.stock.quarantine"]
+            .sudo()
+            ._guarded()
+            .with_context(fix_quarantine_in_place=True)
+            .create(
+                {
+                    "part_id": part.id,
+                    "location_id": receipt.location_id.id,
+                    "company_id": receipt.company_id.id,
+                    "ownership_class": cls,
+                    "qty": qty,
+                    "reason": "defective",
+                    "notes": "Rejected at inspection %s of %s (PO %s)"
+                    % (self.name, receipt.source_ref or receipt.name, order.name or "-"),
+                    "source_ref": "inspection.rejected:%d" % self.id,
+                }
+            )
+        )
+        quarantine._fix_raise_draft_rtv(order.vendor_id or receipt.partner_id)
+        return quarantine
 
 
 class FixPurchaseReceiptM15(models.Model):
@@ -150,6 +319,9 @@ class FixPurchaseReceiptM15(models.Model):
         created = Receipt.browse()
         if plain:
             receipt = Receipt.create(dict(base, line_ids=plain))
+            if any(line.inspection_required for line in self.line_ids):
+                receipt._guarded().write({"inspection_held": True})
+                receipt = receipt.with_context(**{HOLD_KEY: _HOLD})
             receipt.action_inspect()
             receipt.action_post()
             created |= receipt
@@ -160,8 +332,59 @@ class FixPurchaseReceiptM15(models.Model):
         return created
 
 
+class FixPurchaseOrderLineRetiredPart(models.Model):
+    """A06 final pass B16 (BRU-CAT-10, AUT-CAT-07): a discontinued part is run
+    down and an obsolete one is out of service; neither is bought again. A line
+    already on an order stays receivable."""
+
+    _inherit = "fix.purchase.order.line"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Part = self.env["fix.spare.part"].sudo()
+        Order = self.env["fix.purchase.order"].sudo()
+        for vals in vals_list:
+            order = Order.browse(vals.get("order_id") or 0)
+            if not vals.get("product_id") or not order.exists():
+                continue
+            retired = Part.search(
+                [
+                    ("product_id", "=", vals["product_id"]),
+                    ("company_id", "=", order.company_id.id),
+                    ("state", "!=", "active"),
+                ],
+                limit=1,
+            )
+            if retired:
+                raise UserError(
+                    "%s is %s: it is no longer purchased." % (retired.part_number, retired.state)
+                )
+        return super().create(vals_list)
+
+
 class FixStockQuarantineConsumer(models.Model):
     _inherit = "fix.stock.quarantine"
+
+    def _fix_raise_draft_rtv(self, vendor):
+        """BRU-PRO-16: a rejected receipt goes back to its vendor. A draft for the
+        store to complete with the RMA reference and have approved."""
+        self.ensure_one()
+        return (
+            self.env["fix.stock.rtv"]
+            .sudo()
+            .create(
+                {
+                    "partner_id": vendor.id,
+                    "part_id": self.part_id.id,
+                    "location_id": self.location_id.id,
+                    "quarantine_id": self.id,
+                    "company_id": self.company_id.id,
+                    "qty": self.qty,
+                    "reason": "quality",
+                    "notes": self.notes,
+                }
+            )
+        )
 
     @api.model
     def consume_inspection_rejected(self, event):
@@ -210,7 +433,7 @@ class FixStockQuarantineConsumer(models.Model):
                 location.code,
             )
             return 0
-        Quarantine.create(
+        quarantine = Quarantine.create(
             {
                 "part_id": part.id,
                 "location_id": location.id,
@@ -223,4 +446,5 @@ class FixStockQuarantineConsumer(models.Model):
                 "source_ref": key,
             }
         )
+        quarantine._fix_raise_draft_rtv(stock_receipt.partner_id)
         return 1

@@ -607,6 +607,53 @@ class FixEwasteCollection(models.Model):
         # never hand back a record that still carries the guard token
         return self.browse(col.id)
 
+    @api.model
+    def consume_stock_written_off(self, event):
+        """stock.written_off (M15, spec §12: consumers M19, M18) -> the scrapped
+        quantity enters M18 for disposal. Superuser-only (the event relay) and
+        idempotent: one collection per write-off. Everything is re-read from the
+        quarantine record; the payload is not trusted. No value crosses over."""
+        if not self.env.su:
+            raise UserError("consume_stock_written_off runs only from the event relay.")
+        if "fix.stock.quarantine" not in self.env or event.get("aggregate") not in (
+            None,
+            "fix.stock.quarantine",
+        ):
+            return self.browse()
+        scrap = self.env["fix.stock.quarantine"].sudo().browse(event.get("aggregate_id") or 0)
+        scrap = scrap.exists()
+        if not scrap or scrap.state != "scrapped":
+            return self.browse()
+        existing = self.sudo().search(
+            [("source_model", "=", scrap._name), ("source_res_id", "=", scrap.id)], limit=1
+        )
+        if existing:
+            return existing
+        part = scrap.part_id
+        col = (
+            self.sudo()
+            ._guarded()
+            .create(
+                {
+                    "company_id": scrap.company_id.id,
+                    "operating_unit_id": scrap.location_id.operating_unit_id.id or False,
+                    # written-off stock is the company's own
+                    "customer_id": scrap.company_id.partner_id.id,
+                    "material_type": "battery" if part.part_category == "battery" else "other",
+                    "item_count": int(round(scrap.qty or 0.0)),
+                    "source_model": scrap._name,
+                    "source_res_id": scrap.id,
+                    "source_ref": scrap.name,
+                }
+            )
+        )
+        col.message_post(
+            body="Received from M15 write-off %s: %s x %s."
+            % (scrap.name, scrap.qty, part.part_number)
+        )
+        # never hand back a record that still carries the guard token
+        return self.browse(col.id)
+
     # ------------------------------------------------------------ cron
     @api.model
     def cron_storage_clock(self):

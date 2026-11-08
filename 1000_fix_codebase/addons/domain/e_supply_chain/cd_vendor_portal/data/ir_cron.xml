@@ -16,5 +16,14 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="ir_cron_fix_supplier_review_cadence" model="ir.cron">
+            <field name="name">M42: schedule supplier reviews by segment cadence</field>
+            <field name="model_id" ref="model_fix_supplier"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_review_cadence()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

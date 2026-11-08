@@ -13,7 +13,12 @@
 import datetime
 
 SURFACES = {
-    "fix.warehouse.bin": {"order": "zone_id, name", "limit": 400, "actions": set()},
+    "fix.warehouse.bin": {
+        "order": "zone_id, name",
+        "limit": 400,
+        "actions": {"action_block", "action_unblock"},
+    },
+    "fix.warehouse.zone": {"order": "warehouse_id, name", "limit": 200, "actions": set()},
     "fix.wms.slot": {
         "order": "bin_id, part_id",
         "limit": 400,
@@ -39,9 +44,10 @@ SURFACES = {
             "action_packed",
             "action_stage",
             "action_ship",
+            "action_cancel",
         },
     },
-    "fix.wms.wave.line": {"order": "wave_id, id", "limit": 400, "actions": set()},
+    "fix.wms.wave.line": {"order": "wave_id, id", "limit": 400, "actions": {"action_scan_pick"}},
     "fix.wms.carton": {
         "order": "create_date desc, id desc",
         "limit": 300,
@@ -64,9 +70,22 @@ SURFACES = {
     },
     "fix.wms.wave.template": {"order": "name", "limit": 200, "actions": set()},
     "fix.wms.packing.station": {"order": "name", "limit": 200, "actions": set()},
-    "fix.stock.location": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.stock.location": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_set_active", "action_set_inactive", "action_audit_van_stock"},
+    },
     "fix.inventory.valuation.suspense": {"order": "id desc", "limit": 400, "actions": set()},
-    "fix.spare.part": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.spare.part": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_discontinue",
+            "action_mark_obsolete",
+            "action_reactivate",
+            "action_set_standard_cost",
+        },
+    },
     "fix.warehouse": {"order": "id desc", "limit": 400, "actions": set()},
 }
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_inventory_approval import CONTROLLER_GROUP, VALUED_CLASSES
+from .fix_inventory_approval import CONTROLLER_GROUP, COST_GROUP, VALUED_CLASSES
 
 
 class FixSparePart(models.Model):
@@ -59,6 +59,55 @@ class FixSparePart(models.Model):
     device_brand = fields.Char(string="Device Brand / Manufacturer", index=True)
     category = fields.Selection(related="part_category", string="Category", store=True)
     brand = fields.Char(related="device_brand", string="Brand", store=True)
+
+    # Real-inventory fit-gap (2026-11-07, report §7 R2): the real inventory
+    # statement classifies every row as Group -> Category (41 groups, 455
+    # category names) under a governed brand. The 9-value component enum and
+    # the free-text device_brand cannot hold that; they stay for the component
+    # hint and migration history, while the governed links below carry the
+    # real taxonomy (shared with fix.catalogue.item — one master, R1).
+    category_id = fields.Many2one(
+        "product.category",
+        string="Product Category (Group Tree)",
+        index=True,
+        help="Level 1 = the file's Group, level 2 = its Category — the seeded "
+        "product.category tree (report R3).",
+    )
+    brand_id = fields.Many2one(
+        "fix.brand", string="Brand (Brand Master)", index=True, help="Governed fix.brand record"
+    )
+    model_compatibility_ids = fields.Many2many(
+        "fix.device.model",
+        "fix_spare_part_device_model_rel",
+        "part_id",
+        "model_id",
+        string="Compatible Device Models",
+        help="Governed device-model compatibility (replaces the free-text matrix; "
+        "report R8.2 keeps this empty until the model column is cleansed).",
+    )
+
+    # The three part identities, surfaced on the spare part through the
+    # purchased-as product (product.product delegates to product.template).
+    # Writable relations so the 7-tab master form (M15-form-part) captures
+    # them in one place — no second master to maintain (report R1).
+    product_default_code = fields.Char(
+        related="product_id.default_code",
+        string="New ERP Part No (SKU)",
+        store=False,
+        readonly=False,
+    )
+    product_manufacturer_part_number = fields.Char(
+        related="product_id.manufacturer_part_number",
+        string="Manufacturer Part No (MPN)",
+        store=False,
+        readonly=False,
+    )
+    product_legacy_erp_part_number = fields.Char(
+        related="product_id.legacy_erp_part_number",
+        string="Previous ERP Part No",
+        store=False,
+        readonly=False,
+    )
     uom = fields.Char(string="Unit of Measure", default="PCS")
     state = fields.Selection(
         [("active", "Active"), ("discontinued", "Discontinued"), ("obsolete", "Obsolete")],
@@ -81,7 +130,7 @@ class FixSparePart(models.Model):
     )
 
     warranty_months = fields.Integer(string="Warranty Period (Months)", default=6)
-    unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0)
+    unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0, groups=COST_GROUP)
     list_price = fields.Float(string="List Price (BDT)", default=0.0)
 
     product_id = fields.Many2one(
@@ -111,6 +160,7 @@ class FixSparePart(models.Model):
         compute="_compute_ledger_totals",
         store=True,
         readonly=True,
+        groups=COST_GROUP,
         help="Weighted average of the owned ledger buckets (consignment and customer "
         "property excluded); the standard cost when nothing is on hand.",
     )
@@ -189,6 +239,16 @@ class FixSparePart(models.Model):
                     "The standard cost of %s changes only through Set Standard Cost by an "
                     "Inventory Controller (issues are valued at the ledger average cost)."
                     % ", ".join(changed.mapped("part_number"))
+                )
+        if self and "is_serialized" in vals and not self._fix_guard_open():
+            # the form now offers it: stock already held has no serials to issue
+            holding = self.filtered(
+                lambda p: bool(p.is_serialized) != bool(vals["is_serialized"]) and p.qty_available
+            )
+            if holding:
+                raise UserError(
+                    "%s holds stock: serial control is changed only when nothing is on hand."
+                    % ", ".join(holding.mapped("part_number"))
                 )
         return super().write(vals)
 

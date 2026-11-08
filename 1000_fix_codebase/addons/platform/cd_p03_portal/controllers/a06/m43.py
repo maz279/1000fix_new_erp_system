@@ -15,7 +15,7 @@ SURFACES = {
     "fix.demand.plan": {
         "order": "period_start desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_generate_pr"},
+        "actions": {"action_approve", "action_generate_pr", "action_reopen"},
     },
     "fix.demand.forecast": {
         "order": "period desc, id desc",
@@ -33,6 +33,7 @@ SURFACES = {
         "limit": 300,
         "actions": {
             "action_refresh_from_history",
+            "action_approve_provisional",
             "action_activate",
             "action_revise",
             "action_pause",
@@ -185,7 +186,8 @@ def accuracy_bias(env, date_from=None, date_to=None, **params):
             "MAPE %.1f%% across %d closed month(s). Actuals are M15 consumption and cannot "
             "be typed." % (mape, len(rows))
         ],
-        empty="No approved forecast for a closed month yet.",
+        empty="Nothing to measure yet. This reads approved or published forecasts that name an "
+        "M15 spare part, for a month that has ended; a forecast without a part has no actuals.",
     )
 
 
@@ -292,12 +294,13 @@ def van_par(env, date_from=None, date_to=None, **params):
             "Van par is the target level of the van location's active policy (from its M15 "
             "demand and variability); the top-up is par less the owned stock on the van."
         ],
-        empty="No active policy for a van location yet.",
+        empty="No van to size yet. This reads active policies whose stock location is a van "
+        "location (M15 location type Van); activate a policy for a van to see its par.",
     )
 
 
 def accuracy_by_class(env, date_from=None, date_to=None, **params):
-    segments = env["fix.demand.segment"].search([])
+    segments = env["fix.demand.segment"].search(_company_domain(env))
     forecasts = _measured(env)
     buckets = {}
     for segment in segments:
@@ -326,9 +329,45 @@ def accuracy_by_class(env, date_from=None, date_to=None, **params):
     )
 
 
+def _unplanned_policies(env, plans):
+    """Active policies no plan covers: their stock is still a planning exposure,
+    and a report fed by plans alone would hide it."""
+    planned = {(p.part_id.id, p.location_id.id) for p in plans}
+    return _policies(env, [("state", "=", "active")]).filtered(
+        lambda r: r.part_id and r.location_id and (r.part_id.id, r.location_id.id) not in planned
+    )
+
+
 def stockout_causes(env, date_from=None, date_to=None, **params):
+    from odoo.addons.cd_demand_plan.models.fix_demand_common import on_hand, on_order
+
     rows = []
-    for plan in _plans(env):
+    plans = _plans(env)
+    for policy in _unplanned_policies(env, plans):
+        stock = on_hand(env, policy.company_id, policy.part_id, policy.location_id)
+        incoming = on_order(env, policy.company_id, policy.product_id)
+        projected = round(stock + incoming, 3)
+        if projected > policy.reorder_point:
+            continue
+        rows.append(
+            {
+                "plan": "— (no plan)",
+                "product": policy.product_id.display_name,
+                "forecast": 0.0,
+                "stock": round(stock, 2),
+                "on_order": round(incoming, 2),
+                "projected": round(projected, 2),
+                "reorder_point": round(policy.reorder_point, 2),
+                "recommended": 0.0,
+                "cause": (
+                    "stock below safety stock"
+                    if stock <= policy.safety_stock
+                    else "at or below ROP, no plan"
+                ),
+                "state": _sel(policy, "state"),
+            }
+        )
+    for plan in plans:
         if not plan.policy_id or plan.projected_stock > plan.reorder_point:
             continue
         cause = (
@@ -380,15 +419,35 @@ def stockout_causes(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Projected = M15 owned stock + open M16 orders − approved forecast demand of the "
-            "plan period."
+            "plan period. An active policy no plan covers is read at stock + open orders."
         ],
-        empty="No plan is projected at or below its reorder point.",
+        empty="No stockout exposure. This reads plans that name an M15 part and location with an "
+        "active policy, and active policies no plan covers; a row appears when the projected "
+        "stock is at or below the reorder point.",
     )
 
 
 def excess_obsolescence(env, date_from=None, date_to=None, **params):
+    from odoo.addons.cd_demand_plan.models.fix_demand_common import on_hand
+
     rows = []
-    for plan in _plans(env):
+    plans = _plans(env)
+    for policy in _unplanned_policies(env, plans):
+        stock = on_hand(env, policy.company_id, policy.part_id, policy.location_id)
+        if stock <= policy.target_level:
+            continue
+        rows.append(
+            {
+                "plan": "— (no plan)",
+                "product": policy.product_id.display_name,
+                "stock": round(stock, 2),
+                "forecast": 0.0,
+                "target_level": round(policy.target_level, 2),
+                "excess": round(stock - policy.target_level, 2),
+                "state": _sel(policy, "state"),
+            }
+        )
+    for plan in plans:
         if not plan.policy_id or plan.current_stock <= plan.target_level:
             continue
         rows.append(
@@ -418,9 +477,12 @@ def excess_obsolescence(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Excess = M15 owned stock − the policy's target level. Ageing by lot remains "
-            "M15's report; this is the planning exposure."
+            "M15's report; this is the planning exposure. An active policy no plan covers is "
+            "included."
         ],
-        empty="No plan carries stock above its target.",
+        empty="No excess. This reads plans that name an M15 part and location with an active "
+        "policy, and active policies no plan covers; a row appears when M15 owned stock is above "
+        "the policy's target level.",
     )
 
 
@@ -436,6 +498,8 @@ def rebalancing_value(env, date_from=None, date_to=None, **params):
                 "qty": round(rec.qty, 3),
                 "stock_value": round(rec.stock_value, 2),
                 "transfer_cost": round(rec.transfer_cost, 2),
+                "benefit": round(rec.benefit_value, 2),
+                "net_benefit": round(rec.net_benefit, 2),
                 "transfer": rec.transfer_id.name or "—",
                 "state": _sel(rec, "state"),
             }
@@ -452,6 +516,8 @@ def rebalancing_value(env, date_from=None, date_to=None, **params):
             "qty",
             "stock_value",
             "transfer_cost",
+            "benefit",
+            "net_benefit",
             "transfer",
             "state",
         ],
@@ -463,13 +529,16 @@ def rebalancing_value(env, date_from=None, date_to=None, **params):
             "qty": "Qty",
             "stock_value": "Stock Value",
             "transfer_cost": "Transfer Cost",
+            "benefit": "Est. Benefit",
+            "net_benefit": "Net Benefit",
             "transfer": "M15 Transfer",
             "state": "State",
         },
         rows,
         [
             "Approved proposals move BDT %.2f of stock at an estimated transfer cost of BDT "
-            "%.2f. No savings figure is claimed: the avoided-buy benefit is not measured."
+            "%.2f. A proposal is approved only where its estimated benefit exceeds the transfer "
+            "cost (BRU-DPL-13); the benefit is the proposer's estimate, not a measured saving."
             % (
                 sum(r["stock_value"] for r in approved),
                 sum(r["transfer_cost"] for r in approved),
@@ -485,7 +554,7 @@ def rebalancing_value(env, date_from=None, date_to=None, **params):
 
 
 def new_part_intro(env, date_from=None, date_to=None, **params):
-    segments = env["fix.demand.segment"].search([])
+    segments = env["fix.demand.segment"].search(_company_domain(env))
     forecasts = _forecasts(env)
     rows = []
     for segment in segments:

@@ -611,7 +611,7 @@ class FixQmsReview(models.Model):
                 }
                 line = rec.input_ids.filtered(lambda i, k=kind: i.kind == k)
                 if line:
-                    line.write(vals)
+                    line._guarded().write(vals)
                 else:
                     Input.create(dict(vals, review_id=rec.id, kind=kind))
             rec.message_post(

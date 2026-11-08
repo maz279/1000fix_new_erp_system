@@ -26,6 +26,25 @@ class ProductTemplateExt(models.Model):
         string="Product Name (Bengali)", help="Bengali display name — DE-17 Bengali-first"
     )
 
+    # Real-inventory fit-gap (2026-11-07, report §7 R2): the 1000 FiX inventory
+    # statement carries three identities per row — the manufacturer part number,
+    # the previous-ERP part number and the new-ERP SKU (default_code). These two
+    # addition fields are the missing pair; the SKU already lives on the variant.
+    manufacturer_part_number = fields.Char(
+        string="Manufacturer Part Number (MPN)",
+        index=True,
+        help="The manufacturer's own part number (file column 'Principal Part No') — "
+        "the SAP HERB/FFF and D365 external-item-code equivalent. Supplier-specific "
+        "codes still belong on product.supplierinfo.product_code.",
+    )
+    legacy_erp_part_number = fields.Char(
+        string="Previous ERP Part Number",
+        index=True,
+        copy=False,
+        help="The item's key in the previous ERP (file column 'ERP Existing Part Number'). "
+        "Permanent cross-reference for the migration and for legacy document lookups.",
+    )
+
     def unlink(self):
         """A04 audit (2026-11-04) M37-3: the catalogue item is deleted with its
         template (ondelete cascade at the database), which skipped every

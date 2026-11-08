@@ -26,6 +26,7 @@ from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
+from odoo.addons.cd_entity_config.models.fix_dofa import TIER_GROUP
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
@@ -34,8 +35,9 @@ MANDATORY_DOCS = ("trade_licence", "tin", "vat")
 
 GROUP_STEWARD = "cd_vendor_portal.group_fix_supplier_steward"
 GROUP_APPROVER = "cd_vendor_portal.group_fix_supplier_approver"
-# BRU-SRM2-16: a blocked (deactivated) supplier is reinstated only by the CFO
-# or CEO; the DOFA Tier 4 group is the CFO authority in this estate.
+# BRU-SRM2-16: a supplier is blocked and a blocked supplier reinstated only by
+# the CFO or CEO. The DOFA Tier 4 group is the CFO authority in this estate and
+# Tier 5 (the CEO) implies it.
 GROUP_CFO = "cd_entity_config.group_dofa_tier_4"
 
 # Business decisions (A06 report §7 B4), kept as configuration:
@@ -47,6 +49,20 @@ PARAM_CAR_DAYS = "cd_vendor_portal.auto_car_due_days"  # default 30
 # Reminder lead time before a document or re-qualification falls due (M42-7).
 PARAM_REMINDER_DAYS = "cd_vendor_portal.expiry_reminder_days"  # default 30
 REMINDER_PREFIX = "M42 reminder: "
+# BRU-SRM2-17 / FR-SRM2-019: screening types a supplier must have cleared before
+# activation. The spec names sanctions, conflict of interest and anti-bribery;
+# it does not require PEP. "none" switches the requirement off.
+PARAM_SCREENING_TYPES = "cd_vendor_portal.required_screening_types"
+DEFAULT_SCREENING_TYPES = "sanctions,coi,abac"
+# M42 §8 ("approved at the authority the risk tier requires"; open question
+# Q-03 names no tiers yet): "<segment or risk band>:<DOFA tier>,..." e.g.
+# "strategic:tier_4,critical:tier_4". Empty: any Supplier Approver.
+PARAM_QUAL_TIERS = "cd_vendor_portal.qualification_tier_by_risk"
+# BRU-SRM2-18: review cadence in months by segment. The spec's "approved" segment
+# does not exist on this register and "transactional" is reviewed on exception.
+PARAM_REVIEW_CADENCE = "cd_vendor_portal.review_cadence_months"
+DEFAULT_REVIEW_CADENCE = "strategic:3,preferred:6"
+REVIEW_TYPE_BY_MONTHS = {3: "quarterly", 6: "half_yearly", 12: "annual"}
 
 
 def _param(env, key, default):
@@ -111,6 +127,15 @@ class FixSupplier(models.Model):
         default="transactional",
     )
     category = fields.Char(string="Spend Category")
+    approved_category_ids = fields.Many2many(
+        "product.category",
+        "fix_supplier_approved_category_rel",
+        "supplier_id",
+        "category_id",
+        string="Approved Product Categories",
+        help="What this supplier is approved to supply. Read by the PO gate when "
+        "cd_vendor_portal.po_category_gate is on (BRU-PRO-02 / BRU-SRM2-03).",
+    )
     buyer_id = fields.Many2one("hr.employee", string="Buyer")
     onboarded_on = fields.Date()
     status = fields.Selection(
@@ -235,17 +260,46 @@ class FixSupplier(models.Model):
         )
         return ["critical open risk %s" % r.name for r in risks]
 
+    def _a06_required_screening_problems(self):
+        """BRU-SRM2-17: a clear result for every required type, not merely the
+        absence of a hit: a supplier with no screening, or one still pending,
+        used to pass. Read at activation and reinstatement only, so an upgrade
+        does not suspend a supplier already active."""
+        self.ensure_one()
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_SCREENING_TYPES)
+        wanted = (raw or DEFAULT_SCREENING_TYPES).strip().lower()
+        if wanted == "none":
+            return []
+        Screening = self.env["fix.supplier.screening"].sudo()
+        labels = dict(Screening._fields["screening_type"].selection)
+        problems = []
+        for key in filter(None, (t.strip() for t in wanted.split(","))):
+            if not Screening.search_count(
+                [
+                    ("supplier_id", "=", self.id),
+                    ("screening_type", "=", key),
+                    ("state", "=", "cleared"),
+                ]
+            ):
+                problems.append("no cleared %s screening" % labels.get(key, key))
+        return problems
+
     def _a06_order_problems(self):
         """Why an active supplier may still not be ordered from today (the
         PO gate re-checks, fail closed, before the cron has suspended it)."""
         self.ensure_one()
-        return self._a06_document_problems() + self._a06_screening_problems()
+        return (
+            self._a06_document_problems()
+            + self._a06_screening_problems()
+            + self._a06_risk_problems()
+        )
 
     def _a06_activation_problems(self):
         self.ensure_one()
         return (
             self._a06_document_problems()
             + self._a06_screening_problems()
+            + self._a06_required_screening_problems()
             + self._a06_risk_problems()
         )
 
@@ -283,6 +337,13 @@ class FixSupplier(models.Model):
         active.sudo()._a06_set_status("suspended", reason)
         return active
 
+    def _a06_auto_block(self, reason):
+        """BRU-SRM2-16: a sanctions match blocks at once, whatever the status;
+        only the CFO authority brings the supplier back."""
+        open_ = self.filtered(lambda s: s.status != "deactivated")
+        open_.sudo()._a06_set_status("deactivated", reason)
+        return open_
+
     def action_suspend(self, reason=None):
         _require(self.env, "Suspending a supplier", GROUP_STEWARD, GROUP_APPROVER)
         for rec in self:
@@ -297,14 +358,16 @@ class FixSupplier(models.Model):
         return True
 
     def action_block(self, reason=None):
-        """Permanent block (blacklist: sanctions, counterfeit, fraud)."""
-        _require(self.env, "Blocking a supplier", GROUP_STEWARD, GROUP_APPROVER)
+        """Permanent block (blacklist: sanctions, counterfeit, fraud), by CFO or
+        CEO authority (BRU-SRM2-16). A steward suspends and escalates. The
+        authority need not hold the steward's write rights on the register."""
+        _require(self.env, "Blocking a supplier", GROUP_CFO)
         for rec in self:
             if rec.status == "deactivated":
                 raise UserError("Supplier %s is already blocked." % rec.supplier_code)
             if not (reason or "").strip():
                 raise UserError("State why supplier %s is blocked." % rec.supplier_code)
-            rec._a06_set_status("deactivated", reason.strip())
+            rec.sudo()._a06_set_status("deactivated", reason.strip())
         return True
 
     def action_request_reinstatement(self, reason=None):
@@ -386,6 +449,9 @@ class FixSupplier(models.Model):
             problems = supplier._a06_document_problems()
             if problems:
                 suspended |= supplier._a06_auto_suspend("documents: %s" % "; ".join(problems))
+            risks = supplier._a06_risk_problems()
+            if risks and supplier.status == "active":
+                suspended |= supplier._a06_auto_suspend("; ".join(risks))
         grace = int(_param(self.env, PARAM_REQUAL_GRACE, 0))
         overdue = (
             self.env["fix.supplier.requalification"]
@@ -419,6 +485,46 @@ class FixSupplier(models.Model):
             "escalated_cars": cars.ids,
             "reminders": reminders.ids,
         }
+
+    @api.model
+    def _a06_review_cadence(self):
+        """{segment: months} from configuration."""
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_REVIEW_CADENCE)
+        cadence = {}
+        for item in (raw or DEFAULT_REVIEW_CADENCE).split(","):
+            segment, _sep, months = item.partition(":")
+            if segment.strip() and months.strip().isdigit() and int(months) > 0:
+                cadence[segment.strip()] = int(months)
+        return cadence
+
+    @api.model
+    def _cron_review_cadence(self):
+        """BRU-SRM2-18 / AUT-SRM2-18: schedule the review an active supplier's
+        segment is due. One open review at a time, measured from the last one
+        held (or from onboarding, when there has been none)."""
+        today = fields.Date.context_today(self)
+        Review = self.env["fix.supplier.review"].sudo()
+        made = Review
+        for segment, months in self._a06_review_cadence().items():
+            for supplier in self.sudo().search(
+                [("status", "=", "active"), ("segment", "=", segment)]
+            ):
+                reviews = Review.search([("supplier_id", "=", supplier.id)], order="review_date")
+                if reviews.filtered(lambda r: r.state == "scheduled"):
+                    continue
+                last = reviews[-1:].review_date or supplier.onboarded_on
+                last = last or fields.Date.to_date(supplier.create_date)
+                due = last + relativedelta(months=months)
+                if due > today:
+                    continue
+                made |= Review.create(
+                    {
+                        "supplier_id": supplier.id,
+                        "review_type": REVIEW_TYPE_BY_MONTHS.get(months, "annual"),
+                        "review_date": due,
+                    }
+                )
+        return made
 
     def _a06_reminder_user(self):
         """Who is reminded: the supplier's buyer, else the steward who
@@ -522,6 +628,10 @@ class FixSupplierDocument(models.Model):
     valid_from = fields.Date()
     valid_to = fields.Date()
     file_ref = fields.Char(string="File Reference")
+    # M42-5: "verified against its file" was a typed reference. The scan itself
+    # is what a second person checks (action_verify needs it).
+    file = fields.Binary(string="Document File", attachment=True, copy=False)
+    file_filename = fields.Char(string="File Name", copy=False)
     state = fields.Selection(
         [("valid", "Valid"), ("pending", "Pending"), ("expired", "Expired")],
         required=True,
@@ -568,14 +678,24 @@ class FixSupplierDocument(models.Model):
                 )
         return super().create(vals_list)
 
+    def _a06_file_differs(self, value):
+        """The form posts the file it was served as text; the record holds
+        bytes. Only another file counts as a change."""
+        self.ensure_one()
+        new = value.encode() if isinstance(value, str) else (value or b"")
+        return new != (self.file or b"")
+
     def write(self, vals):
         evidence = set(self.DOC_EVIDENCE) & set(vals)
         reverify = self.browse()
-        if evidence and not self._fix_guard_has_token():
+        if not self._fix_guard_has_token():
             reverify = self.filtered(
                 lambda d: (
                     d.state == "valid"
-                    and any(d._fix_guard_differs(n, vals[n], d[n]) for n in evidence)
+                    and (
+                        any(d._fix_guard_differs(n, vals[n], d[n]) for n in evidence)
+                        or ("file" in vals and d._a06_file_differs(vals["file"]))
+                    )
                 )
             )
         suppliers = reverify.mapped("supplier_id")
@@ -603,9 +723,9 @@ class FixSupplierDocument(models.Model):
             _not_by(
                 self.env, rec.create_uid | rec.write_uid, "recorded or last edited this document"
             )
-            if not (rec.number or "").strip() or not (rec.file_ref or "").strip():
+            if not (rec.number or "").strip() or not rec.file:
                 raise UserError(
-                    "Document %s needs its number and the file reference of the evidence "
+                    "Document %s needs its number and the uploaded file of the evidence "
                     "before it can be verified." % rec.name
                 )
             if rec.valid_to and rec.valid_to < today:
@@ -640,6 +760,13 @@ class FixSupplierQualification(models.Model):
     submitted_on = fields.Date(required=True, default=fields.Date.context_today)
     auditor_id = fields.Many2one("hr.employee", string="Auditor")
     score = fields.Float(string="Score (0–100)")
+    scored_by_id = fields.Many2one(
+        "res.users",
+        string="Scored By",
+        readonly=True,
+        copy=False,
+        help="Who last set the score. Never its approver (M42-4).",
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -659,7 +786,12 @@ class FixSupplierQualification(models.Model):
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "approved_on", "approved_by_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "approved_on",
+            "approved_by_id",
+            "scored_by_id",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -675,10 +807,14 @@ class FixSupplierQualification(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.supplier.qualification")
                     or "SQUAL/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        if not self.env.su:
+            records.filtered("score")._guarded().write({"scored_by_id": self.env.uid})
+        return records
 
     def write(self, vals):
         fixed = {"supplier_id", "score", "stage", "auditor_id", "submitted_on"} & set(vals)
+        rescored = self.browse()
         if fixed and not self._fix_guard_has_token():
             for rec in self:
                 if rec.state in ("approved", "rejected") and any(
@@ -688,7 +824,35 @@ class FixSupplierQualification(models.Model):
                         "Qualification %s is %s: its score and supplier are final."
                         % (rec.name, rec.state)
                     )
-        return super().write(vals)
+            if "score" in vals and not self.env.su:
+                rescored = self.filtered(
+                    lambda r: r._fix_guard_differs("score", vals["score"], r.score)
+                )
+        result = super().write(vals)
+        if rescored:
+            rescored._guarded().write({"scored_by_id": self.env.uid})
+        return result
+
+    def _a06_required_tier(self):
+        """The DOFA tier this qualification's risk asks for (config, default
+        none), from the supplier's segment and its open risk bands."""
+        self.ensure_one()
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_QUAL_TIERS) or ""
+        by_risk = {}
+        for item in raw.split(","):
+            key, _sep, tier = item.partition(":")
+            if key.strip() and tier.strip() in TIER_GROUP:
+                by_risk[key.strip()] = tier.strip()
+        if not by_risk:
+            return False
+        supplier = self.supplier_id.sudo()
+        risks = (
+            self.env["fix.supplier.risk"]
+            .sudo()
+            .search([("supplier_id", "=", supplier.id), ("state", "=", "open")])
+        )
+        tiers = [by_risk[k] for k in {supplier.segment, *risks.mapped("band")} if k in by_risk]
+        return max(tiers) if tiers else False
 
     def action_start(self):
         _require(self.env, "Starting a qualification review", GROUP_STEWARD)
@@ -707,9 +871,18 @@ class FixSupplierQualification(models.Model):
                 raise UserError("Approve a qualification in review")
             _not_by(
                 self.env,
-                rec.create_uid | rec.auditor_id.user_id | rec.supplier_id.buyer_id.user_id,
+                rec.create_uid
+                | rec.scored_by_id
+                | rec.auditor_id.user_id
+                | rec.supplier_id.buyer_id.user_id,
                 "scored, audited or buy from this supplier",
             )
+            tier = rec._a06_required_tier()
+            if tier and not _has(self.env, TIER_GROUP[tier]):
+                raise UserError(
+                    "Qualification %s: this supplier's risk requires approval at %s, which "
+                    "you do not hold." % (rec.name, tier.replace("_", " "))
+                )
             if (rec.score or 0.0) < min_score:
                 raise UserError(
                     "Qualification %s scored %.1f; the approval threshold is %.1f."
@@ -1303,6 +1476,13 @@ class FixSupplierCar(models.Model):
     )
     raised_on = fields.Date(required=True, default=fields.Date.context_today)
     due_date = fields.Date(required=True)
+    actioned_by_id = fields.Many2one(
+        "res.users",
+        string="Actioned By",
+        readonly=True,
+        copy=False,
+        help="Who recorded the action as done. Never its verifier (M42-8).",
+    )
     closed_on = fields.Date(readonly=True, copy=False)
     closed_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     escalated_on = fields.Date(readonly=True, copy=False)
@@ -1316,6 +1496,7 @@ class FixSupplierCar(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
+            "actioned_by_id",
             "closed_on",
             "closed_by_id",
             "escalated_on",
@@ -1369,10 +1550,11 @@ class FixSupplierCar(models.Model):
                 raise UserError("Mark an open CAR actioned")
             if not rec.action_plan:
                 raise UserError("Record the action plan before marking it actioned")
-            rec._guarded().write({"state": "actioned"})
+            rec._guarded().write({"state": "actioned", "actioned_by_id": self.env.uid})
 
     def action_close(self):
-        """Verification and closure by someone other than the raiser.
+        """Verification and closure by someone other than the raiser or the
+        steward who actioned it (the last closed their own work, M42-8).
 
         A10 S6 (M23-12): a MAJOR/CRITICAL CAR closes on its root cause —
         the audit closed a CRITICAL CAR with neither a root cause nor an
@@ -1381,7 +1563,7 @@ class FixSupplierCar(models.Model):
         for rec in self:
             if rec.state != "actioned":
                 raise UserError("Close an actioned CAR")
-            _not_by(self.env, rec.create_uid, "raised this CAR")
+            _not_by(self.env, rec.create_uid | rec.actioned_by_id, "raised or actioned this CAR")
             if rec.severity in ("major", "critical") and not (rec.root_cause or "").strip():
                 raise UserError(
                     "A %s CAR closes on its root cause — state what went wrong "
@@ -1407,7 +1589,7 @@ class FixSupplierReview(models.Model):
         "fix.supplier", string="Supplier", required=True, ondelete="cascade", index=True
     )
     review_type = fields.Selection(
-        [("quarterly", "Quarterly"), ("annual", "Annual")],
+        [("quarterly", "Quarterly"), ("half_yearly", "Half-Yearly"), ("annual", "Annual")],
         required=True,
         default="quarterly",
     )
@@ -1552,6 +1734,7 @@ class FixSupplierScreening(models.Model):
         required=True,
         default="pending",
     )
+    flagged_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     cleared_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     cleared_on = fields.Date(readonly=True, copy=False)
     clearance_reason = fields.Char(readonly=True, copy=False)
@@ -1560,6 +1743,7 @@ class FixSupplierScreening(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
+            "flagged_by_id",
             "cleared_by_id",
             "cleared_on",
             "clearance_reason",
@@ -1615,25 +1799,34 @@ class FixSupplierScreening(models.Model):
         for rec in self:
             if rec.state != "pending":
                 raise UserError("Screening %s is %s." % (rec.name, rec.state))
-            rec._guarded().write({"state": "flagged"})
-            if rec.result == "hit":
-                rec.supplier_id.sudo()._a06_auto_suspend(
-                    "%s screening hit %s flagged" % (rec.screening_type, rec.name)
-                )
+            rec._guarded().write({"state": "flagged", "flagged_by_id": self.env.uid})
+            if rec.result != "hit":
+                continue
+            what = "%s screening hit %s flagged" % (rec.screening_type, rec.name)
+            if rec.screening_type == "sanctions":
+                rec.supplier_id.sudo()._a06_auto_block(what)
+            else:
+                rec.supplier_id.sudo()._a06_auto_suspend(what)
 
     def action_clear_hit(self, reason=None):
         """A false-positive hit is cleared by a Supplier Approver other than the
-        person who recorded it, with the reason; the result stays 'hit'."""
-        _require(self.env, "Clearing a screening hit", GROUP_APPROVER)
+        person who recorded it, with the reason; the result stays 'hit'. A
+        sanctions hit takes the CFO or CEO authority (BRU-SRM2-16), not the one
+        who raised or flagged it. Clearing it does not reinstate a blocked
+        supplier: that is its own request and approval."""
         for rec in self:
             if rec.result != "hit" or rec.state == "cleared":
                 raise UserError("Screening %s carries no open hit." % rec.name)
-            _not_by(self.env, rec.create_uid, "recorded this screening")
+            if rec.screening_type == "sanctions":
+                _require(self.env, "Clearing a sanctions hit", GROUP_CFO)
+            else:
+                _require(self.env, "Clearing a screening hit", GROUP_APPROVER)
+            _not_by(self.env, rec.create_uid | rec.flagged_by_id, "recorded or flagged this hit")
             if len((reason or "").strip()) < 10:
                 raise UserError(
                     "State why hit %s is a false positive (evidence reference)." % rec.name
                 )
-            rec._guarded().write(
+            rec.sudo()._guarded().write(
                 {
                     "state": "cleared",
                     "cleared_by_id": self.env.uid,
