@@ -6,7 +6,7 @@
 # four persona role centers (A1).
 {
     "name": "P03 Admin Operations Portal",
-    "version": "19.0.1.0.3",
+    "version": "19.0.1.1.0",
     "category": "Platform/Portal",
     "author": "1000FiX Services Ltd",
     "license": "LGPL-3",
@@ -25,6 +25,7 @@
         "views/p03_actions.xml",
         "views/p03_service_order_details.xml",
         "views/p03_login_templates.xml",
+        "views/ir_cron_report_delivery.xml",
     ],
     "assets": {
         "web.assets_backend": [

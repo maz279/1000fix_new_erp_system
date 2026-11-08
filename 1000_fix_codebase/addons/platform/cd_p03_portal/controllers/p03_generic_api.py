@@ -19,7 +19,7 @@ from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
-from . import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12
+from . import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12, report_bytes
 from . import brand as _brand
 from .a02 import SURFACES as _A02_SURFACES
 from .a03 import SURFACES as _A03_SURFACES
@@ -612,166 +612,11 @@ class P03GenericApiController(http.Controller):
         )
 
     def _list_pdf(self, payload, base_name, title=None):
-        """Branded PDF of a model_list grid: official letterhead (logo,
-        company, address, ISO badge) on every page, teal header row,
-        repeating column header across pages, footer contact line + page
-        numbers — the stationery convention of the company's own POs."""
-        import io as _io
-
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.pdfgen import canvas as _canvas
-        from reportlab.platypus import (
-            BaseDocTemplate,
-            Frame,
-            PageTemplate,
-            Paragraph,
-            Spacer,
-            Table,
-            TableStyle,
-        )
-
-        lh = _brand.letterhead(request.env)
-        teal = colors.Color(*[x / 255 for x in _brand.BRAND_TEAL_RGB])
-        ink = colors.Color(*[x / 255 for x in _brand.BRAND_INK_RGB])
-        grey = colors.Color(*[x / 255 for x in _brand.GREY_RGB])
-        cols, labels, rows = payload["cols"], payload["labels"], payload["rows"]
-
-        class _NumberedCanvas(_canvas.Canvas):
-            """Two-pass canvas: 'Page x / y' like the company's PO footer."""
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self._saved_states = []
-
-            def showPage(self):
-                self._saved_states.append(dict(self.__dict__))
-                self._startPage()
-
-            def save(self):
-                total = len(self._saved_states)
-                for state in self._saved_states:
-                    self.__dict__.update(state)
-                    self.setFont("Helvetica", 7)
-                    self.setFillColor(grey)
-                    self.drawCentredString(
-                        148.5 * mm, 6.5 * mm, "Page %d / %d" % (self._pageNumber, total)
-                    )
-                    super().showPage()
-                super().save()
-
-        def on_page(canvas, doc):
-            canvas.saveState()
-            # landscape A4: 297mm x 210mm — letterhead zone is the top 26mm
-            # logo top-left (aspect 1200x545 → 48x22pt)
-            try:
-                canvas.drawImage(
-                    str(_brand.logo_path()),
-                    14 * mm,
-                    178 * mm,
-                    width=48,
-                    height=22,
-                    preserveAspectRatio=True,
-                    mask="auto",
-                )
-            except Exception:
-                canvas.setFillColor(ink)
-                canvas.setFont("Helvetica-BoldOblique", 13)
-                canvas.drawString(14 * mm, 178 * mm, lh["name"])
-            canvas.setFillColor(ink)
-            canvas.setFont("Helvetica-Bold", 9)
-            canvas.drawRightString(283 * mm, 196 * mm, lh["name"])
-            canvas.setFillColor(grey)
-            canvas.setFont("Helvetica", 7)
-            y = 191 * mm
-            for line in lh["address_lines"][:4]:
-                canvas.drawRightString(283 * mm, y, line)
-                y -= 3.4 * mm
-            canvas.setFont("Helvetica-Oblique", 6)
-            canvas.setFillColor(teal)
-            canvas.drawRightString(283 * mm, y, _brand.ISO_BADGE)
-            # footer: rule + contact line (page x / y comes from _NumberedCanvas)
-            canvas.setStrokeColor(colors.Color(0.85, 0.85, 0.85))
-            canvas.setLineWidth(0.5)
-            canvas.line(14 * mm, 14 * mm, 283 * mm, 14 * mm)
-            canvas.setFillColor(grey)
-            canvas.setFont("Helvetica", 7)
-            canvas.drawCentredString(148.5 * mm, 10 * mm, lh["contact_line"])
-            canvas.restoreState()
-
-        buf = _io.BytesIO()
-        doc = BaseDocTemplate(
-            buf,
-            pagesize=landscape(A4),
-            leftMargin=14 * mm,
-            rightMargin=14 * mm,
-            topMargin=38 * mm,
-            bottomMargin=18 * mm,
-            title="%s — %s" % (lh["name"], base_name),
-            author=lh["name"],
-        )
-        frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="body")
-        doc.addPageTemplates([PageTemplate(id="branded", frames=[frame], onPage=on_page)])
-
-        cell = ParagraphStyle("cell", fontName="Helvetica", fontSize=7.5, leading=9)
-        head = ParagraphStyle(
-            "head", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.white
-        )
-        title_style = ParagraphStyle(
-            "title", fontName="Helvetica", fontSize=15, leading=18, textColor=teal
-        )
-        doc_title = title or base_name.replace("_", " ").title()
-
-        story = [Paragraph(doc_title, title_style), Spacer(0, 3 * mm)]
-        data = [[Paragraph(labels.get(c, c), head) for c in cols]]
-        for row in rows:
-            data.append([Paragraph(str(row.get(c, "")) or "—", cell) for c in cols])
-        weights = []
-        for c in cols:
-            w = max(
-                len(labels.get(c, c)) * 4.6,
-                *([len(str(r.get(c, ""))) * 3.6 for r in rows[:60]] or [20]),
-            )
-            weights.append(max(min(w, 190), 34))
-        scale = doc.width / sum(weights)
-        table = Table(data, colWidths=[w * scale for w in weights], repeatRows=1)
-        table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), teal),
-                    (
-                        "ROWBACKGROUNDS",
-                        (0, 1),
-                        (-1, -1),
-                        [colors.white, colors.Color(0.96, 0.96, 0.96)],
-                    ),
-                    ("GRID", (0, 0), (-1, -1), 0.4, colors.Color(0.82, 0.82, 0.82)),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-                    ("TOPPADDING", (0, 0), (-1, -1), 2),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ]
-            )
-        )
-        story.append(table)
-        story.append(Spacer(0, 3 * mm))
-        story.append(
-            Paragraph(
-                "%d records · generated %s by %s"
-                % (
-                    payload["count"],
-                    fields.Datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    request.env.user.name or "",
-                ),
-                ParagraphStyle("meta", fontName="Helvetica", fontSize=7, textColor=grey),
-            )
-        )
-        doc.build(story, canvasmaker=_NumberedCanvas)
+        """Branded PDF download — the shared byte-builder (report_bytes)
+        wrapped in an HTTP response."""
+        data = report_bytes.pdf_bytes(request.env, payload, base_name, title=title)
         return request.make_response(
-            buf.getvalue(),
+            data,
             headers=[
                 ("Content-Type", "application/pdf"),
                 ("Content-Disposition", 'attachment; filename="%s.pdf"' % base_name),
@@ -908,148 +753,16 @@ class P03GenericApiController(http.Controller):
     _XLSX_GREY = "F5F5F5"
 
     def _report_meta(self, params):
-        """Shared export header: company, period, filters, generated by/at —
-        every artefact states what it is and what it covers (UX-001)."""
-        env = request.env
-        meta = [
-            ("Company", env.company.name or ""),
-        ]
-        if params.get("date_from") or params.get("date_to"):
-            meta.append(
-                (
-                    "Period",
-                    "%s → %s" % (params.get("date_from") or "…", params.get("date_to") or "…"),
-                )
-            )
-        for key, value in sorted(
-            (k, v) for k, v in params.items() if k not in ("date_from", "date_to") and v
-        ):
-            meta.append((key.replace("_", " ").title(), value))
-        meta.append(("Generated", fields.Datetime.now().strftime("%Y-%m-%d %H:%M")))
-        meta.append(("Generated by", env.user.name or ""))
-        return meta
+        """Compatibility shim: the meta block now lives in report_bytes."""
+        return report_bytes._report_meta(request.env, params)
 
     def _report_xlsx(self, out, cols, labels, base_name, params):
-        """Presentation workbook: brand + meta block, styled header, data,
-        totals, notes. Generic over every module report — one professional
-        format for the whole estate."""
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-        from openpyxl.utils import get_column_letter
-
-        wb = Workbook()
-        # openpyxl forbids [ ] : * ? / \ in sheet titles — sanitise
-        import re as _re
-
-        safe_title = (
-            _re.sub(r"[\[\]:*?/\\]+", "-", (out.get("title") or base_name)).strip("- ")[:31]
-            or base_name[:31]
-        )
-        ws = wb.active
-        ws.title = safe_title
-        rows = out.get("rows") or []
-        totals = out.get("totals") or {}
-
-        meta_font = Font(size=10, color=self._XLSX_INK)
-        meta_label_font = Font(bold=True, size=10, color=self._XLSX_INK)
-        head_font = Font(bold=True, color="FFFFFF")
-        head_fill = PatternFill("solid", fgColor=self._XLSX_BRAND)
-        totals_font = Font(bold=True)
-        totals_top = Border(top=Side(style="thin", color=self._XLSX_BRAND))
-
-        # ---- official letterhead (user directive 2026-11-07): logo top-left,
-        # company name + address + ISO badge right-aligned above every export.
-        lh = _brand.letterhead(request.env)
-        lh_font = Font(bold=True, size=11, color=self._XLSX_INK)
-        lh_small = Font(size=9, color="616161")
-        n_cols = max(len(cols), 4)
-        addr_col = max(n_cols - 2, 3)
-        ws.cell(row=1, column=addr_col, value=lh["name"]).font = lh_font
-        ws.cell(row=1, column=addr_col).alignment = Alignment(horizontal="right")
-        for i, line in enumerate(lh["address_lines"][:4]):
-            ws.cell(row=2 + i, column=addr_col, value=line).font = lh_small
-            ws.cell(row=2 + i, column=addr_col).alignment = Alignment(horizontal="right")
-        iso_row = 2 + min(len(lh["address_lines"][:4]), 4)
-        ws.cell(row=iso_row, column=addr_col, value=_brand.ISO_BADGE).font = Font(
-            size=8, italic=True, color=self._XLSX_BRAND
-        )
-        ws.cell(row=iso_row, column=addr_col).alignment = Alignment(horizontal="right")
-        try:
-            from openpyxl.drawing.image import Image as _XLImage
-
-            logo = _XLImage(str(_brand.logo_path()))
-            # ~34px tall in the sheet; aspect from the real file (1200x545)
-            logo.height = 34
-            logo.width = 34 * (1200 / 545)
-            ws.add_image(logo, "A1")
-        except Exception:
-            _logger.exception("letterhead logo missing for %s", base_name)
-        r = 7
-        for label, value in self._report_meta(params):
-            ws.cell(row=r, column=1, value=label).font = meta_label_font
-            ws.cell(row=r, column=2, value=value).font = meta_font
-            r += 1
-        r += 1
-
-        head_row = r
-        for c, col in enumerate(cols, 1):
-            cell = ws.cell(row=head_row, column=c, value=labels.get(col, col))
-            cell.font = head_font
-            cell.fill = head_fill
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-        r += 1
-
-        for row in rows:
-            for c, col in enumerate(cols, 1):
-                value = row.get(col, "")
-                cell = ws.cell(
-                    row=r,
-                    column=c,
-                    value=value if isinstance(value, int | float) else str(value or ""),
-                )
-                if c % 2 == 0:
-                    cell.fill = PatternFill("solid", fgColor=self._XLSX_GREY)
-                if isinstance(value, int | float):
-                    cell.number_format = "#,##0.##"
-                    cell.alignment = Alignment(horizontal="right")
-            r += 1
-
-        if totals:
-            for c, col in enumerate(cols, 1):
-                cell = ws.cell(row=r, column=c, value=totals.get(col, ""))
-                cell.font = totals_font
-                cell.border = totals_top
-                if isinstance(totals.get(col), int | float):
-                    cell.number_format = "#,##0.##"
-                    cell.alignment = Alignment(horizontal="right")
-            r += 1
-
-        r += 1
-        for note in out.get("notes") or []:
-            ws.cell(row=r, column=1, value="Note: %s" % note).font = Font(
-                size=9, italic=True, color="616161"
-            )
-            r += 1
-
-        for c, col in enumerate(cols, 1):
-            width = max(
-                [len(str(labels.get(col, col)))] + [len(str(row.get(col, ""))) for row in rows]
-                or [8]
-            )
-            ws.column_dimensions[get_column_letter(c)].width = min(max(width + 2, 10), 42)
-        ws.freeze_panes = ws.cell(row=head_row + 1, column=1)
-        ws.auto_filter.ref = "A%d:%s%d" % (
-            head_row,
-            get_column_letter(len(cols)),
-            head_row + len(rows),
-        )
-
-        import io as _io
-
-        buf = _io.BytesIO()
-        wb.save(buf)
+        """Branded XLSX download — the shared byte-builder (report_bytes)
+        wrapped in an HTTP response (downloads, email and the scheduled
+        subscriptions render the identical artefact)."""
+        data = report_bytes.xlsx_bytes(request.env, out, cols, labels, base_name, params)
         return request.make_response(
-            buf.getvalue(),
+            data,
             headers=[
                 (
                     "Content-Type",
