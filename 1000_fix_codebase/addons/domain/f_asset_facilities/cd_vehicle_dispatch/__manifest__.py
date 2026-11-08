@@ -27,6 +27,8 @@ assignments; vehicle.available clears those flags, recording who and when.
         "cd_field_service",
     ],
     "data": [
+        # the dispatcher chooses the order's vehicle, so reads the vans
+        "security/ir.model.access.csv",
         "data/ir_config_parameter.xml",
         # A07 P1 wiring round 2: vehicle.off_road / vehicle.available
         # (fix.event.consumer comes with cd_event_outbox, a dependency of

@@ -10,6 +10,9 @@
 # the clearance is recorded on the hold: who cleared it, when and why, and
 # the activity is marked done. The order's state is never touched, and
 # nobody types a hold: only the two consumers write it.
+#
+# A07 operability (2026-11-07): the hold told the branch not to hand the device
+# back and nothing stopped them. The hand-over itself now refuses.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -262,3 +265,35 @@ class FixServiceOrderDeviceFlag(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"device_flag_hold"}
+
+    def _validate_transition(self, new_state: str) -> None:
+        # every way to Delivered passes here (write -> _validate_transition)
+        if new_state == "delivered" and self.state != "delivered":
+            self._assert_device_not_held()
+        return super()._validate_transition(new_state)
+
+    def _assert_device_not_held(self) -> None:
+        """BRU-AST-09 (H): no release while the flag stands. The device's own
+        state decides as well as the hold: the hold waits for the event relay,
+        and an order opened after the flag never gets one. It binds service code
+        too: a hard block on a device reported stolen has no trusted path."""
+        self.ensure_one()
+        device = self.sudo().device_id
+        hold = self.sudo().device_hold_ids.filtered(lambda h: h.state == "open")[:1]
+        if device.state == "lost" or hold:
+            raise UserError(
+                "Order %s cannot be handed over: its device %s is reported lost or stolen (%s). "
+                "A Branch Manager must clear the flag in the Device Registry first."
+                % (self.name, device.display_name, device.lost_reason or hold.reason or "-")
+            )
+
+    def write(self, vals):
+        closing = (
+            self.filtered(lambda o: o.state != "closed")
+            if vals.get("state") == "closed"
+            else self.browse()
+        )
+        result = super().write(vals)
+        if closing:
+            self.env["fix.maintenance.demand"].sudo()._spine_order_closed(closing)
+        return result

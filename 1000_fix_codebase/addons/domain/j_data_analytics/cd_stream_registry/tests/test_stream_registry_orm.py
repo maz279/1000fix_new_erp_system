@@ -101,5 +101,5 @@ def test_preventive_work_order_only_for_predicted_failures(odoo_env):
     assert _events(
         odoo_env, "predictive_maintenance.wo_created", "fix.predictive.maintenance", failing.id
     ) == [{"equipment": "Oscilloscope", "days": 6}]
-    with pytest.raises(UserError, match="Work order already created"), odoo_env.cr.savepoint():
+    with pytest.raises(UserError, match="already requested"), odoo_env.cr.savepoint():
         failing.action_create_preventive_wo()

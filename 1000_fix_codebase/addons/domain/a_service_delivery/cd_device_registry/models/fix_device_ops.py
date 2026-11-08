@@ -5,7 +5,15 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_device import DEVICE_DECISION_GROUP, NOT_SCRAPPABLE, bind_evidence
+from .fix_device import (
+    BRANCH_MANAGER_GROUP,
+    CUSTODY_EVIDENCE_TYPES,
+    DEVICE_DECISION_GROUP,
+    NOT_SCRAPPABLE,
+    bind_evidence,
+    document_from_upload,
+    take_upload,
+)
 
 # A07 P1 (2026-11-04) M17-12: a plan type names its interval. "custom" keeps
 # a plan whose interval is none of the three.
@@ -97,6 +105,14 @@ class FixDevicePm(models.Model):
         # plan on; typing them (or the state) made a plan look serviced.
         return super()._fix_guarded_fields() | {"state", "last_done", "due_notified_for"}
 
+    def _fix_form_locked_fields(self) -> set:
+        # A07 operability M17-19: anyone could push a due plan out by typing a
+        # date. First set when the plan is created; after that, Reschedule.
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1:
+            locked |= {"next_due"}
+        return locked
+
     name = fields.Char(required=True, default="New")
     device_id = fields.Many2one(
         "fix.device", string="Device", required=True, ondelete="cascade", index=True
@@ -126,7 +142,10 @@ class FixDevicePm(models.Model):
     def _derive_plan(self, vals):
         """A07 audit M17-12 (D5): plan type and interval were two independent
         typed fields ("quarterly" every 12 months). The one given decides the
-        other; both given must agree (checked below)."""
+        other; both given must agree (checked below). A blank interval on a new
+        form is not given."""
+        if not vals.get("interval_months") and vals.get("plan_type") in PLAN_MONTHS:
+            vals.pop("interval_months", None)
         if "plan_type" in vals and "interval_months" not in vals:
             months = PLAN_MONTHS.get(vals["plan_type"])
             if months:
@@ -134,6 +153,15 @@ class FixDevicePm(models.Model):
         elif "interval_months" in vals and "plan_type" not in vals:
             inverse = {v: k for k, v in PLAN_MONTHS.items()}
             vals["plan_type"] = inverse.get(vals["interval_months"], "custom")
+
+    def _drop_echoed_plan_value(self, vals):
+        """The form posts both fields on every save, so a new plan type came with
+        the old interval as an echo and every change of type was refused (A07
+        operability M17-21). The type decides then; any other pair must agree."""
+        if len(self) != 1 or not {"plan_type", "interval_months"} <= set(vals):
+            return
+        if vals["plan_type"] != self.plan_type and vals["interval_months"] == self.interval_months:
+            vals.pop("interval_months")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -144,6 +172,14 @@ class FixDevicePm(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if not self._fix_guard_open() and "next_due" in vals:
+            for rec in self:
+                if rec._fix_guard_differs("next_due", vals["next_due"], rec.next_due):
+                    raise UserError(
+                        "The next due date of %s moves only by Reschedule, which needs a Branch "
+                        "Manager and a reason, or by Mark Done." % rec.name
+                    )
+        self._drop_echoed_plan_value(vals)
         self._derive_plan(vals)
         return super().write(vals)
 
@@ -211,6 +247,30 @@ class FixDevicePm(models.Model):
             while next_due <= today:
                 next_due += step
             rec._guarded().write({"last_done": today, "next_due": next_due})
+        return True
+
+    def action_reschedule(self, next_due=None, reason=None):
+        """Move the next due date (A07 operability M17-19): a Branch Manager,
+        with a reason on the device's record. The daily job announces the plan
+        again when the new date falls due."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason the plan is rescheduled.")
+        try:
+            new_due = fields.Date.to_date(next_due)
+        except (TypeError, ValueError) as exc:
+            raise UserError("Give the new due date as YYYY-MM-DD.") from exc
+        if not new_due:
+            raise UserError("Give the new due date as YYYY-MM-DD.")
+        if new_due < _latest_today(self):
+            raise UserError("A plan cannot be rescheduled into the past (%s)." % new_due)
+        for rec in self:
+            rec.device_id._assert_role(BRANCH_MANAGER_GROUP, "Rescheduling a maintenance plan")
+            old = rec.next_due
+            rec._guarded().write({"next_due": new_due})
+            rec.device_id.message_post(
+                body="Maintenance plan %s rescheduled by %s from %s to %s: %s"
+                % (rec.name, self.env.user.name, old, new_due, reason.strip())
+            )
         return True
 
     def action_pause(self):
@@ -518,7 +578,7 @@ class FixDeviceCustody(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.id:
-            locked |= _business_fields(self)
+            locked |= _business_fields(self) | {"evidence_file", "evidence_filename"}
         return locked
 
     def write(self, vals):
@@ -572,6 +632,10 @@ class FixDeviceCustody(models.Model):
     evidence_document_id = fields.Many2one(
         "fix.document", string="Photographic Evidence", help="Hand-over photographs (M24)."
     )
+    # A07 operability (2026-11-07): the photograph taken at the counter, uploaded
+    # on the form; it becomes the document above.
+    evidence_file = fields.Binary(string="Upload Photograph", store=False)
+    evidence_filename = fields.Char(string="Photograph File Name", store=False)
     accessories_reconciled = fields.Boolean(
         string="Accessories Reconciled",
         help="The accessories received at intake were checked back (FR-AST-015).",
@@ -624,13 +688,43 @@ class FixDeviceCustody(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.device.custody") or "DCUS/New"
                 )
+            data, filename = take_upload(vals, "evidence_file", "evidence_filename")
+            device = self.env["fix.device"].browse(vals.get("device_id") or 0).exists()
+            if data and device:
+                vals["evidence_document_id"] = document_from_upload(
+                    self.env,
+                    device,
+                    data,
+                    filename,
+                    "custody_photo",
+                    "Custody photograph - %s" % device.display_name,
+                    device._name,
+                    device.id,
+                ).id
             if not trusted and vals.get("event", "issued") in RELEASE_EVENTS:
                 self._check_release(dict(vals, event=vals.get("event", "issued")))
         records = super().create(vals_list)
         for rec in records:
             device = rec.device_id
             if rec.evidence_document_id and not trusted:
-                bind_evidence(rec.evidence_document_id, [rec, device], "custody evidence")
+                bind_evidence(
+                    rec.evidence_document_id,
+                    [rec, device],
+                    "custody evidence",
+                    CUSTODY_EVIDENCE_TYPES,
+                )
+                used = self.sudo().search(
+                    [
+                        ("evidence_document_id", "=", rec.evidence_document_id.id),
+                        ("id", "!=", rec.id),
+                    ],
+                    limit=1,
+                )
+                if used:
+                    raise UserError(
+                        "%s is already the evidence of custody event %s. Each hand-over needs "
+                        "its own photograph." % (rec.evidence_document_id.sudo().name, used.name)
+                    )
             if rec.event == "lost" and device.state not in NOT_SCRAPPABLE:
                 device._flag_lost(
                     "Custody event %s: %s" % (rec.name, rec.notes or "reported lost"), "custody"
@@ -853,3 +947,9 @@ class FixDeviceComponent(models.Model):
 
     def action_dispose_scrapped(self):
         return self.action_record_disposition("scrapped")
+
+    def action_dispose_harvested(self):
+        return self.action_record_disposition("harvested")
+
+    def action_dispose_returned_to_brand(self):
+        return self.action_record_disposition("returned_to_brand")

@@ -434,3 +434,23 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__retirement_reason
 msgid "Write-Off Reason"
 msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__provider_accredited
+msgid "Provider Accredited"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__certificate_file
+msgid "Certificate File"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__certificate_filename
+msgid "Certificate File Name"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__usage_line_ids
+msgid "Affected Use Lines"
+msgstr ""

@@ -23,7 +23,7 @@ def _doc(c):
     att = c.env["ir.attachment"].create({"name": "deed.pdf", "raw": b"%PDF-1.4 a7p0"})
     return (
         c.env["fix.document"]
-        .create({"name": "Sale deed", "attachment_id": att.id, "document_type": "contract"})
+        .create({"name": "Sale deed", "attachment_id": att.id, "document_type": "asset_document"})
         .id
     )
 

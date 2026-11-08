@@ -234,6 +234,31 @@ def test_ownership_transfer_is_owner_only_and_audited(world):
     trail = world.env["fix.device.ownership"].search([("device_id", "=", device.id)])
     assert trail.from_partner_id == world.alice.partner_id
     assert trail.to_partner_id == world.bob.partner_id
+    # A07 operability M17-11: the trail says who asked and how, not "data migration"
+    assert trail.channel == "customer_portal"
+    assert world.alice.partner_id.name in trail.reason
+
+
+def test_a_portal_transfer_records_the_customers_reason_and_type(world):
+    device = world.device
+    with _as(world, world.alice) as ctrl:
+        unknown = ctrl.ownership_transfer(
+            device_id=device.id, to_partner_id=world.bob.partner_id.id, transfer_type="stolen"
+        )
+        done = ctrl.ownership_transfer(
+            device_id=device.id,
+            to_partner_id=world.bob.partner_id.id,
+            transfer_type="gift",
+            reason="Given to my brother",
+        )
+    assert unknown["error"]["code"] == "invalid_transfer_type"
+    assert done["transferred"]
+    trail = world.env["fix.device.ownership"].search([("device_id", "=", device.id)])
+    assert (trail.transfer_type, trail.reason, trail.channel) == (
+        "gift",
+        "Given to my brother",
+        "customer_portal",
+    )
 
 
 def test_a_rejected_transfer_is_reported(world):

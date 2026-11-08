@@ -247,6 +247,14 @@ class FixAssetFinanceRequest(models.Model):
                 continue
             if eq.fixed_asset_id:
                 continue
+            # a cost entered to write an item off is the write-off's basis, not an
+            # acquisition: the approved write-off reaches M49 as a disposal
+            if (
+                eq.operational_status == "retired"
+                or (eq.retirement_reason or "").strip()
+                or eq.approval_state in ("pending", "approved")
+            ):
+                continue
             vals = self._m49_equipment_vals(eq)
             vals.update(
                 {

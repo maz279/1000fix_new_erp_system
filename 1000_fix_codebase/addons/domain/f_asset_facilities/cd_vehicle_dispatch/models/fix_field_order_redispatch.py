@@ -60,11 +60,9 @@ def _offroad_text(off):
 
 
 class FixVehicleAssignmentOffroadConflict(models.Model):
-    # The guard mixin (abstract, no column) makes the conflict fields
-    # unforgeable: an assignment is writable by any internal user. It guards
-    # only the fields named below, so every other write behaves as before.
-    _name = "fix.vehicle.assignment"
-    _inherit = ["fix.vehicle.assignment", "fix.guarded.mixin"]
+    # The conflict fields are unforgeable (the model carries the guard mixin):
+    # only the off-road consumers and the move below write them.
+    _inherit = "fix.vehicle.assignment"
 
     offroad_conflict_id = fields.Many2one(
         "fix.vehicle.offroad",

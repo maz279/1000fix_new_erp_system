@@ -39,6 +39,12 @@ NOT_RESOLVED = ("provisional",)
 # "de-registration pending" and publishes device.neir_deregistration_required.
 NEIR_ON_TRANSFER_PARAM = "cd_device_registry.neir_deregistration_on_transfer"
 LIFECYCLE_STAGES = ("active", "vintage", "end_of_life", "obsolete")
+# A07 operability (2026-11-07): which M24 document types can stand as evidence.
+# FR-AST-017/018 ask for a supporting document; the transfer picker offered an
+# Employment Contract. A sale deed is uploaded on the form (asset_document).
+TRANSFER_EVIDENCE_TYPES = ("asset_document", "invoice", "signature_certificate", "evidence_pack")
+CUSTODY_EVIDENCE_TYPES = ("custody_photo", "evidence_pack")
+WARRANTY_PROOF_TYPES = ("warranty_card", "invoice", "asset_document")
 
 
 def luhn_ok(digits: str) -> bool:
@@ -65,15 +71,54 @@ def _strip_identifiers(vals) -> None:
             vals[name] = value.strip() or False
 
 
-def bind_evidence(doc, records, what: str) -> None:
+def take_upload(vals, file_field, name_field):
+    """Lift a staged file off a form's values: (file, file name), or (None, None).
+    The two fields are not stored; the file becomes a governed document."""
+    data = vals.pop(file_field, None)
+    name = vals.pop(name_field, None)
+    return (data, (name or "").strip()) if data else (None, None)
+
+
+def document_from_upload(env, device, data, filename, doc_type, fallback, res_model, res_id):
+    """A file a person uploaded on an M17 form, as the fix.document the evidence
+    rules read. Created as the caller, so the document's own ACL applies."""
+    name = filename or fallback
+    return env["fix.document"].create(
+        {
+            "name": name,
+            "upload_file": data,
+            "upload_filename": name,
+            "document_type": doc_type,
+            "company_id": device.company_id.id or env.company.id,
+            "operating_unit_id": device.operating_unit_id.id or False,
+            "res_model": res_model,
+            "res_id": res_id,
+        }
+    )
+
+
+def bind_evidence(doc, records, what: str, types=None) -> None:
     """Evidence must be about THESE records (e.g. the device or its warranty).
     A document filed against another record (a res.partner, another device) is
     refused; an unfiled one is filed against the first record now, so the same
     paper cannot later prove something else (A07 audit M17-13: a "proof" filed
-    on another customer verified cover)."""
+    on another customer verified cover). `types` names the document types that
+    can stand as this evidence."""
     doc = doc.sudo().exists()
     if not doc:
         raise UserError("Attach the %s first." % what)
+    if types and doc.document_type not in types:
+        labels = dict(doc._fields["document_type"].selection)
+        raise UserError(
+            "%s is a %s document, which cannot serve as %s. Upload the file on this form, or "
+            "choose one of type: %s."
+            % (
+                doc.name,
+                labels.get(doc.document_type, doc.document_type),
+                what,
+                ", ".join(labels[t] for t in types),
+            )
+        )
     allowed = {(r._name, r.id) for r in records}
     if doc.res_model and doc.res_id:
         if (doc.res_model, doc.res_id) not in allowed:
@@ -98,6 +143,8 @@ class FixDevice(models.Model):
     # fix.approvable.mixin already carries fix.guarded.mixin.
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+    # A device is found by any identifier a person holds, not only its label.
+    _rec_names_search = ["name", "serial_number", "imei_1", "imei_2", "legacy_reference"]
 
     # A07 audit (2026-11-03) M17-8: `state='scrapped'` was a plain write. Scrap
     # is now a routed M63 decision: Request Approval (the reason is the
@@ -242,9 +289,6 @@ class FixDevice(models.Model):
             # from warranty and transfer until action_confirm_identity.
             ("provisional", "Provisional (identity unresolved)"),
             ("registered", "Registered"),
-            ("in_service", "In Service"),
-            ("repaired", "Repaired"),
-            ("returned", "Returned to Owner"),
             ("transferred", "Ownership Transferred"),
             ("scrapped", "Scrapped"),
             ("lost", "Lost/Stolen"),
@@ -274,6 +318,27 @@ class FixDevice(models.Model):
     identity_confirmed_at = fields.Datetime(
         string="Identity Confirmed At", readonly=True, copy=False
     )
+    # A07 operability (2026-11-07) FR-AST-005: create honoured state='provisional'
+    # but no form could send it. The form sends this choice and the reason.
+    register_provisional = fields.Boolean(string="Register as Provisional", store=False)
+    provisional_reason = fields.Char(
+        string="Why the Identity Is Unconfirmed",
+        copy=False,
+        help="Recorded at registration: why neither a serial nor an IMEI could be confirmed.",
+    )
+    # A07 operability (2026-11-07) BRU-AST-05: the correction the Quality Manager
+    # stages on the asset form; Correct Identifier checks and clears it.
+    correction_field = fields.Selection(
+        [
+            ("serial_number", "Serial Number"),
+            ("imei_1", "IMEI 1"),
+            ("imei_2", "IMEI 2"),
+        ],
+        string="Identifier to Correct",
+        copy=False,
+    )
+    correction_value = fields.Char(string="Corrected Value", copy=False)
+    correction_reason = fields.Char(string="Correction Reason", copy=False)
 
     # A07 P1 (2026-11-04) M17-1, FR-AST-017/018: the transfer the P03 asset form
     # stages. A user fills the recipient, reason and evidence, then presses
@@ -296,8 +361,12 @@ class FixDevice(models.Model):
         "fix.document",
         string="Transfer Evidence",
         copy=False,
-        help="The sale receipt, deed or signed hand-over the acquiring party accepted.",
+        help="The sale receipt, deed or signed hand-over that supports the transfer.",
     )
+    # A07 operability (2026-11-07): the only live evidence was six seeded rows.
+    # A file uploaded here becomes the fix.document above.
+    transfer_evidence_file = fields.Binary(string="Upload Transfer Evidence", store=False)
+    transfer_evidence_filename = fields.Char(string="Evidence File Name", store=False)
 
     # Branch scope
     branch_id = fields.Many2one("fix.branch", string="Registered At")
@@ -513,21 +582,40 @@ class FixDevice(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         provisional = []
+        uploads = []
+        trusted = self._fix_guard_open()
         for vals in vals_list:
             _strip_identifiers(vals)
+            uploads.append(
+                take_upload(vals, "transfer_evidence_file", "transfer_evidence_filename")
+            )
+            if vals.pop("register_provisional", False):
+                vals["state"] = "provisional"
+            is_provisional = vals.get("state") == "provisional"
+            if not is_provisional:
+                vals.pop("provisional_reason", None)
+            if not trusted:
+                self._check_registration(vals, is_provisional)
+            self._refuse_merged_identifiers(vals)
             # A provisional identity is a registration choice, not a forged
             # state: the guard would refuse a non-default state, so it is set
             # through the transition right after the insert.
-            flag = vals.get("state") == "provisional" and not self._fix_guard_open()
+            flag = is_provisional and not trusted
             if flag:
                 vals.pop("state")
             provisional.append(flag)
         records = super().create(vals_list)
         if not self.env.su:
             records._check_estate_belongs_to_owner()
-        for rec, flag in zip(records, provisional, strict=True):
+        for rec, flag, upload in zip(records, provisional, uploads, strict=True):
             if flag:
                 rec._guarded().write({"state": "provisional"})
+                rec.message_post(
+                    body="Registered as provisional by %s: %s"
+                    % (self.env.user.name, rec.provisional_reason)
+                )
+            if upload[0]:
+                rec._attach_transfer_evidence(*upload)
             rec._identifier_capture(IDENTIFIER_FIELDS, "registration")
             self._emit("device.registered", rec)
             if rec.state == "provisional":
@@ -540,6 +628,85 @@ class FixDevice(models.Model):
                     },
                 )
         return records
+
+    @api.model
+    def _check_registration(self, vals, is_provisional):
+        """A07 operability M17-20: a device saved in Registered with no identifier
+        at all, so nothing could ever find it again. Service code is trusted."""
+        if is_provisional:
+            if not (vals.get("provisional_reason") or "").strip():
+                raise UserError(
+                    "Say why the identity cannot be confirmed before registering the device as "
+                    "provisional."
+                )
+            return
+        if not (vals.get("serial_number") or vals.get("imei_1") or vals.get("imei_2")):
+            raise UserError(
+                "Give the serial number or an IMEI. If neither can be read, register the device "
+                "as provisional and say why."
+            )
+
+    def _attach_transfer_evidence(self, data, filename):
+        self.ensure_one()
+        doc = document_from_upload(
+            self.env,
+            self,
+            data,
+            filename,
+            "asset_document",
+            "Transfer evidence - %s" % self.display_name,
+            self._name,
+            self.id,
+        )
+        self.write({"transfer_evidence_document_id": doc.id})
+        return doc
+
+    def _merge_survivor(self):
+        """The active device this merged duplicate now lives on, following a
+        chain of merges. Empty when it was not merged, or the merge was reversed."""
+        self.ensure_one()
+        Merge = self.env["fix.device.merge"].sudo()
+        device = self.sudo().with_context(active_test=False)
+        for _hop in range(20):
+            if device.active:
+                return device
+            row = Merge.search(
+                [("merged_id", "=", device.id), ("state", "=", "merged")],
+                order="merged_at desc, id desc",
+                limit=1,
+            )
+            if not row:
+                break
+            device = row.survivor_id.with_context(active_test=False)
+        return self.browse()
+
+    def _refuse_merged_identifiers(self, vals):
+        """A07 operability: a merged duplicate keeps its identifiers, and the
+        unique keys count archived rows, so a later intake of that phone met a
+        bare "duplicate" refusal that named nothing. A person is told which
+        device it now is. Service code falls through to the same database keys,
+        so a customer on the portal is not told about another record."""
+        if self.env.su:
+            return
+        serial = vals.get("serial_number") or None
+        imeis = [v for v in (vals.get("imei_1"), vals.get("imei_2")) if v]
+        if not serial and not imeis:
+            return
+        self.flush_model(["serial_number", "imei_1", "imei_2", "active"])
+        self.env.cr.execute(
+            "SELECT id FROM fix_device WHERE active IS NOT TRUE AND id != ALL(%s) AND ("
+            "(%s::varchar IS NOT NULL AND upper(btrim(serial_number)) = upper(btrim(%s::varchar))) "
+            "OR imei_1 = ANY(%s::varchar[]) OR imei_2 = ANY(%s::varchar[])) ORDER BY id DESC",
+            (list(self.ids), serial, serial, imeis, imeis),
+        )
+        for (dup_id,) in self.env.cr.fetchall():
+            dup = self.sudo().with_context(active_test=False).browse(dup_id)
+            survivor = dup._merge_survivor()
+            if survivor:
+                raise UserError(
+                    "This identifier belongs to %s, which was merged into %s. Use %s; it is not "
+                    "registered again." % (dup.name, survivor.display_name, survivor.display_name)
+                )
 
     def _fix_locked_identity(self, vals) -> set:
         """The owner/identifier fields in ``vals`` that would CHANGE a value
@@ -557,10 +724,14 @@ class FixDevice(models.Model):
         locked = super()._fix_form_locked_fields()
         if len(self) == 1:
             locked |= {n for n in ("owner_id", *IDENTIFIER_FIELDS) if self[n]}
+            # recorded once, at registration
+            locked |= {"register_provisional", "provisional_reason"}
         return locked
 
     def write(self, vals):
         _strip_identifiers(vals)
+        upload = take_upload(vals, "transfer_evidence_file", "transfer_evidence_filename")
+        vals.pop("register_provisional", None)
         # First capture of an empty identifier (the IMEI read at intake) is
         # recorded in the identifier history; a correction records itself.
         captured = {
@@ -579,7 +750,19 @@ class FixDevice(models.Model):
                     "correction, which needs a reason and keeps the old value on record."
                     % ", ".join(sorted(self._fields[n].string for n in locked))
                 )
+            if "provisional_reason" in vals and any(
+                rec._fix_guard_differs(
+                    "provisional_reason", vals["provisional_reason"], rec.provisional_reason
+                )
+                for rec in self
+            ):
+                raise UserError("The provisional reason is recorded at registration.")
+        if len(self) == 1:
+            self._refuse_merged_identifiers(vals)
         result = super().write(vals)
+        if upload[0]:
+            for rec in self:
+                rec._attach_transfer_evidence(*upload)
         if not self.env.su and vals.get("estate_id"):
             self._check_estate_belongs_to_owner()
         for rec in self:
@@ -641,9 +824,11 @@ class FixDevice(models.Model):
 
         A07 audit (2026-11-04) M17-1, FR-AST-017/018: any internal user ran this
         with no reason, no evidence and no role. A user now needs the Device
-        Registry Agent role, a reason and an evidence document the acquiring
-        party accepted (sale receipt, deed, signed hand-over), filed against this
-        device; and a technician never re-owns a device in his own custody (§13).
+        Registry Agent role, a reason and a supporting evidence document (sale
+        receipt, deed, signed hand-over), filed against this device and not used
+        for another transfer; and a technician never re-owns a device in his own
+        custody (§13). No acceptance by the new owner is recorded: the spec asks
+        for the evidence, and a separate acceptance step does not exist.
         Superuser service code is trusted: the customer portal transfers as the
         authenticated owner, whose own request is the evidence.
 
@@ -652,7 +837,12 @@ class FixDevice(models.Model):
         self.ensure_one()
         staged = not new_owner_id
         new_owner_id = new_owner_id or self.transfer_to_partner_id.id
-        transfer_type = transfer_type or self.transfer_type_pending or "sale"
+        transfer_type = transfer_type or self.transfer_type_pending
+        if not transfer_type:
+            # A blank type on the form read as a sale nobody declared.
+            if staged:
+                raise UserError("Choose the Transfer Type on the asset form.")
+            transfer_type = "sale"
         reason = (reason or notes or self.transfer_reason or "").strip()
         evidence = self.env["fix.document"]
         if evidence_document_id:
@@ -679,10 +869,20 @@ class FixDevice(models.Model):
                 raise UserError("Give the reason for the ownership transfer.")
             if not evidence:
                 raise UserError(
-                    "Attach the transfer evidence the new owner accepted (sale receipt, deed "
-                    "or signed hand-over) before transferring %s." % self.display_name
+                    "Attach the transfer evidence (sale receipt, deed or signed hand-over) "
+                    "before transferring %s." % self.display_name
                 )
-            bind_evidence(evidence, [self], "transfer evidence")
+            bind_evidence(evidence, [self], "transfer evidence", TRANSFER_EVIDENCE_TYPES)
+            used = (
+                self.env["fix.device.ownership"]
+                .sudo()
+                .search([("evidence_document_id", "=", evidence.id)], limit=1)
+            )
+            if used:
+                raise UserError(
+                    "%s already supports the transfer of %s on %s. Each transfer needs its own "
+                    "evidence." % (evidence.sudo().name, used.device_id.name, used.transfer_date)
+                )
             self._assert_not_own_custody()
         vals = {
             "owner_id": new_owner.id,
@@ -755,19 +955,33 @@ class FixDevice(models.Model):
                 "its ownership transfer." % (self.display_name, last.name)
             )
 
-    def action_correct_identifier(self, field_name: str, value, reason: str):
+    def action_correct_identifier(self, field_name=None, value=None, reason=None):
         """Privileged correction of a serial number or IMEI (e.g. a board swap or
         a mis-keyed intake). The old value stays in the identifier history
-        (fix.device.identifier, superseded with the reason) and the chatter."""
+        (fix.device.identifier, superseded with the reason) and the chatter.
+
+        A07 operability (2026-11-07): the form note and the refusal sent a person
+        here, and no button or surface reached it. With no arguments it takes the
+        correction staged on the asset form (which identifier, value, reason)."""
         self.ensure_one()
-        if field_name not in IDENTIFIER_FIELDS:
-            raise UserError("Only the serial number and IMEIs are corrected this way.")
         if not self.env.su and not self.env.user.has_group(IDENTIFIER_CORRECTION_GROUP):
             raise AccessError(
                 "Only a Device Quality Manager can correct a device identifier (BRU-AST-05)."
             )
+        staged = not field_name
+        field_name = field_name or self.correction_field
+        value = value if not staged else self.correction_value
+        reason = reason or (self.correction_reason if staged else None)
+        if staged and not field_name:
+            raise UserError(
+                "Choose which identifier to correct under Identifier Correction on the asset form."
+            )
+        if field_name not in IDENTIFIER_FIELDS:
+            raise UserError("Only the serial number and IMEIs are corrected this way.")
         if not (reason or "").strip():
             raise UserError("A reason is required to correct a device identifier.")
+        if staged and not (value or "").strip():
+            raise UserError("Type the new value under Identifier Correction on the asset form.")
         old = self[field_name]
         if not old:
             raise UserError(
@@ -775,7 +989,15 @@ class FixDevice(models.Model):
                 % self._fields[field_name].string
             )
         value = (value or "").strip() or False
-        self._guarded().write({field_name: value})
+        self._refuse_merged_identifiers({field_name: value})
+        self._guarded().write(
+            {
+                field_name: value,
+                "correction_field": False,
+                "correction_value": False,
+                "correction_reason": False,
+            }
+        )
         self._identifier_supersede(field_name, old, value, reason.strip())
         self.message_post(
             body="%s corrected from %s to %s. Reason: %s"
@@ -884,6 +1106,16 @@ class FixDevice(models.Model):
     def action_set_obsolete(self, reason=None):
         return self.action_set_lifecycle_stage("obsolete", reason)
 
+    def action_return_to_active(self, reason=None):
+        """A vintage device whose parts supply came back (a Branch Manager, with
+        a basis). End of life and obsolete do not come back this way."""
+        for rec in self:
+            if rec.lifecycle_stage != "vintage":
+                raise UserError(
+                    "%s is not vintage; only a vintage device returns to active." % rec.display_name
+                )
+        return self.action_set_lifecycle_stage("active", reason)
+
     # ---- lifecycle actions (A07 audit 2026-11-03, M17-8 / M17-2) ----------
     def _state_label(self):
         return dict(self._fields["state"].selection).get(self.state, self.state)
@@ -898,7 +1130,28 @@ class FixDevice(models.Model):
             if rec.state in NOT_SCRAPPABLE:
                 raise UserError("%s is already %s." % (rec.display_name, rec._state_label()))
             rec._flag_lost(reason.strip(), "registry")
+            rec._custody_flag_event("lost", reason.strip())
         return True
+
+    def _custody_flag_event(self, event, note):
+        """A07 operability M17-12: the flag and its clearance reach the custody
+        chain, which said nothing of a device flagged from the registry. The last
+        custodian is carried over, so a flag cannot wipe the check that a
+        technician never re-owns a device in his own custody."""
+        self.ensure_one()
+        Custody = self.env["fix.device.custody"].sudo()
+        last = Custody.search(
+            [("device_id", "=", self.id)], order="event_date desc, id desc", limit=1
+        )
+        Custody._guarded().create(
+            {
+                "device_id": self.id,
+                "event": event,
+                "custodian_id": last.custodian_id.id or False,
+                "reference": "Registry flag",
+                "notes": note,
+            }
+        )
 
     def _flag_lost(self, reason, source):
         """Put the device in the lost/stolen register (FR-AST-023), from the
@@ -961,6 +1214,7 @@ class FixDevice(models.Model):
                 body="Lost/stolen flag cleared by %s (back to %s): %s"
                 % (self.env.user.name, rec._state_label(), reason)
             )
+            rec._custody_flag_event("found", reason.strip())
             rec._publish(
                 "device.flag_cleared",
                 {
@@ -986,7 +1240,19 @@ class FixDevice(models.Model):
                 raise UserError(
                     "%s is %s and cannot be scrapped." % (rec.display_name, rec._state_label())
                 )
+            # A request the approver could never apply is refused when it is made.
+            rec._assert_scrap_instruction()
         return super().action_request_approval(justification=justification)
+
+    def _assert_scrap_instruction(self):
+        """BRU-AST-19: a customer-owned device reaches its end only with the
+        customer's instruction on record, whichever way it gets there."""
+        self.ensure_one()
+        if self.owner_id and not self.eol_customer_instruction:
+            raise UserError(
+                "%s belongs to %s: record the customer's end-of-life instruction on the asset "
+                "form before it is scrapped (BRU-AST-19)." % (self.display_name, self.owner_id.name)
+            )
 
     def action_scrap(self):
         """Scrap the device: the M63 apply method, reached only from the
@@ -1011,6 +1277,7 @@ class FixDevice(models.Model):
                     )
                 if acting & rec.approval_request_id.sudo().requested_by_id:
                     raise UserError("You requested this scrap, so someone else must approve it.")
+                rec._assert_scrap_instruction()
             rec._guarded().write(
                 {
                     "state": "scrapped",

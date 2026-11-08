@@ -102,7 +102,8 @@ def w(odoo_env):
     def assign(v, user=None, day=None, **kw):
         vals = {"vehicle_id": v.id, "date": day or x.today, "operating_unit_id": ou.id}
         vals.update(kw)
-        return env["fix.vehicle.assignment"].with_user(user or x.clerk).create(vals)
+        # booking is the Fleet Officer's (the form and its ACL)
+        return env["fix.vehicle.assignment"].with_user(user or x.fleet).create(vals)
 
     x.driver, x.vehicle, x.doc, x.assign = driver, vehicle, doc, assign
     x.good = vehicle("A07P0-GOOD")
@@ -206,7 +207,7 @@ def test_open_accident_refuses(w, state):
         # A07 P0 recipe M46-10: closed by someone other than the reporter;
         # A07 P1: a Logistics Manager, with the insurer and the evidence. The
         # accident also took the van off-road: a re-check and a return follow.
-        insurer = w.env["res.partner"].create({"name": "A07P0 Insurer"})
+        insurer = w.env["res.partner"].create({"name": "A07P0 Insurer", "is_insurer": True})
         acc.with_user(w.clerk).write({"insurer_id": insurer.id, "evidence_file": SCAN})
         acc.with_user(w.lm).action_close(settlement=0)
         assert "off-road" in refused(w.env, lambda: w.assign(w.good))
@@ -306,13 +307,19 @@ def test_vehicle_driver_is_the_default_driver(w):
 def test_write_cannot_repoint_to_a_blocked_vehicle(w):
     bad = w.vehicle("A07P0-BAD", docs=("fitness", "tax"))
     a = w.assign(w.good)
-    assert refused(w.env, lambda: a.with_user(w.clerk).write({"vehicle_id": bad.id}))
+    # a booking is the Fleet Officer's; the gate is what refuses the officer here
+    assert "not dispatchable" in refused(
+        w.env, lambda: a.with_user(w.fleet).write({"vehicle_id": bad.id})
+    )
     suspended = w.driver("A07P0 Susp", state="suspended")
-    assert refused(w.env, lambda: a.with_user(w.clerk).write({"driver_id": suspended.id}))
+    assert "suspended" in refused(
+        w.env, lambda: a.with_user(w.fleet).write({"driver_id": suspended.id})
+    )
+    assert refused(w.env, lambda: a.with_user(w.clerk).write({"date": w.today}))
     # a field outside the vehicle gate still saves; BRU-HSE-07 (merged with
     # A09) still demands the repointed technician hold a valid licence.
     tech = w.driver("A07P0 Tech", license_class="Light")
-    a.with_user(w.clerk).write({"technician_id": tech.employee_id.id})
+    a.with_user(w.fleet).write({"technician_id": tech.employee_id.id})
     assert a.technician_id == tech.employee_id
 
 
@@ -320,9 +327,9 @@ def test_write_cannot_double_book_a_day(w):
     w.assign(w.good)
     b = w.assign(w.good, day=w.today + timedelta(days=1))
     assert "overlaps are refused" in refused(
-        w.env, lambda: b.with_user(w.clerk).write({"date": w.today})
+        w.env, lambda: b.with_user(w.fleet).write({"date": w.today})
     )
-    b.with_user(w.clerk).write({"date": w.today + timedelta(days=2)})
+    b.with_user(w.fleet).write({"date": w.today + timedelta(days=2)})
     assert b.date == w.today + timedelta(days=2)
 
 

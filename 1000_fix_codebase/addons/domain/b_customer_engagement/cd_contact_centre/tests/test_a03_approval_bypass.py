@@ -627,13 +627,21 @@ class TestDiscountApproval:
         with pytest.raises(UserError):
             estimate.write({"dofa_approved_by": seller.id})
         # Routed: the seller asks, is never routed to themselves, and a second
-        # Tier-4 holder decides. Without a justification the decision refuses.
+        # Tier-4 holder decides. Asking with no justification is refused at once,
+        # not left waiting on a vote that could only refuse.
         director = make_user(T4)  # must exist BEFORE the request routes
-        estimate.with_user(seller).action_request_approval()
+        with pytest.raises(UserError, match="justification"), env.cr.savepoint():
+            estimate.with_user(seller).action_request_approval()
+        assert estimate.approval_state != "pending"
+        estimate.with_user(seller).action_request_approval(
+            justification="Corporate account retention, signed off by sales head."
+        )
         assert seller not in assigned(estimate)  # never routed to themselves
         task = inbox_task(estimate, director)
         assert task, "the Tier-4 director received no inbox task"
-        with pytest.raises(ValidationError, match="justification"):
+        # blanked after the request, the decision still refuses
+        estimate.with_user(director).dofa_justification = False
+        with pytest.raises(ValidationError, match="justification"), env.cr.savepoint():
             task.with_user(director).action_approve()
         estimate.with_user(
             director

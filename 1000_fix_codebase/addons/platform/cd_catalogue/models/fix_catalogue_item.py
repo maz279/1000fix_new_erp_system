@@ -155,6 +155,11 @@ class FixCatalogueItem(models.Model):
             ("protection", "Protection Plan"),
             ("rental", "Rental SKU"),
             ("subscription", "Subscription / Contract"),
+            # Real-inventory fit-gap (2026-11-07, report §7 R2/B4): 15% of the
+            # real inventory statement is Group "Full Unit Product" — finished
+            # goods the company stocks and sells (phones, laptops, DVRs), not
+            # spare parts. SAP's FERT / HAWA equivalent.
+            ("finished_good", "Finished Good (Full Unit)"),
         ],
         required=True,
         default="service",

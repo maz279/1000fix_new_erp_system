@@ -462,8 +462,11 @@ def test_stream_adapter_device_state_guarded(c):
     s.with_user(c.clerk).action_activate()
     assert s.state == "active"
     ad = c.env["fix.iot.adapter"].with_user(c.clerk).create({"name": f"R48 ADP {TAG}"})
-    assert refused(c.env, lambda: ad.with_user(c.clerk).write({"state": "disabled"}))
+    assert refused(c.env, lambda: ad.with_user(c.clerk).write({"state": "enabled"}))
+    assert ad.state == "disabled", "born disabled"
     assert refused(c.env, lambda: ad.with_user(c.clerk).action_enable())
+    assert refused(c.env, lambda: ad.with_user(c.clerk).action_disable()), "already disabled"
+    ad._guarded().sudo().write({"state": "enabled"})
     ad.with_user(c.clerk).action_disable()
     assert ad.state == "disabled"
     assert refused(c.env, lambda: c.device.with_user(c.clerk).write({"status": "offline"}))

@@ -108,3 +108,8 @@ msgstr "ট্রিগার"
 #: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__write_off
 msgid "Write-Off"
 msgstr "অবলোপন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_workflow_task__justification
+msgid "Justification"
+msgstr "যৌক্তিকতা"

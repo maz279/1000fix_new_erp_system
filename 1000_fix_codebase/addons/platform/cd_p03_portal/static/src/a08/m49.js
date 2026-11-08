@@ -423,6 +423,12 @@ Object.assign(SCREENS, {
           { name: 'initial_direct_costs', label: 'Initial Direct Costs' },
           { name: 'exemption', required: true, label: 'IFRS 16 Exemption' }
         ] },
+      { tab: 'terms', title: 'From the Site Lease', note: 'A contract drafted from a recorded site lease. The rent is carried as a flat payment here: decide how the escalation enters the measurement before commencing. The deposit is refundable and is not part of the right-of-use asset.',
+        fields: [
+          { name: 'site_lease_id', readonly: true, label: 'Site Lease' },
+          { name: 'site_escalation_pct', readonly: true, label: 'Escalation % a Year (Site Lease)' },
+          { name: 'site_deposit', readonly: true, label: 'Security Deposit (Site Lease)' }
+        ] },
       { tab: 'accounts', title: 'Posting Accounts', note: 'Activate refuses, naming what is missing, until the right-of-use category (with its journal and asset account) and these three accounts are set.',
         fields: [
           { name: 'category_id', label: 'Right-of-Use Category' },

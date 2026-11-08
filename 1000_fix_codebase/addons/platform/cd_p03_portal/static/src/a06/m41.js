@@ -551,7 +551,10 @@ export const FORM_CHIPS = {
   'M41:__by_model__': {
     'fix.stock.location': 'M41-form-stock-location',
     'fix.inventory.valuation.suspense': 'M41-form-inventory-valuation-suspense',
-    'fix.spare.part': 'M41-form-spare-part',
+    /* Real-inventory upgrade 2026-11-07: the spare-part master now opens the
+     * 7-tab M15 form (single surface owner per model) instead of the 6-field
+     * stub below, which stays only as the fallback screen definition. */
+    'fix.spare.part': 'M15-form-part',
     'fix.warehouse': 'M41-form-warehouse',
     'fix.warehouse.bin': 'M41-form-bin',
     'fix.warehouse.zone': 'M41-form-zone',

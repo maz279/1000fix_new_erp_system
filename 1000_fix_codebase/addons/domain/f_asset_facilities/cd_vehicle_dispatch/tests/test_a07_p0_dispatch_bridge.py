@@ -197,9 +197,12 @@ def test_vehicle_requirement_is_a_switch(w):
     assert rec.state == "dispatched" and not rec.vehicle_assignment_id
     w.env["ir.config_parameter"].sudo().set_param(REQUIRE_VEHICLE_PARAM, "True")
     assert "Name the vehicle" in refused(w.env, lambda: dispatch(w, w.fo(), w.ea))
+    # with the switch on, the gate also needs someone named to drive it
     rec2 = w.fo(vehicle_id=w.good.id)
-    dispatch(w, rec2, w.ea)
-    assert rec2.vehicle_assignment_id
+    assert "no driver" in refused(w.env, lambda: dispatch(w, rec2, w.ea))
+    rec3 = w.fo(vehicle_id=w.good.id, vehicle_driver_id=w.driver.id)
+    dispatch(w, rec3, w.ea)
+    assert rec3.vehicle_assignment_id
 
 
 def test_one_van_one_crew_per_day(w):

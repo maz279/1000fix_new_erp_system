@@ -16,6 +16,9 @@ SURFACES = {
     "fix.workshop.job": {
         "order": "priority desc, create_date desc, id desc",
         "limit": 200,
+        # A07 M45: the QC instrument. Retired, missing and out-of-service items are
+        # not offered; the fitness gate at QC pass still judges the one named.
+        "pickers": {"equipment_id": [("operational_status", "in", ("available", "issued"))]},
         # A02 audit M31-7 / P31-06: the generic action_transition is NOT
         # offered — it reached qc_failed with no NCR and no rework count. Only
         # the named actions, each carrying its own gates and side-effects.

@@ -4,6 +4,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .fix_iot_ops import _is_location_metric
+
 # A07 P1 (2026-11-04) BRU-IOT-10 / FR-IOT-040: where a prediction's model is
 # checked against the M26 registry. "use" (default): the prediction is
 # recorded, but nothing APPLIES it - no prescriptive action is approved and no
@@ -12,6 +14,11 @@ from libs.py.fix_events import publish
 # model is refused outright. M26 (cd_ml_services) depends on this module, so
 # the registry is read at run time, never imported.
 MODEL_CHECK_PARAM = "cd_stream_registry.prediction_model_check"
+# A07 (2026-11-07): a preventive work order is requested only on a score at least
+# this confident (a 5% "failure predicted" raised one). A value nobody can read as
+# a number between 0 and 1 falls back to the default: it never opens the gate.
+PREVENTIVE_MIN_CONFIDENCE_PARAM = "cd_stream_registry.preventive_min_confidence"
+PREVENTIVE_MIN_CONFIDENCE_DEFAULT = 0.5
 
 
 def _require_operator(env, what):
@@ -160,6 +167,7 @@ class FixIotTelemetry(models.Model):
             "metric",
             "value",
             "unit",
+            "anonymised",
         }
 
     @api.model_create_multi
@@ -214,11 +222,45 @@ class FixIotTelemetry(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    device_id = fields.Many2one("fix.iot.device", required=True, ondelete="cascade", index=True)
+    # A07 (2026-11-07): a reading loses its device only when it is anonymised
+    # after a withdrawn consent (the CHECK below); every other reading has one.
+    device_id = fields.Many2one("fix.iot.device", ondelete="cascade", index=True)
     timestamp = fields.Datetime(required=True, default=fields.Datetime.now, index=True)
     metric = fields.Char(required=True, help="e.g. temperature, vibration, gps_lat")
     value = fields.Float(required=True)
     unit = fields.Char(help="e.g. C, mm/s, deg")
+    anonymised = fields.Boolean(
+        string="Anonymised",
+        default=False,
+        readonly=True,
+        help="The link to the device was removed and the time rounded to the hour, after "
+        "the consent covering it was withdrawn.",
+    )
+
+    _device_or_anonymised = models.Constraint(
+        "CHECK (device_id IS NOT NULL OR anonymised)",
+        "A reading names its device unless it has been anonymised.",
+    )
+
+    def _fix_anonymise(self):
+        """Treat these readings under a withdrawn consent: nothing left ties them
+        to the data subject. A location series IS the person's whereabouts, so
+        no rounding makes it anonymous: it is deleted. Returns (anonymised,
+        deleted)."""
+        location = self.filtered(lambda r: _is_location_metric(r.metric)).sudo()
+        deleted = len(location)
+        location.unlink()
+        rest = self.exists().sudo()
+        for reading in rest:
+            reading._guarded().write(
+                {
+                    "device_id": False,
+                    "operating_unit_id": False,
+                    "anonymised": True,
+                    "timestamp": reading.timestamp.replace(minute=0, second=0, microsecond=0),
+                }
+            )
+        return len(rest), deleted
 
 
 # What a resolved alert keeps unchanged for users.
@@ -356,11 +398,13 @@ class FixPredictiveMaintenance(models.Model):
     # MODEL'S OUTPUT, and an output is recorded, never rewritten — a plain
     # user could flip healthy/0.95 to failure_predicted/0.2 after the fact
     # and raise a work order from a decision no engine made. Recording a NEW
-    # prediction stays free (that is the intake act); an existing row's
-    # output half is locked here and shown read-only on the P03 form. A
-    # re-assessment records a NEW prediction row — the same decision-log
-    # rule the M26 inference runs follow.
+    # prediction is the intake act, the IoT Operator's since A07 (2026-11-07);
+    # an existing row's output half is locked here and shown read-only on the
+    # P03 form. A re-assessment records a NEW prediction row — the same
+    # decision-log rule the M26 inference runs follow. A score belongs to the
+    # equipment it was computed for, so re-pointing it is the same forgery.
     _OUTPUT_FIELDS = {
+        "equipment_id",
         "prediction",
         "confidence",
         "estimated_days_to_failure",
@@ -386,10 +430,28 @@ class FixPredictiveMaintenance(models.Model):
         }
 
     def _fix_form_locked_fields(self) -> set:
-        # The output half is locked ON THE FORM for every existing record
-        # (P03 reads this), but not via _fix_guarded_fields so RECORDING a
-        # new prediction keeps its natural create values.
-        return super()._fix_form_locked_fields() | self._OUTPUT_FIELDS
+        # The output half is locked ON THE FORM for every existing record (P03
+        # reads this). An empty recordset is a new form: A07 (2026-11-07) locking
+        # it too dropped the score on save, so every new prediction was stored
+        # as "healthy" with a blank model.
+        locked = super()._fix_form_locked_fields()
+        return locked | self._OUTPUT_FIELDS if self else locked
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        person = not self.env.su
+        if person:
+            _require_operator(self.env, "Recording a prediction")
+        now = fields.Datetime.now()
+        for vals in vals_list:
+            vals.setdefault("last_evaluated", now)
+        records = super().create(vals_list)
+        if person:
+            # A person records a score a published model produced: no check of
+            # the M26 registry is optional here, and a blank model is not one.
+            for rec in records:
+                rec._fix_assert_published_model("Recording this prediction")
+        return records
 
     def write(self, vals):
         # P02: the lock itself. Only the engine (superuser code or a guard
@@ -465,7 +527,12 @@ class FixPredictiveMaintenance(models.Model):
         copy=False,
         ondelete="set null",
     )
-    work_order_created = fields.Boolean(default=False, readonly=True)
+    # A07 (2026-11-07): set when the request is made, before any order exists,
+    # so it says "requested". The demand and the order are on the spine; dismissing
+    # the demand clears this, and the request can be made again.
+    work_order_created = fields.Boolean(
+        string="Preventive Work Order Requested", default=False, readonly=True
+    )
     action_ids = fields.One2many("fix.iot.action", "prediction_id", string="Prescriptive Actions")
 
     # M48-5: confidence 5.0 was shown as 500% and -30 days was accepted.
@@ -518,13 +585,33 @@ class FixPredictiveMaintenance(models.Model):
         for rec in self:
             rec.model_published = bool(rec._fix_published_model())
 
+    def _fix_published_codes(self):
+        """The codes a prediction may name: production M26 predictive-maintenance
+        models (none when M26 is not installed)."""
+        if "fix.ml.model" not in self.env:
+            return []
+        return (
+            self.env["fix.ml.model"]
+            .sudo()
+            .search([("kind", "=", "predictive_maintenance"), ("status", "=", "production")])
+            .mapped("code")
+        )
+
     def _fix_assert_published_model(self, what):
         for rec in self:
             if not rec._fix_published_model():
+                codes = rec._fix_published_codes()
                 raise UserError(
                     "%s refused: prediction %s names model '%s', which is not a published "
-                    "(production) M26 predictive-maintenance model. An unpublished model is "
-                    "never applied (BRU-IOT-10)." % (what, rec.name, rec.model_name or "")
+                    "M26 predictive-maintenance model. %s"
+                    % (
+                        what,
+                        rec.name,
+                        rec.model_name or "(none)",
+                        "Name one of: %s." % ", ".join(codes)
+                        if codes
+                        else "No such model is published in M26 yet.",
+                    )
                 )
 
     def _fix_record_outcome(self, outcome, note, action):
@@ -534,6 +621,14 @@ class FixPredictiveMaintenance(models.Model):
         rights on the prediction; who recorded it is stamped explicitly."""
         uid = self.env.uid
         for rec in self.sudo():
+            # A07 (2026-11-07): a second action on the prediction overwrote the
+            # finding the first one recorded.
+            if rec.outcome != "pending":
+                raise UserError(
+                    "Prediction %s already has its outcome, recorded by action %s: a "
+                    "re-assessment records a new prediction."
+                    % (rec.name, rec.outcome_action_id.name or "-")
+                )
             rec.write(
                 {
                     "outcome": outcome,
@@ -544,14 +639,34 @@ class FixPredictiveMaintenance(models.Model):
                 }
             )
 
+    def _fix_preventive_min_confidence(self):
+        raw = self.env["ir.config_parameter"].sudo().get_param(PREVENTIVE_MIN_CONFIDENCE_PARAM)
+        try:
+            value = float(raw) if raw not in (None, False, "") else None
+        except (TypeError, ValueError):
+            value = None
+        if value is None or not 0.0 <= value <= 1.0:
+            return PREVENTIVE_MIN_CONFIDENCE_DEFAULT
+        return value
+
     def action_create_preventive_wo(self):
-        """Wire predicted failures into M02 dispatch as preventive work."""
+        """Request preventive work on a predicted failure: the spine raises the
+        demand and its order from the event. A07 (2026-11-07): the IoT Operator's
+        decision, on a score confident enough."""
+        _require_operator(self.env, "Requesting a preventive work order")
+        minimum = self._fix_preventive_min_confidence()
         for rec in self:
             if rec.prediction != "failure_predicted":
                 raise UserError("Only failure predictions create preventive work orders")
             if rec.work_order_created:
-                raise UserError("Work order already created for this prediction")
+                raise UserError("A preventive work order was already requested for this prediction")
             rec._fix_assert_published_model("Raising a preventive work order")
+            if (rec.confidence or 0.0) < minimum:
+                raise UserError(
+                    "Prediction %s has confidence %s, below the %s a preventive work order "
+                    "needs (setting %s)."
+                    % (rec.name, rec.confidence or 0.0, minimum, PREVENTIVE_MIN_CONFIDENCE_PARAM)
+                )
             rec._guarded().write({"work_order_created": True})
             publish(
                 self.env,

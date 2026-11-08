@@ -220,6 +220,8 @@ export const SCREENS = {
           { name: 'immediate_notification_required', label: 'Immediate Phone/Fax Notice Required', readonly: true },
           { name: 'dife_notice_ref', label: 'DIFE Notice Dispatch Ref', readonly: true },
           { name: 'statutory_record_id', label: 'Form 28 Accident Register Record', readonly: true },
+          { name: 'site_incident_id', label: 'Raised From Site Incident', readonly: true },
+          { name: 'source_notice_due_on', label: 'Site Incident Notice Reminder', readonly: true },
           { name: 'description', type: 'text', label: 'Factual Event Description' }
         ]
       },

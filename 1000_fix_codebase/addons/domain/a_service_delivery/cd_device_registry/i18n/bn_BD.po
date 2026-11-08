@@ -208,10 +208,6 @@ msgid "Gift"
 msgstr "উপহার"
 
 #. module: cd_device_registry
-msgid "Group By"
-msgstr "গ্রুপ অনুযায়ী"
-
-#. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__casing
 msgid "Housing / Chassis"
 msgstr "হাউজিং / চেসিস"
@@ -223,6 +219,7 @@ msgstr "পরিচয়"
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_1
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__imei_1
 msgid "IMEI 1"
 msgstr "IMEI ১"
 
@@ -230,11 +227,6 @@ msgstr "IMEI ১"
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_2
 msgid "IMEi 2 (Dual SIM)"
 msgstr "IMEI ২ (ডুয়াল সিম)"
-
-#. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__in_service
-msgid "In Service"
-msgstr "সেবায় সচল"
 
 #. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__warranty_status__in_warranty
@@ -372,20 +364,10 @@ msgid "Repair"
 msgstr "মেরামত"
 
 #. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__repaired
-msgid "Repaired"
-msgstr "মেরামতকৃত"
-
-#. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__return
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__return
 msgid "Return"
 msgstr "ফেরত"
-
-#. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__returned
-msgid "Returned to Owner"
-msgstr "মালিকের কাছে ফেরতকৃত"
 
 #. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__sale
@@ -399,6 +381,7 @@ msgstr "স্ক্র্যাপকৃত"
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__serial_number
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__serial_number
 msgid "Serial Number"
 msgstr "সিরিয়াল নম্বর"
 
@@ -532,6 +515,7 @@ msgstr "নিশ্চিতকারী"
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__supersede_reason
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_reason
 msgid "Correction Reason"
 msgstr "সংশোধনের কারণ"
 
@@ -847,3 +831,68 @@ msgstr "যাচাই"
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__void_reason
 msgid "Void Reason"
 msgstr "বাতিলের কারণ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__register_provisional
+msgid "Register as Provisional"
+msgstr "অস্থায়ী হিসেবে নিবন্ধন করুন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__provisional_reason
+msgid "Why the Identity Is Unconfirmed"
+msgstr "পরিচয় অনিশ্চিত থাকার কারণ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__provisional_reason
+msgid "Recorded at registration: why neither a serial nor an IMEI could be confirmed."
+msgstr "নিবন্ধনের সময় লিপিবদ্ধ: কেন সিরিয়াল বা IMEI কোনোটিই নিশ্চিত করা যায়নি।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_field
+msgid "Identifier to Correct"
+msgstr "সংশোধনযোগ্য শনাক্তকারী"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_value
+msgid "Corrected Value"
+msgstr "সংশোধিত মান"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__imei_2
+msgid "IMEI 2"
+msgstr "IMEI ২"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_evidence_file
+msgid "Upload Transfer Evidence"
+msgstr "হস্তান্তরের প্রমাণ আপলোড করুন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_evidence_filename
+msgid "Evidence File Name"
+msgstr "প্রমাণ ফাইলের নাম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__evidence_file
+msgid "Upload Photograph"
+msgstr "ছবি আপলোড করুন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__evidence_filename
+msgid "Photograph File Name"
+msgstr "ছবির ফাইলের নাম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__proof_file
+msgid "Upload Proof"
+msgstr "প্রমাণ আপলোড করুন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__proof_filename
+msgid "Proof File Name"
+msgstr "প্রমাণ ফাইলের নাম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_identifier__source__backfill
+msgid "Recorded from the device record (captured before history existed)"
+msgstr "ডিভাইস রেকর্ড থেকে লিপিবদ্ধ (ইতিহাস শুরুর আগে সংগৃহীত)"

@@ -13,6 +13,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_asset_alert_company" model="ir.rule">
+        <field name="name">fix.asset.alert: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_alert"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
     <!-- A07 P1 wiring: a quality re-check is read where its service order is. -->
     <record id="rule_fix_service_order_recheck_company" model="ir.rule">
         <field name="name">fix.service.order.recheck: allowed companies</field>

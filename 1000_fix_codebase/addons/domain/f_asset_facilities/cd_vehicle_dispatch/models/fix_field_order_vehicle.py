@@ -48,6 +48,14 @@ class FixVehicleAssignmentDispatch(models.Model):
         help="Created by M02 dispatch; removed when no field order holds it any more.",
     )
 
+    def _fix_held_orders(self):
+        """A live order holds its booking: the dispatch sync moves it with the
+        order. Changed or released on the M46 screen, the order would keep the
+        old van, and the gate would have passed a booking nobody travels in."""
+        self.ensure_one()
+        orders = self.sudo().field_order_ids.filtered(lambda o: o.state in _LIVE_STATES)
+        return orders.mapped("name")
+
 
 class FixFieldOrderVehicle(models.Model):
     _inherit = "fix.field.order"
@@ -82,7 +90,9 @@ class FixFieldOrderVehicle(models.Model):
             missing = self.filtered(lambda r: not r.vehicle_id)
             if missing:
                 raise UserError(
-                    "Name the vehicle before dispatching %s." % ", ".join(missing.mapped("name"))
+                    "Name the vehicle before dispatching %s: open the order, choose the "
+                    "Vehicle on its Dispatch & Zone tab, save, then dispatch again."
+                    % ", ".join(missing.mapped("name"))
                 )
         res = super(
             FixFieldOrderVehicle, self.with_context(**{_DEFER_KEY: _DEFER})
@@ -95,6 +105,10 @@ class FixFieldOrderVehicle(models.Model):
     def write(self, vals):
         touched = _VEHICLE_FIELDS & set(vals)
         if touched and not self._fix_guard_open():
+            # The form posts every field it shows, so a technician's note echoes
+            # the vehicle: only a change is the dispatcher's decision.
+            if any(r._fix_guard_differs(n, vals[n], r[n]) for r in self.sudo() for n in touched):
+                self._fix_require_dispatcher("Choosing the vehicle of a field order")
             closed = self.filtered(
                 lambda r: r.state in ("completed", "cancelled")
                 and any(r._fix_guard_differs(n, vals[n], r[n]) for n in touched)

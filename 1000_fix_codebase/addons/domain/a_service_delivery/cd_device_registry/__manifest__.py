@@ -11,7 +11,7 @@ Warranty status (consumed by M09 in Phase 7). Ownership and transfer-of-ownershi
 (exposed to customers via portal P01 in Phase 5). Device history — every service
 order against a device, permanently.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Registry",

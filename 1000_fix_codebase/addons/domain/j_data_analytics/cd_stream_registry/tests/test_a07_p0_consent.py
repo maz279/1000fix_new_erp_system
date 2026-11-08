@@ -19,6 +19,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 TAG = uuid.uuid4().hex[:6].upper()
 REFUSED = (UserError, ValidationError, AccessError)
 PARAM = "cd_stream_registry.consent_required_for"
+SIGNALS = "vibration, temperature, gps, battery, humidity, position"
 m48 = importlib.import_module("odoo.addons.cd_p03_portal.controllers.a07.m48")
 
 
@@ -86,6 +87,11 @@ def consent(c, user=None, **kw):
         "device_id": c.device.id,
         "purpose": "service",
         "valid_to": date.today() + timedelta(days=365),
+        # A07 (2026-11-07): an officer's consent is verified as recorded only with
+        # the evidence action_verify asks for.
+        "evidence_ref": "signed form",
+        "granted_by": "the data subject",
+        "signal_groups_permitted": SIGNALS,
     }
     vals.update(kw)
     return c.env["fix.iot.consent"].with_user(user or c.clerk).create(vals)

@@ -75,7 +75,7 @@ class FixDeviceIdentifier(models.Model):
             ("registration", "Registration"),
             ("capture", "Captured later (intake)"),
             ("correction", "Correction"),
-            ("backfill", "Recorded at first correction (captured before history existed)"),
+            ("backfill", "Recorded from the device record (captured before history existed)"),
         ],
         required=True,
     )
@@ -280,6 +280,14 @@ class FixDeviceMerge(models.Model):
             ids = [r[0] for r in cr.fetchall()]
             if ids:
                 found.setdefault(model_name, {})[fname] = ids
+        # Documents hang off a device by model and id, not a many2one, so the
+        # sweep above never saw them: the merge left them on the archived row.
+        cr.execute(
+            "SELECT id FROM fix_document WHERE res_model = 'fix.device' AND res_id = %s", (dup.id,)
+        )
+        documents = [r[0] for r in cr.fetchall()]
+        if documents:
+            found.setdefault("fix.document", {})["res_id"] = documents
         moved = self._move(found, dup, survivor)
         days = int(
             self.env["ir.config_parameter"]
@@ -386,6 +394,72 @@ class FixDeviceLineage(models.Model):
                 if i.is_current and i.identifier_type in ("imei_1", "imei_2")
             }
             rec.neir_status = next((s for s in _NEIR_RANK if s in states), "not_checked")
+
+    @api.model
+    def resolve_identifier(self, code):
+        """The device an identifier a person holds belongs to: the registered one,
+        or the survivor when it was merged away (FR-AST-004, the intake lookup).
+        The match is normalised for case and spacing, across archived devices, and
+        the caller's own record rules decide whether the answer may be read."""
+        code = (code or "").strip()
+        if not code:
+            return self.browse()
+        self.flush_model(["serial_number", "imei_1", "imei_2", "active"])
+        self.env.cr.execute(
+            "SELECT id FROM fix_device WHERE upper(btrim(serial_number)) = upper(%s) "
+            "OR imei_1 = %s OR imei_2 = %s ORDER BY active DESC NULLS LAST, id DESC LIMIT 1",
+            (code, code, code),
+        )
+        row = self.env.cr.fetchone()
+        if not row:
+            return self.browse()
+        device = self.sudo().with_context(active_test=False).browse(row[0])
+        survivor = device._merge_survivor()
+        return self.browse(survivor.ids)._filtered_access("read")
+
+    @api.model
+    def _identifier_backfill(self):
+        """A row in the identifier history for every identifier a device already
+        carries that has none (A07 operability M17: 0 rows against 53 IMEIs, so
+        the NEIR actions had nothing to act on). It records what the device row
+        says and nothing new; run again it adds nothing. Who captured it is not
+        known, so it is left empty rather than guessed. Returns the rows added."""
+        self.env.flush_all()
+        self.env.cr.execute(
+            "SELECT device_id, identifier_type FROM fix_device_identifier WHERE is_current"
+        )
+        known = set(self.env.cr.fetchall())
+        Identifier = self.env["fix.device.identifier"].sudo()._guarded()
+        devices = (
+            self.sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    "|",
+                    "|",
+                    ("serial_number", "!=", False),
+                    ("imei_1", "!=", False),
+                    ("imei_2", "!=", False),
+                ]
+            )
+        )
+        now = fields.Datetime.now()
+        vals = [
+            {
+                "device_id": device.id,
+                "identifier_type": name,
+                "value": device[name],
+                "value_normalised": device[name].strip().upper(),
+                "source": "backfill",
+                "captured_at": device.create_date or now,
+            }
+            for device in devices
+            for name, _label in IDENTIFIER_TYPES
+            if device[name] and (device.id, name) not in known
+        ]
+        if vals:
+            Identifier.create(vals)
+        return len(vals)
 
     def _identifier_capture(self, names, source):
         """Record the current value of each named identifier (first capture)."""

@@ -75,7 +75,14 @@ def c(odoo_env):
         {"code": f"P1M48-EQ-{TAG}", "name": f"P1M48 Compressor {TAG}", "category": "Electrical"}
     )
     x.adapter = env["fix.iot.adapter"].create(
-        {"name": f"P1M48 MQTT {TAG}", "protocol": "mqtt", "auth_mode": "token"}
+        {
+            "name": f"P1M48 MQTT {TAG}",
+            "protocol": "mqtt",
+            "auth_mode": "token",
+            # in service: born disabled, enabled by an administrator with a key
+            "state": "enabled",
+            "api_key_hash": "0" * 64,
+        }
     )
     x.device = env["fix.iot.device"].create(
         {"name": f"P1M48 Dev {TAG}", "device_id": f"P1M48-{TAG}", "equipment_id": x.equipment.id}
@@ -182,7 +189,7 @@ def test_disabled_adapter_stops_ingest_for_everyone(c):
     assert (c.adapter.state, c.adapter.disabled_by) == ("disabled", c.clerk)
     with pytest.raises(UserError, match="disabled"), c.env.cr.savepoint():
         c.stream.ingest(1.0)  # even the superuser gateway
-    # only the administrator turns it back on, and only with a credential
+    # only the administrator turns it back on, and only with a credential and a key
     assert refused(c.env, lambda: c.adapter.with_user(c.clerk).action_enable())
     assert refused(c.env, lambda: c.adapter.with_user(c.admin).action_enable())
     c.adapter.with_user(c.admin).write({"credential_ref": "vault:iot/mqtt/p1m48"})
@@ -192,13 +199,17 @@ def test_disabled_adapter_stops_ingest_for_everyone(c):
 
 def test_unauthenticated_adapter_and_secret_in_endpoint_refused(c):
     Adapter = c.env["fix.iot.adapter"].with_user(c.admin)
-    assert refused(c.env, lambda: Adapter.create({"name": "open", "auth_mode": "none"}))
+    # born disabled it harms nothing, but it can never be turned on
+    opened = Adapter.create({"name": "open", "auth_mode": "none"})
+    assert opened.state == "disabled"
+    assert refused(c.env, lambda: opened.action_enable())
+    assert refused(c.env, lambda: opened.sudo()._guarded().write({"state": "enabled"}))
     assert refused(
         c.env,
         lambda: Adapter.create({"name": "leaky", "endpoint": "mqtt://iot:s3cret@broker.test"}),
     )
     ok = Adapter.create({"name": "fine", "endpoint": "mqtts://broker.test:8883"})
-    assert ok.state == "enabled"
+    assert ok.state == "disabled", "born disabled: enabling needs a credential and a key"
     # a legacy enabled adapter with no authentication: ingest refuses it
     c.adapter._guarded().write({"state": "disabled"})
     c.env.flush_all()

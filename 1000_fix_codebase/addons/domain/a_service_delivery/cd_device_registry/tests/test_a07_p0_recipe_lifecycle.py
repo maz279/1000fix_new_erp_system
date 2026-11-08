@@ -163,6 +163,7 @@ def test_lost_flag_stamps_who_and_when_and_another_user_clears(c, p03):
 
 def test_scrap_is_routed_to_tier2_and_never_self_approved(c):
     d = dev(c)
+    d.write({"eol_customer_instruction": "recycle"})  # BRU-AST-19
     as_clerk = d.with_user(c.clerk)
     # the apply method cannot be pressed, not even by a Tier 2 holder
     for user in (c.clerk, c.manager):
@@ -192,6 +193,7 @@ def test_scrap_is_routed_to_tier2_and_never_self_approved(c):
 
 def test_a_pending_scrap_is_voided_by_an_ownership_transfer(c):
     d = dev(c)
+    d.write({"eol_customer_instruction": "recycle"})  # BRU-AST-19
     d.with_user(c.clerk).action_request_approval(justification="customer abandoned it")
     assert d.approval_state == "pending"
     # P1: the transfer is recorded by an agent with a reason and evidence
@@ -403,7 +405,7 @@ def test_pm_done_rolls_next_due_on_and_state_is_guarded(c):
 def _doc(c):
     att = c.env["ir.attachment"].create({"name": "deed.pdf", "raw": b"%PDF-1.4 a7rc"})
     return c.env["fix.document"].create(
-        {"name": "Sale deed", "attachment_id": att.id, "document_type": "contract"}
+        {"name": "Sale deed", "attachment_id": att.id, "document_type": "asset_document"}
     )
 
 

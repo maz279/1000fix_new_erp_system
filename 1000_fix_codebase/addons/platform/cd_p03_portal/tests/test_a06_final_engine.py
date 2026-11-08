@@ -118,18 +118,20 @@ def test_status_value_serves_only_a_workflow_kind_of_field(call, clerk_env, orde
 def test_a_list_beyond_the_limit_says_so_and_keeps_the_records_value(
     call, clerk_env, order, odoo_env
 ):
-    with mock.patch.object(api, "_CHOICE_LIMIT", 2):
+    with mock.patch.object(api, "PICKER_LIMIT", 2):
         odoo_env["res.partner"].create([{"name": "Filler %d" % i} for i in range(3)])
         res = call(clerk_env, "model_form", model=PO, fields=_vendor_spec(), record_id=order.id)
     meta = res["fields"][0]
-    assert meta["truncated"] is True
+    # a header many2one becomes a search box, and still shows the record's value
+    assert meta["truncated"] is True and meta["remote"] is True
     assert order.vendor_id.id in [c["id"] for c in meta["choices"]]
 
 
 def test_a_short_list_is_not_marked_truncated(call, clerk_env, order):
-    with mock.patch.object(api, "_CHOICE_LIMIT", 10**7):
+    with mock.patch.object(api, "PICKER_LIMIT", 10**7):
         res = call(clerk_env, "model_form", model=PO, fields=_vendor_spec(), record_id=order.id)
-    assert "truncated" not in res["fields"][0]
+    meta = res["fields"][0]
+    assert meta["truncated"] is False and meta["remote"] is False and meta["choices"]
 
 
 def test_server_search_finds_a_record_beyond_the_limit(call, clerk_env, odoo_env):
@@ -182,6 +184,8 @@ def test_server_search_refuses_a_field_with_no_choices(call, clerk_env):
 def test_a_filter_that_could_read_a_value_is_refused(call, clerk_env, order, domain):
     res = call(clerk_env, "model_choices", model=PO, field="vendor_id", q="", domain=domain)
     assert res == {"error": "This list's filter is not valid"}
+    res = call(clerk_env, "model_lookup", model=PO, field="vendor_id", term="", domain=domain)
+    assert res == {"error": "This list's filter is not valid"}
     res = call(
         clerk_env, "model_form", model=PO, fields=_vendor_spec(domain=domain), record_id=order.id
     )
@@ -208,3 +212,21 @@ def test_above_zero_is_the_one_numeric_test_allowed(call, clerk_env, odoo_env):
     assert api._choice_domain(odoo_env, "res.partner", [["color", ">", 0]]) == [["color", ">", 0]]
     with pytest.raises(api.UserError):
         api._choice_domain(odoo_env, "res.partner", [["color", ">", 5]])
+
+
+def test_a_dangling_operator_cannot_or_past_the_company_fence(odoo_env):
+    """The declared filter is ANDed with the surface's company fence; a lone
+    "|" would otherwise OR the fence away."""
+    for domain in (["|", ["active", "=", True]], ["|"], ["!"]):
+        with pytest.raises(api.UserError):
+            api._choice_domain(odoo_env, "res.partner", domain)
+
+
+def test_search_reads_a_rule_fenced_comodel_as_the_caller(odoo_env):
+    """A comodel whose own screens apply record rules is searched as the
+    caller, never sudo, so a picker cannot list the rows those screens hide."""
+    fenced = next((m for m, conf in api.SURFACES.items() if conf.get("rules")), None)
+    if not fenced:
+        pytest.skip("no surface declares rules")
+    assert not api._picker_source(odoo_env, fenced).env.su
+    assert api._picker_source(odoo_env, "res.partner").env.su

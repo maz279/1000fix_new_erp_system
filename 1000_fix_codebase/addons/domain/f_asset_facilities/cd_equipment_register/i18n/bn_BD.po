@@ -431,3 +431,23 @@ msgstr "অবলোপন অনুমোদনকারী"
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__retirement_reason
 msgid "Write-Off Reason"
 msgstr "অবলোপনের কারণ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__provider_accredited
+msgid "Provider Accredited"
+msgstr "প্রদানকারী অ্যাক্রেডিটেড"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__certificate_file
+msgid "Certificate File"
+msgstr "সার্টিফিকেট ফাইল"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__certificate_filename
+msgid "Certificate File Name"
+msgstr "সার্টিফিকেট ফাইলের নাম"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__usage_line_ids
+msgid "Affected Use Lines"
+msgstr "প্রভাবিত ব্যবহারের সারি"

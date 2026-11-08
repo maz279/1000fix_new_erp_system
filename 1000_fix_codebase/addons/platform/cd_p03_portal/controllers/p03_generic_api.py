@@ -10,11 +10,14 @@
 #
 # Nothing here invents data: rows are live reads of the real models; actions
 # are the SAME methods the Odoo forms would call. Internal-user only (NVR-22).
+import datetime
 import logging
 
 import psycopg2
+import pytz
 from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.fields import Domain
 from odoo.http import request
 
 from . import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12
@@ -85,6 +88,76 @@ def _readonly_changed(rec, field, value) -> bool:
     return (value or "") != (current or "")
 
 
+# A many2one whose comodel holds more rows than this is searched on the server
+# as the user types: a select of the first 300 of 15,000 customers hid the rest.
+PICKER_LIMIT = 300
+# 1000 FiX runs on Dhaka time; a user with no zone set must not read UTC.
+DEFAULT_TZ = "Asia/Dhaka"
+
+
+def _user_tz(env):
+    try:
+        return pytz.timezone(env.user.tz or env.context.get("tz") or DEFAULT_TZ)
+    except pytz.UnknownTimeZoneError:
+        return pytz.timezone(DEFAULT_TZ)
+
+
+def _datetime_to_local(env, value) -> str:
+    """A stored (UTC) datetime as the user's wall clock."""
+    if not value:
+        return ""
+    moment = fields.Datetime.to_datetime(value)
+    return pytz.utc.localize(moment).astimezone(_user_tz(env)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _datetime_to_utc(env, text):
+    """What a person typed or a form echoed (their wall clock) as stored UTC."""
+    if not text or not isinstance(text, str):
+        return text
+    try:
+        moment = datetime.datetime.fromisoformat(text.replace("T", " ", 1)[:19])
+    except ValueError:
+        return text
+    return (
+        _user_tz(env)
+        .localize(moment)
+        .astimezone(pytz.utc)
+        .replace(tzinfo=None)
+        .strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+
+def _picker_domain(env, surface, comodel, name) -> list:
+    """Which rows a many2one offers: what its surface declares under `pickers`
+    (an insurer is not every partner), fenced to the caller's companies. The
+    domain is never taken from the browser: these reads run sudo, so a domain
+    from the client would let it search any column of any comodel."""
+    domain = list(((surface or {}).get("pickers") or {}).get(name) or [])
+    if "company_id" in env[comodel]._fields:
+        domain += ["|", ("company_id", "=", False), ("company_id", "in", env.companies.ids)]
+    return domain
+
+
+def _picker_source(env, comodel):
+    """Where a picker reads. Names are read sudo, since a clerk may pick a partner they
+    hold no ACL on. A comodel whose own screens are fenced by record rules is read as the
+    caller instead, or a picker would hand over the rows those screens hide."""
+    return env[comodel] if (SURFACES.get(comodel) or {}).get("rules") else env[comodel].sudo()
+
+
+def _child_value_changed(rec, field, value) -> bool:
+    """Would this value change a child row? A form re-sends every row it shows,
+    so an unchanged echo must not reach a guarded grid (a calibration's readings
+    are insert-only, and the echo made every save of its parent refuse)."""
+    if field.type in ("one2many", "many2many"):
+        return True
+    if field.type == "binary":
+        current = rec[field.name]
+        current = current.decode() if isinstance(current, bytes) else current
+        return (value or False) != (current or False)
+    return _readonly_changed(rec, field, value)
+
+
 def _locked_fields(records) -> set:
     """Workflow-locked fields for these records (an empty recordset = a new
     one): fix.guarded.mixin's guarded fields plus whatever the model freezes
@@ -141,8 +214,12 @@ for _model, _conf in _A11_SURFACES.items():
 # fields never returned over the generic endpoint
 _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
 _FAILED = "The request could not be completed — try again or contact Finance support."
-# how many many2one choices a form carries before its input turns to server search
-_CHOICE_LIMIT = 300
+# Hard ceiling for an explicit limit override (the export path): an artefact
+# must carry the whole grid the screen serves — the real item master is
+# 14k+ rows — while a stray request cannot ask for the estate unbounded.
+_EXPORT_MAX_ROWS = 50_000
+
+
 # what a picker's filter may test. The filter arrives from the client and runs
 # under sudo, so a free text or amount test would let any internal user guess a
 # field they cannot read, one character at a time (a bank account number, say).
@@ -158,6 +235,11 @@ def _choice_domain(env, comodel, domain):
     domain = domain or []
     if not isinstance(domain, list | tuple):
         raise UserError("This list's filter is not valid")
+    try:
+        # well formed, or a dangling "|" would OR past the company fence it is ANDed with
+        Domain(list(domain))
+    except (ValueError, TypeError) as exc:
+        raise UserError("This list's filter is not valid") from exc
     for leaf in domain:
         if leaf in ("&", "|", "!"):
             continue
@@ -191,7 +273,17 @@ class P03GenericApiController(http.Controller):
     _LANGS = {"en": "en_US", "en_US": "en_US", "bn": "bn_BD", "bn_BD": "bn_BD"}
 
     @http.route("/p03/model/records", type="jsonrpc", auth="user", readonly=True)
-    def model_records(self, model=None, cols=None, domain=None, state_filter=None, lang=None, **kw):
+    def model_records(
+        self,
+        model=None,
+        cols=None,
+        domain=None,
+        state_filter=None,
+        lang=None,
+        search=None,
+        offset=0,
+        **kw,
+    ):
         _require_internal(request.env)
         env = request.env
         conf = SURFACES.get(model)
@@ -244,7 +336,12 @@ class P03GenericApiController(http.Controller):
                 search_domain += ["|"] * (len(paths) - 1) + [
                     (path, "in", env.companies.ids) for path in paths
                 ]
-            records = rec_model.search(search_domain, order=conf["order"], limit=conf["limit"])
+            search_domain += self._records_search_domain(env[model], cols, search)
+            offset = max(int(offset or 0), 0)
+            effective_limit = min(int(kw.get("limit") or conf["limit"]), _EXPORT_MAX_ROWS)
+            records = rec_model.search(
+                search_domain, order=conf["order"], limit=effective_limit, offset=offset
+            )
             raw = records.read(cols) if records else []
             rows = []
             for rec in raw:
@@ -261,7 +358,7 @@ class P03GenericApiController(http.Controller):
                         # printed it — M13 turnaround regrade, audit D4 class)
                         row[c] = {"key": v, "label": labels.get(v, v)} if v else ""
                     elif meta.get("type") == "datetime" and v:
-                        row[c] = str(v)[:16]
+                        row[c] = _datetime_to_local(env, v)[:16]
                     elif v is False and meta.get("type") != "boolean":
                         # Odoo returns `false` for EVERY empty field; only a
                         # BOOLEAN false is a real ✗ — an empty phone/name is
@@ -273,13 +370,16 @@ class P03GenericApiController(http.Controller):
             # total beyond the page: "200 of 15,413" — a bare "200 records"
             # reads as the whole base when the limit clipped it
             total = (
-                rec_model.search_count(search_domain) if len(rows) >= conf["limit"] else len(rows)
+                rec_model.search_count(search_domain)
+                if offset or len(rows) >= effective_limit
+                else len(rows)
             )
             return {
                 "model": model,
                 "rows": rows,
                 "count": len(rows),
                 "total": total,
+                "offset": offset,
                 "labels": {c: fields_meta[c]["string"] for c in cols if c in fields_meta},
                 # column types so the grid formats by FIELD TYPE, never by
                 # magnitude (a ৳800 damage figure must not read as "800", and
@@ -292,6 +392,67 @@ class P03GenericApiController(http.Controller):
             raise  # http.py retries a read-only route on a read/write cursor
         except Exception:
             _logger.exception("p03 model_records failed for %s", model)
+            return {"error": _FAILED}
+
+    @staticmethod
+    def _records_search_domain(records, cols, term) -> list:
+        """Quick Find on the server, so it reaches rows beyond the loaded page.
+        It searches only the columns the screen shows, and only those SQL can
+        search; a selection is matched on its label."""
+        term = (term or "").strip()
+        if not term:
+            return []
+        parts = []
+        for name in cols:
+            field = records._fields.get(name)
+            if not field or not (field.store or field.search):
+                continue
+            if field.type in ("char", "text", "html", "many2one"):
+                parts.append((name, "ilike", term))
+            elif field.type == "selection":
+                keys = [
+                    key
+                    for key, label in field._description_selection(records.env)
+                    if term.lower() in str(label).lower()
+                ]
+                if keys:
+                    parts.append((name, "in", keys))
+        if not parts:
+            return []
+        return ["|"] * (len(parts) - 1) + parts
+
+    @http.route("/p03/model/lookup", type="jsonrpc", auth="user", readonly=True)
+    def model_lookup(self, model=None, field=None, term=None, limit=30, **kw):
+        """A many2one search box: a declared form field's choices, as the user types."""
+        _require_internal(request.env)
+        env = request.env
+        conf = SURFACES.get(model)
+        if not conf:
+            return {"error": "Model not served by the workspace screens"}
+        try:
+            env[model].check_access("read")
+            spec = env[model]._fields.get(field)
+            writable = conf.get("writable")
+            if (
+                not spec
+                or spec.type not in ("many2one", "many2many")
+                or (writable is not None and field not in writable)
+            ):
+                return {"error": "This field cannot be searched on this screen."}
+            declared = _choice_domain(env, spec.comodel_name, kw.get("domain"))
+            domain = Domain.AND(
+                [Domain(declared), Domain(_picker_domain(env, conf, spec.comodel_name, field))]
+            )
+            found = _picker_source(env, spec.comodel_name).name_search(
+                term or "", domain, limit=min(int(limit or 30), 50)
+            )
+            return {"rows": [{"id": row[0], "label": row[1]} for row in found]}
+        except (UserError, AccessError) as exc:
+            return {"error": _user_error(exc)}
+        except psycopg2.errors.ReadOnlySqlTransaction:
+            raise
+        except Exception:
+            _logger.exception("p03 model_lookup failed for %s.%s", model, field)
             return {"error": _FAILED}
 
     @http.route("/p03/model/report", type="jsonrpc", auth="user", readonly=True)
@@ -426,12 +587,19 @@ class P03GenericApiController(http.Controller):
             return v.get("label") or v.get("name") or ""
         return v
 
-    def _model_list_export_payload(self, model, cols, lang):
+    def _model_list_export_payload(self, model, cols, lang, limit=None):
         """{rows (flattened), labels, title, count} for a served model —
-        the /p03/model/records read, reused verbatim."""
+        the /p03/model/records read, reused verbatim. The export passes an
+        explicit limit so the artefact carries the WHOLE grid the screen
+        serves (the real item master is 14k+ rows), never one UI page."""
         col_list = [c for c in (cols or "").split(",") if c] or None
         data = self.model_records(
-            model=model, cols=col_list, domain=[], state_filter=None, lang=lang
+            model=model,
+            cols=col_list,
+            domain=[],
+            state_filter=None,
+            lang=lang,
+            limit=limit or _EXPORT_MAX_ROWS,
         )
         if data.get("error"):
             return None, data["error"]
@@ -462,7 +630,20 @@ class P03GenericApiController(http.Controller):
             out = dict(payload, title=(model or "records").replace(".", " ").title(), notes=[])
             return self._report_xlsx(out, payload["cols"], payload["labels"], base_name, {})
         if format == "pdf":
-            return self._list_pdf(payload, base_name)
+            # a printable artefact of 14k rows is hundreds of pages of paper —
+            # the PDF carries the first 2,000 rows and SAYS so; XLSX/CSV carry
+            # every row. (Real-inventory upgrade 2026-11-07.)
+            pdf_payload = payload
+            if len(payload["rows"]) > 2000:
+                pdf_payload = dict(
+                    payload,
+                    rows=payload["rows"][:2000],
+                    notes=[
+                        "Showing the first 2,000 of %s rows — use the Excel export for the full grid."
+                        % len(payload["rows"])
+                    ],
+                )
+            return self._list_pdf(pdf_payload, base_name)
         import csv
         import io as _io
 
@@ -991,6 +1172,7 @@ class P03GenericApiController(http.Controller):
                 "model": model,
                 "fields": out_fields,
                 "record": record,
+                "defaults": {} if rec else self._form_defaults(env, model, out_fields),
                 "lines": line_payload,
                 "status_value": status_value,
                 "title": conf.get("form_title") or env[model]._description,
@@ -1004,6 +1186,14 @@ class P03GenericApiController(http.Controller):
         except Exception:
             _logger.exception("p03 model_form failed for %s", model)
             return {"error": "The form data could not be loaded — see the server log."}
+
+    @staticmethod
+    def _form_defaults(env, model, out_fields) -> dict:
+        """A new form must show what will really be saved. A tick box defaulting
+        to True drew unticked, and an untouched box posted nothing, so a count
+        leaving "Found" at No was stored as found (and could clear a loss)."""
+        names = [f["name"] for f in out_fields if f["type"] == "boolean" and not f["readonly"]]
+        return env[model].default_get(names) if names else {}
 
     def _form_field_meta(self, env, model, fields, record=None):
         """Per-field metadata (label, type, required, choices) preserving the
@@ -1039,20 +1229,35 @@ class P03GenericApiController(http.Controller):
             if field_type in ("many2one", "many2many"):
                 comodel = env[model]._fields[name].comodel_name
                 entry["comodel"] = comodel
-                domain = _choice_domain(env, comodel, spec.get("domain"))
-                entry["choices"] = [
-                    {"id": r["id"], "label": r["display_name"]}
-                    for r in env[comodel]
-                    .sudo()
-                    .search_read(domain, ["display_name"], limit=_CHOICE_LIMIT)
-                ]
-                if domain:
-                    entry["choice_domain"] = domain
+                # A06 fragments declare a filter (parts in stock), checked by
+                # _choice_domain; the surface declares its own and fences the
+                # caller's companies (A07). Both apply, combined as parsed domains.
+                declared = _choice_domain(env, comodel, spec.get("domain"))
+                domain = Domain.AND(
+                    [
+                        Domain(declared),
+                        Domain(_picker_domain(env, SURFACES.get(model), comodel, name)),
+                    ]
+                )
+                options = _picker_source(env, comodel)
+                if declared:
+                    entry["choice_domain"] = declared
                 # A longer list used to stop silently at the limit: 15,522
                 # partners offered the first 300, and a record whose value lay
-                # beyond them showed blank. Say so, and let the input search.
-                if len(entry["choices"]) >= _CHOICE_LIMIT:
-                    entry["truncated"] = True
+                # beyond them showed blank. A header many2one becomes a search
+                # box (remote, no list sent); a many2many or a grid cell gets a
+                # search input beside what it shows (truncated).
+                over = options.search_count(domain, limit=PICKER_LIMIT + 1) > PICKER_LIMIT
+                entry["remote"] = field_type == "many2one" and over
+                entry["truncated"] = over
+                entry["choices"] = (
+                    []
+                    if entry["remote"]
+                    else [
+                        {"id": r["id"], "label": r["display_name"]}
+                        for r in options.search_read(domain, ["display_name"], limit=PICKER_LIMIT)
+                    ]
+                )
                 if record is not None and field_type == "many2one" and len(record) == 1:
                     current = record[name]
                     if current and all(c["id"] != current.id for c in entry["choices"]):
@@ -1075,7 +1280,7 @@ class P03GenericApiController(http.Controller):
             elif entry["type"] in ("date",):
                 record[entry["name"]] = str(value) if value else ""
             elif entry["type"] == "datetime":
-                record[entry["name"]] = str(value)[:19] if value else ""
+                record[entry["name"]] = _datetime_to_local(rec.env, value)
             elif entry["type"] == "monetary":
                 record[entry["name"]] = float(value or 0.0)
             else:
@@ -1132,11 +1337,13 @@ class P03GenericApiController(http.Controller):
             return {"error": "This field has no choices"}
         try:
             env[model].check_access("read")
-            domain = _choice_domain(env, target.comodel_name, kw.get("domain"))
-            found = (
-                env[target.comodel_name]
-                .sudo()
-                .name_search(name=(q or "").strip(), domain=domain, limit=50)
+            comodel = target.comodel_name
+            declared = _choice_domain(env, comodel, kw.get("domain"))
+            domain = Domain.AND(
+                [Domain(declared), Domain(_picker_domain(env, SURFACES.get(model), comodel, field))]
+            )
+            found = _picker_source(env, comodel).name_search(
+                name=(q or "").strip(), domain=domain, limit=50
             )
             return {"choices": [{"id": i, "label": label} for i, label in found]}
         except (UserError, AccessError) as exc:
@@ -1165,6 +1372,7 @@ class P03GenericApiController(http.Controller):
         if not conf:
             return {"error": "Model not served by the workspace screens"}
         vals = self._coerce_vals(values)
+        self._datetimes_to_utc(env, model, vals)
         # What the form may not set (A03 audit: this endpoint wrote
         # dofa_approved, released_by, executed_by... as sent):
         #  - read-only fields and fields the model locks for this record
@@ -1243,15 +1451,27 @@ class P03GenericApiController(http.Controller):
                     if not field or field.type != "one2many":
                         return {"error": "This form's child grid is not a one2many"}
                     commands = [(2, int(i)) for i in (lines.get("removed") or [])]
+                    children = env[field.comodel_name]
                     for row in lines.get("rows") or []:
                         row_vals = self._coerce_vals(row.get("values"))
+                        self._datetimes_to_utc(env, field.comodel_name, row_vals)
                         if not row_vals:
                             continue
                         if row.get("id"):
-                            commands.append((1, int(row["id"]), row_vals))
+                            child = children.browse(int(row["id"])).exists()
+                            row_vals = {
+                                k: v
+                                for k, v in row_vals.items()
+                                if k not in children._fields
+                                or not child
+                                or _child_value_changed(child, children._fields[k], v)
+                            }
+                            if row_vals:
+                                commands.append((1, int(row["id"]), row_vals))
                         else:
                             commands.append((0, 0, row_vals))
-                    vals[lines["field"]] = commands
+                    if commands:
+                        vals[lines["field"]] = commands
                 if record_id:
                     env[model].check_access("write")
                     rec = env[model].browse(int(record_id)).exists()
@@ -1292,6 +1512,15 @@ class P03GenericApiController(http.Controller):
                 }
             _logger.exception("p03 model_write failed for %s", model)
             return {"error": "The save could not be completed: %s" % exc}
+
+    @staticmethod
+    def _datetimes_to_utc(env, model, vals):
+        """The form shows and posts the user's wall clock; the database holds UTC.
+        A ping typed as 10:00 in Dhaka was stored six hours ahead."""
+        spec = env[model]._fields
+        for key, value in vals.items():
+            if getattr(spec.get(key), "type", "") == "datetime":
+                vals[key] = _datetime_to_utc(env, value)
 
     @staticmethod
     def _coerce_vals(values):

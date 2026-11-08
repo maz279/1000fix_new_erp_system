@@ -43,7 +43,14 @@ class FixWarrantyRoutedVerification(models.Model):
         # A07 P2 (2026-11-04): a request the officer could never apply is refused
         # when it is made: cover on a provisional identity (BRU-AST-03), or proof
         # filed against another record (M17-13). action_verify checks again.
+        # A07 operability (2026-11-07): nor is the officer handed a vote that must
+        # fail for want of proof.
         for rec in self:
+            if rec.warranty_type != "none" and not rec.proof_document_id:
+                raise UserError(
+                    "Attach the purchase receipt or warranty card on the warranty form before "
+                    "requesting verification of the warranty on %s." % rec.device_id.display_name
+                )
             rec._a07_verify_checks()
         return super().action_request_approval(justification=justification)
 

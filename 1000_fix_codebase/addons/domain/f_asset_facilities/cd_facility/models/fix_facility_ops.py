@@ -44,6 +44,11 @@ INJURY_CLOSE_PARAM = "cd_facility.injury_close_requires_hse_case"
 # none) apply where a plan or item has none; the business set 3 on 4 Nov 2026.
 PM_INTERVAL_PARAM = "cd_facility.default_pm_interval_months"
 INSPECTION_INTERVAL_PARAM = "cd_facility.default_inspection_interval_months"
+# A07 operability (2026-11-07): a NEW licence carries its scan. Licences recorded
+# before this rule hold none and keep counting; turn this off only to load a batch.
+LICENCE_EVIDENCE_PARAM = "cd_facility.require_licence_evidence"
+FACILITY_MANAGER = "cd_facility.group_facility_manager"
+BRANCH_LEAD = "cd_facility.group_branch_operations_lead"
 
 
 def _default_months(env, key) -> int:
@@ -71,12 +76,24 @@ UTILITY_GUARDED = (
 
 # The terms a lease modification changes, and the proposal that carries them.
 LEASE_TERM_FIELDS = ("start_date", "end_date", "monthly_rent", "escalation_pct")
+# Also fixed once recorded: a deposit, a lessor and a notice period reach IFRS 16
+# and the renewal deadline, so they move through a modification too. A lease is
+# never moved to another site: a new site is a new lease. A notice period left
+# blank when the lease was recorded may be filled in once (it only ever brings
+# the renewal deadline earlier).
+LEASE_RECORDED_FIELDS = ("site_id", "lessor_id", "deposit", "currency_id")
 LEASE_PROPOSAL_FIELDS = (
     "proposed_end_date",
     "proposed_monthly_rent",
     "proposed_escalation_pct",
+    "proposed_deposit",
+    "proposed_notice_period_days",
+    "proposed_lessor_id",
     "modification_reason",
 )
+# A shortened term that gives up no rent (it had already ended) still needs a
+# decision: the smallest amount above Tier 0.
+LEASE_SHORTENING_FLOOR = 0.01
 
 
 def _lease_commitment(rent, escalation_pct, start, end, today) -> float:
@@ -115,20 +132,31 @@ class FixSiteLease(models.Model):
         self.ensure_one()
         if not self.modification_open:
             return 0.0
-        return _lease_commitment(
+        today = fields.Date.context_today(self)
+        proposed = _lease_commitment(
             self.proposed_monthly_rent,
             self.proposed_escalation_pct,
             self.start_date,
             self.proposed_end_date,
-            fields.Date.context_today(self),
+            today,
         )
+        if not (
+            self.proposed_end_date and self.end_date and self.proposed_end_date < self.end_date
+        ):
+            return proposed
+        # A shorter term is measured on the rent it gives up as well: an end
+        # date in the past owes nothing from today, and needed no approval.
+        current = _lease_commitment(
+            self.monthly_rent, self.escalation_pct, self.start_date, self.end_date, today
+        )
+        return max(proposed, current - proposed, LEASE_SHORTENING_FLOOR)
 
     def _dofa_thresholds(self):
         return ESTATE_COST_DOFA_THRESHOLDS
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "BDT %.2f (remaining lease commitment under the proposed terms)" % (
+        return "BDT %.2f (lease commitment under the proposed terms, or the rent given up)" % (
             self._dofa_amount()
         )
 
@@ -138,6 +166,9 @@ class FixSiteLease(models.Model):
         "proposed_end_date",
         "proposed_monthly_rent",
         "proposed_escalation_pct",
+        "end_date",
+        "monthly_rent",
+        "escalation_pct",
     )
     def _compute_dofa_tier_required(self):
         # The live gates read _dofa_current_tier(); this stored column is the
@@ -174,6 +205,13 @@ class FixSiteLease(models.Model):
         string="Proposed Monthly Rent", currency_field="currency_id", copy=False
     )
     proposed_escalation_pct = fields.Float(string="Proposed Escalation %", copy=False)
+    proposed_deposit = fields.Monetary(
+        string="Proposed Deposit", currency_field="currency_id", copy=False
+    )
+    proposed_notice_period_days = fields.Integer(
+        string="Proposed Renewal Notice (days)", copy=False
+    )
+    proposed_lessor_id = fields.Many2one("res.partner", string="Proposed Lessor", copy=False)
     modification_reason = fields.Char(string="Modification Reason", copy=False)
     terminated_reason = fields.Char(string="Termination Reason", readonly=True, copy=False)
     # A07 P2 (2026-11-04) M47-8 / BRU-FAC-05: the renewal-notice deadline and
@@ -258,7 +296,9 @@ class FixSiteLease(models.Model):
         locked = super()._fix_form_locked_fields()
         if len(self) == 1:
             # a recorded lease's terms move only through a modification
-            locked |= set(LEASE_TERM_FIELDS)
+            locked |= set(LEASE_TERM_FIELDS) | set(LEASE_RECORDED_FIELDS)
+            if self.notice_period_days:
+                locked.add("notice_period_days")
             if not self.modification_open:
                 locked |= set(LEASE_PROPOSAL_FIELDS)
         return locked
@@ -275,27 +315,49 @@ class FixSiteLease(models.Model):
             if rec.state == "active" and rec.end_date and rec.end_date < today:
                 rec.sudo()._guarded().write({"state": "expired"})
             rec.sudo()._lease_build_schedule()
-            # BRU-FAC-13/14, AUT-FAC-05: the lease data goes to M19/M49
-            publish(
-                self.env,
-                "lease.recorded",
-                "fix.site.lease",
-                rec.id,
-                {
-                    "lease": rec.name,
-                    "site": rec.site_id.name,
-                    "site_id": rec.site_id.id,
-                    "lessor": rec.lessor_id.name,
-                    "start_date": str(rec.start_date),
-                    "end_date": str(rec.end_date),
-                    "monthly_rent": float(rec.monthly_rent or 0.0),
-                    "escalation_pct": float(rec.escalation_pct or 0.0),
-                    "deposit": float(rec.deposit or 0.0),
-                    "notice_period_days": rec.notice_period_days or 0,
-                },
-            )
-            rec.sudo()._lease_publish_extract("recorded")
+            rec._lease_publish_recorded()
         return leases
+
+    def _lease_publish_recorded(self):
+        """BRU-FAC-13/14, AUT-FAC-05: the lease data goes to M19/M49."""
+        self.ensure_one()
+        publish(
+            self.env,
+            "lease.recorded",
+            "fix.site.lease",
+            self.id,
+            {
+                "lease": self.name,
+                "site": self.site_id.name,
+                "site_id": self.site_id.id,
+                "lessor": self.lessor_id.name,
+                "start_date": str(self.start_date),
+                "end_date": str(self.end_date),
+                "monthly_rent": float(self.monthly_rent or 0.0),
+                "escalation_pct": float(self.escalation_pct or 0.0),
+                "deposit": float(self.deposit or 0.0),
+                "notice_period_days": self.notice_period_days or 0,
+            },
+        )
+        self.sudo()._lease_publish_extract("recorded")
+
+    def action_publish_ifrs16(self):
+        """Publish a lease recorded before the extract existed to M19/M49.
+        A07 operability (2026-11-07): the extract was published only at create,
+        so the live leases never reached IFRS 16. One extract per lease version:
+        a lease that has one has nothing new to publish. Nothing does this on
+        deploy: a Facility Manager publishes each lease when it is ready."""
+        if not self.env.su and not self.env.user.has_group(FACILITY_MANAGER):
+            raise UserError("A lease is published to IFRS 16 by a Facility Manager.")
+        for rec in self:
+            if rec.state == "terminated":
+                raise UserError("Lease %s is terminated: there is nothing to publish." % rec.name)
+            if rec.extract_ids:
+                continue
+            if not rec.schedule_ids:
+                rec.sudo()._lease_build_schedule()
+            rec._lease_publish_recorded()
+        return True
 
     # ---- rent schedule and IFRS 16 extract (A07 P2, FR-FAC-012, BRU-FAC-13)
     def _lease_build_schedule(self):
@@ -345,6 +407,8 @@ class FixSiteLease(models.Model):
                 else None
             )
             data = {
+                "state": rec.state,
+                "terminated_reason": rec.terminated_reason or None,
                 "lease": rec.name,
                 "site": rec.site_id.name,
                 "lessor": rec.lessor_id.name,
@@ -379,12 +443,20 @@ class FixSiteLease(models.Model):
 
     def write(self, vals):
         if self and not self._fix_guard_open():
-            terms = {k: vals[k] for k in LEASE_TERM_FIELDS if k in vals}
+            terms = {k: vals[k] for k in (*LEASE_TERM_FIELDS, *LEASE_RECORDED_FIELDS) if k in vals}
             if terms and _changes(self, terms):
                 raise UserError(
-                    "A lease's dates, rent and escalation change only through a renewal or "
-                    "modification: Open Modification, enter the proposed terms, request "
-                    "approval, then Apply Modification (BRU-FAC-05/14)."
+                    "A lease's site, lessor, dates, rent, escalation and deposit change only "
+                    "through a renewal or modification: Open Modification, enter the proposed "
+                    "terms, request approval, then Apply Modification (BRU-FAC-05/14)."
+                )
+            if "notice_period_days" in vals and _changes(
+                self.filtered("notice_period_days"),
+                {"notice_period_days": vals["notice_period_days"]},
+            ):
+                raise UserError(
+                    "A lease's renewal notice period, once recorded, changes through a "
+                    "modification."
                 )
             proposal = {k: vals[k] for k in LEASE_PROPOSAL_FIELDS if k in vals}
             if proposal and _changes(self.filtered(lambda r: not r.modification_open), proposal):
@@ -425,6 +497,9 @@ class FixSiteLease(models.Model):
                     "proposed_end_date": rec.end_date,
                     "proposed_monthly_rent": rec.monthly_rent,
                     "proposed_escalation_pct": rec.escalation_pct,
+                    "proposed_deposit": rec.deposit,
+                    "proposed_notice_period_days": rec.notice_period_days,
+                    "proposed_lessor_id": rec.lessor_id.id,
                     "modification_reason": False,
                 }
             )
@@ -437,6 +512,9 @@ class FixSiteLease(models.Model):
                 "proposed_end_date": False,
                 "proposed_monthly_rent": 0.0,
                 "proposed_escalation_pct": 0.0,
+                "proposed_deposit": 0.0,
+                "proposed_notice_period_days": 0,
+                "proposed_lessor_id": False,
                 "modification_reason": False,
             }
         )
@@ -496,6 +574,13 @@ class FixSiteLease(models.Model):
                 "escalation_pct": rec.proposed_escalation_pct,
             }
             vals = dict(new)
+            # a proposal opened before these three existed leaves them as they are
+            if rec.proposed_lessor_id:
+                vals.update(
+                    deposit=rec.proposed_deposit,
+                    notice_period_days=rec.proposed_notice_period_days,
+                    lessor_id=rec.proposed_lessor_id.id,
+                )
             if rec.state == "expired" and rec.proposed_end_date >= today:
                 vals["state"] = "active"  # a renewal of an expired lease
             reason = rec.modification_reason
@@ -654,6 +739,11 @@ class FixSiteLease(models.Model):
         return True
 
     def action_terminate(self, reason=None):
+        """End a lease early: a Branch Operations Lead's act, with its reason.
+        Finance hears of it: an event and a new extract version, which a
+        commenced IFRS 16 contract receives as a modification item."""
+        if not self.env.su and not self.env.user.has_group(BRANCH_LEAD):
+            raise UserError("A lease is terminated by a Branch Operations Lead.")
         reason = (reason or "").strip()
         if not reason:
             raise UserError("State why the lease is terminated.")
@@ -662,6 +752,21 @@ class FixSiteLease(models.Model):
             if rec.modification_open:
                 rec.action_discard_modification()
             rec._guarded().write({"state": "terminated", "terminated_reason": reason})
+            publish(
+                self.env,
+                "lease.terminated",
+                "fix.site.lease",
+                rec.id,
+                {
+                    "lease": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "end_date": str(rec.end_date),
+                    "reason": reason,
+                    "terminated_by": self.env.user.name,
+                },
+            )
+            rec.sudo()._lease_publish_extract("terminated")
         return True
 
 
@@ -689,6 +794,11 @@ class FixSiteLicence(models.Model):
     number = fields.Char(string="Licence Number")
     issued_on = fields.Date()
     valid_to = fields.Date()
+    # A07 operability (2026-11-07): any internal user recorded a dated "valid"
+    # licence with no number and no evidence, and it satisfied the readiness
+    # gate and resolved an open risk exception.
+    evidence_file = fields.Binary(string="Licence Scan", attachment=True, copy=False)
+    evidence_filename = fields.Char(string="Scan File Name", copy=False)
     state = fields.Selection(
         [("valid", "Valid"), ("expired", "Expired"), ("suspended", "Suspended")],
         required=True,
@@ -725,6 +835,17 @@ class FixSiteLicence(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"alert_horizon"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.valid_to:
+            locked.add("valid_to")
+        return locked
+
+    @api.model
+    def _licence_evidence_required(self) -> bool:
+        raw = self.env["ir.config_parameter"].sudo().get_param(LICENCE_EVIDENCE_PARAM, "True")
+        return str(raw).strip().lower() not in ("0", "false", "no", "")
 
     def _is_lapsed(self, today) -> bool:
         return self.state == "expired" or bool(self.valid_to and self.valid_to < today)
@@ -838,6 +959,12 @@ class FixSiteLicence(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.site.licence") or "SLIC/New"
                 )
+            # superuser code (data loading, seeds) is trusted, as elsewhere here
+            if not self._fix_guard_open():
+                if not (vals.get("number") or "").strip():
+                    raise UserError("Record the licence number.")
+                if self._licence_evidence_required() and not vals.get("evidence_file"):
+                    raise UserError("Attach the scan of the licence.")
         records = super().create(vals_list)
         if not self.env.su:
             records._licence_check_fire_dependency()
@@ -853,6 +980,8 @@ class FixSiteLicence(models.Model):
         # NEW licence row with its own number and dates, so the lapse stays on
         # record. Marking it expired or suspended stays open. Superuser code
         # (seeds, data loading, sudo services) is trusted.
+        if self and not self._fix_guard_open():
+            self._licence_check_recorded_facts(vals)
         if self and not self._fix_guard_open() and ("state" in vals or "valid_to" in vals):
             today = fields.Date.context_today(self)
             new_to = (
@@ -868,15 +997,51 @@ class FixSiteLicence(models.Model):
                         "valid again. Record the renewal as a new licence with its own "
                         "number and validity dates." % (rec.name, rec.valid_to or "-", rec.state)
                     )
+        # the form posts the date it shows: only a real change restarts the alerts
+        redated = (
+            self.filtered(
+                lambda r: (fields.Date.to_date(vals["valid_to"]) or False) != (r.valid_to or False)
+            )
+            if "valid_to" in vals
+            else self.browse()
+        )
         result = super().write(vals)
         if {"state", "valid_to", "licence_type"} & set(vals) and not self._fix_guard_has_token():
-            if "valid_to" in vals:
-                # a new expiry date restarts the expiry alerts
-                self._guarded().write({"alert_horizon": 0})
+            if redated:
+                redated._guarded().write({"alert_horizon": 0})
             if not self.env.su:
                 self._licence_check_fire_dependency()
             self._licence_resolve_exceptions()
         return result
+
+    def _licence_check_recorded_facts(self, vals):
+        """What a recorded licence keeps. Its end date is the licence's: a
+        renewal is a new row with its own number, dates and scan. A row from
+        before the evidence rule is dated once, and only with its scan."""
+        required = self._licence_evidence_required()
+        for rec in self:
+            if "number" in vals and rec.number and not (vals["number"] or "").strip():
+                raise UserError("A licence keeps its number.")
+            if (
+                required
+                and "evidence_file" in vals
+                and rec.evidence_file
+                and not vals["evidence_file"]
+            ):
+                raise UserError("A licence keeps its scan: attach the new scan instead.")
+            if "valid_to" not in vals:
+                continue
+            new_to = fields.Date.to_date(vals["valid_to"]) or False
+            if new_to == (rec.valid_to or False):
+                continue
+            if rec.valid_to:
+                raise UserError(
+                    "The end date of licence %s is recorded (%s) and does not change. Record "
+                    "the renewal as a new licence with its own number, dates and scan."
+                    % (rec.name, rec.valid_to)
+                )
+            if required and not (vals.get("evidence_file") or rec.evidence_file):
+                raise UserError("Attach the scan of licence %s to date it." % rec.name)
 
 
 class FixSiteUtility(models.Model):
@@ -925,9 +1090,68 @@ class FixSiteUtility(models.Model):
     reviewed_by_id = fields.Many2one("res.users", string="Reviewed By", readonly=True, copy=False)
     reviewed_at = fields.Datetime(string="Reviewed At", readonly=True, copy=False)
     review_notes = fields.Char(string="Review Notes", readonly=True, copy=False)
+    # A07 operability (2026-11-07): "held from payment" enforced nothing, as no
+    # bill reached accounts payable. A bill not held (and one released after
+    # review) now raises a pending M52 cost entry through the bridge, a held or
+    # confirmed bill cannot be matched there, and the match stamps these.
+    ap_requested_on = fields.Date(string="Sent to AP On", readonly=True, copy=False)
+    paid_amount = fields.Monetary(
+        string="Paid", currency_field="currency_id", readonly=True, copy=False
+    )
+    paid_on = fields.Date(string="Paid On", readonly=True, copy=False)
+    invoice_ref = fields.Char(string="Invoice Ref (M52)", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | set(UTILITY_GUARDED)
+
+    def _utility_send_to_ap(self):
+        """Ask accounts payable for this bill. The bridge raises one pending
+        cost entry per bill however often this runs, and refreshes its figure
+        while AP has not decided it."""
+        for rec in self:
+            rec._guarded().write({"ap_requested_on": fields.Date.context_today(rec)})
+            publish(
+                self.env,
+                "site.utility_payable",
+                rec._name,
+                rec.id,
+                {
+                    "record": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "utility_type": rec.utility_type,
+                    "period": rec.period,
+                    "amount": float(rec.amount or 0.0),
+                },
+            )
+
+    def action_send_to_ap(self):
+        """A bill from before this rule, not held: send it to accounts payable."""
+        if not self.env.su and not self.env.user.has_group(FACILITY_MANAGER):
+            raise UserError("A bill is sent to accounts payable by a Facility Manager.")
+        for rec in self:
+            if rec.paid_on or rec.ap_requested_on:
+                continue
+            if rec.review_state not in ("none", "released"):
+                raise UserError("%s is held from payment until it is reviewed." % rec.name)
+            rec._utility_send_to_ap()
+        return True
+
+    def _m52_match_refusal(self):
+        """Why accounts payable may not match this bill now, or nothing."""
+        self.ensure_one()
+        if self.review_state in ("held", "confirmed"):
+            return "%s is held from payment: %s." % (
+                self.name,
+                dict(self._fields["review_state"].selection)[self.review_state],
+            )
+        return None
+
+    def _m52_mark_paid(self, amount, paid_on, invoice_ref):
+        """Accounts payable matched this bill."""
+        self.sudo()._guarded().write(
+            {"paid_amount": amount, "paid_on": paid_on, "invoice_ref": invoice_ref}
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -946,7 +1170,7 @@ class FixSiteUtility(models.Model):
             self
             and figures
             and not self._fix_guard_open()
-            and _changes(self.filtered(lambda r: r.review_state != "none"), figures)
+            and _changes(self.filtered(lambda r: r.review_state != "none" or r.paid_on), figures)
         ):
             raise UserError(
                 "A bill under or after anomaly review keeps the figures it was reviewed "
@@ -1013,6 +1237,8 @@ class FixSiteUtility(models.Model):
             rec._guarded().write(vals)
             if basis:
                 rec._utility_publish_anomaly()
+            else:
+                rec._utility_send_to_ap()
 
     def _utility_publish_anomaly(self):
         for rec in self:
@@ -1064,10 +1290,12 @@ class FixSiteUtility(models.Model):
                     "review_notes": notes,
                 }
             )
+            if outcome == "released":
+                rec.sudo()._utility_send_to_ap()
         return True
 
     def action_release(self, notes=None):
-        """Reviewed: the bill is genuine and released for payment."""
+        """Reviewed: the bill is genuine and goes to accounts payable."""
         return self._utility_review("released", notes)
 
     def action_confirm_anomaly(self, notes=None):
@@ -1112,6 +1340,8 @@ class FixSiteUtility(models.Model):
         for rec in self:
             if rec.review_state == "held":
                 continue
+            if rec.paid_on:
+                raise UserError("%s is already paid: it cannot be held." % rec.name)
             rec._guarded().write(
                 {
                     "flagged": True,
@@ -1232,9 +1462,19 @@ class FixSitePm(models.Model):
             raise UserError("Done date %r is not a date (YYYY-MM-DD)." % done_on) from exc
         if done > today:
             raise UserError("A PM job cannot be recorded as done in the future (%s)." % done)
+        if not self.env.su and not self.env.user.has_group(FACILITY_MANAGER):
+            raise UserError("A PM job is marked done by a Facility Manager.")
         for rec in self:
             if rec.state != "open":
                 raise UserError("Complete an open PM job")
+            # the job's work order, with its approval, permit and verification,
+            # is what completes it (verifying the order marks the PM done)
+            order = rec.sudo().work_order_id
+            if order and order.state not in ("verified", "cancelled"):
+                raise UserError(
+                    "%s is being done under work order %s: verifying that order completes it."
+                    % (rec.name, order.name)
+                )
             rec._guarded().write({"state": "done", "done_on": done})
             months = (
                 rec.interval_months
@@ -1264,7 +1504,12 @@ class FixSitePm(models.Model):
         today = fields.Date.context_today(self)
         WO = self.env["fix.facility.work.order"].sudo()
         for rec in self.sudo().search(
-            [("state", "=", "open"), ("scheduled_on", "<=", today), ("work_order_id", "=", False)]
+            [
+                ("state", "=", "open"),
+                ("scheduled_on", "<=", today),
+                ("work_order_id", "=", False),
+                ("site_id.state", "in", ("active", "suspended")),
+            ]
         ):
             labels = dict(rec._fields["service_type"].selection)
             wo = WO._guarded().create(
@@ -1322,6 +1567,16 @@ class FixSiteSafety(models.Model):
         "res.users", string="Last Checked By", readonly=True, copy=False
     )
     unfit_notified_for = fields.Date(readonly=True, copy=False)
+    # A07 operability (2026-11-07): a check recorded a date and no outcome, so an
+    # extinguisher that failed its check read OK. A failed item is Unfit whatever
+    # its next date says, until a later check passes, and M59 raises a hazard.
+    last_result = fields.Selection(
+        [("pass", "Passed"), ("fail", "Failed")],
+        string="Last Result",
+        readonly=True,
+        copy=False,
+    )
+    last_finding = fields.Char(string="Last Finding", readonly=True, copy=False)
     # A07 audit (2026-11-03, M47-9): `state` was typed and defaulted to `ok`,
     # so an extinguisher 45 days past its check was born `ok` and the overdue
     # KPI read 0; a plain write or the P03 form cleared an overdue item. The
@@ -1330,18 +1585,20 @@ class FixSiteSafety(models.Model):
     # AUT-FAC-14 30-day alert window, ok otherwise. It is searchable, so the
     # grid's state filter keeps working.
     state = fields.Selection(
-        [("ok", "OK"), ("due", "Due"), ("overdue", "Overdue")],
+        [("ok", "OK"), ("due", "Due"), ("overdue", "Overdue"), ("unfit", "Unfit: Failed Check")],
         compute="_compute_state",
         search="_search_state",
     )
     notes = fields.Char()
 
-    @api.depends("next_check")
+    @api.depends("next_check", "last_result")
     def _compute_state(self):
         today = fields.Date.context_today(self)
         due_by = today + timedelta(days=SAFETY_DUE_DAYS)
         for rec in self:
-            if not rec.next_check or rec.next_check < today:
+            if rec.last_result == "fail":
+                rec.state = "unfit"
+            elif not rec.next_check or rec.next_check < today:
                 rec.state = "overdue"
             elif rec.next_check <= due_by:
                 rec.state = "due"
@@ -1353,10 +1610,12 @@ class FixSiteSafety(models.Model):
             return NotImplemented
         today = fields.Date.context_today(self)
         due_by = today + timedelta(days=SAFETY_DUE_DAYS)
+        failed = Domain("last_result", "=", "fail")
         by_state = {
-            "overdue": Domain("next_check", "<", today),
-            "due": Domain("next_check", ">=", today) & Domain("next_check", "<=", due_by),
-            "ok": Domain("next_check", ">", due_by),
+            "unfit": failed,
+            "overdue": ~failed & Domain("next_check", "<", today),
+            "due": ~failed & Domain("next_check", ">=", today) & Domain("next_check", "<=", due_by),
+            "ok": ~failed & Domain("next_check", ">", due_by),
         }
         domain = Domain.OR([by_state[v] for v in value if v in by_state])
         return ~domain if operator == "not in" else domain
@@ -1371,7 +1630,12 @@ class FixSiteSafety(models.Model):
         return super().create(vals_list)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"last_checked_by_id", "unfit_notified_for"}
+        return super()._fix_guarded_fields() | {
+            "last_checked_by_id",
+            "unfit_notified_for",
+            "last_result",
+            "last_finding",
+        }
 
     def write(self, vals):
         # A07 audit (2026-11-03, M47-9): with the status derived from the
@@ -1407,8 +1671,16 @@ class FixSiteSafety(models.Model):
             return True
         return super().write(vals)
 
-    def action_check(self, next_check=None):
-        """Record an inspection today and set the next one.
+    def action_check_pass(self, next_check=None):
+        """Record a check the item passed."""
+        return self.action_check(next_check=next_check, result="pass")
+
+    def action_check_fail(self, next_check=None, finding=None):
+        """Record a check the item failed: it is unfit, and M59 raises a hazard."""
+        return self.action_check(next_check=next_check, result="fail", finding=finding)
+
+    def action_check(self, next_check=None, result=None, finding=None):
+        """Record an inspection today, its result, and the next one.
 
         A07 audit (2026-11-03, M47-9): the check stamped `ok` and left
         `next_check` in the past. The module holds no inspection interval and
@@ -1416,6 +1688,11 @@ class FixSiteSafety(models.Model):
         inspector states the next check date, which must be after today.
         """
         today = fields.Date.context_today(self)
+        finding = (finding or "").strip()
+        if result not in ("pass", "fail"):
+            raise UserError("Say whether the item passed or failed the check.")
+        if result == "fail" and not finding:
+            raise UserError("Say what failed on the check.")
         try:
             next_date = fields.Date.to_date(next_check) if next_check else None
         except ValueError as exc:
@@ -1438,8 +1715,30 @@ class FixSiteSafety(models.Model):
             if due <= today:
                 raise UserError("The next check date must be after today (%s)." % today)
             rec._guarded().write(
-                {"last_check": today, "next_check": due, "last_checked_by_id": self.env.uid}
+                {
+                    "last_check": today,
+                    "next_check": due,
+                    "last_checked_by_id": self.env.uid,
+                    "last_result": result,
+                    "last_finding": finding or False,
+                }
             )
+            if result == "fail":
+                publish(
+                    self.env,
+                    "site.safety_check_failed",
+                    "fix.site.safety",
+                    rec.id,
+                    {
+                        "item": rec.name,
+                        "site": rec.site_id.name,
+                        "site_id": rec.site_id.id,
+                        "equipment_type": rec.equipment_type,
+                        "ref": rec.ref or None,
+                        "checked_on": str(today),
+                        "finding": finding,
+                    },
+                )
         return True
 
     @api.model
@@ -1534,8 +1833,11 @@ class FixSiteIncident(models.Model):
             "hse_case_ref",
         }
 
-    def _incident_set_injury_clock(self):
-        for rec in self.filtered(lambda r: r.injuries_flag and not r.hse_notice_due_on):
+    def _incident_set_injury_clock(self, recount=False):
+        """The s.80 date of an injury. `recount`: the accident date moved."""
+        for rec in self.filtered(
+            lambda r: r.injuries_flag and (recount or not r.hse_notice_due_on)
+        ):
             rec._guarded().write(
                 {"hse_notice_due_on": rec.occurred_on + timedelta(days=HSE_NOTICE_DAYS)}
             )
@@ -1566,9 +1868,22 @@ class FixSiteIncident(models.Model):
         ):
             # un-ticking it would take an injury out of the HSE route
             raise UserError("Only a Branch Operations Lead may clear an incident's injury flag.")
+        vals = dict(vals)
+        if vals.get("incident_type") == "injury":
+            vals["injuries_flag"] = True
+        # what M59 and M60 were told no longer holds: they are told again
+        retold = self.filtered(
+            lambda r: (
+                ("incident_type" in vals and vals["incident_type"] != r.incident_type)
+                or (vals.get("injuries_flag") and not r.injuries_flag)
+            )
+        )
         result = super().write(vals)
         if vals.get("injuries_flag"):
             self._incident_set_injury_clock()
+        if "occurred_on" in vals:
+            self._incident_set_injury_clock(recount=True)
+        retold._incident_publish()
         return result
 
     @api.model_create_multi
@@ -1582,7 +1897,11 @@ class FixSiteIncident(models.Model):
                 vals["injuries_flag"] = True
         records = super().create(vals_list)
         records._incident_set_injury_clock()
-        for rec in records:
+        records._incident_publish()
+        return records
+
+    def _incident_publish(self):
+        for rec in self:
             # AUT-FAC-15: M59 (HSE case on injury) and M60 (risk register)
             publish(
                 self.env,
@@ -1603,7 +1922,6 @@ class FixSiteIncident(models.Model):
                     "description": rec.description,
                 },
             )
-        return records
 
     def _incident_check_closer(self):
         """Who closes (A07 P1): an injury incident is closed by HSE (cd_hse's

@@ -1351,7 +1351,6 @@ class FixFieldOrder(models.Model):
         Employee = self.env["hr.employee"]
         FieldOrder = self.env["fix.field.order"]
         Roster = self.env["fix.roster.slot"]
-        Certification = self.env["fix.certification"]
         LocationPing = self.env["fix.technician.location"]
         StockLocation = self.env["fix.stock.location"]
 
@@ -1376,11 +1375,6 @@ class FixFieldOrder(models.Model):
         roster_day = Roster.sudo().search([("date", "=", scheduled_day)])
         roster_by_employee = {r.employee_id.id: r for r in roster_day}
 
-        device_type = None
-        device = self.order_id.device_id
-        if device and device.device_model_id:
-            device_type = device.device_model_id.device_type or None
-
         active_states = ("dispatched", "accepted", "en_route", "arrived", "in_progress")
         load_by_employee = {}
         for fo in FieldOrder.sudo().search(
@@ -1403,7 +1397,9 @@ class FixFieldOrder(models.Model):
             if rostered:
                 score += 30
                 reasons.append("rostered today")
-            eligible, reason = Certification.dispatch_eligibility(employee, device_type)
+            # the same question the dispatch gate asks, brand and waiver included
+            reason = self._fix_certification_problem(employee)
+            eligible = not reason
             if eligible:
                 score += 25
                 reasons.append("certified")

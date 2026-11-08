@@ -421,7 +421,11 @@ class CustomerApiController(http.Controller):
     @http.route("/customer/ownership/transfer", type="jsonrpc", auth="user", readonly=False)
     def ownership_transfer(self, **kwargs):
         """Transfer device ownership — T05: 'portal P01 exposes this in
-        Phase 5'. The model writes the ownership trail (T05 audit)."""
+        Phase 5'. The model writes the ownership trail (T05 audit).
+
+        A07 operability (2026-11-07): the trail read "System / data migration"
+        with no reason. The owner's own request is the evidence; the channel and
+        the reason say so. `reason` and `transfer_type` are the customer's words."""
         device_id = kwargs.get("device_id")
         to_partner_id = kwargs.get("to_partner_id")
         if not device_id or not to_partner_id:
@@ -439,9 +443,23 @@ class CustomerApiController(http.Controller):
         new_owner = _su_env()["res.partner"].browse(_to_int(to_partner_id) or 0).exists()
         if not new_owner:
             return _error("no_recipient", "The new owner does not exist")
+        transfer_type = kwargs.get("transfer_type") or None
+        if transfer_type and transfer_type not in dict(
+            device._fields["transfer_type_pending"].selection
+        ):
+            return _error("invalid_transfer_type", "Unknown transfer type")
+        reason = (kwargs.get("reason") or "").strip()
+        reason = reason or "Requested by the owner, %s, in the customer portal" % (
+            request.env.user.partner_id.name
+        )
         try:
             with _su_env().cr.savepoint():
-                device.action_transfer_ownership(new_owner.id)
+                device.action_transfer_ownership(
+                    new_owner.id,
+                    transfer_type=transfer_type,
+                    reason=reason,
+                    channel="customer_portal",
+                )
         except (UserError, ValidationError) as exc:
             return _error("transfer_rejected", str(exc))
         return {"transferred": True, "device_id": device.id}

@@ -72,7 +72,12 @@ def _site(c, name, **kw):
 
 
 def _licence(c, site, user=None, **kw):
-    vals = {"site_id": site.id, "licence_type": "trade", "number": "TL-A07P0"}
+    vals = {
+        "site_id": site.id,
+        "licence_type": "trade",
+        "number": "TL-A07P0",
+        "evidence_file": "JVBERi0xLjQgc2Nhbg==",
+    }
     vals.update(kw)
     model = c.env["fix.site.licence"]
     return (model.with_user(user) if user else model).create(vals)
@@ -111,7 +116,7 @@ def test_licence_validity_follows_the_calendar(c, monkeypatch):
 
 def test_licence_without_end_date_is_not_valid(c):
     site = _site(c, "A07P0 Undated Site")
-    lic = _licence(c, site, c.clerk, licence_type="fire", number=False)
+    lic = _licence(c, site, c.clerk, licence_type="fire")
     assert lic.state == "valid"
     assert lic.is_valid is False
     assert lic in c.env["fix.site.licence"].search([("is_valid", "!=", True)])
@@ -123,13 +128,15 @@ def test_licence_without_end_date_is_not_valid(c):
 def test_plain_user_cannot_revive_a_lapsed_licence(c, p03):
     site = _site(c, "A07P0 Revive Site")
     expired = _licence(c, site, c.clerk, state="expired", valid_to=c.today - timedelta(days=5))
-    with pytest.raises(UserError, match="lapsed"), c.env.cr.savepoint():
+    with pytest.raises(UserError, match="does not change"), c.env.cr.savepoint():
         expired.with_user(c.clerk2).write(
             {"state": "valid", "valid_to": c.today + timedelta(days=365)}
         )
+    with pytest.raises(UserError, match="lapsed"), c.env.cr.savepoint():
+        expired.with_user(c.clerk2).write({"state": "valid"})
     # still valid-state, but its date has passed: extending it is a revival too
     stale = _licence(c, site, licence_type="fire", valid_to=c.today - timedelta(days=3))
-    with pytest.raises(UserError, match="lapsed"), c.env.cr.savepoint():
+    with pytest.raises(UserError, match="does not change"), c.env.cr.savepoint():
         stale.with_user(c.clerk2).write({"valid_to": c.today + timedelta(days=365)})
     # via the P03 form
     res = p03.write(
@@ -257,18 +264,18 @@ def test_record_check_requires_and_rolls_the_next_date(c, p03):
         )
     )
     with pytest.raises(UserError, match="next check date"), c.env.cr.savepoint():
-        item.with_user(c.clerk).action_check()
+        item.with_user(c.clerk).action_check_pass()
     with pytest.raises(UserError, match="after today"), c.env.cr.savepoint():
-        item.with_user(c.clerk).action_check(next_check=str(c.today))
+        item.with_user(c.clerk).action_check_pass(next_check=str(c.today))
     with pytest.raises(UserError, match="not a date"), c.env.cr.savepoint():
-        item.with_user(c.clerk).action_check(next_check="next year")
+        item.with_user(c.clerk).action_check_pass(next_check="next year")
     assert item.state == "overdue"
     # the P03 "Record Check" button sends the date as a kwarg
     nxt = c.today + timedelta(days=180)
     res = p03.action(
         model="fix.site.safety",
         ids=[item.id],
-        method="action_check",
+        method="action_check_pass",
         kwargs={"next_check": str(nxt)},
     )
     assert res.get("success"), res

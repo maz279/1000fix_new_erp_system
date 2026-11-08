@@ -31,6 +31,8 @@ class FixAssetCostEntry(models.Model):
             ("facility_work_order", "Facility Work Order (M47)"),
             ("vehicle_fuel", "Vehicle Fuel (M46)"),
             ("vehicle_service", "Vehicle Service (M46)"),
+            ("site_utility", "Site Utility Bill (M47)"),
+            ("lease_rent", "Lease Rent (M47)"),
         ],
         required=True,
         readonly=True,
@@ -194,24 +196,25 @@ class FixAssetCostEntry(models.Model):
 
     @api.model
     def consume_vehicle_fuel_recorded(self, event):
-        """vehicle.fuel_recorded (M46, a fill with no open exception) -> a cost entry."""
+        """vehicle.fuel_recorded (M46, a fill with no open exception) -> a cost entry.
+        The entry reads the fill as it stands, not the event: the recorder may
+        have corrected it before the relay ran."""
         fuel = event_source(self.env, event, "fix.vehicle.fuel")
-        payload = event.get("payload") or {}
-        amount = float(payload.get("amount") or 0.0)
-        if not fuel or amount <= 0.0:
+        if not fuel or (fuel.amount or 0.0) <= 0.0 or fuel.review_state not in ("none", "cleared"):
             return False
         vals = self._m52_vehicle_vals(fuel.vehicle_id)
-        vals.update(
-            {
-                "cost_type": "vehicle_fuel",
-                "amount": amount,
-                "cost_date": fields.Date.to_date(payload.get("filled_on")) or fuel.filled_on,
-                "invoice_ref": payload.get("receipt_no") or False,
-                "detail": "%s L at %s, receipt %s"
-                % (payload.get("litres"), fuel.station or "-", payload.get("receipt_no") or "-"),
-            }
-        )
+        vals.update({"cost_type": "vehicle_fuel", **self._m52_fuel_figures(fuel)})
         return self._m52_queue(fuel, vals)
+
+    @api.model
+    def _m52_fuel_figures(self, fuel):
+        return {
+            "amount": fuel.amount,
+            "cost_date": fuel.filled_on,
+            "invoice_ref": fuel.receipt_no or False,
+            "detail": "%s L at %s, receipt %s"
+            % (fuel.litres, fuel.station or "-", fuel.receipt_no or "-"),
+        }
 
     @api.model
     def consume_vehicle_service_completed(self, event):
@@ -239,6 +242,65 @@ class FixAssetCostEntry(models.Model):
             }
         )
         return self._m52_queue(pm, vals)
+
+    @api.model
+    def _m52_site_vals(self, site):
+        site = site.sudo()
+        return {
+            "company_id": (site.company_id or self.env.company).id,
+            "operating_unit_id": (site.operating_unit_id or site.branch_id.operating_unit_id).id,
+            "branch_id": site.branch_id.id,
+            "site_id": site.id,
+        }
+
+    @api.model
+    def consume_site_utility_payable(self, event):
+        """site.utility_payable (M47: a bill not held, or released after review)
+        -> a cost entry. A held bill never published this, so it is not in AP."""
+        bill = event_source(self.env, event, "fix.site.utility")
+        payload = event.get("payload") or {}
+        amount = float(payload.get("amount") or 0.0)
+        if not bill or amount <= 0.0:
+            return False
+        vals = self._m52_site_vals(bill.site_id)
+        vals.update(
+            {
+                "cost_type": "site_utility",
+                "amount": amount,
+                "currency_id": bill.currency_id.id,
+                "cost_date": fields.Date.context_today(self),
+                "detail": "%s %s" % (bill.utility_type, bill.period),
+            }
+        )
+        return self._m52_queue(bill, vals)
+
+    @api.model
+    def consume_lease_rent_payment_requested(self, event):
+        """lease.rent_payment_requested (M47: a rent row sent to AP) -> a cost
+        entry on the landlord, matched only to the landlord's bill."""
+        row = event_source(self.env, event, "fix.site.lease.schedule")
+        payload = event.get("payload") or {}
+        amount = float(payload.get("amount") or 0.0)
+        if not row or amount <= 0.0:
+            return False
+        vals = self._m52_site_vals(row.site_id)
+        vals.update(
+            {
+                "cost_type": "lease_rent",
+                "amount": amount,
+                "currency_id": row.currency_id.id,
+                "cost_date": row.due_date,
+                "vendor_id": row.lease_id.lessor_id.id,
+                "detail": "Rent %s, lease %s" % (row.period, row.lease_id.name),
+            }
+        )
+        return self._m52_queue(row, vals)
+
+    def _m52_source(self):
+        self.ensure_one()
+        if self.source_model not in self.env:
+            return None
+        return self.env[self.source_model].sudo().browse(self.source_res_id).exists()
 
     # ---- AP's decision ----------------------------------------------------------
     def action_match_bill(self, vendor_invoice_id=None):
@@ -277,6 +339,11 @@ class FixAssetCostEntry(models.Model):
                     "%s: the cost entries matched to %s would total %.2f, above the bill's "
                     "%.2f." % (rec.name, bill.display_name, total, bill.gross_amount or 0.0)
                 )
+            source = rec._m52_source()
+            refusal = getattr(source, "_m52_match_refusal", None)
+            why = refusal() if refusal else None
+            if why:
+                raise UserError(why)
             rec.sudo()._guarded().write(
                 {
                     "state": "matched",
@@ -286,6 +353,9 @@ class FixAssetCostEntry(models.Model):
                 }
             )
             rec.message_post(body="Matched to vendor bill %s." % bill.display_name)
+            mark_paid = getattr(source, "_m52_mark_paid", None)
+            if mark_paid:
+                mark_paid(rec.amount, bill.invoice_date, bill.invoice_ref)
         return True
 
     def action_reject(self, reason=None):
@@ -306,3 +376,52 @@ class FixAssetCostEntry(models.Model):
             )
             rec.message_post(body="Rejected: %s" % note)
         return True
+
+
+class FixVehicleFuelM52(models.Model):
+    _inherit = "fix.vehicle.fuel"
+
+    # What the M52 cost entry of a fill carries.
+    _M52_FIELDS = frozenset({"amount", "filled_on", "receipt_no", "litres", "station"})
+
+    def _m52_entry(self):
+        self.ensure_one()
+        return (
+            self.env["fix.asset.cost.entry"]
+            .sudo()
+            .search([("source_model", "=", self._name), ("source_res_id", "=", self.id)], limit=1)
+        )
+
+    def write(self, vals):
+        """A recorder's correction after the fill reached M52. A pending entry
+        follows the fill; a corrected fill that is now held for review has no
+        accepted cost, so its pending entry goes until the review clears it
+        (which raises it again). Once AP has decided, the figure is theirs."""
+        touched = self._M52_FIELDS & set(vals)
+        if touched and not self.env.su:
+            for rec in self:
+                entry = rec._m52_entry()
+                if (
+                    entry
+                    and entry.state != "pending"
+                    and any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in touched)
+                ):
+                    raise UserError(
+                        "Accounts payable has already decided the cost entry of %s (%s): "
+                        "ask them before correcting this fill." % (rec.name, entry.name)
+                    )
+        res = super().write(vals)
+        if touched:
+            Entry = self.env["fix.asset.cost.entry"].sudo()
+            for rec in self:
+                entry = rec._m52_entry()
+                if not entry or entry.state != "pending":
+                    continue
+                if rec.review_state == "held":
+                    entry.unlink()
+                    continue
+                figures = Entry._m52_fuel_figures(rec.sudo())
+                if any(entry[k] != v for k, v in figures.items()):
+                    entry.write(figures)
+                    entry.message_post(body="The fill was corrected: figures refreshed.")
+        return res

@@ -145,11 +145,23 @@ SURFACES = {
         # A02 audit B1: verification is requested here and decided from the
         # Warranty Officer's M63 inbox.
         "actions": {"action_request_approval", "action_recall_approval", "action_void"},
+        # A07 operability M17-8: read as the caller; the row follows its device.
+        "rules": True,
+        # A07 operability M17: proof is a card or receipt, not any document.
+        "pickers": {
+            "proof_document_id": [
+                ("document_type", "in", ["warranty_card", "invoice", "asset_document"]),
+                "|",
+                ("res_model", "=", False),
+                ("res_model", "in", ["fix.warranty", "fix.device"]),
+            ],
+        },
     },
     "fix.device.history": {
         "order": "id desc",
         "limit": 200,
         "actions": set(),
+        "rules": True,
     },
     # --- added by the A03 gap-closure build -------------------
     # Each of these is bound by a workspace screen below; an
