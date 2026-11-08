@@ -23,6 +23,8 @@ Synthetic appointments follow the seed convention and say so in their names.
 import json
 import os
 
+from odoo.exceptions import UserError
+
 PM_LOGIN = "seed.ppm.pm@1000fix.local"
 SPONSOR_LOGIN = "seed.ppm.sponsor@1000fix.local"
 ENGINEER_LOGIN = "seed.ppm.engineer@1000fix.local"
@@ -452,7 +454,19 @@ def walk_closed_project(env, pm, sponsor, engineer, finance_user, out):
         )
     )
     line.action_mark_ready()
-    line.with_user(finance_user).action_mark_invoiced()
+    try:
+        with env.cr.savepoint():
+            line.with_user(finance_user).action_mark_invoiced()
+    except UserError as exc:
+        # The estate refuses to post an invoice it cannot make lawful (a company
+        # with no BIN cannot issue a Mushak 6.3). Never invent the missing fact:
+        # stop the walk at "ready for Finance" and say what a person must supply.
+        out["walk_closed"] = "stopped at ready: invoicing refused"
+        out["for_a_person"].append(
+            "Project %s line %s is ready to invoice, but posting was refused: %s"
+            % (project.name, line.name, exc)
+        )
+        return
     move = line.sudo().invoice_id
     try:
         with env.cr.savepoint():

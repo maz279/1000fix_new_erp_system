@@ -1722,6 +1722,21 @@ class FixEventDlq(models.Model):
                     rec.sudo().write(
                         {"state": "pending", "replayed_at": False, "replayed_by": False}
                     )
+        # A dead letter whose relay delivery later succeeded (a consumer fix, then a
+        # relay reset outside this screen) must not stay "pending" for ever: close it
+        # truthfully, with no person named as the replayer, since nobody replayed it.
+        recovered = self.sudo().search(
+            [("state", "=", "pending"), ("delivery_id.state", "=", "done")]
+        )
+        for rec in recovered:
+            rec._guarded().write(
+                {
+                    "state": "replayed",
+                    "replayed_at": rec.delivery_id.delivered_at or fields.Datetime.now(),
+                    "replayed_by": False,
+                    "decision_reason": "Delivered on a later relay attempt, not from this screen",
+                }
+            )
         return len(vals_list)
 
     def _fix_step_up(self, otp):

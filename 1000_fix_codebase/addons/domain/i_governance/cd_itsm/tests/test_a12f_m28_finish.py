@@ -1182,6 +1182,32 @@ def test_a12f_m28_6_stale_dead_letter_opens_one_incident_through_the_real_relay(
     assert Ticket.search_count([("source_ref", "=", ref)]) == 1, "raised twice"
 
 
+def test_a12f_m28_4_dead_letter_closes_when_its_delivery_later_succeeds(c):
+    """A12 finish rehearsal on a fix_dev copy: three real M60 dead letters were
+    redelivered after the consumer fix, yet their DLQ rows stayed 'pending'. The
+    mirror closes such a row truthfully, naming no one as the replayer."""
+    entry, consumer_row = _dead_row(c)
+    assert entry.state == "pending" and entry.delivery_id
+    # a second dead letter on the same consumer stays dead
+    Out = c.env["fix.event.outbox"].sudo()
+    emit(c, "f28.dl")
+    for _ in range(3):
+        Out.cron_relay()
+    Delivery = c.env["fix.event.consumer.delivery"].sudo()
+    still_dead = Delivery.search(
+        [("subscription_id", "=", consumer_row.id), ("id", "!=", entry.delivery_id.id)]
+    )
+    assert still_dead.state == "dead"
+    entry.delivery_id.sudo().write({"state": "done", "delivered_at": fields.Datetime.now()})
+    c.env["fix.event.dlq"].sudo().cron_sync_dead_letters()
+    entry.invalidate_recordset()
+    assert entry.state == "replayed"
+    assert not entry.replayed_by
+    assert "later relay attempt" in entry.decision_reason
+    other = c.env["fix.event.dlq"].sudo().search([("delivery_id", "=", still_dead.id)])
+    assert other.state == "pending"
+
+
 # ==================================================== M28-8 schema and topic
 def test_a12f_m28_8_schema_code_version_is_unique(c):
     Schema = c.env["fix.event.schema"].sudo()
