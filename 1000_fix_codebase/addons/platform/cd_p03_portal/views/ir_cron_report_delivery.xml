@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R5 (2026-11-08): NetSuite-style scheduled report delivery — the cron
+     picks up due fix.report.subscription records hourly and emails the
+     branded pack as an attachment. -->
+<odoo>
+    <record id="ir_cron_p03_report_delivery" model="ir.cron">
+        <field name="name">P03: Scheduled branded report delivery</field>
+        <field name="model_id" ref="model_fix_report_subscription"/>
+        <field name="state">code</field>
+        <field name="code">model.action_deliver_due()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

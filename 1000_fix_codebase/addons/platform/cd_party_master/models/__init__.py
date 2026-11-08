@@ -10,6 +10,8 @@ from . import (
     fix_otp_log,
     fix_party_duplicate,
     fix_party_hierarchy,
+    fix_party_import,
+    fix_party_import_line,
     fix_party_merge,
     fix_party_quality,
     fix_party_repoint_log,

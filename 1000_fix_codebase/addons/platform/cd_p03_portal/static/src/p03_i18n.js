@@ -1619,3 +1619,11 @@ Object.assign(P03_BN, {
   "Queued": "মেইল সারিতে যুক্ত",
   "The branded attachment is generated from exactly the rows this screen serves.": "ব্র্যান্ডেড সংযুক্তিটি এই স্ক্রিনে দেখানো ঠিক সেই সারিগুলো থেকেই তৈরি হয়।",
 });
+
+/* ---- Real-customer cut-over loader (2026-11-08) ---- */
+Object.assign(P03_BN, {
+  "Real-Customer Cut-over": "রিয়েল কাস্টমার কাট-ওভার",
+  "Import Batches": "ইমপোর্ট ব্যাচ",
+  "Import Lines (audit)": "ইমপোর্ট লাইন (অডিট)",
+  "Import Lines (per-row audit)": "ইমপোর্ট লাইন (প্রতি সারি অডিট)",
+});

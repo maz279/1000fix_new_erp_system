@@ -17,3 +17,5 @@ access_fix_bd_address_party,fix.bd.address party use,cd_entity_config.model_fix_
 access_fix_dedup_job,fix.dedup.job,model_fix_dedup_job,base.group_user,1,1,1,0
 access_fix_dedup_job_mgr,fix.dedup.job manager,model_fix_dedup_job,cd_entity_config.group_dofa_tier_2,1,1,1,1
 access_fix_party_repoint_log,fix.party.repoint.log,model_fix_party_repoint_log,base.group_user,1,0,0,0
+access_fix_party_import_batch,fix.party.import.batch,model_fix_party_import_batch,base.group_user,1,1,1,1
+access_fix_party_import_line,fix.party.import.line,model_fix_party_import_line,base.group_user,1,1,1,1
