@@ -56,12 +56,12 @@ def m45_require_role(env, xmlids, what):
 
 
 # A07 audit (2026-11-03) M45-6, spec §9 BRU-EAM-11/12: a write-off or retirement
-# is decided within the authority matrix, on the amount written off: up to
-# BDT 25,000 the Quality Manager, above that the CFO. No Quality Manager group
-# exists yet (P1), so the rungs map to the DOFA tier groups by label:
-#   Quality Manager -> tier_2 "Branch / Operations Manager" (the manager-level
-#                      tier; tier_1 is a team lead / supervisor);
-#   CFO             -> tier_4 "CFO / CCO / COO".
+# is decided within the authority matrix, on the amount written off. The spec
+# names the Quality Manager up to BDT 25,000 and the CFO above it; the rungs are
+# DOFA tier groups, and those decide who really gets the request:
+#   up to BDT 25,000 -> tier_2 "Branch / Operations Manager" (holding the Quality
+#                       Manager role alone does not put a person on this rung);
+#   above            -> tier_4 "CFO / CCO / COO".
 # One ladder, here; a fix.dofa.ladder ruling for fix.equipment overrides it
 # without code.
 WRITEOFF_DOFA_THRESHOLDS = [
@@ -92,6 +92,9 @@ CALIBRATION_EVIDENCE = {
     "performed_by",
     "certificate_ref",
     "trace_no",
+    "provider_accredited",
+    "certificate_file",
+    "certificate_filename",
     "company_id",
     "operating_unit_id",
     "supersedes_id",
@@ -290,20 +293,26 @@ class FixEquipment(models.Model):
             certifies = latest.result in CERTIFYING_RESULTS and latest.decision_state != "rejected"
             # a failed calibration certifies nothing, so it gives no due date
             rec.next_calibration = latest.next_due if certifies else False
-            if not latest:
-                state = "never"
-            elif latest.result not in CERTIFYING_RESULTS:
-                state = "failed"
-            elif latest.decision_state == "rejected":
-                state = "rejected"
-            elif latest.next_due < today:
-                state = "overdue"
-            elif decision_required and latest.decision_state != "accepted":
-                state = "pending"
-            else:
-                state = "current"
+            state = self._m45_certificate_state(latest, today, decision_required)
             rec.calibration_state = state
             rec.calibration_overdue = state == "overdue"
+
+    @api.model
+    def _m45_certificate_state(self, calibration, day, decision_required=None):
+        """What this calibration says about the instrument on `day`."""
+        if decision_required is None:
+            decision_required = m45_param_on(self.env, PARAM_USAGE_DECISION)
+        if not calibration:
+            return "never"
+        if calibration.result not in CERTIFYING_RESULTS:
+            return "failed"
+        if calibration.decision_state == "rejected":
+            return "rejected"
+        if calibration.next_due < day:
+            return "overdue"
+        if decision_required and calibration.decision_state != "accepted":
+            return "pending"
+        return "current"
 
     def _compute_calibration_profile(self):
         for rec in self:
@@ -345,6 +354,101 @@ class FixEquipment(models.Model):
         self.ensure_one()
         cals = self.sudo().calibration_ids.filtered(lambda c: not c.superseded_by_id)
         return cals.sorted(lambda c: (c.calibrated_on, c._origin.id or 0))[-1:]
+
+    def _m45_calibration_at(self, day):
+        """The calibration in force on `day`: the latest recorded by then, among
+        rows no correction has superseded."""
+        self.ensure_one()
+        cals = self.sudo().calibration_ids.filtered(
+            lambda c: not c.superseded_by_id and c.calibrated_on <= day
+        )
+        return cals.sorted(lambda c: (c.calibrated_on, c._origin.id or 0))[-1:]
+
+    def _m45_fitness_problem_on(self, day):
+        """Why this instrument was not fit on a past `day`, or None. An honest
+        late entry is judged by what was true when the instrument was used: its
+        certificate, holds, custody and loss on that date, not today's. A use
+        accepted this way that falls in a suspect window joins the impact
+        assessment (fix.equipment.usage)."""
+        self.ensure_one()
+        rec = self.sudo()
+        calibration = rec._m45_calibration_at(day)
+        state = rec._m45_certificate_state(calibration, day)
+        if state == "never":
+            return "%s had no calibration on %s: there was no certificate, so it was not fit." % (
+                rec.name,
+                day,
+            )
+        if state == "failed":
+            return "%s had failed its calibration of %s, so it was not usable on %s." % (
+                rec.name,
+                calibration.calibrated_on,
+                day,
+            )
+        if state == "rejected":
+            return (
+                "The calibration of %s dated %s was rejected at its usage decision, so it "
+                "certified nothing on %s." % (rec.name, calibration.calibrated_on, day)
+            )
+        if state == "overdue":
+            return "The calibration of %s was overdue on %s (it was due %s)." % (
+                rec.name,
+                day,
+                calibration.next_due,
+            )
+        if state == "pending":
+            return (
+                "The calibration of %s dated %s still awaits its usage decision: a Quality "
+                "Manager other than the person who recorded it must accept it first."
+                % (rec.name, calibration.calibrated_on)
+            )
+        if rec.retired_on and rec.retired_on <= day:
+            return "%s had been retired by %s." % (rec.name, day)
+        missing = rec.missing_verification_id
+        if missing and missing.verified_on <= day:
+            return "%s was recorded missing by %s (count of %s)." % (
+                rec.name,
+                day,
+                missing.verified_on,
+            )
+        hold = (
+            self.env["fix.equipment.oos"]
+            .sudo()
+            .search(
+                [
+                    ("equipment_id", "=", rec.id),
+                    ("started_on", "<=", day),
+                    "|",
+                    ("state", "=", "open"),
+                    ("resolved_on", ">", day),
+                ],
+                limit=1,
+            )
+        )
+        if hold:
+            return "%s was out of service on %s (%s)." % (rec.name, day, hold.reason)
+        custody = (
+            self.env["fix.equipment.issue"]
+            .sudo()
+            .search(
+                [
+                    ("equipment_id", "=", rec.id),
+                    ("issued_on", "<=", day),
+                    "|",
+                    ("state", "=", "issued"),
+                    ("returned_on", ">", day),
+                ],
+                limit=1,
+            )
+        )
+        holder = self.env.user.sudo().employee_ids
+        if custody and custody.custodian_id not in holder:
+            return "%s was issued to %s on %s: only its holder could use it." % (
+                rec.name,
+                custody.custodian_id.name,
+                day,
+            )
+        return None
 
     def _m45_calibration_problem(self):
         """The calibration half of fitness: why the latest calibration does
@@ -465,8 +569,9 @@ class FixEquipment(models.Model):
                 )
             if not (rec.acquisition_cost or 0.0) > 0.0:
                 raise UserError(
-                    "Record the acquisition cost of %s first: the write-off authority "
-                    "(Quality Manager up to BDT 25,000, CFO above) is decided by it." % rec.name
+                    "Record the acquisition cost of %s first: it decides who approves the "
+                    "write-off (the Branch / Operations Manager group up to BDT 25,000, the "
+                    "CFO / CCO / COO group above that)." % rec.name
                 )
             if not (rec.retirement_reason or "").strip():
                 rec.write({"retirement_reason": reason})
@@ -493,6 +598,16 @@ class FixEquipment(models.Model):
                     "operational_status": "retired",
                     "retired_on": fields.Date.context_today(self),
                     "retired_by_id": self.env.user.id,
+                }
+            )
+            # the item is out of use for good: nothing is left to return to service
+            self.env["fix.equipment.oos"].sudo().search(
+                [("equipment_id", "=", rec.id), ("state", "=", "open")]
+            )._guarded().write(
+                {
+                    "state": "resolved",
+                    "resolved_on": fields.Date.context_today(self),
+                    "resolved_by_id": self.env.user.id,
                 }
             )
             rec.message_post(
@@ -625,6 +740,7 @@ class FixCalibration(models.Model):
     _description = "Calibration"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "calibrated_on desc"
+    _rec_names_search = ["equipment_id", "certificate_ref"]
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -651,6 +767,14 @@ class FixCalibration(models.Model):
         "left empty, and may not exceed it.",
     )
     performed_by = fields.Char(string="Performed By")
+    provider_accredited = fields.Boolean(
+        string="Provider Accredited",
+        help="The provider who performed it holds the accreditation the instrument's "
+        "calibration profile asks for. A pass is refused without it when the profile "
+        "accepts an accredited provider only.",
+    )
+    certificate_file = fields.Binary(string="Certificate File", attachment=True, copy=False)
+    certificate_filename = fields.Char(string="Certificate File Name", copy=False)
     notes = fields.Text()
     supersedes_id = fields.Many2one(
         "fix.calibration",
@@ -709,6 +833,20 @@ class FixCalibration(models.Model):
         "fix.calibration.impact", string="Impact Assessment", readonly=True, copy=False
     )
 
+    @api.depends("equipment_id.name", "calibrated_on", "result")
+    def _compute_display_name(self):
+        labels = dict(self._fields["result"]._description_selection(self.env))
+        for rec in self:
+            rec.display_name = " / ".join(
+                str(part)
+                for part in (
+                    rec.sudo().equipment_id.name,
+                    rec.calibrated_on,
+                    labels.get(rec.result),
+                )
+                if part
+            )
+
     def _fix_guarded_fields(self) -> set:
         # A07 audit (2026-11-03) M45-2: a plain user rewrote a FAIL to PASS and
         # extended next_due to revive an overdue instrument (ORM and P03).
@@ -741,7 +879,9 @@ class FixCalibration(models.Model):
     def _m45_check_new_evidence(self, vals_list):
         """A07 audit (2026-11-03) M45-2: any user recorded a PASS with no
         certificate or performer, dated in the future. Superuser code (seeds,
-        data loads) stays trusted."""
+        data loads) stays trusted. Runs after _m45_prepare_vals: a result left
+        blank is derived from the readings there, and a derived pass needs this
+        evidence as much as a typed one."""
         today = fields.Date.context_today(self)
         if m45_param_on(self.env, PARAM_CALIBRATION_ROLE):
             m45_require_role(self.env, (ROLE_CALIBRATION, ROLE_QM), "Recording a calibration")
@@ -765,6 +905,17 @@ class FixCalibration(models.Model):
                     raise UserError(
                         "A passing calibration certifies the instrument, so it must name "
                         "%s." % " and ".join(missing)
+                    )
+                profile = (
+                    self.env["fix.calibration.profile"].sudo().browse(vals.get("profile_id") or [])
+                )
+                if profile.provider_requirement == "accredited" and not vals.get(
+                    "provider_accredited"
+                ):
+                    raise UserError(
+                        "The calibration profile of %s accepts an accredited provider only: "
+                        "tick Provider Accredited if this provider is, otherwise a Quality "
+                        "Manager must change the profile first." % profile.equipment_id.name
                     )
 
     def _m45_prepare_vals(self, vals_list):
@@ -833,9 +984,11 @@ class FixCalibration(models.Model):
             point = Point.browse(rv.get("point_id") or []).exists()
             if not su:
                 if not point or point not in points:
+                    instrument = self.env["fix.equipment"].sudo().browse(vals.get("equipment_id"))
                     raise UserError(
-                        "Each reading names a measurement point of the instrument's "
-                        "calibration profile: tolerance bands are never typed (T-10)."
+                        "Each reading must name a measurement point of the calibration profile "
+                        "of %s: another instrument's point has another tolerance band."
+                        % instrument.name
                     )
                 if point.id in seen:
                     raise UserError("Measurement point %s is read twice." % point.name)
@@ -869,7 +1022,7 @@ class FixCalibration(models.Model):
         if not su and typed and typed != derived:
             raise UserError(
                 "The readings give the result %s, not %s: the result is derived from the "
-                "readings against the profile's tolerance bands (T-10)."
+                "readings against the profile's tolerance bands."
                 % (dict(self._fields["result"].selection)[derived], typed)
             )
         return {"result": derived, "as_found_out_of_tolerance": found_out}
@@ -912,8 +1065,9 @@ class FixCalibration(models.Model):
             )
             if forged:
                 self._fix_guard_refuse(forged)
-            self._m45_check_new_evidence(vals_list)
         self._m45_prepare_vals(vals_list)
+        if not self.env.su:
+            self._m45_check_new_evidence(vals_list)
         # the readings are created with their calibration, never afterwards
         recs = super(FixCalibration, self._guarded().with_context(m45_calibration_create=True))
         recs = recs.create(vals_list).with_env(self.env)
@@ -1114,12 +1268,16 @@ class FixCalibration(models.Model):
         self._m45_decide("accepted")
         return True
 
-    def action_reject_calibration(self):
+    def action_reject_calibration(self, decision_note=None):
         """Reject the calibration (e.g. certificate not traceable, provider not
         accredited): it certifies nothing and, as the latest, it puts the
-        instrument out of service."""
+        instrument out of service. The reason is asked for on the button, or
+        may already be on the record."""
         self._m45_check_decider()
+        note = decision_note.strip() if isinstance(decision_note, str) else ""
         for rec in self:
+            if note:
+                rec.write({"decision_note": note})
             if not (rec.decision_note or "").strip():
                 raise UserError(
                     "State why %s is rejected (Usage Decision Note)." % rec.display_name
@@ -1280,15 +1438,35 @@ class FixCalibrationProfile(models.Model):
         m45_require_role(self.env, (ROLE_QM,), "A calibration profile")
         return super().create(vals_list)
 
+    def _m45_changes_beyond_the_request(self, vals) -> bool:
+        """Does this write change anything a Calibration Technician may not? The
+        form posts every field it shows, so an unchanged echo of the Quality
+        Manager's fields is not a change. A command on the measurement points
+        always is."""
+        for name in set(vals) - PROFILE_REQUEST_FIELDS:
+            if self._fields[name].type == "one2many":
+                if vals[name]:
+                    return True
+            elif any(rec._fix_guard_differs(name, vals[name], rec[name]) for rec in self):
+                return True
+        return False
+
     def write(self, vals):
         if not self._fix_guard_has_token():
-            if set(vals) - PROFILE_REQUEST_FIELDS:
+            if self._m45_changes_beyond_the_request(vals):
                 m45_require_role(self.env, (ROLE_QM,), "Changing a calibration profile")
             else:
                 m45_require_role(
                     self.env, (ROLE_CALIBRATION, ROLE_QM), "Proposing a calibration interval"
                 )
         return super().write(vals)
+
+    def _approval_excluded(self):
+        # spec §13: whoever calibrates the instrument does not approve a change to
+        # its interval, so the request must not reach them and stall in their inbox
+        return (
+            super()._approval_excluded() | self.equipment_id.sudo().calibration_ids.create_uid
+        ).sudo()
 
     def action_request_approval(self, justification=None):
         """Ask for the proposed interval. Routed to a Quality Manager who is
@@ -1330,10 +1508,18 @@ class FixCalibrationProfile(models.Model):
                     )
             old = rec.interval_months
             new = rec.proposed_interval_months
-            rec._guarded().write({"interval_months": new, "proposed_interval_months": 0})
+            reason = rec.interval_change_reason
+            # the justification answered this request; the next one states its own
+            rec._guarded().write(
+                {
+                    "interval_months": new,
+                    "proposed_interval_months": 0,
+                    "interval_change_reason": False,
+                }
+            )
             rec.message_post(
-                body="Calibration interval changed from %d to %d months, approved by %s."
-                % (old, new, self.env.user.name)
+                body="Calibration interval changed from %d to %d months, approved by %s. "
+                "Justification: %s" % (old, new, self.env.user.name, reason or "-")
             )
             publish(
                 self.env,
@@ -1354,6 +1540,7 @@ class FixCalibrationProfilePoint(models.Model):
     _name = "fix.calibration.profile.point"
     _description = "Calibration Measurement Point"
     _order = "profile_id, sequence, id"
+    _rec_names_search = ["name", "profile_id"]
 
     profile_id = fields.Many2one(
         "fix.calibration.profile", required=True, ondelete="cascade", index=True
@@ -1365,6 +1552,24 @@ class FixCalibrationProfilePoint(models.Model):
     nominal = fields.Float(digits=(16, 6))
     tolerance_low = fields.Float(string="Lower Limit", digits=(16, 6), required=True)
     tolerance_high = fields.Float(string="Upper Limit", digits=(16, 6), required=True)
+
+    @api.depends("name", "unit", "tolerance_low", "tolerance_high", "profile_id.equipment_id.name")
+    def _compute_display_name(self):
+        """The picker lists the points of every instrument, and a point of another
+        instrument is refused: the label says whose point it is and its band."""
+
+        def number(value):
+            return ("%.6f" % value).rstrip("0").rstrip(".")
+
+        for rec in self:
+            band = "%s to %s" % (number(rec.tolerance_low), number(rec.tolerance_high))
+            if rec.unit:
+                band = "%s %s" % (band, rec.unit)
+            rec.display_name = "%s: %s (%s)" % (
+                rec.sudo().profile_id.equipment_id.name or "",
+                rec.name or "",
+                band,
+            )
 
     @api.constrains("tolerance_low", "tolerance_high")
     def _check_band(self):
@@ -1424,6 +1629,10 @@ class FixCalibrationImpact(models.Model):
     )
     period_to = fields.Date(string="Suspect To", help="The out-of-tolerance calibration.")
     usage_ids = fields.Many2many("fix.equipment.usage", string="Affected Uses")
+    # the workspace's child grid reads a one2many; this shows usage_ids
+    usage_line_ids = fields.One2many(
+        "fix.equipment.usage", compute="_compute_usage_lines", string="Affected Use Lines"
+    )
     affected_uses = fields.Integer(
         compute="_compute_affected", store=True, string="Affected Use Count"
     )
@@ -1446,6 +1655,11 @@ class FixCalibrationImpact(models.Model):
     def _compute_affected(self):
         for rec in self:
             rec.affected_uses = len(rec.usage_ids)
+
+    @api.depends("usage_ids")
+    def _compute_usage_lines(self):
+        for rec in self:
+            rec.usage_line_ids = rec.usage_ids
 
     def _fix_guarded_fields(self) -> set:
         guarded = super()._fix_guarded_fields() | {

@@ -132,8 +132,8 @@ def test_safety_check_clears_overdue(ctx):
     # which stayed in the past. No inspection interval exists, so the check
     # must be given the next date, and it must move the date forward.
     with pytest.raises(UserError, match="next check date"), env.cr.savepoint():
-        item.action_check()
-    item.action_check(next_check=str(today + timedelta(days=180)))
+        item.action_check_pass()
+    item.action_check_pass(next_check=str(today + timedelta(days=180)))
     assert item.next_check == today + timedelta(days=180)
     assert item.state == "ok"
     # fix.site.safety.action_check stamps `fields.Date.context_today` - the
@@ -196,8 +196,9 @@ def test_plant_asset_lifecycle_and_report(ctx):
 
     pack = m47.branch_assets(env)
     row = next(r for r in pack["rows"] if r["site"] == site.name)
-    assert row["assets"] == 1
-    assert row["asset_value"] == 500000
+    # the register counts plant in service: the retired generator has left it
+    assert row["assets"] == 0
+    assert row["asset_value"] == 0
 
 
 def test_work_order_lifecycle_and_sequence(ctx):

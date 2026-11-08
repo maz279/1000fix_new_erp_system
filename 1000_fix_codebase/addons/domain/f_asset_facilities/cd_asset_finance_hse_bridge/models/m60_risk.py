@@ -14,6 +14,9 @@ from odoo.exceptions import UserError
 
 from .fix_bridge_exception import event_source
 
+# A07 operability (2026-11-07): the site incidents the risk register holds.
+INCIDENT_RISK_TYPES = ("fire", "theft", "trespass", "injury")
+
 
 class FixRiskRegisterBridge(models.Model):
     _inherit = "fix.risk.register"
@@ -151,6 +154,33 @@ class FixRiskRegisterBridge(models.Model):
             )
         )
         return self._bridge_raise(subject, label, company, ou, trigger, "exc:%s" % exc.id)
+
+    @api.model
+    def consume_site_incident(self, event):
+        """site.incident (M47: a fire, a theft, a trespass or an injury) -> the
+        site's ONE open entry, each incident logged on it."""
+        incident = event_source(self.env, event, "fix.site.incident")
+        if not incident or not (
+            incident.incident_type in INCIDENT_RISK_TYPES or incident.injuries_flag
+        ):
+            return False
+        subject, label, company, ou = self._bridge_site(incident.site_id)
+        kind = dict(incident._fields["incident_type"].selection)[incident.incident_type]
+        trigger = "%s incident %s on %s, %s severity" % (
+            kind,
+            incident.name,
+            incident.occurred_on or "-",
+            incident.severity or "-",
+        )
+        return self._bridge_raise(
+            subject,
+            label,
+            company,
+            ou,
+            trigger,
+            "inc:%s:%s" % (incident.id, incident.incident_type),
+            category="operational",
+        )
 
     @api.model
     def consume_site_compliance_expired(self, event):

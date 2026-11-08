@@ -96,6 +96,9 @@ def cal(c, e, user=None, on=None, due=None, result="pass", **kw):
         "standard_ref": "STD-%s" % TAG,
         "certificate_ref": "CERT-%s" % TAG,
         "performed_by": "%s Lab" % TAG,
+        # a new profile accepts an accredited provider only (enforced since the
+        # A07 operability build); the refusal has its own test
+        "provider_accredited": True,
     }
     if result is not None:
         vals["result"] = result
@@ -422,11 +425,16 @@ def test_a_quality_manager_who_calibrated_the_instrument_does_not_approve_its_in
         .create({"equipment_id": e.id, "interval_months": 12})
     )
     cal(c, e, user=c.qm2)  # qm2 performed a calibration of it
+    qm3 = _user(c.env, "qm3", [ROLE_QM])
     profile.with_user(c.tech).write(
         {"proposed_interval_months": 24, "interval_change_reason": "stable"}
     )
     profile.with_user(c.tech).action_request_approval()
-    task = inbox_task(profile, c.qm2)
+    # the request never reaches whoever calibrated it, so it cannot stall in their inbox
+    assert not inbox_task(profile, c.qm2)
+    task = inbox_task(profile, qm3)
     assert task
-    assert refused(c.env, lambda: task.with_user(c.qm2).action_approve(), "Segregation")
+    # one who calibrates it after the request was routed is refused at the decision
+    cal(c, e, user=qm3)
+    assert refused(c.env, lambda: task.with_user(qm3).action_approve(), "Segregation")
     assert profile.interval_months == 12

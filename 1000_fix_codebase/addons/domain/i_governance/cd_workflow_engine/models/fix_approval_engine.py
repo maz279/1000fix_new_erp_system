@@ -714,6 +714,19 @@ class FixApprovableMixin(models.AbstractModel):
                 rec.write({"dofa_justification": justification})
             rule = rec._approval_rule()
             tier = rec._approval_tier()
+            # Tier 2 and above needs a written justification to be approved. Saying
+            # so here keeps a blank request from waiting on a vote that can only refuse.
+            if (
+                tier
+                and "dofa_justification" in rec._fields
+                and hasattr(rec, "_dofa_tier_rank")
+                and rec._dofa_tier_rank(tier) >= rec._dofa_tier_rank("tier_2")
+                and not (rec.dofa_justification or "").strip()
+            ):
+                raise UserError(
+                    "Write the justification for %s: the approver cannot approve without one."
+                    % rec.display_name
+                )
             approvers = rec._approval_resolve(rule, tier)
             if not approvers:
                 raise UserError(
@@ -1359,6 +1372,8 @@ class FixWorkflowTask(models.Model):
     amount = fields.Float(related="request_id.amount")
     tier = fields.Selection(related="request_id.tier")
     requested_by_id = fields.Many2one(related="request_id.requested_by_id")
+    # What the requester wrote: the approver decides on it, from the inbox.
+    justification = fields.Text(related="request_id.justification")
     is_mine = fields.Boolean(compute="_compute_is_mine", search="_search_is_mine")
 
     def _fix_guarded_fields(self) -> set:
@@ -1397,7 +1412,13 @@ class FixWorkflowTask(models.Model):
             )
 
     def _search_is_mine(self, operator, value):
-        mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
+        # Odoo 19 rewrites ('is_mine', '=', True) to ('in', [True]) before this runs. Reading
+        # only "=" negated the domain: the inbox hid the user's tasks and listed everyone else's.
+        if operator in ("in", "not in"):
+            wanted = any(value) if isinstance(value, list | tuple | set) else bool(value)
+            mine = wanted if operator == "in" else not wanted
+        else:
+            mine = (operator in ("=", "==") and value) or (operator in ("!=", "<>") and not value)
         dom = [
             "|",
             ("assigned_user_id", "=", self.env.uid),

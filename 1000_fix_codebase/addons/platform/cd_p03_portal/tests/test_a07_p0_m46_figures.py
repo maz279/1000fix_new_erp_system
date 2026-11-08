@@ -100,7 +100,11 @@ def test_km_per_litre_and_cost_per_km_are_fill_to_fill(w):
     v = w.vehicle("A07P0K-F2F")
     for odo, lit, amt in ((10000, 40, 4500), (10500, 42, 4700), (11000, 44, 4900)):
         w.fill(v, odo, lit, amt)
-    w.env["fix.vehicle.pm"].create({"vehicle_id": v.id, "cost": 6500})
+    # a completed service is a cost; an open job's figure is only an estimate
+    w.env["fix.vehicle.pm"].create(
+        {"vehicle_id": v.id, "cost": 6500, "odometer": 10900}
+    ).action_done()
+    w.env["fix.vehicle.pm"].create({"vehicle_id": v.id, "cost": 9999})
     eff = _row(m46.fuel_efficiency(w.env), v.name)
     assert eff["km"] == 1000 and eff["litres_in_range"] == 86
     assert eff["km_per_litre"] == round(1000 / 86, 2)  # 11.63, not 1000/126
@@ -114,9 +118,16 @@ def test_period_is_honoured(w):
     w.fill(v, 5000, 40, 4000, days_ago=400)  # outside the period
     w.fill(v, 10000, 40, 4500, days_ago=5)
     w.fill(v, 11000, 50, 5000)
-    w.env["fix.vehicle.pm"].create(
-        {"vehicle_id": v.id, "cost": 100000, "scheduled_on": w.today - timedelta(days=730)}
+    old = w.env["fix.vehicle.pm"].create(
+        {
+            "vehicle_id": v.id,
+            "cost": 100000,
+            "odometer": 4000,
+            "scheduled_on": w.today - timedelta(days=730),
+        }
     )
+    old.action_done()
+    old.write({"done_on": w.today - timedelta(days=730)})  # a job belongs to the day it was done
     period = {"date_from": str(w.today - timedelta(days=30)), "date_to": str(w.today)}
     row = _row(m46.cost_per_km(w.env, **period), "A07P0K-PER")
     assert row["pm_cost"] == 0 and row["km"] == 1000 and row["cost_per_km"] == 5.0

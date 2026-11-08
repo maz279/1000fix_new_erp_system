@@ -78,6 +78,9 @@ class FixDocument(models.Model):
     description = fields.Text()
 
     # The actual file (ir.attachment)
+    # A person's upload on the workspace form: the file becomes the attachment below.
+    upload_file = fields.Binary(string="File", store=False)
+    upload_filename = fields.Char(string="File Name", store=False)
     attachment_id = fields.Many2one(
         "ir.attachment",
         string="Attachment",
@@ -296,6 +299,21 @@ class FixDocument(models.Model):
         for vals in vals_list:
             vals.pop("checksum_sha256", None)
             vals.pop("payload_size_bytes", None)
+            upload = vals.pop("upload_file", None)
+            filename = vals.pop("upload_filename", None)
+            if upload and not vals.get("attachment_id"):
+                vals.setdefault("name", filename or "Document")
+                vals["attachment_id"] = (
+                    self.env["ir.attachment"]
+                    .create(
+                        {
+                            "name": filename or vals["name"],
+                            "datas": upload,
+                            "res_model": "fix.document",
+                        }
+                    )
+                    .id
+                )
         records = super().create(vals_list)
         for rec in records:
             self._emit("document.attached", rec)
@@ -463,7 +481,9 @@ class FixDocument(models.Model):
 
     def _next_version(self):
         try:
-            return "%.1f" % ((float(self.version or "1") + 0.1) if "." in (self.version or "") else 1.1)
+            return "%.1f" % (
+                (float(self.version or "1") + 0.1) if "." in (self.version or "") else 1.1
+            )
         except ValueError:
             return "next"
 
@@ -630,12 +650,13 @@ class FixDocument(models.Model):
         for rec in self:
             if rec.state == "destroyed":
                 raise UserError(
-                    "'%s' is destroyed: its row anchors the permanent disposal register."
-                    % rec.name
+                    "'%s' is destroyed: its row anchors the permanent disposal register." % rec.name
                 )
             rec.action_assert_can_destroy()
-            if not self.env["fix.disposal.record"].sudo().search_count(
-                [("document_id", "=", rec.id)]
+            if (
+                not self.env["fix.disposal.record"]
+                .sudo()
+                .search_count([("document_id", "=", rec.id)])
             ):
                 raise UserError(
                     "'%s' may be removed only through a recorded disposal (action_dispose) — "
@@ -645,18 +666,8 @@ class FixDocument(models.Model):
 
     # ---------------------------------------------------------- Mayan EDMS
     def _mayan_config(self):
-        url = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("mayan_edms.base_url", "")
-            .strip()
-        )
-        token = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("mayan_edms.token", "")
-            .strip()
-        )
+        url = self.env["ir.config_parameter"].sudo().get_param("mayan_edms.base_url", "").strip()
+        token = self.env["ir.config_parameter"].sudo().get_param("mayan_edms.token", "").strip()
         return url, token
 
     def action_sync_to_mayan(self):

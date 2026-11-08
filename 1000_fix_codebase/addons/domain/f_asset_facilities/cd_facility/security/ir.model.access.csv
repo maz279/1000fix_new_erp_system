@@ -7,7 +7,7 @@ access_fix_facility_work_order_bol,fix.facility.work.order branch operations lea
 access_fix_site_lease,fix.site.lease,model_fix_site_lease,base.group_user,1,0,1,0
 access_fix_site_lease_fm,fix.site.lease facility manager,model_fix_site_lease,group_facility_manager,1,1,1,0
 access_fix_site_lease_bol,fix.site.lease branch operations lead,model_fix_site_lease,group_branch_operations_lead,1,1,1,1
-access_fix_site_licence,fix.site.licence,model_fix_site_licence,base.group_user,1,0,1,0
+access_fix_site_licence,fix.site.licence,model_fix_site_licence,base.group_user,1,0,0,0
 access_fix_site_licence_fm,fix.site.licence facility manager,model_fix_site_licence,group_facility_manager,1,1,1,0
 access_fix_site_licence_bol,fix.site.licence branch operations lead,model_fix_site_licence,group_branch_operations_lead,1,1,1,1
 access_fix_site_utility,fix.site.utility,model_fix_site_utility,base.group_user,1,1,1,0

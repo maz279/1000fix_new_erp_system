@@ -213,22 +213,33 @@ def _wo(c, user=None, **kw):
         "description": "A07P1L generator overhaul",
     }
     vals.update(kw)
-    return c.env[WO].with_user(user or c.clerk).create(vals)
+    order = c.env[WO].with_user(user or c.clerk).create(vals)
+    # a person's request is triaged first (tested in test_a07_m47_operability.py)
+    order.sudo().action_triage("normal")
+    return order
+
+
+def _assign_to_clerk(c, w):
+    """The engineer doing the job: only they or a Facility Manager may run it."""
+    employee = c.env["hr.employee"].create(
+        {"name": "A07 engineer", "user_id": c.clerk.id, "company_id": c.co.id}
+    )
+    w.sudo().write({"assigned_to": employee.id})
 
 
 def test_raising_publishes_and_a_vendor_job_names_its_vendor(c):
     w = _wo(c, assigned_type="vendor")
     assert _events(c, "facility.work_order_raised", w.id)[0]["source"] == "request"
-    _refused(w.action_schedule, match="vendor")
+    _refused(w.with_user(c.fm).action_schedule, match="vendor")
     w.write({"vendor_id": c.vendor.id})
-    w.action_schedule()
+    w.with_user(c.fm).action_schedule()
     assert w.state == "scheduled"
 
 
 def test_high_risk_job_starts_only_under_an_approved_permit(c):
     w = _wo(c, high_risk=True)
-    w.action_schedule()
-    _refused(w.action_start, match="permit to work")
+    w.with_user(c.fm).action_schedule()
+    _refused(w.with_user(c.fm).action_start, match="permit to work")
     # the permit is not typed, and the raiser and plain users do not approve it
     _refused(
         w.with_user(c.clerk2).write,
@@ -256,7 +267,8 @@ def test_high_risk_job_starts_only_under_an_approved_permit(c):
 
 def test_verification_is_a_facility_managers_and_sends_the_cost_to_m52(c):
     w = _wo(c, assigned_type="vendor", vendor_id=c.vendor.id)
-    w.action_schedule()
+    _assign_to_clerk(c, w)
+    w.with_user(c.fm).action_schedule()
     w.action_start()
     w.action_complete(notes="Alternator rewound, job sheet JS-77")
     _refused(w.with_user(c.clerk2).action_verify, match="Facility Manager")
@@ -272,7 +284,8 @@ def test_a_costed_vendor_job_needs_its_invoice_reference(c):
     w = _wo(c, assigned_type="vendor", vendor_id=c.vendor.id, estimated_cost=8000.0)
     t2 = _user(c.env, "a07p1_m47l_t2", c.co, c.ou, TIER % 2)
     approve_via_inbox(w, t2, requester=c.clerk, justification="Generator down")
-    w.action_schedule()
+    _assign_to_clerk(c, w)
+    w.with_user(c.fm).action_schedule()
     w.action_start()
     w.write({"actual_cost": 7500.0})
     w.action_complete(notes="Done, JS-78")

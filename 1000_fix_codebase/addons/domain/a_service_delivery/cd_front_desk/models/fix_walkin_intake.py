@@ -111,15 +111,8 @@ class FixWalkinIntake(models.Model):
 
     @api.model
     def _fd_find_device(self, code):
-        Device = self.env["fix.device"]
-        code = (code or "").strip()
-        if not code:
-            return Device.browse()
-        domain = [("serial_number", "=", code)]
-        for name in ("imei_1", "imei_2"):
-            if name in Device._fields:
-                domain = ["|", *domain, (name, "=", code)]
-        return Device.search(domain, limit=1)
+        # A merged duplicate's identifier resolves to the surviving device.
+        return self.env["fix.device"].resolve_identifier(code)
 
     def write(self, vals):
         if not self.env.su and {"device_id", "device_serial_input"} & set(vals):

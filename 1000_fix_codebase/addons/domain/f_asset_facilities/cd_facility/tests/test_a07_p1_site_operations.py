@@ -167,7 +167,7 @@ def test_record_check_rolls_by_the_items_interval_and_records_the_inspector(c):
         )
     )
     assert item.state == "overdue"
-    item.with_user(c.clerk2).action_check()
+    item.with_user(c.clerk2).action_check_pass()
     assert item.next_check == c.today + relativedelta(months=12) and item.state == "ok"
     assert (item.last_check, item.last_checked_by_id) == (c.today, c.clerk2)
     _refused(item.write, {"last_checked_by_id": c.clerk.id}, match="cannot be set directly")
@@ -177,7 +177,7 @@ def test_record_check_rolls_by_the_items_interval_and_records_the_inspector(c):
         .with_user(c.clerk)
         .create({"site_id": c.site.id, "next_check": c.today - timedelta(days=1)})
     )
-    _refused(other.action_check, match="inspection interval")
+    _refused(other.action_check_pass, match="inspection interval")
 
 
 # ------------------------------------------------------------------- incident
@@ -258,13 +258,13 @@ def test_a_recurring_pm_schedules_its_next_job(c):
             }
         )
     )
-    pm.action_done()
+    pm.with_user(c.fm).action_done()
     nxt = pm.next_pm_id
     assert nxt and nxt.state == "open" and nxt.interval_months == 3
     assert nxt.scheduled_on == pm.scheduled_on + relativedelta(months=3)
     _refused(pm.write, {"next_pm_id": False}, match="cannot be set directly")
     one_off = c.env["fix.site.pm"].with_user(c.clerk).create({"site_id": c.site.id})
-    one_off.action_done()
+    one_off.with_user(c.fm).action_done()
     assert not one_off.next_pm_id
 
 
@@ -278,14 +278,14 @@ def test_business_default_intervals_apply_where_none_is_set(c):
         .with_user(c.clerk)
         .create({"site_id": c.site.id, "scheduled_on": c.today - timedelta(days=1)})
     )
-    pm.action_done()
+    pm.with_user(c.fm).action_done()
     assert pm.next_pm_id.scheduled_on == pm.scheduled_on + relativedelta(months=3)
     assert not pm.next_pm_id.interval_months  # it keeps following the default
     # its own interval still wins
     own = (
         c.env["fix.site.pm"].with_user(c.clerk).create({"site_id": c.site.id, "interval_months": 6})
     )
-    own.action_done()
+    own.with_user(c.fm).action_done()
     assert own.next_pm_id.scheduled_on == own.scheduled_on + relativedelta(months=6)
     # a safety item with no interval rolls by the default
     item = (
@@ -293,12 +293,12 @@ def test_business_default_intervals_apply_where_none_is_set(c):
         .with_user(c.clerk)
         .create({"site_id": c.site.id, "next_check": c.today - timedelta(days=1)})
     )
-    item.with_user(c.clerk2).action_check()
+    item.with_user(c.clerk2).action_check_pass()
     assert item.next_check == c.today + relativedelta(months=3)
     # a malformed default counts as none
     ICP.set_param("cd_facility.default_pm_interval_months", "three")
     once = c.env["fix.site.pm"].with_user(c.clerk).create({"site_id": c.site.id})
-    once.action_done()
+    once.with_user(c.fm).action_done()
     assert not once.next_pm_id
 
 
@@ -317,8 +317,10 @@ def test_p03_offers_the_new_actions_and_surfaces(c):
         "action_decide_continue",
         "action_decide_suspend",
     }
+    assert SURFACES["fix.site.lease.schedule"]["actions"] == {"action_send_to_ap"}
+    assert SURFACES["fix.site.lease.extract"]["actions"] == set()
     for model in ("fix.site.lease.schedule", "fix.site.lease.extract"):
-        assert SURFACES[model]["actions"] == set() and WRITABLE[model] == frozenset()
+        assert WRITABLE[model] == frozenset()
     assert WRITABLE["fix.site.risk.exception"] == frozenset({"decision_notes"})
     # the internal transitions are never buttons
     every = set().union(*(s["actions"] for s in SURFACES.values()))

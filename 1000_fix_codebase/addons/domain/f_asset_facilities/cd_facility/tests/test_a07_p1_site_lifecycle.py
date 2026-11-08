@@ -9,6 +9,7 @@ company of their own, so the approval engine routes only to users made here.
 
 from __future__ import annotations
 
+import base64
 import json
 import types
 from datetime import timedelta
@@ -23,6 +24,7 @@ FM = "cd_facility.group_facility_manager"
 BOL = "cd_facility.group_branch_operations_lead"
 OPSDIR = "cd_facility.group_operations_director"
 TIER = "cd_entity_config.group_dofa_tier_%d"
+SCAN = base64.b64encode(b"%PDF-1.4 licence scan").decode()
 
 
 def _user(env, login, company, ou, *groups):
@@ -98,6 +100,7 @@ def _make_ready(c, site):
                 "site_id": site.id,
                 "licence_type": ltype,
                 "number": "%s-1" % ltype.upper(),
+                "evidence_file": SCAN,
                 "valid_to": c.today + timedelta(days=300),
             }
         )
@@ -225,6 +228,7 @@ def _operational_site_with_lapse(c):
                 "site_id": site.id,
                 "licence_type": "trade",
                 "number": "TL-9",
+                "evidence_file": SCAN,
                 "valid_to": c.today - timedelta(days=2),
             }
         )
@@ -283,6 +287,7 @@ def test_suspend_then_resume_after_the_renewal(c):
             "site_id": site.id,
             "licence_type": "trade",
             "number": "TL-10",
+            "evidence_file": SCAN,
             "valid_to": c.today + timedelta(days=365),
         }
     )
@@ -307,17 +312,17 @@ def test_trade_renewal_is_refused_while_the_fire_licence_is_expired(c):
         }
     )
     Lic = c.env["fix.site.licence"].with_user(c.fm)
+    current = {
+        "site_id": site.id,
+        "number": "N-1",
+        "evidence_file": SCAN,
+        "valid_to": c.today + timedelta(days=365),
+    }
     with pytest.raises(UserError, match="fire licence"), c.env.cr.savepoint():
-        Lic.create(
-            {"site_id": site.id, "licence_type": "trade", "valid_to": c.today + timedelta(days=365)}
-        )
+        Lic.create(dict(current, licence_type="trade"))
     # a current fire licence first, then the trade renewal is accepted
-    Lic.create(
-        {"site_id": site.id, "licence_type": "fire", "valid_to": c.today + timedelta(days=365)}
-    )
-    trade = Lic.create(
-        {"site_id": site.id, "licence_type": "trade", "valid_to": c.today + timedelta(days=365)}
-    )
+    Lic.create(dict(current, licence_type="fire"))
+    trade = Lic.create(dict(current, licence_type="trade"))
     assert trade.is_valid
 
 

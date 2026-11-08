@@ -39,7 +39,7 @@ A07 P1 bridge (2026-11-04).
   branch) on every open M01 order of the device, and its clearance is
   recorded on the hold. No order state is changed.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",
@@ -58,11 +58,14 @@ A07 P1 bridge (2026-11-04).
         "cd_billing_engine",
         # A07 P1 wiring: the M48 outcome feeds M26's model monitoring
         "cd_ml_services",
+        # the stock lot of a fitted component (fix.device.component)
+        "stock",
     ],
     "data": [
         "security/ir.model.access.csv",
         "security/fix_spine_rules.xml",
         "data/fix_event_consumers.xml",
+        "data/fix_asset_alert_consumers.xml",
         "data/ir_cron.xml",
     ],
     "installable": True,

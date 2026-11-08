@@ -13,3 +13,4 @@ from . import fix_ml_outcome
 # the M17 lost/stolen hold on M01 orders
 from . import fix_spine_vehicle_wiring
 from . import fix_device_flag_hold
+from . import fix_asset_alert

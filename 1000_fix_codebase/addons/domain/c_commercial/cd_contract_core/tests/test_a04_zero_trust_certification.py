@@ -281,7 +281,7 @@ def _any_device(env):
         )
         model = env["fix.device.model"].create({"name": "A04 Audit Model", "brand_id": brand.id})
     return env["fix.device"].create(
-        {"device_model_id": model.id, "lifecycle_stage": "active", "state": "in_service"}
+        {"device_model_id": model.id, "lifecycle_stage": "active", "state": "registered"}
     )
 
 

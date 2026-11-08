@@ -2996,6 +2996,7 @@
                                             </t>
                                             <span style="color: var(--ink-400); font-size: 12px; margin-left: 4px;">· live from Odoo</span>
                                             <span t-if="state.gl.mlSearch" class="chip" style="margin-left: 6px; font-size: 11px; padding: 2px 6px;">Filtered</span>
+                                            <button t-if="mlHasMore" type="button" class="btn btn-sm" style="margin-left: 8px;" t-att-disabled="state.gl.mlLoadingMore" t-on-click="() => this.mlLoadMore()"><t t-esc='t("Load more")'/></button>
                                         </div>
                                         <div style="display: flex; gap: 6px; flex-wrap: wrap;" t-if="mlStates.length">
                                             <button class="btn btn-sm" t-att-class="{'btn-primary': state.gl.mlState === '__all'}" t-on-click="() => this.mlSetState('__all')"><t t-esc='t("All")'/></button>
@@ -3210,7 +3211,13 @@
                                                         <span t-if="fm.required" class="d365-req">*</span>
                                                     </label>
                                                     <!-- read-only values render as D365 locked text -->
-                                                    <div t-if="fm.readonly" class="d365-ro" t-att-id="fldId" t-esc="formDisplay(field.name)"/>
+                                                    <div t-if="fm.readonly &amp;&amp; (fm.type === 'binary' || fm.type === 'file')" class="d365-ro" t-att-id="fldId">
+                                                        <a t-if="formFieldValue(field.name)" t-att-href="formFileDownloadHref(field.name)" t-att-download="formFileName(field.name)" target="_blank">
+                                                            ⬇️ <t t-esc='t("Download / View")'/>: <t t-esc="formFileName(field.name)"/>
+                                                        </a>
+                                                        <t t-else="">—</t>
+                                                    </div>
+                                                    <div t-elif="fm.readonly" class="d365-ro" t-att-id="fldId" t-esc="formDisplay(field.name)"/>
                                                     <!-- selection -->
                                                     <select t-elif="fm.type === 'selection'" class="d365-input"
                                                             t-att-id="fldId" t-att-name="field.name"
@@ -3220,6 +3227,22 @@
                                                             <option t-att-value="opt.key" t-att-selected="formSelectValue(field.name) == opt.key" t-esc="t(opt.label)"/>
                                                         </t>
                                                     </select>
+                                                    <!-- many2one on a long comodel: search as you type -->
+                                                    <div t-elif="fm.type === 'many2one' &amp;&amp; fm.remote" class="d365-lookup"
+                                                         t-on-focusout="(ev) => this.formLookupClose(field.name, ev)">
+                                                        <input type="search" class="d365-input" autocomplete="off" role="combobox"
+                                                               t-att-id="fldId" t-att-name="field.name"
+                                                               t-att-aria-expanded="formLookupOpen(field.name) ? 'true' : 'false'"
+                                                               t-att-placeholder="t('Type to search…')"
+                                                               t-att-value="formLookupText(field.name)"
+                                                               t-on-input="(ev) => this.formLookupInput(field.name, ev.target.value)"/>
+                                                        <div t-if="formLookupOpen(field.name)" class="d365-lookup-list" role="listbox">
+                                                            <button t-foreach="formLookupRows(field.name)" t-as="opt" t-key="opt.id" type="button"
+                                                                    class="d365-lookup-option" role="option"
+                                                                    t-on-click="() => this.formLookupPick(field.name, opt)" t-esc="opt.label"/>
+                                                            <div t-if="!formLookupRows(field.name).length" class="d365-lookup-empty"><t t-esc='t("No match yet: keep typing")'/></div>
+                                                        </div>
+                                                    </div>
                                                     <!-- many2one -->
                                                     <select t-elif="fm.type === 'many2one'" class="d365-input"
                                                             t-att-id="fldId" t-att-name="field.name"
@@ -3356,7 +3379,7 @@
                                             <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
-                                                    <span t-if="lf.readonly" t-esc="formLineDisplay(row_index, lf.name)"/>
+                                                    <span t-if="lf.readonly || formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
                                                     <select t-elif="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
                                                             t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                             t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
@@ -3881,6 +3904,23 @@
                                 <div class="modal-footer">
                                     <button class="btn" t-on-click="() => this.glPromptCancel()"><t t-esc='t("Cancel")'/></button>
                                     <button class="btn btn-primary" t-on-click="() => this.glPromptOk()"><t t-esc='t("Confirm")'/></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- A one-time secret: stays until dismissed -->
+                        <div class="modal-scrim" t-if="state.gl.secretDialog" role="dialog" aria-modal="true" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+                            <div class="modal-dialog" style="max-width: 520px;">
+                                <div class="modal-head"><h3><t t-esc='t("Copy this key now")'/></h3></div>
+                                <div class="modal-body">
+                                    <p t-esc="state.gl.secretDialog.note"/>
+                                    <div class="fld">
+                                        <label for="p03_secret_value"><t t-esc='t("Key (shown once, never again)")'/></label>
+                                        <input id="p03_secret_value" type="text" readonly="readonly" autocomplete="off" t-att-value="state.gl.secretDialog.secret" t-on-focus="(ev) => ev.target.select()"/>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" t-on-click="() => { this.state.gl.secretDialog = null; }"><t t-esc='t("I have copied it")'/></button>
                                 </div>
                             </div>
                         </div>

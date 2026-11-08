@@ -103,7 +103,7 @@ def dev(c, user=None, **kw):
     return Device.create(vals)
 
 
-def doc(c, res_model=False, res_id=0, doc_type="contract"):
+def doc(c, res_model=False, res_id=0, doc_type="asset_document"):
     att = c.env["ir.attachment"].create({"name": "evidence.pdf", "raw": b"%PDF-1.4 a7p1"})
     return c.env["fix.document"].create(
         {
@@ -405,7 +405,13 @@ def test_identifier_history_keeps_every_value_with_source_and_correction(c):
 
 # ============================================================ provisional
 def test_a_provisional_identity_gets_no_cover_no_transfer_until_confirmed(c):
-    d = dev(c, user=c.clerk, serial_number=False, state="provisional")
+    d = dev(
+        c,
+        user=c.clerk,
+        serial_number=False,
+        state="provisional",
+        provisional_reason="label worn off",
+    )
     assert d.state == "provisional"
     assert events(c, "device.provisional_raised", d.id)
     w = c.env["fix.warranty"].create(
@@ -577,7 +583,7 @@ def test_warranty_dates_and_proof_binding(c):
     W = c.env["fix.warranty"].with_user(c.clerk)
     with pytest.raises(ValidationError, match="before it starts"), c.env.cr.savepoint():
         W.create({"device_id": d.id, "start_date": c.today, "end_date": c.today - timedelta(1)})
-    foreign = doc(c, "res.partner", c.stranger.id, "other")
+    foreign = doc(c, "res.partner", c.stranger.id, "invoice")
     w = W.create(
         {
             "device_id": d.id,

@@ -664,3 +664,108 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__revision_note
 msgid "Last Terms Revision"
 msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__api_key_hash
+msgid "Key Hash"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_set
+msgid "Key Set"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_rotated_by
+msgid "Key Rotated By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__key_rotated_on
+msgid "Key Rotated On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_severity
+msgid "Proposed Severity"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_duration_min
+msgid "Proposed Sustained For (minutes)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_cooldown_min
+msgid "Proposed Cooldown (minutes)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_severity
+msgid "Severity Before Suppression"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_duration_min
+msgid "Sustained For Before Suppression"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_cooldown_min
+msgid "Cooldown Before Suppression"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approval_routed_group
+msgid "Approval Routed To"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancelled_by
+msgid "Cancelled By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancelled_on
+msgid "Cancelled On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__cancel_reason
+msgid "Why Cancelled"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_file
+msgid "Disclosure File"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_filename
+msgid "Disclosure File Name"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_name
+msgid "Disclosure On File"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry__anonymised
+msgid "Anonymised"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__work_order_created
+msgid "Preventive Work Order Requested"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_rule__suppression_kind__settings
+msgid "Loosened Settings"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_retention_change__change_type__deactivate
+msgid "Policy Deactivation"
+msgstr ""

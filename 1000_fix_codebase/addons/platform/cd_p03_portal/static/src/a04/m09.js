@@ -391,7 +391,7 @@ export const SCREENS = {
     back: 'M09-register',
     status: { field: 'status' },
     tabs: [
-      { id: 'policy_header', label: '1. Warranty Registration', bn: '১. ওয়ারেন্টি নিবন্ধন', icon: '📋', badge: '3' },
+      { id: 'policy_header', label: '1. Warranty Registration', bn: '১. ওয়ারেন্টি নিবন্ধন', icon: '📋', badge: '6' },
       { id: 'terms_coverage', label: '2. Coverage & Validity', bn: '২. কভারেজ ও মেয়াদ', icon: '🛡️', badge: '4' },
       { id: 'governance', label: '3. Status & Audit', bn: '৩. অবস্থা ও অডিট', icon: '✅', badge: '1' }
     ],
@@ -407,6 +407,12 @@ export const SCREENS = {
           { name: 'end_date', required: true, label: 'Coverage End Date' },
           { name: 'currency_id', required: true, label: 'Currency' },
           { name: 'coverage_details', type: 'text', label: 'Statutory Coverage Inclusions & Exclusions' }
+        ] },
+      { tab: 'policy_header', title: 'Proof of Purchase', note: 'Upload the purchase receipt or warranty card, or choose one already filed, then press Request Verification on the register. A Warranty Officer who did not register it verifies it from the approvals inbox; a request with no proof is refused.',
+        fields: [
+          { name: 'proof_file', type: 'file', label: 'Upload Proof' },
+          { name: 'proof_filename', label: 'Proof File Name' },
+          { name: 'proof_document_id', label: 'Proof Document' }
         ] },
       { tab: 'governance', title: 'Lifecycle Status', fields: [
           { name: 'status', label: 'Policy Status (set by Verify / Void)', readonly: true }

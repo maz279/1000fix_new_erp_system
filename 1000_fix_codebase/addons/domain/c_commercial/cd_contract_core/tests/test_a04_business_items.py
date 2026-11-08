@@ -200,7 +200,7 @@ class TestWarrantyVerificationQueue:
                 {"name": "Business-item model", "brand_id": brand.id}
             )
         return env["fix.device"].create(
-            {"device_model_id": model.id, "lifecycle_stage": "active", "state": "in_service"}
+            {"device_model_id": model.id, "lifecycle_stage": "active", "state": "registered"}
         )
 
     def _w(self, env, **kw):

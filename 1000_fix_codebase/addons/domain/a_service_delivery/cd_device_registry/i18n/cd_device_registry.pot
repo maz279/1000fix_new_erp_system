@@ -209,10 +209,6 @@ msgid "Gift"
 msgstr ""
 
 #. module: cd_device_registry
-msgid "Group By"
-msgstr ""
-
-#. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__casing
 msgid "Housing / Chassis"
 msgstr ""
@@ -224,17 +220,13 @@ msgstr ""
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_1
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__imei_1
 msgid "IMEI 1"
 msgstr ""
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_2
 msgid "IMEi 2 (Dual SIM)"
-msgstr ""
-
-#. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__in_service
-msgid "In Service"
 msgstr ""
 
 #. module: cd_device_registry
@@ -373,19 +365,9 @@ msgid "Repair"
 msgstr ""
 
 #. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__repaired
-msgid "Repaired"
-msgstr ""
-
-#. module: cd_device_registry
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__return
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__return
 msgid "Return"
-msgstr ""
-
-#. module: cd_device_registry
-#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__returned
-msgid "Returned to Owner"
 msgstr ""
 
 #. module: cd_device_registry
@@ -400,6 +382,7 @@ msgstr ""
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__serial_number
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__serial_number
 msgid "Serial Number"
 msgstr ""
 
@@ -533,6 +516,7 @@ msgstr ""
 
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__supersede_reason
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_reason
 msgid "Correction Reason"
 msgstr ""
 
@@ -847,4 +831,69 @@ msgstr ""
 #. module: cd_device_registry
 #: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__void_reason
 msgid "Void Reason"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__register_provisional
+msgid "Register as Provisional"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__provisional_reason
+msgid "Why the Identity Is Unconfirmed"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__provisional_reason
+msgid "Recorded at registration: why neither a serial nor an IMEI could be confirmed."
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_field
+msgid "Identifier to Correct"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__correction_value
+msgid "Corrected Value"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__correction_field__imei_2
+msgid "IMEI 2"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_evidence_file
+msgid "Upload Transfer Evidence"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_evidence_filename
+msgid "Evidence File Name"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__evidence_file
+msgid "Upload Photograph"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__evidence_filename
+msgid "Photograph File Name"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__proof_file
+msgid "Upload Proof"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__proof_filename
+msgid "Proof File Name"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_identifier__source__backfill
+msgid "Recorded from the device record (captured before history existed)"
 msgstr ""

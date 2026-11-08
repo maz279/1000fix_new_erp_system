@@ -31,7 +31,7 @@ A separate module on purpose (P0 lesson, cd_vehicle_dispatch): the asset
 modules keep their dependencies, and a server that has not installed this
 bridge never loads it.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.1.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Asset & Facilities",

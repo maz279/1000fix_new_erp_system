@@ -80,7 +80,7 @@ def c(odoo_env):
     model = env["fleet.vehicle.model"].create({"name": f"{TAG} Van", "brand_id": brand.id})
     x.van = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-1"})
     x.van2 = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-2"})
-    x.insurer = env["res.partner"].create({"name": f"{TAG} Insurer"})
+    x.insurer = env["res.partner"].create({"name": f"{TAG} Insurer", "is_insurer": True})
     emp = env["hr.employee"].create({"name": f"{TAG} Driver"})
     x.driver = env["fix.driver"].create(
         {

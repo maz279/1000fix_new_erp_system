@@ -17,7 +17,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from .fix_maintenance_demand import ORIGINS
+from .fix_maintenance_demand import ORIGINS, SO_CLOSED, WO_OPEN
 
 SPINE_LINKS = (
     "spine_demand_id",
@@ -142,6 +142,9 @@ class FixFacilityWorkOrderSpine(models.Model):
             else:
                 rec.spine_asset_kind = "site"
 
+    def _wo_person_raised(self) -> bool:
+        return super()._wo_person_raised() and not self.spine_demand_id
+
     # ------------------------------------------------------------ verify
     def _spine_completion_problems(self):
         """Why the source of this (completed) work order would refuse to be
@@ -173,8 +176,8 @@ class FixFacilityWorkOrderSpine(models.Model):
                 )
         if self.spine_origin == "m45_calibration" and not self._spine_calibration_since():
             problems.append(
-                "record the calibration of %s (with its certificate) in M45: the work order "
-                "does not stand in for it" % self.equipment_id.display_name
+                "record the calibration of %s (a passing one, with its certificate) in M45: "
+                "the work order does not stand in for it" % self.equipment_id.display_name
             )
         return problems
 
@@ -183,7 +186,13 @@ class FixFacilityWorkOrderSpine(models.Model):
         if not self.equipment_id:
             return self.env["fix.calibration"]
         since = fields.Date.to_date(self.create_date) if self.create_date else None
-        domain = [("equipment_id", "=", self.equipment_id.id), ("superseded_by_id", "=", False)]
+        # a failed or rejected calibration certifies nothing, so it completes nothing
+        domain = [
+            ("equipment_id", "=", self.equipment_id.id),
+            ("superseded_by_id", "=", False),
+            ("result", "in", ("pass", "adjusted")),
+            ("decision_state", "!=", "rejected"),
+        ]
         if since:
             domain.append(("calibrated_on", ">=", since))
         return (
@@ -303,3 +312,26 @@ class FixIotActionSpineLink(models.Model):
             demand = Demand.search([("iot_action_id", "=", rec.id)], order="id desc", limit=1)
             rec.spine_work_order_id = wo or demand.work_order_id
             rec.spine_service_order_id = demand.service_order_id
+
+    def _fix_completion_blockers(self):
+        """A07 (2026-11-07): an action could be completed, and its finding recorded,
+        while the order doing the work was still open. A work order is open until
+        it is verified (WO_OPEN), a service order until delivered or closed."""
+        blockers = super()._fix_completion_blockers()
+        for rec in self.sudo():
+            demands = (
+                self.env["fix.maintenance.demand"].sudo().search([("iot_action_id", "=", rec.id)])
+            )
+            orders = (
+                self.env["fix.facility.work.order"].sudo().search([("iot_action_id", "=", rec.id)])
+                | demands.work_order_id
+            )
+            for demand in demands.filtered(lambda d: d.state == "pending"):
+                blockers.append(
+                    "%s has no order yet (%s)" % (demand.name, demand.blocker or "not routed")
+                )
+            for wo in orders.filtered(lambda w: w.state in WO_OPEN):
+                blockers.append("work order %s is still open" % wo.name)
+            for so in demands.service_order_id.filtered(lambda s: s.state not in SO_CLOSED):
+                blockers.append("service order %s is still open" % so.name)
+        return blockers

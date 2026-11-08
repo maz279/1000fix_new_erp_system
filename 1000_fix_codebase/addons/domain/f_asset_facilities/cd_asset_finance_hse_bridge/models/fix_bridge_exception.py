@@ -127,6 +127,7 @@ class FixBridgeException(models.Model):
     source_ref = fields.Char(string="Source", readonly=True)
     message = fields.Text(string="What Is Needed", readonly=True)
     role_xmlid = fields.Char(string="Resolved By (Role)", readonly=True)
+    role_label = fields.Char(string="Resolved By", compute="_compute_role_label")
     # the one fact a person supplies for the M59 route: the worker involved
     employee_id = fields.Many2one(
         "hr.employee",
@@ -140,8 +141,15 @@ class FixBridgeException(models.Model):
     resolved_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     resolved_at = fields.Datetime(readonly=True, copy=False)
 
+    def _compute_role_label(self):
+        for rec in self:
+            group = (
+                self.env.ref(rec.role_xmlid, raise_if_not_found=False) if rec.role_xmlid else None
+            )
+            rec.role_label = group.sudo().name if group else False
+
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {
+        guarded = super()._fix_guarded_fields() | {
             "name",
             "key",
             "route",
@@ -160,6 +168,10 @@ class FixBridgeException(models.Model):
             "resolved_at",
             "company_id",
         }
+        if any(rec.state != "open" for rec in self):
+            # the worker named is part of what was resolved
+            guarded.add("employee_id")
+        return guarded
 
     def unlink(self):
         if not self.env.su:

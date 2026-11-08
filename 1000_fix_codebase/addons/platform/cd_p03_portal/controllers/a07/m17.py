@@ -5,13 +5,35 @@
 import datetime
 
 from odoo import fields
+from odoo.addons.cd_device_registry.models.fix_device import (
+    CUSTODY_EVIDENCE_TYPES,
+    TRANSFER_EVIDENCE_TYPES,
+)
 
 from ..p03_service_order_api import _company_domain
 
+
+def _evidence_picker(types):
+    """Evidence of these types that is unfiled or already about a device. The
+    server decides the rest: filed on this device, and not used before."""
+    return [
+        ("document_type", "in", list(types)),
+        "|",
+        ("res_model", "=", False),
+        ("res_model", "=", "fix.device"),
+    ]
+
+
+# A07 operability (2026-11-07) M17-6: every list here read as superuser with at
+# best a company fence, so any internal user listed every unit's owners, IMEIs and
+# custody. "rules" reads as the caller: the company and operating-unit rules of
+# the device, and of each row through its device, decide.
 SURFACES = {
     "fix.device": {
         "order": "id desc",
         "limit": 400,
+        "rules": True,
+        "pickers": {"transfer_evidence_document_id": _evidence_picker(TRANSFER_EVIDENCE_TYPES)},
         # A07 audit M17-8: the lifecycle moves only through these. Scrap is a
         # routed M63 decision (Device Quality Manager, never the requester);
         # here it is only requested. A Branch Manager other than the flagger
@@ -24,42 +46,65 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_transfer_ownership",
+            "action_correct_identifier",
             "action_confirm_identity",
             "action_set_vintage",
             "action_set_end_of_support",
             "action_set_obsolete",
+            "action_return_to_active",
         },
     },
     # fix.device.history is declared by M01 — read through the merge.
     "fix.device.ownership": {
         "order": "transfer_date desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": set(),
     },
-    "fix.device.estate": {"order": "name", "limit": 200, "actions": set()},
+    "fix.device.estate": {"order": "name", "limit": 200, "rules": True, "actions": set()},
     "fix.device.pm": {
         "order": "next_due",
         "limit": 300,
-        "actions": {"action_complete", "action_pause", "action_resume"},
+        "rules": True,
+        "actions": {"action_complete", "action_reschedule", "action_pause", "action_resume"},
     },
     "fix.device.condition": {
         "order": "graded_on desc, id desc",
         "limit": 300,
+        "rules": True,
         "actions": {"action_confirm"},
     },
     "fix.device.identity": {
         "order": "create_date desc, id desc",
         "limit": 200,
+        "rules": True,
         # A07 audit M17-3: the merge is decided from the M63 approval inbox by a
         # Tier 2 holder who neither raised nor requested it; here it is only
         # routed. action_merge is the engine's apply method, not a button.
         "actions": {"action_request_approval", "action_recall_approval", "action_reject"},
     },
-    "fix.device.custody": {"order": "event_date desc, id desc", "limit": 400, "actions": set()},
+    "fix.device.custody": {
+        "order": "event_date desc, id desc",
+        "limit": 400,
+        "rules": True,
+        "pickers": {
+            "evidence_document_id": _evidence_picker(CUSTODY_EVIDENCE_TYPES),
+            "condition_id": [("state", "=", "confirmed")],
+        },
+        "actions": set(),
+    },
     "fix.device.component": {
         "order": "installed_on desc, id desc",
         "limit": 400,
-        "actions": {"action_remove", "action_dispose_returned", "action_dispose_scrapped"},
+        "rules": True,
+        "actions": {
+            "action_remove",
+            "action_record_disposition",
+            "action_dispose_returned",
+            "action_dispose_scrapped",
+            "action_dispose_harvested",
+            "action_dispose_returned_to_brand",
+        },
     },
     # A07 P2 (2026-11-04): the identifier history (read-only; a Branch Manager
     # records the NEIR result of an IMEI) and the merge lineage (a Device
@@ -67,14 +112,29 @@ SURFACES = {
     "fix.device.identifier": {
         "order": "device_id, identifier_type, captured_at desc, id desc",
         "limit": 400,
+        "rules": True,
         "actions": {"action_neir_registered", "action_neir_deregistered", "action_neir_blocked"},
     },
     "fix.device.merge": {
         "order": "merged_at desc, id desc",
         "limit": 200,
+        "rules": True,
         "actions": {"action_reverse"},
     },
-    "fix.device.part.compatibility": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.device.part.compatibility": {
+        "order": "id desc",
+        "limit": 400,
+        "rules": True,
+        "actions": set(),
+    },
+    # A07 operability (2026-11-07) BRU-AST-09: the hold M17's lost/stolen flag puts
+    # on each open M01 order. Only the event consumers write it; a person reads it.
+    "fix.service.order.device.hold": {
+        "order": "state, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": set(),
+    },
 }
 
 
@@ -196,7 +256,7 @@ def asset_360(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Counts are single-pass aggregates over the warranty, history and custody "
-            "records. Showing %d of %d devices (newest last)." % (len(rows), total)
+            "records. Showing %d of %d devices, sorted by device name." % (len(rows), total)
         ],
         empty="No devices registered yet.",
     )
@@ -411,28 +471,45 @@ def estate_coverage(env, date_from=None, date_to=None, **params):
     )
 
 
+def _custody_assessment(event):
+    """What a lost or found event means now: the device's state decides, because
+    only a Branch Manager's clearance ends a lost flag (BRU-AST-09)."""
+    if event.device_id.state != "lost":
+        return "flag cleared"
+    return "open: flagged lost" if event.event == "lost" else "recovered: flag not yet cleared"
+
+
 def custody_exceptions(env, date_from=None, date_to=None, **params):
     custody = _scoped(env, "fix.device.custody")
+    labels = dict(env["fix.device.custody"]._fields["event"].selection)
     rows = []
     for event in custody.filtered(lambda c: c.event in ("lost", "found")):
         rows.append(
             {
                 "device": event.device_id.name,
                 "reference": event.name,
-                "event": dict(event._fields["event"].selection).get(event.event),
+                "event": labels.get(event.event),
                 "from": event.from_party_id.name if event.from_party_id else "—",
                 "to": event.to_party_id.name if event.to_party_id else "—",
                 "date": str(event.event_date),
-                "note": "lost without recovery"
-                if event.event == "lost"
-                and not custody.filtered(
-                    lambda c, d=event.device_id, dt=event.event_date: (
-                        c.device_id.id == d.id and c.event == "found" and c.event_date >= dt
-                    )
-                )
-                else dict(event._fields["event"].selection).get(event.event),
+                "note": _custody_assessment(event),
             }
         )
+    # A device flagged before the registry wrote its flag into the chain.
+    charted = set(custody.filtered(lambda c: c.event == "lost").device_id.ids)
+    for device in _scoped(env, "fix.device", [("state", "=", "lost")]):
+        if device.id not in charted:
+            rows.append(
+                {
+                    "device": device.name,
+                    "reference": "Registry flag",
+                    "event": labels["lost"],
+                    "from": "—",
+                    "to": "—",
+                    "date": str(fields.Date.to_date(device.lost_flagged_at) or "—"),
+                    "note": "open: flagged lost",
+                }
+            )
     rows.sort(key=lambda r: r["date"], reverse=True)
     return _pack(
         "Custody Exceptions — lost devices and recoveries",
@@ -447,7 +524,10 @@ def custody_exceptions(env, date_from=None, date_to=None, **params):
             "note": "Assessment",
         },
         rows,
-        ["A lost event with no later found event is marked 'lost without recovery'."],
+        [
+            "The assessment reads the device: it stays open until a Branch Manager clears the "
+            "lost flag, even after a Recovered event."
+        ],
         empty="No custody exceptions recorded.",
     )
 
@@ -464,7 +544,9 @@ def data_quality(env, date_from=None, date_to=None, **params):
             problems.append("no model")
         if not device.owner_id:
             problems.append("no owner")
-        if not device.estate_id:
+        # An estate is a corporate customer's structure (FR-AST-038): an individual
+        # has none to be in.
+        if not device.estate_id and device.owner_id.commercial_partner_id.is_company:
             problems.append("no estate")
         if device.id not in conditioned:
             problems.append("no condition grade")
@@ -492,8 +574,8 @@ def data_quality(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Score = 100 − 20 per missing element (serial, model, owner, estate, "
-            "confirmed condition); average %.1f%%." % average
+            "Score = 100 − 20 per missing element (serial, model, owner, confirmed condition, "
+            "and an estate for a corporate owner); average %.1f%%." % average
         ],
         empty="No devices registered yet.",
     )
@@ -560,7 +642,6 @@ def kpis(env):
     today = fields.Date.context_today(env.user)
     horizon = today + datetime.timedelta(days=30)
     pms = _scoped(env, "fix.device.pm", [("state", "=", "active")])
-    custody = _scoped(env, "fix.device.custody")
     conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
     # Cover running today, not every row still marked `active`: 53 such rows had
     # all ended by 1 Oct 2026, so the KPI read 53 against a true 0 (M17-5).
@@ -569,21 +650,13 @@ def kpis(env):
         "fix.warranty",
         [("status", "=", "active"), ("start_date", "<=", today), ("end_date", ">=", today)],
     )
-    lost = custody.filtered(lambda c: c.event == "lost")
-    open_lost = 0
-    for event in lost:
-        found = custody.filtered(
-            lambda c, d=event.device_id, dt=event.event_date: (
-                c.device_id.id == d.id and c.event == "found" and c.event_date >= dt
-            )
-        )
-        if not found:
-            open_lost += 1
     return {
         "devices_active": len(devices.filtered(lambda d: d.active)),
         "estates": len(_scoped(env, "fix.device.estate")),
         "pm_due_30d": len(pms.filtered(lambda p: p.next_due and p.next_due <= horizon)),
-        "custody_open_lost": open_lost,
+        # The device's state: custody rows alone missed a registry flag and
+        # read a cleared flag as still lost (A07 operability M17-12).
+        "custody_open_lost": len(devices.filtered(lambda d: d.state == "lost")),
         "without_condition": len(devices) - len(set(conditions.mapped("device_id").ids)),
         "warranty_active": len(warranties),
     }

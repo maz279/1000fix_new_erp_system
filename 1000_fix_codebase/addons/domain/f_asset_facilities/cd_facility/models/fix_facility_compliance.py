@@ -250,6 +250,10 @@ class FixSiteRiskException(models.Model):
                 body="The continue decision lapsed on %s: a new decision is required."
                 % rec.review_due_on
             )
+        # a closed site operates on nothing: one left open is resolved, not chased
+        self.sudo().search(
+            [("state", "in", ("open", "continue", "suspend")), ("site_id.state", "=", "closed")]
+        )._exception_resolve("the site is closed")
         for rec in self.sudo().search([("state", "=", "open")]):
             if rec.last_escalated_on == today:
                 continue
@@ -307,6 +311,7 @@ class FixSiteLeaseSchedule(models.Model):
     paid_amount = fields.Monetary(currency_field="currency_id", help="Matched by M52")
     paid_on = fields.Date()
     invoice_ref = fields.Char(string="Invoice Ref (M52)")
+    ap_requested_on = fields.Date(string="Sent to AP On", readonly=True, copy=False)
     variance = fields.Monetary(
         currency_field="currency_id", compute="_compute_variance", help="Paid minus due"
     )
@@ -315,6 +320,41 @@ class FixSiteLeaseSchedule(models.Model):
     def _compute_variance(self):
         for rec in self:
             rec.variance = (rec.paid_amount or 0.0) - (rec.rent_due or 0.0) if rec.paid_on else 0.0
+
+    def action_send_to_ap(self):
+        """Send this month's rent to AP as a pending cost entry (BRU-FAC-12).
+        Accounts payable matches it to the landlord's bill, and the match
+        stamps the row. Sending it twice is one entry."""
+        if not self.env.su and not self.env.user.has_group("cd_facility.group_facility_manager"):
+            raise UserError("Rent is sent to accounts payable by a Facility Manager.")
+        for rec in self.sudo():
+            if rec.paid_on or rec.ap_requested_on:
+                continue
+            if rec.lease_id.state == "terminated":
+                raise UserError("Lease %s is terminated: no rent is due." % rec.lease_id.name)
+            rec._guarded().write({"ap_requested_on": fields.Date.context_today(rec)})
+            publish(
+                self.env,
+                "lease.rent_payment_requested",
+                rec._name,
+                rec.id,
+                {
+                    "lease": rec.lease_id.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "period": rec.period,
+                    "due_date": str(rec.due_date),
+                    "amount": float(rec.rent_due or 0.0),
+                    "lessor_id": rec.lease_id.lessor_id.id,
+                },
+            )
+        return True
+
+    def _m52_mark_paid(self, amount, paid_on, invoice_ref):
+        """Accounts payable matched this rent to the landlord's bill."""
+        self.sudo()._guarded().write(
+            {"paid_amount": amount, "paid_on": paid_on, "invoice_ref": invoice_ref}
+        )
 
 
 class FixSiteLeaseExtract(models.Model):
@@ -327,7 +367,12 @@ class FixSiteLeaseExtract(models.Model):
     site_id = fields.Many2one(related="lease_id.site_id", store=True, index=True)
     version = fields.Integer(required=True)
     reason = fields.Selection(
-        [("recorded", "Lease Recorded"), ("modified", "Lease Modified")], required=True
+        [
+            ("recorded", "Lease Recorded"),
+            ("modified", "Lease Modified"),
+            ("terminated", "Lease Terminated"),
+        ],
+        required=True,
     )
     payload = fields.Text(help="The accounting-relevant lease data, as published to M19/M49")
     published_at = fields.Datetime()

@@ -37,6 +37,38 @@ class FixWorkshopEvidence(models.Model):
         locked = super()._fix_form_locked_fields()
         return locked | self._FROZEN_FIELDS if self else locked
 
+    # A person's upload on the workspace form: it becomes the governed document.
+    upload_file = fields.Binary(string="Evidence File", store=False)
+    upload_filename = fields.Char(string="File Name", store=False)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """The release gate counts only a document filed against this job, so a file
+        uploaded here is filed there, and a picked document must not belong elsewhere."""
+        Document = self.env["fix.document"].sudo()
+        for vals in vals_list:
+            upload = vals.pop("upload_file", None)
+            filename = vals.pop("upload_filename", None)
+            job_id = vals.get("job_id")
+            if upload and not vals.get("document_id"):
+                vals["document_id"] = Document.attach(
+                    name=filename or vals.get("name") or "Evidence",
+                    datas=upload,
+                    document_type="evidence_pack",
+                    res_model="fix.workshop.job",
+                    res_id=job_id or 0,
+                ).id
+            elif vals.get("document_id") and job_id:
+                document = Document.browse(vals["document_id"])
+                if not document.res_model:
+                    document._guarded().write({"res_model": "fix.workshop.job", "res_id": job_id})
+                elif (document.res_model, document.res_id) != ("fix.workshop.job", job_id):
+                    raise UserError(
+                        "%s is filed against another record, so it cannot be this job's "
+                        "evidence. Upload the file here instead." % document.display_name
+                    )
+        return super().create(vals_list)
+
     def write(self, vals):
         touched = self._FROZEN_FIELDS & set(vals)
         if self and touched and not self._fix_guard_open():

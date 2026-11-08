@@ -64,7 +64,9 @@ def m(odoo_env):
         # one receipt per warranty: A07 M17-13 files a proof against the
         # warranty it verified, so the same paper cannot prove a second one
         att = env["ir.attachment"].create({"name": "receipt.pdf", "datas": b"JVBERg=="})
-        return env["fix.document"].create({"name": "Purchase receipt", "attachment_id": att.id})
+        return env["fix.document"].create(
+            {"name": "Purchase receipt", "attachment_id": att.id, "document_type": "invoice"}
+        )
 
     x.proof = proof
 
@@ -105,8 +107,16 @@ def test_verification_is_decided_from_the_officers_inbox(m):
 
 
 def test_verification_still_needs_proof_and_an_officer(m):
-    wty = _warranty(m, m.clerk, proof_document_id=False)
-    wty.with_user(m.clerk).action_request_approval(justification="Card to follow")
+    # A07 operability: refused at the request, so no officer gets a vote that must fail
+    bare = _warranty(m, m.clerk, proof_document_id=False)
+    assert "before requesting verification" in _refused(
+        m.env,
+        lambda: bare.with_user(m.clerk).action_request_approval(justification="Card to follow"),
+    )
+    # and the decision still checks it, if the proof is taken away after the request
+    wty = _warranty(m, m.clerk)
+    wty.with_user(m.clerk).action_request_approval(justification="Card on file")
+    wty.with_user(m.clerk).write({"proof_document_id": False})
     assert "before verifying" in _refused(
         m.env, lambda: approve_via_inbox(wty, m.officer, requester=m.clerk)
     )

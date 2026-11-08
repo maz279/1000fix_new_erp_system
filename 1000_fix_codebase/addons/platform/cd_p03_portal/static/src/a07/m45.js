@@ -39,6 +39,9 @@ export const MODULE = {
       { id: 'M45-profiles', en: 'Calibration Profiles', bn: 'ক্যালিব্রেশন প্রোফাইল', t: 'g' },
       { id: 'M45-impacts', en: 'Impact Assessments', bn: 'প্রভাব মূল্যায়ন', t: 'g' }
     ]},
+    { en: 'Alerts', screens: [
+      { id: 'M45-alerts', en: 'Alerts', bn: 'সতর্কতা', t: 'g' }
+    ]},
     { en: 'Maintenance', screens: [
       { id: 'M45-pm', en: 'PM & Corrective', bn: 'পিএম ও সংশোধন', t: 'g' },
       { id: 'M45-usage', en: 'Usage per Job/QC', bn: 'ব্যবহার', t: 'g' }
@@ -59,6 +62,11 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  'M45-alerts': { kind: 'model_list', model: 'fix.asset.alert', stateField: 'state', create: false,
+    note: 'What the scheduled checks found, addressed to the role that must act. Acknowledging says you have seen it; it does not fix the cause.',
+    domain: [['module', '=', 'M45']],
+    cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M45-register': { kind: 'model_list', model: 'fix.equipment', stateField: 'operational_status',
     cols: ['code', 'name', 'category', 'custodian_id', 'branch_id', 'next_calibration', 'calibration_state', 'operational_status', 'approval_state', 'missing_verification_id'],
     actions: [{ m: 'action_assert_usable', l: 'Assert Usable' },
@@ -81,9 +89,9 @@ export const SCREENS = {
     cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'location', 'found', 'state'] },
   'M45-calibration': { kind: 'table_report', module: 'M45', report: 'calibration_schedule', title: 'Calibration Schedule', period: false },
   'M45-certificates': { kind: 'model_list', model: 'fix.calibration', stateField: 'decision_state',
-    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'performed_by', 'trace_no', 'superseded_by_id', 'decision_state', 'decided_by_id', 'impact_id'],
+    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'provider_accredited', 'performed_by', 'trace_no', 'superseded_by_id', 'decision_state', 'decided_by_id', 'impact_id'],
     actions: [{ m: 'action_accept_calibration', l: 'Accept (Usage Decision)' },
-      { m: 'action_reject_calibration', l: 'Reject (Usage Decision)' }] },
+      { m: 'action_reject_calibration', l: 'Reject (Usage Decision)', ask: 'Why is this calibration rejected?', kwarg: 'decision_note' }] },
   'M45-oos': { kind: 'model_list', model: 'fix.equipment.oos', stateField: 'state',
     cols: ['name', 'equipment_id', 'hold_type', 'reason', 'started_on', 'resolved_on', 'resolved_by_id', 'state'],
     actions: [{ m: 'action_resolve', l: 'Return to Service' }] },
@@ -91,7 +99,7 @@ export const SCREENS = {
     cols: ['equipment_id', 'interval_months', 'provider_requirement', 'verification_only', 'proposed_interval_months', 'approval_state'],
     actions: [{ m: 'action_request_approval', l: 'Request Interval Change' },
       { m: 'action_recall_approval', l: 'Recall Interval Request' }] },
-  'M45-impacts': { kind: 'model_list', model: 'fix.calibration.impact', stateField: 'state',
+  'M45-impacts': { kind: 'model_list', model: 'fix.calibration.impact', stateField: 'state', create: false,
     cols: ['name', 'equipment_id', 'calibration_id', 'period_from', 'period_to', 'affected_uses', 'ncr_ref', 'disposition', 'state'],
     actions: [{ m: 'action_close_impact', l: 'Close Assessment' }] },
   'M45-retro': { kind: 'table_report', module: 'M45', report: 'retrospective_impact', title: 'Retrospective Impact', period: false },
@@ -129,14 +137,15 @@ export const SCREENS = {
           { name: 'calibration_profile_id', readonly: true, label: 'Calibration Profile' },
           { name: 'missing_verification_id', readonly: true, label: 'Missing Since Verification' }
         ] },
-      { title: 'Write-Off', note: 'State the reason and the acquisition cost, then Request Write-Off Approval. Up to BDT 25,000 it is decided at Tier 2 (Quality Manager), above that at Tier 4 (CFO), from the approver\'s inbox. The requester cannot approve it; cost and reason are locked while it is pending.',
+      { title: 'Write-Off', note: 'State the reason and the acquisition cost, then Request Write-Off Approval. Up to BDT 25,000 it is decided at Tier 2 (the Branch / Operations Manager approval group), above that at Tier 4 (the CFO / CCO / COO group), from the approver\'s inbox. The requester cannot approve it; cost and reason are locked while it is pending. A cost entered together with the write-off reason does not raise a capitalisation request to Finance; an approved write-off reaches Finance as a disposal.',
         fields: [
           { name: 'acquisition_cost', label: 'Acquisition Cost (BDT)' },
           { name: 'retirement_reason', type: 'text', label: 'Write-Off Reason' },
           { name: 'dofa_tier_required', readonly: true, label: 'Approval Tier' },
           { name: 'approval_state', readonly: true, label: 'Write-Off Approval' },
           { name: 'retired_on', readonly: true, label: 'Retired On' },
-          { name: 'retired_by_id', readonly: true, label: 'Approved By' }
+          { name: 'retired_by_id', readonly: true, label: 'Approved By' },
+          { name: 'fixed_asset_id', readonly: true, label: 'Fixed Asset (Finance)' }
         ] }
     ]
   },
@@ -147,7 +156,7 @@ export const SCREENS = {
     title: 'Calibration Record',
     back: 'M45-certificates',
     sections: [
-      { title: 'Calibration', note: 'The latest calibration decides: only a pass whose next-due is not past keeps the equipment usable. A fail, an overdue date or no calibration at all blocks issue, usage and QC, and a fail puts the item out of service and raises the impact assessment. With a calibration profile, record the as-found reading of every point (and the as-left where adjusted): the result is derived from the profile\'s tolerance bands, and next-due from its interval. Without one the validity is capped. A pass needs the certificate and who performed it; the date cannot be in the future. The record is insert-only: to correct it, create a new one that names it under Corrects (a fail cannot be corrected into a pass). A Quality Manager other than the recorder takes the usage decision.',
+      { title: 'Calibration', note: 'The latest calibration decides: only a pass whose next-due is not past keeps the equipment usable. A fail, an overdue date or no calibration at all blocks issue, usage and QC, and a fail puts the item out of service and raises the impact assessment. With a calibration profile, record the as-found reading of every point (and the as-left where adjusted): the result is derived from the profile\'s tolerance bands, and next-due from its interval. Without one the validity is capped. A pass needs the certificate and who performed it; the date cannot be in the future. If the instrument\'s profile accepts an accredited provider only, a pass also needs Provider Accredited ticked. The record is insert-only: to correct it, create a new one that names it under Corrects (a fail cannot be corrected into a pass). A Quality Manager other than the recorder can accept or reject it. While the second-person acceptance setting is off, a recorded pass certifies the instrument at once and a rejection withdraws it; when it is on, the instrument is not usable until the calibration is accepted. While the calibration role setting is off, anyone may record a calibration; when it is on, only a Calibration Technician or a Quality Manager can.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'calibrated_on', required: true, label: 'Calibrated On' },
@@ -156,12 +165,15 @@ export const SCREENS = {
           { name: 'next_due', required: true, label: 'Next Due' },
           { name: 'performed_by', label: 'Performed By' },
           { name: 'certificate_ref', label: 'Certificate Reference' },
+          { name: 'certificate_file', type: 'file', label: 'Certificate File' },
+          { name: 'certificate_filename', label: 'Certificate File Name' },
+          { name: 'provider_accredited', label: 'Provider Accredited' },
           { name: 'trace_no', label: 'Trace Number' },
           { name: 'supersedes_id', label: 'Corrects' },
           { name: 'superseded_by_id', readonly: true, label: 'Superseded By' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] },
-      { title: 'Usage Decision', note: 'Accept or Reject from the Certificate list. Rejecting needs a note and puts the instrument out of service when this is its latest calibration.',
+      { title: 'Usage Decision', note: 'Accept or Reject from the Certificate list. Reject asks for the reason, and puts the instrument out of service when this is its latest calibration.',
         fields: [
           { name: 'decision_state', readonly: true, label: 'Usage Decision' },
           { name: 'decided_by_id', readonly: true, label: 'Decided By' },
@@ -175,12 +187,15 @@ export const SCREENS = {
     lines: {
       field: 'reading_ids',
       title: 'As-Found / As-Left Readings',
-      note: 'One line per measurement point of the profile. The tolerance band comes from the profile, never from the line.',
+      note: 'One line per measurement point of this instrument\'s profile: each choice names its instrument and band. The band comes from the profile, never from the line, and shows on the line once saved. Readings are fixed once the calibration is saved: to correct them, record a new calibration.',
+      lockOnRecord: true,
       fields: [
         { name: 'point_id', required: true, label: 'Measurement Point' },
         { name: 'as_found', required: true, label: 'As Found' },
         { name: 'adjusted', label: 'Adjusted' },
-        { name: 'as_left', label: 'As Left' }
+        { name: 'as_left', label: 'As Left' },
+        { name: 'tolerance_low', readonly: true, label: 'Lower Limit' },
+        { name: 'tolerance_high', readonly: true, label: 'Upper Limit' }
       ]
     }
   },
@@ -245,7 +260,7 @@ export const SCREENS = {
           { name: 'description', type: 'text', label: 'Description' },
           { name: 'active', label: 'Active' }
         ] },
-      { title: 'Issue / Return as One Unit', note: 'Issue Kit hands every member to the holder in one step (each member must be fit and available, or none is issued). Return Kit returns every member with the condition below and records the completeness check. Members cannot change while the kit is out.',
+      { title: 'Issue / Return as One Unit', note: 'Issue Kit hands every member to the holder in one step (each member must be fit and available, or none is issued). While the kit is out, set the condition below and save, then Return Kit: it returns every member with that condition and records the completeness check. Returning the members one by one does the same when the last one is back. The condition applies to that return only. Members cannot change while the kit is out.',
         fields: [
           { name: 'issue_to_id', label: 'Issue To' },
           { name: 'issue_due_on', label: 'Return Due' },
@@ -298,7 +313,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       verified: 'Verified', missing: 'Missing' } },
     sections: [
-      { title: 'Verification', note: 'The state follows Found: Found = No is stored as Missing, feeds the loss report and makes the item Lost / Missing (not usable, issued or transferred). A Missing result is final; a later count by a store keeper that finds the item recovers it. A missing item is written off on the equipment, within the authority matrix.',
+      { title: 'Verification', note: 'The state follows Found: Found = No is stored as Missing, feeds the loss report and makes the item Lost / Missing (not usable, issued or transferred). A Missing result is final; a later count by a store keeper that finds the item recovers it, and must state where it was found under Location. A missing item is written off on the equipment, within the authority matrix.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'campaign_ref', required: true, label: 'Campaign' },
@@ -339,7 +354,8 @@ export const SCREENS = {
     title: 'Equipment Usage',
     back: 'M45-usage',
     sections: [
-      { title: 'Usage', fields: [
+      { title: 'Usage', note: 'A use dated today needs the instrument fit today. A late entry is judged at its own date, so it is accepted if the instrument was fit on that day, even if it has failed since; if that date falls in a suspect window, the use joins the impact assessment. The date and QC result cannot change once saved.',
+        fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'job_ref', required: true, label: 'Job / Work Order' },
           { name: 'service_order_ref', label: 'Service Order' },
@@ -370,7 +386,7 @@ export const SCREENS = {
           { name: 'provider_requirement', required: true, label: 'Provider Requirement' },
           { name: 'verification_only', label: 'Verification Only' }
         ] },
-      { title: 'Interval Change', note: 'Propose the new interval with its stability-history justification, then Request Interval Change: a Quality Manager other than the requester approves it from the inbox, and never one who has calibrated this instrument (BRU-EAM-13).',
+      { title: 'Interval Change', note: 'Propose the new interval with its stability-history justification, then Request Interval Change: a Quality Manager other than the requester approves it from the inbox, and never one who has calibrated this instrument. A Calibration Technician can fill in only this section. The justification answers one request and is cleared once approved.',
         fields: [
           { name: 'proposed_interval_months', label: 'Proposed Interval (months)' },
           { name: 'interval_change_reason', type: 'text', label: 'Justification' },
@@ -413,7 +429,23 @@ export const SCREENS = {
           { name: 'decided_by_id', readonly: true, label: 'Closed By' },
           { name: 'state', readonly: true, label: 'State' }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'usage_line_ids',
+      title: 'Affected Uses',
+      note: 'Every recorded use inside the suspect window, including late entries made after this assessment was raised.',
+      readonlyGrid: true,
+      fields: [
+        { name: 'job_ref', readonly: true, label: 'Job / Work Order' },
+        { name: 'service_order_ref', readonly: true, label: 'Service Order' },
+        { name: 'used_on', readonly: true, label: 'Used On' },
+        { name: 'uses', readonly: true, label: 'Uses' },
+        { name: 'qc_result', readonly: true, label: 'QC Result' },
+        { name: 'calibration_id', readonly: true, label: 'Calibration at Use' },
+        { name: 'fitness_state_at_use', readonly: true, label: 'Calibration Status at Use' },
+        { name: 'used_by_id', readonly: true, label: 'Recorded By' }
+      ]
+    }
   }
 };
 
@@ -435,7 +467,9 @@ export const FORM_CHIPS = {
   'M45:Equipment': 'M45-form-equipment',
   'M45:Calibration Record': 'M45-form-calibration',
   'M45:Issue/Return': 'M45-form-issue',
-  'M45:Write-Off': 'M45-form-equipment',
+  /* A write-off is requested on an item that already exists, so the chip opens the
+   * register; a new-equipment form here wrote nothing off. */
+  'M45:Write-Off': 'M45-register',
   'M45:__by_model__': {
     'fix.equipment': 'M45-form-equipment',
     'fix.calibration': 'M45-form-calibration',

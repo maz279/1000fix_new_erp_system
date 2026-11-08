@@ -103,9 +103,9 @@ class TestPredictiveMaintenance:
         assert not healthy.work_order_created
 
     def test_wo_not_duplicated_and_event(self, odoo_env, equipment):
-        p = self._pred(odoo_env, equipment)
+        p = self._pred(odoo_env, equipment, confidence=0.8)
         p.action_create_preventive_wo()
-        with pytest.raises(UserError, match="already created"), odoo_env.cr.savepoint():
+        with pytest.raises(UserError, match="already requested"), odoo_env.cr.savepoint():
             p.action_create_preventive_wo()
         assert _events(odoo_env, "predictive_maintenance.wo_created", p.id) == [
             {"equipment": equipment.name, "days": 5}

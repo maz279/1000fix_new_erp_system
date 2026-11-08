@@ -2559,6 +2559,32 @@ body:has(.p03-workspace-root) .o_action_manager {
     outline: none; border-color: var(--brand-60, #0e7a6e);
     box-shadow: 0 0 0 2px var(--brand-10, #e6f4f1);
   }
+  .d365-lookup { position: relative; }
+  .d365-lookup-list {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--surface, #fff);
+    border: 1px solid var(--line, #d1d5db);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  }
+  .d365-lookup-option {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+  .d365-lookup-option:hover,
+  .d365-lookup-option:focus-visible { background: var(--surface-2, #f3f4f6); outline: 2px solid var(--primary, #0e7a6e); outline-offset: -2px; }
+  .d365-lookup-empty { padding: 8px 10px; color: var(--ink-400, #6b7280); }
   .d365-input[disabled] { background: var(--surface-2, #f9fafb); color: var(--ink-300, #9ca3af); }
   .d365-textarea { height: auto; padding: 8px 10px; resize: vertical; }
   .d365-ro {

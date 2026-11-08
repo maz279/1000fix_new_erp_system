@@ -428,6 +428,13 @@ export const SCREENS = {
   'M01-form-qc': { kind: 'model_form', model: 'fix.qc.checklist',
     title: 'QC Checklist Inspection', back: 'M01-qc',
     status: { field: 'state' },
+    lines: { field: 'item_ids', title: 'Checklist Items', readonlyGrid: true,
+      note: 'Written from the stages above when the inspection is completed.',
+      fields: [
+        { name: 'name', label: 'Item', readonly: true },
+        { name: 'passed', label: 'Passed', readonly: true },
+        { name: 'notes', label: 'Notes', readonly: true },
+      ] },
     tabs: [
       { id: 'inspection', label: '1. 4-Stage QC Gates', bn: '১. ৪-ধাপ কিউসি যাচাই', icon: '🛡️', badge: '8' },
       { id: 'evidence', label: '2. Findings & Evidence', bn: '২. পর্যবেক্ষণ ও প্রমাণক', icon: '📎', badge: '3' }

@@ -619,7 +619,13 @@ def test_payout_is_capped_at_the_claim_and_the_insured_value(w):
 
 def test_a_justification_is_required(w):
     cl = w.claim(3000.0, declared=5000.0, justification=False)
-    cl.with_user(w.clerk).action_request_approval()
+    # refused when asked, not left waiting on a vote that could only refuse
+    err = refused(w.env, lambda: cl.with_user(w.clerk).action_request_approval())
+    assert err and "justification" in err
+    assert cl.approval_state != "pending"
+    cl.with_user(w.clerk).action_request_approval(justification="Courier damage, photos on file")
+    # blanked after the request, the vote still refuses
+    cl.sudo().dofa_justification = False
     task = cl.approval_request_id.task_ids.filtered(lambda t: t.assigned_user_id == w.approver_t2)
     err = refused(w.env, lambda: task.with_user(w.approver_t2).action_approve())
     assert err and "justification" in err
