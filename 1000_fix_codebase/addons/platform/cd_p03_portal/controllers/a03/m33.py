@@ -116,6 +116,27 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_run"},
     },
+    # Real-customer cut-over loader (readiness report §7 step 5, 2026-11-08):
+    # staged → validated → imported → registrations decided → reconciled,
+    # every action appending to the batch decision log.
+    "fix.party.import.batch": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {
+            "action_stage",
+            "action_validate",
+            "action_import",
+            "action_decide_registrations",
+            "action_assign_roles",
+            "action_reconcile",
+            "action_rollback",
+        },
+    },
+    "fix.party.import.line": {
+        "order": "batch_id, row_no",
+        "limit": 1200,
+        "actions": set(),
+    },
 }
 
 
