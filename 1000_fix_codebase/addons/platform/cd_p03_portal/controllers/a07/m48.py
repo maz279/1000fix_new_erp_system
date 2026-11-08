@@ -502,7 +502,9 @@ def prediction_outcomes(env, date_from=None, date_to=None, **params):
                 "confidence": round((prediction.confidence or 0.0) * 100, 1),
                 "days": prediction.estimated_days_to_failure,
                 "outcome": dict(prediction._fields["outcome"].selection).get(prediction.outcome),
-                "work_order": prediction.work_order_created,
+                # presentation-ready: a raw boolean renders as the literal
+                # "false" in the grid cell
+                "work_order": "Yes" if prediction.work_order_created else "—",
                 "model": prediction.model_name or "—",
             }
         )
