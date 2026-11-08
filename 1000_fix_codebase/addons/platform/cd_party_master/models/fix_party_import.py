@@ -77,6 +77,7 @@ _SHEET_COLUMNS = {
 def _norm_name(value: str) -> str:
     s = YEAR_PREFIX.sub("", str(value or "").strip())
     s = re.sub(r"[\(\)]", " ", s)
+    s = re.sub(r"\s+,", ",", s)  # "Service , Bangladesh" → "Service, Bangladesh"
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -112,26 +113,32 @@ def _norm_email(value) -> tuple[str, str]:
     return "", "invalid email dropped: %s" % raw[:60]
 
 
-def _split_parent_branch(name: str) -> tuple[str, str, str]:
-    """'PARENT, 23-PARENT (BRANCH)' → (legacy_code, parent, branch).
-    Both segments must look like names for a split to count (the QA pass
-    measured 132 such rows)."""
+def _split_parent_branch(name: str) -> tuple[str, str, str, str]:
+    """'23-PARENT, 23-PARENT (BRANCH)' → (legacy_code, full_name, parent, branch).
+
+    The FULL cleaned name is always the record's display name — a comma in a
+    source name is usually just part of it ('Aga Khan Education Service,
+    Bangladesh', 'icddr,b'); it signals a PARENT→BRANCH hierarchy only when
+    the right segment repeats the parent. The 2026-11-08 audit caught 125
+    imported records named after their bare branch fragment ('Bangladesh',
+    'Feni', 'b') because the first cut decomposed every comma."""
     raw = str(name or "").strip()
     code = ""
     m = YEAR_PREFIX.match(raw)
     if m:
         code = m.group(1)
     if "," not in raw:
-        return code, _norm_name(raw), ""
+        return code, _norm_name(raw), "", ""
     left, _, right = raw.partition(",")
     parent, branch = _norm_name(left), _norm_name(right)
-    # the branch usually repeats the parent prefix — drop it if so
     bp = YEAR_PREFIX.sub("", branch)
+    # a real parent→branch row ONLY when the right segment repeats the
+    # parent ("WV, WV (KHULNA)"); any other comma is part of the name
     if parent and bp.lower().startswith(parent.lower()):
-        bp = bp[len(parent) :].lstrip(" -–(").rstrip(") ").strip()
-    if not parent or not bp:
-        return code, _norm_name(raw), ""
-    return code, parent, bp
+        tail = bp[len(parent) :].lstrip(" -–(").rstrip(") ").strip()
+        if tail:
+            return code, "%s — %s" % (parent, tail), parent, tail
+    return code, _norm_name(raw), "", ""
 
 
 class FixPartyImportBatch(models.Model):
@@ -294,7 +301,7 @@ class FixPartyImportBatch(models.Model):
 
         for line in self.line_ids:
             notes = []
-            code, parent, branch = _split_parent_branch(line.raw_name)
+            code, full_name, parent, branch = _split_parent_branch(line.raw_name)
             if code:
                 line.legacy_reference = "%s-%s" % (self.import_ref, code)
             else:
@@ -302,7 +309,9 @@ class FixPartyImportBatch(models.Model):
                 # name is the permanent key so every row stays MIG-3-traceable
                 slug = re.sub(r"[^A-Z0-9]+", "-", _norm_name(line.raw_name).upper()).strip("-")[:24]
                 line.legacy_reference = "%s-%s" % (self.import_ref, slug) if slug else ""
-            line.clean_name = branch or parent
+            # the record's name is ALWAYS the full cleaned source name; the
+            # comma split only ever signals a parent→branch hierarchy
+            line.clean_name = full_name
             line.parent_name = (branch and parent) or ""
             phone, note = _norm_phone(line.raw_phone)
             line.phone_norm = phone
@@ -418,6 +427,7 @@ class FixPartyImportBatch(models.Model):
                     "is_company": True,
                     "party_class": party_class,
                     "legacy_reference": line.legacy_reference or None,
+                    "company_id": self.company_id.id,
                     "street": line.raw_street or False,
                     "state_id": line.division_id.id or False,
                     "country_id": bd.id,
@@ -450,6 +460,7 @@ class FixPartyImportBatch(models.Model):
                     "is_company": True,
                     "party_class": party_class,
                     "legacy_reference": line.legacy_reference or None,
+                    "company_id": self.company_id.id,
                     "street": line.raw_street or False,
                     "state_id": line.division_id.id or False,
                     "country_id": bd.id,

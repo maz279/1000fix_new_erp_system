@@ -151,12 +151,22 @@ class TestCleansingHelpers:
         assert clean == "" and "dropped" in note
 
     def test_parent_branch_split(self):
-        code, parent, branch = _split_parent_branch(
-            "23-%s WORLD VISION BANGLADESH, 23-%s WORLD VISION BANGLADESH (KHULNA)" % (U, U)
+        code, full, parent, branch = _split_parent_branch(
+            "23-WORLD VISION BANGLADESH, 23-WORLD VISION BANGLADESH (KHULNA)"
         )
         assert code == "23"
-        assert parent.endswith("WORLD VISION BANGLADESH")
+        assert full == "WORLD VISION BANGLADESH — KHULNA"
+        assert parent == "WORLD VISION BANGLADESH"
         assert branch.upper().startswith("KHULNA")
+        # a comma that is just part of the name NEVER decomposes (the
+        # 2026-11-08 audit: 125 records named after bare fragments)
+        code2, full2, parent2, branch2 = _split_parent_branch(
+            "23-Aga Khan Education Service , Bangladesh"
+        )
+        assert full2 == "Aga Khan Education Service, Bangladesh"
+        assert parent2 == "" and branch2 == ""
+        code3, full3, parent3, branch3 = _split_parent_branch("23-icddr,b")
+        assert full3 == "icddr,b" and parent3 == "" and branch3 == ""
 
 
 @pytest.mark.financial

@@ -47,9 +47,11 @@ class ResPartner(models.Model):
     preferred_language = fields.Selection(
         [("bn", "বাংলা (Bengali)"), ("en", "English")],
         string="Preferred Language",
-        default="bn",
+        default="en",
         required=True,
-        help="MD-013: the notification language — Bengali is the default (PS-03)",
+        help="MD-013: the notification language — English is the business "
+        "default (user directive 2026-11-08); Bengali is set per party when "
+        "the customer chooses it",
     )
     # --- Party status lifecycle (spec §8.1) --------------------------------
     party_status = fields.Selection(
