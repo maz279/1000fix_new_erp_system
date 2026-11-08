@@ -516,6 +516,18 @@ WRITABLE = {
             "summary",
         }
     ),
+    "fix.party.import.batch": frozenset(
+        {
+            # the loader's own configuration surface; every outcome field and
+            # the decision log are system-written only (2026-11-08 cut-over)
+            "import_ref",
+            "lawful_basis",
+            "sheet_kind",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.party.import.line": frozenset(),
     "fix.dedup.rule": frozenset(
         {
             "active",
