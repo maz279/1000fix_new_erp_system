@@ -51,8 +51,8 @@ class FixSodControlGroups(models.Model):
     measurable = fields.Boolean(
         compute="_compute_pair_label",
         help="False when the pair cannot be measured: a group is not installed, a role maps to "
-        "no group, or both sides share a group (M29-4). Role pairs are enforced on what was "
-        "actually assigned either way.",
+        "no group, or one side has no group the other lacks (M29-4). Role pairs are enforced "
+        "on what was actually assigned either way.",
     )
 
     @api.depends(
@@ -131,8 +131,10 @@ class FixSodControlGroups(models.Model):
 
     def _fix_pair_groups(self, unique=None):
         """A group pair: (group_a, group_b), whose joint membership IS the
-        conflict. A role pair: the two roles' group sets, when they are told
-        apart by them (both mapped, no group shared). None = not measurable."""
+        conflict. A role pair: the groups that tell the two roles apart, each
+        side less what both share (a read group many roles carry, such as the
+        stock cost viewer, names neither side). None = not measurable: a role
+        maps to no group, or one side has no group the other lacks."""
         self.ensure_one()
         if self.control_type == "group":
             ga, gb = self._fix_group_side("a"), self._fix_group_side("b")
@@ -140,7 +142,9 @@ class FixSodControlGroups(models.Model):
                 return None
             return ga, gb
         ga, gb = self.role_a_id.sudo().group_ids, self.role_b_id.sudo().group_ids
-        if not ga or not gb or (ga & gb):
+        shared = ga & gb
+        ga, gb = ga - shared, gb - shared
+        if not ga or not gb:
             return None
         return ga, gb
 

@@ -508,12 +508,31 @@ def test_a12f_e5_access_review_counts_true_roles(c):
 # ================================================================ E6 map + migration
 def test_a12f_e6_shipped_map_separates_every_pair(c):
     Sod = c.env["fix.sod.control"].sudo()
+    # each side keeps a group the other lacks; a read group both carry (the
+    # stock cost viewer R-01..R-05, R-19 and R-27 share) tells nobody apart
     bad = [
         ct.code
         for ct in Sod.search([("control_type", "=", "role"), ("active", "=", True)])
-        if ct.role_a_id.group_ids & ct.role_b_id.group_ids
+        if not (ct.role_a_id.group_ids - ct.role_b_id.group_ids)
+        or not (ct.role_b_id.group_ids - ct.role_a_id.group_ids)
     ]
     assert not bad
+
+
+def test_a12f_e6_a_shared_group_names_neither_side(c):
+    sod22 = c.env["fix.sod.control"].sudo().search([("code", "=", "SOD-22")], limit=1)
+    r01, r03 = sod22.role_a_id | sod22.role_b_id
+    shared = r01.group_ids & r03.group_ids
+    ga, gb = sod22._fix_pair_groups()
+    assert not (ga | gb) & shared
+    assert sod22.measurable
+    # a side whose every group the other side also carries cannot be measured
+    r03.sudo().write(
+        {"group_ids": [(6, 0, (r01.group_ids & r03.group_ids).ids or r01.group_ids[:1].ids)]}
+    )
+    sod22.invalidate_recordset(["measurable"])
+    assert sod22._fix_pair_groups() is None
+    assert not sod22.measurable
 
 
 def test_a12f_e6_legacy_group_id_is_not_read(c):
