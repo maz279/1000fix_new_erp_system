@@ -58,6 +58,22 @@
         <field name="groups" eval="[(5, 0, 0)]"/>
         <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <!-- The warranty's own company and operating unit fence it as well. They are
+         its own fields, not its device's (live rows differ), so the device rule
+         above does not cover them. These two were generated until the device
+         rule made the generator take it for one on the same columns (FF-47
+         drift, 8 Nov 2026); kept here by hand with the same ids and domains. -->
+    <record id="rule_fix_warranty_company" model="ir.rule">
+        <field name="name">fix.warranty: allowed companies</field>
+        <field name="model_id" ref="model_fix_warranty"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_warranty_operating_unit" model="ir.rule">
+        <field name="name">fix.warranty: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_warranty"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <!-- An identity resolution and a merge are seen where either device is. -->
     <record id="rule_fix_device_identity_scope" model="ir.rule">
         <field name="name">fix.device.identity: follows the surviving device's company and operating unit</field>
