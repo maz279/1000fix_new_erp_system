@@ -3890,8 +3890,32 @@
       {
        "id": "M19-tb",
        "en": "Trial Balance",
-       "bn": "ট্রায়াল ব্যালান্স",
+       "bn": "ট্রায়াল ব্যালেন্স",
        "t": "r"
+      },
+      {
+       "id": "M19-partner-ledger",
+       "en": "Partner Ledger (GL)",
+       "bn": "পার্টনার খতিয়ান (GL)",
+       "t": "r"
+      },
+      {
+       "id": "M19-partner-statement",
+       "en": "Partner Statement Drill-down",
+       "bn": "পার্টনার স্টেটমেন্ট",
+       "t": "r"
+      },
+      {
+       "id": "M19-takeon",
+       "en": "Legacy Take-on Wizard",
+       "bn": "লেগেসি টেক-অন উইজার্ড",
+       "t": "c"
+      },
+      {
+       "id": "M19-takeon-lines",
+       "en": "Take-on Lines (audit)",
+       "bn": "টেক-অন লাইন (অডিট)",
+       "t": "g"
       },
       {
        "id": "M19-dimensions",
@@ -3977,12 +4001,15 @@
     "Balance Sheet",
     "Cash Flow",
     "Dimensional P&L by Branch",
-    "Close Checklist Report"
+    "Close Checklist Report",
+    "Partner Ledger (GL)",
+    "Partner Statement Drill-down"
    ],
    "forms": [
     "Journal Entry (manual/recurring)",
     "Allocation Rule",
-    "Intercompany Charge"
+    "Intercompany Charge",
+    "Legacy Partner-Ledger Take-on"
    ],
    "cross": [
     "Every subledger posts here",
@@ -3991,7 +4018,7 @@
     "M56 payroll cost"
    ],
    "freg": {
-    "src": 91,
+    "src": 95,
     "sub": [
      [
       "1",
@@ -4001,7 +4028,7 @@
      [
       "2",
       "Journals",
-      11
+      15
      ],
      [
       "3",
@@ -12942,11 +12969,11 @@
   "portals": 12,
   "modules": 67,
   "groups": 278,
-  "screens": 823,
-  "reports": 346,
-  "forms": 266,
+  "screens": 827,
+  "reports": 348,
+  "forms": 267,
   "sub_triples": 600,
-  "functions": 5100,
+  "functions": 5104,
   "journeys": 10,
   "personas": 4
  }

@@ -36,11 +36,13 @@ EXPECT = {
     "portals": 12,
     "modules": 67,
     "groups": 278,
-    "screens": 823,
-    "reports": 346,
-    "forms": 266,
+    # 2026-11-09 partner-ledger rollout: +4 M19 screens, +2 reports, +1 form
+    # (+4 function tokens); M19 freg 'Journals' row 11 -> 15.
+    "screens": 827,
+    "reports": 348,
+    "forms": 267,
     "sub_triples": 600,
-    "functions": 5100,
+    "functions": 5104,
     "journeys": 10,
     "personas": 4,
 }
@@ -81,9 +83,7 @@ def main() -> int:
     for m in modules:
         sub_sum = sum(t[2] for t in m["freg"]["sub"])
         if m["freg"]["src"] != sub_sum:
-            v.append(
-                f"freg ledger mismatch {m['id']}: src={m['freg']['src']} " f"!= sub-sum={sub_sum}"
-            )
+            v.append(f"freg ledger mismatch {m['id']}: src={m['freg']['src']} != sub-sum={sub_sum}")
 
     # 3 — screen id uniqueness
     ids = [s["id"] for m in modules for g in m["groups"] for s in g["screens"]]
@@ -102,7 +102,7 @@ def main() -> int:
         if m["id"] not in area_of:
             v.append(f"module {m['id']} belongs to no area")
         elif area_of[m["id"]] != m["area"]:
-            v.append(f"module {m['id']} area {m['area']} != area list " f"{area_of[m['id']]}")
+            v.append(f"module {m['id']} area {m['area']} != area list {area_of[m['id']]}")
 
     # 5 — prototype i18n catalogue parity (EN <-> BN identical key sets)
     src = FRONT_I18N.read_text(encoding="utf-8")

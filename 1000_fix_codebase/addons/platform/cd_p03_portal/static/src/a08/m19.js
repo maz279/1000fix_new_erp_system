@@ -69,10 +69,10 @@ export const MODULE = {
       { id: 'M19-ic-rules', en: 'Inter-Company Rules', bn: 'আন্তঃকোম্পানি নিয়ম', t: 'g' }
     ]}
   ],
-  reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances'],
-  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration'],
+  reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances', 'Partner Ledger (GL)', 'Partner Statement Drill-down'],
+  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
-  freg: { src: 91, sub: [
+  freg: { src: 95, sub: [
     ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'] }],
     ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'] }],
     ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'] }],
@@ -761,6 +761,8 @@ export const REPORT_ROUTES = {
   "M19:Dimensional P&L by Branch": "M19-dimensions",
   "M19:Close Checklist Report": "M19-close",
   "M19:Close SLA Breaches": "M19-close-sla",
+  "M19:Partner Ledger (GL)": "M19-partner-ledger",
+  "M19:Partner Statement Drill-down": "M19-partner-statement",
   "M19:Due-To / Due-From Balances": "M19-ic-balances",
 };
 

@@ -41,11 +41,14 @@ EXPECT = {
     "portals": 12,
     "modules": 67,
     "groups": 278,
-    "screens": 823,
-    "reports": 346,
-    "forms": 266,
+    # 2026-11-09 partner-ledger rollout (R-2/R-11): +4 M19 screens, +2
+    # reports, +1 form — prototype payloads extended alongside the workspace.
+    # (Each added screen object also advances the function-token count.)
+    "screens": 827,
+    "reports": 348,
+    "forms": 267,
     "sub_triples": 600,
-    "functions": 5100,
+    "functions": 5104,
     "journeys": 10,
     "personas": 4,
 }
