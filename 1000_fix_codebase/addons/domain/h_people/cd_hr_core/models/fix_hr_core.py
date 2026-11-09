@@ -588,6 +588,31 @@ class HrEmployeeCdCoreExt(models.Model):
         help="Religion (Required for statutory festival holiday bonus entitlement rules)",
         groups=HR_PRIVATE,
     )
+    # EMP-MIG-RPT-001 R7: the two fields the 2026-11-09 capability audit measured
+    # absent from the live master. `sex` matches the AGENTS.md statutory naming
+    # (Gender (`sex`)); third_gender is the recognised BD census category.
+    sex = fields.Selection(
+        [
+            ("male", "Male"),
+            ("female", "Female"),
+            ("third_gender", "Third Gender (Hijra)"),
+            ("unspecified", "Unrecorded"),
+        ],
+        string="Gender",
+        default="unspecified",
+        help="Gender (Form 7 Service Book; BLA 2006 worker register)",
+        groups=HR_PRIVATE,
+    )
+    passport_no = fields.Char(
+        string="Passport Number",
+        help="Machine-readable passport number (MRP/e-Passport), e.g. BR0934567",
+        groups=HR_PRIVATE,
+    )
+    # EMP-MIG-RPT-001 §3.5: marital is required but legacy extracts (the 504-row
+    # real-employee load) carry no marital data — an honest 'unrecorded' value
+    # replaces fabricating single/married during migration. Odoo 19 owns the
+    # selection on hr.version (hr.employee delegates via _inherits) — extended
+    # in HrVersionCdCoreExt at the end of this file.
     tax_zone = fields.Char(
         string="NBR Tax Zone",
         help="National Board of Revenue tax circle zone (e.g. Zone-01, Dhaka)",
@@ -1470,3 +1495,22 @@ class FixLeaveRequest(models.Model):
                 rec.id,
                 {"employee": rec.employee_id.name, "days": rec.days},
             )
+
+
+class HrVersionCdCoreExt(models.Model):
+    """hr.version extension — marital selection extension point.
+
+    EMP-MIG-RPT-001 §3.5: marital is required but legacy extracts (the 504-row
+    real-employee load of 2026-11) carry no marital data. Odoo 19 owns the
+    selection on hr.version (hr.employee delegates via _inherits), so the
+    honest 'unrecorded' value is added here; Wave-4 enrichment replaces it
+    with the sourced value.
+    """
+
+    _inherit = "hr.version"
+
+    @api.model
+    def _get_marital_status_selection(self):
+        return super()._get_marital_status_selection() + [
+            ("unspecified", "Unrecorded (migration default)")
+        ]

@@ -20,7 +20,7 @@ master slice (cd_employee_core):
 - joiner/mover/leaver events (AS-08) verified to drive M29 provisioning at
   full scale (P08-M01-T06)
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources",
