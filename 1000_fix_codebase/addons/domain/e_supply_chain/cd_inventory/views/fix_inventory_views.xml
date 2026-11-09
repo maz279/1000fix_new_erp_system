@@ -14,6 +14,7 @@
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
                 <field name="location_type"/>
+                <field name="stock_type" optional="show"/>
                 <field name="branch_id"/>
                 <field name="is_van_location" widget="boolean_toggle"/>
                 <field name="technician_id" optional="show"/>
@@ -42,6 +43,7 @@
                         <group string="Location Metadata">
                             <field name="code"/>
                             <field name="location_type"/>
+                            <field name="stock_type"/>
                             <field name="branch_id"/>
                             <field name="parent_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>

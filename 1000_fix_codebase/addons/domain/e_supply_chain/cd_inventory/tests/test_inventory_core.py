@@ -105,3 +105,27 @@ def test_return_needs_a_known_reason(inv):
     rec.with_user(inv.keeper).action_scan_and_consume()
     with pytest.raises(UserError, match="return reason"), inv.env.cr.savepoint():
         rec.with_user(inv.keeper).action_return_part("because")
+
+
+def test_stock_type_dimension_on_typed_locations(inv):
+    """E1 (warehouse-with-location report 2026-11-09): the legacy estate's six
+    stock classes are a location dimension of their own — a structural hub
+    carries none, a typed child under it carries exactly one, and the legacy
+    'Returnable Damage' class is representable."""
+    assert inv.hub.stock_type is False, "a structural hub carries no stock class"
+    child = inv.env["fix.stock.location"].create(
+        {
+            "name": "A06 Warranty Bay",
+            "code": "A6W-" + inv.tag,
+            "location_type": "branch",
+            "stock_type": "warranty",
+            "parent_id": inv.hub.id,
+            "operating_unit_id": inv.ou.id,
+        }
+    )
+    assert child.stock_type == "warranty"
+    selection = dict(
+        child.fields_get(["stock_type"], attributes=["selection"])["stock_type"]["selection"]
+    )
+    assert selection["returnable_damage"] == "Returnable Damage"
+    assert selection["non_warranty"] == "Non-Warranty"

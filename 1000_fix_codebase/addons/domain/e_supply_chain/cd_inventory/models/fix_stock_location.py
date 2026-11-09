@@ -50,6 +50,27 @@ class FixStockLocation(models.Model):
     )
 
     branch_id = fields.Many2one("fix.branch", string="Branch Hub", index=True)
+    # WAREHOUSE-WITH-LOCATION capability report (2026-11-09) E1: the legacy
+    # estate's six stock classes (Warranty / Non-Warranty / Returnable Damage /
+    # Buffer / Refurbished / Damage) are a stock dimension of their own —
+    # location_type says what a place IS, stock_type says which class of stock
+    # it holds. Canonical locations load as <BRANCH>-<TYPE> children under the
+    # branch hub (e.g. GCSC-WTY under GCSC).
+    stock_type = fields.Selection(
+        [
+            ("warranty", "Warranty"),
+            ("non_warranty", "Non-Warranty"),
+            ("returnable_damage", "Returnable Damage"),
+            ("buffer", "Buffer Stock"),
+            ("refurbished", "Refurbished"),
+            ("damage", "Damage"),
+            ("unspecified", "Unspecified"),
+        ],
+        string="Stock Type",
+        index=True,
+        tracking=True,
+        help="Stock class held at this location; blank on structural hubs.",
+    )
     technician_id = fields.Many2one(
         "hr.employee",
         string="Custodian Technician",
