@@ -25,7 +25,7 @@ export const MODULE = {
       { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' }
     ]},
     { en: 'Structure', screens: [
-      { id: 'M30-branches', en: 'Branch Register (53)', bn: 'শাখা রেজিস্টার', t: 'g' },
+      { id: 'M30-branches', en: 'Branch Register', bn: 'শাখা রেজিস্টার', t: 'g' },
       { id: 'M30-entities', en: 'Legal Entities', bn: 'প্রতিষ্ঠান', t: 'g' },
       { id: 'M30-zones', en: 'Dispatch Zones', bn: 'জোন', t: 'g' },
       { id: 'M30-calendars', en: 'Calendars & Shifts', bn: 'ক্যালেন্ডার', t: 'g' },
