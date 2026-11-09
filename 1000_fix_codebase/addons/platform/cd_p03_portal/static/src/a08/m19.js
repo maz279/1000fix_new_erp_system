@@ -15,7 +15,10 @@ export const MODULE = {
     { l: 'IC Unmatched', m: 'ic_unmatched' },
     { l: 'TB Imbalance', m: 'tb_imbalance' },
     { l: 'Journals MTD', m: 'posted_moves_mtd' },
-    { l: 'Drafts in Review', m: 'draft_journals' }
+    { l: 'Drafts in Review', m: 'draft_journals' },
+    { l: 'Legacy AR Rows', m: 'legacy_ledger_rows' },
+    { l: 'Legacy AR Net', m: 'legacy_ledger_net', prefix: '৳ ' },
+    { l: 'Legacy AR Branches', m: 'legacy_ledger_branches' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -67,10 +70,19 @@ export const MODULE = {
       { id: 'M19-ic-txns', en: 'Inter-Company / Inter-Branch Transactions', bn: 'আন্তঃকোম্পানি ও আন্তঃশাখা লেনদেন', t: 'g' },
       { id: 'M19-ic-balances', en: 'Due-To / Due-From Balances', bn: 'প্রদেয় ও প্রাপ্য স্থিতি', t: 'r' },
       { id: 'M19-ic-rules', en: 'Inter-Company Rules', bn: 'আন্তঃকোম্পানি নিয়ম', t: 'g' }
+    ]},
+    { en: 'Legacy AR Ledger (201)', bn: 'লেগেসি প্রাপ্য খতিয়ান (২০১)', screens: [
+      { id: 'M19-legacy-ledger', en: 'Legacy Control-Ledger Import', bn: 'লেগেসি কন্ট্রোল খতিয়ান ইম্পোর্ট', t: 'c' },
+      { id: 'M19-legacy-ledger-lines', en: 'Archive Lines (audit)', bn: 'আর্কাইভ লাইন (অডিট)', t: 'g' },
+      { id: 'M19-legacy-ar-recon', en: 'Legacy AR Control Recon', bn: 'লেগেসি প্রাপ্য নিয়ন্ত্রণ মিলকরণ', t: 'r' }
+    ]},
+    { en: 'Legacy Bank Ledgers', bn: 'লেগেসি ব্যাংক খতিয়ান', screens: [
+      { id: 'M19-bank-takeon', en: 'Bank-Ledger Take-on', bn: 'ব্যাংক খতিয়ান টেক-অন', t: 'c' },
+      { id: 'M19-bank-takeon-lines', en: 'Take-on Lines (audit)', bn: 'টেক-অন লাইন (অডিট)', t: 'g' }
     ]}
   ],
-  reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances', 'Partner Ledger (GL)', 'Partner Statement Drill-down'],
-  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on'],
+  reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances', 'Partner Ledger (GL)', 'Partner Statement Drill-down', 'Legacy AR Control Reconciliation'],
+  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   freg: { src: 95, sub: [
     ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'] }],
@@ -82,7 +94,9 @@ export const MODULE = {
     ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'] }],
     ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'] }],
     ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'] }],
-    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'] }]
+    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'] }],
+    ['11', 'Legacy AR Control Archive', 3, { model: 'fix.legacy.ledger.batch', cols: ['name', 'state', 'line_count', 'branch_count', 'total_net'], screens: ['M19-legacy-ledger', 'M19-legacy-ledger-lines', 'M19-legacy-ar-recon'] }],
+    ['12', 'Legacy Bank-Ledger Take-on', 2, { model: 'fix.bank.takeon.batch', cols: ['name', 'state', 'bank_gl_code', 'date_from', 'date_to', 'line_count', 'branch_count', 'total_net'], screens: ['M19-bank-takeon', 'M19-bank-takeon-lines'] }]
   ] }
 };
 
@@ -148,6 +162,124 @@ export const SCREENS = {
   'M19-takeon-lines': { kind: 'model_list', model: 'fix.ledger.takeon.line', create: false,
     cols: ['row_no', 'raw_name', 'clean_name', 'legacy_reference', 'line_state', 'suspense_kind', 'debit', 'credit', 'balance', 'matched_partner_id', 'created_partner_id'],
     stateField: 'line_state' },
+
+  /* Legacy GL control-ledger import (2026-11-09 AR 201 report) — the
+   * archive lane: read-only per-line evidence + ONE branch-dimensioned
+   * control entry. The reconciliation pack proves archive vs GL vs the
+   * partner take-on (different scopes, stated not hidden). */
+  'M19-legacy-ledger': { kind: 'model_list', model: 'fix.legacy.ledger.batch', create: true,
+    cols: ['name', 'state', 'legacy_account_code', 'date_from', 'date_to', 'line_count', 'linked_count', 'quarantined_count', 'branch_count', 'total_debit', 'total_credit', 'total_net'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & resolve branches' },
+      { m: 'action_post', l: '3. Post control entry (MIG)' },
+      { m: 'action_rollback', l: 'Rollback (mirror entry)' },
+    ] },
+  'M19-legacy-ledger-lines': { kind: 'model_list', model: 'fix.legacy.ledger.line', create: false,
+    cols: ['row_no', 'entry_date', 'journal_prefix', 'journal_entry', 'invoice_ref', 'branch_raw', 'branch_resolved_id', 'line_state', 'debit', 'credit', 'balance', 'created_by_name', 'notes'],
+    stateField: 'line_state' },
+  'M19-legacy-ar-recon': { kind: 'table_report', module: 'M19', report: 'legacy_ar_control', title: 'Legacy AR Control Reconciliation', period: false },
+  'M19-form-legacy-ledger': {
+    kind: 'model_form', model: 'fix.legacy.ledger.batch',
+    title: 'Legacy GL Control-Ledger Import', back: 'M19-legacy-ledger',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      posted: 'Control Entry Posted', rolled_back: 'Rolled Back' } },
+    tabs: [
+      { id: 'lsrc', label: '1. Source', bn: '১. সোর্স', icon: '📄', badge: '4' },
+      { id: 'lout', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '8' },
+      { id: 'llog', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'lsrc', title: 'Legacy Ledger Statement & Control Account',
+        note: "Attach the legacy control-account export (Date / Journal Entry / Branch / Company / Created by / Created on / Debit / Credit / Balance — the 201 Account Receivable statement). Save, then run Stage → Validate → Post from the list's command bar. Posting lands ONE branch-dimensioned control entry on a dedicated legacy control account (never a receivable account: the lines are anonymous) through the governed M19 funnel.",
+        fields: [
+          { name: 'name', label: 'Import', readonly: true },
+          { name: 'source_file', label: 'Legacy Ledger (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'legacy_account_code', label: 'Legacy Account Code (e.g. 100201)', required: true },
+          { name: 'import_ref', label: 'Import Reference', readonly: true },
+          { name: 'control_account_id', label: 'Legacy Control Account (auto-created at post)' },
+          { name: 'contra_account_id', label: 'Take-on Contra Account (auto at post)' }
+        ] },
+      { tab: 'lout', title: 'Counts & Position',
+        fields: [
+          { name: 'line_count', label: 'Archive Rows', readonly: true },
+          { name: 'linked_count', label: 'Branch-Resolved Rows', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined Rows', readonly: true },
+          { name: 'branch_count', label: 'Distinct Branches', readonly: true },
+          { name: 'date_from', label: 'Value Dates From', readonly: true },
+          { name: 'date_to', label: 'Value Dates To', readonly: true },
+          { name: 'total_debit', label: 'Total Debit (BDT)', readonly: true },
+          { name: 'total_credit', label: 'Total Credit (BDT)', readonly: true },
+          { name: 'total_net', label: 'Net Legacy Position (BDT)', readonly: true },
+          { name: 'posted_move_id', label: 'Control Entry', readonly: true }
+        ] },
+      { tab: 'llog', title: 'Audit Trail',
+        fields: [
+          { name: 'decision_log', label: 'Decision Log (who, when, what)', readonly: true, type: 'text' }
+        ] }
+    ]
+  },
+  /* Legacy bank-ledger take-on (2026-11-09 AB Bank capability report
+   * R2 Option B / R3): row-level history onto the bank GL named in the
+   * export title — the guided path the LEGACY-AB load walked. */
+  'M19-bank-takeon': { kind: 'model_list', model: 'fix.bank.takeon.batch', create: true,
+    cols: ['name', 'state', 'bank_gl_code', 'bank_gl_account_id', 'date_from', 'date_to', 'line_count', 'linked_count', 'quarantined_count', 'branch_count', 'total_debit', 'total_credit', 'total_net'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & resolve branches' },
+      { m: 'action_post', l: '3. Post row-level history (MIG)' },
+      { m: 'action_rollback', l: 'Rollback (combined mirror)' },
+    ] },
+  'M19-bank-takeon-lines': { kind: 'model_list', model: 'fix.bank.takeon.line', create: false,
+    cols: ['row_no', 'entry_date', 'journal_entry', 'branch_raw', 'branch_resolved_id', 'line_state', 'debit', 'credit', 'balance', 'created_by_name', 'notes'],
+    stateField: 'line_state' },
+  'M19-form-bank-takeon': {
+    kind: 'model_form', model: 'fix.bank.takeon.batch',
+    title: 'Legacy Bank-Ledger Take-on', back: 'M19-bank-takeon',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      posted: 'History Posted', rolled_back: 'Rolled Back' } },
+    tabs: [
+      { id: 'bsrc', label: '1. Source', bn: '১. সোর্স', icon: '📄', badge: '5' },
+      { id: 'bout', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '8' },
+      { id: 'blog', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'bsrc', title: 'Bank Ledger Statement & Target GL',
+        note: "Attach the bank ledger export ('Ledger Statement: <GL code> <name>' title + Date / Journal Entry / Branch / Company / Created by / Created on / Debit / Credit / Balance). Save, then run Stage → Validate → Post from the list's command bar. Every source row posts as its own dated entry on the bank GL through the governed M19 funnel — bank history, never bank-statement evidence (that path stays with M50 Statements Import).",
+        fields: [
+          { name: 'name', label: 'Take-on', readonly: true },
+          { name: 'source_file', label: 'Bank Ledger (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'bank_gl_code', label: 'Bank GL Code (captured from the title)' },
+          { name: 'import_ref', label: 'Import Reference', readonly: true },
+          { name: 'bank_gl_account_id', label: 'Bank GL (resolved at validate)' },
+          { name: 'contra_account_id', label: 'Take-on Contra Account (auto at post)' },
+          { name: 'company_id', label: 'Company' }
+        ] },
+      { tab: 'bout', title: 'Counts & Position',
+        fields: [
+          { name: 'line_count', label: 'Staged Rows', readonly: true },
+          { name: 'linked_count', label: 'Branch-Resolved Rows', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined Rows', readonly: true },
+          { name: 'posted_count', label: 'Posted Rows', readonly: true },
+          { name: 'branch_count', label: 'Distinct Branches', readonly: true },
+          { name: 'date_from', label: 'Value Dates From', readonly: true },
+          { name: 'date_to', label: 'Value Dates To', readonly: true },
+          { name: 'total_debit', label: 'Total Debit (BDT)', readonly: true },
+          { name: 'total_credit', label: 'Total Credit (BDT)', readonly: true },
+          { name: 'total_net', label: 'Net Movement (BDT)', readonly: true }
+        ] },
+      { tab: 'blog', title: 'Audit Trail',
+        fields: [
+          { name: 'decision_log', label: 'Decision Log (who, when, what)', readonly: true, type: 'text' }
+        ] }
+    ]
+  },
   'M19-form-takeon': {
     kind: 'model_form', model: 'fix.ledger.takeon.batch',
     title: 'Legacy Partner-Ledger Take-on', back: 'M19-takeon',
@@ -801,7 +933,9 @@ export const FORM_CHIPS = {
     'fix.intercompany.transaction': 'M19-form-ic',
     'fix.journal.template': 'M19-form-template',
     'fix.nil.return.generator': 'M19-form-nil',
-    'fix.ledger.takeon.batch': 'M19-form-takeon'
+    'fix.ledger.takeon.batch': 'M19-form-takeon',
+    'fix.legacy.ledger.batch': 'M19-form-legacy-ledger',
+    'fix.bank.takeon.batch': 'M19-form-bank-takeon'
   },
   'M19:__by_screen__': {
     'M19-period-close': 'M19-form-period-close',
@@ -811,6 +945,10 @@ export const FORM_CHIPS = {
     'M19-fx-revaluation': 'M19-form-fx',
     'M19-takeon': 'M19-form-takeon',
     'M19-takeon-lines': 'M19-form-takeon',
+    'M19-legacy-ledger': 'M19-form-legacy-ledger',
+    'M19-legacy-ledger-lines': 'M19-form-legacy-ledger',
+    'M19-bank-takeon': 'M19-form-bank-takeon',
+    'M19-bank-takeon-lines': 'M19-form-bank-takeon',
     'M19-chart-account': 'M19-form-chart-account',
     'M19-coa-loader': 'M19-form-coaload',
     'M19-report-bridge': 'M19-form-bridge',

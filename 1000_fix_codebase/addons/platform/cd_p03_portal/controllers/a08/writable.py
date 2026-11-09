@@ -359,6 +359,32 @@ WRITABLE = {
         }
     ),
     "fix.ledger.takeon.line": frozenset(),
+    # 2026-11-09: the legacy bank-ledger take-on (AB Bank capability report
+    # R3) — same posture: the form configures the source + target GL, the
+    # actions carry the workflow (stage → validate → post → rollback).
+    "fix.bank.takeon.batch": frozenset(
+        {
+            "company_id",
+            "source_file",
+            "source_filename",
+            "import_ref",
+            "bank_gl_code",
+            "contra_account_id",
+        }
+    ),
+    "fix.bank.takeon.line": frozenset(),
+    # 2026-11-09: the legacy GL control-ledger import (AR 201 report) —
+    # same posture: the form configures the source, the actions carry the
+    # workflow (stage → validate → post → rollback).
+    "fix.legacy.ledger.batch": frozenset(
+        {
+            "company_id",
+            "source_file",
+            "source_filename",
+            "legacy_account_code",
+        }
+    ),
+    "fix.legacy.ledger.line": frozenset(),
     "fix.cheque": frozenset(
         {
             "amount",

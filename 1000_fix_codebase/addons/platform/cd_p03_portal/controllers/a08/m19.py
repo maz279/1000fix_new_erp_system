@@ -8,6 +8,7 @@
 # loader, recurring journals, statutory report bridge, nil-return packs and
 # the "Group & Inter-Branch" group). Every figure is read from posted ledger
 # lines or the models' own records — nothing is invented.
+import contextlib
 import datetime
 
 
@@ -51,6 +52,43 @@ SURFACES = {
     "fix.ledger.takeon.line": {
         "order": "batch_id desc, row_no",
         "limit": 500,
+        "actions": set(),
+    },
+    # Legacy GL control-ledger import (2026-11-09 AR ledger 201 report,
+    # Lane 2): read-only archive of every source line plus ONE branch-
+    # dimensioned control entry. Never a transaction-by-transaction re-post
+    # of history on receivable accounts (report Part D doctrine).
+    "fix.legacy.ledger.batch": {
+        "order": "id desc",
+        "limit": 50,
+        "actions": {
+            "action_stage",
+            "action_validate",
+            "action_post",
+            "action_rollback",
+        },
+    },
+    "fix.legacy.ledger.line": {
+        "order": "batch_id desc, row_no",
+        "limit": 1000,
+        "actions": set(),
+    },
+    # Legacy bank-ledger take-on (2026-11-09 AB Bank capability report
+    # R2 Option B / R3): row-level history onto the bank GL named in the
+    # export title — the guided path the 69-entry LEGACY-AB load walked.
+    "fix.bank.takeon.batch": {
+        "order": "id desc",
+        "limit": 50,
+        "actions": {
+            "action_stage",
+            "action_validate",
+            "action_post",
+            "action_rollback",
+        },
+    },
+    "fix.bank.takeon.line": {
+        "order": "batch_id desc, row_no",
+        "limit": 1000,
         "actions": set(),
     },
     "fix.chart.loader": {
@@ -187,6 +225,21 @@ def kpis(env):
         )
     except Exception:
         out["ic_unmatched"] = None
+    # 2026-11-09 AR ledger 201 report: the legacy control archive tiles —
+    # rows staged, net archived position, distinct branches, aggregated over
+    # EVERY posted/validated import batch (the estate runs several legacy
+    # control accounts through the same archive lane). None (—) before the
+    # first import; measured from the archive tables, never invented.
+    with contextlib.suppress(Exception):
+        Batch = env["fix.legacy.ledger.batch"]
+        batches = Batch.search([("state", "in", ("validated", "posted"))])
+        if batches:
+            lines = env["fix.legacy.ledger.line"].search([("batch_id", "in", batches.ids)])
+            out["legacy_ledger_rows"] = len(lines)
+            out["legacy_ledger_net"] = round(sum(lines.mapped("balance")), 2)
+            out["legacy_ledger_branches"] = len(
+                lines.filtered(lambda ln: ln.branch_resolved_id).mapped("branch_resolved_id")
+            )
     return out
 
 
@@ -676,6 +729,151 @@ def partner_statement(env, partner=None, date_from=None, date_to=None, **params)
     )
 
 
+def legacy_ar_control(env, **_params):
+    """Legacy AR control-ledger reconciliation (2026-11-09 report, Part E
+    lane 2): per branch, the archived legacy control-account lines vs what
+    actually posted to the GL control accounts through the M19 funnel, plus
+    the partner-ledger take-on position for context. The two nets differ by
+    design — the archives are the POS-clearing control history (credit -33.6M)
+    while the take-on carries per-customer open balances (debit +152M) — and
+    the report states that explicitly instead of hiding it."""
+    company = env.company
+    Batch = env["fix.legacy.ledger.batch"]
+    batches = Batch.search([("state", "=", "posted")], order="id desc")
+    rows = []
+    posted_net = quarantined_net = 0.0
+    window = ""
+    batch_notes = []
+    if batches:
+        all_lines = env["fix.legacy.ledger.line"].search([("batch_id", "in", batches.ids)])
+        dates = [d for d in all_lines.mapped("entry_date") if d]
+        window = "%s → %s" % (min(dates) if dates else "…", max(dates) if dates else "…")
+        by_branch = {}
+        for ln in all_lines:
+            key = ln.branch_resolved_id or None
+            row = by_branch.setdefault(
+                key,
+                {
+                    "branch": key.name if key else (ln.branch_raw or "(unresolved)"),
+                    "rows": 0,
+                    "debit": 0.0,
+                    "credit": 0.0,
+                    "quarantined": 0,
+                },
+            )
+            row["rows"] += 1
+            row["debit"] += ln.debit
+            row["credit"] += ln.credit
+            if ln.line_state == "quarantined":
+                row["quarantined"] += 1
+                quarantined_net += ln.balance
+        # GL truth on the control accounts, per branch, via the dimension rows
+        posted_by_branch = {}
+        move_lines = []
+        for batch in batches:
+            if batch.posted_move_id:
+                move_lines += batch.posted_move_id.line_ids.ids
+                posted_net += sum(
+                    ln.balance
+                    for ln in batch.posted_move_id.line_ids
+                    if ln.account_id == batch.control_account_id
+                )
+        if move_lines:
+            dim_rows = (
+                env["fix.journal.dimension"].sudo().search([("move_line_id", "in", move_lines)])
+            )
+            for dim in dim_rows:
+                if not dim.branch_id:
+                    continue
+                posted_by_branch.setdefault(dim.branch_id.name, 0.0)
+                posted_by_branch[dim.branch_id.name] += dim.move_line_id.balance
+        for key in sorted(by_branch, key=lambda k: (k is None, (k.name or "") if k else "")):
+            row = by_branch[key]
+            posted = posted_by_branch.get(row["branch"]) if key else None
+            rows.append(
+                {
+                    "branch": row["branch"],
+                    "rows": row["rows"],
+                    "debit": round(row["debit"], 2),
+                    "credit": round(row["credit"], 2),
+                    "net": round(row["debit"] - row["credit"], 2),
+                    "quarantined": row["quarantined"],
+                    "posted_gl": round(posted, 2) if posted is not None else None,
+                }
+            )
+        for batch in batches:
+            batch_notes.append(
+                "%s (%s): %d rows, net %s BDT, GL %s"
+                % (
+                    batch.name,
+                    batch.state,
+                    batch.line_count,
+                    round(batch.total_net, 2),
+                    batch.posted_move_id.name or "not posted",
+                )
+            )
+    # partner take-on context (the other lane, already posted through MIG)
+    takeon_net = None
+    try:
+        groups = (
+            env["account.move.line"]
+            .sudo()
+            ._read_group(
+                [
+                    ("company_id", "=", company.id),
+                    ("parent_state", "=", "posted"),
+                    ("partner_id", "!=", False),
+                    ("account_type", "=", "asset_receivable"),
+                ],
+                ["partner_id"],
+                ["balance:sum"],
+            )
+        )
+        takeon_net = round(sum((b or 0.0) for _p, b in groups), 2)
+    except Exception:
+        takeon_net = None
+    totals = {
+        "branch": "%d branches" % len(rows),
+        "rows": sum(r["rows"] for r in rows),
+        "debit": round(sum(r["debit"] for r in rows), 2),
+        "credit": round(sum(r["credit"] for r in rows), 2),
+        "net": round(sum(r["net"] for r in rows), 2),
+    }
+    notes = ["Archive batches (%d posted): %s" % (len(batches), "; ".join(batch_notes) or "—")]
+    if batches:
+        notes.append(
+            "Quarantined rows excluded from posting: net %.2f BDT (visible in the "
+            "Archive Lines screen, never posted silently)." % quarantined_net
+        )
+        notes.append(
+            "GL control postings: net %.2f BDT across the batches' control accounts "
+            "(branch-dimensioned lines through the M19 funnel)." % posted_net
+        )
+    notes.append(
+        "Partner-ledger take-on (separate lane): per-customer open receivables total "
+        "%s BDT on the receivable control — a different scope by design: the legacy "
+        "control archives are the POS-clearing history (credit balances), not customer "
+        "balances. Do not net the two." % (f"{takeon_net:,.2f}" if takeon_net is not None else "—")
+    )
+    return _pack(
+        "Legacy AR Control Ledger — %s%s" % (company.name, (" · " + window) if window else ""),
+        ["branch", "rows", "debit", "credit", "net", "quarantined", "posted_gl"],
+        {
+            "branch": "Branch",
+            "rows": "Archive Rows",
+            "debit": "Debit (BDT)",
+            "credit": "Credit (BDT)",
+            "net": "Net (BDT)",
+            "quarantined": "Quarantined Rows",
+            "posted_gl": "Posted to GL (BDT)",
+        },
+        rows,
+        notes,
+        totals=totals,
+        empty="No legacy control-ledger import staged yet.",
+    )
+
+
 REPORTS = {
     "fx_revaluation": fx_revaluation,
     "ic_balances": ic_balances,
@@ -683,4 +881,5 @@ REPORTS = {
     "coa_register": coa_register,
     "partner_ledger": partner_ledger,
     "partner_statement": partner_statement,
+    "legacy_ar_control": legacy_ar_control,
 }

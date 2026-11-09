@@ -50,6 +50,15 @@ export const MODULE = {
       { id: 'M52-grni', en: 'GRNI Accruals', bn: 'জিআরএনআই', t: 'r' },
       { id: 'M52-expcat', en: 'Expense by Category', bn: 'খাত অনুযায়ী ব্যয়', t: 'r' },
       { id: 'M52-dupes', en: 'Duplicate Prevention Log', bn: 'দ্বৈত বিল প্রতিরোধ', t: 'r' }
+    ]},
+    /* 2026-11-09 accounts_payable report §5.4 (W3/W5): the legacy 200101
+     * AP register take-on — voucher-level open items on a dedicated
+     * non-reconcileable legacy control account, staged from the export
+     * workbook through the governed M19 funnel. Operational screens beyond
+     * the nav registry, per the M29 precedent. */
+    { en: 'Legacy Take-on', screens: [
+      { id: 'M52-ap-takeon', en: 'AP Register Take-on Wizard', bn: 'এপি রেজিস্টার টেক-অন উইজার্ড', t: 'c' },
+      { id: 'M52-ap-takeon-lines', en: 'AP Take-on Vouchers (audit)', bn: 'টেক-অন ভাউচার (অডিট)', t: 'g' }
     ]}
   ],
   reports: ['AP Ageing', 'TDS Deduction Register', 'Payment Run Summary', 'Expense by Category', 'GRNI Reconciliation', 'Duplicate Prevention Log'],
@@ -127,6 +136,62 @@ export const SCREENS = {
   'M52-dupes': { kind: 'table_report', module: 'M52', report: 'duplicate_bills', period: false },
   'M52-rpt-tds': { kind: 'table_report', module: 'M52', report: 'tds_register', title: 'TDS / VDS Deduction Register', period: false },
   'M52-rpt-runs': { kind: 'table_report', module: 'M52', report: 'payment_run_summary', title: 'Payment Run Summary', period: false },
+
+  /* Legacy AP register take-on (accounts_payable report 2026-11-09 §5.4) —
+   * the 200101 open-items register (297 vouchers) staged, validated and
+   * posted at GL level; the companion lane to M19's partner-ledger take-on
+   * and the legacy AR control archive. */
+  'M52-ap-takeon': { kind: 'model_list', model: 'fix.ap.takeon.batch', create: true,
+    cols: ['name', 'state', 'takeon_date', 'line_count', 'ready_count', 'quarantined_count', 'posted_count', 'total_open', 'posted_move_id'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage register spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & crosswalk branches' },
+      { m: 'action_post', l: '3. Post opening entry' },
+      { m: 'action_rollback', l: 'Rollback (mirror entry)' },
+    ] },
+  'M52-ap-takeon-lines': { kind: 'model_list', model: 'fix.ap.takeon.line', create: false,
+    cols: ['row_no', 'legacy_ref', 'source_ref_note', 'legacy_date', 'legacy_branch', 'branch_id', 'legacy_created_by', 'legacy_created_on', 'debit', 'credit', 'balance', 'line_state'],
+    stateField: 'line_state' },
+  'M52-form-ap-takeon': {
+    kind: 'model_form', model: 'fix.ap.takeon.batch',
+    title: 'Legacy AP Register Take-on', back: 'M52-ap-takeon',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      posted: 'Opening Entry Posted', rolled_back: 'Rolled Back' } },
+    tabs: [
+      { id: 'src', label: '1. Source & Date', bn: '১. সোর্স ও তারিখ', icon: '📄', badge: '5' },
+      { id: 'out', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '6' },
+      { id: 'log', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'src', title: 'Legacy Register & Cut-over Date',
+        note: "Attach the legacy AP ledger statement (Date / Journal Entry / Branch / Company / Created by / Created on / Debit / Credit / Balance — the 200101 Account Payable open-items register). Save, then run Stage → Validate → Post from the list's command bar. Posting writes one voucher-level credit entry on a dedicated non-reconcileable legacy control account through the governed M19 funnel — the register's debits ARE payables, and the live payable control stays owned by the partner take-on (no double count).",
+        fields: [
+          { name: 'name', label: 'Take-on', readonly: true },
+          { name: 'source_file', label: 'Legacy AP Register (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'import_ref', label: 'Import Reference', required: true },
+          { name: 'legacy_account_code', label: 'Source Ledger Account Code', required: true },
+          { name: 'takeon_date', label: 'Cut-over Date (period boundary)', required: true },
+          { name: 'control_account_id', label: 'Posting Target Account (default: dedicated legacy control)' },
+          { name: 'contra_account_id', label: 'Take-on Contra Account' }
+        ] },
+      { tab: 'out', title: 'Counts & Open Position',
+        fields: [
+          { name: 'line_count', label: 'Register Rows', readonly: true },
+          { name: 'ready_count', label: 'Ready To Post', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined (identity/zero/duplicate)', readonly: true },
+          { name: 'posted_count', label: 'Posted Vouchers', readonly: true },
+          { name: 'total_open', label: 'Net Open Position', readonly: true },
+          { name: 'posted_move_id', label: 'Opening Entry', readonly: true }
+        ] },
+      { tab: 'log', title: 'Decision Log',
+        fields: [
+          { name: 'decision_log', label: 'Staging / Validation / Posting Log', type: 'text', readonly: true }
+        ] }
+    ]
+  },
 
   /* ============ D365 IN-WORKSPACE FORM SCREENS (M52 re-audit v2) ========
    * Every data-entry chip opens a Dynamics-365 record form inside the
@@ -566,7 +631,8 @@ export const FORM_CHIPS = {
     'fix.vendor.note': 'M52-form-note',
     'fix.vendor.tax.profile': 'M52-form-taxprofile',
     'fix.expense.rate': 'M52-form-rate',
-    'fix.expense.policy': 'M52-form-policy'
+    'fix.expense.policy': 'M52-form-policy',
+    'fix.ap.takeon.batch': 'M52-form-ap-takeon'
   },
   'M52:__by_screen__': {
     'M52-expense-category': 'M52-form-expense-category',
@@ -583,7 +649,9 @@ export const FORM_CHIPS = {
     'M52-notes': 'M52-form-note',
     'M52-taxprofile': 'M52-form-taxprofile',
     'M52-perdiem': 'M52-form-rate',
-    'M52-policy': 'M52-form-policy'
+    'M52-policy': 'M52-form-policy',
+    'M52-ap-takeon': 'M52-form-ap-takeon',
+    'M52-ap-takeon-lines': 'M52-form-ap-takeon'
   }
 };
 
