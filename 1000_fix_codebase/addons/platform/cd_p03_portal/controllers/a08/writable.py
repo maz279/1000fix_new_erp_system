@@ -348,6 +348,17 @@ WRITABLE = {
             "source_file",
         }
     ),
+    # 2026-11-09: the in-flight ledger take-on loader (A08) — read-only
+    # here until its owning session declares its editable fields; the
+    # actions carry the workflow, the form only configures the source.
+    "fix.ledger.takeon.batch": frozenset(
+        {
+            "company_id",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.ledger.takeon.line": frozenset(),
     "fix.cheque": frozenset(
         {
             "amount",

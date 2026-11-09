@@ -30,6 +30,10 @@ export const MODULE = {
       { id: 'M19-journals', en: 'Journals', bn: 'জার্নাল', t: 'g' },
       { id: 'M19-je', en: 'Journal Entry', bn: 'জার্নাল এন্ট্রি', t: 'f' },
       { id: 'M19-tb', en: 'Trial Balance', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' },
+      { id: 'M19-partner-ledger', en: 'Partner Ledger (GL)', bn: 'পার্টনার খতিয়ান (GL)', t: 'r' },
+      { id: 'M19-partner-statement', en: 'Partner Statement Drill-down', bn: 'পার্টনার স্টেটমেন্ট', t: 'r' },
+      { id: 'M19-takeon', en: 'Legacy Take-on Wizard', bn: 'লেগেসি টেক-অন উইজার্ড', t: 'c' },
+      { id: 'M19-takeon-lines', en: 'Take-on Lines (audit)', bn: 'টেক-অন লাইন (অডিট)', t: 'g' },
       { id: 'M19-dimensions', en: '7-Dimension Model', bn: 'মাত্রা মডেল', t: 'g' },
       { id: 'M19-coa-loader', en: 'CoA Master Loader', bn: 'হিসাবের ছক লোডার', t: 'c' },
       { id: 'M19-coa-register', en: 'CoA Register Pack', bn: 'হিসাবের ছক রেজিস্টার প্যাক', t: 'r' },
@@ -70,7 +74,7 @@ export const MODULE = {
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   freg: { src: 91, sub: [
     ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'] }],
-    ['2', 'Journals', 11, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je'] }],
+    ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'] }],
     ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'] }],
     ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'] }],
     ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol', 'M19-tp-rates'] }],
@@ -123,6 +127,68 @@ export const SCREENS = {
   'M19-suspense': { kind: 'suspense' },
   'M19-recon': { kind: 'recon' },
   'M19-audit': { kind: 'audit' },
+
+  /* Partner ledger surfaces (2026-11-08 report R-2/R-11) — GL truth under
+   * the AR subledger: legacy take-on lines and any posting that bypassed the
+   * AR/AP engines appear here and only here. */
+  'M19-partner-ledger': { kind: 'table_report', module: 'M19', report: 'partner_ledger', title: 'Partner Ledger (GL)', period: true },
+  'M19-partner-statement': { kind: 'table_report', module: 'M19', report: 'partner_statement', title: 'Partner Statement Drill-down', period: true },
+
+  /* Legacy take-on wizard (R-1b) — the guided cut-over path */
+  'M19-takeon': { kind: 'model_list', model: 'fix.ledger.takeon.batch', create: true,
+    cols: ['name', 'state', 'takeon_date', 'line_count', 'linked_count', 'created_count', 'gl_mapped_count', 'quarantined_count', 'total_balance'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_stage', l: '1. Stage spreadsheet' },
+      { m: 'action_validate', l: '2. Validate & match' },
+      { m: 'action_import', l: '3. Import parties (governed)' },
+      { m: 'action_post', l: '4. Post opening entry' },
+      { m: 'action_rollback', l: 'Rollback (mirror entry)' },
+    ] },
+  'M19-takeon-lines': { kind: 'model_list', model: 'fix.ledger.takeon.line', create: false,
+    cols: ['row_no', 'raw_name', 'clean_name', 'legacy_reference', 'line_state', 'suspense_kind', 'debit', 'credit', 'balance', 'matched_partner_id', 'created_partner_id'],
+    stateField: 'line_state' },
+  'M19-form-takeon': {
+    kind: 'model_form', model: 'fix.ledger.takeon.batch',
+    title: 'Legacy Partner-Ledger Take-on', back: 'M19-takeon',
+    status: { field: 'state', labels: {
+      draft: 'Draft', staged: 'Staged', validated: 'Validated',
+      imported: 'Parties Imported', posted: 'Opening Entry Posted', rolled_back: 'Rolled Back' } },
+    tabs: [
+      { id: 'src', label: '1. Source & Date', bn: '১. সোর্স ও তারিখ', icon: '📄', badge: '4' },
+      { id: 'out', label: '2. Outcome', bn: '২. ফলাফল', icon: '📊', badge: '7' },
+      { id: 'log', label: '3. Decision Log', bn: '৩. সিদ্ধান্ত লগ', icon: '🗂️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'src', title: 'Legacy Spreadsheet & Take-on Date',
+        note: "Attach the legacy partner ledger (Partner / Debit / Credit / Balance columns). Save, then run Stage → Validate → Import → Post from the list's command bar. Posting goes through the governed M19 funnel with the suspense-cutover source — never raw SQL on control accounts.",
+        fields: [
+          { name: 'name', label: 'Take-on', readonly: true },
+          { name: 'source_file', label: 'Legacy Ledger (.xlsx)', type: 'file' },
+          { name: 'source_filename', label: 'File Name' },
+          { name: 'import_ref', label: 'Import Reference (unique legacy keys)', required: true },
+          { name: 'takeon_date', label: 'Opening Balance Date (period boundary)', required: true },
+          { name: 'contra_account_id', label: 'Take-on Contra Account' }
+        ] },
+      { tab: 'out', title: 'Counts & Position',
+        fields: [
+          { name: 'line_count', label: 'Source Rows', readonly: true },
+          { name: 'linked_count', label: 'Linked Existing Parties', readonly: true },
+          { name: 'created_count', label: 'Created Parties', readonly: true },
+          { name: 'gl_mapped_count', label: 'Internal → GL Mapped', readonly: true },
+          { name: 'quarantined_count', label: 'Quarantined', readonly: true },
+          { name: 'total_debit', label: 'Total Debit (BDT)', readonly: true },
+          { name: 'total_credit', label: 'Total Credit (BDT)', readonly: true },
+          { name: 'total_balance', label: 'Net Legacy Position (BDT)', readonly: true },
+          { name: 'external_balance', label: 'Carried on Partner Accounts (BDT)', readonly: true },
+          { name: 'posted_move_id', label: 'Opening Entry', readonly: true }
+        ] },
+      { tab: 'log', title: 'Audit Trail',
+        fields: [
+          { name: 'decision_log', label: 'Decision Log (who, when, what)', readonly: true, type: 'text' }
+        ] }
+    ]
+  },
 
   /* A08 additions — generic screens over the real models (controllers/a08/m19.py) */
   'M19-coa-loader': { kind: 'model_list', model: 'fix.chart.loader', stateField: 'state',
@@ -732,7 +798,8 @@ export const FORM_CHIPS = {
     'fix.allocation.rule': 'M19-form-alloc',
     'fix.intercompany.transaction': 'M19-form-ic',
     'fix.journal.template': 'M19-form-template',
-    'fix.nil.return.generator': 'M19-form-nil'
+    'fix.nil.return.generator': 'M19-form-nil',
+    'fix.ledger.takeon.batch': 'M19-form-takeon'
   },
   'M19:__by_screen__': {
     'M19-period-close': 'M19-form-period-close',
@@ -740,6 +807,8 @@ export const FORM_CHIPS = {
     'M19-control-changes': 'M19-form-control-change',
     'M19-tp-rates': 'M19-form-tp-rate',
     'M19-fx-revaluation': 'M19-form-fx',
+    'M19-takeon': 'M19-form-takeon',
+    'M19-takeon-lines': 'M19-form-takeon',
     'M19-chart-account': 'M19-form-chart-account',
     'M19-coa-loader': 'M19-form-coaload',
     'M19-report-bridge': 'M19-form-bridge',

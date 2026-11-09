@@ -767,6 +767,8 @@ export const SCREENS = {
       { m: 'action_import', l: '3. Import as draft parties' },
       { m: 'action_decide_registrations', l: '4. Decide registrations (two-tier)' },
       { m: 'action_assign_roles', l: 'Assign classification roles' },
+      { m: 'action_register_suppliers', l: 'Register suppliers (vendor ledger)' },
+      { m: 'action_score_quality', l: 'Score golden-record quality' },
       { m: 'action_reconcile', l: '5. Reconcile counts' },
       { m: 'action_rollback', l: 'Rollback this batch' },
     ],

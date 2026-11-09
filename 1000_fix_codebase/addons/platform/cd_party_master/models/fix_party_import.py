@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import hashlib
 import re
 
 from odoo import api, fields, models
@@ -71,7 +72,102 @@ _SHEET_COLUMNS = {
         "Country": "raw_country",
         "Tag": "raw_tag",
     },
+    # 1000 FiX vendor ledger export (2026-11-08 readiness report §2): a
+    # single-sheet legacy res.partner dump. Address IS the street column;
+    # PAN/CIN carry the (mixed-validity) statutory identifiers; Customer
+    # Area is a branch/area token kept for stewardship, not an OU mapping.
+    "vendor": {
+        "Complete Name": "raw_name",
+        "Phone": "raw_phone",
+        "Email": "raw_email",
+        "Address": "raw_street",
+        "City": "raw_city",
+        "Country": "raw_country",
+        "Salesperson": "raw_salesperson",
+        "Customer Area": "raw_area",
+        "PAN": "raw_pan",
+        "CIN": "raw_cin",
+    },
 }
+
+# Vendor-ledger classification (report §2.2): the file mixes formal
+# companies with a very large population of individual payees (honorific
+# names, single tokens, phone-as-name). A company-shaped name becomes a
+# dealer-class party; everything else is an individual. Deterministic and
+# recorded per line — stewards can re-classify later.
+_VENDOR_COMPANY_RE = re.compile(
+    r"\b(ltd|limited|pvt|private|llc|inc|corp|corporation|company|enterprises?|"
+    r"traders?|trading|shops?|stores?|agenc(?:y|ies)|distribut(?:or|ors|orship)|"
+    r"suppliers?|dealers?|refrigeration|electronics?|electricals?|engineering|"
+    r"technolog(?:y|ies)|techno|computers?|mobile|telecom|services?|servicing|"
+    r"cent(?:er|re)s?|points?|works?|workshops?|houses?|syndicate|associates|"
+    r"group|authority|hospitals?|clinics?|diagnostics?|schools?|colleges?|"
+    r"universit(?:y|ies)|institutes?|banks?|insurance|foundations?|"
+    r"organizations?|organisations?|international|imports?|exports?|"
+    r"industr(?:y|ies))\b|\)$",
+    re.I,
+)
+
+# Vendor-ledger operational noise that is not a payee at all (report §2.2):
+# call attempts, product strings, self-references and the stock-migration
+# counter-account. Quarantined with the reason, never imported.
+_VENDOR_NOISE_RE = re.compile(
+    r"no answer|not reachable|wrong number|didn.?t pick|switch off"
+    r"|stock migration|\bDDR\d\b|\bGB\b|®|1000fix services",
+    re.I,
+)
+
+# City/Area tokens → BD division for the vendor sheet (its geography column
+# is City, not State). Extends the district map with the file's measured
+# area spellings (report §2.1); unknown tokens stay as city text.
+VENDOR_CITY_TO_DIVISION = {
+    "uttara": "Dhaka",
+    "mirpur": "Dhaka",
+    "gulshan": "Dhaka",
+    "banani": "Dhaka",
+    "dhanmondi": "Dhaka",
+    "narayanganj": "Dhaka",
+    "gazipur": "Dhaka",
+    "bogura": "Rajshahi",
+    "cox's bazar": "Chattogram",
+    "chattogram": "Chattogram",
+    "ctg": "Chattogram",
+    "mymensingh": "Mymensingh",
+}
+
+
+def _vendor_party_class(clean_name: str) -> tuple[bool, str]:
+    """(is_company, party_class) for a vendor-ledger name — dealer for
+    company-shaped names, individual for the payee mass."""
+    if _VENDOR_COMPANY_RE.search(clean_name or ""):
+        return True, "dealer"
+    return False, "individual"
+
+
+def _vendor_tax_ids(raw_pan, raw_cin) -> tuple[str, list]:
+    """Classify the PAN/CIN columns (report §2.1 / gap V10) → (tin, notes).
+
+    A 12-digit PAN is an e-TIN (the only identifier that satisfies the
+    fix.vendor.tax.profile constraint). 2026-prefixed 10–11-digit CINs are
+    new-vintage BINs held back for verification (the profile's BIN field is
+    strictly 13-digit); 8-digit CINs are legacy system ids, not tax ids.
+    """
+    notes = []
+    tin = ""
+    pan = str(raw_pan or "").strip()
+    cin = str(raw_cin or "").strip()
+    if re.fullmatch(r"\d{12}", pan):
+        tin = pan
+        notes.append("e-TIN classified from PAN")
+    elif pan:
+        notes.append("PAN not a 12-digit e-TIN — kept as raw only")
+    if re.fullmatch(r"2026\d{6,9}", cin):
+        notes.append("2026-vintage BIN pending verification — not auto-loaded")
+    elif re.fullmatch(r"\d{8}", cin):
+        notes.append("CIN is a legacy system id, not a tax identifier")
+    elif cin:
+        notes.append("CIN unrecognised format — kept as raw only")
+    return tin, notes
 
 
 def _norm_name(value: str) -> str:
@@ -79,6 +175,14 @@ def _norm_name(value: str) -> str:
     s = re.sub(r"[\(\)]", " ", s)
     s = re.sub(r"\s+,", ",", s)  # "Service , Bangladesh" → "Service, Bangladesh"
     return re.sub(r"\s+", " ", s).strip()
+
+
+def _loose_name(value: str) -> str:
+    """Case/punctuation-insensitive form for fallback matching. The 2026-11-09
+    discovery: a parallel `partner_ledger.xlsx` import created 1,747 vendor
+    parties whose branch markers are DASH-form ('WV — COX'S BAZAR') while this
+    ledger spells them paren-form — the exact key misses, the loose key hits."""
+    return re.sub(r"[^a-z0-9]", "", _norm_name(value).lower())
 
 
 def _norm_phone(value) -> tuple[str, str]:
@@ -152,7 +256,11 @@ class FixPartyImportBatch(models.Model):
         "res.company", required=True, default=lambda self: self.env.company
     )
     sheet_kind = fields.Selection(
-        [("corp", "Corporate customer list"), ("stbl", "STBL & Principal list")],
+        [
+            ("corp", "Corporate customer list"),
+            ("stbl", "STBL & Principal list"),
+            ("vendor", "Vendor ledger list (supplier master)"),
+        ],
         required=True,
         default="corp",
     )
@@ -196,7 +304,11 @@ class FixPartyImportBatch(models.Model):
 
     @api.depends("company_id", "create_date", "sheet_kind")
     def _compute_name(self):
-        kinds = {"corp": "Corporate list", "stbl": "STBL & Principal list"}
+        kinds = {
+            "corp": "Corporate list",
+            "stbl": "STBL & Principal list",
+            "vendor": "Vendor ledger",
+        }
         for batch in self:
             when = (batch.create_date or fields.Datetime.now()).strftime("%Y-%m-%d")
             batch.name = "Party import — %s — %s" % (kinds.get(batch.sheet_kind, "?"), when)
@@ -243,7 +355,35 @@ class FixPartyImportBatch(models.Model):
         )
         # pick the sheet FOR THE CHOSEN LAYOUT — the workbook has two sheets
         # (Corp first, STBL and Principal second) and the 2026-11-08 trial
-        # caught both batches staging sheet 1.
+        # caught both batches staging sheet 1. The vendor ledger is a
+        # single-sheet export ("Sheet1"), so the first worksheet is it.
+        if self.sheet_kind == "vendor":
+            ws = wb.worksheets[0]
+            colmap = _SHEET_COLUMNS["vendor"]
+            header = None
+            staged = []
+            for row in ws.iter_rows(values_only=True):
+                if header is None:
+                    cells = [str(c or "").strip() for c in row]
+                    if "Complete Name" in cells:
+                        header = cells
+                    continue
+                vals = {}
+                for i, h in enumerate(header):
+                    if h in colmap and i < len(row):
+                        vals[colmap[h]] = row[i]
+                if not (vals.get("raw_name") or "").strip():
+                    continue  # fully blank row
+                staged.append((0, 0, {**vals, "row_no": len(staged) + 2}))
+            if not staged:
+                raise UserError("No rows staged — is the sheet the vendor layout?")
+            self.line_ids.unlink()
+            self.line_ids = staged
+            self._log(
+                "staged %d rows from %s (sheet %r)" % (len(staged), self.source_filename, ws.title)
+            )
+            self.state = "staged"
+            return True
         wanted = "corp" if self.sheet_kind == "corp" else "stbl"
         ws = next(
             (s for s in wb.worksheets if wanted in s.title.lower().replace("&", "and")),
@@ -292,50 +432,139 @@ class FixPartyImportBatch(models.Model):
         users_by_name = {u.name.strip().lower(): u for u in User.search([])}
         # existing parties by normalised name and by phone (exact)
         existing = Partner.search(["|", ("name", "!=", False), ("phone", "!=", False)], limit=60000)
-        by_name, by_phone = {}, {}
+        by_name, by_phone, by_loose = {}, {}, {}
         for p in existing:
             by_name.setdefault(_norm_name(p.name), p)
             key = re.sub(r"\D", "", p.phone or "")
             if key:
                 by_phone.setdefault(key, p)
+            loose = _loose_name(p.name)
+            if len(loose) >= 6:
+                by_loose.setdefault(loose, p)
 
         for line in self.line_ids:
+            # single write per line (26,680-row vendor ledger: per-field
+            # assignment would mean ~10 UPDATEs per row)
+            vals = {}
             notes = []
-            code, full_name, parent, branch = _split_parent_branch(line.raw_name)
-            if code:
-                line.legacy_reference = "%s-%s" % (self.import_ref, code)
+            is_vendor = self.sheet_kind == "vendor"
+            # vendor source-fidelity repairs (report §7A step 1, measured in
+            # the file): the ledger carries phone numbers AS names (2,496
+            # rows), phone numbers in the email column, and the gamil.com
+            # typo domain — repaired here where every rule is noted per line
+            match_name = line.raw_name
+            src_phone = line.raw_phone
+            src_email = line.raw_email
+            if is_vendor:
+                vendor_name = str(line.raw_name or "").strip()
+                phone_head = re.match(r"^(01\d{9})\s+(.+)$", vendor_name)
+                if phone_head:
+                    vendor_name = phone_head.group(2).strip()
+                    if not str(line.raw_phone or "").strip():
+                        src_phone = phone_head.group(1)
+                        notes.append("phone recovered from name prefix")
+                    match_name = vendor_name
+                elif re.fullmatch(r"01\d{9}", vendor_name):
+                    if not str(line.raw_phone or "").strip():
+                        src_phone = vendor_name
+                    vendor_name = "Vendor %s" % vendor_name
+                    notes.append("phone-only name titled")
+                    match_name = vendor_name
+                if src_email and not EMAIL.fullmatch(str(src_email).strip()):
+                    stripped = str(src_email).strip()
+                    if re.fullmatch(r"01\d{9}", stripped):
+                        if not str(src_phone or "").strip():
+                            src_phone = stripped
+                            notes.append("phone rescued from email column")
+                        src_email = ""
+            code, full_name, parent, branch = _split_parent_branch(
+                match_name if is_vendor else line.raw_name
+            )
+            # the year code alone is NOT unique (every corp row shares '23')
+            # — the R-12 uniqueness guard rejects key collisions. The key is
+            # code + name slug: unique per source row, still traceable to
+            # the vintage, and stable across re-runs. The slug is built from
+            # the DECOMPOSED full name; when truncation would cut it (a
+            # parent and its branch share a long prefix), a digest tail
+            # keeps the key unique.
+            slug = re.sub(r"[^A-Z0-9]+", "-", _norm_name(full_name).upper()).strip("-")
+            if len(slug) > 40:
+                slug = "%s-%s" % (
+                    slug[:40],
+                    hashlib.sha256(slug.encode()).hexdigest()[:6].upper(),
+                )
+            if code and not is_vendor and slug:
+                vals["legacy_reference"] = "%s-%s-%s" % (self.import_ref, code, slug)
             else:
-                # no year code in the source (two vintages): the normalised
-                # name is the permanent key so every row stays MIG-3-traceable
-                slug = re.sub(r"[^A-Z0-9]+", "-", _norm_name(line.raw_name).upper()).strip("-")[:24]
-                line.legacy_reference = "%s-%s" % (self.import_ref, slug) if slug else ""
+                # no year code in the source (two vintages) — or the vendor
+                # ledger, whose `23-` rows are the SAME parties as their
+                # un-prefixed twins: the normalised-name slug is the permanent
+                # key, so both vintages collapse onto one party (MIG-03)
+                vals["legacy_reference"] = "%s-%s" % (self.import_ref, slug) if slug else ""
             # the record's name is ALWAYS the full cleaned source name; the
             # comma split only ever signals a parent→branch hierarchy
-            line.clean_name = full_name
-            line.parent_name = (branch and parent) or ""
-            phone, note = _norm_phone(line.raw_phone)
-            line.phone_norm = phone
+            vals["clean_name"] = full_name
+            vals["parent_name"] = (branch and parent) or ""
+            phone, note = _norm_phone(src_phone)
+            if phone and not re.search(r"\d", phone):
+                # a person's name / text in the phone column (vendor ledger
+                # §2.1) — never written onto the party
+                notes.append("non-numeric phone dropped: %s" % phone[:40])
+                phone = ""
+            vals["phone_norm"] = phone
             if note:
                 notes.append(note)
             if re.fullmatch(r"\d*0{6,}", phone or ""):
                 notes.append("placeholder number quarantined")
-            email, note = _norm_email(line.raw_email)
-            line.email_norm = email
+            email, note = _norm_email(src_email)
+            vals["email_norm"] = email
             if note:
                 notes.append(note)
-            # division: direct hit, else district fallback
-            raw_state = str(line.raw_state or "").strip().lower().rstrip("(bd)").strip()
-            line.district_raw = raw_state if raw_state not in divisions else ""
-            division = divisions.get(raw_state)
-            if not division and raw_state in DISTRICT_TO_DIVISION:
-                division = divisions.get(DISTRICT_TO_DIVISION[raw_state].lower())
-                notes.append("district %r mapped to division %s" % (raw_state, division.name))
-            line.division_id = division
-            if not division and line.raw_state:
-                notes.append("unmapped state %r kept as district" % raw_state)
+            if is_vendor:
+                # the gamil.com typo domain (63 measured rows) — repaired,
+                # never silently dropped (it passes the format check, so the
+                # repair must inspect the domain, not only the dropped ones)
+                fixed = ""
+                if vals["email_norm"] and vals["email_norm"].endswith("@gamil.com"):
+                    fixed = vals["email_norm"].replace("gamil.com", "gmail.com")
+                elif not vals["email_norm"] and src_email:
+                    candidate = str(src_email).strip().lower().replace("gamil.com", "gmail.com")
+                    if candidate.endswith("@gmail.com") and EMAIL.fullmatch(candidate):
+                        fixed = candidate
+                if fixed:
+                    vals["email_norm"] = fixed
+                    notes.append("gamil.com typo repaired")
+            if is_vendor:
+                # --- vendor-ledger rules (readiness report §7A step 1) ---
+                if _VENDOR_NOISE_RE.search(str(line.raw_name or "")):
+                    notes.append("operational noise / internal reference quarantined — not a payee")
+                if email.endswith("@1000fix.com"):
+                    notes.append("internal staff payee quarantined — route via employee advance")
+                tin, tax_notes = _vendor_tax_ids(line.raw_pan, line.raw_cin)
+                vals["tax_tin"] = tin
+                notes.extend(tax_notes)
+                _company_shape, party_klass = _vendor_party_class(full_name)
+                notes.append("vendor class: %s" % party_klass)
+                # geography comes from the City column (no State in this sheet)
+                geo = str(line.raw_city or "").strip().lower().rstrip("(bd)").strip()
+            else:
+                party_klass = None
+                geo = str(line.raw_state or "").strip().lower().rstrip("(bd)").strip()
+            vals["district_raw"] = geo if geo not in divisions else ""
+            division = divisions.get(geo)
+            if not division and geo in DISTRICT_TO_DIVISION:
+                division = divisions.get(DISTRICT_TO_DIVISION[geo].lower())
+                notes.append("district %r mapped to division %s" % (geo, division.name))
+            if not division and is_vendor and geo in VENDOR_CITY_TO_DIVISION:
+                division = divisions.get(VENDOR_CITY_TO_DIVISION[geo].lower())
+                if division:
+                    notes.append("city %r mapped to division %s" % (geo, division.name))
+            vals["division_id"] = division.id if division else False
+            if not division and geo and not is_vendor:
+                notes.append("unmapped state %r kept as district" % geo)
             if line.raw_salesperson:
                 user = users_by_name.get(str(line.raw_salesperson).strip().lower())
-                line.user_id = user
+                vals["user_id"] = user.id if user else False
                 if not user:
                     notes.append("salesperson not a user — left unassigned")
             # match: normalised exact name, or exact phone — against the live
@@ -344,34 +573,44 @@ class FixPartyImportBatch(models.Model):
             # A BRANCH row never matches on its bare branch fragment ("KHULNA"
             # matched an unrelated party in the 2026-11-08 debug) — only the
             # full raw name counts for branches.
-            match = by_name.get(_norm_name(line.raw_name))
-            if not match and not line.parent_name:
-                match = by_name.get(_norm_name(line.clean_name))
+            match = by_name.get(_norm_name(match_name))
+            if not match and not vals["parent_name"]:
+                match = by_name.get(_norm_name(vals["clean_name"]))
             if not match and phone:
                 match = by_phone.get(phone)
-            line.matched_partner_id = False
-            line.dup_of_line_id = False
+            if not match:
+                loose = _loose_name(match_name)
+                if len(loose) >= 6:
+                    match = by_loose.get(loose)
+                    if match is not None:
+                        notes.append("loose-name matched existing party #%d" % match.id)
+            vals["matched_partner_id"] = False
+            vals["dup_of_line_id"] = False
             if match is not None and match._name == "res.partner":
-                line.matched_partner_id = match
-                line.line_state = "matched"
+                vals["matched_partner_id"] = match.id
+                vals["line_state"] = "matched"
                 notes.append("matched existing party #%d" % match.id)
             elif match is not None and match._name == "fix.party.import.line":
                 # intra-batch duplicate of an earlier line — no second party
-                line.dup_of_line_id = match
-                line.line_state = "matched"
+                vals["dup_of_line_id"] = match.id
+                vals["line_state"] = "matched"
                 notes.append("duplicate within batch of row %d" % match.row_no)
-            elif not line.clean_name:
-                line.line_state = "error"
+            elif not vals["clean_name"]:
+                vals["line_state"] = "error"
                 notes.append("no usable name")
             elif any("quarantined" in n for n in notes):
-                line.line_state = "quarantined"
+                vals["line_state"] = "quarantined"
             else:
-                line.line_state = "validated"
-            line.notes = "; ".join(notes)
+                vals["line_state"] = "validated"
+            vals["notes"] = "; ".join(notes)
+            line.write(vals)
             # register this line for intra-batch duplicate detection
-            if line.line_state == "validated":
-                by_name.setdefault(_norm_name(line.raw_name), line)
-                by_name.setdefault(_norm_name(line.clean_name), line)
+            if vals["line_state"] == "validated":
+                by_name.setdefault(_norm_name(match_name), line)
+                by_name.setdefault(_norm_name(vals["clean_name"]), line)
+                loose = _loose_name(match_name)
+                if len(loose) >= 6:
+                    by_loose.setdefault(loose, line)
                 if phone:
                     by_phone.setdefault(phone, line)
         self._log(
@@ -401,6 +640,18 @@ class FixPartyImportBatch(models.Model):
             [("code", "=", "BD")], limit=1
         )
         party_class = "corporate" if self.sheet_kind == "corp" else "dealer"
+
+        def _birth(line_or_name):
+            """(is_company, party_class) for a party's birth — per-line for
+            the vendor ledger (company-shaped names → dealer, the payee mass
+            → individual), uniform for the customer sheets."""
+            if self.sheet_kind == "vendor":
+                name = (
+                    line_or_name.clean_name if hasattr(line_or_name, "clean_name") else line_or_name
+                )
+                return _vendor_party_class(name)
+            return True, party_class
+
         # tags: create-if-missing per distinct source tag
         tag_cache = {}
 
@@ -414,6 +665,29 @@ class FixPartyImportBatch(models.Model):
                 tag_cache[tag_label] = cat
             return [(4, tag_cache[tag_label].id)]
 
+        # R-12 (unique legacy_reference) vs the real ledger: case-variant
+        # names ('MANIK' vs 'Manik') are DIFFERENT parties to the
+        # case-sensitive matcher but slug to the SAME uppercase key — the
+        # import uniquifies each key deterministically (-2, -3, ...) against
+        # both the live master and this batch's earlier creations
+        used_refs = set(
+            Partner.search([("legacy_reference", "!=", False)]).mapped("legacy_reference")
+        )
+
+        def unique_ref(line):
+            ref = line.legacy_reference
+            if not ref or ref not in used_refs:
+                if ref:
+                    used_refs.add(ref)
+                return ref
+            n = 2
+            while "%s-%d" % (ref, n) in used_refs:
+                n += 1
+            candidate = "%s-%d" % (ref, n)
+            used_refs.add(candidate)
+            line.legacy_reference = candidate
+            return candidate
+
         # pass 1: parents + plain rows
         for line in self.line_ids.filtered(lambda ln: not ln.parent_name):
             if line.line_state == "matched":
@@ -421,12 +695,13 @@ class FixPartyImportBatch(models.Model):
                 continue
             if line.line_state != "validated":
                 continue
+            is_co, pclass = _birth(line)
             line.created_partner_id = Partner.create(
                 {
                     "name": line.clean_name,
-                    "is_company": True,
-                    "party_class": party_class,
-                    "legacy_reference": line.legacy_reference or None,
+                    "is_company": is_co,
+                    "party_class": pclass,
+                    "legacy_reference": unique_ref(line) or None,
                     "company_id": self.company_id.id,
                     "street": line.raw_street or False,
                     "state_id": line.division_id.id or False,
@@ -457,9 +732,9 @@ class FixPartyImportBatch(models.Model):
             line.created_partner_id = Partner.create(
                 {
                     "name": line.clean_name,
-                    "is_company": True,
-                    "party_class": party_class,
-                    "legacy_reference": line.legacy_reference or None,
+                    "is_company": _birth(line)[0],
+                    "party_class": _birth(line)[1],
+                    "legacy_reference": unique_ref(line) or None,
                     "company_id": self.company_id.id,
                     "street": line.raw_street or False,
                     "state_id": line.division_id.id or False,
@@ -495,13 +770,29 @@ class FixPartyImportBatch(models.Model):
 
     def _attach_legacy(self, line):
         """A matched party gets the legacy key (idempotent re-runs). An
-        intra-batch duplicate links to the party its source line created."""
+        intra-batch duplicate links to the party its source line created.
+        R-12: if the key already belongs to a different party (case-variant
+        names slug identically), a deterministic suffix keeps the write legal
+        instead of failing the batch."""
         partner = line.matched_partner_id
         if not partner and line.dup_of_line_id:
             partner = line.dup_of_line_id.created_partner_id
             line.matched_partner_id = partner
         if partner and not partner.legacy_reference:
-            partner.sudo().write({"legacy_reference": line.legacy_reference or None})
+            ref = line.legacy_reference
+            if ref:
+                clash = self.env["res.partner"].search(
+                    [("legacy_reference", "=", ref), ("id", "!=", partner.id)], limit=1
+                )
+                if clash:
+                    suffix = 2
+                    while self.env["res.partner"].search_count(
+                        [("legacy_reference", "=", "%s-%d" % (ref, suffix))]
+                    ):
+                        suffix += 1
+                    ref = "%s-%d" % (ref, suffix)
+                    line.legacy_reference = ref
+            partner.sudo().write({"legacy_reference": ref or None})
         line.line_state = "linked"
 
     def _pdpa_stamp(self, partner):
@@ -526,13 +817,36 @@ class FixPartyImportBatch(models.Model):
         if self.state != "imported":
             raise UserError("Import the batch first.")
         Approval = self.env["fix.registration.approval"]
-        decided = skipped = 0
-        for line in self.line_ids.filtered(lambda ln: ln.created_partner_id):
+        decided = activated = skipped = 0
+        lines = self.line_ids.filtered(lambda ln: ln.created_partner_id)
+        # one search for the whole batch (the vendor ledger carries tens of
+        # thousands of lines — a per-line search is minutes of pure overhead)
+        approvals = {}
+        for approval in Approval.search(
+            [("partner_id", "in", lines.mapped("created_partner_id").ids)]
+        ):
+            approvals.setdefault(approval.partner_id.id, approval)
+        for line in lines:
             partner = line.created_partner_id
             if partner.party_status not in ("draft", "pending_approval"):
                 skipped += 1
                 continue
-            approval = Approval.search([("partner_id", "=", partner.id)], order="id desc", limit=1)
+            if partner.party_class == "individual":
+                # individuals open no two-tier registration (BRU-CPM-02 covers
+                # dealer/corporate/government); the governed activation is the
+                # same guarded status write action_reactivate_party performs,
+                # recorded per party with the cut-over reason
+                partner.sudo()._guarded().write({"party_status": "active"})
+                partner.message_post(
+                    body=(
+                        "Activated by the M33 vendor-ledger cut-over (individual "
+                        "payee; batch %s). Reason: legacy vendor ledger migration."
+                        % self.import_ref
+                    )
+                )
+                activated += 1
+                continue
+            approval = approvals.get(partner.id)
             if not approval or approval._fully_approved():
                 skipped += 1
                 continue
@@ -549,7 +863,8 @@ class FixPartyImportBatch(models.Model):
             approval._activate_if_complete()
             decided += 1
         self._log(
-            "registrations decided for %d parties (%d already active/decided)" % (decided, skipped)
+            "registrations decided for %d parties, %d individuals activated (%d already active/decided)"
+            % (decided, activated, skipped)
         )
         self.state = "approved"
         self.action_assign_roles()
@@ -558,15 +873,31 @@ class FixPartyImportBatch(models.Model):
     def action_assign_roles(self):
         """Give every created party its classification ROLE (M33: one party,
         many roles — never masters). Corp list → customer role; STBL/
-        Principal list → brand-partner role. Idempotent, and only for
-        usable parties (an active role requires an active party)."""
+        Principal list → brand-partner role; vendor ledger → vendor role,
+        ALSO on matched parties (the dual-role rows: a party that is already
+        an active customer gains its vendor role, never a second party).
+        Idempotent, and only for usable parties (an active role requires an
+        active party)."""
         self.ensure_one()
         Role = self.env["fix.party.role"]
-        role_type = "customer" if self.sheet_kind == "corp" else "brand_partner"
+        role_type = {"corp": "customer", "stbl": "brand_partner"}.get(self.sheet_kind, "vendor")
+        lines = self.line_ids.filtered(
+            lambda ln: ln.created_partner_id
+            or (self.sheet_kind == "vendor" and ln.matched_partner_id)
+        )
+        partners = lines.mapped(lambda ln: ln.created_partner_id or ln.matched_partner_id)
+        # one read_group for the whole batch (26k-row scale)
+        existing = {
+            row["partner_id"][0]
+            for row in Role.read_group(
+                [("partner_id", "in", partners.ids), ("role_type", "=", role_type)],
+                ["partner_id"],
+                ["partner_id"],
+            )
+        }
         created = skipped = 0
-        for line in self.line_ids.filtered(lambda ln: ln.created_partner_id):
-            partner = line.created_partner_id
-            if Role.search_count([("partner_id", "=", partner.id), ("role_type", "=", role_type)]):
+        for partner in partners:
+            if partner.id in existing:
                 skipped += 1
                 continue
             if partner.party_status != "active":
@@ -581,6 +912,28 @@ class FixPartyImportBatch(models.Model):
             )
             created += 1
         self._log("roles assigned: %d %s (%d skipped)" % (created, role_type, skipped))
+        if created:
+            # golden-record quality follows the role (readiness report: the
+            # imported estate must carry quality scores, not wait for a
+            # manual sweep — golden_coverage jumps the moment roles exist)
+            self.action_score_quality()
+        return True
+
+    def action_score_quality(self):
+        """(Re)compute fix.party.quality for THIS batch's created parties —
+        the golden-record scorecard the M33 KPI reads."""
+        self.ensure_one()
+        Quality = self.env["fix.party.quality"]
+        scored = 0
+        for line in self.line_ids.filtered(lambda ln: ln.created_partner_id):
+            partner = line.created_partner_id
+            existing = Quality.search([("partner_id", "=", partner.id)], limit=1)
+            if existing:
+                existing.action_recompute()
+            else:
+                Quality.create({"partner_id": partner.id, **Quality._score_partner(partner)})
+            scored += 1
+        self._log("quality scored: %d parties" % scored)
         return True
 
     # ------------------------------------------------------------- rollback
@@ -600,6 +953,9 @@ class FixPartyImportBatch(models.Model):
             ("fix.contract", "partner_id"),
             ("fix.subscription", "partner_id"),
             ("fix.vendor.invoice", "partner_id"),
+            # a supplier-register row pins its partner (ondelete=restrict);
+            # the cd_vendor_portal rollback removes this batch's rows first
+            ("fix.supplier", "partner_id"),
         ]
         removed = kept = 0
         for line in self.line_ids.filtered(lambda ln: ln.created_partner_id):
@@ -660,6 +1016,18 @@ class FixPartyImportBatch(models.Model):
                 lines.filtered(lambda ln: ln.line_state in ("matched", "linked"))
             ),
         }
+        if self.sheet_kind == "vendor":
+            # Odoo 19 _read_group yields (groupby-value, aggregate-value) tuples
+            summary["by_party_class"] = dict(
+                sorted(
+                    (klass or "(none)", count)
+                    for klass, count in self.env["res.partner"]._read_group(
+                        [("id", "in", lines.mapped("created_partner_id").ids)],
+                        groupby=["party_class"],
+                        aggregates=["id:count"],
+                    )
+                )
+            )
         self._log("reconciled: %s" % summary)
         self.state = "reconciled"
         return summary

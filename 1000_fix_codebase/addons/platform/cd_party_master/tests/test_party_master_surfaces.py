@@ -232,7 +232,7 @@ def test_merge_is_sod_guarded_transfers_activity_and_is_reversible(odoo_env):
 
 
 def test_merge_reversal_is_refused_after_the_window(odoo_env):
-    victim, survivor, cand = _merge_fixture(odoo_env)
+    _victim, _survivor, cand = _merge_fixture(odoo_env)
     cand.action_review()
     cand.action_confirm()
     merge = odoo_env["fix.party.merge"].search([("state", "=", "draft")], limit=1)

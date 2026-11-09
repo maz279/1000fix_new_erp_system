@@ -157,6 +157,12 @@ class P03GlApiController(http.Controller):
         branches = (
             env["fix.branch"].sudo().search([]).mapped(lambda b: {"id": b.id, "name": b.name})
         )
+        # R-1a (2026-11-08 report): the JE editor's partner picker — active
+        # parties, so receivable/payable lines can carry the counterparty the
+        # ORM (and any partner ledger) requires.
+        partners = (
+            env["res.partner"].sudo().search([("active", "=", True)], order="name", limit=3000)
+        )
         return {
             "rows": accounts.mapped(
                 lambda a: {
@@ -167,6 +173,7 @@ class P03GlApiController(http.Controller):
                 }
             ),
             "branches": branches,
+            "partners": partners.mapped(lambda p: {"id": p.id, "name": p.name or ""}),
         }
 
     @http.route("/p03/gl/journals", type="jsonrpc", auth="user", readonly=True)
@@ -1070,22 +1077,39 @@ class P03GlApiController(http.Controller):
                 return {"success": False, "error": "No general journal configured for the company"}
             line_vals = []
             dimension_by_line = {}
+            entry_date = _parse_date(date, datetime.date.today())
             for idx, line in enumerate(lines):
                 account = env["account.account"].sudo().browse(int(line.get("account_id")))
                 if not account.exists():
                     return {"success": False, "error": "Unknown account on line %d" % (idx + 1)}
-                line_vals.append(
-                    (
-                        0,
-                        0,
-                        {
-                            "account_id": account.id,
-                            "name": line.get("label") or ref or "Manual entry",
-                            "debit": round(float(line.get("debit") or 0.0), 2),
-                            "credit": round(float(line.get("credit") or 0.0), 2),
-                        },
+                vals = {
+                    "account_id": account.id,
+                    "name": line.get("label") or ref or "Manual entry",
+                    "debit": round(float(line.get("debit") or 0.0), 2),
+                    "credit": round(float(line.get("credit") or 0.0), 2),
+                }
+                # R-1a: receivable/payable lines carry the counterparty and a
+                # due date — the ORM enforces it and the partner ledger needs
+                # it; without a partner the control account would orphan the
+                # balance (the exact gap the 2026-11-08 report closed).
+                if account.account_type in ("asset_receivable", "liability_payable"):
+                    partner_id = line.get("partner_id")
+                    partner = (
+                        env["res.partner"].sudo().browse(int(partner_id)).exists()
+                        if partner_id
+                        else env["res.partner"]
                     )
-                )
+                    if not partner:
+                        return {
+                            "success": False,
+                            "error": "Line %d is on control account %s — pick the partner it belongs to"
+                            % (idx + 1, account.name),
+                        }
+                    vals["partner_id"] = partner.id
+                    vals["date_maturity"] = (
+                        _parse_date(line.get("maturity"), entry_date) or entry_date
+                    )
+                line_vals.append((0, 0, vals))
                 dims = {
                     "branch_id": line.get("branch_id") or False,
                     "cost_centre": line.get("cost_centre") or False,

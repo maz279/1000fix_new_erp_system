@@ -128,7 +128,7 @@ def batch(odoo_env):
             "sheet_kind": "corp",
             "source_file": base64.b64encode(_workbook()).decode(),
             "source_filename": "unit_workbook.xlsx",
-            "import_ref": "TEST",
+            "import_ref": "TEST-" + U,
         }
     )
 
@@ -160,12 +160,12 @@ class TestCleansingHelpers:
         assert branch.upper().startswith("KHULNA")
         # a comma that is just part of the name NEVER decomposes (the
         # 2026-11-08 audit: 125 records named after bare fragments)
-        code2, full2, parent2, branch2 = _split_parent_branch(
+        _code2, full2, parent2, branch2 = _split_parent_branch(
             "23-Aga Khan Education Service , Bangladesh"
         )
         assert full2 == "Aga Khan Education Service, Bangladesh"
         assert parent2 == "" and branch2 == ""
-        code3, full3, parent3, branch3 = _split_parent_branch("23-icddr,b")
+        _code3, full3, parent3, branch3 = _split_parent_branch("23-icddr,b")
         assert full3 == "icddr,b" and parent3 == "" and branch3 == ""
 
 
@@ -243,7 +243,7 @@ class TestLoaderPipeline:
                 "sheet_kind": "corp",
                 "source_file": base64.b64encode(_workbook()).decode(),
                 "source_filename": "unit_workbook.xlsx",
-                "import_ref": "TEST",
+                "import_ref": "TEST-" + U,
             }
         )
         batch2.action_stage()

@@ -1917,7 +1917,7 @@
                                 </div>
                                 <div class="tbl-wrap">
                                     <table class="fx-table">
-                                        <thead><tr><th></th><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Label")'/></th><th style="text-align: right;"><t t-esc='t("Debit")'/></th><th style="text-align: right;"><t t-esc='t("Credit")'/></th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("Cost Centre")'/></th><th><t t-esc='t("Business Line")'/></th><th></th></tr></thead>
+                                        <thead><tr><th></th><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Label")'/></th><th style="text-align: right;"><t t-esc='t("Debit")'/></th><th style="text-align: right;"><t t-esc='t("Credit")'/></th><th><t t-esc='t("Partner (AR/AP)")'/></th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("Cost Centre")'/></th><th><t t-esc='t("Business Line")'/></th><th></th></tr></thead>
                                         <tbody>
                                             <tr t-foreach="state.gl.editor.lines" t-as="line" t-key="line_index">
                                                 <td style="color: var(--ink-300);"><t t-esc="line_index + 1"/></td>
@@ -1930,6 +1930,12 @@
                                                 <td><input type="text" t-att-placeholder='t("Line label")' t-att-value="line.label" t-on-input="(ev) => this.glEditorSet(line, 'label', ev.target.value)"/></td>
                                                 <td><input type="number" step="0.01" min="0" style="width: 100px; text-align: right;" t-att-value="line.debit" t-on-input="(ev) => this.glEditorSet(line, 'debit', ev.target.value)"/></td>
                                                 <td><input type="number" step="0.01" min="0" style="width: 100px; text-align: right;" t-att-value="line.credit" t-on-input="(ev) => this.glEditorSet(line, 'credit', ev.target.value)"/></td>
+                                                <td>
+                                                    <select t-att-aria-label='t("Partner (AR/AP)")' t-on-change="(ev) => this.glEditorSet(line, 'partner_id', ev.target.value)" style="min-width: 150px;">
+                                                        <option value=""><t t-esc='t("— partner (AR/AP lines) —")'/></option>
+                                                        <option t-foreach="state.gl.data.partners || []" t-as="pt" t-key="pt.id" t-att-value="pt.id"><t t-esc="pt.name"/></option>
+                                                    </select>
+                                                </td>
                                                 <td>
                                                     <select t-att-aria-label='t("Branch")' t-on-change="(ev) => this.glEditorSet(line, 'branch_id', ev.target.value)" style="min-width: 110px;">
                                                         <option value=""><t t-esc='t("— branch —")'/></option>

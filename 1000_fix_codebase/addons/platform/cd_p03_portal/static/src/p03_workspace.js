@@ -1110,6 +1110,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                 gl.data = {
                     accounts: accounts.rows,
                     branches: accounts.branches || [],
+                    partners: accounts.partners || [],
                     templates: templates.rows,
                 };
                 if (!gl.editor) this._glNewEditor();
@@ -2730,8 +2731,8 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             ref: "",
             date: new Date().toISOString().slice(0, 10),
             lines: [
-                { account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" },
-                { account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" },
+                { account_id: "", label: "", debit: "", credit: "", partner_id: "", branch_id: "", cost_centre: "", business_line: "" },
+                { account_id: "", label: "", debit: "", credit: "", partner_id: "", branch_id: "", cost_centre: "", business_line: "" },
             ],
             templateName: "",
             schedule: "monthly",
@@ -2744,7 +2745,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     }
 
     glEditorAddLine() {
-        this.state.gl.editor.lines.push({ account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" });
+        this.state.gl.editor.lines.push({ account_id: "", label: "", debit: "", credit: "", partner_id: "", branch_id: "", cost_centre: "", business_line: "" });
     }
 
     glEditorRemoveLine(idx) {
@@ -2771,6 +2772,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                     label: l.label,
                     debit: parseFloat(l.debit) || 0.0,
                     credit: parseFloat(l.credit) || 0.0,
+                    partner_id: l.partner_id ? parseInt(l.partner_id, 10) : false,
                     branch_id: l.branch_id ? parseInt(l.branch_id, 10) : false,
                     cost_centre: l.cost_centre,
                     business_line: l.business_line,

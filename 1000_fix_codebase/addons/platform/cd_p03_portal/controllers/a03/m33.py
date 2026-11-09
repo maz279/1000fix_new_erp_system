@@ -18,6 +18,13 @@ SURFACES = {
         "order": "write_date desc, id desc",
         "limit": 200,
         "actions": {"action_reactivate_party"},
+        # 2026-11-09: the party REGISTER is the customer master — internal
+        # parties (login-backed users, employee-linked staff) never mix in.
+        # Flows to the grid AND the branded export via model_records.
+        "base_domain": [
+            ("user_ids", "=", False),
+            ("employee_ids", "=", False),
+        ],
     },
     "fix.party.role": {
         "order": "partner_id, role_type",
@@ -128,6 +135,8 @@ SURFACES = {
             "action_import",
             "action_decide_registrations",
             "action_assign_roles",
+            "action_register_suppliers",
+            "action_score_quality",
             "action_reconcile",
             "action_rollback",
         },

@@ -25,6 +25,10 @@ class FixPartyImportLine(models.Model):
     raw_tag = fields.Char()
     raw_salesperson = fields.Char()
     raw_city = fields.Char()
+    # vendor-ledger sheet only (readiness report 2026-11-08 §2.1)
+    raw_area = fields.Char(string="Customer Area (raw)")
+    raw_pan = fields.Char(string="PAN (raw)")
+    raw_cin = fields.Char(string="CIN (raw)")
 
     # cleansed values + audit notes
     legacy_reference = fields.Char(index=True)
@@ -32,6 +36,9 @@ class FixPartyImportLine(models.Model):
     parent_name = fields.Char(string="Parent (decomposed)")
     phone_norm = fields.Char()
     email_norm = fields.Char()
+    # the e-TIN classified from the PAN column (12-digit) — the only
+    # identifier the fix.vendor.tax.profile constraint accepts at load
+    tax_tin = fields.Char(string="e-TIN (classified)")
     district_raw = fields.Char()
     division_id = fields.Many2one("res.country.state")
     user_id = fields.Many2one("res.users", string="Salesperson (mapped)")

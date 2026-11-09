@@ -11,8 +11,10 @@
 import datetime
 
 
-def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
-    """Table-report payload shared by the M19/M20 packs."""
+def _pack(title, cols, labels, rows, notes, totals=None, empty=None, filters=None):
+    """Table-report payload shared by the M19/M20 packs. `filters` declares
+    the select dropdowns the generic table-report screen renders; the chosen
+    values ride the params of every fetch and export."""
     return {
         "title": title,
         "cols": cols,
@@ -21,6 +23,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
         "totals": totals,
         "notes": notes,
         "empty": empty,
+        "filters": filters or [],
     }
 
 
@@ -29,6 +32,26 @@ SURFACES = {
         "order": "rate_date desc, id desc",
         "limit": 200,
         "actions": {"action_compute", "action_post"},
+    },
+    # Legacy partner-ledger take-on wizard (2026-11-08 report R-1b): the
+    # guided cut-over path — stage spreadsheet, validate, import parties
+    # through the governed loader pattern, post through the M19 funnel,
+    # rollback via a mirror entry when needed.
+    "fix.ledger.takeon.batch": {
+        "order": "id desc",
+        "limit": 50,
+        "actions": {
+            "action_stage",
+            "action_validate",
+            "action_import",
+            "action_post",
+            "action_rollback",
+        },
+    },
+    "fix.ledger.takeon.line": {
+        "order": "batch_id desc, row_no",
+        "limit": 500,
+        "actions": set(),
     },
     "fix.chart.loader": {
         "order": "id desc",
@@ -467,9 +490,197 @@ def coa_register(env, **params):
     )
 
 
+def _parse_d(val):
+    if not val:
+        return None
+    try:
+        return datetime.date.fromisoformat(str(val)[:10])
+    except ValueError:
+        return None
+
+
+def partner_ledger(env, date_from=None, date_to=None, **params):
+    """The GL partner ledger (2026-11-08 report R-2/R-11): every party with a
+    posted balance on a receivable/payable account — opening (before the
+    window), movement, closing — read straight from account.move.line. This
+    is the GL truth under the M20 AR-subledger statements: the legacy
+    take-on lines (and any posting that never touched the AR/AP subledger
+    engines) appear here and only here."""
+    company = env.company
+    domain = [
+        ("company_id", "=", company.id),
+        ("parent_state", "=", "posted"),
+        ("partner_id", "!=", False),
+        ("account_type", "in", ["asset_receivable", "liability_payable"]),
+    ]
+    d_from, d_to = _parse_d(date_from), _parse_d(date_to)
+    if d_to:
+        domain.append(("date", "<=", d_to))
+    lines = env["account.move.line"].sudo().search(domain, order="partner_id, date, id")
+    partners = lines.mapped("partner_id").sorted(key=lambda p: p.name or "")
+    roles = {}
+    if "fix.party.role" in env:
+        for r in env["fix.party.role"].sudo().search([("partner_id", "in", partners.ids)]):
+            roles.setdefault(r.partner_id.id, []).append(r.role_type)
+    rows = []
+    for p in partners:
+        plines = lines.filtered(lambda ln, _p=p: ln.partner_id.id == _p.id)
+        opening = sum(ln.balance for ln in plines if d_from and ln.date < d_from) if d_from else 0.0
+        moved = plines.filtered(lambda ln: not d_from or ln.date >= d_from)
+        debit = sum(ln.debit for ln in moved)
+        credit = sum(ln.credit for ln in moved)
+        closing = sum(ln.balance for ln in plines)
+        rows.append(
+            {
+                "partner": p.name or "",
+                "legacy_reference": p.legacy_reference or "",
+                "roles": ", ".join(sorted(set(roles.get(p.id, [])))) or "—",
+                "opening": round(opening, 2),
+                "debit": round(debit, 2),
+                "credit": round(credit, 2),
+                "closing": round(closing, 2),
+            }
+        )
+    totals = {
+        "partner": "%d parties" % len(rows),
+        "opening": round(sum(r["opening"] for r in rows), 2),
+        "debit": round(sum(r["debit"] for r in rows), 2),
+        "credit": round(sum(r["credit"] for r in rows), 2),
+        "closing": round(sum(r["closing"] for r in rows), 2),
+    }
+    window = ""
+    if d_from or d_to:
+        window = " · %s → %s" % (d_from or "…", d_to or "…")
+    return _pack(
+        "Partner Ledger (GL) — %s%s" % (company.name, window),
+        ["partner", "legacy_reference", "roles", "opening", "debit", "credit", "closing"],
+        {
+            "partner": "Partner",
+            "legacy_reference": "Legacy Key",
+            "roles": "Roles",
+            "opening": "Opening (BDT)",
+            "debit": "Debit (BDT)",
+            "credit": "Credit (BDT)",
+            "closing": "Closing (BDT)",
+        },
+        rows,
+        [
+            "Read from posted receivable/payable ledger lines — the GL truth under "
+            "the AR subledger statements (legacy take-on lines included).",
+            "Roles from fix.party.role; the legacy key is the MIG-03 source reference.",
+        ],
+        totals=totals,
+        empty="No party carries a posted receivable/payable balance.",
+    )
+
+
+def partner_statement(env, partner=None, date_from=None, date_to=None, **params):
+    """Per-party drill-down (report R-2): date, journal, entry, account, label,
+    debit, credit and running balance over the chosen window — including the
+    2026-11-08 legacy take-on lines, which the AR-subledger statement cannot
+    show (they carry no fix.ar.invoice residual)."""
+    company = env.company
+    base = env["account.move.line"].sudo()
+    if not partner:
+        # filter options: parties with a posted partner balance, biggest first
+        groups = base._read_group(
+            [
+                ("company_id", "=", company.id),
+                ("parent_state", "=", "posted"),
+                ("partner_id", "!=", False),
+                ("account_type", "in", ["asset_receivable", "liability_payable"]),
+            ],
+            ["partner_id"],
+            ["balance:sum"],
+        )
+        options = sorted((p.name or "" for p, _b in groups if p), key=lambda n: n)
+        return _pack(
+            "Partner Ledger Statement — pick a partner",
+            ["date", "journal", "move", "account", "label", "debit", "credit", "running"],
+            {
+                "date": "Date",
+                "journal": "Journal",
+                "move": "Entry",
+                "account": "Account",
+                "label": "Label",
+                "debit": "Debit (BDT)",
+                "credit": "Credit (BDT)",
+                "running": "Running (BDT)",
+            },
+            [],
+            ["Choose a partner from the filter and press Run."],
+            empty="Pick a partner in the filter above.",
+            filters=[{"key": "partner", "label": "Partner", "options": options[:500]}],
+        )
+    target = env["res.partner"].sudo().search([("name", "=", partner)], limit=1)
+    if not target:
+        return {"error": "Party %s not found" % partner}
+    d_from, d_to = _parse_d(date_from), _parse_d(date_to)
+    domain = [
+        ("company_id", "=", company.id),
+        ("parent_state", "=", "posted"),
+        ("partner_id", "=", target.id),
+    ]
+    if d_from:
+        domain.append(("date", ">=", d_from))
+    if d_to:
+        domain.append(("date", "<=", d_to))
+    lines = base.search(domain, order="date, id")
+    opening = 0.0
+    if d_from:
+        before = base.search([*domain[:3], ("date", "<", d_from)])
+        opening = sum(before.mapped("balance"))
+    running = opening
+    rows = []
+    for ln in lines:
+        running += ln.balance
+        rows.append(
+            {
+                "date": str(ln.date),
+                "journal": ln.journal_id.code or ln.journal_id.name or "",
+                "move": ln.move_id.name or "",
+                "account": "%s %s" % (ln.account_id.code or "", ln.account_id.name or ""),
+                "label": ln.name or "",
+                "debit": round(ln.debit, 2),
+                "credit": round(ln.credit, 2),
+                "running": round(running, 2),
+            }
+        )
+    return _pack(
+        "Partner Statement — %s%s"
+        % (target.name, " · %s → %s" % (d_from or "…", d_to or "…") if (d_from or d_to) else ""),
+        ["date", "journal", "move", "account", "label", "debit", "credit", "running"],
+        {
+            "date": "Date",
+            "journal": "Journal",
+            "move": "Entry",
+            "account": "Account",
+            "label": "Label",
+            "debit": "Debit (BDT)",
+            "credit": "Credit (BDT)",
+            "running": "Running (BDT)",
+        },
+        rows,
+        [
+            "Opening %.2f BDT · Closing %.2f BDT · %d posted lines (GL basis)."
+            % (opening, running, len(rows))
+        ],
+        totals={
+            "label": "Opening / Closing",
+            "debit": round(sum(r["debit"] for r in rows), 2),
+            "credit": round(sum(r["credit"] for r in rows), 2),
+            "running": round(running, 2),
+        },
+        empty="No posted lines for this party in the window.",
+        filters=[{"key": "partner", "label": "Partner", "options": [target.name]}],
+    )
+
+
 REPORTS = {
     "fx_revaluation": fx_revaluation,
     "ic_balances": ic_balances,
     "close_sla": close_sla,
     "coa_register": coa_register,
+    "partner_ledger": partner_ledger,
+    "partner_statement": partner_statement,
 }

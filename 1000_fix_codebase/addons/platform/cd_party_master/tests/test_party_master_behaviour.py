@@ -271,14 +271,16 @@ def test_withdrawal_is_append_only_and_keeps_the_grant(odoo_env):
     assert grant.superseded_by_id.id == withdrawal.id
 
 
-def test_notification_language_defaults_to_bengali(odoo_env):
+def test_notification_language_defaults_to_english(odoo_env):
+    # user directive 2026-11-08: English is the business default; Bengali
+    # is a per-party choice (MD-013 notification language)
     partner = _partner(odoo_env)
-    assert partner.preferred_language == "bn"
-    assert partner._get_notification_language() == "bn"
-    partner.preferred_language = "en"
+    assert partner.preferred_language == "en"
     assert partner._get_notification_language() == "en"
+    partner.preferred_language = "bn"
+    assert partner._get_notification_language() == "bn"
     unsaved = odoo_env["res.partner"].new({"name": "Draft", "preferred_language": False})
-    assert unsaved._get_notification_language() == "bn"
+    assert unsaved._get_notification_language() == "en"
     with pytest.raises(ValueError, match="Expected singleton"):
         (partner | _partner(odoo_env, "Other"))._get_notification_language()
 

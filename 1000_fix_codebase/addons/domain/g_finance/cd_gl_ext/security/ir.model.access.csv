@@ -53,3 +53,9 @@ access_fix_period_reopen_account_manager,fix.period.reopen.account.manager,model
 access_fix_chart_control_change_account_readonly,fix.chart.control.change.account.readonly,model_fix_chart_control_change,account.group_account_readonly,1,0,0,0
 access_fix_chart_control_change_account_user,fix.chart.control.change.account.user,model_fix_chart_control_change,account.group_account_user,1,1,1,0
 access_fix_chart_control_change_account_manager,fix.chart.control.change.account.manager,model_fix_chart_control_change,account.group_account_manager,1,1,1,0
+access_fix_ledger_takeon_batch_account_readonly,fix.ledger.takeon.batch.account.readonly,model_fix_ledger_takeon_batch,account.group_account_readonly,1,0,0,0
+access_fix_ledger_takeon_batch_account_user,fix.ledger.takeon.batch.account.user,model_fix_ledger_takeon_batch,account.group_account_user,1,1,1,0
+access_fix_ledger_takeon_batch_account_manager,fix.ledger.takeon.batch.account.manager,model_fix_ledger_takeon_batch,account.group_account_manager,1,1,1,1
+access_fix_ledger_takeon_line_account_readonly,fix.ledger.takeon.line.account.readonly,model_fix_ledger_takeon_line,account.group_account_readonly,1,0,0,0
+access_fix_ledger_takeon_line_account_user,fix.ledger.takeon.line.account.user,model_fix_ledger_takeon_line,account.group_account_user,1,1,1,0
+access_fix_ledger_takeon_line_account_manager,fix.ledger.takeon.line.account.manager,model_fix_ledger_takeon_line,account.group_account_manager,1,1,1,1

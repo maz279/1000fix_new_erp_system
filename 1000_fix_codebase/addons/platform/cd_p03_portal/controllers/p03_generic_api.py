@@ -317,6 +317,12 @@ class P03GenericApiController(http.Controller):
             if "id" not in cols:
                 cols = ["id", *cols]
             search_domain = list(domain or [])
+            # a surface may pin a BASE DOMAIN every read respects (2026-11-09:
+            # the M33 party register is scoped to customer parties — login
+            # and staff partners never mix into the customer grid/export).
+            base_domain = conf.get("base_domain")
+            if base_domain:
+                search_domain = list(base_domain) + search_domain
             if state_filter:
                 state_field = kw.get("state_field")
                 if state_field and state_filter not in ("__all", "__all__", "all", ""):

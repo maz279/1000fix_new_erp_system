@@ -115,6 +115,27 @@ class ResPartner(models.Model):
         help="MIG-03: permanent source system reference (FR-SRM-088)",
     )
 
+    @api.constrains("legacy_reference")
+    def _check_legacy_reference_unique(self):
+        """R-12 (2026-11-08 partner-ledger report): the legacy key is the
+        idempotent migration/upsert key — it must be unique per value. The
+        pre-uniqueness era left one tolerated exception: the constant tag
+        'CORP-2023-23' stamped on 947 corporate parties by the first import
+        (96% since re-stamped with unique keys); it stays exempt until that
+        cleanup completes, and every other value — LEDGER-, CORP-2023-<slug>,
+        anything — must belong to exactly one party."""
+        for partner in self:
+            ref = partner.legacy_reference
+            if not ref or ref == "CORP-2023-23":
+                continue
+            clash = self.search([("legacy_reference", "=", ref), ("id", "!=", partner.id)], limit=1)
+            if clash:
+                raise UserError(
+                    "Legacy reference '%s' already belongs to %s — the MIG-03 key is "
+                    "unique per party (R-12, partner-ledger report 2026-11-08)."
+                    % (ref, clash.display_name)
+                )
+
     @api.model_create_multi
     def create(self, vals_list):
         # The create path skipped the status rules: a party could be BORN
@@ -185,8 +206,7 @@ class ResPartner(models.Model):
                     )
                 if partner.party_status == "blacklisted" and new_status != "blacklisted":
                     raise ValidationError(
-                        "A blacklisted party cannot be reactivated below CEO "
-                        "authority (BRU-CPM-13)"
+                        "A blacklisted party cannot be reactivated below CEO authority (BRU-CPM-13)"
                     )
                 if partner.party_status == "merged" and new_status != "merged":
                     raise ValidationError(
@@ -204,8 +224,7 @@ class ResPartner(models.Model):
             raise ValidationError("Reactivating a party needs a written reason.")
         if not self.env.user.has_group("cd_entity_config.group_dofa_tier_2"):
             raise UserError(
-                "Reactivating a party requires DOFA Tier 2 (Branch / Operations "
-                "Manager) authority."
+                "Reactivating a party requires DOFA Tier 2 (Branch / Operations Manager) authority."
             )
         for partner in self:
             if partner.party_status in ("blacklisted", "merged", "active"):
@@ -383,9 +402,10 @@ class ResPartner(models.Model):
         return self._fix_assert_party_usable(purpose)
 
     def _get_notification_language(self) -> str:
-        """The dispatcher's language lookup: preferred_language, defaulting bn."""
+        """The dispatcher's language lookup: preferred_language, defaulting
+        en (user directive 2026-11-08 — English is the business default)."""
         self.ensure_one()
-        return self.preferred_language or "bn"
+        return self.preferred_language or "en"
 
     def get_masked_phone(self) -> str:
         """Return masked phone (e.g. 01711-***890) for non-privileged privacy displays (PDPA)."""
