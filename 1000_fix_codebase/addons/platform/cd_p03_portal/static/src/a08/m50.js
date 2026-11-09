@@ -61,10 +61,11 @@ export const MODULE = {
       { id: 'M50-rpt-recon', en: 'Bank Reconciliation Summary', bn: 'ব্যাংক মিলকরণ সারসংক্ষেপ', t: 'r' },
       { id: 'M50-rpt-gateway', en: 'Gateway Settlement Reconciliation', bn: 'গেটওয়ে সেটেলমেন্ট মিলকরণ', t: 'r' },
       { id: 'M50-rpt-cod', en: 'COD Settlement Report', bn: 'সিওডি সেটেলমেন্ট প্রতিবেদন', t: 'r' },
-      { id: 'M50-rpt-charges', en: 'Bank Charges Analysis', bn: 'ব্যাংক চার্জ বিশ্লেষণ', t: 'r' }
+      { id: 'M50-rpt-charges', en: 'Bank Charges Analysis', bn: 'ব্যাংক চার্জ বিশ্লেষণ', t: 'r' },
+      { id: 'M50-rpt-cheques', en: 'Cheque Register & Cheques-in-Hand', bn: 'চেক রেজিস্টার', t: 'r' }
     ]}
   ],
-  reports: ['Daily Cash Position', 'Bank Reconciliation Summary', 'Gateway Settlement Reconciliation', 'COD Settlement Report', '13-Week Cash Forecast', 'Bank Charges Analysis'],
+  reports: ['Daily Cash Position', 'Bank Reconciliation Summary', 'Gateway Settlement Reconciliation', 'COD Settlement Report', '13-Week Cash Forecast', 'Bank Charges Analysis', 'Cheque Register & Cheques-in-Hand'],
   forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up', 'Rider COD Settlement', 'Cheque Book', 'Facility Amendment', 'Reconciliation Statement'],
   cross: ['Financial Accounting & GL', 'AR, Invoicing & Collections', 'AP & Employee Expense'],
   freg: { src: 88, sub: [
@@ -199,6 +200,7 @@ export const SCREENS = {
   'M50-rpt-gateway': { kind: 'table_report', module: 'M50', report: 'gateway_recon' },
   'M50-rpt-cod': { kind: 'table_report', module: 'M50', report: 'cod_report' },
   'M50-rpt-charges': { kind: 'table_report', module: 'M50', report: 'bank_charges' },
+  'M50-rpt-cheques': { kind: 'table_report', module: 'M50', report: 'cheque_register' },
 
 
   /* ===== A08 master-data forms (D365 in-workspace) ===== */
@@ -332,7 +334,8 @@ export const SCREENS = {
           { name: 'is_pdc', readonly: true, label: "Post-Dated" },
           { name: 'journal_id', label: "Journal" },
           { name: 'source_ref', label: "Source Document" },
-          { name: 'bounce_reason', label: "Bounce Reason" },
+          { name: 'bounce_reason_code', label: "Return Reason (bank memo)" },
+          { name: 'bounce_reason', label: "Bounce Reason Detail" },
           { name: 'state', readonly: true, label: "State" }
         ] }
     ]

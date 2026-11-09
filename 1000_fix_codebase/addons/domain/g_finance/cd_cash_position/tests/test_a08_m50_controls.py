@@ -42,6 +42,9 @@ ROLES = (
     "bank_charges",
     "cash_shortage",
     "cheque_returned",
+    # R1 (CIH capability report, 2026-11-09): the staging account a received
+    # cheque holds until the bank clears it.
+    "cheque_in_hand",
 )
 PEX = "fix.payment.execution"
 LINE = "fix.bank.statement.line"
@@ -1035,6 +1038,78 @@ def test_m50_q05_received_cheque_bounce_reopens_the_receivable(c):
     assert bal(c, c.acc["cheque_returned"]) == 2200.0 and bal(c, c.bank_acc) == -2200.0
     assert c.env["fix.event.outbox"].search_count(
         [("event_type", "=", "cheque.bounced"), ("aggregate_id", "=", chq.id)]
+    )
+
+
+def _staged_cheque_with_receipt(c, amount=1800.0):
+    """R1 arrangement: a received cheque whose M20 receipt staged it into the
+    cheque-in-hand account (a confirmed fix.ar.receipt carrying its number)."""
+    chq = _cheque(c, amount=amount)
+    customer = c.env["res.partner"].create({"name": "B1 CIH drawer %s" % c.n})
+    receipt = (
+        c.env["fix.ar.receipt"]
+        .sudo()
+        .create(
+            {
+                "customer_id": customer.id,
+                "amount": amount,
+                "method": "cheque",
+                "reference": chq.cheque_no,
+            }
+        )
+    )
+    receipt.sudo()._guarded().write({"state": "confirmed"})
+    return chq, receipt
+
+
+def test_m50_q06_cleared_staged_cheque_settles_cih_to_bank(c):
+    chq, receipt = _staged_cheque_with_receipt(c)
+    chq.with_user(c.acct).action_deposit()
+    ln = stmt(c, [(1800.0, chq.cheque_no)])
+    ln.with_user(c.acct2).write({"matched_cheque_id": chq.id})
+    ln.with_user(c.acct2).action_confirm_manual_match()
+    assert chq.state == "cleared"
+    # the staged money left the cheque-in-hand account into the bank
+    assert chq.clearing_move_id.state == "posted"
+    assert bal(c, c.acc["cheque_in_hand"]) == -1800.0
+    assert bal(c, c.bank_acc) == 1800.0
+
+
+def test_m50_q06b_unstaged_cheque_clears_without_a_settlement_entry(c):
+    chq = _cheque(c, amount=1500.0)  # no AR receipt behind it
+    chq.with_user(c.acct).action_deposit()
+    ln = stmt(c, [(1500.0, chq.cheque_no)])
+    ln.with_user(c.acct2).write({"matched_cheque_id": chq.id})
+    ln.with_user(c.acct2).action_confirm_manual_match()
+    assert chq.state == "cleared"
+    assert not chq.clearing_move_id
+    assert bal(c, c.acc["cheque_in_hand"]) == 0.0
+
+
+def test_m50_q07_stale_cheque_needs_an_administrator(c):
+    chq = _cheque(c, cheque_date=c.today - timedelta(days=200))
+    with pytest.raises(UserError, match="stale"):
+        chq.with_user(c.acct).action_deposit()
+    assert chq.state == "received"
+    chq.with_user(c.mgr).action_deposit()
+    assert chq.state == "deposited"
+
+
+def test_m50_q08_bounce_needs_a_memo_reason_and_schedules_the_notice(c):
+    chq = _cheque(c)
+    chq.with_user(c.acct).action_deposit()
+    with pytest.raises(UserError, match="return reason"):
+        chq.with_user(c.mgr).action_bounce()
+    chq.with_user(c.mgr).write({"bounce_reason_code": "insufficient_funds"})
+    chq.with_user(c.mgr).action_bounce()
+    assert chq.state == "bounced"
+    # NI Act 1881 s.138: the dishonour-notice clock is a scheduled activity
+    assert c.env["mail.activity"].search_count(
+        [
+            ("res_model", "=", "fix.cheque"),
+            ("res_id", "=", chq.id),
+            ("summary", "=", "Dishonour notice due (NI Act s.138)"),
+        ]
     )
 
 

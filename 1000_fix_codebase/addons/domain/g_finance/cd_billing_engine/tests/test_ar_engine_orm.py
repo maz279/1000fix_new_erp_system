@@ -29,6 +29,8 @@ GL_CODES = {
     "writeoff_expense": ("630000", "expense"),
     "cash": ("101401", "asset_cash"),
     "bank": ("101402", "asset_cash"),
+    # R1 (2026-11-09): cheques stage in cheque-in-hand until the bank clears
+    "cheque_in_hand": ("16556556", "asset_current"),
     "channel_mfs": ("251000", "liability_current"),
     "vds_receivable": ("132000", "asset_current"),
     "deferred_revenue": ("212000", "liability_current"),

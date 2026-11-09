@@ -81,6 +81,19 @@ SURFACES = {
     "fix.vendor.tax.profile": {"order": "partner_id", "limit": 300, "actions": set()},
     "fix.expense.category": {"order": "id desc", "limit": 400, "actions": set()},
     "fix.expense.grade": {"order": "id desc", "limit": 400, "actions": set()},
+    # Legacy AP register take-on (accounts_payable report 2026-11-09 §5.4):
+    # the wizard's transitions run through the generic action route like
+    # every other surface; the posting itself goes through the M19 funnel.
+    "fix.ap.takeon.batch": {
+        "order": "id desc",
+        "limit": 50,
+        "actions": {"action_stage", "action_validate", "action_post", "action_rollback"},
+    },
+    "fix.ap.takeon.line": {
+        "order": "batch_id desc, row_no",
+        "limit": 500,
+        "actions": set(),
+    },
     # A08 M52-7: a line's receipt is attached on the line's own form. Read as the
     # caller: a plain user sees the lines of their own claims only.
     "fix.expense.claim.line": {

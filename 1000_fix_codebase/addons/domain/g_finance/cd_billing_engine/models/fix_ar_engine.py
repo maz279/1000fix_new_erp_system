@@ -39,6 +39,10 @@ AR_ACCOUNTS = {
     "writeoff_expense": ("630000", "Bad-Debt / Write-off Expense"),
     "cash": ("101401", "Cash"),
     "bank": ("101402", "Bank"),
+    # R1 (CIH capability report, 2026-11-09): a cheque received is staged in
+    # the cheque-in-hand account until the bank clears it — the legacy chart's
+    # 16556556 — settled to bank by treasury when the statement clears it.
+    "cheque_in_hand": ("16556556", "Cheque In Hand (staged until the bank clears)"),
     "channel_mfs": ("251000", "MFS/Card Channel Clearing (two-stage; M50 settles)"),
     # VAT the customer deducted at source (Mushak 6.6 received): a claim
     # against the VAT payable, adjusted in the Mushak 9.1 return.
@@ -71,7 +75,11 @@ RECEIPT_METHODS = [
 ]
 METHOD_ROLE = {
     "cash": "cash",
-    "cheque": "bank",
+    # R1 (CIH capability report, 2026-11-09): cheques are money IN HAND until
+    # the bank clears them — staged in cheque_in_hand (legacy 16556556), the
+    # same two-stage model bKash/card receipts already use. Treasury settles
+    # to bank when the imported statement clears the cheque.
+    "cheque": "cheque_in_hand",
     "bank_transfer": "bank",
     "bkash": "channel_mfs",
     "nagad": "channel_mfs",

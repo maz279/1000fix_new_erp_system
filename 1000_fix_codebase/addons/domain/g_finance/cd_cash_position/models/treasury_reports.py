@@ -941,6 +941,136 @@ def fx_holdings(env, date_from=None, date_to=None, **_kw):
     }
 
 
+# --------------------------------------------------------------------------- cheques
+
+
+def cheque_register(env, date_from=None, date_to=None, **_kw):
+    """R8 (CIH capability report, 2026-11-09): the cheque pack — every
+    instrument of the register in the period with its lifecycle stamps,
+    PDC maturity and stale aging (NI Act 1881 banking practice honours a
+    cheque six months), clearing latency (deposit → cleared against the
+    BACPS cycle), and the register-vs-GL tie-out of the cheque-in-hand
+    account: in-hand value on paper must equal the staging GL balance."""
+    company = _company(env)
+    today = fields.Date.context_today(env.user)
+    d_to = _d(date_to, today)
+    d_from = _d(date_from, date(d_to.year, 1, 1))
+    stale_after = timedelta(days=182)
+    domain = [
+        ("company_id", "=", company.id),
+        ("received_date", ">=", d_from),
+        ("received_date", "<=", d_to),
+    ]
+    rows = []
+    in_hand = 0.0
+    pdc_held = 0
+    stale_held = 0
+    bounced = 0
+    for chq in env["fix.cheque"].search(domain, order="received_date desc, id desc"):
+        held = chq.state in ("received", "deposited")
+        bounced += 1 if chq.state == "bounced" else 0
+        if held:
+            in_hand += chq.amount
+            pdc_held += 1 if chq.is_pdc else 0
+            stale_held += 1 if chq.cheque_date < today - stale_after else 0
+        latency = None
+        if chq.cleared_date and chq.deposited_date:
+            latency = (chq.cleared_date - chq.deposited_date).days
+        rows.append(
+            {
+                "cheque_no": chq.cheque_no,
+                "party": chq.partner_id.display_name or chq.payee_name or "",
+                "drawee_bank": chq.drawee_bank or "",
+                "direction": dict(chq._fields["direction"].selection).get(
+                    chq.direction, chq.direction
+                ),
+                "amount": _r(chq.amount),
+                "received_date": str(chq.received_date or ""),
+                "cheque_date": str(chq.cheque_date or ""),
+                "state": dict(chq._fields["state"].selection).get(chq.state, chq.state),
+                "pdc": "PDC" if chq.is_pdc else "",
+                "stale": "STALE" if chq.cheque_date < today - stale_after else "",
+                "cleared_date": str(chq.cleared_date or ""),
+                "latency_days": latency,
+                "bounces": chq.bounce_count,
+            }
+        )
+    notes = []
+    cih = treasury_account(env, company, "cheque_in_hand", required=False)
+    if cih:
+        gl_cih = gl_balance(env, cih, company, date_to=d_to)
+        notes.append(
+            "Cheque-in-hand GL %s balance %.2f vs register in-hand %.2f%s."
+            % (
+                cih.code,
+                gl_cih,
+                _r(in_hand),
+                " — tied out"
+                if abs(gl_cih - _r(in_hand)) < 0.005
+                else " — DIFFERENCE: reconcile the register against the GL",
+            )
+        )
+    else:
+        notes.append(
+            "Cheque-in-hand GL not configured (cd_cash_position.account_code."
+            "cheque_in_hand): the register-vs-GL tie-out is not shown."
+        )
+    if pdc_held:
+        notes.append("%d post-dated cheque(s) still held before their date." % pdc_held)
+    if stale_held:
+        notes.append(
+            "%d held cheque(s) are past the six-month validity of banking practice "
+            "(NI Act 1881) — present or return them; a bank will refuse a stale cheque."
+            % stale_held
+        )
+    if bounced:
+        notes.append(
+            "%d bounced cheque(s) in the period — NI Act s.138 notice clock applies." % bounced
+        )
+    cols = [
+        "cheque_no",
+        "party",
+        "drawee_bank",
+        "direction",
+        "amount",
+        "received_date",
+        "cheque_date",
+        "state",
+        "pdc",
+        "stale",
+        "cleared_date",
+        "latency_days",
+        "bounces",
+    ]
+    return {
+        "title": "Cheque Register & Cheques-in-Hand",
+        "cols": cols,
+        "labels": {
+            "cheque_no": "Cheque No",
+            "party": "Party",
+            "drawee_bank": "Drawn On",
+            "direction": "Direction",
+            "amount": "Amount (BDT)",
+            "received_date": "Received",
+            "cheque_date": "Cheque Date",
+            "state": "State",
+            "pdc": "PDC",
+            "stale": "Stale",
+            "cleared_date": "Cleared",
+            "latency_days": "Deposit→Clear (days)",
+            "bounces": "Bounces",
+        },
+        "rows": rows,
+        "totals": {
+            "cheque_no": "Total",
+            "amount": _r(sum(r["amount"] for r in rows)),
+            "bounces": sum(r["bounces"] for r in rows),
+        },
+        "notes": notes,
+        "empty": "No cheques received in the period.",
+    }
+
+
 # --------------------------------------------------------------------------- KPIs
 
 
@@ -965,4 +1095,5 @@ REPORTS = {
     "cash_forecast": cash_forecast,
     "bank_charges": bank_charges,
     "fx_holdings": fx_holdings,
+    "cheque_register": cheque_register,
 }

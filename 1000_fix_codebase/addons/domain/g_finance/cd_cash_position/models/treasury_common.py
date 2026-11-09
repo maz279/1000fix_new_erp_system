@@ -29,6 +29,11 @@ ACCOUNT_ROLES = {
     # procuring entity encashed a bank guarantee, a realised loss.
     "bond_encashment_loss": "Bank guarantee encashment loss (tender bonds, PPR r.25)",
     "cheque_returned": "Returned (bounced) customer cheques receivable",
+    # R1 (CIH capability report, 2026-11-09): a received cheque is money IN
+    # HAND, not money in the bank — it is staged here from receipt until the
+    # bank statement clears it (the D365 bridging-account / SAP special G/L
+    # equivalent; the company's legacy chart calls it 16556556).
+    "cheque_in_hand": "Cheques in hand (received, held until the bank clears them)",
 }
 
 GROUP_ACCOUNTANT = "account.group_account_user"

@@ -162,6 +162,9 @@ REPORTS = {
         "cash_forecast",
         "bank_charges",
         "fx_holdings",
+        # R8 (CIH capability report, 2026-11-09): the cheque pack —
+        # register, PDC maturity, stale aging, clearing latency, GL tie-out.
+        "cheque_register",
     )
 }
 

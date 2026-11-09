@@ -373,6 +373,16 @@ WRITABLE = {
         }
     ),
     "fix.bank.takeon.line": frozenset(),
+    # 2026-11-09 (M52 AP take-on): read-only until its owning session wires
+    # editable fields — same posture as every take-on lane.
+    "fix.ap.takeon.batch": frozenset(
+        {
+            "company_id",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.ap.takeon.line": frozenset(),
     # 2026-11-09: the legacy GL control-ledger import (AR 201 report) —
     # same posture: the form configures the source, the actions carry the
     # workflow (stage → validate → post → rollback).
@@ -389,6 +399,7 @@ WRITABLE = {
         {
             "amount",
             "bounce_reason",
+            "bounce_reason_code",
             "cheque_date",
             "cheque_no",
             "direction",
