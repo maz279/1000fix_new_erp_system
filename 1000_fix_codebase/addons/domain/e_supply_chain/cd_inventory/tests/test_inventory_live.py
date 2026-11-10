@@ -182,7 +182,16 @@ def test_van_audit_reconciles_and_publishes(ctx):
         "accuracy_pct": 66.7,
         "status": "reconciled",
     }
-    assert (ctx.van.last_audit_date, ctx.van.audit_discrepancy_count) == (date.today(), 1)
+    # The model stamps fields.Date.context_today (user tz, Asia/Dhaka in the test
+    # env); asserting date.today() of the UTC test process flipped this test to
+    # "tomorrow" every evening after 18:00 UTC (the R01 Windows tzset note in
+    # addons/conftest.py). Expect the date the same way the model computes it.
+    from odoo import fields as odoo_fields
+
+    assert (
+        ctx.van.last_audit_date,
+        ctx.van.audit_discrepancy_count,
+    ) == (odoo_fields.Date.context_today(ctx.van), 1)
     assert _events(ctx.env, "van.reconciled", "fix.stock.location", ctx.van.id) == [
         {
             "van_id": ctx.van.id,
