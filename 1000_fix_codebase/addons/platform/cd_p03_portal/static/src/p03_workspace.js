@@ -521,13 +521,25 @@ export class P03Workspace extends Component {
     get rolesList() {
         const all = Array.isArray(this.roles) ? this.roles : Object.values(this.roles || {});
         const rc = this.state.roleCenter;
-        if (!rc || !Array.isArray(rc.roles)) return all;
-        // The pills show the person's OWN resolved centers; administrators
-        // preview the full register (D365 profile-preview pattern).
-        if (rc.is_admin) return all;
-        const mine = rc.roles.map((r) => r.ws);
-        const filtered = all.filter((r) => mine.includes(r.id));
-        return filtered.length ? filtered : all;
+        let list = all;
+        if (rc && Array.isArray(rc.roles)) {
+            // The pills show the person's OWN resolved centers; administrators
+            // preview the full register (D365 profile-preview pattern).
+            if (!rc.is_admin) {
+                const mine = rc.roles.map((r) => r.ws);
+                const filtered = all.filter((r) => mine.includes(r.id));
+                if (filtered.length) list = filtered;
+            }
+            // Person-aware C-suite labeling: the executive pill carries the
+            // holder's register title/code (e.g. "R-54 Chief Operating
+            // Officer"), never the generic R-EX placeholder.
+            if (rc.role_labels && rc.role_labels.executive) {
+                list = list.map((r) => r.id === "executive"
+                    ? { ...r, en: rc.role_labels.executive, code: rc.role_codes.executive || r.code }
+                    : r);
+            }
+        }
+        return list;
     }
 
     /* --- Person-aware Role Center getters (home page) --- */

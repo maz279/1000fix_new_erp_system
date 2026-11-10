@@ -50,6 +50,12 @@
         <record id="role_r05" model="fix.role">
             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_facility.group_operations_director', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
         </record>
+        <!-- R-54 COO (2026-11-10): identical reviewed baseline to R-05 —
+             the executive carries the same oversight groups; only the
+             register title differs. -->
+        <record id="role_r54" model="fix.role">
+            <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_administration'), ref('cd_facility.group_operations_director', raise_if_not_found=False), ref('cd_wms_structure.group_stock_cost_viewer', raise_if_not_found=False)] if g])]"/>
+        </record>
 
         <!-- Service Operations (R-06 .. R-14) -->
         <record id="role_r06" model="fix.role">

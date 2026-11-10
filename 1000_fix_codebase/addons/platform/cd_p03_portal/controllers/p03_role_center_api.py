@@ -48,6 +48,7 @@ ROLE_TO_WS = {
     "R-04": "executive",
     "R-05": "executive",
     "R-48": "executive",
+    "R-54": "executive",
     "R-06": "branch_manager",
     "R-07": "dispatch_manager",
     "R-08": "service_intake",
@@ -244,7 +245,12 @@ def _kpi_catalogue_items(env, ctx):
 
 
 def _kpi_suppliers_active(env, ctx):
-    return _count(env, "fix.supplier", [("active", "=", True)])
+    # fix.supplier carries no `active` column — count all rows instead of
+    # raising on a missing field.
+    if "fix.supplier" not in env:
+        return None
+    domain = [("active", "=", True)] if "active" in env["fix.supplier"]._fields else []
+    return _count(env, "fix.supplier", domain)
 
 
 def _kpi_ar_open(env, ctx):
@@ -764,6 +770,16 @@ class P03RoleCenterApiController(http.Controller):
         role_ids = [r["ws"] for r in resolved]
         default = next((ws for ws in WS_PRIORITY if ws in role_ids), "service_intake")
 
+        # Person-aware executive label (D365 shows the profile's own name):
+        # a C-suite holder's executive pill carries their REGISTER title and
+        # code (e.g. "R-54 Chief Operating Officer"), not the generic R-EX.
+        role_labels, role_codes = {}, {}
+        for r in resolved:
+            if r["ws"] == "executive" and r["source"] in ("assignment", "groups"):
+                role_labels["executive"] = r["name"]
+                role_codes["executive"] = r["code"]
+                break
+
         kpis, charts = {}, {}
         # The landing center is always computed (administrators and the
         # job-title fallback hold no register rows of their own).
@@ -776,6 +792,8 @@ class P03RoleCenterApiController(http.Controller):
             "branch": branch,
             "roles": resolved,
             "default": default,
+            "role_labels": role_labels,
+            "role_codes": role_codes,
             "is_admin": is_admin,
             "specs": ROLE_CENTER_SPECS,
             "kpis": kpis,
