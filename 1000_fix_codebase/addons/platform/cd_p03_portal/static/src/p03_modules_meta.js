@@ -96,6 +96,7 @@ export const P03_AREAS = [
  * Tailored for 150–250 back-office and branch staff across Bangladesh.
  * ===================================================================== */
 export const P03_ROLES = [
+  { id: 'executive', code: 'R-EX', en: 'Executive Oversight', bn: 'নির্বাহী তদারকি', icon: '👔', desc: 'CEO/COO/CSO oversight: company-wide orders, SLA exposure, revenue, headcount and branch network.' },
   { id: 'service_intake', code: 'R08', en: 'Service Intake Counter', bn: 'সার্ভিস ইনটেক কাউন্টার', icon: '📥', desc: 'Walk-in customer token queue, rapid intake registration (<3 min), and device check-in.' },
   { id: 'dispatch_manager', code: 'R07', en: 'Dispatch & Live Map', bn: 'ডিসপ্যাচ ও লাইভ ম্যাপ', icon: '⚡', desc: 'Interactive GPS vector map, SLA risk countdowns, and automated field technician allocation.' },
   { id: 'branch_manager', code: 'R06', en: 'Branch Operations Console', bn: 'শাখা পরিচালনা কনসোল', icon: '🏢', desc: 'Own-branch daily intake, cash & bKash register, WIP ageing, and ready-for-collection shelf.' },

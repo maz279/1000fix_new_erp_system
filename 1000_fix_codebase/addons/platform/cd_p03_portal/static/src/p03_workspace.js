@@ -139,6 +139,25 @@ function fxDonutSvg(data, centre, centreSub) {
         `</svg>`;
 }
 
+/* Horizontal bar chart — role-center pipeline / headcount distributions.
+ * Live rows only; empty input renders nothing (caller shows empty state). */
+function fxBarSvg(rows, unit) {
+    if (!rows || !rows.length) return "";
+    const W = 480, rowH = 24, padL = 150, padT = 6;
+    const H = Math.min(rows.length * rowH + padT + 6, 260);
+    const mx = Math.max(...rows.map((r) => r.value), 1);
+    let g = `<svg width="${W}" height="${H}" role="img" aria-label="Live bar chart" class="chart">`;
+    rows.slice(0, Math.floor((H - padT - 6) / rowH)).forEach((r, i) => {
+        const y = padT + i * rowH;
+        const w = ((r.value / mx) * (W - padL - 56)) || 0;
+        const col = CHART_VARS[i % CHART_VARS.length];
+        g += `<text x="${padL - 8}" y="${y + 13}" text-anchor="end" font-size="10" fill="var(--ink-900)">${esc(String(r.label).slice(0, 24))}</text>` +
+            `<rect x="${padL}" y="${y + 3}" width="${Math.max(w, 1).toFixed(1)}" height="${rowH - 10}" rx="3" fill="${col}"/>` +
+            `<text x="${padL + Math.max(w, 1) + 6}" y="${y + 13}" font-size="10" fill="var(--ink-500)">${Number(r.value).toLocaleString("en-IN")} ${esc(unit)}</text>`;
+    });
+    return g + "</svg>";
+}
+
 /* BPF stage ids ↔ model states (AS-06 vocabulary). */
 const STAGE_OF_STATE = {
     draft: 1, intake: 1, diagnostic: 2, estimate_pending: 3,
@@ -215,8 +234,12 @@ export class P03Workspace extends Component {
                 { id: "home", title: "Role Center", icon: "⊞", mode: "home" }
             ],
 
-            // 15 Role Workspaces State (RP-004 §4.2)
+            // 16 Role Workspaces State (RP-004 §4.2; executive oversight
+            // center added for the C-suite). roleCenter carries the
+            // person-aware payload from /p03/role_center — when present the
+            // home page renders the signed-in person's own centers.
             activeRoleId: "service_intake",
+            roleCenter: null,
             dispatchMapData: null,
             consoleData: null,
             selectedBranchId: null,
@@ -376,6 +399,7 @@ export class P03Workspace extends Component {
         onWillStart(async () => {
             await Promise.all([
                 this.loadStats(),
+                this.loadRoleCenter(),
                 this.loadRecentOrders(),
                 this.loadDispatchMap(),
                 this.loadConsoleData(),
@@ -428,6 +452,41 @@ export class P03Workspace extends Component {
         }
     }
 
+    /* Person-aware Role Center (RP-004 §4.2 + role-center research): the
+     * signed-in person's identity card, register-resolved roles, per-role
+     * KPI cues / charts / actions / modules. Failure degrades silently to
+     * the legacy static home — the workspace never blanks. */
+    async loadRoleCenter() {
+        try {
+            const res = await this.rpc("/p03/role_center", {});
+            if (res && res.person) {
+                this.state.roleCenter = res;
+                if (res.default && this.rolesList.some((r) => r.id === res.default)) {
+                    this.state.activeRoleId = res.default;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not fetch /p03/role_center:", e);
+        }
+    }
+
+    /* Lazy cues when a center was not in the boot payload (admin preview of
+     * a role the person does not hold). */
+    async loadRoleCenterKpis(wsId) {
+        if (!this.state.roleCenter) return;
+        if (this.state.roleCenter.kpis[wsId]) return;
+        try {
+            const res = await this.rpc("/p03/role_center_kpis", { ws: wsId });
+            if (res && res.ws) {
+                this.state.roleCenter.kpis[wsId] = res.kpis;
+                this.state.roleCenter.charts[wsId] = res.charts;
+                this.state.roleCenter["headline_" + wsId] = res.headline;
+            }
+        } catch (e) {
+            console.warn("Could not fetch /p03/role_center_kpis:", e);
+        }
+    }
+
     async loadDispatchMap() {
         try {
             const res = await this.rpc("/p03/dispatch/map_data", {});
@@ -460,7 +519,91 @@ export class P03Workspace extends Component {
     }
 
     get rolesList() {
-        return Array.isArray(this.roles) ? this.roles : Object.values(this.roles || {});
+        const all = Array.isArray(this.roles) ? this.roles : Object.values(this.roles || {});
+        const rc = this.state.roleCenter;
+        if (!rc || !Array.isArray(rc.roles)) return all;
+        // The pills show the person's OWN resolved centers; administrators
+        // preview the full register (D365 profile-preview pattern).
+        if (rc.is_admin) return all;
+        const mine = rc.roles.map((r) => r.ws);
+        const filtered = all.filter((r) => mine.includes(r.id));
+        return filtered.length ? filtered : all;
+    }
+
+    /* --- Person-aware Role Center getters (home page) --- */
+    get personCard() {
+        return this.state.roleCenter?.person || null;
+    }
+
+    get roleBadge() {
+        const rc = this.state.roleCenter;
+        if (!rc || !Array.isArray(rc.roles)) return null;
+        const hit = rc.roles.find((r) => r.ws === this.state.activeRoleId);
+        if (!hit) return null;
+        const srcLabel = hit.source === "assignment" ? "access register"
+            : hit.source === "groups" ? "held permission groups"
+            : "suggested by job title";
+        return hit.code ? `${hit.code} ${hit.name} · ${srcLabel}` : `${hit.name} · ${srcLabel}`;
+    }
+
+    get roleHeadline() {
+        const rc = this.state.roleCenter;
+        if (!rc) return "";
+        return rc["headline_" + this.state.activeRoleId] ||
+            (this.state.activeRoleId === rc.default ? rc.headline : "");
+    }
+
+    get roleKpis() {
+        const rc = this.state.roleCenter;
+        if (!rc) return [];
+        return (rc.kpis && rc.kpis[this.state.activeRoleId]) || [];
+    }
+
+    get roleActions() {
+        const rc = this.state.roleCenter;
+        if (!rc) return [];
+        const spec = rc.specs && rc.specs[this.state.activeRoleId];
+        return spec ? spec.actions : [];
+    }
+
+    get roleModules() {
+        const rc = this.state.roleCenter;
+        if (!rc) return [];
+        const spec = rc.specs && rc.specs[this.state.activeRoleId];
+        return spec ? spec.modules : [];
+    }
+
+    get roleTeam() {
+        return (this.state.roleCenter && this.state.roleCenter.team) || [];
+    }
+
+    fmtKpiValue(kpi) {
+        if (kpi.value === null || kpi.value === undefined) return "—";
+        if (kpi.fmt === "bdt") return fmtBDT(kpi.value);
+        if (kpi.fmt === "pct") return `${kpi.value}%`;
+        return fmtNum(kpi.value);
+    }
+
+    onRcAction(actionId) {
+        switch (actionId) {
+            case "new_order": return this.onModuleNew();
+            case "dispatch": return this.openDispatchConsole();
+            case "branch": return this.openBranchConsole();
+            case "workshop": return this.openWorkshopConsole();
+            case "reports": return this.openReportCenter();
+            default: break;
+        }
+    }
+
+    rcActionLabel(actionId) {
+        const labels = {
+            new_order: "+ New Service Order",
+            dispatch: "🗺 Dispatch & Map",
+            branch: "🏢 Branch Console",
+            workshop: "🔧 Workshop Console",
+            reports: "▤ Report Center",
+        };
+        return labels[actionId] || actionId;
     }
 
     /* Registry totals computed from the loaded meta so rendered copy (mega
@@ -478,6 +621,7 @@ export class P03Workspace extends Component {
         if (r) {
             this.state.activeRoleId = roleId;
             this.showToast(`Switched workspace: ${r.en} (${r.code})`);
+            this.loadRoleCenterKpis(roleId);
         }
     }
 
@@ -3431,6 +3575,64 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             return markup('<div class="chart-empty">No intake in the last 30 days — the channel mix appears with the first order.</div>');
         }
         return markup(fxDonutSvg(data, String(total), "orders · 30 days"));
+    }
+
+    /* --- Role Center charts (person-aware home) — same live-data policy:
+           null series render an explicit empty state, never a fake curve. */
+    get rcCharts() {
+        const rc = this.state.roleCenter;
+        if (!rc) return [];
+        const spec = rc.specs && rc.specs[this.state.activeRoleId];
+        if (!spec) return [];
+        return spec.charts
+            .map((id) => ({ id, data: (rc.charts && rc.charts[this.state.activeRoleId] || {})[id] }))
+            .filter((c) => c.data !== undefined);
+    }
+
+    rcChartTitle(id) {
+        return {
+            trend: "Service Orders — 12-Month Trend (live)",
+            channel: "Intake Channel Mix — Last 30 Days (live)",
+            state_mix: "Order Pipeline by State (live)",
+            dept_headcount: "People by Department (live)",
+        }[id] || id;
+    }
+
+    rcChartSvg(id, data) {
+        if (id === "trend") {
+            if (!data || !data.values) return markup('<div class="chart-empty">Loading live data…</div>');
+            if (!data.values.some((v) => v)) {
+                return markup('<div class="chart-empty">No service orders recorded yet — the 12-month trend appears once intake data exists.</div>');
+            }
+            return markup(fxLineSvg(data.labels, data.values));
+        }
+        if (id === "channel") {
+            if (!data) return markup('<div class="chart-empty">Loading live data…</div>');
+            const entries = Object.entries(data);
+            const total = entries.reduce((a, b) => a + b[1], 0);
+            if (!total) return markup('<div class="chart-empty">No intake in the last 30 days — the channel mix appears with the first order.</div>');
+            return markup(fxDonutSvg(entries.map(([, v]) => ({ v })), String(total), "orders · 30 days"));
+        }
+        if (id === "state_mix") {
+            const rows = data ? Object.entries(data).map(([k, v]) => ({ label: STATE_LABELS[k] || k, value: v })) : [];
+            if (!rows.length) return markup('<div class="chart-empty">No orders in the pipeline yet.</div>');
+            return markup(fxBarSvg(rows, "orders"));
+        }
+        if (id === "dept_headcount") {
+            const rows = (data && data.rows) || [];
+            if (!rows.length) return markup('<div class="chart-empty">No employee departments configured yet.</div>');
+            return markup(fxBarSvg(rows, "people"));
+        }
+        return markup("");
+    }
+
+    rcChartLegend(id, data) {
+        if (id !== "channel" || !data) return [];
+        return Object.entries(data).map(([k, v], i) => ({
+            label: SERVICE_TYPE_LABELS[k] || k,
+            value: v,
+            color: `var(--chart-${(i % 8) + 1})`,
+        }));
     }
 
     /* --- Financial preview of the intake form (display only; the

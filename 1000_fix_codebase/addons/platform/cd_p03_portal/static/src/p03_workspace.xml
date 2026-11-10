@@ -353,18 +353,39 @@
                          VIEW A: ROLE CENTER EXECUTIVE DASHBOARD (HOME)
                          ======================================================== -->
                     <t t-if="state.viewMode === 'home'">
-                        <!-- Welcome Header Banner -->
+                        <!-- Person-aware header: the signed-in EMPLOYEE, never a
+                             demo identity. Falls back to the session name when
+                             /p03/role_center is unavailable. -->
                         <div class="pg-head">
-                            <div>
+                            <div class="rc-person" t-if="personCard">
+                                <div class="rc-avatar" t-att-title="personCard.name"><t t-esc="personCard.initials"/></div>
+                                <div>
+                                    <div class="crumbs"><t t-esc='t("Home › Role Center")'/></div>
+                                    <h1>Role Center — <t t-esc="personCard.name"/></h1>
+                                    <p class="pg-sub">
+                                        <t t-esc="personCard.job_title || ''"/>
+                                        <t t-if="personCard.department"> · <t t-esc="personCard.department"/></t>
+                                        <t t-if="personCard.branch"> · <t t-esc="personCard.branch"/></t>
+                                        · <t t-esc="personCard.email"/>
+                                    </p>
+                                </div>
+                            </div>
+                            <div t-if="!personCard">
                                 <div class="crumbs"><t t-esc='t("Home › Role Center")'/></div>
                                 <h1>Role Center — <t t-esc="userService.name || ''"/></h1>
                                 <p class="pg-sub"><t t-if="state.stats" t-esc="state.stats.company.name"/> · P03 Operations Workspace · live data from the Odoo backend</p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="onModuleNew">+ New Service Order</button>
-                                <button class="btn" t-on-click="openDispatchConsole">🗺 Dispatch &amp; Map</button>
-                                <button class="btn" t-on-click="openBranchConsole">🏢 Branch Console</button>
-                                <button class="btn" t-on-click="openWorkshopConsole">🔧 Workshop Console</button>
+                                <t t-if="roleActions.length" t-foreach="roleActions" t-as="act" t-key="act">
+                                    <button class="btn btn-primary" t-if="act === 'new_order'" t-on-click="() => this.onRcAction(act)"><t t-esc="rcActionLabel(act)"/></button>
+                                    <button class="btn" t-if="act !== 'new_order'" t-on-click="() => this.onRcAction(act)"><t t-esc="rcActionLabel(act)"/></button>
+                                </t>
+                                <t t-if="!roleActions.length">
+                                    <button class="btn btn-primary" t-on-click="onModuleNew">+ New Service Order</button>
+                                    <button class="btn" t-on-click="openDispatchConsole">🗺 Dispatch &amp; Map</button>
+                                    <button class="btn" t-on-click="openBranchConsole">🏢 Branch Console</button>
+                                    <button class="btn" t-on-click="openWorkshopConsole">🔧 Workshop Console</button>
+                                </t>
                             </div>
                         </div>
 
@@ -376,6 +397,7 @@
                                     <div class="role-title-wrap">
                                         <span class="role-code-badge"><t t-esc="activeRole.code"/> · <t t-esc='t("Role Workspace")'/></span>
                                         <span class="role-title"><t t-esc="tBilingual(activeRole)"/></span>
+                                        <span class="rc-role-source" t-if="roleBadge"><t t-esc="roleBadge"/></span>
                                     </div>
                                 </div>
                                 <div class="role-quick-launchers">
@@ -400,8 +422,26 @@
                             </div>
                         </div>
 
-                        <!-- 6 Executive KPI Cards — live values from /p03/stats -->
-                        <div class="kpi-row" t-if="state.stats">
+                        <!-- Live headline (D365 HeadlinePart analog) + the active
+                             role's OWN cue tiles from /p03/role_center -->
+                        <div class="rc-headline" t-if="roleHeadline">
+                            <span class="rc-headline-dot"></span>
+                            <t t-esc="roleHeadline"/>
+                        </div>
+
+                        <div class="kpi-row" t-if="roleKpis.length">
+                            <div class="kpi" t-foreach="roleKpis" t-as="k" t-key="k.label"
+                                 t-att-class="{'kpi-warn': k.warn_pos &amp;&amp; k.value > 0, 'kpi-ok': k.ok &amp;&amp; !(k.warn_pos &amp;&amp; k.value > 0)}"
+                                 t-on-click="() => this.openScreen(k.screen)"
+                                 t-att-title="k.label + ' — drill through to the live worklist'" style="cursor: pointer;">
+                                <span class="kpi-l"><t t-esc="t(k.label)"/></span>
+                                <span class="kpi-v"><t t-esc="fmtKpiValue(k)"/></span>
+                                <span class="kpi-d"><t t-esc='t("live count")'/></span>
+                            </div>
+                        </div>
+
+                        <!-- Legacy 6-KPI fallback (no role-center payload yet) -->
+                        <div class="kpi-row" t-if="!roleKpis.length &amp;&amp; state.stats">
                             <div class="kpi" t-on-click="() => this.openScreen('M01-all')" t-att-title='t("View All Service Orders")' style="cursor: pointer;">
                                 <span class="kpi-l"><t t-esc='t("Open Service Orders")'/></span>
                                 <span class="kpi-v"><t t-esc="state.stats.open_orders"/></span>
@@ -473,8 +513,22 @@
                             </div>
                         </div>
 
-                        <!-- 2-Column Section: Pure SVG Charts -->
-                        <div class="grid-2">
+                        <!-- Role-driven charts (D365 role-center chart part):
+                             each center declares its own chart set; live only -->
+                        <div class="grid-2" t-if="rcCharts.length">
+                            <div class="fx-card" t-foreach="rcCharts" t-as="ch" t-key="ch.id">
+                                <h3><t t-esc="t(rcChartTitle(ch.id))"/></h3>
+                                <t t-out="rcChartSvg(ch.id, ch.data)"/>
+                                <div class="chart-legend" t-if="ch.id === 'channel'" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; margin-top: 10px;">
+                                    <t t-foreach="rcChartLegend(ch.id, ch.data)" t-as="leg" t-key="leg.label">
+                                        <span><span t-att-style="'color: ' + leg.color">■</span> <t t-esc="leg.label"/> <b><t t-esc="leg.value"/></b></span>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legacy chart pair (no role-center payload yet) -->
+                        <div class="grid-2" t-if="!rcCharts.length">
                             <div class="fx-card">
                                 <h3><t t-esc='t("Service Orders — 12-Month Trend (live)")'/></h3>
                                 <t t-out="revenueLineSvg"/>
@@ -486,6 +540,30 @@
                                     <t t-foreach="channelLegend" t-as="leg" t-key="leg.label">
                                         <span><span t-att-style="'color: ' + leg.color">■</span> <t t-esc="leg.label"/> <b><t t-esc="leg.value"/></b></span>
                                     </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- My Team (hr.employee.parent_id of the signed-in
+                             person) + this center's module access -->
+                        <div class="grid-2" t-if="roleTeam.length || roleModules.length">
+                            <div class="fx-card" t-if="roleTeam.length">
+                                <h3><t t-esc='t("My Team")'/> <span class="chip"><t t-esc="roleTeam.length"/></span></h3>
+                                <t t-foreach="roleTeam" t-as="m" t-key="m_index">
+                                    <div class="row-link">
+                                        <span class="rl-main"><b><t t-esc="m.name"/></b></span>
+                                        <span class="rl-meta"><t t-esc="m.job_title || ''"/></span>
+                                    </div>
+                                </t>
+                            </div>
+                            <div class="fx-card" t-if="roleModules.length">
+                                <h3><t t-esc='t("Module Access — This Role")'/></h3>
+                                <div class="journey-strip">
+                                    <div class="journey-chip" t-foreach="roleModules" t-as="mid" t-key="mid"
+                                         t-on-click="() => this.openModule(mid)" style="cursor: pointer;"
+                                         t-att-title="mid + ' · ' + (modules[mid] ? modules[mid].en : '')">
+                                        <b><t t-esc="mid"/></b> <t t-esc="modules[mid] ? modules[mid].en : mid"/>
+                                    </div>
                                 </div>
                             </div>
                         </div>
