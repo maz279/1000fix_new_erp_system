@@ -1412,7 +1412,7 @@ class FixPaymentExecution(models.Model):
 
 
 class FixBankStatementImport(models.Model):
-    """One uploaded bank statement file (CSV or MT940)."""
+    """One uploaded bank statement file (CSV, MT940 or XLSX)."""
 
     _name = "fix.bank.statement.import"
     _description = "Bank Statement Import"
@@ -1432,7 +1432,7 @@ class FixBankStatementImport(models.Model):
     file = fields.Binary(string="Statement File", attachment=True)
     filename = fields.Char(string="File Name")
     format_type = fields.Selection(
-        [("auto", "Auto-Detect"), ("csv", "CSV"), ("mt940", "MT940")],
+        [("auto", "Auto-Detect"), ("csv", "CSV"), ("mt940", "MT940"), ("xlsx", "XLSX (Excel)")],
         default="auto",
         required=True,
         string="Format",
@@ -1463,23 +1463,105 @@ class FixBankStatementImport(models.Model):
                 raise UserError("An imported statement file is evidence and cannot change.")
         return super().write(vals)
 
+    @staticmethod
+    def _xlsx_to_csv(raw: bytes) -> str:
+        """Re-read an Excel statement into the CSV contract the parser
+        already understands (Date, Reference, Description, Credit, Debit).
+        Bangladeshi banks issue XLSX portals exports far more often than
+        camt feeds — this keeps one parsing pipeline (G12, report R11)."""
+        import csv as _csv
+        import io as _io
+        import zipfile
+
+        try:
+            import openpyxl
+        except ImportError:
+            raise UserError("openpyxl is not available on this server.") from None
+        if not zipfile.is_zipfile(_io.BytesIO(raw)):
+            raise UserError("The XLSX file is not a valid Excel workbook.")
+        workbook = openpyxl.load_workbook(_io.BytesIO(raw), read_only=True, data_only=True)
+        sheet = workbook.worksheets[0]
+        rows = [list(r) for r in sheet.iter_rows(values_only=True)]
+        workbook.close()
+
+        def _norm(text):
+            return str(text or "").strip().lower().replace(" ", "").replace(".", "")
+
+        header_idx, colmap = None, {}
+        for idx, row in enumerate(rows[:10]):
+            labels = {_norm(c): pos for pos, c in enumerate(row or [])}
+            if any(k in labels for k in ("date", "valuedate", "trxdate")):
+                header_idx = idx
+                for key, variants in (
+                    ("date", ("date", "valuedate", "trxdate", "transactiondate")),
+                    ("ref", ("reference", "ref", "refno", "chequeno", "trnid", "trxid")),
+                    ("narration", ("description", "narration", "particulars", "remarks")),
+                    ("credit", ("credit", "deposit", "inflow", "cr")),
+                    ("debit", ("debit", "withdrawal", "outflow", "dr")),
+                    ("amount", ("amount", "netamount")),
+                ):
+                    for variant in variants:
+                        if variant in labels:
+                            colmap[key] = labels[variant]
+                            break
+                break
+        if header_idx is None or "date" not in colmap:
+            raise UserError(
+                "No date column found in the XLSX header — expected Date/Value Date "
+                "plus Credit/Debit (or Amount) columns."
+            )
+
+        def _cell(row, key):
+            pos = colmap.get(key)
+            if pos is None or pos >= len(row) or row[pos] is None:
+                return ""
+            return str(row[pos]).strip()
+
+        buf = _io.StringIO()
+        writer = _csv.writer(buf)
+        writer.writerow(["Date", "Reference", "Description", "Credit", "Debit"])
+        for row in rows[header_idx + 1 :]:
+            if not any(c is not None and str(c).strip() for c in row):
+                continue
+            first = _cell(row, "date")
+            if not first or first.lower().startswith("total"):
+                continue
+            writer.writerow(
+                [
+                    first,
+                    _cell(row, "ref"),
+                    _cell(row, "narration"),
+                    _cell(row, "credit"),
+                    _cell(row, "debit"),
+                ]
+            )
+        return buf.getvalue()
+
     def action_import(self):
         require_role(self.env, GROUP_ACCOUNTANT, "Importing a bank statement")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("This statement file was already processed.")
             if not rec.file:
-                raise UserError("Attach the bank statement file first.")
-            content = base64.b64decode(rec.file).decode("utf-8-sig", errors="replace")
+                raise UserError("Attach the statement file first (CSV, MT940 or XLSX).")
+            raw = base64.b64decode(rec.file)
+            content = raw.decode("utf-8-sig", errors="replace")
+            file_hash = None
+            effective_format = rec.format_type
+            if rec.format_type == "xlsx" or raw[:2] == b"PK":
+                content = self._xlsx_to_csv(raw)
+                file_hash = hashlib.sha256(raw).hexdigest()
+                effective_format = "csv"
             result = (
                 self.env["fix.bank.statement.line"]
                 .with_company(rec.company_id)
                 ._guarded()
                 .import_bank_feed(
                     content,
-                    format_type=rec.format_type,
+                    format_type=effective_format,
                     journal_id=rec.journal_id.id,
                     import_id=rec.id,
+                    file_hash=file_hash,
                 )
             )
             rec._guarded().write(
@@ -1633,14 +1715,21 @@ class FixBankStatementLine(models.Model):
 
     @api.model
     def import_bank_feed(
-        self, file_content: str, format_type: str = "auto", journal_id=None, import_id=None
+        self,
+        file_content: str,
+        format_type: str = "auto",
+        journal_id=None,
+        import_id=None,
+        file_hash: str | None = None,
     ) -> dict:
         """INT-006: Ingest electronic bank statement feed with deduplication
         and sequence audit. Reached through fix.bank.statement.import
-        (action_import) or trusted service code — never typed in by RPC."""
+        (action_import) or trusted service code — never typed in by RPC.
+        ``file_hash`` lets the caller hash the ORIGINAL file bytes (an XLSX
+        re-read as CSV must still dedup against the workbook it came from)."""
         if not (self.env.su or self._fix_guard_has_token()):
             raise AccessError("Bank statements are imported from a statement file record.")
-        file_hash = hashlib.sha256(file_content.encode("utf-8")).hexdigest()
+        file_hash = file_hash or hashlib.sha256(file_content.encode("utf-8")).hexdigest()
 
         existing = self.sudo().search([("statement_file_hash", "=", file_hash)], limit=1)
         if existing:

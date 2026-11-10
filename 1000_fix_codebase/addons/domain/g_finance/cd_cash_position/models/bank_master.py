@@ -23,6 +23,58 @@ BD_ACCOUNT_TYPES = [
 ROUTING_RE = re.compile(r"^\d{9}$")
 
 
+class ResBankBranch(models.Model):
+    """Bank branch directory (A08 · M50): the Bank -> Branch -> Account middle
+    layer. Bangladesh routing numbers are assigned per branch by Bangladesh
+    Bank (BEFTN Operating Rules), so the branch — not the institution — is
+    the routing source of truth. Seeded from the BB branch directory; branch
+    identities change with bank consolidation, so routing may be left empty
+    until verified (never guessed)."""
+
+    _name = "res.bank.branch"
+    _description = "Bank Branch (Bangladesh routing directory)"
+    _order = "bank_id, name"
+    # operators find a branch by its name, its routing number or its bank
+    _rec_names_search = ["name", "routing_number", "bank_id.name"]
+
+    name = fields.Char(required=True)
+    bank_id = fields.Many2one(
+        "res.bank", required=True, ondelete="cascade", index=True, string="Bank"
+    )
+    district = fields.Char(help="District per the Bangladesh Bank branch directory")
+    routing_number = fields.Char(
+        string="Routing Number",
+        size=9,
+        index=True,
+        help="Bangladesh Bank 9-digit branch routing number (BEFTN / RTGS)",
+    )
+    active = fields.Boolean(default=True)
+    account_ids = fields.One2many("res.partner.bank", "bank_branch_id", string="Accounts")
+
+    _bank_branch_uniq = models.Constraint(
+        "UNIQUE (bank_id, name)", "A bank cannot have two branches with the same name"
+    )
+
+    @api.constrains("routing_number")
+    def _check_routing_number(self):
+        for branch in self:
+            if branch.routing_number and not ROUTING_RE.match(branch.routing_number):
+                raise ValidationError(
+                    "Routing number %s must be exactly 9 digits." % branch.routing_number
+                )
+
+    @api.depends("name", "bank_id.name", "routing_number")
+    def _compute_display_name(self):
+        # "AB BANK PLC — New Elephant Road (020263498)": the routing is what
+        # payment operators select on, so it belongs in the display name.
+        for branch in self:
+            branch.display_name = "%s — %s%s" % (
+                branch.bank_id.name or "",
+                branch.name or "",
+                f" ({branch.routing_number})" if branch.routing_number else "",
+            )
+
+
 class ResPartnerBank(models.Model):
     _inherit = "res.partner.bank"
 
@@ -33,6 +85,13 @@ class ResPartnerBank(models.Model):
     )
     fix_branch_name = fields.Char(string="Bank Branch")
     fix_account_type = fields.Selection(BD_ACCOUNT_TYPES, string="BD Account Type")
+    bank_branch_id = fields.Many2one(
+        "res.bank.branch",
+        string="Branch (Directory)",
+        index=True,
+        help="Directory branch this account is held at; defaults the routing "
+        "number, branch name and institution from the directory.",
+    )
 
     @api.constrains("fix_routing_number")
     def _check_fix_routing_number(self):
@@ -41,6 +100,19 @@ class ResPartnerBank(models.Model):
                 raise ValidationError(
                     "Routing number %s must be exactly 9 digits." % acct.fix_routing_number
                 )
+
+    @api.onchange("bank_branch_id")
+    def _onchange_bank_branch_id(self):
+        # The directory is authoritative: picking a branch fills the
+        # institution, the free-text branch name and the 9-digit routing
+        # number unless the account already carries a different verified one.
+        if self.bank_branch_id:
+            branch = self.bank_branch_id
+            if not self.bank_id:
+                self.bank_id = branch.bank_id
+            self.fix_branch_name = branch.name
+            if branch.routing_number:
+                self.fix_routing_number = branch.routing_number
 
 
 class AccountJournal(models.Model):

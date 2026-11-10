@@ -26,8 +26,14 @@ match fields on every treasury model, cheque books and bounce unwinding,
 imprest count against pending vouchers, frozen facility schedules with
 amendments, approved covenants, the payment.requested consumer and the
 auto-match / covenant crons.
+
+Bank master take-on (2026-11-09): the res.bank.branch directory — the
+Bank -> Branch -> Account middle layer that sources the 9-digit BEFTN
+routing number per branch (R4 of the bank-list capability report); bank
+accounts gain a bank_branch_id that defaults institution, branch name and
+routing from the directory.
 """,
-    "version": "19.0.1.3.2",
+    "version": "19.0.1.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
