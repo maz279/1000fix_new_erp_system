@@ -23,6 +23,7 @@
 import base64
 import datetime
 import io
+import json
 import logging
 import re
 
@@ -391,8 +392,16 @@ class FixLegacyLedgerBatch(models.Model):
 
     def action_validate(self):
         """Re-prove the arithmetic, resolve every branch label through
-        name -> legacy_reference -> the crosswalk aliases, and quarantine
-        anything that cannot resolve (nothing posts silently)."""
+        name -> legacy_reference -> the built-in aliases -> the estate
+        crosswalk parameter, and quarantine anything that cannot resolve
+        (nothing posts silently).
+
+        The estate crosswalk (`cd_gl_ext.legacy_ledger.branch_crosswalk`,
+        JSON {legacy label: branch name}) is what the user/employee
+        migration sessions established for the REAL branch master — several
+        legacy brand labels consolidate onto one physical service centre
+        (Sony ops -> HQ, Honor B.City -> Bashundhara City SC), so a single
+        legacy_reference stamp cannot express it."""
         self.ensure_one()
         if self.state != "staged":
             raise UserError(_("Stage the spreadsheet first."))
@@ -403,6 +412,17 @@ class FixLegacyLedgerBatch(models.Model):
         by_legacy = {}
         for b in Branch.search([("legacy_reference", "!=", False)]):
             by_legacy.setdefault(_norm(b.legacy_reference), b)
+        estate_cw = {}
+        raw_cw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("cd_gl_ext.legacy_ledger.branch_crosswalk")
+        )
+        if raw_cw:
+            try:
+                estate_cw = {str(k).strip(): str(v).strip() for k, v in json.loads(raw_cw).items()}
+            except ValueError:
+                estate_cw = {}
         bad_arith = bad_branch = bad_date = 0
         for line in self.line_ids:
             notes = []
@@ -421,6 +441,10 @@ class FixLegacyLedgerBatch(models.Model):
                 branch = by_name.get(_norm(alias)) if alias else None
                 if branch and not branch.legacy_reference:
                     branch.sudo().write({"legacy_reference": raw.strip()[:80]})
+            if not branch:
+                target = estate_cw.get(raw.strip())
+                if target:
+                    branch = by_name.get(_norm(target)) or by_legacy.get(_norm(target))
             if branch:
                 line.branch_resolved_id = branch.id
                 line.line_state = "linked"
