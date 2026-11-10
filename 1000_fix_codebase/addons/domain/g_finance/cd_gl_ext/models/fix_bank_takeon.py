@@ -19,6 +19,7 @@
 import base64
 import datetime
 import io
+import json
 import logging
 import re
 
@@ -304,6 +305,17 @@ class FixBankTakeonBatch(models.Model):
         by_legacy = {}
         for b in Branch.search([("legacy_reference", "!=", False)]):
             by_legacy.setdefault(_norm(b.legacy_reference), b)
+        estate_cw = {}
+        raw_cw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("cd_gl_ext.legacy_ledger.branch_crosswalk")
+        )
+        if raw_cw:
+            try:
+                estate_cw = {str(k).strip(): str(v).strip() for k, v in json.loads(raw_cw).items()}
+            except ValueError:
+                estate_cw = {}
         bad_arith = bad_branch = bad_date = zero_rows = 0
         for line in self.line_ids:
             notes = []
@@ -318,6 +330,14 @@ class FixBankTakeonBatch(models.Model):
             if not branch:
                 alias = _ALIASES.get(raw)
                 branch = by_name.get(_norm(alias)) if alias else None
+            if not branch:
+                # Final leg — the estate crosswalk parameter the legacy
+                # control lane reads (cd_gl_ext.legacy_ledger.branch_crosswalk):
+                # the real branch master consolidates legacy brand labels onto
+                # physical service centres a single alias cannot express.
+                target = estate_cw.get(raw)
+                if target:
+                    branch = by_name.get(_norm(target)) or by_legacy.get(_norm(target))
             if branch:
                 line.branch_resolved_id = branch.id
                 line.line_state = "linked"
