@@ -397,13 +397,22 @@ class FixBankTakeonBatch(models.Model):
             move_name = (m.group(1) if m else "").strip() or ("row %d" % line.row_no)
             paren = (m.group(2) if m else "") or ""
             ref = "LEGACY %s" % move_name
-            # scheme-agnostic guard: the first AB load (2026-11-09 script) used
-            # "LEGACY-AB <move>", this wizard writes "LEGACY <move>" — a source
-            # row is its history either way, so match on the move name itself
-            if Move.search_count([("ref", "=", ref), ("state", "=", "posted")]) or (
+            # scheme-agnostic + GL-scoped guard: the first AB load (2026-11-09
+            # script) used "LEGACY-AB <move>", this wizard writes "LEGACY <move>"
+            # — a source row is its history either way, so match on the move
+            # name itself. But a legacy move that touched TWO bank GLs (an
+            # inter-bank transfer appears in both accounts' exports under the
+            # same move name) is a different economic leg per GL: only a posted
+            # move carrying a line on THIS batch's bank GL makes the row a
+            # duplicate. (SCB lane, 2026-11-10.)
+            dup_domain = [
+                ("state", "=", "posted"),
+                ("line_ids.account_id", "=", gl.id),
+            ]
+            if Move.search_count([*dup_domain, ("ref", "=", ref)]) or (
                 move_name
                 and not move_name.startswith("row ")
-                and Move.search_count([("ref", "like", "%" + move_name), ("state", "=", "posted")])
+                and Move.search_count([*dup_domain, ("ref", "like", "%" + move_name)])
             ):
                 skipped.append(move_name)
                 line.line_state = "posted"
