@@ -65,20 +65,53 @@ ou_set = Users.search_count(
 )
 check("users with OU default >= 341", ou_set >= 341, str(ou_set))
 
-# employees
-check("active employees = 504", Emp.search_count([("active", "=", True)]) == 504)
+# employees — 501 UNIQUE real people (504 non-blank source rows minus 3
+# shared-email second occurrences, archived for HR adjudication)
+check("active employees = 501 unique", Emp.search_count([("active", "=", True)]) == 501)
+env.cr.execute(
+    "SELECT count(*) FROM hr_employee WHERE active AND work_email IS NOT NULL "
+    "GROUP BY work_email HAVING count(*) > 1"
+)
+check("no active duplicate work emails", len(env.cr.fetchall()) == 0)
 with_branch = Emp.search_count([("active", "=", True), ("branch_id", "!=", False)])
-check("employees with branch >= 502", with_branch >= 502, str(with_branch))
+check("employees with branch >= 499", with_branch >= 499, str(with_branch))
 with_dept = Emp.search_count([("active", "=", True), ("department_id", "!=", False)])
-check("employees with department >= 500", with_dept >= 500, str(with_dept))
+check("employees with department >= 498", with_dept >= 498, str(with_dept))
 linked = Emp.search_count([("active", "=", True), ("user_id", "!=", False)])
 check("employees linked to users = 305", linked == 305, str(linked))
 with_wh = Emp.search_count([("active", "=", True), ("default_warehouse_id", "!=", False)])
 check("employees with default warehouse >= 250", with_wh >= 250, str(with_wh))
 legacy_ou = Emp.search_count([("active", "=", True), ("legacy_operating_unit", "!=", False)])
 check("employees with legacy service line >= 290", legacy_ou >= 290, str(legacy_ou))
-mgr = Emp.search_count([("active", "=", True), ("parent_id", "!=", False)])
-check("employees with manager = 242", mgr == 242, str(mgr))
+# manager COVERAGE invariant: every active employee whose staged first-
+# occurrence manager_code resolves to an active employee carries parent_id
+first_code = {}
+for r in read_csv("staged_employees.csv"):
+    em = r["work_email"]
+    if em and em not in first_code:
+        first_code[em] = r["employee_code"].strip().lower()
+by_code = {}
+for e in Emp.search([("active", "=", True), ("employee_code", "!=", False)]):
+    by_code[e.employee_code.strip().lower()] = e
+expected_mgr, missing_mgr = 0, []
+for r in read_csv("staged_employees.csv"):
+    em = r["work_email"]
+    if not em or first_code.get(em) != r["employee_code"].strip().lower():
+        continue  # second occurrence (archived) or blank
+    mgr_code = (r["manager_code"] or "").strip().lower()
+    own_code = first_code[em]
+    if mgr_code and mgr_code != own_code and mgr_code in by_code:
+        # a self-reference (akm.fahad CS-4821) is a source anomaly: never a
+        # manager loop — it lands in the HR worklist, not in parent_id
+        expected_mgr += 1
+        sub = by_code.get(first_code[em])
+        if sub and not sub.parent_id:
+            missing_mgr.append(r["work_email"])
+check(
+    "manager coverage complete (%d expected)" % expected_mgr,
+    len(missing_mgr) == 0,
+    "missing: %s" % missing_mgr[:5],
+)
 
 # roles / governance
 granted = Req.search_count([("state", "=", "granted"), ("user_id.login", "in", real_logins)])
