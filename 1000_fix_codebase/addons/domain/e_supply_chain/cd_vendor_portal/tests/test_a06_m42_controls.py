@@ -785,6 +785,35 @@ def test_m42_B03_bank_change_needs_a_second_person_and_blocks_payment(c):
     assert len(events) == 2
 
 
+def test_m42_B04_confirmed_change_carries_its_routing_number_to_the_payee_account(c):
+    """E2E 2026-11-11 (fix_real_e2e, flow a): a confirmed bank-detail change
+    wrote the account number and bank but dropped the BEFTN routing number the
+    steward proposed and the approver confirmed, so every BEFTN payment run
+    skipped the supplier ("account ... has no routing number"). The confirmed
+    account must carry the routing number that was verified, and stay payable."""
+    s = active_supplier(c)
+    change = (
+        c.env["fix.supplier.bank.change"]
+        .with_user(c.steward)
+        .create(
+            {
+                "supplier_id": s.id,
+                "acc_number": "A06M42T-RT-004",
+                "routing_number": "090261726",
+                "acc_holder_name": "A06M42T Supplier",
+                "verification_ref": "called 01711000000 on file",
+                "evidence_ref": "dms://b/4",
+            }
+        )
+    )
+    change.with_user(c.steward).action_propose()
+    change.with_user(c.approver).action_confirm()
+    bank = s.bank_account_id
+    assert bank.acc_number == "A06M42T-RT-004"
+    assert bank.fix_routing_number == "090261726"
+    assert not bank._fix_payable_problem()
+
+
 # =================================================================== V: P05 vendor on M42 data
 def test_m42_V01_portal_vendor_cannot_touch_own_supplier_records(c):
     s = active_supplier(c)

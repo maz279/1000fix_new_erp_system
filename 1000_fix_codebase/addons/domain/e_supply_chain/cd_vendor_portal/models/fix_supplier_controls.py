@@ -275,6 +275,11 @@ class FixSupplierBankChange(models.Model):
             vals = {"bank_id": rec.bank_id.id or False}
             if rec.acc_holder_name:
                 vals["acc_holder_name"] = rec.acc_holder_name
+            # E2E 2026-11-11: the verified BEFTN routing number reached nothing,
+            # so every BEFTN/RTGS payment run skipped the supplier. The account
+            # carries what the second person confirmed.
+            if rec.routing_number and "fix_routing_number" in Bank._fields:
+                vals["fix_routing_number"] = rec.routing_number.strip()
             if account:
                 account.write(vals)
             else:
