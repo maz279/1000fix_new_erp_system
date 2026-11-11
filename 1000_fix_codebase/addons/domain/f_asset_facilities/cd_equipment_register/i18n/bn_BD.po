@@ -111,17 +111,17 @@ msgstr "প্রভাবিত ব্যবহারসমূহ"
 #. module: cd_equipment_register
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__as_found
 msgid "As Found"
-msgstr "প্রাপ্ত মান (As-Found)"
+msgstr "প্রাপ্ত মান"
 
 #. module: cd_equipment_register
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__as_left
 msgid "As Left"
-msgstr "চূড়ান্ত মান (As-Left)"
+msgstr "চূড়ান্ত মান"
 
 #. module: cd_equipment_register
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__reading_ids
 msgid "As-Found / As-Left Readings"
-msgstr "প্রাপ্ত (As-Found) / চূড়ান্ত (As-Left) রিডিং"
+msgstr "প্রাপ্ত মান / চূড়ান্ত মান রিডিং"
 
 #. module: cd_equipment_register
 #: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__as_found_out_of_tolerance

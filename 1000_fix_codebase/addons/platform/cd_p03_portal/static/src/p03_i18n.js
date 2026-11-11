@@ -77,9 +77,9 @@ export const P03_STATES = {
 /* English literal → Bangla. Untranslated keys fall back to English. */
 export const P03_BN = {
   // ---- common words / table headers ----
-  "Team Chat (Discuss) — opens in a new tab": "টিম চ্যাট (Discuss) — নতুন ট্যাবে খোলে",
+  "Team Chat (Discuss) — opens in a new tab": "টিম চ্যাট (ডিসকাস) — নতুন ট্যাবে খোলে",
   "Team Chat": "টিম চ্যাট",
-  "Team Chat opened in a new tab (Discuss)": "টিম চ্যাট নতুন ট্যাবে খোলা হয়েছে (Discuss)",
+  "Team Chat opened in a new tab (Discuss)": "টিম চ্যাট নতুন ট্যাবে খোলা হয়েছে (ডিসকাস)",
   "Customer": "গ্রাহক",
   "State": "অবস্থা",
   "Cancel": "বাতিল",

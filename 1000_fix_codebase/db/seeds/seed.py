@@ -203,6 +203,7 @@ class Client:
 
 QC_LOGIN = "seed.qc@1000fix.local"
 COLLEAGUE_LOGIN = "seed.counter.colleague@1000fix.local"
+MDM_STEWARD_LOGIN = "seed.mdm.steward@1000fix.local"
 T4_LOGIN = "seed.dofa.t4@1000fix.local"  # appoint_approvers.py: password = login
 ROOT = Path(__file__).resolve().parents[2]
 ODOO_CONF = "infra/odoo-conf/local.resolved.conf"
@@ -239,6 +240,30 @@ def qc_inspector_client(c: Client, db: str) -> Client:
     qc = Client()
     qc.login(db, QC_LOGIN, QC_LOGIN)
     return qc
+
+
+def mdm_steward_client(c: Client, db: str) -> Client:
+    """A seed MDM domain steward, logged in. A12: match and survivorship
+    rules are kept by a data steward, not by the administrator."""
+    if not c.first("res.users", [("login", "=", MDM_STEWARD_LOGIN)]):
+        groups = [
+            xmlid(c, "base", "group_user"),
+            xmlid(c, "cd_entity_config", "group_mdm_domain_steward"),
+        ]
+        c.call(
+            "res.users",
+            "create",
+            {
+                "name": "সিড ডেটা স্টুয়ার্ড (Seed MDM Steward)",
+                "login": MDM_STEWARD_LOGIN,
+                "email": MDM_STEWARD_LOGIN,
+                "password": MDM_STEWARD_LOGIN,
+                "group_ids": [(6, 0, groups)],
+            },
+        )
+    steward = Client()
+    steward.login(db, MDM_STEWARD_LOGIN, MDM_STEWARD_LOGIN)
+    return steward
 
 
 def counter_colleague_client(c: Client, db: str) -> Client:
@@ -1232,7 +1257,8 @@ def main() -> int:
                     "source": rng.choice(["service_order", "qc", "complaint", "audit"]),
                     "severity": rng.choice(["minor", "major", "critical"]),
                     "description": desc,
-                    "state": rng.choice(["new", "root_cause", "capa_open", "closed"]),
+                    # QMS: an NCR is born new; root cause, CAPA and closure
+                    # are its workflow actions
                 }
             )
         if ncrs:
@@ -1384,6 +1410,21 @@ def main() -> int:
                 )
         print("seed: demand plans (idempotent)")
 
+        # A08 M54-7: a budget is planned inside a budget version, which is
+        # submitted and approved as a whole; the seed leaves the version a draft
+        bver = c.first("fix.budget.version", [("name", "=", "SEED-BUDGET-FY2027")])
+        if not bver:
+            bver = c.call(
+                "fix.budget.version",
+                "create",
+                {
+                    "name": "SEED-BUDGET-FY2027",
+                    "version_type": "budget",
+                    "fiscal_year": "2027",
+                    "date_from": "2027-01-01",
+                    "date_to": "2027-12-31",
+                },
+            )
         for i in range(3):
             bname = f"SEED-BUDGET-FY2027-{i+1}"
             if not c.first("fix.budget", [("name", "=", bname)]):
@@ -1392,6 +1433,7 @@ def main() -> int:
                     "create",
                     {
                         "name": bname,
+                        "version_id": bver,
                         "fiscal_year": "2027",
                         "planned_amount": rng.choice([500000, 1000000, 2000000]),
                     },
@@ -1429,7 +1471,7 @@ def main() -> int:
                             ["troubleshooting", "repair_procedure", "device_guide"]
                         ),
                         "content": f"<p>Seed knowledge article {i+1}</p>",
-                        "state": "published",
+                        # publishing is the article's review workflow
                     },
                 )
         print("seed: knowledge articles (idempotent)")
@@ -1596,25 +1638,9 @@ def main() -> int:
                         )
             print("seed: marketplace orders + quotes (idempotent)")
 
-            # 5 commission ledger entries
-            for i in range(5):
-                cname = f"SEED-COM-{i+1:03d}"
-                if not c.first("fix.commission.ledger", [("name", "=", cname)]):
-                    c.call(
-                        "fix.commission.ledger",
-                        "create",
-                        {
-                            "name": cname,
-                            "seller_partner_id": seed_customers[i],
-                            "gross_amount": rng.choice([2000, 5000, 10000]),
-                            "commission_rate": 0.10,
-                            "tds_amount": rng.choice([20, 50, 100]),
-                            # A04 build: "earned" is set by the marketplace
-                            # order's action_earn_commission once a completed
-                            # job is reviewed; it is not a typed status.
-                        },
-                    )
-            print("seed: commission ledger entries (idempotent)")
+            # A04 build: commission rows are raised by a commissioned referral
+            # (Accrue Commission) or a reviewed marketplace job, never typed;
+            # a fresh seed has neither, so it writes none.
 
             # 3 storefront carts
             for i in range(3):
@@ -1681,9 +1707,12 @@ def main() -> int:
                             "amount": total,
                             "method": "bkash",
                             "reference": ref,
-                            "state": "confirmed",
                         },
                     )
+                # an Accountant confirms the captured draft, which posts it
+                rct = c.first("fix.ar.receipt", [("reference", "=", ref)])
+                if c.call("fix.ar.receipt", "read", [rct], ["state"])[0]["state"] == "draft":
+                    c.call("fix.ar.receipt", "action_confirm", [rct])
                 c.call("fix.storefront.order", "action_confirm_payment", [order], payment_ref=ref)
                 paid_order_ids.append(order)
             print(f"seed: {len(paid_order_ids)} paid storefront orders")
@@ -1752,7 +1781,7 @@ def main() -> int:
                         "name": proj_name,
                         "project_type": rng.choice(["internal", "client", "infrastructure"]),
                         "budget": rng.choice([100000, 500000, 1000000]),
-                        "state": "active",
+                        # a project is born a draft; activation is its gated action
                     },
                 )
         print("seed: projects (idempotent)")
@@ -1873,6 +1902,12 @@ def main() -> int:
                         "device_id": dev,
                         "purpose": "service",
                         "granted_on": "2026-01-01",
+                        # A07 P1 (BRU-IOT-05): a consent counts once it is
+                        # verified against its evidence, a named grantor and
+                        # the signals it discloses
+                        "granted_by": "Seed device owner (synthetic)",
+                        "evidence_ref": "SEED-CONSENT-FILE (synthetic, DE-12)",
+                        "signal_groups_permitted": "temperature",
                         "notes": "Synthetic seed consent (DE-12): test data only",
                     },
                 )
@@ -1915,15 +1950,33 @@ def main() -> int:
                 )
         print("seed: IoT alerts (idempotent)")
 
-        # 2 predictive-maintenance predictions
+        # 2 predictive-maintenance predictions. A07: a prediction names a
+        # production M26 predictive-maintenance model; promoting one is the ML
+        # governance workflow, so with none published the seed records none.
+        pdm_models = (
+            c.call(
+                "fix.ml.model",
+                "search_read",
+                [("kind", "=", "predictive_maintenance"), ("status", "=", "production")],
+                ["code"],
+                limit=1,
+            )
+            if c.first("ir.model", [("model", "=", "fix.ml.model")])
+            else []
+        )
         for i, (pred, days) in enumerate([("failure_predicted", 7), ("healthy", 0)]):
             pname = f"Seed PdM Prediction {i+1}"
-            if equipment and not c.first("fix.predictive.maintenance", [("name", "=", pname)]):
+            if (
+                pdm_models
+                and equipment
+                and not c.first("fix.predictive.maintenance", [("name", "=", pname)])
+            ):
                 c.call(
                     "fix.predictive.maintenance",
                     "create",
                     {
                         "name": pname,
+                        "model_name": pdm_models[0]["code"],
                         "equipment_id": equipment[i % len(equipment)],
                         "prediction": pred,
                         "confidence": round(rng.uniform(0.75, 0.98), 2),
@@ -2551,7 +2604,8 @@ def main() -> int:
                     "gross": round(rng.uniform(50000, 500000), 2),
                     "life_months": [36, 60, 84][i],
                     "purchase_date": "2025-01-15",
-                    "state": ["draft", "active", "disposed"][i],
+                    # A08: an asset is born a draft; capitalisation and
+                    # disposal are its posting actions
                 },
             )
             ensure(
@@ -2559,8 +2613,8 @@ def main() -> int:
                 [("name", "=", f"Seed CWIP {i+1}")],
                 {
                     "name": f"Seed CWIP {i+1}",
-                    "amount": round(rng.uniform(10000, 100000), 2),
-                    "state": ["open", "open", "capitalised"][i],
+                    # A08: the accumulated cost is summed from the cost lines
+                    # it collects, and capitalisation is its posting action
                 },
             )
             ensure(
@@ -2617,17 +2671,25 @@ def main() -> int:
             )
             # A07 P0 (M47-1): a work order's state moves only through its actions,
             # so the seed creates a draft and walks it (no cost: no approval).
-            if not c.first("fix.facility.work.order", [("name", "=", f"SEED-FAC-{i+1:03d}")]):
+            # A work order is raised only on an operational or a suspended site,
+            # and a site opens through its readiness gate and an Operations
+            # Director's sign-off, which a seed cannot give; a person's request
+            # is triaged by a Facility Manager before it is scheduled.
+            site_state = c.call("fix.site", "read", [ste[i % len(ste)]], ["state"])[0]["state"]
+            if site_state in ("active", "suspended") and not c.first(
+                "fix.facility.work.order", [("name", "=", f"SEED-FAC-{i+1:03d}")]
+            ):
                 wo = c.call(
                     "fix.facility.work.order",
                     "create",
                     {
                         "name": f"SEED-FAC-{i+1:03d}",
-                        "site_id": ste[i],
+                        "site_id": ste[i % len(ste)],
                         "work_type": ["maintenance", "inspection"][i],
                         "description": "Seed facility work",
                     },
                 )
+                c.call("fix.facility.work.order", "action_triage", [wo], "normal")
                 c.call("fix.facility.work.order", "action_schedule", [wo])
                 if i == 1:
                     c.call("fix.facility.work.order", "action_start", [wo])
@@ -2658,7 +2720,7 @@ def main() -> int:
                     "invoice_date": "2026-09-30",
                     "source_model": "fix.service.order",
                     "source_id": ord_ids[i],
-                    "state": ["issued", "paid", "credited"][i],
+                    # A08: issue, payment and credit are the invoice's actions
                     "operating_unit_id": ou[0],
                 },
             )
@@ -2670,7 +2732,7 @@ def main() -> int:
                 "invoice_id": ar[0],
                 "amount": 500.0,
                 "reason_code": "goodwill",
-                "state": "issued",
+                # A08: a credit note is issued through its approval
                 "operating_unit_id": ou[0],
             },
         )
@@ -2687,41 +2749,19 @@ def main() -> int:
                     "vendor_id": cust[i],
                     "invoice_date": "2026-09-25",
                     "invoice_ref": f"SEED-VI-{i+1:03d}",
-                    "match_state": ["unmatched", "matched", "blocked"][i],
+                    # A08: the three-way match is computed against the PO and
+                    # the goods receipt, never typed
                     "operating_unit_id": ou[0],
                 },
             )
-        vi = c.call("fix.vendor.invoice", "search", [], limit=3) or [1]
-        ensure(
-            "fix.withholding.certificate",
-            [("vendor_invoice_id", "=", vi[0])],
-            {
-                "vendor_invoice_id": vi[0],
-                "withheld_amount": 250.0,
-                "supplier_name": "Seed Vendor 1",
-            },
-        )
-        for i in range(3):
-            ensure(
-                "fix.mushak.register",
-                [("mushak_no", "=", f"SEED-MUSH-{i+1:03d}")],
-                {
-                    "mushak_no": f"SEED-MUSH-{i+1:03d}",
-                    "invoice_ref": f"SEED-INV-{i+1:03d}",
-                    "customer_name": f"Seed Customer {i+1}",
-                    "supplier_name": "1000FiX Ltd",
-                    "supplier_bin": "0000000000000",
-                    "invoice_date": "2026-09-30",
-                    "taxable_amount": [10000.0, 20000.0, 5000.0][i],
-                    "vat_amount": [1500.0, 3000.0, 0.0][i],
-                    "total_payable": [11500.0, 23000.0, 5000.0][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+        # A08: a withholding certificate is issued from the deduction its
+        # challan deposited, and Mushak register rows are issued by the
+        # invoicing services; neither is typed, so the seed writes none.
         ensure(
             "fix.vat.return",
             [("period", "=", "2026-09")],
-            {"period": "2026-09", "state": "prepared"},
+            # A08: preparation and filing are the return's actions
+            {"period": "2026-09"},
         )
         ensure(
             "fix.tds.return",
@@ -2729,24 +2769,8 @@ def main() -> int:
             [("quarter", "=", "2026-Q2")],
             {"quarter": "2026-Q2"},
         )
-        for i in range(2):
-            ensure(
-                "fix.payment.execution",
-                [
-                    ("source_model", "=", "fix.vendor.invoice"),
-                    ("source_id", "=", vi[i]),
-                    ("method", "=", "bank_transfer"),
-                ],
-                {
-                    "method": "bank_transfer",
-                    "payee": f"Seed Vendor {i+1}",
-                    "source_model": "fix.vendor.invoice",
-                    "source_id": vi[i],
-                    "amount": round(rng.uniform(5000, 50000), 2),
-                    "state": ["pending", "executed"][i],
-                    "operating_unit_id": ou[0],
-                },
-            )
+        # A08: a payment instruction is raised by its source document (a
+        # vendor invoice's payment request), not typed; the seed writes none.
         ensure(
             "fix.cash.position",
             [("as_of", "=", "2026-09-30 18:00:00")],
@@ -2755,7 +2779,8 @@ def main() -> int:
         ensure(
             "fix.period.close",
             [("period_end", "=", "2026-09-30")],
-            {"period_end": "2026-09-30", "state": "ready_to_close"},
+            # A08: the close checklist moves through its own actions
+            {"period_end": "2026-09-30"},
         )
         for i in range(min(2, len(mvl))):
             ensure(
@@ -2776,7 +2801,8 @@ def main() -> int:
         ensure(
             "fix.payout.run",
             [("name", "=", "Seed Payout 2026-09")],
-            {"name": "Seed Payout 2026-09", "period": "2026-09", "state": "approved"},
+            # A08: preparation and approval are the payout run's DOFA actions
+            {"name": "Seed Payout 2026-09", "period": "2026-09"},
         )
         print("seed: finance anchors (idempotent)")
 
@@ -2807,47 +2833,30 @@ def main() -> int:
                     "employee_id": emp[i],
                 },
             )
+            # A09: a scorecard period is a month (YYYY-MM)
             ensure(
                 "fix.performance.scorecard",
-                [("employee_id", "=", emp[i]), ("period", "=", "2026-H1")],
-                {"employee_id": emp[i], "period": "2026-H1"},
+                [("employee_id", "=", emp[i]), ("period", "=", "2026-08")],
+                {"employee_id": emp[i], "period": "2026-08"},
             )
-        # Scorecards with real components for the incentive period, spread so
-        # every band (>=0.90 / >=0.75 / >=0.60 / below) is represented and the
-        # top band can be shown to pay (RAP-M57-01 / RAP-M57-09).
-        _bands = [
-            (1.00, 1.00, 1.00, 0.00, 1.00),  # score 1.0000 -> 15% band
-            (0.85, 0.80, 0.80, 0.02, 0.80),  # score 0.8170 -> 8% band
-            (0.70, 0.65, 0.65, 0.04, 0.60),  # score 0.6565 -> 4% band
-            (0.40, 0.40, 0.40, 0.10, 0.20),  # score 0.3550 -> below bands, 0%
-        ]
-        for i, (ftf, sla, csat, rew, salv) in enumerate(_bands):
-            if i >= len(emp):
-                break
+        # A09 (M57): a scorecard's components (first-time fix, SLA, CSAT,
+        # rework, salvage) are measured from the period's service work and the
+        # incentive run's band base comes from its approved incentive version;
+        # neither is typed. The seed opens the period's scorecards and run.
+        for i in range(min(4, len(emp))):
             ensure(
                 "fix.performance.scorecard",
                 [("employee_id", "=", emp[i]), ("period", "=", "2026-09")],
-                {
-                    "employee_id": emp[i],
-                    "period": "2026-09",
-                    "first_time_fix": ftf,
-                    "sla_hit": sla,
-                    "csat": csat,
-                    "rework_rate": rew,
-                    "salvage_target": 100000.0,
-                    "salvage_value": round(100000.0 * salv, 2),
-                },
+                {"employee_id": emp[i], "period": "2026-09"},
             )
         ensure(
             "fix.incentive.run",
             [("period", "=", "2026-09")],
-            {"period": "2026-09", "band_base": 100000.0},
+            {"period": "2026-09"},
         )
-        _run = c.first("fix.incentive.run", [("period", "=", "2026-09")])
-        if _run and not c.first("fix.incentive.line", [("run_id", "=", _run)]):
-            # compute for real: the run was previously stamped "computed" with
-            # no lines behind it, so the payout bands were never demonstrable
-            c.call("fix.incentive.run", "action_compute", [_run])
+        # BRU-PIC-01/02: a run computes only under a scheme version the HR
+        # Director and the CFO approved; a seed cannot give those sign-offs,
+        # so the run stays a draft until a real version is approved.
 
         # WPPF year-end allocation (BLA 2006 Ch. XV) — absent from the estate,
         # so the 80:10:10 split screen had nothing to show.
@@ -2859,11 +2868,13 @@ def main() -> int:
                     "name": "WPPF 2025-2026",
                     "fiscal_year": "2025-2026",
                     "net_profit": 10000000.0,
-                    "eligible_workers_count": 100,
                     "fiscal_year_end_date": "2026-06-30",
+                    # A09 (M56-13, BLA s.234): the headcount is counted from the
+                    # beneficiary lines, and calculation needs the audited
+                    # statements and the auditor's report, which a seed cannot
+                    # honestly supply, so the allocation stays a draft.
                 },
             )
-            c.call("fix.wppf.allocation", "action_calculate", [_wppf])
         for i in range(2):
             ensure(
                 "fix.expense.claim",
@@ -2875,9 +2886,9 @@ def main() -> int:
                 {
                     "employee_id": emp[i],
                     "expense_date": "2026-09-28",
-                    "amount": round(rng.uniform(500, 3000), 2),
+                    # A08: the claimed amount is summed from the claim's lines
+                    # and submission and approval are its actions
                     "description": f"Seed expense {i+1}",
-                    "state": ["submitted", "approved"][i],
                     "operating_unit_id": ou[0],
                 },
             )
@@ -2938,7 +2949,7 @@ def main() -> int:
                     "owner_id": emp[i],
                     "corrective_action": "Seed corrective action",
                     "severity": ["minor", "major"][i],
-                    "state": ["open", "verified"][i],
+                    # QMS: verification is the CAPA's workflow action
                 },
             )
             ensure(
@@ -2949,7 +2960,7 @@ def main() -> int:
                     "auditor_id": emp[i],
                     "scheduled_on": "2026-10-10",
                     "scope": "Seed audit scope",
-                    "state": ["planned", "reported"][i],
+                    # QMS: an audit is born planned; reporting is its action
                 },
             )
             # fix.supplier.scorecard is deprecated and takes no new rows (A06 M42-6).
@@ -2991,7 +3002,7 @@ def main() -> int:
                 {
                     "project_id": prj[i % len(prj)],
                     "name": f"Seed Milestone {i+1}",
-                    "state": ["pending", "done", "pending"][i],
+                    # PPM: a milestone is completed through its action
                 },
             )
         print("seed: MSP + governance anchors (idempotent)")
@@ -3045,8 +3056,14 @@ def main() -> int:
                     "date_to": "2027-03-22",
                 },
             )
-        # MDM: match rules, golden rules, a change request
-        ensure(
+        # MDM: match rules, golden rules (kept by a data steward), a change request
+        steward = mdm_steward_client(c, args.db)
+
+        def steward_ensure(model, key_domain, vals):
+            if not steward.first(model, key_domain):
+                steward.call(model, "create", vals)
+
+        steward_ensure(
             "fix.mdm.match.rule",
             [("model_name", "=", "res.partner"), ("field_name", "=", "phone")],
             {
@@ -3056,7 +3073,7 @@ def main() -> int:
                 "weight": 0.6,
             },
         )
-        ensure(
+        steward_ensure(
             "fix.mdm.match.rule",
             [("model_name", "=", "res.partner"), ("field_name", "=", "name")],
             {
@@ -3066,7 +3083,7 @@ def main() -> int:
                 "weight": 0.4,
             },
         )
-        ensure(
+        steward_ensure(
             "fix.mdm.golden.rule",
             [("model_name", "=", "res.partner"), ("field_name", "=", "phone")],
             {"model_name": "res.partner", "field_name": "phone", "strategy": "most_verified"},
@@ -3079,7 +3096,9 @@ def main() -> int:
                 "model_name": "res.partner",
                 "record_id": cust[0],
                 "priority": "normal",
-                "state": "submitted",
+                # A12 P1-2: a change request proposes its values (synthetic);
+                # submission is the change request's action
+                "proposed_changes": '{"phone": "01700000000"}',
             },
         )
         # Field rules + dedup rules (need ir.model ids)
@@ -3115,7 +3134,11 @@ def main() -> int:
                 {
                     "consent_class": cc,
                     "channel": "sms",
-                    "send_window": "08:00-21:00",
+                    # NT-003: the class decides the window (Asia/Dhaka)
+                    "send_window": ["24/7", "10:00-20:00"][i],
+                    # NT-003: transactional is uncapped; marketing is capped over
+                    # a rolling 7 days, within the combined non-transactional cap
+                    "frequency_cap": [0, 2][i],
                     "sms_route": ["masking", "non-masking"][i],
                 },
             )
@@ -3277,17 +3300,9 @@ def main() -> int:
                     "geometry_json": '{"lat":23.8,"lng":90.4,"radius_m":15000}',
                 },
             )
-        # Finance stragglers: bank statement lines + seller quotes
-        for i in range(3):
-            ensure(
-                "fix.bank.statement.line",
-                [("date", "=", "2026-09-28"), ("amount", "=", 1000.0 * (i + 1))],
-                {
-                    "date": "2026-09-28",
-                    "amount": 1000.0 * (i + 1),
-                    "match_state": ["unmatched", "auto", "manual"][i],
-                },
-            )
+        # Finance stragglers: seller quotes
+        # A08: bank statement lines come only from an imported statement file
+        # (Statements Import); a hand-typed line is not bank evidence.
         mo = c.call("fix.marketplace.order", "search", [], limit=2)
         for i in range(min(2, len(mo)) if slr else 0):
             ensure(
