@@ -596,7 +596,13 @@ class FixPeriodClose(models.Model):
             ("company_id", "=", self.company_id.id),
         ]
         pending_entries = suspense_model.search(domain)
-        total_suspense = round(sum(pending_entries.mapped("total_valuation")), 2)
+        # The net stock movement (cd_inventory signs each row by its type: a
+        # consumption is value consumed, i.e. stock OUT); the raw sum of the
+        # rows counted an issue as stock in. Soft: cd_inventory depends on us.
+        if hasattr(pending_entries, "_fix_stock_effect_total"):
+            total_suspense = abs(pending_entries._fix_stock_effect_total())
+        else:
+            total_suspense = round(sum(pending_entries.mapped("total_valuation")), 2)
         voucher_ref = False
         if pending_entries:
             move = self.cutover_move_id

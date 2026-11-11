@@ -275,6 +275,14 @@ class FixInventoryValuationSuspense(models.Model):
         )
 
     # ------------------------------------------------------------ reconciliation
+    def _fix_stock_effect_total(self) -> float:
+        """The net stock-value movement of these entries: each row's value with
+        the sign STOCK_EFFECT gives its type (a consumption carries the value
+        consumed, so it moves stock out). The period close sizes the suspense
+        cutover on this, not on the raw sum of the rows (E2E2, 11 Nov: a 1,500
+        job issue was counted as 1,500 into stock)."""
+        return round(sum(e.total_valuation * STOCK_EFFECT.get(e.entry_type, 1.0) for e in self), 2)
+
     def action_reconcile_to_gl(self, gl_voucher_ref: str) -> dict:
         """Mark suspense entries reconciled against an M19 cutover journal.
 

@@ -482,6 +482,37 @@ class TestPeriodClose:
         assert entry.status == "pending_gl_cutover"
         assert (close.suspense_closing, close.suspense_reconciled) == (1200.0, False)
 
+    def test_suspense_cutover_nets_consumption_as_stock_out(self, odoo_env):
+        """E2E2 (fix_real_e2e, 11 Nov): a receipt (+30,000 into stock) and a job
+        consumption of 1,500 (stored as the VALUE CONSUMED, cd_inventory
+        STOCK_EFFECT -1) move stock by +28,500. The cutover that moves the
+        suspense by that net value clears it; one sized on the raw sum of the
+        rows (31,500, the consumption counted as stock in) does not."""
+        env, company, part, cutover = self._suspense_company(odoo_env)
+        suspense = env["fix.inventory.valuation.suspense"]
+        receipt = suspense.create(
+            {"product_id": part.id, "quantity": 20.0, "unit_cost": 1500.0, "entry_type": "receipt"}
+        )
+        issue = suspense.create(
+            {
+                "product_id": part.id,
+                "quantity": 1.0,
+                "unit_cost": 1500.0,
+                "entry_type": "consumption",
+            }
+        )
+        close = _close(env, company_id=company.id)
+        close.cutover_move_id = cutover(31500.0)
+        with pytest.raises(UserError, match="does not clear the suspense"), env.cr.savepoint():
+            close.action_reconcile_inventory_suspense()
+        assert (receipt | issue).mapped("status") == ["pending_gl_cutover"] * 2
+        move = cutover(28500.0)
+        close.cutover_move_id = move
+        result = close.action_reconcile_inventory_suspense()
+        assert result["status"] == "zero_cleared" and result["total_valuation"] == 28500.0
+        assert (receipt | issue).mapped("status") == ["reconciled", "reconciled"]
+        assert close.suspense_closing == 0.0 and close.cutover_voucher_ref == move.name
+
     def test_suspense_account_must_exist_in_the_chart(self, odoo_env):
         env, company, part, cutover = self._suspense_company(odoo_env)
         entry = env["fix.inventory.valuation.suspense"].create(
