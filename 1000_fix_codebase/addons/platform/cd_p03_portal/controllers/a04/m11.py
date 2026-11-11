@@ -2,13 +2,14 @@
 # real fix.rate.card / fix.dynamic.price.rule / fix.price.explanation /
 # fix.discount.approval records and the new price book/version/floor/promotion/
 # simulation/policy models. Margin needs a catalogue link; unlinked lines are
-# counted, never guessed.
+# counted, never guessed. Brand reimbursement reads the M09 warranty-claim
+# ledger and the OEM invoices raised from it (fix.ar.invoice).
 import datetime
 
 from odoo import http
 from odoo.http import request
 
-from ..p03_service_order_api import _require_internal
+from ..p03_service_order_api import _company_domain, _require_internal
 
 SURFACES = {
     # A04 audit (2026-11-04) C3/D2: every M11 surface declared `actions:
@@ -317,24 +318,184 @@ def promotion_effectiveness(env, date_from=None, date_to=None, **params):
     )
 
 
+# The M09 claim states (cd_warranty_claims): what the OEM agreed to pay, and
+# what it refused. A closed claim is either a settled approval or a rejection
+# with no open appeal — the approved amount tells which.
+_CLAIM_APPROVED = ("approved", "partially_approved", "remitted")
+_CLAIM_SETTLED = ("remitted", "closed")
+# An OEM invoice counts as invoiced once finance has issued it; the
+# warranty_claim.decided hand-off raises it as a DRAFT (cd_billing_engine).
+_INVOICE_ISSUED = ("issued", "paid", "credited", "written_off")
+_CLAIM_SOURCE = "fix.warranty.claim"
+
+
+def _brand_claims(env):
+    """The warranty-claim ledger, read as the caller (the M09 operating-unit
+    rule applies, as M09's own packs read it) inside the company fence."""
+    if _CLAIM_SOURCE not in env:
+        return None
+    return env["fix.warranty.claim"].search(_company_domain(env, _CLAIM_SOURCE))
+
+
+def _claim_invoices(env, claims):
+    """The OEM invoices raised from those claims only. fix.ar.invoice is a
+    finance record a pricing reader may not hold: it is read sudo, fenced to
+    the caller's companies and to the claims the caller can already see."""
+    if "fix.ar.invoice" not in env or not claims:
+        return None
+    return (
+        env["fix.ar.invoice"]
+        .sudo()
+        .search(
+            [
+                *_company_domain(env, "fix.ar.invoice"),
+                ("source_model", "=", _CLAIM_SOURCE),
+                ("source_id", "in", claims.ids),
+                ("state", "!=", "cancelled"),
+            ]
+        )
+    )
+
+
 def brand_reimbursement(env, date_from=None, date_to=None, **params):
+    from odoo.addons.cd_p03_portal.controllers.p03_generic_api import _datetime_to_local
+
+    cols = [
+        "brand",
+        "raised",
+        "approved",
+        "rejected",
+        "pending",
+        "claimed",
+        "approved_amount",
+        "invoiced",
+        "received",
+        "recovery_pct",
+        "avg_days",
+        "last_received",
+    ]
+    labels = {
+        "brand": "Brand",
+        "raised": "Claims Raised",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "pending": "Awaiting Decision",
+        "claimed": "Amount Claimed",
+        "approved_amount": "Amount Approved",
+        "invoiced": "Invoiced to OEM",
+        "received": "Received",
+        "recovery_pct": "Recovery %",
+        "avg_days": "Avg Days to Reimbursement",
+        "last_received": "Last Receipt",
+    }
+    claims = _brand_claims(env)
+    if claims is None:
+        return _pack(
+            "Brand Reimbursement Recovery",
+            cols,
+            labels,
+            [],
+            ["The warranty-claim ledger (cd_warranty_claims) is not installed here."],
+            empty="The warranty-claim ledger is not installed.",
+        )
+    invoices = _claim_invoices(env, claims)
+    issued_by_claim = {}
+    drafts = 0
+    draft_value = 0.0
+    for inv in invoices or []:
+        if inv.state in _INVOICE_ISSUED:
+            issued_by_claim[inv.source_id] = issued_by_claim.get(inv.source_id, 0.0) + (
+                inv.total_payable or 0.0
+            )
+        elif inv.state == "draft":
+            drafts += 1
+            draft_value += inv.total_payable or 0.0
+
+    by_brand = {}
+    for claim in claims:
+        brand = claim.brand_id
+        row = by_brand.setdefault(
+            brand.id if brand else 0,
+            {
+                "brand": brand.name if brand else "Unassigned",
+                "raised": 0,
+                "approved": 0,
+                "rejected": 0,
+                "claimed": 0.0,
+                "approved_amount": 0.0,
+                "invoiced": 0.0,
+                "received": 0.0,
+                "days": [],
+                "last": None,
+            },
+        )
+        row["raised"] += 1
+        row["claimed"] += claim.claim_amount or 0.0
+        approved_value = claim.approved_amount or 0.0
+        if claim.state in _CLAIM_APPROVED or (claim.state == "closed" and approved_value):
+            row["approved"] += 1
+        elif claim.state == "rejected" or claim.state == "closed":
+            row["rejected"] += 1
+        row["approved_amount"] += approved_value
+        row["invoiced"] += issued_by_claim.get(claim.id, 0.0)
+        row["received"] += claim.remittance_amount or 0.0
+        if claim.remitted_at:
+            if row["last"] is None or claim.remitted_at > row["last"]:
+                row["last"] = claim.remitted_at
+            if claim.state in _CLAIM_SETTLED and claim.submitted_at:
+                span = claim.remitted_at - claim.submitted_at
+                row["days"].append(span.total_seconds() / 86400.0)
+
+    rows = []
+    for row in by_brand.values():
+        days = row["days"]
+        rows.append(
+            {
+                "brand": row["brand"],
+                "raised": row["raised"],
+                "approved": row["approved"],
+                "rejected": row["rejected"],
+                "pending": row["raised"] - row["approved"] - row["rejected"],
+                "claimed": round(row["claimed"], 2),
+                "approved_amount": round(row["approved_amount"], 2),
+                "invoiced": round(row["invoiced"], 2),
+                "received": round(row["received"], 2),
+                "recovery_pct": round(row["received"] / row["claimed"] * 100.0, 1)
+                if row["claimed"]
+                else 0.0,
+                "avg_days": round(sum(days) / len(days), 1) if days else "—",
+                "last_received": _datetime_to_local(env, row["last"])[:16] if row["last"] else "—",
+            }
+        )
+    rows.sort(key=lambda r: -r["claimed"])
+    notes = [
+        "One row per brand over the M09 warranty-claim ledger (fix.warranty.claim). "
+        "Approved counts full and partial approvals, settled ones included; rejected "
+        "counts rejections, closed ones included.",
+        "Invoiced is the OEM invoices raised from the claims (fix.ar.invoice, source "
+        "fix.warranty.claim) once finance has issued them. %d draft hand-off invoice(s) "
+        "worth %.2f await issue and are not counted." % (drafts, draft_value),
+        "Received is the bank receipt a Claim Decision Officer recorded on the claim; a "
+        "brand's own remittance advice is not money and is not counted. Recovery % = "
+        "received ÷ claimed.",
+        "Days to reimbursement run from submission to the brand to the last recorded "
+        "receipt, over settled claims only; '—' means none is settled yet.",
+    ]
+    totals = None
+    if rows:
+        totals = {"brand": "Total"}
+        for col in ("raised", "approved", "rejected", "pending"):
+            totals[col] = sum(r[col] for r in rows)
+        for col in ("claimed", "approved_amount", "invoiced", "received"):
+            totals[col] = round(sum(r[col] for r in rows), 2)
     return _pack(
         "Brand Reimbursement Recovery",
-        ["brand", "claims", "claimed", "recovered", "recovery_pct"],
-        {
-            "brand": "Brand",
-            "claims": "Warranty Claims",
-            "claimed": "Claimed Value",
-            "recovered": "Recovered Value",
-            "recovery_pct": "Recovery %",
-        },
-        [],
-        [
-            "Brand reimbursement requires the warranty-claim ledger (M08/M40). The "
-            "pricing module records brand labour rates but no claim recovery key "
-            "exists here — declared gap, nothing estimated."
-        ],
-        empty="Brand reimbursement tracking needs the warranty-claim ledger (declared gap).",
+        cols,
+        labels,
+        rows,
+        notes,
+        totals=totals,
+        empty="No warranty claim has been raised yet.",
     )
 
 
@@ -456,7 +617,9 @@ def kpis(env):
         "realised_margin": round(sum(margins) / len(margins), 1) if margins else None,
         "discount_leaks_mtd": leaks,
         "rate_cards_live": len(cards.filtered(lambda c: c.active)),
-        "brand_reimb_rates": None,  # brand-claim ledger not linked (declared gap)
+        # the tile is `src: false` in m11.js; per-brand recovery is served by
+        # the brand_reimbursement pack over the claim ledger, not as a tile
+        "brand_reimb_rates": None,
         "simulations_mtd": sims_mtd,
         "margin_floors_breached": breaches,
     }

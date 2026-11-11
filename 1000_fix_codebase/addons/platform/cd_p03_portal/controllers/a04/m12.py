@@ -605,10 +605,17 @@ def training_gap(env, date_from=None, date_to=None, **params):
         {"seller": "Seller", "tier": "Tier", "status": "Training Status"},
         [],
         [
-            "No marketplace training/standards model exists in the estate — this is a "
-            "declared gap. Seller tier is the only recorded capability signal."
+            "No training or standards record is kept for marketplace sellers. Training "
+            "and certification exist for staff only: fix.training.enrollment and "
+            "fix.certification (cd_competency) are keyed to hr.employee, and no model "
+            "keys a course, standard or certificate to fix.marketplace.seller. Declared "
+            "gap — no training status is invented.",
+            "What IS recorded per seller: tier (measured from fix.seller.score) and the "
+            "approved service categories (category_ids, BRU-ECM-07) — see the seller "
+            "master and the Seller Scorecard Distribution report.",
         ],
-        empty="Training records need a standards model (declared gap).",
+        empty="Seller training needs a seller-keyed training/standards record "
+        "(courses and certificates are keyed to employees only) — declared gap.",
     )
 
 
@@ -619,10 +626,15 @@ def stock_gap(env, date_from=None, date_to=None, **params):
         {"seller": "Seller", "sku": "SKU", "quantity": "Quantity"},
         [],
         [
-            "Seller-owned stock is not modelled (marketplace listings carry no stock "
-            "record). Declared gap — no quantity is invented."
+            "Seller-held stock is not recorded: fix.marketplace.listing carries title, "
+            "category, list price and state but no SKU or quantity, and no model keys "
+            "stock to fix.marketplace.seller. Declared gap — no quantity is invented.",
+            "The only stock the marketplace touches is fix.graded.stock — 1000FiX's own "
+            "refurbished units (no seller key), referenced by a marketplace order's "
+            "graded_stock_id. It is reported under M38 (refurb resale), not as seller stock.",
         ],
-        empty="Seller stock needs a stock model (declared gap).",
+        empty="Seller stock needs a seller-keyed stock record (listings carry no "
+        "quantity) — declared gap.",
     )
 
 

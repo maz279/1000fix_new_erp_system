@@ -405,10 +405,16 @@ def comarketing_gap(env, date_from=None, date_to=None, **params):
         {"partner": "Partner", "campaign": "Campaign", "budget": "Budget", "state": "State"},
         [],
         [
-            "No partner↔campaign link exists (M35 campaigns carry no partner key) — "
-            "declared gap. No co-marketing spend is attributed."
+            "No partner↔campaign link exists: fix.campaign (M35) carries no fix.partner "
+            "key — the partner_id on its touches, responses and journey members is the "
+            "customer reached, not a channel partner — and a market-development-fund "
+            "accrual (fix.partner.rebate, kind 'mdf') carries no campaign key. Declared "
+            "gap — no co-marketing spend or result is attributed to a campaign.",
+            "MDF accrued per partner and period IS recorded: see Rebates & MDF and the "
+            "Rebate Accruals report.",
         ],
-        empty="Co-marketing attribution needs a partner↔campaign link (declared gap).",
+        empty="Co-marketing attribution needs a partner↔campaign link (campaigns carry "
+        "no partner key; MDF accruals carry no campaign key) — declared gap.",
     )
 
 
