@@ -843,12 +843,12 @@ class P03GlApiController(http.Controller):
                     ("name", "ilike", name_like),
                 ]
             found = env["fix.chart.account"].sudo().search(domain, limit=1)
-            if found or name_like:
+            if found:
                 return found
             # E2E3 (fix_real copy, 11 Nov 2026): an estate on its own legacy
             # chart has no statutory register rows, so every row read "not
             # configured". Fall back to the control the posting engines use.
-            return self._posting_control(env, company, subledger)
+            return self._posting_control(env, company, subledger or name_like)
 
         rows = []
 
@@ -972,6 +972,8 @@ class P03GlApiController(http.Controller):
             "receivable": params.get_param("cd_billing_engine.account_code.ar")
             or params.get_param("cd_gl_ext.ledger_takeon.receivable_account_code"),
             "payable": params.get_param("cd_gl_ext.ledger_takeon.payable_account_code"),
+            "tax": params.get_param("cd_billing_engine.account_code.vat_output"),
+            "seller payable": params.get_param("cd_settlement_ext.account_code.seller_payable"),
         }.get(subledger)
         if not code:
             return None

@@ -126,4 +126,12 @@ def test_recon_falls_back_to_the_posting_control_account(k):
     control = gl.P03GlApiController._posting_control(env, env.company, "receivable")
     assert control.odoo_account_id == ar
     assert control.account_code == ar.code
-    assert gl.P03GlApiController._posting_control(env, env.company, "tax") is None
+    vat = env["account.account"].search(
+        [("account_type", "=", "liability_current"), ("company_ids", "in", env.company.id)],
+        limit=1,
+    )
+    env["ir.config_parameter"].sudo().set_param(
+        "cd_billing_engine.account_code.vat_output", vat.code
+    )
+    assert gl.P03GlApiController._posting_control(env, env.company, "tax").odoo_account_id == vat
+    assert gl.P03GlApiController._posting_control(env, env.company, "no such ledger") is None
