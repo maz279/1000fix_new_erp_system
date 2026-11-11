@@ -201,7 +201,7 @@ if ($kafkaCompose) {
 # 1 FAIL / 2 INCOMPLETE), counts parsed from the audit evidence the tool
 # wrote.
 $reg = Invoke-EventRegistryAudit
-$journeys = Invoke-Unittest @('tests/test_journey_08_rental.py', 'tests/test_journey_09_tradein.py', 'tests/test_journey_11_data_services.py')
+$journeys = Invoke-Unittest @('tests/test_journey_08_rental.py', 'tests/test_journey_09_tradein.py', 'addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py')
 $g6_4 = 'FAIL'
 if ($reg.Exit -eq 0) { $g6_4 = 'PASS' } elseif ($reg.Exit -eq 2) { $g6_4 = 'CONDITION' }
 if (-not $journeys.Ok) { $g6_4 = 'FAIL' }

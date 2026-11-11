@@ -78,8 +78,10 @@ class TestJourney13PayrollLifecycle(unittest.TestCase):
             )
         )
         self.assertEqual(senior_female.basic, Decimal("60000.00"))
-        self.assertEqual(senior_female.overtime, Decimal("7500.00"))
-        self.assertEqual(senior_female.gross, Decimal("72500.00"))
+        # BLA s.108 / BLR 2015: 2x the ordinary hourly rate over the 208-hour
+        # month (48 h x 52 / 12): 60,000 / 208 x 2 x 15 h = 8,653.85
+        self.assertEqual(senior_female.overtime, Decimal("8653.85"))
+        self.assertEqual(senior_female.gross, Decimal("73653.85"))
         self.assertEqual(senior_female.pf_employee, Decimal("6000.00"))
         self.assertEqual(senior_female.pf_employer, Decimal("6000.00"))
 

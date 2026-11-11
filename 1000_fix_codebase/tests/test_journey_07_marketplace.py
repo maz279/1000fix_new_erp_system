@@ -156,13 +156,19 @@ class TestJourney07MarketplaceLifecycle(unittest.TestCase):
 
     def test_step_12_and_13_dispute_creation_payout_lock_and_sla_resolution(self):
         """Step 12 & 13: Dispute creation triggers hard payout lock (BRU-BIL-03); resolution releases lock."""
+        # A04 M12: the seller's hold is recomputed from its open disputes (and
+        # its own escrow) rather than flipped on and off, so a second open
+        # dispute keeps the hold when the first one resolves. The executable
+        # proof is cd_marketplace/tests/test_a04_m12_controls.py
+        # (test_the_payout_waits_for_escrow_disputes_and_the_seller_hold and
+        # the dispute tests after it).
         dispute_create_src = inspect.getsource(FixMarketplaceDispute.create)
-        self.assertIn("payout_hold = True", dispute_create_src)
+        self.assertIn("_recompute_payout_hold", dispute_create_src)
         self.assertIn("sla_deadline", dispute_create_src)
         self.assertIn("marketplace.dispute_raised", dispute_create_src)
 
         resolve_src = inspect.getsource(FixMarketplaceDispute.action_resolve)
-        self.assertIn("payout_hold = False", resolve_src)
+        self.assertIn("_recompute_payout_hold", resolve_src)
         self.assertIn("marketplace.dispute_resolved", resolve_src)
 
     def test_step_14_seller_scoring_and_tier_ranking(self):

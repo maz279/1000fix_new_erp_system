@@ -111,12 +111,12 @@ Therefore, M06 is architected under **Zero-Trust Sovereign Enclave Principles (S
 
 | Requirement | Guardrail | Test Assertion | Nightly Job |
 |---|---|---|---|
-| **SC-007** | Recovery blocked unless `residency_zone == 'z4'` | `test_recovery_blocked_until_z4` | `test_journey_11_data_services.py` |
-| **SC-002** | Step-up auth required for file access | `test_step_up_auth_enforced` | `test_journey_11_data_services.py` |
-| **SC-002** | Per-read audit log created on every access | `test_per_read_access_logged` | `test_journey_11_data_services.py` |
-| **SC-002** | Audit log is immutable (no write, no delete) | `test_audit_log_immutability` | `test_journey_11_data_services.py` |
-| **NFR-095** | Purge issues verifiable wipe certificate | `test_purge_generates_statutory_certificate` | `test_journey_11_data_services.py` |
-| **NFR-095** | Wipe certificate cannot be deleted | `test_wipe_certificate_permanent` | `test_journey_11_data_services.py` |
+| **SC-007** | Recovery blocked unless `residency_zone == 'z4'` | `test_recovery_blocked_until_z4` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
+| **SC-002** | Step-up auth required for file access | `test_step_up_auth_enforced` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
+| **SC-002** | Per-read audit log created on every access | `test_per_read_access_logged` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
+| **SC-002** | Audit log is immutable (no write, no delete) | `test_audit_log_immutability` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
+| **NFR-095** | Purge issues verifiable wipe certificate | `test_purge_generates_statutory_certificate` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
+| **NFR-095** | Wipe certificate cannot be deleted | `test_wipe_certificate_permanent` | `addons/domain/d_circular/cd_data_case/tests/test_journey_11_data_services.py` |
 
 ---
 
