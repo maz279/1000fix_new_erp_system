@@ -1030,6 +1030,39 @@ class FixSecurityAudit(models.Model):
     prev_hash = fields.Char(readonly=True)
     entry_hash = fields.Char(readonly=True, index=True)
     hash_version = fields.Integer(string="Hash Format", readonly=True, default=2)
+    # Presentation only (fix_real UI walk, 11 Nov 2026): object_ref stores the
+    # technical "model,id" the hash covers, which read as raw text on M29-audit.
+    # This resolves it for display; it is never stored, so the chain is untouched.
+    object_label = fields.Char(
+        string="Object", compute="_compute_object_label", search="_search_object_label"
+    )
+
+    def _search_object_label(self, operator, value):
+        # Quick Find keeps matching the stored reference it used to search
+        return [("object_ref", operator, value)]
+
+    @api.depends("object_ref")
+    def _compute_object_label(self):
+        models_by_name = {}
+        for rec in self:
+            ref = (rec.object_ref or "").strip()
+            model, _sep, rid = ref.partition(",")
+            if model not in models_by_name:
+                ir_model = self.env["ir.model"]._get(model) if model in self.env else False
+                models_by_name[model] = ir_model.name if ir_model else False
+            label = models_by_name[model]
+            if not label:
+                rec.object_label = ref
+                continue
+            if not rid.strip().isdigit():
+                rec.object_label = label
+                continue
+            target = self.env[model].browse(int(rid))
+            try:
+                name = target.exists() and target.display_name
+            except AccessError:
+                name = False
+            rec.object_label = "%s: %s" % (label, name) if name else "%s #%s" % (label, rid.strip())
 
     # fields only the server may set; create() strips them from any caller
     _SYSTEM_SET = (

@@ -27,6 +27,7 @@ from odoo.addons.cd_gl_ext.models.fix_gl_ext import has_role as gl_has_role
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
+from .p03_generic_api import _datetime_to_local
 from .p03_service_order_api import _require_internal, _user_error
 
 _logger = logging.getLogger(__name__)
@@ -80,6 +81,12 @@ class P03GlApiController(http.Controller):
             .with_context(active_test=False)
             .search([("company_id", "=", company.id)], order="account_code")
         )
+        if not chart:
+            # fix_real UI walk (11 Nov 2026): an estate that keeps its own
+            # legacy chart (376 real accounts) has no statutory register rows,
+            # and the screen showed an empty chart. Show the posting chart the
+            # ledger actually uses, read-only, and say where it comes from.
+            return self._coa_from_posting_chart(env, company)
         # live ledger balances for every MAPPED statutory account
         odoo_ids = chart.mapped("odoo_account_id").ids
         balances = {}
@@ -140,6 +147,70 @@ class P03GlApiController(http.Controller):
             "control": len([r for r in rows if r["control"]]),
             "deprecated": len([r for r in rows if r.get("deprecated")]),
             "unlinked": len([r for r in rows if not r["odoo_account"]]),
+            "rows": rows,
+        }
+
+    @staticmethod
+    def _coa_from_posting_chart(env, company):
+        accounts = (
+            env["account.account"]
+            .sudo()
+            .with_context(active_test=False)
+            .search([("company_ids", "in", company.id)], order="code")
+        )
+        balances = {}
+        if accounts:
+            groups = (
+                env["account.move.line"]
+                .sudo()
+                ._read_group(
+                    [
+                        ("company_id", "=", company.id),
+                        ("parent_state", "=", "posted"),
+                        ("account_id", "in", accounts.ids),
+                    ],
+                    ["account_id"],
+                    ["balance:sum"],
+                )
+            )
+            balances = {account.id: round(balance or 0.0, 2) for account, balance in groups}
+        control_types = {"asset_receivable": "receivable", "liability_payable": "payable"}
+        rows = [
+            {
+                "id": "acc-%d" % acc.id,
+                "code": acc.code or "",
+                "name": acc.name or "",
+                "level": 4,
+                "type": acc.internal_group or "",
+                "subtype": acc.account_type or "",
+                "postable": True,
+                "control": acc.account_type in control_types,
+                "control_subledger": control_types.get(acc.account_type, ""),
+                "requires_dimension": "",
+                "statutory_group": "",
+                "active": acc.active,
+                "deprecated": not acc.active,
+                "manual_balance": None,
+                "ledger_balance": balances.get(acc.id, 0.0),
+                "odoo_account": {"id": acc.id, "code": acc.code, "name": acc.name},
+            }
+            for acc in accounts
+        ]
+        return {
+            "company": company.name,
+            "source": "posting_chart",
+            "note": (
+                "The statutory register (fix.chart.account) has no rows for %s. "
+                "Listed: the posting chart the ledger uses, read-only, with live "
+                "balances. Load the statutory register with the CoA Master Loader "
+                "to manage tiers, controls and dimensions here." % company.name
+            ),
+            "count": len(rows),
+            "mapped": len(rows),
+            "postable": len(rows),
+            "control": len([r for r in rows if r["control"]]),
+            "deprecated": len([r for r in rows if r["deprecated"]]),
+            "unlinked": 0,
             "rows": rows,
         }
 
@@ -881,7 +952,7 @@ class P03GlApiController(http.Controller):
                     "amount": round(lg.amount or 0.0, 2),
                     "requested_by": lg.requested_by.name or "",
                     "posted_by": lg.posted_by.name or "",
-                    "posted_at": str(lg.posted_at or ""),
+                    "posted_at": _datetime_to_local(env, lg.posted_at)[:16],
                 }
             ),
             "events": events.mapped(
@@ -890,7 +961,7 @@ class P03GlApiController(http.Controller):
                     "type": e.event_type,
                     "aggregate": "%s/%s" % (e.aggregate, e.aggregate_id),
                     "payload": e.payload,
-                    "at": str(e.create_date or ""),
+                    "at": _datetime_to_local(env, e.create_date)[:16],
                 }
             ),
             "note": "The posting log is immutable (FR-FIN-042): rows can be appended, never edited or deleted.",

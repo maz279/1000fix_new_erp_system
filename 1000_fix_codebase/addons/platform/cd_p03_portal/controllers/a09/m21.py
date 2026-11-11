@@ -445,16 +445,22 @@ def form6a_register(env, date_from=None, date_to=None, **params):
 def identity_access_log(env, date_from=None, date_to=None, **params):
     """Who read which employee's NID, birth registration or e-TIN (BRU-HCM-07),
     read as the caller: the log is the HR Manager's, others are refused."""
+    from odoo.addons.cd_p03_portal.controllers.p03_generic_api import (
+        _datetime_to_local,
+        _datetime_to_utc,
+    )
+
+    # the dates are the reader's calendar days (UTC+6), the column is UTC
     domain = []
     if date_from:
-        domain.append(("read_at", ">=", "%s 00:00:00" % date_from))
+        domain.append(("read_at", ">=", _datetime_to_utc(env, "%s 00:00:00" % date_from)))
     if date_to:
-        domain.append(("read_at", "<=", "%s 23:59:59" % date_to))
+        domain.append(("read_at", "<=", _datetime_to_utc(env, "%s 23:59:59" % date_to)))
     logs = env["fix.hr.identity.access.log"].search(domain, limit=2000)
     labels = dict(env["fix.hr.identity.access.log"]._fields["field_name"].selection)
     rows = [
         {
-            "read_at": str(log.read_at),
+            "read_at": _datetime_to_local(env, log.read_at)[:16],
             "user": log.user_id.name,
             "employee": log.employee_name or "",
             "field": labels.get(log.field_name, log.field_name),

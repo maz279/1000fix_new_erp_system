@@ -196,6 +196,10 @@ def _require_admin_read(env, model, what):
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
+    # The workspace reads `labels` as a {col: header} map. A positional list
+    # (open_dofa_rulings passed one) left every header as its raw key on 8069.
+    if isinstance(labels, list | tuple):
+        labels = dict(zip(cols, labels, strict=True))
     return {
         "title": title,
         "cols": cols,

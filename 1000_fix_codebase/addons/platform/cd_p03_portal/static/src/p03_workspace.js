@@ -2052,7 +2052,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     mlExportCsv() {
         const gl = this.state.gl;
         if (!gl || !gl.data || !gl.modelCfg) return;
-        const cols = gl.modelCfg.cols || [];
+        const cols = this.mlCols;
         const labels = gl.data.labels || {};
         const rows = this.mlRows;
         
@@ -2852,6 +2852,18 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     }
 
     /* ---------------- CoA ---------------- */
+
+    // The model_list columns the server actually returned. A field the
+    // caller may not read (groups=) is dropped by /p03/model/records; showing
+    // its header over empty cells read as broken data (M15-recon, the blind
+    // van count, fix_real UI walk 11 Nov 2026).
+    get mlCols() {
+        const gl = this.state.gl;
+        const cols = (gl && gl.modelCfg && gl.modelCfg.cols) || [];
+        const labels = gl && gl.data && !gl.data.error && gl.data.labels;
+        if (!labels || !Object.keys(labels).length) return cols;
+        return cols.filter((c) => c in labels);
+    }
 
     get glCoaFiltered() {
         const gl = this.state.gl;

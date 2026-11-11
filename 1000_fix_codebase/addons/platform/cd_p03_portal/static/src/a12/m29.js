@@ -67,7 +67,7 @@ export const MODULE = {
     ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert', 'M29-jml'] }],
     ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod'] }],
     ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'] }],
-    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_ref'], screens: ['M29-audit', 'M29-privileged', 'M29-incidents'] }]
+    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-privileged', 'M29-incidents'] }]
   ] }
 };
 
@@ -82,7 +82,7 @@ export const SCREENS = {
     actions: [{ m: 'action_apply', l: 'Apply' }, { m: 'action_cancel', l: 'Cancel' }] },
   // What "held" means: who was actually given which role. Written by the grant paths only.
   'M29-assignments': { kind: 'model_list', model: 'fix.role.assignment', create: false,
-    cols: ['user_id', 'role_id', 'source', 'granted_on', 'ended_on', 'end_reason', 'is_live'] },
+    cols: ['user_id', 'role_id', 'request_id', 'granted_on', 'ended_on', 'end_reason', 'is_live'] },
 
   /* ---- Access ---- */
   'M29-roles': { kind: 'model_list', model: 'fix.role',
@@ -123,7 +123,7 @@ export const SCREENS = {
   // Verify Chain (R5) recomputes every row's hash and checks the links —
   // the summary (entries checked, discontinuities) is the report.
   'M29-audit': { kind: 'model_list', model: 'fix.security.audit', create: false,
-    cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_ref', 'detail', 'entry_hash'],
+    cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label', 'detail', 'entry_hash'],
     actions: [{ m: 'action_verify_chain', l: 'Verify Chain' }] },
   'M29-privileged': { kind: 'model_list', model: 'fix.privileged.session', stateField: 'state',
     cols: ['name', 'user_id', 'access_kind', 'ticket_ref', 'approver_id', 'started_at', 'expires_at', 'duration_minutes', 'state'],
