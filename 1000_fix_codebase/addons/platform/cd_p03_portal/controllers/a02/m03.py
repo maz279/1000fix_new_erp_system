@@ -104,6 +104,7 @@ def kpis(env):
     avg_round_trip = round(sum(round_trips) / len(round_trips), 1) if round_trips else None
 
     # rider shifts: no rider-shift model exists (P09 app scope) — honest null
+    # (the tile is marked src:false — no data source — in static/src/a02/m03.js)
     return {
         "in_transit": in_transit,
         "on_time_delivery": on_time_pct,

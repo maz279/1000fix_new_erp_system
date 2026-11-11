@@ -629,18 +629,18 @@
                             </div>
                         </div>
 
-                        <!-- Module KPIs — live values from /p03/finance/kpis where
-                             the module has real reads; honest placeholders elsewhere -->
+                        <!-- Module KPIs — live values from the module's KPI route;
+                             a tile marked src:false says the estate has no data
+                             source for it rather than promising a value -->
                         <div class="kpi-row">
                             <t t-foreach="moduleKpis" t-as="kpi" t-key="kpi.l">
                                 <div class="kpi"
                                      t-on-click="() => this.openScreen(state.activeModule.groups[0].screens[0].id)"
                                      style="cursor: pointer;"
-                                     t-att-title="t(kpi.l) + (kpiLive(kpi) ? t(' — live from the Odoo backend') : t(' — value wires with this module read_group phase'))">
+                                     t-att-title="kpiTitle(kpi)">
                                     <span class="kpi-l"><t t-esc="t(kpi.l)"/></span>
                                     <span class="kpi-v"><t t-esc="kpiValue(kpi)"/></span>
-                                    <span class="kpi-d" t-if="kpiLive(kpi)"><t t-esc='t("Live from Odoo")'/></span>
-                                    <span class="kpi-d" t-else=""><t t-esc='t("wired with module phase")'/></span>
+                                    <span class="kpi-d"><t t-esc="kpiCaption(kpi)"/></span>
                                 </div>
                             </t>
                         </div>

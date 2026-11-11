@@ -9,7 +9,7 @@ export const MODULE = {
   kpis: [
     { l: 'Documents', m: 'documents' },
     { l: 'Auto-Filed', m: 'auto_filed' },
-    { l: 'Search p95', m: 'search_p95' },
+    { l: 'Search p95', m: 'search_p95', src: false },
     { l: 'Pending e-Signatures', m: 'pending_esignatures' },
     { l: 'Legal Holds', m: 'legal_holds' },
     { l: 'Evidence Packs', m: 'evidence_packs_5min' }

@@ -20,7 +20,7 @@ export const MODULE = {
     { l: 'Custody Exceptions', m: 'custody_exceptions' },
     { l: 'COD Today', m: 'cod_today' },
     { l: 'Avg Round Trip', m: 'avg_round_trip' },
-    { l: 'Rider Shifts Open', m: 'rider_shifts_open' }
+    { l: 'Rider Shifts Open', m: 'rider_shifts_open', src: false }
   ],
   groups: [
     { en: 'Record Coverage', screens: [

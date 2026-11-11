@@ -856,7 +856,7 @@ export class P03Workspace extends Component {
             { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
     }
 
-    /* Module KPI labels (values land with each module's wiring phase). */
+    /* Module KPI labels. */
     get kpiLabels() {
         return (this.state.activeModule.kpis || []).map(k => k.l);
     }
@@ -867,14 +867,21 @@ export class P03Workspace extends Component {
         return this.state.activeModule.kpis || [];
     }
 
+    /* `src: false` on a fragment KPI declares that the estate records no
+     * data source for the measure (telephony, ML ground truth, latency
+     * logs…): the tile stays "—" and says so, instead of promising a value. */
+    kpiNoSource(kpi) {
+        return kpi.src === false;
+    }
+
     kpiValue(kpi) {
-        if (kpi.m && this.state.financeKpis && this.state.financeKpis[kpi.m] != null) {
+        if (this.kpiLive(kpi)) {
             const v = this.state.financeKpis[kpi.m];
             // BN-007 South-Asian grouping, same as the grids (lakh/crore) —
             // a KPI and its report must not disagree on digit grouping
             const num = typeof v === "number"
                 ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 })
-                : String(v);
+                : this.t(String(v));
             // `suffix` declares the unit on the fragment's KPI (%, ৳, h…) —
             // a bare number on a rate tile reads as a count (audit D2);
             // `prefix` does the same for money (৳ 65,700).
@@ -883,8 +890,43 @@ export class P03Workspace extends Component {
         return "—";
     }
 
+    /* One of four tile states:
+     *   "live"       — the payload carries the key with a value;
+     *   "noactivity" — the payload carries the key as null: the source
+     *                  exists but a rate/average has no denominator yet;
+     *   "unserved"   — the key is absent (load failure, no access, or the
+     *                  route has not answered);
+     *   "nosource"   — the fragment declares `src: false`. */
+    kpiState(kpi) {
+        if (this.kpiNoSource(kpi)) { return "nosource"; }
+        const p = this.state.financeKpis;
+        if (!kpi.m || !p || !Object.prototype.hasOwnProperty.call(p, kpi.m)) {
+            return "unserved";
+        }
+        return p[kpi.m] != null ? "live" : "noactivity";
+    }
+
     kpiLive(kpi) {
-        return !!(kpi.m && this.state.financeKpis && this.state.financeKpis[kpi.m] != null);
+        return this.kpiState(kpi) === "live";
+    }
+
+    kpiCaption(kpi) {
+        return this.t({
+            live: "Live from Odoo",
+            noactivity: "No activity yet",
+            nosource: "No data source",
+            unserved: "No value served",
+        }[this.kpiState(kpi)]);
+    }
+
+    kpiTitle(kpi) {
+        const tail = {
+            live: " — live from the Odoo backend",
+            noactivity: " — the source exists but has no activity yet",
+            nosource: " — the estate records no data source for this measure",
+            unserved: " — the backend served no value for this measure",
+        }[this.kpiState(kpi)];
+        return this.t(kpi.l) + this.t(tail);
     }
 
     /* Is this registry screen backed by a real Odoo model (A08 live map) or

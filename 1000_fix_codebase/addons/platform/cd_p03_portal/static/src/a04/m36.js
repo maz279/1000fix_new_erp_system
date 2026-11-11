@@ -15,7 +15,7 @@ export const MODULE = {
     { l: 'Awaiting Customer', m: 'awaiting_customer' },
     { l: 'Avg Turnaround (h)', m: 'avg_turnaround' },
     { l: 'Tenders Live', m: 'tenders_live' },
-    { l: 'Declined → Diagnostic Fee', m: 'declined_conversion' }
+    { l: 'Declined → Diagnostic Fee', m: 'declined_conversion', src: false }
   ],
   groups: [
     { en: 'Estimates', screens: [

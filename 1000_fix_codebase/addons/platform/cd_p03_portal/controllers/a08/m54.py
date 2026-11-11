@@ -95,14 +95,15 @@ def kpis(env):
         actual = actuals.get(ln.id, 0.0)
         return (actual - planned) if ln.is_revenue else (planned - actual)
 
+    # A variance needs a plan to vary from: None while no approved budget line
+    # falls in the window (the same rule as a ratio with no denominator).
     out["fpa_budget_variance_fytd"] = round(sum(_var(ln) for ln in lines), 2) if lines else None
 
     league, _unassigned = engine.branch_league(d_from, today)
     active = [r for r in league if r["revenue"] or r["direct"] or r["opex"]]
-    out["fpa_branch_top"] = active[0]["branch"] if active else None
-    out["fpa_negative_branches"] = (
-        sum(1 for r in active if r["contribution"] < 0) if active else None
-    )
+    # A count reads 0 on an empty year; the league leader says so in words.
+    out["fpa_branch_top"] = active[0]["branch"] if active else "No branch activity yet"
+    out["fpa_negative_branches"] = sum(1 for r in active if r["contribution"] < 0)
 
     jobs = engine.job_costs(d_from, today)
     out["fpa_job_costing_coverage"] = (

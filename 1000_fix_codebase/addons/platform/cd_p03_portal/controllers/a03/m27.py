@@ -735,11 +735,23 @@ def kpis(env):
     aht_values = [_seconds(c.answered_at, c.ended_at) or 0 for c in handled]
     abandoned = len(convs.filtered(lambda c: c.state == "abandoned"))
     whatsapp = len(convs.filtered(lambda c: c.channel == "whatsapp"))
+    # FCR over the answered contacts, the same basis as the AHT/FCR report
+    fcr = len(answered.filtered(lambda c: c.fcr)) if answered else 0
     return {
         "conversations_today": len(today_convs),
-        "service_level_80_20": round(within / len(answered) * 100.0, 1) if answered else None,
-        "aht_s": round(sum(aht_values) / len(aht_values), 1) if aht_values else None,
-        "abandon_rate": round(abandoned / len(convs) * 100.0, 1) if convs else None,
+        # Registry tile keys (static/src/a03/m27.js), from the conversation
+        # log. Rates and averages are None while their denominator is empty
+        # (no answered / no logged contact); the two counts read 0.
+        "service_level_pct": round(within / len(answered) * 100.0, 1) if answered else None,
+        "avg_handle_time_sec": round(sum(aht_values) / len(aht_values), 1) if aht_values else None,
+        "fcr_rate": round(fcr / len(answered) * 100.0, 1) if answered else None,
+        "abandonment_rate": round(abandoned / len(convs) * 100.0, 1) if convs else None,
+        # in progress on the hotline (voice) right now: with the AI or an agent
+        "active_calls": len(
+            convs.filtered(lambda c: c.channel == "voice" and c.state in ("with_ai", "with_agent"))
+        ),
+        # waiting in a queue on any channel (the Queue Board's "waiting")
+        "queued_contacts": len(convs.filtered(lambda c: c.state == "new")),
         "whatsapp_share": round(whatsapp / len(convs) * 100.0, 1) if convs else None,
         # Closed: fix.notif.delivery (S1) is the delivery log this tile was
         # waiting for. Delivered over ATTEMPTED, so a suppressed message --

@@ -12,7 +12,7 @@ export const MODULE = {
   kpis: [
     { l: 'MRR', m: 'mrr', prefix: '৳ ' },
     { l: 'ARR', m: 'arr', prefix: '৳ ' },
-    { l: 'NRR', m: 'nrr', suffix: '%' },
+    { l: 'NRR', m: 'nrr', src: false, suffix: '%' },
     { l: 'Churn (Logo)', m: 'churn_logo', suffix: '%' },
     { l: 'Billing Exceptions', m: 'billing_exceptions' },
     { l: 'Dunning in Progress', m: 'dunning_in_progress' }

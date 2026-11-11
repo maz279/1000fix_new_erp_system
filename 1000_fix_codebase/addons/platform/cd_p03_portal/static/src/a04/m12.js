@@ -12,10 +12,10 @@ export const MODULE = {
   kpis: [
     { l: 'Active Sellers', m: 'active_sellers' },
     { l: 'Job Fill Rate', m: 'job_fill_rate', suffix: '%' },
-    { l: 'Marketplace Share', m: 'marketplace_share', suffix: '%' },
+    { l: 'Marketplace Share', m: 'marketplace_share', src: false, suffix: '%' },
     { l: 'Disputes Open', m: 'disputes_open' },
     { l: 'Payouts MTD', m: 'payouts_mtd' },
-    { l: 'Seller NPS', m: 'seller_nps' }
+    { l: 'Seller NPS', m: 'seller_nps', src: false }
   ],
   groups: [
     { en: 'Marketplace Records', screens: [

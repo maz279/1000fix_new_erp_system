@@ -12,7 +12,7 @@ export const MODULE = {
   kpis: [
     { l: 'FAQ Automation', m: 'faq_automation', suffix: '%' },
     { l: 'AI FCR', m: 'ai_fcr', suffix: '%' },
-    { l: 'Handoff Precision', m: 'handoff_precision', suffix: '%' },
+    { l: 'Handoff Precision', m: 'handoff_precision', src: false, suffix: '%' },
     { l: 'Bengali Sessions', m: 'bengali_sessions', suffix: '%' },
     { l: 'Guard-Rail Blocks', m: 'guardrail_blocks' },
     { l: 'Avg Turns', m: 'avg_turns' }

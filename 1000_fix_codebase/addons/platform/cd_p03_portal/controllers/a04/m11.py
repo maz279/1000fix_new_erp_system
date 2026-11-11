@@ -440,9 +440,9 @@ def kpis(env):
         max_by_role[policy.role] = max(max_by_role.get(policy.role, 0.0), policy.max_pct)
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    leaks = None
+    # a count: no discount policy means no band to leak past, so 0, not None
+    leaks = 0
     if policies:
-        leaks = 0
         for approval in approvals.filtered(
             lambda a: a.create_date and a.create_date.date() >= month_start
         ):

@@ -12,7 +12,7 @@ export const MODULE = {
     { l: 'Realised Margin', m: 'realised_margin', suffix: '%' },
     { l: 'Discount Leaks MTD', m: 'discount_leaks_mtd' },
     { l: 'Rate Cards Live', m: 'rate_cards_live' },
-    { l: 'Brand Reimb. Rates', m: 'brand_reimb_rates' },
+    { l: 'Brand Reimb. Rates', m: 'brand_reimb_rates', src: false },
     { l: 'Simulations MTD', m: 'simulations_mtd' },
     { l: 'Margin Floors Breached', m: 'margin_floors_breached' }
   ],

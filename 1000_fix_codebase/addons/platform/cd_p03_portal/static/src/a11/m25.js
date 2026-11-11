@@ -12,9 +12,9 @@ export const MODULE = {
     { l: 'Dashboards Live', m: 'dashboards_live' },
     { l: 'Standard Reports', m: 'standard_reports' },
     { l: 'Weekly Manager Usage', m: 'weekly_manager_usage' },
-    { l: 'Load Time p95 (ms)', m: 'load_time_p95' },
+    { l: 'Load Time p95 (ms)', m: 'load_time_p95', src: false },
     { l: 'Scheduled Distributions', m: 'scheduled_distributions' },
-    { l: 'Spreadsheets Retired', m: 'spreadsheets_retired' }
+    { l: 'Spreadsheets Retired', m: 'spreadsheets_retired', src: false }
   ],
   groups: [
     { en: 'Executive', screens: [

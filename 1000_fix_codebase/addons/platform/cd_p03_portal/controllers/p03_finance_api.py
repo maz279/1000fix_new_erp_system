@@ -61,7 +61,8 @@ class P03FinanceApiController(http.Controller):
             try:
                 # Revenue MTD = net posted movement of income accounts
                 # (credit - debit); TB imbalance = debit vs credit of the
-                # fiscal year's posted lines. None when the ledger is empty.
+                # fiscal year's posted lines. Both are sums, so an empty
+                # ledger reads 0 (no activity), not None; None only on failure.
                 income = env["account.move.line"]._read_group(
                     [
                         ("parent_state", "=", "posted"),
@@ -73,7 +74,7 @@ class P03FinanceApiController(http.Controller):
                     ["debit:sum", "credit:sum"],
                 )
                 revenue = sum(g[1] or 0.0 for g in income) - sum(g[0] or 0.0 for g in income)
-                m19["revenue_mtd"] = round(revenue, 2) if revenue else None
+                m19["revenue_mtd"] = round(revenue, 2)
 
                 fy_start = datetime.date(ms.year if ms.month >= 7 else ms.year - 1, 7, 1)
                 fy = env["account.move.line"]._read_group(
@@ -87,7 +88,7 @@ class P03FinanceApiController(http.Controller):
                 )
                 debit = sum(g[0] or 0.0 for g in fy)
                 credit = sum(g[1] or 0.0 for g in fy)
-                m19["tb_imbalance"] = round(debit - credit, 2) if (debit or credit) else None
+                m19["tb_imbalance"] = round(debit - credit, 2)
             except Exception:
                 m19["revenue_mtd"] = None
                 m19["tb_imbalance"] = None

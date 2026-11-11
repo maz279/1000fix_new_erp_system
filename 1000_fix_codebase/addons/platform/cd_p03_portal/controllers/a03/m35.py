@@ -441,18 +441,17 @@ REPORTS = {
 
 
 def _attributed_revenue(env):
-    """Conversion value actually on file, or None when none is.
+    """Conversion value actually on file. A sum, so 0 when none is (None
+    only when the touch ledger is not installed).
 
     A partial total presented as a total is the error this estate's rules
-    exist to prevent, so the figure stays None until there is something real
-    to add up.
+    exist to prevent, so the figure counts only KNOWN values and reads 0
+    until there is something real to add up.
     """
     Touch = env.get("fix.campaign.touch")
     if Touch is None:
         return None
     known = Touch.sudo().search([("touch_type", "=", "conversion"), ("value_known", "=", True)])
-    if not known:
-        return None
     return round(sum(known.mapped("value_bdt")), 2)
 
 
@@ -473,10 +472,11 @@ def kpis(env):
         # PARTLY closed, and the tile says which part. A campaign response
         # still carries no order value -- the stated reason -- so this reads
         # the multi-touch touchpoint ledger and counts only conversions whose
-        # value is actually KNOWN. None when none are; never an estimate.
+        # value is actually KNOWN. 0 when none are; never an estimate.
         "attributed_revenue": _attributed_revenue(env),
         "open_rate": round(len(responses) / recipients * 100.0, 1) if recipients else None,
-        "consent_safe_reach": recipients - excluded if recipients else None,
+        # a count of reachable recipients: 0 when no campaign has any
+        "consent_safe_reach": recipients - excluded if recipients else 0,
     }
 
 
