@@ -190,6 +190,8 @@ LINKED_CHART_SUITES = (
     "/cd_payroll_bd/",
     "/cd_import_order/",
     "/cd_rental_asset/",
+    # the counter sale's hand-off posts to the ledger (E2E2 flow 2)
+    "/cd_front_desk_finance/",
 )
 
 
