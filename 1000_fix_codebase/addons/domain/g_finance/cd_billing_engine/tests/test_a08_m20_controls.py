@@ -103,9 +103,23 @@ def c_raw(odoo_env):
 
 @pytest.fixture
 def c(c_raw):
-    """c_raw with the company's invoice / Mushak sequences already drawn."""
+    """c_raw with the company's invoice / Mushak sequences already drawn and
+    the cheque-in-hand account a cheque receipt stages into. The real chart
+    carries it as 16556556 (the AR engine's default for that role); a test
+    template built on another chart does not, and a cheque receipt then
+    refuses before reaching the behaviour under test."""
     c_raw.env["fix.ar.invoice"]._invoice_sequence(c_raw.company)
     c_raw.env["fix.ar.invoice"]._mushak_sequence(c_raw.company)
+    Account = c_raw.env["account.account"].with_company(c_raw.company)
+    if not Account.search([("code", "=", "16556556")], limit=1):
+        Account.create(
+            {
+                "name": "Cheque In Hand",
+                "code": "16556556",
+                "account_type": "asset_cash",
+                "company_ids": [(6, 0, c_raw.company.ids)],
+            }
+        )
     return c_raw
 
 
@@ -965,7 +979,13 @@ def test_m20_cheque_bounced_before_clearing_reverses_the_receipt_account(c):
     )
     chq = _bounced_cheque(c, r, cleared=False)
     c.env["fix.ar.receipt"].consume_cheque_bounced(_cheque_event(chq))
-    assert lines(r.bounce_move_id) == sorted([("121000", 11500.0, 0.0), ("101402", 0.0, 11500.0)])
+    # An uncleared cheque never reached the bank: the bounce credits back the
+    # very account the receipt debited (since R1, 2026-11-09, a cheque is
+    # staged on cheque-in-hand, 16556556 - no longer the bank 101402) and
+    # re-opens the receivable.
+    staged = [ln for ln in lines(r.posted_move_id) if ln[1] == 11500.0 and ln[0] != "121000"]
+    assert [code for code, _dr, _cr in staged] == ["16556556"]
+    assert lines(r.bounce_move_id) == sorted([("121000", 11500.0, 0.0), ("16556556", 0.0, 11500.0)])
     assert i.state == "issued"
 
 

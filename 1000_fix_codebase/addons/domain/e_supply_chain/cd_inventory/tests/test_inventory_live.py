@@ -200,7 +200,10 @@ def test_van_audit_reconciles_and_publishes(ctx):
             "audited_qty": 3,
             "discrepancy_qty": 1,
             "accuracy_pct": 66.7,
-            "audit_date": str(date.today()),
+            # the business day in Dhaka, as the model stamps it — the
+            # process-local date.today() is UTC here and disagrees with it
+            # for six hours every evening (18:00-24:00 UTC)
+            "audit_date": str(odoo_fields.Date.context_today(ctx.van)),
         }
     ]
 

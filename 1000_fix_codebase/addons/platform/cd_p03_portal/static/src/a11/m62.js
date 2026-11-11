@@ -72,13 +72,17 @@ export const SCREENS = {
   'M62-dimensional': { kind: 'model_list', model: 'fix.data.entity',
     cols: ['name', 'entity_type', 'owner_module', 'steward_id', 'classification', 'retention_policy'] },
   'M62-contracts': { kind: 'model_list', model: 'fix.data.contract', stateField: 'state',
-    cols: ['dataset_code', 'name', 'entity_id', 'producer', 'schema_version', 'freshness_sla_minutes', 'state'],
-    actions: [{ m: 'action_activate', l: 'Activate' }] },
+    // No "Activate" button (A11 audit G1): the backend removed action_activate
+    // from this surface on purpose — a contract activates only from an
+    // approved M63 task (producer sign -> request approval -> decision).
+    cols: ['dataset_code', 'name', 'entity_id', 'producer', 'schema_version', 'freshness_sla_minutes', 'state'] },
 
   /* ---- Governance ---- */
   'M62-metrics': { kind: 'model_list', model: 'fix.metric.definition', stateField: 'state',
-    cols: ['code', 'name', 'domain_area', 'grain', 'owner_role', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish' }] },
+    // No "Publish" button (A11 audit G2): a metric publishes through its
+    // VERSION (steward review, then an approved M63 request) — the
+    // definition has no one-click publish and the surface refuses it.
+    cols: ['code', 'name', 'domain_area', 'grain', 'owner_role', 'state'] },
   'M62-catalog': { kind: 'table_report', module: 'M62', report: 'lineage_coverage', title: 'Catalogue & Glossary (lineage)', period: false },
   'M62-quality': { kind: 'model_list', model: 'fix.data.quality.test',
     cols: ['name', 'rule_id', 'checked_at', 'observed_value', 'threshold', 'passed'] },

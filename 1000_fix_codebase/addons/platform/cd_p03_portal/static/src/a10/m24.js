@@ -137,8 +137,7 @@ export const SCREENS = {
         fields: [
           { name: 'code', required: true, label: 'Template Code' },
           { name: 'name', required: true, label: 'Template Name' },
-          { name: 'document_type', required: true, label: 'Document Type' },
-          { name: 'active', label: 'Active' }
+          { name: 'document_type', required: true, label: 'Document Type' }
         ] }
     ]
   },

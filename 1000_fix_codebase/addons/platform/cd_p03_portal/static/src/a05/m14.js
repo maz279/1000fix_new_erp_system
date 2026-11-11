@@ -587,12 +587,11 @@ export const SCREENS = {
       { tab: 'general', title: 'Grading Docket',
         fields: [
           { name: 'name', label: 'Grade Certificate ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
-          { name: 'grade', required: true, label: 'Calculated Grade (A/B/C/D/E)' }
+          { name: 'tradein_id', required: true, label: 'Trade-In Request' }
         ] },
       { tab: 'pricing', title: 'Grade Classification',
         fields: [
-          { name: 'grade', label: 'Commercial Resale Grade' }
+          { name: 'grade', required: true, label: 'Commercial Resale Grade (A/B/C/D/E)' }
         ] },
       { tab: 'technical', title: 'Multi-Axis Assessment',
         fields: [

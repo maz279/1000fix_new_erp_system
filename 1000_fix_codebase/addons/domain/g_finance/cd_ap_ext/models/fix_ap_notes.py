@@ -11,7 +11,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from .ap_gl import ap_account, ap_journal, post_ap_move
 from .fix_ap_controls import require_finance
-from .fix_ap_ext import _q
+from .fix_ap_ext import PAYABLE_MATCH_STATES, _q
 
 # A08 M52-12 (F3): the creator rewrote created_by and approved his own
 # 15,000 debit note. Stamps and state change only through the actions.
@@ -179,6 +179,8 @@ class FixVendorNote(models.Model):
                 raise UserError("Enter the vendor's Mushak 6.7 / 6.8 number first")
             if self.env.user in (note.created_by | note.create_uid):
                 raise UserError("Segregation of duties: the note's creator cannot approve it")
+            if note.note_type == "increase":
+                note._check_increase_gate()
             if note.invoice_id.payment_state == "paid" and note.note_type == "decrease":
                 # still allowed: the vendor then owes a refund, netted next run
                 pass
@@ -186,6 +188,50 @@ class FixVendorNote(models.Model):
             note._record_vat_adjustment()
             note._guarded().write({"state": "approved", "approved_by": self.env.user.id})
         return True
+
+    def _check_increase_gate(self):
+        """A debit note adds to what is owed, so it passes what a bill of that
+        value passes. It was approved by any one accountant and netted into the
+        next payment run: past the three-way match and past the matrix.
+
+        Match: a PO bill rises only to the value its PO approval covers.
+        Matrix: the approver may sign the top level the amount needs (all the
+        increases on the bill together, so one note is not split into several).
+        The note has one approver stamp, so the top level signs for the lot."""
+        self.ensure_one()
+        inv, user = self.invoice_id, self.env.user
+        posted = inv.note_ids.filtered(lambda n: n.state in ("approved", "applied")) - self
+        raised = posted.filtered(lambda n: n.note_type == "increase")
+        if inv.match_state not in PAYABLE_MATCH_STATES:
+            raise UserError(
+                "G3-06: bill %s is %s (%s): it takes no debit note until its three-way "
+                "match holds." % (inv.invoice_ref, inv.match_state, inv.match_detail)
+            )
+        room = inv._ap_po_headroom()
+        if room is not None:
+            credited = sum((posted - raised).mapped("amount"))
+            net = self.amount + sum(raised.mapped("amount")) - credited
+            if net > room + 0.01:
+                raise UserError(
+                    "G3-06: debit note %s would lift bill %s by BDT %.2f, but its purchase order "
+                    "covers BDT %.2f more for the quantities billed. A price increase needs a "
+                    "PO change order first; a further quantity is a new bill."
+                    % (self.name, inv.invoice_ref, net, max(room, 0.0))
+                )
+        total = self.total + sum(raised.mapped("total"))
+        levels = inv._ap_levels(amount=total)
+        if not levels:
+            raise UserError(
+                "No approval-matrix level covers BDT %.2f in %s — maintain the AP approval "
+                "matrix first" % (total, inv.company_id.name)
+            )
+        top = levels[-1]
+        if not inv._ap_may_sign(user, top):
+            raise UserError(
+                "AP approval matrix: debit notes on bill %s add BDT %.2f, which level %d (%s) "
+                "approves — a member of %s."
+                % (inv.invoice_ref, total, top.level, top.name, top.group_id.display_name)
+            )
 
     def action_cancel(self):
         for note in self:

@@ -144,13 +144,42 @@ def so(odoo_env):
     env = odoo_env
     x = types.SimpleNamespace(env=env)
     x.clerk = _user(env, "clerk")
+    x.clerk2 = _user(env, "clerk2")  # approves what the clerk prepared
     x.cashier = _user(env, "cashier", "cd_service_order.group_so_cashier")
+    # M04, when installed (this module does not depend on it): the Front Desk
+    # Cashier who opens the branch's cash drawer
+    x.drawer_cashier = (
+        _user(env, "drawer", "cd_front_desk.group_fd_cashier") if "fix.cash.shift" in env else None
+    )
     x.accountant = _user(env, "acct", ACCOUNTANT)
     x.branch = _branch(env)
     x.customer = env["res.partner"].create({"name": "A02 HB Customer", "phone": "01711000444"})
     brand = env["fix.brand"].create({"name": "A02HBBrand", "code": "A2HB"})
     x.model = env["fix.device.model"].create({"name": "A02HB Model", "brand_id": brand.id})
     return x
+
+
+def _open_drawer(so):
+    """The branch's open cash shift (M04): counter cash is refused without one.
+    Opened the way the counter opens it, by a Front Desk Cashier on a float.
+    None when cd_front_desk is not installed and the order takes the cash alone."""
+    if so.drawer_cashier is None:
+        return None
+    Shift = so.env["fix.cash.shift"]
+    shift = Shift._fd_open_shift_for(so.branch)
+    if not shift:
+        operator = so.env["hr.employee"].create(
+            {"name": "A02 HB Drawer Cashier", "user_id": so.drawer_cashier.id}
+        )
+        shift = Shift.with_user(so.drawer_cashier).create(
+            {
+                "branch_id": so.branch.id,
+                "operating_unit_id": so.branch.operating_unit_id.id,
+                "operator_id": operator.id,
+                "opening_float": 1000.0,
+            }
+        )
+    return shift
 
 
 def _paid_order(so, amount=3000.0, settle=3450.0):
@@ -196,9 +225,15 @@ def _paid_order(so, amount=3000.0, settle=3450.0):
         )
     )
     est.action_send()
-    est.action_approve()
+    # not its preparer (segregation of duties): at this amount no customer
+    # code is asked, so a second member of staff records the approval
+    est.with_user(so.clerk2).action_approve()
+    shift = _open_drawer(so)
+    taken = shift.cash_payments if shift else 0.0
     o.with_user(so.cashier).action_mark_settled("POS-HB-%d" % n, settle)
     assert o.payment_settlement_state == "settled" and o.amount_settled_bdt == settle
+    if shift:  # the counter cash is in the drawer, not only on the order
+        assert o.counter_shift_id == shift and shift.cash_payments == taken + settle
     return o
 
 
@@ -332,7 +367,9 @@ def test_a_refund_with_an_invoice_raises_a_draft_credit_note(so):
     note.with_user(acct).action_submit()
     # A08 S3: submitting approves nothing; the submitter never approves it
     assert note.state == "pending_approval" and not note.approved_by
-    assert "Segregation of duties" in _attempt(so.env, lambda: note.with_user(acct).action_approve())
+    assert "Segregation of duties" in _attempt(
+        so.env, lambda: note.with_user(acct).action_approve()
+    )
 
 
 def test_a_forged_refund_event_is_refused(so):

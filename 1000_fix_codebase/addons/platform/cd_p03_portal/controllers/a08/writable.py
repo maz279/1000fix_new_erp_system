@@ -48,6 +48,18 @@ WRITABLE = {
             "rule_id",
         }
     ),
+    "fix.ap.takeon.batch": frozenset(
+        {
+            "contra_account_id",
+            "control_account_id",
+            "import_ref",
+            "legacy_account_code",
+            "source_file",
+            "source_filename",
+            "takeon_date",
+        }
+    ),
+    "fix.ap.takeon.line": frozenset(),
     "fix.ar.consolidated.bill": frozenset(),
     "fix.ar.dispute": frozenset(),
     "fix.ar.ecl.rate": frozenset(
@@ -212,6 +224,17 @@ WRITABLE = {
             "matched_payment_id",
         }
     ),
+    "fix.bank.takeon.batch": frozenset(
+        {
+            "bank_gl_account_id",
+            "bank_gl_code",
+            "company_id",
+            "contra_account_id",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.bank.takeon.line": frozenset(),
     "fix.board.pack": frozenset(
         {
             "date_from",
@@ -328,8 +351,6 @@ WRITABLE = {
             "name_bn",
             "operating_unit_id",
             "requires_dimension",
-            # required by the model (COA-05) — without it in the whitelist a
-            # +New from the workspace form could never succeed (2026-11-07)
             "statutory_group",
             "vat_relevant",
         }
@@ -348,53 +369,6 @@ WRITABLE = {
             "source_file",
         }
     ),
-    # 2026-11-09: the in-flight ledger take-on loader (A08) — read-only
-    # here until its owning session declares its editable fields; the
-    # actions carry the workflow, the form only configures the source.
-    "fix.ledger.takeon.batch": frozenset(
-        {
-            "company_id",
-            "source_file",
-            "source_filename",
-        }
-    ),
-    "fix.ledger.takeon.line": frozenset(),
-    # 2026-11-09: the legacy bank-ledger take-on (AB Bank capability report
-    # R3) — same posture: the form configures the source + target GL, the
-    # actions carry the workflow (stage → validate → post → rollback).
-    "fix.bank.takeon.batch": frozenset(
-        {
-            "company_id",
-            "source_file",
-            "source_filename",
-            "import_ref",
-            "bank_gl_code",
-            "contra_account_id",
-        }
-    ),
-    "fix.bank.takeon.line": frozenset(),
-    # 2026-11-09 (M52 AP take-on): read-only until its owning session wires
-    # editable fields — same posture as every take-on lane.
-    "fix.ap.takeon.batch": frozenset(
-        {
-            "company_id",
-            "source_file",
-            "source_filename",
-        }
-    ),
-    "fix.ap.takeon.line": frozenset(),
-    # 2026-11-09: the legacy GL control-ledger import (AR 201 report) —
-    # same posture: the form configures the source, the actions carry the
-    # workflow (stage → validate → post → rollback).
-    "fix.legacy.ledger.batch": frozenset(
-        {
-            "company_id",
-            "source_file",
-            "source_filename",
-            "legacy_account_code",
-        }
-    ),
-    "fix.legacy.ledger.line": frozenset(),
     "fix.cheque": frozenset(
         {
             "amount",
@@ -772,6 +746,26 @@ WRITABLE = {
         }
     ),
     "fix.lease.schedule.line": frozenset(),
+    "fix.ledger.takeon.batch": frozenset(
+        {
+            "contra_account_id",
+            "import_ref",
+            "source_file",
+            "source_filename",
+            "takeon_date",
+        }
+    ),
+    "fix.ledger.takeon.line": frozenset(),
+    "fix.legacy.ledger.batch": frozenset(
+        {
+            "contra_account_id",
+            "control_account_id",
+            "legacy_account_code",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.legacy.ledger.line": frozenset(),
     "fix.mushak.correction": frozenset(
         {
             "correction_type",

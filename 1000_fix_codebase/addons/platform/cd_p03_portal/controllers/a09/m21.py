@@ -164,6 +164,18 @@ def _employees(env):
     return env["hr.employee"].search([])
 
 
+def _unit_name(unit) -> str:
+    """An operating unit's display name for a report's branch column.
+
+    Read sudo, the NAME only: the caller may read just their own units (record
+    rule "Allowed operating units") while the employees they are entitled to
+    count sit in branch units, and reading the label as the caller raised an
+    AccessError that took the whole aggregate down. Which employees are
+    counted is still decided by the caller's own search above — this widens
+    nothing but the label."""
+    return unit.sudo().name if unit else "Unassigned"
+
+
 def headcount_movement(env, date_from=None, date_to=None, **params):
     """Headcount and movement for the period: opening, joiners, leavers,
     closing, by branch."""
@@ -189,24 +201,16 @@ def headcount_movement(env, date_from=None, date_to=None, **params):
     rows = []
     branches = {}
     for emp in employees:
-        key = emp.operating_unit_id.name if emp.operating_unit_id else "Unassigned"
+        key = _unit_name(emp.operating_unit_id)
         branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
         branches[key]["head"] += 1
     for contract in contracts:
         if contract.joining_date and str(start) <= str(contract.joining_date) <= str(end):
-            key = (
-                contract.employee_id.operating_unit_id.name
-                if contract.employee_id.operating_unit_id
-                else "Unassigned"
-            )
+            key = _unit_name(contract.employee_id.operating_unit_id)
             branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
             branches[key]["joiners"] += 1
     for exit_rec in exits:
-        key = (
-            exit_rec.employee_id.operating_unit_id.name
-            if exit_rec.employee_id.operating_unit_id
-            else "Unassigned"
-        )
+        key = _unit_name(exit_rec.employee_id.operating_unit_id)
         branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
         branches[key]["leavers"] += 1
     for key, v in sorted(branches.items()):
@@ -218,9 +222,7 @@ def headcount_movement(env, date_from=None, date_to=None, **params):
                 "joiners": v["joiners"],
                 "leavers": v["leavers"],
                 "transfers": len(
-                    movement.filtered(
-                        lambda m, k=key: (m.to_operating_unit_id.name or "Unassigned") == k
-                    )
+                    movement.filtered(lambda m, k=key: _unit_name(m.to_operating_unit_id) == k)
                 ),
                 "closing": v["head"],
             }
@@ -267,7 +269,8 @@ def attrition_analysis(env, date_from=None, date_to=None, **params):
         g = groups.setdefault(key, {"count": 0, "branches": set()})
         g["count"] += 1
         if rec.employee_id.operating_unit_id:
-            g["branches"].add(rec.employee_id.operating_unit_id.name)
+            # counted, never shown: the id is enough (no label read as the caller)
+            g["branches"].add(rec.employee_id.operating_unit_id.id)
     rows = [
         {
             "exit_type": dict(env["fix.hr.exit"]._fields["exit_type"].selection).get(k),
@@ -384,7 +387,7 @@ def org_distribution(env, date_from=None, date_to=None, **params):
     employees = _employees(env)
     groups = {}
     for emp in employees:
-        branch = emp.operating_unit_id.name if emp.operating_unit_id else "Unassigned"
+        branch = _unit_name(emp.operating_unit_id)
         pos = emp.position_id.name if emp.position_id else "No position"
         key = (branch, pos)
         groups[key] = groups.get(key, 0) + 1

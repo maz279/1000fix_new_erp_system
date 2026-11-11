@@ -24,7 +24,7 @@ export const MODULE = {
     ]},
     { en: 'Booking', screens: [
       { id: 'M13-reservations', en: 'Reservations', bn: 'বুকিং রেজিস্ট্রি', t: 'g' },
-      { id: 'M13-agreements', en: 'Rental Agreements', bn: 'ভাড়া চুক্তিপত্র', t: 'f' },
+      { id: 'M13-agreements', en: 'Rental Agreements', bn: 'ভাড়া চুক্তিপত্র', t: 'g' },
       { id: 'M13-deposits', en: 'Security Deposits', bn: 'জামানত খতিয়ান', t: 'g' }
     ]},
     { en: 'Lifecycle', screens: [
@@ -204,8 +204,6 @@ export const SCREENS = {
         ] },
       { tab: 'inspection', title: 'Condition & Recovery Dossier',
         fields: [
-          { name: 'actual_return_date', label: 'Return Intake Date', readonly: true },
-          { name: 'state', label: 'Lifecycle Assessment State', readonly: true },
           { name: 'excess_billed', label: 'Excess / Damage Billed (BDT)', readonly: true },
           { name: 'excess_invoice_id', label: 'Excess Charges Invoice (M20)', readonly: true },
           { name: 'mushak_6_3_id', label: 'Rental Mushak 6.3', readonly: true }
@@ -220,9 +218,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & Electronic Execution',
         note: 'SHA-256 e-signed rental agreement, stamp paper scan, customer NID scan, and pre/post inspection photos.',
-        fields: [
-          { name: 'signature_ref', label: 'Signed Agreement Receipt Token', readonly: true }
-        ] }
+        fields: [] }
     ]
   },
 
@@ -278,9 +274,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & E-Sign Stamp',
         note: 'Tamper-evident legal agreement copy and customer verification proofs.',
-        fields: [
-          { name: 'signature_ref', label: 'Signed Document Token', readonly: true }
-        ] }
+        fields: [] }
     ]
   },
 
@@ -303,8 +297,7 @@ export const SCREENS = {
           { name: 'name', label: 'Report Ref', readonly: true },
           { name: 'reservation_id', required: true, label: 'Reservation' },
           { name: 'rental_asset_id', label: 'Fleet Asset' },
-          { name: 'report_type', required: true, label: 'Inspection Type (Pre/Post)' },
-          { name: 'grade', required: true, label: 'Assessed Grade' }
+          { name: 'report_type', required: true, label: 'Inspection Type (Pre/Post)' }
         ] },
       { tab: 'checklist', title: '15-Point Physical Inspection',
         fields: [
@@ -319,7 +312,7 @@ export const SCREENS = {
         ] },
       { tab: 'regrade', title: 'Grade Recommendation & Observations',
         fields: [
-          { name: 'grade', label: 'Condition Grade (A/B/C/D)' },
+          { name: 'grade', required: true, label: 'Condition Grade (A/B/C/D)' },
           { name: 'notes', type: 'text', label: 'Inspector Findings & Damage Notes' }
         ] },
       { tab: 'inspector', title: 'Inspector & Submission Date',
@@ -449,9 +442,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Asset Provenance & Invoice Vault',
         note: 'Original purchase invoice, manufacturer warranty certificate, calibration records, and equipment photos.',
-        fields: [
-          { name: 'name', label: 'Asset Identifier Stamp', readonly: true }
-        ] }
+        fields: [] }
     ]
   },
 
@@ -493,9 +484,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Kit Manifest & Assembly Guide',
         note: 'Standard packing layout photograph, accessory check-sheet, and cable diagram.',
-        fields: [
-          { name: 'name', label: 'Kit Master Token', readonly: true }
-        ] }
+        fields: [] }
     ]
   },
 
@@ -545,9 +534,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Bank Voucher & MFS Proof Vault',
         note: 'Bank deposit receipt, customer refund acknowledgment, and signed waiver form.',
-        fields: [
-          { name: 'reference', label: 'Transaction Verification Token', readonly: true }
-        ] }
+        fields: [] }
     ]
   },
 
@@ -600,9 +587,7 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Turnaround Sign-Off Vault',
         note: 'Quality sign-off certificate, sanitized asset photo, and calibration report.',
-        fields: [
-          { name: 'name', label: 'QA Acceptance Token', readonly: true }
-        ] }
+        fields: [] }
     ]
   }
 };

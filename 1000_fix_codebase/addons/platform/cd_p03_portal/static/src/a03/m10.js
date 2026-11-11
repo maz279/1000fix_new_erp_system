@@ -429,9 +429,7 @@ export const SCREENS = {
         tab: 'docs',
         title: 'Terms, Conditions & Member Documents',
         note: 'Programme terms of service and tier rules live on the Programme master (M10 Programmes form — Expiry Policy tab). Manual credit approvals (>500 pts) attach their DOFA justification to the adjustment ledger line; the checksummed repository (fix.document, M24) is the estate-wide archive — a direct wallet→document relation is a declared platform gap.',
-        fields: [
-          { name: 'program_id', label: 'Governing Programme Terms (M10 Programmes)', readonly: true }
-        ]
+        fields: []
       },
       {
         tab: 'audit',
@@ -621,7 +619,6 @@ export const FORM_CHIPS = {
     'M10-wallet': 'M10-form-account',
     'M10-referral': 'M10-form-referral',
     'M10-ledger': 'M10-form-adjustment',
-    'M10-vouchers': 'M10-form-voucher-campaign',
     'M10-hooks': 'M10-form-voucher-campaign'
   }
 };

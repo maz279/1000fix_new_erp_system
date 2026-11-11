@@ -244,7 +244,9 @@ def test_tender_vat_split_and_mushak_number(m04):
     other = m.sale(s, price=1150.0)
     with _refused(m.env, UserError, "cash tendered"):
         other.action_confirm()
-    m.sale(s, price=1150.0, method="bkash").action_confirm()  # not cash: no tender
+    mfs = m.sale(s, price=1150.0, method="bkash")
+    mfs.write({"transaction_ref": "TRX-P2-0001"})  # not cash: its TrxID, no tender
+    mfs.action_confirm()
 
 
 # ============================================================ P2 order cash
@@ -279,6 +281,9 @@ def test_m01_counter_settlement_lands_in_the_drawer(m04):
 def test_counter_cash_with_no_open_shift_is_a_switch(m04):
     m = m04
     so_cashier = _user(m, "socash2", "cd_service_order.group_so_cashier")
+    # switched off by an explicit "0" (an absent parameter now means ON: see
+    # test_a02_authz_accuracy_m04)
+    m.env["ir.config_parameter"].set_param("cd_front_desk.order_cash_requires_open_shift", "0")
     order = _order(m)
     order.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-0002", "counter")
     assert not order.counter_shift_id and order.payment_settlement_state == "settled"

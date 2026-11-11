@@ -30,6 +30,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
+from .fix_gl_ext import require_takeon_authority
+
 _logger = logging.getLogger(__name__)
 
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -189,49 +191,30 @@ class FixApTakeonBatch(models.Model):
                 }
             )
         except Exception:
-            try:
-                return Account.create(
-                    {
-                        "name": "Account Payable (Legacy 200101 Control)",
-                        "account_type": "liability_current",
-                        "reconcile": False,
-                        "code_store": {str(self.company_id.id): code},
-                    }
+            # no second create through a stringified code_store: that path left
+            # duplicate, mis-coded accounts on the real chart (Nov 2026)
+            _logger.exception("legacy AP control account create failed")
+            raise UserError(
+                _(
+                    "Could not create the legacy AP control account %s. Create it "
+                    "on the posting chart first, or pick an existing account."
                 )
-            except Exception:
-                _logger.exception("legacy AP control account create failed")
-                raise UserError(
-                    _(
-                        "Could not create the legacy AP control account %s. Create it "
-                        "on the posting chart first, or pick an existing account."
-                    )
-                    % code
-                ) from None
+                % code
+            ) from None
 
     def _ensure_contra_account(self):
         """The same tier-1 contra the partner-ledger and legacy-AR take-ons
         wash against, so all legacy lanes reconcile in one place."""
         self.ensure_one()
-        Account = self.env["account.account"]
-        existing = Account.search([("name", "=", "Legacy Ledger Take-on Contra")], limit=1)
-        if existing:
-            return existing
-        try:
-            return Account.create(
-                {
-                    "name": "Legacy Ledger Take-on Contra",
-                    "code": "2-99-99-901",
-                    "account_type": "liability_current",
-                }
-            )
-        except Exception:
-            return Account.create(
-                {
-                    "name": "Legacy Ledger Take-on Contra",
-                    "account_type": "liability_current",
-                    "code_store": {str(self.company_id.id): "2-99-99-901"},
-                }
-            )
+        from .fix_gl_ext import ensure_legacy_account
+
+        return ensure_legacy_account(
+            self.env,
+            self.company_id,
+            "Legacy Ledger Take-on Contra",
+            "2.99.99.901",
+            "liability_current",
+        )
 
     def _resolve_branch(self, label):
         """Crosswalk the register's Branch label to fix.branch: exact, then
@@ -388,6 +371,7 @@ class FixApTakeonBatch(models.Model):
         resolved branch + its operating unit on every line's dimension row,
         and the net on the take-on contra account."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Posting a legacy take-on")
         if self.state != "validated":
             raise UserError(_("Validate the register first."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
@@ -498,6 +482,7 @@ class FixApTakeonBatch(models.Model):
         """Reverse the opening entry (mirror entry through the same funnel)
         and park the batch. The voucher rows stay staged for a corrected run."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Rolling back a legacy take-on")
         if self.state != "posted" or not self.posted_move_id:
             raise UserError(_("Only a posted take-on can be rolled back."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

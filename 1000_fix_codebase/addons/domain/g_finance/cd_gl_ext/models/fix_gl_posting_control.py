@@ -16,6 +16,9 @@
 #   account.move.button_draft
 #                          a posted manual entry is never reset (BRU-FIN-12:
 #                          reverse it); a superuser reset voids its approval.
+#   account.move.write     `state` changes only inside _post / button_draft /
+#                          button_cancel, never by a write of the field; the
+#                          auto-post job posts no manual entry without the token.
 #   fix.journal.approval   the routed (M63) DOFA approval of one manual entry.
 #   fix.period.reopen      the only way into a closed period: a time-boxed lock
 #                          exception for one named user, approved by an
@@ -56,6 +59,10 @@ _LOCK_EXC_TOKEN = object()
 # Control-flag changes applied by an approved proposal carry this token.
 CONTROL_KEY = "fix_m19_control_change"
 _CONTROL_TOKEN = object()
+# Odoo's own status writes inside _post / button_draft / button_cancel carry
+# this token; a write that changes `state` without it is refused.
+STATE_KEY = "fix_m19_state_change"
+_STATE_TOKEN = object()
 
 # Manual-journal materiality bands (A08 S2 / P1-1). The spec gives no figure
 # ("within the authority matrix", M19 §8 / AUT-FIN-14; decision B3), so the
@@ -179,16 +186,41 @@ class AccountMove(models.Model):
                     % (move.display_name, move.date, lock)
                 )
 
+    # ---- the status changes only through its methods -----------------------
+    def _fix_state_ctx(self):
+        return self.with_context(**{STATE_KEY: _STATE_TOKEN})
+
+    def write(self, vals):
+        # `state` set by a plain write skips _post altogether: no maker-checker,
+        # no number, no lock check, and a posted entry goes back to draft to be
+        # edited. (Odoo itself refuses an entry created posted.) Superuser code
+        # is trusted, as elsewhere in this file.
+        if (
+            "state" in vals
+            and not self.env.su
+            and self.env.context.get(STATE_KEY) is not _STATE_TOKEN
+            and any(move.state != vals["state"] for move in self)
+        ):
+            raise UserError(
+                "The status of a journal entry changes only by posting, resetting or "
+                "cancelling it, never by editing the status itself (BRU-FIN-11, BRU-FIN-12)."
+            )
+        return super().write(vals)
+
     def _post(self, soft=True):
         token = has_m19_token(self.env)
         source = m19_source(self.env)
         manual = self.filtered(lambda m: m._fix_is_manual_entry())
-        if manual and not token and not self.env.su:
+        # Superuser code that posts an entry directly is trusted, except on the
+        # auto-post path: the nightly job runs as the superuser and posts
+        # whatever draft a user flagged, so there only the M19 token admits.
+        unapproved = manual if not self.env.su else manual.filtered(lambda m: m.auto_post != "no")
+        if unapproved and not token:
             raise UserError(
                 "Manual journal entries post only through the M19 maker-checker: draft the "
                 "entry for review and an Accounting Administrator other than you approves it "
                 "(BRU-FIN-11, FR-FIN-014). Entries: %s"
-                % ", ".join(str(m.display_name or m.ref or m.id) for m in manual)
+                % ", ".join(str(m.display_name or m.ref or m.id) for m in unapproved)
             )
         manual_style = manual if (not token or source in MANUAL_POSTING_SOURCES) else self.browse()
         if not self.env.su:
@@ -211,7 +243,8 @@ class AccountMove(models.Model):
                         "Entry %s changed after its approval was requested; the approval no "
                         "longer covers it. Draft it again." % move.display_name
                     )
-        return super()._post(soft)
+        # the token stays inside: what is returned carries the caller's context
+        return super(AccountMove, self._fix_state_ctx())._post(soft).with_env(self.env)
 
     def button_draft(self):
         if not self.env.su:
@@ -221,7 +254,7 @@ class AccountMove(models.Model):
                     "A posted journal entry is never modified (BRU-FIN-12): reverse %s instead."
                     % ", ".join(protected.mapped("name"))
                 )
-        result = super().button_draft()
+        result = super(AccountMove, self._fix_state_ctx()).button_draft()
         approvals = (
             self.env["fix.journal.approval"]
             .sudo()
@@ -230,6 +263,9 @@ class AccountMove(models.Model):
         for approval in approvals:
             approval._fix_void("the entry was reset to draft; its approval no longer covers it")
         return result
+
+    def button_cancel(self):
+        return super(AccountMove, self._fix_state_ctx()).button_cancel()
 
     # ---- the documented M19 API for sub-ledgers (B4/B5 contract) -----------
     @api.model

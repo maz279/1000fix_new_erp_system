@@ -92,6 +92,13 @@ def _q(value):
 PAYABLE_MATCH_STATES = ("matched", "not_required")
 
 
+def _po_price_basis(po_lines):
+    """(approved prices, the unit price a bill may reach) for one product's PO
+    lines: the price the PO approval covered, the live price before approval."""
+    approved = [p.approved_unit_price for p in po_lines if p.approved_qty]
+    return approved, (max(approved) if approved else max(p.unit_price for p in po_lines))
+
+
 class FixVendorInvoice(models.Model):
     """A vendor invoice entering the three-way match (T03)."""
 
@@ -284,6 +291,8 @@ class FixVendorInvoice(models.Model):
     @api.depends(
         "bill_type",
         "requisition_id",
+        "vendor_id.commercial_partner_id",
+        "requisition_id.vendor_id.commercial_partner_id",
         "line_ids.product_id",
         "line_ids.quantity",
         "line_ids.unit_price",
@@ -316,6 +325,17 @@ class FixVendorInvoice(models.Model):
                 inv.match_detail = "No purchase order linked"
                 continue
             po = inv.requisition_id.sudo()
+            # The bill is the PO supplier's own paper: vendor B's bill matched
+            # vendor A's order and receipts, and would have been paid to B.
+            payee = inv.sudo().vendor_id.commercial_partner_id
+            supplier = po.vendor_id.commercial_partner_id
+            if payee != supplier:
+                inv.match_state = "blocked"
+                inv.match_detail = "%s is not the supplier of the purchase order (%s)" % (
+                    payee.display_name or "The bill's vendor",
+                    supplier.display_name,
+                )
+                continue
             my_id = inv._origin.id or inv.id
             saved = isinstance(my_id, int)
             earlier = po.vendor_invoice_ids.filtered(
@@ -371,8 +391,7 @@ class FixVendorInvoice(models.Model):
                     if rejected:
                         text += " (%.2f rejected at inspection)" % rejected
                     problems.append(text)
-                approved = [p.approved_unit_price for p in pols if p.approved_qty]
-                basis = max(approved) if approved else max(p.unit_price for p in pols)
+                approved, basis = _po_price_basis(pols)
                 lines = inv.line_ids.filtered(lambda ln, p=pid: ln.product_id.id == p)
                 ceiling = Decimal(str(basis or 0)) + TOLERANCE
                 if any(Decimal(str(ln.unit_price)) > ceiling for ln in lines):
@@ -482,6 +501,33 @@ class FixVendorInvoice(models.Model):
         )
 
     # ------------------------------------------------------------ workflow --
+    def _check_match_gate(self, doing):
+        """G3-06 before the liability is approved and posted, not only when it
+        is paid: a blocked or unmatched PO bill was submitted, approved and
+        posted to the GL. A non-PO bill ('not_required') keeps its route."""
+        self.ensure_one()
+        if self.match_state not in PAYABLE_MATCH_STATES:
+            raise UserError(
+                "G3-06: bill %s cannot be %s while its three-way match is %s (%s)"
+                % (self.invoice_ref, doing, self.match_state, self.match_detail)
+            )
+
+    def _ap_po_headroom(self):
+        """What the PO's approved prices still allow on top of this bill, for
+        the quantities it invoices; None for a non-PO bill."""
+        self.ensure_one()
+        if self.bill_type != "po":
+            return None
+        po_lines = defaultdict(list)
+        for po_line in self.requisition_id.sudo().line_ids:
+            po_lines[po_line.product_id.id].append(po_line)
+        ceiling = sum(
+            line.quantity * _po_price_basis(po_lines[line.product_id.id])[1]
+            for line in self.line_ids
+            if po_lines.get(line.product_id.id)
+        )
+        return _q(ceiling - self.subtotal)
+
     def _log(self, action, rule=None, note=None):
         self.ensure_one()
         self.env["fix.ap.approval.log"].sudo().create(
@@ -507,6 +553,7 @@ class FixVendorInvoice(models.Model):
                 raise UserError("Bill %s is already %s" % (inv.invoice_ref, inv.approval_state))
             if not inv.line_ids or inv.subtotal <= 0:
                 raise UserError("Bill %s has no positive lines" % inv.invoice_ref)
+            inv._check_match_gate("submitted for approval")
             dup = inv._duplicates()
             if dup:
                 raise UserError(
@@ -599,8 +646,9 @@ class FixVendorInvoice(models.Model):
         )
         return bool(higher.mapped("group_id") & groups)
 
-    def _ap_levels(self):
-        """The matrix levels this bill needs, in order. The default ladder is
+    def _ap_levels(self, amount=None):
+        """The matrix levels this bill needs, in order (or, with `amount`, the
+        levels a bill of that gross would need). The default ladder is
         the AP matrix's own bands (every active level whose minimum the gross
         reaches). When an M30 DOFA ladder is RULED for fix.vendor.invoice (the
         one DoA table, fix.dofa.ladder), it decides how many levels the
@@ -609,13 +657,14 @@ class FixVendorInvoice(models.Model):
         the ruling fails closed."""
         self.ensure_one()
         Rule = self.env["fix.ap.approval.rule"]
-        levels = Rule.levels_for(self.gross_amount, self.company_id)
+        gross = self.gross_amount if amount is None else amount
+        levels = Rule.levels_for(gross, self.company_id)
         ruled = None
         if "fix.dofa.ladder" in self.env:
             ruled = self.env["fix.dofa.ladder"].thresholds_for(self._name, company=self.company_id)
         if not ruled:
             return levels
-        amount = abs(self.gross_amount or 0.0)
+        amount = abs(gross or 0.0)
         tier = next((t for bound, t in ruled if amount <= bound), ruled[-1][1])
         try:
             count = max(int(str(tier).rsplit("_", 1)[-1]), 1)
@@ -647,6 +696,8 @@ class FixVendorInvoice(models.Model):
         for inv in self:
             if inv.approval_state != "to_approve":
                 raise UserError("Bill %s is not awaiting approval" % inv.invoice_ref)
+            # re-read at every level: a match can break after submission
+            inv._check_match_gate("approved")
             levels = inv._ap_levels()
             if not levels:
                 raise UserError(
@@ -727,6 +778,7 @@ class FixVendorInvoice(models.Model):
         """Dr expense / GRNI, Dr input VAT; Cr TDS payable, Cr VDS payable,
         Cr trade payables — then the deduction lines and the input credit."""
         self.ensure_one()
+        self._check_match_gate("posted")
         env, company = self.env, self.company_id
         partner = self.vendor_id.commercial_partner_id
         label = "Bill %s %s" % (partner.name, self.invoice_ref)
@@ -1077,6 +1129,20 @@ class FixVendorInvoiceLine(models.Model):
     def _compute_line(self) -> None:
         for line in self:
             line.line_total = line.quantity * line.unit_price
+
+    @api.constrains("quantity", "unit_price")
+    def _check_signs(self):
+        # On the line, where it is written (a constraint on the bill's one2many
+        # does not fire for a line created or edited by itself). The match sums
+        # quantities: a -10 line at price 0 netted a bill for 20 down to the 10
+        # received, and it read 'matched'.
+        for line in self:
+            if line.quantity <= 0 or line.unit_price < 0:
+                raise ValidationError(
+                    "Bill line %s: the quantity must be positive and the unit price not "
+                    "negative. A reduction is the vendor's credit note (Mushak 6.7)."
+                    % (line.description or line.id)
+                )
 
     @api.depends(
         "line_total",

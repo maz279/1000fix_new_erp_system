@@ -72,7 +72,6 @@ WRITABLE = {
     ),
     "fix.document.template": frozenset(
         {
-            "active",
             "code",
             "document_type",
             "name",
@@ -323,6 +322,7 @@ WRITABLE = {
             "review_id",
         }
     ),
+    "fix.qms.review.input": frozenset(),
     "fix.retention.class": frozenset(
         {
             "active",

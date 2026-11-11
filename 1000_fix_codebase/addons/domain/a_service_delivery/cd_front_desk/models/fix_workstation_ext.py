@@ -571,6 +571,17 @@ class FixCounterSale(models.Model):
                     "Manager must approve this price before the sale is confirmed."
                     % (sale.name, sale.unit_price, sale.product_id.lst_price)
                 )
+            if sale.payment_method != "cash" and not (sale.transaction_ref or "").strip():
+                # no drawer counts this money: the TrxID / card slip is the only
+                # thing the MFS or POS statement can be matched to
+                raise UserError(
+                    "Sale %s is paid by %s: enter its transaction reference (the bKash / "
+                    "Nagad TrxID or the card slip number) before confirming."
+                    % (
+                        sale.name,
+                        dict(sale._fields["payment_method"].selection)[sale.payment_method],
+                    )
+                )
             if sale.payment_method == "cash":
                 tendered = sale.tendered_amount or 0.0
                 if tendered and tendered + 0.005 < sale.total:

@@ -25,6 +25,19 @@ from .fix_inventory_approval import VALUED_CLASSES
 
 FINANCE_ADMIN_GROUP = "account.group_account_manager"
 
+# The GL account the period close moves this suspense off. 110999 is the
+# development chart's code; a company on its own chart (the real legacy chart
+# has no 110999) names its account in this parameter, or the close refuses.
+SUSPENSE_ACCOUNT_PARAM = "cd_inventory.valuation_suspense_account_code"
+DEFAULT_SUSPENSE_ACCOUNT_CODE = "110999"
+
+
+def suspense_account_code(env):
+    """The account code every new suspense row is stamped with."""
+    code = env["ir.config_parameter"].sudo().get_param(SUSPENSE_ACCOUNT_PARAM) or ""
+    return code.strip() or DEFAULT_SUSPENSE_ACCOUNT_CODE
+
+
 # How each entry type moves the company's stock value. Consumption and return
 # predate this file and carry the VALUE CONSUMED (an issue +, its return -);
 # every later type carries the stock movement itself (+ in, - out).
@@ -124,8 +137,9 @@ class FixInventoryValuationSuspense(models.Model):
     suspense_account_code = fields.Char(
         string="Suspense Account Code",
         required=True,
-        default="110999",
-        help="Suspense clearing account code (M15->M19 stub)",
+        default=lambda self: suspense_account_code(self.env),
+        help="Suspense clearing account code (system parameter %s, default %s)"
+        % (SUSPENSE_ACCOUNT_PARAM, DEFAULT_SUSPENSE_ACCOUNT_CODE),
     )
     status = fields.Selection(
         [
@@ -255,7 +269,7 @@ class FixInventoryValuationSuspense(models.Model):
                 "total_valuation": round(quantity * (unit_cost or 0.0), 2),
                 "entry_type": entry_type,
                 "source_ref": source_ref or False,
-                "suspense_account_code": "110999",
+                "suspense_account_code": suspense_account_code(self.env),
                 "status": "pending_gl_cutover",
             }
         )

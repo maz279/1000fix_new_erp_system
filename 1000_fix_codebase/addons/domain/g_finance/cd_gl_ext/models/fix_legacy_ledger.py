@@ -31,6 +31,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
+from .fix_gl_ext import ensure_legacy_account, require_takeon_authority
+
 _logger = logging.getLogger(__name__)
 
 # Legacy journal-entry prefixes in the 201 export -> (target journal code on
@@ -250,26 +252,13 @@ class FixLegacyLedgerBatch(models.Model):
 
     def _ensure_contra_account(self):
         self.ensure_one()
-        Account = self.env["account.account"]
-        existing = Account.search([("name", "=", "Legacy Ledger Take-on Contra")], limit=1)
-        if existing:
-            return existing
-        try:
-            return Account.create(
-                {
-                    "name": "Legacy Ledger Take-on Contra",
-                    "code": "2-99-99-901",
-                    "account_type": "liability_current",
-                }
-            )
-        except Exception:
-            return Account.create(
-                {
-                    "name": "Legacy Ledger Take-on Contra",
-                    "account_type": "liability_current",
-                    "code_store": {str(self.company_id.id): "2-99-99-901"},
-                }
-            )
+        return ensure_legacy_account(
+            self.env,
+            self.company_id,
+            "Legacy Ledger Take-on Contra",
+            "2.99.99.901",
+            "liability_current",
+        )
 
     # --------------------------------------------------------- actions
     def action_stage(self):
@@ -477,6 +466,7 @@ class FixLegacyLedgerBatch(models.Model):
         operating unit on every line's dimension row), one contra line for
         the net. Quarantined lines never post; their total is logged."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Posting a legacy take-on")
         if self.state != "validated":
             raise UserError(_("Validate the batch first."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
@@ -598,6 +588,7 @@ class FixLegacyLedgerBatch(models.Model):
         archive lines stay — they are the evidence; only the ledger position
         rolls back."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Rolling back a legacy take-on")
         if self.state != "posted" or not self.posted_move_id:
             raise UserError(_("Only a posted import can be rolled back."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

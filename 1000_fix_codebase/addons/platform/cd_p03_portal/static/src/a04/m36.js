@@ -20,7 +20,7 @@ export const MODULE = {
   groups: [
     { en: 'Estimates', screens: [
       { id: 'M36-estimates', en: 'Internal Estimates', bn: 'অভ্যন্তরীণ এস্টিমেট', t: 'g' },
-      { id: 'M36-buildup', en: 'Build-Up Workbench', bn: 'বিল্ড-আপ', t: 'f' }
+      { id: 'M36-buildup', en: 'Build-Up Workbench', bn: 'বিল্ড-আপ', t: 'g' }
     ]},
     { en: 'Quotations', screens: [
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
@@ -35,7 +35,7 @@ export const MODULE = {
     ]},
     { en: 'Tenders', screens: [
       { id: 'M36-tenders', en: 'Tenders & Bids', bn: 'দরপত্র', t: 'g' },
-      { id: 'M36-compliance', en: 'Compliance Matrix', bn: 'কমপ্লায়েন্স ম্যাট্রিক্স', t: 'f' },
+      { id: 'M36-compliance', en: 'Compliance Matrix', bn: 'কমপ্লায়েন্স ম্যাট্রিক্স', t: 'r' },
       { id: 'M36-bonds', en: 'Bid Bonds', bn: 'বিড বন্ড', t: 'g' },
       { id: 'M36-variations', en: 'Variation Orders', bn: 'ভেরিয়েশন অর্ডার', t: 'g' }
     ]}
@@ -63,9 +63,9 @@ export const SCREENS = {
     cols: ["name", "customer_id", "state", "currency_id", "create_date", "company_id", "estimate_id"] },
   'M36-esign': { kind: 'table_report', module: 'M36', report: 'esign_status', title: 'E-Signature Status', period: true },
   'M36-loop': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at", "create_uid"] },
+    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"] },
   'M36-internal': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at", "create_uid"] },
+    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"] },
   'M36-declined': { kind: 'table_report', module: 'M36', report: 'decline_pareto', title: 'Decline Pareto', period: true },
   // A04 audit M36-7 (C2-C13 build 2026-11-04): a tender moves only through
   // these. The bid decision and the award are the Tender Committee's; a win
@@ -196,7 +196,9 @@ export const SCREENS = {
         { name: 'labour_total', label: 'Labour Total', readonly: true },
         { name: 'diagnostic_total', label: 'Diagnostic Total', readonly: true },
         { name: 'discount', label: 'Discount' },
-        { name: 'vat_rate', label: 'VAT Rate (%)' },
+        // the rate is the model's: statutory by default, a scheduled reduced
+        // rate only by a commercial approver's action - never free entry
+        { name: 'vat_rate', label: 'VAT Rate (%)', readonly: true },
         { name: 'vat_amount', label: 'VAT Amount', readonly: true },
         { name: 'grand_total', label: 'Grand Total', readonly: true },
         { name: 'discount_pct', label: 'Discount (%)', readonly: true }

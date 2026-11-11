@@ -45,6 +45,14 @@ FINANCE_GROUPS = (
 NATIVE_MUSHAK_SEQUENCE = "cd_tax_engine_bd.mushak_native"
 
 
+def normalize_bin(value) -> str:
+    """The BIN as the register stores it: its 13 digits only. NBR prints the
+    number grouped (`001821833-0401`) and company master data keeps that
+    form; read raw it is 14 characters, which the 13-character register
+    fields cut to `001821833-040` and every Mushak 6.3 was refused."""
+    return re.sub(r"\D", "", str(value or ""))
+
+
 def valid_bin(value) -> bool:
     """A real 13-digit BIN: digits only, never all one digit (0000000000000
     is the placeholder the seed rows carried, not a registration)."""
@@ -691,7 +699,7 @@ class FixMushakRegister(models.Model):
 
     @api.model
     def _fix_company_bin(self, company):
-        bin_no = (company.vat or "").replace(" ", "")
+        bin_no = normalize_bin(company.vat)
         if not valid_bin(bin_no):
             raise UserError(
                 "Company %s has no valid 13-digit BIN — a Mushak 6.3 cannot be issued "

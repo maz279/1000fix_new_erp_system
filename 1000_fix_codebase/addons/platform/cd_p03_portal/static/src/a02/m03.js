@@ -28,7 +28,7 @@ export const MODULE = {
     ]},
     { en: 'Consignments', screens: [
       { id: 'M03-cons', en: 'Consignments', bn: 'কনসাইনমেন্ট', t: 'g' },
-      { id: 'M03-record', en: 'Consignment Record', bn: 'কনসাইনমেন্ট নথি', t: 'f' },
+      { id: 'M03-record', en: 'Consignment Record', bn: 'কনসাইনমেন্ট নথি', t: 'g' },
       { id: 'M03-journeys', en: 'Multi-Leg Journeys', bn: 'মাল্টি-লেগ জার্নি', t: 'g' },
       { id: 'M03-manifest', en: 'Item Manifests', bn: 'আইটেম ম্যানিফেস্ট', t: 'g' }
     ]},
@@ -379,7 +379,7 @@ export const FORM_CHIPS = {
   'M03:Courier Booking': 'M03-form-booking',
   'M03:Damage Claim': 'M03-form-damage-claim',
   'M03:Consignment (5 types)': 'M03-form-consignment',
-  'M03:Rider Shift Open/Close': 'M03-form-rider-shift',
+  'M03:Rider Shift Open / Close': 'M03-form-rider-shift',
   'M03:__by_model__': {
     'fix.courier.partner': 'M03-form-courier',
     'fix.courier.booking': 'M03-form-booking',

@@ -19,6 +19,16 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_ap_takeon_batch_company" model="ir.rule">
+        <field name="name">fix.ap.takeon.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_takeon_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bank_takeon_batch_company" model="ir.rule">
+        <field name="name">fix.bank.takeon.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_bank_takeon_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_chart_account_company" model="ir.rule">
         <field name="name">fix.chart.account: allowed companies</field>
         <field name="model_id" ref="model_fix_chart_account"/>
@@ -121,6 +131,16 @@
         <field name="model_id" ref="model_fix_journal_template"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ledger_takeon_batch_company" model="ir.rule">
+        <field name="name">fix.ledger.takeon.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_ledger_takeon_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_legacy_ledger_batch_company" model="ir.rule">
+        <field name="name">fix.legacy.ledger.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_legacy_ledger_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_period_close_company" model="ir.rule">
         <field name="name">fix.period.close: allowed companies</field>

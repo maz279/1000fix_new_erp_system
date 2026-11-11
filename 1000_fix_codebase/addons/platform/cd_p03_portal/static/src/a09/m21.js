@@ -218,7 +218,6 @@ export const SCREENS = {
         fields: [
           { name: 'father_name', label: "Father's Name" },
           { name: 'mother_name', label: "Mother's Name" },
-          { name: 'spouse_name', label: 'Spouse Legal Name' },
           { name: 'birthday', label: 'Date of Birth' },
           { name: 'sex', label: 'Gender' },
           { name: 'marital', label: 'Marital Status' }
@@ -482,7 +481,6 @@ export const SCREENS = {
         title: 'Physical Metrics & Baseline Vitals',
         note: 'Pre-employment medical clearance and color vision test for soldering/resistor coding.',
         fields: [
-          { name: 'blood_group', label: 'Blood Group' },
           { name: 'color_blindness', label: 'Color Vision Test Status (Ishihara Test)' },
           { name: 'medical_fitness', label: 'Medical Fitness Verdict' },
           { name: 'work_restrictions', label: 'Physical Work Restrictions' }

@@ -124,7 +124,9 @@ class FixStockOnhand(models.Model):
         help="Only unrestricted stock can be reserved or issued (BRU-INV-08).",
     )
     qty = fields.Float(string="Quantity")
-    reserved = fields.Float(string="Reserved")
+    # 0, never NULL: SQL and BI sums over a NULL bucket read "unknown", and the
+    # available-quantity compute already treats a missing value as 0
+    reserved = fields.Float(string="Reserved", default=0.0)
     available_qty = fields.Float(string="Available", compute="_compute_available", store=True)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -283,6 +285,7 @@ class FixStockOnhand(models.Model):
                     "ownership_class": ownership,
                     "stock_status": status,
                     "qty": delta,
+                    "reserved": 0.0,
                     "unit_cost": cost or 0.0,
                     "last_move_date": today,
                 }
@@ -1040,17 +1043,28 @@ class FixStockTransfer(models.Model):
                 locked |= {"line_ids"}
         return locked
 
+    def _fix_line_costs(self):
+        """(quantity, unit cost at the source) of each line."""
+        self.ensure_one()
+        Onhand = self.env["fix.stock.onhand"]
+        cls = location_class(self.from_location_id)
+        rows = []
+        for line in self.line_ids:
+            bucket = Onhand._bucket(line.part_id, self.from_location_id, cls)
+            cost = bucket.unit_cost if bucket else line.part_id.sudo().average_cost
+            rows.append((line.qty or 0.0, cost or 0.0))
+        return rows
+
+    def _fix_cost_known(self) -> bool:
+        """False when any line moves stock that carries no cost: its value is
+        then unknown, which is not the same as small."""
+        self.ensure_one()
+        return all(cost > EPS for _qty, cost in self._fix_line_costs())
+
     @api.depends("line_ids.qty", "line_ids.part_id", "from_location_id")
     def _compute_transfer_value(self):
-        Onhand = self.env["fix.stock.onhand"]
         for rec in self:
-            total = 0.0
-            cls = location_class(rec.from_location_id)
-            for line in rec.line_ids:
-                bucket = Onhand._bucket(line.part_id, rec.from_location_id, cls)
-                cost = bucket.unit_cost if bucket else line.part_id.sudo().average_cost
-                total += (line.qty or 0.0) * (cost or 0.0)
-            rec.transfer_value = round(total, 2)
+            rec.transfer_value = round(sum(q * c for q, c in rec._fix_line_costs()), 2)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1118,8 +1132,10 @@ class FixStockTransfer(models.Model):
             rec._check_serial_lines()
             rec._inv_stamp_request()
             value = rec.sudo().transfer_value
-            if threshold > 0 and value <= threshold:
-                # below the configured threshold no second person is needed
+            # Uncosted stock valued the transfer at BDT 0.00, inside any
+            # threshold: every transfer auto-approved (2026-11-10 audit).
+            if threshold > 0 and rec._fix_cost_known() and value <= threshold:
+                # a known value below the configured threshold needs no second person
                 rec._guarded().write(
                     {
                         "state": "approved",
@@ -2230,12 +2246,21 @@ class FixStockQuarantine(models.Model):
         return True
 
     def action_scrap(self):
-        """Scrap directly when the write-off is within the configured
-        threshold; above it the write-off needs approval first."""
+        """Scrap directly when the write-off has a known value within the
+        configured threshold; above it, or with no cost recorded, the
+        write-off needs approval first."""
         threshold = inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, 0.0)
         for rec in self:
             if rec.state != "quarantined":
                 raise UserError("Scrap a quarantined quantity")
+            if rec._writeoff_value() <= EPS:
+                # BDT 0.00 passed every threshold, the default 0 included, so
+                # uncosted stock was scrapped by one person (2026-11-10 audit)
+                raise UserError(
+                    "%s has no unit cost recorded, so its value cannot be set against the "
+                    "write-off approval threshold: request the write-off and have an "
+                    "Inventory Controller approve it." % rec.name
+                )
             if rec._writeoff_value() > threshold + EPS:
                 raise UserError(
                     "Writing off %s is BDT %.2f, above the write-off approval threshold "

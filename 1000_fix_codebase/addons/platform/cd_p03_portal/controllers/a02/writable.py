@@ -237,7 +237,6 @@ WRITABLE = {
             "signed_estimate_attachment_id",
             "tender_ref",
             "valid_days",
-            "vat_rate",
             "version",
         }
     ),

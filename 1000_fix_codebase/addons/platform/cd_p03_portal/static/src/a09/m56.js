@@ -104,7 +104,7 @@ export const SCREENS = {
   'M56-gratuity': { kind: 'table_report', module: 'M56', report: 'pf_gratuity', title: 'Gratuity & Encashment', period: true },
   /* A09 M56-9: computed per employee (one year's service, capped at one
    * month's basic, r.111(5)); never typed. */
-  'M56-bonus-lines': { kind: 'model_list', model: 'fix.payroll.bonus.line',
+  'M56-bonus-lines': { kind: 'model_list', model: 'fix.payroll.bonus.line', create: false,
     cols: ['run_id', 'employee_id', 'completed_years', 'basic', 'base_amount', 'amount', 'capped'] },
   'M56-bonus': {
     kind: 'model_list', model: 'fix.payroll.bonus.run', stateField: 'state',

@@ -794,9 +794,17 @@ class TestFiscalYearBridge:
         without reading a single journal item."""
         env, company, fy = self._ledger(odoo_env)
         result, data = self._report(env, company, fy, "trial_balance")
-        assert result == {"status": "generated", "type": "trial_balance", "line_count": 3}
+        # Three accounts moved in the year. The fourth line is the 2025 sale brought
+        # forward: 300 on the bank, and its profit as the earlier years' result (this
+        # chart has no undistributed-earnings account). It used to be dropped.
+        assert result == {"status": "generated", "type": "trial_balance", "line_count": 4}
         by_code = {r["account_code"]: r for r in data["lines"]}
         assert (by_code["100100"]["debit"], by_code["100100"]["credit"]) == (1000.0, 400.0)
+        assert (by_code["100100"]["opening_balance"], by_code["100100"]["balance"]) == (
+            300.0,
+            900.0,
+        )
+        assert (by_code[""]["opening_balance"], by_code[""]["balance"]) == (-300.0, -300.0)
         assert by_code["400100"]["balance"] == -1000.0  # FY only: prior-year 300 excluded
         assert by_code["500100"]["balance"] == 400.0  # the 999 draft is not posted
         assert (data["total_debit"], data["total_credit"], data["balanced"]) == (

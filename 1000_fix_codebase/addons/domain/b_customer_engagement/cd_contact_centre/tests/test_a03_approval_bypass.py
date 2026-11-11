@@ -668,10 +668,13 @@ class TestDiscountApproval:
         estimate.with_user(seller).write({"discount": 140.0})  # 14%, still Tier 2
         assert not estimate.dofa_approved
         # A02 audit M01-4: only a sent estimate is approvable, so send it; the
-        # refusal must then come from the withdrawn DOFA sign-off.
+        # refusal must then come from the withdrawn DOFA sign-off. The approval
+        # is pressed by a colleague: the seller prepared the estimate and is
+        # refused on segregation of duties before the sign-off is even read.
         estimate.with_user(seller).action_send()
+        colleague = make_user()
         with pytest.raises(ValidationError, match="sign-off"):
-            estimate.with_user(seller).action_approve()
+            estimate.with_user(colleague).action_approve()
 
     def test_a_front_desk_discount_needs_no_approval(self, env, make_user, estimate_of):
         seller = make_user()

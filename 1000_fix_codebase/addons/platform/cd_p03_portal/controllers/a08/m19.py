@@ -230,6 +230,9 @@ def kpis(env):
     # EVERY posted/validated import batch (the estate runs several legacy
     # control accounts through the same archive lane). None (—) before the
     # first import; measured from the archive tables, never invented.
+    # the tiles are declared on the M19 home, so the keys are always served:
+    # None renders "—" until a batch exists (an absent key is a wiring gap)
+    out.update(legacy_ledger_rows=None, legacy_ledger_net=None, legacy_ledger_branches=None)
     with contextlib.suppress(Exception):
         Batch = env["fix.legacy.ledger.batch"]
         batches = Batch.search([("state", "in", ("validated", "posted"))])

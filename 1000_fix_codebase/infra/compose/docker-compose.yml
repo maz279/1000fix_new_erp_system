@@ -107,7 +107,11 @@ services:
     volumes:
       - cephdata:/var/lib/ceph
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080 || exit 1"]
+      # --max-time is load-bearing: when the OSD goes down RGW accepts the
+      # connection and never answers, and Docker's own timeout does not kill
+      # the probe. 2026-11-10: 15,180 hung curls (14.5 GB) accumulated in two
+      # days and starved Postgres of process slots ("could not fork").
+      test: ["CMD-SHELL", "curl -sf --max-time 4 http://127.0.0.1:8080 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12

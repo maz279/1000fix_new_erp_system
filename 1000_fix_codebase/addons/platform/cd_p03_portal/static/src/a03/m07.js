@@ -484,7 +484,9 @@ export const SCREENS = {
       ]
     }, kind: 'model_form', model: 'crm.lead',
     title: 'Activity (call/visit/meeting)', back: 'M07-activities',
-    status: { field: 'activity_type_id' },
+    // the pill reads the lead's next-activity STATE (a selection); the
+    // activity type is a many2one and rendered as a blank / "[object Object]"
+    status: { field: 'activity_state', labels: { overdue: 'Overdue', today: 'Due Today', planned: 'Planned' } },
     tabs: [
       { id: 'general', label: '1. Lead & Activity', bn: '১. লিড ও কার্যক্রম', icon: '📅', badge: '4' },
       { id: 'schedule', label: '2. Next Activity Schedule', bn: '২. পরবর্তী কার্যক্রম সময়সূচি', icon: '⏰', badge: '3' },
@@ -743,7 +745,7 @@ export const FORM_CHIPS = {
     'M07-form-opp': 'M07-form-opp',
     'M07-form-lead': 'M07-form-lead',
     'M07-activities': 'M07-form-activity',
-    'M07-accounts': 'M07-form-plan',
+    'M07-accounts': 'M07-form-assignment',
     'M07-plans': 'M07-form-plan',
     'M07-qbr': 'M07-form-qbr',
     'M07-renewals': 'M07-form-renewal',

@@ -400,7 +400,7 @@
                                         <span class="rc-role-source" t-if="roleBadge"><t t-esc="roleBadge"/></span>
                                     </div>
                                 </div>
-                                <div class="role-quick-launchers">
+                                <div class="role-quick-launchers" t-if="!noRoleCenter">
                                     <button class="btn btn-sm btn-primary" t-on-click="openDispatchConsole" title="Open Field Dispatch Console &amp; Live Map">🗺 Dispatch Console &amp; Map</button>
                                     <button class="btn btn-sm" t-on-click="openBranchConsole" title="Open Branch Counter &amp; Collection Console">🏢 Branch Operations</button>
                                     <button class="btn btn-sm" t-on-click="openWorkshopConsole" title="Open 8-Bench Workshop &amp; QC Console">🔧 Workshop &amp; Benches</button>
@@ -420,6 +420,11 @@
                                     </button>
                                 </t>
                             </div>
+                        </div>
+
+                        <div class="rc-headline" t-if="noRoleCenter" role="status">
+                            <span class="rc-headline-dot"></span>
+                            <t t-esc='t("No role center is assigned to your account yet. Your modules are available from the navigation; ask your administrator to assign your role in the access register.")'/>
                         </div>
 
                         <!-- Live headline (D365 HeadlinePart analog) + the active
@@ -576,11 +581,11 @@
                                     <b>J01</b> <t t-esc='t("Customer books on-site repair")'/>
                                     <span>9 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M03-intake')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M04-counter')" style="cursor: pointer;">
                                     <b>J02</b> Walk-in branch repair &amp; bench
                                     <span>7 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M04-manifests')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M03-cons')" style="cursor: pointer;">
                                     <b>J03</b> Pick &amp; drop logistics round trip
                                     <span>6 steps</span>
                                 </div>
@@ -588,7 +593,7 @@
                                     <b>J06</b> <t t-esc='t("MSP alert to resolution journey")'/>
                                     <span>4 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M06-contracts')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M08-contracts')" style="cursor: pointer;">
                                     <b>J05</b> <t t-esc='t("Corporate AMC preventive maintenance")'/>
                                     <span>8 steps</span>
                                 </div>
@@ -1814,7 +1819,7 @@
                                     <div class="fb-links">
                                         <button class="screen-link" t-on-click="() => this.openScreen('M02-wo')">⇄ M02 Field Work Order</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M05-alerts')">⇄ M05 MSP Alerts</button>
-                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-reserved')">⇄ M15 Reserved Parts</button>
+                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-onhand')">⇄ M15 Reserved Parts</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M20-invoices')">⇄ M20 Mushak 6.3 Invoice</button>
                                     </div>
                                 </div>

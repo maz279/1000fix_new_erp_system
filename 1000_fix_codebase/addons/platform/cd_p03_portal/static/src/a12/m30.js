@@ -440,8 +440,6 @@ export const SCREENS = {
 };
 
 export const REPORT_ROUTES = {
-  open_dofa_rulings: 'open_dofa_rulings',
-  'DOFA Coverage': 'M30-dofa-coverage',
   'M30:DOFA Coverage': 'M30-dofa-coverage',
   'M30:Config Change Log': 'M30-drift',
   'M30:Job Success Rate': 'M30-rpt-jobs',

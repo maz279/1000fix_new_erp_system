@@ -84,7 +84,7 @@ export const SCREENS = {
     actions: [
       { m: 'action_rotate_credential', l: 'Rotate Credential', ask: 'New device credential (at least 32 characters)', kwarg: 'credential' }
     ] },
-  'M55-hook-events': { kind: 'model_list', model: 'fix.biometric.punch.event', stateField: 'state',
+  'M55-hook-events': { kind: 'model_list', model: 'fix.biometric.punch.event', create: false, stateField: 'state',
     cols: ['device_id', 'event_ref', 'employee_id', 'punch_time', 'punch_type', 'state', 'record_id', 'message'] },
   'M55-bio-consent': { kind: 'model_list', model: 'fix.biometric.consent', stateField: 'state',
     cols: ['employee_id', 'notice_version', 'state', 'given_by_id', 'given_at', 'withdrawn_at'],
@@ -93,7 +93,7 @@ export const SCREENS = {
   'M55-wt-rules': { kind: 'model_list', model: 'fix.working.time.rule',
     cols: ['name', 'company_id', 'version', 'date_from', 'date_to', 'weekly_limit_hours', 'min_rest_hours', 'rest_interval_after_hours', 'spread_over_max_hours', 'annual_avg_weekly_hours'],
     note: 'Valuation and the statutory checks read the version in force on the day. A version that has taken effect is never edited: record a new one from a future day. 0 means not checked.' },
-  'M55-adjustments': { kind: 'model_list', model: 'fix.attendance.adjustment', stateField: 'state',
+  'M55-adjustments': { kind: 'model_list', model: 'fix.attendance.adjustment', create: false, stateField: 'state',
     cols: ['employee_id', 'date', 'period_month', 'kind', 'quantity', 'amount', 'state', 'approval_state', 'approved_by_id', 'payslip_ref_id'],
     note: 'A change to attendance in a month payroll has already paid is carried into the next payroll as an approved adjustment (FR-WFM-052). The person who made the change and the employee never approve it.',
     actions: [
@@ -113,7 +113,7 @@ export const SCREENS = {
       { m: 'action_mark_rest_day', l: 'Mark Rest-Day Call-In' },
       { m: 'action_clear_rest_day', l: 'Clear Rest Day' }
     ] },
-  'M55-regs': { kind: 'model_list', model: 'fix.attendance.regularisation', stateField: 'state',
+  'M55-regs': { kind: 'model_list', model: 'fix.attendance.regularisation', create: false, stateField: 'state',
     cols: ['name', 'employee_id', 'check_in_snapshot', 'check_out_snapshot', 'worked_hours_snapshot', 'reason', 'state', 'decided_by_id'],
     actions: [
       { m: 'action_inbox_approve', l: 'Approve' },
@@ -130,7 +130,7 @@ export const SCREENS = {
   'M55-night': { kind: 'model_list', model: 'fix.night.work.consent', stateField: 'state',
     cols: ['employee_id', 'date_from', 'date_to', 'state', 'confirmed_by_id', 'confirmed_at'],
     actions: [{ m: 'action_confirm', l: 'Confirm Consent' }, { m: 'action_withdraw', l: 'Withdraw' }] },
-  'M55-accrual': { kind: 'model_list', model: 'fix.leave.accrual',
+  'M55-accrual': { kind: 'model_list', model: 'fix.leave.accrual', create: false,
     cols: ['employee_id', 'year_start', 'year_end', 'days_worked', 'days_earned', 'basis', 'computed_at'] },
   'M55-rules': { kind: 'table_report', module: 'M55', report: 'overtime_analysis', title: 'Rules & Overtime', period: true },
   'M55-holidays': { kind: 'model_list', model: 'fix.hr.holiday',

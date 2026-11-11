@@ -874,8 +874,10 @@ class FixServiceOrder(models.Model):
                 return "AMC contract"
             if "contract_id" in self._fields and self.contract_id:
                 return "AMC contract %s" % self.contract_id.display_name
-        if category in ("recycling", "refurbishment"):
-            return "internal %s intake" % category
+        # A recycling / refurbishment category is NOT a basis: any clerk sets
+        # it (create, Change Category) and it waived the estimate and the
+        # settlement gates. Such an intake is free on a commercial approver's
+        # stamp, like any other zero-charge job (Request Goodwill).
         if self.is_goodwill and self.goodwill_approved_by:
             return "goodwill approved by %s" % self.goodwill_approved_by.name
         if self.is_rework and self.rework_approved_by:
@@ -1523,17 +1525,23 @@ class FixServiceOrder(models.Model):
                 and (r.amount or 0.0) + 0.005 >= amount
             )
         )
-        if not receipts:
-            return False
-        reused = self.sudo().search_count(
-            [
-                ("id", "!=", self.id),
-                ("invoice_ref", "=", reference),
-                ("settlement_verified", "=", True),
-                ("payment_settlement_state", "in", ("settled", "refund_due")),
-            ]
-        )
-        return False if reused else receipts[:1]
+        # One receipt settles one order. It is found by its number OR its
+        # reference, so another order may already hold it under either key
+        # (checking only the key typed here let one receipt release two devices).
+        Order = self.sudo()
+        for receipt in receipts:
+            keys = [key for key in (receipt.name, receipt.reference) if key]
+            used = Order.search_count(
+                [
+                    ("id", "!=", self.id),
+                    ("invoice_ref", "in", keys),
+                    ("settlement_verified", "=", True),
+                    ("payment_settlement_state", "in", ("settled", "refund_due")),
+                ]
+            )
+            if not used:
+                return receipt
+        return False
 
     def _fix_try_verify_from_receipt(self) -> bool:
         """An unverified field collection becomes verified once an M20

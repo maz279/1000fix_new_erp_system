@@ -17,7 +17,7 @@ P05 W3 slice (roadmap P06-M09-T01/T02/T03):
 - The R2 Bootstrap SCSS bundle and vendor onboarding (EO content, T04) land
   with the Next.js completion; this is the Odoo-native R3 slice
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Purchase/Portal",
@@ -30,6 +30,9 @@ P05 W3 slice (roadmap P06-M09-T01/T02/T03):
         "cd_event_outbox",
         "cd_requisition",
         "cd_ap_ext",
+        # vendor-ledger satellites on the M33 party import batch (2026-11-09
+        # readiness report §7A): fix.supplier register + tax profiles
+        "cd_party_master",
     ],
     "data": [
         "security/fix_vendor_portal_groups.xml",

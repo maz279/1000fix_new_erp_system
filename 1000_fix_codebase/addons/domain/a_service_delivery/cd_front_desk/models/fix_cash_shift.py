@@ -126,9 +126,14 @@ class FixCashShift(models.Model):
         {"shift_type", "coins_amount", "mfs_settled_amount", *(n for n, _v in DENOMINATIONS)}
     )
 
+    # The float is declared when the shift is opened and is the base of the
+    # expected closing: lowered while the drawer is open, it hides exactly the
+    # cash taken since. Only superuser data repair corrects a mistyped float.
+    _FROZEN_WHEN_OPEN = frozenset({"opening_float"})
+
     def _fix_frozen_fields(self) -> frozenset:
         if self.state == "open":
-            return frozenset()
+            return self._FROZEN_WHEN_OPEN
         if self.state == "counting":
             return self._FROZEN_AFTER_OPEN
         return self._FROZEN_AFTER_CLOSE

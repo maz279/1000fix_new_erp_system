@@ -54,6 +54,13 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_pull_inputs", "action_hold", "action_close"},
     },
+    # ISO 9.3.2 inputs are PULLED by fix.qms.review.action_pull_inputs (the
+    # model guards every field): a read-only register, no actions, no writes.
+    "fix.qms.review.input": {
+        "order": "review_id desc, id",
+        "limit": 400,
+        "actions": set(),
+    },
     "fix.qms.review.action": {
         "order": "id desc",
         "limit": 200,

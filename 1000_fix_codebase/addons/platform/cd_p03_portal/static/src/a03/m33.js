@@ -343,7 +343,6 @@ export const SCREENS = {
       { tab: 'general', title: 'Role Assignment', fields: [
         { name: 'partner_id', required: true, label: 'The ONE Party' },
         { name: 'role_type', required: true, label: 'Role Type' },
-        { name: 'role_status', required: true, label: 'Role Status' },
         { name: 'since', readonly: true, label: 'Active Since' },
       ]},
       { tab: 'scope', title: 'Operating Scope', fields: [
@@ -351,7 +350,7 @@ export const SCREENS = {
         { name: 'operating_unit_id', label: 'Operating Unit' },
       ]},
       { tab: 'lifecycle', title: 'Validity & Authority', fields: [
-        { name: 'role_status', label: 'Status' },
+        { name: 'role_status', required: true, label: 'Role Status' },
       ]},
       { tab: 'audit', title: 'The Architectural Design Rule',
         note: 'A party with three roles has THREE role records pointing at the SAME party — never three separate master records. Duplicate masters are the failure this kernel exists to prevent.',
@@ -859,9 +858,8 @@ export const FORM_CHIPS = {
   'M33:__by_screen__': {
     'M33-dedup-jobs': 'M33-form-dedup-job',
     'M33-import-batches': 'M33-form-party-import',
-    'M33-import-lines': 'M33-form-party-import',
     'M33-directory': 'M33-form-party',
-    'M33-party': 'M33-form-party',
+    'M33-party': 'M33-form-role',
     'M33-form-party': 'M33-form-party',
     'M33-hierarchy': 'M33-form-hierarchy',
     'M33-identity': 'M33-form-identity',

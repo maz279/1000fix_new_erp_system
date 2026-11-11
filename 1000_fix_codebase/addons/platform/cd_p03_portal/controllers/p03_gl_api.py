@@ -23,6 +23,7 @@ from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import (
     compute_pnl,
     compute_trial_balance,
 )
+from odoo.addons.cd_gl_ext.models.fix_gl_ext import has_role as gl_has_role
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
@@ -319,7 +320,10 @@ class P03GlApiController(http.Controller):
         )
         is_draft = move.state == "draft"
         manual = is_draft and move._fix_is_manual_entry()
-        accountant = env.su or env.user.has_group("account.group_account_user")
+        # the model's own role test: an Accounting Administrator does every
+        # accountant duty (Odoo 19's manager group does not imply the
+        # accountant group), so the buttons must not be narrower than the model
+        accountant = gl_has_role(env, "account.group_account_user")
         manager = env.su or env.user.has_group("account.group_account_manager")
         stale = approval.state == "pending" and approval.lines_snapshot != _move_snapshot(move)
         routable = not approval or approval.state in ("rejected", "voided") or stale
@@ -948,7 +952,7 @@ class P03GlApiController(http.Controller):
         cron, never silently."""
         _require_internal(request.env)
         env = request.env
-        if not env.su and not env.user.has_group("account.group_account_user"):
+        if not gl_has_role(env, "account.group_account_user"):
             return {
                 "success": False,
                 "error": "Saving a recurring journal template needs the Accountant role.",

@@ -86,6 +86,11 @@ def _bill(ap, price, qty=1.0, ref=None, po=None, **vals):
             "vendor_id": ap["vendor"].id,
             "invoice_ref": ref or "KC-%d" % next(_SEQ),
             "requisition_id": po.id if po else False,
+            # G3-06: a PO-type bill with no purchase order is "unmatched" and
+            # is refused at submission. A bill raised here without a PO is a
+            # non-PO bill (approval-matrix control); one with a PO keeps the
+            # three-way match (a non-PO bill may not carry a PO at all).
+            "bill_type": "po" if po else "non_po",
             "line_ids": [
                 (
                     0,

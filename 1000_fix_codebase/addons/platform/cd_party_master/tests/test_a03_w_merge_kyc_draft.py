@@ -775,11 +775,24 @@ def _set_policy(env, value):
     env["ir.config_parameter"].sudo().set_param(POLICY, value)
 
 
+def _dealer_enrolled_before_registering(env, sites):
+    """A pending dealer whose loyalty account predates its registration: a
+    pending dealer cannot be enrolled under any policy."""
+    partner = env["res.partner"].create({"name": "W5 Member Ltd"})
+    partner._guarded().write({"party_status": "active"})
+    sites["loyalty enrolment"](partner)
+    partner.write({"party_class": "dealer"})
+    assert partner.party_status == "pending_approval"
+    return partner
+
+
 @pytest.mark.parametrize("site", SITES)
 @pytest.mark.parametrize("kind", ["draft individual", "pending dealer"])
 def test_refuse_stops_the_site(env, sites, parties, site, kind):
     partner = parties[kind]
-    if site == "an active loyalty account":
+    if site == "an active loyalty account" and kind == "pending dealer":
+        partner = _dealer_enrolled_before_registering(env, sites)
+    elif site == "an active loyalty account":
         # The account exists from before the ruling; activating it is gated.
         sites["loyalty enrolment"](partner)
     _set_policy(env, "refuse")
@@ -789,8 +802,8 @@ def test_refuse_stops_the_site(env, sites, parties, site, kind):
 
 
 @pytest.mark.parametrize("site", SITES)
-@pytest.mark.parametrize("kind", ["draft individual", "pending dealer"])
-def test_allow_keeps_todays_behaviour(env, sites, parties, site, kind):
+def test_allow_lets_a_draft_individual_through(env, sites, parties, site):
+    kind = "draft individual"
     assert env["ir.config_parameter"].sudo().get_param(POLICY) == "allow"
     if site == "an active loyalty account":
         sites["loyalty enrolment"](parties[kind])
@@ -804,6 +817,54 @@ def test_allow_keeps_todays_behaviour(env, sites, parties, site, kind):
         # The site may refuse for its own reasons (no device, a missing BIN);
         # never because of the party gate.
         assert GATE not in str(exc), exc
+
+
+# 2026-11-10 audit: 'allow' switched the whole gate off, so the registration
+# approval was a side register and a blocked, blacklisted or merged party was
+# refused nowhere. 'allow' relaxes the DRAFT individual only.
+@pytest.mark.parametrize("site", SITES)
+def test_allow_still_refuses_a_pending_dealer(env, sites, parties, site):
+    assert env["ir.config_parameter"].sudo().get_param(POLICY) == "allow"
+    dealer = parties["pending dealer"]
+    if site == "an active loyalty account":
+        dealer = _dealer_enrolled_before_registering(env, sites)
+    assert dealer.party_status == "pending_approval"
+    reason = "registration approval is not complete"
+    with pytest.raises(UserError, match="%s %s.*%s" % (GATE, site, reason)):
+        sites[site](dealer)
+
+
+def test_allow_still_refuses_a_dealer_whose_registration_was_rejected(env, sites, parties):
+    assert env["ir.config_parameter"].sudo().get_param(POLICY) == "allow"
+    dealer = parties["pending dealer"]
+    dealer.approval_ids.action_reject("trade licence expired")
+    assert dealer.party_status == "draft"
+    with pytest.raises(UserError, match="%s a service order.*registration is not approved" % GATE):
+        sites["a service order"](dealer)
+
+
+HARD_STATUSES = {
+    "blocked": "it is blocked",
+    "blacklisted": "it is blacklisted",
+    "merged": "it was merged into another party",
+}
+
+
+@pytest.mark.parametrize("policy", ["allow", "warn", "refuse"])
+@pytest.mark.parametrize("status", sorted(HARD_STATUSES))
+def test_a_blocked_blacklisted_or_merged_party_is_refused_under_every_policy(
+    env, sites, status, policy
+):
+    partner = env["res.partner"].create({"name": "W5 Was Good"})
+    partner._guarded().write({"party_status": "active"})
+    sites["loyalty enrolment"](partner)  # the account predates the status
+    partner._guarded().write({"party_status": status})
+    _set_policy(env, policy)
+    for site in SITES:
+        # the two CRM sites have a block check of their own, which answers first
+        match = "%s %s.*%s|on credit hold or blocked" % (GATE, site, HARD_STATUSES[status])
+        with pytest.raises(UserError, match=match), env.cr.savepoint():
+            sites[site](partner)
 
 
 def test_an_active_party_passes_under_refuse(env, sites, make_user):

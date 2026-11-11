@@ -60,21 +60,126 @@ def sum_rows(rows: list[dict], key: str) -> float:
     return float(sum((Decimal(str(r[key])) for r in rows), Decimal("0")))
 
 
+PL_GROUPS = ("income", "expense")
+
+
+def _posted_sums(env, company, domain) -> dict:
+    """{account: (debit, credit, balance)} of the company's posted journal items."""
+    groups = env["account.move.line"]._read_group(
+        [("company_id", "=", company.id), ("parent_state", "=", "posted"), *domain],
+        ["account_id"],
+        ["debit:sum", "credit:sum", "balance:sum"],
+    )
+    return {
+        account: (debit or 0.0, credit or 0.0, balance or 0.0)
+        for account, debit, credit, balance in groups
+    }
+
+
+def opening_balances(env, company, date_from) -> tuple[dict, float]:
+    """What the accounts bring into a period that starts on ``date_from``.
+
+    Balance-sheet accounts carry everything before it. Income and expense
+    accounts carry this fiscal year only. The profit or loss of earlier years
+    belongs to no income or expense account any more: it is returned apart,
+    for the undistributed-earnings line. Returns ({account: balance}, that)."""
+    date_from = fields.Date.to_date(date_from)
+    fy_start = company.compute_fiscalyear_dates(date_from)["date_from"]
+    before = ("date", "<", date_from)
+    opening = {
+        account: sums[2]
+        for account, sums in _posted_sums(
+            env, company, [before, ("account_id.internal_group", "not in", PL_GROUPS)]
+        ).items()
+    }
+    if fy_start < date_from:
+        this_year = [
+            before,
+            ("date", ">=", fy_start),
+            ("account_id.internal_group", "in", PL_GROUPS),
+        ]
+        for account, sums in _posted_sums(env, company, this_year).items():
+            opening[account] = sums[2]
+    earlier = _posted_sums(
+        env, company, [("date", "<", fy_start), ("account_id.internal_group", "in", PL_GROUPS)]
+    )
+    return opening, round(sum(sums[2] for sums in earlier.values()), 2)
+
+
 def compute_trial_balance(env, company, date_from, date_to) -> dict:
-    rows = ledger_balances(env, company, date_from, date_to, None)
+    """Opening + movement = closing per account. ``debit`` / ``credit`` are the
+    movement of the window, ``balance`` is the closing balance. The window alone
+    used to be summed, so a dated trial balance dropped every brought-forward
+    balance (the bank read its month's movement, equity read nothing)."""
+    window = [("date", "<=", date_to)]
+    if date_from:
+        window.append(("date", ">=", date_from))
+    movement = _posted_sums(env, company, window)
+    opening, earlier_years = opening_balances(env, company, date_from) if date_from else ({}, 0.0)
+
+    Account = env["account.account"].with_company(company)
+    extra_row = None
+    if earlier_years:
+        unaffected = Account.search(
+            [*Account._check_company_domain(company), ("account_type", "=", "equity_unaffected")],
+            limit=1,
+        )
+        if unaffected:
+            opening[unaffected] = opening.get(unaffected, 0.0) + earlier_years
+        else:
+            # no undistributed-earnings account on this chart: say what it is
+            extra_row = {
+                "account_code": "",
+                "account_name": "Profit and loss of earlier fiscal years (undistributed)",
+                "internal_group": "equity",
+                "opening_balance": earlier_years,
+                "debit": 0.0,
+                "credit": 0.0,
+                "balance": earlier_years,
+            }
+
+    rows = [extra_row] if extra_row else []
+    for account in set(movement) | set(opening):
+        debit, credit, _balance = movement.get(account, (0.0, 0.0, 0.0))
+        brought = round(opening.get(account, 0.0), 2)
+        if not (brought or debit or credit):
+            continue
+        rows.append(
+            {
+                "account_code": account.with_company(company).code or "",
+                "account_name": account.name or "",
+                "internal_group": account.internal_group or "",
+                "opening_balance": brought,
+                "debit": round(debit, 2),
+                "credit": round(credit, 2),
+                "balance": round(brought + round(debit, 2) - round(credit, 2), 2),
+            }
+        )
+    rows.sort(key=lambda r: r["account_code"])
     total_debit = sum_rows(rows, "debit")
     total_credit = sum_rows(rows, "credit")
+    closing_debit = float(
+        sum((Decimal(str(r["balance"])) for r in rows if r["balance"] > 0), Decimal("0"))
+    )
+    closing_credit = float(
+        -sum((Decimal(str(r["balance"])) for r in rows if r["balance"] < 0), Decimal("0"))
+    )
     return {
         "report": "trial_balance",
         "company": company.name,
         "date_from": str(date_from),
         "date_to": str(date_to),
         "currency": company.currency_id.name,
-        "basis": "posted account.move.line",
+        "basis": "posted account.move.line; opening balance brought forward "
+        "(income and expense from the start of the fiscal year)",
         "lines": rows,
         "total_debit": total_debit,
         "total_credit": total_credit,
-        "balanced": round(total_debit - total_credit, 2) == 0,
+        "total_opening_balance": sum_rows(rows, "opening_balance"),
+        "total_closing_debit": closing_debit,
+        "total_closing_credit": closing_credit,
+        "balanced": round(total_debit - total_credit, 2) == 0
+        and round(closing_debit - closing_credit, 2) == 0,
     }
 
 

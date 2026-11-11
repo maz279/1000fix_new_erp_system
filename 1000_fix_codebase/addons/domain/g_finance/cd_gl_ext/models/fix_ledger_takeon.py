@@ -21,6 +21,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
+from .fix_gl_ext import require_takeon_authority
+
 _MOBILE = re.compile(r"^(01\d{9})\s*[-–]?\s*(.*)$")
 _BRACKET = re.compile(r"^\[\s*([^]]*?)\s*\]\s*(.*)$")
 _PAREN = re.compile(r"^\(\s*([^)]*?)\s*\)\s*-?\s*(.*)$")
@@ -236,6 +238,22 @@ class FixLedgerTakeonBatch(models.Model):
             ):
                 partner_by_ref[p.legacy_reference] = p
         bad_identity = 0
+        used_refs = set(partner_by_ref)
+        # Name indexes over the WHOLE live party master, built once. The
+        # per-line scan this replaces read only the first 5,000 parties that
+        # carry a legacy key: on a master of 27,000 a real match beyond that
+        # window was missed and a duplicate party created (and validating
+        # 12,905 rows took 11 minutes). Exact (case-insensitive) name first,
+        # then the normalised name among keyed parties; several parties with
+        # one name resolve to the oldest and the line says so.
+        exact_index, norm_index = {}, {}
+        for row in Partner.sudo().search_read([], ["name", "legacy_reference"], order="id"):
+            name = (row["name"] or "").strip()
+            if not name:
+                continue
+            exact_index.setdefault(name.casefold(), []).append(row["id"])
+            if row["legacy_reference"]:
+                norm_index.setdefault(_norm_name(name), []).append(row["id"])
         for line in self.line_ids:
             if abs(line.debit - line.credit - line.balance) > 0.005:
                 bad_identity += 1
@@ -250,24 +268,38 @@ class FixLedgerTakeonBatch(models.Model):
                 line.legacy_reference = "%s-GLMAP-%d" % (self.import_ref, line.row_no)
                 continue
             line.legacy_reference = line._build_legacy_ref(self.import_ref)
+            # R-12 (unique legacy_reference): source ledgers repeat generic
+            # codes across many rows ('(E-Commerce) <name>' all parse to code
+            # 'E-Commerce') — deterministically uniquify against live
+            # partners AND earlier lines of this batch so import never
+            # collides on the unique index (customer-ledger take-on,
+            # 2026-11-10).
+            if line.legacy_reference in used_refs:
+                n = 2
+                while "%s-%d" % (line.legacy_reference, n) in used_refs:
+                    n += 1
+                line.legacy_reference = "%s-%d" % (line.legacy_reference, n)
+            used_refs.add(line.legacy_reference)
             existing = partner_by_ref.get(line.legacy_reference)
             if existing:
                 line.matched_partner_id = existing.id
                 line.line_state = "linked"
                 continue
-            # exact normalised-name match against live parties
+            # exact name, then normalised name, against the live parties
             norm = _norm_name(line.clean_name)
-            match = norm and Partner.sudo().search([("name", "=ilike", line.clean_name)], limit=1)
-            if not match and norm:
-                for p in Partner.sudo().search([("legacy_reference", "!=", False)], limit=5000):
-                    if _norm_name(p.name) == norm:
-                        match = p
-                        break
-            if (
-                match and match.legacy_reference and match.legacy_reference != "CORP-2023-23"
-            ) or match:
-                line.matched_partner_id = match.id
+            candidates = []
+            if norm:
+                candidates = exact_index.get((line.clean_name or "").strip().casefold()) or (
+                    norm_index.get(norm) or []
+                )
+            if candidates:
+                line.matched_partner_id = candidates[0]
                 line.line_state = "linked"
+                if len(candidates) > 1:
+                    line.notes = "%d live parties carry this name; linked to the oldest (#%d)" % (
+                        len(candidates),
+                        candidates[0],
+                    )
             elif abs(line.balance) < 0.005 and not line.phone_norm:
                 line.line_state = "quarantined"
                 line.notes = "zero balance, no code/mobile, no master match"
@@ -284,6 +316,7 @@ class FixLedgerTakeonBatch(models.Model):
         registration approvals for registered classes (the M33 loader
         pattern), roles by exposure side, unique legacy_reference keys."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Importing the parties of a legacy take-on")
         if self.state != "validated":
             raise UserError(_("Validate the batch first."))
         Partner = self.env["res.partner"]
@@ -346,12 +379,52 @@ class FixLedgerTakeonBatch(models.Model):
         self._log("parties ready: %d linked, %d created" % (linked, created))
         return True
 
+    def _configured_account(self, key, expected_type=None):
+        """Read an account code from `cd_gl_ext.ledger_takeon.<key>` and
+        resolve it. A configured code that does not resolve, or resolves to
+        the wrong account type, is refused — a take-on never guesses."""
+        code = (
+            self.env["ir.config_parameter"].sudo().get_param("cd_gl_ext.ledger_takeon.%s" % key)
+            or ""
+        ).strip()
+        if not code:
+            return self.env["account.account"]
+        account = (
+            self.env["account.account"]
+            .with_company(self.company_id)
+            .search([("code", "=", code)], limit=1)
+        )
+        if not account:
+            raise UserError(
+                _(
+                    "Take-on parameter cd_gl_ext.ledger_takeon.%(key)s names account %(code)s, which does not exist."
+                )
+                % {"key": key, "code": code}
+            )
+        if expected_type and account.account_type != expected_type:
+            raise UserError(
+                _(
+                    "Take-on parameter cd_gl_ext.ledger_takeon.%(key)s names account "
+                    "%(code)s, which is not of type %(type)s."
+                )
+                % {"key": key, "code": code, "type": expected_type}
+            )
+        return account
+
     def _control_account(self, kind):
-        """Resolve the statutory control account: the chart link first
-        (1-20-10-010 receivable / 2-10-10-010 payable), then the legacy code,
-        then the account type — never the PoS receivable a bare type search
-        would return."""
-        Account = self.env["account.account"]
+        """Resolve the statutory control account: the estate parameter first
+        (cd_gl_ext.ledger_takeon.<kind>_account_code — the lever for a chart
+        that keeps its own legacy codes), then the chart link (1-20-10-010
+        receivable / 2-10-10-010 payable), then the statutory code, then the
+        account type ONLY when exactly one account carries it. A chart with
+        several receivable/payable accounts and no parameter is refused: the
+        first-by-code row is an arbitrary account (on the real chart it is
+        the staff-loan account), never a safe default."""
+        Account = self.env["account.account"].with_company(self.company_id)
+        atype = "asset_receivable" if kind == "receivable" else "liability_payable"
+        configured = self._configured_account("%s_account_code" % kind, atype)
+        if configured:
+            return configured
         if "fix.chart.account" in self.env:
             linked = (
                 self.env["fix.chart.account"]
@@ -366,24 +439,27 @@ class FixLedgerTakeonBatch(models.Model):
         by_code = Account.search([("code", "=", code)], limit=1)
         if by_code:
             return by_code
-        atype = "asset_receivable" if kind == "receivable" else "liability_payable"
-        return Account.search([("account_type", "=", atype)], limit=1)
-
-    def _ensure_takeon_account(self, name, code):
-        Account = self.env["account.account"]
-        existing = Account.search([("name", "=", name)], limit=1)
-        if existing:
-            return existing
-        try:
-            return Account.create({"name": name, "code": code, "account_type": "liability_current"})
-        except Exception:
-            return Account.create(
-                {
-                    "name": name,
-                    "account_type": "liability_current",
-                    "code_store": {str(self.company_id.id): code},
+        candidates = Account.search([("account_type", "=", atype)])
+        if len(candidates) > 1:
+            raise UserError(
+                _(
+                    "This chart has %(n)d %(kind)s accounts (%(codes)s) and none is "
+                    "designated as the take-on control account. Set the system "
+                    "parameter cd_gl_ext.ledger_takeon.%(kind)s_account_code to the "
+                    "control account's code before posting."
+                )
+                % {
+                    "n": len(candidates),
+                    "kind": kind,
+                    "codes": ", ".join(c.code or c.name for c in candidates[:8]),
                 }
             )
+        return candidates
+
+    def _ensure_takeon_account(self, name, code):
+        from .fix_gl_ext import ensure_legacy_account
+
+        return ensure_legacy_account(self.env, self.company_id, name, code, "liability_current")
 
     def action_post(self):
         """Post the opening entry through the governed M19 funnel: AR/AP
@@ -391,6 +467,7 @@ class FixLedgerTakeonBatch(models.Model):
         internal rows post on mapped GL accounts, and one contra line
         carries the net legacy position."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Posting a legacy take-on")
         if self.state != "imported":
             raise UserError(_("Import the parties first."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
@@ -400,13 +477,16 @@ class FixLedgerTakeonBatch(models.Model):
         ar = self._control_account("receivable")
         ap = self._control_account("payable")
         contra = self.contra_account_id or self._ensure_takeon_account(
-            "Legacy Ledger Take-on Contra", "2-99-99-901"
+            "Legacy Ledger Take-on Contra", "2.99.99.901"
         )
         if not (ar and ap and contra):
             raise UserError(_("Receivable, payable and contra accounts must exist before posting."))
         suspense_map = {}
         for kind, _label in SUSPENSE_KINDS:
-            if kind == "stock_migration":
+            configured = self._configured_account("suspense_%s_account_code" % kind)
+            if configured:
+                suspense_map[kind] = configured
+            elif kind == "stock_migration":
                 suspense_map[kind] = Account.search(
                     [("name", "ilike", "Inventory Valuation Suspense%")], limit=1
                 )
@@ -416,7 +496,7 @@ class FixLedgerTakeonBatch(models.Model):
                 )
             else:
                 suspense_map[kind] = self._ensure_takeon_account(
-                    "Legacy Unallocated Receipts", "2-99-99-902"
+                    "Legacy Unallocated Receipts", "2.99.99.902"
                 )
         Journal = self.env["account.journal"]
         mig = Journal.search([("code", "=", "MIG"), ("company_id", "=", company.id)], limit=1)
@@ -519,6 +599,7 @@ class FixLedgerTakeonBatch(models.Model):
         and park the batch. Parties stay — they are master data; the ledger
         position is what rolls back."""
         self.ensure_one()
+        require_takeon_authority(self.env, "Rolling back a legacy take-on")
         if self.state != "posted" or not self.posted_move_id:
             raise UserError(_("Only a posted take-on can be rolled back."))
         from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions

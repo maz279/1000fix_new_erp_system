@@ -587,7 +587,13 @@ export const SCREENS = {
         { name: 'create_date', label: "Computed At", readonly: true }
       ] }
     ]
-  },
+  }
+};
+
+/* Built-in report chips -> their computed pack. These seven routes used to
+ * sit inside SCREENS (so the merge never saw them and every M11 report chip
+ * answered "arrives with the workspace phase"). */
+export const REPORT_ROUTES = {
   'M11:Floor vs Realised Rate': 'M11-rpt-floors',
   'M11:Realised Price vs Card': 'M11-rpt-realised',
   'M11:Discount Register by Approver': 'M11-rpt-discount',

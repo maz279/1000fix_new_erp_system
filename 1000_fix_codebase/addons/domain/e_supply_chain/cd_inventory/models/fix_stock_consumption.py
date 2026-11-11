@@ -29,6 +29,7 @@ from .fix_inventory_approval import (
     location_class,
     part_codes,
 )
+from .fix_valuation_suspense import suspense_account_code
 
 _logger = logging.getLogger(__name__)
 
@@ -496,7 +497,7 @@ class FixStockConsumption(models.Model):
                     "total_valuation": self.quantity * cost,
                     "entry_type": "consumption",
                     "source_ref": self.name,
-                    "suspense_account_code": "110999",
+                    "suspense_account_code": suspense_account_code(self.env),
                     "status": "pending_gl_cutover",
                 }
             )
@@ -609,7 +610,7 @@ class FixStockConsumption(models.Model):
                     "total_valuation": -(self.quantity * cost),
                     "entry_type": "return",
                     "source_ref": self.name,
-                    "suspense_account_code": "110999",
+                    "suspense_account_code": suspense_account_code(self.env),
                     "status": "pending_gl_cutover",
                 }
             )

@@ -71,6 +71,9 @@ def w(odoo_env):
     x.customer = env["res.partner"].create({"name": "A02 P0 Customer", "phone": "01711000777"})
     brand = env["fix.brand"].create({"name": "A02P0Brand", "code": "A2P0B"})
     x.model = env["fix.device.model"].create({"name": "A02P0 Model", "brand_id": brand.id})
+    # M04's rule that counter cash needs an open cash shift (cd_front_desk, when
+    # installed; on by default) is tested there. These M01 tests open no drawer.
+    env["ir.config_parameter"].set_param("cd_front_desk.order_cash_requires_open_shift", "0")
 
     def fake_dispatch(phone, code, ttl, language="bn"):
         x.codes.append((phone, code))
@@ -151,7 +154,11 @@ def approved(w, o, amount=3000):
     if est.grand_total > 5000:  # BRU-SRM-07: the customer's code
         est.action_send_customer_otp()
         assert est.action_verify_customer_otp(otp=w.codes[-1][1])["verified"]
-    est.action_approve()
+        est.action_approve()
+    else:
+        # no documented approval is asked this low, so a second member of staff
+        # records it: the preparer does not approve on his own word
+        est.with_user(w.clerk2).action_approve()
     return est
 
 
@@ -270,7 +277,7 @@ def test_estimate_approval_drives_the_order(w):
     est = estimate(w, o, 3000)
     est.action_send()
     assert o.state == "estimate_sent"
-    est.action_approve()
+    est.with_user(w.clerk2).action_approve()  # not its preparer (segregation of duties)
     assert (est.state, o.state) == ("approved", "approved")
     assert est.approved_total == est.grand_total and est.approved_by == w.customer
 

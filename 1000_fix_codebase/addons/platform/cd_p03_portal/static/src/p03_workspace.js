@@ -461,7 +461,11 @@ export class P03Workspace extends Component {
             const res = await this.rpc("/p03/role_center", {});
             if (res && res.person) {
                 this.state.roleCenter = res;
-                if (res.default && this.rolesList.some((r) => r.id === res.default)) {
+                if (res.no_center) {
+                    // no register role resolves to a center: no console is
+                    // selected (the switcher shows none, never all sixteen)
+                    this.state.activeRoleId = null;
+                } else if (res.default && this.rolesList.some((r) => r.id === res.default)) {
                     this.state.activeRoleId = res.default;
                 }
             }
@@ -511,7 +515,18 @@ export class P03Workspace extends Component {
     }
 
     // --- 15 Role Workspaces Getters & Actions ---
+    get noRoleCenter() {
+        return Boolean(this.state.roleCenter && this.state.roleCenter.no_center);
+    }
+
     get activeRole() {
+        if (this.noRoleCenter) {
+            return {
+                id: null, icon: "👤", code: "—",
+                en: "My Workspace", bn: "আমার ওয়ার্কস্পেস",
+                desc: "No role center is assigned to this account",
+            };
+        }
         if (Array.isArray(this.roles)) {
             return this.roles.find(r => r.id === this.state.activeRoleId) || this.roles[0] || {};
         }
@@ -527,17 +542,23 @@ export class P03Workspace extends Component {
             // preview the full register (D365 profile-preview pattern).
             if (!rc.is_admin) {
                 const mine = rc.roles.map((r) => r.ws);
-                const filtered = all.filter((r) => mine.includes(r.id));
-                if (filtered.length) list = filtered;
+                // An empty result stays empty. Falling back to the full
+                // list here showed all 16 centers to anyone the register
+                // could not place (partner accounts, unmapped roles).
+                list = all.filter((r) => mine.includes(r.id));
             }
             // Person-aware C-suite labeling: the executive pill carries the
             // holder's register title/code (e.g. "R-54 Chief Operating
             // Officer"), never the generic R-EX placeholder.
-            if (rc.role_labels && rc.role_labels.executive) {
-                list = list.map((r) => r.id === "executive"
-                    ? { ...r, en: rc.role_labels.executive, code: rc.role_codes.executive || r.code }
-                    : r);
-            }
+            const labels = rc.role_labels || {};
+            const codes = rc.role_codes || {};
+            list = list.map((r) => {
+                const next = { ...r };
+                // register code of the role the person actually holds
+                if (codes[r.id]) next.code = codes[r.id];
+                if (r.id === "executive" && labels.executive) next.en = labels.executive;
+                return next;
+            });
         }
         return list;
     }
@@ -938,7 +959,14 @@ export class P03Workspace extends Component {
         const byModel = chips[`${mid}:__by_model__`] || {};
         const gl = this.state.gl;
         const screenId = gl && gl.screenId;
-        const formScreen = (screenId && byScreen[screenId]) || byModel[model];
+        let formScreen = (screenId && byScreen[screenId]) || null;
+        // A screen override is honoured only for ITS model: the record id
+        // belongs to `model`, and a form bound to another model would load an
+        // unrelated record with that id (a Function Register row of a
+        // different model than its first screen; 2026-11-10 screens sweep).
+        const override = formScreen && P03_DATA_SCREENS[formScreen];
+        if (override && model && override.model && override.model !== model) formScreen = null;
+        formScreen = formScreen || byModel[model];
         if (formScreen && P03_DATA_SCREENS[formScreen]) {
             const cfg = { ...P03_DATA_SCREENS[formScreen], recordId: recordId || null };
             this.openFormScreen(formScreen, this.state.activeScreen ? { sc: this.state.activeScreen, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } } : null, cfg);
@@ -4634,7 +4662,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                     { id: "M01-all", title: "All Service Orders", icon: "⛁", group: "Service Operations", fn: () => { this.closeTellMe(); this.openScreen("M01-all"); } },
                     { id: "M02-dispatch", title: "Live Dispatch Board", icon: "🚐", group: "Field Service", fn: () => { this.closeTellMe(); this.openScreen("M02-dispatch"); } },
                     { id: "M03-cons", title: "Consignments & Custody Chain", icon: "📦", group: "Logistics", fn: () => { this.closeTellMe(); this.openScreen("M03-cons"); } },
-                    { id: "M15-stock", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-stock"); } }
+                    { id: "M15-onhand", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-onhand"); } }
                 ]
             };
         }

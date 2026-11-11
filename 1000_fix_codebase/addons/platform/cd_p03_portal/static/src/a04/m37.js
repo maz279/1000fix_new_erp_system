@@ -91,7 +91,7 @@ export const SCREENS = {
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
   'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line', create: false,
-    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note", "create_uid"] },
+    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note"] },
   'M37-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Variance', period: true },
   // A kit is defined by its components, so the list must be able to
   // create one and the form must show them (see M37-form-kit.lines).
@@ -107,9 +107,9 @@ export const SCREENS = {
       { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
     ] },
   'M37-fault': { kind: 'model_list', model: 'fix.fault.code', create: false,
-    cols: ["name", "code", "create_date", "active", "category", "default_severity", "create_uid"] },
+    cols: ["name", "code", "create_date", "active", "category", "default_severity"] },
   'M37-parts-id': { kind: 'model_list', model: 'fix.rbom.line', create: false,
-    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note", "create_uid"] },
+    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note"] },
   'M37-contract-tpl': { kind: 'model_list', model: 'fix.contract.template', create: true,
     cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'],
     stateField: 'contract_type',

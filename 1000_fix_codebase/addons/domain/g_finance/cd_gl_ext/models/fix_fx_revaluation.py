@@ -117,7 +117,13 @@ class FixFxRevaluation(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields() | {"total_gain", "total_loss", "net_amount"}
         if any(r.state == "posted" for r in self):
-            locked |= {"rate_date", "journal_id", "gain_account_id", "loss_account_id", "company_id"}
+            locked |= {
+                "rate_date",
+                "journal_id",
+                "gain_account_id",
+                "loss_account_id",
+                "company_id",
+            }
         return locked
 
     def write(self, vals):
@@ -156,7 +162,9 @@ class FixFxRevaluation(models.Model):
 
     # ------------------------------------------------------------ computation
     def _require(self, xmlid, what):
-        if not self.env.su and not self.env.user.has_group(xmlid):
+        from .fix_gl_ext import has_role  # the administrator does the accountant's duties
+
+        if not has_role(self.env, xmlid):
             raise AccessError("%s needs the %s role." % (what, self.env.ref(xmlid).name))
 
     def _closing_rate(self, foreign):
@@ -176,7 +184,9 @@ class FixFxRevaluation(models.Model):
             limit=1,
         )
         max_age = int(
-            float(self.env["ir.config_parameter"].sudo().get_param(PARAM_RATE_AGE) or DEFAULT_RATE_AGE)
+            float(
+                self.env["ir.config_parameter"].sudo().get_param(PARAM_RATE_AGE) or DEFAULT_RATE_AGE
+            )
         )
         if not rate_row:
             raise UserError(
@@ -284,7 +294,10 @@ class FixFxRevaluation(models.Model):
                 "%s); unrealized gains go only to an FX income account (IAS 21)."
                 % (self.gain_account_id.display_name, PARAM_GAIN_ACCOUNTS)
             )
-        if self.loss_account_id.id not in losses or self.loss_account_id.internal_group != "expense":
+        if (
+            self.loss_account_id.id not in losses
+            or self.loss_account_id.internal_group != "expense"
+        ):
             raise UserError(
                 "%s is not a configured FX loss account (the company's exchange loss account or "
                 "%s); unrealized losses go only to an FX expense account (IAS 21)."
@@ -346,7 +359,9 @@ class FixFxRevaluation(models.Model):
         for row in rows:
             if abs(row["gain_loss"]) < 0.01:
                 continue
-            by_account[row["account_id"]] = by_account.get(row["account_id"], 0.0) + row["gain_loss"]
+            by_account[row["account_id"]] = (
+                by_account.get(row["account_id"], 0.0) + row["gain_loss"]
+            )
         for account_id, amount in by_account.items():
             # The run records (new base - old base) per balance-sheet account, so the
             # adjustment moves that account in the SAME direction: a positive
@@ -367,11 +382,27 @@ class FixFxRevaluation(models.Model):
             )
         if net > 0:
             entries.append(
-                (0, 0, {"account_id": self.gain_account_id.id, "credit": net, "name": "Unrealized FX gain"})
+                (
+                    0,
+                    0,
+                    {
+                        "account_id": self.gain_account_id.id,
+                        "credit": net,
+                        "name": "Unrealized FX gain",
+                    },
+                )
             )
         else:
             entries.append(
-                (0, 0, {"account_id": self.loss_account_id.id, "debit": -net, "name": "Unrealized FX loss"})
+                (
+                    0,
+                    0,
+                    {
+                        "account_id": self.loss_account_id.id,
+                        "debit": -net,
+                        "name": "Unrealized FX loss",
+                    },
+                )
             )
         move, _dims = post_with_dimensions(
             self.env,

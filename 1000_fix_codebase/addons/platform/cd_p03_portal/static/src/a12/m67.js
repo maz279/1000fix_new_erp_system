@@ -29,7 +29,7 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Registry Completion', screens: [
-      { id: 'M67-record', en: 'Project Record', bn: 'প্রজেক্ট রেকর্ড', t: 'g' },
+      { id: 'M67-record', en: 'Project Record', bn: 'প্রজেক্ট রেকর্ড', t: 'f' },
       { id: 'M67-templates', en: 'Templates (6 types)', bn: 'Templates (6 types)', t: 'g' },
       { id: 'M67-evm', en: 'Earned Value', bn: 'Earned Value', t: 'g' },
       { id: 'M67-billing', en: 'Milestone Billing', bn: 'Milestone Billing', t: 'g' },

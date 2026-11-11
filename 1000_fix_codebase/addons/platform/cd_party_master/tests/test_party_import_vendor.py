@@ -95,6 +95,22 @@ def _vendor_workbook() -> bytes:
         ],
         # call note as a vendor name — quarantined noise
         ["3 Times No answer (Bogura)", "", "", "", "", "", "", "", "", ""],
+        # matched BRANCH row (comma-concat repeating the parent): must
+        # attach to the existing party, never stay 'matched' forever (the
+        # audit-D-1 defect: pass 2 used to skip matched lines). In the real
+        # ledger these rows match by SHARED PHONE with the parent's party.
+        [
+            "Daraz Bangladesh %s, Daraz Bangladesh %s (Khulna)" % (U, U),
+            "01711111007",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ],
         # non-numeric phone (person name in the phone column) — dropped
         [
             "SIAM %s" % U,
@@ -148,6 +164,7 @@ def daraz(odoo_env):
             "is_company": True,
             "party_class": "corporate",
             "email": "daraz%s@example.com" % U.lower(),
+            "phone": "01711111007",  # the branch row matches on this shared phone
         }
     )
     # the corporate birth auto-opens its two-tier approval — decide THAT one
@@ -176,7 +193,7 @@ class TestVendorSheetPipeline:
     def test_stage(self, odoo_env, vbatch):
         vbatch.action_stage()
         assert vbatch.state == "staged"
-        assert vbatch.line_count == 12
+        assert vbatch.line_count == 13
         # vendor-only raw columns staged verbatim
         assert vbatch.line_ids[0].raw_city == "uttara"
         assert vbatch.line_ids[3].raw_pan == "175690137323"
@@ -238,9 +255,20 @@ class TestVendorSheetPipeline:
         assert dup[0].dup_of_line_id.id == other.id
 
         # dual-role row matches the live customer
-        daraz_line = next(ln for ln in vbatch.line_ids if "daraz" in (ln.raw_name or "").lower())
+        daraz_line = next(
+            ln
+            for ln in vbatch.line_ids
+            if "daraz" in (ln.raw_name or "").lower() and not ln.parent_name
+        )
         assert daraz_line.line_state == "matched"
         assert daraz_line.matched_partner_id.id == daraz.id
+        # its comma-concat BRANCH twin (parent repeat) also matches pre-import
+        daraz_branch = next(
+            ln
+            for ln in vbatch.line_ids
+            if "daraz" in (ln.raw_name or "").lower() and ln.parent_name
+        )
+        assert daraz_branch.line_state == "matched"
 
     def test_full_pipeline_roles_and_classes(self, odoo_env, vbatch, daraz):
         vbatch.action_stage()
@@ -278,6 +306,15 @@ class TestVendorSheetPipeline:
         # the dual-role party gained a vendor role too — never a second party
         daraz_roles = Role.search([("role_type", "=", "vendor"), ("partner_id", "=", daraz.id)])
         assert len(daraz_roles) == 1
+        # the matched BRANCH line linked (audit D-1: pass 2 used to leave
+        # matched branch rows unattached forever)
+        daraz_branch = next(
+            ln
+            for ln in vbatch.line_ids
+            if "daraz" in (ln.raw_name or "").lower() and ln.parent_name
+        )
+        assert daraz_branch.line_state == "linked"
+        assert daraz_branch.matched_partner_id.id == daraz.id
 
         summary = vbatch.action_reconcile()
         assert summary["by_party_class"]["individual"] >= 2

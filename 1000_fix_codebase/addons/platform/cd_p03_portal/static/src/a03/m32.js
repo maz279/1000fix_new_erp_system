@@ -148,11 +148,7 @@ export const SCREENS = {
         ]},
       { tab: 'docs', title: 'Training Datasets, Digests & Production Release',
         note: 'REQ-32.5: every training corpus, golden benchmark and model artifact is registered on fix.assistant.dataset with a SHA-256 digest taken over the file itself. Production release is refused below 92% golden-benchmark accuracy, refused for machine-translated Bengali (REQ-32.2), and requires DOFA Tier 3 authority.',
-        fields: [
-          { name: 'sample_bn', label: 'Bengali Corpus Under Test', readonly: true },
-          { name: 'sample_en', label: 'English Benchmark Under Test', readonly: true },
-          { name: 'active', label: 'Released to Production', readonly: true },
-        ]},
+        fields: []},
       { tab: 'guardrails', title: 'Confidence Gating, PII Scrubbing & System Governance',
         note: 'REQ-32.1 three-tier gating, as the engine implements it: confidence >= 0.75 replies automatically, 0.50-0.74 asks the customer to disambiguate, below 0.50 hands off to a human agent. Credit card numbers, MFS PINs and National IDs are scrubbed before any message is written to disk (REQ-32.3).',
         fields: [

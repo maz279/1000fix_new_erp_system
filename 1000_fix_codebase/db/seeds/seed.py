@@ -202,6 +202,7 @@ class Client:
 
 
 QC_LOGIN = "seed.qc@1000fix.local"
+COLLEAGUE_LOGIN = "seed.counter.colleague@1000fix.local"
 T4_LOGIN = "seed.dofa.t4@1000fix.local"  # appoint_approvers.py: password = login
 ROOT = Path(__file__).resolve().parents[2]
 ODOO_CONF = "infra/odoo-conf/local.resolved.conf"
@@ -240,6 +241,28 @@ def qc_inspector_client(c: Client, db: str) -> Client:
     return qc
 
 
+def counter_colleague_client(c: Client, db: str) -> Client:
+    """A second member of the counter staff, logged in. Segregation of duties:
+    the admin walking the orders prepares their estimates, and an estimate is
+    not approved on its preparer's word alone. Under the customer-approval
+    threshold no customer code is asked, so a colleague records the approval."""
+    if not c.first("res.users", [("login", "=", COLLEAGUE_LOGIN)]):
+        c.call(
+            "res.users",
+            "create",
+            {
+                "name": "সিড কাউন্টার সহকর্মী (Seed Counter Colleague)",
+                "login": COLLEAGUE_LOGIN,
+                "email": COLLEAGUE_LOGIN,
+                "password": COLLEAGUE_LOGIN,
+                "group_ids": [(6, 0, [xmlid(c, "base", "group_user")])],
+            },
+        )
+    colleague = Client()
+    colleague.login(db, COLLEAGUE_LOGIN, COLLEAGUE_LOGIN)
+    return colleague
+
+
 def seed_estimate(order_id: int, rng: random.Random) -> dict:
     """A priced estimate under the BDT 5,000 customer-approval threshold."""
     return {
@@ -274,6 +297,14 @@ def seed_checklist(order_id: int, passed: bool) -> dict:
 # code goes to the customer's phone, so the seed captures it from a stubbed
 # SMS sender (as the tests do) and reads it back; everything else is the
 # real settle / verify / deliver / close path.
+#
+# M04: counter cash goes into the branch's OPEN cash shift, and a settlement
+# with no open drawer is refused. A branch that has none gets one opened here
+# on a float. The shifts this run opened are counted from the denominations
+# and closed once the handovers are done, so nothing live is left behind: a
+# rerun opens its own, and a later shift on the branch still opens
+# (BRU-FRD-01: one live shift per branch). A shift already open is used as it
+# is and left open.
 HANDOVER_SHELL = r"""
 import base64, json
 from odoo.addons.cd_service_order.models import fix_otp_util
@@ -283,11 +314,53 @@ sent = {}
 fix_otp_util.dispatch_otp = lambda phone, code, ttl, language="bn": sent.update({phone: code})
 env = env(user=env.ref("base.user_admin").id, su=True)
 SO = env["fix.service.order"]
+Shift = env["fix.cash.shift"] if "fix.cash.shift" in env else None
+CASHIER = "সিড কাউন্টার ক্যাশিয়ার (Seed Counter Cashier)"
+NOTES = (
+    ("denom_1000_count", 1000), ("denom_500_count", 500), ("denom_200_count", 200),
+    ("denom_100_count", 100), ("denom_50_count", 50), ("denom_20_count", 20),
+    ("denom_10_count", 10),
+)
+opened = []
+
+def open_drawer(order):
+    if Shift is None:
+        return  # cd_front_desk is not installed: the order takes the cash alone
+    company = order.company_id or env.company
+    if Shift._fd_open_shift_for(order.branch_id, company):
+        return
+    Employee = env["hr.employee"]
+    cashier = Employee.search(
+        [("name", "=", CASHIER), ("company_id", "=", company.id)], limit=1
+    ) or Employee.create({"name": CASHIER, "company_id": company.id})
+    unit = (
+        order.branch_id.operating_unit_id
+        or order.operating_unit_id
+        or env["operating.unit"].search([], limit=1)
+    )
+    opened.append(Shift.create({
+        "branch_id": order.branch_id.id,
+        "company_id": company.id,
+        "operating_unit_id": unit.id,
+        "operator_id": cashier.id,
+        "opening_float": 5000.0,
+    }).id)
+
+def count_and_close(shift):
+    rest, count = round(shift.expected_closing, 2), {}
+    for name, value in NOTES:
+        count[name], rest = int(rest // value), round(rest %% value, 2)
+    count["coins_amount"] = rest
+    shift.write(count)
+    shift.action_submit_blind_count()
+    shift.action_confirm_closed()
+
 for target, ids in plan.items():
     for order in SO.browse(ids):
         if order.state == "ready":
             due = order._fix_amount_due()
             if due > 0 and order.payment_settlement_state == "unpaid":
+                open_drawer(order)
                 order.action_mark_settled(amount_bdt=due, reference="SEED-PAY-%%d" %% order.id)
             order.action_send_delivery_otp()
             order.action_verify_delivery_otp(otp=sent[fix_otp_util.bd_mobile(order.customer_id)])
@@ -302,8 +375,11 @@ for target, ids in plan.items():
             order.action_deliver()
         if target == "closed" and order.state == "delivered":
             order.action_close()
+if Shift is not None:
+    for shift in Shift.browse(opened):
+        count_and_close(shift)
 env.cr.commit()
-print("seed-handover:", {t: len(i) for t, i in plan.items()})
+print("seed-handover:", {t: len(i) for t, i in plan.items()}, "cash shifts:", len(opened))
 """
 
 
@@ -331,6 +407,35 @@ def handover_in_shell(db: str, plan: dict[str, list[int]]) -> None:
     run_in_shell(db, HANDOVER_SHELL % {"plan": json.dumps(plan)}, "seed-handover:")
 
 
+REAL_DB_PREFIXES = ("fix_real", "fix_prod", "fix_uat", "fix_staging")
+# Models that only ever hold rows taken on from the legacy system: any row in
+# one of them means this database carries real business data.
+REAL_DATA_MARKERS = (
+    ("fix.party.import.batch", [("state", "in", ["imported", "approved", "reconciled"])]),
+    ("fix.ledger.takeon.batch", []),
+    ("fix.legacy.ledger.batch", []),
+    ("fix.bank.takeon.batch", []),
+    ("fix.ap.takeon.batch", []),
+)
+
+
+def _real_data_evidence(c, db: str) -> str:
+    """Why this database must not be seeded, or '' when it is a dev database.
+    The name alone is not trusted either way: fix_dev itself carried real
+    take-on batches for a while."""
+    if db.lower().startswith(REAL_DB_PREFIXES):
+        return "database name"
+    if c.call("ir.config_parameter", "get_param", "fix.estate.data_class") == "real":
+        return "system parameter fix.estate.data_class = real"
+    for model, domain in REAL_DATA_MARKERS:
+        try:
+            if c.call(model, "search_count", domain):
+                return f"{model} has rows"
+        except Exception:  # noqa: S112 - model not installed on this database
+            continue
+    return ""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", default="1000fix", help="fixed random seed (DE-12)")
@@ -355,6 +460,15 @@ def main() -> int:
         print(f"seed: NOT-AVAILABLE - no Odoo on {BIND} ({e})")
         print("  remedy: tasks.ps1 -Target up, then -Target run")
         return 4
+
+    real = _real_data_evidence(c, args.db)
+    if real:
+        # no flag overrides this: synthetic rows in a database that holds the
+        # company's real parties and ledgers cannot be told apart afterwards
+        # (the 2026-11 purge had to classify 33,745 of them row by row)
+        print(f"seed: REFUSED - {args.db} holds REAL data ({real}). DE-12: never mix.")
+        print("  seed a development database instead (default --db fix_dev).")
+        return 3
 
     if c.call("fix.service.order", "search_count", []) and not args.force:
         print("seed: REFUSED - fix.service.order already has rows (DE-12: never mix).")
@@ -755,6 +869,7 @@ def main() -> int:
     # by design never comes back over RPC: those hops run in a superuser
     # odoo shell instead (handover_in_shell).
     qc = qc_inspector_client(c, args.db)
+    colleague = counter_colleague_client(c, args.db)
     handover: dict[str, list[int]] = {"delivered": [], "closed": []}
 
     def hop(group: list[int], nxt: str) -> None:
@@ -768,7 +883,8 @@ def main() -> int:
             sent = c.call(
                 "fix.estimate", "search", [("order_id", "in", group), ("state", "=", "sent")]
             )
-            c.call("fix.estimate", "action_approve", sent)
+            # not their preparer (segregation of duties): a colleague approves
+            colleague.call("fix.estimate", "action_approve", sent)
         elif nxt in ("ready", "qc_failed"):
             passed = nxt == "ready"
             checklists = c.call(

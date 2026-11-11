@@ -29,8 +29,9 @@ _UNUSABLE_STATUSES = {
     "pending_approval": "its registration approval is not complete (BRU-CPM-02)",
 }
 
-# ir.config_parameter: what a 'draft' (unverified) party may do downstream.
-# allow (default, today's behaviour) | warn | refuse. A business ruling.
+# ir.config_parameter: what a 'draft' (unverified) individual may do downstream.
+# allow (default) | warn | refuse. A business ruling; it never relaxes the
+# statuses above or an unregistered dealer / corporate / government party.
 DRAFT_POLICY_PARAM = "cd_party_master.draft_party_policy"
 DRAFT_POLICIES = ("allow", "warn", "refuse")
 
@@ -392,13 +393,11 @@ class ResPartner(models.Model):
         """The gate other modules call before using a party (an order, a won
         deal, an enrolment, an onboarding, an invoice).
 
-        Under the default 'allow' it does nothing, so those modules behave
-        exactly as before the switch existed: switching it on is the business
-        ruling (cd_party_master.draft_party_policy). Under 'warn' or 'refuse'
-        it applies _fix_assert_party_usable, which also refuses merged,
-        blocked and blacklisted parties and unregistered dealers."""
-        if self._fix_draft_party_policy() == "allow":
-            return ""
+        The policy (cd_party_master.draft_party_policy) rules on the DRAFT
+        individual only: 'allow' lets it through. Merged, blocked, blacklisted
+        and pending-approval parties and unregistered dealers are refused under
+        every policy. 'allow' used to skip the whole gate, which left the
+        registration approval a side register (2026-11-10 audit)."""
         return self._fix_assert_party_usable(purpose)
 
     def _get_notification_language(self) -> str:

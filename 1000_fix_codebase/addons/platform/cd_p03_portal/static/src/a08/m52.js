@@ -650,8 +650,7 @@ export const FORM_CHIPS = {
     'M52-taxprofile': 'M52-form-taxprofile',
     'M52-perdiem': 'M52-form-rate',
     'M52-policy': 'M52-form-policy',
-    'M52-ap-takeon': 'M52-form-ap-takeon',
-    'M52-ap-takeon-lines': 'M52-form-ap-takeon'
+    'M52-ap-takeon': 'M52-form-ap-takeon'
   }
 };
 

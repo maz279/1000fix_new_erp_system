@@ -597,6 +597,7 @@ export const REPORT_ROUTES = {
   "M50:COD Settlement Report": "M50-rpt-cod",
   "M50:13-Week Cash Forecast": "M50-forecast",
   "M50:Bank Charges Analysis": "M50-rpt-charges",
+  "M50:Cheque Register & Cheques-in-Hand": "M50-rpt-cheques",
 };
 
 /* data-entry form chips -> real model forms */

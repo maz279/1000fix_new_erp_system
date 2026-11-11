@@ -248,8 +248,6 @@ export const SCREENS = {
       { tab: 'warranty', title: 'Warranty & Handling',
         fields: [
           { name: 'warranty_months', label: 'Warranty Period (Months)' },
-          { name: 'is_serialized', label: 'Serialized (serial trace on receipt)', readonly: true },
-          { name: 'storage_class', label: 'Storage Class (hazardous gate)', readonly: true },
           { name: 'company_id', label: 'Company' }
         ] },
       { tab: 'lifecycle', title: 'Lifecycle & Legacy Audit',

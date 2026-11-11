@@ -16,7 +16,12 @@ import hashlib
 import re
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+
+# The loader activates parties and stamps both registration tiers under sudo,
+# so only system code or the 1000FiX registration administrator runs it
+# (2026-11-10 audit: every internal user could).
+LOADER_GROUP = "cd_party_master.group_party_registration_admin"
 
 BD_MOBILE = re.compile(r"^01[3-9]\d{8}$")
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -88,6 +93,26 @@ _SHEET_COLUMNS = {
         "PAN": "raw_pan",
         "CIN": "raw_cin",
     },
+}
+
+# The legacy system exports ONE res.partner dump layout under three filters
+# (2026-11-10 audit): "vendor.xlsx" is in fact the full contact list (every
+# row of customer.xlsx is in it), so loading it whole on the vendor lane made
+# 23,824 walk-in customers "vendors" with supplier-register rows. The layout
+# is therefore shared by three lanes that differ only in the ROLE they grant:
+#   vendor   → vendor role (+ M42 supplier register, cd_vendor_portal)
+#   customer → customer role
+#   contact  → no role (a party the business knows, with no trading role yet)
+PARTNER_DUMP_KINDS = ("vendor", "customer", "contact")
+_SHEET_COLUMNS["customer"] = _SHEET_COLUMNS["vendor"]
+_SHEET_COLUMNS["contact"] = _SHEET_COLUMNS["vendor"]
+_DUMP_LABEL = {"vendor": "Vendor", "customer": "Customer", "contact": "Contact"}
+ROLE_BY_KIND = {
+    "corp": "customer",
+    "stbl": "brand_partner",
+    "vendor": "vendor",
+    "customer": "customer",
+    "contact": None,
 }
 
 # Vendor-ledger classification (report §2.2): the file mixes formal
@@ -260,6 +285,8 @@ class FixPartyImportBatch(models.Model):
             ("corp", "Corporate customer list"),
             ("stbl", "STBL & Principal list"),
             ("vendor", "Vendor ledger list (supplier master)"),
+            ("customer", "Customer list (legacy partner dump)"),
+            ("contact", "Contact list (legacy partner dump, no role)"),
         ],
         required=True,
         default="corp",
@@ -308,6 +335,8 @@ class FixPartyImportBatch(models.Model):
             "corp": "Corporate list",
             "stbl": "STBL & Principal list",
             "vendor": "Vendor ledger",
+            "customer": "Customer list",
+            "contact": "Contact list",
         }
         for batch in self:
             when = (batch.create_date or fields.Datetime.now()).strftime("%Y-%m-%d")
@@ -337,6 +366,18 @@ class FixPartyImportBatch(models.Model):
             message,
         )
 
+    def _fix_import_check_authority(self):
+        """Refuse a person who is not a registration administrator. The
+        cut-over scripts run as the superuser and pass, as trusted code does
+        everywhere else in M33."""
+        if self.env.su or self.env.user.has_group(LOADER_GROUP):
+            return
+        raise AccessError(
+            "The party cut-over loader creates and activates parties and decides their "
+            "registrations: it needs the '%s' group, which %s does not hold."
+            % (self.env.ref(LOADER_GROUP).sudo().name, self.env.user.name)
+        )
+
     # ------------------------------------------------------------------ stage
     def action_stage(self):
         """Parse the spreadsheet into staged lines with the raw values — no
@@ -357,7 +398,7 @@ class FixPartyImportBatch(models.Model):
         # (Corp first, STBL and Principal second) and the 2026-11-08 trial
         # caught both batches staging sheet 1. The vendor ledger is a
         # single-sheet export ("Sheet1"), so the first worksheet is it.
-        if self.sheet_kind == "vendor":
+        if self.sheet_kind in PARTNER_DUMP_KINDS:
             ws = wb.worksheets[0]
             colmap = _SHEET_COLUMNS["vendor"]
             header = None
@@ -376,7 +417,7 @@ class FixPartyImportBatch(models.Model):
                     continue  # fully blank row
                 staged.append((0, 0, {**vals, "row_no": len(staged) + 2}))
             if not staged:
-                raise UserError("No rows staged — is the sheet the vendor layout?")
+                raise UserError("No rows staged — is the sheet the legacy partner-dump layout?")
             self.line_ids.unlink()
             self.line_ids = staged
             self._log(
@@ -447,7 +488,7 @@ class FixPartyImportBatch(models.Model):
             # assignment would mean ~10 UPDATEs per row)
             vals = {}
             notes = []
-            is_vendor = self.sheet_kind == "vendor"
+            is_vendor = self.sheet_kind in PARTNER_DUMP_KINDS
             # vendor source-fidelity repairs (report §7A step 1, measured in
             # the file): the ledger carries phone numbers AS names (2,496
             # rows), phone numbers in the email column, and the gamil.com
@@ -467,7 +508,7 @@ class FixPartyImportBatch(models.Model):
                 elif re.fullmatch(r"01\d{9}", vendor_name):
                     if not str(line.raw_phone or "").strip():
                         src_phone = vendor_name
-                    vendor_name = "Vendor %s" % vendor_name
+                    vendor_name = "%s %s" % (_DUMP_LABEL[self.sheet_kind], vendor_name)
                     notes.append("phone-only name titled")
                     match_name = vendor_name
                 if src_email and not EMAIL.fullmatch(str(src_email).strip()):
@@ -631,6 +672,7 @@ class FixPartyImportBatch(models.Model):
         branches attach to their parent via fix.party.hierarchy. Matched
         lines get the legacy key attached instead of a duplicate."""
         self.ensure_one()
+        self._fix_import_check_authority()
         if self.state != "validated":
             raise UserError("Validate the batch first.")
         Partner = self.env["res.partner"]
@@ -645,7 +687,7 @@ class FixPartyImportBatch(models.Model):
             """(is_company, party_class) for a party's birth — per-line for
             the vendor ledger (company-shaped names → dealer, the payee mass
             → individual), uniform for the customer sheets."""
-            if self.sheet_kind == "vendor":
+            if self.sheet_kind in PARTNER_DUMP_KINDS:
                 name = (
                     line_or_name.clean_name if hasattr(line_or_name, "clean_name") else line_or_name
                 )
@@ -719,6 +761,12 @@ class FixPartyImportBatch(models.Model):
         # pass 2: branches onto their parents (by normalised parent name)
         all_lines = self.line_ids
         for line in self.line_ids.filtered(lambda ln: ln.parent_name):
+            if line.line_state == "matched":
+                # a matched BRANCH line never enters pass 1 (parent_name
+                # filter) — attach its legacy key here or it stays 'matched'
+                # forever without a party link (audit D-1, 2026-11-10)
+                self._attach_legacy(line)
+                continue
             if line.line_state != "validated":
                 continue
             parent = all_lines.filtered(
@@ -814,6 +862,7 @@ class FixPartyImportBatch(models.Model):
         SoD remain the human path; the operator running the loader is recorded
         on every step here and in the batch decision log."""
         self.ensure_one()
+        self._fix_import_check_authority()
         if self.state != "imported":
             raise UserError("Import the batch first.")
         Approval = self.env["fix.registration.approval"]
@@ -839,9 +888,9 @@ class FixPartyImportBatch(models.Model):
                 partner.sudo()._guarded().write({"party_status": "active"})
                 partner.message_post(
                     body=(
-                        "Activated by the M33 vendor-ledger cut-over (individual "
-                        "payee; batch %s). Reason: legacy vendor ledger migration."
-                        % self.import_ref
+                        "Activated by the M33 %s-list cut-over (individual party; "
+                        "batch %s). Reason: legacy partner master migration."
+                        % (_DUMP_LABEL.get(self.sheet_kind, "party").lower(), self.import_ref)
                     )
                 )
                 activated += 1
@@ -879,11 +928,16 @@ class FixPartyImportBatch(models.Model):
         Idempotent, and only for usable parties (an active role requires an
         active party)."""
         self.ensure_one()
+        self._fix_import_check_authority()
         Role = self.env["fix.party.role"]
-        role_type = {"corp": "customer", "stbl": "brand_partner"}.get(self.sheet_kind, "vendor")
+        role_type = ROLE_BY_KIND[self.sheet_kind]
+        if not role_type:
+            self._log("roles assigned: none (contact list carries no trading role)")
+            self.action_score_quality()
+            return True
         lines = self.line_ids.filtered(
             lambda ln: ln.created_partner_id
-            or (self.sheet_kind == "vendor" and ln.matched_partner_id)
+            or (self.sheet_kind in PARTNER_DUMP_KINDS and ln.matched_partner_id)
         )
         partners = lines.mapped(lambda ln: ln.created_partner_id or ln.matched_partner_id)
         # one read_group for the whole batch (26k-row scale)
@@ -945,6 +999,7 @@ class FixPartyImportBatch(models.Model):
         linked parties stay (they pre-existed); the legacy keys attached to
         them by this batch are cleared."""
         self.ensure_one()
+        self._fix_import_check_authority()
         Approval = self.env["fix.registration.approval"]
         Hierarchy = self.env["fix.party.hierarchy"]
         referencing = [
@@ -1016,7 +1071,7 @@ class FixPartyImportBatch(models.Model):
                 lines.filtered(lambda ln: ln.line_state in ("matched", "linked"))
             ),
         }
-        if self.sheet_kind == "vendor":
+        if self.sheet_kind in PARTNER_DUMP_KINDS:
             # Odoo 19 _read_group yields (groupby-value, aggregate-value) tuples
             summary["by_party_class"] = dict(
                 sorted(

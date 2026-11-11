@@ -30,7 +30,7 @@ export const MODULE = {
   groups: [
     { en: 'Recovery Cases', screens: [
       { id: 'M06-cases', en: 'Recovery Cases', bn: 'রিকভারি কেস', t: 'g' },
-      { id: 'M06-record', en: 'Case Record (7 specialisms)', bn: 'কেস নথি', t: 'f' },
+      { id: 'M06-record', en: 'Case Record (7 specialisms)', bn: 'কেস নথি', t: 'g' },
       { id: 'M06-attempts', en: 'Attempt Tracking', bn: 'প্রচেষ্টা ট্র্যাকিং', t: 'g' }
     ]},
     { en: 'Media Custody', screens: [

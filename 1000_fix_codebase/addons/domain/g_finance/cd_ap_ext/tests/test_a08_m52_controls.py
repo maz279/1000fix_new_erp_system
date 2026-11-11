@@ -508,8 +508,13 @@ def test_m52_06_levels_are_rederived_not_trusted(c):
 
 
 def test_m52_07_bill_type_locked_after_submission(c):
-    b = approve(c, bill(c, 80000.0, bill_type="po"))
+    """An unmatched PO bill is now refused at submission (G3-06). The lock is
+    still shown on one that is approved, as bills approved before that gate
+    are: system code sets the state."""
+    b = bill(c, 80000.0, bill_type="po")
     assert b.match_state == "unmatched"
+    assert "G3-06" in str(refused(c.env, lambda: b.with_user(c.acc1).action_submit_approval()))
+    b.sudo()._guarded().write({"approval_state": "approved"})
     assert refused(c.env, lambda: b.with_user(c.acc1).write({"bill_type": "non_po"}))
     r = run(c)
     assert refused(c.env, lambda: r.with_user(c.acc1).action_propose())  # nothing payable
@@ -670,15 +675,19 @@ def test_m52_13_duplicate_reference_refused(c):
 
 
 def test_m52_15_blocked_bill_not_payable(c):
+    """Blocked: not submitted (G3-06 at submission), and not paid even when
+    approved, as a bill approved before that gate is (system code sets it)."""
     p = issued_po(c, 1.0, 1000.0, received=1.0)
-    b = approve(c, bill(c, 1500.0, po=p))
+    b = bill(c, 1500.0, po=p)
     assert b.match_state == "blocked"
-    assert refused(c.env, lambda: b.with_user(c.acc1).action_request_payment())
+    assert "G3-06" in str(refused(c.env, lambda: b.with_user(c.acc1).action_submit_approval()))
+    b.sudo()._guarded().write({"approval_state": "approved"})
+    assert "G3-06" in str(refused(c.env, lambda: b.with_user(c.acc1).action_request_payment()))
 
 
 def test_m52_16_plain_user_cannot_retype_po_to_match(c):
     p = issued_po(c, 10.0, 1000.0)
-    b = approve(c, bill(c, 1500.0, qty=10.0, po=p))
+    b = bill(c, 1500.0, qty=10.0, po=p)  # blocked: it is not submitted (G3-06)
     assert b.match_state == "blocked"
     refused(
         c.env,

@@ -59,9 +59,27 @@ def m19_source(env):
     return env.context.get(M19_SOURCE_KEY) if has_m19_token(env) else None
 
 
+def holds(user, xmlid) -> bool:
+    """The user holds the role. The Accounting Administrator does every
+    Accountant duty: Odoo 19's manager group does not imply group_account_user,
+    so a finance manager could not draft a journal (AR and treasury agree)."""
+    if user.has_group(xmlid):
+        return True
+    return xmlid == ACCOUNT_USER and user.has_group(ACCOUNT_MANAGER)
+
+
+def holds_group(user, group) -> bool:
+    """`holds` for a group record (a close step names its owner as a record)."""
+    user = user.sudo()
+    if group in user.all_group_ids:
+        return True
+    accountant = user.env.ref(ACCOUNT_USER, raise_if_not_found=False)
+    return bool(accountant and group == accountant and user.has_group(ACCOUNT_MANAGER))
+
+
 def has_role(env, xmlid) -> bool:
     """Superuser code (crons, seeds, service calls) is trusted."""
-    return env.su or env.user.has_group(xmlid)
+    return env.su or holds(env.user, xmlid)
 
 
 def require_role(env, xmlid, what):
@@ -70,6 +88,54 @@ def require_role(env, xmlid, what):
         raise AccessError(
             "%s needs the %s role, which you do not hold." % (what, group.name if group else xmlid)
         )
+
+
+def require_takeon_authority(env, what):
+    """The one gate of the legacy take-on wizards. A take-on writes the opening
+    position to the general ledger (and creates parties as the system) outside
+    the manual-journal maker-checker, so it is an Accounting Administrator's
+    act. The cut-over loaders run as the superuser and pass."""
+    if not has_role(env, ACCOUNT_MANAGER):
+        raise AccessError(
+            "%s is an Accounting Administrator's act; an accountant stages and validates "
+            "the batch, the administrator posts it." % what
+        )
+
+
+def ensure_legacy_account(env, company, name, code, account_type):
+    """The take-on wizards' own accounts (contra, unallocated receipts):
+    found by CODE first, then by name, created at most once. The wizards
+    used to try a create, swallow any exception and create again through a
+    fallback that wrote the code as a stringified dict - the first create had
+    already inserted its row, so the real chart gained duplicate contra
+    accounts and an account coded "{'1': '2-99-99-902'}" (fix_real, Nov 2026).
+    The root cause was the code itself: Odoo 19 accepts only alphanumerics and
+    dots in an account code, so "2-99-99-901" never validated and every run
+    took the fallback. The take-on accounts use the dotted form, 2.99.99.90x.
+    A failure now refuses with its cause; it never guesses a second account."""
+    Account = env["account.account"].with_company(company)
+    existing = Account.search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+    if not existing:
+        existing = Account.search(
+            [("name", "=", name), ("company_ids", "in", company.id)], order="id", limit=1
+        )
+    if existing:
+        return existing
+    try:
+        with env.cr.savepoint():
+            return Account.create(
+                {
+                    "name": name,
+                    "code": code,
+                    "account_type": account_type,
+                    "company_ids": [(6, 0, [company.id])],
+                }
+            )
+    except Exception as exc:
+        raise UserError(
+            "Could not create account %s %s on %s (%s). Create it on the chart first."
+            % (code, name, company.name, exc)
+        ) from exc
 
 
 def _split_dims(value) -> set:
@@ -824,8 +890,10 @@ class FixPeriodCloseLine(models.Model):
                 raise UserError("The period is closed; its steps are frozen.")
             if self.env.su:
                 continue
-            group = line.owner_group_id
-            if group and group not in user.sudo().all_group_ids:
+            # A step nobody owns is not everybody's: it falls to the
+            # Accounting Administrator.
+            group = line.owner_group_id or self.env.ref(ACCOUNT_MANAGER).sudo()
+            if not holds_group(user, group):
                 raise AccessError(
                     "Close step '%s' is owned by %s (%s); you do not hold that role."
                     % (line.name, line.owner_role or "its owner", group.name)

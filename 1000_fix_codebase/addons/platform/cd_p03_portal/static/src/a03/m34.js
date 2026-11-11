@@ -18,7 +18,7 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Surveys', screens: [
-      { id: 'M34-design', en: 'Survey Designer', bn: 'সার্ভে ডিজাইনার', t: 'f' },
+      { id: 'M34-design', en: 'Survey Designer', bn: 'সার্ভে ডিজাইনার', t: 'r' },
       { id: 'M34-responses', en: 'Responses & Ratings', bn: 'প্রতিক্রিয়া', t: 'g' },
       { id: 'M34-throttle', en: 'Distribution & Throttling', bn: 'বিতরণ ও থ্রটলিং', t: 'g' }
     ]},
@@ -240,10 +240,7 @@ export const SCREENS = {
         ]},
       { tab: 'docs', title: 'Complaint Evidence & Document Repository (ISO 10002 / CRPA 2009)',
         note: 'Damage photographs, written complaint letters, technician incident reports, CCTV references and signed settlement release forms attach to this record (Odoo attachments). The checksummed document repository (fix.document, M24 — SHA-256 + retention class) is the estate-wide evidence path; a dedicated complaint-evidence relation is a declared platform gap.',
-        fields: [
-          { name: 'ncr_id', label: 'Quality NCR Evidence Ref', readonly: true },
-          { name: 'capa_id', label: 'CAPA Action Evidence Ref', readonly: true },
-        ]},
+        fields: []},
       { tab: 'resolution', title: 'Response, Customer Decision & Closure (ISO 10002 cl. 7.7-7.9)',
         note: 'Send Response records what was offered; the customer then accepts or rejects it. Only an accepted response closes, and closing raises the concession credit note or voucher and the post-resolution survey.',
         fields: [

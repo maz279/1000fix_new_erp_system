@@ -185,6 +185,9 @@ def _bill(a, price, qty=1.0, ref=None, po=None, **vals):
             "vendor_id": a["vendor"].id,
             "invoice_ref": ref or "PS-%d" % next(_SEQ),
             "invoice_date": vals.pop("invoice_date", date(2026, 10, 5)),
+            # with no PO a bill is a non-PO bill: a PO-type bill with no order
+            # linked is 'unmatched' and is refused at submission (G3-06)
+            "bill_type": vals.pop("bill_type", "po" if po else "non_po"),
             "requisition_id": po.id if po else False,
             "line_ids": [
                 (
@@ -457,7 +460,13 @@ class TestPaymentRun:
             {"invoice_id": bill.id, "mushak_ref": "67-77", "amount": 10000.0}
         )
         note.with_user(a08["acc2"]).action_approve()
-        unmatched = _approve(a08, _bill(a08, 5000.0, payment_term_days=0))  # no PO: never paid
+        # PO-type, no PO: refused at submission (G3-06), and never paid even when
+        # approved and posted, as a bill approved before that gate is (system
+        # code sets the state; the other bill's entry stands in for its own)
+        unmatched = _bill(a08, 5000.0, bill_type="po", payment_term_days=0)
+        with pytest.raises(UserError, match="G3-06"), env.cr.savepoint():
+            unmatched.with_user(a08["acc1"]).action_submit_approval()
+        unmatched._guarded().write({"approval_state": "approved", "move_id": bill.move_id.id})
         run = env["fix.payment.run"].create({"rail": "beftn", "due_by": "2026-10-31"})
         run.with_user(a08["acc1"]).action_propose()
         line = run.line_ids
@@ -551,12 +560,18 @@ class TestNonPoBills:
             "not_required",
             "Non-PO bill: controlled by the approval matrix",
         )
-        no_po = _approve(a08, _bill(a08, 5000.0, payment_term_days=0))  # PO-type, no PO
+        no_po = _bill(a08, 5000.0, bill_type="po", payment_term_days=0)  # PO-type, no PO
         assert no_po.match_state == "unmatched"
+        # refused at submission (G3-06); not paid even when approved, as a bill
+        # approved before that gate is
+        with pytest.raises(UserError, match="G3-06"), env.cr.savepoint():
+            no_po.with_user(a08["acc1"]).action_submit_approval()
+        no_po._guarded().write({"approval_state": "approved"})
         run = env["fix.payment.run"].create({"rail": "beftn", "due_by": "2026-10-31"})
         with pytest.raises(UserError), env.cr.savepoint():
             run.with_user(a08["acc1"]).action_propose()  # nothing approved and payable yet
         _approve(a08, rent)
+        no_po._guarded().write({"move_id": rent.move_id.id})  # a posted entry stands in for its own
         run.with_user(a08["acc1"]).action_propose()
         assert rent in run.line_ids.bill_ids and no_po not in run.line_ids.bill_ids
 

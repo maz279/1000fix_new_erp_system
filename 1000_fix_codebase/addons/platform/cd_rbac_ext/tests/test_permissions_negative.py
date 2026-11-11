@@ -72,16 +72,17 @@ class TestPermissionNegative53Roles:
     """R02-M02-T01: 53-role negative permission test suite.
     DoD-07 requires negative tests proving unauthorized users are denied."""
 
-    def test_all_53_roles_seeded_in_xml(self):
-        """Verify fix_roles.xml defines exactly 53 unique roles R-01..R-53."""
+    def test_all_54_roles_seeded_in_xml(self):
+        """Verify fix_roles.xml defines exactly 54 unique roles R-01..R-54
+        (R-54 Chief Operating Officer joined the register on 2026-11-10)."""
         roles_file = DATA_DIR / "fix_roles.xml"
         assert roles_file.exists(), "fix_roles.xml missing from cd_rbac_ext/data"
         tree = ET.parse(roles_file)  # noqa: S314 - parses a repo-owned XML file, not untrusted input
         records = tree.findall(".//record[@model='fix.role']")
-        assert len(records) == 53, f"Expected 53 roles in fix_roles.xml, found {len(records)}"
+        assert len(records) == 54, f"Expected 54 roles in fix_roles.xml, found {len(records)}"
 
         codes = [r.find("field[@name='code']").text for r in records]
-        assert len(set(codes)) == 53, "Role codes must be unique"
+        assert len(set(codes)) == 54, "Role codes must be unique"
         for code in codes:
             assert code.startswith("R-"), f"Role code {code} must start with R-"
 

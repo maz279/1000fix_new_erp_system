@@ -59,23 +59,50 @@ def ap_account(env, company, role):
     return account
 
 
+PURCHASE_JOURNAL_PARAM = "cd_ap_ext.bill_journal_code"
+# The name the first seed wrote and the databases carry. The reader looked only
+# at the name above, so the configured journal was ignored; still honoured.
+LEGACY_PURCHASE_JOURNAL_PARAM = "cd_ap_ext.purchase_journal_code"
+
+
 def ap_journal(env, company, kind):
-    """kind 'purchase': the company's purchase journal (or the one configured
-    in cd_ap_ext.bill_journal_code); kind 'payment': the bank journal
-    configured in cd_ap_ext.payment_journal_code (required — money leaving
-    the company is never posted to a guessed bank)."""
+    """kind 'purchase': the purchase journal configured in
+    cd_ap_ext.bill_journal_code (legacy name: cd_ap_ext.purchase_journal_code),
+    or the company's only purchase journal — never a guess between several;
+    kind 'payment': the bank journal configured in
+    cd_ap_ext.payment_journal_code (required — money leaving the company is
+    never posted to a guessed bank)."""
     icp = env["ir.config_parameter"].sudo()
     Journal = env["account.journal"]
     if kind == "purchase":
-        code = icp.get_param("cd_ap_ext.bill_journal_code")
+        code = (
+            icp.get_param(PURCHASE_JOURNAL_PARAM)
+            or icp.get_param(LEGACY_PURCHASE_JOURNAL_PARAM)
+            or ""
+        ).strip()
         domain = [("company_id", "=", company.id), ("type", "=", "purchase")]
-        journal = Journal.search(domain + ([("code", "=", code)] if code else []), limit=1)
-        if not journal:
+        if code:
+            journal = Journal.search([*domain, ("code", "=", code)], limit=1)
+            if not journal:
+                raise UserError(
+                    "No purchase journal with code %s in %s for vendor bill postings (system "
+                    "parameter %s). Nothing was posted."
+                    % (code, company.name, PURCHASE_JOURNAL_PARAM)
+                )
+            return journal
+        journals = Journal.search(domain, limit=2)
+        if not journals:
             raise UserError(
                 "No purchase journal in %s for vendor bill postings (system parameter "
-                "cd_ap_ext.bill_journal_code). Nothing was posted." % company.name
+                "%s). Nothing was posted." % (company.name, PURCHASE_JOURNAL_PARAM)
             )
-        return journal
+        if len(journals) > 1:
+            raise UserError(
+                "%s has more than one purchase journal: set system parameter %s to the code "
+                "of the journal vendor bills post to. Nothing was posted."
+                % (company.name, PURCHASE_JOURNAL_PARAM)
+            )
+        return journals
     code = icp.get_param("cd_ap_ext.payment_journal_code")
     journal = Journal
     if code:

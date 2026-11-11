@@ -23,7 +23,11 @@ export const MODULE = {
       { id: 'M18-intake', en: 'Collections & Intake', bn: 'সংগ্রহ ও গ্রহণ', t: 'g' },
       { id: 'M18-triage', en: 'Triage & Disposition', bn: 'বাছাই ও নিষ্পত্তি', t: 'c' },
       { id: 'M18-drives', en: 'Public Drives & Bins', bn: 'গণ সংগ্রহ কর্মসূচি', t: 'g' },
-      { id: 'M18-battery', en: 'Hazardous & Battery Log', bn: 'ব্যাটারি ও বিপজ্জনক বর্জ্য', t: 'g' }
+      { id: 'M18-battery', en: 'Hazardous & Battery Log', bn: 'ব্যাটারি ও বিপজ্জনক বর্জ্য', t: 'g' },
+      // registry screens (contracts/nav): declared since A05 iter-1 but never
+      // navigable — the read-only registers behind the worklists above
+      { id: 'M18-collections', en: 'Collections & Bookings (register)', bn: 'সংগ্রহ', t: 'g' },
+      { id: 'M18-events', en: 'Collection Events (register)', bn: 'সংগ্রহ ইভেন্ট', t: 'g' }
     ]},
     { en: 'Processing & Custody', screens: [
       { id: 'M18-batches', en: 'Recycler Batches', bn: 'রিসাইক্লার চালান', t: 'g' },
@@ -31,13 +35,15 @@ export const MODULE = {
       { id: 'M18-certs', en: 'Green Certificates', bn: 'সবুজ সনদপত্র', t: 'g' },
       { id: 'M18-manifest', en: 'Transfer Manifests (Form-1)', bn: 'হস্তান্তর শৃঙ্খলা', t: 'g' },
       { id: 'M18-pic', en: 'Basel Prior Consent', bn: 'বাসেল পূর্বসম্মতি', t: 'g' },
-      { id: 'M18-settlements', en: 'Incentives & Recycler Money', bn: 'প্রণোদনা ও রিসাইক্লার অর্থ', t: 'g' }
+      { id: 'M18-settlements', en: 'Incentives & Recycler Money', bn: 'প্রণোদনা ও রিসাইক্লার অর্থ', t: 'g' },
+      { id: 'M18-certificates', en: 'Disposal Certificates (register)', bn: 'নিষ্পত্তি সনদ', t: 'g' }
     ]},
     { en: 'Statutory & ESG', screens: [
       { id: 'M18-returns', en: 'Statutory Returns (DoE)', bn: 'পরিবেশ অধিদপ্তর বিবরণী', t: 'g' },
       { id: 'M18-registration', en: 'DoE Registration & EPR', bn: 'পরিবেশ অধিদপ্তর নিবন্ধন', t: 'g' },
       { id: 'M18-esg', en: 'ESG Metrics (computed)', bn: 'ইএসজি সূচক', t: 'g' },
-      { id: 'M18-epr', en: 'EPR Compliance Pack', bn: 'ইপিআর কমপ্লায়েন্স', t: 'r' }
+      { id: 'M18-epr', en: 'EPR Compliance Pack', bn: 'ইপিআর কমপ্লায়েন্স', t: 'r' },
+      { id: 'M18-impact', en: 'Carbon & Impact Estimation', bn: 'কার্বন ও প্রভাব', t: 'r' }
     ]}
   ],
   reports: [
@@ -254,12 +260,11 @@ export const SCREENS = {
       { tab: 'general', title: 'Triage Docket',
         fields: [
           { name: 'name', label: 'Triage Case ID', readonly: true },
-          { name: 'collection_id', required: true, label: 'Origin Collection Item' },
-          { name: 'decision', required: true, label: 'Triage Disposition Decision' }
+          { name: 'collection_id', required: true, label: 'Origin Collection Item' }
         ] },
       { tab: 'pricing', title: 'Disposition Routing',
         fields: [
-          { name: 'decision', label: 'Final Route (Reuse/Refurbish/Recycle/Hazardous)' }
+          { name: 'decision', required: true, label: 'Triage Disposition Decision (Reuse/Refurbish/Recycle/Hazardous)' }
         ] },
       { tab: 'technical', title: 'Data Bearing Identification',
         fields: [
@@ -611,8 +616,7 @@ export const SCREENS = {
       { tab: 'general', title: 'ESG Indicator Definition',
         fields: [
           { name: 'name', required: true, label: 'Indicator Title (e.g., Avoided Scope 3 CO2e)', readonly: true },
-          { name: 'metric_type', required: true, label: 'GRI/SASB Materiality Type', readonly: true },
-          { name: 'period', required: true, label: 'Reporting Period', readonly: true }
+          { name: 'metric_type', required: true, label: 'GRI/SASB Materiality Type', readonly: true }
         ] },
       { tab: 'pricing', title: 'Quantification',
         fields: [
@@ -629,7 +633,7 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Sustainability Timeline',
         fields: [
-          { name: 'period', label: 'Audit Cycle Period', readonly: true }
+          { name: 'period', required: true, label: 'Reporting Period', readonly: true }
         ] },
       { tab: 'governance', title: 'Company Context',
         fields: [

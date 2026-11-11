@@ -1173,11 +1173,16 @@ class FixArInvoice(models.Model):
     @api.model
     def _company_bin(self, company) -> str:
         """The supplier BIN — from company master data (never invented)."""
-        vat = (company.vat or "").replace(" ", "")
-        if not vat:
+        from odoo.addons.cd_tax_engine_bd.models.fix_tax_engine import (
+            normalize_bin,
+            valid_bin,
+        )
+
+        vat = normalize_bin(company.vat)
+        if not valid_bin(vat):
             raise UserError(
-                "Company BIN missing on %s — a Mushak 6.3 cannot be issued "
-                "without the supplier BIN" % company.name
+                "Company BIN missing or not 13 digits on %s — a Mushak 6.3 cannot be "
+                "issued without the supplier BIN" % company.name
             )
         return vat
 

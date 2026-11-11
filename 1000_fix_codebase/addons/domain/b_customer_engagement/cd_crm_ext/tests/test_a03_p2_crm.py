@@ -70,6 +70,14 @@ def verifier(make_user):
 
 
 @pytest.fixture
+def colleague(make_user):
+    """A second seller, with exactly a seller's groups. An estimate is never
+    approved on its preparer's word alone, and a pre-sales estimate has no
+    order and so no customer code to take: a colleague records the approval."""
+    return make_user(SELLER)
+
+
+@pytest.fixture
 def corporate(env):
     return env["res.partner"].create({"name": "P2 Corporate Ltd", "is_company": True})
 
@@ -195,7 +203,7 @@ def test_changing_the_contract_reference_withdraws_the_verification(
 # --------------------------------------------------------------------------
 # Item 1 / G-M07-9 / G-M36-2: approved estimate before Won and conversion
 # --------------------------------------------------------------------------
-def test_won_requires_an_approved_linked_estimate(env, seller, verifier, corporate):
+def test_won_requires_an_approved_linked_estimate(env, seller, colleague, verifier, corporate):
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     with pytest.raises(ValidationError, match="no estimate"):
         lead.with_user(seller).action_set_won()
@@ -204,12 +212,41 @@ def test_won_requires_an_approved_linked_estimate(env, seller, verifier, corpora
     with pytest.raises(ValidationError, match="must be approved"):
         lead.with_user(seller).action_set_won()
     estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
-    estimate.with_user(seller).action_approve()
+    estimate.with_user(colleague).action_approve()
     assert estimate.state == "approved" and estimate.approval_stamped_at
     assert estimate.approved_total == estimate.grand_total
     lead.with_user(seller).action_set_won()
     assert lead.won_status == "won"
     assert lead.quote_status.startswith("Approved")
+
+
+def test_a_seller_cannot_approve_the_presales_estimate_they_prepared(
+    env, seller, colleague, verifier, corporate
+):
+    """Segregation of duties on the pre-sales path. A CRM estimate has no
+    order, so there is no customer code to take: the seller who prepared it is
+    refused, and it is a colleague's approval that lets the deal be won."""
+    lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
+    estimate = _estimate(env, lead, seller)
+    assert estimate.create_uid == seller and not estimate.order_id
+    estimate.with_user(seller).action_send()
+    with pytest.raises(UserError, match="Segregation of duties: you prepared estimate"):
+        estimate.with_user(seller).action_approve()
+    estimate.invalidate_recordset()
+    assert estimate.state == "sent" and not estimate.approval_stamped_at
+    # no order means no customer to send an approval code to
+    with pytest.raises(UserError, match="no valid Bangladesh mobile number"):
+        estimate.with_user(seller).action_send_customer_otp()
+    assert not estimate.customer_approval_ref
+    with pytest.raises(ValidationError, match="must be approved"):
+        lead.with_user(seller).action_set_won()
+    assert lead.won_status != "won"
+    # the legitimate path: a colleague, holding only a seller's groups, approves
+    estimate.with_user(colleague).action_approve()
+    assert estimate.state == "approved" and estimate.approval_stamped_at
+    assert estimate.approved_total == estimate.grand_total
+    lead.with_user(seller).action_set_won()
+    assert lead.won_status == "won"
 
 
 def test_creating_a_deal_already_won_is_refused(env, seller, corporate):
@@ -227,11 +264,11 @@ def test_linked_estimate_cannot_be_forced_to_approved(env, seller, corporate):
     assert estimate.state == "draft"
 
 
-def test_an_edit_after_approval_blocks_the_win(env, seller, verifier, corporate):
+def test_an_edit_after_approval_blocks_the_win(env, seller, colleague, verifier, corporate):
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
     estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
-    estimate.with_user(seller).action_approve()
+    estimate.with_user(colleague).action_approve()
     # A02 M01-5: the approved estimate's lines are now frozen outright
     with pytest.raises(UserError, match="frozen"):
         env["fix.estimate.line"].with_user(seller).create(
@@ -242,13 +279,13 @@ def test_an_edit_after_approval_blocks_the_win(env, seller, verifier, corporate)
     revised = env["fix.estimate"].browse(revision["res_id"])
     assert revised.lead_id == lead and revised.state == "draft"
     revised.with_user(seller).action_send()
-    revised.with_user(seller).action_approve()
+    revised.with_user(colleague).action_approve()
     lead.with_user(seller).action_set_won()
     assert lead.won_status == "won"
 
 
 def test_pending_discount_approval_is_voided_by_an_edit(
-    env, seller, verifier, make_user, corporate
+    env, seller, colleague, verifier, make_user, corporate
 ):
     """The engine's void-on-change limits edits while approval is pending."""
     approver = make_user(T2)
@@ -265,7 +302,7 @@ def test_pending_discount_approval_is_voided_by_an_edit(
     estimate.invalidate_recordset()
     assert estimate.approval_state == "none"
     with pytest.raises(REFUSED):
-        estimate.with_user(seller).action_approve()  # DOFA sign-off missing
+        estimate.with_user(colleague).action_approve()  # DOFA sign-off missing
     # Re-request, the Tier 2 approver decides it, then the estimate approves.
     approve_via_inbox(
         env["fix.estimate"].browse(estimate.id),
@@ -275,18 +312,18 @@ def test_pending_discount_approval_is_voided_by_an_edit(
     )
     estimate.invalidate_recordset()
     assert estimate.dofa_approved and estimate.dofa_approved_by == approver
-    estimate.with_user(seller).action_approve()
+    estimate.with_user(colleague).action_approve()
     lead.with_user(seller).action_set_won()
     assert lead.won_status == "won"
 
 
-def test_a_rejected_discount_request_blocks_the_win(env, seller, verifier, corporate):
+def test_a_rejected_discount_request_blocks_the_win(env, seller, colleague, verifier, corporate):
     if "fix.discount.approval" not in env:
         pytest.skip("cd_quotation is not installed")
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
     estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
-    estimate.with_user(seller).action_approve()
+    estimate.with_user(colleague).action_approve()
     request = env["fix.discount.approval"].create(
         {
             "quotation_id": estimate.id,
@@ -344,23 +381,25 @@ def device_for(env):
     return _make
 
 
-def test_b2b_without_a_device_gets_a_contract_path(env, seller, verifier, corporate):
+def test_b2b_without_a_device_gets_a_contract_path(env, seller, colleague, verifier, corporate):
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     b2b_estimate = _estimate(env, lead, seller)
     b2b_estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
-    b2b_estimate.with_user(seller).action_approve()
+    b2b_estimate.with_user(colleague).action_approve()
     lead.with_user(seller).action_set_won()
     with pytest.raises(ValidationError, match="corporate account .* M08"):
         lead.with_user(seller).action_convert_to_service_order()
     assert not lead.converted_service_order_id
 
 
-def test_conversion_carries_the_approved_estimate(env, seller, verifier, corporate, device_for):
+def test_conversion_carries_the_approved_estimate(
+    env, seller, colleague, verifier, corporate, device_for
+):
     device_for(corporate)
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
     estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
-    estimate.with_user(seller).action_approve()
+    estimate.with_user(colleague).action_approve()
     lead.with_user(seller).action_set_won()
     lead.with_user(seller).action_convert_to_service_order()
     order = lead.converted_service_order_id

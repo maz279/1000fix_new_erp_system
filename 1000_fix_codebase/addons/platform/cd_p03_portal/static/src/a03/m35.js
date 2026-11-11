@@ -24,7 +24,7 @@ export const MODULE = {
       { id: 'M35-approval', en: 'Planning & Approval', bn: 'পরিকল্পনা ও অনুমোদন', t: 'c' }
     ]},
     { en: 'Journeys', screens: [
-      { id: 'M35-journeys', en: 'Journey Orchestration', bn: 'জার্নি অর্কেস্ট্রেশন', t: 'f' },
+      { id: 'M35-journeys', en: 'Journey Orchestration', bn: 'জার্নি অর্কেস্ট্রেশন', t: 'g' },
       { id: 'M35-triggers', en: 'Behaviour Triggers', bn: 'আচরণ ট্রিগার', t: 'g' }
     ]},
     { en: 'Offers & Content', screens: [
@@ -174,7 +174,6 @@ export const SCREENS = {
         note: 'Creative banners, BTRC NOC letters and the CFO budget-approval memo are fix.campaign.creative records (see the Creative Assets grid) plus budget_memo_ref on the Budget tab. The checksummed repository (fix.document, M24 — SHA-256) is the estate-wide asset path; a direct campaign→document relation is a declared platform gap.',
         fields: [
           { name: 'recipient_ids', label: 'Associated Campaign Audience Records', readonly: true },
-          { name: 'budget_memo_ref', label: 'DOFA Budget Approval Memo Reference', readonly: true },
           { name: 'btrc_sender_mask', label: 'BTRC Approved Sender ID Mask' },
           { name: 'sms_opt_out_text', label: 'Mandatory Opt-Out Instruction' },
           { name: 'dnd_scrubbed_at', label: 'DND Registry Scrubbed At', readonly: true },

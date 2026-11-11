@@ -101,16 +101,16 @@ export const P03_ROLES = [
   { id: 'dispatch_manager', code: 'R07', en: 'Dispatch & Live Map', bn: 'ডিসপ্যাচ ও লাইভ ম্যাপ', icon: '⚡', desc: 'Interactive GPS vector map, SLA risk countdowns, and automated field technician allocation.' },
   { id: 'branch_manager', code: 'R06', en: 'Branch Operations Console', bn: 'শাখা পরিচালনা কনসোল', icon: '🏢', desc: 'Own-branch daily intake, cash & bKash register, WIP ageing, and ready-for-collection shelf.' },
   { id: 'workshop_supervisor', code: 'R09', en: 'Workshop & Depot Repair', bn: 'ওয়ার্কশপ ও ডিপো মেরামত', icon: '🔧', desc: '8-station bench board, parts & estimate holds, QC inspection queue, and rework detection.' },
-  { id: 'field_technician', code: 'R09-F', en: 'Field Service Technician', bn: 'ফিল্ড সার্ভিস টেকনিশিয়ান', icon: '🛵', desc: 'Day queue, Dhaka Circle geofenced clock-in, van stock barcode scanning, and e-signatures.' },
+  { id: 'field_technician', code: 'R-12', en: 'Field Service Technician', bn: 'ফিল্ড সার্ভিস টেকনিশিয়ান', icon: '🛵', desc: 'Day queue, Dhaka Circle geofenced clock-in, van stock barcode scanning, and e-signatures.' },
   { id: 'inventory_keeper', code: 'R17', en: 'Inventory & Store Keeper', bn: 'ইনভেন্টরি ও স্টোর কিপার', icon: '📦', desc: 'Warehouse bin cards, stockout prevention, van replenishment, and RMA quarantine.' },
   { id: 'procurement_officer', code: 'R19', en: 'Procurement & Purchasing', bn: 'ক্রয় ও সংগ্রহ কর্মকর্তা', icon: '🛒', desc: 'Purchase orders, supplier lead times, buffer stock calculations, and landed cost reconciliation.' },
   { id: 'finance_officer', code: 'R26', en: 'Finance & Mushak 6.3', bn: 'অর্থ ও মূসক ৬.৩ চালান', icon: '💰', desc: 'Statutory Mushak 6.3 VAT tax invoices, NBR compliance, and collection reconciliation.' },
   { id: 'hr_payroll', code: 'R30', en: 'People & Workforce HR', bn: 'এইচআর ও কর্মী শিফট', icon: '👥', desc: 'Staff shifts, biometric attendance logs, field overtime, and skill certification matrix.' },
   { id: 'quality_auditor', code: 'R32', en: 'Quality & ISO 9001 Audit', bn: 'কোয়ালিটি ও আইএসও অডিট', icon: '🔬', desc: 'ISO 9001:2015 audit checklists, repeat-repair investigation, and equipment calibration.' },
-  { id: 'contact_centre_agent', code: 'R08-C', en: 'Contact Centre & Hotline', bn: 'হটলাইন ১৬৭৪৩ ও কন্টাক্ট সেন্টার', icon: '🎧', desc: 'Hotline 16743 queue, omnichannel customer chat, ticket resolution, and callback scheduling.' },
+  { id: 'contact_centre_agent', code: 'R-34', en: 'Contact Centre & Hotline', bn: 'হটলাইন ১৬৭৪৩ ও কন্টাক্ট সেন্টার', icon: '🎧', desc: 'Hotline 16743 queue, omnichannel customer chat, ticket resolution, and callback scheduling.' },
   { id: 'account_manager', code: 'R22', en: 'Corporate B2B & Contracts', bn: 'কর্পোরেট চুক্তি ও এএমসি', icon: '💼', desc: 'Enterprise client estates, SLA credit penalties, bulk service orders, and AMC billing.' },
   { id: 'marketplace_ops', code: 'R24', en: 'Marketplace & Vendor Ops', bn: 'মার্কেটপ্লেস ও বিক্রেতা', icon: '🛍️', desc: 'Verified parts merchant onboarding, escrow settlement, disputes, and parts catalogue sync.' },
-  { id: 'rider_logistics', code: 'R20', en: 'Rider & Logistics Fleet', bn: 'রাইডার ও লজিস্টিকস বহর', icon: '🚚', desc: 'Hub-to-hub manifests, pick-and-drop logistics, parcel transit fleet tracking.' },
+  { id: 'rider_logistics', code: 'R-16', en: 'Rider & Logistics Fleet', bn: 'রাইডার ও লজিস্টিকস বহর', icon: '🚚', desc: 'Hub-to-hub manifests, pick-and-drop logistics, parcel transit fleet tracking.' },
   { id: 'system_admin', code: 'R33', en: 'System & Security Admin', bn: 'সিস্টেম ও সিকিউরিটি অ্যাডমিন', icon: '🛡️', desc: 'RBAC permissions, immutable audit logs, server telemetry, and PDPA data residency.' }
 ];
 

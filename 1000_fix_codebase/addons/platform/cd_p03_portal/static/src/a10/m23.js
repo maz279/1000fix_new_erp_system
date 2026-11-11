@@ -114,7 +114,7 @@ export const SCREENS = {
               { m: 'action_hold', l: 'Mark Held' },
               { m: 'action_close', l: 'Close — routes to Tier 5',
                 asks: [{ label: 'Why is this review ready to close? (routed to top management, DOFA Tier 5)', kwarg: 'justification' }] }] },
-  'M23-review-inputs': { kind: 'model_list', model: 'fix.qms.review.input',
+  'M23-review-inputs': { kind: 'model_list', model: 'fix.qms.review.input', create: false,
     cols: ['review_id', 'kind', 'metric', 'source_count', 'pulled_on', 'summary'] },
   'M23-review-actions': { kind: 'model_list', model: 'fix.qms.review.action', stateField: 'state',
     cols: ['review_id', 'name', 'owner_id', 'due_on', 'state', 'done_on'],

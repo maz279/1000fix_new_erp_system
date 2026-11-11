@@ -55,6 +55,10 @@ ROLE_TO_WS = {
     "R-13": "service_intake",
     "R-14": "service_intake",
     "R-09": "workshop_supervisor",
+    # Team Leader: 19 live holders on the real estate lead technical benches
+    # (the job-title hint already sent them here; the register row is the
+    # authority, so it is mapped rather than hinted).
+    "R-47": "workshop_supervisor",
     "R-10": "field_technician",
     "R-11": "field_technician",
     "R-12": "field_technician",
@@ -97,7 +101,8 @@ JOB_TITLE_WS = [
     ("team leader, technical operations", "workshop_supervisor"),
     ("team leader, technical", "workshop_supervisor"),
     ("key account manager", "account_manager"),
-    ("project manager", "executive"),
+    # "project manager" is deliberately NOT hinted: R-53 has no functional
+    # center, and a title match must never open Executive Oversight.
 ]
 HEAD_DEPT_WS = {
     "technical operations": "workshop_supervisor",
@@ -198,7 +203,14 @@ def _kpi_revenue_mtd(env, ctx):
 
 
 def _kpi_unassigned_wos(env, ctx):
-    return _count(env, "fix.work.order", [("technician_id", "=", False), ("state", "=", "pending")])
+    # Counts what its drill-through (M02-unassigned) lists: field orders
+    # waiting for a technician. The tile used to count fix.work.order and
+    # open a fix.field.order grid, so the number never matched the list.
+    return _count(
+        env,
+        "fix.field.order",
+        [("state", "in", ["draft", "pending_dispatch", "declined"])],
+    )
 
 
 def _kpi_awaiting_approval(env, ctx):
@@ -228,7 +240,33 @@ def _kpi_team_size(env, ctx):
     return len(ctx.get("team", []))
 
 
+# Register roles that ARE the technician workforce (senior / field / bench).
+TECHNICIAN_ROLE_CODES = ("R-10", "R-11", "R-12")
+
+
 def _kpi_techs_active(env, ctx):
+    """Technicians on-roll = active employees whose user holds a technician
+    role in the access register. The job-title match it replaces counted 33
+    of 141 on the real estate ("Technical Specialist" is not "technician");
+    the title match stays only as the fallback for an estate without the
+    register."""
+    try:
+        if "fix.role.assignment" in env:
+            users = (
+                env["fix.role.assignment"]
+                .sudo()
+                .search(
+                    [
+                        ("role_id.code", "in", list(TECHNICIAN_ROLE_CODES)),
+                        ("ended_on", "=", False),
+                    ]
+                )
+                .mapped("user_id")
+            )
+            return env["hr.employee"].sudo().search_count([("user_id", "in", users.ids)])
+    except Exception:
+        logger.debug("role-center cue refused: technicians", exc_info=True)
+        return None
     return _count(env, "hr.employee", [("job_title", "ilike", "technician")])
 
 
@@ -241,7 +279,14 @@ def _kpi_warehouses(env, ctx):
 
 
 def _kpi_catalogue_items(env, ctx):
-    return _count(env, "fix.catalogue.item", [])
+    # Company-fenced like the M37 grid it opens: the sudo count used to
+    # include rows of archived companies the list never shows.
+    if "fix.catalogue.item" not in env:
+        return None
+    domain = []
+    if "company_id" in env["fix.catalogue.item"]._fields:
+        domain = [("company_id", "in", [False, env.company.id])]
+    return _count(env, "fix.catalogue.item", domain)
 
 
 def _kpi_suppliers_active(env, ctx):
@@ -282,7 +327,7 @@ def _kpi_contracts_active(env, ctx):
 def _kpi_contracts_expiring(env, ctx):
     horizon = fields.Date.context_today(env.user) + timedelta(days=30)
     return _count(
-        env, "fix.contract", [("state", "in", ["active", "expiring"]), ("end_date", "<=", horizon)]
+        env, "fix.contract", [("state", "in", ["active", "expiring"]), ("date_end", "<=", horizon)]
     )
 
 
@@ -433,13 +478,13 @@ KPI_CATALOG = {
         "label": "Active Branches",
         "fn": _kpi_branches_active,
         "fmt": "int",
-        "screen": "M04-branches",
+        "screen": "M30-branches",
     },
     "warehouses": {
         "label": "Warehouses",
         "fn": _kpi_warehouses,
         "fmt": "int",
-        "screen": "M15-locations",
+        "screen": "M41-warehouse",
     },
     "catalogue_items": {
         "label": "Catalogue Items",
@@ -451,7 +496,7 @@ KPI_CATALOG = {
         "label": "Active Suppliers",
         "fn": _kpi_suppliers_active,
         "fmt": "int",
-        "screen": "M42-directory",
+        "screen": "M42-suppliers",
     },
     "ar_open": {
         "label": "AR Invoices Open",
@@ -470,13 +515,13 @@ KPI_CATALOG = {
         "label": "Leave Requests Pending",
         "fn": _kpi_leave_pending,
         "fmt": "int",
-        "screen": "M21-leave",
+        "screen": "M55-leave",
     },
     "itsm_open": {
         "label": "ITSD Tickets Open",
         "fn": _kpi_itsm_open,
         "fmt": "int",
-        "screen": "M28-tickets",
+        "screen": "M66-all",
         "warn_pos": True,
     },
     "complaints_open": {
@@ -504,17 +549,17 @@ KPI_CATALOG = {
         "label": "Cash Shifts Open",
         "fn": _kpi_cash_shifts_open,
         "fmt": "int",
-        "screen": "M04-shifts",
+        "screen": "M04-drawer",
     },
     "attendance_today": {
         "label": "Check-ins Today",
         "fn": _kpi_attendance_today,
         "fmt": "int",
-        "screen": "M55-today",
+        "screen": "M55-daily",
         "ok": True,
     },
     "users_active": {
-        "label": "Active Users",
+        "label": "Active Internal Users",
         "fn": _kpi_users_active,
         "fmt": "int",
         "screen": "M29-users",
@@ -768,23 +813,37 @@ class P03RoleCenterApiController(http.Controller):
 
         resolved, is_admin = self._resolve_roles(env, user, employee)
         role_ids = [r["ws"] for r in resolved]
-        default = next((ws for ws in WS_PRIORITY if ws in role_ids), "service_intake")
+        # A person the register resolves to NO center gets no center: the
+        # old landing on service_intake (and the switcher then showing all
+        # 16) handed partner and unmapped-role accounts every console.
+        # Administrators keep the preview landing.
+        no_center = not is_admin and not role_ids
+        default = next(
+            (ws for ws in WS_PRIORITY if ws in role_ids),
+            None if no_center else ("executive" if is_admin else "service_intake"),
+        )
 
         # Person-aware executive label (D365 shows the profile's own name):
         # a C-suite holder's executive pill carries their REGISTER title and
         # code (e.g. "R-54 Chief Operating Officer"), not the generic R-EX.
         role_labels, role_codes = {}, {}
         for r in resolved:
-            if r["ws"] == "executive" and r["source"] in ("assignment", "groups"):
-                role_labels["executive"] = r["name"]
-                role_codes["executive"] = r["code"]
-                break
+            # only a register ASSIGNMENT names a person's office: a group
+            # match (every administrator has one) must not print "R-01 Chief
+            # Executive Officer" on someone who does not hold it
+            if r["ws"] == "executive" and r["source"] == "assignment":
+                role_labels.setdefault("executive", r["name"])
+            # every pill carries the holder's REGISTER code (the static pill
+            # codes are placeholders: the rider pill said R20, which the
+            # register gives to the Warehouse Operative)
+            if r["source"] == "assignment" and r["code"]:
+                role_codes.setdefault(r["ws"], r["code"])
 
         kpis, charts = {}, {}
         # The landing center is always computed (administrators and the
         # job-title fallback hold no register rows of their own).
         for ws in dict.fromkeys([*role_ids, default]):  # unique, order kept
-            if ws in ROLE_CENTER_SPECS:
+            if ws and ws in ROLE_CENTER_SPECS:
                 kpis[ws], charts[ws] = self._center_data(env, ctx, ws)
 
         return {
@@ -795,11 +854,12 @@ class P03RoleCenterApiController(http.Controller):
             "role_labels": role_labels,
             "role_codes": role_codes,
             "is_admin": is_admin,
+            "no_center": no_center,
             "specs": ROLE_CENTER_SPECS,
             "kpis": kpis,
             "charts": charts,
             "team": ctx["team"],
-            "headline": self._headline(env, ctx, default),
+            "headline": self._headline(env, ctx, default) if default else "",
         }
 
     @http.route("/p03/role_center_kpis", type="jsonrpc", auth="user", readonly=True)
@@ -812,6 +872,12 @@ class P03RoleCenterApiController(http.Controller):
             return {"error": "unknown role center"}
         user = env.user
         employee = env["hr.employee"].sudo().search([("user_id", "=", user.id)], limit=1)
+        # The cues are company-wide sudo aggregates, so the center itself is
+        # the access boundary: only a center the person resolves to (or an
+        # administrator's preview) is served.
+        resolved, is_admin = self._resolve_roles(env, user, employee)
+        if not is_admin and ws not in {r["ws"] for r in resolved}:
+            return {"error": "role center not assigned to this user"}
         ctx = self._context(env, user, employee, fields.Date.context_today(user))
         kpis, charts = self._center_data(env, ctx, ws)
         return {"ws": ws, "kpis": kpis, "charts": charts, "headline": self._headline(env, ctx, ws)}
@@ -891,6 +957,7 @@ class P03RoleCenterApiController(http.Controller):
             is_admin = True
 
         out, seen = [], set()
+        has_assignment = False
 
         if Role is not None:
             # 1. authoritative register: live assignments
@@ -900,6 +967,7 @@ class P03RoleCenterApiController(http.Controller):
                     .sudo()
                     .search([("user_id", "=", user.id), ("ended_on", "=", False)])
                 ):
+                    has_assignment = True
                     ws = ROLE_TO_WS.get(ra.role_id.code)
                     if ws and ws not in seen:
                         out.append(
@@ -911,8 +979,22 @@ class P03RoleCenterApiController(http.Controller):
                             }
                         )
                         seen.add(ws)
-            # 2. documented fallback: held groups ⊇ the role's mapped groups
-            for role in Role.sudo().search([("active", "=", True)]):
+            # 2. documented fallback: held groups ⊇ the role's mapped groups.
+            # ONLY for a person with no live assignment — the register row is
+            # the authority. Several roles map to one shared group (R-07 and
+            # R-21 are both just the service-orders group), so applying the
+            # fallback on top of an assignment landed every Senior Technician
+            # on the dispatch console and gave them the account-manager one.
+            # An administrator previews every center anyway; matching their
+            # admin groups against the register only mislabels them ("R-01
+            # Chief Executive Officer" on the system administrator, because
+            # R-01 maps to the administration workspace group).
+            fallback_roles = (
+                Role.browse()
+                if has_assignment or is_admin
+                else Role.sudo().search([("active", "=", True)])
+            )
+            for role in fallback_roles:
                 ws = ROLE_TO_WS.get(role.code)
                 if not ws or ws in seen or not role.group_ids:
                     continue
@@ -920,8 +1002,10 @@ class P03RoleCenterApiController(http.Controller):
                     out.append({"code": role.code, "name": role.name, "ws": ws, "source": "groups"})
                     seen.add(ws)
 
-        # 3. conservative job-title hint (only when nothing resolved above)
-        if employee and employee.job_title and not out:
+        # 3. conservative job-title hint (only when nothing resolved above,
+        # and never over a register assignment — a held role with no center
+        # of its own means "no center", not "guess one from the title")
+        if employee and employee.job_title and not out and not has_assignment:
             title = employee.job_title.lower()
             dept = (employee.department_id.name or "").lower()
             hint = next((ws for needle, ws in JOB_TITLE_WS if needle in title), None)

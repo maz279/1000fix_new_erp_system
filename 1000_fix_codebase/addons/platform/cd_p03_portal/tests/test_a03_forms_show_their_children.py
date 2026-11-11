@@ -52,6 +52,11 @@ INCIDENTAL = {
     # a loyalty account's vouchers have their own screen (M10-vouchers);
     # the account's own content is its points ledger.
     ("fix.loyalty.account", "voucher_ids"),
+    # an import batch's staged rows have their own register (M33-import-
+    # lines) and run to tens of thousands per batch (the vendor list staged
+    # 26,680): a form grid would load them all. The batch form shows the
+    # counts; the rows are audited on their list.
+    ("fix.party.import.batch", "line_ids"),
 }
 
 

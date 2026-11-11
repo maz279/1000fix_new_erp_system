@@ -113,6 +113,19 @@ def test_flaw_01_1_settlement_delivery_gate(odoo_env):
     with pytest.raises(UserError, match="FLAW-01.1 Financial Settlement Gate"):
         order.action_deliver()
 
+    # Counter cash is taken into the branch's open cash shift (M04, when
+    # installed: required unless the branch switched it off explicitly).
+    Shift = env.get("fix.cash.shift")
+    if Shift is not None and not Shift._fd_open_shift_for(branch):
+        Shift.create(
+            {
+                "branch_id": branch.id,
+                "operating_unit_id": _get_or_create_op_unit(env).id,
+                "operator_id": env["hr.employee"].create({"name": "Cashier M01"}).id,
+                "opening_float": 1000.0,
+            }
+        )
+
     # Mark settled -> delivery succeeds
     order.action_mark_settled("INV-M01-001", estimate.grand_total)
     assert order.payment_settlement_state == "settled"

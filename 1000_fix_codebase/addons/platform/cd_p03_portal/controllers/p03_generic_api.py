@@ -138,6 +138,22 @@ def _picker_domain(env, surface, comodel, name) -> list:
     return domain
 
 
+def _company_fence(env, model, surface) -> list:
+    """The company fence every list read ANDs in — rows, their count and every
+    export, since those all go through model_records. A row with no company is
+    a shared one (a statutory pack, a global tax rate, an IoT adapter, a party
+    used by every company): the picker above has always offered it, so the
+    list must show it too, or the row can be picked but never found. A surface
+    may name more than one company path: a counterparty accountant holding
+    only the target company sees the charge she accepts."""
+    if "company_id" not in env[model]._fields:
+        return []
+    paths = (surface or {}).get("company_paths") or ("company_id",)
+    leaves = [("company_id", "=", False)]
+    leaves += [(path, "in", env.companies.ids) for path in paths]
+    return ["|"] * (len(leaves) - 1) + leaves
+
+
 def _picker_source(env, comodel):
     """Where a picker reads. Names are read sudo, since a clerk may pick a partner they
     hold no ACL on. A comodel whose own screens are fenced by record rules is read as the
@@ -343,13 +359,7 @@ class P03GenericApiController(http.Controller):
                 if (conf.get("rules") or conf.get("caller_scoped"))
                 else env[model].sudo()
             )
-            if "company_id" in env[model]._fields:
-                # a surface may name more than one company path: a counterparty
-                # accountant holding only the target company sees the charge she accepts
-                paths = conf.get("company_paths") or ("company_id",)
-                search_domain += ["|"] * (len(paths) - 1) + [
-                    (path, "in", env.companies.ids) for path in paths
-                ]
+            search_domain += _company_fence(env, model, conf)
             search_domain += self._records_search_domain(env[model], cols, search)
             offset = max(int(offset or 0), 0)
             effective_limit = min(int(kw.get("limit") or conf["limit"]), _EXPORT_MAX_ROWS)

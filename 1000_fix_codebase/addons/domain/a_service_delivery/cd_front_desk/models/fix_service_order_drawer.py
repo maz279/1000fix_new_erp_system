@@ -9,15 +9,17 @@
 from odoo import fields, models
 from odoo.exceptions import UserError
 
-# What happens to counter cash when the branch has no open shift: "0" (today's
-# behaviour) records it on the order's chatter and posts nothing; "1" refuses
-# the settlement, so cash is never taken outside a drawer. A business choice.
+# What happens to counter cash when the branch has no open shift. The settlement
+# is refused, so cash is never taken outside a drawer: that is the default, and
+# what an ABSENT parameter means (it was "0", and the parameter is shipped
+# nowhere, so the control was off everywhere). An explicit "0" is a branch's
+# own choice: the cash is recorded on the order's chatter and posts nothing.
 ORDER_CASH_REQUIRES_SHIFT_PARAM = "cd_front_desk.order_cash_requires_open_shift"
 
 
 def fd_cash_requires_shift(env) -> bool:
-    raw = env["ir.config_parameter"].sudo().get_param(ORDER_CASH_REQUIRES_SHIFT_PARAM, "0")
-    return str(raw).strip().lower() in ("1", "true", "yes")
+    raw = env["ir.config_parameter"].sudo().get_param(ORDER_CASH_REQUIRES_SHIFT_PARAM, "1")
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
 
 
 class FixServiceOrderDrawer(models.Model):

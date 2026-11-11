@@ -21,6 +21,21 @@ PRICE_FLOOR_PARAM = "cd_service_order.estimate_price_floor"
 # approved (A02 audit M01-5). Revise it instead.
 _PRICED_FIELDS = frozenset({"line_ids", "discount", "vat_rate", "currency_id", "order_id"})
 _DECIDED_STATES = ("approved", "rejected", "expired")
+# A new version is cut from an estimate the customer has seen or decided; a
+# draft is edited instead.
+_REVISABLE_STATES = ("sent", "approved", "rejected", "expired")
+# The order states where the job, and so its price, is history.
+_ORDER_FINISHED_STATES = ("delivered", "closed", "cancelled")
+
+# The VAT rate is statutory, not typed: the standard rate in force, or for a
+# Service Commercial Approver a zero / scheduled reduced rate. The fallback is
+# used only where no Tax Rate Master (M51, cd_tax_engine_bd) can answer.
+_COMMERCIAL_APPROVER_GROUP = "cd_service_order.group_so_commercial_approver"
+_FALLBACK_VAT_RATE = 15.0
+# In-process token (an object, which an RPC caller cannot put in the context):
+# lets a revision carry the rate its estimate already has.
+_VAT_CARRY_KEY = "fix_estimate_vat_carry"
+_VAT_CARRY_TOKEN = object()
 
 
 class FixEstimate(models.Model):
@@ -70,6 +85,9 @@ class FixEstimate(models.Model):
         if self and any(e.state in _DECIDED_STATES for e in self):
             # An approved (or rejected/expired) estimate is frozen: revise it.
             locked |= _PRICED_FIELDS | {"signed_estimate_attachment_id", "expiry_date"}
+        if not (self.env.su or self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP)):
+            # shown, not typed: the server refuses any other rate anyway
+            locked.add("vat_rate")
         return locked
 
     # Discount authority, in percent of the chargeable total. Up to 5% is
@@ -224,7 +242,10 @@ class FixEstimate(models.Model):
     )
     discount = fields.Monetary(string="Discount", currency_field="currency_id", default=0.0)
     vat_rate = fields.Float(
-        string="VAT Rate (%)", default=15.0, help="Bangladesh standard VAT rate"
+        string="VAT Rate (%)",
+        default=lambda self: self._fix_vat_rates_in_force()[0],
+        help="The standard VAT rate in force (Tax Rate Master). Only a Service "
+        "Commercial Approver applies a zero or scheduled reduced rate.",
     )
     vat_amount = fields.Monetary(
         string="VAT Amount", currency_field="currency_id", compute="_compute_totals", store=True
@@ -334,8 +355,57 @@ class FixEstimate(models.Model):
                     "An estimate with no parts, labour or diagnostic lines cannot be %s." % action
                 )
 
+    # --- the VAT rate is the statutory one (it was a free-entry field) ---
+    @api.model
+    def _fix_vat_rates_in_force(self, company=None):
+        """``(standard, other scheduled rates)`` in percent, today. From the
+        Tax Rate Master when cd_tax_engine_bd is installed (M01 does not
+        depend on it); a quote still gets the usual rate where the master
+        cannot answer - the tax invoice is determined by M51, not here."""
+        Rate = self.env.get("fix.tax.rate")
+        if Rate is not None:
+            try:
+                rates = Rate._fix_vat_rates(None, company or self.env.company)
+                return float(rates.standard), {float(rate) for rate in rates.reduced}
+            except UserError:
+                pass
+        return _FALLBACK_VAT_RATE, set()
+
+    def _fix_assert_vat_rate(self, rate, company=None) -> None:
+        standard, scheduled = self._fix_vat_rates_in_force(company)
+        rate = float(rate or 0.0)
+        if abs(rate - standard) < 1e-6:
+            return
+        allowed = sorted(scheduled | {0.0})
+        if self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP) and any(
+            abs(rate - other) < 1e-6 for other in allowed
+        ):
+            return
+        raise UserError(
+            "VAT rate %g%% cannot be set on an estimate: the standard VAT rate in force "
+            "is %g%%. Only a Service Commercial Approver applies a zero or scheduled "
+            "reduced rate (%s)." % (rate, standard, " / ".join("%g%%" % r for r in allowed))
+        )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        carried = self.env.context.get(_VAT_CARRY_KEY) is _VAT_CARRY_TOKEN
+        if not (self.env.su or carried):
+            Company = self.env["res.company"]
+            for vals in vals_list:
+                if "vat_rate" in vals:
+                    self._fix_assert_vat_rate(
+                        vals["vat_rate"], Company.browse(vals.get("company_id") or [])
+                    )
+        return super().create(vals_list)
+
     def write(self, vals):
         if self and not self._fix_guard_open():
+            if "vat_rate" in vals:
+                # the form posts the rate it shows: only a CHANGE is judged
+                for est in self:
+                    if est._fix_guard_differs("vat_rate", vals["vat_rate"], est.vat_rate):
+                        est._fix_assert_vat_rate(vals["vat_rate"], est.company_id)
             # A02 audit M01-5: the customer approved BDT 4,600 and staff then
             # added a BDT 50,000 line to the approved estimate. A decided
             # estimate's price is frozen; a new price is a revision.
@@ -483,6 +553,22 @@ class FixEstimate(models.Model):
                 raise UserError(
                     "BRU-SRM-07: documented customer approval is required before "
                     "approving an estimate above BDT %.0f" % customer_threshold
+                )
+            # Segregation of duties: nothing is approved on its preparer's word
+            # alone (at or under the customer threshold nothing else was asked).
+            # The customer's documented approval - verified code, portal, or a
+            # signed form someone else recorded - is the second party; without
+            # it another member of staff records the approval.
+            if (
+                not self.env.su
+                and est.create_uid == self.env.user
+                and not est.customer_approval_ref
+            ):
+                raise UserError(
+                    "Segregation of duties: you prepared estimate %s, so you cannot "
+                    "approve it on your own word. Take the customer's approval code "
+                    "(Send / Verify Customer OTP), or have another member of staff "
+                    "record the approval." % est.display_name
                 )
             # A discount above front-desk authority is approved before the
             # estimate is. action_approve used to ignore the DOFA tier, so a
@@ -686,9 +772,31 @@ class FixEstimate(models.Model):
                 )
 
     def action_revise(self):
-        """Create a new version (T06: part-approval and revision), lines included."""
+        """Create a new version (T06: part-approval and revision), lines included.
+
+        Only where a new version makes sense (it was allowed from any state):
+        from an estimate the customer has seen or decided, the latest one,
+        while the job is still open."""
         self.ensure_one()
-        new = self.copy({"version": self.version + 1, "state": "draft"})
+        if self.state not in _REVISABLE_STATES:
+            raise UserError(
+                "Estimate %s is still a draft: edit it. A revision is a new version of "
+                "an estimate the customer has already seen." % self.display_name
+            )
+        order = self.sudo().order_id
+        if order.state in _ORDER_FINISHED_STATES:
+            raise UserError(
+                "Order %s is %s: its estimate can no longer be revised." % (order.name, order.state)
+            )
+        newer = order.estimate_ids.filtered(lambda e: e.version > self.version)
+        if newer:
+            raise UserError(
+                "Estimate %s is superseded by version %d. Revise the latest version."
+                % (self.display_name, max(newer.mapped("version")))
+            )
+        # the revision carries the rate this estimate already has
+        carrier = self.with_context(**{_VAT_CARRY_KEY: _VAT_CARRY_TOKEN})
+        new = carrier.copy({"version": self.version + 1, "state": "draft"})
         return {
             "type": "ir.actions.act_window",
             "res_model": "fix.estimate",
@@ -799,6 +907,19 @@ class FixEstimateLine(models.Model):
                     % (line.product_id.display_name, floor, line.unit_price or 0.0)
                 )
 
+    def _fix_check_not_negative(self) -> None:
+        """The floor every line has, product or not: zero. A negative price or
+        quantity took money off the total with no discount, so no DOFA tier."""
+        if self.env.su:
+            return
+        for line in self:
+            if (line.unit_price or 0.0) < 0 or (line.quantity or 0.0) < 0:
+                raise UserError(
+                    "Estimate line '%s' cannot have a negative price or quantity. Give a "
+                    "discount on the estimate instead, which the DOFA tiers approve."
+                    % (line.description or "")
+                )
+
     def _fix_check_sellable(self) -> None:
         """A04 audit (2026-11-04) M37-2 / M11-4: the catalogue lifecycle
         (a discontinued, archived or out-of-scope item is not quoted) and the
@@ -815,6 +936,7 @@ class FixEstimateLine(models.Model):
         ids = {v.get("estimate_id") for v in vals_list if v.get("estimate_id")}
         self._fix_assert_estimate_open(self.env["fix.estimate"].browse(list(ids)))
         lines = super().create(vals_list)
+        lines._fix_check_not_negative()
         lines._fix_check_price_floor()
         lines._fix_check_sellable()
         lines.estimate_id._fix_void_on_raise()
@@ -825,6 +947,8 @@ class FixEstimateLine(models.Model):
         if vals.get("estimate_id"):
             self._fix_assert_estimate_open(self.env["fix.estimate"].browse(vals["estimate_id"]))
         result = super().write(vals)
+        if {"unit_price", "quantity"} & set(vals):
+            self._fix_check_not_negative()
         if {"unit_price", "product_id"} & set(vals):
             self._fix_check_price_floor()
             self._fix_check_sellable()

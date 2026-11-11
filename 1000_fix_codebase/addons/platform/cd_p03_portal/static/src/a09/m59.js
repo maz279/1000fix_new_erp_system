@@ -134,10 +134,10 @@ export const SCREENS = {
     cols: ['incident_id', 'employee_id', 'role'] },
   /* Round 2 (FR-HSE-037, BRU-HSE-15): the status and the functional
    * restriction only; the medical record stays with Occupational Health. */
-  'M59-safety-followups': { kind: 'model_list', model: 'fix.hse.safety.followup', stateField: 'state',
+  'M59-safety-followups': { kind: 'model_list', model: 'fix.hse.safety.followup', create: false, stateField: 'state',
     cols: ['name', 'employee_id', 'competency', 'expired_on', 'assigned_to_id', 'closed_by_id', 'state'],
     actions: [{ m: 'action_close', l: 'Close Follow-up', ask: 'What was done?', kwarg: 'outcome' }] },
-  'M59-fitness': { kind: 'model_list', model: 'fix.hse.fitness.status', stateField: 'state',
+  'M59-fitness': { kind: 'model_list', model: 'fix.hse.fitness.status', create: false, stateField: 'state',
     cols: ['employee_id', 'status', 'work_restriction', 'valid_from', 'valid_until', 'decided_by_id', 'state'] },
   'M59-statutory': { kind: 'table_report', module: 'M59', report: 'statutory_compliance', title: 'Statutory Notification Clock', period: true },
   'M59-loneworker': { kind: 'model_list', model: 'fix.hse.loneworker', stateField: 'state',

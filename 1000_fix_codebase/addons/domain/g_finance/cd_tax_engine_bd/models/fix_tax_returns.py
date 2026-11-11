@@ -15,7 +15,7 @@ from odoo.exceptions import UserError
 from libs.py.fix_events import publish  # FF-28
 
 from . import return_logic
-from .fix_tax_engine import valid_bin
+from .fix_tax_engine import normalize_bin, valid_bin
 from .fix_tax_master import tax_account
 
 FILING_GROUP = "cd_tax_engine_bd.group_tax_filing_approver"
@@ -123,7 +123,7 @@ class VatFilingResult(TypedDict):
 def _company_bin(company: Any) -> str:
     """The taxpayer BIN from company master data — never invented: a return
     filed or prepared under a placeholder BIN is a regulatory event."""
-    bin_no = (company.vat or "").replace(" ", "")
+    bin_no = normalize_bin(company.vat)
     if not re.fullmatch(r"\d{13}", bin_no) or not valid_bin(bin_no):
         raise UserError(
             "Company %s has no valid 13-digit BIN — a VAT return cannot be "

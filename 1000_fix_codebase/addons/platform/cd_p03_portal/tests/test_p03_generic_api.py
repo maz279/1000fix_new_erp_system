@@ -135,3 +135,85 @@ def test_report_failures_do_not_leak_internals(odoo_env, call):
     with mock.patch.object(a08.m52, "REPORTS", {"broken": broken}, create=True):
         res = call(odoo_env, "model_report", module="M52", report="broken")
     assert "secret" not in res["error"]
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-10 screens sweep: the list fence hid every row with no company.
+# ---------------------------------------------------------------------------
+
+
+def test_company_fence_keeps_shared_rows_and_drops_other_companies(odoo_env):
+    """`company_id in companies` alone dropped the shared rows (company NULL:
+    the statutory pack, global tax rates, IoT adapters, 532 parties) that the
+    many2one pickers in the same file have always offered."""
+    env = odoo_env
+    fence = api._company_fence(env, "res.partner", api.SURFACES["res.partner"])
+    assert fence == [
+        "|",
+        ("company_id", "=", False),
+        ("company_id", "in", env.companies.ids),
+    ]
+    # more than one company path: still ONE or-group, the shared leaf included
+    paths = {"company_paths": ("company_id", "parent_id.company_id")}
+    multi = api._company_fence(env, "res.partner", paths)
+    assert multi[:2] == ["|", "|"] and len(multi) == 5
+    assert ("company_id", "=", False) in multi
+    assert ("parent_id.company_id", "in", env.companies.ids) in multi
+    # a model with no company field is not fenced at all
+    assert api._company_fence(env, "res.partner.category", {}) == []
+
+
+def test_list_serves_shared_rows_but_not_another_companys(odoo_env, call):
+    env = odoo_env
+    tag = "FENCE-%d" % next(_SEQ)
+    other = env["res.company"].create({"name": "Fence Other Co %s" % tag})
+    # the superuser that created the company holds it: read as a plain clerk
+    clerk = _user(env, "base.group_user")
+    assert clerk.company_ids == env.company and other not in clerk.company_ids
+    shared = env["res.partner"].create({"name": "%s shared" % tag, "company_id": False})
+    mine = env["res.partner"].create({"name": "%s mine" % tag, "company_id": env.company.id})
+    theirs = env["res.partner"].create({"name": "%s theirs" % tag, "company_id": other.id})
+    as_clerk = env(user=clerk)
+    res = call(as_clerk, "model_records", model="res.partner", cols=["name"], search=tag)
+    assert "error" not in res, res
+    ids = {row["id"] for row in res["rows"]}
+    assert shared.id in ids, "a shared (no-company) party is missing from the list"
+    assert mine.id in ids
+    assert theirs.id not in ids, "another company's party leaked into the list"
+    # the count is the same read as the rows...
+    assert res["total"] == res["count"] == len(ids)
+    # ...and so is the export (newest first, so these three lead the artefact)
+    payload, err = call(
+        as_clerk,
+        "_model_list_export_payload",
+        model="res.partner",
+        cols="name",
+        lang=None,
+        limit=50,
+    )
+    assert not err, err
+    exported = {row["name"] for row in payload["rows"]}
+    assert "%s shared" % tag in exported and "%s mine" % tag in exported
+    assert "%s theirs" % tag not in exported
+
+
+def test_management_review_inputs_are_served_read_only(odoo_env, call):
+    """M23-review-inputs bound a model no SURFACES entry declared. The ISO
+    9.3.2 inputs are pulled by the review, never typed: no action, no write."""
+    conf = api.SURFACES.get("fix.qms.review.input")
+    assert conf is not None, "fix.qms.review.input is not served"
+    assert conf["actions"] == set() and conf["writable"] == frozenset()
+    if "fix.qms.review.input" not in odoo_env:
+        pytest.skip("cd_qms_process not installed")
+    cols = ["review_id", "kind", "metric", "source_count", "pulled_on", "summary"]
+    res = call(odoo_env, "model_records", model="fix.qms.review.input", cols=cols)
+    assert "error" not in res, res
+    assert set(cols) <= set(res["labels"]), "a declared column is not a field of the model"
+    refused = call(
+        odoo_env,
+        "model_action",
+        model="fix.qms.review.input",
+        ids=[1],
+        method="unlink",
+    )
+    assert refused == {"success": False, "error": "Action not available for this surface"}

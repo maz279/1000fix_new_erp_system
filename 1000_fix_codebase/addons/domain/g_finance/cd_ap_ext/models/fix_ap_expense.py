@@ -750,6 +750,10 @@ class FixExpenseClaimLine(models.Model):
     def write(self, vals):
         self._check_claim_editable()
         res = super().write(vals)
+        if "claim_id" in vals:
+            # the claim a line arrives in, not only the one it left: a line was
+            # moved into an approved claim and raised its settled amount
+            self._check_claim_editable()
         if {"date", "location", "vehicle", "category_id"} & set(vals):
             self._apply_rate()
         elif "unit_amount" in vals and self.filtered(

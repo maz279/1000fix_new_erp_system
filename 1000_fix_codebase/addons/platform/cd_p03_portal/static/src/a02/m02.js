@@ -37,7 +37,7 @@ export const MODULE = {
     ]},
     { en: 'Work Orders', screens: [
       { id: 'M02-wo', en: 'Field Work Orders', bn: 'ফিল্ড ওয়ার্ক অর্ডার', t: 'g' },
-      { id: 'M02-record', en: 'Work Order Record', bn: 'ওয়ার্ক অর্ডার নথি', t: 'f' },
+      { id: 'M02-record', en: 'Work Order Record', bn: 'ওয়ার্ক অর্ডার নথি', t: 'g' },
       { id: 'M02-exceptions', en: 'Field Exceptions', bn: 'ফিল্ড ব্যতিক্রম', t: 'g' },
       { id: 'M02-crews', en: 'Crews & Multi-Tech Jobs', bn: 'ক্রু নিয়োগ', t: 'g' }
     ]},

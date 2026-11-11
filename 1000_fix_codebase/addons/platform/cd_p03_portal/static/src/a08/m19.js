@@ -896,6 +896,7 @@ export const REPORT_ROUTES = {
   "M19:Partner Ledger (GL)": "M19-partner-ledger",
   "M19:Partner Statement Drill-down": "M19-partner-statement",
   "M19:Due-To / Due-From Balances": "M19-ic-balances",
+  "M19:Legacy AR Control Reconciliation": "M19-legacy-ar-recon",
 };
 
 /* data-entry form chips -> real model forms */
@@ -905,6 +906,9 @@ export const FORM_MODELS = {
   'M19:Intercompany Charge': 'fix.intercompany.transaction',
   'M19:Recurring Journal Template': 'fix.journal.template',
   'M19:Nil Return Declaration': 'fix.nil.return.generator',
+  'M19:Legacy Partner-Ledger Take-on': 'fix.ledger.takeon.batch',
+  'M19:Legacy GL Control-Ledger Import': 'fix.legacy.ledger.batch',
+  'M19:Legacy Bank-Ledger Take-on': 'fix.bank.takeon.batch',
 };
 
 /* every registry form chip -> its in-workspace D365 screen; grid + New and
@@ -918,6 +922,10 @@ export const FORM_CHIPS = {
   'M19:Intercompany Charge': 'M19-form-ic',
   'M19:Recurring Journal Template': 'M19-form-template',
   'M19:Nil Return Declaration': 'M19-form-nil',
+  // the three cut-over chips used to fall through to the Journal Entry editor
+  'M19:Legacy Partner-Ledger Take-on': 'M19-form-takeon',
+  'M19:Legacy GL Control-Ledger Import': 'M19-form-legacy-ledger',
+  'M19:Legacy Bank-Ledger Take-on': 'M19-form-bank-takeon',
   'M19:__by_model__': {
     'fix.period.close': 'M19-form-period-close',
     'fix.period.reopen': 'M19-form-reopen',
@@ -944,11 +952,8 @@ export const FORM_CHIPS = {
     'M19-tp-rates': 'M19-form-tp-rate',
     'M19-fx-revaluation': 'M19-form-fx',
     'M19-takeon': 'M19-form-takeon',
-    'M19-takeon-lines': 'M19-form-takeon',
     'M19-legacy-ledger': 'M19-form-legacy-ledger',
-    'M19-legacy-ledger-lines': 'M19-form-legacy-ledger',
     'M19-bank-takeon': 'M19-form-bank-takeon',
-    'M19-bank-takeon-lines': 'M19-form-bank-takeon',
     'M19-chart-account': 'M19-form-chart-account',
     'M19-coa-loader': 'M19-form-coaload',
     'M19-report-bridge': 'M19-form-bridge',

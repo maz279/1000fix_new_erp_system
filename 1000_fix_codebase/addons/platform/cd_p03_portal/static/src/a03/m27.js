@@ -983,7 +983,6 @@ export const FORM_CHIPS = {
     'M27-conversations': 'M27-form-call',
     'M27-form-call': 'M27-form-call',
     'M27-queues': 'M27-form-queue',
-    'M27-routing': 'M27-form-queue',
     'M27-voice': 'M27-form-ivr',
     'M27-dispositions': 'M27-form-disposition',
     'M27-outbound': 'M27-form-outbound',

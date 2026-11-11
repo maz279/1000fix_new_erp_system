@@ -25,7 +25,7 @@ export const MODULE = {
   groups: [
     { en: 'Repair Orders', screens: [
       { id: 'M31-orders', en: 'Repair Orders', bn: 'রিপেয়ার অর্ডার', t: 'g' },
-      { id: 'M31-record', en: 'Repair Order Record', bn: 'রিপেয়ার অর্ডার নথি', t: 'f' },
+      { id: 'M31-record', en: 'Repair Order Record', bn: 'রিপেয়ার অর্ডার নথি', t: 'g' },
       { id: 'M31-transfer', en: 'Workshop Transfers', bn: 'ওয়ার্কশপ ট্রান্সফার', t: 'g' }
     ]},
     { en: 'Bench Board', screens: [
