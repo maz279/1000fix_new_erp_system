@@ -2010,6 +2010,13 @@ class FixCreditNote(models.Model):
         )
         return round(max(self.amount - max(unpaid, 0.0), 0.0), 2)
 
+    def _fix_refund_method(self) -> str:
+        """The rail a refund on this credit note goes out on. A bridge whose
+        invoices were paid over another rail overrides it (the storefront
+        refunds a bKash payment to the same wallet, not to a bank account)."""
+        self.ensure_one()
+        return "bank_transfer"
+
     def _fix_request_refund(self):
         """BRU-ARB-11: the part of an issued credit that covers money already
         received leaves as a pending M50 instruction to the customer; treasury
@@ -2025,7 +2032,7 @@ class FixCreditNote(models.Model):
             options = {
                 "company_id": invoice.company_id.id,
                 "operating_unit_id": invoice.operating_unit_id.id,
-                "method": "bank_transfer",
+                "method": note._fix_refund_method(),
                 "payee": customer.display_name,
             }
             ar = _ar_account(note.env, invoice.company_id, "ar")

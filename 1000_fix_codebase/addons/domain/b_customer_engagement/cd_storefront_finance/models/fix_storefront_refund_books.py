@@ -363,6 +363,25 @@ class FixCreditNoteStorefront(models.Model):
 
     _inherit = "fix.credit.note"
 
+    # The rail a storefront refund goes back on: the one the order was paid
+    # over (the same map cd_cash_position's refund consumer used before the
+    # bridge invoiced every paid order). A bKash customer is refunded to the
+    # wallet, never by bank transfer to an account they may not have.
+    _SF_RAIL_METHOD = {
+        "bkash": "mobile_fs",
+        "nagad": "mobile_fs",
+        "rocket": "mobile_fs",
+        "mobile_wallet": "mobile_fs",
+    }
+
+    def _fix_refund_method(self):
+        invoice = self.invoice_id
+        if invoice.source_model == "fix.storefront.order" and invoice.source_id:
+            order = self.env["fix.storefront.order"].sudo().browse(invoice.source_id).exists()
+            if order:
+                return self._SF_RAIL_METHOD.get(order.payment_rail, "bank_transfer")
+        return super()._fix_refund_method()
+
     def action_issue(self):
         result = super().action_issue()
         issued = self.filtered(lambda n: n.state == "issued")

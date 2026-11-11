@@ -373,6 +373,9 @@ def test_a_return_restocks_and_the_refund_is_an_m20_credit_note(sf):
     assert note.refund_amount == 5000.0 and note.refund_ref
     pay = env["fix.payment.execution"].sudo().search([("name", "=", note.refund_ref)])
     assert pay.amount == 5000.0
+    # back over the rail the order was paid on (bKash wallet), not a bank
+    # transfer to an account the customer may not have (combined run, 12 Nov)
+    assert pay.method == "mobile_fs"
 
 
 def test_a_worn_return_goes_to_quarantine_and_credits_the_refund_only(sf):

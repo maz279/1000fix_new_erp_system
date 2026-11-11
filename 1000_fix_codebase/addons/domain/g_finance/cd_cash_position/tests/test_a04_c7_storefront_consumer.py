@@ -180,8 +180,25 @@ def test_the_consumer_row_is_wired(w):
     )
 
 
+def _bridged(env):
+    """cd_storefront_finance invoices every paid order, so its refund is a
+    credit note against that invoice (raised by the bridge) instead of the
+    direct instruction this consumer raises for an uninvoiced order."""
+    return "ar_credit_note_id" in env["fix.storefront.return"]._fields
+
+
 def test_the_refund_goes_back_over_the_rail_it_came_in_on(w):
     ret = _refund_approved(w)
+    if _bridged(w.env):
+        _relay(w.env)
+        note = ret.sudo().ar_credit_note_id
+        assert note and not _executions(w.env, ret)  # the credit note pays it
+        assert note._fix_refund_method() == "mobile_fs"  # the order paid over bKash
+        result = w.env["fix.a04.storefront.consumers"].consume_storefront_refund_approved(
+            _event_dict(w.env, ret)
+        )
+        assert result == {"model": "fix.credit.note", "id": note.id, "created": False}
+        return
     _relay(w.env)
     (pay,) = _executions(w.env, ret)
     assert (pay.state, pay.amount) == ("pending", ret.refund_amount)
@@ -203,6 +220,19 @@ def test_the_refund_goes_back_over_the_rail_it_came_in_on(w):
 def test_the_refund_credits_the_orders_invoice_when_one_is_left(w):
     ret = _refund_approved(w)
     order = ret.order_id
+    if _bridged(w.env):
+        # the bridge already invoiced the order and credited it on approval
+        invoice = order.sudo().ar_invoice_id
+        _relay(w.env)
+        assert invoice and not _executions(w.env, ret)
+        note = ret.sudo().ar_credit_note_id
+        assert (note.invoice_id, note.reason_code) == (invoice, "return")
+        assert note.amount == min(ret.refund_amount, invoice.total_payable)
+        result = w.env["fix.a04.storefront.consumers"].consume_storefront_refund_approved(
+            _event_dict(w.env, ret)
+        )
+        assert result == {"model": "fix.credit.note", "id": note.id, "created": False}
+        return
     invoice = w.env["fix.ar.invoice"].create(
         {
             "operating_unit_id": w.ou.id,
