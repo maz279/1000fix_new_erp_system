@@ -192,6 +192,8 @@ LINKED_CHART_SUITES = (
     "/cd_rental_asset/",
     # the counter sale's hand-off posts to the ledger (E2E2 flow 2)
     "/cd_front_desk_finance/",
+    # the storefront order's hand-off posts to the ledger (E2E3 flow 4)
+    "/cd_storefront_finance/",
 )
 
 

@@ -495,6 +495,15 @@ def test_the_refund_is_a_routed_dofa_approval_then_an_m20_credit_note(w, model):
     # finance completes it on the M20 credit note - never a typed reference
     with pytest.raises(UserError, match="Payment Officer"), w.env.cr.savepoint():
         ret.with_user(w.operator).action_record_credit_note(credit_note="anything")
+    if "ar_credit_note_id" in ret._fields:
+        # E3-08: with cd_storefront_finance installed the order is invoiced in
+        # M20 and the refund is the M20 credit note against that invoice; a
+        # native out_refund is refused (its suite covers the M20 path).
+        native = _credit_note(w, 2500.0)
+        with pytest.raises(UserError, match="not a storefront refund"), w.env.cr.savepoint():
+            ret.with_user(w.cashier).action_record_credit_note(credit_note=native.name)
+        assert ret.state == "refund_approved" and not ret.credit_note_id
+        return
     with pytest.raises(UserError, match="No M20 credit note"), w.env.cr.savepoint():
         ret.with_user(w.cashier).action_record_credit_note(credit_note="anything")
     wrong = _credit_note(w, 100.0)
