@@ -273,6 +273,45 @@ def test_master_change_is_maker_checker(w):
     assert _events(w.env, "employee.master.changed", w.colleague.id)[-1]["fields"]
 
 
+def test_master_change_carries_the_routing_number_to_the_payee_account(w):
+    """E2E3 flow 9: the approved salary account reached res.partner.bank
+    without its BEFTN routing number, so treasury refused every BEFTN
+    disbursement to the employee ("payee account ... has no routing number")."""
+    Bank = w.env["res.partner.bank"]
+    if "fix_routing_number" not in Bank._fields:
+        pytest.skip("no treasury routing field on res.partner.bank in this database")
+    _contract(w.env, w.colleague, state="active")
+    req = w.env(user=w.hro.id)["fix.hr.master.change"].create(
+        {
+            "employee_id": w.colleague.id,
+            "reason": "New salary account",
+            "proposed_bank_account_number": "2702150098761",
+            "proposed_routing_number": "090261725",
+        }
+    )
+    req.action_submit()
+    _approve(req, w.hro2)
+    bank = w.colleague.primary_bank_account_id
+    assert bank.acc_number == "2702150098761"
+    assert bank.fix_routing_number == "090261725"
+    # a routing-only change (branch moved) reaches the same payee account
+    req2 = w.env(user=w.hro.id)["fix.hr.master.change"].create(
+        {
+            "employee_id": w.colleague.id,
+            "reason": "Branch moved",
+            "proposed_routing_number": "060274689",
+        }
+    )
+    req2.action_submit()
+    _approve(req2, w.hro2)
+    assert w.colleague.routing_number == "060274689"
+    assert w.colleague.primary_bank_account_id == bank
+    assert bank.fix_routing_number == "060274689"
+    # and the routing number cannot be rewritten behind the gate either
+    with pytest.raises(UserError, match="salary account"):
+        _rpc_write(w.env, w.hro, "res.partner.bank", bank, {"fix_routing_number": "010000001"})
+
+
 def test_employee_raises_own_bank_change_and_never_decides_it(w):
     _contract(w.env, w.me, state="active")
     req = w.env(user=w.plain.id)["fix.hr.master.change"].create(

@@ -401,6 +401,25 @@ def test_ref_02_straight_line_book_depreciation_maths(c):
     assert balance(c, c.a["expense"]) == 20000.0 and balance(c, c.a["accum"]) == -20000.0
 
 
+def test_disposal_dated_before_posted_depreciation_is_refused(c):
+    """E2E3 flow 7: a disposal dated 11 Nov reversed the November charge
+    posted on 30 Nov, so between the two dates the GL showed a debit balance on
+    accumulated depreciation for an asset that was gone, and the asset was
+    charged depreciation after it left the books. The derecognition entry may
+    only reverse depreciation posted on or before the disposal date."""
+    a = seam_asset(c)
+    dep_run(c, a, 1)  # January 2026, posted on 2026-01-31
+    d = _disposal(c, a, proceeds=30000.0, date=date(2026, 1, 20))
+    d.with_user(c.acc1).action_submit()
+    _approve(d, c.t4)
+    with pytest.raises(UserError, match="after the disposal date"):
+        d.with_user(c.acc2).action_post()
+    assert a.state == "active" and d.state == "approved"
+    assert not c.env["fix.ar.invoice"].search(
+        [("source_model", "=", d._name), ("source_id", "=", d.id)]
+    ), "no sale invoice is raised for a refused disposal"
+
+
 def test_ref_03_disposal_sale_invoiced_with_loss(c):
     a = seam_asset(c)
     dep_run(c, a, 1)

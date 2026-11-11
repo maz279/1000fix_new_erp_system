@@ -490,7 +490,10 @@ class ResPartnerBankEmployeeGuard(models.Model):
     _inherit = "res.partner.bank"
 
     def write(self, vals):
-        if not self.env.su and {"acc_number", "bank_id", "partner_id"} & set(vals):
+        # the routing number decides where a BEFTN credit lands: it is part of
+        # the salary account (E2E3 flow 9)
+        guarded = {"acc_number", "bank_id", "partner_id", "fix_routing_number"}
+        if not self.env.su and guarded & set(vals):
             employees = (
                 self.env["hr.employee"]
                 .sudo()
@@ -670,8 +673,9 @@ class FixHrMasterChange(models.Model):
                 )
             emp = rec.employee_id.sudo()
             vals = rec._fix_values()
+            Bank = self.env["res.partner.bank"].sudo()
+            bank = Bank
             if "bank_account_number" in vals:
-                Bank = self.env["res.partner.bank"].sudo()
                 partner = emp.work_contact_id
                 bank = Bank.search(
                     [
@@ -683,6 +687,19 @@ class FixHrMasterChange(models.Model):
                     {"acc_number": vals["bank_account_number"], "partner_id": partner.id}
                 )
                 vals["bank_account_ids"] = [(6, 0, [bank.id])]
+            elif "routing_number" in vals:
+                bank = emp.bank_account_ids[:1]
+            # E2E3 flow 9: the payee account treasury pays to carries the
+            # approved BEFTN routing number too; without it every BEFTN / RTGS
+            # disbursement to the employee was refused at release.
+            routing = vals.get("routing_number") or emp.routing_number
+            if (
+                bank
+                and routing
+                and "fix_routing_number" in Bank._fields
+                and bank.fix_routing_number != routing
+            ):
+                bank.write({"fix_routing_number": routing})
             emp._guarded().write(vals)
             labels = sorted(emp._fields[n].string for n in vals if n != "bank_account_ids")
             emp.message_post(

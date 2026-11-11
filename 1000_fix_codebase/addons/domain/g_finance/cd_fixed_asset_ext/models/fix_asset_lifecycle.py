@@ -22,6 +22,7 @@ from .fix_asset_common import (
     attachment_names,
     disposal_ladder,
     money,
+    month_end,
     post_entry,
     require_accounts,
     require_group,
@@ -814,6 +815,24 @@ class FixAssetDisposal(models.Model):
             asset = rec.asset_id
             if asset.state != "active":
                 raise UserError(self.env._("%s is not an active asset.", asset.display_name))
+            # E2E3 flow 7: the entry below reverses ALL posted depreciation; a
+            # charge dated after the disposal date would be reversed before it
+            # exists (and charged on an asset already gone).
+            day = rec.date
+            late = asset.depreciation_line_ids.filtered(
+                lambda ln, day=day: ln.state == "posted" and month_end(ln.period_start) > day
+            )
+            if late:
+                raise UserError(
+                    self.env._(
+                        "%(asset)s is depreciated through %(through)s, after the disposal "
+                        "date %(date)s: date the disposal on or after %(through)s, or "
+                        "reverse that depreciation first.",
+                        asset=asset.display_name,
+                        through=max(late.mapped(lambda ln: month_end(ln.period_start))),
+                        date=rec.date,
+                    )
+                )
             cat = asset.category_id
             if not cat:
                 raise UserError(
