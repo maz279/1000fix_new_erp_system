@@ -235,3 +235,45 @@ class SellerApiController(http.Controller):
             for d in disputes
         ]
         return {"disputes": result, "total": len(result)}
+
+    @http.route("/seller/stock", type="jsonrpc", auth="user", readonly=False)
+    def stock(self, **kwargs):
+        """The seller's stock positions (M12-stock). With `listing_id` and
+        `sku` it reports one position (on hand, reserved) first; the server
+        stamps who reported it and when. Only the seller's own listings take
+        stock (the P07 record rule decides, not this endpoint)."""
+        seller = _seller(kwargs)
+        if not seller:
+            return _error("no_seller", "No seller profile for this account")
+        Stock = request.env["fix.seller.stock"]
+        if kwargs.get("listing_id") and kwargs.get("sku"):
+            listing_id = _to_int(kwargs.get("listing_id"))
+            listing = request.env["fix.marketplace.listing"].sudo().browse(listing_id or [])
+            if not listing.exists() or listing.seller_id != seller:
+                return _error("not_your_listing", "Stock is reported only on your own listings")
+            try:
+                on_hand = float(kwargs.get("qty_on_hand", 0))
+                reserved = float(kwargs.get("qty_reserved", 0))
+            except (TypeError, ValueError):
+                return _error("invalid_quantity", "Quantities must be numbers")
+            if not (math.isfinite(on_hand) and math.isfinite(reserved)):
+                return _error("invalid_quantity", "Quantities must be numbers")
+            try:
+                Stock.report_position(listing.id, kwargs.get("sku"), on_hand, reserved)
+            except (UserError, ValidationError) as exc:
+                return _error("stock_rejected", str(exc))
+        positions = Stock.search([("seller_id", "=", seller.id)], limit=500)
+        result = [
+            {
+                "id": p.id,
+                "listing": p.listing_id.sudo().name,
+                "sku": p.sku,
+                "qty_on_hand": p.qty_on_hand,
+                "qty_reserved": p.qty_reserved,
+                "qty_available": p.qty_available,
+                "last_updated": str(p.last_updated or ""),
+                "source": p.source,
+            }
+            for p in positions
+        ]
+        return {"stock": result, "total": len(result)}

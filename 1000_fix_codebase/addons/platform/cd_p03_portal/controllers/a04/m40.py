@@ -2,12 +2,15 @@
 # fix.partner (8) / fix.referral (7) and the new authorisation, deal, rebate,
 # franchise and conflict models. Partner revenue is the referral commission
 # actually recorded; no revenue is attributed without a ledger line.
+# Co-marketing (a declared gap until 12 Nov 2026) is built from the campaign's
+# co-marketing partners (fix.campaign.partner_ids), the MDF's campaign key
+# (fix.partner.rebate.campaign_id) and the M35 touch attribution.
 import datetime
 
 from odoo import http
 from odoo.http import request
 
-from ..p03_service_order_api import _require_internal
+from ..p03_service_order_api import _company_domain, _require_internal
 
 # A04 workflow audit (2026-11-04) C3/D2: every M40 surface declared
 # `actions: set()`, so the workspace could only edit the state. The
@@ -398,24 +401,154 @@ def reseller_report(env, date_from=None, date_to=None, **params):
     )
 
 
-def comarketing_gap(env, date_from=None, date_to=None, **params):
-    return _pack(
-        "Co-Marketing — partner campaign link",
-        ["partner", "campaign", "budget", "state"],
-        {"partner": "Partner", "campaign": "Campaign", "budget": "Budget", "state": "State"},
-        [],
-        [
-            "No partner↔campaign link exists: fix.campaign (M35) carries no fix.partner "
-            "key — the partner_id on its touches, responses and journey members is the "
-            "customer reached, not a channel partner — and a market-development-fund "
-            "accrual (fix.partner.rebate, kind 'mdf') carries no campaign key. Declared "
-            "gap — no co-marketing spend or result is attributed to a campaign.",
-            "MDF accrued per partner and period IS recorded: see Rebates & MDF and the "
-            "Rebate Accruals report.",
-        ],
-        empty="Co-marketing attribution needs a partner↔campaign link (campaigns carry "
-        "no partner key; MDF accruals carry no campaign key) — declared gap.",
+ATTRIBUTION_MODELS = ["position", "last_touch", "first_touch", "linear", "time_decay"]
+_MDF_BUCKETS = {
+    "draft": "mdf_planned",
+    "accrued": "mdf_accrued",
+    "approved": "mdf_approved",
+    "paid": "mdf_paid",
+}
+
+
+def _campaign_revenue(env, campaigns, model):
+    """Per campaign id, what the M35 touch ledger attributes to it under
+    `model`: {id: (conversions, revenue or None, complete?)}. Revenue is only
+    the conversions whose value is on file; a campaign with any credited
+    conversion of unknown value is not complete."""
+    result = env["fix.campaign.touch"].attribute(model=model)
+    out = {}
+    for row in result["rows"]:
+        if row["campaign_id"] in campaigns.ids:
+            complete = not row["conversions_without_value"]
+            out[row["campaign_id"]] = (
+                row["attributed_conversions"],
+                row["attributed_revenue"],
+                complete,
+            )
+    return out
+
+
+def comarketing(env, date_from=None, date_to=None, model=None, **params):
+    """M40-comarketing: per channel partner, the campaigns it co-funds
+    (fix.campaign.partner_ids), its MDF by state on those campaigns
+    (fix.partner.rebate kind 'mdf' with a campaign_id), and the revenue the
+    M35 touch attribution credits to those campaigns where the conversion
+    value is on file. Read as the caller inside the company fence."""
+    model = model if model in ATTRIBUTION_MODELS else ATTRIBUTION_MODELS[0]
+    campaigns = env["fix.campaign"].search(
+        [*_company_domain(env, "fix.campaign"), ("partner_ids", "!=", False)]
     )
+    partners = campaigns.partner_ids.filtered_domain(_company_domain(env, "fix.partner"))
+    mdfs = env["fix.partner.rebate"].search(
+        [
+            ("kind", "=", "mdf"),
+            ("campaign_id", "in", campaigns.ids),
+            ("state", "in", tuple(_MDF_BUCKETS)),
+        ]
+    )
+    revenue = _campaign_revenue(env, campaigns, model)
+    rows = []
+    for partner in partners.sorted("name"):
+        funded = campaigns.filtered(lambda c, pid=partner.id: pid in c.partner_ids.ids)
+        row = {
+            "partner": partner.name,
+            "campaigns": ", ".join(funded.sorted("name").mapped("name")),
+            "mdf_planned": 0.0,
+            "mdf_accrued": 0.0,
+            "mdf_approved": 0.0,
+            "mdf_paid": 0.0,
+        }
+        for mdf in mdfs.filtered(lambda r, pid=partner.id: r.partner_id.id == pid):
+            row[_MDF_BUCKETS[mdf.state]] += mdf.amount or 0.0
+        for key in _MDF_BUCKETS.values():
+            row[key] = round(row[key], 2)
+        credited = [revenue[c.id] for c in funded if c.id in revenue]
+        known = [r for r in credited if r[2]]
+        conversions = round(sum(r[0] for r in credited), 2)
+        if not credited:
+            amount, basis = None, "no attributed conversions"
+        elif not known:
+            amount, basis = None, "no known value — conversions on file carry no order value"
+        else:
+            amount = round(sum(r[1] for r in known), 2)
+            basis = (
+                "complete"
+                if len(known) == len(credited)
+                else "partial — %d of %d campaign(s) with conversions of unknown value excluded"
+                % (len(credited) - len(known), len(credited))
+            )
+        row.update(
+            {
+                "attributed_conversions": conversions,
+                "attributed_revenue": amount,
+                "revenue_basis": basis,
+            }
+        )
+        rows.append(row)
+    shown = campaigns.filtered(lambda c: c.partner_ids & partners)
+    distinct_revenue = round(
+        sum(revenue[c.id][1] for c in shown if c.id in revenue and revenue[c.id][2]), 2
+    )
+    unlinked = env["fix.partner.rebate"].search_count(
+        [("kind", "=", "mdf"), ("campaign_id", "=", False), ("state", "!=", "cancelled")]
+    )
+    notes = [
+        "Campaigns are the M35 campaigns that name the partner as a co-marketing partner; "
+        "MDF is the partner's market development fund on those campaigns by state "
+        "(planned = draft, accrued, approved for payout, paid; cancelled is left out).",
+        "Attributed revenue is the %s attribution of the M35 touch ledger, counted only "
+        "where every credited conversion of the campaign has its value on file. It is the "
+        "co-funded campaigns' revenue, not a partner share: a campaign co-funded by two "
+        "partners shows under both, and the total counts it once." % model,
+    ]
+    if unlinked:
+        notes.append(
+            "%d MDF accrual(s) name no campaign and are not shown here (see Rebate Accruals)."
+            % unlinked
+        )
+    pack = _pack(
+        "Co-Marketing — partners, campaigns and MDF",
+        [
+            "partner",
+            "campaigns",
+            "mdf_planned",
+            "mdf_accrued",
+            "mdf_approved",
+            "mdf_paid",
+            "attributed_conversions",
+            "attributed_revenue",
+            "revenue_basis",
+        ],
+        {
+            "partner": "Partner",
+            "campaigns": "Co-Funded Campaigns",
+            "mdf_planned": "MDF Planned",
+            "mdf_accrued": "MDF Accrued",
+            "mdf_approved": "MDF Approved",
+            "mdf_paid": "MDF Paid",
+            "attributed_conversions": "Attributed Conversions",
+            "attributed_revenue": "Attributed Revenue",
+            "revenue_basis": "Revenue Basis",
+        },
+        rows,
+        notes,
+        totals={
+            "partner": "Total",
+            "mdf_planned": round(sum(r["mdf_planned"] for r in rows), 2),
+            "mdf_accrued": round(sum(r["mdf_accrued"] for r in rows), 2),
+            "mdf_approved": round(sum(r["mdf_approved"] for r in rows), 2),
+            "mdf_paid": round(sum(r["mdf_paid"] for r in rows), 2),
+            "attributed_revenue": distinct_revenue,
+        }
+        if rows
+        else None,
+        empty="No campaign names a co-marketing partner yet (M35 campaign, Co-Marketing "
+        "Partners; or the partner's Co-Marketing Campaigns).",
+    )
+    pack["filters"] = [
+        {"key": "model", "label": "Attribution model", "options": list(ATTRIBUTION_MODELS)}
+    ]
+    return pack
 
 
 def health(env, date_from=None, date_to=None, **params):
@@ -563,7 +696,7 @@ REPORTS = {
     "conflict_log": conflict_log,
     "alliance_report": alliance_report,
     "reseller_report": reseller_report,
-    "comarketing_gap": comarketing_gap,
+    "comarketing": comarketing,
     "health": health,
     "ranking": ranking,
     "deal_register": deal_register,

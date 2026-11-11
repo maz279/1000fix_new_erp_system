@@ -55,6 +55,8 @@ class FixMarketplaceListing(models.Model):
     submitted_by_id = fields.Many2one("res.users", string="Submitted By", readonly=True)
     approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
     approved_at = fields.Datetime(readonly=True)
+    # M12-stock (12 Nov 2026): the seller's reported stock behind the listing.
+    stock_ids = fields.One2many("fix.seller.stock", "listing_id", string="Seller Stock")
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {

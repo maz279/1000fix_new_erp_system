@@ -638,8 +638,20 @@ class FixPartnerRebate(models.Model):
     paid_ref = fields.Char(string="Payout Reference", readonly=True, copy=False)
     paid_at = fields.Datetime(readonly=True, copy=False)
     paid_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    # M40-comarketing (12 Nov 2026): the campaign a market development fund
+    # pays for. Optional, MDF only, and the partner must co-fund the campaign
+    # (fix.campaign.partner_ids); pinned with the amount once accrued.
+    campaign_id = fields.Many2one(
+        "fix.campaign",
+        string="Co-Marketing Campaign",
+        ondelete="restrict",
+        index=True,
+        domain="[('partner_ids', 'in', [partner_id])]",
+    )
 
-    _FROZEN = frozenset({"partner_id", "period", "basis", "rate", "kind", "currency_id"})
+    _FROZEN = frozenset(
+        {"partner_id", "period", "basis", "rate", "kind", "currency_id", "campaign_id"}
+    )
 
     @api.depends("basis", "rate")
     def _compute_amount(self):
@@ -656,6 +668,20 @@ class FixPartnerRebate(models.Model):
                 )
             if (rec.basis or 0.0) < 0:
                 raise ValidationError("A rebate basis cannot be negative.")
+
+    @api.constrains("campaign_id", "kind", "partner_id")
+    def _check_campaign(self):
+        for rec in self.filtered("campaign_id"):
+            if rec.kind != "mdf":
+                raise ValidationError(
+                    "Only a market development fund names a campaign; %s is a volume rebate."
+                    % rec.name
+                )
+            if rec.partner_id not in rec.campaign_id.sudo().partner_ids:
+                raise ValidationError(
+                    "%s is not a co-marketing partner of campaign %s: name the partner on the "
+                    "campaign first." % (rec.partner_id.name, rec.campaign_id.name)
+                )
 
     # ------------------------------------------------------------ guard
     def _fix_guarded_fields(self) -> set:

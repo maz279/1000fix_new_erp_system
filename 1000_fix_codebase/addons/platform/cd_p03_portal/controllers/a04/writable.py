@@ -263,6 +263,7 @@ WRITABLE = {
             "audit_ids",
             "bank_solvency_attachment_id",
             "bank_solvency_ref",
+            "comarketing_campaign_ids",
             "contract_id",
             "name",
             "nid_number",
@@ -330,6 +331,7 @@ WRITABLE = {
     "fix.partner.rebate": frozenset(
         {
             "basis",
+            "campaign_id",
             "dofa_justification",
             "kind",
             "name",
@@ -475,6 +477,16 @@ WRITABLE = {
             "weekly_rate",
         }
     ),
+    "fix.seller.certification": frozenset(
+        {
+            "certificate_no",
+            "evidence_attachment_id",
+            "expires_on",
+            "issued_on",
+            "seller_id",
+            "standard_id",
+        }
+    ),
     "fix.seller.quote": frozenset(
         {
             "company_id",
@@ -488,6 +500,28 @@ WRITABLE = {
         }
     ),
     "fix.seller.score": frozenset(),
+    "fix.seller.standard": frozenset(
+        {
+            "active",
+            "category_ids",
+            "code",
+            "description",
+            "issuing_body",
+            "kind",
+            "name",
+            "validity_months",
+        }
+    ),
+    "fix.seller.stock": frozenset(
+        {
+            "listing_id",
+            "note",
+            "part_id",
+            "qty_on_hand",
+            "qty_reserved",
+            "sku",
+        }
+    ),
     "fix.service.kit": frozenset(
         {
             "active",

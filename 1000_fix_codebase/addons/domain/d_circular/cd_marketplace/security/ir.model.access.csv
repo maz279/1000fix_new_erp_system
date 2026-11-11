@@ -19,3 +19,12 @@ access_fix_seller_score_operator,fix.seller.score operator,model_fix_seller_scor
 access_fix_marketplace_dispute_operator,fix.marketplace.dispute operator,model_fix_marketplace_dispute,group_marketplace_operator,1,1,1,0
 access_fix_marketplace_listing_operator,fix.marketplace.listing operator,model_fix_marketplace_listing,group_marketplace_operator,1,1,1,0
 access_fix_marketplace_chargeback_operator,fix.marketplace.chargeback operator,model_fix_marketplace_chargeback,group_marketplace_operator,1,1,1,0
+access_fix_seller_stock,fix.seller.stock,model_fix_seller_stock,base.group_user,1,0,0,0
+access_fix_seller_stock_operator,fix.seller.stock operator,model_fix_seller_stock,group_marketplace_operator,1,1,1,0
+access_fix_seller_stock_portal,fix.seller.stock portal,model_fix_seller_stock,group_fix_marketplace_seller,1,1,1,0
+access_fix_seller_standard,fix.seller.standard,model_fix_seller_standard,base.group_user,1,0,0,0
+access_fix_seller_standard_compliance,fix.seller.standard compliance,model_fix_seller_standard,group_marketplace_compliance,1,1,1,0
+access_fix_seller_standard_portal,fix.seller.standard portal,model_fix_seller_standard,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_certification,fix.seller.certification,model_fix_seller_certification,base.group_user,1,0,0,0
+access_fix_seller_certification_operator,fix.seller.certification operator,model_fix_seller_certification,group_marketplace_operator,1,1,1,0
+access_fix_seller_certification_portal,fix.seller.certification portal,model_fix_seller_certification,group_fix_marketplace_seller,1,0,0,0

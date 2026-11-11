@@ -22,6 +22,9 @@ CD-M40-01 (P10) — Partner, Channel & Franchise.
         # cd_workflow_engine already loads before this module on fix_dev
         # (through cd_party_master).
         "cd_workflow_engine",
+        # M40-comarketing (12 Nov 2026): co-marketing partners on fix.campaign
+        # and the MDF's campaign key.
+        "cd_campaign",
     ],
     "data": [
         "security/cd_partner_groups.xml",

@@ -13,5 +13,16 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- M12-training (12 Nov 2026): a verified seller certification past
+             its expiry date is expired, once a day (Dhaka calendar). -->
+        <record id="ir_cron_seller_certification_expiry" model="ir.cron">
+            <field name="name">Marketplace: expire lapsed seller certifications</field>
+            <field name="model_id" ref="model_fix_seller_certification"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_certifications()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

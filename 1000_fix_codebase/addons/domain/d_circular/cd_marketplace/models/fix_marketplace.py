@@ -187,6 +187,11 @@ class FixMarketplaceSeller(models.Model):
         string="Approved Service Categories",
         help="Seller may quote/list ONLY in categories where verified/qualified",
     )
+    # M12-training (12 Nov 2026): the standards and courses the seller holds,
+    # verified by compliance (fix.seller.certification).
+    certification_ids = fields.One2many(
+        "fix.seller.certification", "seller_id", string="Standards & Certifications"
+    )
 
     # Performance, Tiering & Dispute Holds
     rating = fields.Float(string="Review Rating (0-5)", default=0.0, readonly=True)

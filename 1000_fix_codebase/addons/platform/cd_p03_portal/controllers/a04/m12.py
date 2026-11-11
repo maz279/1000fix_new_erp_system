@@ -1,13 +1,15 @@
 # A04 · M12 Marketplace & Sellers — surfaces, report packs and KPIs over the
 # real seller (2061) / order (2150) / quote / score / statement / dispute
 # records and the new listing model. Fill rates and commissions are measured;
-# seller NPS (no survey key on sellers) is a declared gap.
+# seller NPS (no survey key on sellers) is a declared gap. Seller stock
+# (fix.seller.stock) and seller standards (fix.seller.certification against
+# fix.seller.standard) were declared gaps until 12 Nov 2026 and are now built.
 import datetime
 
 from odoo import fields, http
 from odoo.http import request
 
-from ..p03_service_order_api import _require_internal
+from ..p03_service_order_api import _company_domain, _require_internal
 
 SURFACES = {
     # A04 workflow audit (2026-11-03) M12-12: every surface declared
@@ -70,6 +72,25 @@ SURFACES = {
             "action_paid",
             "action_cancel",
         },
+    },
+    # M12-stock (12 Nov 2026): the seller's reported position per listing and
+    # SKU; who reported it and when are stamped by the server.
+    "fix.seller.stock": {
+        "order": "seller_id, listing_id, sku",
+        "limit": 500,
+        "actions": set(),
+    },
+    # M12-training (12 Nov 2026): the standards a seller can hold, mapped to
+    # the categories that require them, and the seller's certifications.
+    "fix.seller.standard": {
+        "order": "code",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.seller.certification": {
+        "order": "expires_on, id",
+        "limit": 500,
+        "actions": {"action_submit", "action_verify", "action_reject", "action_revoke"},
     },
     # A04 P2 (M12): customer chargebacks against marketplace sales.
     "fix.marketplace.chargeback": {
@@ -598,43 +619,200 @@ def broadcast_backlog(env, date_from=None, date_to=None, **params):
     )
 
 
-def training_gap(env, date_from=None, date_to=None, **params):
+STALE_DAYS = 30
+EXPIRING_DAYS = 30
+_SOURCE_LABELS = {"seller": "Seller", "operator": "Operator", "import": "Import"}
+
+
+def _int_param(value, default):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return number if number > 0 else default
+
+
+def seller_stock(env, date_from=None, date_to=None, stale_days=None, **params):
+    """M12-stock: every seller stock position, per seller, listing and SKU,
+    read as the caller inside the company fence; a position whose quantity
+    was last reported more than `stale_days` ago is flagged stale."""
+    from odoo.addons.cd_p03_portal.controllers.p03_generic_api import _datetime_to_local
+
+    stale_days = _int_param(stale_days, STALE_DAYS)
+    positions = env["fix.seller.stock"].search(
+        _company_domain(env, "fix.seller.stock"), order="seller_id, listing_id, sku"
+    )
+    now = fields.Datetime.now()
+    rows = []
+    for pos in positions:
+        age = (now - pos.last_updated).days if pos.last_updated else None
+        stale = age is None or age > stale_days
+        rows.append(
+            {
+                "seller": pos.seller_id.name,
+                "listing": pos.listing_id.name,
+                "sku": pos.sku,
+                "part": pos.part_id.display_name if pos.part_id else "—",
+                "on_hand": round(pos.qty_on_hand or 0.0, 2),
+                "reserved": round(pos.qty_reserved or 0.0, 2),
+                "available": round(pos.qty_available or 0.0, 2),
+                "last_update": (
+                    _datetime_to_local(env, pos.last_updated)[:16] if pos.last_updated else "—"
+                ),
+                "age_days": age,
+                "source": _SOURCE_LABELS.get(pos.source, pos.source or "—"),
+                "stale": "✓" if stale else "✗",
+            }
+        )
+    live = env["fix.marketplace.listing"].search(
+        [*_company_domain(env, "fix.marketplace.listing"), ("state", "in", ("active", "paused"))]
+    )
+    bare = live.filtered(lambda ln: not ln.stock_ids)
+    notes = [
+        "Each row is a seller's reported position for one SKU behind one listing: on hand, "
+        "reserved and available (on hand − reserved), as reported by the seller, an "
+        "operator or an import. Stale = last reported more than %d days ago." % stale_days,
+    ]
+    if bare:
+        names = ", ".join(bare[:10].mapped("name"))
+        more = " and %d more" % (len(bare) - 10) if len(bare) > 10 else ""
+        notes.append(
+            "%d live listing(s) carry no stock position yet: %s%s." % (len(bare), names, more)
+        )
+    pack = _pack(
+        "Seller Stock",
+        [
+            "seller",
+            "listing",
+            "sku",
+            "part",
+            "on_hand",
+            "reserved",
+            "available",
+            "last_update",
+            "age_days",
+            "source",
+            "stale",
+        ],
+        {
+            "seller": "Seller",
+            "listing": "Listing",
+            "sku": "SKU",
+            "part": "Catalogue Part",
+            "on_hand": "On Hand",
+            "reserved": "Reserved",
+            "available": "Available",
+            "last_update": "Last Reported",
+            "age_days": "Age (days)",
+            "source": "Reported Via",
+            "stale": "Stale",
+        },
+        rows,
+        notes,
+        totals={
+            "seller": "Total",
+            "on_hand": round(sum(r["on_hand"] for r in rows), 2),
+            "reserved": round(sum(r["reserved"] for r in rows), 2),
+            "available": round(sum(r["available"] for r in rows), 2),
+            "stale": sum(1 for r in rows if r["stale"] == "✓"),
+        }
+        if rows
+        else None,
+        empty="No seller has reported stock yet (Seller Stock Positions).",
+    )
+    pack["filters"] = [
+        {
+            "key": "stale_days",
+            "label": "Stale after (days)",
+            "options": ["30", "7", "14", "60", "90"],
+        }
+    ]
+    return pack
+
+
+def _codes(certs, with_expiry=False):
+    if not certs:
+        return "—"
+    parts = []
+    for cert in certs.sorted(lambda c: c.standard_id.code or ""):
+        code = cert.standard_id.code or cert.standard_id.name
+        if with_expiry and cert.expires_on:
+            code = "%s (until %s)" % (code, cert.expires_on)
+        parts.append(code)
+    return ", ".join(parts)
+
+
+def seller_standards(env, date_from=None, date_to=None, expiring_days=None, **params):
+    """M12-training: per seller, the standards held, expiring, expired,
+    pending verification and MISSING - the standards the seller's approved
+    service categories require (fix.seller.standard.category_ids) that the
+    seller does not validly hold. Read as the caller inside the company fence."""
+    window = _int_param(expiring_days, EXPIRING_DAYS)
+    # the reader's calendar; Asia/Dhaka when no zone is set (as the expiry cron)
+    tz = env.context.get("tz") or env.user.tz or "Asia/Dhaka"
+    today = fields.Date.context_today(env["fix.seller.certification"].with_context(tz=tz))
+    sellers = env["fix.marketplace.seller"].search(
+        _company_domain(env, "fix.marketplace.seller"), order="name"
+    )
+    certs = env["fix.seller.certification"].search(
+        [*_company_domain(env, "fix.seller.certification"), ("seller_id", "in", sellers.ids)]
+    )
+    standards = env["fix.seller.standard"].search([])
+    rows = []
+    for seller in sellers:
+        mine = certs.filtered(lambda c, sid=seller.id: c.seller_id.id == sid)
+        verified = mine.filtered(lambda c: c.state == "verified")
+        held = verified.filtered(lambda c: not c.expires_on or c.expires_on >= today)
+        lapsed = (verified - held) | mine.filtered(lambda c: c.state == "expired")
+        expiring = held.filtered(lambda c: c.expires_on and (c.expires_on - today).days <= window)
+        pending = mine.filtered(lambda c: c.state == "submitted")
+        required = standards.filtered(lambda st, cats=seller.category_ids: st.category_ids & cats)
+        missing = required - held.mapped("standard_id")
+        if not mine and not required:
+            continue
+        if missing:
+            status = "Missing required"
+        elif expiring:
+            status = "Expiring"
+        else:
+            status = "OK"
+        rows.append(
+            {
+                "seller": seller.name,
+                "tier": seller.tier,
+                "held": _codes(held),
+                "expiring": _codes(expiring, with_expiry=True),
+                "expired": _codes(lapsed, with_expiry=True),
+                "missing": ", ".join(missing.sorted("code").mapped("code")) or "—",
+                "pending": _codes(pending),
+                "status": status,
+            }
+        )
+    order = {"Missing required": 0, "Expiring": 1, "OK": 2}
+    rows.sort(key=lambda r: (order[r["status"]], r["seller"]))
     return _pack(
         "Standards & Training",
-        ["seller", "tier", "status"],
-        {"seller": "Seller", "tier": "Tier", "status": "Training Status"},
-        [],
+        ["seller", "tier", "held", "expiring", "expired", "missing", "pending", "status"],
+        {
+            "seller": "Seller",
+            "tier": "Tier",
+            "held": "Standards Held",
+            "expiring": "Expiring (%d days)" % window,
+            "expired": "Expired",
+            "missing": "Missing (required by categories)",
+            "pending": "Awaiting Verification",
+            "status": "Status",
+        },
+        rows,
         [
-            "No training or standards record is kept for marketplace sellers. Training "
-            "and certification exist for staff only: fix.training.enrollment and "
-            "fix.certification (cd_competency) are keyed to hr.employee, and no model "
-            "keys a course, standard or certificate to fix.marketplace.seller. Declared "
-            "gap — no training status is invented.",
-            "What IS recorded per seller: tier (measured from fix.seller.score) and the "
-            "approved service categories (category_ids, BRU-ECM-07) — see the seller "
-            "master and the Seller Scorecard Distribution report.",
+            "Held = a certification a compliance reviewer verified that is inside its "
+            "validity; expiring = held and ending within %d days; expired = past its date "
+            "(whether or not the daily expiry run has visited it)." % window,
+            "Missing = a standard one of the seller's approved service categories requires "
+            "(the standard's 'Required for Categories') that the seller does not validly "
+            "hold. Sellers with no certification and no required standard are not listed.",
         ],
-        empty="Seller training needs a seller-keyed training/standards record "
-        "(courses and certificates are keyed to employees only) — declared gap.",
-    )
-
-
-def stock_gap(env, date_from=None, date_to=None, **params):
-    return _pack(
-        "Seller Stock",
-        ["seller", "sku", "quantity"],
-        {"seller": "Seller", "sku": "SKU", "quantity": "Quantity"},
-        [],
-        [
-            "Seller-held stock is not recorded: fix.marketplace.listing carries title, "
-            "category, list price and state but no SKU or quantity, and no model keys "
-            "stock to fix.marketplace.seller. Declared gap — no quantity is invented.",
-            "The only stock the marketplace touches is fix.graded.stock — 1000FiX's own "
-            "refurbished units (no seller key), referenced by a marketplace order's "
-            "graded_stock_id. It is reported under M38 (refurb resale), not as seller stock.",
-        ],
-        empty="Seller stock needs a seller-keyed stock record (listings carry no "
-        "quantity) — declared gap.",
+        empty="No seller holds or needs a standard yet (Seller Certifications).",
     )
 
 
@@ -653,8 +831,8 @@ REPORTS = {
     "reviews_summary": reviews_summary,
     "trust_bands": trust_bands,
     "broadcast_backlog": broadcast_backlog,
-    "training_gap": training_gap,
-    "stock_gap": stock_gap,
+    "seller_standards": seller_standards,
+    "seller_stock": seller_stock,
 }
 
 

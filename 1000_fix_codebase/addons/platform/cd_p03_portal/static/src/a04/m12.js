@@ -2,8 +2,10 @@
 /* A04 · Commercial & Revenue — M12 Marketplace & Sellers (v2 rebuild).
  * Registry-faithful: 5 groups / 15 screens / 5 reports / 4 forms / freg 101.
  * Sellers (2061), orders (2150), quotes, scorecards, statements and disputes
- * are real; listings are the new fix.marketplace.listing. Seller stock and
- * training/standards have no model — declared gaps, never invented. */
+ * are real; listings are the new fix.marketplace.listing. Seller stock
+ * (fix.seller.stock) and standards/training (fix.seller.standard and
+ * fix.seller.certification) were declared gaps until 12 Nov 2026; the two
+ * screens now render the built reports and the records have their own lists. */
 
 export const MODULE = {
   area: 'A04', code: 'M12', en: 'Marketplace & Sellers', title: 'M12 · Marketplace & Sellers',
@@ -30,7 +32,10 @@ export const MODULE = {
     { en: 'Supply', screens: [
       { id: 'M12-listings', en: 'Listings & Moderation', bn: 'লিস্টিং', t: 'g' },
       { id: 'M12-stock', en: 'Seller Stock', bn: 'সেলার স্টক', t: 'g' },
-      { id: 'M12-training', en: 'Standards & Training', bn: 'প্রশিক্ষণ', t: 'g' }
+      { id: 'M12-stock-positions', en: 'Stock Positions', bn: 'স্টক পজিশন', t: 'g' },
+      { id: 'M12-training', en: 'Standards & Training', bn: 'প্রশিক্ষণ', t: 'g' },
+      { id: 'M12-certifications', en: 'Seller Certifications', bn: 'সেলার সনদ', t: 'g' },
+      { id: 'M12-standards', en: 'Standards Catalogue', bn: 'মানদণ্ড তালিকা', t: 'g' }
     ]},
     { en: 'Job Market', screens: [
       { id: 'M12-broadcast', en: 'Job Broadcast', bn: 'জব ব্রডকাস্ট', t: 'c' },
@@ -49,8 +54,8 @@ export const MODULE = {
       { id: 'M12-chargebacks', en: 'Chargebacks', bn: 'চার্জব্যাক', t: 'g' }
     ]}
   ],
-  reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept', 'Commission Revenue', 'Dispute Rate & Outcomes', 'Seller Scorecard Distribution', 'Listing Coverage'],
-  forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case'],
+  reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept', 'Commission Revenue', 'Dispute Rate & Outcomes', 'Seller Scorecard Distribution', 'Listing Coverage', 'Seller Stock', 'Standards & Training'],
+  forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case', 'Stock Position', 'Seller Certification', 'Seller Standard'],
   cross: ['M01 Service Orders', 'M20 AR', 'M33 Party Master', 'M40 Partners'],
   freg: { src: 101, sub: [
     ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'] }],
@@ -94,8 +99,28 @@ export const SCREENS = {
       { m: 'action_withdraw', l: 'Withdraw to Draft', states: ['active', 'paused', 'rejected'] },
       { m: 'action_remove', l: 'Remove Listing', states: ['draft', 'submitted', 'active', 'paused', 'rejected'] }
     ] },
-  'M12-stock': { kind: 'table_report', module: 'M12', report: 'stock_gap', title: 'Seller Stock', period: false },
-  'M12-training': { kind: 'table_report', module: 'M12', report: 'training_gap', title: 'Standards & Training', period: false },
+  /* M12-stock / M12-training (12 Nov 2026): built from the seller's reported
+   * stock positions and the seller certifications held against the
+   * standards their approved categories require. */
+  'M12-stock': { kind: 'table_report', module: 'M12', report: 'seller_stock', title: 'Seller Stock', period: false },
+  'M12-training': { kind: 'table_report', module: 'M12', report: 'seller_standards', title: 'Standards & Training', period: false },
+  /* A position is what the seller (portal), an operator or an import reports;
+   * who reported it, when and how are stamped by the server. */
+  'M12-stock-positions': { kind: 'model_list', model: 'fix.seller.stock',
+    cols: ['seller_id', 'listing_id', 'sku', 'part_id', 'qty_on_hand', 'qty_reserved', 'qty_available', 'last_updated', 'source'] },
+  /* A certification is submitted with its evidence and verified by a
+   * compliance reviewer who did not submit it and does not act for the
+   * seller; a verified one expires on its date (daily run). */
+  'M12-certifications': { kind: 'model_list', model: 'fix.seller.certification', stateField: 'state',
+    cols: ['seller_id', 'standard_id', 'certificate_no', 'issued_on', 'expires_on', 'expiry_status', 'verified_by_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Verification', states: ['draft', 'rejected'] },
+      { m: 'action_verify', l: 'Verify Certificate', states: ['submitted'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the certificate is rejected', kwarg: 'reason', states: ['submitted'] },
+      { m: 'action_revoke', l: 'Revoke', ask: 'Why the certificate is revoked', kwarg: 'reason', states: ['verified'] }
+    ] },
+  'M12-standards': { kind: 'model_list', model: 'fix.seller.standard',
+    cols: ['code', 'name', 'kind', 'issuing_body', 'validity_months', 'category_ids', 'active'] },
   'M12-broadcast': { kind: 'table_report', module: 'M12', report: 'broadcast_backlog', title: 'Job Broadcast', period: false },
   'M12-bids': { kind: 'model_list', model: 'fix.seller.quote', stateField: 'state',
     cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'],
@@ -166,6 +191,18 @@ export const SCREENS = {
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M12-form-seller': {
+    lines: {
+      field: 'certification_ids',
+      title: 'Standards & Certifications',
+      readonlyGrid: true,
+      note: 'Recorded, submitted and verified on the Seller Certifications screen; a verified certificate expires on its date.',
+      fields: [
+        { name: 'standard_id', label: 'Standard / Course', readonly: true },
+        { name: 'certificate_no', label: 'Certificate No.', readonly: true },
+        { name: 'expires_on', label: 'Expires', readonly: true },
+        { name: 'state', label: 'Status', readonly: true }
+      ]
+    },
     kind: 'model_form',
     model: 'fix.marketplace.seller',
     title: 'Marketplace Seller Master',
@@ -219,7 +256,21 @@ export const SCREENS = {
     ]
   },
 
-  'M12-form-listing': { kind: 'model_form', model: 'fix.marketplace.listing',
+  'M12-form-listing': {
+    lines: {
+      field: 'stock_ids',
+      title: 'Seller Stock',
+      readonlyGrid: true,
+      note: 'Reported by the seller, an operator or an import on the Stock Positions screen.',
+      fields: [
+        { name: 'sku', label: 'SKU', readonly: true },
+        { name: 'qty_on_hand', label: 'On Hand', readonly: true },
+        { name: 'qty_reserved', label: 'Reserved', readonly: true },
+        { name: 'qty_available', label: 'Available', readonly: true },
+        { name: 'last_updated', label: 'Last Reported', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'fix.marketplace.listing',
     title: 'Listing', back: 'M12-listings',
     status: { field: 'state' },
     tabs: [
@@ -422,6 +473,82 @@ export const SCREENS = {
     ] },
 
 
+  /* ===== M12-stock / M12-training records (12 Nov 2026) ===== */
+  'M12-form-stock': { kind: 'model_form', model: 'fix.seller.stock',
+    title: 'Seller Stock Position', back: 'M12-stock-positions',
+    tabs: [
+      { id: 'position', label: '1. Position', bn: '১. পজিশন' },
+      { id: 'reported', label: '2. Reported', bn: '২. রিপোর্ট' }
+    ],
+    sections: [
+      { tab: 'position', title: 'Listing, SKU and Quantities', fields: [
+        { name: 'listing_id', label: 'Listing', required: true },
+        { name: 'seller_id', label: 'Seller (the listing\'s)', readonly: true },
+        { name: 'sku', label: 'Seller SKU', required: true },
+        { name: 'part_id', label: 'Catalogue Part' },
+        { name: 'qty_on_hand', label: 'On Hand' },
+        { name: 'qty_reserved', label: 'Reserved' },
+        { name: 'qty_available', label: 'Available', readonly: true },
+        { name: 'note', label: 'Note' }
+      ] },
+      { tab: 'reported', title: 'Stamped by the Server', fields: [
+        { name: 'last_updated', label: 'Quantity Last Reported', readonly: true },
+        { name: 'updated_by_id', label: 'Reported By', readonly: true },
+        { name: 'source', label: 'Reported Via', readonly: true }
+      ] }
+    ] },
+
+  'M12-form-certification': { kind: 'model_form', model: 'fix.seller.certification',
+    title: 'Seller Certification', back: 'M12-certifications',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'certificate', label: '1. Certificate', bn: '১. সনদ' },
+      { id: 'evidence', label: '2. Evidence', bn: '২. প্রমাণক' },
+      { id: 'review', label: '3. Verification', bn: '৩. যাচাই' }
+    ],
+    sections: [
+      { tab: 'certificate', title: 'Seller and Standard', fields: [
+        { name: 'seller_id', label: 'Seller', required: true },
+        { name: 'standard_id', label: 'Standard / Course', required: true },
+        { name: 'certificate_no', label: 'Certificate No.' },
+        { name: 'issued_on', label: 'Issued On', required: true },
+        { name: 'expires_on', label: 'Expires On (blank = from the standard\'s validity)' },
+        { name: 'expiry_status', label: 'Expiry', readonly: true },
+        { name: 'days_to_expiry', label: 'Days to Expiry', readonly: true }
+      ] },
+      { tab: 'evidence', title: 'Certificate Evidence', note: 'Attach the certificate scan before submitting; it is pinned once submitted.', fields: [
+        { name: 'evidence_attachment_id', label: 'Evidence (certificate scan)' }
+      ] },
+      { tab: 'review', title: 'Compliance Verification', fields: [
+        { name: 'state', label: 'State (set by its actions)', readonly: true },
+        { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+        { name: 'verified_by_id', label: 'Verified By', readonly: true },
+        { name: 'verified_at', label: 'Verified At', readonly: true },
+        { name: 'decision_note', label: 'Reviewer Note', readonly: true, type: 'text' }
+      ] }
+    ] },
+
+  'M12-form-standard': { kind: 'model_form', model: 'fix.seller.standard',
+    title: 'Seller Standard / Course', back: 'M12-standards',
+    tabs: [
+      { id: 'standard', label: '1. Standard', bn: '১. মানদণ্ড' },
+      { id: 'categories', label: '2. Required For', bn: '২. প্রযোজ্য ক্যাটাগরি' }
+    ],
+    sections: [
+      { tab: 'standard', title: 'Standard, Course or Certificate', fields: [
+        { name: 'code', label: 'Code', required: true },
+        { name: 'name', label: 'Name', required: true },
+        { name: 'kind', label: 'Kind', required: true },
+        { name: 'issuing_body', label: 'Issued By' },
+        { name: 'validity_months', label: 'Validity (months, 0 = no expiry)' },
+        { name: 'active', label: 'Active' },
+        { name: 'description', label: 'Description', type: 'text' }
+      ] },
+      { tab: 'categories', title: 'Service Categories that Require It', note: 'A seller approved for one of these categories must hold this standard; the Standards & Training report lists who is missing it.', fields: [
+        { name: 'category_ids', label: 'Required for Categories' }
+      ] }
+    ] },
+
   /* computed pack that had no screen (closure 2026-10-28) */
   'M12-rpt-listingcoverage': { kind: 'table_report', module: 'M12', report: 'listing_coverage', title: "Listing Coverage", period: false },
 
@@ -540,6 +667,8 @@ export const SCREENS = {
 
 export const REPORT_ROUTES = {
   'M12:Listing Coverage': 'M12-rpt-listingcoverage',
+  'M12:Seller Stock': 'M12-stock',
+  'M12:Standards & Training': 'M12-training',
   'M12:Supply-Demand Liquidity': 'M12-rpt-liquidity',
   'M12:Fill Rate & Time-to-Accept': 'M12-rpt-fill',
   'M12:Commission Revenue': 'M12-rpt-commission',
@@ -552,7 +681,10 @@ export const FORM_MODELS = {
   'M12:Listing': 'fix.marketplace.listing',
   'M12:Payout Run': 'fix.payout.run',
   'M12:Dispute Case': 'fix.marketplace.dispute',
-  'M12:Chargeback': 'fix.marketplace.chargeback'
+  'M12:Chargeback': 'fix.marketplace.chargeback',
+  'M12:Stock Position': 'fix.seller.stock',
+  'M12:Seller Certification': 'fix.seller.certification',
+  'M12:Seller Standard': 'fix.seller.standard'
 };
 
 export const FORM_CHIPS = {
@@ -561,6 +693,9 @@ export const FORM_CHIPS = {
   'M12:Listing': 'M12-form-listing',
   'M12:Payout Run': 'M12-form-payout',
   'M12:Dispute Case': 'M12-form-dispute',
+  'M12:Stock Position': 'M12-form-stock',
+  'M12:Seller Certification': 'M12-form-certification',
+  'M12:Seller Standard': 'M12-form-standard',
   'M12:__by_model__': {
     'fix.marketplace.order': 'M12-form-marketplace-order',
     'fix.seller.quote': 'M12-form-bid',
@@ -568,7 +703,10 @@ export const FORM_CHIPS = {
     'fix.marketplace.listing': 'M12-form-listing',
     'fix.payout.run': 'M12-form-payout',
     'fix.marketplace.dispute': 'M12-form-dispute',
-    'fix.marketplace.chargeback': 'M12-form-chargeback'
+    'fix.marketplace.chargeback': 'M12-form-chargeback',
+    'fix.seller.stock': 'M12-form-stock',
+    'fix.seller.certification': 'M12-form-certification',
+    'fix.seller.standard': 'M12-form-standard'
   },
   'M12:__by_screen__': {
     'M12-marketplace-order': 'M12-form-marketplace-order',
@@ -577,7 +715,10 @@ export const FORM_CHIPS = {
     'M12-listings': 'M12-form-listing',
     'M12-wallet': 'M12-form-payout',
     'M12-disputes': 'M12-form-dispute',
-    'M12-chargebacks': 'M12-form-chargeback'
+    'M12-chargebacks': 'M12-form-chargeback',
+    'M12-stock-positions': 'M12-form-stock',
+    'M12-certifications': 'M12-form-certification',
+    'M12-standards': 'M12-form-standard'
   }
 };
 

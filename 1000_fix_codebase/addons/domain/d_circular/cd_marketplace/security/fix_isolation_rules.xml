@@ -51,6 +51,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_seller_certification_company" model="ir.rule">
+        <field name="name">fix.seller.certification: allowed companies</field>
+        <field name="model_id" ref="model_fix_seller_certification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_seller_certification_operating_unit" model="ir.rule">
+        <field name="name">fix.seller.certification: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_seller_certification"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_seller_quote_company" model="ir.rule">
         <field name="name">fix.seller.quote: allowed companies</field>
         <field name="model_id" ref="model_fix_seller_quote"/>
@@ -70,6 +81,17 @@
     <record id="rule_fix_seller_score_operating_unit" model="ir.rule">
         <field name="name">fix.seller.score: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_seller_score"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_seller_stock_company" model="ir.rule">
+        <field name="name">fix.seller.stock: allowed companies</field>
+        <field name="model_id" ref="model_fix_seller_stock"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_seller_stock_operating_unit" model="ir.rule">
+        <field name="name">fix.seller.stock: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_seller_stock"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -5,7 +5,9 @@
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 80.
  * Partners (8) and referrals (7) are real; authorisations, deals, rebates,
  * franchises and conflicts are new. Partner revenue = recorded referral
- * commission + won deal value; co-marketing is a declared gap. */
+ * commission + won deal value. Co-marketing (a declared gap until 12 Nov
+ * 2026) is built from the campaign's co-marketing partners, the MDF's
+ * campaign key and the M35 touch attribution. */
 
 export const MODULE = {
   area: 'A04', code: 'M40', en: 'Partner & Channel', title: 'M40 · Partner & Channel',
@@ -114,7 +116,7 @@ export const SCREENS = {
    * approver holds the DOFA tier of the amount, did not raise the rebate,
    * and the partner's approved technical audit is at least 85%. */
   'M40-rebates': { kind: 'model_list', model: 'fix.partner.rebate', stateField: 'state',
-    cols: ['name', 'partner_id', 'period', 'kind', 'basis', 'rate', 'amount', 'approval_state', 'state'],
+    cols: ['name', 'partner_id', 'period', 'kind', 'campaign_id', 'basis', 'rate', 'amount', 'approval_state', 'state'],
     actions: [
       { m: 'action_accrue', l: 'Accrue Rebate', states: ['draft'] },
       { m: 'action_request_approval', l: 'Request Payout Approval', ask: 'Justification for the payout', kwarg: 'justification', states: ['accrued'] },
@@ -122,7 +124,11 @@ export const SCREENS = {
       { m: 'action_record_payout', l: 'Record Payout (Finance)', ask: 'Payable / transfer reference', kwarg: 'payment_ref', states: ['approved'] },
       { m: 'action_cancel', l: 'Cancel Rebate', states: ['draft', 'accrued'] }
     ] },
-  'M40-comarketing': { kind: 'table_report', module: 'M40', report: 'comarketing_gap', title: 'Co-Marketing', period: false },
+  /* M40-comarketing (12 Nov 2026): partners named on a campaign
+   * (fix.campaign.partner_ids, kept from the partner form's Co-Marketing
+   * Campaigns), their MDF on it (the rebate's campaign) and the revenue the
+   * M35 touch attribution credits where the conversion value is on file. */
+  'M40-comarketing': { kind: 'table_report', module: 'M40', report: 'comarketing', title: 'Co-Marketing', period: false },
   /* DISC-40.2 / A04 audit M40-6: a ruling is given once, by a Tier 3
    * arbitrator who did not raise the conflict, with a rationale. */
   'M40-conflict': { kind: 'model_list', model: 'fix.partner.conflict', stateField: 'state',
@@ -188,7 +194,8 @@ export const SCREENS = {
         fields: [] },
       { tab: 'financials', title: 'Commercial Commission & Volume Rebates',
         fields: [
-          { name: 'commission_rate', readonly: true, label: 'Standard Referral Commission Rate (set by a channel manager)' }
+          { name: 'commission_rate', readonly: true, label: 'Standard Referral Commission Rate (set by a channel manager)' },
+          { name: 'comarketing_campaign_ids', label: 'Co-Marketing Campaigns (M35; a channel officer names them, onboarded partners only)' }
         ] },
       { tab: 'statutory', title: 'Bangladesh Statutory Compliance & Tax Registrations',
         note: 'Mandatory trade license, e-TIN, and National ID verification under Bangladesh law.',
@@ -272,7 +279,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Scheme Name' },
           { name: 'partner_id', required: true, label: 'Authorized Partner' },
           { name: 'period', required: true, label: 'Evaluation Period' },
-          { name: 'kind', required: true, label: 'Rebate Classification' }
+          { name: 'kind', required: true, label: 'Rebate Classification' },
+          { name: 'campaign_id', label: 'Co-Marketing Campaign (MDF only; the partner must co-fund it)' }
         ] },
       { tab: 'computation', title: 'Stored Computation Formula', fields: [
           { name: 'basis', label: 'Gross Volume Basis (BDT)' },

@@ -26,6 +26,18 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- M40-comarketing (12 Nov 2026): the campaign's co-marketing partners. -->
+    <record id="view_fix_campaign_form_comarketing" model="ir.ui.view">
+        <field name="name">fix.campaign.form.comarketing</field>
+        <field name="model">fix.campaign</field>
+        <field name="inherit_id" ref="cd_campaign.view_fix_campaign_form"/>
+        <field name="arch" type="xml">
+            <field name="budget" position="after">
+                <field name="partner_ids" widget="many2many_tags"/>
+            </field>
+        </field>
+    </record>
+
     <menuitem id="menu_fix_partner" name="Partner" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_partner" sequence="300"/>
     <menuitem id="menu_fix_referral" name="Referral" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_referral" sequence="310"/>
 </odoo>
