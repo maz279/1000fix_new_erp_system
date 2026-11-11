@@ -22,6 +22,12 @@ NOTE_GUARDED = {
     "move_id",
     "input_credit_id",
     "payment_run_id",
+    # F8 (owner decision 12 Nov 2026): what a return note returns, and the TDS
+    # it reverses, are set by the return hand-off from the bill's own lines
+    "product_id",
+    "return_qty",
+    "source_ref",
+    "tds_amount",
 }
 NOTE_TERMS = {
     "invoice_id",
@@ -80,13 +86,28 @@ class FixVendorNote(models.Model):
         string="Value (excl. VAT)", currency_field="currency_id", required=True
     )
     vat_amount = fields.Monetary(string="VAT", currency_field="currency_id", default=0.0)
+    # F8 / E3-11, E3-13: a credit note for goods returned (raised from an RTV)
+    # names what it returns, and reverses the TDS withheld on that part of the bill
+    product_id = fields.Many2one(
+        "product.product", string="Returned Product", readonly=True, ondelete="restrict"
+    )
+    return_qty = fields.Float(string="Returned Quantity", readonly=True)
+    source_ref = fields.Char(string="Return Document", readonly=True, index=True)
+    tds_amount = fields.Monetary(
+        string="TDS Reversed",
+        currency_field="currency_id",
+        default=0.0,
+        readonly=True,
+        help="The TDS withheld on the bill for the returned part, given back to the vendor "
+        "with the credit while the deduction is not yet deposited.",
+    )
     total = fields.Monetary(currency_field="currency_id", compute="_compute_total", store=True)
     signed_total = fields.Monetary(
         string="Effect on Payable",
         currency_field="currency_id",
         compute="_compute_total",
         store=True,
-        help="Negative reduces what is owed to the vendor",
+        help="Negative reduces what is owed to the vendor (value + VAT, less the TDS reversed)",
     )
     state = fields.Selection(
         [
@@ -146,17 +167,23 @@ class FixVendorNote(models.Model):
                 note.invoice_id.invoice_ref or "",
             )
 
-    @api.depends("amount", "vat_amount", "note_type")
+    @api.depends("amount", "vat_amount", "note_type", "tds_amount")
     def _compute_total(self):
         for note in self:
             note.total = _q(note.amount + note.vat_amount)
-            note.signed_total = -note.total if note.note_type == "decrease" else note.total
+            note.signed_total = (
+                -_q(note.total - note.tds_amount) if note.note_type == "decrease" else note.total
+            )
 
-    @api.constrains("amount", "vat_amount", "invoice_id", "note_type")
+    @api.constrains("amount", "vat_amount", "invoice_id", "note_type", "tds_amount")
     def _check_note(self):
         for note in self:
             if note.amount <= 0 or note.vat_amount < 0:
                 raise ValidationError("A note carries a positive value and no negative VAT")
+            if note.tds_amount < 0 or note.tds_amount > note.amount + 0.005:
+                raise ValidationError("The TDS a note reverses lies between zero and its value")
+            if note.tds_amount and note.note_type != "decrease":
+                raise ValidationError("Only a credit note (6.7) reverses withheld TDS")
             if note.note_type == "decrease":
                 others = note.invoice_id.note_ids.filtered(
                     lambda n: n.note_type == "decrease" and n.state != "cancelled"
@@ -184,7 +211,10 @@ class FixVendorNote(models.Model):
             if note.invoice_id.payment_state == "paid" and note.note_type == "decrease":
                 # still allowed: the vendor then owes a refund, netted next run
                 pass
+            reversals = note._tds_reversals()
             note._post()
+            for deduction, base, amount in reversals:
+                deduction.sudo()._fix_reduce_for_credit_note(base, amount, note.move_id, note.name)
             note._record_vat_adjustment()
             note._guarded().write({"state": "approved", "approved_by": self.env.user.id})
         return True
@@ -251,15 +281,31 @@ class FixVendorNote(models.Model):
             if inv.line_ids
             else ap_account(env, company, "expense")
         )
+        returned = inv.line_ids.filtered(
+            lambda ln: self.product_id and ln.product_id == self.product_id
+        )[:1]
+        if returned:
+            expense = inv._expense_account(returned)
         ap = ap_account(env, company, "ap")
         vat = ap_account(env, company, "vat_input") if self.vat_amount else None
         if self.note_type == "decrease":
             lines = [
-                (ap, label, self.total, 0.0, partner),
+                (ap, label, _q(self.total - self.tds_amount), 0.0, partner),
                 (expense, label, 0.0, self.amount, partner),
             ]
             if vat:
                 lines.append((vat, "Input VAT " + label, 0.0, self.vat_amount, partner))
+            if self.tds_amount:
+                # E3-13: the TDS withheld on the returned part goes back with the credit
+                lines.append(
+                    (
+                        ap_account(env, company, "tds_payable"),
+                        "TDS reversed " + label,
+                        self.tds_amount,
+                        0.0,
+                        partner,
+                    )
+                )
         else:
             lines = [
                 (expense, label, self.amount, 0.0, partner),
@@ -277,6 +323,50 @@ class FixVendorNote(models.Model):
             inv.operating_unit_id,
         )
         self._guarded().write({"move_id": move.id})
+
+    def _tds_reversals(self):
+        """[(deduction, base, amount)] this credit note gives back, read from
+        the bill's lines for the returned quantity (E3-13). Follows the TDS
+        engine: only a deduction still withheld is reduced; a deposited or
+        certified one keeps its TDS (the deductee holds the certificate), the
+        note's reversal falls to what can be reversed, and the note says why."""
+        self.ensure_one()
+        if self.note_type != "decrease" or not self.tds_amount or not self.product_id:
+            return []
+        inv = self.invoice_id
+        earlier = inv.note_ids.filtered(lambda n: n.id < self.id)
+        groups = inv._fix_return_split(self.product_id, self.return_qty, earlier)["tds"]
+        reversals, kept = [], []
+        for (rate, multiplier), (base, amount) in groups.items():
+            if amount <= 0:
+                continue
+            deduction = inv.withholding_line_ids.sudo().filtered(
+                lambda w, r=rate, m=multiplier: (
+                    w.tax_kind == "tds"
+                    and w.state != "cancelled"
+                    and w.rate_id == r
+                    and abs((w.multiplier or 1.0) - (m or 1.0)) < 1e-3
+                )
+            )[:1]
+            if deduction and deduction._fix_reducible_for_credit_note():
+                reversals.append((deduction, base, amount))
+            else:
+                kept.append(
+                    "%.2f (%s)"
+                    % (
+                        amount,
+                        "deduction %s" % deduction.state if deduction else "no deduction recorded",
+                    )
+                )
+        reversible = _q(sum(r[2] for r in reversals))
+        if abs(reversible - self.tds_amount) > 0.005:
+            self._guarded().write({"tds_amount": reversible})
+            self.message_post(
+                body="TDS not reversed: %s. A deposited or certified deduction is never edited; "
+                "the vendor keeps the certificate for it, and any refund or set-off is a tax "
+                "decision." % "; ".join(kept)
+            )
+        return reversals
 
     def _record_vat_adjustment(self):
         """The note's VAT is an input-VAT adjustment of its own period's 9.1."""
@@ -306,3 +396,107 @@ class FixVendorNote(models.Model):
         )
         credit.action_check_eligibility()
         self._guarded().write({"input_credit_id": credit.id})
+
+
+class FixVendorInvoiceReturns(models.Model):
+    """The bill side of a purchase return (F8, owner decision 12 Nov 2026):
+    the credit for goods returned is what the bill charged for them, at the
+    billed price, with the VAT and the TDS those units bore on the bill."""
+
+    _inherit = "fix.vendor.invoice"
+
+    def _fix_returned_qty(self, product, notes=None):
+        """The quantity of `product` already credited back on this bill by
+        live return notes (`notes`: the notes to count, default all)."""
+        self.ensure_one()
+        notes = self.note_ids if notes is None else notes
+        return sum(
+            notes.filtered(
+                lambda n: n.note_type == "decrease"
+                and n.state != "cancelled"
+                and n.product_id == product
+            ).mapped("return_qty")
+        )
+
+    def _fix_billed_qty(self, product):
+        self.ensure_one()
+        return sum(self.line_ids.filtered(lambda ln: ln.product_id == product).mapped("quantity"))
+
+    def _fix_return_split(self, product, qty, notes=None):
+        """How returning `qty` of `product` falls on this bill's lines, after
+        what `notes` already returned: {"amount", "vat", "tds": {(rate,
+        multiplier): [base, tds]}, "unit_price"}. Refuses a return of more
+        than the bill billed (E3-11)."""
+        self.ensure_one()
+        qty = float(qty or 0.0)
+        lines = self.line_ids.filtered(lambda ln: ln.product_id == product).sorted("id")
+        billed = sum(lines.mapped("quantity"))
+        done = self._fix_returned_qty(product, notes)
+        if qty <= 0 or qty > billed - done + 1e-6:
+            raise UserError(
+                "Bill %s billed %g of %s and %g are already credited back: a return of %g is "
+                "more than was billed."
+                % (self.invoice_ref, billed, product.display_name, done, qty)
+            )
+        skip, left = done, qty
+        amount, tds = 0.0, {}
+        for line in lines:
+            free = line.quantity
+            used = min(free, skip)
+            skip -= used
+            free -= used
+            take = min(free, left)
+            if take <= 0:
+                continue
+            left -= take
+            base = take * line.unit_price
+            amount += base
+            if line.tds_amount and line.quantity:
+                key = (line.tds_rate_id, line.tds_multiplier)
+                group = tds.setdefault(key, [0.0, 0.0])
+                group[0] += base
+                group[1] += line.tds_amount * take / line.quantity
+            if left <= 1e-9:
+                break
+        amount = _q(amount)
+        tds = {key: [_q(base), _q(withheld)] for key, (base, withheld) in tds.items()}
+        vat = _q(self.vat_amount * amount / self.subtotal) if self.subtotal else 0.0
+        return {
+            "amount": amount,
+            "vat": vat,
+            "tds": tds,
+            "unit_price": _q(amount / qty) if qty else 0.0,
+        }
+
+    def _fix_raise_return_note(self, product, qty, mushak_ref, source_ref, description=None):
+        """CONTRACT (M15 -> M52, E3-09/10/11/13): a DRAFT credit note (Mushak
+        6.7) for `qty` of `product` returned against this approved bill:
+        the billed price, the VAT those units bore, and the TDS withheld on
+        them. AP approves it under its own segregation of duties."""
+        self.ensure_one()
+        if self.approval_state == "rejected":
+            raise UserError("Bill %s is rejected: it takes no credit note." % self.invoice_ref)
+        split = self._fix_return_split(product, qty)
+        withheld = _q(sum(tds for _base, tds in split["tds"].values()))
+        return (
+            self.env["fix.vendor.note"]
+            ._guarded()
+            .create(
+                {
+                    "invoice_id": self.id,
+                    "company_id": self.company_id.id,
+                    "note_type": "decrease",
+                    "reason": "return",
+                    "mushak_ref": mushak_ref,
+                    "amount": split["amount"],
+                    "vat_amount": split["vat"],
+                    "tds_amount": withheld,
+                    "product_id": product.id,
+                    "return_qty": qty,
+                    "source_ref": source_ref,
+                    "description": description
+                    or "Return %s: %g x %s at the billed %.2f"
+                    % (source_ref, qty, product.display_name, split["unit_price"]),
+                }
+            )
+        )

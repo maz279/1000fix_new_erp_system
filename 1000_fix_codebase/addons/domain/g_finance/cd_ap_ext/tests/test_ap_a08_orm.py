@@ -756,6 +756,22 @@ class TestEmployeeExpense:
         )
         with pytest.raises(UserError, match="recovery method"), env.cr.savepoint():
             advance.action_record_recovery()
+        # F11 / E3-17 (owner decision 12 Nov 2026): cash handed back debits Cash in
+        # Hand, not the payment bank journal (it used to land on the bank GL)
+        Account = env["account.account"]
+        cash = Account.search(
+            [("code", "=", "990109"), ("company_ids", "in", env.company.id)], limit=1
+        ) or Account.create(
+            {
+                "code": "990109",
+                "name": "Test cash in hand",
+                "account_type": "asset_cash",
+                "company_ids": [(6, 0, [env.company.id])],
+            }
+        )
+        env["ir.config_parameter"].sudo().set_param(
+            "cd_cash_position.account_code.branch_cash", "990109"
+        )
         advance.recovery_method = "cash"
         advance.action_record_recovery()
         assert (advance.recovered_amount, advance.balance, advance.state) == (
@@ -763,3 +779,5 @@ class TestEmployeeExpense:
             0.0,
             "settled",
         )
+        debit = advance.recovery_move_id.line_ids.filtered(lambda ml: ml.debit)
+        assert (debit.account_id, debit.debit) == (cash, 2000.0)

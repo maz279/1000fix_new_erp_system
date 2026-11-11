@@ -265,15 +265,18 @@ def _credited_rtv(inv, qty=2.0):
     return r
 
 
-def test_m15_67c_credited_rtv_raises_a_draft_vendor_credit_note(inv):
+def test_m15_67c_credited_rtv_without_a_grn_guesses_no_bill(inv):
+    """E3-11 (owner decision 12 Nov 2026): the note used to land on "the
+    vendor's latest bill with room", at average cost. An RTV that names no
+    goods receipt now raises no note: AP credits the right bill by hand. The
+    GRN-linked path (billed price, VAT, TDS) is test_e3_rtv_credit.py."""
     if "fix.vendor.note" not in inv.env:
         pytest.skip("cd_ap_ext is not installed")
     bill = _bill(inv, 5000.0)
     r = _credited_rtv(inv)
-    note = inv.env["fix.vendor.note"].browse(r.vendor_note_res_id)
-    assert note.exists() and note.invoice_id == bill
-    assert (note.state, note.note_type, note.amount) == ("draft", "decrease", 1000.0)
-    assert r.name in note.description
+    assert r.state == "credited" and not r.vendor_note_res_id
+    assert not bill.note_ids
+    assert "names no goods receipt" in r.vendor_note_status
 
 
 def test_m15_67d_no_bill_to_credit_is_recorded(inv):

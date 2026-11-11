@@ -411,10 +411,47 @@ class FixVendorInvoice(models.Model):
             inv.tds_category_review = any(inv.line_ids.mapped("tds_category_assumed"))
 
     def action_confirm_tds_category(self):
-        """AP confirms the default category is the right one for these lines."""
+        """AP confirms the default category is the right one for these lines.
+        The reviewer is an Accountant or Accounting Administrator; the
+        confirmation (who, which categories) is written to the approval log
+        the approvers read."""
         require_finance(self.env, "Confirming a TDS category")
-        self.line_ids.filtered("tds_category_assumed").write({"tds_category_assumed": False})
+        for inv in self:
+            assumed = inv.line_ids.filtered("tds_category_assumed")
+            if not assumed:
+                continue
+            assumed.write({"tds_category_assumed": False})
+            inv._log(
+                "tds_confirm",
+                note="Defaulted TDS category confirmed: %s"
+                % ", ".join(sorted(set(assumed.mapped("tds_category")))),
+            )
         return True
+
+    def _check_tds_category_reviewed(self, doing):
+        """C9 / D-05 (owner decision 12 Nov 2026): a bill whose withholding
+        category was defaulted, not chosen, is not submitted or approved until
+        AP sets the right category or confirms the default. A supplier with no
+        tax profile otherwise withholds at service_general 10% x 2.25 = 22.5%."""
+        self.ensure_one()
+        if self.tds_category_review:
+            raise UserError(
+                "Bill %s cannot be %s: the TDS category of %s was defaulted because vendor %s "
+                "has no tax profile category, and nobody has reviewed it. Set the right "
+                "category on the line, or have an Accountant confirm the default (Confirm "
+                "Defaulted TDS Category)%s."
+                % (
+                    self.invoice_ref,
+                    doing,
+                    ", ".join(
+                        self.line_ids.filtered("tds_category_assumed").mapped(
+                            lambda ln: ln.description or ln.product_id.display_name or "a line"
+                        )
+                    ),
+                    self.vendor_id.display_name,
+                    "" if self.approval_state == "draft" else "; reject the bill to draft first",
+                )
+            )
 
     @api.constrains("vds_rate_id")
     def _check_vds_rate(self):
@@ -554,6 +591,7 @@ class FixVendorInvoice(models.Model):
             if not inv.line_ids or inv.subtotal <= 0:
                 raise UserError("Bill %s has no positive lines" % inv.invoice_ref)
             inv._check_match_gate("submitted for approval")
+            inv._check_tds_category_reviewed("submitted for approval")
             dup = inv._duplicates()
             if dup:
                 raise UserError(
@@ -698,6 +736,7 @@ class FixVendorInvoice(models.Model):
                 raise UserError("Bill %s is not awaiting approval" % inv.invoice_ref)
             # re-read at every level: a match can break after submission
             inv._check_match_gate("approved")
+            inv._check_tds_category_reviewed("approved")
             levels = inv._ap_levels()
             if not levels:
                 raise UserError(

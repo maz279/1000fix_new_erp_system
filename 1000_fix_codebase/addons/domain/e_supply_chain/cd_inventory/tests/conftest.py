@@ -168,6 +168,8 @@ class Inv(types.SimpleNamespace):
             "part_id": self.part.id,
             "location_id": self.central.id,
             "qty": qty,
+            # E3-11: the fixture's stock was put on hand with no goods receipt
+            "no_receipt_reason": "A06 test stock (no goods receipt)",
         }
         vals.update(kw)
         return self.env["fix.stock.rtv"].with_user(user).create(vals)

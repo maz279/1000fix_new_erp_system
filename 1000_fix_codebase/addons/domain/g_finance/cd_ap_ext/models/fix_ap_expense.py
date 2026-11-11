@@ -6,6 +6,7 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_cash_position.models.treasury_common import treasury_account
 from odoo.addons.cd_fixed_asset_ext.models.fix_asset_common import (
     attach_upload,
     attachment_names,
@@ -872,9 +873,26 @@ class FixEmployeeAdvance(models.Model):
         help="Dr employee payable / Cr outgoing clearing for the excess treasury paid.",
     )
     cancel_reason = fields.Char(string="Cancelled Because", readonly=True, copy=False)
+    # F11 / E3-17 (owner decision 12 Nov 2026): "cash" was posted to the payment
+    # bank journal's account with no bank evidence, so cash handed back at the
+    # office became a permanent book-only item of the bank reconciliation.
+    # Cash returned debits Cash in Hand; a bank transfer debits the bank.
     recovery_method = fields.Selection(
-        [("cash", "Cash / bank refund"), ("payroll", "Payroll deduction (A09)")],
-        help="How an unspent balance is recovered",
+        [
+            ("cash", "Cash returned (cash in hand)"),
+            ("bank", "Bank transfer / deposit"),
+            ("payroll", "Payroll deduction (A09)"),
+        ],
+        help="How an unspent balance is recovered: cash handed back debits Cash in Hand; a "
+        "bank transfer or deposit debits the payment bank journal's account; a payroll "
+        "deduction is requested from payroll.",
+    )
+    recovery_move_id = fields.Many2one(
+        "account.move",
+        string="Recovery Entry",
+        readonly=True,
+        copy=False,
+        help="Dr cash in hand or bank / Cr employee advance, for a cash or bank recovery.",
     )
 
     ADV_GUARDED = {
@@ -893,6 +911,7 @@ class FixEmployeeAdvance(models.Model):
         "recovery_requested_amount",
         "excess_payment_move_id",
         "cancel_reason",
+        "recovery_move_id",
     }
     ADV_TERMS = {
         "amount",
@@ -1233,10 +1252,58 @@ class FixEmployeeAdvance(models.Model):
                 claims.filtered(lambda c: c.state == "approved")._guarded().write({"state": "paid"})
         return True
 
+    def _recovery_destination(self):
+        """(journal, account) a cash or bank recovery debits (F11 / E3-17).
+
+        Bank: the payment bank journal and its account, as before. Cash: Cash
+        in Hand, the treasury's branch-cash role (cd_cash_position.account_code.
+        branch_cash), else the billing engine's cash role (cd_billing_engine.
+        account_code.cash); fail closed when neither is set. The entry goes on
+        a cash journal of that account when one exists, else on the general
+        journal treasury posts branch cash on, never on the bank journal: the
+        bank reconciliation must not see money that never reached the bank."""
+        self.ensure_one()
+        env, company = self.env, self.company_id
+        if self.recovery_method == "bank":
+            journal = ap_journal(env, company, "payment")
+            return journal, journal.default_account_id
+        cash = treasury_account(env, company, "branch_cash", required=False)
+        if not cash:
+            code = (
+                env["ir.config_parameter"].sudo().get_param("cd_billing_engine.account_code.cash")
+                or ""
+            ).strip()
+            if code:
+                cash = (
+                    env["account.account"]
+                    .sudo()
+                    .with_company(company)
+                    .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+                )
+        if not cash:
+            raise UserError(
+                "No Cash in Hand account in %s for a cash recovery of %s: set system parameter "
+                "cd_cash_position.account_code.branch_cash (or cd_billing_engine.account_code."
+                "cash) to the account code. Nothing was posted." % (company.name, self.name)
+            )
+        Journal = env["account.journal"].sudo()
+        journal = Journal.search(
+            [
+                ("company_id", "=", company.id),
+                ("type", "=", "cash"),
+                ("default_account_id", "=", cash.id),
+            ],
+            limit=1,
+        ) or Journal.search([("company_id", "=", company.id), ("type", "=", "general")], limit=1)
+        if not journal:
+            raise UserError("%s has no cash or general journal for the recovery." % company.name)
+        return journal, cash
+
     def action_record_recovery(self):
-        """Recover the unspent balance: cash/bank refund posts Dr bank / Cr
-        advance; payroll deduction is requested from payroll (A09) ONCE and
-        closes on payroll's confirmation (action_confirm_payroll_recovery)."""
+        """Recover the unspent balance: a cash refund posts Dr cash in hand /
+        Cr advance, a bank refund Dr bank / Cr advance; payroll deduction is
+        requested from payroll (A09) ONCE and closes on payroll's confirmation
+        (action_confirm_payroll_recovery)."""
         require_finance(self.env, "Recovering an advance balance")
         for adv in self:
             if adv.state != "disbursed" or adv.balance <= 0.005:
@@ -1250,17 +1317,20 @@ class FixEmployeeAdvance(models.Model):
                 )
             env, company = self.env, adv.company_id
             amount = adv.balance
-            if adv.recovery_method == "cash":
-                journal = ap_journal(env, company, "payment")
-                label = "Advance refund %s" % adv.name
-                post_ap_move(
+            if adv.recovery_method in ("cash", "bank"):
+                journal, money_account = adv._recovery_destination()
+                label = "Advance refund %s (%s)" % (
+                    adv.name,
+                    "cash in hand" if adv.recovery_method == "cash" else "bank",
+                )
+                move = post_ap_move(
                     env,
                     company,
                     journal,
                     fields.Date.context_today(self),
                     label,
                     [
-                        (journal.default_account_id, label, amount, 0.0, adv._partner()),
+                        (money_account, label, amount, 0.0, adv._partner()),
                         (
                             ap_account(env, company, "employee_advance"),
                             label,
@@ -1276,6 +1346,7 @@ class FixEmployeeAdvance(models.Model):
                         "recovered_amount": adv.recovered_amount + amount,
                         "recovery_state": "done",
                         "state": "settled",
+                        "recovery_move_id": move.id,
                     }
                 )
             else:

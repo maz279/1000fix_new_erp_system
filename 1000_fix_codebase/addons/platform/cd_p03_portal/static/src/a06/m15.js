@@ -518,6 +518,14 @@ export const SCREENS = {
           { name: 'rtv_ref', label: 'Vendor RMA Reference' },
           { name: 'credit_ref', label: 'Credit Reference', readonly: true },
           { name: 'notes', label: 'Notes' }
+        ] },
+      { title: 'Goods Receipt, PO and Bill', note: 'Name the goods receipt the goods came in on: the PO comes from it and the AP credit note is raised on the bill of that PO, at the billed price with its VAT and TDS. The return is held to what the GRN accepted and the bill billed. Stock with no goods receipt records why; AP then raises its credit by hand.',
+        fields: [
+          { name: 'receipt_id', label: 'Goods Receipt (GRN)', domain: [['state', '=', 'posted']] },
+          { name: 'no_receipt_reason', label: 'Why No Goods Receipt' },
+          { name: 'purchase_order_id', label: 'Purchase Order', readonly: true },
+          { name: 'vendor_invoice_ref', label: 'Vendor Bill', readonly: true },
+          { name: 'vendor_note_status', label: 'AP Credit Note', readonly: true }
         ] }
     ]
   },

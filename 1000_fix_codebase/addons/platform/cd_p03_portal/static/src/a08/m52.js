@@ -113,7 +113,7 @@ export const SCREENS = {
     cols: ['document_date','tax_kind','partner_id','section','base_amount','rate','multiplier','amount','source_ref','challan_no','state'],
     stateField: 'state', actions: [{m:'action_issue_certificate',l:'Issue Certificate'}] },
   'M52-notes': { kind: 'model_list', model: 'fix.vendor.note',
-    cols: ['name','vendor_id','note_type','mushak_ref','note_date','amount','vat_amount','signed_total','state'],
+    cols: ['name','vendor_id','note_type','mushak_ref','note_date','amount','vat_amount','tds_amount','signed_total','state'],
     stateField: 'state', actions: [{m:'action_approve',l:'Approve & Post'},{m:'action_cancel',l:'Cancel'}] },
   'M52-claims': { kind: 'model_list', model: 'fix.expense.claim',
     cols: ['employee_id','description','expense_date','amount','advance_id','payment_failure','state'],
@@ -407,7 +407,11 @@ export const SCREENS = {
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'amount', required: true, label: 'Value (excl. VAT)' },
           { name: 'vat_amount', label: 'VAT' },
-          { name: 'description', label: 'Description' }
+          { name: 'description', label: 'Description' },
+          { name: 'source_ref', label: 'Return Document (RTV)', readonly: true },
+          { name: 'return_qty', label: 'Returned Quantity', readonly: true },
+          { name: 'tds_amount', label: 'TDS Reversed', readonly: true },
+          { name: 'signed_total', label: 'Effect on Payable', readonly: true }
         ] }
     ]
   },

@@ -311,6 +311,7 @@ class FixApApprovalLog(models.Model):
             ("approve", "Approved"),
             ("reject", "Rejected"),
             ("reset", "Reset to Draft"),
+            ("tds_confirm", "Defaulted TDS Category Confirmed"),
         ],
         required=True,
     )

@@ -372,6 +372,62 @@ class FixWithholdingLine(models.Model):
         lines = self._guarded().create(vals_list)
         return self.browse(lines.ids)
 
+    def _fix_reducible_for_credit_note(self):
+        """Whether a supplier credit note may still reduce this deduction: only
+        while it is withheld. A deposited or certified deduction is never
+        edited (the deductee holds, or will hold, the certificate for it)."""
+        self.ensure_one()
+        return self.tax_kind == "tds" and self.state == "withheld"
+
+    def _fix_reduce_for_credit_note(self, base, amount, move, ref):
+        """CONTRACT (E3-13, owner decision 12 Nov 2026): a supplier's credit
+        note (Mushak 6.7) for goods returned reduces the base this TDS was
+        withheld on. The deduction falls by the returned share of its base and
+        amount, against the note's POSTED entry, which debits the TDS payable by
+        at least that amount, so the TDS return and the GL keep agreeing. A
+        deposited or certified deduction is refused (see
+        _fix_reducible_for_credit_note); the caller then leaves the TDS
+        withheld and says why."""
+        self.ensure_one()
+        base, amount = money(base), money(amount)
+        if not self._fix_reducible_for_credit_note():
+            raise UserError(
+                "Deduction %s is %s: a deposited or certified deduction is never edited, so the "
+                "TDS on the returned goods stays withheld."
+                % (self.source_ref or self.id, self.state)
+            )
+        if base <= 0 or amount < 0:
+            raise UserError("A TDS reversal has a positive base and no negative amount.")
+        if base > money(self.base_amount) + 0.005 or amount > money(self.amount) + 0.005:
+            raise UserError(
+                "A TDS reversal of %.2f on %.2f would exceed deduction %s (%.2f on %.2f)."
+                % (amount, base, self.source_ref or self.id, self.amount, self.base_amount)
+            )
+        if not move or move.state != "posted":
+            raise UserError("A TDS reversal is recorded against the note's POSTED GL entry.")
+        account = tax_account(self.env, move.company_id, "tds_payable")
+        debited = sum(
+            move.sudo().line_ids.filtered(lambda ml: ml.account_id == account).mapped("debit")
+        )
+        if money(debited) + 0.01 < amount:
+            raise UserError(
+                "Entry %s debits %.2f to %s, less than the TDS reversal of %.2f: the GL must "
+                "carry the reversal." % (move.name, debited, account.display_name, amount)
+            )
+        before = (self.base_amount, self.amount)
+        vals = {
+            "base_amount": money(self.base_amount - base),
+            "amount": money(self.amount - amount),
+        }
+        if vals["base_amount"] <= 0.005:
+            vals.update(base_amount=0.0, amount=0.0, state="cancelled")
+        self._guarded().write(vals)
+        self.message_post(
+            body="Reduced by credit note %s (entry %s): base %.2f -> %.2f, TDS %.2f -> %.2f."
+            % (ref, move.name, before[0], self.base_amount, before[1], self.amount)
+        )
+        return True
+
     @api.constrains("move_id", "amount", "tax_kind", "state")
     def _check_gl_liability(self):
         for move in self.mapped("move_id"):
@@ -1250,7 +1306,18 @@ class FixInputVatCredit(models.Model):
         (VAT & SD Act 2012 s.46; A08 M51-3)."""
         self.ensure_one()
         if self.adjustment_type == "decrease":
-            return ""  # a decreasing adjustment is always reported, never optional
+            # A decreasing adjustment is reported, never optional; but it reduces
+            # only input VAT that was claimable (E3-12, owner decision 12 Nov
+            # 2026): against an ineligible credit (no BIN, enlisted supplier...)
+            # the 9.1 would deduct VAT that was never claimed. Its verdict
+            # mirrors the credit it adjusts; with none linked it is reported.
+            original = self.original_credit_id
+            if original and original.state not in ("eligible", "claimed"):
+                return "The credit it reduces is not claimable (%s): nothing to reverse" % (
+                    original.ineligible_reason
+                    or dict(original._fields["state"].selection).get(original.state, original.state)
+                )
+            return ""
         if self.vat_amount <= 0:
             return "No input VAT on the invoice"
         bin_no = (self.supplier_bin or "").strip()
@@ -1330,6 +1397,23 @@ class FixInputVatCredit(models.Model):
                     "ineligible_reason": reason or False,
                 }
             )
+            if row.adjustment_type != "decrease":
+                # E3-12: the decreasing adjustments of this credit follow its verdict
+                followers = self.sudo().search(
+                    [
+                        ("original_credit_id", "=", row.id),
+                        ("adjustment_type", "=", "decrease"),
+                        ("state", "!=", "claimed"),
+                    ]
+                )
+                for dec in followers:
+                    why = dec._ineligibility()
+                    dec._guarded().write(
+                        {
+                            "state": "ineligible" if why else "eligible",
+                            "ineligible_reason": why or False,
+                        }
+                    )
         return True
 
     @api.model

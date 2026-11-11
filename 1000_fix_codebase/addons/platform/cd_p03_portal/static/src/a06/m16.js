@@ -319,6 +319,13 @@ export const SCREENS = {
           { name: 'requested_on', required: true, label: 'Requested On' },
           { name: 'rtv_ref', label: 'RTV Reference' },
           { name: 'notes', label: 'Notes' }
+        ] },
+      { title: 'Goods Receipt, PO and Bill', note: 'The goods receipt the goods came in on (or why there is none): the AP credit note is raised on the bill of its PO.',
+        fields: [
+          { name: 'receipt_id', label: 'Goods Receipt (GRN)', domain: [['state', '=', 'posted']] },
+          { name: 'no_receipt_reason', label: 'Why No Goods Receipt' },
+          { name: 'purchase_order_id', label: 'Purchase Order', readonly: true },
+          { name: 'vendor_invoice_ref', label: 'Vendor Bill', readonly: true }
         ] }
     ]
   },

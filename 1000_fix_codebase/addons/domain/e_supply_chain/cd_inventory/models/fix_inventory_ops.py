@@ -2438,6 +2438,52 @@ class FixStockRtv(models.Model):
     )
     vendor_note_status = fields.Char(string="AP Credit Note", readonly=True, copy=False)
     notes = fields.Char()
+    # E3-11 (owner decision 12 Nov 2026): the RTV names the goods receipt it
+    # returns from; the PO comes from the GRN and the bill from the PO, so the
+    # credit is raised on the right bill and never for more than the GRN
+    # accepted or the bill billed. Stock with no GRN in the system (taken on
+    # before go-live) records why; AP then raises its credit by hand.
+    receipt_id = fields.Many2one(
+        "fix.stock.receipt",
+        string="Goods Receipt (GRN)",
+        index=True,
+        ondelete="restrict",
+        domain="[('state', '=', 'posted'), ('partner_id', '=', partner_id)]",
+        help="The posted goods receipt the returned goods came in on.",
+    )
+    purchase_order_id = fields.Many2one(
+        "fix.purchase.order",
+        string="Purchase Order",
+        related="receipt_id.purchase_order_id",
+        store=True,
+        index=True,
+    )
+    no_receipt_reason = fields.Char(
+        string="Why No Goods Receipt",
+        help="Stock with no goods receipt in the system (e.g. taken on before go-live): why. "
+        "Such an RTV raises no AP credit note by itself.",
+    )
+    vendor_invoice_res_id = fields.Integer(
+        string="Vendor Bill ID",
+        readonly=True,
+        copy=False,
+        help="The vendor bill (fix.vendor.invoice, M52) of the GRN's PO this RTV is credited on.",
+    )
+    vendor_invoice_ref = fields.Char(string="Vendor Bill", readonly=True, copy=False)
+    # E3-10: the stock leaves at average cost (unit_cost); the vendor credits the
+    # billed price. The difference is stated here; no purchase-price-variance
+    # account exists in the estate, so it is not posted (owner decision pending).
+    billed_unit_price = fields.Float(
+        string="Billed Unit Price (BDT)", readonly=True, copy=False, groups=COST_GROUP
+    )
+    price_variance = fields.Float(
+        string="Price Variance (BDT)",
+        readonly=True,
+        copy=False,
+        groups=COST_GROUP,
+        help="Quantity x (average cost the stock left at - price the vendor billed and "
+        "credits). Not posted: no purchase-price-variance account is configured.",
+    )
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RTV quantity must be positive")
 
@@ -2449,6 +2495,8 @@ class FixStockRtv(models.Model):
         "lot_id",
         "qty",
         "company_id",
+        "receipt_id",
+        "no_receipt_reason",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -2460,6 +2508,10 @@ class FixStockRtv(models.Model):
             "credit_ref",
             "vendor_note_res_id",
             "vendor_note_status",
+            "vendor_invoice_res_id",
+            "vendor_invoice_ref",
+            "billed_unit_price",
+            "price_variance",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -2485,7 +2537,8 @@ class FixStockRtv(models.Model):
             if pinned and _changes(self.filtered(lambda r: r.state != "draft"), pinned):
                 raise UserError(
                     "An RTV submitted for or past approval is pinned: its vendor, part, "
-                    "location and quantity cannot change (cancel it and raise a new one)."
+                    "location, goods receipt and quantity cannot change (cancel it and raise "
+                    "a new one)."
                 )
             if "rtv_ref" in vals and _changes(
                 self.filtered(lambda r: r.state in ("shipped", "credited", "cancelled")),
@@ -2531,9 +2584,120 @@ class FixStockRtv(models.Model):
             ):
                 raise UserError("RTV %s does not match an open quarantine." % rec.name)
             rec._check_serial()
+            rec._check_receipt()
             rec._inv_stamp_request()
             rec._guarded().write({"state": "submitted"})
         return True
+
+    _LIVE_STATES = ("submitted", "approved", "shipped", "credited")
+
+    def _check_receipt(self):
+        """E3-11: the RTV names the posted GRN of this vendor that received
+        the part, and returns no more than that GRN accepted less what other
+        live RTVs already return from it, nor more than the GRN's PO billed.
+        An RTV with no GRN records why (a quarantine RTV, or trusted code,
+        names its source otherwise)."""
+        self.ensure_one()
+        receipt = self.receipt_id.sudo()
+        if not receipt:
+            if self.quarantine_id or self.env.su or (self.no_receipt_reason or "").strip():
+                return
+            raise UserError(
+                "RTV %s names no goods receipt: choose the GRN the goods came in on, or record "
+                "why there is none (e.g. stock taken on before go-live)." % self.name
+            )
+        if receipt.state != "posted" or receipt.company_id != self.company_id:
+            raise UserError(
+                "RTV %s: goods receipt %s is not a posted receipt of %s."
+                % (self.name, receipt.name, self.company_id.name)
+            )
+        vendor = self.partner_id.commercial_partner_id
+        if receipt.partner_id.commercial_partner_id != vendor:
+            raise UserError(
+                "RTV %s returns to %s, but goods receipt %s is from %s."
+                % (self.name, vendor.name, receipt.name, receipt.partner_id.name)
+            )
+        lines = receipt.line_ids.filtered(lambda ln: ln.part_id == self.part_id)
+        if not lines:
+            raise UserError(
+                "Goods receipt %s received no %s." % (receipt.name, self.part_id.part_number)
+            )
+        # rejected units leave through their quarantine: they count for one
+        field = "qty_received" if self.quarantine_id else "qty_accepted"
+        received = sum(lines.mapped(field))
+        others = self.sudo().search(
+            [
+                ("receipt_id", "=", receipt.id),
+                ("part_id", "=", self.part_id.id),
+                ("state", "in", self._LIVE_STATES),
+                ("id", "!=", self.id),
+            ]
+        )
+        returned = sum(others.mapped("qty"))
+        if self.qty > received - returned + EPS:
+            raise UserError(
+                "RTV %s returns %g of %s, but goods receipt %s received %g and %g of them are "
+                "already being returned: at most %g can go back on it."
+                % (
+                    self.name,
+                    self.qty,
+                    self.part_id.part_number,
+                    receipt.name,
+                    received,
+                    returned,
+                    max(received - returned, 0.0),
+                )
+            )
+        bill = self._fix_bill_for_return()
+        if bill:
+            self._guarded().write(
+                {"vendor_invoice_res_id": bill.id, "vendor_invoice_ref": bill.invoice_ref}
+            )
+
+    def _fix_bill_for_return(self):
+        """The vendor bill (M52) of the GRN's PO that billed this part and has
+        room for this return, or an empty recordset when the PO has no bill
+        for it yet. A return of more than was billed is refused (E3-11)."""
+        self.ensure_one()
+        order = self.receipt_id.sudo().purchase_order_id
+        product = self.part_id.sudo().product_id
+        if not order or not product or "fix.vendor.invoice" not in self.env:
+            return None
+        Invoice = self.env["fix.vendor.invoice"].sudo()
+        bills = Invoice.search(
+            [("requisition_id", "=", order.id), ("approval_state", "!=", "rejected")],
+            order="id",
+        ).filtered(lambda b: product in b.line_ids.mapped("product_id"))
+        if not bills:
+            return Invoice
+        room = []
+        for bill in bills:
+            # RTVs on this bill whose credit note is not raised yet
+            pending = (
+                self.sudo()
+                .search(
+                    [
+                        ("vendor_invoice_res_id", "=", bill.id),
+                        ("part_id", "=", self.part_id.id),
+                        ("state", "in", self._LIVE_STATES),
+                        ("id", "!=", self.id),
+                    ]
+                )
+                .filtered(lambda r: not r.vendor_note_res_id)
+            )
+            free = (
+                bill._fix_billed_qty(product)
+                - bill._fix_returned_qty(product)
+                - sum(pending.mapped("qty"))
+            )
+            if self.qty <= free + EPS:
+                return bill
+            room.append("%s: %g" % (bill.invoice_ref, max(free, 0.0)))
+        raise UserError(
+            "RTV %s returns %g of %s, more than was billed and not yet returned on purchase "
+            "order %s (%s)."
+            % (self.name, self.qty, product.display_name, order.name, "; ".join(room))
+        )
 
     def action_approve(self, note=None):
         # approving a draft submits it in its RAISER's name, never the approver's
@@ -2609,62 +2773,96 @@ class FixStockRtv(models.Model):
         return True
 
     def _raise_vendor_credit_note(self, ref):
-        """A06 M15-13: hand the credit to AP. When cd_ap_ext is installed, a
-        DRAFT vendor credit note (Mushak 6.7) for the RTV value is raised on
-        the vendor's latest bill that still has room for it, linked back to
-        this RTV; AP approves it under its own segregation of duties. Without
-        AP, or without a bill to credit, the RTV says so."""
+        """A06 M15-13 / E3-09..E3-13 (owner decision 12 Nov 2026): hand the
+        credit to AP. When cd_ap_ext is installed, a DRAFT vendor credit note
+        (Mushak 6.7) is raised on the bill of the GRN's PO that billed the part,
+        at the price it billed, with the VAT and the TDS those units bore on
+        it; AP approves it under its own segregation of duties. The stock left
+        at average cost: the difference is stated on the RTV, not posted (no
+        purchase-price-variance account exists). With no GRN, no mapped
+        product or no bill yet, nothing is guessed: the RTV says why."""
         self.ensure_one()
         if "fix.vendor.note" not in self.env or "fix.vendor.invoice" not in self.env:
             return False
-        value = round((self.qty or 0.0) * (self.sudo().unit_cost or 0.0), 2)
-        if value <= 0:
-            self._guarded().write({"vendor_note_status": "no value to credit"})
-            return False
-        vendor = self.partner_id.commercial_partner_id
-        Invoice = self.env["fix.vendor.invoice"].sudo()
-        domain = [("company_id", "=", self.company_id.id)]
-        if "approval_state" in Invoice._fields:
-            domain.append(("approval_state", "!=", "rejected"))
-        bills = Invoice.search(domain, order="id desc").filtered(
-            lambda b: b.vendor_id.commercial_partner_id == vendor
-        )
-        for bill in bills:
-            credited = sum(
-                bill.note_ids.filtered(
-                    lambda n: n.note_type == "decrease" and n.state != "cancelled"
-                ).mapped("amount")
+        product = self.part_id.sudo().product_id
+        if not self.receipt_id:
+            return self._fix_note_status(
+                "no bill identified: the RTV names no goods receipt (%s); AP raises the credit "
+                "note on the vendor's bill by hand" % (self.no_receipt_reason or "quarantine")
             )
-            if (bill.subtotal or 0.0) - credited + 0.005 < value:
-                continue
-            note = (
-                self.env["fix.vendor.note"]
-                .sudo()
-                .create(
-                    {
-                        "invoice_id": bill.id,
-                        "company_id": bill.company_id.id,
-                        "operating_unit_id": bill.operating_unit_id.id,
-                        "note_type": "decrease",
-                        "reason": "return",
-                        "mushak_ref": ref,
-                        "amount": value,
-                        "description": "Return to vendor %s (%s x %s)"
-                        % (self.name, self.qty, self.part_id.part_number),
-                    }
+        if not product:
+            return self._fix_note_status(
+                "no bill identified: %s is not mapped to a purchased product"
+                % self.part_id.part_number
+            )
+        try:
+            with self.env.cr.savepoint():
+                bill = self._fix_bill_for_return()
+                note = (
+                    bill._fix_raise_return_note(
+                        product,
+                        self.qty,
+                        ref,
+                        self.name,
+                        "Return to vendor %s (%g x %s, GRN %s)"
+                        % (self.name, self.qty, self.part_id.part_number, self.receipt_id.name),
+                    )
+                    if bill
+                    else None
+                )
+        except UserError as exc:
+            return self._fix_note_status("no credit note raised: %s" % exc.args[0])
+        if not note:
+            return self._fix_note_status(
+                "no bill yet on %s for %s: the vendor bills the net quantity"
+                % (self.purchase_order_id.name or self.receipt_id.name, product.display_name)
+            )
+        billed = round(note.amount / self.qty, 2) if self.qty else 0.0
+        self.sudo()._guarded().write(
+            {
+                "vendor_note_res_id": note.id,
+                "vendor_note_status": "draft %s" % note.display_name,
+                "vendor_invoice_res_id": bill.id,
+                "vendor_invoice_ref": bill.invoice_ref,
+                "billed_unit_price": billed,
+                "price_variance": round(
+                    (self.qty or 0.0) * ((self.sudo().unit_cost or 0.0) - billed), 2
+                ),
+            }
+        )
+        return note
+
+    def _fix_note_status(self, status):
+        self._guarded().write({"vendor_note_status": status})
+        return False
+
+
+class FixPurchaseOrderReturns(models.Model):
+    """E3-11: a PO shows the returns made against its goods receipts (it
+    showed 20 received after 5 went back)."""
+
+    _inherit = "fix.purchase.order"
+
+    rtv_ids = fields.One2many("fix.stock.rtv", "purchase_order_id", string="Returns to Vendor")
+
+
+class FixPurchaseOrderLineReturns(models.Model):
+    _inherit = "fix.purchase.order.line"
+
+    qty_returned = fields.Float(
+        string="Returned to Vendor",
+        compute="_compute_qty_returned",
+        help="Shipped back to the vendor by RTVs against this PO's goods receipts.",
+    )
+
+    def _compute_qty_returned(self):
+        for line in self:
+            rtvs = line.order_id.sudo().rtv_ids.filtered(
+                lambda r, p=line.product_id: (
+                    r.state in ("shipped", "credited") and p and r.part_id.product_id == p
                 )
             )
-            self._guarded().write(
-                {
-                    "vendor_note_res_id": note.id,
-                    "vendor_note_status": "draft %s" % note.display_name,
-                }
-            )
-            return note
-        self._guarded().write(
-            {"vendor_note_status": "no bill of %s with room for BDT %.2f" % (vendor.name, value)}
-        )
-        return False
+            line.qty_returned = sum(rtvs.mapped("qty"))
 
 
 # =========================================================================

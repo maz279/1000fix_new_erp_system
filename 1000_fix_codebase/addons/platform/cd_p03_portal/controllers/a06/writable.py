@@ -527,12 +527,14 @@ WRITABLE = {
         {
             "location_id",
             "lot_id",
+            "no_receipt_reason",
             "notes",
             "part_id",
             "partner_id",
             "qty",
             "quarantine_id",
             "reason",
+            "receipt_id",
             "requested_on",
             "rtv_ref",
         }
