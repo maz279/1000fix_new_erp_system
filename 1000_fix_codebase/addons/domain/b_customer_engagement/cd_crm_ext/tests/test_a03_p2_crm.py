@@ -290,7 +290,9 @@ def test_pending_discount_approval_is_voided_by_an_edit(
     """The engine's void-on-change limits edits while approval is pending."""
     approver = make_user(T2)
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
-    estimate = _estimate(env, lead, seller, price=4000.0, discount=400.0)  # 10%: Tier 2
+    # D3-03: the estimate reads the M11 ladder (BRU-PRC-06: up to 10% is the
+    # agent's own authority, above it to 20% Tier 2), so 12.5% routes to Tier 2
+    estimate = _estimate(env, lead, seller, price=4000.0, discount=500.0)
     estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_request_approval(justification="Strategic account")
     estimate.invalidate_recordset()
