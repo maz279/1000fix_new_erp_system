@@ -17,6 +17,8 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request as http_request
 
+from .fix_access_ops import local_today
+
 _logger = logging.getLogger(__name__)
 
 GRACE_PARAM = "fix_rbac_ext.certification_grace_days"
@@ -542,7 +544,7 @@ class FixAccessCertification(models.Model):
     decided_on = fields.Datetime(readonly=True)
     due_on = fields.Date(
         string="Due On",
-        default=lambda self: fields.Date.today()
+        default=lambda self: local_today(self)
         + timedelta(days=int(self.env["ir.config_parameter"].sudo().get_param(GRACE_PARAM, 14))),
         help="FR-SEC-026: a line still pending after this date is revoked by the "
         "close-out cron. Grace days: ir.config_parameter %s." % GRACE_PARAM,
@@ -782,7 +784,7 @@ class FixAccessCertification(models.Model):
         line still pending past its due date is revoked by the close-out."""
         if not self.env.su:
             raise AccessError("The certification close-out runs from its scheduled job only.")
-        today = fields.Date.today()
+        today = local_today(self)
         overdue = self.search([("decision", "=", "pending"), ("due_on", "<", today)])
         for rec in overdue:
             removed = 0
@@ -942,7 +944,7 @@ class FixEncryptionKey(models.Model):
             same_prefix = Key.search_count(
                 [("code", "=like", rec.code + "/V%"), ("company_id", "=", rec.company_id.id)]
             )
-            today = fields.Date.today()
+            today = local_today(rec)
             next_due = today + timedelta(days=365 // max(rec.rotations_per_year, 1))
             successor = Key._guarded().create(
                 {

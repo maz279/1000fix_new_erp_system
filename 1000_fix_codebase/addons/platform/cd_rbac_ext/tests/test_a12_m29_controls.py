@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_rbac_ext.models.fix_access_ops import local_today
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 APPROVER_GROUP = "cd_rbac_ext.group_access_approver"
@@ -519,12 +520,16 @@ def test_r3_elevation_expiry_cron_revokes_lapsed_access(odoo_env):
         {
             "user": user,
             "role": role,
-            "extra": {"request_type": "elevate", "valid_until": fields.Date.today()},
+            # the Dhaka calendar the access dates are set on (not UTC)
+            "extra": {
+                "request_type": "elevate",
+                "valid_until": local_today(env["fix.access.request"]),
+            },
         },
     )
     req.with_user(approver).action_approve()
     env["fix.access.request"].browse(req.id).action_grant()
-    req.sudo().write({"valid_until": fields.Date.today() - timedelta(days=5)})
+    req.sudo().write({"valid_until": local_today(req) - timedelta(days=5)})
 
     assert env["fix.access.request"].cron_expire_elevations() == 1
     user.invalidate_recordset(["group_ids"])
@@ -686,7 +691,7 @@ def test_r5_keys_are_custodian_only_and_rotation_is_real(odoo_env):
     env["fix.encryption.key"].browse(key.id).with_user(custodian).action_rotate("vault://kv/a12/2")
     key.invalidate_recordset()
     assert key.state == "retired" and key.successor_id.code == "A12-R5-KEY/V1"
-    assert key.successor_id.state == "active" and key.last_rotated_on == fields.Date.today()
+    assert key.successor_id.state == "active" and key.last_rotated_on == local_today(key)
     assert _audit(env, "key_rotation", "fix.encryption.key,%d" % key.id)
 
 

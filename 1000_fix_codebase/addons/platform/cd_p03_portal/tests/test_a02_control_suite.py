@@ -16,7 +16,7 @@ import pytest
 from odoo import fields
 from odoo.addons.cd_p03_portal.controllers import a02
 from odoo.addons.cd_p03_portal.controllers.a02.writable import WRITABLE
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 _SEQ = itertools.count(1)
 GUARD_MESSAGE = "changes only through its workflow"
@@ -97,6 +97,14 @@ def test_every_guarded_field_refuses_a_direct_write(odoo_env, clerk_env, model):
     for name in guarded:
         field = record._fields.get(name)
         if not field or field.type not in SIMPLE or not field.store or field.compute:
+            continue
+        if field.groups and not clerk_env.user.has_groups(field.groups):
+            # a field the clerk cannot even read (e.g. the counter sale's
+            # cost, Stock Cost Viewer only) is refused one layer earlier:
+            # the write must still fail, by the access layer or the guard
+            with pytest.raises((AccessError, UserError)):
+                record.write({name: 1.0 if field.type in ("float", "monetary") else "x"})
+            checked += 1
             continue
         value = _forged_value(clerk_env, field, record[name])
         if value is None:

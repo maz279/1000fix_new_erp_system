@@ -20,6 +20,18 @@ BREAK_GLASS_DEFAULT_HOURS = 4.0
 APPROVER_GROUP = "cd_rbac_ext.group_access_approver"
 
 
+def local_today(record):
+    """Today on the estate's (Bangladesh) calendar, never the UTC date.
+
+    Access dates (valid_until, due_on) are set on the Dhaka calendar; the
+    scheduled jobs run with no user timezone, so fields.Date.today() lagged
+    six hours: between 00:00 and 06:00 Dhaka an elevation that expired
+    "yesterday" was still live (found 12 Nov 2026 when the A12 suite ran
+    after midnight)."""
+    tz = record.env.context.get("tz") or record.env.user.tz or "Asia/Dhaka"
+    return fields.Date.context_today(record.with_context(tz=tz))
+
+
 class FixAccessRequest(models.Model):
     _name = "fix.access.request"
     _description = "Access Request"
@@ -322,7 +334,7 @@ class FixAccessRequest(models.Model):
                 )
                 continue
             # grant / elevate: an expired elevation is never granted
-            if rec.request_type == "elevate" and rec.valid_until < fields.Date.today():
+            if rec.request_type == "elevate" and rec.valid_until < local_today(rec):
                 raise UserError(
                     "This elevation expired on %s — file a new request" % rec.valid_until
                 )
@@ -372,7 +384,7 @@ class FixAccessRequest(models.Model):
     def cron_expire_elevations(self):
         if not self.env.su:
             raise AccessError("The access expiry clock runs from its scheduled job only.")
-        today = fields.Date.today()
+        today = local_today(self)
         expired = self.search(
             [
                 ("request_type", "in", ("grant", "elevate")),
