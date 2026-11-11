@@ -27,7 +27,7 @@ from odoo import api, fields, models
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .fix_billing_engine import m51_determine
+from .fix_billing_engine import ar_first_open_date, m51_determine
 
 TWO = Decimal("0.01")
 
@@ -157,7 +157,8 @@ class FixContractBillingWalker(models.Model):
         """The period's draft invoice: one line, VAT by M51's synchronous
         determination (the M39 subscription-charge pattern, product code
         AMC), a truthful manual_reason so finance's action_issue has its
-        FR-ARB-010 reason, and invoice_date = the period's start."""
+        FR-ARB-010 reason, and the arrears invoice date (_period_invoice_date)."""
+        invoice_date = self._period_invoice_date(contract, period)
         determination = m51_determine(
             self.env,
             [
@@ -167,7 +168,7 @@ class FixContractBillingWalker(models.Model):
                     unit_price=Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP),
                 )
             ],
-            on_date=period.period_start,
+            on_date=invoice_date,
             company=contract.company_id,
         )
         det = determination.lines[0]
@@ -182,7 +183,7 @@ class FixContractBillingWalker(models.Model):
                     "currency_id": contract.currency_id.id,
                     "source_model": period._name,
                     "source_id": period.id,
-                    "invoice_date": period.period_start,
+                    "invoice_date": invoice_date,
                     "manual_reason": "Contract billing hand-off %s: %s to %s"
                     % (contract.code, period.period_start, period.period_end),
                     "line_ids": [
@@ -202,3 +203,12 @@ class FixContractBillingWalker(models.Model):
             )
         )
         return invoice
+
+    def _period_invoice_date(self, contract, period):
+        """E3-04 (third rehearsal): the period is billed in ARREARS, so its
+        invoice is dated at the period END - never at its start, which pushed
+        the GL entry and the Mushak 6.3 into an earlier month - and never
+        inside a locked period: once that month is closed the date moves to
+        the first open day after the lock (the C8 rule action_issue enforces,
+        read from the same lock source)."""
+        return ar_first_open_date(self.env, contract.company_id, period.period_end)

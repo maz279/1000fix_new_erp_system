@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from odoo.addons.cd_gl_ext.tests.test_e3_vat_close_step import reconciled_vat_return
 from odoo.exceptions import UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
@@ -340,6 +341,7 @@ class TestPeriodClose:
         ):
             close.action_ready()
 
+        reconciled_vat_return(odoo_env, close.company_id, close.period_end)  # C10
         close.line_ids.filtered("blocking").action_mark_done("TB-2026-09")
         assert set(close.line_ids.filtered("blocking").mapped("evidence_ref")) == {"TB-2026-09"}
         close.suspense_closing = 2500.0

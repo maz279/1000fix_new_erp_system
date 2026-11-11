@@ -131,14 +131,39 @@ def _ar_journal(env, company):
     )
 
 
-def _post_ar_move(env, company, entry_date, ref, lines, dimension_by_line, source):
+# C11 (owner decision 12 Nov 2026, D-12): invoice issue and its reversals
+# post on the company's Sales journal (fix_real: INV), not on the first
+# general journal (MISC). The parameter names the journal by code; a company
+# without that code takes its first sale journal, and one without any sale
+# journal keeps the general fallback. Receipts and write-offs stay on
+# _ar_journal.
+PARAM_INVOICE_JOURNAL = "cd_billing_engine.journal_code.invoice"
+
+
+def _ar_invoice_journal(env, company):
+    """The journal invoice issue, credit notes and cancellations post on."""
+    Journal = env["account.journal"]
+    code = (env["ir.config_parameter"].sudo().get_param(PARAM_INVOICE_JOURNAL) or "").strip()
+    if code:
+        named = Journal.search([("code", "=", code), ("company_id", "=", company.id)], limit=1)
+        if named:
+            return named
+    sales = Journal.search(
+        [("type", "=", "sale"), ("company_id", "=", company.id)], order="sequence, id", limit=1
+    )
+    return sales or _ar_journal(env, company)
+
+
+def _post_ar_move(env, company, entry_date, ref, lines, dimension_by_line, source, journal=None):
     """Post through M19's hardened engine; returns (move|None, note).
 
     `lines`: [(account_id, name, debit, credit, partner_id|False)] — must be
-    balanced by the caller."""
+    balanced by the caller. `journal`: the journal to post on (C11: the
+    invoice family passes _ar_invoice_journal); the general journal when
+    omitted."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
-    journal = _ar_journal(env, company)
+    journal = journal or _ar_journal(env, company)
     if not journal:
         return None, "GL not posted: no general journal for %s" % company.name
     missing = [line[0] for line in lines if not line[0]]

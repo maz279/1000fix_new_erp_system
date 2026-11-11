@@ -202,6 +202,11 @@ class FixJournalDimension(models.Model):
                 )
 
 
+# C10 (owner decision 12 Nov 2026, D2-12): the VAT step is done only on a
+# PREPARED and RECONCILED Mushak 9.1 return of the period (the evidence used to
+# be checked for existence only, and an unreconciled 9.1 closed the step).
+VAT_CLOSE_STEP = "VAT Sub-Ledger & Mushak 9.1 Return Preparation"
+
 # The 10 statutory close steps of SOP SP-020: (sequence, step, owner role,
 # target day, blocking, owning group xmlid). A step is completed by a holder
 # of its owning group (A08 M19-5: one accountant used to clear every owner's
@@ -225,7 +230,7 @@ STANDARD_CLOSE_STEPS = [
     ),
     (30, "AR Billing & Auto-Invoice Clearance", "Billing Specialist", 2, True, ACCOUNT_USER),
     (40, "AP Three-Way Match & Vendor Invoice Clearance", "AP Accountant", 3, True, ACCOUNT_USER),
-    (50, "VAT Sub-Ledger & Mushak 9.1 Return Preparation", "Tax Manager", 3, True, ACCOUNT_USER),
+    (50, VAT_CLOSE_STEP, "Tax Manager", 3, True, ACCOUNT_USER),
     (
         60,
         "Inventory Suspense Account Zero-Balance Clearance",
@@ -253,6 +258,8 @@ STANDARD_CLOSE_STEPS = [
         ACCOUNT_MANAGER,
     ),
 ]
+
+STANDARD_STEP_NAMES = frozenset(step[1] for step in STANDARD_CLOSE_STEPS)
 
 # Records a close step's evidence may point at ("model,id"). The record must
 # exist: an evidence string that names nothing is not evidence (M19-5).
@@ -674,6 +681,69 @@ class FixPeriodClose(models.Model):
             "status": "zero_cleared" if remaining == 0 else "residual_pending",
         }
 
+    def _fix_vat_return(self):
+        """The period's Mushak 9.1 return (cd_tax_engine_bd's fix.vat.return,
+        looked up softly: that module is not a dependency), or None."""
+        self.ensure_one()
+        if "fix.vat.return" not in self.env:
+            return None
+        return (
+            self.env["fix.vat.return"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("period", "=", self.period_end.strftime("%Y-%m")),
+                ],
+                limit=1,
+            )
+        )
+
+    def _fix_check_vat_return_reconciled(self, evidence_model=None, evidence_res_id=0):
+        """C10: refuse unless the period's 9.1 is prepared (or filed) and its
+        sub-ledger reconciliation says reconciled. A close without the VAT
+        step (a hand-made checklist) is not asked. Evidence that names a
+        9.1 return must name this period's."""
+        self.ensure_one()
+        if not self.line_ids.filtered(lambda line: line.name == VAT_CLOSE_STEP):
+            return
+        period = self.period_end.strftime("%Y-%m")
+        company = self.company_id.sudo().name
+        if "fix.vat.return" not in self.env:
+            raise UserError(
+                "The VAT close step of %s needs the Mushak 9.1 return of %s, and the VAT "
+                "return module (cd_tax_engine_bd) is not installed (C10)." % (company, period)
+            )
+        ret = self._fix_vat_return()
+        if evidence_model == "fix.vat.return" and evidence_res_id and evidence_res_id != ret.id:
+            other = self.env["fix.vat.return"].sudo().browse(evidence_res_id)
+            raise UserError(
+                "Evidence fix.vat.return,%d is the Mushak 9.1 return for %s, not for %s: the "
+                "VAT close step is evidenced by this period's return (C10)."
+                % (evidence_res_id, other.period, period)
+            )
+        if not ret or ret.state == "draft":
+            raise UserError(
+                "The Mushak 9.1 return for %s of %s is not prepared. Prepare it and reconcile "
+                "its VAT sub-ledger before the VAT close step is done (C10)." % (period, company)
+            )
+        if ret.subledger_status != "reconciled":
+            status = dict(ret._fields["subledger_status"].selection).get(
+                ret.subledger_status, ret.subledger_status
+            )
+            raise UserError(
+                "The Mushak 9.1 return for %s of %s is not reconciled (sub-ledger status: %s; "
+                "output variance %.2f, input variance %.2f). Clear the variance and reconcile "
+                "again before the VAT close step is done (C10)."
+                % (
+                    period,
+                    company,
+                    status,
+                    ret.subledger_output_variance or 0.0,
+                    ret.subledger_input_variance or 0.0,
+                )
+            )
+
     def action_ready(self):
         require_role(self.env, ACCOUNT_USER, "The close ready check")
         for close in self:
@@ -687,6 +757,7 @@ class FixPeriodClose(models.Model):
             if blocking:
                 raise UserError("Close steps still open: %s" % ", ".join(blocking.mapped("name")))
             close._fix_check_suspense_clear()
+            close._fix_check_vat_return_reconciled()
             if close.suspense_closing:
                 raise UserError(
                     "Suspense account must be zero at close (AR-006 §5.4) — "
@@ -746,6 +817,7 @@ class FixPeriodClose(models.Model):
                     % (close.period_end, today)
                 )
             close._fix_check_bank_reconciled()
+            close._fix_check_vat_return_reconciled()
             lock = close._fix_set_company_lock()
             close._guarded().write(
                 {
@@ -967,6 +1039,9 @@ class FixPeriodCloseLine(models.Model):
         uid, trusted = self.env.uid, self.env.su
         for line in self.sudo():
             model, res_id = line._resolve_evidence(evidence, trusted=trusted)
+            if line.name == VAT_CLOSE_STEP:
+                # C10: not on any evidence - on the period's reconciled 9.1
+                line.close_id._fix_check_vat_return_reconciled(model, res_id)
             line._guarded().write(
                 {
                     "state": "done",
@@ -978,6 +1053,26 @@ class FixPeriodCloseLine(models.Model):
                 }
             )
         return True
+
+    def write(self, vals):
+        # C10: the VAT rule hangs on the step's name; a standard step keeps it.
+        if "name" in vals and not self._fix_guard_open():
+            renamed = self.filtered(
+                lambda line: line.name in STANDARD_STEP_NAMES and line.name != vals["name"]
+            )
+            if renamed:
+                raise UserError(
+                    "'%s' is a standard close step (SOP SP-020); its name is fixed."
+                    % renamed[0].name
+                )
+        return super().write(vals)
+
+    def unlink(self):
+        if not self._fix_guard_open() and self.filtered(
+            lambda line: line.name in STANDARD_STEP_NAMES
+        ):
+            raise UserError("A standard close step (SOP SP-020) is not deleted from a close.")
+        return super().unlink()
 
     def action_set_state(self, new_state: str):
         """Move a step between pending and in progress. Done is reached only

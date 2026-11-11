@@ -10,6 +10,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import Command, fields
+from odoo.addons.cd_gl_ext.tests.test_e3_vat_close_step import reconciled_vat_return
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
@@ -174,6 +175,7 @@ def approve_as(c, record, user):
 def proper_close(c, closer=None):
     """10 steps by their owners on real evidence -> ready -> close (manager)."""
     evidence = "account.move,%d" % sys_post(c, date(2026, 9, 1), 10.0).id
+    reconciled_vat_return(c.env, c.co, PE)  # C10: the VAT step needs a reconciled 9.1
     close = c.env["fix.period.close"].with_user(c.acct).create({"period_end": PE})
     close.with_user(c.acct).action_generate_standard_steps()
     for ln in close.line_ids:
@@ -367,6 +369,7 @@ def test_m19_P09_forged_future_close_impossible(c):
     with pytest.raises(UserError, match="changes only through its workflow"):
         close.with_user(c.acct).write({"state": "closed"})
     evidence = "account.move,%d" % sys_post(c, date(2026, 9, 1), 10.0).id
+    reconciled_vat_return(c.env, c.co, date(2099, 12, 31))  # C10
     close.with_user(c.acct).action_generate_standard_steps()
     for ln in close.line_ids:
         owner = c.mgr if ln.sequence == 100 else (c.stk if ln.sequence == 10 else c.acct)

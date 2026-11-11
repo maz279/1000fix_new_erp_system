@@ -90,35 +90,35 @@ class FixEstimate(models.Model):
             locked.add("vat_rate")
         return locked
 
-    # Discount authority, in percent of the chargeable total. Up to 5% is
-    # front-desk authority (Tier 1) and needs no sign-off; above it the
-    # discount goes through fix.dofa.mixin like every other approval, so it
-    # gets the same tier check, self-approval refusal, mandatory
-    # justification, amount pin and M30 ladder (A03 audit, R4).
-    _DOFA_DISCOUNT_THRESHOLDS = [
-        (0.0, "tier_0"),
-        (5.0, "tier_1"),
-        (15.0, "tier_2"),
-        (30.0, "tier_3"),
-        (50.0, "tier_4"),
-        (float("inf"), "tier_5"),
-    ]
-
+    # Discount authority, in percent of the chargeable total. The discount
+    # goes through fix.dofa.mixin like every other approval, so it gets the
+    # same tier check, self-approval refusal, mandatory justification, amount
+    # pin and M30 ladder (A03 audit, R4).
+    #
+    # D3-03 (owner decision 12 Nov 2026, E3-02): ONE discount ladder. The
+    # estimate kept its own 5/15/30/50 bands while the M11 discount approval
+    # read the pricing ladder (10/20/35), so an 8% discount was Tier 2 here
+    # and the agent's own authority there. The bands are now READ from M11
+    # (fix.discount.policy.discount_ladder(), cd_rate_card): the company's
+    # released bands, the spec's BRU-PRC-06 default while none is released.
     def _dofa_amount(self) -> float:
         self.ensure_one()
         return self.discount_pct or 0.0
 
     def _dofa_thresholds(self):
-        return self._DOFA_DISCOUNT_THRESHOLDS
+        company = self.company_id[:1] or self.env.company
+        Policy = self.env.get("fix.discount.policy")
+        if Policy is not None and hasattr(Policy, "discount_ladder"):
+            return Policy.sudo().discount_ladder(company)
+        # cd_rate_card not installed: its module still holds the one default
+        # (read from there, never copied here).
+        from odoo.addons.cd_rate_card.models.pricing_roles import DEFAULT_DISCOUNT_LADDER
+
+        return list(DEFAULT_DISCOUNT_LADDER)
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
         return "a %.1f%% discount (BDT %.2f)" % (self.discount_pct or 0.0, self.discount or 0.0)
-
-    def _dofa_current_tier(self) -> str:
-        # Tier 1 is the front desk's own authority: nothing to sign off.
-        tier = super()._dofa_current_tier()
-        return "tier_0" if tier == "tier_1" else tier
 
     _order = "order_id, version desc"
 
@@ -277,17 +277,20 @@ class FixEstimate(models.Model):
     )
     dofa_tier_required = fields.Selection(
         [
-            ("tier_0", "Tier 0 — No Discount (0%)"),
-            ("tier_1", "Tier 1 — Front-Desk / Advisor (Up to 5%)"),
-            ("tier_2", "Tier 2 — Branch Manager (5% to 15%)"),
-            ("tier_3", "Tier 3 — Regional Operations Manager (15% to 30%)"),
-            ("tier_4", "Tier 4 — Head of Service Delivery (30% to 50%)"),
-            ("tier_5", "Tier 5 — COO / Managing Director (> 50% / Full Waiver)"),
+            # D3-03: the bands are the M11 pricing ladder's (cd_rate_card),
+            # so the labels name the authority, not a percentage.
+            ("tier_0", "Tier 0 — Within the Agent's Authority"),
+            ("tier_1", "Tier 1 — Team Lead"),
+            ("tier_2", "Tier 2 — Branch Manager"),
+            ("tier_3", "Tier 3 — Sales Manager / Commercial Director"),
+            ("tier_4", "Tier 4 — CCO / Head of Service Delivery"),
+            ("tier_5", "Tier 5 — COO / Managing Director"),
         ],
         string="DOFA Discount Tier",
         compute="_compute_totals",
         store=True,
-        help="5-tier Delegation of Financial Authority required for commercial discount.",
+        help="DOFA tier the discount needs on the M11 pricing ladder "
+        "(fix.discount.policy, BRU-PRC-06).",
     )
     dofa_approved_by = fields.Many2one(
         "res.users",
@@ -295,7 +298,8 @@ class FixEstimate(models.Model):
         readonly=True,
         copy=False,
         tracking=True,
-        help="Required when discount_pct > 5.0% (Tier 2+ DOFA governance).",
+        help="Required when the discount is above the agent's own authority on the M11 "
+        "pricing ladder (D3-03).",
     )
     diagnostic_notes = fields.Text(
         string="Engineering Quotation Notes & Scope",

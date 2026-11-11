@@ -678,8 +678,11 @@ class TestDiscountApproval:
 
     def test_a_front_desk_discount_needs_no_approval(self, env, make_user, estimate_of):
         seller = make_user()
-        estimate = estimate_of(seller, discount=40.0)  # 4% -> Tier 1
-        assert estimate.dofa_tier_required == "tier_1"
+        # 4%: below the first band of the single M11 discount ladder (owner
+        # decision D3-03, 12 Nov 2026: the estimate's own 5/15/30/50 bands,
+        # where 4% read "tier_1", were retired) - no approval either way
+        estimate = estimate_of(seller, discount=40.0)
+        assert estimate.dofa_tier_required == "tier_0"
         with pytest.raises(UserError, match="Nothing to approve"):
             estimate.with_user(seller).action_request_approval()
         estimate.with_user(seller)._dofa_assert_approved("Estimate approval")

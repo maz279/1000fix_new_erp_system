@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 from odoo import Command, fields
+from odoo.addons.cd_gl_ext.tests.test_e3_vat_close_step import reconciled_vat_return
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
@@ -262,6 +263,7 @@ def sys_post(c, d, amount=10.0):
 def worked_close(c, period_end=PE):
     """A started close with all ten steps done by their owners."""
     evidence = "account.move,%d" % sys_post(c, date(2026, 9, 1)).id
+    reconciled_vat_return(c.env, c.co, period_end)  # C10: the VAT step needs a reconciled 9.1
     close = c.env["fix.period.close"].with_user(c.acct).create({"period_end": period_end})
     close.with_user(c.acct).action_generate_standard_steps()
     for ln in close.line_ids:

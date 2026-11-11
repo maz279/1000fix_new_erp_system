@@ -28,6 +28,7 @@
 #   * dunning suppressions are kept with who / why / until (BRU-ARB-16);
 #   * consolidated bills take issued invoices only (M20-14);
 #   * the per-company sequences are copied as the system (M20-9).
+from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
@@ -91,6 +92,30 @@ def m51_determine(env, lines, on_date=None, company=None):
         return tax_logic.determine_tax(lines)
     except tax_logic.DeterminationError as exc:
         raise UserError("VAT determination (M51) refused: %s" % exc) from exc
+
+
+def ar_lock_covering(env, company, on_date):
+    """C8 (owner decision 12 Nov 2026, D2-11): the lock date that covers
+    `on_date` for a statutory AR invoice, or None while the date is open.
+
+    The same source the GL uses (account.move._get_violated_lock_dates via
+    _fix_check_not_in_closed_period): the company's Global Lock Date that the
+    period close sets, plus the sales, tax and hard locks, honouring an
+    approved reopen exception. Read with the invoice journal (C11), so a
+    sales lock date counts too."""
+    from .fix_ar_engine import _ar_invoice_journal
+
+    if not on_date:
+        return None
+    journal = _ar_invoice_journal(env, company)
+    violated = company._get_violated_lock_dates(fields.Date.to_date(on_date), True, journal)
+    return max(lock for lock, _field in violated) if violated else None
+
+
+def ar_first_open_date(env, company, on_date):
+    """`on_date`, or the first day after the lock that covers it (E3-04)."""
+    lock = ar_lock_covering(env, company, on_date)
+    return lock + timedelta(days=1) if lock else fields.Date.to_date(on_date)
 
 
 def _issue_mushak_row(env, vals):
@@ -488,7 +513,7 @@ class FixArInvoice(models.Model):
         Dr AR control / Cr Revenue / Cr VAT output, branch dimension on every
         line. Companies without the accounts/journal SKIP with an honest
         gl_note — invoicing is never blocked by GL configuration."""
-        from .fix_ar_engine import _ar_account, _post_ar_move
+        from .fix_ar_engine import _ar_account, _ar_invoice_journal, _post_ar_move
 
         for inv in self:
             if inv.total_payable <= 0.005:
@@ -548,6 +573,8 @@ class FixArInvoice(models.Model):
                 ],
                 dims,
                 source="ar",
+                # C11: the Sales journal, not the first general journal
+                journal=_ar_invoice_journal(inv.env, company),
             )
             inv._guarded().write(
                 {"posted_move_id": move.id if move else False, "gl_note": note or False}
@@ -560,14 +587,15 @@ class FixArInvoice(models.Model):
                 else:
                     mushak.write({"posted": True})
 
-    def _post_reversal_gl(self, label, debit_lines, credit_lines):
+    def _post_reversal_gl(self, label, debit_lines, credit_lines, journal=None):
         """A mirror posting for cancellations/write-offs; refuses (never
         skips) when the posting accounts are missing — these are finance
-        actions, the GL IS the point."""
+        actions, the GL IS the point. `journal`: the cancellation passes the
+        invoice journal (C11); a write-off keeps the general journal."""
         from .fix_ar_engine import _ar_journal, _post_ar_move
 
         self.ensure_one()
-        journal = _ar_journal(self.env, self.company_id)
+        journal = journal or _ar_journal(self.env, self.company_id)
         if not journal:
             raise UserError("Posting refused: no general journal for %s" % self.company_id.name)
         missing = [role for role, acc, *_rest in debit_lines + credit_lines if not acc]
@@ -593,6 +621,7 @@ class FixArInvoice(models.Model):
             lines,
             dims,
             source="ar",
+            journal=journal,
         )
         if not move:
             raise UserError("Posting refused: %s" % (note or "engine refused the move"))
@@ -606,7 +635,7 @@ class FixArInvoice(models.Model):
         invoice is decided by an Accounting Administrator who neither raised
         nor issued it. A draft (no number, no Mushak, no GL) may be dropped
         by its maker."""
-        from .fix_ar_engine import _ar_account
+        from .fix_ar_engine import _ar_account, _ar_invoice_journal
 
         for inv in self:
             if inv.state not in ("draft", "issued"):
@@ -642,6 +671,8 @@ class FixArInvoice(models.Model):
                         ("vat_output", vat, vat_credit, False),
                     ],
                     [("ar", ar, inv.total_payable, inv.customer_id.id)],
+                    # C11: the cancellation reverses the issue on the Sales journal
+                    journal=_ar_invoice_journal(inv.env, inv.company_id),
                 )
             inv._guarded().write(
                 {
@@ -866,6 +897,28 @@ class FixArInvoice(models.Model):
             invoice.action_issue()
         return self.browse(invoice.id)
 
+    def _fix_assert_date_open(self):
+        """C8: a statutory invoice is never issued into a locked period. Issued
+        after the October close, an invoice dated 25 Oct posted its GL in the
+        open period but kept a Mushak 6.3 dated 25 Oct, so the 9.1 could
+        reconcile in neither month (E2E rehearsal 3, D2-11). Refused, with
+        the way out: re-date the draft into the open period."""
+        for inv in self:
+            lock = ar_lock_covering(inv.env, inv.company_id, inv.invoice_date)
+            if lock:
+                raise UserError(
+                    "Invoice %s is dated %s, on or before the lock date %s of %s: that "
+                    "period is closed, and a Mushak 6.3 is never back-dated into it (C8). "
+                    "Re-date the invoice to %s or later and issue it."
+                    % (
+                        inv.name if inv.name and inv.name != "New" else "AR/%s" % inv.id,
+                        inv.invoice_date,
+                        lock,
+                        inv.company_id.name,
+                        lock + timedelta(days=1),
+                    )
+                )
+
     def _fix_assert_issuer(self):
         """BRU-ARB-02: a manually raised invoice is issued by a second person."""
         self.ensure_one()
@@ -892,6 +945,7 @@ class FixArInvoice(models.Model):
             if not (inv.manual_reason or "").strip():
                 raise UserError("Manual invoices need a reason code (FR-ARB-010)")
             inv._fix_assert_issuer()
+            inv._fix_assert_date_open()
             # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
             if hasattr(inv.customer_id, "_fix_assert_party_usable_downstream"):
                 inv.customer_id._fix_assert_party_usable_downstream("an invoice")
@@ -964,6 +1018,58 @@ class FixArInvoice(models.Model):
         return "\n".join([head, *parts]) if head else "\n".join(parts)
 
     @api.model
+    def _fix_accepted_quotation(self, order):
+        """The customer's latest ACCEPTED service quotation for the order
+        (cd_quotation, looked up softly: it is not a dependency), or an
+        None."""
+        if "fix.quotation" not in self.env:
+            return None
+        return (
+            self.env["fix.quotation"]
+            .sudo()
+            .search(
+                [
+                    ("state", "=", "accepted"),
+                    ("quote_type", "=", "service"),
+                    "|",
+                    ("service_order_id", "=", order.id),
+                    ("estimate_id.order_id", "=", order.id),
+                ],
+                order="accepted_at desc, id desc",
+                limit=1,
+            )
+        )
+
+    @api.model
+    def _fix_assert_matches_accepted_quotation(self, order, estimate):
+        """D3-01 (owner decision 12 Nov 2026, E3-01): an invoice from a closed
+        service order bills what the customer ACCEPTED. The estimate revised
+        after acceptance (QTN/2026/00012 accepted at 4,025.00, invoiced at
+        4,945.00 — and below BDT 5,000 the revision needed no consent at all)
+        is refused until the customer accepts a quotation at the new value.
+        An order with no accepted quotation is invoiced as before."""
+        quotation = self._fix_accepted_quotation(order)
+        if not quotation:
+            return
+        billed = round(estimate.grand_total or 0.0, 2)
+        accepted = round(quotation.accepted_value or 0.0, 2)
+        if abs(billed - accepted) > 0.005:
+            raise UserError(
+                "%s cannot be invoiced: its approved estimate %s totals BDT %.2f, but the "
+                "customer accepted quotation %s v%d at BDT %.2f. Quote the revised estimate "
+                "and record the customer's acceptance of the new value before invoicing "
+                "(D3-01)."
+                % (
+                    order.name,
+                    estimate.display_name,
+                    billed,
+                    quotation.name,
+                    quotation.accepted_version or quotation.version,
+                    accepted,
+                )
+            )
+
+    @api.model
     def from_closed_service_order(self, order, closed_event_at) -> "FixArInvoice":
         """T02: the auto-invoice path. `order` is a fix.service.order record
         in state 'closed'. Determination runs synchronously (M20 -> M51);
@@ -998,6 +1104,8 @@ class FixArInvoice(models.Model):
             raise UserError(
                 "No approved estimate on %s — invoicing requires one (BRU-SRM-05)" % order.name
             )
+        # D3-01: the customer's accepted quotation binds the invoice.
+        self._fix_assert_matches_accepted_quotation(order, estimate)
 
         # FR-ARB-031: a held customer blocks invoicing before anything is created
         self._credit_hold_for(order.customer_id, order.company_id)
@@ -1054,6 +1162,9 @@ class FixArInvoice(models.Model):
                     "line_total": float(det.line_total),
                 }
             )
+
+        # C8: never a Mushak 6.3 dated inside a locked period
+        invoice._fix_assert_date_open()
 
         # Mushak register row — same transaction (T08 atomicity)
         company = invoice.company_id
@@ -2121,7 +2232,7 @@ class FixCreditNote(models.Model):
     def _post_credit_gl(self):
         """The statutory mirror posting (FR-ARB-039): Dr Revenue + Dr VAT
         pro-rata / Cr AR — only when the invoice itself posted to GL."""
-        from .fix_ar_engine import _ar_account, _post_ar_move
+        from .fix_ar_engine import _ar_account, _ar_invoice_journal, _post_ar_move
 
         for note in self:
             invoice = note.invoice_id
@@ -2160,6 +2271,8 @@ class FixCreditNote(models.Model):
                 ],
                 dims,
                 source="ar",
+                # C11: the credit note reverses the issue on the Sales journal
+                journal=_ar_invoice_journal(note.env, company),
             )
             note._guarded().write(
                 {"posted_move_id": move.id if move else False, "gl_note": gl_note or False}

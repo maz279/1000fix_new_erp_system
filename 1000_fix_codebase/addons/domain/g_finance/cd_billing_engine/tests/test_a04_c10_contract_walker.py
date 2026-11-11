@@ -124,9 +124,9 @@ def _invoices(k, contract):
     )
 
 
-def _determined(period):
-    """What M51 says for one AMC line of this period (the walker must carry
-    the determination, never a local VAT constant)."""
+def _determined(period, on_date):
+    """What M51 says for one AMC line of this period on the invoice date (the
+    walker must carry the determination, never a local VAT constant)."""
     determination = period.env["fix.vat.treatment"]._fix_determine_tax(
         [
             tax_logic.TaxLine(
@@ -135,7 +135,7 @@ def _determined(period):
                 unit_price=Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP),
             )
         ],
-        on_date=period.period_start,
+        on_date=on_date,
         company=period.contract_id.company_id,
     )
     det = determination.lines[0]
@@ -183,10 +183,13 @@ def test_due_periods_raise_draft_invoices_and_advance_billed_through(k):
         assert invoice.currency_id == contract.currency_id
         assert invoice.company_id == contract.company_id
         assert (invoice.source_model, invoice.source_id) == (period._name, period.id)
-        assert invoice.invoice_date == period.period_start
+        # E3-04 (third rehearsal): billed in arrears, the invoice is dated at
+        # the period END. It used to be the period START, which put the GL
+        # entry and the Mushak 6.3 of an invoice issued on 11 Nov into October.
+        assert invoice.invoice_date == period.period_end
         assert contract.code in (invoice.manual_reason or "")
         assert invoice._revenue_role() == "deferred_revenue"  # IFRS 15 contract liability
-        expected = _determined(period)
+        expected = _determined(period, invoice.invoice_date)
         (line,) = invoice.line_ids
         assert (
             round(line.taxable_amount, 2),
@@ -194,6 +197,25 @@ def test_due_periods_raise_draft_invoices_and_advance_billed_through(k):
             round(line.line_total, 2),
         ) == tuple(round(part, 2) for part in expected)
         assert str(period.period_start) in line.description
+
+
+def test_a_period_ending_in_a_locked_month_is_dated_in_the_open_period(k):
+    """E3-04 with C8: once the month the period ended in is closed, the
+    arrears invoice is dated on the first open day after the lock - never
+    inside the closed period, where action_issue would refuse it."""
+    _on(k)
+    contract = _active(k)
+    lock = fields.Date.start_of(k.today, "month") - timedelta(days=1)
+    contract.company_id.sudo().write({"fiscalyear_lock_date": lock})
+    assert _walk(k) == 2
+    periods = _periods(k, contract)
+    assert any(p.period_end <= lock for p in periods), "one period must end in the locked month"
+    for period in periods:
+        invoice = period.invoice_id
+        assert invoice.invoice_date == max(period.period_end, lock + timedelta(days=1))
+        assert invoice.invoice_date > lock
+        invoice.action_issue()  # issues: the date is open (C8)
+        assert invoice.mushak_id.invoice_date == invoice.invoice_date
 
 
 def test_a_rerun_raises_nothing(k):
