@@ -539,6 +539,14 @@ def main() -> int:
 
     # ~25 users across the workspace groups (reuse by login) -----------------
     group_ids = [g for g in (c.first("res.groups", [("name", "=", n)]) for n in WS_GROUPS) if g]
+    # an internal user: a workspace group on a share (portal) identity is
+    # refused (A12 E24, cd_rbac_ext res_users_ext)
+    internal = c.call(
+        "ir.model.data",
+        "search_read",
+        [("module", "=", "base"), ("name", "=", "group_user")],
+        ["res_id"],
+    )[0]["res_id"]
     new_users = []
     for i in range(25):
         login = f"seed.user{i + 1:02d}@1000fix.local"
@@ -551,7 +559,7 @@ def main() -> int:
                 "login": login,
                 "email": login,
                 "password": login,
-                "group_ids": [group_ids[i % len(group_ids)]] if group_ids else [],
+                "group_ids": [internal] + ([group_ids[i % len(group_ids)]] if group_ids else []),
             }
         )
     if new_users:
@@ -698,7 +706,7 @@ def main() -> int:
                 "attach",
                 f"seed-proof-{did}.jpg",
                 base64.b64encode(b"seed purchase receipt (synthetic proof)").decode("ascii"),
-                "other",
+                "invoice",  # a warranty proof is a card, invoice or asset document
                 "fix.warranty",
                 wid,
             )
@@ -962,7 +970,8 @@ def main() -> int:
                     "conveyance_allowance": 2500.0,
                     "technical_allowance": 2000.0 if i % 2 == 0 else 0.0,
                     "weekly_hours": 48,
-                    "state": "active",
+                    # A09: a contract is born a draft; activation needs Legal
+                    # Counsel's routed sign-off (fix_hr_contract_controls)
                 }
             )
         if contracts:
@@ -1014,9 +1023,10 @@ def main() -> int:
                     "leave_type_id": lt,
                     "date_from": df,
                     "date_to": str(_dt.date(2026, 11, (i % 28) + 1 + (i % 3))),
-                    "state": rng.choice(["draft", "submitted", "approved"]),
                 },
             )
+            # A09: a request is born a draft; submitting routes it to the
+            # employee's line manager, which seed staff do not have
             created_leave += 1
         print(f"seed: {created_leave} leave requests created (idempotent)")
 
@@ -1050,7 +1060,7 @@ def main() -> int:
                         "employee_id": emp,
                         "date": str(d),
                         "shift_id": shift_ids[day_offset % len(shift_ids)],
-                        "on_leave": rng.random() < 0.05,
+                        # on_leave is set by an approved leave, never typed (M55-10)
                     }
                 )
         if roster:
@@ -1061,7 +1071,10 @@ def main() -> int:
         created_att = 0
         for i in range(100):
             emp = hr_employees[i % len(hr_employees)]
-            check_in = _dt.datetime(2026, 10, 5, 9, 0) + _dt.timedelta(hours=i % 8)
+            # one entry per employee per day: an overlapping entry is refused
+            check_in = _dt.datetime(2026, 10, 5, 9, 0) + _dt.timedelta(
+                days=i // len(hr_employees), hours=i % 3
+            )
             ci_str = check_in.strftime("%Y-%m-%d %H:%M:%S")
             if c.first(
                 "fix.attendance.record", [("employee_id", "=", emp), ("check_in", "=", ci_str)]
@@ -1076,8 +1089,11 @@ def main() -> int:
                     "check_out": (check_in + _dt.timedelta(hours=8 + (i % 3))).strftime(
                         "%Y-%m-%d %H:%M:%S"
                     ),
-                    "source": rng.choice(["biometric", "mobile", "manual"]),
-                    "device_ref": f"SEED-DEV-{i:03d}",
+                    # punches arrive through a registered device's ingest; a
+                    # record keyed in by hand states why and waits for the line
+                    # manager (BRU-WFM-11)
+                    "source": "manual",
+                    "manual_reason": "Seed: synthetic attendance keyed in from the paper register",
                 },
             )
             created_att += 1
@@ -1126,7 +1142,7 @@ def main() -> int:
         SCOPE = {
             "SMP": ("Smartphone Repair", "smartphone", "Apple", "PHONE", "l3"),
             "LAP": ("Laptop Repair", "laptop", "Dell", "LAPTOP", "l2"),
-            "APP": ("Home Appliance Repair", "home_appliance", "Samsung", "APPLIANCE", "l2"),
+            "APP": ("Home Appliance Repair", "appliance_ac", "Samsung", "APPLIANCE", "l2"),
             "NET": ("Network Diagnostics", None, "Cisco", "NETWORK", "l2"),
         }
         for code, (name, dev, bname, ccode, tier) in SCOPE.items():
@@ -1192,40 +1208,16 @@ def main() -> int:
             c.call("fix.certification", "create", certs)
         print(f"seed: {len(certs)} certifications created (idempotent)")
 
-        # One payroll period + payslips for September (Journey 13 exercised)
-        period = c.first("fix.payroll.period", [("name", "=", "2026-09")])
-        if not period:
-            period = c.call(
+        # One payroll period for September. A09 M57: the period moves through
+        # its actions and payslips are computed from ACTIVE contracts; seed
+        # contracts are drafts awaiting Legal Counsel, so no payslip is typed.
+        if not c.first("fix.payroll.period", [("name", "=", "2026-09")]):
+            c.call(
                 "fix.payroll.period",
                 "create",
-                {
-                    "name": "2026-09",
-                    "period_start": "2026-09-01",
-                    "period_end": "2026-09-30",
-                    "state": "attendance_locked",
-                },
+                {"name": "2026-09", "period_start": "2026-09-01", "period_end": "2026-09-30"},
             )
-            created_slips = 0
-            for emp in hr_employees[:25]:
-                if c.first("fix.payslip", [("period_id", "=", period), ("employee_id", "=", emp)]):
-                    continue
-                c.call(
-                    "fix.payslip",
-                    "create",
-                    {
-                        "period_id": period,
-                        "employee_id": emp,
-                        "basic": rng.choice([15000, 20000, 30000, 50000]),
-                        "ot_hours": rng.choice([0, 5, 10, 20]),
-                        "incentive": rng.choice([0, 500, 1500, 3000]),
-                        "pf_employee_pct": 10.0,
-                        "pf_employer_pct": 10.0,
-                    },
-                )
-                created_slips += 1
-            if created_slips:
-                c.call("fix.payroll.period", "write", [period], {"state": "calculated"})
-        print("seed: payroll period + payslips (idempotent)")
+        print("seed: payroll period (idempotent; payslips come from active contracts)")
 
         # 20 NCRs (idempotent: deterministic description per index)
         ncrs = []
