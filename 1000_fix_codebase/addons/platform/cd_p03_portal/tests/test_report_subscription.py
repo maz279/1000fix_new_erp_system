@@ -60,10 +60,11 @@ class TestScheduledDelivery:
         # the artefact carries the official letterhead
         import io
 
-        import pymupdf
+        # PyPDF2 ships with Odoo's own requirements; pymupdf was never a
+        # declared dependency, so this assertion could not run anywhere clean
+        from PyPDF2 import PdfReader
 
-        doc = pymupdf.open(stream=io.BytesIO(data), filetype="pdf")
-        text = "".join(p.get_text() for p in doc)
+        text = "".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(data)).pages)
         # brand constants (company record may differ between databases)
         assert "Hot Line: 16743" in text
         assert "ISO 9001:2015 Certified" in text

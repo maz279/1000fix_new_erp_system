@@ -602,6 +602,17 @@ def test_a3_pickers_and_reports_show_no_price_or_vendor_while_open(world, rfq, p
 
 
 # ---------------------------------------------------------------- A4/A5: pickers
+def _offered(p03, user, model, field, domain, q):
+    """Ids the picker offers for `q`: the inline list when the domain is small,
+    the server search the picker switches to above PICKER_LIMIT (a database
+    holding the real supplier register is always above it)."""
+    inline = form_choices(p03, user, model, field, domain)
+    if inline:
+        return set(inline)
+    out = p03(user, "model_choices", model=model, field=field, q=q, domain=domain)
+    return {c["id"] for c in out["choices"]}
+
+
 def test_a5_vendor_pickers_offer_active_suppliers_only(world, p03):
     w = world
     active = onboard(w, p03, w.vendor)
@@ -609,9 +620,9 @@ def test_a5_vendor_pickers_offer_active_suppliers_only(world, p03):
     w.env["fix.supplier"].create({"name": prospect.name, "partner_id": prospect.id})
     stranger = w.env["res.partner"].create({"name": "A06 Final Stranger", "is_company": True})
     domain = [["fix_supplier_status", "=", "active"]]
-    choices = form_choices(p03, w.buyer, "fix.purchase.order", "vendor_id", domain)
-    assert active.partner_id.id in choices
-    assert prospect.id not in choices and stranger.id not in choices
+    offered = _offered(p03, w.buyer, "fix.purchase.order", "vendor_id", domain, "A06 Final")
+    assert active.partner_id.id in offered
+    assert prospect.id not in offered and stranger.id not in offered
     # the server search honours the same domain
     out = p03(
         w.buyer,
@@ -623,8 +634,8 @@ def test_a5_vendor_pickers_offer_active_suppliers_only(world, p03):
     )
     assert [c["id"] for c in out["choices"]] == [active.partner_id.id]
     registered = [["fix_supplier_status", "!=", False]]
-    choices = form_choices(p03, w.buyer, "fix.procurement.bid", "vendor_id", registered)
-    assert prospect.id in choices and stranger.id not in choices
+    offered = _offered(p03, w.buyer, "fix.procurement.bid", "vendor_id", registered, "A06 Final")
+    assert prospect.id in offered and stranger.id not in offered
 
 
 def test_a4_the_requisition_picker_reads_a_name(world, p03):
