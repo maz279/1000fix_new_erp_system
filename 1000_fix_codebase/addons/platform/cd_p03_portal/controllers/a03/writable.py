@@ -305,8 +305,26 @@ WRITABLE = {
             "version",
         }
     ),
-    "fix.cc.knowledge.binding": frozenset(),
-    "fix.cc.macro": frozenset(),
+    "fix.cc.knowledge.binding": frozenset(
+        {
+            "active",
+            "article_ref",
+            "intent",
+            "note",
+            "queue_id",
+            "sequence",
+        }
+    ),
+    "fix.cc.macro": frozenset(
+        {
+            "active",
+            "code",
+            "confirm_required",
+            "macro_action",
+            "name",
+            "template_id",
+        }
+    ),
     "fix.cc.notif.template": frozenset(
         {
             "active",
@@ -325,7 +343,16 @@ WRITABLE = {
             "queue_id",
         }
     ),
-    "fix.cc.presence.status": frozenset(),
+    "fix.cc.presence.status": frozenset(
+        {
+            "active",
+            "code",
+            "is_available_class",
+            "is_system_dnd",
+            "name",
+            "sequence",
+        }
+    ),
     "fix.cc.qa.criterion": frozenset(),
     "fix.cc.qa.evaluation": frozenset(
         {
@@ -358,7 +385,16 @@ WRITABLE = {
             "wrapup_seconds",
         }
     ),
-    "fix.cc.routing.rule": frozenset(),
+    "fix.cc.routing.rule": frozenset(
+        {
+            "active",
+            "channel",
+            "name",
+            "priority",
+            "queue_id",
+            "skill",
+        }
+    ),
     "fix.cc.script": frozenset(
         {
             "active",
@@ -580,7 +616,24 @@ WRITABLE = {
         }
     ),
     "fix.loyalty.affiliation.member": frozenset(),
-    "fix.loyalty.burn.rule": frozenset(),
+    "fix.loyalty.burn.rule": frozenset(
+        {
+            "active",
+            "affiliation_id",
+            "blocked",
+            "dimension",
+            "dimension_value",
+            "max_discount_pct",
+            "max_points_per_transaction",
+            "min_points",
+            "name",
+            "priority",
+            "scheme_id",
+            "tier_id",
+            "valid_from",
+            "valid_until",
+        }
+    ),
     "fix.loyalty.campaign.hook": frozenset(
         {
             "bonus_points",
@@ -593,7 +646,16 @@ WRITABLE = {
             "voucher_validity_days",
         }
     ),
-    "fix.loyalty.card": frozenset(),
+    "fix.loyalty.card": frozenset(
+        {
+            "account_id",
+            "barcode",
+            "card_number",
+            "card_type",
+            "expires_on",
+            "issued_on",
+        }
+    ),
     "fix.loyalty.earn.rule": frozenset(),
     "fix.loyalty.ledger": frozenset(
         {
@@ -609,7 +671,19 @@ WRITABLE = {
             "transaction_type",
         }
     ),
-    "fix.loyalty.point.type": frozenset(),
+    "fix.loyalty.point.type": frozenset(
+        {
+            "active",
+            "bdt_per_point",
+            "code",
+            "expiry_months",
+            "name",
+            "name_bn",
+            "point_class",
+            "program_id",
+            "sequence",
+        }
+    ),
     "fix.loyalty.program": frozenset(
         {
             "active",
@@ -802,7 +876,16 @@ WRITABLE = {
             "request_type",
         }
     ),
-    "fix.routing.bullseye.ring": frozenset(),
+    "fix.routing.bullseye.ring": frozenset(
+        {
+            "active",
+            "name",
+            "sequence",
+            "user_group_id",
+            "wait_seconds",
+            "workstream_id",
+        }
+    ),
     "fix.routing.ruleset": frozenset(),
     "fix.routing.workitem": frozenset(
         {

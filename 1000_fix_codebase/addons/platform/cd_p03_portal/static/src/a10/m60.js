@@ -455,6 +455,7 @@ export const FORM_CHIPS = {
   'M60:Compliance Obligation': 'M60-form-obligation',
   'M60:PDPA Register Entry': 'M60-form-pdpa',
   'M60:Risk': 'M60-form-risk',
+  'M60:Risk Appetite': 'M60-form-appetite',
   'M60:Control Test': 'M60-form-test',
   'M60:Licence': 'M60-form-licence',
   'M60:Policy': 'M60-form-policy',

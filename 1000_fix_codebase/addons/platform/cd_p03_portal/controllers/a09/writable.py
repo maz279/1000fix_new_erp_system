@@ -862,7 +862,14 @@ WRITABLE = {
         }
     ),
     "fix.safety.committee.meeting": frozenset(),
-    "fix.safety.committee.member": frozenset(),
+    "fix.safety.committee.member": frozenset(
+        {
+            "committee_id",
+            "employee_id",
+            "side",
+            "term_start",
+        }
+    ),
     "fix.safety.inspection": frozenset(
         {
             "branch_id",

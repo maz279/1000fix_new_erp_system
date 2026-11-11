@@ -476,6 +476,7 @@ export const FORM_CHIPS = {
   'M53:Warranty Provision': 'M53-form-provision',
   'M53:Warranty Policy': 'M53-form-policy',
   'M53:Subscription': 'M53-form-subscription',
+  'M53:Subscription Contract': 'M53-form-subscription',
   'M53:Commission Ledger': 'M53-form-ledger',
   'M53:Seller Statement': 'M53-form-statement',
   'M53:Revenue Schedule': 'M53-form-schedule',

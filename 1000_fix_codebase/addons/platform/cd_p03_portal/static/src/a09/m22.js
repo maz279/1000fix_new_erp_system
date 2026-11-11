@@ -72,7 +72,8 @@ export const SCREENS = {
   'M22-expiry': { kind: 'table_report', module: 'M22', report: 'expiry_forecast', title: 'Validity & Renewal', period: true },
   /* A09 M22-F3: a waiver is one technician on one job, raised from the work
    * or field order and decided in the approver's inbox, never here. */
-  'M22-waivers': { kind: 'model_list', model: 'fix.certification.waiver', stateField: 'state',
+  'M22-waivers': { kind: 'model_list', model: 'fix.certification.waiver', stateField: 'state', create: false,
+    note: 'A waiver is requested from the job itself (Request Certification Waiver on the M02 field or work order) and decided in the Dispatch Override Approver\'s inbox; it is never raised or decided here.',
     cols: ['name', 'employee_id', 'res_model', 'res_id', 'reason', 'valid_until', 'requester_id', 'approved_by_id', 'approved_at', 'state'],
     actions: [{ m: 'action_cancel', l: 'Cancel' }] },
   'M22-eligibility': { kind: 'model_list', model: 'fix.certification', stateField: 'state',

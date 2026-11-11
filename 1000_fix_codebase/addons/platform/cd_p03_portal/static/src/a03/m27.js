@@ -139,6 +139,36 @@ export const SCREENS = {
     cols: ['sequence', 'name', 'code', 'channel', 'target_answer_seconds', 'active'] },
   'M27-routing': { kind: 'model_list', model: 'fix.cc.routing.rule', create: true,
     cols: ['priority', 'name', 'channel', 'queue_id', 'active'] },
+  'M27-form-routing': {
+    kind: 'model_form', model: 'fix.cc.routing.rule',
+    title: 'Skills Routing Rule', back: 'M27-routing',
+    tabs: [
+      { id: 'rule', label: '1. Rule', bn: '১. নিয়ম', icon: '🔀' },
+      { id: 'match', label: '2. Channel & Skill', bn: '২. চ্যানেল ও স্কিল', icon: '🎯' }
+    ],
+    sections: [
+      {
+        tab: 'rule',
+        title: 'Rule & Target Queue',
+        note: 'Rules are evaluated lowest priority number first; the first that matches sends the contact to its queue.',
+        fields: [
+        { name: 'name', label: 'Rule Name', required: true },
+        { name: 'queue_id', label: 'Target Queue', required: true },
+        { name: 'priority', label: 'Priority', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'match',
+        title: 'What It Matches',
+        note: 'The skill is a free-text tag matched by the routing engine against the agent\'s skills.',
+        fields: [
+        { name: 'channel', label: 'Channel', required: true },
+        { name: 'skill', label: 'Required Skill' }
+        ]
+      }
+    ]
+  },
   'M27-voice': { kind: 'model_list', model: 'fix.cc.ivr.flow', create: true,
     cols: ['name', 'channel', 'version', 'active'] },
   'M27-dispositions': { kind: 'model_list', model: 'fix.cc.disposition', create: true,
@@ -708,6 +738,36 @@ export const SCREENS = {
   'M27-bullseye': { kind: 'model_list', model: 'fix.routing.bullseye.ring', create: true,
     cols: ['workstream_id', 'sequence', 'name', 'wait_seconds', 'user_group_id', 'active'],
     note: 'Timed rings that widen the eligible pool.' },
+  'M27-form-bullseye': {
+    kind: 'model_form', model: 'fix.routing.bullseye.ring',
+    title: 'Bullseye Ring', back: 'M27-bullseye',
+    tabs: [
+      { id: 'ring', label: '1. Ring', bn: '১. রিং', icon: '🎯' },
+      { id: 'pool', label: '2. Wait & Pool', bn: '২. অপেক্ষা ও পুল', icon: '⏱️' }
+    ],
+    sections: [
+      {
+        tab: 'ring',
+        title: 'Ring Position',
+        note: 'Two rings of one workstream cannot share a sequence: the rings open in sequence order.',
+        fields: [
+        { name: 'workstream_id', label: 'Workstream', required: true },
+        { name: 'sequence', label: 'Sequence', required: true },
+        { name: 'name', label: 'Ring Name', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'pool',
+        title: 'How Long, and Who It Opens To',
+        note: 'A ring waits at least one second before widening to the next. An empty user group opens the ring to every eligible agent, which is what a final ring usually is.',
+        fields: [
+        { name: 'wait_seconds', label: 'Wait (seconds)', required: true },
+        { name: 'user_group_id', label: 'User Group' }
+        ]
+      }
+    ]
+  },
   'M27-capacity': { kind: 'model_list', model: 'fix.cc.capacity.profile', create: true,
     cols: ['name', 'code', 'work_item_limit', 'reset_frequency', 'assignment_blocking', 'active'],
     note: 'The four fields Microsoft defines. Blocking forces Busy-DND when the limit is reached.' },
@@ -805,6 +865,36 @@ export const SCREENS = {
   'M27-presence-statuses': { kind: 'model_list', model: 'fix.cc.presence.status', create: true,
     cols: ['sequence', 'name', 'code', 'is_available_class', 'is_system_dnd', 'active'],
     note: 'Only an available-class status receives routed work.' },
+  'M27-form-presence-status': {
+    kind: 'model_form', model: 'fix.cc.presence.status',
+    title: 'Presence Status', back: 'M27-presence-statuses',
+    tabs: [
+      { id: 'identity', label: '1. Status', bn: '১. অবস্থা', icon: '🟢' },
+      { id: 'routing', label: '2. Routing Behaviour', bn: '২. রাউটিং আচরণ', icon: '🔀' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Status Identity',
+        note: 'Each presence code exists once. Statuses are data, so "On training" or "In a huddle" needs no code change.',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'sequence', label: 'Order' },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'routing',
+        title: 'Receives Work / Busy-DND',
+        note: 'Only an available-class status receives routed work. Busy-DND is the status capacity blocking forces an agent into, so it can never also receive work; exactly one status should carry it.',
+        fields: [
+        { name: 'is_available_class', label: 'Receives Work' },
+        { name: 'is_system_dnd', label: 'System Busy-DND' }
+        ]
+      }
+    ]
+  },
   'M27-presence-history': { kind: 'model_list', model: 'fix.cc.agent.state.log', create: false,
     cols: ['from_at', 'to_at', 'agent_id', 'presence_status_id', 'presence_source', 'minutes'],
     note: 'Append-only. Adherence is measured from this, so it cannot be edited.' },
@@ -865,9 +955,73 @@ export const SCREENS = {
   'M27-macros': { kind: 'model_list', model: 'fix.cc.macro', create: true,
     cols: ['name', 'code', 'macro_action', 'template_id', 'confirm_required', 'active'],
     note: 'A macro names an action from a whitelist — configuration access must not become code execution.' },
+  'M27-form-macro': {
+    kind: 'model_form', model: 'fix.cc.macro',
+    title: 'Agent Macro', back: 'M27-macros',
+    tabs: [
+      { id: 'identity', label: '1. Macro', bn: '১. ম্যাক্রো', icon: '⚡' },
+      { id: 'action', label: '2. Action', bn: '২. কার্যক্রম', icon: '🛠️' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Macro Identity',
+        note: 'Each macro code exists once. D365 keeps scripts and macros separate: a script guides, a macro does.',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'action',
+        title: 'Whitelisted Action',
+        note: 'A macro names an action from a fixed whitelist, never a model and method. The send action must name its template or the save is refused.',
+        fields: [
+        { name: 'macro_action', label: 'Action', required: true },
+        { name: 'template_id', label: 'Template (send action)' },
+        { name: 'confirm_required', label: 'Agent Confirms Before Running' }
+        ]
+      }
+    ]
+  },
   'M27-knowledge': { kind: 'model_list', model: 'fix.cc.knowledge.binding', create: true,
     cols: ['sequence', 'intent', 'queue_id', 'article_ref', 'note', 'active'],
     note: 'Intent to M61 article, as a reviewable record rather than a search.' },
+  'M27-form-knowledge': {
+    kind: 'model_form', model: 'fix.cc.knowledge.binding',
+    title: 'Knowledge Binding', back: 'M27-knowledge',
+    tabs: [
+      { id: 'binding', label: '1. Binding', bn: '১. বাইন্ডিং', icon: '📚' },
+      { id: 'sync', label: '2. Article Sync', bn: '২. আর্টিকেল সিঙ্ক', icon: '🔄' }
+    ],
+    sections: [
+      {
+        tab: 'binding',
+        title: 'Intent or Queue to Article',
+        note: 'The article reference is the M61 article code (or its name). A binding is a record rather than a search, so the article put in front of an agent is deliberate and reviewable.',
+        fields: [
+        { name: 'intent', label: 'Intent' },
+        { name: 'queue_id', label: 'Queue' },
+        { name: 'article_ref', label: 'Article Reference', required: true },
+        { name: 'note', label: 'Why This Article' },
+        { name: 'sequence', label: 'Order' },
+        { name: 'active', label: 'Active' },
+        { name: 'display_label', label: 'Binding', readonly: true }
+        ]
+      },
+      {
+        tab: 'sync',
+        title: 'What the Knowledge Module Last Reported',
+        note: 'Stamped by the knowledge-published hand-off from M61, so the agent desktop can tell a binding whose article moved on from one that still matches.',
+        fields: [
+        { name: 'synced_version', label: 'Synced Version', readonly: true },
+        { name: 'synced_content_hash', label: 'Synced Hash', readonly: true },
+        { name: 'synced_on', label: 'Synced On', readonly: true }
+        ]
+      }
+    ]
+  },
   'M27-script-adherence': { kind: 'model_list', model: 'fix.cc.script.completion', create: false,
     cols: ['completed_at', 'conversation_id', 'script_id', 'step_id', 'agent_id', 'skipped', 'skip_reason'],
     note: 'What makes a script QA evidence rather than a wall poster.' },
@@ -968,7 +1122,12 @@ export const FORM_CHIPS = {
     'fix.cc.outbound.list': 'M27-form-outbound',
     'fix.cc.queue': 'M27-form-queue',
     'fix.cc.qa.evaluation': 'M27-form-qa',
-    'fix.cc.wfm.shift': 'M27-form-wfm'
+    'fix.cc.wfm.shift': 'M27-form-wfm',
+    'fix.cc.routing.rule': 'M27-form-routing',
+    'fix.routing.bullseye.ring': 'M27-form-bullseye',
+    'fix.cc.presence.status': 'M27-form-presence-status',
+    'fix.cc.macro': 'M27-form-macro',
+    'fix.cc.knowledge.binding': 'M27-form-knowledge'
   },
   'M27:__by_screen__': {
     'M27-deliveries': 'M27-form-delivery',
@@ -988,7 +1147,12 @@ export const FORM_CHIPS = {
     'M27-outbound': 'M27-form-outbound',
     'M27-templates': 'M27-form-template',
     'M27-qa': 'M27-form-qa',
-    'M27-wfm': 'M27-form-wfm'
+    'M27-wfm': 'M27-form-wfm',
+    'M27-routing': 'M27-form-routing',
+    'M27-bullseye': 'M27-form-bullseye',
+    'M27-presence-statuses': 'M27-form-presence-status',
+    'M27-macros': 'M27-form-macro',
+    'M27-knowledge': 'M27-form-knowledge'
   }
 };
 

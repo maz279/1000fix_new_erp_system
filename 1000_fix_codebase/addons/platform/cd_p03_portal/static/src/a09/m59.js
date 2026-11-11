@@ -97,7 +97,11 @@ export const SCREENS = {
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge Receipt' }] },
   'M59-committee-members': { kind: 'model_list', model: 'fix.safety.committee.member',
     cols: ['committee_id', 'employee_id', 'side', 'term_start'] },
-  'M59-committee-meetings': { kind: 'model_list', model: 'fix.safety.committee.meeting',
+  /* A meeting is append-only (the model refuses any edit) and is recorded
+   * with Record Meeting on Safety Committee, which checks the committee is
+   * constituted first; a direct create here would skip that check. */
+  'M59-committee-meetings': { kind: 'model_list', model: 'fix.safety.committee.meeting', create: false,
+    note: 'Recorded with Record Meeting on the Safety Committee screen. Minutes are a record: they are never edited, a new meeting is added instead.',
     cols: ['committee_id', 'meeting_date', 'minutes', 'actions'] },
   'M59-ppe-stock': { kind: 'model_list', model: 'fix.ppe.register', stateField: 'state',
     cols: ['name', 'item_type', 'regulatory_standard', 'stock_quantity', 'min_required_quantity', 'state'] },
@@ -500,6 +504,28 @@ export const SCREENS = {
     ]
   },
 
+  'M59-form-committee-member': {
+    kind: 'model_form',
+    model: 'fix.safety.committee.member',
+    title: 'Safety Committee Member',
+    back: 'M59-committee-members',
+    tabs: [{ id: 'member', label: 'Committee Seat', bn: 'কমিটির আসন', icon: '👥', badge: '4' }],
+    sections: [
+      {
+        tab: 'member',
+        title: 'Committee Seat (BLR r.81)',
+        note: 'An employee sits on a committee once. Constitute needs at least six members with both worker and employer representatives, and the chairperson and secretary among them.',
+        fields: [
+          { name: 'committee_id', required: true, label: 'Committee' },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'side', required: true, label: 'Represents' },
+          { name: 'term_start', label: 'Term Start' },
+          { name: 'company_id', readonly: true, label: 'Company' }
+        ]
+      }
+    ]
+  },
+
   'M59-form-ppe-issue': {
     kind: 'model_form',
     model: 'fix.ppe.issue',
@@ -870,7 +896,8 @@ export const FORM_CHIPS = {
     'fix.hse.capa': 'M59-form-capa',
     'fix.hse.root.cause': 'M59-form-root-cause',
     'fix.hse.investigation.member': 'M59-form-investigation-member',
-    'fix.ppe.issue': 'M59-form-ppe-issue'
+    'fix.ppe.issue': 'M59-form-ppe-issue',
+    'fix.safety.committee.member': 'M59-form-committee-member'
   },
   'M59:__by_screen__': {
     'M59-safety-inspection': 'M59-form-inspection',
@@ -889,7 +916,8 @@ export const FORM_CHIPS = {
     'M59-capa': 'M59-form-capa',
     'M59-root-causes': 'M59-form-root-cause',
     'M59-investigation-team': 'M59-form-investigation-member',
-    'M59-ppe': 'M59-form-ppe-issue'
+    'M59-ppe': 'M59-form-ppe-issue',
+    'M59-committee-members': 'M59-form-committee-member'
   }
 };
 

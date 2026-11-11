@@ -530,9 +530,95 @@ export const SCREENS = {
   'M10-burn-rules': { kind: 'model_list', model: 'fix.loyalty.burn.rule', create: true,
     cols: ['scheme_id', 'priority', 'name', 'dimension', 'dimension_value', 'tier_id', 'affiliation_id', 'min_points', 'max_discount_pct', 'blocked', 'active'],
     note: 'Redemption rules differ by tier and by affiliation, which a single programme-wide minimum cannot express.' },
+  'M10-form-burn-rule': {
+    kind: 'model_form', model: 'fix.loyalty.burn.rule',
+    title: 'Redemption Rule', back: 'M10-burn-rules',
+    tabs: [
+      { id: 'identity', label: '1. Rule', bn: '১. নিয়ম', icon: '🔥' },
+      { id: 'scope', label: '2. Who It Applies To', bn: '২. প্রযোজ্যতা', icon: '🎯' },
+      { id: 'limits', label: '3. Redemption Limits', bn: '৩. রিডেম্পশন সীমা', icon: '🚧' },
+      { id: 'validity', label: '4. Validity', bn: '৪. মেয়াদ', icon: '📅' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Rule Identity',
+        note: 'Evaluated in priority order inside its scheme, like the earn rules: the first rule that matches decides whether, and how far, points may pay a bill.',
+        fields: [
+        { name: 'scheme_id', label: 'Scheme', required: true },
+        { name: 'name', label: 'Rule', required: true },
+        { name: 'priority', label: 'Order', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'scope',
+        title: 'Keyed On, Tier & Affiliation',
+        note: 'An empty tier or affiliation means the rule applies to every member. The value is matched against the dimension (a category, a channel, a product code, or a minimum bill amount).',
+        fields: [
+        { name: 'dimension', label: 'Keyed On', required: true },
+        { name: 'dimension_value', label: 'Value' },
+        { name: 'tier_id', label: 'Applies To Tier' },
+        { name: 'affiliation_id', label: 'Applies To Affiliation' }
+        ]
+      },
+      {
+        tab: 'limits',
+        title: 'How Much Points May Cover',
+        note: 'The discount ceiling must lie between 0 and 100 percent. A blocked rule refuses payment by points for every matching transaction.',
+        fields: [
+        { name: 'min_points', label: 'Minimum Balance' },
+        { name: 'max_points_per_transaction', label: 'Max Points per Transaction (0 = no ceiling)' },
+        { name: 'max_discount_pct', label: 'Max Share of Bill (%)' },
+        { name: 'blocked', label: 'Redemption Blocked' }
+        ]
+      },
+      {
+        tab: 'validity',
+        title: 'When It Applies',
+        fields: [
+        { name: 'valid_from', label: 'Valid From' },
+        { name: 'valid_until', label: 'Valid Until' }
+        ]
+      }
+    ]
+  },
   'M10-point-types': { kind: 'model_list', model: 'fix.loyalty.point.type', create: true,
     cols: ['sequence', 'name', 'name_bn', 'code', 'program_id', 'point_class', 'bdt_per_point', 'expiry_months', 'active'],
     note: 'A qualifying point moves a member up the ladder and can never be spent, which is what decouples tier marketing from the IFRS-15 liability.' },
+  'M10-form-point-type': {
+    kind: 'model_form', model: 'fix.loyalty.point.type',
+    title: 'Loyalty Point Type', back: 'M10-point-types',
+    tabs: [
+      { id: 'identity', label: '1. Point Type', bn: '১. পয়েন্টের ধরন', icon: '🪙' },
+      { id: 'value', label: '2. Value & Expiry', bn: '২. মূল্য ও মেয়াদ', icon: '⏳' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Point Currency',
+        note: 'Each code exists once per programme. The class says what the point DOES: a redeemable point is spendable and an IFRS-15 liability; a qualifying point only moves a member up the ladder.',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'program_id', label: 'Programme', required: true },
+        { name: 'sequence', label: 'Order' },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'value',
+        title: 'Redemption Value & Expiry',
+        note: 'A tier-qualifying point cannot carry a BDT value: the save is refused, because it would reappear in the redemption liability this class exists to keep it out of.',
+        fields: [
+        { name: 'point_class', label: 'Class', required: true },
+        { name: 'bdt_per_point', label: 'BDT per Point' },
+        { name: 'expiry_months', label: 'Expiry (months, 0 = never)' }
+        ]
+      }
+    ]
+  },
   'M10-affiliations': { kind: 'model_list', model: 'fix.loyalty.affiliation', create: true,
     cols: ['name', 'name_bn', 'code', 'program_id', 'member_count', 'active'],
     note: 'Cohort reward rates without inflating the tier ladder — AMC staff, dealer technicians, campaign cohorts.' },
@@ -578,6 +664,39 @@ export const SCREENS = {
       { m: 'action_block', l: 'Block Card' }
     ],
     note: 'Counter and wallet identity for a member.' },
+  'M10-form-card': {
+    kind: 'model_form', model: 'fix.loyalty.card',
+    title: 'Loyalty Card', back: 'M10-cards',
+    status: { field: 'state', labels: { active: 'Active', blocked: 'Blocked', replaced: 'Replaced' } },
+    tabs: [
+      { id: 'identity', label: '1. Card', bn: '১. কার্ড', icon: '💳' },
+      { id: 'validity', label: '2. Validity & Status', bn: '২. মেয়াদ ও অবস্থা', icon: '📅' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Card Identity',
+        note: 'A card number identifies one card across the estate. The barcode is what the POS scanner reads; a blocked card resolves to no member at the counter.',
+        fields: [
+        { name: 'account_id', label: 'Loyalty Account', required: true },
+        { name: 'card_number', label: 'Card Number', required: true },
+        { name: 'barcode', label: 'Barcode' },
+        { name: 'card_type', label: 'Card Type', required: true }
+        ]
+      },
+      {
+        tab: 'validity',
+        title: 'Issue, Expiry & Block',
+        note: 'Blocking needs a stated reason and is done with Block Card on the list, which records the reason here.',
+        fields: [
+        { name: 'issued_on', label: 'Issued On', required: true },
+        { name: 'expires_on', label: 'Expires On' },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'block_reason', label: 'Block Reason', readonly: true }
+        ]
+      }
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -606,7 +725,10 @@ export const FORM_CHIPS = {
     'fix.loyalty.ledger': 'M10-form-adjustment',
     'fix.loyalty.referral.code': 'M10-form-referral',
     'fix.loyalty.program': 'M10-form-programme',
-    'fix.loyalty.account': 'M10-form-account'
+    'fix.loyalty.account': 'M10-form-account',
+    'fix.loyalty.burn.rule': 'M10-form-burn-rule',
+    'fix.loyalty.point.type': 'M10-form-point-type',
+    'fix.loyalty.card': 'M10-form-card'
   },
   'M10:__by_screen__': {
     'M10-schemes': 'M10-form-scheme',
@@ -619,7 +741,10 @@ export const FORM_CHIPS = {
     'M10-wallet': 'M10-form-account',
     'M10-referral': 'M10-form-referral',
     'M10-ledger': 'M10-form-adjustment',
-    'M10-hooks': 'M10-form-voucher-campaign'
+    'M10-hooks': 'M10-form-voucher-campaign',
+    'M10-burn-rules': 'M10-form-burn-rule',
+    'M10-point-types': 'M10-form-point-type',
+    'M10-cards': 'M10-form-card'
   }
 };
 

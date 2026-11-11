@@ -8,8 +8,8 @@
  * declines, geofences and telemetry, and the optimizer-backed route list.
  *
  * D365 IN-WORKSPACE FORMS (Audit M02):
- * Create Field Work Order, Technician Dispatch Override, and Emergency Reschedule
- * render INSIDE the workspace with sticky command bars, zero modal popups,
+ * Create Field Work Order and Emergency Reschedule (opened on an SLA Risk Board
+ * row, bound to that order) render INSIDE the workspace with sticky command bars, zero modal popups,
  * 100% deterministic input IDs, matching <label for>, and real Odoo ORM persistence. */
 
 export const MODULE = {
@@ -341,42 +341,14 @@ export const SCREENS = {
     ]
   },
 
-  'M02-form-override': {
-    kind: 'model_form',
-    model: 'fix.field.decline.log',
-    title: 'Technician Dispatch Override',
-    back: 'M02-exceptions',
-    tabs: [
-      { id: 'target', label: '1. Order & Technician', bn: '১. অর্ডার ও টেকনিশিয়ান', icon: '👷', badge: '3' },
-      { id: 'justification', label: '2. Reason & Notes', bn: '২. কারণ ও মন্তব্য', icon: '📝', badge: '2' }
-    ],
-    sections: [
-      {
-        tab: 'target',
-        title: 'Field Order & Technician Assignment',
-        note: 'A decline is recorded by the technician declining the field order (Decline on the Work Order Record screen); a reassignment is the dispatcher\'s Reassign. This record is the audit trail.',
-        fields: [
-          { name: 'field_order_id', label: 'Field Work Order Target', readonly: true },
-          { name: 'technician_id', label: 'Declining Technician', readonly: true },
-          { name: 'decline_date', label: 'Declined At', readonly: true }
-        ]
-      },
-      {
-        tab: 'justification',
-        title: 'Decline Reason & Notes',
-        fields: [
-          { name: 'reason', label: 'Decline Reason Code', readonly: true },
-          { name: 'notes', label: 'Technician Notes', type: 'text' }
-        ]
-      }
-    ]
-  },
-
+  /* Opens on an EXISTING order only: a row of the SLA Risk Board (FORM_CHIPS
+   * __by_screen__), which has no + New, so the form is always bound to the
+   * selected field order and never creates one. */
   'M02-form-reschedule': {
     kind: 'model_form',
     model: 'fix.field.order',
     title: 'Emergency Reschedule Request',
-    back: 'M02-record',
+    back: 'M02-sla-risk',
     status: { field: 'state' },
     tabs: [
       { id: 'target', label: '1. Order & Territory', bn: '১. অর্ডার ও অঞ্চল', icon: '📋', badge: '4' },
@@ -387,9 +359,9 @@ export const SCREENS = {
       {
         tab: 'target',
         title: 'Service Order & Territory Classification',
-        note: 'Select the customer service order for emergency reschedule and appointment reallocation.',
+        note: 'The at-risk field order selected on the SLA Risk Board. Its service order stays as it is; the territory and priority may be re-allocated with the new window.',
         fields: [
-          { name: 'order_id', required: true, label: 'Service Order Target' },
+          { name: 'order_id', label: 'Service Order', readonly: true },
           { name: 'zone_id', required: true, label: 'Dispatch Territory Zone' },
           { name: 'technician_id', label: 'Assigned Field Technician', readonly: true },
           { name: 'priority', label: 'Escalated SLA Priority' }
@@ -560,7 +532,8 @@ export const FORM_CHIPS = {
     'M02-zones': 'M02-form-zone',
     'M02-record': 'M02-form-wo',
     'M02-exceptions': 'M02-form-exception',
-    'M02-routes': 'M02-form-route'
+    'M02-routes': 'M02-form-route',
+    'M02-sla-risk': 'M02-form-reschedule'
   }
 };
 
