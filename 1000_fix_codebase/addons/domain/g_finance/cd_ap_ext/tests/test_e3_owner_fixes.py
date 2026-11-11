@@ -155,6 +155,37 @@ def test_c9_the_reviewer_confirms_and_the_confirmation_is_logged(e3):
     assert bill.approval_state == "to_approve"
 
 
+def test_g4_the_bills_maker_does_not_confirm_its_tds_category(e3):
+    """G4 (owner decision 12 Nov 2026): the confirmation is a second person's.
+    The accountant who created the bill cannot confirm its defaulted
+    category, and whoever confirmed it does not also submit the bill."""
+    bill = _bill(e3)  # created by acc1
+    with pytest.raises(UserError, match="Segregation of duties"), e3["env"].cr.savepoint():
+        bill.with_user(e3["acc1"]).action_confirm_tds_category()
+    bill.invalidate_recordset()
+    assert bill.tds_category_review
+    assert not bill.approval_log_ids.filtered(lambda r: r.action == "tds_confirm")
+    bill.with_user(e3["acc2"]).action_confirm_tds_category()
+    log = bill.approval_log_ids.filtered(lambda r: r.action == "tds_confirm")
+    assert log.user_id == e3["acc2"]
+    with pytest.raises(UserError, match="Segregation of duties"), e3["env"].cr.savepoint():
+        bill.with_user(e3["acc2"]).action_submit_approval()
+    assert bill.approval_state == "draft"
+    bill.with_user(e3["acc1"]).action_submit_approval()
+    assert bill.approval_state == "to_approve" and bill.submitted_by == e3["acc1"]
+
+
+def test_g4_the_submitter_does_not_confirm_either(e3):
+    """A bill sent back to draft keeps its submitter: the person who
+    submitted it does not confirm a category defaulted on it."""
+    bill = _bill(e3)
+    bill.sudo()._guarded().write({"submitted_by": e3["acc2"].id})
+    with pytest.raises(UserError, match="Segregation of duties"), e3["env"].cr.savepoint():
+        bill.with_user(e3["acc2"]).action_confirm_tds_category()
+    bill.with_user(e3["mgr"]).action_confirm_tds_category()
+    assert not bill.tds_category_review
+
+
 def test_c9_choosing_the_category_also_clears_the_gate(e3):
     bill = _bill(e3)
     bill.line_ids.with_user(e3["acc1"]).write({"tds_category": "supply_of_goods"})

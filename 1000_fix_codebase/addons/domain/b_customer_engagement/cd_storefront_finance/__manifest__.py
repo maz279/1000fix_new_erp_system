@@ -20,6 +20,10 @@ This bridge closes the hand-off through the estate's own engines:
   are the order's, at the order's VAT-inclusive prices, split by M51
 - the M20 receipt that proved the payment is applied to the invoice; a
   gateway-proved payment is captured as an M20 receipt on the channel clearing
+- cash on delivery (G2): on the verified delivery the courier's cash is an M20
+  cod receipt (Dr COD clearing / Cr AR) applied to the invoice, which M50's
+  rider COD settlement clears against cash or bank; a branch pickup is a cash
+  receipt. An unresolved clearing account leaves the order pending
 - on dispatch each part leaves the M15 ledger and books its valuation
   suspense row
 - a return restocks when it is received and inspected (quarantine unless

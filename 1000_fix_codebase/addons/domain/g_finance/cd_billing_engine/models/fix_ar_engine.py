@@ -58,6 +58,18 @@ AR_ACCOUNTS = {
     # write-off without a posted ECL run or this parameter expenses in full.
     "ecl_provision": (None, "Expected Credit Loss Allowance (IFRS 9)"),
     "ecl_expense": (None, "Impairment Loss on Receivables (IFRS 9)"),
+    # G2 (owner decision 12 Nov 2026): cash a courier collected on delivery is
+    # owed by the courier until M50's rider COD settlement remits it. No
+    # default code: the account is the one treasury's settlement credits
+    # (cd_cash_position.account_code.cod_clearing), read when this role's own
+    # parameter is unset, so both sides of the clearing are one account.
+    "cod_clearing": (None, "COD Clearing (courier cash awaiting the M50 settlement)"),
+}
+
+# Roles that fall back to another module's parameter for the SAME account
+# (no module dependency: a parameter is read, never a model).
+AR_ROLE_FALLBACK_PARAMS = {
+    "cod_clearing": "cd_cash_position.account_code.cod_clearing",
 }
 
 # The eight capture tenders (FR-ARB-019) and the GL role each clears into.
@@ -72,6 +84,8 @@ RECEIPT_METHODS = [
     ("card", "Card (POS / SSLCommerz)"),
     ("mobile_wallet", "Other Mobile Wallet"),
     ("adjustment", "Internal Adjustment"),
+    # G2: collected at the door by the courier against the proof of delivery
+    ("cod", "Cash on Delivery (courier)"),
 ]
 METHOD_ROLE = {
     "cash": "cash",
@@ -88,6 +102,10 @@ METHOD_ROLE = {
     # an internal adjustment offsets documents, it moves no money: the
     # account must be picked explicitly (no default is invented).
     "adjustment": None,
+    # G2: two-stage like the MFS channels. Dr COD clearing / Cr AR when the
+    # courier delivers; M50's rider settlement then credits the clearing
+    # against the cash or bank the rider remits. AR is closed once, here.
+    "cod": "cod_clearing",
 }
 
 # Hours a payment link stays valid (FR-ARB-015); 48 h is the engine's
@@ -111,8 +129,14 @@ def _ar_account(env, company, role):
     by GL configuration: a missing account means the posting is skipped and
     the reason recorded on the document (gl_note)."""
     default_code, _label = AR_ACCOUNTS[role]
+    params = env["ir.config_parameter"].sudo()
     code = (
-        env["ir.config_parameter"].sudo().get_param(f"cd_billing_engine.account_code.{role}")
+        params.get_param(f"cd_billing_engine.account_code.{role}")
+        or (
+            params.get_param(AR_ROLE_FALLBACK_PARAMS[role])
+            if role in AR_ROLE_FALLBACK_PARAMS
+            else None
+        )
         or default_code
     )
     if not code:
@@ -522,10 +546,13 @@ class FixArReceipt(models.Model):
             account = _ar_account(rec.env, rec.company_id, role) if role else None
             if not account:
                 if role:
+                    where = "cd_billing_engine.account_code.%s" % role
+                    if role in AR_ROLE_FALLBACK_PARAMS:
+                        where += " (or %s)" % AR_ROLE_FALLBACK_PARAMS[role]
                     raise UserError(
                         "Confirm refused: no GL account for method '%s' (role '%s') — "
-                        "configure the chart or cd_billing_engine.account_code.%s. "
-                        "Refusing rather than posting untracked money" % (rec.method, role, role)
+                        "configure the chart or %s. "
+                        "Refusing rather than posting untracked money" % (rec.method, role, where)
                     )
                 raise UserError(
                     "Confirm refused: internal adjustments need an explicit clearing account"

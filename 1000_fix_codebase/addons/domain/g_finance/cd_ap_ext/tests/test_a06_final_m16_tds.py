@@ -105,5 +105,7 @@ def test_b13_ap_can_confirm_the_default_and_nobody_else_can(t):
     with pytest.raises((UserError, AccessError)):
         bill.with_user(clerk).action_confirm_tds_category()
     assert bill.tds_category_review
-    bill.with_user(t["ap"]).action_confirm_tds_category()
+    # G4 (12 Nov 2026): a second person; t["ap"] created the bill
+    reviewer = _user(t["env"], "a06ftds_ap_reviewer", ["account.group_account_user"])
+    bill.with_user(reviewer).action_confirm_tds_category()
     assert not bill.tds_category_review and bill.line_ids.tds_category == "service_general"

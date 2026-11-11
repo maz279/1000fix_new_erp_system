@@ -221,3 +221,86 @@ def test_e3_11_an_rtv_without_a_grn_raises_no_guessed_note(p2p):
     r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67C-" + p2p.tag)
     assert r.state == "credited" and not r.vendor_note_res_id
     assert "goods receipt" in r.vendor_note_status
+
+
+# G5 (owner decision 12 Nov 2026): goods returned to the vendor BEFORE the bill
+# arrived were not netted by the three-way match, so a vendor billing the full
+# quantity matched. Returns made after billing stay with the RTV credit note.
+def _vendor_bill(w, qty, ref):
+    """A PO bill as AP registers it (no match asserted, nothing approved)."""
+    return w.env["fix.vendor.invoice"].create(
+        {
+            "operating_unit_id": w.ou.id,
+            "vendor_id": w.vendor.id,
+            "invoice_ref": "G5-%s-%s" % (ref, w.tag),
+            "bill_type": "po",
+            "requisition_id": w.po.id,
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "product_id": w.prod.id,
+                        "description": "SSD",
+                        "quantity": qty,
+                        "unit_price": 1480.0,
+                    },
+                )
+            ],
+        }
+    )
+
+
+def _shipped_rtv(w, qty, ref):
+    r = _rtv(w, qty, receipt_id=w.grn.id, rtv_ref="RMA-G5%s-%s" % (ref, w.tag))
+    r.with_user(w.controller).action_approve()
+    r.with_user(w.keeper).action_ship()
+    assert r.state == "shipped" and not r.vendor_invoice_res_id
+    return r
+
+
+def test_g5_goods_returned_before_the_bill_are_netted_in_the_match(p2p):
+    _shipped_rtv(p2p, 5.0, "A")  # 20 received, 5 back before any bill
+    full = _vendor_bill(p2p, 20.0, "FULL")
+    full.action_confirm_tds_category()
+    assert full.match_state == "blocked", full.match_detail
+    assert "returned to the vendor" in full.match_detail
+    refused(p2p, lambda: full.action_submit_approval(), "three-way match")
+    assert full.approval_state == "draft"
+    # AP sends it back; the vendor's net bill matches
+    full._guarded().write({"approval_state": "rejected"})
+    net = _vendor_bill(p2p, 15.0, "NET")
+    assert net.match_state == "matched", net.match_detail
+
+
+def test_g5_a_return_netted_in_the_match_is_not_credited_again(p2p):
+    r = _shipped_rtv(p2p, 5.0, "B")
+    net = _vendor_bill(p2p, 15.0, "NETB")
+    net.action_confirm_tds_category()
+    assert net.match_state == "matched", net.match_detail
+    net._guarded().write({"approval_state": "approved"})
+    net._post_approved_bill()
+    # the vendor's credit for the 5 arrives: the net bill already left them out
+    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67G5-" + p2p.tag)
+    assert r.state == "credited" and not r.vendor_note_res_id
+    assert "netted" in (r.vendor_note_status or "")
+    assert not net.note_ids
+    assert net._fix_returned_qty(p2p.prod) == 0.0
+
+
+def test_g5_a_return_after_billing_is_credited_not_netted(p2p):
+    bill = _bill(p2p)  # 20 billed, approved and posted before anything went back
+    r = _shipped_rtv_on_bill(p2p, bill, 5.0)
+    bill._check_match_gate("paid")  # a fresh match: not blocked by the return
+    assert bill.match_state == "matched", bill.match_detail
+    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67G5C-" + p2p.tag)
+    note = p2p.env["fix.vendor.note"].browse(r.vendor_note_res_id)
+    assert note.invoice_id == bill and note.return_qty == 5.0
+
+
+def _shipped_rtv_on_bill(w, bill, qty):
+    r = _rtv(w, qty, receipt_id=w.grn.id, rtv_ref="RMA-G5C-" + w.tag)
+    r.with_user(w.controller).action_approve()
+    assert r.vendor_invoice_res_id == bill.id
+    r.with_user(w.keeper).action_ship()
+    return r

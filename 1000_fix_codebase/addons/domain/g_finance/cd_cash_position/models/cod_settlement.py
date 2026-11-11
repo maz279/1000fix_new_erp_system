@@ -263,6 +263,15 @@ class FixCodSettlement(models.Model):
                     "%s carries orders that are not this rider's delivered COD orders: %s."
                     % (rec.name, ", ".join(bad.mapped("name")))
                 )
+            # G2: the order's receivable was closed by money that never sat in
+            # COD clearing; settling it here would count that money twice
+            elsewhere = rec.order_ids.sudo().filtered(lambda o: o._fix_cod_paid_elsewhere())
+            if elsewhere:
+                raise UserError(
+                    "%s carries orders already paid other than by the rider's cash on delivery "
+                    "(prepaid or settled by another receipt): %s. Remove them from the settlement."
+                    % (rec.name, ", ".join(elsewhere.mapped("name")))
+                )
             other = self.sudo().search(
                 [
                     ("id", "!=", rec.id),
@@ -308,7 +317,7 @@ class FixCodSettlement(models.Model):
         settled = self.search(
             [("company_id", "=", company.id), ("state", "!=", "disputed")]
         ).mapped("order_ids")
-        return orders - settled
+        return (orders - settled).filtered(lambda o: not o.sudo()._fix_cod_paid_elsewhere())
 
     def action_load_orders(self):
         """Pull every delivered, unsettled COD order of the rider."""
@@ -547,6 +556,19 @@ class FixStorefrontOrderCodBlock(models.Model):
     """A COD order cannot go out on a blocked rider's consignment."""
 
     _inherit = "fix.storefront.order"
+
+    def _fix_cod_paid_elsewhere(self) -> bool:
+        """G2: money for this order that did not reach the rider: a payment
+        confirmed before delivery (gateway or M20 receipt), or, with the
+        storefront finance bridge, a receivable closed by a receipt that is
+        not the courier's cash on delivery. The rider's COD settlement credits
+        COD clearing, which only the bridge's cod receipt debits."""
+        self.ensure_one()
+        if self.payment_date:
+            return True
+        # the bridge (cd_storefront_finance) is not a dependency: ask if present
+        other = getattr(self, "_sfb_cod_receipt_elsewhere", None)
+        return bool(other and other())
 
     def _fix_check_cod_rider(self, consignment_id, rail=None):
         rider = self.env["fix.consignment"].sudo().browse(consignment_id).rider_id

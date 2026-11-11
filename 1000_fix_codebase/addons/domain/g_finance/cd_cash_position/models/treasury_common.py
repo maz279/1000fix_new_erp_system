@@ -134,6 +134,9 @@ def treasury_account(env, company, role, required=True):
     if not code and role == "channel_clearing":
         # the same account M20 receipts debit for bKash/Nagad/card
         code = param(env, "cd_billing_engine.account_code.channel_mfs")
+    if not code and role == "cod_clearing":
+        # G2: the same account the M20 cod receipt debits on delivery
+        code = param(env, "cd_billing_engine.account_code.cod_clearing")
     account = env["account.account"]
     if code:
         account = (

@@ -17,6 +17,7 @@ import itertools
 from types import SimpleNamespace
 
 import pytest
+from odoo import fields
 from odoo.addons.cd_storefront.tests.test_a04_c2_c13_storefront import (  # noqa: F401
     _consignment,
     _events,
@@ -438,11 +439,56 @@ def test_cancelling_a_paid_order_requests_the_credit_note(sf):
     assert order.posting_state == "posted"
 
 
-def test_cash_on_delivery_is_invoiced_at_dispatch(sf):
-    """No payment comes first: the 6.3 goes with the goods. The cash is
-    collected at the door, so the receivable stays open on delivery until it
-    is applied; the order says so instead of claiming it is settled."""
+COD_PARAM = "cd_cash_position.account_code.cod_clearing"
+
+
+def _cod_clearing(w):
+    """The rider COD clearing account, named the way fix_real names it: by
+    treasury's parameter (M20's own left unset, so both sides are one account)."""
+    account = w.env["account.account"].create(
+        {
+            "code": "SFBCOD%d" % next(_SEQ),
+            "name": "SF rider COD clearing",
+            "account_type": "asset_current",
+        }
+    )
+    w.params.set_param(BILLING + "cod_clearing", False)
+    w.params.set_param(COD_PARAM, account.code)
+    return account
+
+
+def _courier_delivered(w, qty=1):
+    """A COD order out on a rider's consignment, delivered against its POD."""
+    env = w.env
+    rider = env["hr.employee"].create({"name": "SF COD rider %d" % next(_SEQ)})
+    cons = env["fix.consignment"].create(
+        {
+            "operating_unit_id": w.ou.id,
+            "consignment_type": "delivery",
+            "scheduled_date": fields.Datetime.now(),
+            "rider_id": rider.id,
+        }
+    )
+    order = w.placed(qty, rail="cod", method="standard_delivery")
+    order.with_user(w.operator).action_dispatch(carrier_consignment_id=cons.id)
+    assert order.sudo().ar_invoice_id.state == "issued"
+    cons.write({"state": "delivered"})  # M03 POD is its own suite
+    order.with_user(w.operator).action_deliver()
+    order = order.sudo()
+    order.invalidate_recordset()
+    return order, rider
+
+
+def test_cash_on_delivery_is_invoiced_at_dispatch_and_paid_at_the_counter(sf):
+    """No payment comes first: the 6.3 goes with the goods. A branch pickup
+    pays at the counter: the cash in the branch's hand is the M20 receipt
+    that closes the invoice (G2), so the order leaves pending."""
     w = sf
+    env = w.env
+    cash = env["account.account"].create(
+        {"code": "SFBCSH%d" % next(_SEQ), "name": "SF cash in hand", "account_type": "asset_cash"}
+    )
+    w.params.set_param(BILLING + "cash", cash.code)
     order = w.placed(1, rail="cod")
     assert not order.sudo().ar_invoice_id
     order.with_user(w.operator).action_dispatch()
@@ -453,8 +499,106 @@ def test_cash_on_delivery_is_invoiced_at_dispatch(sf):
     assert order.posting_state == "posted"
     order.with_user(w.operator).action_deliver()
     order.invalidate_recordset()
+    assert order.posting_state == "posted" and not order.posting_note
+    rcpt = order.ar_receipt_id
+    assert (rcpt.method, rcpt.state, rcpt.amount, rcpt.reference) == (
+        "cash",
+        "confirmed",
+        2500.0,
+        order.name,
+    )
+    assert inv.state == "paid" and inv.amount_residual == 0.0
+    assert _balance(env, cash) == 2500.0 and _balance(env, w.acc.ar, w.customer) == 0.0
+    if "fix.cod.settlement" in env:
+        # counter cash never reaches a rider: no COD settlement counts it
+        assert order._fix_cod_paid_elsewhere()
+
+
+def test_cash_on_delivery_by_courier_closes_the_invoice_once(sf):
+    """G2: the courier's cash is booked on the verified delivery as an M20
+    cod receipt (Dr COD clearing / Cr AR) applied to the invoice; retries
+    book nothing more, and M50's rider settlement clears COD clearing
+    against the cash remitted without touching the receivable again."""
+    w = sf
+    env = w.env
+    clearing = _cod_clearing(w)
+    order, rider = _courier_delivered(w)
+    inv = order.ar_invoice_id
+    assert order.state == "delivered"
+    assert order.posting_state == "posted" and not order.posting_note
+    rcpt = order.ar_receipt_id
+    assert (rcpt.method, rcpt.state, rcpt.amount, rcpt.reference) == (
+        "cod",
+        "confirmed",
+        2500.0,
+        order.name,
+    )
+    assert _lines(rcpt.posted_move_id) == {
+        clearing.code: (2500.0, 0.0),
+        w.acc.ar.code: (0.0, 2500.0),
+    }
+    assert inv.state == "paid" and inv.amount_residual == 0.0
+    assert _balance(env, w.acc.ar, w.customer) == 0.0
+    assert _balance(env, clearing) == 2500.0
+    # exactly once: a retry and the hourly job find nothing to post
+    order.with_user(w.operator).action_retry_posting()
+    env["fix.storefront.order"]._cron_retry_storefront_postings()
+    assert env["fix.ar.receipt"].search_count([("reference", "=", order.name)]) == 1
+    assert len(inv.allocation_ids) == 1 and _balance(env, clearing) == 2500.0
+
+    if "fix.cod.settlement" not in env:
+        return
+    # M50: the rider remits the cash; the settlement credits COD clearing
+    maker = _mk(env, "sfb_cod_maker_%d" % order.id, "account.group_account_user")
+    checker = _mk(env, "sfb_cod_checker_%d" % order.id, "account.group_account_manager")
+    drawer = env["account.journal"].create(
+        {"name": "SF COD cash %d" % order.id, "type": "cash", "code": "SC%d" % (order.id % 999)}
+    )
+    settlement = env["fix.cod.settlement"].create(
+        {
+            "operating_unit_id": w.ou.id,
+            "rider_id": rider.id,
+            "remittance_journal_id": drawer.id,
+            "remittance_method": "cash",
+            "remitted_amount": 2500.0,
+        }
+    )
+    settlement.action_load_orders()
+    assert settlement.order_ids == order
+    settlement.with_user(maker).action_submit()
+    settlement.with_user(checker).action_settle()
+    assert settlement.state == "settled"
+    assert _balance(env, clearing) == 0.0
+    assert _balance(env, drawer.default_account_id) == 2500.0
+    assert _balance(env, w.acc.ar, w.customer) == 0.0
+    inv.invalidate_recordset()
+    assert inv.state == "paid" and len(inv.allocation_ids) == 1
+
+
+def test_cash_on_delivery_waits_for_the_cod_clearing_account(sf):
+    """No COD clearing account named: the receivable is not closed against a
+    guessed account. The order stays pending with the reason, and once the
+    parameter is set the job books the receipt, once."""
+    w = sf
+    env = w.env
+    w.params.set_param(BILLING + "cod_clearing", False)
+    w.params.set_param(COD_PARAM, False)
+    order, _rider = _courier_delivered(w)
+    inv = order.ar_invoice_id
+    assert order.state == "delivered"  # the delivery is not blocked
     assert order.posting_state == "pending"
-    assert "cash on delivery" in (order.posting_note or "").lower()
+    assert COD_PARAM in (order.posting_note or "")
+    assert inv.state == "issued" and inv.amount_residual == 2500.0
+    assert not env["fix.ar.receipt"].search_count([("reference", "=", order.name)])
+    clearing = _cod_clearing(w)
+    env["fix.storefront.order"]._cron_retry_storefront_postings()
+    env["fix.storefront.order"]._cron_retry_storefront_postings()
+    order.invalidate_recordset()
+    inv.invalidate_recordset()
+    assert order.posting_state == "posted" and not order.posting_note
+    assert inv.state == "paid"
+    assert env["fix.ar.receipt"].search_count([("reference", "=", order.name)]) == 1
+    assert _balance(env, clearing) == 2500.0
 
 
 # ============================================================ fail closed, not blocking

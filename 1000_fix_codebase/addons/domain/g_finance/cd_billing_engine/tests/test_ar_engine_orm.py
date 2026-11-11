@@ -552,6 +552,83 @@ class TestReceiptsAndAllocation:
         receipt2.action_reverse("dishonoured")
         assert receipt2.state == "reversed"
 
+    # G2 (owner decision 12 Nov 2026): a cash-on-delivery receivable never
+    # settled, because M20 had no receipt for the courier's cash and M50's COD
+    # settlement credited COD clearing, never AR.
+    def test_g2_cod_receipt_debits_the_cod_clearing_m50_settles(self, odoo_env):
+        """The courier's cash is an M20 receipt on the COD clearing account the
+        rider settlement credits (treasury's parameter, when M20's own is
+        unset); applying it closes the invoice, once."""
+        shop = _gl_company(odoo_env, "cod")
+        invoice = _issued(shop)  # 1150
+        clearing = (
+            shop.env["account.account"]
+            .with_company(shop.company)
+            .create(
+                {
+                    "name": "Rider COD clearing",
+                    "code": "102999",
+                    "account_type": "asset_current",
+                    "company_ids": [(6, 0, shop.company.ids)],
+                }
+            )
+        )
+        params = shop.env["ir.config_parameter"].sudo()
+        params.set_param("cd_billing_engine.account_code.cod_clearing", False)
+        params.set_param("cd_cash_position.account_code.cod_clearing", "102999")
+        receipt = shop.env["fix.ar.receipt"].create(
+            {
+                "customer_id": shop.customer.id,
+                "amount": 1150.0,
+                "method": "cod",
+                "reference": "SO-COD-1",
+            }
+        )
+        receipt.action_confirm()
+        assert receipt.account_id == clearing
+        assert _postings(odoo_env, receipt.posted_move_id) == sorted(
+            [("102999", 1150.0, 0.0), ("121000", 0.0, 1150.0)]
+        )
+        shop.env["fix.ar.allocation"].create(
+            {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": 1150.0}
+        )
+        assert invoice.state == "paid" and _money(invoice.amount_residual) == D("0.00")
+        # M20's own parameter wins when both are set
+        own = (
+            shop.env["account.account"]
+            .with_company(shop.company)
+            .create(
+                {
+                    "name": "M20 COD clearing",
+                    "code": "102998",
+                    "account_type": "asset_current",
+                    "company_ids": [(6, 0, shop.company.ids)],
+                }
+            )
+        )
+        params.set_param("cd_billing_engine.account_code.cod_clearing", "102998")
+        second = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 10.0, "method": "cod"}
+        )
+        second.action_confirm()
+        assert second.account_id == own
+
+    def test_g2_cod_receipt_without_a_clearing_account_is_refused(self, odoo_env):
+        """No account is guessed: the refusal names both parameters."""
+        shop = _gl_company(odoo_env, "codx")
+        params = shop.env["ir.config_parameter"].sudo()
+        params.set_param("cd_billing_engine.account_code.cod_clearing", False)
+        params.set_param("cd_cash_position.account_code.cod_clearing", False)
+        receipt = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 500.0, "method": "cod"}
+        )
+        with pytest.raises(UserError) as refused:
+            receipt.action_confirm()
+        message = str(refused.value)
+        assert "cd_billing_engine.account_code.cod_clearing" in message
+        assert "cd_cash_position.account_code.cod_clearing" in message
+        assert receipt.state == "draft" and not receipt.posted_move_id
+
 
 # ---------------------------------------------------------------------------
 class TestCreditControlDunningAgeing:

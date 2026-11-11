@@ -476,6 +476,18 @@ class FixVendorInvoiceReturns(models.Model):
         self.ensure_one()
         if self.approval_state == "rejected":
             raise UserError("Bill %s is rejected: it takes no credit note." % self.invoice_ref)
+        # G5: goods that left before this bill was registered were netted by
+        # its three-way match (or belong to an earlier bill): crediting them
+        # here would count the return twice
+        if "fix.stock.rtv" in self.env and source_ref:
+            rtv = self.env["fix.stock.rtv"].sudo().search([("name", "=", source_ref)], limit=1)
+            if rtv and self._fix_return_before_billing(rtv):
+                raise UserError(
+                    "%s went back to the vendor before bill %s was registered: the bill's "
+                    "three-way match netted it from the quantity received, so the vendor bills "
+                    "the net quantity and no credit note for it is raised on this bill."
+                    % (source_ref, self.invoice_ref)
+                )
         split = self._fix_return_split(product, qty)
         withheld = _q(sum(tds for _base, tds in split["tds"].values()))
         return (

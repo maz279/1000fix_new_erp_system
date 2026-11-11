@@ -80,7 +80,11 @@ GUARDED_FIELDS = {
     "match_detail",
     "payment_move_id",
     "payment_failure",
+    "returns_at_registration",
 }
+
+# G5: returns to vendor that count in the match once their goods have left
+RTV_GONE_STATES = ("shipped", "credited")
 
 
 def _q(value):
@@ -183,6 +187,17 @@ class FixVendorInvoice(models.Model):
     # Computed with the state (A06 S6): read on its own it was a stale column
     # that only refreshed when match_state happened to be read first.
     match_detail = fields.Text(readonly=True, compute="_compute_match", store=True)
+    # G5: the returns to vendor of the bill's PO whose goods had already left
+    # when AP registered the bill (",id,id,"), recorded once at registration.
+    # A return gone before ANY bill of its PO billed the part is netted from
+    # the received quantity by the match; one shipped after a bill is credited
+    # on that bill by its RTV credit note. A record, not a clock comparison:
+    # a ship and a registration in the same second are still ordered. Empty on
+    # bills registered before G5: they netted nothing, so every return on
+    # their PO is credited on them as before.
+    returns_at_registration = fields.Char(
+        string="Returns Gone at Registration", readonly=True, copy=False
+    )
     # A06 M16-8: a line's withholding category was defaulted, not chosen.
     tds_category_review = fields.Boolean(
         string="TDS Category to Review",
@@ -309,6 +324,8 @@ class FixVendorInvoice(models.Model):
         "requisition_id.vendor_invoice_ids.bill_type",
         "requisition_id.vendor_invoice_ids.line_ids.product_id",
         "requisition_id.vendor_invoice_ids.line_ids.quantity",
+        "requisition_id.vendor_invoice_ids.returns_at_registration",
+        "returns_at_registration",
     )
     def _compute_match(self) -> None:
         """G3-06: the three-way check — invoice lines vs the PO's approved
@@ -349,6 +366,7 @@ class FixVendorInvoice(models.Model):
             po_lines = {}
             for po_line in po.line_ids:
                 po_lines.setdefault(po_line.product_id.id, []).append(po_line)
+            gone_before_billing = inv._fix_returns_before_billing(po)
             invoiced, label, order = {}, {}, []
             for line in inv.line_ids:
                 pid = line.product_id.id
@@ -373,9 +391,22 @@ class FixVendorInvoice(models.Model):
                     for other_line in other.line_ids
                     if other_line.product_id.id == pid
                 )
-                qty_ok = Decimal(str(round(accepted - prior, 6))) >= Decimal(str(invoiced[pid]))
+                # G5: goods sent back before any bill billed them are not
+                # billable; a return from quarantine first uses up the units
+                # inspection rejected (never part of the accepted quantity)
+                from_stock, from_quarantine = gone_before_billing.get(pid, (0.0, 0.0))
+                gone = from_stock + max(from_quarantine - rejected, 0.0)
+                qty_ok = Decimal(str(round(accepted - gone - prior, 6))) >= Decimal(
+                    str(invoiced[pid])
+                )
                 if not qty_ok:
-                    if prior:
+                    if gone:
+                        text = (
+                            "%s: received %.2f, %.2f returned to the vendor before it was "
+                            "billed, %.2f already invoiced on other bills, invoiced %.2f"
+                            % (label[pid], accepted, gone, prior, invoiced[pid])
+                        )
+                    elif prior:
                         text = (
                             "%s: received %.2f, %.2f already invoiced on other bills, "
                             "invoiced %.2f" % (label[pid], accepted, prior, invoiced[pid])
@@ -405,6 +436,82 @@ class FixVendorInvoice(models.Model):
                 inv.match_state = "matched"
                 inv.match_detail = "PO / receipt / invoice reconciled"
 
+    def _fix_returns_before_billing(self, po):
+        """G5 (owner decision 12 Nov 2026): {product id: (qty returned from
+        stock, qty returned from quarantine)} of the PO's returns to vendor
+        (fix.stock.rtv, M15) whose goods left (shipped or credited) before any
+        live bill of the PO billed that product. The vendor bills the net
+        quantity for those, so the match nets them from what was received.
+        A return shipped after a bill is credited on that bill by its RTV
+        credit note and is not netted here (it would count twice).
+        Without the inventory module there are no returns to net."""
+        if "fix.stock.rtv" not in self.env or not po:
+            return {}
+        rtvs = (
+            self.env["fix.stock.rtv"]
+            .sudo()
+            .search([("purchase_order_id", "=", po.id), ("state", "in", RTV_GONE_STATES)])
+        )
+        if not rtvs:
+            return {}
+        bills = po.sudo().vendor_invoice_ids.filtered(
+            lambda b: b.bill_type == "po" and b.approval_state != "rejected"
+        )
+        out = {}
+        for rtv in rtvs:
+            product = rtv.part_id.product_id
+            if not product:
+                continue
+            if rtv.id not in self._fix_returns_seen():
+                continue  # it left after this bill was registered
+            billed_before = bills.filtered(
+                lambda b, p=product, r=rtv.id: p in b.line_ids.product_id
+                and r not in b._fix_returns_seen()
+            )
+            if billed_before:
+                continue  # an earlier bill billed it: its credit note carries it
+            stock, quarantine = out.get(product.id, (0.0, 0.0))
+            if rtv.quarantine_id:
+                quarantine += rtv.qty or 0.0
+            else:
+                stock += rtv.qty or 0.0
+            out[product.id] = (stock, quarantine)
+        return out
+
+    def _fix_gone_returns(self, po):
+        """The ids of the PO's returns to vendor whose goods have left."""
+        if "fix.stock.rtv" not in self.env or not po:
+            return set()
+        return set(
+            self.env["fix.stock.rtv"]
+            .sudo()
+            .search([("purchase_order_id", "=", po.id), ("state", "in", RTV_GONE_STATES)])
+            .ids
+        )
+
+    def _fix_returns_seen(self):
+        """G5: the returns gone when this bill was registered (an unsaved
+        bill: the ones gone now)."""
+        self.ensure_one()
+        if not isinstance(self._origin.id or self.id, int):
+            return self._fix_gone_returns(self.requisition_id.sudo())
+        return {int(x) for x in (self.returns_at_registration or "").split(",") if x}
+
+    def _fix_record_returns_seen(self):
+        for bill in self:
+            gone = sorted(bill._fix_gone_returns(bill.requisition_id.sudo()))
+            bill._guarded().write(
+                {"returns_at_registration": ",%s," % ",".join(map(str, gone)) if gone else False}
+            )
+
+    def _fix_return_before_billing(self, rtv):
+        """G5: True when the goods of `rtv` had left before this bill was
+        registered. Either no earlier bill billed them, so the match netted
+        them and the vendor billed net, or an earlier bill did and carries
+        their credit. Either way no credit note for them is raised here."""
+        self.ensure_one()
+        return rtv.id in self._fix_returns_seen()
+
     @api.depends("line_ids.tds_category_assumed")
     def _compute_tds_category_review(self):
         for inv in self:
@@ -414,12 +521,22 @@ class FixVendorInvoice(models.Model):
         """AP confirms the default category is the right one for these lines.
         The reviewer is an Accountant or Accounting Administrator; the
         confirmation (who, which categories) is written to the approval log
-        the approvers read."""
+        the approvers read.
+
+        G4 (owner decision 12 Nov 2026): a second person. The bill's creator
+        or submitter does not confirm the category of their own bill, and the
+        confirmer does not then submit it (_check_tds_confirmer)."""
         require_finance(self.env, "Confirming a TDS category")
         for inv in self:
             assumed = inv.line_ids.filtered("tds_category_assumed")
             if not assumed:
                 continue
+            makers = inv.sudo().create_uid | inv.sudo().submitted_by
+            if not self.env.su and self.env.user in makers:
+                raise UserError(
+                    "Segregation of duties: you created or submitted bill %s, so another "
+                    "accountant confirms its defaulted TDS category." % inv.invoice_ref
+                )
             assumed.write({"tds_category_assumed": False})
             inv._log(
                 "tds_confirm",
@@ -451,6 +568,21 @@ class FixVendorInvoice(models.Model):
                     self.vendor_id.display_name,
                     "" if self.approval_state == "draft" else "; reject the bill to draft first",
                 )
+            )
+
+    def _check_tds_confirmer(self):
+        """G4: whoever confirmed the defaulted TDS category is the second
+        person; they do not submit the bill as well."""
+        self.ensure_one()
+        if self.env.su:
+            return
+        confirmers = (
+            self.sudo().approval_log_ids.filtered(lambda log: log.action == "tds_confirm").user_id
+        )
+        if self.env.user in confirmers:
+            raise UserError(
+                "Segregation of duties: you confirmed the defaulted TDS category of bill %s, "
+                "so another person submits it." % self.invoice_ref
             )
 
     @api.constrains("vds_rate_id")
@@ -493,7 +625,9 @@ class FixVendorInvoice(models.Model):
             profile = Profile.for_partner(Partner.browse(vals["vendor_id"]), company)
             if profile.default_vds_rate_id and not profile.vds_exempt:
                 vals["vds_rate_id"] = profile.default_vds_rate_id.id
-        return super().create(vals_list)
+        bills = super().create(vals_list)
+        bills._fix_record_returns_seen()  # G5
+        return bills
 
     def write(self, vals):
         # The lock yields to a transition (guard token) or superuser code only:
@@ -512,7 +646,11 @@ class FixVendorInvoice(models.Model):
                         "Bill %s is %s — reset it to draft (reject) before changing %s"
                         % (locked[0].invoice_ref, locked[0].approval_state, ", ".join(changed))
                     )
-        return super().write(vals)
+        result = super().write(vals)
+        if "requisition_id" in vals:
+            # G5: a draft bill re-pointed at another PO is registered against it now
+            self.filtered(lambda inv: inv.approval_state == "draft")._fix_record_returns_seen()
+        return result
 
     def unlink(self):
         if self.filtered(lambda inv: inv.approval_state != "draft" or inv.move_id):
@@ -543,6 +681,11 @@ class FixVendorInvoice(models.Model):
         is paid: a blocked or unmatched PO bill was submitted, approved and
         posted to the GL. A non-PO bill ('not_required') keeps its route."""
         self.ensure_one()
+        # G5: the match also reads returns to vendor (M15), which this module
+        # cannot declare as a dependency: decide on a fresh match, not the
+        # stored one
+        for name in ("match_state", "match_detail"):
+            self.env.add_to_compute(self._fields[name], self)
         if self.match_state not in PAYABLE_MATCH_STATES:
             raise UserError(
                 "G3-06: bill %s cannot be %s while its three-way match is %s (%s)"
@@ -592,6 +735,7 @@ class FixVendorInvoice(models.Model):
                 raise UserError("Bill %s has no positive lines" % inv.invoice_ref)
             inv._check_match_gate("submitted for approval")
             inv._check_tds_category_reviewed("submitted for approval")
+            inv._check_tds_confirmer()
             dup = inv._duplicates()
             if dup:
                 raise UserError(

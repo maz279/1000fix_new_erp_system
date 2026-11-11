@@ -21,7 +21,11 @@
 #   receipt  the M20 receipt that proved the payment is applied to that
 #            invoice (fix.ar.allocation); a payment proved by the signed
 #            gateway callback is first captured as an M20 receipt on the
-#            channel clearing (Dr channel / Cr AR), as AR receipts are.
+#            channel clearing (Dr channel / Cr AR), as AR receipts are. Cash
+#            on delivery is captured on the verified delivery (G2): a courier
+#            delivery as an M20 cod receipt (Dr COD clearing / Cr AR, which
+#            M50's rider settlement clears against cash or bank), a branch
+#            pickup as a cash receipt.
 #   stock    when the order is dispatched - the goods leave the store - each
 #            line's spare part leaves the M15 ledger at its average cost and
 #            books its valuation suspense row, as every other issue does.
@@ -571,20 +575,91 @@ class FixStorefrontOrderBooks(models.Model):
         receipt.action_confirm()
         return receipt
 
+    def _sfb_capture_cod_receipt(self):
+        """G2 (owner decision 12 Nov 2026): a cash-on-delivery order is paid
+        at the door, against the proof of delivery. The cash is booked once,
+        as the M20 receipt that closes the invoice:
+
+        * a courier delivery: method cod, Dr COD clearing / Cr AR. The rider
+          owes the cash until M50's COD settlement remits it (Dr cash or bank /
+          Cr COD clearing), which touches no receivable;
+        * a branch pickup: the cash is in the branch's hand, method cash
+          (Dr cash / Cr AR). A cash receipt the cashier already captured for
+          the order (reference = the order number; e.g. with the customer NID
+          the high-value cash rule asks for) is used instead.
+
+        An account that does not resolve refuses the confirmation; the order
+        stays pending with that reason and the retry books it once."""
+        invoice = self.ar_invoice_id
+        counter = self.shipping_method == "branch_pickup" or not self.carrier_consignment_id
+        if counter:
+            found = self._sf_find_m20_receipt(self.name)
+            if found:
+                return found
+        receipt = (
+            self.env["fix.ar.receipt"]
+            .sudo()
+            .create(
+                {
+                    "company_id": self.company_id.id,
+                    "operating_unit_id": invoice.operating_unit_id.id,
+                    "customer_id": invoice.customer_id.id,
+                    "currency_id": self.currency_id.id,
+                    "amount": self.total_amount,
+                    "method": "cash" if counter else "cod",
+                    "reference": self.name,
+                    "receipt_date": self._sfb_day(self.delivered_at),
+                }
+            )
+        )
+        consignment = self.carrier_consignment_id.sudo()
+        if counter:
+            how = "handed over at the branch counter"
+        else:
+            how = "delivered on consignment %s%s" % (
+                consignment.name,
+                (" by rider %s" % consignment.rider_id.name)
+                if "rider_id" in consignment._fields and consignment.rider_id
+                else "",
+            )
+        receipt.message_post(
+            body="Cash on delivery of storefront order %s, %s: captured by the storefront "
+            "bridge on the verified delivery." % (self.name, how)
+        )
+        try:
+            receipt.action_confirm()
+        except UserError as exc:
+            hint = (
+                " Or record the cash as a confirmed M20 receipt of the customer with reference "
+                "%s, then retry." % self.name
+                if counter
+                else ""
+            )
+            raise UserError(
+                "Cash on delivery of %s: %s%s" % (self.name, _message(exc), hint)
+            ) from exc
+        return receipt
+
+    def _sfb_cod_receipt_elsewhere(self) -> bool:
+        """M50's COD settlement asks: was this order's receivable settled by
+        money that did not land in COD clearing (a prepayment, a counter cash
+        receipt)? Then a rider settlement must not count it again."""
+        self.ensure_one()
+        receipt = self.sudo().ar_receipt_id
+        return bool(receipt) and receipt.method != "cod"
+
     def _sfb_leg_receipt(self):
         """Apply the order's receipt to its invoice (never a credit left
         floating on the customer)."""
         invoice = self.ar_invoice_id
-        if not self.payment_date:
-            raise UserError(
-                "Cash on delivery: the receivable of %.2f stays open until the cash collected "
-                "is applied to invoice %s (M20 has no COD collection receipt; the COD "
-                "settlement credits the COD clearing account)."
-                % (invoice.amount_residual, invoice.name)
-            )
         receipt = self.ar_receipt_id or self.payment_receipt_id
         if not receipt:
-            receipt = self._sfb_capture_gateway_receipt()
+            # _sfb_receipt_owed: no payment date means a delivered COD order
+            receipt = (
+                self._sfb_capture_gateway_receipt()
+                if self.payment_date
+                else self._sfb_capture_cod_receipt()
+            )
         if receipt != self.ar_receipt_id:
             self._guarded().write({"ar_receipt_id": receipt.id})
         receipt = receipt.sudo()
