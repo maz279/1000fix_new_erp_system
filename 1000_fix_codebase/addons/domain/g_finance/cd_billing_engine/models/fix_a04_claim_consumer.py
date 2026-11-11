@@ -115,6 +115,11 @@ class FixA04ClaimConsumers(models.AbstractModel):
                 "currency_id": claim.currency_id.id,
                 "source_model": claim._name,
                 "source_id": claim.id,
+                # FR-ARB-010: an invoice not raised from a closed order is
+                # issued only with a reason. Without it the hand-off's draft
+                # could never be issued (E2E3 E3-06, fix_real copy, 11 Nov).
+                "manual_reason": "Warranty claim %s - OEM reimbursement (%s)"
+                % (claim.claim_no, brand.code),
                 "line_ids": [
                     (
                         0,

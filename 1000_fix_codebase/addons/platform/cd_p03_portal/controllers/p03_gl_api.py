@@ -842,11 +842,17 @@ class P03GlApiController(http.Controller):
                     ("odoo_account_id", "!=", False),
                     ("name", "ilike", name_like),
                 ]
-            return env["fix.chart.account"].sudo().search(domain, limit=1)
+            found = env["fix.chart.account"].sudo().search(domain, limit=1)
+            if found or name_like:
+                return found
+            # E2E3 (fix_real copy, 11 Nov 2026): an estate on its own legacy
+            # chart has no statutory register rows, so every row read "not
+            # configured". Fall back to the control the posting engines use.
+            return self._posting_control(env, company, subledger)
 
         rows = []
 
-        def add_row(label, control, subledger_total):
+        def add_row(label, control, subledger_total, breakdown=None):
             if not control:
                 rows.append(
                     {
@@ -871,27 +877,60 @@ class P03GlApiController(http.Controller):
                     "status": (
                         "matched" if variance is not None and abs(variance) < 0.01 else "variance"
                     ),
+                    "breakdown": breakdown or {},
                 }
             )
 
+        # The sub-ledger is what the documents still say is owed: an issued
+        # invoice's residual (a draft never reached the ledger, and an issued
+        # invoice's full total ignored its receipts), a POSTED bill's open
+        # payable (every bill in any state was summed), plus the take-on
+        # opening lines still open. A variance is then real: an un-applied
+        # receipt or payment, or a manual journal on the control.
         try:
-            ar_open = sum(
-                env["fix.ar.invoice"]
-                .sudo()
-                .search([("state", "in", ("draft", "issued")), ("company_id", "=", company.id)])
-                .mapped("total_payable")
+            control = control_for("receivable")
+            invoices = round(
+                sum(
+                    env["fix.ar.invoice"]
+                    .sudo()
+                    .search(
+                        [
+                            ("state", "not in", ("draft", "cancelled")),
+                            ("company_id", "=", company.id),
+                        ]
+                    )
+                    .mapped("amount_residual")
+                ),
+                2,
             )
-            add_row("AR — Trade receivables", control_for("receivable"), ar_open)
+            opening = self._takeon_open(env, company, control)
+            add_row(
+                "AR — Trade receivables",
+                control,
+                invoices + opening,
+                {"open_invoices": invoices, "takeon_open": opening},
+            )
         except Exception:
             _logger.debug("subledger recon row skipped: AR trade receivables", exc_info=True)
         try:
-            ap_open = sum(
-                env["fix.vendor.invoice"]
-                .sudo()
-                .search([("company_id", "=", company.id)])
-                .mapped("total_payable")
+            control = control_for("payable")
+            bills = 0.0
+            if control:
+                lines = (
+                    env["fix.vendor.invoice"]
+                    .sudo()
+                    .search([("company_id", "=", company.id), ("move_id.state", "=", "posted")])
+                    .mapped("move_id.line_ids")
+                    .filtered(lambda ml: ml.account_id == control.odoo_account_id)
+                )
+                bills = round(sum(lines.mapped("amount_residual")), 2)
+            opening = self._takeon_open(env, company, control)
+            add_row(
+                "AP — Trade payables",
+                control,
+                bills + opening,
+                {"open_bills": bills, "takeon_open": opening},
             )
-            add_row("AP — Trade payables", control_for("payable"), ap_open)
         except Exception:
             _logger.debug("subledger recon row skipped: AP trade payables", exc_info=True)
         try:
@@ -922,6 +961,53 @@ class P03GlApiController(http.Controller):
             _logger.debug("subledger recon row skipped: commission clearing", exc_info=True)
         return {"rows": rows, "company": company.name}
 
+    @staticmethod
+    def _posting_control(env, company, subledger):
+        """The control account the posting engines use, shaped like a
+        statutory register row (account_code, name, odoo_account_id)."""
+        from types import SimpleNamespace
+
+        params = env["ir.config_parameter"].sudo()
+        code = {
+            "receivable": params.get_param("cd_billing_engine.account_code.ar")
+            or params.get_param("cd_gl_ext.ledger_takeon.receivable_account_code"),
+            "payable": params.get_param("cd_gl_ext.ledger_takeon.payable_account_code"),
+        }.get(subledger)
+        if not code:
+            return None
+        account = (
+            env["account.account"]
+            .sudo()
+            .with_company(company)
+            .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+        )
+        if not account:
+            return None
+        return SimpleNamespace(
+            account_code=account.code, name=account.name, odoo_account_id=account
+        )
+
+    @staticmethod
+    def _takeon_open(env, company, control) -> float:
+        """The take-on opening lines (legacy take-on journal) still open on
+        the control account."""
+        if not control:
+            return 0.0
+        lines = (
+            env["account.move.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("parent_state", "=", "posted"),
+                    ("account_id", "=", control.odoo_account_id.id),
+                    ("journal_id.code", "=", "MIG"),
+                ]
+            )
+        )
+        return round(sum(lines.mapped("amount_residual")), 2)
+
+    # ---------------------------------------------------------------- audit
     # ---------------------------------------------------------------- audit
 
     @http.route("/p03/gl/audit", type="jsonrpc", auth="user", readonly=True)

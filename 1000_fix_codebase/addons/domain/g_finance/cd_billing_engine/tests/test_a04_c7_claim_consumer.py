@@ -144,3 +144,17 @@ def test_only_the_relay_may_run_the_consumer(w):
     event = _event_dict(w.env, claim)
     with pytest.raises(AccessError, match="event relay"):
         (w.env["fix.a04.claim.consumers"].with_user(w.plain).consume_warranty_claim_decided(event))
+
+
+def test_the_oem_draft_can_be_issued_as_raised(w):
+    # E3-06 (E2E rehearsal on a fix_real copy, 11 Nov 2026): the draft had no
+    # FR-ARB-010 reason, so finance's Issue refused it every time.
+    env = w.env
+    env["res.partner"].create({"name": "OEM %s" % w.brand.name, "ref": w.brand.code})
+    claim = _submitted(w)
+    claim.action_decide(approved=True)
+    _relay(env)
+    (invoice,) = _invoices(env, claim)
+    assert claim.claim_no in invoice.manual_reason
+    invoice.sudo().action_issue()
+    assert invoice.state != "draft"
