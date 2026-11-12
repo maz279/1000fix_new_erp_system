@@ -55,6 +55,12 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
     ports: ["127.0.0.1:5433:5432"]   # 5433: a neighbouring project's postgres
                                        # holds 5432 on this shared workstation
+    # Parallel queries and parallel index builds take their shared memory from
+    # /dev/shm. Docker's 64 MB default ran out under parallel test runs:
+    # "could not resize shared memory segment ... No space left on device",
+    # then a backend segfault and a 30+ minute crash recovery that took every
+    # database down (5 Nov and 12 Nov 2026). Idle use is already ~32 MB.
+    shm_size: "1gb"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
