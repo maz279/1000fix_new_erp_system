@@ -70,3 +70,6 @@ access_fix_ar_ecl_rate_account_user,fix.ar.ecl.rate.account.user,model_fix_ar_ec
 access_fix_ar_ecl_rate_account_manager,fix.ar.ecl.rate.account.manager,model_fix_ar_ecl_rate,account.group_account_manager,1,1,1,0
 access_fix_payment_method,fix.payment.method,model_fix_payment_method,base.group_user,1,0,0,0
 access_fix_payment_method_manager,fix.payment.method.manager,model_fix_payment_method,account.group_account_manager,1,1,1,1
+access_fix_tds_certificate_received_account_readonly,fix.tds.certificate.received.account.readonly,model_fix_tds_certificate_received,account.group_account_readonly,1,0,0,0
+access_fix_tds_certificate_received_account_user,fix.tds.certificate.received.account.user,model_fix_tds_certificate_received,account.group_account_user,1,1,1,0
+access_fix_tds_certificate_received_account_manager,fix.tds.certificate.received.account.manager,model_fix_tds_certificate_received,account.group_account_manager,1,1,1,0

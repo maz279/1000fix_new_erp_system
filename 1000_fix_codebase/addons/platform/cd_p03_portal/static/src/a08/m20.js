@@ -40,6 +40,7 @@ export const MODULE = {
       { id: 'M20-links', en: 'Payment Links', bn: 'পেমেন্ট লিংক', t: 'g' },
       { id: 'M20-allocation', en: 'Matching & Allocation', bn: 'মিলকরণ', t: 'c' },
       { id: 'M20-vds', en: 'Customer VDS Certificates (Mushak 6.6)', bn: 'গ্রাহকের উৎসে ভ্যাট কর্তন সনদ (মুশক ৬.৬)', t: 'g' },
+      { id: 'M20-tds', en: 'Customer TDS / AIT Certificates', bn: 'গ্রাহকের উৎসে আয়কর কর্তন সনদ', t: 'g' },
       { id: 'M20-closeout', en: 'Invoice Settlement Close-out', bn: 'ইনভয়েস নিষ্পত্তি সমাপন', t: 'g' },
       { id: 'M20-unapplied', en: 'Unapplied Receipts', bn: 'অপ্রয়োগকৃত রসিদ', t: 'g' }
     ]},
@@ -59,7 +60,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity', 'VDS Received Register', 'AR Sub-ledger to GL Reconciliation'],
-  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'Write-off', 'ECL Loss Rates'],
+  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'TDS Certificate', 'Write-off', 'ECL Loss Rates'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 99, sub: [
     ['1', 'Billable-Event Intake', 12, { model: 'fix.ar.invoice', cols: ['name', 'source_model', 'source_id', 'invoice_date', 'state'], screens: ['M20-events'], reports: ['Invoice Accuracy'], forms: [], create: false }],
@@ -67,7 +68,7 @@ export const MODULE = {
     ['3', 'Mushak 6.3 Rendering', 8, { model: 'fix.ar.invoice', cols: ['name', 'mushak_id', 'generated_at', 'vat_amount', 'total_payable'], screens: ['M20-invoice'], reports: [], forms: [], create: false }],
     ['4', 'Delivery Channels', 6, { model: 'fix.ar.consolidated.bill', cols: ['bill_ref', 'customer_id', 'period_start', 'total_payable', 'state'], screens: ['M20-statements', 'M20-ar-consolidated-bill'], reports: [], forms: [] }],
     ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links'], reports: ['Payment Method Mix'], forms: ['Receipt', 'Payment Link'] }],
-    ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-closeout', 'M20-vds', 'M20-vds-register'], reports: ['VDS Received Register', 'AR Sub-ledger to GL Reconciliation'], forms: ['VDS Certificate'], create: false }],
+    ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-closeout', 'M20-vds', 'M20-tds', 'M20-vds-register'], reports: ['VDS Received Register', 'AR Sub-ledger to GL Reconciliation'], forms: ['VDS Certificate', 'TDS Certificate'], create: false }],
     ['7', 'Credit Control', 9, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'exposure', 'over_limit', 'credit_hold'], screens: ['M20-credit', 'M20-aging', 'M20-ecl'], reports: ['AR Ageing by Segment', 'Brand Receivable Ageing'], forms: ['Write-off', 'ECL Loss Rates'] }],
     ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-disputes', 'M20-ar-dispute'], reports: ['Dunning Effectiveness', 'Collections Productivity'], forms: [] }],
     ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register'], reports: [], forms: ['Credit Note', 'Refund'] }],
@@ -197,8 +198,16 @@ export const SCREENS = {
     cols: ['name','customer_id','invoice_id','certificate_no','certificate_date','period','vds_amount','state'],
     stateField: 'state',
     actions: [{m:'action_verify',l:'Verify (checker)'},{m:'action_settle',l:'Settle against Receivable'},{m:'action_cancel',l:'Cancel'}] },
+  /* Income tax deducted at source by corporate / government customers
+   * (ITA 2023 s.89 supply, s.90 services): verify, then settle the TDS part
+   * of the receivable to the advance income tax (AIT) account. */
+  'M20-tds': { kind: 'model_list', model: 'fix.tds.certificate.received',
+    empty: 'No TDS certificate recorded. When a corporate customer deducts income tax at source, record its certificate here so the invoice stops ageing as unpaid.',
+    cols: ['name','customer_id','invoice_id','certificate_no','certificate_date','tax_section','tds_amount','state'],
+    stateField: 'state',
+    actions: [{m:'action_verify',l:'Verify (checker)'},{m:'action_settle',l:'Settle against Receivable'},{m:'action_cancel',l:'Cancel'}] },
   'M20-closeout': { empty: 'No invoice is waiting for close-out.', kind: 'model_list', model: 'fix.ar.invoice',
-    cols: ['name','customer_id','invoice_date','total_payable','amount_paid','credited_amount','vds_settled_amount','amount_residual','state'],
+    cols: ['name','customer_id','invoice_date','total_payable','amount_paid','credited_amount','vds_settled_amount','tds_settled_amount','amount_residual','state'],
     domain: [['state','=','issued']], create: false,
     actions: [{m:'action_register_paid',l:'Register Paid (residual covered)'}] },
   'M20-vds-register': { kind: 'table_report', module: 'M20', report: 'vds_claim_register', title: 'VDS Received Register' },
@@ -239,11 +248,12 @@ export const SCREENS = {
     sections: [
       {
         title: 'Receipt Capture',
-        note: 'FR-ARB-024..028: eight tenders, two-stage clearing. Capturing a receipt creates a DRAFT — Confirming posts Dr channel-account / Cr AR through M19. The branch dimension is required by the chart (COA-03); without one the confirm is refused rather than posted without a branch.',
+        note: 'FR-ARB-024..028: the payment method comes from the one customer payment-method list (Rocket, Upay, RTGS included) and sets the tender the receipt books as; two-stage clearing. Capturing a receipt creates a DRAFT — Confirming posts Dr channel-account / Cr AR through M19. The branch dimension is required by the chart (COA-03); without one the confirm is refused rather than posted without a branch.',
         fields: [
           { name: 'customer_id', required: true, label: 'Customer' },
           { name: 'amount', required: true, label: 'Amount (BDT)' },
-          { name: 'method', required: true, label: 'Tender Method' },
+          { name: 'payment_method_id', required: true, label: 'Payment Method' },
+          { name: 'method', readonly: true, label: 'Booked As (set by the payment method)' },
           { name: 'reference', label: 'Reference (TrxID / cheque no)' },
           { name: 'receipt_date', required: true, label: 'Receipt Date' },
           { name: 'branch_id', required: true, label: 'Collecting Branch' },
@@ -372,6 +382,62 @@ export const SCREENS = {
     ]
   },
 
+  'M20-form-tds': {
+    kind: 'model_form',
+    model: 'fix.tds.certificate.received',
+    title: 'TDS / AIT Certificate',
+    back: 'M20-tds',
+    status: { field: 'state', labels: { draft: 'Draft', verified: 'Verified', settled: 'Settled against Receivable', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'certificate', label: 'Certificate', bn: 'সনদ' },
+      { id: 'invoice', label: 'Invoice', bn: 'ইনভয়েস' },
+      { id: 'verification', label: 'Verification & Settlement', bn: 'যাচাই ও নিষ্পত্তি' }
+    ],
+    sections: [
+      {
+        tab: 'certificate',
+        title: 'Certificate of Tax Deducted at Source',
+        note: 'A corporate or government customer deducts income tax at source (Income Tax Act 2023 s.89 supply / contract, s.90 services) and issues a certificate. Record it here; a second person verifies it against the original; Settle then clears that part of the receivable to the advance income tax (AIT) account.',
+        fields: [
+          { name: 'invoice_id', required: true, label: 'Original Invoice' },
+          { name: 'certificate_no', required: true, label: 'Certificate No' },
+          { name: 'certificate_date', required: true, label: 'Certificate Date' },
+          { name: 'tax_section', required: true, label: 'Deducted Under (section)' },
+          { name: 'tds_amount', required: true, label: 'Tax Deducted (BDT)' },
+          { name: 'customer_tin', label: 'Deductor e-TIN' },
+          { name: 'challan_no', label: 'Treasury Challan No' },
+          { name: 'challan_date', label: 'Challan Date' },
+          { name: 'note', label: 'Note', type: 'text' }
+        ]
+      },
+      {
+        tab: 'invoice',
+        title: 'Invoice (system)',
+        note: 'The tax recorded on an invoice can never exceed what is still open on it.',
+        fields: [
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'invoice_total', readonly: true, label: 'Invoice Total' },
+          { name: 'invoice_residual', readonly: true, label: 'Open Residual' },
+          { name: 'operating_unit_id', readonly: true, label: 'Operating Unit' }
+        ]
+      },
+      {
+        tab: 'verification',
+        title: 'Verification & Settlement (system)',
+        note: 'Verify and Settle from the TDS register. The preparer cannot verify; settlement posts Dr AIT receivable / Cr AR.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference (auto)' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'verified_by_id', readonly: true, label: 'Verified By' },
+          { name: 'verified_at', readonly: true, label: 'Verified On' },
+          { name: 'settled_move_id', readonly: true, label: 'Settlement GL Move' },
+          { name: 'settled_at', readonly: true, label: 'Settled On' }
+        ]
+      }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
   'M20-ar-dispute': { empty: 'No open dispute. A dispute is raised against an invoice by the customer or by the collections team.', kind: 'model_list', model: 'fix.ar.dispute', stateField: 'state', create: false,
     cols: ['name', 'state', 'invoice_id', 'amount_disputed', 'reason', 'outcome_code', 'resolution_note', 'resolved_by'],
@@ -417,6 +483,7 @@ export const FORM_MODELS = {
   'M20:Receipt': 'fix.ar.receipt',
   'M20:Payment Link': 'fix.ar.payment.link',
   'M20:VDS Certificate': 'fix.vds.certificate.received',
+  'M20:TDS Certificate': 'fix.tds.certificate.received',
   'M20:Write-off': 'fix.ar.writeoff',
   'M20:ECL Loss Rates': 'fix.ar.ecl.rate',
 };
@@ -429,6 +496,7 @@ export const FORM_CHIPS = {
   'M20:Refund': 'M20-form-note',
   'M20:Payment Link': 'M20-form-link',
   'M20:VDS Certificate': 'M20-form-vds',
+  'M20:TDS Certificate': 'M20-form-tds',
   'M20:Write-off': 'M20-form-writeoff',
   'M20:ECL Loss Rates': 'M20-form-ecl-rate',
   'M20:__by_model__': {
@@ -439,13 +507,15 @@ export const FORM_CHIPS = {
     'fix.ar.receipt': 'M20-form-receipt',
     'fix.credit.note': 'M20-form-note',
     'fix.ar.payment.link': 'M20-form-link',
-    'fix.vds.certificate.received': 'M20-form-vds'
+    'fix.vds.certificate.received': 'M20-form-vds',
+    'fix.tds.certificate.received': 'M20-form-tds'
   },
   'M20:__by_screen__': {
     'M20-ecl': 'M20-form-ecl',
     'M20-ecl-rates': 'M20-form-ecl-rate',
     'M20-writeoffs': 'M20-form-writeoff',
     'M20-vds': 'M20-form-vds',
+    'M20-tds': 'M20-form-tds',
     'M20-notes-register': 'M20-form-note'
   }
 };

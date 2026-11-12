@@ -10,6 +10,7 @@ from . import (
     fix_part_exemption_billing,
     fix_party_merge_consumer,
     fix_payment_method,
+    fix_tds_certificate,
     fix_vds_certificate,
 )
 

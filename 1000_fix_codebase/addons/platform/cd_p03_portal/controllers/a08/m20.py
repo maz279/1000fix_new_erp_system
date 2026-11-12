@@ -78,6 +78,12 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_verify", "action_settle", "action_cancel"},
     },
+    # customer TDS / AIT certificates (income tax deducted at source)
+    "fix.tds.certificate.received": {
+        "order": "certificate_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_verify", "action_settle", "action_cancel"},
+    },
     "fix.ar.consolidated.bill": {
         "order": "id desc",
         "limit": 400,

@@ -852,6 +852,8 @@ export const P03_BN = {
   "Customer Statement": "গ্রাহক স্টেটমেন্ট",
   "Pick a customer": "একজন গ্রাহক নির্বাচন করুন",
   "Customer and amount are required": "গ্রাহক ও পরিমাণ আবশ্যক",
+  "Customer, amount and payment method are required": "গ্রাহক, পরিমাণ ও পেমেন্ট মাধ্যম আবশ্যক",
+  "Payment Method": "পেমেন্ট মাধ্যম",
   "Statement exported": "স্টেটমেন্ট এক্সপোর্টকৃত",
   "Pick a customer and press Run — statements are computed live, never stored.": "গ্রাহক নির্বাচন করে চালান চাপুন — স্টেটমেন্ট লাইভ হিসাব হয়, কখনো সংরক্ষিত হয় না।",
   "No movement in the window.": "এই সময়ে কোনো লেনদেন নেই।",

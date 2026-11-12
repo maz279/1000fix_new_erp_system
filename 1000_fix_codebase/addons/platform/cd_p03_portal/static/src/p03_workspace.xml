@@ -2645,9 +2645,10 @@
                                             </select>
                                         </div>
                                         <div class="fld"><label><t t-esc='t("Amount (BDT)")'/></label><input type="number" step="0.01" t-on-input="(ev) => this.arReceiptFormSet('amount', ev.target.value)"/></div>
-                                        <div class="fld"><label><t t-esc='t("Method")'/></label>
-                                            <select t-on-change="(ev) => this.arReceiptFormSet('method', ev.target.value)">
-                                                <option t-foreach="state.gl.data.methods" t-as="m" t-key="m" t-att-value="m"><t t-esc="m"/></option>
+                                        <div class="fld"><label><t t-esc='t("Payment Method")'/></label>
+                                            <select t-on-change="(ev) => this.arReceiptFormSet('payment_method_id', ev.target.value)">
+                                                <option value=""><t t-esc='t("— pick —")'/></option>
+                                                <option t-foreach="state.gl.data.payment_methods || []" t-as="pm" t-key="pm.id" t-att-value="pm.id"><t t-esc="pm.name"/></option>
                                             </select>
                                         </div>
                                         <div class="fld"><label><t t-esc='t("Reference (TrxID/cheque)")'/></label><input type="text" t-on-input="(ev) => this.arReceiptFormSet('reference', ev.target.value)"/></div>
