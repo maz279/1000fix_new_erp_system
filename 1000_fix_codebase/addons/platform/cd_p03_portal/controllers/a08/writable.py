@@ -95,8 +95,8 @@ WRITABLE = {
             "amount",
             "branch_id",
             "customer_id",
-            "method",
             "nid_captured",
+            "payment_method_id",
             "receipt_date",
             "reference",
         }
@@ -1018,6 +1018,19 @@ WRITABLE = {
             "rate",
             "section",
             "tax_kind",
+        }
+    ),
+    "fix.tds.certificate.received": frozenset(
+        {
+            "certificate_date",
+            "certificate_no",
+            "challan_date",
+            "challan_no",
+            "customer_tin",
+            "invoice_id",
+            "note",
+            "tax_section",
+            "tds_amount",
         }
     ),
     "fix.tds.return": frozenset(

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — Customer TDS / AIT certificates (income tax deducted
+     at source, ITA 2023 s.89/s.90), M20. The P03 workspace screen M20-tds
+     opens these forms; this is also the backend fallback. -->
+<odoo>
+    <record id="view_fix_tds_certificate_received_list" model="ir.ui.view">
+        <field name="name">fix.tds.certificate.received.list</field>
+        <field name="model">fix.tds.certificate.received</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'cancelled'" decoration-success="state == 'settled'">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="invoice_id"/>
+                <field name="certificate_no"/>
+                <field name="certificate_date"/>
+                <field name="tax_section"/>
+                <field name="tds_amount" sum="Total TDS"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_tds_certificate_received_form" model="ir.ui.view">
+        <field name="name">fix.tds.certificate.received.form</field>
+        <field name="model">fix.tds.certificate.received</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_verify" type="object" string="Verify (checker)" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_settle" type="object" string="Settle against Receivable" class="btn-primary" invisible="state != 'verified'"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('draft', 'verified')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,verified,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="invoice_id" readonly="state != 'draft'"/>
+                            <field name="customer_id"/>
+                            <field name="customer_tin" readonly="state != 'draft'"/>
+                            <field name="invoice_total"/>
+                            <field name="invoice_residual"/>
+                            <field name="tds_amount" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="certificate_no" readonly="state != 'draft'"/>
+                            <field name="certificate_date" readonly="state != 'draft'"/>
+                            <field name="tax_section" readonly="state != 'draft'"/>
+                            <field name="challan_no" readonly="state != 'draft'"/>
+                            <field name="challan_date" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="prepared_by_id"/>
+                            <field name="verified_by_id"/>
+                            <field name="verified_at"/>
+                        </group>
+                        <group>
+                            <field name="settled_move_id"/>
+                            <field name="settled_at"/>
+                        </group>
+                    </group>
+                    <field name="note" placeholder="Notes"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_tds_certificate_received" model="ir.actions.act_window">
+        <field name="name">Customer TDS / AIT Certificates</field>
+        <field name="res_model">fix.tds.certificate.received</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

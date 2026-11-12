@@ -22,7 +22,7 @@ import uuid
 from datetime import date, datetime, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -47,6 +47,11 @@ AR_ACCOUNTS = {
     # VAT the customer deducted at source (Mushak 6.6 received): a claim
     # against the VAT payable, adjusted in the Mushak 9.1 return.
     "vds_receivable": ("132000", "VDS Receivable (Mushak 6.6 received, claimed in 9.1)"),
+    # Income tax a customer deducted at source (ITA 2023 s.89/s.90) and
+    # certified: an advance income tax credit of the company. No default
+    # code: finance names the chart account (fix_tds_certificate.py refuses
+    # to settle until it is set).
+    "ait_receivable": (None, "Advance Income Tax (AIT) receivable — TDS by customers"),
     # IFRS 15 contract liability for subscription / AMC billing.
     "deferred_revenue": ("212000", "Contract Liability (Deferred Revenue)"),
     # A02 audit B2: a transit-damage payout recovered from the liable courier
@@ -451,6 +456,20 @@ class FixArReceipt(models.Model):
     name = fields.Char(default="New", copy=False, readonly=True, index=True)
     amount = fields.Monetary(currency_field="currency_id", required=True)
     method = fields.Selection(RECEIPT_METHODS, required=True, default="cash")
+    # Quote-to-cash P1: the receipt takes the ONE customer payment-method list
+    # (fix.payment.method — Rocket, Upay, RTGS... included). The method's
+    # receipt_method is the tender this receipt books as, so `method` stays
+    # the GL role key (METHOD_ROLE) and is set from it; a receipt whose two
+    # disagree is refused, and On Account (no tender) is never a receipt.
+    payment_method_id = fields.Many2one(
+        "fix.payment.method",
+        string="Payment Method",
+        index=True,
+        ondelete="restrict",
+        domain="[('receipt_method', '!=', False)]",
+        help="How the customer paid, from the one payment-method list; sets the tender "
+        "(Booked As) the receipt posts with.",
+    )
     reference = fields.Char(
         string="Reference (trx id / cheque no)",
         index=True,
@@ -505,6 +524,7 @@ class FixArReceipt(models.Model):
     RECEIPT_LOCKED = (
         "amount",
         "method",
+        "payment_method_id",
         "customer_id",
         "currency_id",
         "receipt_date",
@@ -531,7 +551,46 @@ class FixArReceipt(models.Model):
                     "A confirmed receipt is frozen with its GL posting (%s); reverse it and "
                     "capture a new one." % ", ".join(sorted(touched))
                 )
+        self._apply_payment_method(vals)
         return super().write(vals)
+
+    def _apply_payment_method(self, vals):
+        """A chosen payment method decides the tender: `method` is taken from
+        its receipt_method unless the caller also gave one (then the
+        constraint compares the two)."""
+        if vals.get("payment_method_id") and "method" not in vals:
+            pm = self.env["fix.payment.method"].browse(vals["payment_method_id"])
+            if pm.receipt_method:
+                vals["method"] = pm.receipt_method
+
+    @api.onchange("payment_method_id")
+    def _onchange_payment_method_id(self):
+        if self.payment_method_id.receipt_method:
+            self.method = self.payment_method_id.receipt_method
+
+    @api.constrains("payment_method_id", "method")
+    def _check_payment_method(self):
+        for rec in self:
+            pm = rec.payment_method_id
+            if not pm:
+                continue
+            if not pm.receipt_method:
+                raise ValidationError(
+                    "%s is not a way money is received (it has no receipt tender): a receipt "
+                    "records money actually paid — choose how the customer paid." % pm.name
+                )
+            if rec.method != pm.receipt_method:
+                labels = dict(RECEIPT_METHODS)
+                raise ValidationError(
+                    "Receipt %s: payment method %s is booked as %s, but the receipt says %s. "
+                    "Choose the payment method and let it set the tender."
+                    % (
+                        rec.name,
+                        pm.name,
+                        labels.get(pm.receipt_method, pm.receipt_method),
+                        labels.get(rec.method, rec.method),
+                    )
+                )
 
     @api.depends("amount", "allocation_ids.amount", "state")
     def _compute_allocation(self):
@@ -547,6 +606,7 @@ class FixArReceipt(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            self._apply_payment_method(vals)
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].sudo().next_by_code("fix.ar.receipt")

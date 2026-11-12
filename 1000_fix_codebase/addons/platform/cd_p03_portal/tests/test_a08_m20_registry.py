@@ -108,6 +108,7 @@ def test_bespoke_screens_kept_and_every_screen_is_real(registry):
         "M20-ecl-rates",
         "M20-gl-recon",
         "M20-vds",
+        "M20-tds",
         "M20-closeout",
         "M20-vds-register",
         "M20-ecl",

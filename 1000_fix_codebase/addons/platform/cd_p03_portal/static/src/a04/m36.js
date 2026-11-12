@@ -185,6 +185,7 @@ export const SCREENS = {
   'M36-form-template': {
     lines: {
       field: 'line_ids',
+      tab: 'lines',
       title: 'Template Lines',
       note: 'Lines a quotation starts with. Empty unit price: priced from the M11 rate card / catalogue when applied. Lines sharing an option group are alternatives (good / better / best).',
       fields: [
@@ -203,8 +204,12 @@ export const SCREENS = {
     },
     kind: 'model_form', model: 'fix.quotation.template',
     title: 'Quotation Template', back: 'M36-templates',
+    tabs: [
+      { id: 'template', label: '1. Template & Terms', bn: '১. টেমপ্লেট ও শর্ত', icon: '📋', badge: '12' },
+      { id: 'lines', label: '2. Lines', bn: '২. লাইন', icon: '🧾', badge: '11' }
+    ],
     sections: [
-      { title: 'Template', fields: [
+      { tab: 'template', title: 'Template', fields: [
         { name: 'name', label: 'Name', required: true },
         { name: 'segment', label: 'Customer Segment' },
         { name: 'quote_type', label: 'Converts Into' },
@@ -227,6 +232,7 @@ export const SCREENS = {
   'M36-billing': {
     lines: {
       field: 'billing_line_ids',
+      tab: 'plan',
       title: 'Billing Plan (shares total 100%)',
       note: 'How the quoted value is invoiced: milestones, on delivery, on completion, recurring (contract / subscription billing), retention. Left empty, Submit fills the default plan. The advance is not an invoice: it is a receipt applied to these invoices.',
       fields: [
@@ -242,8 +248,12 @@ export const SCREENS = {
     kind: 'model_form', model: 'fix.quotation',
     title: 'Billing Plan & Advance', back: 'M36-billing-quotes',
     status: { field: 'state' },
+    tabs: [
+      { id: 'advance', label: '1. Advance', bn: '১. অগ্রিম', icon: '💳', badge: '9' },
+      { id: 'plan', label: '2. Billing Plan', bn: '২. বিলিং পরিকল্পনা', icon: '🧾', badge: '7' }
+    ],
     sections: [
-      { title: 'Advance', note: 'Record what the customer paid in advance; Finance confirms the receipt, and it is applied to this quotation\'s invoices as they are issued.',
+      { tab: 'advance', title: 'Advance', note: 'Record what the customer paid in advance; Finance confirms the receipt, and it is applied to this quotation\'s invoices as they are issued.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
           { name: 'amount_total', label: 'Total Payable incl. VAT (BDT)', readonly: true },

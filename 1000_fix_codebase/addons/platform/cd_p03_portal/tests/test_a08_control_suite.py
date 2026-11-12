@@ -101,6 +101,7 @@ EXPOSED = (
     "fix.subscription",
     "fix.tax.audit.pack",
     "fix.tax.challan",
+    "fix.tds.certificate.received",
     "fix.tds.return",
     "fix.vat.return",
     "fix.vds.certificate.received",

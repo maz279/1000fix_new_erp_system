@@ -288,6 +288,8 @@ def test_a_plan_share_is_drafted_as_an_invoice_once(c, monkeypatch):
     assert invoice.customer_id == q.customer_id
     with pytest.raises(UserError, match="already invoiced"), c.env.cr.savepoint():
         first.action_invoice()
+    # due by the quotation's payment term (immediate here), not the customer's net-30
+    assert invoice._payment_terms_days() == 0
     with pytest.raises(UserError), c.env.cr.savepoint():
         first.with_user(c.author).write({"state": "planned"})
 

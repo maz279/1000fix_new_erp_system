@@ -838,6 +838,15 @@ class FixArInvoiceAdvance(models.Model):
             )
         return Quote.browse()
 
+    def _payment_terms_days(self) -> int:
+        """An invoice a quotation raised is due by the quotation's payment
+        term (its last instalment), not the customer's default."""
+        quote = self._fix_quotation_for_advances() if self.id else self.env["fix.quotation"]
+        term = quote.payment_term_id if quote else False
+        if term and term.line_ids:
+            return max(term.line_ids.mapped("nb_days") or [0])
+        return super()._payment_terms_days()
+
     def action_issue(self):
         res = super().action_issue()
         for inv in self.filtered(lambda i: i.state != "draft"):

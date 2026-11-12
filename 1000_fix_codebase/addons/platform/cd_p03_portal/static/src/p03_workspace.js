@@ -3552,7 +3552,7 @@ export class P03Workspace extends Component {
         this.state.gl.receiptForm = {
             customer_id: null,
             amount: null,
-            method: "cash",
+            payment_method_id: null,
             reference: "",
             branch_id: null,
             nid: "",
@@ -3565,8 +3565,8 @@ export class P03Workspace extends Component {
 
     async arReceiptCreate() {
         const form = this.state.gl.receiptForm;
-        if (!form.customer_id || !form.amount) {
-            this.showToast(t('Customer and amount are required'));
+        if (!form.customer_id || !form.amount || !form.payment_method_id) {
+            this.showToast(t('Customer, amount and payment method are required'));
             return;
         }
         const res = await this._arCall("/p03/ar/receipt/create", { ...form }, "Receipt captured (draft)");

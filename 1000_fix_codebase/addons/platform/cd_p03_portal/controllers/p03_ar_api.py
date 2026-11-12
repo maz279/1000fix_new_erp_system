@@ -276,6 +276,7 @@ class P03ArApiController(http.Controller):
                     "customer_id": r.customer_id.id,
                     "date": str(r.receipt_date),
                     "method": r.method or "",
+                    "payment_method": r.payment_method_id.name or "",
                     "reference": r.reference or "",
                     "amount": r.amount,
                     "allocated": r.allocated_amount,
@@ -288,6 +289,12 @@ class P03ArApiController(http.Controller):
                 for r in rows
             ],
             "methods": [m[0] for m in env["fix.ar.receipt"]._fields["method"].selection],
+            # the one customer payment-method list (quote-to-cash P1): what the
+            # capture form offers; each sets the tender the receipt books as
+            "payment_methods": [
+                {"id": pm.id, "name": pm.name, "receipt_method": pm.receipt_method}
+                for pm in env["fix.payment.method"].search([("receipt_method", "!=", False)])
+            ],
             "branches": [
                 {"id": b.id, "name": b.name}
                 for b in env["fix.branch"].search([("active", "=", True)], order="name", limit=300)
@@ -646,6 +653,7 @@ class P03ArApiController(http.Controller):
         receipt_date=None,
         nid=None,
         branch_id=None,
+        payment_method_id=None,
         **kw,
     ):
         _require_internal(request.env)
@@ -655,7 +663,6 @@ class P03ArApiController(http.Controller):
                 vals = {
                     "customer_id": int(customer_id),
                     "amount": round(float(amount or 0.0), 2),
-                    "method": method or "cash",
                     "reference": reference or "",
                     "nid_captured": nid or "",
                     "receipt_date": datetime.date.fromisoformat(str(receipt_date)[:10])
@@ -664,6 +671,14 @@ class P03ArApiController(http.Controller):
                 }
                 if branch_id:
                     vals["branch_id"] = int(branch_id)
+                if payment_method_id:
+                    # the payment method sets the tender; a tender sent with
+                    # it must agree (the receipt refuses a mismatch)
+                    vals["payment_method_id"] = int(payment_method_id)
+                    if method:
+                        vals["method"] = method
+                else:
+                    vals["method"] = method or "cash"
                 receipt = env["fix.ar.receipt"].create(vals)
                 return {"success": True, "receipt_id": receipt.id, "name": receipt.name}
         except UserError as exc:

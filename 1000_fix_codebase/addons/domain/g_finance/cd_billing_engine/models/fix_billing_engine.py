@@ -240,6 +240,9 @@ class FixArInvoice(models.Model):
     vds_certificate_ids = fields.One2many(
         "fix.vds.certificate.received", "invoice_id", string="VDS Certificates (Mushak 6.6)"
     )
+    tds_certificate_ids = fields.One2many(
+        "fix.tds.certificate.received", "invoice_id", string="TDS / AIT Certificates"
+    )
     writeoff_ids = fields.One2many("fix.ar.writeoff", "invoice_id", string="Write-offs")
     # A08 B4: who issued / cancelled, and the credit account of a system invoice
     issued_by_id = fields.Many2one("res.users", string="Issued By", readonly=True, copy=False)
@@ -275,6 +278,14 @@ class FixArInvoice(models.Model):
         store=True,
         help="VAT the customer deducted at source and certified on a Mushak 6.6 that "
         "finance has verified and settled against this invoice",
+    )
+    tds_settled_amount = fields.Monetary(
+        string="TDS Settled",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+        help="Income tax the customer deducted at source (ITA 2023 s.89/s.90) and certified, "
+        "verified and settled against this invoice as advance income tax",
     )
     written_off_amount = fields.Monetary(
         string="Written Off",
@@ -354,6 +365,8 @@ class FixArInvoice(models.Model):
         "credit_note_ids.state",
         "vds_certificate_ids.vds_amount",
         "vds_certificate_ids.state",
+        "tds_certificate_ids.tds_amount",
+        "tds_certificate_ids.state",
         "writeoff_ids.amount",
         "writeoff_ids.state",
     )
@@ -367,6 +380,11 @@ class FixArInvoice(models.Model):
                 inv.vds_certificate_ids.filtered(
                     lambda c: c.state in ("settled", "claimed")
                 ).mapped("vds_amount")
+            )
+            inv.tds_settled_amount = sum(
+                inv.tds_certificate_ids.filtered(lambda c: c.state == "settled").mapped(
+                    "tds_amount"
+                )
             )
             inv.written_off_amount = sum(
                 inv.writeoff_ids.filtered(lambda w: w.state == "posted").mapped("amount")
@@ -386,8 +404,11 @@ class FixArInvoice(models.Model):
                 "vds_amount"
             )
         )
+        tds = sum(
+            self.tds_certificate_ids.filtered(lambda c: c.state == "settled").mapped("tds_amount")
+        )
         written = sum(self.writeoff_ids.filtered(lambda w: w.state == "posted").mapped("amount"))
-        return self.total_payable - paid - credited - vds - written
+        return self.total_payable - paid - credited - vds - tds - written
 
     # Invoices billed for a subscription / AMC cycle charge are a CONTRACT
     # LIABILITY until the performance obligations are satisfied (IFRS 15):
@@ -644,6 +665,7 @@ class FixArInvoice(models.Model):
                 inv.amount_paid > 0.005
                 or inv.credited_amount > 0.005
                 or inv.vds_settled_amount > 0.005
+                or inv.tds_settled_amount > 0.005
                 or inv.written_off_amount > 0.005
             ):
                 raise UserError(
@@ -1361,6 +1383,9 @@ class FixArInvoice(models.Model):
         certs = self.vds_certificate_ids.filtered(lambda c: c.state in ("settled", "claimed"))
         if certs:
             parts.append("VDS certificates %s" % ", ".join(certs.mapped("certificate_no")))
+        tds = self.tds_certificate_ids.filtered(lambda c: c.state == "settled")
+        if tds:
+            parts.append("TDS certificates %s" % ", ".join(tds.mapped("certificate_no")))
         return "; ".join(parts)
 
     def _mark_paid(self):
@@ -2034,7 +2059,11 @@ class FixCreditNote(models.Model):
             if note.amount <= 0:
                 raise UserError("A credit note amount must be positive")
             total = note.amount + note._other_open_credit()
-            settled = (invoice.vds_settled_amount or 0.0) + (invoice.written_off_amount or 0.0)
+            settled = (
+                (invoice.vds_settled_amount or 0.0)
+                + (invoice.tds_settled_amount or 0.0)
+                + (invoice.written_off_amount or 0.0)
+            )
             creditable = invoice.total_payable - settled
             if total > creditable + 0.005:
                 raise UserError(
@@ -2055,7 +2084,11 @@ class FixCreditNote(models.Model):
         total - credits - paid is the most that can reduce the receivable."""
         self.ensure_one()
         invoice = self.invoice_id
-        settled = (invoice.vds_settled_amount or 0.0) + (invoice.written_off_amount or 0.0)
+        settled = (
+            (invoice.vds_settled_amount or 0.0)
+            + (invoice.tds_settled_amount or 0.0)
+            + (invoice.written_off_amount or 0.0)
+        )
         unpaid = (
             invoice.total_payable
             - self._other_open_credit()

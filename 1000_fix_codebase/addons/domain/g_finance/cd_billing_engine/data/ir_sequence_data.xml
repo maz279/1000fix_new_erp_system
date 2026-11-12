@@ -51,5 +51,15 @@
             <field name="implementation">standard</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- M20: customer TDS / AIT certificates (internal reference). -->
+        <record id="seq_fix_tds_certificate_received" model="ir.sequence">
+            <field name="name">TDS Certificate Received</field>
+            <field name="code">fix.tds.certificate.received</field>
+            <field name="prefix">TDS/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="number_increment">1</field>
+            <field name="implementation">standard</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>
