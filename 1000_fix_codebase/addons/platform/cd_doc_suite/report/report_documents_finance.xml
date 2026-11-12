@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — FINANCE documents (QWeb, A4 portrait, web.external_layout letterhead).
+
+  - Tax Invoice (commercial)   fix.ar.invoice   (cd_billing_engine)
+  - Proforma Invoice           fix.ar.invoice   (draft-state variant, watermarked)
+  - Money Receipt              fix.ar.receipt   (cd_billing_engine)
+  - Mushak 6.3 register print  fix.mushak.register — Rule-40 amount-in-words line
+    added by xpath inherit to the statutory template owned by cd_tax_engine_bd.
+
+  The commercial invoice carries the full Rule-40 content set (both BINs,
+  per-line VAT, serial, in figures and words, signature blocks, multi-copy
+  annotation) in the 1000FiX letterhead — the quality bar set by the legacy
+  TFSL/SI/RT-006 invoice (samples: invoice-HO.pdf, invoice-branch.pdf).
+-->
+<odoo>
+
+    <!-- ==================== TAX INVOICE (COMMERCIAL) ==================== -->
+    <record id="action_report_invoice" model="ir.actions.report">
+        <field name="name">Tax Invoice (1000FiX)</field>
+        <field name="model">fix.ar.invoice</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_invoice</field>
+        <field name="report_file">cd_doc_suite.report_invoice</field>
+        <field name="print_report_name">'Invoice %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_billing_engine.model_fix_ar_invoice"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_invoice">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>SALES INVOICE <span class="cds-chip" t-esc="{'draft':'DRAFT','issued':'ISSUED','paid':'PAID','credited':'CREDITED','written_off':'WRITTEN OFF','cancelled':'CANCELLED'}.get(doc.state, doc.state)"/></h1>
+                            <div class="cds-title-sub">
+                                Invoice No. <b t-esc="doc.name"/> ·
+                                Date <b t-field="doc.invoice_date"/>
+                                <t t-if="doc.mushak_id"> · Mushak 6.3 Ref <b t-esc="doc.mushak_id.mushak_no"/></t>
+                                <t t-if="doc.paid_date"> · Paid <b t-field="doc.paid_date"/></t>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Bill To</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-field="doc.customer_id"
+                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Invoice Details</div>
+                                    <table class="cds-meta">
+                                        <tr><td class="cds-meta-label">Supplier BIN</td><td>001821833-0401</td></tr>
+                                        <tr><td class="cds-meta-label">Buyer BIN / TIN</td><td t-esc="doc.customer_id.vat or '—'"/></tr>
+                                        <tr t-if="doc.branch_id"><td class="cds-meta-label">Branch</td><td t-esc="doc.branch_id.name"/></tr>
+                                        <tr t-if="doc.source_ref"><td class="cds-meta-label">Reference</td><td t-esc="doc.source_ref"/></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 6%;">SL</th>
+                                    <th>Description</th>
+                                    <th class="cds-num" style="width: 17%;">Taxable Value</th>
+                                    <th class="cds-num" style="width: 15%;">VAT</th>
+                                    <th class="cds-num" style="width: 17%;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.line_ids" t-as="line">
+                                    <td class="cds-ctr" t-esc="line_index + 1"/>
+                                    <td>
+                                        <t t-esc="line.description or (line.product_id.name or '')"/>
+                                        <t t-if="line.vat_treatment_id"><div style="font-size:8pt;color:#555;">VAT treatment: <t t-esc="line.vat_treatment_id.display_name"/></div></t>
+                                    </td>
+                                    <td class="cds-num"><span t-field="line.taxable_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    <td class="cds-num"><span t-field="line.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    <td class="cds-num"><span t-field="line.line_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr t-if="not doc.line_ids">
+                                    <td colspan="5" style="text-align:center;color:#777;">No invoice lines recorded.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-totals">
+                            <tr><td class="cds-tot-label">Subtotal (taxable)</td><td class="cds-tot-value"><span t-field="doc.taxable_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr><td class="cds-tot-label">VAT</td><td class="cds-tot-value"><span t-field="doc.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr class="cds-grand"><td class="cds-tot-label">Grand Total</td><td class="cds-tot-value"><span t-field="doc.total_payable" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.amount_paid"><td class="cds-tot-label">Paid</td><td class="cds-tot-value"><span t-field="doc.amount_paid" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.amount_residual"><td class="cds-tot-label">Balance Due</td><td class="cds-tot-value"><span t-field="doc.amount_residual" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+
+                        <div class="cds-words" t-if="doc.amount_in_words_en">
+                            <span class="cds-words-label">In Words:</span>
+                            <span t-esc="doc.amount_in_words_en"/>
+                        </div>
+
+                        <div class="cds-notes">
+                            <b>MUSHAK 6.3 — issued under the VAT &amp; Supplementary Duty Act 2012.</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li>Goods once sold are not returnable without prior approval; warranty applies per service terms.</li>
+                                <li>Cheques/DD payable to <b>1000Fix Services Limited</b>. bKash/Nagad merchant payments accepted.</li>
+                                <li>Hotline <b>16743</b> · info@1000fix.com · https://1000fix.com</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Received with good condition by<br/>(Customer)</td>
+                                <td class="cds-sign-pad">Authorized Signature &amp; Company Stamp<br/>1000FiX Services Ltd.</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ======================= PROFORMA INVOICE ======================= -->
+    <record id="action_report_proforma" model="ir.actions.report">
+        <field name="name">Proforma Invoice</field>
+        <field name="model">fix.ar.invoice</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_proforma</field>
+        <field name="report_file">cd_doc_suite.report_proforma</field>
+        <field name="print_report_name">'Proforma %s' % (object.name or 'PI')</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_billing_engine.model_fix_ar_invoice"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_proforma">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <div class="cds-watermark">PROFORMA</div>
+
+                        <div class="cds-title-band">
+                            <h1>PROFORMA INVOICE</h1>
+                            <div class="cds-title-sub">
+                                No. <b t-esc="'PI-%s' % (doc.name or doc.id)"/> ·
+                                Date <b t-field="doc.invoice_date"/> ·
+                                <b>NOT A TAX INVOICE</b> — payable in advance
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Bill To</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-field="doc.customer_id"
+                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Details</div>
+                                    <table class="cds-meta">
+                                        <tr t-if="doc.branch_id"><td class="cds-meta-label">Branch</td><td t-esc="doc.branch_id.name"/></tr>
+                                        <tr t-if="doc.source_ref"><td class="cds-meta-label">Reference</td><td t-esc="doc.source_ref"/></tr>
+                                        <tr><td class="cds-meta-label">Validity</td><td>30 days from issue</td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 6%;">SL</th>
+                                    <th>Description</th>
+                                    <th class="cds-num" style="width: 17%;">Taxable Value</th>
+                                    <th class="cds-num" style="width: 15%;">VAT</th>
+                                    <th class="cds-num" style="width: 17%;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.line_ids" t-as="line">
+                                    <td class="cds-ctr" t-esc="line_index + 1"/>
+                                    <td t-esc="line.description or (line.product_id.name or '')"/>
+                                    <td class="cds-num"><span t-field="line.taxable_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    <td class="cds-num"><span t-field="line.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    <td class="cds-num"><span t-field="line.line_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                                <tr t-if="not doc.line_ids">
+                                    <td colspan="5" style="text-align:center;color:#777;">No lines recorded.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-totals">
+                            <tr><td class="cds-tot-label">Subtotal (taxable)</td><td class="cds-tot-value"><span t-field="doc.taxable_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr><td class="cds-tot-label">VAT</td><td class="cds-tot-value"><span t-field="doc.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr class="cds-grand"><td class="cds-tot-label">Amount Payable</td><td class="cds-tot-value"><span t-field="doc.total_payable" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+
+                        <div class="cds-words" t-if="doc.amount_in_words_en">
+                            <span class="cds-words-label">In Words:</span>
+                            <span t-esc="doc.amount_in_words_en"/>
+                        </div>
+
+                        <div class="cds-notes">
+                            <b>Payment instructions.</b>
+                            Bank transfer / bKash / Nagad to 1000Fix Services Limited. Work or delivery is scheduled
+                            after receipt of the advance. This proforma is for advance payment and internal approval
+                            purposes only; the statutory Mushak 6.3 tax invoice will be issued on supply.
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Customer Acceptance<br/>Signature &amp; Date</td>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Authorized Signature</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ========================= MONEY RECEIPT ========================= -->
+    <record id="action_report_money_receipt" model="ir.actions.report">
+        <field name="name">Money Receipt</field>
+        <field name="model">fix.ar.receipt</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_money_receipt</field>
+        <field name="report_file">cd_doc_suite.report_money_receipt</field>
+        <field name="print_report_name">'Money Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_billing_engine.model_fix_ar_receipt"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_money_receipt">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>MONEY RECEIPT <span class="cds-chip" t-esc="{'draft':'DRAFT','confirmed':'CONFIRMED','reversed':'REVERSED'}.get(doc.state, doc.state)"/></h1>
+                            <div class="cds-title-sub">
+                                Receipt No. <b t-esc="doc.name"/> ·
+                                Date <b t-field="doc.receipt_date"/>
+                                <t t-if="doc.reference"> · Ref <b t-esc="doc.reference"/></t>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 11pt; margin: 14px 0 10px 0;">
+                            Received with thanks from <b t-esc="doc.customer_id.name or ''"/>
+                            a sum of <b><span t-field="doc.amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></b>
+                            by <b t-esc="{'cash':'Cash','cheque':'Cheque','bank_transfer':'Bank Transfer','bkash':'bKash','nagad':'Nagad','card':'Card','mobile_wallet':'Mobile Wallet','adjustment':'Adjustment'}.get(doc.method, doc.method or '')"/>.
+                        </p>
+
+                        <table class="cds-meta">
+                            <tr><td class="cds-meta-label">Receipt No.</td><td t-esc="doc.name"/></tr>
+                            <tr><td class="cds-meta-label">Date</td><td><span t-field="doc.receipt_date"/></td></tr>
+                            <tr><td class="cds-meta-label">Mode</td><td t-esc="{'cash':'Cash','cheque':'Cheque','bank_transfer':'Bank Transfer','bkash':'bKash','nagad':'Nagad','card':'Card','mobile_wallet':'Mobile Wallet','adjustment':'Adjustment'}.get(doc.method, doc.method or '')"/></tr>
+                            <tr t-if="doc.reference"><td class="cds-meta-label">Reference</td><td t-esc="doc.reference"/></tr>
+                            <tr t-if="doc.branch_id"><td class="cds-meta-label">Branch</td><td t-esc="doc.branch_id.name"/></tr>
+                            <tr t-if="doc.allocated_amount"><td class="cds-meta-label">Applied to Invoices</td><td><span t-field="doc.allocated_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.unapplied_amount"><td class="cds-meta-label">Unapplied / Advance</td><td><span t-field="doc.unapplied_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.nid_captured"><td class="cds-meta-label">Receiver NID</td><td t-esc="doc.nid_captured"/></tr>
+                        </table>
+
+                        <div class="cds-words" t-if="doc.amount_in_words_en">
+                            <span class="cds-words-label">In Words:</span>
+                            <span t-esc="doc.amount_in_words_en"/>
+                        </div>
+
+                        <div class="cds-notes">
+                            This is a system-generated money receipt. Cheques are subject to realisation.
+                            Please quote the Receipt No. in all correspondence. Hotline <b>16743</b>.
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Received By (Customer copy retained)</td>
+                                <td class="cds-sign-pad">Authorized Signature &amp; Company Stamp<br/>1000FiX Services Ltd.</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ===== Mushak 6.3 statutory register print: Rule-40 in-words line =====
+         The statutory template is owned by cd_tax_engine_bd; this inherit adds
+         ONLY the missing "total in words" line (its own header comment promises
+         it — DT-013 §3) plus the statutory copy-set annotation. -->
+    <template id="report_mushak63_words" inherit_id="cd_tax_engine_bd.report_mushak63">
+        <xpath expr="//div[hasclass('signature-row')]" position="before">
+            <div class="in-words-row" style="margin: 6px 0 10px 0; font-weight: 600;">
+                কথায় / In Words: <t t-esc="doc.amount_in_words_en or ''"/>
+            </div>
+            <div style="font-size: 8pt; color: #333; margin-bottom: 4px;">
+                কপি সেট / Copy set: ক্রেতার কপি (Buyer) · বিক্রেতার কপি (Seller) · ভ্যাট অফিসের কপি (VAT Office)
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

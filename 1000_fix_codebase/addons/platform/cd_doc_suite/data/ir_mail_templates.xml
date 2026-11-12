@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — e-mail templates: one per document, each attaching its
+  branded PDF automatically via report_template_ids (Odoo 19: the composer
+  renders every listed ir.actions.report and attaches it — "Send & Print"
+  parity with the top-class ERPs). noupdate so a user's edits survive
+  module upgrades.
+-->
+<odoo>
+    <data>
+
+        <!-- ==================== Quotation ==================== -->
+        <record id="email_template_quotation" model="mail.template">
+            <field name="name">1000FiX: Quotation</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_quotation.model_fix_quotation"/>
+            <field name="subject">{{ object.name or 'Quotation' }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>Please find attached our quotation <b t-out="object.name"/> dated
+    <t t-out="object.create_date and object.create_date.strftime('%d-%b-%Y') or ''"/>.
+    <t t-if="object.valid_until">It is valid until <b t-out="object.valid_until.strftime('%d-%b-%Y')"/>.</t></p>
+    <p>Total payable: <b t-out="'%s' % format_amount(object.value + object.vat_amount, object.currency_id)"/></p>
+    <p>To accept, reply to this e-mail or contact our hotline <b>16743</b>.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd.<br/><span style="color:#0E7A6E;">ISO 9001:2015 Certified</span></p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_quotation'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Estimate ==================== -->
+        <record id="email_template_estimate" model="mail.template">
+            <field name="name">1000FiX: Repair Estimate</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_service_order.model_fix_estimate"/>
+            <field name="subject">Repair Estimate {{ object.order_id.name or object.id }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.order_id.customer_id.id if object.order_id else '' }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="(object.order_id.customer_id.name or 'Customer') if object.order_id else 'Customer'"/>,</p>
+    <p>Please find attached the repair estimate for your equipment
+    <b t-out="object.order_id.name or ''"/>.
+    <t t-if="object.expiry_date">The estimate is valid until <b t-out="object.expiry_date.strftime('%d-%b-%Y')"/>.</t></p>
+    <p>Grand total: <b t-out="'%s' % format_amount(object.grand_total, object.currency_id)"/></p>
+    <p>Repairs begin once we receive your approval. Hotline <b>16743</b>.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd.</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_estimate'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Service Order ==================== -->
+        <record id="email_template_service_order" model="mail.template">
+            <field name="name">1000FiX: Service Order</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_service_order.model_fix_service_order"/>
+            <field name="subject">Service Order {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>Your service order <b t-out="object.name"/> is attached.
+    Please preserve it — it is required for device handover.</p>
+    <p>Track your repair anytime on https://1000fix.com or hotline <b>16743</b>.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd.</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_service_order'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Delivery Challan ==================== -->
+        <record id="email_template_delivery_challan" model="mail.template">
+            <field name="name">1000FiX: Delivery Challan</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_service_order.model_fix_service_order"/>
+            <field name="subject">Delivery Challan {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>Your equipment has been repaired and is ready for collection. The delivery challan
+    for <b t-out="object.name"/> is attached — please bring it (or a soft copy) for handover
+    along with your national ID.</p>
+    <p>Note our 90-day unclaimed-product policy, detailed on the challan.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd. · Hotline <b>16743</b></p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_delivery_challan'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Tax Invoice ==================== -->
+        <record id="email_template_invoice" model="mail.template">
+            <field name="name">1000FiX: Tax Invoice</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_billing_engine.model_fix_ar_invoice"/>
+            <field name="subject">Invoice {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>Please find attached tax invoice <b t-out="object.name"/> dated
+    <t t-out="object.invoice_date and object.invoice_date.strftime('%d-%b-%Y') or ''"/>
+    (Mushak 6.3).</p>
+    <p>Grand total: <b t-out="'%s' % format_amount(object.total_payable, object.currency_id)"/>
+    <t t-if="object.amount_residual">(balance due <t t-out="'%s' % format_amount(object.amount_residual, object.currency_id)"/>)</t></p>
+    <p>Thank you for choosing 1000FiX. Hotline <b>16743</b>.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd.</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_invoice'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Proforma ==================== -->
+        <record id="email_template_proforma" model="mail.template">
+            <field name="name">1000FiX: Proforma Invoice</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_billing_engine.model_fix_ar_invoice"/>
+            <field name="subject">Proforma Invoice — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>Please find attached our proforma invoice (payable in advance).
+    The statutory Mushak 6.3 tax invoice will be issued on supply.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd.</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_proforma'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Money Receipt ==================== -->
+        <record id="email_template_money_receipt" model="mail.template">
+            <field name="name">1000FiX: Money Receipt</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_billing_engine.model_fix_ar_receipt"/>
+            <field name="subject">Money Receipt {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.customer_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.customer_id.name or 'Customer'"/>,</p>
+    <p>We acknowledge with thanks receipt of
+    <b t-out="'%s' % format_amount(object.amount, object.currency_id)"/>
+    (<t t-out="object.method or ''"/>). Your money receipt <b t-out="object.name"/> is attached.</p>
+    <p>Best regards,<br/>1000FiX Services Ltd. · Hotline <b>16743</b></p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_money_receipt'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Purchase Order ==================== -->
+        <record id="email_template_po" model="mail.template">
+            <field name="name">1000FiX: Purchase Order</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_requisition.model_fix_purchase_order"/>
+            <field name="subject">Purchase Order {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="partner_to">{{ object.vendor_id.id }}</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear <t t-out="object.vendor_id.name or 'Vendor'"/>,</p>
+    <p>Please find attached purchase order <b t-out="object.name"/> dated
+    <t t-out="object.date_order and object.date_order.strftime('%d-%b-%Y') or ''"/>.</p>
+    <p>Kindly acknowledge acceptance by reply, and quote the PO number and your BIN /
+    Mushak 6.3 reference on all invoices.</p>
+    <p>Regards,<br/>Procurement, 1000FiX Services Ltd. · Hotline <b>16743</b></p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_po'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== RFQ ==================== -->
+        <record id="email_template_rfq" model="mail.template">
+            <field name="name">1000FiX: RFQ</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_requisition.model_fix_procurement_rfq"/>
+            <field name="subject">RFQ {{ object.name }} — 1000FiX Services Ltd.</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Dear Supplier,</p>
+    <p>1000FiX Services Ltd. invites your quotation for <b t-out="object.description or object.name"/>
+    (quantity <t t-out="'%g' % (object.qty or 0)"/>).
+    <t t-if="object.required_by">Required by <b t-out="object.required_by.strftime('%d-%b-%Y')"/>.</t></p>
+    <p>Submission instructions and terms are in the attached RFQ document.</p>
+    <p>Regards,<br/>Procurement, 1000FiX Services Ltd.</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_rfq'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+        <!-- ==================== Vendor Bill (internal) ==================== -->
+        <record id="email_template_vendor_bill" model="mail.template">
+            <field name="name">1000FiX: Vendor Bill</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="model_id" ref="cd_ap_ext.model_fix_vendor_invoice"/>
+            <field name="subject">Vendor Bill {{ object.invoice_ref }} — for approval</field>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:12px;font-family:Arial,sans-serif;font-size:13px;color:#242424;">
+    <p>Vendor bill <b t-out="object.invoice_ref"/> from <t t-out="object.vendor_id.name or ''"/>
+    (dated <t t-out="object.invoice_date and object.invoice_date.strftime('%d-%b-%Y') or ''"/>)
+    is attached for review/approval.</p>
+    <p>Net payable: <b t-out="'%s' % format_amount(object.total_payable, object.currency_id)"/> ·
+    3-way match: <t t-out="object.match_state or ''"/></p>
+    <p>— 1000FiX Accounts Payable</p>
+</div>
+            </field>
+            <field name="report_template_ids" eval="[(4, ref('cd_doc_suite.action_report_vendor_bill'))]"/>
+            <field name="auto_delete" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

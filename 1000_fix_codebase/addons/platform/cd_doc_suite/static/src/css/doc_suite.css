@@ -1,0 +1,221 @@
+/*
+  cd_doc_suite — document body styles for the QWeb transactional suite.
+  Registered in web.report_assets_common so wkhtmltopdf picks them up for
+  every suite report (and they never touch the web client bundles).
+
+  Brand tokens mirror cd_design_tokens: brand-60 teal #0E7A6E, ink #242424.
+  wkhtmltopdf (Qt WebKit): no CSS variables — literal values only.
+*/
+
+/* 1000FiX brand rule under the letterhead of every external-layout document
+   (the class is emitted by t-attf-class in web.external_layout_standard, so
+   styling lives here rather than in a view inherit). */
+.header {
+    border-bottom: 3px solid #0E7A6E;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+}
+
+.cds-doc {
+    /* Bengali families first for the ৳ symbol of the monetary widget (wkhtmltopdf
+       needs the glyph in an installed family — Latin-only stacks print tofu) */
+    font-family: "Noto Sans Bengali", "Nirmala UI", "SolaimanLipi",
+                 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #242424;
+    line-height: 1.45;
+}
+
+/* ---------- title band ---------- */
+.cds-title-band {
+    border-bottom: 2px solid #0E7A6E;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+}
+.cds-title-band h1 {
+    font-size: 17pt;
+    font-weight: 700;
+    color: #0E7A6E;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+.cds-title-band .cds-title-sub {
+    font-size: 8.5pt;
+    color: #555;
+    margin-top: 2px;
+}
+
+/* ---------- party + meta blocks ---------- */
+.cds-parties {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+.cds-parties td {
+    vertical-align: top;
+    padding: 0 12px 6px 0;
+    width: 50%;
+}
+.cds-party-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #0E7A6E;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+.cds-party-name {
+    font-weight: 700;
+    font-size: 11pt;
+}
+.cds-meta {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+.cds-meta td {
+    border: 1px solid #E2E8E7;
+    padding: 4px 8px;
+    font-size: 9pt;
+}
+.cds-meta td.cds-meta-label {
+    background: #F0F8F7;
+    color: #04443D;
+    font-weight: 600;
+    width: 18%;
+}
+
+/* ---------- line-item tables ---------- */
+table.cds-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    page-break-inside: auto;
+}
+table.cds-table thead {
+    display: table-header-group;
+}
+table.cds-table thead th {
+    background: #0E7A6E;
+    color: #FFFFFF;
+    font-size: 8.5pt;
+    font-weight: 600;
+    padding: 6px 8px;
+    border: 1px solid #0B6359;
+    text-align: left;
+}
+table.cds-table thead th.cds-num,
+table.cds-table td.cds-num {
+    text-align: right;
+    white-space: nowrap;
+    padding-right: 12px;
+}
+table.cds-table thead th.cds-ctr,
+table.cds-table td.cds-ctr {
+    text-align: center;
+}
+table.cds-table tbody td {
+    border: 1px solid #D8E2E0;
+    padding: 5px 8px;
+    font-size: 9.5pt;
+    vertical-align: top;
+}
+table.cds-table tbody tr:nth-child(even) td {
+    background: #F6FAF9;
+}
+table.cds-table tr { page-break-inside: avoid; }
+
+/* ---------- totals ---------- */
+.cds-totals {
+    width: 320px;
+    border-collapse: collapse;
+    margin-left: auto;
+    margin-bottom: 8px;
+}
+.cds-totals td {
+    padding: 4px 8px;
+    font-size: 9.5pt;
+}
+.cds-totals td.cds-tot-label { color: #444; }
+.cds-totals td.cds-tot-value {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+    padding-right: 12px;
+}
+.cds-totals tr.cds-grand td {
+    border-top: 2px solid #0E7A6E;
+    padding-top: 7px;
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: #04443D;
+}
+
+/* ---------- amount in words ---------- */
+.cds-words {
+    border: 1px solid #C9DAD7;
+    background: #F6FAF9;
+    border-radius: 3px;
+    padding: 6px 10px;
+    font-size: 9.5pt;
+    margin-bottom: 10px;
+}
+.cds-words .cds-words-label {
+    font-weight: 700;
+    color: #04443D;
+}
+
+/* ---------- notes / policy ---------- */
+.cds-notes {
+    border: 1px solid #E2E8E7;
+    border-left: 3px solid #0E7A6E;
+    background: #FAFCFC;
+    padding: 7px 10px;
+    font-size: 8pt;
+    color: #444;
+    margin-bottom: 10px;
+}
+.cds-notes b { color: #242424; }
+
+/* ---------- signature row ---------- */
+.cds-sign {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 22px;
+    page-break-inside: avoid;
+}
+.cds-sign td {
+    width: 50%;
+    text-align: center;
+    font-size: 8.5pt;
+    color: #333;
+    padding: 26px 12px 4px 12px;
+    border-top: 1px solid #999;
+}
+.cds-sign td.cds-sign-pad { padding-top: 46px; }
+
+/* ---------- status chip ---------- */
+.cds-chip {
+    display: inline-block;
+    border: 1px solid #0E7A6E;
+    color: #0E7A6E;
+    border-radius: 3px;
+    font-size: 8pt;
+    font-weight: 700;
+    padding: 1px 7px;
+    letter-spacing: 0.5px;
+}
+
+/* ---------- proforma watermark ---------- */
+.cds-watermark {
+    position: absolute;
+    top: 300px;
+    left: 60px;
+    font-size: 54pt;
+    font-weight: 800;
+    color: rgba(14, 122, 110, 0.10);
+    -webkit-transform: rotate(-28deg);
+    transform: rotate(-28deg);
+    letter-spacing: 4px;
+    z-index: 0;
+}

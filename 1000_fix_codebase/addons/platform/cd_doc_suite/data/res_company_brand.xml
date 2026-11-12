@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_doc_suite — 1000FiX company branding (single source for the QWeb path).
+
+  Measured against the legacy Unisoft letterhead (sample invoice-HO.pdf,
+  2026-11-10): logo, corporate block, BIN 001821833-0401, hotline 16743,
+  ISO 9001:2015 badge. noupdate: applied once per database at install so a
+  later manual brand change in Settings is never clobbered by an upgrade.
+-->
+<odoo>
+    <data>
+
+        <record id="base.main_company" model="res.company">
+            <field name="logo" type="base64" file="cd_doc_suite/static/img/1000fix_logo.png"/>
+            <field name="external_report_layout_id" ref="web.external_layout_standard"/>
+            <field name="paperformat_id" ref="cd_doc_suite.paperformat_1000fix_a4"/>
+            <field name="primary_color">#0E7A6E</field>
+            <field name="secondary_color">#04211E</field>
+            <!-- BIN: printed by the layout as the Tax ID line -->
+            <field name="vat">001821833-0401</field>
+            <field name="report_header" type="html">
+                <div style="font-size: 9px;"><b>ISO 9001:2015 Certified</b> · Hotline <b>16743</b> · <b>www.1000fix.com</b></div>
+            </field>
+            <field name="report_footer" type="html">
+                <div style="font-size: 8px; color: #555;">
+                    1000Fix Services Limited · 586/1 (4th Floor), Begum Rokeya Sarani, Shewrapara, Mirpur, Dhaka 1216, Bangladesh
+                </div>
+            </field>
+        </record>
+
+    </data>
+</odoo>
