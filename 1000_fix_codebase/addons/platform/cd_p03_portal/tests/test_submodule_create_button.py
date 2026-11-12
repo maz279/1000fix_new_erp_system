@@ -46,6 +46,7 @@ for (const [mid, mod] of Object.entries(P03_MODULES)) {
       moduleModel: moduleCreate ? moduleCreate.model : 'fix.service.order',
       create, formKind: form && form.kind, formModel: form && form.model,
       declared: !!(map && typeof map.create === 'string'),
+      declaredModule: !!(map && map.create === 'module'),
       forms: (map && map.forms) || [], reports: (map && map.reports) || [] });
   }
 }
@@ -138,12 +139,19 @@ def test_a_submodule_whose_lists_refuse_new_offers_no_button(registry):
 
 def test_no_submodule_page_offers_another_records_button(registry):
     """The module's button appears only where the sub-module's record IS the
-    module's; everywhere else the page offers its own form or nothing."""
+    module's; everywhere else the page offers its own form or nothing - unless
+    the mapping says so itself (`create: 'module'`): M19 "Journals" lists the
+    journal register and captures through the journal-entry editor."""
     wrong = [
         _tag(r) + " shows the %s button" % r["moduleModel"]
         for r in registry["rows"]
-        if r["create"] and r["create"].get("module") and r["model"] != r["moduleModel"]
+        if r["create"]
+        and r["create"].get("module")
+        and r["model"] != r["moduleModel"]
+        and not r["declaredModule"]
     ]
+    declared = sorted(_tag(r) for r in registry["rows"] if r["declaredModule"])
+    assert declared == ["M19/2 'Journals' (account.journal)"], declared
     assert not wrong, "\n  ".join(wrong)
 
 

@@ -82,19 +82,37 @@ export const MODULE = {
     ]}
   ],
   reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances', 'Partner Ledger (GL)', 'Partner Statement Drill-down', 'Legacy AR Control Reconciliation'],
-  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on'],
+  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on', 'Chart of Accounts Account', 'Control Account Change', 'Chart Loader', 'Period Close', 'Period Reopen Request', 'Consolidation Book', 'Intercompany Rule', 'Transfer-Pricing Rate', 'FX Revaluation Run', 'Financial Report Bridge', 'Retention Policy', 'SoD Control', 'SoD Exception'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
+  /* M19 capture audit (2026-11-13): four of the twelve pages had no "+ New"
+   * (Journals, Subledger Posting Engine, Audit & Retention, Controls & SoD)
+   * and six named no form although the module has one for their work
+   * (Control Account Change, Period Reopen Request, Intercompany Rule,
+   * Transfer-Pricing Rate, ...). Each page now names what captures its record
+   * against the FR-FIN register (M19 spec §5):
+   * - its own form, or a chip onto the master form of the module that owns
+   *   the record (retention classes: M24, SoD controls and exceptions: M29);
+   * - Journals: the journal-entry editor, the module's own button
+   *   (`create: 'module'`) - its grid is the journal register;
+   * - Controls & SoD: "+ New" is the control-account change a finance user
+   *   may propose (BRU-FIN-13). SoD controls and retention classes are
+   *   created by system administrators only (ir.model.access), so they are
+   *   chips, never the page's button: a finance user's Save would be refused;
+   * - Subledger Posting Engine and Audit & Retention: no "+ New". Dimension
+   *   lines are written by posting, posting rules (FR-FIN-009) and auditor
+   *   access grants (FR-FIN-043) have no model yet: typing a dimension line
+   *   would fabricate a posting. */
   freg: { src: 95, sub: [
-    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'], reports: ['Dimensional P&L by Branch'], forms: [] }],
-    ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'], reports: ['Partner Ledger (GL)', 'Partner Statement Drill-down', 'Trial Balance'], forms: ['Journal Entry (manual/recurring)', 'Legacy Partner-Ledger Take-on'] }],
-    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'], reports: ['Trial Balance'], forms: [] }],
-    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'], reports: ['Close Checklist Report', 'Close SLA Breaches'], forms: [] }],
-    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol', 'M19-tp-rates'], reports: ['Due-To / Due-From Balances'], forms: ['Intercompany Charge'] }],
-    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'], reports: [], forms: [] }],
-    ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'], reports: ['P&L (BFRS)', 'Balance Sheet', 'Cash Flow'], forms: ['Nil Return Declaration'] }],
-    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'], reports: [], forms: [] }],
+    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes', 'M19-coa-register'], reports: ['Dimensional P&L by Branch'], forms: ['Chart of Accounts Account', 'Control Account Change', 'Chart Loader'] }],
+    ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'], reports: ['Partner Ledger (GL)', 'Partner Statement Drill-down', 'Trial Balance'], forms: ['Journal Entry (manual/recurring)', 'Legacy Partner-Ledger Take-on'], create: 'module' }],
+    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'], reports: ['Trial Balance'], forms: [], create: false }],
+    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'], reports: ['Close Checklist Report', 'Close SLA Breaches'], forms: ['Period Close', 'Period Reopen Request'] }],
+    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-ic-balances', 'M19-ic-rules', 'M19-consol', 'M19-tp-rates'], reports: ['Due-To / Due-From Balances'], forms: ['Consolidation Book', 'Intercompany Charge', 'Intercompany Rule', 'Transfer-Pricing Rate'] }],
+    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'], reports: [], forms: ['FX Revaluation Run'] }],
+    ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf', 'M19-nil-returns'], reports: ['P&L (BFRS)', 'Balance Sheet', 'Cash Flow'], forms: ['Financial Report Bridge', 'Nil Return Declaration'] }],
+    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'], reports: [], forms: ['Retention Policy'], create: false }],
     ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'], reports: [], forms: ['Recurring Journal Template', 'Allocation Rule'] }],
-    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'], reports: [], forms: [] }],
+    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense', 'M19-control-changes'], reports: [], forms: ['Control Account Change', 'SoD Exception', 'SoD Control'], create: 'M19-form-control-change' }],
     ['11', 'Legacy AR Control Archive', 3, { model: 'fix.legacy.ledger.batch', cols: ['name', 'state', 'line_count', 'branch_count', 'total_net'], screens: ['M19-legacy-ledger', 'M19-legacy-ledger-lines', 'M19-legacy-ar-recon'], reports: ['Legacy AR Control Reconciliation'], forms: ['Legacy GL Control-Ledger Import'] }],
     ['12', 'Legacy Bank-Ledger Take-on', 2, { model: 'fix.bank.takeon.batch', cols: ['name', 'state', 'bank_gl_code', 'date_from', 'date_to', 'line_count', 'branch_count', 'total_net'], screens: ['M19-bank-takeon', 'M19-bank-takeon-lines'], reports: [], forms: ['Legacy Bank-Ledger Take-on'] }]
   ] }
@@ -909,6 +927,20 @@ export const FORM_MODELS = {
   'M19:Legacy Partner-Ledger Take-on': 'fix.ledger.takeon.batch',
   'M19:Legacy GL Control-Ledger Import': 'fix.legacy.ledger.batch',
   'M19:Legacy Bank-Ledger Take-on': 'fix.bank.takeon.batch',
+  // capture audit 2026-11-13: the chips each sub-module page now names
+  'M19:Chart of Accounts Account': 'fix.chart.account',
+  'M19:Control Account Change': 'fix.chart.control.change',
+  'M19:Chart Loader': 'fix.chart.loader',
+  'M19:Period Close': 'fix.period.close',
+  'M19:Period Reopen Request': 'fix.period.reopen',
+  'M19:Consolidation Book': 'fix.consolidation.book',
+  'M19:Intercompany Rule': 'fix.intercompany.rule',
+  'M19:Transfer-Pricing Rate': 'fix.transfer.price.rate',
+  'M19:FX Revaluation Run': 'fix.fx.revaluation',
+  'M19:Financial Report Bridge': 'fix.financial.report.bridge',
+  'M19:Retention Policy': 'fix.retention.class',
+  'M19:SoD Control': 'fix.sod.control',
+  'M19:SoD Exception': 'fix.sod.mitigation',
 };
 
 /* every registry form chip -> its in-workspace D365 screen; grid + New and
@@ -926,7 +958,22 @@ export const FORM_CHIPS = {
   'M19:Legacy Partner-Ledger Take-on': 'M19-form-takeon',
   'M19:Legacy GL Control-Ledger Import': 'M19-form-legacy-ledger',
   'M19:Legacy Bank-Ledger Take-on': 'M19-form-bank-takeon',
+  // capture audit 2026-11-13: forms that existed but sat on no page chip
+  'M19:Chart of Accounts Account': 'M19-form-chart-account',
+  'M19:Control Account Change': 'M19-form-control-change',
+  'M19:Period Close': 'M19-form-period-close',
+  'M19:Period Reopen Request': 'M19-form-reopen',
+  'M19:Transfer-Pricing Rate': 'M19-form-tp-rate',
+  'M19:FX Revaluation Run': 'M19-form-fx',
+  // records mastered elsewhere open THAT module's form: the seven-year
+  // retention of financial records (FR-FIN-046) is an M24 retention class,
+  // finance duty conflicts (BRU-FIN-11/25) are M29 SoD controls
+  'M19:Retention Policy': 'M24-form-retention',
+  'M19:SoD Control': 'M29-form-sodcontrol',
+  'M19:SoD Exception': 'M29-form-sodexception',
   'M19:__by_model__': {
+    'fix.sod.control': 'M29-form-sodcontrol',
+    'fix.sod.mitigation': 'M29-form-sodexception',
     'fix.period.close': 'M19-form-period-close',
     'fix.period.reopen': 'M19-form-reopen',
     'fix.chart.control.change': 'M19-form-control-change',

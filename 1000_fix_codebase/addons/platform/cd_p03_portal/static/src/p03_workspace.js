@@ -4211,6 +4211,11 @@ export class P03Workspace extends Component {
             return out;
         };
         if (map && map.create === false) return null;
+        // `create: 'module'`: the page captures the module's own record
+        // although its grid lists another model - M19 "Journals" lists the
+        // journal register and captures through the journal-entry editor,
+        // which is the module's button and no model_form (2026-11-13)
+        if (map && map.create === "module") return P03_MODULE_CREATE[mid] ? { module: true } : null;
         // a page fed by a computed report has no record of its own to create
         if (map && map.report && !map.model) return null;
         if (map && typeof map.create === "string") {
