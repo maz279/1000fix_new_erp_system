@@ -9,7 +9,11 @@ from datetime import timedelta
 
 import pytest
 from odoo import fields
-from odoo.addons.cd_quotation.models.fix_quote_ops import ESIGN_PROVIDER_PARAM, esign_signature
+from odoo.addons.cd_quotation.models.fix_quote_ops import (
+    ESIGN_PROVIDER_PARAM,
+    esign_signature,
+    estimate_untaxed,
+)
 from odoo.addons.cd_service_order.models import fix_otp_util
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import assigned, inbox_task
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -242,7 +246,58 @@ def test_quote_value_is_the_estimate_total(c):
             }
         )
     )
-    assert q.value == est.grand_total and q.customer_id == c.customer
+    assert q.value == estimate_untaxed(est) and q.customer_id == c.customer
+    assert q.amount_total == est.grand_total
+
+
+def test_quote_from_an_estimate_charges_vat_once(c):
+    """P0 quote-to-cash review (12 Nov 2026): the quotation copied the
+    estimate's VAT-inclusive total as its 'pre-tax' value and added VAT again
+    -- a BDT 10,000 repair (11,500 with 15% VAT) printed 'Total Payable
+    13,225' while the invoice billed 11,500. Here BDT 4,000 (4,600 with VAT,
+    under the customer-approval threshold) would have printed 5,290."""
+    est = _estimate(c, 4000.0)
+    est.write({"vat_rate": 15.0})
+    est.action_send()
+    est.action_approve()
+    assert round(est.grand_total, 2) == 4600.0
+    q = (
+        c.env["fix.quotation"]
+        .with_user(c.author)
+        .create(
+            {
+                "estimate_id": est.id,
+                "cost_amount": 2400.0,
+                "valid_until": c.today + timedelta(days=5),
+            }
+        )
+    )
+    assert (q.value, q.vat_rate, q.vat_amount, q.amount_total) == (4000.0, 15.0, 600.0, 4600.0)
+    # Margins and TDS are on the amount before VAT, never on VAT.
+    assert (q.pretax_margin_bdt, q.margin_pct) == (1600.0, 40.0)
+    assert q.tds_amount == 200.0
+    # The VAT-inclusive total can no longer be quoted as the value.
+    with pytest.raises(ValidationError), c.env.cr.savepoint():
+        q.sudo().write({"value": est.grand_total})
+    # The customer's PDF: one VAT line, the right total, no TDS charge.
+    report = c.env.ref("cd_doc_suite.action_report_quotation", raise_if_not_found=False)
+    if report:
+        html = (
+            c.env["ir.actions.report"]
+            .sudo()
+            ._render_qweb_html(report.report_name, q.ids)[0]
+            .decode()
+        )
+        assert "Total Payable (incl. VAT)" in html
+        assert "4,600.00" in html and "5,290" not in html
+        assert "TDS" not in html
+
+
+def test_a_standalone_quote_value_is_before_vat(c):
+    """A contract quote's typed value is the base VAT is added to (the base
+    fix.contract bills VAT on)."""
+    q = _quote(c, value=15000.0, vat_rate=15.0)
+    assert (q.vat_amount, q.amount_total) == (2250.0, 17250.0)
 
 
 def test_quotation_numbers_come_from_a_sequence(c):
@@ -325,6 +380,7 @@ def test_otp_acceptance_within_validity_hands_off_to_the_contract(c, monkeypatch
     assert q.state == "sent"
     q.with_user(c.author).action_verify_acceptance_otp(otp=sent[-1])
     assert (q.state, q.acceptance_method, q.accepted_value) == ("accepted", "otp", 15000.0)
+    assert q.accepted_total == q.amount_total == 17250.0
     assert len(q.evidence_hash) == 64 and q.acceptance_recorded_by == c.author
     if "fix.contract" in c.env:
         contract = c.env["fix.contract"].browse(q.converted_res_id)
@@ -396,7 +452,7 @@ def test_a_service_quote_releases_its_service_order(c, monkeypatch):
     )
     est = _approved_estimate(c)
     q = _sent_quote(
-        c, quote_type="service", estimate_id=est.id, value=est.grand_total, cost_amount=1000.0
+        c, quote_type="service", estimate_id=est.id, value=estimate_untaxed(est), cost_amount=1000.0
     )
     q.with_user(c.author).action_send_acceptance_otp()
     q.with_user(c.author).action_verify_acceptance_otp(otp=sent[-1])
@@ -828,7 +884,7 @@ def test_quotation_lines_run_the_one_selling_check(c, monkeypatch):
 
     monkeypatch.setattr(Product, "_fix_check_sale", refuse)
     q = _quote(
-        c, quote_type="service", estimate_id=est.id, value=est.grand_total, cost_amount=500.0
+        c, quote_type="service", estimate_id=est.id, value=estimate_untaxed(est), cost_amount=500.0
     )
     with pytest.raises(UserError, match="item discontinued"), c.env.cr.savepoint():
         q.with_user(c.author).action_submit()

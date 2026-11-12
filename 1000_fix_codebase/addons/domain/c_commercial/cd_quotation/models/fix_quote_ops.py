@@ -98,6 +98,8 @@ QUOTE_STAMPS = frozenset(
         # Computed figures: create() and write() would otherwise store a typed
         # value over the compute (A04 audit q_09: margin_pct set to 45%).
         "vat_amount",
+        "amount_total",
+        "accepted_total",
         "tds_amount",
         "margin_known",
         "pretax_margin_bdt",
@@ -139,6 +141,14 @@ def esign_signature(secret: str, name: str, version: int, value: float, signatur
     return hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
 
 
+def estimate_untaxed(estimate) -> float:
+    """The estimate's chargeable amount before VAT (P0 quote-to-cash review,
+    12 Nov 2026). fix.estimate.grand_total INCLUDES VAT; the quotation's
+    `value` is the pre-VAT amount, the same base fix.contract and
+    fix.subscription bill VAT on top of."""
+    return round((estimate.grand_total or 0.0) - (estimate.vat_amount or 0.0), 2)
+
+
 class FixQuotation(models.Model):
     _name = "fix.quotation"
     _description = "Quotation"
@@ -178,7 +188,17 @@ class FixQuotation(models.Model):
     parent_version_id = fields.Many2one(
         "fix.quotation", string="Previous Version", readonly=True, copy=False
     )
-    value = fields.Monetary(string="Quotation Value", currency_field="currency_id")
+    # P0 quote-to-cash review (12 Nov 2026): `value` was copied from the
+    # estimate's VAT-INCLUSIVE grand_total, then VAT was added again: a BDT
+    # 10,000 repair (11,500 with VAT) printed "Total Payable 13,225" and was
+    # invoiced at 11,500. `value` is now always the amount BEFORE VAT -- the
+    # base contracts and subscriptions already bill VAT on -- and
+    # amount_total is what the customer pays.
+    value = fields.Monetary(
+        string="Quotation Value (excl. VAT)",
+        currency_field="currency_id",
+        help="The quoted amount before VAT. From an estimate: its total less its VAT.",
+    )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -192,6 +212,14 @@ class FixQuotation(models.Model):
         currency_field="currency_id",
         compute="_compute_statutory_margins",
         store=True,
+    )
+    amount_total = fields.Monetary(
+        string="Total Payable (incl. VAT)",
+        currency_field="currency_id",
+        compute="_compute_statutory_margins",
+        store=True,
+        help="Value plus VAT: what the customer pays. TDS is withheld by the customer "
+        "from its payment and is never added here.",
     )
     tds_rate = fields.Float(string="Withholding Tax TDS Rate (%)", default=5.0)
     tds_amount = fields.Monetary(
@@ -230,12 +258,27 @@ class FixQuotation(models.Model):
         store=True,
     )
 
-    @api.depends("value", "cost_amount", "vat_rate", "tds_rate")
+    @api.depends(
+        "value",
+        "cost_amount",
+        "vat_rate",
+        "tds_rate",
+        "estimate_id.grand_total",
+        "estimate_id.vat_amount",
+    )
     def _compute_statutory_margins(self):
         for rec in self:
             val = rec.value or 0.0
             cost = rec.cost_amount or 0.0
-            rec.vat_amount = round(val * (rec.vat_rate / 100.0), 2)
+            est = rec.estimate_id.sudo()
+            if est and abs(val - estimate_untaxed(est)) <= 0.005:
+                # Quoting the estimate as it stands: its own VAT, to the
+                # paisa, so the total equals the estimate (and the invoice).
+                rec.vat_amount = round((est.grand_total or 0.0) - val, 2)
+            else:
+                rec.vat_amount = round(val * (rec.vat_rate / 100.0), 2)
+            rec.amount_total = round(val + rec.vat_amount, 2)
+            # TDS (ITA 2023 s.89/90) is withheld on the value before VAT.
             rec.tds_amount = round(val * (rec.tds_rate / 100.0), 2)
             # A04 audit M36-11 (q_08): a quote with no cost read a 100% margin
             # (live QTN/2026/1). No cost is an unknown margin.
@@ -308,7 +351,19 @@ class FixQuotation(models.Model):
     )
     acceptance_ref = fields.Char(readonly=True, copy=False)
     acceptance_recorded_by = fields.Many2one("res.users", readonly=True, copy=False)
-    accepted_value = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
+    accepted_value = fields.Monetary(
+        string="Accepted Value (excl. VAT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
+    accepted_total = fields.Monetary(
+        string="Accepted Total (incl. VAT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The total payable the customer accepted; the invoice must match it (D3-01).",
+    )
     accepted_version = fields.Integer(readonly=True, copy=False)
     evidence_hash = fields.Char(string="Evidence Hash (SHA-256)", readonly=True, copy=False)
     signed_attachment_id = fields.Many2one(
@@ -377,7 +432,8 @@ class FixQuotation(models.Model):
             estimate = Estimate.browse(vals.get("estimate_id")).exists()
             if estimate:
                 # A04 audit M36-11 (q_07): the value is the estimate's.
-                vals.setdefault("value", estimate.grand_total)
+                vals.setdefault("value", estimate_untaxed(estimate))
+                vals.setdefault("vat_rate", estimate.vat_rate)
                 vals.setdefault("currency_id", estimate.currency_id.id)
                 if estimate.order_id.customer_id:
                     vals.setdefault("customer_id", estimate.order_id.customer_id.id)
@@ -441,11 +497,18 @@ class FixQuotation(models.Model):
     def _check_value_matches_estimate(self):
         for rec in self:
             est = rec.estimate_id.sudo()
-            if est and abs((rec.value or 0.0) - (est.grand_total or 0.0)) > 0.005:
+            if est and abs((rec.value or 0.0) - estimate_untaxed(est)) > 0.005:
                 raise ValidationError(
-                    "Quotation %s quotes BDT %.2f but its estimate %s totals BDT %.2f; the "
-                    "quotation value is the estimate's (A04 audit M36-11)."
-                    % (rec.name, rec.value or 0.0, est.display_name, est.grand_total or 0.0)
+                    "Quotation %s quotes BDT %.2f before VAT but its estimate %s comes to "
+                    "BDT %.2f before VAT (BDT %.2f with VAT); the quotation value is the "
+                    "estimate's (A04 audit M36-11)."
+                    % (
+                        rec.name,
+                        rec.value or 0.0,
+                        est.display_name,
+                        estimate_untaxed(est),
+                        est.grand_total or 0.0,
+                    )
                 )
 
     @api.constrains("contract_months", "cost_amount", "value")
@@ -511,10 +574,15 @@ class FixQuotation(models.Model):
                     "Estimate %s is %s; quote only an approved estimate."
                     % (est.display_name, est.state)
                 )
-            if abs((self.value or 0.0) - (est.grand_total or 0.0)) > 0.005:
+            if abs((self.value or 0.0) - estimate_untaxed(est)) > 0.005:
                 problems.append(
-                    "The estimate now totals BDT %.2f, not the BDT %.2f quoted."
-                    % (est.grand_total or 0.0, self.value or 0.0)
+                    "The estimate now comes to BDT %.2f before VAT, not the BDT %.2f quoted."
+                    % (estimate_untaxed(est), self.value or 0.0)
+                )
+            if abs((self.vat_rate or 0.0) - (est.vat_rate or 0.0)) > 0.0001:
+                problems.append(
+                    "The VAT rate %.2f%% differs from its estimate's %.2f%%."
+                    % (self.vat_rate or 0.0, est.vat_rate or 0.0)
                 )
             if est.currency_id != self.currency_id:
                 problems.append("The quotation currency differs from its estimate's.")
@@ -575,7 +643,8 @@ class FixQuotation(models.Model):
         self.ensure_one()
         return {
             "version": self.version,
-            "grand_total": self.value,
+            "grand_total": self.amount_total,
+            "untaxed": self.value,
             "quotation": self.name,
             "quote_type": self.quote_type,
             "customer_id": self.customer_id.id or None,
@@ -705,6 +774,7 @@ class FixQuotation(models.Model):
             "acceptance_ref": ref,
             "acceptance_recorded_by": recorder,
             "accepted_value": self.value,
+            "accepted_total": self.amount_total,
             "accepted_version": self.version,
             "evidence_hash": evidence,
         }

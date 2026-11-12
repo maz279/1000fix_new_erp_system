@@ -131,7 +131,7 @@ export const SCREENS = {
   // author); acceptance from the customer's code, the provider's e-signature
   // callback, or a signed copy recorded by someone other than the author.
   'M36-quotes': { kind: 'model_list', model: 'fix.quotation', stateField: 'state',
-    cols: ['name', 'customer_id', 'version', 'value', 'margin_pct', 'valid_until', 'state', 'approval_state'],
+    cols: ['name', 'customer_id', 'version', 'value', 'amount_total', 'margin_pct', 'valid_until', 'state', 'approval_state'],
     actions: [
       { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
@@ -248,10 +248,10 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'header', label: '1. Proposal Header', bn: '১. প্রস্তাবনা পরিচিতি', icon: '📄', badge: '9' },
-      { id: 'pricing', label: '2. Cost, Margins & SRT', bn: '২. খরচ ও মার্জিন', icon: '💵', badge: '7' },
+      { id: 'pricing', label: '2. Cost, Margins & SRT', bn: '২. খরচ ও মার্জিন', icon: '💵', badge: '8' },
       { id: 'statutory', label: '3. Withholding Tax (TDS)', bn: '৩. উৎসে কর কর্তন', icon: '⚖️', badge: '4' },
       { id: 'approval', label: '4. Internal Approval', bn: '৪. অভ্যন্তরীণ অনুমোদন', icon: '✅', badge: '5' },
-      { id: 'esign', label: '5. Customer Acceptance', bn: '৫. গ্রাহক সম্মতি', icon: '✍️', badge: '10' },
+      { id: 'esign', label: '5. Customer Acceptance', bn: '৫. গ্রাহক সম্মতি', icon: '✍️', badge: '11' },
       { id: 'handoff', label: '6. Contract & Order Hand-off', bn: '৬. চুক্তি ও অর্ডার', icon: '🔗', badge: '6' },
       { id: 'vault', label: '7. Document Vault', bn: '৭. নথিপত্র', icon: '📁', badge: '0' }
     ],
@@ -272,13 +272,14 @@ export const SCREENS = {
       { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
         note: 'Linked to an estimate, the value is the estimate total. Without a direct cost the margin is unknown.',
         fields: [
-          { name: 'value', required: true, label: 'Quotation Subtotal (BDT)' },
+          { name: 'value', required: true, label: 'Quotation Amount excl. VAT (BDT)' },
           { name: 'cost_amount', label: 'Direct Labor & Parts Cost (BDT)' },
           { name: 'margin_known', label: 'Margin Known (cost recorded)', readonly: true },
           { name: 'pretax_margin_bdt', label: 'Pre-Tax Operational Margin (BDT)', readonly: true },
           { name: 'margin_pct', label: 'Gross Margin (%)', readonly: true },
           { name: 'vat_rate', label: 'Standard VAT Rate (%)' },
-          { name: 'vat_amount', label: 'Mushak VAT Amount (BDT)', readonly: true }
+          { name: 'vat_amount', label: 'Mushak VAT Amount (BDT)', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT (BDT)', readonly: true }
         ] },
       { tab: 'statutory', title: 'Statutory Withholding Tax & Net Cash Margin',
         note: 'Statutory TDS deductions under Income Tax Act 2023 s.89/90 for supply of service/goods.',
@@ -307,6 +308,7 @@ export const SCREENS = {
           { name: 'acceptance_method', label: 'Acceptance Method', readonly: true },
           { name: 'acceptance_ref', label: 'Acceptance Reference', readonly: true },
           { name: 'accepted_at', label: 'Accepted At', readonly: true },
+          { name: 'accepted_total', label: 'Accepted Total incl. VAT (BDT)', readonly: true },
           { name: 'evidence_hash', label: 'Evidence Hash (SHA-256)', readonly: true },
           { name: 'decline_reason_code', label: 'Decline Reason (governed list)' },
           { name: 'decline_reason', label: 'Customer Decline Rationale', readonly: true }

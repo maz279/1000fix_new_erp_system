@@ -217,7 +217,6 @@ def _accepted_quotation(shop, order, value=None):
                 "estimate_id": estimate.id,
                 "company_id": shop.company.id,
                 "quote_type": "service",
-                "value": estimate.grand_total,
                 "cost_amount": 100.0,
             }
         )
@@ -226,7 +225,8 @@ def _accepted_quotation(shop, order, value=None):
         {
             "state": "accepted",
             "accepted_at": fields.Datetime.now(),
-            "accepted_value": estimate.grand_total if value is None else value,
+            "accepted_value": quotation.value,
+            "accepted_total": estimate.grand_total if value is None else value,
             "service_order_id": order.id,
         }
     )
@@ -266,7 +266,8 @@ class TestAcceptedQuotationBindsTheInvoice:
         shop = _gl_company(odoo_env, "d301rev")
         order = _closed_order(shop, [(None, "Labour", 1.0, 3500.0, "labour")])  # 4,025.00
         quotation = _accepted_quotation(shop, order)
-        assert round(quotation.accepted_value, 2) == 4025.00
+        assert round(quotation.accepted_total, 2) == 4025.00
+        assert round(quotation.accepted_value, 2) == 3500.00
         _revise(order, 4300.0)  # 4,945.00
         Invoice = shop.env["fix.ar.invoice"]
         with pytest.raises(UserError, match="accepted") as refused, odoo_env.cr.savepoint():
@@ -300,3 +301,13 @@ class TestAcceptedQuotationBindsTheInvoice:
         _revise(order, 4300.0)
         invoice = shop.env["fix.ar.invoice"].from_closed_service_order(order, Datetime.now())
         assert round(invoice.total_payable, 2) == 4945.00
+
+    def test_a_quotation_accepted_before_the_vat_fix_still_binds(self, odoo_env):
+        """P0 quote-to-cash review: a quotation accepted before accepted_total
+        existed carries the VAT-inclusive total in accepted_value."""
+        shop = _gl_company(odoo_env, "d301legacy")
+        order = _closed_order(shop, [(None, "Labour", 1.0, 3500.0, "labour")])
+        quotation = _accepted_quotation(shop, order)
+        quotation._guarded().write({"accepted_total": 0.0, "accepted_value": 4025.00})
+        invoice = shop.env["fix.ar.invoice"].from_closed_service_order(order, Datetime.now())
+        assert round(invoice.total_payable, 2) == 4025.00

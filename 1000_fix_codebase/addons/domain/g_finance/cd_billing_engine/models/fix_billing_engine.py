@@ -1061,7 +1061,14 @@ class FixArInvoice(models.Model):
             return
         exempted = round(exempted or 0.0, 2)
         billed = round((estimate.grand_total or 0.0) - exempted, 2)
-        accepted = round(quotation.accepted_value or 0.0, 2)
+        # P0 quote-to-cash review (12 Nov 2026): accepted_value is now the
+        # amount BEFORE VAT; the total the customer accepted (incl. VAT) is
+        # accepted_total. A quotation accepted before that change has no
+        # accepted_total, and its accepted_value was the VAT-inclusive total.
+        accepted_total = (
+            quotation["accepted_total"] if "accepted_total" in quotation._fields else 0.0
+        )
+        accepted = round(accepted_total or quotation.accepted_value or 0.0, 2)
         if abs(accepted - exempted - billed) > 0.005:
             raise UserError(
                 "%s cannot be invoiced: its approved estimate %s bills BDT %.2f%s, but the "
