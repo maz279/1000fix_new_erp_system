@@ -3,6 +3,13 @@
  * Rebuilt 2026-10-31: Full Microsoft Dynamics 365 multi-tab form architecture
  * across all 8 in-workspace forms with zero Bengali/English mixing, comprehensive
  * data capture, stage-gating enforcement, and B2B corporate governance.
+ *
+ * M07 audit 2026-11-13 ("not all the sub-modules have a relevant data capture
+ * button"): 3 of 10 sub-module pages had none (Activities, Cross-Sell,
+ * Competitor Intelligence) and three buttons that did show saved the wrong
+ * thing: "+ New Lead" made an opportunity, "+ New Forecast Snapshot" froze a
+ * snapshot of zeros, the Activity form edited a lead. Every page now captures
+ * what its function records; see tests/test_m07_submodule_capture.py.
  */
 
 export const MODULE = {
@@ -31,6 +38,7 @@ export const MODULE = {
       { id: 'M07-form-quote', en: 'Opportunity Estimate', bn: 'প্রাক্কলন ফর্ম', t: 'f' }
     ]},
     { en: 'Accounts', bn: 'অ্যাকাউন্ট', screens: [
+      { id: 'M07-key-accounts', en: 'Key Accounts & Stakeholders', bn: 'কী অ্যাকাউন্ট ও স্টেকহোল্ডার', t: 'g' },
       { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
       { id: 'M07-plans', en: 'Account Plans', bn: 'অ্যাকাউন্ট পরিকল্পনা', t: 'g' },
       { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর সময়সূচি', t: 'g' },
@@ -46,6 +54,8 @@ export const MODULE = {
       { id: 'M07-form-lead', en: 'Lead', bn: 'লিড ফর্ম', t: 'f' },
       { id: 'M07-form-opp', en: 'Opportunity', bn: 'সুযোগ ফর্ম', t: 'f' },
       { id: 'M07-form-activity', en: 'Activity (call/visit/meeting)', bn: 'কার্যক্রম ফর্ম', t: 'f' },
+      { id: 'M07-form-competitor', en: 'Competitor Intelligence', bn: 'প্রতিযোগী তথ্য ফর্ম', t: 'f' },
+      { id: 'M07-form-account', en: 'Key Account & Stakeholders', bn: 'কী অ্যাকাউন্ট ফর্ম', t: 'f' },
       { id: 'M07-form-plan', en: 'Account Plan', bn: 'পরিকল্পনা ফর্ম', t: 'f' },
       { id: 'M07-form-pipeline', en: 'Pipeline Configuration', bn: 'পাইপলাইন কনফিগ', t: 'f' },
       { id: 'M07-form-assignment', en: 'Account Assignment', bn: 'অ্যাসাইনমেন্ট ফর্ম', t: 'f' },
@@ -72,7 +82,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Pipeline by Stream', 'Funnel Conversion', 'Win Rate by Source', 'Account Manager Scorecard', 'Renewal Risk Report', 'Cross-Sell Attach Rate'],
-  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model', 'Opportunity Estimate'],
+  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model', 'Opportunity Estimate', 'Key Account & Stakeholders', 'Competitor Intelligence'],
   cross: ['M33 Party Master', 'M08 Service Contracts', 'M01 Service Orders', 'M20 Credit Control', 'M53 Commissions'],
   freg: {
     src: 79,
@@ -80,13 +90,24 @@ export const MODULE = {
       ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads'], reports: ['Win Rate by Source'], forms: ['Lead', 'Lead Scoring Model'], create: 'M07-form-lead' }],
       ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban'], reports: ['Funnel Conversion'], forms: ['Opportunity', 'Pipeline Configuration'] }],
       ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-rpt-pipeline', 'M07-rpt-funnel'], reports: ['Pipeline by Stream', 'Funnel Conversion'], forms: ['Forecast Snapshot'] }],
-      ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans'], reports: [], forms: ['Account Plan'] }],
+      /* 4 FR-CRM-028/029: the plan, and the decision makers it is written
+       * for - mapped on the key-account record (fix.account.stakeholder). */
+      ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans', 'M07-key-accounts'], reports: [], forms: ['Account Plan', 'Key Account & Stakeholders'] }],
       ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-rpt-amscore'], reports: ['Account Manager Scorecard'], forms: ['Account Assignment'] }],
       ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'], reports: [], forms: ['Quarterly Business Review'] }],
-      ['7', 'Activities', 8, { model: 'crm.lead', cols: ['name', 'partner_id', 'activity_summary', 'activity_date_deadline', 'activity_user_id'], screens: ['M07-activities'], reports: [], forms: ['Activity (call/visit/meeting)', 'Sequence / Playbook'], create: false }],
+      /* 7 FR-CRM-045: the calls, meetings, site visits, e-mails and tasks
+       * themselves (fix.sales.activity), each with its outcome and next step. */
+      ['7', 'Activities', 8, { model: 'fix.sales.activity', cols: ['occurred_at', 'activity_type', 'name', 'lead_id', 'partner_id', 'owner_id', 'outcome', 'next_action_date'], screens: ['M07-activities'], reports: [], forms: ['Activity (call/visit/meeting)', 'Sequence / Playbook'] }],
       ['8', 'Renewal Pipeline', 6, { model: 'fix.renewal', cols: ['state', 'partner_id', 'source_type', 'source_ref', 'value', 'expiry_date'], screens: ['M07-renewals', 'M07-rpt-renewalrisk'], reports: ['Renewal Risk Report'], forms: ['Renewal Pursuit'] }],
-      ['9', 'Cross-Sell / Upsell', 7, { model: 'crm.lead', cols: ['name', 'partner_id', 'is_cross_sell', 'expected_revenue', 'stage_id'], screens: ['M07-crosssell', 'M07-rpt-crosssell', 'M07-opps'], reports: ['Cross-Sell Attach Rate'], forms: ['Opportunity Estimate'], create: false, domain: [['type', '=', 'opportunity']] }],
-      ['10', 'Competitor Intelligence', 5, { model: 'crm.lead', cols: ['name', 'won_status', 'competitor', 'competitor_price_bdt', 'loss_reason_category'], screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'], reports: ['Win Rate by Source'], forms: [], create: false, domain: [['won_status', 'in', ['won', 'lost']]] }]
+      /* 9 FR-CRM-044: an expansion opportunity on the installed base - the
+       * page used to list every opportunity and capture none; "+ New" opens
+       * the opportunity form with the cross-sell flag already ticked. */
+      ['9', 'Cross-Sell / Upsell', 7, { model: 'crm.lead', cols: ['name', 'partner_id', 'is_cross_sell', 'expected_revenue', 'stage_id'], screens: ['M07-crosssell', 'M07-rpt-crosssell', 'M07-opps'], reports: ['Cross-Sell Attach Rate'], forms: ['Opportunity', 'Opportunity Estimate'], create: 'M07-form-opp', domain: [['type', '=', 'opportunity'], ['is_cross_sell', '=', true]] }],
+      /* 10 FR-CRM-015: who we compete with, their bid and our price
+       * position, recorded on the opportunity while it is pursued (a Lost
+       * outcome refuses to close without it). Lost deals are archived, so
+       * the page lists the live and won ones; the report covers all. */
+      ['10', 'Competitor Intelligence', 5, { model: 'crm.lead', cols: ['name', 'partner_id', 'competitor', 'competitor_price_bdt', 'price_position', 'won_status'], screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'], reports: ['Win Rate by Source'], forms: ['Competitor Intelligence'], create: 'M07-form-competitor', domain: [['type', '=', 'opportunity'], ['competitor', '!=', false]] }]
     ]
   }
 };
@@ -97,7 +118,11 @@ export const SCREENS = {
     stateField: 'stage_id' },
   'M07-leads': { kind: 'model_list', model: 'crm.lead', create: true,
     cols: ['name', 'partner_id', 'lead_source', 'expected_revenue', 'user_id', 'create_date'],
-    domain: [['type', '=', 'lead']] },
+    domain: [['type', '=', 'lead']],
+    actions: [
+      { m: 'action_score', l: 'Score Lead' },
+      { m: 'action_convert_to_opportunity', l: 'Convert to Opportunity' }
+    ] },
   'M07-opps': { kind: 'model_list', model: 'crm.lead', create: true,
     cols: ['name', 'partner_id', 'pipeline_id', 'expected_revenue', 'probability', 'forecast_category', 'stage_id'],
     domain: [['type', '=', 'opportunity']],
@@ -138,10 +163,12 @@ export const SCREENS = {
       { m: 'action_close', l: 'Close (No Renewal Possible)', ask: 'Why no renewal is possible', kwarg: 'reason' }
     ] },
   'M07-winloss': { kind: 'table_report', module: 'M07', report: 'winloss_summary', title: 'Win/Loss Analysis', period: true },
-  'M07-activities': { kind: 'model_list', model: 'crm.lead', create: false,
-    cols: ['name', 'partner_id', 'activity_summary', 'activity_type_id', 'activity_date_deadline', 'activity_user_id'],
-    domain: [['type', 'in', ['lead', 'opportunity']]],
-    note: 'Calls, visits and meetings scheduled on leads — mail.activity is deliberately not served company-wide (per-user private); this grid reads the lead\'s next-activity snapshot fields.' },
+  'M07-activities': { kind: 'model_list', model: 'fix.sales.activity', create: true,
+    cols: ['occurred_at', 'activity_type', 'name', 'lead_id', 'partner_id', 'owner_id', 'outcome', 'next_action', 'next_action_date'],
+    note: 'Every call, meeting, site visit, e-mail and task, against a lead, an opportunity or an account. A next step with a due date becomes a To-Do for whoever did the activity.' },
+  'M07-key-accounts': { kind: 'model_list', model: 'fix.account', create: true,
+    cols: ['name', 'account_code', 'tier', 'industry_vertical', 'health_rating', 'acv_bdt', 'user_id', 'last_qbr_date', 'qbr_overdue'],
+    note: 'One record per corporate customer: tier, health, contract value and the people who decide inside it. The account manager is the current Corporate Accounts assignment.' },
   'M07-scoring': { kind: 'model_list', model: 'fix.pipeline', create: true,
     cols: ['code', 'name', 'revenue_stream', 'default_probability', 'active'],
     note: 'Pipeline scoring & routing streams that gate opportunity stages by revenue stream.' },
@@ -183,7 +210,9 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: 'Lead Identification', fields: [
         { name: 'name', required: true, label: 'Lead Title / Subject' },
-        { name: 'type', value: 'lead', readonly: true, label: 'Lead Classification' },
+        // posted on create (no user holds Odoo's "use leads" right, so the
+        // default made every new lead an opportunity); locked once saved
+        { name: 'type', value: 'lead', label: 'Lead Classification' },
         { name: 'partner_id', label: 'Linked Customer / Party' },
         { name: 'lead_source', label: 'Inbound Acquisition Source' },
         { name: 'user_id', label: 'Assigned Sales Representative' },
@@ -231,6 +260,7 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: 'Opportunity Overview & Corporate Account', fields: [
         { name: 'name', required: true, label: 'Deal Title / Opportunity Name' },
+        { name: 'type', value: 'opportunity', label: 'Record Type' },
         { name: 'partner_id', required: true, label: 'Key Account / Corporate Customer' },
         { name: 'user_id', required: true, label: 'Assigned Key Account Manager' },
         { name: 'team_id', label: 'Commercial Sales Team' },
@@ -260,6 +290,7 @@ export const SCREENS = {
       { tab: 'competition', title: 'Competitor Intelligence & Structured Loss Analysis', fields: [
         { name: 'competitor', label: 'Primary Winning Competitor' },
         { name: 'competitor_price_bdt', label: 'Competitor Bid Value (BDT)' },
+        { name: 'price_position', label: 'Our Price Position' },
         { name: 'loss_reason_category', label: 'Primary Loss Reason Category' },
         { name: 'lost_reason_code', label: 'Detailed Loss Reason Code' },
         { name: 'lost_reason_id', label: 'Formal Loss Reason Reference' },
@@ -442,6 +473,7 @@ export const SCREENS = {
 
   'M07-form-forecast': { kind: 'model_form', model: 'fix.forecast.snapshot',
     title: 'Forecast Snapshot', back: 'M07-forecast',
+    newLabel: 'Take a Forecast Snapshot',
     tabs: [
       { id: 'scope', label: '1. Period & Pipeline Scope', bn: '১. পূর্বাভাসের সময়কাল', icon: '📆', badge: '4' },
       { id: 'categories', label: '2. Forecast Categories Breakdown', bn: '২. ক্যাটাগরি বিশ্লেষণ', icon: '📊', badge: '3' },
@@ -455,7 +487,9 @@ export const SCREENS = {
         { name: 'pipeline_id', required: true, label: 'Revenue Stream Pipeline' },
         { name: 'taken_at', readonly: true, label: 'Snapshot Timestamp' },
       ]},
-      { tab: 'categories', title: 'Forecast Category Value Totals', fields: [
+      { tab: 'categories', title: 'Forecast Category Value Totals',
+        note: 'Rolled up on save from the owner\'s open opportunities in the pipeline, by forecast category. Nothing is typed here, and a snapshot is refused when the owner has no open opportunity to forecast.',
+        fields: [
         { name: 'commit_value', readonly: true, label: 'Commit Category Value (BDT)' },
         { name: 'best_case_value', readonly: true, label: 'Best Case Value (BDT)' },
         { name: 'pipeline_value', readonly: true, label: 'Pipeline Category Value (BDT)' },
@@ -470,45 +504,116 @@ export const SCREENS = {
         fields: [] }
     ] },
 
-  'M07-form-activity': {
-    lines: {
-      field: 'calendar_event_ids',
-      title: 'Scheduled Calls, Visits & Meetings',
-      note: 'The activity records this screen exists to manage.',
-      fields: [
-        { name: 'name', label: 'Subject', required: true },
-        { name: 'start', label: 'Start' },
-        { name: 'stop', label: 'End' },
-        { name: 'user_id', label: 'Organiser' },
-        { name: 'location', label: 'Location' }
-      ]
-    }, kind: 'model_form', model: 'crm.lead',
+  /* M07 audit 2026-11-13: the activity itself (FR-CRM-045). The form this
+   * replaces edited a LEAD's next-activity snapshot: its due date is computed
+   * by Odoo, so every save that set one was refused, and opened blank it
+   * created a new lead named after the "activity". */
+  'M07-form-activity': { kind: 'model_form', model: 'fix.sales.activity',
     title: 'Activity (call/visit/meeting)', back: 'M07-activities',
-    // the pill reads the lead's next-activity STATE (a selection); the
-    // activity type is a many2one and rendered as a blank / "[object Object]"
-    status: { field: 'activity_state', labels: { overdue: 'Overdue', today: 'Due Today', planned: 'Planned' } },
+    newLabel: 'Log a Call, Visit or Meeting',
+    status: { field: 'activity_type', labels: { call: 'Phone Call', meeting: 'Meeting', site_visit: 'Site Visit', email: 'E-mail', task: 'Task' } },
     tabs: [
-      { id: 'general', label: '1. Lead & Activity', bn: '১. লিড ও কার্যক্রম', icon: '📅', badge: '4' },
-      { id: 'schedule', label: '2. Next Activity Schedule', bn: '২. পরবর্তী কার্যক্রম সময়সূচি', icon: '⏰', badge: '3' },
-      { id: 'docs', label: '3. Notes & Evidence', bn: '৩. নোট ও প্রমাণ', icon: '📑', badge: '2' }
+      { id: 'what', label: '1. What Happened', bn: '১. কী হয়েছে', icon: '📞', badge: '6' },
+      { id: 'against', label: '2. Lead, Opportunity or Account', bn: '২. লিড, সুযোগ বা অ্যাকাউন্ট', icon: '🎯', badge: '3' },
+      { id: 'outcome', label: '3. Outcome & Next Step', bn: '৩. ফলাফল ও পরবর্তী পদক্ষেপ', icon: '✅', badge: '5' }
     ],
     sections: [
-      { tab: 'general', title: 'Lead the activity belongs to', fields: [
-        { name: 'name', required: true, label: 'Lead / Opportunity Reference' },
-        { name: 'partner_id', label: 'Customer / Prospect' },
-        { name: 'user_id', label: 'Assigned Salesperson' },
-        { name: 'type', label: 'Record Type (lead / opportunity)', readonly: true },
+      { tab: 'what', title: 'The Interaction', fields: [
+        { name: 'activity_type', required: true, label: 'Activity Type' },
+        { name: 'name', required: true, label: 'Subject' },
+        { name: 'occurred_at', required: true, label: 'When' },
+        { name: 'duration_minutes', label: 'Duration (minutes)' },
+        { name: 'location', label: 'Location / Site Address' },
+        { name: 'owner_id', required: true, label: 'Done By' }
       ]},
-      { tab: 'schedule', title: 'Next call / visit / meeting', fields: [
-        { name: 'activity_summary', label: 'Activity Summary (call / visit / meeting)' },
-        { name: 'activity_type_id', label: 'Activity Category' },
-        { name: 'activity_date_deadline', required: true, label: 'Due Date' },
-      ]},
-      { tab: 'docs', title: 'Visit Notes & Follow-up Evidence',
-        note: 'Scheduling writes the lead\'s next-activity fields (mail.activity substrate). Formal QBR minutes live on the QBR record\'s Documents tab.',
+      { tab: 'against', title: 'Who It Was With',
+        note: 'Pick the lead or opportunity; the account fills in from it. A visit to a customer with no open pursuit is logged against the account alone.',
         fields: [
-          { name: 'description', label: 'Detailed Activity Notes / Visit Minutes', type: 'text' },
-        ]}
+        { name: 'lead_id', label: 'Lead / Opportunity' },
+        { name: 'partner_id', label: 'Account' },
+        { name: 'subject_type', readonly: true, label: 'Logged Against' }
+      ]},
+      { tab: 'outcome', title: 'Outcome & Reminder',
+        note: 'A next step with a due date schedules a To-Do for the person who did the activity, on the lead or the account: that is the reminder.',
+        fields: [
+        { name: 'outcome', label: 'Outcome' },
+        { name: 'notes', type: 'text', label: 'Notes / Minutes' },
+        { name: 'next_action', label: 'Next Step' },
+        { name: 'next_action_date', label: 'Next Step Due' },
+        { name: 'reminder_activity_id', readonly: true, label: 'Reminder Scheduled' }
+      ]}
+    ] },
+
+  /* FR-CRM-028/029: the key-account master and its decision makers. The
+   * model was built on 31 Oct but no screen served it. */
+  'M07-form-account': {
+    lines: {
+      field: 'stakeholder_ids',
+      title: 'Decision Makers & Influencers',
+      note: 'Who decides inside the account, their buying role and how they lean towards us.',
+      fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'designation', label: 'Designation' },
+        { name: 'buying_role', label: 'Buying Role', required: true },
+        { name: 'sentiment', label: 'Sentiment' },
+        { name: 'phone', label: 'Phone' },
+        { name: 'email', label: 'E-mail' },
+        { name: 'partner_id', label: 'Contact Record' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.account',
+    title: 'Key Account & Stakeholders', back: 'M07-key-accounts',
+    status: { field: 'health_rating', labels: { healthy: 'Healthy', neutral: 'Neutral', at_risk: 'At Risk', critical: 'Critical' } },
+    tabs: [
+      { id: 'profile', label: '1. Account Profile', bn: '১. অ্যাকাউন্ট প্রোফাইল', icon: '🏢', badge: '6' },
+      { id: 'value', label: '2. Value & Health', bn: '২. মূল্য ও স্বাস্থ্য', icon: '💰', badge: '8' }
+    ],
+    sections: [
+      { tab: 'profile', title: 'Corporate Customer', fields: [
+        { name: 'partner_id', required: true, label: 'Corporate Party' },
+        { name: 'account_code', label: 'Account Code' },
+        { name: 'tier', required: true, label: 'Account Tier' },
+        { name: 'industry_vertical', required: true, label: 'Industry Vertical' },
+        { name: 'operating_unit_id', label: 'Operating Unit' },
+        { name: 'office_address', label: 'Head Office Address' }
+      ]},
+      { tab: 'value', title: 'Contract Value, Margin & Review Cadence',
+        note: 'The account manager is the current Corporate Accounts assignment (BRU-CRM-08); change it there. Strategic and Enterprise accounts need a held QBR every 90 days.',
+        fields: [
+        { name: 'acv_bdt', label: 'Annual Contract Value (BDT)' },
+        { name: 'gross_margin_pct', label: 'Gross Margin (%)' },
+        { name: 'account_grade', readonly: true, label: 'Profitability Grade' },
+        { name: 'health_rating', label: 'Account Health' },
+        { name: 'user_id', readonly: true, label: 'Key Account Manager' },
+        { name: 'last_qbr_date', readonly: true, label: 'Last QBR Held' },
+        { name: 'days_since_qbr', readonly: true, label: 'Days Since QBR' },
+        { name: 'qbr_overdue', readonly: true, label: 'QBR Overdue' }
+      ]}
+    ] },
+
+  /* FR-CRM-015: competitor and price position on a pursued opportunity -
+   * step 1 picks it, step 2 records the intelligence on it. */
+  'M07-form-competitor': { kind: 'model_form', model: 'crm.lead',
+    title: 'Competitor Intelligence', back: 'M07-opps',
+    newLabel: 'Record Competitor Intelligence',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the opportunity you are competing for',
+      note: 'Opportunities, open and won.',
+      search: 'Search opportunity',
+      choose: 'Record intelligence for this opportunity',
+      cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'competitor'],
+      domain: [['type', '=', 'opportunity']],
+      empty: 'No opportunity yet: raise one with + New Opportunity first.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Who We Compete With (FR-CRM-015)',
+        note: 'Record it while the deal is pursued. Marking the deal Lost later also asks for the loss reason.',
+        fields: [
+        { name: 'name', readonly: true, label: 'Opportunity' },
+        { name: 'competitor', required: true, label: 'Competitor' },
+        { name: 'competitor_price_bdt', label: 'Competitor Bid (BDT)' },
+        { name: 'price_position', label: 'Our Price Position' }
+      ]}
     ] },
   /* ==================================================================
    * A03 GAP-CLOSURE BUILD - new surfaces for this module
@@ -724,6 +829,8 @@ export const FORM_CHIPS = {
   'M07:Renewal Pursuit': 'M07-form-renewal',
   'M07:Forecast Snapshot': 'M07-form-forecast',
   'M07:Opportunity Estimate': 'M07-form-quote',
+  'M07:Key Account & Stakeholders': 'M07-form-account',
+  'M07:Competitor Intelligence': 'M07-form-competitor',
   'M07:__by_model__': {
     'fix.crm.sequence': 'M07-form-sequence',
     'fix.crm.score.model': 'M07-form-score-model',
@@ -734,7 +841,9 @@ export const FORM_CHIPS = {
     'fix.qbr': 'M07-form-qbr',
     'fix.renewal': 'M07-form-renewal',
     'fix.forecast.snapshot': 'M07-form-forecast',
-    'fix.estimate': 'M07-form-quote'
+    'fix.estimate': 'M07-form-quote',
+    'fix.sales.activity': 'M07-form-activity',
+    'fix.account': 'M07-form-account'
   },
   'M07:__by_screen__': {
     'M07-sequences': 'M07-form-sequence',
@@ -746,6 +855,7 @@ export const FORM_CHIPS = {
     'M07-form-lead': 'M07-form-lead',
     'M07-activities': 'M07-form-activity',
     'M07-accounts': 'M07-form-assignment',
+    'M07-key-accounts': 'M07-form-account',
     'M07-plans': 'M07-form-plan',
     'M07-qbr': 'M07-form-qbr',
     'M07-renewals': 'M07-form-renewal',
@@ -760,14 +870,16 @@ export const FORM_MODELS = {
   'M07:Sequence / Playbook': 'fix.crm.sequence',
   'M07:Lead': 'crm.lead',
   'M07:Opportunity': 'crm.lead',
-  'M07:Activity (call/visit/meeting)': 'crm.lead',
+  'M07:Activity (call/visit/meeting)': 'fix.sales.activity',
   'M07:Account Plan': 'fix.account.plan',
   'M07:Pipeline Configuration': 'fix.pipeline',
   'M07:Account Assignment': 'fix.account.assignment',
   'M07:Quarterly Business Review': 'fix.qbr',
   'M07:Renewal Pursuit': 'fix.renewal',
   'M07:Forecast Snapshot': 'fix.forecast.snapshot',
-  'M07:Opportunity Estimate': 'fix.estimate'
+  'M07:Opportunity Estimate': 'fix.estimate',
+  'M07:Key Account & Stakeholders': 'fix.account',
+  'M07:Competitor Intelligence': 'crm.lead'
 };
 
 export const CREATE = {

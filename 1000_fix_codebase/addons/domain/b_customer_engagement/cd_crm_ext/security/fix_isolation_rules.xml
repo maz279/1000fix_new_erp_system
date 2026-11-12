@@ -69,4 +69,9 @@
         <field name="model_id" ref="model_fix_renewal"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_sales_activity_company" model="ir.rule">
+        <field name="name">fix.sales.activity: allowed companies</field>
+        <field name="model_id" ref="model_fix_sales_activity"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

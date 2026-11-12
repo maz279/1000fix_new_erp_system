@@ -60,6 +60,67 @@ class FixForecastSnapshot(models.Model):
             vals["adjusted_by"] = self.env.user.id
         return super().write(vals)
 
+    FIGURES = ("commit_value", "best_case_value", "pipeline_value")
+
+    @api.model
+    def _rollup(self, owner, pipeline):
+        """The raw roll-up of one owner's open opportunities in one pipeline,
+        by forecast category (FR-CRM-019/020); None when there is nothing to
+        forecast. Read as the scheduler reads it (every opportunity of the
+        owner, not only those the caller may open), so a snapshot taken by
+        hand and one taken by the scheduler agree."""
+        opps = (
+            self.env["crm.lead"]
+            .sudo()
+            .search(
+                [
+                    ("type", "=", "opportunity"),
+                    ("user_id", "=", owner.id),
+                    ("pipeline_id", "=", pipeline.id),
+                    ("probability", ">", 0),
+                    ("active", "=", True),
+                ]
+            )
+        )
+        total = sum(opps.mapped("expected_revenue"))
+        if not opps or not total:
+            return None
+        return {
+            "commit_value": sum(
+                o.expected_revenue for o in opps if o.forecast_category == "commit"
+            ),
+            "best_case_value": sum(
+                o.expected_revenue for o in opps if o.forecast_category in ("commit", "best_case")
+            ),
+            "pipeline_value": total,
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """M07 audit 2026-11-13: the workspace "+ New Forecast Snapshot" saved
+        a snapshot whose figures were all zero (they are read-only on the form,
+        so nothing was sent) and locked it at once - and the unique period /
+        owner / pipeline key then kept the scheduler's real snapshot out. A
+        snapshot is TAKEN, never typed: the figures are rolled up here from
+        the owner's open opportunities. Only trusted code (the scheduler, data
+        loads) may pass its own figures."""
+        vals_list = [dict(vals) for vals in vals_list]
+        for vals in vals_list:
+            if self.env.su and any(k in vals for k in self.FIGURES):
+                continue
+            owner = self.env["res.users"].browse(vals.get("owner_id")).exists()
+            pipeline = self.env["fix.pipeline"].browse(vals.get("pipeline_id")).exists()
+            figures = self._rollup(owner, pipeline) if owner and pipeline else None
+            if not figures:
+                raise ValidationError(
+                    "%s has no open opportunity with a value in the %s pipeline: there "
+                    "is no forecast to snapshot."
+                    % (owner.name or "The owner", pipeline.name or "chosen")
+                )
+            vals.update(figures)
+            vals.pop("taken_at", None)
+        return super().create(vals_list)
+
     @api.model
     def action_take_snapshot(self, period=None):
         """AUT-CRM-10: snapshot the current period's forecast from open
@@ -67,30 +128,12 @@ class FixForecastSnapshot(models.Model):
         import datetime
 
         period = period or datetime.date.today().strftime("%Y-%m")
-        Opportunity = self.env["crm.lead"]
-        owners = Opportunity.search([("type", "=", "opportunity")]).mapped("user_id")
+        owners = self.env["crm.lead"].search([("type", "=", "opportunity")]).mapped("user_id")
         created = 0
         for owner in owners:
             for pipeline in self.env["fix.pipeline"].search([]):
-                opps = Opportunity.search(
-                    [
-                        ("type", "=", "opportunity"),
-                        ("user_id", "=", owner.id),
-                        ("pipeline_id", "=", pipeline.id),
-                        ("probability", ">", 0),
-                        ("active", "=", True),
-                    ]
-                )
-                if not opps:
-                    continue
-                commit = sum(o.expected_revenue for o in opps if o.forecast_category == "commit")
-                best = sum(
-                    o.expected_revenue
-                    for o in opps
-                    if o.forecast_category in ("commit", "best_case")
-                )
-                total = sum(o.expected_revenue for o in opps)
-                if not total:
+                figures = self._rollup(owner, pipeline)
+                if not figures:
                     continue
                 if self.search_count(
                     [
@@ -101,14 +144,7 @@ class FixForecastSnapshot(models.Model):
                 ):
                     continue
                 self.create(
-                    {
-                        "period": period,
-                        "owner_id": owner.id,
-                        "pipeline_id": pipeline.id,
-                        "commit_value": commit,
-                        "best_case_value": best,
-                        "pipeline_value": total,
-                    }
+                    {"period": period, "owner_id": owner.id, "pipeline_id": pipeline.id, **figures}
                 )
                 created += 1
         if created:

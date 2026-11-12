@@ -23,11 +23,31 @@ SURFACES = {
             "action_request_contract_verification",
             "action_recall_approval",
             "action_score",
+            # M07 audit 2026-11-13: a lead had no way to become an opportunity
+            "action_convert_to_opportunity",
         },
     },
     # NOTE: mail.activity is deliberately NOT served: the generic endpoint
-    # reads company-wide (sudo) and activities are per-user private. The
-    # M07-activities screen reads crm.lead's next-activity snapshot fields.
+    # reads company-wide (sudo) and activities are per-user private. Calls,
+    # visits and meetings are logged as fix.sales.activity (FR-CRM-045); a
+    # next step with a date becomes a To-Do for its owner.
+    "fix.sales.activity": {
+        "order": "occurred_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    # The key-account master and its decision makers (FR-CRM-028/029): built
+    # in cd_crm_ext but served by no screen until the M07 audit 2026-11-13.
+    "fix.account": {
+        "order": "acv_bdt desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.account.stakeholder": {
+        "order": "account_id, buying_role, name",
+        "limit": 300,
+        "actions": set(),
+    },
     "fix.pipeline": {
         "order": "code",
         "limit": 100,

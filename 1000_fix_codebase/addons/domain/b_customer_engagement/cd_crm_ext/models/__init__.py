@@ -12,6 +12,10 @@ from . import (
     fix_renewal,
 )
 
+# M07 audit 2026-11-13: the interaction log (FR-CRM-045); it links to
+# crm.lead, so it loads after crm_lead_ext.
+from . import fix_sales_activity
+
 # Lead scoring EXTENDS crm.lead, so it imports after crm_lead_ext,
 # and it enrols hot leads on a cadence, so after fix_crm_sequence.
 from . import fix_lead_scoring
