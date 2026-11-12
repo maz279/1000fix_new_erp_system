@@ -40,6 +40,10 @@ bridge never loads it.
         "cd_inventory",
     ],
     "data": [
+        "security/ir.model.access.csv",
+        "security/fix_isolation_rules.xml",
+        "data/fix_counter_basket_data.xml",
+        "views/fix_counter_basket_views.xml",
         "data/fix_counter_posting_cron.xml",
         "views/fix_counter_sale_finance_views.xml",
     ],

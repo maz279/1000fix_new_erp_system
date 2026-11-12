@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_fix_counter_basket_company" model="ir.rule">
+        <field name="name">fix.counter.basket: allowed companies</field>
+        <field name="model_id" ref="model_fix_counter_basket"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_counter_basket_operating_unit" model="ir.rule">
+        <field name="name">fix.counter.basket: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_counter_basket"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_counter_basket_line_company" model="ir.rule">
+        <field name="name">fix.counter.basket.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_counter_basket_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_counter_basket_line_operating_unit" model="ir.rule">
+        <field name="name">fix.counter.basket.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_counter_basket_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

@@ -83,6 +83,10 @@ BILLING_KINDS = [
     ("retention", "Retention release"),
 ]
 # Invoiced by their own engines, never drafted from the plan.
+# When "1", an accepted quotation with an advance creates no work until the
+# advance is received (owner decision; unset = off).
+ADVANCE_GATE_PARAM = "cd_quotation.advance_before_work"
+
 ENGINE_BILLED = {
     "service": "the closed M01 service order (auto-invoice)",
     "contract": "the M08 contract billing",
@@ -678,10 +682,26 @@ class FixQuotationSupply(models.Model):
             {"quotation_id": self.id, "payment_term_id": self.payment_term_id.id or False}
         )
 
+    def _advance_gate_on(self) -> bool:
+        """Owner decision (design doc 9, item 4): no work before the advance.
+        Off unless the system parameter is set."""
+        value = self.env["ir.config_parameter"].sudo().get_param(ADVANCE_GATE_PARAM, "")
+        return str(value).strip().lower() in ("1", "true", "yes")
+
     def _convert(self):
         self.ensure_one()
         if self.converted_res_id:
             return self.converted_res_model, self.converted_res_id
+        if (
+            self._advance_gate_on()
+            and (self.advance_amount or 0.0) > 0.005
+            and self.advance_outstanding > 0.005
+        ):
+            raise UserError(
+                "Quotation %s waits for its advance: BDT %.2f is still outstanding. No order, "
+                "delivery or contract is created before it is received; Convert again then."
+                % (self.name, self.advance_outstanding)
+            )
         if self.quote_type == "project":
             self._fulfil_deliveries()
             self._fulfil_service_orders()

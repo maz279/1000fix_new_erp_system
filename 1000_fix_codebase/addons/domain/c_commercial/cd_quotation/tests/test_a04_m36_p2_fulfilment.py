@@ -377,3 +377,25 @@ def test_the_billing_form_saves_the_plan_and_the_log_is_read_only(c, p03):
     )
     with pytest.raises(UserError), c.env.cr.savepoint():
         handoff.with_user(c.author).write({"state": "created"})
+
+
+def test_the_advance_gate_holds_the_work_until_the_advance_is_received(c, monkeypatch):
+    c.env["ir.config_parameter"].sudo().set_param("cd_quotation.advance_before_work", "1")
+    q = _sent_quote(c, advance_pct=30.0)
+    _accept(c, monkeypatch, q)
+    assert q.state == "accepted" and not q.converted_res_id
+    with pytest.raises(UserError, match="waits for its advance"), c.env.cr.savepoint():
+        q.with_user(c.author).action_convert()
+    bkash = c.env.ref("cd_billing_engine.payment_method_bkash")
+    q.with_user(c.author).write(
+        {
+            "advance_entry_amount": q.advance_amount,
+            "advance_entry_method_id": bkash.id,
+            "advance_entry_ref": "TRXGATE1",
+        }
+    )
+    q.with_user(c.author).action_record_advance()
+    q.advance_receipt_ids.sudo()._guarded().write({"state": "confirmed"})
+    q.invalidate_recordset()
+    q.with_user(c.author).action_convert()
+    assert q.converted_res_id

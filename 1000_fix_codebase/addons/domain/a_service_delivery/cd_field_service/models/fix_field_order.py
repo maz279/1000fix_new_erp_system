@@ -30,7 +30,8 @@ EVIDENCE_PROFILES = ("strict", "no_photo")
 # unset or 0 keeps today's behaviour (no timeout).
 ACCEPT_TIMEOUT_PARAM = "cd_field_service.acceptance_timeout_minutes"
 
-MFS_METHODS = ("bkash", "nagad", "sslcommerz")
+# quote-to-cash P2 (13 Nov 2026): Rocket and Upay, as on the M20 payment-method list
+MFS_METHODS = ("bkash", "nagad", "rocket", "upay", "sslcommerz")
 OPEN_STATES = ("pending_dispatch", "dispatched", "accepted", "en_route", "arrived", "in_progress")
 
 # A02 audit M02-1/M02-10: fields only a transition may change. A technician
@@ -379,6 +380,8 @@ class FixFieldOrder(models.Model):
             ("cash", "Cash Collected On-Site"),
             ("bkash", "bKash Merchant QR / Payment"),
             ("nagad", "Nagad Merchant QR / Payment"),
+            ("rocket", "Rocket Merchant Payment"),
+            ("upay", "Upay Merchant Payment"),
             ("sslcommerz", "SSLCOMMERZ Payment Link"),
             ("corporate_credit", "B2B Corporate Credit Billing"),
         ],

@@ -104,6 +104,9 @@ PAYMENT_ROLE = {
     "cash": "drawer_cash",
     "bkash": "mfs_clearing",
     "nagad": "mfs_clearing",
+    # quote-to-cash P2 (13 Nov 2026): the other MFS wallets clear the same way
+    "rocket": "mfs_clearing",
+    "upay": "mfs_clearing",
     "card": "card_clearing",
 }
 
