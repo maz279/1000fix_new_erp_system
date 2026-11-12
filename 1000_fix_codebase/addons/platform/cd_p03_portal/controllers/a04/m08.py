@@ -184,9 +184,14 @@ def sla_credit_register(env, date_from=None, date_to=None, **params):
     credits = env["fix.msp.sla.credit"].sudo().search([])
     rows = []
     for credit in credits:
+        # M08 capture audit 2026-11-13: a credit hangs off its MSP contract
+        # (msp_contract_id), whose contract_id is the AMC link. The old
+        # credit.contract_id read raised on the first credit - the same defect
+        # the KPI route had - so this register could only ever show "empty".
+        amc = credit.msp_contract_id.contract_id
         rows.append(
             {
-                "contract": credit.contract_id.name or "—",
+                "contract": amc.name or credit.msp_contract_id.name or "—",
                 "attainment": round(credit.attainment_pct or 0.0, 1),
                 "breaches": credit.breach_count or 0,
                 "credit": round(credit.credit_amount or 0.0, 2),
@@ -310,7 +315,7 @@ def contract_pnl(env, date_from=None, date_to=None, **params):
     credits = env["fix.msp.sla.credit"].sudo().search([])
     by_contract = {}
     for credit in credits:
-        key = credit.contract_id.id
+        key = credit.msp_contract_id.contract_id.id  # the AMC behind the MSP contract
         by_contract[key] = by_contract.get(key, 0.0) + (credit.credit_amount or 0.0)
     rows = []
     for contract in contracts:
