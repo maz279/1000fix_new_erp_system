@@ -489,6 +489,8 @@ WRITABLE = {
             "employee_id",
             "expected_end",
             "field_order_id",
+            "location",
+            "notes",
             "operating_unit_id",
         }
     ),

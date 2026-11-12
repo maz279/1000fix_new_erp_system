@@ -1524,6 +1524,7 @@ export class P03Workspace extends Component {
                 ]);
                 gl.data = {
                     kpis: kpis.M02 || kpis,
+                    me: kpis.me_employee_id || false,
                     unassigned: unassigned.rows || [],
                     active: active.rows || [],
                 };
@@ -1919,13 +1920,23 @@ export class P03Workspace extends Component {
 
     /** Field-order lifecycle button (accept / travel / arrive / work / complete). */
     async fsAction(row, method, labelEn) {
-        if (!window.confirm(row.name + " — " + this.t(labelEn) + "?")) return;
+        // an arrival is tested against the order's geofence: it needs the
+        // position (without one a fenced order's arrival is always refused)
+        const kwargs = {};
+        if (method === "action_arrive") {
+            const position = window.prompt(row.name + " — " + this.t("Your position: latitude, longitude (e.g. 23.8103, 90.4125)"));
+            if (position === null) return;
+            kwargs.position = position;
+        } else if (!window.confirm(row.name + " — " + this.t(labelEn) + "?")) {
+            return;
+        }
         this.state.gl.fsBusy = row.id;
         try {
             const res = await this.rpc("/p03/model/action", {
                 model: "fix.field.order",
                 ids: [row.id],
                 method,
+                kwargs,
             });
             if (res && res.success) {
                 this.showToast(row.name + " — " + this.t(labelEn) + " ✓");
@@ -1941,6 +1952,12 @@ export class P03Workspace extends Component {
     fsNextAction(row) {
         // the forward path of the field-order state machine (authority: the
         // backend VALID transitions; this only picks the next button)
+        // Accept / travel / arrive / work / complete are the ASSIGNED
+        // technician's steps (_fix_require_assigned_technician): for anyone
+        // else every press was refused, so the button is theirs alone.
+        const me = this.state.gl && this.state.gl.data && this.state.gl.data.me;
+        const tech = row.technician_id && typeof row.technician_id === "object" ? row.technician_id.id : row.technician_id;
+        if (!me || tech !== me) return null;
         const forward = {
             draft: ["action_request_dispatch", "Submit for Dispatch"],
             pending_dispatch: ["action_dispatch", "Dispatch"],

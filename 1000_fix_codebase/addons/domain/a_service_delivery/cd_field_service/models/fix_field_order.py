@@ -612,6 +612,64 @@ class FixFieldOrder(models.Model):
             raise UserError("Technician %s does not exist." % emp_id)
         return employee
 
+    # ------------------------------------------------------- availability
+    def _fix_day(self):
+        """The calendar day of the visit in the acting user's frame - the same
+        frame as the M55 roster check (fields.Date.context_today): leave and
+        roster slots are local dates, and a 03:00 Dhaka start is the previous
+        UTC day."""
+        self.ensure_one()
+        return fields.Date.context_today(self, timestamp=self.scheduled_start or None)
+
+    @api.model
+    def _fix_unavailable_on(self, day, employee_ids):
+        """BRU-FSM-01: who of ``employee_ids`` may not be offered or sent on
+        ``day``, with the reason: on approved leave (a leave request, or the
+        roster slots the leave workflow marked on leave).
+
+        Only positive evidence rules a technician out. A missing roster slot
+        is not proof of "off shift" while branches do not all keep a roster,
+        so it lowers the suggestion score (and says so) instead of hiding the
+        technician."""
+        out = {}
+        Roster = self.env["fix.roster.slot"].sudo()
+        slots = Roster.search([("date", "=", day), ("employee_id", "in", list(employee_ids))])
+        rostered = {}
+        for slot in slots:
+            rostered.setdefault(slot.employee_id.id, []).append(slot)
+        if "fix.leave.request" in self.env:
+            leaves = (
+                self.env["fix.leave.request"]
+                .sudo()
+                .search(
+                    [
+                        ("employee_id", "in", list(employee_ids)),
+                        ("state", "=", "approved"),
+                        ("date_from", "<=", day),
+                        ("date_to", ">=", day),
+                    ]
+                )
+            )
+            for leave in leaves:
+                out[leave.employee_id.id] = "on approved leave on %s" % day
+        for emp_id in employee_ids:
+            if emp_id in out:
+                continue
+            mine = rostered.get(emp_id)
+            if mine and all(s.on_leave for s in mine):
+                out[emp_id] = "on leave on %s" % day
+        return out
+
+    def _fix_assert_available(self, employee):
+        """Dispatch and reassignment refuse an unavailable technician (BRU-FSM-01):
+        the suggestion engine already never offers one."""
+        if not employee:
+            return
+        for rec in self:
+            problem = rec._fix_unavailable_on(rec._fix_day(), [employee.id]).get(employee.id)
+            if problem:
+                raise UserError("%s cannot be sent on %s: %s." % (employee.name, rec.name, problem))
+
     def action_dispatch(self, technician_id=None):
         # A02 audit M02-4: a plain technician self-dispatched through P03.
         self._fix_require_dispatcher("Dispatching a field order")
@@ -622,6 +680,7 @@ class FixFieldOrder(models.Model):
             tech = technician or rec.technician_id
             if not tech:
                 raise UserError("A technician must be assigned to dispatch the field order.")
+            rec._fix_assert_available(tech)
 
             vals = {
                 "technician_id": tech.id,
@@ -687,6 +746,7 @@ class FixFieldOrder(models.Model):
             previous = rec.technician_id
             if previous == technician:
                 raise UserError("%s is already assigned to %s." % (rec.name, technician.name))
+            rec._fix_assert_available(technician)
             rec._guarded().write(
                 {
                     "technician_id": technician.id,
@@ -1368,10 +1428,25 @@ class FixFieldOrder(models.Model):
                 # a source model absent from this database simply contributes
                 # no candidates — the others still stand
                 _logger.debug("candidate source %s unavailable", model, exc_info=True)
+        # Bidirectional audit 2026-11-13: the people the business dispatches
+        # are also the members of the Field Service / Technician group. A new
+        # estate (no work orders, field orders or roster yet) offered nobody,
+        # so its first dispatch could never be made.
+        tech_group = self.env.ref(
+            "cd_field_service.group_fix_field_service_user", raise_if_not_found=False
+        )
+        if tech_group:
+            users = tech_group.sudo().user_ids.filtered(lambda u: u.active and not u.share)
+            candidate_ids.update(Employee.sudo().search([("user_id", "in", users.ids)]).ids)
         if not candidate_ids:
             return []
 
-        scheduled_day = (self.scheduled_start or fields.Datetime.now()).date()
+        scheduled_day = self._fix_day()
+        # BRU-FSM-01: a technician on leave or off shift is never offered
+        unavailable = self._fix_unavailable_on(scheduled_day, candidate_ids)
+        candidate_ids -= set(unavailable)
+        if not candidate_ids:
+            return []
         roster_day = Roster.sudo().search([("date", "=", scheduled_day)])
         roster_by_employee = {r.employee_id.id: r for r in roster_day}
 
@@ -1397,6 +1472,8 @@ class FixFieldOrder(models.Model):
             if rostered:
                 score += 30
                 reasons.append("rostered today")
+            else:
+                reasons.append("not on the day's roster")
             # the same question the dispatch gate asks, brand and waiver included
             reason = self._fix_certification_problem(employee)
             eligible = not reason

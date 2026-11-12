@@ -277,7 +277,6 @@ WRITABLE = {
             "field_job_sheet_attachment_id",
             "geofence_id",
             "latitude",
-            "lone_worker_checkin_at",
             "longitude",
             "notes",
             "order_id",
@@ -295,7 +294,9 @@ WRITABLE = {
     "fix.field.route": frozenset(
         {
             "date",
-            "name",
+            "depot_location",
+            "field_order_ids",
+            "notes",
             "technician_id",
         }
     ),
