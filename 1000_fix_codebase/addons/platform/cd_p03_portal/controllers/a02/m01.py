@@ -328,7 +328,8 @@ def channel_intake_report(env, date_from=None, date_to=None, channel=None, group
             {"key": "group_by", "label": "Group by", "options": ["day", "week", "month"]},
         ],
         "notes": [
-            "Live reads of fix.service.order, grouped by intake channel and %s." % granularity
+            "Service orders received in the period, counted by intake channel and by %s."
+            % granularity
         ],
     }
 
@@ -370,7 +371,10 @@ def wip_ageing_report(env, **params):
             "total": "Total WIP",
         },
         "rows": rows,
-        "notes": ["Open WIP orders (intake → QC failed) bucketed by days since intake."],
+        "notes": [
+            "Orders still in work (from intake up to a failed quality check), grouped by the "
+            "number of days since the device was received."
+        ],
     }
 
 
@@ -414,7 +418,10 @@ def sla_compliance_report(env, **params):
             {"measure": "Open & past deadline (at risk)", "value": open_late},
             {"measure": "Clocks paused (holds)", "value": paused},
         ],
-        "notes": ["Deadline = sla_resolution_deadline; resolution stamp = sla_resolution_at."],
+        "notes": [
+            "On time means the order was resolved before its SLA deadline. The deadline moves "
+            "later by the time an order spends on hold or waiting for the customer's decision."
+        ],
     }
 
 
@@ -437,7 +444,10 @@ def estimate_funnel_report(env, **params):
             {"stage": "Expired", "value": expired},
             {"stage": "Conversion %", "value": round(100.0 * approved / sent, 1) if sent else None},
         ],
-        "notes": ["Live fix.estimate states — the approval loop's real funnel."],
+        "notes": [
+            "Estimates sent to customers in the period and what became of them. Conversion is "
+            "approved estimates as a share of estimates sent."
+        ],
     }
 
 
@@ -468,7 +478,10 @@ def rework_analysis_report(env, **params):
         "cols": ["dimension", "orders"],
         "labels": {"dimension": "Dimension", "orders": "Rework Orders"},
         "rows": rows,
-        "notes": ["is_rework flags same-device orders within 30 days (BRU-SRM-06)."],
+        "notes": [
+            "A rework is a device returned with the same fault within 30 days of an earlier "
+            "repair (business rule BRU-SRM-06)."
+        ],
     }
 
 
@@ -497,7 +510,10 @@ def tat_distribution_report(env, **params):
         "cols": ["bucket", "orders"],
         "labels": {"bucket": "Turnaround", "orders": "Closed Orders"},
         "rows": [{"bucket": k, "orders": v} for k, v in buckets.items()],
-        "notes": ["TAT = first in_repair stamp → resolution stamp, closed orders."],
+        "notes": [
+            "Turnaround time is measured on closed orders, from the start of repair to "
+            "resolution."
+        ],
     }
 
 
@@ -532,7 +548,9 @@ def uncollected_register_report(env, **params):
             "ready_since": "Since",
         },
         "rows": rows,
-        "notes": ["Devices repaired but not collected (ready / delivered, not closed)."],
+        "notes": [
+            "Devices that are repaired and ready, but have not been collected by the customer."
+        ],
     }
 
 
@@ -558,7 +576,9 @@ def type_matrix_report(env, **params):
             "orders": "Orders",
         },
         "rows": rows,
-        "notes": ["Every combination in the live order book (service_type × order_category)."],
+        "notes": [
+            "Every combination of intake channel and order category in the current order book."
+        ],
     }
 
 
@@ -582,7 +602,10 @@ def approval_thresholds_report(env, **params):
                 "source": "cd_service_order.estimate_threshold_dual (default 25,000)",
             },
         ],
-        "notes": ["These are the values action_approve enforces right now."],
+        "notes": [
+            "These are the approval limits the system applies to every estimate today; "
+            "changing them requires the configured approval."
+        ],
     }
 
 
@@ -643,10 +666,10 @@ def domain_events_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "An event is written in the same transaction as the change it reports "
-            "(order state changes, estimate decisions, SLA clock movements); the relay "
-            "then publishes it to the bus.",
-            "Waiting events that keep growing mean the relay is not draining the outbox.",
+            "Each change to an order, an estimate or an SLA clock is recorded as an event "
+            "and then delivered to the systems that subscribe to it.",
+            "A growing number of waiting or failed events means delivery has stopped and "
+            "should be reported to IT support.",
         ],
     }
 

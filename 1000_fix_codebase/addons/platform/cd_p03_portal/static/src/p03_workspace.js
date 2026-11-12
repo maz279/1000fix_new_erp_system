@@ -1088,11 +1088,15 @@ export class P03Workspace extends Component {
      * renders — the export cannot drift from what the user sees. xlsx is
      * the presentation artefact (brand header, meta, totals); csv is raw.
      */
-    exportReport(format) {
+    exportReport(format, inline) {
         const gl = this.state.gl;
         const cfg = gl && gl.reportCfg;
         if (!cfg) return;
         const params = new URLSearchParams({ module: cfg.module, report: cfg.report, format });
+        // the document names its module ("M01 · Service Requests & Orders")
+        const mod = P03_MODULES[cfg.module];
+        if (mod) params.set("module_label", `${cfg.module} · ${mod.en}`);
+        if (inline) params.set("inline", "1");
         if (cfg.period !== false) {
             params.set("date_from", gl.stmtFrom);
             params.set("date_to", gl.stmtTo);
@@ -1104,82 +1108,14 @@ export class P03Workspace extends Component {
         window.open(`/p03/model/report/export?${params.toString()}`, "_blank");
     }
 
-    /* Print-ready PDF document: a self-contained page (brand header,
-     * report meta, repeating table head, totals, notes, footer) — the
-     * browser's Save-as-PDF produces the professional artefact; the app
-     * chrome never leaks into the document. */
+    /* The report's PDF is the SERVER's document (report_pdf.py): the official
+     * logo and letterhead, document number, period and filters, totals line
+     * and page x of y on every page - opened in a tab to view or print. It
+     * used to be a page built here and sent to the browser's print dialog,
+     * which stamped the browser's own date, title and URL on every sheet and
+     * had no logo at all (12 Nov 2026). */
     printReportPdf() {
-        const html = this._reportPrintHtml();
-        if (!html) { this.showToast(this.t("Print preparation failed")); return; }
-        this._reportPrintFrame(html);
-    }
-
-    /* Write the print document into a hidden iframe and print THAT — no
-     * popup blocker can stop it, and it works inside the portal embed. */
-    _reportPrintFrame(docHtml) {
-        const frame = document.createElement("iframe");
-        frame.setAttribute("aria-hidden", "true");
-        frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
-        document.body.appendChild(frame);
-        frame.contentDocument.open();
-        frame.contentDocument.write(docHtml);
-        frame.contentDocument.close();
-        frame.contentWindow.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 60000));
-        setTimeout(() => {
-            frame.contentWindow.focus();
-            frame.contentWindow.print();
-        }, 150);
-    }
-
-    _reportPrintHtml() {
-        const gl = this.state.gl;
-        const cfg = gl && gl.reportCfg;
-        const data = gl && gl.data;
-        if (!cfg || !data || data.error) return null;
-        const labels = data.labels || {};
-        const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const fmt = (v) => (typeof v === "number" ? v.toLocaleString() : esc(v));
-        const filtersMeta = Object.entries(gl.reportFilters || {})
-            .filter(([, v]) => v && v !== "All")
-            .map(([k, v]) => `${esc(k)}: ${esc(v)}`)
-            .join(" · ");
-        const period = cfg.period !== false ? `${esc(gl.stmtFrom || "…")} → ${esc(gl.stmtTo || "…")}` : "";
-        const cols = data.cols || [];
-        const totals = data.totals || {};
-        const landscape = cols.length > 6 ? "@page { size: A4 landscape; margin: 14mm 12mm; }" : "@page { size: A4; margin: 16mm 14mm; }";
-        return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(data.title || "Report")}</title>
-<style>
-${landscape}
-body { font-family: Inter, "Segoe UI", "Noto Sans Bengali", sans-serif; color: #242424; margin: 0; }
-.doc-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0E7A6E; padding-bottom: 8px; margin-bottom: 12px; }
-.brand { font-size: 18px; font-weight: 700; color: #0E7A6E; }
-.brand small { display: block; font-size: 10px; font-weight: 400; color: #616161; }
-h1 { font-size: 15px; margin: 0 0 2px; }
-.meta { font-size: 10px; color: #616161; margin-bottom: 10px; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead { display: table-header-group; }
-th { background: #0E7A6E; color: #fff; text-align: left; padding: 5px 8px; font-weight: 600; }
-td { padding: 4px 8px; border-bottom: 1px solid #E0E0E0; }
-tbody tr:nth-child(even) td { background: #F5F5F5; }
-tr { break-inside: avoid; }
-td.num, th.num { text-align: right; }
-tfoot td, tr.totals td { font-weight: 700; border-top: 2px solid #0E7A6E; border-bottom: none; }
-.notes { font-size: 9px; color: #616161; margin-top: 10px; }
-.foot { margin-top: 14px; padding-top: 6px; border-top: 1px solid #E0E0E0; font-size: 9px; color: #616161; display: flex; justify-content: space-between; }
-</style></head><body>
-<div class="doc-head">
-  <div class="brand">1000 FiX ERP<small>1000 FiX Services Ltd. — ISO 9001:2015 · Hotline 16743</small></div>
-  <div style="text-align:right; font-size:10px; color:#616161;">${new Date().toLocaleString()}</div>
-</div>
-<h1>${esc(data.title || "")}</h1>
-<div class="meta">${period ? "Period: " + period : ""}${filtersMeta ? (period ? " · " : "") + filtersMeta : ""} · Generated by ${esc(this.userService.name || "")}</div>
-<table><thead><tr>${cols.map((c) => `<th>${esc(labels[c] || c)}</th>`).join("")}</tr></thead>
-<tbody>${(data.rows || []).map((r) => `<tr>${cols.map((c) => `<td class="${typeof r[c] === "number" ? "num" : ""}">${fmt(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>
-${Object.keys(totals).length ? `<tfoot><tr>${cols.map((c) => `<td class="${typeof totals[c] === "number" ? "num" : ""}">${fmt(totals[c])}</td>`).join("")}</tr></tfoot>` : ""}
-</table>
-${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• " + esc(n)).join("<br/>")}</div>` : ""}
-<div class="foot"><span>1000 FiX Services Ltd. — confidential internal report</span><span>${(data.rows || []).length} rows</span></div>
-</body></html>`;
+        this.exportReport("pdf", true);
     }
 
     /* M32 assistant playground — runs the REAL classifier (/p03/assistant/
@@ -2044,6 +1980,11 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             cols: (gl.modelCfg.cols || []).join(","),
             lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
         });
+        // the PDF is titled as the screen is, under its module
+        const mid = this.state.activeModuleId;
+        const mod = mid && P03_MODULES[mid];
+        if (gl.title) q.set("title", gl.title);
+        if (mod) { q.set("module", mid); q.set("module_label", `${mid} · ${mod.en}`); }
         window.open(`/p03/model/list/export?${q.toString()}`, "_blank");
     }
 

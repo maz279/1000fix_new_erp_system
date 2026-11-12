@@ -112,10 +112,20 @@ class FixReportSubscription(models.Model):
             data = report_bytes.xlsx_bytes(self.env, out, cols, labels, base_name, {})
         else:
             rows = list(out.get("rows") or [])
-            totals = out.get("totals")
-            if totals:
-                rows.append({c: totals.get(c, "") for c in cols})
-            payload = {"rows": rows, "cols": cols, "labels": labels, "count": len(rows)}
+            payload = {
+                "rows": rows,
+                "cols": cols,
+                "labels": labels,
+                "count": len(rows),
+                "meta": {
+                    "module": self.module_key,
+                    "report": self.report_key,
+                    "params": {},
+                    "totals": out.get("totals") or {},
+                    "notes": out.get("notes") or [],
+                    "title": out.get("title"),
+                },
+            }
             data = report_bytes.pdf_bytes(self.env, payload, base_name, title=out.get("title"))
         attachment = self.env["ir.attachment"].create(
             {

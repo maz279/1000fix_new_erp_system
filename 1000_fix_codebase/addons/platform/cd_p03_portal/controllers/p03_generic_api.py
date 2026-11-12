@@ -551,31 +551,44 @@ class P03GenericApiController(http.Controller):
                 status=404,
                 headers=[("Content-Type", "text/plain; charset=utf-8")],
             )
-        out = fn(request.env, **(params or {}))
+        params = dict(params or {})
+        # the document's own keys (its module title, open-in-tab) are not
+        # report filters: the pack function never sees them
+        doc_params = {k: params.pop(k) for k in list(params) if k in report_bytes.DOC_KEYS}
+        module_label = str(doc_params.get("module_label") or "")[:80]
+        inline = doc_params.get("inline") in ("1", "true", "True")
+        out = fn(request.env, **params)
         cols = out.get("cols") or []
         labels = out.get("labels") or {}
         labels = labels if isinstance(labels, dict) else {}
         base_name = "%s_%s" % (module or "report", (report or "export").replace("/", "_"))
-        _log_report_export(module, report, format, out, params or {})
+        _log_report_export(module, report, format, out, params)
+        meta_params = dict(params, module=module or "", module_label=module_label)
 
         if format == "xlsx":
-            return self._report_xlsx(out, cols, labels, base_name, params or {})
+            return self._report_xlsx(out, cols, labels, base_name, meta_params)
 
-        # 2026-11-07 R1: branded PDF for every report pack (register-style
-        # stationery — logo, address, teal repeating header, page x/y). The
-        # totals line, when a pack declares one, is printed as the last row.
+        # The report's PDF (report_pdf, 12 Nov 2026): letterhead and footer on
+        # every page, the period, filters and document number, the totals as a
+        # totals line, the pack's notes. `inline` opens it in a tab to print.
         if format == "pdf":
-            pdf_rows = list(out.get("rows") or [])
-            totals = out.get("totals")
-            if totals:
-                pdf_rows.append({c: totals.get(c, "") for c in cols})
             payload = {
-                "rows": pdf_rows,
+                "rows": list(out.get("rows") or []),
                 "cols": cols,
                 "labels": labels,
                 "count": len(out.get("rows") or []),
+                "meta": {
+                    "module": module or "",
+                    "report": report or "",
+                    "module_label": module_label,
+                    "params": params,
+                    "totals": out.get("totals") or {},
+                    "notes": out.get("notes") or [],
+                    "title": out.get("title"),
+                    "empty": out.get("empty"),
+                },
             }
-            return self._list_pdf(payload, base_name, title=out.get("title"))
+            return self._list_pdf(payload, base_name, title=out.get("title"), inline=inline)
 
         import csv
         import io as _io
@@ -671,7 +684,22 @@ class P03GenericApiController(http.Controller):
                         % len(payload["rows"])
                     ],
                 )
-            return self._list_pdf(pdf_payload, base_name)
+            pdf_payload = dict(
+                pdf_payload,
+                meta={
+                    "module": kw.get("module") or "",
+                    "module_label": str(kw.get("module_label") or "")[:80],
+                    "title": str(kw.get("title") or "")[:120]
+                    or (model or "records").replace(".", " ").title(),
+                    "notes": pdf_payload.get("notes") or [],
+                },
+            )
+            return self._list_pdf(
+                pdf_payload,
+                base_name,
+                title=pdf_payload["meta"]["title"],
+                inline=kw.get("inline") in ("1", "true", "True"),
+            )
         import csv
         import io as _io
 
@@ -689,15 +717,17 @@ class P03GenericApiController(http.Controller):
             ],
         )
 
-    def _list_pdf(self, payload, base_name, title=None):
+    def _list_pdf(self, payload, base_name, title=None, inline=False):
         """Branded PDF download — the shared byte-builder (report_bytes)
-        wrapped in an HTTP response."""
+        wrapped in an HTTP response. ``inline`` opens it in the browser's PDF
+        viewer (the Print button) instead of downloading it."""
         data = report_bytes.pdf_bytes(request.env, payload, base_name, title=title)
+        disposition = "inline" if inline else "attachment"
         return request.make_response(
             data,
             headers=[
                 ("Content-Type", "application/pdf"),
-                ("Content-Disposition", 'attachment; filename="%s.pdf"' % base_name),
+                ("Content-Disposition", '%s; filename="%s.pdf"' % (disposition, base_name)),
             ],
         )
 
