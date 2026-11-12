@@ -29,6 +29,8 @@ export const MODULE = {
     ]},
     { en: 'Orders', screens: [
       { id: 'M16-pos', en: 'Purchase Orders', bn: 'ক্রয়াদেশ', t: 'g' },
+      { id: 'M16-proformas', en: 'Supplier Proformas', bn: 'সরবরাহকারীর প্রফর্মা ইনভয়েস', t: 'g' },
+      { id: 'M16-advances', en: 'Supplier Advances', bn: 'সরবরাহকারীকে অগ্রিম', t: 'g' },
       { id: 'M16-blanket', en: 'Blanket / Call-Off', bn: 'ব্ল্যাংকেট অর্ডার', t: 'g' },
       { id: 'M16-expedite', en: 'Expediting Desk', bn: 'এক্সপিডাইটিং', t: 'g' }
     ]},
@@ -47,14 +49,14 @@ export const MODULE = {
     ]}
   ],
   reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert', 'Maverick Spend', 'PO Cycle Time', 'GR/IR Reconciliation', 'Emergency Purchases'],
-  forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'PO Goods Receipt', 'GRN', 'RTV Request'],
+  forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'PO Goods Receipt', 'GRN', 'RTV Request'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
     ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
     ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'], reports: ['Maverick Spend'], forms: ['Purchase Requisition'] }],
     ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'], reports: [], forms: [], create: false }],
     ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ'] }],
-    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order'] }],
+    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos', 'M16-proformas', 'M16-advances'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order', 'Supplier Proforma', 'Supplier Advance'] }],
     ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: [] }],
     ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: [] }],
     ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'GRN', 'RTV Request'] }],
@@ -104,9 +106,32 @@ export const SCREENS = {
         { label: 'Delivery date the vendor confirmed (YYYY-MM-DD)', kwarg: 'confirmed_date' }
       ] },
       { m: 'action_start_receipt', l: 'Start Goods Receipt (receiver)' },
+      /* a local supplier's proforma invoice, captured on its own form for this order */
+      { m: '__record_proforma', l: 'Record Supplier Proforma', form: 'M16-form-proforma', prefill: 'purchase_order_id',
+        states: ['draft', 'sent', 'acknowledged', 'partially_received'] },
       { m: 'action_create_change_order', l: 'Raise Change Order' },
       { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
       { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
+    ] },
+  /* A local supplier's proforma invoice and the advance paid against it
+   * (12 Nov 2026): imports had both in M44, a local purchase had neither. */
+  'M16-proformas': { kind: 'model_list', model: 'fix.purchase.proforma', stateField: 'state',
+    cols: ['name', 'proforma_no', 'vendor_id', 'purchase_order_id', 'amount', 'order_total', 'issued_on', 'valid_until', 'advance_approved', 'decided_by_id', 'state'],
+    empty: 'No supplier proforma yet. Open a purchase order and use Record Supplier Proforma, or + New here and choose the order.',
+    actions: [
+      { m: 'action_approve', l: 'Approve Proforma (approver)', states: ['received'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the proforma is rejected', kwarg: 'reason', states: ['received'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['received'] },
+      { m: '__request_advance', l: 'Request Advance', form: 'M16-form-advance', prefill: 'proforma_id', states: ['approved'] }
+    ] },
+  'M16-advances': { kind: 'model_list', model: 'fix.purchase.advance', stateField: 'state',
+    cols: ['name', 'purchase_order_id', 'vendor_id', 'proforma_id', 'amount', 'purpose', 'requested_by_id', 'decided_by_id', 'above_cap', 'state'],
+    empty: 'No supplier advance yet. An advance is requested against an approved supplier proforma (Request Advance on the proforma).',
+    actions: [
+      { m: 'action_request', l: 'Request Approval', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve Advance (approver)', ask: 'Reason (needed when the advances pass the advance cap)', kwarg: 'reason', states: ['requested'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the advance is rejected', kwarg: 'reason', states: ['requested'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'requested'] }
     ] },
   'M16-blanket': { kind: 'model_list', model: 'fix.procurement.blanket', stateField: 'state',
     cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount', 'consumed_amount', 'remaining_amount', 'state'],
@@ -368,6 +393,66 @@ export const SCREENS = {
     ]
   },
 
+  'M16-form-proforma': {
+    kind: 'model_form',
+    model: 'fix.purchase.proforma',
+    title: 'Supplier Proforma Invoice',
+    back: 'M16-proformas',
+    status: { field: 'state', labels: {
+      received: 'Received', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Proforma', note: 'A local supplier\'s proforma invoice for one purchase order, in the order\'s currency. A Procurement Approver other than you approves it once the order is sent to the supplier, when its amount matches the order total and it has not expired; it is final once decided. An advance to the supplier is then requested against it.',
+        fields: [
+          { name: 'purchase_order_id', required: true, label: 'Purchase Order',
+            domain: [['state', 'in', ['draft', 'sent', 'acknowledged', 'partially_received']]],
+            emptyNote: 'No open purchase order yet. Raise the purchase order first (M16 Purchase Orders); a proforma is recorded against it.' },
+          { name: 'proforma_no', required: true, label: 'Supplier\'s Proforma No' },
+          { name: 'issued_on', required: true, label: 'Issued On' },
+          { name: 'valid_until', label: 'Valid Until' },
+          { name: 'amount', required: true, label: 'Proforma Amount' },
+          { name: 'payment_terms', label: 'Payment Terms (as on the proforma)' },
+          { name: 'notes', type: 'text', label: 'Notes' }
+        ] },
+      { title: 'Order & decision', note: 'Read from the order and the approval.',
+        fields: [
+          { name: 'vendor_id', readonly: true, label: 'Supplier' },
+          { name: 'order_total', readonly: true, label: 'Order Total' },
+          { name: 'currency_id', readonly: true, label: 'Currency' },
+          { name: 'advance_approved', readonly: true, label: 'Advances Approved' },
+          { name: 'decided_by_id', readonly: true, label: 'Decided By' },
+          { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' }
+        ] }
+    ]
+  },
+
+  'M16-form-advance': {
+    kind: 'model_form',
+    model: 'fix.purchase.advance',
+    title: 'Supplier Advance',
+    back: 'M16-advances',
+    status: { field: 'state', labels: {
+      draft: 'Draft', requested: 'Requested', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Advance', note: 'Paid to the supplier before delivery, against its approved proforma. Save, then Request Approval from the list: a Procurement Approver other than you decides it. The order\'s approved advances never exceed the proforma, and above the advance cap the approver states why. Treasury (M50) makes and posts the payment.',
+        fields: [
+          { name: 'proforma_id', required: true, label: 'Against Proforma', domain: [['state', '=', 'approved']],
+            emptyNote: 'No approved supplier proforma yet. Record the supplier\'s proforma on its purchase order and have it approved first.' },
+          { name: 'amount', required: true, label: 'Advance Amount' },
+          { name: 'purpose', label: 'Purpose' },
+          { name: 'security_ref', label: 'Advance Security (cheque / bank guarantee) Ref' }
+        ] },
+      { title: 'Order & decision', note: 'Read from the proforma and the approval.',
+        fields: [
+          { name: 'purchase_order_id', readonly: true, label: 'Purchase Order' },
+          { name: 'vendor_id', readonly: true, label: 'Supplier' },
+          { name: 'proforma_amount', readonly: true, label: 'Proforma Amount' },
+          { name: 'currency_id', readonly: true, label: 'Currency' },
+          { name: 'decided_by_id', readonly: true, label: 'Decided By' },
+          { name: 'decision_reason', readonly: true, label: 'Decision Reason' }
+        ] }
+    ]
+  },
+
   'M16-form-blanket': {
     kind: 'model_form',
     model: 'fix.procurement.blanket',
@@ -438,6 +523,8 @@ export const FORM_MODELS = {
   'M16:Purchase Requisition': 'fix.requisition',
   'M16:RFQ': 'fix.procurement.rfq',
   'M16:Purchase Order': 'fix.purchase.order',
+  'M16:Supplier Proforma': 'fix.purchase.proforma',
+  'M16:Supplier Advance': 'fix.purchase.advance',
   'M16:PO Goods Receipt': 'fix.purchase.receipt',
   'M16:GRN': 'fix.stock.receipt',
   'M16:RTV Request': 'fix.stock.rtv'
@@ -447,6 +534,8 @@ export const FORM_CHIPS = {
   'M16:Purchase Requisition': 'M16-form-requisition',
   'M16:RFQ': 'M16-form-rfq',
   'M16:Purchase Order': 'M16-form-po',
+  'M16:Supplier Proforma': 'M16-form-proforma',
+  'M16:Supplier Advance': 'M16-form-advance',
   'M16:PO Goods Receipt': 'M16-form-po-receipt',
   'M16:GRN': 'M16-form-grn',
   'M16:RTV Request': 'M16-form-rtv',
@@ -454,6 +543,8 @@ export const FORM_CHIPS = {
     'fix.requisition': 'M16-form-requisition',
     'fix.procurement.rfq': 'M16-form-rfq',
     'fix.purchase.order': 'M16-form-po',
+    'fix.purchase.proforma': 'M16-form-proforma',
+    'fix.purchase.advance': 'M16-form-advance',
     'fix.purchase.receipt': 'M16-form-po-receipt',
     'fix.procurement.bid': 'M16-form-bid',
     'fix.procurement.award': 'M16-form-award',
@@ -469,6 +560,8 @@ export const FORM_CHIPS = {
     'M16-compare': 'M16-form-bid',
     'M16-award': 'M16-form-award',
     'M16-pos': 'M16-form-po',
+    'M16-proformas': 'M16-form-proforma',
+    'M16-advances': 'M16-form-advance',
     'M16-blanket': 'M16-form-blanket',
     'M16-expedite': 'M16-form-expedite',
     'M16-inspection': 'M16-form-inspection',

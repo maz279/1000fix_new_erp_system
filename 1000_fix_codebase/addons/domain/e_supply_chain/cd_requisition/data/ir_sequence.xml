@@ -4,6 +4,20 @@
          called. Without it every PO of a day was 'PO/<today>' - the po_ref the
          vendor portal and the M52 matcher key on was not unique. -->
     <data noupdate="1">
+        <record id="seq_fix_purchase_proforma" model="ir.sequence">
+            <field name="name">Supplier Proforma Invoice</field>
+            <field name="code">fix.purchase.proforma</field>
+            <field name="prefix">SPI/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_purchase_advance" model="ir.sequence">
+            <field name="name">Supplier Advance Payment</field>
+            <field name="code">fix.purchase.advance</field>
+            <field name="prefix">SADV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_purchase_order" model="ir.sequence">
             <field name="name">Purchase Order</field>
             <field name="code">fix.purchase.order</field>

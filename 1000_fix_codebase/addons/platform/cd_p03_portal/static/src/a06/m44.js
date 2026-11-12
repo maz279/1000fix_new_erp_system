@@ -68,14 +68,19 @@ export const SCREENS = {
   'M44-orders': { kind: 'model_list', model: 'fix.import.order', stateField: 'state',
     cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'customs_duty', 'landed_cost', 'state'],
     actions: [
+      /* the supplier's proforma is captured on its own form for this order */
+      { m: '__record_proforma', l: 'Record Proforma', form: 'M44-form-proforma', prefill: 'order_id', states: ['draft'] },
       { m: 'action_receive', l: 'Receive into Stock' },
       { m: 'action_close', l: 'Close Order' }
     ] },
   'M44-proforma': { kind: 'model_list', model: 'fix.import.proforma', stateField: 'state',
     cols: ['proforma_no', 'order_id', 'currency_id', 'amount', 'issued_on', 'valid_until', 'decided_by_id', 'state'],
+    /* "use + New to create the first one" sent the user to a form that could
+     * not be saved: a proforma belongs to a draft import order (12 Nov 2026) */
+    empty: 'No proforma yet. A proforma is recorded against a draft import order: create the order first (+ Import Order), then use Record Proforma on it, or + New here and choose the order. A purchase from a local supplier records its proforma in M16 (Supplier Proformas).',
     actions: [
-      { m: 'action_approve', l: 'Approve Proforma' },
-      { m: 'action_reject', l: 'Reject', ask: 'Why the proforma is rejected', kwarg: 'reason' }
+      { m: 'action_approve', l: 'Approve Proforma', states: ['received'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the proforma is rejected', kwarg: 'reason', states: ['received'] }
     ] },
   'M44-lc': { kind: 'model_list', model: 'fix.import.lc', stateField: 'state',
     cols: ['lc_no', 'order_id', 'bank', 'amount', 'paid_amount', 'expiry', 'approval_state', 'state'],
@@ -244,7 +249,8 @@ export const SCREENS = {
     sections: [
       { title: 'Proforma', note: 'Approved by an Import Approver who did not record it, against the order value and a valid IRC.',
         fields: [
-          { name: 'order_id', required: true, label: 'Import Order', domain: [['state', '=', 'draft']] },
+          { name: 'order_id', required: true, label: 'Import Order', domain: [['state', '=', 'draft']],
+            emptyNote: 'No import order is in draft yet. Create the import order first (M44 → + Import Order); a proforma is recorded against it. A local supplier\'s proforma goes in M16 → Supplier Proformas.' },
           { name: 'proforma_no', required: true, label: 'Proforma No' },
           { name: 'currency_id', required: true, label: 'Currency' },
           { name: 'amount', label: 'Amount' },

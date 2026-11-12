@@ -357,6 +357,14 @@ WRITABLE = {
             "target_price",
         }
     ),
+    "fix.purchase.advance": frozenset(
+        {
+            "amount",
+            "proforma_id",
+            "purpose",
+            "security_ref",
+        }
+    ),
     "fix.purchase.order": frozenset(
         {
             "blanket_id",
@@ -369,6 +377,17 @@ WRITABLE = {
         }
     ),
     "fix.purchase.order.line": frozenset(),
+    "fix.purchase.proforma": frozenset(
+        {
+            "amount",
+            "issued_on",
+            "notes",
+            "payment_terms",
+            "proforma_no",
+            "purchase_order_id",
+            "valid_until",
+        }
+    ),
     "fix.purchase.receipt": frozenset(
         {
             "delivery_note_ref",
@@ -567,6 +586,7 @@ WRITABLE = {
             "notes",
             "onboarded_on",
             "partner_id",
+            "residency",
             "segment",
         }
     ),

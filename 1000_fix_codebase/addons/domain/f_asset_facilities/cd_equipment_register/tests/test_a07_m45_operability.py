@@ -720,10 +720,16 @@ def test_11_impact_list_has_no_new_button_and_create_is_refused(c, ui, js):
 
 # ========================================================== 12. the chip
 def test_12_write_off_chip_opens_the_register_not_a_blank_form(js):
+    """Since 12 Nov the chip opens its own two-step form: step 1 picks an item
+    in the store (never a blank equipment record), step 2 takes the reason and
+    calls the same routed action_request_approval the register offers."""
     target = js["chips"]["M45:Write-Off"]
-    assert target == "M45-register"
-    assert js["screens"][target]["kind"] == "model_list"
-    assert "action_request_approval" in buttons(js, target)
+    assert target == "M45-form-writeoff"
+    form = js["screens"][target]
+    assert form["kind"] == "model_form" and form["model"] == "fix.equipment"
+    assert form["pickRecord"]["domain"]
+    assert form["saveAction"]["method"] == "action_request_approval"
+    assert "action_request_approval" in buttons(js, "M45-register")
 
 
 # ========================================================== 13. who decides a write-off

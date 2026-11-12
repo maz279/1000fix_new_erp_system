@@ -1016,7 +1016,11 @@ export class P03Workspace extends Component {
         formScreen = formScreen || byModel[model];
         if (formScreen && P03_DATA_SCREENS[formScreen]) {
             const cfg = { ...P03_DATA_SCREENS[formScreen], recordId: recordId || null };
-            this.openFormScreen(formScreen, this.state.activeScreen ? { sc: this.state.activeScreen, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } } : null, cfg);
+            // the module crumb comes from the active module even when the form
+            // is opened from a plain list ("Home › › Proforma Invoice")
+            const moduleTitle = (this.state.activeModule && this.state.activeModule.title) || "";
+            const sc = this.state.activeScreen || { en: cfg.title || formScreen, t: "f" };
+            this.openFormScreen(formScreen, moduleTitle || this.state.activeScreen ? { sc, m: { title: moduleTitle } } : null, cfg);
             return true;
         }
         return false;
@@ -2719,6 +2723,11 @@ export class P03Workspace extends Component {
 
     formLookupClose(name, ev) {
         if (ev.currentTarget.contains(ev.relatedTarget)) return;
+        // the box loses focus as its form is removed (Cancel, Save & Close,
+        // another screen): nothing is left to close, and reading the gone
+        // form threw "reading 'lookup'" (12 Nov 2026)
+        const gl = this.state.gl;
+        if (!gl || !gl.form) return;
         const box = this._formLookup(name);
         // leaving text that was never picked must not read as the saved value
         box.term = null;
@@ -3042,6 +3051,20 @@ export class P03Workspace extends Component {
         const row = gl.mlSelected;
         if (!row) { this.showToast("Select a row first"); return; }
         const cfg = (gl.modelCfg.actions || []).find((a) => a.m === method) || {};
+        // `form`: the action is captured on a NEW record of another form for
+        // this row ("Record Proforma" on a purchase order); `prefill` names the
+        // field of that form that takes the selected row
+        if (cfg.form && P03_DATA_SCREENS[cfg.form]) {
+            const base = P03_DATA_SCREENS[cfg.form];
+            const label = row.display_name || row.name || `#${row.id}`;
+            const presets = cfg.prefill ? { [cfg.prefill]: { id: row.id, label: String(label) } } : null;
+            this.openFormScreen(
+                cfg.form,
+                { sc: { en: base.title || cfg.form, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+                presets ? { ...base, presets } : base
+            );
+            return;
+        }
         if (cfg.ask) {
             // needs a typed value (e.g. the customer's POD OTP at hand-over,
             // or an MSP resolution note) — the generic prompt modal collects

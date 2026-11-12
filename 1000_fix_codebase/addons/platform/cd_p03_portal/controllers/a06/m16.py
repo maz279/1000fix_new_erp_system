@@ -46,6 +46,20 @@ SURFACES = {
         },
     },
     "fix.purchase.order.line": {"order": "order_id, id", "limit": 400, "actions": set()},
+    # A local supplier's proforma and the advance against it (12 Nov 2026).
+    # Read as the caller: the company / operating-unit rules apply.
+    "fix.purchase.proforma": {
+        "order": "issued_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject", "action_cancel"},
+        "rules": True,
+    },
+    "fix.purchase.advance": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_request", "action_approve", "action_reject", "action_cancel"},
+        "rules": True,
+    },
     "fix.procurement.rfq": {
         "order": "create_date desc, id desc",
         "limit": 200,

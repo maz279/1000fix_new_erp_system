@@ -24,3 +24,9 @@ access_fix_procurement_expedite,fix.procurement.expedite,model_fix_procurement_e
 access_fix_procurement_expedite_buyer,fix.procurement.expedite.buyer,model_fix_procurement_expedite,group_fix_procurement_buyer,1,1,1,0
 access_fix_procurement_inspection,fix.procurement.inspection,model_fix_procurement_inspection,base.group_user,1,0,0,0
 access_fix_procurement_inspection_receiver,fix.procurement.inspection.receiver,model_fix_procurement_inspection,group_fix_procurement_receiver,1,1,1,0
+access_fix_purchase_proforma_user,fix.purchase.proforma.user,model_fix_purchase_proforma,base.group_user,1,0,0,0
+access_fix_purchase_proforma_buyer,fix.purchase.proforma.buyer,model_fix_purchase_proforma,group_fix_procurement_buyer,1,1,1,0
+access_fix_purchase_proforma_approver,fix.purchase.proforma.approver,model_fix_purchase_proforma,group_fix_procurement_approver,1,1,0,0
+access_fix_purchase_advance_user,fix.purchase.advance.user,model_fix_purchase_advance,base.group_user,1,0,0,0
+access_fix_purchase_advance_buyer,fix.purchase.advance.buyer,model_fix_purchase_advance,group_fix_procurement_buyer,1,1,1,0
+access_fix_purchase_advance_approver,fix.purchase.advance.approver,model_fix_purchase_advance,group_fix_procurement_approver,1,1,0,0

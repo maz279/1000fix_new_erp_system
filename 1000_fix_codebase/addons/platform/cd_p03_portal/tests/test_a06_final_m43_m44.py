@@ -111,6 +111,16 @@ def test_every_list_column_and_button_is_real(odoo_env, sid):
     allowed = a06.SURFACES[name]["actions"]
     for button in re.finditer(r"\{ m: '([a-z_]+)', l: '[^']*'([^{}]*)\}", blk):
         method, extra = button.group(1), button.group(2)
+        form = re.search(r"form: '([A-Za-z0-9-]+)'", extra)
+        if form:
+            # opens a NEW record of another form for this row (Record Proforma):
+            # no server call, so the form must exist and take the row's field
+            target = FORMS.get(form.group(1))
+            assert target, "%s: %s opens no form %s" % (sid, method, form.group(1))
+            prefill = re.search(r"prefill: '([a-z_]+)'", extra)
+            if prefill:
+                assert "name: '%s'" % prefill.group(1) in target, (sid, method)
+            continue
         assert method in allowed, "%s: %s refuses %s" % (sid, name, method)
         fn = getattr(model, method, None)
         assert callable(fn), "%s: %s.%s" % (sid, name, method)

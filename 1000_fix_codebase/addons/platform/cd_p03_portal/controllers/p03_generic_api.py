@@ -965,8 +965,37 @@ class P03GenericApiController(http.Controller):
         """A new form must show what will really be saved. A tick box defaulting
         to True drew unticked, and an untouched box posted nothing, so a count
         leaving "Found" at No was stored as found (and could clear a loss)."""
-        names = [f["name"] for f in out_fields if f["type"] == "boolean" and not f["readonly"]]
-        return env[model].default_get(names) if names else {}
+        # Also a date, a choice and a reference the model fills by itself: a
+        # proforma showed Currency and Issued On empty although BDT and today
+        # are what the save stores (12 Nov 2026). Values take the record's
+        # own shape (a reference as {id, label}, a date as YYYY-MM-DD).
+        kinds = ("boolean", "selection", "date", "many2one")
+        by_name = {f["name"]: f for f in out_fields if f["type"] in kinds and not f["readonly"]}
+        if not by_name:
+            return {}
+        raw = env[model].default_get(list(by_name))
+        out = {}
+        for name, value in raw.items():
+            kind = by_name[name]["type"]
+            if kind == "boolean":
+                out[name] = value
+            elif value in (None, False, ""):
+                continue
+            elif kind == "many2one":
+                comodel = env[model]._fields[name].comodel_name
+                try:
+                    target = (
+                        env[comodel].browse(value if isinstance(value, int) else value[0]).exists()
+                    )
+                    if target:
+                        out[name] = {"id": target.id, "label": target.display_name}
+                except (AccessError, UserError):
+                    continue  # a default the user may not read is saved, not shown
+            elif kind == "date":
+                out[name] = str(value)[:10]
+            else:
+                out[name] = value
+        return out
 
     def _form_field_meta(self, env, model, fields, record=None):
         """Per-field metadata (label, type, required, choices) preserving the
