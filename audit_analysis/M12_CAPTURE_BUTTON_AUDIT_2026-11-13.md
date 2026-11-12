@@ -36,12 +36,12 @@ Engine evaluation over the committed registry (HEAD), run in node as the browser
 
 ## 2. What was changed
 
-**Workspace registry** (`static/src/a04/m12.js`). Every page now names its capture:
+**Workspace registry** (`static/src/a04/m12.js`). Every page now names its capture, and every new M12 form has tabs (A04 F-2):
 
 | # | "+ New" now | Chips | How |
 |---|---|---|---|
 | 1 | Seller Application | Seller Application | unchanged |
-| 2 | **Seller Agreement** | Seller Agreement, Seller Commission Scheme | Page lists M08 contracts of the Marketplace family. The new form `M12-form-agreement` starts on that family (preset + field `value`). The new list `M12-agreement-list` carries the M08 approval, legal-review and activation actions. |
+| 2 | **Seller Agreement** | Seller Agreement, Seller Commission Scheme | Page lists M08 contracts of the Marketplace family. The button opens **M08's own contract form** (`M08-record`), preset to that family. M08 is the one editor of contracts and their amendments, entitlements, parties and obligations. The new read-only list `M12-agreement-list` carries the M08 approval, legal-review and activation actions. *(Revised the same day: a first version had an M12 form on `fix.contract`, which broke the A04 one-editor and multi-tab guards.)* |
 | 3 | Listing | Listing, Stock Position | Stock Positions list added to the page |
 | 4 | **Marketplace Order** (broadcast a job) | Marketplace Order, Seller Bid | |
 | 5 | **Record Job Completion** | Job Completion, Customer Sign-off | Pick-then-act form: choose a job in progress, then run `action_complete`. The page lists orders in execution only. |

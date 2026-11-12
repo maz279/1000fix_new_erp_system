@@ -73,7 +73,7 @@ console.log(JSON.stringify({ forms: mod.forms, subs, screens: Object.fromEntries
 # step on the record the user picks).
 CAPTURE = {
     "1": ("form", "M12-form-seller"),  # Seller Application (the module button)
-    "2": ("form", "M12-form-agreement"),  # Seller Agreement (M08, Marketplace family)
+    "2": ("form", "M08-record"),  # Seller Agreement: M08's contract form, Marketplace family
     "3": ("form", "M12-form-listing"),  # Listing
     "4": ("form", "M12-form-marketplace-order"),  # broadcast a job; Seller Bid chip
     "5": ("form", "M12-form-job-complete"),  # Record Job Completion
@@ -150,9 +150,7 @@ def test_a_record_made_on_a_filtered_page_lands_on_it(m12):
     """The agreement and the scheme start with the page's filter filled in."""
     assert _sub(m12, "2")["create"]["presets"] == {"family": "marketplace"}
     assert _sub(m12, "9")["create"]["presets"] == {"scheme_type": "seller"}
-    # and from their own lists' "+ New", through the field's starting value
-    agreement = {f["name"]: f for f in m12["screens"]["M12-form-agreement"]["fields"]}
-    assert agreement["family"]["value"] == "marketplace"
+    # and from its own list's "+ New", through the field's starting value
     scheme = {f["name"]: f for f in m12["screens"]["M12-form-scheme"]["fields"]}
     assert scheme["scheme_type"]["value"] == "seller"
 
@@ -243,3 +241,13 @@ def test_list_actions_are_served(m12):
         if m not in api.get(cfg["model"], set())
     ]
     assert not bad, bad
+
+
+def test_m12_does_not_edit_m08_contracts(m12):
+    """fix.contract is M08's: one editor, with its amendments, entitlements,
+    parties and obligations. M12 lists the Marketplace slice and opens it."""
+    own = [sid for sid, c in m12["screens"].items() if c["kind"] == "model_form"]
+    assert not [sid for sid in own if m12["screens"][sid]["model"] == "fix.contract"]
+    agreements = m12["screens"]["M12-agreement-list"]
+    assert agreements["create"] is False and agreements["empty"]
+    assert agreements["domain"] == [["family", "=", "marketplace"]]

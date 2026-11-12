@@ -81,7 +81,7 @@ export const MODULE = {
      * measured, never typed. `domain` stays the LAST key. */
     sub: [
     ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'], reports: [], forms: ['Seller Application'] }],
-    ['2', 'Agreements & Tiers', 7, { model: 'fix.contract', cols: ['name', 'customer_id', 'date_start', 'date_end', 'state', 'approval_state'], screens: ['M12-agreement-list', 'M12-agreements', 'M12-commission'], reports: [], forms: ['Seller Agreement', 'Seller Commission Scheme'], domain: [['family', '=', 'marketplace']] }],
+    ['2', 'Agreements & Tiers', 7, { model: 'fix.contract', cols: ['name', 'customer_id', 'date_start', 'date_end', 'state', 'approval_state'], screens: ['M12-agreement-list', 'M12-agreements', 'M12-commission'], reports: [], forms: ['Seller Agreement', 'Seller Commission Scheme'], create: 'M08-record', domain: [['family', '=', 'marketplace']] }],
     ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-stock-positions', 'M12-rpt-listingcoverage'], reports: ['Listing Coverage', 'Seller Stock'], forms: ['Listing', 'Stock Position'] }],
     ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast', 'M12-marketplace-order'], reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept'], forms: ['Marketplace Order', 'Seller Bid'], create: 'M12-form-marketplace-order' }],
     ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['name', 'customer_id', 'state', 'awarded_price', 'started_at', 'completed_at'], screens: ['M12-marketplace-order', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: ['Job Completion', 'Customer Sign-off'], create: 'M12-form-job-complete', domain: [['state', 'in', ['selected', 'in_progress', 'completed', 'reviewed']]] }],
@@ -162,18 +162,24 @@ export const SCREENS = {
     empty: 'No seller commission scheme yet. Finance adds one with + New: until a scheme is in force for a seller\'s tier (or for every tier), no marketplace commission accrues.' },
   'M12-form-scheme': { kind: 'model_form', model: 'fix.commission.scheme',
     title: 'Seller Commission Scheme', back: 'M12-commission',
+    tabs: [
+      { id: 'scheme', label: '1. Scheme', bn: '১. স্কিম' },
+      { id: 'rate', label: '2. Rate & Withholding', bn: '২. হার ও উৎসে কর' }
+    ],
     sections: [
-      { title: 'Rate and Withholding', note: 'Effective-dated. A tier line wins over the every-tier line. A rate of 0 keeps the rate pinned on the order at award (the seller tier\'s rate); any other rate replaces it when the commission accrues. TDS is withheld at source (ITA 2023): confirm the rate with the tax adviser.',
-        fields: [
+      { tab: 'scheme', title: 'Scheme, Tier and Validity', fields: [
           { name: 'name', required: true, label: 'Scheme Name' },
           { name: 'scheme_type', required: true, label: 'Payee Type', value: 'seller' },
           { name: 'seller_tier', label: 'Seller Tier (empty = every tier)' },
-          { name: 'commission_rate', label: 'Commission Rate (0-1; 0 = the order\'s rate)' },
-          { name: 'tds_rate', label: 'TDS Rate (0-1)' },
-          { name: 'tds_base', label: 'TDS Base' },
           { name: 'date_from', required: true, label: 'Effective From' },
           { name: 'date_to', label: 'Effective To' },
           { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'rate', title: 'Rate and Withholding', note: 'Effective-dated. A tier line wins over the every-tier line. A rate of 0 keeps the rate pinned on the order at award (the seller tier\'s rate); any other rate replaces it when the commission accrues. TDS is withheld at source (ITA 2023): confirm the rate with the tax adviser.',
+        fields: [
+          { name: 'commission_rate', label: 'Commission Rate (0-1; 0 = the order\'s rate)' },
+          { name: 'tds_rate', label: 'TDS Rate (0-1)' },
+          { name: 'tds_base', label: 'TDS Base' }
         ] }
     ] },
   'M12-wallet': { kind: 'table_report', module: 'M12', report: 'seller_wallet', title: 'Seller Wallets & Payouts', period: false },
@@ -599,11 +605,15 @@ export const SCREENS = {
 
   /* ===== M12 capture audit (2026-11-13) ===== */
   /* Seller agreement: an M08 contract of the Marketplace family (Legal
-   * reviews it, DOFA approves its value, the signed envelope activates it). */
+   * reviews it, DOFA approves its value, the signed envelope activates it).
+   * M08 owns fix.contract and its one form (with amendments, entitlements,
+   * parties and obligations): M12 lists the Marketplace slice and opens
+   * M08's contract form, never a second editor of its own. */
   'M12-agreement-list': { kind: 'model_list', model: 'fix.contract', stateField: 'state',
     cols: ['name', 'customer_id', 'date_start', 'date_end', 'annual_value', 'state', 'approval_state'],
     domain: [['family', '=', 'marketplace']],
-    empty: 'No seller agreement yet. Record one with + New: it is reviewed by Legal, its value approved under DOFA, and it activates on the signed envelope.',
+    create: false,
+    empty: 'No seller agreement yet. Record one with + New Seller Agreement on the Agreements & Tiers page (it starts on the Marketplace family): it is reviewed by Legal, its value approved under DOFA, and it activates on the signed envelope.',
     actions: [
       { m: 'action_request_approval', l: 'Submit for Value Approval (DOFA)', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending_approval'] },
@@ -612,47 +622,7 @@ export const SCREENS = {
       { m: 'action_activate', l: 'Activate (signed envelope required)', states: ['pending_signature'] },
       { m: 'action_renew', l: 'Draft Renewal Term', states: ['active', 'expiring', 'expired'] }
     ] },
-  'M12-form-agreement': { kind: 'model_form', model: 'fix.contract',
-    title: 'Seller Agreement', back: 'M12-agreement-list',
-    status: { field: 'state' },
-    tabs: [
-      { id: 'agreement', label: '1. Agreement', bn: '১. চুক্তি' },
-      { id: 'term', label: '2. Term & Value', bn: '২. মেয়াদ ও মূল্য' },
-      { id: 'signature', label: '3. Signature & Stamp Duty', bn: '৩. স্বাক্ষর ও স্ট্যাম্প' },
-      { id: 'approval', label: '4. Approval', bn: '৪. অনুমোদন' }
-    ],
-    sections: [
-      { tab: 'agreement', title: 'Seller and Agreement Version', note: 'The current Legal-signed seller agreement template; a material change needs the seller to accept the new version (FR-MKP-009).', fields: [
-        { name: 'code', label: 'Agreement No. (auto)', readonly: true },
-        { name: 'name', required: true, label: 'Agreement Title' },
-        { name: 'customer_id', required: true, label: 'Seller (party record, M33)' },
-        { name: 'family', required: true, label: 'Agreement Family', value: 'marketplace' },
-        { name: 'template_id', label: 'Seller Agreement Template (Legal-signed)' },
-        { name: 'company_id', required: true, label: 'Company' },
-        { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
-      ] },
-      { tab: 'term', title: 'Term and Expected Value', note: 'The expected annual value sets the DOFA tier that approves the agreement.', fields: [
-        { name: 'date_start', required: true, label: 'Effective From' },
-        { name: 'date_end', required: true, label: 'Term Ends' },
-        { name: 'annual_value', required: true, label: 'Expected Annual Value (BDT)' },
-        { name: 'currency_id', label: 'Currency' },
-        { name: 'auto_renew', label: 'Auto-Renewal' },
-        { name: 'renewal_lead_days', label: 'Renewal Notice (days)' }
-      ] },
-      { tab: 'signature', title: 'Digital Signature (M24) and Stamp Duty', fields: [
-        { name: 'esignature_envelope_id', label: 'E-Signature Envelope (M24)' },
-        { name: 'has_signed_contract_doc', label: 'Signed Agreement Verified', readonly: true },
-        { name: 'stamp_duty_cert_no', label: 'Stamp Duty Certificate No.' },
-        { name: 'stamp_duty_amount', label: 'Stamp Duty Paid (BDT)' }
-      ] },
-      { tab: 'approval', title: 'Legal Review and Value Approval', fields: [
-        { name: 'state', label: 'Status (set by its actions)', readonly: true },
-        { name: 'approval_state', label: 'Value Approval', readonly: true },
-        { name: 'legal_review_required', label: 'Legal Review Required', readonly: true },
-        { name: 'legal_reviewed_by', label: 'Legal Review By', readonly: true },
-        { name: 'activated_by', label: 'Activated By', readonly: true }
-      ] }
-    ] },
+
 
   /* Payout runs from the seller side: the same run M53 settles. */
   'M12-payout-runs': { kind: 'model_list', model: 'fix.payout.run', stateField: 'state',
@@ -679,11 +649,17 @@ export const SCREENS = {
       empty: 'No marketplace job is in progress. A job starts with Start Job on Marketplace Order once a quote is awarded.'
     },
     saveAction: { method: 'action_complete', label: 'Record Job Completed', done: 'Job recorded as completed; the customer contact window is closed' },
+    tabs: [
+      { id: 'job', label: '1. Job', bn: '১. কাজ' },
+      { id: 'award', label: '2. Award & Start', bn: '২. প্রদান ও শুরু' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Confirm Completion', note: 'Completion closes the seller\'s access to the customer\'s contact details (BRU-MKP-04). The customer\'s sign-off and rating follow with Record Customer Sign-off.', fields: [
+      { tab: 'job', title: 'Step 2 of 2: Confirm Completion', note: 'Completion closes the seller\'s access to the customer\'s contact details (BRU-MKP-04). The customer\'s sign-off and rating follow with Record Customer Sign-off.', fields: [
         { name: 'name', label: 'Order', readonly: true },
         { name: 'customer_id', label: 'Customer', readonly: true },
-        { name: 'revealed_seller_id', label: 'Awarded Seller', readonly: true },
+        { name: 'revealed_seller_id', label: 'Awarded Seller', readonly: true }
+      ] },
+      { tab: 'award', title: 'Awarded Price and Start', fields: [
         { name: 'awarded_price', label: 'Awarded Price', readonly: true },
         { name: 'started_at', label: 'Job Started', readonly: true }
       ] }
@@ -700,12 +676,18 @@ export const SCREENS = {
       empty: 'No completed job awaits the customer\'s sign-off. A job is completed with Record Job Completion.'
     },
     saveAction: { method: 'action_review', label: 'Record Sign-off', done: 'Sign-off recorded; the 7-day escrow runs from now', kwargs: { rating: 'review_rating' } },
+    tabs: [
+      { id: 'rating', label: '1. Sign-off & Rating', bn: '১. সম্মতি ও রেটিং' },
+      { id: 'job', label: '2. Job', bn: '২. কাজ' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Customer Sign-off and Rating', note: 'The sign-off is the delivery evidence the payout escrow runs from. The rating feeds the seller\'s measured score; leave it blank when the customer gave none.', fields: [
+      { tab: 'job', title: 'The Completed Job', fields: [
         { name: 'name', label: 'Order', readonly: true },
         { name: 'customer_id', label: 'Customer', readonly: true },
         { name: 'revealed_seller_id', label: 'Seller', readonly: true },
-        { name: 'completed_at', label: 'Job Completed', readonly: true },
+        { name: 'completed_at', label: 'Job Completed', readonly: true }
+      ] },
+      { tab: 'rating', title: 'Step 2 of 2: Customer Sign-off and Rating', note: 'The sign-off is the delivery evidence the payout escrow runs from. The rating feeds the seller\'s measured score; leave it blank when the customer gave none.', fields: [
         /* an INPUT here: saveAction carries it to action_review */
         { name: 'review_rating', label: 'Customer Rating (1-5, blank for none)', readonly: true }
       ] }
@@ -914,7 +896,7 @@ export const FORM_CHIPS = {
   'M12:Stock Position': 'M12-form-stock',
   'M12:Seller Certification': 'M12-form-certification',
   'M12:Seller Standard': 'M12-form-standard',
-  'M12:Seller Agreement': 'M12-form-agreement',
+  'M12:Seller Agreement': 'M08-record',
   'M12:Seller Commission Scheme': 'M12-form-scheme',
   'M12:Marketplace Order': 'M12-form-marketplace-order',
   'M12:Job Completion': 'M12-form-job-complete',
@@ -932,7 +914,7 @@ export const FORM_CHIPS = {
     'fix.seller.stock': 'M12-form-stock',
     'fix.seller.certification': 'M12-form-certification',
     'fix.seller.standard': 'M12-form-standard',
-    'fix.contract': 'M12-form-agreement',
+    'fix.contract': 'M08-record',
     'fix.commission.scheme': 'M12-form-scheme',
     'fix.seller.consequence': 'M12-form-consequence'
   },
@@ -947,7 +929,7 @@ export const FORM_CHIPS = {
     'M12-stock-positions': 'M12-form-stock',
     'M12-certifications': 'M12-form-certification',
     'M12-standards': 'M12-form-standard',
-    'M12-agreement-list': 'M12-form-agreement',
+    'M12-agreement-list': 'M08-record',
     'M12-commission': 'M12-form-scheme',
     'M12-payout-runs': 'M12-form-payout',
     'M12-consequences': 'M12-form-consequence'
