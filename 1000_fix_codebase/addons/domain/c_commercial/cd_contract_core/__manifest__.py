@@ -19,7 +19,7 @@ CD-M08-01..04: the contract engine.
 - Events: contract.activated, contract.renewed, contract.expiring,
   entitlement.consumed (AS-08)
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Contracts",

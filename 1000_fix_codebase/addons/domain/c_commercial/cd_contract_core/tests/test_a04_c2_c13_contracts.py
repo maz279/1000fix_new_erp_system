@@ -395,10 +395,22 @@ def test_scope_amendment_is_decided_by_another_manager(c):
         .with_user(c.manager)
         .create(
             {
-                "name": "add a site contact",
+                "name": "exclude toner",
                 "contract_id": k.id,
                 "kind": "scope",
                 "effective_from": c.today,
+                # a scope amendment carries what it changes (M08 gaps, 13 Nov)
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "action": "add_exclusion",
+                            "exclusion_type": "consumable",
+                            "exclusion_text": "Toner and drums",
+                        },
+                    )
+                ],
             }
         )
     )
@@ -408,6 +420,7 @@ def test_scope_amendment_is_decided_by_another_manager(c):
     approve_via_inbox(a, manager2, requester=c.manager)
     a.invalidate_recordset()
     assert a.state == "applied"
+    assert k.exclusion_ids.mapped("name") == ["Toner and drums"]
 
 
 # =========================================================================== termination

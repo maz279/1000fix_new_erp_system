@@ -15,3 +15,11 @@ access_fix_contract_termination_officer,fix.contract.termination.officer,model_f
 access_fix_contract_template,fix.contract.template,model_fix_contract_template,base.group_user,1,0,0,0
 access_fix_contract_template_officer,fix.contract.template.officer,model_fix_contract_template,group_contract_officer,1,1,1,0
 access_fix_contract_template_legal,fix.contract.template.legal,model_fix_contract_template,group_contract_legal,1,1,1,1
+access_fix_contract_amendment_line,fix.contract.amendment.line,model_fix_contract_amendment_line,base.group_user,1,0,0,0
+access_fix_contract_amendment_line_officer,fix.contract.amendment.line.officer,model_fix_contract_amendment_line,group_contract_officer,1,1,1,1
+access_fix_contract_party,fix.contract.party,model_fix_contract_party,base.group_user,1,0,0,0
+access_fix_contract_party_officer,fix.contract.party.officer,model_fix_contract_party,group_contract_officer,1,1,1,1
+access_fix_contract_exclusion,fix.contract.exclusion,model_fix_contract_exclusion,base.group_user,1,0,0,0
+access_fix_contract_exclusion_officer,fix.contract.exclusion.officer,model_fix_contract_exclusion,group_contract_officer,1,1,1,1
+access_fix_contract_obligation,fix.contract.obligation,model_fix_contract_obligation,base.group_user,1,0,0,0
+access_fix_contract_obligation_officer,fix.contract.obligation.officer,model_fix_contract_obligation,group_contract_officer,1,1,1,0

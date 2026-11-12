@@ -67,6 +67,16 @@ SURFACES = {
             "action_execute_termination",
         },
     },
+    # M08 gaps (2026-11-13): parties and signatories, coverage exclusions and
+    # the obligation register. Each model checks its own role and state; an
+    # obligation is discharged with evidence or waived by a manager.
+    "fix.contract.party": {"order": "contract_id, role, id", "limit": 300, "actions": set()},
+    "fix.contract.exclusion": {"order": "contract_id, id", "limit": 300, "actions": set()},
+    "fix.contract.obligation": {
+        "order": "due_date, id",
+        "limit": 300,
+        "actions": {"action_complete", "action_waive"},
+    },
     # fix.msp.sla.credit is owned by M05 (a02 surface) — read through the
     # merged registry; not declared twice.
 }

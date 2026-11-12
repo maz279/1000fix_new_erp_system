@@ -85,6 +85,7 @@ WRITABLE = {
             "delta_value",
             "effective_from",
             "kind",
+            "line_ids",
             "name",
             "new_date_end",
             "note",
@@ -96,6 +97,41 @@ WRITABLE = {
             "device_id",
             "entitlement_type",
             "quantity_included",
+        }
+    ),
+    "fix.contract.exclusion": frozenset(
+        {
+            "contract_id",
+            "exclusion_type",
+            "name",
+            "name_bn",
+        }
+    ),
+    "fix.contract.obligation": frozenset(
+        {
+            "contract_id",
+            "description",
+            "due_date",
+            "evidence_document_id",
+            "mandatory",
+            "name",
+            "obligation_type",
+            "owed_by",
+            "owner_id",
+            "recurrence",
+        }
+    ),
+    "fix.contract.party": frozenset(
+        {
+            "contract_id",
+            "designation",
+            "email",
+            "is_primary",
+            "notice_address",
+            "partner_id",
+            "phone",
+            "portal_access",
+            "role",
         }
     ),
     "fix.contract.pm.visit": frozenset(

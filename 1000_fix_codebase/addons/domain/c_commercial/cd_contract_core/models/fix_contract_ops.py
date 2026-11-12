@@ -404,13 +404,42 @@ class FixContractRenewal(models.Model):
     renewal_contract_id = fields.Many2one(
         "fix.contract", string="Next Term", readonly=True, copy=False, ondelete="set null"
     )
+    # FR-CTR-050/051 (M08 gaps, 13 Nov 2026): a lost renewal is churn, recorded
+    # with a structured reason, the competitor where known and win-back
+    # candidacy. It used to flip to 'lost' with nothing said.
+    churn_reason = fields.Selection(
+        [
+            ("price", "Price"),
+            ("service_quality", "Service quality / SLA"),
+            ("competitor", "Moved to a competitor"),
+            ("budget", "Budget cut"),
+            ("in_house", "Taken in-house"),
+            ("assets_retired", "Assets retired / replaced"),
+            ("business_closed", "Customer closed / relocated"),
+            ("other", "Other"),
+        ],
+        readonly=True,
+        copy=False,
+    )
+    competitor = fields.Char(readonly=True, copy=False)
+    winback_eligible = fields.Boolean(string="Win-Back Candidate", readonly=True, copy=False)
+    lost_note = fields.Text(string="Loss Note", readonly=True, copy=False)
+    lost_on = fields.Date(readonly=True, copy=False)
 
     _QUOTE_FIELDS = frozenset(
         {"contract_id", "proposed_start", "proposed_end", "propo_value", "currency_id"}
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "renewal_contract_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "renewal_contract_id",
+            "churn_reason",
+            "competitor",
+            "winback_eligible",
+            "lost_note",
+            "lost_on",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -470,12 +499,43 @@ class FixContractRenewal(models.Model):
             rec.sudo()._guarded().write({"state": "won", "renewal_contract_id": term.id})
         return True
 
-    def action_mark_lost(self):
+    def action_mark_lost(self, reason=None, competitor=None, winback=False, note=None):
+        """The customer did not renew: record why (FR-CTR-050). A churn to a
+        competitor names it; a win-back candidate is announced for M35."""
         require_role(self.env, OFFICER, "Recording a lost renewal")
+        reasons = dict(self._fields["churn_reason"].selection)
+        if reason not in reasons:
+            raise UserError("State why the renewal was lost (the churn reason).")
+        competitor = (competitor or "").strip()
+        if reason == "competitor" and not competitor:
+            raise UserError("Name the competitor the customer moved to.")
         for rec in self:
             if rec.state not in ("draft", "quoted"):
                 raise UserError("Only an open renewal can be lost.")
-        self.sudo()._guarded().write({"state": "lost"})
+        self.sudo()._guarded().write(
+            {
+                "state": "lost",
+                "churn_reason": reason,
+                "competitor": competitor or False,
+                "winback_eligible": bool(winback),
+                "lost_note": (note or "").strip() or False,
+                "lost_on": fields.Date.context_today(self),
+            }
+        )
+        for rec in self:
+            publish(
+                self.env,
+                "contract.renewal_lost",
+                "fix.contract",
+                rec.contract_id.id,
+                {
+                    "code": rec.contract_id.code,
+                    "renewal_id": rec.id,
+                    "churn_reason": reason,
+                    "competitor": competitor,
+                    "winback_eligible": bool(winback),
+                },
+            )
         return True
 
 

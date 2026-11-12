@@ -28,15 +28,18 @@ from unittest import mock
 
 import pytest
 from odoo.addons.cd_contract_core.tests.test_a04_c2_c13_contracts import (  # noqa: F401
+    MANAGER,
     _active,
     _contract,
     _device,
+    _user,
     c,
     p03,
 )
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a04 import m08 as m08_reports
 from odoo.addons.cd_p03_portal.controllers.a04.writable import WRITABLE
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
 SRC = Path(__file__).resolve().parents[1] / "static" / "src"
 IMPORT = re.compile(r'from\s+"(\./a\d\d/\w+)"')
@@ -107,7 +110,7 @@ EXPECTED = {
     "9": "M08-form-termination",
     "10": "M08-form-price",
     "11": "M08-form-signature",
-    "12": "M08-form-pm",
+    "12": "M08-form-obligation",  # the obligation register (PM visits are a chip)
 }
 
 
@@ -348,3 +351,108 @@ def test_the_sla_credit_reports_name_the_amc_behind_each_credit(c):  # noqa: F81
     pnl = m08_reports.contract_pnl(c.env)
     row = next(r for r in pnl["rows"] if r["contract"] == k.name)
     assert row["sla_credits"] == 100.0
+
+
+# --- the M08 gaps (13 Nov 2026), through the endpoints the forms use -------------
+
+
+def test_a_scope_amendment_saved_from_its_form_changes_the_cover(c, p03):  # noqa: F811 - the imported fixture
+    k = _active(c, devices=_device(c))
+    new = _device(c)
+    out = p03(c.manager).write(
+        model="fix.contract.amendment",
+        values={
+            "name": "Add the reception printer",
+            "contract_id": k.id,
+            "kind": "scope",
+            "effective_from": str(c.today),
+        },
+        lines={
+            "field": "line_ids",
+            "rows": [{"values": {"action": "attach_asset", "device_id": new.id}}],
+            "removed": [],
+        },
+    )
+    assert "error" not in out, out
+    a = c.env["fix.contract.amendment"].browse(out["id"])
+    assert a.line_ids.device_id == new
+    manager2 = _user(c.env, "m08cap_manager2", MANAGER)  # the approver exists before routing
+    out = p03(c.manager).action(
+        model="fix.contract.amendment", ids=[a.id], method="action_request_approval", kwargs={}
+    )
+    assert out.get("success"), out
+    approve_via_inbox(a, manager2, requester=c.manager)
+    k.invalidate_recordset()
+    assert new in k.covered_device_ids
+
+
+def test_parties_exclusions_and_obligations_save_from_their_forms(c, p03):  # noqa: F811 - the imported fixture
+    k = _contract(c)
+    w = p03(c.officer)
+    out = w.write(
+        model="fix.contract.party",
+        values={
+            "contract_id": k.id,
+            "partner_id": c.customer.id,
+            "role": "customer_signatory",
+            "designation": "Managing Director",
+        },
+    )
+    assert "error" not in out, out
+    out = w.write(
+        model="fix.contract.exclusion",
+        values={"contract_id": k.id, "exclusion_type": "consumable", "name": "Toner and drums"},
+    )
+    assert "error" not in out, out
+    live = _active(c)
+    out = w.write(
+        model="fix.contract.obligation",
+        values={
+            "contract_id": live.id,
+            "name": "Quarterly service review",
+            "obligation_type": "service_review",
+            "owed_by": "us",
+            "due_date": str(c.today),
+            "recurrence": "quarterly",
+            "owner_id": c.officer.id,
+        },
+    )
+    assert "error" not in out, out
+    out = w.action(
+        model="fix.contract.obligation",
+        ids=[out["id"]],
+        method="action_complete",
+        kwargs={"evidence": "Review minutes REV-2026-11"},
+    )
+    assert out.get("success"), out
+    k.invalidate_recordset()
+    live.invalidate_recordset()
+    assert k.party_ids.role == "customer_signatory" and k.exclusion_ids.name == "Toner and drums"
+    done = live.obligation_ids.filtered(lambda o: o.state == "done")
+    assert done and done.next_obligation_id.state == "open"
+
+
+def test_a_lost_renewal_is_recorded_with_its_reason(c, p03):  # noqa: F811 - the imported fixture
+    k = _active(c)
+    r = (
+        c.env["fix.contract.renewal"]
+        .with_user(c.officer)
+        .create(
+            {
+                "name": "Renewal",
+                "contract_id": k.id,
+                "proposed_start": str(k.date_end + timedelta(days=1)),
+                "proposed_end": str(k.date_end + timedelta(days=366)),
+                "propo_value": 125000.0,
+            }
+        )
+    )
+    out = p03(c.officer).action(
+        model="fix.contract.renewal",
+        ids=[r.id],
+        method="action_mark_lost",
+        kwargs={"reason": "price", "winback": True, "note": "Asked 20% less"},
+    )
+    assert out.get("success"), out
+    r.invalidate_recordset()
+    assert (r.state, r.churn_reason, r.winback_eligible) == ("lost", "price", True)

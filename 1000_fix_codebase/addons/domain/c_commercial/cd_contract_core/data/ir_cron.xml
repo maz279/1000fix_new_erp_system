@@ -44,5 +44,14 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="ir_cron_contract_obligations_due" model="ir.cron">
+            <field name="name">M08: contract obligations due and overdue (AUT-CTR-16)</field>
+            <field name="model_id" ref="model_fix_contract_obligation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_obligations_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

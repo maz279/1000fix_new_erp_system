@@ -22,17 +22,20 @@ export const MODULE = {
       { id: 'M08-contracts', en: 'Contracts', bn: 'চুক্তি', t: 'g' },
       { id: 'M08-record', en: 'Contract Record', bn: 'চুক্তি রেকর্ড', t: 'f' },
       { id: 'M08-families', en: 'Contract Product Families', bn: 'পণ্য পরিবার', t: 'r' },
-      { id: 'M08-master', en: 'Master Agreements', bn: 'মাস্টার চুক্তি', t: 'g' }
+      { id: 'M08-master', en: 'Master Agreements', bn: 'মাস্টার চুক্তি', t: 'g' },
+      { id: 'M08-parties', en: 'Parties & Signatories', bn: 'পক্ষ ও স্বাক্ষরকারী', t: 'g' }
     ]},
     { en: 'Coverage & Entitlement', screens: [
       { id: 'M08-scope', en: 'Covered Assets & Sites', bn: 'কভারেজ', t: 'r' },
       { id: 'M08-entitle', en: 'Entitlement & Consumption', bn: 'এনটাইটেলমেন্ট', t: 'g' },
-      { id: 'M08-balance', en: 'Balances, Carry-Over, Top-Up', bn: 'ব্যালেন্স', t: 'r' }
+      { id: 'M08-balance', en: 'Balances, Carry-Over, Top-Up', bn: 'ব্যালেন্স', t: 'r' },
+      { id: 'M08-exclusions', en: 'Coverage Exclusions', bn: 'কভারেজ বহির্ভূত', t: 'g' }
     ]},
     { en: 'Service Commitments', screens: [
       { id: 'M08-sla', en: 'Contract SLA & Credits', bn: 'SLA ক্রেডিট', t: 'r' },
       { id: 'M08-pm', en: 'PM & Calibration Schedules', bn: 'পিএম শিডিউল', t: 'g' },
-      { id: 'M08-auto-work', en: 'Contract-Driven Work', bn: 'চুক্তি-চালিত কাজ', t: 'r' }
+      { id: 'M08-auto-work', en: 'Contract-Driven Work', bn: 'চুক্তি-চালিত কাজ', t: 'r' },
+      { id: 'M08-obligations', en: 'Obligation Register', bn: 'দায়বদ্ধতা নিবন্ধন', t: 'g' }
     ]},
     { en: 'Change & Renewal', screens: [
       { id: 'M08-amend', en: 'Amendments & Variations', bn: 'সংশোধনী', t: 'g' },
@@ -57,21 +60,22 @@ export const MODULE = {
    * open THEIR forms. */
   forms: ['Contract (14 families)', 'Amendment', 'Asset Attach/Detach', 'Renewal Quote', 'PM Schedule',
     'Entitlement', 'Submit for Value Approval', 'Legal Review', 'SLA Credit', 'Suspension / Termination Notice',
-    'Price Revision', 'Signature & Stamp Duty', 'Signature Envelope', 'Stamp Duty Rate'],
+    'Price Revision', 'Signature & Stamp Duty', 'Signature Envelope', 'Stamp Duty Rate',
+    'Contract Party', 'Coverage Exclusion', 'Contract Obligation', 'Lost Renewal'],
   cross: ['M05 MSP', 'M01 Service Orders', 'M20 AR', 'M37 Catalogue'],
   freg: { src: 108, sub: [
     ['1', 'Template-Driven Creation', 12, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value'], screens: ['M08-contracts'], reports: [], forms: ['Contract (14 families)'] }],
-    ['2', 'Parties & Approval', 8, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'approval_state', 'legal_review_required', 'annual_value'], screens: ['M08-contracts', 'M08-master'], reports: [], forms: ['Submit for Value Approval', 'Legal Review'], create: 'M08-form-submit' }],
-    ['3', 'Coverage Scope', 10, { model: 'fix.contract.entitlement', cols: ['contract_id', 'device_id', 'entitlement_type', 'quantity_included', 'quantity_remaining'], screens: ['M08-scope', 'M08-entitle'], reports: ['Entitlement Consumption by Client'], forms: ['Asset Attach/Detach', 'Entitlement'], create: 'M08-form-coverage' }],
+    ['2', 'Parties & Approval', 8, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'approval_state', 'legal_review_required', 'annual_value'], screens: ['M08-contracts', 'M08-master', 'M08-parties'], reports: [], forms: ['Submit for Value Approval', 'Legal Review', 'Contract Party'], create: 'M08-form-submit' }],
+    ['3', 'Coverage Scope', 10, { model: 'fix.contract.entitlement', cols: ['contract_id', 'device_id', 'entitlement_type', 'quantity_included', 'quantity_remaining'], screens: ['M08-scope', 'M08-entitle', 'M08-exclusions'], reports: ['Entitlement Consumption by Client'], forms: ['Asset Attach/Detach', 'Entitlement', 'Coverage Exclusion'], create: 'M08-form-coverage' }],
     ['4', 'Entitlement Engine', 14, { model: 'fix.contract.entitlement', cols: ['contract_id', 'entitlement_type', 'quantity_included', 'quantity_consumed', 'quantity_remaining'], screens: ['M08-entitle', 'M08-balance'], reports: ['Entitlement Consumption by Client'], forms: ['Entitlement'] }],
     ['5', 'SLA & Service Credits', 10, { model: 'fix.msp.sla.credit', cols: ['msp_contract_id', 'period_label', 'attainment_pct', 'breach_count', 'credit_amount'], screens: ['M08-sla', 'M08-rpt-sla'], reports: ['SLA Credit Register'], forms: ['SLA Credit'], create: 'M05-form-credit' }],
     ['6', 'PM Schedules', 9, { model: 'fix.contract.pm.visit', cols: ['contract_id', 'state'], screens: ['M08-pm', 'M08-rpt-pm'], reports: ['PM Compliance Report'], forms: ['PM Schedule'] }],
     ['7', 'Amendments', 8, { model: 'fix.contract.amendment', cols: ['contract_id', 'state'], screens: ['M08-amend'], reports: [], forms: ['Amendment'] }],
     ['8', 'Renewal Governance', 9, { model: 'fix.contract.renewal', cols: ['contract_id', 'state'], screens: ['M08-renewals', 'M08-rpt-renew'], reports: ['Renewal Pipeline & Risk'], forms: ['Renewal Quote'] }],
-    ['9', 'Churn & Win-Back', 6, { model: 'fix.contract.termination', cols: ['contract_id', 'state'], screens: ['M08-termination', 'M08-churn'], reports: ['Contract Base Movement', 'Renewal Pipeline & Risk'], forms: ['Suspension / Termination Notice'] }],
+    ['9', 'Churn & Win-Back', 6, { model: 'fix.contract.termination', cols: ['contract_id', 'state'], screens: ['M08-termination', 'M08-churn', 'M08-renewals'], reports: ['Contract Base Movement', 'Renewal Pipeline & Risk'], forms: ['Suspension / Termination Notice', 'Lost Renewal'] }],
     ['10', 'Pricing & Profitability', 10, { model: 'fix.contract', cols: ['name', 'customer_id', 'annual_value', 'total_delivery_cost', 'contract_margin_pct'], screens: ['M08-pricing', 'M08-profit', 'M08-rpt-pnl', 'M08-contracts'], reports: ['Contract P&L'], forms: ['Price Revision'], create: 'M08-form-price' }],
     ['11', 'Documents & Signature', 7, { model: 'fix.contract', cols: ['name', 'state', 'esignature_envelope_id', 'has_signed_contract_doc', 'stamp_duty_cert_no'], screens: ['M08-rpt-base', 'M08-contracts', 'M08-stampduty'], reports: ['Contract Base Movement'], forms: ['Signature & Stamp Duty', 'Signature Envelope', 'Stamp Duty Rate'], create: 'M08-form-signature' }],
-    ['12', 'Obligation Calendar', 5, { model: 'fix.contract.pm.visit', cols: ['contract_id', 'device_id', 'scheduled_date', 'service_order_id', 'state'], screens: ['M08-auto-work', 'M08-pm'], reports: ['PM Compliance Report'], forms: ['PM Schedule'] }]
+    ['12', 'Obligation Calendar', 5, { model: 'fix.contract.obligation', cols: ['name', 'contract_id', 'obligation_type', 'due_date', 'owner_id', 'state'], screens: ['M08-obligations', 'M08-pm', 'M08-auto-work'], reports: ['PM Compliance Report'], forms: ['Contract Obligation', 'PM Schedule'] }]
   ] }
 };
 
@@ -121,8 +125,8 @@ export const SCREENS = {
     cols: ['name', 'contract_id', 'proposed_start', 'proposed_end', 'propo_value', 'risk', 'state', 'renewal_contract_id'],
     actions: [
       { m: 'action_quote', l: 'Issue Renewal Quote', states: ['draft'] },
-      { m: 'action_mark_won', l: 'Won: Draft the Next Term', states: ['quoted'] },
-      { m: 'action_mark_lost', l: 'Lost', states: ['draft', 'quoted'] }
+      { m: 'action_mark_won', l: 'Won: Draft the Next Term', states: ['quoted'] }
+      /* 'Lost' now records the churn reason: + Record a Lost Renewal */
     ] },
   // Stamp Act 1899 Schedule I. A DRAFT row is not in force - until Finance
   // confirms a rate against the current Finance Act the instrument stays
@@ -286,7 +290,26 @@ export const SCREENS = {
     ]
   },
 
+  /* A scope amendment carries its changes as lines, applied on approval
+   * (M08 gaps 2026-11-13): before, a scope amendment versioned the contract
+   * and changed nothing. Pricing and term amendments carry no lines. */
   'M08-form-amendment': {
+    lines: {
+      field: 'line_ids',
+      title: 'Scope Changes (scope amendments only)',
+      note: 'One row per change: attach or detach a covered asset, add an entitlement or change its quantity, add or remove an SLA or an exclusion. They apply when the amendment is approved and effective; an attached asset gets its preventive visits from that date.',
+      fields: [
+        { name: 'action', label: 'Change', required: true },
+        { name: 'device_id', label: 'Device' },
+        { name: 'entitlement_type', label: 'New Entitlement' },
+        { name: 'entitlement_id', label: 'Existing Entitlement' },
+        { name: 'quantity', label: 'Quantity' },
+        { name: 'sla_policy_id', label: 'SLA' },
+        { name: 'exclusion_type', label: 'Exclusion Type' },
+        { name: 'exclusion_text', label: 'Exclusion Wording' },
+        { name: 'exclusion_id', label: 'Exclusion to Remove' }
+      ]
+    },
     kind: 'model_form',
     model: 'fix.contract.amendment',
     title: 'Contract Variation & Amendment',
@@ -634,6 +657,139 @@ export const SCREENS = {
       ] }
     ] },
 
+  /* ===== M08 gaps 2026-11-13: parties, exclusions, obligations, churn ===== */
+
+  /* FR-CTR-004: parties and signatories. Signatories freeze once the
+   * contract is signed; requesters, approvers and notice parties can change
+   * until it closes. */
+  'M08-parties': { kind: 'model_list', model: 'fix.contract.party',
+    cols: ['contract_id', 'partner_id', 'role', 'designation', 'email', 'phone', 'portal_access', 'contract_state'] },
+  'M08-form-party': { kind: 'model_form', model: 'fix.contract.party',
+    title: 'Contract Party', back: 'M08-parties',
+    tabs: [
+      { id: 'party', label: '1. Party & Role', bn: '১. পক্ষ ও ভূমিকা', icon: '👥', badge: '5' },
+      { id: 'contact', label: '2. Contact & Notice', bn: '২. যোগাযোগ ও নোটিশ', icon: '✉️', badge: '4' }
+    ],
+    sections: [
+      { tab: 'party', title: 'Who and in What Role',
+        note: 'A signatory cannot be added or changed once the contract is signed. A notice party needs a postal address or an e-mail.',
+        fields: [
+          { name: 'contract_id', label: 'Contract', required: true, domain: [['state', 'not in', ['expired', 'terminated']]] },
+          { name: 'partner_id', label: 'Person / Entity', required: true },
+          { name: 'role', label: 'Role', required: true },
+          { name: 'designation', label: 'Designation' },
+          { name: 'is_primary', label: 'Primary for this Role' }
+        ] },
+      { tab: 'contact', title: 'Contact & Portal Access', fields: [
+        { name: 'email', label: 'E-mail' },
+        { name: 'phone', label: 'Phone' },
+        { name: 'notice_address', label: 'Notice Address', type: 'text' },
+        { name: 'portal_access', label: 'Corporate Portal Access (P04)' }
+      ] }
+    ] },
+
+  /* FR-CTR-016: exclusions override inclusion. A term of the contract:
+   * typed while it is a draft, changed afterwards by a scope amendment. */
+  'M08-exclusions': { kind: 'model_list', model: 'fix.contract.exclusion',
+    cols: ['contract_id', 'exclusion_type', 'name', 'name_bn', 'contract_state'] },
+  'M08-form-exclusion': { kind: 'model_form', model: 'fix.contract.exclusion',
+    title: 'Coverage Exclusion', back: 'M08-exclusions',
+    tabs: [
+      { id: 'exclusion', label: '1. Exclusion', bn: '১. বহির্ভূত', icon: '🚫', badge: '4' }
+    ],
+    sections: [
+      { tab: 'exclusion', title: 'What the Contract Does Not Cover',
+        note: 'Draft contracts only. On a contract in force, raise a scope amendment with an Add exclusion or Remove exclusion row.',
+        fields: [
+          { name: 'contract_id', label: 'Contract (draft)', required: true, domain: [['state', '=', 'draft']] },
+          { name: 'exclusion_type', label: 'Exclusion Type', required: true },
+          { name: 'name', label: 'Exclusion Wording', required: true },
+          { name: 'name_bn', label: 'Exclusion Wording (Bangla)' }
+        ] }
+    ] },
+
+  /* FR-CTR-032/033, AUT-CTR-16: every post-signature obligation, with its
+   * owner, due date and evidence. A daily job reminds the owner a week ahead
+   * and marks a missed one overdue; a mandatory one cannot be waived. */
+  'M08-obligations': { kind: 'model_list', model: 'fix.contract.obligation', stateField: 'state',
+    cols: ['name', 'contract_id', 'obligation_type', 'owed_by', 'mandatory', 'due_date', 'recurrence', 'owner_id', 'state'],
+    actions: [
+      { m: 'action_complete', l: 'Discharge (with evidence)', states: ['open', 'overdue'], ask: 'Evidence: certificate number, report reference or where the proof is filed', kwarg: 'evidence' },
+      { m: 'action_waive', l: 'Waive (Contract Manager)', states: ['open', 'overdue'], ask: 'Why is this obligation waived?', kwarg: 'reason' }
+    ] },
+  'M08-form-obligation': { kind: 'model_form', model: 'fix.contract.obligation',
+    title: 'Contract Obligation', back: 'M08-obligations',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'what', label: '1. Obligation', bn: '১. দায়বদ্ধতা', icon: '📋', badge: '6' },
+      { id: 'when', label: '2. Due Date & Owner', bn: '২. তারিখ ও দায়িত্ব', icon: '📅', badge: '3' },
+      { id: 'proof', label: '3. Evidence', bn: '৩. প্রমাণ', icon: '📎', badge: '5' }
+    ],
+    sections: [
+      { tab: 'what', title: 'What Is Owed, and by Whom', fields: [
+        { name: 'contract_id', label: 'Contract', required: true, domain: [['state', 'not in', ['expired', 'terminated']]] },
+        { name: 'name', label: 'Obligation', required: true },
+        { name: 'obligation_type', label: 'Type', required: true },
+        { name: 'owed_by', label: 'Owed By', required: true },
+        { name: 'mandatory', label: 'Mandatory (blocks compliance sign-off)' },
+        { name: 'description', label: 'Details', type: 'text' }
+      ] },
+      { tab: 'when', title: 'Due Date, Recurrence & Owner',
+        note: 'The owner gets a to-do a week before the due date; a missed obligation turns overdue and is escalated.',
+        fields: [
+          { name: 'due_date', label: 'Due Date', required: true },
+          { name: 'recurrence', label: 'Recurrence', required: true },
+          { name: 'owner_id', label: 'Owner', required: true }
+        ] },
+      { tab: 'proof', title: 'Completion Evidence',
+        note: 'Discharge it from the Obligation Register with the evidence; a recurring obligation then opens its next occurrence.',
+        fields: [
+          { name: 'evidence_document_id', label: 'Evidence Document (M24)' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'evidence_note', label: 'Evidence Recorded', readonly: true },
+          { name: 'completed_by', label: 'Discharged By', readonly: true },
+          { name: 'next_obligation_id', label: 'Next Occurrence', readonly: true }
+        ] }
+    ] },
+
+  /* FR-CTR-050/051: a lost renewal is churn, recorded with its reason, the
+   * competitor where known and win-back candidacy (announced for M35). */
+  'M08-form-lost': { kind: 'model_form', model: 'fix.contract.renewal',
+    title: 'Lost Renewal (Churn)', back: 'M08-renewals',
+    newLabel: 'Record a Lost Renewal',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the renewal the customer declined',
+      note: 'Open renewals (draft or quoted).',
+      search: 'Search renewal / contract',
+      choose: 'Record this loss',
+      cols: ['name', 'contract_id', 'proposed_start', 'propo_value', 'risk', 'state'],
+      domain: [['state', 'in', ['draft', 'quoted']]],
+      empty: 'No renewal is open. A renewal is drafted at the contract lead time or from Renewals & Auto-Renew.'
+    },
+    saveAction: {
+      method: 'action_mark_lost', label: 'Record as Lost',
+      done: 'Renewal recorded as lost, with its churn reason',
+      kwargs: { reason: 'churn_reason', competitor: 'competitor', winback: 'winback_eligible', note: 'lost_note' }
+    },
+    tabs: [
+      { id: 'churn', label: '1. Churn Reason', bn: '১. হারানোর কারণ', icon: '📉', badge: '6' }
+    ],
+    sections: [
+      { tab: 'churn', title: 'Step 2 of 2: Why It Was Lost',
+        note: 'A move to a competitor names the competitor. A win-back candidate is fed to Marketing (M35) for a win-back campaign.',
+        fields: [
+          /* readonly for the generic write; INPUTS here because saveAction
+           * carries them to action_mark_lost */
+          { name: 'churn_reason', label: 'Churn Reason', required: true, readonly: true },
+          { name: 'competitor', label: 'Competitor', readonly: true },
+          { name: 'winback_eligible', label: 'Win-Back Candidate', readonly: true },
+          { name: 'lost_note', label: 'Loss Note', type: 'text', readonly: true },
+          { name: 'contract_id', label: 'Contract', readonly: true },
+          { name: 'propo_value', label: 'Proposed Value', readonly: true }
+        ] }
+    ] },
+
   'M08-form-termination': {
     kind: 'model_form',
     model: 'fix.contract.termination',
@@ -693,7 +849,11 @@ export const FORM_MODELS = {
   'M08:Price Revision': 'fix.contract.amendment',
   'M08:Signature & Stamp Duty': 'fix.contract',
   'M08:Signature Envelope': 'fix.esignature.envelope',
-  'M08:Stamp Duty Rate': 'fix.stamp.duty.schedule'
+  'M08:Stamp Duty Rate': 'fix.stamp.duty.schedule',
+  'M08:Contract Party': 'fix.contract.party',
+  'M08:Coverage Exclusion': 'fix.contract.exclusion',
+  'M08:Contract Obligation': 'fix.contract.obligation',
+  'M08:Lost Renewal': 'fix.contract.renewal'
 };
 
 export const FORM_CHIPS = {
@@ -711,6 +871,10 @@ export const FORM_CHIPS = {
   'M08:Price Revision': 'M08-form-price',
   'M08:Signature & Stamp Duty': 'M08-form-signature',
   'M08:Stamp Duty Rate': 'M08-form-stampduty',
+  'M08:Contract Party': 'M08-form-party',
+  'M08:Coverage Exclusion': 'M08-form-exclusion',
+  'M08:Contract Obligation': 'M08-form-obligation',
+  'M08:Lost Renewal': 'M08-form-lost',
   /* records other modules master open THEIR forms: the SLA credit is
    * computed and approved in M05, the signature envelope lives in M24 */
   'M08:SLA Credit': 'M05-form-credit',
@@ -721,7 +885,10 @@ export const FORM_CHIPS = {
     'fix.contract.entitlement': 'M08-form-entitlement',
     'fix.contract.renewal': 'M08-form-renewal',
     'fix.contract.pm.visit': 'M08-form-pm',
-    'fix.contract.termination': 'M08-form-termination'
+    'fix.contract.termination': 'M08-form-termination',
+    'fix.contract.party': 'M08-form-party',
+    'fix.contract.exclusion': 'M08-form-exclusion',
+    'fix.contract.obligation': 'M08-form-obligation'
   },
   'M08:__by_screen__': {
     'M08-contracts': 'M08-record',
@@ -730,7 +897,10 @@ export const FORM_CHIPS = {
     'M08-renewals': 'M08-form-renewal',
     'M08-pm': 'M08-form-pm',
     'M08-stampduty': 'M08-form-stampduty',
-    'M08-termination': 'M08-form-termination'
+    'M08-termination': 'M08-form-termination',
+    'M08-parties': 'M08-form-party',
+    'M08-exclusions': 'M08-form-exclusion',
+    'M08-obligations': 'M08-form-obligation'
   }
 };
 
