@@ -1044,21 +1044,27 @@ class FixArInvoice(models.Model):
         )
 
     @api.model
-    def _fix_assert_matches_accepted_quotation(self, order, estimate):
+    def _fix_assert_matches_accepted_quotation(self, order, estimate, exempted=0.0):
         """D3-01 (owner decision 12 Nov 2026, E3-01): an invoice from a closed
         service order bills what the customer ACCEPTED. The estimate revised
         after acceptance (QTN/2026/00012 accepted at 4,025.00, invoiced at
         4,945.00 — and below BDT 5,000 the revision needed no consent at all)
         is refused until the customer accepts a quotation at the new value.
-        An order with no accepted quotation is invoiced as before."""
+        An order with no accepted quotation is invoiced as before.
+
+        G12 (owner decision 12 Nov 2026): `exempted` is the value of the
+        APPROVED billed-part-not-fitted exemptions, which the invoice leaves
+        off. The invoice may be lower than the accepted value by exactly that
+        amount; any other difference is still refused."""
         quotation = self._fix_accepted_quotation(order)
         if not quotation:
             return
-        billed = round(estimate.grand_total or 0.0, 2)
+        exempted = round(exempted or 0.0, 2)
+        billed = round((estimate.grand_total or 0.0) - exempted, 2)
         accepted = round(quotation.accepted_value or 0.0, 2)
-        if abs(billed - accepted) > 0.005:
+        if abs(accepted - exempted - billed) > 0.005:
             raise UserError(
-                "%s cannot be invoiced: its approved estimate %s totals BDT %.2f, but the "
+                "%s cannot be invoiced: its approved estimate %s bills BDT %.2f%s, but the "
                 "customer accepted quotation %s v%d at BDT %.2f. Quote the revised estimate "
                 "and record the customer's acceptance of the new value before invoicing "
                 "(D3-01)."
@@ -1066,6 +1072,12 @@ class FixArInvoice(models.Model):
                     order.name,
                     estimate.display_name,
                     billed,
+                    (
+                        " after BDT %.2f of approved billed-part-not-fitted exemptions (so "
+                        "BDT %.2f is expected)" % (exempted, accepted - exempted)
+                        if exempted
+                        else ""
+                    ),
                     quotation.name,
                     quotation.accepted_version or quotation.version,
                     accepted,
@@ -1107,8 +1119,20 @@ class FixArInvoice(models.Model):
             raise UserError(
                 "No approved estimate on %s — invoicing requires one (BRU-SRM-05)" % order.name
             )
-        # D3-01: the customer's accepted quotation binds the invoice.
-        self._fix_assert_matches_accepted_quotation(order, estimate)
+        # G12: a billed part that was never fitted is not billed. APPROVED
+        # billed-part-not-fitted exemptions (cd_service_order) take their
+        # quantity off the line, with its share of the header discount.
+        exemptions = order._fix_part_exemptions(estimate)
+        exempt_qty = {}
+        for ex in exemptions:
+            key = ex.estimate_line_id.id
+            exempt_qty[key] = exempt_qty.get(key, 0.0) + (ex.quantity or 0.0)
+
+        # D3-01: the customer's accepted quotation binds the invoice, less
+        # exactly the approved exemptions (G12).
+        self._fix_assert_matches_accepted_quotation(
+            order, estimate, exempted=sum(exemptions.mapped("amount"))
+        )
 
         # FR-ARB-031: a held customer blocks invoicing before anything is created
         self._credit_hold_for(order.customer_id, order.company_id)
@@ -1123,6 +1147,23 @@ class FixArInvoice(models.Model):
             for q, p in zip(quantities, prices, strict=True)
         ]
         discounts = allocate_discount(grosses, Decimal(str(estimate.discount or 0.0)))
+        billed_lines = []
+        for line, qty, price, line_discount in zip(
+            estimate.line_ids, quantities, prices, discounts, strict=True
+        ):
+            exempt = Decimal(str(exempt_qty.get(line.id, 0.0)))
+            if exempt > 0:
+                kept = max(qty - exempt, Decimal("0"))
+                if kept <= 0:
+                    continue  # the whole line was never fitted
+                line_discount = (line_discount * kept / qty).quantize(TWO_PLACES, ROUND_HALF_UP)
+                qty = kept
+            billed_lines.append((line, qty, price, line_discount))
+        if not billed_lines:
+            raise UserError(
+                "Nothing is billed on %s: every line of its approved estimate is exempted as "
+                "not fitted, so no customer invoice is raised (G12)." % order.name
+            )
         lines = [
             tax_logic.TaxLine(
                 product_code=line.product_id.default_code or "SVC",
@@ -1130,9 +1171,7 @@ class FixArInvoice(models.Model):
                 unit_price=price,
                 discount=line_discount,
             )
-            for line, qty, price, line_discount in zip(
-                estimate.line_ids, quantities, prices, discounts, strict=True
-            )
+            for line, qty, price, line_discount in billed_lines
         ]
         determination = m51_determine(
             self.env, lines, on_date=fields.Date.context_today(self), company=order.company_id
@@ -1154,7 +1193,7 @@ class FixArInvoice(models.Model):
         # order. Pair by POSITION: keying by product code collapsed two
         # estimate lines sharing a code (e.g. two "SVC" labour lines) onto
         # the last line's amounts and mis-stated the invoice.
-        for line, det in zip(estimate.line_ids, determination.lines, strict=True):
+        for (line, *_billed), det in zip(billed_lines, determination.lines, strict=True):
             self.env["fix.ar.invoice.line"].sudo().create(
                 {
                     "invoice_id": invoice.id,
@@ -1851,6 +1890,9 @@ class FixCreditNote(models.Model):
             ("goodwill", "Goodwill"),
             ("return", "Return"),
             ("subscription_refund", "Subscription Cancellation Refund"),
+            # G12: a billed part that was never fitted, credited after the
+            # invoice (fix.so.part.exemption, cd_service_order).
+            ("part_not_fitted", "Billed Part Not Fitted"),
         ],
         required=True,
     )

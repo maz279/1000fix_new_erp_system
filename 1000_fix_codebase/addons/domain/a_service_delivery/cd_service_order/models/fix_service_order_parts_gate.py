@@ -28,6 +28,11 @@
 # sum of CONSUMED issues (a returned issue no longer counts) whose job is this
 # order, its workshop job or its field order. Superuser code (imports, data
 # repair) is trusted, as by the money gate beside it.
+#
+# G12 (owner decision 12 Nov 2026): a billed part that was genuinely never
+# fitted left a delivered order that could never close. An APPROVED "billed
+# part not fitted" exemption (fix.so.part.exemption, decided by a branch
+# manager from the M63 inbox) now counts as covered, beside the issues.
 from __future__ import annotations
 
 from collections import defaultdict
@@ -54,22 +59,37 @@ class FixServiceOrderPartsGate(models.Model):
         estimate = self._fix_governing_estimate()
         if not estimate or estimate.state != "approved":
             return {}
-        company = self.sudo().company_id
-        Part = self.env["fix.spare.part"].sudo()
         billed = defaultdict(float)
         for line in estimate.sudo().line_ids:
-            product = line.product_id
-            if line.line_type != "part" or not product or (line.quantity or 0.0) <= _EPS:
+            if line.line_type != "part" or (line.quantity or 0.0) <= _EPS:
                 continue
-            if product.type == "service":
-                continue
-            part = Part.search(
-                [("product_id", "=", product.id), ("company_id", "in", [company.id, False])],
-                limit=1,
-            )
+            part = self._fix_stock_part_for(line.product_id)
             if part:
                 billed[part] += line.quantity
         return dict(billed)
+
+    def _fix_stock_part_for(self, product):
+        """The M15 spare part a billed product is, or an empty recordset when
+        it is not stocked (no product, a service, no spare-part record)."""
+        self.ensure_one()
+        Part = self.env["fix.spare.part"].sudo()
+        if not product or product.type == "service":
+            return Part
+        company = self.sudo().company_id
+        return Part.search(
+            [("product_id", "=", product.id), ("company_id", "in", [company.id, False])],
+            limit=1,
+        )
+
+    def _fix_exempted_stock_parts(self) -> dict:
+        """G12: {fix.spare.part: quantity} that APPROVED billed-part-not-fitted
+        exemptions on the governing estimate cover."""
+        self.ensure_one()
+        exempted = defaultdict(float)
+        for ex in self._fix_part_exemptions():
+            if ex.part_id:
+                exempted[ex.part_id] += ex.quantity
+        return dict(exempted)
 
     def _fix_issued_stock_parts(self) -> dict:
         """{fix.spare.part: quantity} issued from M15 to this order's jobs and
@@ -105,17 +125,24 @@ class FixServiceOrderPartsGate(models.Model):
         return dict(issued)
 
     def _fix_unissued_billed_parts(self) -> list:
-        """The billed stocked parts that M15 has not issued to this order:
-        [{"part", "billed", "issued"}], in part-number order."""
+        """The billed stocked parts that neither M15 issued to this order nor
+        an approved exemption (G12) covers: [{"part", "billed", "issued",
+        "exempted"}], in part-number order."""
         self.ensure_one()
         billed = self._fix_billed_stock_parts()
         if not billed:
             return []
         issued = self._fix_issued_stock_parts()
+        exempted = self._fix_exempted_stock_parts()
         gaps = [
-            {"part": part, "billed": qty, "issued": issued.get(part, 0.0)}
+            {
+                "part": part,
+                "billed": qty,
+                "issued": issued.get(part, 0.0),
+                "exempted": exempted.get(part, 0.0),
+            }
             for part, qty in billed.items()
-            if qty - issued.get(part, 0.0) > _EPS
+            if qty - issued.get(part, 0.0) - exempted.get(part, 0.0) > _EPS
         ]
         return sorted(gaps, key=lambda g: g["part"].part_number or "")
 
@@ -132,12 +159,20 @@ class FixServiceOrderPartsGate(models.Model):
         if not gaps:
             return
         listed = "; ".join(
-            "%s %s: billed %s, issued %s"
-            % (g["part"].part_number, g["part"].name, _qty(g["billed"]), _qty(g["issued"]))
+            "%s %s: billed %s, issued %s%s"
+            % (
+                g["part"].part_number,
+                g["part"].name,
+                _qty(g["billed"]),
+                _qty(g["issued"]),
+                ", exempted %s" % _qty(g["exempted"]) if g["exempted"] > _EPS else "",
+            )
             for g in gaps
         )
         raise UserError(
             "Order %s cannot be closed: its approved estimate bills parts that have not left "
             "stock (%s). Record each part fitted on the work order (or the workshop or field "
-            "job), which issues it from M15, then close." % (self.name, listed)
+            "job), which issues it from M15, then close. A part that was never fitted is "
+            "exempted instead: request a billed-part-not-fitted exemption, which a branch "
+            "manager approves (G12)." % (self.name, listed)
         )

@@ -7,6 +7,7 @@ from . import (
     fix_billing_engine,
     fix_contract_billing_walker,
     fix_finance_approval,
+    fix_part_exemption_billing,
     fix_party_merge_consumer,
     fix_vds_certificate,
 )

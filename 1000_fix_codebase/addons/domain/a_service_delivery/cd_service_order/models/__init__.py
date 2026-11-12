@@ -29,3 +29,7 @@ from . import fix_service_order_handback
 # D-11: the close gate refuses billed estimate parts that never left stock;
 # extends fix.service.order, so it imports after it.
 from . import fix_service_order_parts_gate
+
+# G12: the billed-part-not-fitted exemption (routed M63 approval); extends
+# fix.service.order and the D-11 gate above, so it imports after them.
+from . import fix_so_part_exemption
