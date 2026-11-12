@@ -3157,7 +3157,7 @@
                                                         </td>
                                                     </t>
                                                 </tr>
-                                                <tr t-if="!mlRows.length"><td t-att-colspan="mlCols.length" style="text-align: center; color: var(--ink-300); padding: 24px;"><t t-esc='state.gl.mlSearch ? t("No matching records found for search.") : (state.gl.modelCfg.create !== false ? t("No records yet — use + New to create the first one.") : t("No records yet."))'/></td></tr>
+                                                <tr t-if="!mlRows.length"><td t-att-colspan="mlCols.length" style="text-align: center; color: var(--ink-300); padding: 24px;"><t t-esc='state.gl.mlSearch ? t("No matching records found for search.") : (state.gl.modelCfg.empty ? t(state.gl.modelCfg.empty) : (state.gl.modelCfg.create !== false ? t("No records yet — use + New to create the first one.") : t("No records yet.")))'/></td></tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -3270,10 +3270,16 @@
                                     </div>
                                 </div>
                                 <div t-if="!(state.gl.form &amp;&amp; state.gl.form.unavailable)" class="d365-cmdbar">
-                                    <button class="btn btn-primary" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(false)">
+                                    <!-- a form whose button runs a workflow method (saveAction) has ONE
+                                         button, named after what it does; nothing to save while the
+                                         record is still being chosen (pickRecord) -->
+                                    <button t-if="!state.gl.form.picking &amp;&amp; state.gl.formCfg.saveAction" class="btn btn-primary" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(true)">
+                                        <t t-esc="t(state.gl.formCfg.saveAction.label)"/>
+                                    </button>
+                                    <button t-if="!state.gl.form.picking &amp;&amp; !state.gl.formCfg.saveAction" class="btn btn-primary" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(false)">
                                         <t t-esc='t("Save")'/>
                                     </button>
-                                    <button class="btn" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(true)">
+                                    <button t-if="!state.gl.form.picking &amp;&amp; !state.gl.formCfg.saveAction" class="btn" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(true)">
                                         <t t-esc='t("Save &amp; Close")'/>
                                     </button>
                                     <button class="btn" t-on-click="() => this.formBackToList()">
@@ -3292,6 +3298,51 @@
                                 </div>
 
                                 <div t-if="state.gl.form.error" class="d365-formerror" t-esc="state.gl.form.error"/>
+
+                                <!-- ============ step one of a pickRecord form ============
+                                     The form acts on an existing record (a hold is placed on
+                                     an order): with none given it asks which, here. -->
+                                <div t-if="state.gl.form.picking" class="d365-section d365-pick">
+                                    <div class="d365-sectiontitle" t-esc="t(state.gl.formCfg.pickRecord.label)"/>
+                                    <div t-if="state.gl.formCfg.pickRecord.note" class="d365-note" t-esc="t(state.gl.formCfg.pickRecord.note)"/>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; align-items: center;">
+                                        <input type="text" class="d365-input" style="max-width: 340px;" aria-label="Search"
+                                               t-att-placeholder="t(state.gl.formCfg.pickRecord.search || 'Search')"
+                                               t-att-value="state.gl.form.pick.term"
+                                               t-on-input="(ev) => this.formPickTerm(ev.target.value)"
+                                               t-on-keydown="(ev) => this.formPickKey(ev)"/>
+                                        <button class="btn btn-sm" t-on-click="() => this.formPickLoad()"><t t-esc='t("Search")'/></button>
+                                    </div>
+                                    <div t-if="state.gl.form.pick.loading" style="padding: 14px 2px; color: var(--ink-300);"><t t-esc='t("Loading live records…")'/></div>
+                                    <div t-elif="state.gl.form.pick.error" class="d365-formerror" t-esc="state.gl.form.pick.error"/>
+                                    <div t-elif="!state.gl.form.pick.rows.length" style="padding: 14px 2px; color: var(--ink-300);">
+                                        <t t-esc="t(state.gl.formCfg.pickRecord.empty || 'There is no record to choose yet.')"/>
+                                        <div t-if="state.gl.formCfg.pickRecord.emptyNew" style="margin-top: 12px;">
+                                            <button class="btn btn-primary btn-sm" t-on-click="onModuleNew"><t t-esc="newButtonLabel"/></button>
+                                        </div>
+                                    </div>
+                                    <div t-else="" class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead><tr>
+                                                <t t-foreach="state.gl.formCfg.pickRecord.cols" t-as="col" t-key="col">
+                                                    <th><t t-esc="state.gl.form.pick.labels[col] || col"/></th>
+                                                </t>
+                                                <th></th>
+                                            </tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.form.pick.rows" t-as="row" t-key="row.id" style="cursor: pointer;"
+                                                    t-att-class="{'alt': row_index % 2}" t-on-click="() => this.formPick(row.id)">
+                                                    <t t-foreach="state.gl.formCfg.pickRecord.cols" t-as="col" t-key="col">
+                                                        <td><t t-esc="mlCell(row, col)"/></td>
+                                                    </t>
+                                                    <td style="text-align: right; white-space: nowrap;">
+                                                        <button class="btn btn-sm btn-primary" t-on-click.stop="() => this.formPick(row.id)"><t t-esc="t(state.gl.formCfg.pickRecord.choose || 'Choose')"/></button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
 
                                 <!-- Dynamics 365 Multi-Tab Strip -->
                                 <div t-if="formTabs.length" class="d365-formtabs" role="tablist" aria-label="Form Tabs">
@@ -3577,6 +3628,9 @@
                                         <input type="text" t-att-placeholder="t('Search order / customer / serial')" t-att-value="state.gl.soSearch" style="padding: 6px 10px; border: 1px solid var(--ink-100); border-radius: 6px; min-width: 260px;" t-on-keydown="(ev) => ev.key === 'Enter' &amp;&amp; this.loadGlData()" t-on-input="(ev) => this.state.gl.soSearch = ev.target.value"/>
                                         <button class="btn btn-sm" t-on-click="() => this.loadGlData()"><t t-esc='t("Search")'/></button>
                                         <button class="btn btn-sm" t-on-click="() => { this.state.gl.soSearch = ''; this.loadGlData(); }"><t t-esc='t("Clear")'/></button>
+                                        <!-- the screen's own data entry (soCfg.create): Hold Management
+                                             listed holds and offered no way to place one -->
+                                        <button t-if="state.gl.soCfg &amp;&amp; state.gl.soCfg.create" class="btn btn-sm btn-primary" style="margin-left: auto;" t-on-click="() => this.soCreate()">+ <t t-esc="t(state.gl.soCfg.create.label)"/></button>
                                     </div>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
@@ -3620,7 +3674,7 @@
                                                 </tr>
                                                 <tr t-if="!soRows.length">
                                                     <td colspan="12" style="text-align: center; color: var(--ink-300);">
-                                                        <t t-if="state.gl.soScope === 'holds'" t-esc='t("No deferred holds right now — holds pause the SLA clock and resume with one click.")'/>
+                                                        <t t-if="state.gl.soScope === 'holds'" t-esc='t("No order is on hold right now. Use + Place Order on Hold above: a hold pauses the SLA clock until it is resumed here.")'/>
                                                         <t t-elif="state.gl.soScope === 'rework'" t-esc='t("No rework-flagged open orders — same-device returns within 30 days flag automatically (BRU-SRM-06).")'/>
                                                         <t t-elif="state.gl.soScope === 'rwty'" t-esc='t("No delivered or closed orders yet — repair warranties issue from this screen after delivery.")'/>
                                                         <t t-else="" t-esc='t("No orders match this view.")'/>

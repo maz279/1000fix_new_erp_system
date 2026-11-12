@@ -95,6 +95,9 @@ for (const [id, c] of Object.entries(P03_DATA_SCREENS)) {
   const fields = (c.sections || []).flatMap((s) => s.fields || []);
   screens[id] = { kind: c.kind, model: c.model || null, back: c.back || null, pick: c.pick || null,
     create: c.create === undefined ? null : c.create,
+    newLabel: c.newLabel || null, pickRecord: c.pickRecord || null,
+    saveAction: c.saveAction || null, empty: c.empty || null,
+    fields: fields.map((f) => ({ name: f.name, readonly: !!f.readonly, required: !!f.required })),
     editable: c.kind === 'model_form'
       ? fields.filter((f) => !f.readonly).length + (c.lines && !c.lines.readonlyGrid ? 1 : 0) : null };
 }
@@ -110,6 +113,14 @@ for (const [id, c] of Object.entries(P03_DATA_SCREENS)) {
   if (form) news.push({ list: id, form });
 }
 const creates = Object.entries(P03_MODULE_CREATE).map(([mid, c]) => ({ mid, screen: c.screen || null }));
+// an order list's own data-entry button (so_list `create`) and the row actions
+// that open a form instead of typed prompts
+const soCreates = Object.entries(P03_DATA_SCREENS)
+  .filter(([, c]) => c.kind === 'so_list' && c.create)
+  .map(([id, c]) => ({ list: id, screen: c.create.screen, label: c.create.label }));
+const soForms = Object.entries(P03_DATA_SCREENS)
+  .filter(([, c]) => c.kind === 'so_list')
+  .flatMap(([id, c]) => (c.actions || []).filter((a) => a.form).map((a) => ({ list: id, action: a.id, m: a.m, form: a.form, states: a.states })));
 
 // openFregRecord against a recording stand-in for the component
 const run = async (index, recId, rpcRows) => {
@@ -152,7 +163,7 @@ const scenarios = {
   event_total: await run(12, null, []),
 };
 
-console.log(JSON.stringify({ subs, screens, news, creates, scenarios, panels, fed,
+console.log(JSON.stringify({ subs, screens, news, creates, soCreates, soForms, scenarios, panels, fed,
   reports: mod.reports, forms: mod.forms,
   nav: mod.groups.flatMap((g) => g.screens.map((s) => ({ id: s.id, t: s.t }))),
   chips: Object.fromEntries(Object.entries(P03_FORM_CHIPS).filter(([k]) => k.startsWith('M01:'))),
@@ -218,7 +229,8 @@ EXPECTED_BUTTON = {
     "6": {"screen": "M01-form-estimate", "label": "Diagnostic Estimate Request"},
     "7": None,  # hands an EXISTING on-site order to dispatch
     "8": None,  # SLA policies are not made in M01; its items are, on their own list
-    "9": None,  # a hold is placed on an existing order
+    # the hold form first asks which order, then runs action_defer_order
+    "9": {"screen": "M01-form-hold", "label": "Place Order on Hold", "verbatim": True},
     "10": {"screen": "M01-form-qc", "label": "QC Checklist Inspection"},
     "11": None,  # ready / delivered / closed orders
     "12": None,  # the WIP board and its analysis
@@ -233,13 +245,17 @@ def test_every_m01_page_offers_its_own_capture_or_none(m01):
 
 
 def test_a_page_that_works_on_existing_orders_says_so(m01):
-    """The four order slices declare `create: false` - without it they are the
-    module's own model and would carry "+ New Service Order" again."""
-    for no in ("7", "9", "11", "12"):
+    """The order slices name what they capture - nothing (`create: false`), or
+    the form that acts on an existing order - so they never carry the module's
+    "+ New Service Order" again."""
+    for no in ("7", "11", "12"):
         sub = _sub(m01, no)
         assert sub["map"]["model"] == "fix.service.order"
         assert sub["map"].get("domain"), "sub-module %s is no longer a slice" % no
         assert sub["map"].get("create") is False, "sub-module %s" % no
+    holds = _sub(m01, "9")
+    assert holds["map"]["domain"] == [["is_deferred_block", "=", True]]
+    assert holds["map"]["create"] == "M01-form-hold"
 
 
 # --- the two panels ----------------------------------------------------------
@@ -247,10 +263,12 @@ def test_a_page_that_works_on_existing_orders_says_so(m01):
 
 def test_every_m01_report_and_form_is_on_a_submodule(m01):
     """The module shipped 7 reports and 6 forms and showed them on one page
-    (the eighth report, Domain Events Published, came with sub-module 13)."""
+    (the eighth report, Domain Events Published, came with sub-module 13). The
+    SLA KPI Instance is no longer one of them: a clock is not typed in."""
     on_pages_r = {r for s in m01["subs"] for r in s["map"].get("reports", [])}
     on_pages_f = {f for s in m01["subs"] for f in s["map"].get("forms", [])}
-    assert len(m01["reports"]) == 8 and len(m01["forms"]) == 6
+    assert len(m01["reports"]) == 8 and len(m01["forms"]) == 5
+    assert "SLA KPI Instance" not in m01["forms"]
     assert set(m01["reports"]) == on_pages_r
     assert set(m01["forms"]) == on_pages_f
 
@@ -288,8 +306,10 @@ def test_a_screen_link_is_badged_with_what_it_is(m01):
 
 
 def test_m01_forms_that_need_a_record_do_not_open_blank(m01):
-    for form in ("M01-order", "M01-form-hold", "M01-form-sla-instance"):
+    for form in ("M01-order", "M01-form-sla-instance"):
         assert m01["screens"][form]["create"] is False, form
+    # the hold form opens on a chooser of holdable orders, never on a blank order
+    assert m01["screens"]["M01-form-hold"]["pickRecord"]
     # why: every field of an SLA clock is read-only
     assert m01["screens"]["M01-form-sla-instance"]["editable"] == 0
     # and the forms that DO create stay creatable
@@ -305,7 +325,7 @@ def test_an_existing_only_form_leads_to_the_list_its_record_is_picked_from(m01):
         for fid, cfg in m01["screens"].items()
         if cfg["kind"] == "model_form" and cfg["create"] is False
     }
-    assert {"M01-order", "M01-form-hold", "M01-form-sla-instance"} <= set(forms)
+    assert {"M01-order", "M01-form-sla-instance"} <= set(forms)
     bad = []
     for fid, cfg in forms.items():
         back = m01["screens"].get(cfg["back"] or "")
@@ -587,3 +607,156 @@ def test_a_derived_chip_provably_belongs_to_its_page(m01):
     # the point of the rule: these pages showed two empty panels
     assert derived_forms >= 300, "only %d pages derive a form" % derived_forms
     assert derived_reports >= 100, "only %d pages derive a report" % derived_reports
+
+
+# --- Hold Management: the list where a hold is placed (2026-11-12) -----------
+# It listed holds and offered nothing to enter: no button, and the only way in
+# was a row action that asked for the reason as a CODE in a browser prompt and
+# could not take a resume date.
+
+
+def test_hold_management_offers_to_place_a_hold(m01):
+    assert {"list": "M01-holds", "screen": "M01-form-hold", "label": "Place Order on Hold"} in m01[
+        "soCreates"
+    ]
+    # and the order book offers a new order, which a hold needs first
+    assert {"list": "M01-all", "screen": "M01-form-order", "label": "New Service Order"} in m01[
+        "soCreates"
+    ]
+    for entry in m01["soCreates"]:
+        assert m01["screens"][entry["screen"]]["kind"] == "model_form", entry
+
+
+def test_the_defer_row_action_opens_the_hold_form(m01):
+    """Every order list's "Defer / Hold" opens the form for that order, and only
+    in states the server accepts a hold in (it refuses ready and finished)."""
+    defers = [a for a in m01["soForms"] if a["action"] == "defer"]
+    assert {a["list"] for a in defers} >= {"M01-all", "M01-holds", "M01-wip", "M01-rework"}
+    for a in defers:
+        assert a["form"] == "M01-form-hold" and a["m"] == "action_defer_order"
+        assert not {"ready", "delivered", "closed", "cancelled"} & set(a["states"]), a
+
+
+def test_the_hold_form_picks_an_order_then_runs_the_hold(m01, odoo_env):
+    form = m01["screens"]["M01-form-hold"]
+    assert form["newLabel"] == "Place Order on Hold"
+    pick = form["pickRecord"]
+    assert pick["domain"] == [
+        ["is_deferred_block", "=", False],
+        ["state", "not in", ["ready", "delivered", "closed", "cancelled"]],
+    ]
+    order_fields = odoo_env["fix.service.order"]._fields
+    assert [c for c in pick["cols"] if c not in order_fields] == []
+    act = form["saveAction"]
+    assert act["method"] == "action_defer_order"
+    assert act["method"] in api.SURFACES["fix.service.order"]["actions"]
+    # each argument is a field the form shows, under the name the method takes
+    shown = {f["name"]: f for f in form["fields"]}
+    assert act["kwargs"] == {
+        "reason": "deferred_reason",
+        "resume_date": "deferred_until",
+        "notes": "deferred_notes",
+    }
+    assert set(act["kwargs"].values()) <= set(shown)
+    assert shown["deferred_reason"]["required"]
+    # the reason is guarded on the model: readonly for the generic write, an
+    # input on this form only because the action carries it
+    assert order_fields["deferred_reason"].readonly
+    engine = (SRC / "p03_workspace.js").read_text(encoding="utf-8")
+    assert "for (const name of Object.values(act.kwargs || {}))" in engine
+
+
+class _SupervisorRequest:
+    def __init__(self, env):
+        self.env = env
+
+
+def test_a_hold_is_placed_through_the_endpoint_the_form_calls(odoo_env):
+    """As the form sends it: action_defer_order with the three values - and a
+    user without the Service Supervisor role is refused, as before."""
+    env = odoo_env
+    company = env.company
+    entity = env["fix.entity"].create(
+        {"code": "HOLDF", "legal_name": "Hold Form Ltd", "company_id": company.id}
+    )
+    ou = env["operating.unit"].search([("company_id", "=", company.id)], limit=1)
+    branch = env["fix.branch"].create(
+        {
+            "code": "HLDF",
+            "name": "Hold Form Centre",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
+    )
+    customer = env["res.partner"].create({"name": "Hold Form Customer", "phone": "01710000099"})
+    brand = env["fix.brand"].create({"name": "Holdworks", "code": "HLDW"})
+    model = env["fix.device.model"].create(
+        {"brand_id": brand.id, "name": "HW-1", "device_type": "laptop"}
+    )
+    device = env["fix.device"].create(
+        {"serial_number": "SN-HOLD-FORM-1", "device_model_id": model.id, "owner_id": customer.id}
+    )
+    order = env["fix.service.order"].create(
+        {
+            "customer_id": customer.id,
+            "branch_id": branch.id,
+            "device_id": device.id,
+            "fault_description": "No power",
+            "state": "intake",
+        }
+    )
+    assert not order.is_deferred_block
+    kwargs = {"reason": "customer_travel", "resume_date": "2026-12-01", "notes": "Customer abroad"}
+
+    clerk = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Hold Form Clerk",
+                "login": "hold.form.clerk@m01.test",
+                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+            }
+        )
+    )
+    with mock.patch.object(api, "request", _SupervisorRequest(env(user=clerk.id))):
+        refused = api.P03GenericApiController().model_action(
+            model="fix.service.order", ids=[order.id], method="action_defer_order", kwargs=kwargs
+        )
+    assert refused["success"] is False and "Supervisor" in refused["error"], refused
+    order.invalidate_recordset()
+    assert not order.is_deferred_block
+
+    with mock.patch.object(api, "request", _SupervisorRequest(env)):
+        placed = api.P03GenericApiController().model_action(
+            model="fix.service.order", ids=[order.id], method="action_defer_order", kwargs=kwargs
+        )
+    assert placed["success"] is True, placed
+    order.invalidate_recordset()
+    assert order.is_deferred_block
+    assert order.deferred_reason == "customer_travel"
+    assert str(order.deferred_until) == "2026-12-01"
+    assert order.deferred_notes == "Customer abroad"
+
+
+# --- Live SLA Clocks: evidence, not data entry (2026-11-12) ------------------
+
+
+def test_the_sla_clock_is_not_offered_as_a_data_entry_form(m01):
+    """Every field of a clock is guarded; it starts by itself. It was offered
+    as a form chip ("Forms Capturing It", the module chips, the nav) over a list
+    that had - correctly - no "+ New", which read as a broken form."""
+    assert "SLA KPI Instance" not in m01["forms"]
+    assert "M01:SLA KPI Instance" not in m01["chips"]
+    assert not any(e["id"] == "M01-form-sla-instance" for e in m01["nav"])
+    assert _sub(m01, "3")["map"]["forms"] == []
+    # a clock row still opens its read-only record form
+    assert m01["chips"]["M01:__by_model__"]["fix.sla.kpi.instance"] == "M01-form-sla-instance"
+
+
+def test_the_clock_list_says_how_a_clock_starts(m01):
+    clocks = m01["screens"]["M01-sla-instances"]
+    assert clocks["create"] is False
+    assert "starts by itself" in clocks["empty"] and "cannot be typed in" in clocks["empty"]
+    xml = (SRC / "p03_workspace.xml").read_text(encoding="utf-8")
+    assert "state.gl.modelCfg.empty ? t(state.gl.modelCfg.empty)" in xml

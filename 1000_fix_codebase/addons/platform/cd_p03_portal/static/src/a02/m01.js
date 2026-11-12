@@ -57,8 +57,7 @@ export const MODULE = {
     { en: 'SLA Instances (S9)', bn: 'এসএলএ ইনস্ট্যান্স', screens: [
       { id: 'M01-sla-items', en: 'SLA Items & Targets', bn: 'এসএলএ আইটেম', t: 'g' },
       { id: 'M01-form-sla-item', en: 'SLA Item', bn: 'আইটেম ফর্ম', t: 'f' },
-      { id: 'M01-sla-instances', en: 'Live SLA Clocks', bn: 'চলমান এসএলএ ঘড়ি', t: 'g' },
-      { id: 'M01-form-sla-instance', en: 'SLA KPI Instance', bn: 'ইনস্ট্যান্স ফর্ম', t: 'f' }
+      { id: 'M01-sla-instances', en: 'Live SLA Clocks', bn: 'চলমান এসএলএ ঘড়ি', t: 'g' }
     ]}
   ],
   reports: [
@@ -68,7 +67,7 @@ export const MODULE = {
   ],
   forms: [
     'New Service Order (12 channels, 34 fields)', 'Diagnostic Estimate Request', 'Hold / Release Reason', 'QC Checklist Inspection'
-  , 'SLA Item', 'SLA KPI Instance'],
+  , 'SLA Item'],
   cross: [
     'M02 Field Dispatch Handoff', 'M31 Workshop Routing', 'M09 Brand Warranty Check', 'M20 Mushak 6.3 Invoicing', 'M17 Device History'
   ],
@@ -85,13 +84,13 @@ export const MODULE = {
        * `domain` stays the LAST key (the mapping guard parses it there). */
       ['1', 'Omni-Channel Intake (12 channels)', 14, { model: 'fix.service.order', cols: ['name', 'service_type', 'customer_id', 'device_id', 'create_date'], screens: ['M01-intake', 'M01-channels', 'M01-hotline'], reports: ['Daily Intake by Channel'], forms: ['New Service Order (12 channels, 34 fields)'] }],
       ['2', 'Lifecycle State Machine & Stepper', 9, { model: 'fix.service.order', cols: ['name', 'state', 'order_category', 'priority', 'technician_id'], screens: ['M01-all', 'M01-order', 'M01-types'], reports: ['Order Cycle-Time (TAT) Distribution'], forms: ['New Service Order (12 channels, 34 fields)'] }],
-      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'], reports: ['SLA Compliance & Escalations'], forms: ['SLA KPI Instance'] }],
+      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'], reports: ['SLA Compliance & Escalations'], forms: [] }],
       ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'], reports: ['Rework & Repeat-Fault Analysis'], forms: [] }],
       ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'], reports: [], forms: [] }],
       ['6', 'Estimate & Customer Approval Loop', 12, { model: 'fix.estimate', cols: ['order_id', 'version', 'grand_total', 'state', 'approved_at'], screens: ['M01-estimates', 'M01-thresholds'], reports: ['Estimate Conversion Funnel'], forms: ['Diagnostic Estimate Request'] }],
       ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all'], reports: [], forms: [], create: false, domain: [['service_type', '=', 'onsite']] }],
       ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-sla-rep', 'M01-sla-items'], reports: ['SLA Compliance & Escalations'], forms: ['SLA Item'] }],
-      ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], reports: [], forms: ['Hold / Release Reason'], create: false, domain: [['is_deferred_block', '=', true]] }],
+      ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], reports: [], forms: ['Hold / Release Reason'], create: 'M01-form-hold', domain: [['is_deferred_block', '=', true]] }],
       ['10', 'QC Checkpoints & Rework Detection', 11, { model: 'fix.qc.checklist', cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'], screens: ['M01-qc', 'M01-rework'], reports: ['Rework & Repeat-Fault Analysis'], forms: ['QC Checklist Inspection'] }],
       ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], reports: ['Uncollected Device Register'], forms: [], create: false, domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
       ['12', 'Operations Boards & WIP Analysis', 11, { model: 'fix.service.order', cols: ['name', 'state', 'branch_id', 'priority', 'create_date'], screens: ['M01-board', 'M01-wip'], reports: ['WIP Ageing by Branch', 'Order Cycle-Time (TAT) Distribution'], forms: [], create: false, domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']]] }],
@@ -115,6 +114,8 @@ export const MODULE = {
 const SO_OPEN = ['draft', 'intake', 'diagnostic', 'estimate_pending', 'estimate_sent',
   'awaiting_approval', 'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready'];
 const SO_PRICED = ['approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready', 'delivered'];
+/* the server refuses a hold on a finished order (ready, delivered, closed, cancelled) */
+const SO_HOLDABLE = SO_OPEN.filter((s) => s !== 'ready');
 const SO_ACTIONS = [
   { id: 'send_otp', m: 'action_send_delivery_otp', l: 'Send Delivery OTP', states: ['ready'] },
   { id: 'verify_otp', m: 'action_verify_delivery_otp', l: 'Verify Delivery OTP', states: ['ready'],
@@ -141,9 +142,10 @@ const SO_ACTIONS = [
     states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
   { id: 'workshop_job', m: 'action_create_workshop_job', l: 'Create Workshop Job',
     states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
-  { id: 'defer', m: 'action_defer_order', l: 'Defer / Hold (supervisor)', states: SO_OPEN,
-    asks: [{ kwarg: 'reason', label: 'Hold reason: parts_backorder, customer_travel, disputed_liability or third_party_vendor' },
-      { kwarg: 'notes', label: 'Hold justification' }] },
+  /* a hold is captured on its form: it was typed as a reason CODE into a
+   * browser prompt, and the resume date could not be given at all */
+  { id: 'defer', m: 'action_defer_order', l: 'Defer / Hold (supervisor)', states: SO_HOLDABLE,
+    form: 'M01-form-hold' },
   { id: 'unrepairable', m: 'action_mark_unrepairable', l: 'Mark Unrepairable',
     states: ['diagnostic', 'in_repair', 'qc_pending', 'qc_failed'],
     asks: [{ kwarg: 'reason', label: 'Why the device cannot be repaired' }] },
@@ -155,7 +157,8 @@ const SO_ACTIONS = [
 
 export const SCREENS = {
   'M01-board': { kind: 'so_board' },
-  'M01-all': { kind: 'so_list', scope: 'all', actions: SO_ACTIONS },
+  'M01-all': { kind: 'so_list', scope: 'all', actions: SO_ACTIONS,
+    create: { screen: 'M01-form-order', label: 'New Service Order' } },
   'M01-intake': { kind: 'so_intake' },
   'M01-channels': { kind: 'table_report', module: 'M01', report: 'channel_intake', period: true },
   'M01-hotline': { kind: 'model_list', model: 'fix.token.queue', create: false,
@@ -245,7 +248,9 @@ export const SCREENS = {
     ] },
   'M01-types': { kind: 'table_report', module: 'M01', report: 'type_matrix', period: false },
   'M01-wip': { kind: 'so_list', scope: 'wip', actions: SO_ACTIONS },
-  'M01-holds': { kind: 'so_list', scope: 'holds', actions: SO_ACTIONS },
+  /* `create`: the list of holds is also where one is placed */
+  'M01-holds': { kind: 'so_list', scope: 'holds', actions: SO_ACTIONS,
+    create: { screen: 'M01-form-hold', label: 'Place Order on Hold' } },
   'M01-rework': { kind: 'so_list', scope: 'rework', actions: SO_ACTIONS },
   'M01-templates': { kind: 'model_list', model: 'fix.diagnostic.node', create: false,
     cols: ['code', 'name', 'parent_id', 'is_terminal', 'fault_code', 'recommended_action'] },
@@ -378,35 +383,56 @@ export const SCREENS = {
       ]}
     ] },
 
-  /* A hold is placed on an EXISTING order (Defer / Resume on the order lists);
-   * blank, this form could only fail on Save - it has no customer or device. */
+  /* The Hold / Release form. A hold is placed on an EXISTING order, so the
+   * form first asks which (pickRecord), then captures the reason, the resume
+   * date and the justification, and its button runs action_defer_order
+   * (saveAction): that pauses the SLA clock and is a Service Supervisor's
+   * decision - a plain write cannot do it, the hold fields are guarded.
+   * Before 2026-11-12 this form opened blank with no customer or device (Save
+   * could only fail), then redirected to a list that offered nothing to enter. */
   'M01-form-hold': { kind: 'model_form', model: 'fix.service.order',
     title: 'Hold / Release Reason', back: 'M01-holds',
-    create: false, pick: 'A hold is placed on an existing order: use Defer on the order, then open it here from Hold Management.',
+    newLabel: 'Place Order on Hold',
     status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the order to place on hold',
+      note: 'Open orders that are not on hold. A finished order (ready, delivered, closed, cancelled) cannot be held.',
+      search: 'Search order / customer / serial',
+      choose: 'Hold this order',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'state'],
+      domain: [['is_deferred_block', '=', false], ['state', 'not in', ['ready', 'delivered', 'closed', 'cancelled']]],
+      empty: 'There is no open service order to place on hold. A hold is placed on an existing order: create the order first.',
+      emptyNew: true
+    },
+    saveAction: {
+      method: 'action_defer_order', label: 'Place on Hold', done: 'Order placed on hold: its SLA clock is paused',
+      kwargs: { reason: 'deferred_reason', resume_date: 'deferred_until', notes: 'deferred_notes' }
+    },
     tabs: [
-      { id: 'target', label: '1. Order Context', bn: '১. অর্ডার তথ্য', icon: '📋', badge: '5' },
-      { id: 'hold', label: '2. Hold & SLA Pause', bn: '২. হোল্ড ও এসএলএ বিরতি', icon: '⏸️', badge: '7' }
+      { id: 'hold', label: '1. Hold & SLA Pause', bn: '১. হোল্ড ও এসএলএ বিরতি', icon: '⏸️', badge: '7' },
+      { id: 'target', label: '2. Order Context', bn: '২. অর্ডার তথ্য', icon: '📋', badge: '5' }
     ],
     sections: [
-      { tab: 'target', title: 'Service Order Target', fields: [
+      { tab: 'hold', title: 'Step 2 of 2: Hold Reason, Resume Date & Justification',
+        note: 'Placing or lifting a hold needs the Service Supervisor role. A held order pauses its SLA clock until it is resumed from Hold Management (FR-SRM-088).',
+        fields: [
+          /* readonly for the generic write (the field is guarded); an INPUT
+           * here because saveAction carries it to action_defer_order */
+          { name: 'deferred_reason', label: 'Hold Reason', required: true, readonly: true },
+          { name: 'deferred_until', label: 'Resume On (expected date)' },
+          { name: 'deferred_notes', label: 'Hold Justification Notes', type: 'text' },
+          { name: 'is_deferred_block', label: 'Order on Hold Now', readonly: true },
+          { name: 'sla_clock_paused', label: 'SLA Clock Paused', readonly: true },
+          { name: 'sla_paused_at', label: 'SLA Paused Since', readonly: true },
+          { name: 'sla_total_paused_minutes', label: 'Total Paused Minutes', readonly: true },
+        ]},
+      { tab: 'target', title: 'Service Order', fields: [
         { name: 'name', label: 'Order Reference', readonly: true },
         { name: 'customer_id', label: 'Customer', readonly: true },
         { name: 'branch_id', label: 'Service Center / Branch', readonly: true },
         { name: 'state', label: 'Current State', readonly: true },
         { name: 'sla_resolution_deadline', label: 'SLA Resolution Deadline', readonly: true },
-      ]},
-      { tab: 'hold', title: 'Deferred Hold Execution & SLA Pause',
-        note: 'Orders on deferred hold pause SLA countdown clocks until the resumption date (FR-SRM-088).',
-        fields: [
-          { name: 'is_deferred_block', label: 'Order on Deferred Hold (Defer / Resume)', readonly: true },
-          { name: 'deferred_reason', label: 'Deferred Hold Reason (set by Defer)', readonly: true },
-          { name: 'deferred_until', label: 'Deferred Resumption Date' },
-          { name: 'sla_clock_paused', label: 'SLA Clock Paused', readonly: true },
-          { name: 'sla_paused_at', label: 'SLA Paused Since', readonly: true },
-          { name: 'sla_total_paused_minutes', label: 'Total Paused Minutes', readonly: true },
-          { name: 'deferred_notes', label: 'Hold Justification Notes', type: 'text' },
-        ]}
+      ]}
     ] },
 
   'M01-form-estimate': { kind: 'model_form', model: 'fix.estimate',
@@ -558,6 +584,10 @@ export const SCREENS = {
       { m: 'resume', l: 'Resume (supervisor)' },
       { m: 'succeed', l: 'Succeed (supervisor)' }
     ],
+    /* An SLA clock is EVIDENCE: it starts by itself and its fields are guarded
+     * (A02 audit B3), so this list has no "+ New" - and it says so, instead of
+     * an empty grid under a form chip that promised data entry (2026-11-12). */
+    empty: 'No SLA clock is running. A clock starts by itself when a service order is received, a call is queued or a complaint is logged: it is audit evidence and cannot be typed in. When one is listed, select it to Pause (with a reason), Resume or mark it Succeeded (Service Supervisor). Targets are set under SLA Items & Targets.',
     note: 'A resume cancels the instance and creates a new one, so these are an append-only series per record rather than a mutable row.' },
   'M01-form-sla-instance': {
     kind: 'model_form', model: 'fix.sla.kpi.instance',
@@ -636,7 +666,6 @@ export const REPORT_ROUTES = {
  * screens over fix.service.order, fix.estimate, and fix.qc.checklist. */
 export const FORM_CHIPS = {
   'M01:SLA Item': 'M01-form-sla-item',
-  'M01:SLA KPI Instance': 'M01-form-sla-instance',
   'M01:Service Order (12 channels, 34 fields)': 'M01-form-order',
   'M01:Estimate Request': 'M01-form-estimate',
   'M01:QC Checklist Result': 'M01-form-qc',
@@ -660,7 +689,6 @@ export const FORM_CHIPS = {
 };
 
 export const FORM_MODELS = {
-  'M01:SLA KPI Instance': 'fix.sla.kpi.instance',
   'M01:SLA Item': 'fix.sla.item',
   'M01:Service Order (12 channels, 34 fields)': 'fix.service.order',
   'M01:Estimate Request': 'fix.estimate',

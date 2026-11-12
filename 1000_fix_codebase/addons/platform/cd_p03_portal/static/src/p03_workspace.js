@@ -1697,6 +1697,23 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
     }
 
+    /* An order list's own data entry (`create: { screen, label }` on the
+     * screen): Hold Management listed holds and offered no way to place one. */
+    soOpenForm(screenId, recordId) {
+        const cfg = P03_DATA_SCREENS[screenId];
+        if (!cfg || cfg.kind !== "model_form") return;
+        this.openFormScreen(
+            screenId,
+            { sc: { en: cfg.title || screenId, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+            recordId ? { ...cfg, recordId } : cfg
+        );
+    }
+
+    soCreate() {
+        const create = this.state.gl && this.state.gl.soCfg && this.state.gl.soCfg.create;
+        if (create && create.screen) this.soOpenForm(create.screen, null);
+    }
+
     /* A02 audit M01-P2: the order actions of the screen (m01.js SO_ACTIONS)
      * that apply to this row's state. The server remains the authority. */
     soActionsFor(row) {
@@ -1716,6 +1733,12 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
     async soRunAction(row, key) {
         const cfg = this.soActionsFor(row).find((a) => a.id === key);
         if (!cfg) return;
+        // `form`: the action is captured on a form for this order (a hold was
+        // typed as a code into a browser prompt, and its resume date not at all)
+        if (cfg.form && P03_DATA_SCREENS[cfg.form]) {
+            this.soOpenForm(cfg.form, row.id);
+            return;
+        }
         const kwargs = Object.assign({}, cfg.kw || {});
         const asks = cfg.asks || [];
         for (const ask of asks) {
@@ -2234,6 +2257,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
      * ================================================================ */
     get formTabs() {
         const gl = this.state.gl;
+        if (gl && gl.form && gl.form.picking) return [];
         return (gl && gl.formCfg && gl.formCfg.tabs) || [];
     }
 
@@ -2254,6 +2278,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
 
     get formSections() {
         const gl = this.state.gl;
+        if (gl && gl.form && gl.form.picking) return [];
         const all = (gl && gl.formCfg && gl.formCfg.sections) || [];
         const tabs = this.formTabs;
         if (!tabs || !tabs.length) {
@@ -2292,6 +2317,14 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         ((gl && gl.data && gl.data.fields) || []).forEach((f) => {
             map[f.name] = f;
         });
+        // a `saveAction` carries its fields to a workflow method: they are
+        // inputs on this form even where the generic write must refuse them
+        const act = gl && gl.formCfg && gl.formCfg.saveAction;
+        if (act) {
+            for (const name of Object.values(act.kwargs || {})) {
+                if (map[name]) map[name] = { ...map[name], readonly: false };
+            }
+        }
         return map;
     }
 
@@ -2438,7 +2471,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         // (a hold on an existing order, an SLA clock the engine started). With
         // no record it used to open blank with a Save button that could only
         // fail; the record is picked from its list instead.
-        if (!recordId && cfg.create === false) {
+        if (!recordId && cfg.create === false && !cfg.pickRecord) {
             const back = cfg.back && P03_DATA_SCREENS[cfg.back];
             if (back && back.kind !== "model_form") this.openScreen(cfg.back);
             this.showToast(this.t(cfg.pick || "This form shows an existing record: open one from this list."));
@@ -2459,7 +2492,11 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             mlSelected: null,
             mlState: "__all",
             form: { recordId, values: {}, busy: false, error: null,
-                    activeTab, lineMeta: [], lineValues: [], lineRemoved: [] },
+                    activeTab, lineMeta: [], lineValues: [], lineRemoved: [],
+                    // `pickRecord`: the form acts on an existing record (a hold
+                    // is placed on an order), so with none it first asks which
+                    picking: !recordId && !!cfg.pickRecord,
+                    pick: { term: "", rows: [], labels: {}, total: 0, loading: false, error: null } },
         };
         this.state.viewMode = "gl";
         // Record tabs, not screen tabs: editing record B must never overwrite
@@ -2485,6 +2522,10 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         gl.loading = true;
         gl.form.error = null;
         gl.form.unavailable = false;
+        if (gl.form.picking) {
+            await this.formPickLoad();
+            return;
+        }
         try {
             const formFields = gl.formCfg.sections.flatMap((s) => s.fields);
             // the status badge reads its field from the loaded values, so it must
@@ -2667,6 +2708,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
      * edits header + lines in ONE save. ---- */
     get formLineCfg() {
         const gl = this.state.gl;
+        if (gl && gl.form && gl.form.picking) return null;
         const cfg = (gl && gl.formCfg && gl.formCfg.lines) || null;
         // an insert-only grid: entered with the new record, then read-only on it
         if (cfg && cfg.lockOnRecord && gl.form && gl.form.recordId) {
@@ -2773,11 +2815,116 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         return Math.round(sum * 100) / 100;
     }
 
+    /* Step one of a `pickRecord` form: the records it can act on, searched
+     * through the same whitelisted reader the lists use. */
+    async formPickLoad() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !gl.formCfg.pickRecord) return;
+        const cfg = gl.formCfg.pickRecord;
+        const pick = gl.form.pick;
+        pick.loading = true;
+        try {
+            const res = await this.rpc("/p03/model/records", {
+                model: gl.formCfg.model,
+                cols: cfg.cols || [],
+                domain: cfg.domain || [],
+                search: pick.term || null,
+                lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+            });
+            if (!res || res.error) {
+                pick.rows = [];
+                pick.error = (res && res.error) || this.t("Could not load records");
+            } else {
+                pick.rows = res.rows || [];
+                pick.labels = res.labels || {};
+                pick.total = res.total || pick.rows.length;
+                pick.error = null;
+            }
+        } catch (e) {
+            pick.rows = [];
+            pick.error = this.t("Could not load records");
+        }
+        pick.loading = false;
+        gl.loading = false;
+        this.render(true);
+    }
+
+    /* Owl expressions take no statements, so the search box calls these. */
+    formPickTerm(value) {
+        const gl = this.state.gl;
+        if (gl && gl.form && gl.form.pick) gl.form.pick.term = value;
+    }
+
+    formPickKey(ev) {
+        if (ev && ev.key === "Enter") this.formPickLoad();
+    }
+
+    formPick(recordId) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !recordId) return;
+        gl.form.recordId = recordId;
+        gl.form.picking = false;
+        this.loadFormData();
+    }
+
+    /* `saveAction`: the form's button runs a workflow method with what was
+     * entered ({ method, kwargs: { <server argument>: <form field> } }) - a
+     * hold is placed by action_defer_order, which also pauses the SLA clock
+     * and is refused to anyone but a supervisor. A plain write could not do
+     * that: the fields are guarded. */
+    async formSaveAction(close) {
+        const gl = this.state.gl;
+        const act = gl.formCfg.saveAction;
+        const specs = {};
+        gl.formCfg.sections.forEach((sec) => sec.fields.forEach((f) => { specs[f.name] = f; }));
+        const kwargs = Object.assign({}, act.kw || {});
+        for (const [kwarg, name] of Object.entries(act.kwargs || {})) {
+            let v = gl.form.values[name];
+            if (v && typeof v === "object") v = v.key !== undefined ? v.key : v.id;
+            if (v === undefined || v === null || v === "" || v === false) {
+                if (specs[name] && specs[name].required) {
+                    gl.form.error = `${this.t(specs[name].label || name)}: ${this.t("this is required.")}`;
+                    gl.form.busy = false;
+                    this.render(true);
+                    return;
+                }
+                continue;
+            }
+            kwargs[kwarg] = v;
+        }
+        try {
+            const res = await this.rpc("/p03/model/action", {
+                model: gl.formCfg.model,
+                ids: [gl.form.recordId],
+                method: act.method,
+                kwargs,
+            });
+            if (!res || !res.success) {
+                gl.form.error = (res && res.error) || this.t("Action refused by the backend.");
+                gl.form.busy = false;
+                this.render(true);
+                return;
+            }
+            this.showToast(this.t(act.done || "Saved ✓"));
+            gl.form.busy = false;
+            if (close) this.formBackToList();
+            else this.loadFormData();
+        } catch (e) {
+            gl.form.error = this.t("The save failed — server-side rules are enforced");
+            gl.form.busy = false;
+            this.render(true);
+        }
+    }
+
     async formSave(close) {
         const gl = this.state.gl;
         if (!gl || gl.kind !== "model_form" || gl.form.busy) return;
         gl.form.busy = true;
         gl.form.error = null;
+        if (gl.formCfg.saveAction) {
+            await this.formSaveAction(close);
+            return;
+        }
         const values = {};
         for (const section of gl.formCfg.sections) {
             for (const field of section.fields) {
@@ -3941,13 +4088,19 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         // works on existing records (a slice of the module's list: holds,
         // delivered orders, the WIP board), `create: '<form screen>'` to name
         // the form
+        // `newLabel` on a form is the button's own wording ("Place Order on
+        // Hold"): shown as written, not as "+ New <form title>"
+        const offer = (id) => {
+            const cfg = P03_DATA_SCREENS[id];
+            return cfg.newLabel
+                ? { screen: id, label: cfg.newLabel, verbatim: true }
+                : { screen: id, label: cfg.title || id };
+        };
         if (map && map.create === false) return null;
         // a page fed by a computed report has no record of its own to create
         if (map && map.report && !map.model) return null;
         if (map && typeof map.create === "string") {
-            return creatable(map.create)
-                ? { screen: map.create, label: P03_DATA_SCREENS[map.create].title || map.create }
-                : null;
+            return creatable(map.create) ? offer(map.create) : null;
         }
         const moduleCreate = P03_MODULE_CREATE[mid];
         const moduleModel = moduleCreate ? moduleCreate.model : "fix.service.order";
@@ -3964,7 +4117,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         const screen = [...creating.map((s) => byScreen[s.id]), byModel[map.model]].find(
             (id) => creatable(id) && P03_DATA_SCREENS[id].model === map.model
         );
-        return screen ? { screen, label: P03_DATA_SCREENS[screen].title || map.model } : null;
+        return screen ? offer(screen) : null;
     }
 
     get fregNewLabel() {
@@ -3972,6 +4125,7 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         if (!create) return "";
         if (create.module) return this.newButtonLabel;
         const title = this.t(create.label);
+        if (create.verbatim) return `+ ${title}`;
         return /^new\s/i.test(create.label) ? `+ ${title}` : `${this.t("+ New")} ${title}`;
     }
 
