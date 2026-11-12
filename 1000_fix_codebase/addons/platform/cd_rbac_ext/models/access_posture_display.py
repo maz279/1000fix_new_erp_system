@@ -132,13 +132,56 @@ class ResUsersAccessPosture(models.Model):
             or viewer.has_group("cd_rbac_ext.group_access_approver")
         )
 
+    def _fix_ref_ids(self, module, xmlids):
+        """{xmlid: group id} for the groups that are installed, read once."""
+        found = {}
+        for xmlid in xmlids:
+            ref = self.env.ref("%s.%s" % (module, xmlid), raise_if_not_found=False)
+            if ref:
+                found[xmlid] = ref.id
+        return found
+
     @api.depends_context("uid")
     def _compute_access_posture(self):
+        """One pass for the whole list. On fix_real (353 users) the per-user
+        version re-resolved ~23 xmlids, rebuilt the role map and searched the
+        employee, certification and request registers for every row: the M29
+        Users list took 26-30 s and timed out. Same answers, read once."""
         Cert = self.env.get("fix.access.certification")
         Request = self.env.get("fix.access.request")
         Sod = self.env.get("fix.sod.control")
+        workspace_ids = self._fix_ref_ids("cd_rbac_ext", [x for x, _ in WORKSPACE_GROUPS])
+        tier_ids = self._fix_ref_ids("cd_entity_config", [x for x, _ in DOFA_TIER_GROUPS])
+        authority_ids = self._fix_ref_ids("cd_rbac_ext", [x for x, _ in AUTHORITY_GROUPS])
+        role_map = Sod._fix_role_map() if Sod is not None else {}
+        visible = self.filtered(lambda u: u._fix_may_see_posture())
+        employees_by_user = {}
+        if Sod is not None and visible and "hr.employee" in self.env:
+            employees = (
+                self.env["hr.employee"]
+                .sudo()
+                .with_context(active_test=False)
+                .search([("user_id", "in", visible.ids)])
+            )
+            for emp in employees:
+                employees_by_user.setdefault(emp.user_id.id, self.env["hr.employee"].sudo())
+                employees_by_user[emp.user_id.id] |= emp
+        last_cert = {}
+        if Cert is not None and visible:
+            for line in Cert.sudo().search(
+                [("user_id", "in", visible.ids)], order="period desc, id desc"
+            ):
+                last_cert.setdefault(line.user_id.id, line)
+        open_requests = {}
+        if Request is not None and visible:
+            for row in Request.sudo()._read_group(
+                [("user_id", "in", visible.ids), ("state", "in", ("submitted", "approved"))],
+                ["user_id"],
+                ["__count"],
+            ):
+                open_requests[row[0].id] = row[1]
         for user in self:
-            if not user._fix_may_see_posture():
+            if user not in visible:
                 user.update(
                     {
                         "fix_role_codes": False,
@@ -160,7 +203,16 @@ class ResUsersAccessPosture(models.Model):
             # entitlement ------------------------------------------------
             # NOTE: env.get() returns an EMPTY RECORDSET (falsy) for a loaded
             # model, None only when absent — guard with `is not None`.
-            roles = Sod.user_held_roles(user) if Sod is not None else self.env["fix.role"]
+            if Sod is not None:
+                roles = Sod._fix_held_roles(
+                    user=user.sudo(),
+                    employees=employees_by_user.get(user.id, self.env["hr.employee"].sudo())
+                    if "hr.employee" in self.env
+                    else None,
+                    role_map=role_map,
+                )
+            else:
+                roles = self.env["fix.role"]
             codes = sorted(roles.mapped("code"))
             user.fix_role_codes = ", ".join(codes) if codes else "—"
             user.fix_role_count = len(codes)
@@ -170,46 +222,33 @@ class ResUsersAccessPosture(models.Model):
             user.fix_allowed_companies = ", ".join(companies) if companies else "—"
 
             workspaces = [
-                label
-                for xmlid, label in WORKSPACE_GROUPS
-                if self.env.ref("cd_rbac_ext.%s" % xmlid, raise_if_not_found=False)
-                and self.env.ref("cd_rbac_ext.%s" % xmlid).id in group_ids
+                label for xmlid, label in WORKSPACE_GROUPS if workspace_ids.get(xmlid) in group_ids
             ]
             user.fix_workspaces = ", ".join(workspaces) if workspaces else "—"
 
             # authority --------------------------------------------------
             tier_label = "—"
             for xmlid, label in DOFA_TIER_GROUPS:
-                ref = self.env.ref("cd_entity_config.%s" % xmlid, raise_if_not_found=False)
-                if ref and ref.id in group_ids:
+                if tier_ids.get(xmlid) in group_ids:
                     tier_label = label  # last (highest) wins
             user.fix_dofa_tier = tier_label
 
             authority = [
-                label
-                for xmlid, label in AUTHORITY_GROUPS
-                if self.env.ref("cd_rbac_ext.%s" % xmlid, raise_if_not_found=False)
-                and self.env.ref("cd_rbac_ext.%s" % xmlid).id in group_ids
+                label for xmlid, label in AUTHORITY_GROUPS if authority_ids.get(xmlid) in group_ids
             ]
             user.fix_authority = ", ".join(authority) if authority else "—"
 
-            authority_ids = {
-                self.env.ref("cd_rbac_ext.%s" % x, raise_if_not_found=False).id
-                for x, _ in AUTHORITY_GROUPS
-            }
             approvers = sorted(
                 g.name
                 for g in groups
-                if g.id not in authority_ids
+                if g.id not in authority_ids.values()
                 and ("Approver" in (g.name or "") or "Custodian" in (g.name or ""))
             )
             user.fix_approver_groups = ", ".join(approvers) if approvers else "—"
 
             # lifecycle --------------------------------------------------
             if Cert is not None:
-                last = Cert.sudo().search(
-                    [("user_id", "=", user.id)], order="period desc, id desc", limit=1
-                )
+                last = last_cert.get(user.id)
                 if last:
                     decision = dict(type(last)._fields["decision"].selection).get(
                         last.decision, last.decision
@@ -220,12 +259,7 @@ class ResUsersAccessPosture(models.Model):
             else:
                 user.fix_last_certification = "—"
             if Request is not None:
-                user.fix_open_requests = Request.sudo().search_count(
-                    [
-                        ("user_id", "=", user.id),
-                        ("state", "in", ("submitted", "approved")),
-                    ]
-                )
+                user.fix_open_requests = open_requests.get(user.id, 0)
             else:
                 user.fix_open_requests = 0
 

@@ -46,6 +46,13 @@ SURFACES = {
             "action_request_refund",
         },
     },
+    # M04 sub-module audit (13 Nov 2026): the opening / closing checklist
+    # (FR-FRD-020/024) is recorded, not derived from the cash shifts.
+    "fix.branch.checklist": {
+        "order": "checklist_date desc, id desc",
+        "limit": 100,
+        "actions": {"action_complete"},
+    },
 }
 
 # tokens actually served vs issued today

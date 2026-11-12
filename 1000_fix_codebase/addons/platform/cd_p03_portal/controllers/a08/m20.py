@@ -112,6 +112,14 @@ SURFACES = {
             "action_lift_suppression",
         },
     },
+    # FR-ARB-001/044: the billable-event queue the Billable-Event Intake page
+    # lists (it listed invoices before). Read-only: rows come from closed jobs;
+    # "Process All Due" / "Generate now" stay on the Billable Events screen.
+    "fix.billable.event": {
+        "order": "first_seen_at desc, id desc",
+        "limit": 400,
+        "actions": set(),
+    },
 }
 
 

@@ -102,6 +102,9 @@ class FixMarketplaceListing(models.Model):
             raise UserError(
                 "%s is not qualified for %s (BRU-ECM-07)." % (seller.name, self.category_id.name)
             )
+        # M12 capture audit (13 Nov 2026): no listing of a suspended seller
+        # goes live (submit or resume), BRU-MKP-11.
+        seller._assert_not_suspended("putting a listing live")
 
     # ---- approval-engine hooks ------------------------------------------
     def _approval_needed(self) -> bool:

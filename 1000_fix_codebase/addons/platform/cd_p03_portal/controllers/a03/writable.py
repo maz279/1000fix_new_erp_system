@@ -15,9 +15,6 @@ WRITABLE = {
     "crm.lead": frozenset(
         {
             "active",
-            "activity_date_deadline",
-            "activity_summary",
-            "activity_type_id",
             "calendar_event_ids",
             "city",
             "company_id",
@@ -39,10 +36,26 @@ WRITABLE = {
             "name",
             "partner_id",
             "phone",
+            "price_position",
             "probability",
             "stage_id",
             "team_id",
+            "type",
             "user_id",
+        }
+    ),
+    "fix.account": frozenset(
+        {
+            "account_code",
+            "acv_bdt",
+            "gross_margin_pct",
+            "health_rating",
+            "industry_vertical",
+            "office_address",
+            "operating_unit_id",
+            "partner_id",
+            "stakeholder_ids",
+            "tier",
         }
     ),
     "fix.account.assignment": frozenset(
@@ -64,6 +77,7 @@ WRITABLE = {
             "whitespace_json",
         }
     ),
+    "fix.account.stakeholder": frozenset(),
     "fix.assistant.ask": frozenset(),
     "fix.assistant.dataset": frozenset(
         {
@@ -552,18 +566,6 @@ WRITABLE = {
             "summary",
         }
     ),
-    "fix.party.import.batch": frozenset(
-        {
-            # the loader's own configuration surface; every outcome field and
-            # the decision log are system-written only (2026-11-08 cut-over)
-            "import_ref",
-            "lawful_basis",
-            "sheet_kind",
-            "source_file",
-            "source_filename",
-        }
-    ),
-    "fix.party.import.line": frozenset(),
     "fix.dedup.rule": frozenset(
         {
             "active",
@@ -811,6 +813,16 @@ WRITABLE = {
             "relation_type",
         }
     ),
+    "fix.party.import.batch": frozenset(
+        {
+            "import_ref",
+            "lawful_basis",
+            "sheet_kind",
+            "source_file",
+            "source_filename",
+        }
+    ),
+    "fix.party.import.line": frozenset(),
     "fix.party.merge": frozenset(
         {
             "survivor_id",
@@ -923,6 +935,22 @@ WRITABLE = {
             "source_model",
             "use_capacity_units",
             "work_type",
+        }
+    ),
+    "fix.sales.activity": frozenset(
+        {
+            "activity_type",
+            "duration_minutes",
+            "lead_id",
+            "location",
+            "name",
+            "next_action",
+            "next_action_date",
+            "notes",
+            "occurred_at",
+            "outcome",
+            "owner_id",
+            "partner_id",
         }
     ),
     "fix.segment": frozenset(

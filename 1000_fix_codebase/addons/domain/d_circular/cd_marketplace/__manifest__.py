@@ -5,7 +5,7 @@
     "description": """
 CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Marketplace & Seller Ecosystem",
@@ -32,6 +32,7 @@ CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
         "security/ir.model.access.csv",
         "data/ir_config_parameter_data.xml",
         "data/ir_cron.xml",
+        "data/ir_sequence_data.xml",
         "views/cd_marketplace_views.xml",
     ],
     "installable": True,

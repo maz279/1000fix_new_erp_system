@@ -40,7 +40,8 @@ export const MODULE = {
     { en: 'Monitored Estate', screens: [
       { id: 'M05-estate', en: 'Estate & Agents', bn: 'এস্টেট ও এজেন্ট', t: 'g' },
       { id: 'M05-health', en: 'Health Scoring', bn: 'হেলথ স্কোরিং', t: 'r' },
-      { id: 'M05-alerts', en: 'Alert Rules & Inbox', bn: 'অ্যালার্ট ইনবক্স', t: 'g' }
+      { id: 'M05-alerts', en: 'Alert Rules & Inbox', bn: 'অ্যালার্ট ইনবক্স', t: 'g' },
+      { id: 'M05-alert-rules', en: 'Alert Rules', bn: 'অ্যালার্ট নিয়ম', t: 'g' }
     ]},
     { en: 'Service Desk', screens: [
       { id: 'M05-tickets', en: 'MSP Tickets', bn: 'এমএসপি টিকেট', t: 'g' },
@@ -60,20 +61,34 @@ export const MODULE = {
     ]}
   ],
   reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register'],
-  forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window'],
+  /* M05 capture audit 2026-11-13: every chip that has a form is listed, so
+   * each sub-module page names the forms that capture its records */
+  forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window',
+    'Managed Estate Device', 'Health Reading', 'Alert Rule', 'On-Call Shift', 'Runbook', 'Patch Update',
+    'Monthly Service Report'],
   cross: ['M08 contract entitlement', 'M17 monitored assets', 'M48 telemetry streams', 'M20 SLA credit billing', 'P04 client portal'],
   freg: {
     src: 93,
     sub: [
       ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'], reports: ['Remote Resolution Rate'], forms: ['Remote Session (consent recorded)'] }],
-      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'], reports: [], forms: [] }],
-      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'], reports: ['Backup & Restore Test Log'], forms: [], create: false }],
-      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'state', 'create_date'], screens: ['M05-alerts'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket'] }],
-      ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: [] }],
-      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'], reports: [], forms: [] }],
-      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Maintenance Window'] }],
-      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record'], domain: [['state', 'in', ['ticketed', 'resolved']]] }],
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: [] }],
+      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'], reports: [], forms: ['Managed Estate Device'] }],
+      /* 3 FR-RMS-010/011: an engineer's reading of an asset (an agentless
+       * device or a site check) - the health score is computed from it. The
+       * page had no button: the metrics were written by the collector only. */
+      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading'], create: 'M05-form-reading' }],
+      /* 4 FR-RMS-015: the engine is configured by its rules; alerts are
+       * raised by readings that cross them. The button opened the ticket form. */
+      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket'], create: 'M05-form-alert-rule' }],
+      ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: ['On-Call Shift'] }],
+      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'], reports: [], forms: ['Runbook'] }],
+      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Patch Update', 'Maintenance Window'] }],
+      /* 8 FR-RMS-026: a client reports by phone, email, portal or chat; the
+       * desk lists those and every ticketed alert. Its list refused "+ New",
+       * so the page had no button and a phoned-in fault had no input. */
+      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
+      /* 9 FR-RMS-035: the monthly report is generated from its contract,
+       * never typed - its figures decide the SLA credit. No button before. */
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: ['Monthly Service Report'], create: 'M05-form-monthly-report' }],
       ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['MSP Contract'] }]
     ]
   }
@@ -104,7 +119,7 @@ export const SCREENS = {
     stateField: 'health' },
   'M05-health': { kind: 'table_report', module: 'M05', report: 'estate_health', period: false },
   'M05-alerts': { kind: 'model_list', model: 'fix.msp.alert', create: true,
-    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'state', 'escalated', 'order_id', 'resolved_at'],
+    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'state', 'escalated', 'order_id', 'resolved_at'],
     stateField: 'state',
     actions: [
       { m: 'action_acknowledge', l: 'Acknowledge' },
@@ -112,11 +127,25 @@ export const SCREENS = {
       { m: 'action_resolve', l: 'Resolve', ask: 'Resolution note', kwarg: 'note' },
       { m: 'action_escalate', l: 'Escalate' }
     ] },
+  /* FR-RMS-015: a threshold per metric; scoped to one contract or, empty,
+   * to every contract's estate. Evaluated on every health reading. */
+  'M05-alert-rules': { kind: 'model_list', model: 'fix.msp.alert.rule',
+    cols: ['name', 'msp_contract_id', 'metric', 'operator', 'threshold', 'severity', 'active', 'alert_count'],
+    empty: 'No alert rule yet. Define one with + New Alert Rule: a reading that crosses its threshold raises an alert on the asset.' },
 
-  /* --- Service Desk --- */
-  'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert', create: false,
-    cols: ['asset_id', 'severity', 'message', 'order_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
-    domain: [['state', 'in', ['ticketed', 'resolved']] ] },
+  /* --- Service Desk ---
+   * the desk = what clients reported (phone, email, portal, chat) and every
+   * alert that became a ticket. "+ New" logs a client's report. */
+  'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert',
+    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
+    stateField: 'state',
+    domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']],
+    actions: [
+      { m: 'action_acknowledge', l: 'Acknowledge' },
+      { m: 'action_to_ticket', l: 'Create Service Order' },
+      { m: 'action_resolve', l: 'Resolve', ask: 'Resolution note', kwarg: 'note' },
+      { m: 'action_escalate', l: 'Escalate' }
+    ] },
   'M05-oncall': { kind: 'model_list', model: 'fix.msp.oncall.shift',
     cols: ['name', 'technician_id', 'level', 'start_at', 'end_at', 'state'],
     stateField: 'state',
@@ -234,19 +263,25 @@ export const SCREENS = {
     ] },
 
   'M05-form-ticket': { kind: 'model_form', model: 'fix.msp.alert',
-    title: 'MSP Ticket', back: 'M05-tickets',
+    title: 'MSP Ticket', newLabel: 'Log a Client Ticket', back: 'M05-tickets',
     status: { field: 'state' },
     tabs: [
-      { id: 'alert', label: '1. Telemetry Alert', bn: '১. সতর্কবার্তা', icon: '🚨', badge: '5' },
-      { id: 'resolution', label: '2. SLA Resolution & Ticket', bn: '২. সমাধান ও টিকেট', icon: '✅', badge: '5' }
+      { id: 'alert', label: '1. Report & Asset', bn: '১. অভিযোগ ও সম্পদ', icon: '🚨', badge: '7' },
+      { id: 'resolution', label: '2. SLA Resolution & Ticket', bn: '২. সমাধান ও টিকেট', icon: '✅', badge: '4' }
     ],
     sections: [
-      { tab: 'alert', title: 'Telemetry Ingestion & Alert Header', fields: [
+      { tab: 'alert', title: 'What the Client Reported, and on Which Asset',
+        note: 'Choose how the client reported it and an asset of their contract. Create Service Order on MSP Tickets turns it into the job; the SLA clock runs from now.',
+        fields: [
         { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
-        { name: 'asset_id', label: 'Monitored Asset' },
-        { name: 'severity', label: 'Alert Severity Level' },
+        { name: 'asset_id', required: true, label: 'Monitored Asset' },
+        /* a ticket logged here is a client's report: it starts as a phone
+         * call, never as "Monitoring" (that would hide it from the desk) */
+        { name: 'source', required: true, value: 'phone', label: 'Reported Through' },
+        { name: 'severity', required: true, label: 'Severity' },
+        { name: 'message', required: true, label: 'What the Client Reported' },
+        { name: 'rule_id', label: 'Raised by Alert Rule', readonly: true },
         { name: 'escalated', label: 'Escalated to On-Call Rota', readonly: true },
-        { name: 'message', label: 'Telemetry Message & Stack Trace', type: 'text' },
       ]},
       { tab: 'resolution', title: 'Ticket Conversion & Resolution Verification', fields: [
         { name: 'order_id', label: 'Commercial Service Order (M01)', readonly: true },
@@ -324,7 +359,7 @@ export const SCREENS = {
     title: "Managed Estate Device",
     back: 'M05-estate',
     tabs: [
-      { id: 'asset', label: '1. Device Identity', bn: '১. ডিভাইসের পরিচিতি', icon: '💻', badge: '6' },
+      { id: 'asset', label: '1. Device Identity', bn: '১. ডিভাইসের পরিচিতি', icon: '💻', badge: '9' },
       { id: 'telemetry', label: '2. Telemetry & Agent Health', bn: '২. এজেন্ট স্থিতি ও অডিট', icon: '📊', badge: '3' }
     ],
     sections: [
@@ -335,7 +370,12 @@ export const SCREENS = {
           { name: 'agent_id', required: true, label: "RMM Agent Identifier" },
           { name: 'hostname', label: "Device Hostname / FQDN" },
           { name: 'device_id', label: "Registered Hardware Asset" },
-          { name: 'health', required: true, label: "Health Status" }
+          { name: 'health', required: true, label: "Health Status" },
+          /* FR-RMS-008: the endpoint's network and OS identity (the model
+           * had the fields; no form showed them) */
+          { name: 'ip_address', label: "IP Address" },
+          { name: 'mac_address', label: "MAC Address" },
+          { name: 'os_version', label: "Operating System & Build" }
         ] },
       { tab: 'telemetry', title: "Heartbeat & Composite Health Scoring",
         fields: [
@@ -522,6 +562,119 @@ export const SCREENS = {
     ]
   },
 
+  /* ===== M05 capture audit 2026-11-13: a capture per sub-module ===== */
+
+  /* 3 Metrics & Health Scoring. The reading runs through the same alerting
+   * as the collector (action_record_reading): first unhealthy transition,
+   * then every alert rule in scope; nothing while a window is open. The
+   * metrics are inputs here only: the generic write refuses them. */
+  'M05-form-reading': {
+    kind: 'model_form',
+    model: 'fix.monitored.asset',
+    title: 'Health Reading',
+    newLabel: 'Record a Health Reading',
+    back: 'M05-estate',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the asset you read',
+      note: 'Every asset of the monitored estate. Use this for devices without an agent (network gear, printers) and for site checks; agents report on their own.',
+      search: 'Search asset',
+      choose: 'Read this asset',
+      cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'health_score', 'last_seen'],
+      domain: [],
+      empty: 'No monitored asset yet. Enrol one on Estate & Agents first.'
+    },
+    saveAction: {
+      method: 'action_record_reading', label: 'Record Reading',
+      done: 'Reading recorded. No threshold crossed.',
+      kwargs: { health: 'health', cpu: 'cpu_utilization_pct', ram: 'ram_utilization_pct', disk_free_gb: 'disk_free_gb', uptime_hours: 'uptime_hours' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: The Reading (FR-RMS-010 / 011)',
+        note: 'Needs the MSP Engineer role. Enter what you measured; a blank metric keeps its last value. A reading that crosses an alert rule raises one alert per rule until that alert is resolved.',
+        fields: [
+          { name: 'hostname', label: 'Asset', readonly: true },
+          { name: 'msp_contract_id', label: 'MSP Contract', readonly: true },
+          { name: 'last_seen', label: 'Last Reading At', readonly: true },
+          { name: 'last_reading_by_id', label: 'Last Read By (empty: the agent)', readonly: true },
+          { name: 'health_score', label: 'Health Score (0-100)', readonly: true },
+          /* readonly for the generic write; inputs because saveAction carries them */
+          { name: 'health', required: true, label: 'Health Status', readonly: true },
+          { name: 'cpu_utilization_pct', label: 'CPU Load (%)', readonly: true },
+          { name: 'ram_utilization_pct', label: 'Memory Use (%)', readonly: true },
+          { name: 'disk_free_gb', label: 'Free Disk (GB)', readonly: true },
+          { name: 'uptime_hours', label: 'Uptime Since Restart (hours)', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 4 Alerting Engine: FR-RMS-015 */
+  'M05-form-alert-rule': {
+    kind: 'model_form',
+    model: 'fix.msp.alert.rule',
+    title: 'Alert Rule',
+    newLabel: 'Define an Alert Rule',
+    back: 'M05-alert-rules',
+    tabs: [
+      { id: 'rule', label: '1. Threshold', bn: '১. সীমা', icon: '📏', badge: '6' },
+      { id: 'scope', label: '2. Scope & History', bn: '২. পরিধি ও ইতিহাস', icon: '🎯', badge: '4' }
+    ],
+    sections: [
+      { tab: 'rule', title: 'The Condition That Raises an Alert',
+        note: 'A reading above (or below) the threshold raises an alert of this severity on the asset. Percentages are 0 to 100.',
+        fields: [
+          { name: 'name', required: true, label: 'Rule Name' },
+          { name: 'metric', required: true, label: 'Metric' },
+          { name: 'operator', required: true, label: 'Raise When the Reading Is' },
+          { name: 'threshold', required: true, label: 'Threshold' },
+          { name: 'severity', required: true, label: 'Alert Severity' },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'scope', title: 'Which Estate It Watches',
+        note: 'Leave the contract empty to watch every MSP contract.',
+        fields: [
+          { name: 'msp_contract_id', label: 'MSP Contract' },
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'alert_count', label: 'Alerts Raised', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 9 Client Reporting: FR-RMS-035. The report's figures are computed from
+   * the period's alerts (they decide the SLA credit), so the capture is
+   * choosing the contract; one report per contract and month. */
+  'M05-form-monthly-report': {
+    kind: 'model_form',
+    model: 'fix.msp.contract',
+    title: 'Monthly Service Report',
+    newLabel: 'Generate a Monthly Service Report',
+    back: 'M05-reviews',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the MSP contract',
+      note: 'The report covers last calendar month. A contract whose agreement never came into force has no report.',
+      search: 'Search MSP contract',
+      choose: 'Report on this contract',
+      cols: ['name', 'contract_id', 'contract_state', 'device_count', 'sla_target_pct'],
+      domain: [],
+      empty: 'No MSP contract yet. Create one with + New MSP Contract.'
+    },
+    saveAction: {
+      method: 'action_generate_monthly_report', label: 'Generate Report',
+      done: 'Report generated: see Client Service Reviews', kwargs: {}
+    },
+    sections: [
+      { title: 'Step 2 of 2: Generate Last Month’s Report',
+        note: 'Alerts, resolutions within target and the SLA attainment are counted from the period’s alerts, in English and Bengali. Compute SLA Credits on MSP Contracts then drafts any credit the attainment owes.',
+        fields: [
+          { name: 'name', label: 'MSP Contract', readonly: true },
+          { name: 'contract_id', label: 'Contract (M08)', readonly: true },
+          { name: 'contract_state', label: 'M08 Contract State', readonly: true },
+          { name: 'entitled', label: 'Entitled Today', readonly: true },
+          { name: 'sla_target_pct', label: 'SLA Target %', readonly: true }
+        ] }
+    ]
+  },
+
   'M05-form-msp-patch-policy': {
     kind: 'model_form',
     model: 'fix.msp.patch.policy',
@@ -572,7 +725,12 @@ export const FORM_CHIPS = {
     'M05-runbooks': 'M05-form-runbook',
     'M05-patching': 'M05-form-patch',
     'M05-credits': 'M05-form-credit',
+    'M05-alert-rules': 'M05-form-alert-rule',
+    'M05-tickets': 'M05-form-ticket',
   },
+  'M05:Health Reading': 'M05-form-reading',
+  'M05:Alert Rule': 'M05-form-alert-rule',
+  'M05:Monthly Service Report': 'M05-form-monthly-report',
   'M05:MSP Contract': 'M05-form-msp-contract',
   'M05:Managed Estate Device': 'M05-form-estate',
   'M05:On-Call Shift': 'M05-form-oncall',
@@ -593,7 +751,8 @@ export const FORM_CHIPS = {
     'fix.remote.session': 'M05-form-session',
     'fix.msp.alert': 'M05-form-ticket',
     'fix.msp.change.record': 'M05-form-change',
-    'fix.msp.maintenance.window': 'M05-form-window'
+    'fix.msp.maintenance.window': 'M05-form-window',
+    'fix.msp.alert.rule': 'M05-form-alert-rule'
   }
 };
 

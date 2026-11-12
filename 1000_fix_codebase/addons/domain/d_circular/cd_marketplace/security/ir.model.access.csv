@@ -28,3 +28,6 @@ access_fix_seller_standard_portal,fix.seller.standard portal,model_fix_seller_st
 access_fix_seller_certification,fix.seller.certification,model_fix_seller_certification,base.group_user,1,0,0,0
 access_fix_seller_certification_operator,fix.seller.certification operator,model_fix_seller_certification,group_marketplace_operator,1,1,1,0
 access_fix_seller_certification_portal,fix.seller.certification portal,model_fix_seller_certification,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_consequence,fix.seller.consequence,model_fix_seller_consequence,base.group_user,1,0,0,0
+access_fix_seller_consequence_operator,fix.seller.consequence operator,model_fix_seller_consequence,group_marketplace_operator,1,1,1,0
+access_fix_seller_consequence_portal,fix.seller.consequence portal,model_fix_seller_consequence,group_fix_marketplace_seller,1,0,0,0

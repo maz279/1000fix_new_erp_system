@@ -34,7 +34,15 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_generate_monthly_report", "action_compute_sla_credits"},
     },
+    # M05 capture audit (2026-11-13): an engineer's health reading of an
+    # asset runs the same alerting the collector does, and the alert rules
+    # it is measured against are kept here.
     "fix.monitored.asset": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_record_reading"},
+    },
+    "fix.msp.alert.rule": {
         "order": "id desc",
         "limit": 200,
         "actions": set(),

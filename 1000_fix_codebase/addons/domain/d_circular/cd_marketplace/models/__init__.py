@@ -3,6 +3,7 @@ from . import (
     fix_marketplace,
     fix_marketplace_chargeback,
     fix_marketplace_listing,
+    fix_seller_consequence,
     fix_seller_standard,
     fix_seller_stock,
 )

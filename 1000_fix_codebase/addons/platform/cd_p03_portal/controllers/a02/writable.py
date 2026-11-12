@@ -12,6 +12,15 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 WRITABLE = {
+    "fix.branch.checklist": frozenset(
+        {
+            "branch_id",
+            "checklist_date",
+            "checklist_type",
+            "handover_notes",
+            "line_ids",
+        }
+    ),
     "fix.cash.shift": frozenset(
         {
             "bank_deposit_attachment_id",
@@ -36,17 +45,24 @@ WRITABLE = {
         {
             "actual_weight_kg",
             "consignment_type",
+            "courier_partner_id",
+            "declared_value_bdt",
             "dest_branch_id",
             "dispatch_weight_g",
             "height_cm",
             "length_cm",
+            "operating_unit_id",
             "origin_branch_id",
             "outbound_seal_number",
+            "packaging_type",
+            "purchase_order_id",
             "recipient_name",
+            "recipient_nid_last4",
             "rider_id",
             "scheduled_date",
             "security_bag_barcode",
             "service_order_id",
+            "vehicle_registration",
             "volumetric_divisor",
             "waybill_attachment_id",
             "width_cm",
@@ -299,7 +315,10 @@ WRITABLE = {
             "device_id",
             "health",
             "hostname",
+            "ip_address",
+            "mac_address",
             "msp_contract_id",
+            "os_version",
         }
     ),
     "fix.msp.alert": frozenset(
@@ -308,6 +327,20 @@ WRITABLE = {
             "message",
             "msp_contract_id",
             "severity",
+            "source",
+        }
+    ),
+    "fix.msp.alert.rule": frozenset(
+        {
+            "active",
+            "company_id",
+            "metric",
+            "msp_contract_id",
+            "name",
+            "operating_unit_id",
+            "operator",
+            "severity",
+            "threshold",
         }
     ),
     "fix.msp.change.record": frozenset(
@@ -476,6 +509,7 @@ WRITABLE = {
             "branch_id",
             "counter_number",
             "customer_id",
+            "notes",
             "priority_level",
             "service_type",
         }
@@ -582,6 +616,7 @@ WRITABLE = {
             "burn_in_temp_celsius",
             "dc_power_rail_readings",
             "device_serial",
+            "diagnostic_findings",
             "dofa_justification",
             "equipment_id",
             "flux_solder_spec",
@@ -593,6 +628,7 @@ WRITABLE = {
             "pre_rework_photo_attachment_id",
             "priority",
             "reflow_profile_name",
+            "repair_action_summary",
             "repair_level",
             "sam_standard_minutes",
             "schematic_designators",
@@ -600,6 +636,18 @@ WRITABLE = {
             "workshop_id",
         }
     ),
-    "fix.workshop.part.line": frozenset(),
+    "fix.workshop.part.line": frozenset(
+        {
+            "circuit_designator",
+            "donor_board_serial",
+            "job_id",
+            "lot_serial_number",
+            "notes",
+            "part_photo_attachment_id",
+            "product_id",
+            "quantity",
+            "source_origin",
+        }
+    ),
     "fix.z4.access.audit": frozenset(),
 }

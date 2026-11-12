@@ -184,6 +184,38 @@ class CrmLeadExt(models.Model):
             "converted_service_order_id",
         }
 
+    def _fix_form_locked_fields(self) -> set:
+        """M07 audit 2026-11-13: the Lead and Opportunity forms post the record
+        type they create (no user holds crm.group_use_lead on the estate, so
+        Odoo's default made every "+ New Lead" an opportunity, invisible on
+        the Leads list). Once the record exists the type changes only through
+        conversion, which checks the party match (BRU-CRM-02)."""
+        locked = super()._fix_form_locked_fields()
+        return locked | {"type"} if self else locked
+
+    def action_convert_to_opportunity(self):
+        """FR-CRM-006/007: a qualified lead becomes an opportunity on the
+        party it was matched to; conversion never creates a party (BRU-CRM-02,
+        BRU-CRM-01 - party identity belongs to M33). The source attribution
+        and everything captured on the lead are kept."""
+        for lead in self:
+            if lead.type != "lead":
+                raise UserError("'%s' is already an opportunity." % lead.name)
+            if not lead.active:
+                raise UserError("'%s' is archived; restore it before converting." % lead.name)
+            if not lead.partner_id:
+                raise UserError(
+                    "Match '%s' to its customer in the party master first (Linked "
+                    "Customer / Party on the lead). A lead never creates a new "
+                    "party when it converts (BRU-CRM-02)." % lead.name
+                )
+        for lead in self:
+            lead.convert_opportunity(lead.partner_id)
+            lead.message_post(
+                body="Converted to an opportunity on %s." % lead.partner_id.display_name
+            )
+        return True
+
     def _approval_needed(self) -> bool:
         self.ensure_one()
         return bool((self.contract_ref or "").strip()) and not self.contract_verified

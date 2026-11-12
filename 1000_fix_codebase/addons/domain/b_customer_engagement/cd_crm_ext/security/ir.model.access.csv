@@ -14,3 +14,4 @@ access_fix_crm_sequence_step,fix.crm.sequence.step,model_fix_crm_sequence_step,b
 access_fix_crm_sequence_enrolment,fix.crm.sequence.enrolment,model_fix_crm_sequence_enrolment,base.group_user,1,1,1,0
 access_fix_crm_score_model,fix.crm.score.model,model_fix_crm_score_model,base.group_user,1,1,1,1
 access_fix_crm_score_factor,fix.crm.score.factor,model_fix_crm_score_factor,base.group_user,1,1,1,1
+access_fix_sales_activity,fix.sales.activity,model_fix_sales_activity,base.group_user,1,1,1,0

@@ -203,6 +203,14 @@ class FixWorkshopPartLine(models.Model):
                     "Parts cannot be added to job %s: it is closed (%s)."
                     % (closed[0].name, closed[0].state)
                 )
+        # The part's standard cost when none is given. The backend form's
+        # onchange did this; a line added from the workspace (M31 Part
+        # Fitment, 2026-11-12) runs no onchange and cost 0, so the job's
+        # parts total and the estimate check missed the part entirely.
+        Product = self.env["product.product"]
+        for vals in vals_list:
+            if vals.get("product_id") and "unit_cost" not in vals:
+                vals["unit_cost"] = Product.browse(vals["product_id"]).standard_price
         return super().create(vals_list)
 
     def write(self, vals):

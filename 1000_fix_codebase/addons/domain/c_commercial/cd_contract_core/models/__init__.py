@@ -3,6 +3,7 @@ from . import (
     fix_contract,
     fix_contract_billing,
     fix_contract_ops,
+    fix_contract_scope,
     fix_contract_template,
     fix_service_order_contract,
 )

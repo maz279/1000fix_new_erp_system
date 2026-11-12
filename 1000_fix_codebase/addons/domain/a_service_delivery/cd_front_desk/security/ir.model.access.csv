@@ -8,3 +8,11 @@ access_fix_counter_sale,fix.counter.sale,model_fix_counter_sale,base.group_user,
 access_fix_counter_sale_cashier,fix.counter.sale cashier,model_fix_counter_sale,group_fd_cashier,1,1,1,0
 access_fix_counter_sale_manager,fix.counter.sale manager,model_fix_counter_sale,group_fd_branch_manager,1,1,1,0
 access_fix_counter_sale_refund,fix.counter.sale refund approver,model_fix_counter_sale,group_fd_refund_approver,1,1,0,0
+access_fix_branch_checklist,fix.branch.checklist,model_fix_branch_checklist,base.group_user,1,0,0,0
+access_fix_branch_checklist_cashier,fix.branch.checklist cashier,model_fix_branch_checklist,group_fd_cashier,1,1,1,0
+access_fix_branch_checklist_agent,fix.branch.checklist queue agent,model_fix_branch_checklist,group_fd_queue_agent,1,1,1,0
+access_fix_branch_checklist_manager,fix.branch.checklist manager,model_fix_branch_checklist,group_fd_branch_manager,1,1,1,0
+access_fix_branch_checklist_line,fix.branch.checklist.line,model_fix_branch_checklist_line,base.group_user,1,0,0,0
+access_fix_branch_checklist_line_cashier,fix.branch.checklist.line cashier,model_fix_branch_checklist_line,group_fd_cashier,1,1,1,1
+access_fix_branch_checklist_line_agent,fix.branch.checklist.line queue agent,model_fix_branch_checklist_line,group_fd_queue_agent,1,1,1,1
+access_fix_branch_checklist_line_manager,fix.branch.checklist.line manager,model_fix_branch_checklist_line,group_fd_branch_manager,1,1,1,1

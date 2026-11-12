@@ -53,16 +53,31 @@ export const MODULE = {
     ]}
   ],
   reports: ['Member Growth & Tier Mix', 'Points Earn/Burn Analysis', 'Referral Funnel', 'Voucher Usage & Fraud', 'Programme P&L'],
-  forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation'],
+  forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation', 'Member Enrolment', 'Loyalty Card', 'Redemption Rule', 'Point Type'],
   cross: ['M33 Customer Master', 'M20 AR &Invoicing', 'M07 CRM'],
+  /* M10 capture audit (2026-11-13). Three pages had no button at all
+   * (Wallet, Vouchers & Coupons, Liability & Breakage); Tiers & Enrolment
+   * could add a tier but not enrol a member; Alliance Benefits offered
+   * "+ New Tier Configuration"; and seven working screens (schemes,
+   * redemption rules, point types, affiliations, cards, campaign hooks,
+   * fraud controls) sat on no page, so the 3 schemes, 3 rules, 2 point types
+   * and 2 affiliations live on fix_real were unreachable from the register.
+   * Each page now names what captures its record:
+   *   - its own form (enrolment, card, scheme, redemption rule, point type,
+   *     affiliation, adjustment, referral code);
+   *   - Vouchers: the campaign hook that mints them (a voucher is issued to a
+   *     qualifying campaign responder; the model accepts no typed voucher);
+   *   - Wallet: the points adjustment, the only thing that moves a balance
+   *     (the balance is derived from posted ledger lines);
+   *   - Liability & Breakage: nothing - it is a period calculation. */
   freg: { src: 63, sub: [
-    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol'], reports: ['Member Growth & Tier Mix'], forms: ['Tier Configuration'] }],
-    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes'], reports: ['Points Earn/Burn Analysis'], forms: ['Loyalty Programme', 'Loyalty Scheme'] }],
-    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-rpt-earnburn'], reports: ['Points Earn/Burn Analysis'], forms: ['Points Adjustment'] }],
-    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet'], reports: ['Member Growth & Tier Mix'], forms: [], create: false }],
-    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-rpt-voucher'], reports: ['Voucher Usage & Fraud'], forms: ['Voucher Campaign'] }],
+    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol', 'M10-cards'], reports: ['Member Growth & Tier Mix'], forms: ['Tier Configuration', 'Member Enrolment', 'Loyalty Card'] }],
+    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes', 'M10-schemes', 'M10-burn-rules', 'M10-point-types'], reports: ['Points Earn/Burn Analysis'], forms: ['Loyalty Programme', 'Loyalty Scheme', 'Redemption Rule', 'Point Type'] }],
+    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-redemption', 'M10-rpt-earnburn'], reports: ['Points Earn/Burn Analysis'], forms: ['Points Adjustment'] }],
+    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet', 'M10-ledger'], reports: ['Member Growth & Tier Mix'], forms: ['Points Adjustment'], create: 'M10-form-adjustment' }],
+    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-hooks', 'M10-fraud', 'M10-rpt-voucher'], reports: ['Voucher Usage & Fraud'], forms: ['Voucher Campaign'], create: 'M10-form-voucher-campaign' }],
     ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'], reports: ['Referral Funnel'], forms: ['Referral Code'] }],
-    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'points_multiplier'], screens: ['M10-alliance'], reports: [], forms: ['Loyalty Affiliation', 'Tier Configuration'] }],
+    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.affiliation', cols: ['name', 'code', 'program_id', 'member_count', 'active'], screens: ['M10-affiliations', 'M10-alliance'], reports: [], forms: ['Loyalty Affiliation'] }],
     ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'points_balance', 'lifetime_points_earned', 'lifetime_points_redeemed'], screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl', 'M10-wallet'], reports: ['Programme P&L'], forms: [], create: false }]
   ] }
 };
@@ -82,10 +97,15 @@ export const SCREENS = {
       { m: 'action_activate', l: 'Re-activate' },
       { m: 'action_reconcile_balance', l: 'Reconcile Balance with Ledger' }
     ] },
-  'M10-alliance': { kind: 'model_list', model: 'fix.loyalty.tier', stateField: 'active',
+  /* The benefit set an alliance cohort is extended (read here, configured on
+   * Tiers & Benefits). Its "+ New" used to open the tier form, so the
+   * Alliance Benefits page offered "+ New Tier Configuration" (audit
+   * 2026-11-13); the alliance record itself is the affiliation. */
+  'M10-alliance': { kind: 'model_list', model: 'fix.loyalty.tier', stateField: 'active', create: false,
     domain: [['active', '=', true]],
     cols: ['name', 'dedicated_support', 'priority_diagnostic', 'labour_discount_pct',
-      'parts_discount_pct'] },
+      'parts_discount_pct'],
+    note: 'The benefits each active tier carries. An alliance cohort (an affiliation) is extended these benefits; tiers are changed on Tiers & Benefits.' },
   'M10-ledger': { kind: 'model_list', model: 'fix.loyalty.ledger', stateField: 'state',
     cols: ['transaction_type', 'points', 'balance_after', 'order_amount_bdt', 'expiry_date',
       'state', 'approval_state', 'notes'],
@@ -95,18 +115,23 @@ export const SCREENS = {
       { m: 'action_post', l: 'Post Ledger Line' },
       { m: 'action_reverse', l: 'Reverse Line', ask: 'Why is this posted line being reversed?', kwarg: 'reason' }
     ] },
-  'M10-wallet': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state',
+  /* A wallet is opened by enrolment and its balance is derived from posted
+   * ledger lines (spec T-03), so it is never typed in here. */
+  'M10-wallet': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state', create: false,
     domain: [['points_balance', '>', 0]],
-    cols: ['partner_id', 'tier_id', 'points_balance', 'lifetime_spend_bdt', 'tier_upgraded_date'] },
+    cols: ['partner_id', 'tier_id', 'points_balance', 'lifetime_spend_bdt', 'tier_upgraded_date'],
+    empty: 'No member holds points yet. A wallet opens when a member is enrolled (Tiers & Enrolment) and its balance moves only through posted ledger lines: earned on a paid service, redeemed on a bill, or a Points Adjustment once it is approved and posted.' },
   'M10-redemption': { kind: 'table_report', module: 'M10', report: 'redemption_rules', title: 'Redemption Rules', period: false },
   'M10-vouchers': { kind: 'model_list', create: false, model: 'fix.loyalty.voucher', stateField: 'state',
-    cols: ['name', 'partner_id', 'discount_type', 'discount_value', 'valid_from', 'state'] },
+    cols: ['name', 'partner_id', 'discount_type', 'discount_value', 'valid_from', 'state'],
+    empty: 'No voucher issued yet. Vouchers are not typed in: an active Voucher Campaign hook issues one to each customer who qualifies in its running marketing campaign (M35), with the discount and validity set on the hook.' },
   'M10-hooks': { kind: 'model_list', model: 'fix.loyalty.campaign.hook', stateField: 'state',
     cols: ['name', 'campaign_id', 'program_id', 'reward_type', 'bonus_points', 'state'],
     actions: [
-      { m: 'action_activate', l: 'Activate Hook' },
-      { m: 'action_complete', l: 'Complete Hook' }
+      { m: 'action_activate', l: 'Activate Hook', states: ['draft'] },
+      { m: 'action_complete', l: 'Complete Hook', states: ['active'] }
     ],
+    empty: 'No campaign reward hook yet. Create one with + New Voucher Campaign: it ties a marketing campaign (M35) to a voucher or bonus-points reward, and goes live with Activate once that campaign is running.',
     note: 'A hook goes live only on a running campaign; its reward terms are then fixed (A03 audit M10-8).' },
   'M10-referral': { kind: 'model_list', model: 'fix.loyalty.referral.code', stateField: 'state',
     cols: ['name', 'referrer_partner_id', 'referee_partner_id', 'state', 'points_awarded', 'converted_at'],
@@ -179,7 +204,8 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.loyalty.campaign.hook',
     title: 'Voucher Campaign',
-    back: 'M10-vouchers',
+    /* back to the hook list: that is where the saved hook is activated */
+    back: 'M10-hooks',
     status: { field: 'state', labels: { draft: 'Draft', active: 'Active', completed: 'Completed' } },
     tabs: [
       { id: 'general', label: 'Campaign Hook', bn: 'ক্যাম্পেইন হুক', icon: '🎯' },
@@ -195,8 +221,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Hook Description' },
           { name: 'campaign_id', required: true, label: 'Marketing Campaign' },
           { name: 'program_id', required: true, label: 'Target Programme' },
-          { name: 'reward_type', required: true, label: 'Reward Type' },
-          { name: 'bonus_points', label: 'Bonus Points' }
+          { name: 'reward_type', required: true, label: 'Reward Type', value: 'voucher' },
+          { name: 'bonus_points', label: 'Bonus Points (bonus-points hooks only)' }
         ]
       },
       {
@@ -717,6 +743,10 @@ export const FORM_CHIPS = {
   'M10:Voucher Campaign': 'M10-form-voucher-campaign',
   'M10:Points Adjustment': 'M10-form-adjustment',
   'M10:Referral Code': 'M10-form-referral',
+  'M10:Member Enrolment': 'M10-form-account',
+  'M10:Loyalty Card': 'M10-form-card',
+  'M10:Redemption Rule': 'M10-form-burn-rule',
+  'M10:Point Type': 'M10-form-point-type',
   'M10:__by_model__': {
     'fix.loyalty.scheme': 'M10-form-scheme',
     'fix.loyalty.affiliation': 'M10-form-affiliation',
@@ -755,7 +785,11 @@ export const FORM_MODELS = {
   'M10:Loyalty Programme': 'fix.loyalty.program',
   'M10:Voucher Campaign': 'fix.loyalty.campaign.hook',
   'M10:Points Adjustment': 'fix.loyalty.ledger',
-  'M10:Referral Code': 'fix.loyalty.referral.code'
+  'M10:Referral Code': 'fix.loyalty.referral.code',
+  'M10:Member Enrolment': 'fix.loyalty.account',
+  'M10:Loyalty Card': 'fix.loyalty.card',
+  'M10:Redemption Rule': 'fix.loyalty.burn.rule',
+  'M10:Point Type': 'fix.loyalty.point.type'
 };
 
 export const CREATE = {

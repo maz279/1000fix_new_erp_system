@@ -49,6 +49,34 @@ DENOMINATIONS = (
 )
 
 
+def default_operating_unit(env, vals):
+    """The operating unit of a front-desk record that was saved without one:
+    its cash shift's, else its branch's, else the user's default.
+
+    The field is required on the token, the intake and the shift, and none of
+    the M04 workspace forms asks for it (the branch decides it), so a token, an
+    intake or a shift opened from the workspace could never be saved (M04
+    sub-module audit, 13 Nov 2026). Returns an id, or False."""
+    if vals.get("shift_id"):
+        shift = env["fix.cash.shift"].browse(vals["shift_id"]).exists()
+        if shift and shift.operating_unit_id:
+            return shift.operating_unit_id.id
+    if vals.get("branch_id"):
+        branch = env["fix.branch"].browse(vals["branch_id"]).exists()
+        if branch and "operating_unit_id" in branch._fields and branch.operating_unit_id:
+            return branch.operating_unit_id.id
+    user_ou = getattr(env.user, "default_operating_unit_id", False)
+    return user_ou.id if user_ou else False
+
+
+def fill_operating_unit(env, vals_list):
+    for vals in vals_list:
+        if not vals.get("operating_unit_id"):
+            ou = default_operating_unit(env, vals)
+            if ou:
+                vals["operating_unit_id"] = ou
+
+
 class FixApprovalMatrixFrontDesk(models.Model):
     _inherit = "fix.approval.matrix"
 
@@ -82,6 +110,12 @@ class FixCashShift(models.Model):
     _approval_apply_method = "action_approve_variance"
     _approval_group = GROUP_MANAGER
     _approval_routed = True
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # the branch decides the unit: the Shift Open/Close form never asks
+        fill_operating_unit(self.env, vals_list)
+        return super().create(vals_list)
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M04-1/-2/-3: the drawer totals, the count, the sign-off

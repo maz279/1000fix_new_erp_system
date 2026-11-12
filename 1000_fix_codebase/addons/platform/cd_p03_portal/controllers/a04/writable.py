@@ -58,6 +58,7 @@ WRITABLE = {
             "annual_value",
             "auto_renew",
             "company_id",
+            "covered_device_ids",
             "currency_id",
             "customer_id",
             "date_end",
@@ -69,6 +70,7 @@ WRITABLE = {
             "name",
             "operating_unit_id",
             "renewal_lead_days",
+            "sla_policy_ids",
             "stamp_act_article",
             "stamp_duty_amount",
             "stamp_duty_applicable",
@@ -83,6 +85,7 @@ WRITABLE = {
             "delta_value",
             "effective_from",
             "kind",
+            "line_ids",
             "name",
             "new_date_end",
             "note",
@@ -94,6 +97,41 @@ WRITABLE = {
             "device_id",
             "entitlement_type",
             "quantity_included",
+        }
+    ),
+    "fix.contract.exclusion": frozenset(
+        {
+            "contract_id",
+            "exclusion_type",
+            "name",
+            "name_bn",
+        }
+    ),
+    "fix.contract.obligation": frozenset(
+        {
+            "contract_id",
+            "description",
+            "due_date",
+            "evidence_document_id",
+            "mandatory",
+            "name",
+            "obligation_type",
+            "owed_by",
+            "owner_id",
+            "recurrence",
+        }
+    ),
+    "fix.contract.party": frozenset(
+        {
+            "contract_id",
+            "designation",
+            "email",
+            "is_primary",
+            "notice_address",
+            "partner_id",
+            "phone",
+            "portal_access",
+            "role",
         }
     ),
     "fix.contract.pm.visit": frozenset(
@@ -522,6 +560,18 @@ WRITABLE = {
             "issued_on",
             "seller_id",
             "standard_id",
+        }
+    ),
+    "fix.seller.consequence": frozenset(
+        {
+            "consequence_type",
+            "effective_from",
+            "effective_to",
+            "reason",
+            "remediation_plan",
+            "review_date",
+            "seller_id",
+            "trigger",
         }
     ),
     "fix.seller.quote": frozenset(

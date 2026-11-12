@@ -2958,7 +2958,8 @@ export class P03Workspace extends Component {
                 this.render(true);
                 return;
             }
-            this.showToast(this.t(act.done || "Saved ✓"));
+            const warning = res.result && res.result.warning;
+            this.showToast(warning ? "⚠ " + warning : this.t(act.done || "Saved ✓"));
             gl.form.busy = false;
             if (close) this.formBackToList();
             else this.loadFormData();
@@ -3078,8 +3079,15 @@ export class P03Workspace extends Component {
             // outcome AND a note) — chain native prompts exactly like the
             // service-order runner; cancelling any prompt aborts the action.
             const kwargs = Object.assign({}, cfg.kw || {});
+            // a record with no `name` (a warranty claim: claim_no) read
+            // "undefined — Amount received..." - fall back to its first column
+            const firstCol = (gl.modelCfg.cols || [])[0];
+            const firstVal = firstCol ? row[firstCol] : null;
+            const who = row.display_name || row.name
+                || (firstVal && typeof firstVal === "object" ? firstVal.label || firstVal[1] : firstVal)
+                || `#${row.id}`;
             for (const ask of cfg.asks) {
-                const value = window.prompt(row.name + " — " + this.t(ask.label));
+                const value = window.prompt(who + " — " + this.t(ask.label));
                 if (value === null) return;
                 kwargs[ask.kwarg] = ask.number ? Number(value) : value;
             }
@@ -3115,6 +3123,10 @@ export class P03Workspace extends Component {
         if (r.secret) this.state.gl.secretDialog = { note: r.note || "", secret: r.secret };
         else if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
         else if (r.note) this.showToast(r.note);
+        // a method that succeeds with a caveat (M03 hub intake: seal mismatch,
+        // leg put on hold, or a value still needed) answers {warning}; it was
+        // dropped and the user read only "✓" (M03 capture audit 2026-11-12)
+        else if (r.warning) this.showToast("⚠ " + r.warning);
     }
 
     /* ---------------- CoA ---------------- */
@@ -4211,6 +4223,11 @@ export class P03Workspace extends Component {
             return out;
         };
         if (map && map.create === false) return null;
+        // `create: 'module'`: the page captures the module's own record
+        // although its grid lists another model - M19 "Journals" lists the
+        // journal register and captures through the journal-entry editor,
+        // which is the module's button and no model_form (2026-11-13)
+        if (map && map.create === "module") return P03_MODULE_CREATE[mid] ? { module: true } : null;
         // a page fed by a computed report has no record of its own to create
         if (map && map.report && !map.model) return null;
         if (map && typeof map.create === "string") {

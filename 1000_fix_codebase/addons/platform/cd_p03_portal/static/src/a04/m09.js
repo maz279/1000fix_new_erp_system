@@ -22,6 +22,8 @@ export const MODULE = {
       { id: 'M09-register', en: 'Warranty Register', bn: 'ওয়ারেন্টি রেজিস্টার', t: 'g' },
       { id: 'M09-validate', en: 'Manufacturer Validation', bn: 'যাচাইকরণ', t: 'r' },
       { id: 'M09-repair-wty', en: 'Repair Warranty & Rework', bn: 'মেরামত ওয়ারেন্টি', t: 'r' },
+      { id: 'M09-comeback', en: 'Repair Warranty Comebacks', bn: 'মেরামত ওয়ারেন্টিতে ফেরত', t: 'g' },
+      { id: 'M09-reworks', en: 'Open Rework Orders', bn: 'চলমান রিওয়ার্ক', t: 'g' },
       { id: 'M09-transfer', en: 'Transfer & Void Rules', bn: 'হস্তান্তর', t: 'g' }
     ]},
     { en: 'Brand Claims', screens: [
@@ -29,6 +31,7 @@ export const MODULE = {
       { id: 'M09-record', en: 'Claim Record', bn: 'দাবি রেকর্ড', t: 'f' },
       { id: 'M09-evidence', en: 'Evidence Assembly', bn: 'প্রমাণ', t: 'g' },
       { id: 'M09-brandrules', en: 'Brand Rules & Formats', bn: 'ব্র্যান্ড নিয়ম', t: 'g' },
+      { id: 'M09-remit', en: 'Remittance Matching', bn: 'রেমিট্যান্স মিলকরণ', t: 'g' },
       { id: 'M09-recon', en: 'Brand Reconciliation', bn: 'ব্র্যান্ড মিলকরণ', t: 'r' },
       { id: 'M09-appeals', en: 'Claim Appeals', bn: 'দাবি আপিল', t: 'g' }
     ]},
@@ -43,19 +46,36 @@ export const MODULE = {
     ]}
   ],
   reports: ['Claim Ageing by Brand', 'Reimbursement Cycle Time', 'Claim Rejection Analysis', 'Evidence Completeness', 'Loss Ratio by Product', 'Recall Coverage Report'],
-  forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign'],
+  forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign', 'Warranty Register Entry', 'Warranty Transfer', 'Protection Product', 'Claim Evidence Item', 'Provision Policy'],
   cross: ['M01 Service Orders', 'M08 Contracts', 'M20 AR', 'M37 Catalogue'],
+  /* M09 capture audit (2026-11-13). Five of the twelve pages offered no way
+   * to record their data and three captured the wrong record:
+   * - Protection Products, Evidence Assembly and Recalls: their lists said
+   *   create:false although the models take a person's entry (product rules
+   *   by a Warranty Officer, evidence items and recall campaigns by a clerk);
+   * - Reconciliation listed IAS 37 provisions (M53's computed reserve) and no
+   *   page could record the brand's remittance, so an approved claim could
+   *   never become remitted, nor be closed, from the workspace;
+   * - Repair Warranty offered "+ New Brand Claim": 1000FiX's own repair
+   *   warranty is charged to 1000FiX (BRU-WTY-16), never claimed from a brand.
+   *   A comeback is opened on the delivered order (M01 action);
+   * - the "Protection Policy" chip opened the provision policy (cost ratio,
+   *   lookback): an extended cover sold to a customer is a warranty register
+   *   row of type Extended/1000FiX. The provision policy keeps its own chip.
+   * Validation, assessment and submission are steps on existing claims (list
+   * buttons); entitlement and fraud are computed - nothing is typed in there.
+   * `domain` stays the LAST key (the mapping guard parses it there). */
   freg: { src: 108, sub: [
-    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register'], reports: [], forms: [] }],
+    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register', 'M09-transfer'], reports: [], forms: ['Warranty Register Entry', 'Warranty Transfer'] }],
     ['2', 'Manufacturer Validation', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'verification_state', 'verified_by', 'verified_at'], screens: ['M09-validate', 'M09-register'], reports: [], forms: [], create: false }],
-    ['3', 'Repair Warranty', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'service_order_id', 'state', 'claim_amount', 'remittance_amount'], screens: ['M09-repair-wty', 'M09-claims'], reports: [], forms: ['Brand Claim'] }],
-    ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-protection'], reports: [], forms: [], create: false }],
-    ['5', 'Protection Products', 13, { model: 'fix.warranty.product', cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit'], screens: ['M09-brandrules'], reports: [], forms: [] }],
+    ['3', 'Repair Warranty', 8, { model: 'fix.service.order', cols: ['name', 'customer_id', 'device_id', 'service_warranty_until', 'is_rework', 'state'], screens: ['M09-comeback', 'M09-reworks', 'M09-repair-wty'], reports: [], forms: [], create: false, domain: [['service_warranty_until', '!=', false]] }],
+    ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-protection', 'M09-validate'], reports: [], forms: [], create: false }],
+    ['5', 'Protection Products', 13, { model: 'fix.warranty.product', cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit'], screens: ['M09-brandrules', 'M09-protection'], reports: [], forms: ['Protection Product', 'Protection Policy'], create: 'M09-form-wproduct' }],
     ['6', 'Claim Assessment', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-ageing'], reports: ['Claim Ageing by Brand'], forms: [], create: false }],
-    ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'sha256_hash'], screens: ['M09-evidence', 'M09-rpt-evidence'], reports: ['Evidence Completeness'], forms: [] }],
+    ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash'], screens: ['M09-evidence', 'M09-claims', 'M09-rpt-evidence'], reports: ['Evidence Completeness'], forms: ['Claim Evidence Item'], create: 'M09-form-wevidence' }],
     ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-cycle'], reports: ['Reimbursement Cycle Time'], forms: ['Brand Claim'] }],
-    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-appeals', 'M09-rpt-rejection'], reports: ['Claim Rejection Analysis'], forms: ['Claim Appeal'], create: 'M09-form-appeal' }],
-    ['10', 'Reconciliation', 8, { model: 'fix.warranty.provision', cols: ['name', 'state', 'period', 'period_end', 'policy_id', 'revenue_in_warranty'], screens: ['M09-reserves', 'M09-policies', 'M09-recon'], reports: [], forms: ['Protection Policy'] }],
+    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-appeals', 'M09-claims', 'M09-rpt-rejection'], reports: ['Claim Rejection Analysis'], forms: ['Claim Appeal'], create: 'M09-form-appeal' }],
+    ['10', 'Reconciliation', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'approved_amount', 'remittance_amount', 'remittance_mismatch'], screens: ['M09-remit', 'M09-recon', 'M09-reserves', 'M09-policies'], reports: [], forms: ['Provision Policy'], create: false, domain: [['state', 'in', ['approved', 'partially_approved', 'remitted', 'closed']]] }],
     ['11', 'Recalls', 7, { model: 'fix.warranty.recall', cols: ['name', 'state', 'brand_id', 'product_ref', 'affected_units', 'covered_units', 'launched_on'], screens: ['M09-recalls', 'M09-rpt-recall'], reports: ['Recall Coverage Report'], forms: ['Recall Campaign'] }],
     ['12', 'Fraud Detection', 6, { model: 'fix.warranty.claim', cols: ['claim_no', 'device_id', 'evidence_complete', 'missing_evidence', 'state'], screens: ['M09-fraud', 'M09-rpt-loss', 'M09-claims'], reports: ['Loss Ratio by Product'], forms: [], create: false }]
   ] }
@@ -63,12 +83,53 @@ export const MODULE = {
 
 export const SCREENS = {
   /* ---- registry screens restored (A04 zero-trust audit 2026-10-31): nav ids that dead-ended ---- */
-  'M09-evidence': { kind: 'model_list', model: 'fix.warranty.evidence', create: false,
-    cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash', 'create_date'] },
-  'M09-brandrules': { kind: 'model_list', model: 'fix.warranty.product', create: false,
+  /* Evidence is assembled from the workshop job (Assemble Evidence on Brand
+   * Claims); an item the job does not hold (the customer's purchase invoice, a
+   * brand form) is added here while the claim is still draft or ready - the
+   * model locks the pack once the claim is submitted. */
+  'M09-evidence': { kind: 'model_list', model: 'fix.warranty.evidence',
+    cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash', 'create_date'],
+    empty: 'No evidence item yet. Assemble Evidence on Brand Claims pulls the workshop job\'s photos and reports into the claim; + New adds an item the job does not hold, while the claim is draft or ready.' },
+  /* The protection / warranty product rules (duration, waiting days, claim
+   * limit, excess). A Warranty Officer maintains them. */
+  'M09-brandrules': { kind: 'model_list', model: 'fix.warranty.product',
     cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit', 'active'],
     stateField: 'product_type' },
   'M09-recon': { kind: 'table_report', module: 'M09', report: 'claim_reconciliation', title: 'Claim Reconciliation', period: true },
+  /* FR-WTY-053 remittance matching. The brand's money is recorded against
+   * the approved claim with the bank reference it arrived under (a Claim
+   * Decision Officer); a short payment stays open and flagged. The brand's
+   * own advice is noted separately and settles nothing. No page offered
+   * either, so an approved claim could never be remitted or closed. */
+  'M09-remit': { kind: 'model_list', model: 'fix.warranty.claim', create: false,
+    cols: ['claim_no', 'brand_id', 'approved_amount', 'remittance_advice_amount', 'remittance_amount', 'remittance_ref', 'remittance_mismatch', 'state'],
+    domain: [['state', 'in', ['approved', 'partially_approved', 'remitted']]],
+    stateField: 'state',
+    actions: [
+      { m: 'action_record_remittance', l: 'Record Bank Receipt', states: ['approved', 'partially_approved'],
+        asks: [{ kwarg: 'amount', label: 'Amount received from the brand (BDT)', number: true },
+          { kwarg: 'bank_ref', label: 'Bank reference it arrived under' }] },
+      { m: 'action_record_remittance_advice', l: 'Note Brand Remittance Advice', states: ['approved', 'partially_approved', 'remitted'],
+        asks: [{ kwarg: 'amount', label: 'Amount the brand advises it paid (BDT)', number: true },
+          { kwarg: 'bank_ref', label: 'Reference on the brand\'s advice' }] },
+      { m: 'action_close', l: 'Close Claim', states: ['remitted'] }
+    ],
+    empty: 'No claim is waiting for the brand\'s money. A claim the brand approved (fully or in part) appears here; record the bank receipt against it to settle it, then close it.' },
+  /* FR-WTY-007/008, BRU-WTY-16: 1000FiX's own repair warranty. A customer
+   * back with the same problem inside the warranty window gets a linked
+   * rework order (Open Comeback); it is free once a commercial approver
+   * confirms it. Charged to 1000FiX, never claimed from a brand. */
+  'M09-comeback': { kind: 'so_list', scope: 'rwty',
+    actions: [
+      { id: 'comeback', m: 'action_reopen_comeback', l: 'Open Comeback (repair warranty)', states: ['delivered', 'closed'],
+        asks: [{ kwarg: 'reason', label: 'The problem the customer came back with' }] }
+    ] },
+  'M09-reworks': { kind: 'so_list', scope: 'rework',
+    actions: [
+      { id: 'rework', m: 'action_request_rework_approval', l: 'Request Zero-Charge Rework',
+        states: ['draft', 'intake', 'diagnostic', 'estimate_pending', 'estimate_sent', 'awaiting_approval', 'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready'],
+        asks: [{ kwarg: 'reason', label: 'Why the rework is free of charge' }] }
+    ] },
   'M09-protection': { kind: 'model_list', model: 'fix.warranty', create: true,
     // The extended / 1000FiX-sold cover only. M09-register is the full
     // population; without this domain the two screens were the same list
@@ -88,8 +149,10 @@ export const SCREENS = {
   'M09-reserves': { kind: 'model_list', model: 'fix.warranty.provision', create: false,
     cols: ['name', 'period', 'revenue_in_warranty', 'rework_rate', 'cost_ratio', 'required_balance', 'movement', 'state'],
     stateField: 'state',
-    empty: 'No warranty provision yet. A provision is computed for each period from warranty revenue and the rework rate under the active Protection Policy; it is not typed in.' },
-  'M09-recalls': { kind: 'model_list', model: 'fix.warranty.recall', create: false,
+    empty: 'No warranty provision yet. Finance opens a period and presses Compute in M53 (Warranty Provision): it is computed from warranty revenue and the rework rate under the active Provision Policy, never typed in.' },
+  /* A recall a brand announces is entered as a planned campaign by a clerk
+   * (a bulletin distributed through M61 becomes one on its own). */
+  'M09-recalls': { kind: 'model_list', model: 'fix.warranty.recall',
     cols: ["name", "state", "create_date", "brand_id", "product_ref", "affected_units", "covered_units"],
     stateField: 'state',
     // A04 audit M09-10: the recall lifecycle runs through its actions.
@@ -98,7 +161,9 @@ export const SCREENS = {
       { m: 'action_complete', l: 'Complete Recall', states: ['active'] },
       { m: 'action_cancel', l: 'Cancel Recall', states: ['planned', 'active'] }
     ] },
-  'M09-appeals': { kind: 'model_list', model: 'fix.claim.appeal', create: false, stateField: 'decision',
+  /* A clerk raises an appeal on a rejected or partly approved claim (the
+   * model refuses any other); "+ New" opens the appeal form. */
+  'M09-appeals': { kind: 'model_list', model: 'fix.claim.appeal', stateField: 'decision',
     cols: ['name', 'claim_id', 'decision', 'decided_by_id', 'decided_at', 'create_date'],
     // A04 audit M09-8: an appeal is decided by a Claim Decision Officer who
     // neither raised it nor recorded the decision appealed against.
@@ -234,8 +299,11 @@ export const SCREENS = {
     ]
   },
 
+  /* The reserve basis (warranty window, lookback, cost ratio) the provision
+   * engine applies - accounting configuration, not a policy sold to a
+   * customer. It was titled "Protection Policy". */
   'M09-form-policy': { kind: 'model_form', model: 'fix.warranty.provision.policy',
-    title: 'Protection Policy', back: 'M09-policies',
+    title: 'Warranty Provision Policy', back: 'M09-policies',
     status: { field: 'active' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -432,7 +500,7 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'requirement_key', label: 'Requirement Key', required: true },
-        { name: 'file_data', label: 'Upload Evidence File' },
+        { name: 'file_data', type: 'file', label: 'Upload Evidence File' },
         { name: 'file_name', label: 'File Name' },
         { name: 'sha256_hash', label: 'SHA-256 Checksum', readonly: true }
       ] },
@@ -453,7 +521,7 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
   'M09-form-wproduct': { kind: 'model_form', model: 'fix.warranty.product',
-    title: 'Warranty Product Rule', back: 'M09-protection',
+    title: 'Protection Product', back: 'M09-brandrules',
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
@@ -561,20 +629,31 @@ export const REPORT_ROUTES = {
   'M09:Recall Coverage Report': 'M09-rpt-recall'
 };
 
+/* 'Protection Policy' is the cover sold to a customer: in this estate an
+ * extended / 1000FiX cover is a warranty register row of type Extended, so
+ * the chip opens the register form (it opened the provision policy). The
+ * provision policy keeps its own chip on Reconciliation. */
 export const FORM_MODELS = {
   'M09:Brand Claim': 'fix.warranty.claim',
-  'M09:Protection Policy': 'fix.warranty.provision.policy',
+  'M09:Protection Policy': 'fix.warranty',
   'M09:Claim Appeal': 'fix.claim.appeal',
-  'M09:Recall Campaign': 'fix.warranty.recall'
+  'M09:Recall Campaign': 'fix.warranty.recall',
+  'M09:Warranty Register Entry': 'fix.warranty',
+  'M09:Warranty Transfer': 'fix.warranty.transfer',
+  'M09:Protection Product': 'fix.warranty.product',
+  'M09:Claim Evidence Item': 'fix.warranty.evidence',
+  'M09:Provision Policy': 'fix.warranty.provision.policy'
 };
 
 export const FORM_CHIPS = {
   'M09:Warranty Register Entry': 'M09-form-warranty',
-  'M09:Warranty Evidence': 'M09-form-wevidence',
-  'M09:Warranty Product': 'M09-form-wproduct',
+  'M09:Warranty Transfer': 'M09-form-transfer',
+  'M09:Claim Evidence Item': 'M09-form-wevidence',
+  'M09:Protection Product': 'M09-form-wproduct',
   'M09:Warranty Reserve': 'M09-form-wprov',
   'M09:Brand Claim': 'M09-record',
-  'M09:Protection Policy': 'M09-form-policy',
+  'M09:Protection Policy': 'M09-form-warranty',
+  'M09:Provision Policy': 'M09-form-policy',
   'M09:Claim Appeal': 'M09-form-appeal',
   'M09:Recall Campaign': 'M09-form-recall',
   'M09:__by_model__': {
@@ -591,9 +670,11 @@ export const FORM_CHIPS = {
   'M09:__by_screen__': {
     'M09-register': 'M09-form-warranty',
     'M09-evidence': 'M09-form-wevidence',
+    'M09-brandrules': 'M09-form-wproduct',
     'M09-protection': 'M09-form-warranty',
     'M09-reserves': 'M09-form-wprov',
     'M09-claims': 'M09-record',
+    'M09-remit': 'M09-record',
     'M09-policies': 'M09-form-policy',
     'M09-recalls': 'M09-form-recall',
     'M09-transfer': 'M09-form-transfer',

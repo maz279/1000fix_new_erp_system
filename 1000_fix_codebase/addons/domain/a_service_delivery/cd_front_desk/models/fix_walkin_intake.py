@@ -21,7 +21,7 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
-from .fix_cash_shift import GROUP_MANAGER
+from .fix_cash_shift import GROUP_MANAGER, fill_operating_unit
 from .fix_service_order_drawer import fd_cash_requires_shift
 
 logger = logging.getLogger(__name__)
@@ -95,6 +95,8 @@ class FixWalkinIntake(models.Model):
         either selected or as the scanned serial / IMEI. A scanned serial that
         matches a registered device is linked at once; one that does not is
         kept, and the hand-off still refuses until the device is registered."""
+        # the branch decides the unit: the Walk-in Intake form never asks
+        fill_operating_unit(self.env, vals_list)
         if not self.env.su:
             for vals in vals_list:
                 serial = (vals.get("device_serial_input") or "").strip()
