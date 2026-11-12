@@ -60,8 +60,22 @@ WRITABLE = {
         }
     ),
     "fix.ap.takeon.line": frozenset(),
-    "fix.ar.consolidated.bill": frozenset(),
-    "fix.ar.dispute": frozenset(),
+    "fix.ar.consolidated.bill": frozenset(
+        {
+            "bill_ref",
+            "customer_id",
+            "operating_unit_id",
+            "period_end",
+            "period_start",
+        }
+    ),
+    "fix.ar.dispute": frozenset(
+        {
+            "amount_disputed",
+            "invoice_id",
+            "reason",
+        }
+    ),
     "fix.ar.ecl.rate": frozenset(
         {
             "basis_note",
@@ -235,6 +249,7 @@ WRITABLE = {
         }
     ),
     "fix.bank.takeon.line": frozenset(),
+    "fix.billable.event": frozenset(),
     "fix.board.pack": frozenset(
         {
             "date_from",

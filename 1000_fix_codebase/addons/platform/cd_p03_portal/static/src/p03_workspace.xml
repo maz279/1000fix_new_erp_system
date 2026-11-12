@@ -2593,7 +2593,7 @@
                                                 <td><span class="chip"><t t-esc="tState(row.state)"/></span></td>
                                                 <td><button class="btn btn-sm" t-if="row.state === 'generated'" t-on-click="() => this.arConsolidatedSend(row.id)"><t t-esc='t("Mark sent")'/></button></td>
                                             </tr>
-                                            <tr t-if="!state.gl.data.rows.length"><td colspan="7" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No consolidated bills yet — generate from the corporate customer\\&apos;s issued invoices.")'/></td></tr>
+                                            <tr t-if="!state.gl.data.rows.length"><td colspan="7" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No consolidated bills yet — start one with + New Consolidated Bill on the Delivery Channels page, then Generate it.")'/></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -2832,7 +2832,7 @@
                                                     <td><span class="chip" t-att-class="{'warn': d.state === 'open'}"><t t-esc="tState(d.state)"/></span></td>
                                                     <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Outcome code | note (upheld_credit, partially_upheld, rejected, withdrawn, payment_plan)', 'resolve_dispute', d.id)">Resolve</button></td>
                                                 </tr>
-                                                <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes — open one from an invoice\\&apos;s detail view.")'/></td></tr>
+                                                <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes — raise one with + New Dispute on the Dunning and Collections page.")'/></td></tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -2857,7 +2857,7 @@
                                                 <td><span class="chip" t-att-class="{'warn': d.state === 'open'}"><t t-esc="tState(d.state)"/></span></td>
                                                 <td><button class="btn btn-sm" t-if="d.state === 'open'" t-on-click="() => this.glPrompt('Resolve dispute', 'Outcome code | note (upheld_credit, partially_upheld, rejected, withdrawn, payment_plan)', 'resolve_dispute', d.id)">Resolve</button></td>
                                             </tr>
-                                            <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes open — open one from an invoice\\&apos;s detail view.")'/></td></tr>
+                                            <tr t-if="!state.gl.data.disputes.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No disputes open — raise one with + New Dispute on the Dunning and Collections page.")'/></td></tr>
                                         </tbody>
                                     </table>
                                 </div>
