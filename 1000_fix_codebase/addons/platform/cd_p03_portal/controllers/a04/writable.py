@@ -114,6 +114,7 @@ WRITABLE = {
             "risk",
         }
     ),
+    "fix.contract.scope.line": frozenset(),
     "fix.contract.template": frozenset(
         {
             "active",
@@ -410,7 +411,11 @@ WRITABLE = {
     ),
     "fix.quotation": frozenset(
         {
+            "advance_entry_amount",
+            "advance_entry_method_id",
+            "advance_entry_ref",
             "advance_pct",
+            "billing_line_ids",
             "contract_family",
             "contract_months",
             "contract_start",
@@ -421,17 +426,41 @@ WRITABLE = {
             "decline_reason_code",
             "delivery_terms",
             "discount_amount",
+            "document_lang",
             "dofa_justification",
             "estimate_id",
+            "expected_vds_rate",
             "line_ids",
             "operating_unit_id",
             "payment_method_ids",
             "payment_term_id",
+            "picking_type_id",
             "quote_type",
+            "segment",
             "signed_attachment_id",
             "tds_rate",
+            "template_id",
             "valid_until",
             "vat_rate",
+            "warranty_terms",
+        }
+    ),
+    "fix.quotation.billing.line": frozenset(),
+    "fix.quotation.handoff": frozenset(),
+    "fix.quotation.template": frozenset(
+        {
+            "advance_pct",
+            "delivery_terms",
+            "expected_vds_rate",
+            "line_ids",
+            "name",
+            "note",
+            "payment_method_ids",
+            "payment_term_id",
+            "picking_type_id",
+            "quote_type",
+            "segment",
+            "validity_days",
             "warranty_terms",
         }
     ),

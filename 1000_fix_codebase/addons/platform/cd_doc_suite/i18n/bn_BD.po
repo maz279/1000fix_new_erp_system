@@ -1,0 +1,270 @@
+# Bangla translation of the 1000FiX document suite: the quotation and the
+# advance payment request (quote-to-cash P3, 13 Nov 2026).
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "QUOTATION"
+msgstr "কোটেশন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Quotation No."
+msgstr "কোটেশন নং"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Quoted To"
+msgstr "প্রাপক"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Details"
+msgstr "বিস্তারিত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Type"
+msgstr "ধরন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Family"
+msgstr "চুক্তির ধরন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Duration"
+msgstr "মেয়াদ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Starts"
+msgstr "শুরু"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Unit"
+msgstr "ইউনিট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Qty"
+msgstr "পরিমাণ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Disc %"
+msgstr "ছাড় %"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Amount (excl. VAT)"
+msgstr "মূল্য (ভ্যাট ব্যতীত)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Based on estimate"
+msgstr "এস্টিমেট অনুযায়ী"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Optional items (not included in the total)"
+msgstr "ঐচ্ছিক আইটেম (মোট মূল্যে অন্তর্ভুক্ত নয়)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Lines Total"
+msgstr "লাইনের মোট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Less: Discount"
+msgstr "বাদ: ছাড়"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "VAT"
+msgstr "ভ্যাট"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Total Payable (incl. VAT)"
+msgstr "মোট প্রদেয় (ভ্যাটসহ)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "<span class=\"cds-words-label\">In Words:</span>"
+msgstr "<span class=\"cds-words-label\">কথায়:</span>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "<b>Terms &amp; Conditions</b>"
+msgstr "<b>শর্তাবলি</b>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "This quotation is valid until"
+msgstr "এই কোটেশনের বৈধতার শেষ তারিখ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Prices are quoted in"
+msgstr "মূল্যের মুদ্রা:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid ". VAT is shown separately and is included in the Total Payable."
+msgstr "। ভ্যাট আলাদাভাবে দেখানো হয়েছে এবং মোট প্রদেয় মূল্যে অন্তর্ভুক্ত।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Acceptance method:"
+msgstr "সম্মতির পদ্ধতি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Payment terms:"
+msgstr "পরিশোধের শর্ত:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Advance:"
+msgstr "অগ্রিম:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "% of the total payable ("
+msgstr "% মোট প্রদেয় মূল্যের ("
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid ") with the order."
+msgstr ") অর্ডারের সাথে।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Payment accepted by:"
+msgstr "যেভাবে পরিশোধ করা যাবে:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Delivery:"
+msgstr "সরবরাহ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Warranty:"
+msgstr "ওয়ারেন্টি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Your purchase order:"
+msgstr "আপনার ক্রয় আদেশ:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "dated"
+msgstr "তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Invoicing:"
+msgstr "বিল প্রদানের সূচি:"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Withholding at source: VDS"
+msgstr "উৎসে কর্তন: ভিডিএস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "(Mushak 6.6) and TDS"
+msgstr "(মূসক ৬.৬) এবং টিডিএস"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "(Income Tax Act 2023) may be deducted from the payment against your certificates; expected cash receipt"
+msgstr "(আয়কর আইন ২০২৩) আপনার সনদের বিপরীতে পরিশোধ থেকে কর্তন করা যেতে পারে; প্রত্যাশিত নগদ প্রাপ্তি"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Work commences upon written acceptance and, where applicable, advance payment."
+msgstr "লিখিত সম্মতি এবং প্রযোজ্য ক্ষেত্রে অগ্রিম পরিশোধের পর কাজ শুরু হবে।"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "Accepted By (Customer)<br/>Name, Signature &amp; Date"
+msgstr "গ্রহণকারী (গ্রাহক)<br/>নাম, স্বাক্ষর ও তারিখ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_quotation_document
+msgid "For 1000FiX Services Ltd.<br/>Authorized Signature"
+msgstr "1000FiX Services Ltd.-এর পক্ষে<br/>অনুমোদিত স্বাক্ষর"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "ADVANCE PAYMENT REQUEST"
+msgstr "অগ্রিম পরিশোধের অনুরোধ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Against quotation"
+msgstr "কোটেশনের বিপরীতে"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Requested From"
+msgstr "যার কাছে অনুরোধ"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Quotation Total (incl. VAT)"
+msgstr "কোটেশনের মোট (ভ্যাটসহ)"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Advance Required ("
+msgstr "প্রয়োজনীয় অগ্রিম ("
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Already Received"
+msgstr "ইতোমধ্যে প্রাপ্ত"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Please Pay Now"
+msgstr "এখন পরিশোধ করুন"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "<b>How to pay</b>"
+msgstr "<b>যেভাবে পরিশোধ করবেন</b>"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "Quote"
+msgstr "পরিশোধের রেফারেন্স হিসেবে"
+
+#. module: cd_doc_suite
+#: model_terms:ir.ui.view,arch_db:cd_doc_suite.report_advance_request_document
+msgid "as the payment reference. This request is not a tax invoice: VAT is charged on the invoice the advance is applied to."
+msgstr "উল্লেখ করুন। এটি কর চালান নয়: অগ্রিম যে চালানের সাথে সমন্বয় হবে সেই চালানে ভ্যাট ধার্য হবে।"
