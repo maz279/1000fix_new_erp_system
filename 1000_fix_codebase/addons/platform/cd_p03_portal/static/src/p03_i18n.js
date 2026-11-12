@@ -285,6 +285,7 @@ export const P03_BN = {
   "Forms Capturing It": "এটি ধারণকারী ফর্ম",
   "No report is mapped to this sub-module.": "এই সাব-মডিউলের সঙ্গে কোনো রিপোর্ট যুক্ত নেই।",
   "No SLA clock is running. A clock starts by itself when a service order is received, a call is queued or a complaint is logged: it is audit evidence and cannot be typed in. When one is listed, select it to Pause (with a reason), Resume or mark it Succeeded (Service Supervisor). Targets are set under SLA Items & Targets.": "কোনো এসএলএ ঘড়ি চলছে না। সার্ভিস অর্ডার গ্রহণ, কল সারিতে আসা বা অভিযোগ নথিভুক্ত হলে ঘড়ি নিজে থেকেই শুরু হয়: এটি নিরীক্ষার প্রমাণ, হাতে লেখা যায় না। তালিকায় এলে সেটি নির্বাচন করে বিরতি (কারণসহ), পুনরায় চালু বা সফল চিহ্নিত করুন (সার্ভিস সুপারভাইজার)। লক্ষ্যমাত্রা এসএলএ আইটেম থেকে নির্ধারিত হয়।",
+  "Only registered devices are listed. A new device is registered first under M17 Device & Asset Registry (+ Asset); if its model is missing, add the model on the brand under M37 Product & Service Catalogue (Brands).": "শুধু নিবন্ধিত ডিভাইস দেখানো হয়। নতুন ডিভাইস আগে M17 ডিভাইস ও অ্যাসেট রেজিস্ট্রিতে (+ Asset) নিবন্ধন করুন; মডেল না থাকলে M37 পণ্য ও সেবা ক্যাটালগে (ব্র্যান্ড) ব্র্যান্ডের অধীনে মডেল যোগ করুন।",
   "Place Order on Hold": "অর্ডার হোল্ডে রাখুন",
   "Place on Hold": "হোল্ডে রাখুন",
   "Hold this order": "এই অর্ডার হোল্ডে রাখুন",

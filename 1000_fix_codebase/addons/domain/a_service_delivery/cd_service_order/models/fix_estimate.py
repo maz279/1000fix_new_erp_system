@@ -122,6 +122,20 @@ class FixEstimate(models.Model):
 
     _order = "order_id, version desc"
 
+    # An estimate had no name source, so every message and picker showed
+    # "fix.estimate,15" ("you prepared estimate fix.estimate,15, so you cannot
+    # approve it" - order rehearsal, 12 Nov 2026). It reads as its order and
+    # revision; a pre-sales quote (cd_crm_ext) has no order and keeps its id.
+    @api.depends("order_id.name", "version")
+    def _compute_display_name(self):
+        for est in self:
+            if est.order_id:
+                est.display_name = "%s · Estimate v%d" % (est.order_id.name, est.version or 1)
+            elif isinstance(est.id, int):
+                est.display_name = "Estimate #%d v%d" % (est.id, est.version or 1)
+            else:
+                est.display_name = "New Estimate"
+
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )

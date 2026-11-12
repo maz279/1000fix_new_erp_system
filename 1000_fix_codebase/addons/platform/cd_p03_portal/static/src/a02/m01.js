@@ -190,7 +190,11 @@ export const SCREENS = {
         { name: 'technician_id', label: 'Assigned Technician' },
         { name: 'promised_delivery_date', label: 'Promised Delivery Date & Time' },
       ]},
-      { tab: 'device', title: 'Device Identification & Physical Custody Matrix', fields: [
+      { tab: 'device', title: 'Device Identification & Physical Custody Matrix',
+        /* the order needs a REGISTERED device and this list offers only those: on a new
+         * estate it is empty, and nothing said where devices come from (rehearsal, 12 Nov) */
+        note: 'Only registered devices are listed. A new device is registered first under M17 Device & Asset Registry (+ Asset); if its model is missing, add the model on the brand under M37 Product & Service Catalogue (Brands).',
+        fields: [
         { name: 'device_id', required: true, label: 'Registered Device' },
         { name: 'device_serial', label: 'Device Serial Number (S/N)', readonly: true },
         { name: 'passcode_type', label: 'Device Lock / Auth Type' },
@@ -326,7 +330,11 @@ export const SCREENS = {
         { name: 'technician_id', label: 'Assigned Technician' },
         { name: 'promised_delivery_date', label: 'Promised Delivery Date & Time' },
       ]},
-      { tab: 'device', title: 'Device Identification & Physical Custody Matrix', fields: [
+      { tab: 'device', title: 'Device Identification & Physical Custody Matrix',
+        /* the order needs a REGISTERED device and this list offers only those: on a new
+         * estate it is empty, and nothing said where devices come from (rehearsal, 12 Nov) */
+        note: 'Only registered devices are listed. A new device is registered first under M17 Device & Asset Registry (+ Asset); if its model is missing, add the model on the brand under M37 Product & Service Catalogue (Brands).',
+        fields: [
         { name: 'device_id', required: true, label: 'Registered Device' },
         { name: 'device_serial', label: 'Device Serial Number (S/N)', readonly: true },
         { name: 'passcode_type', label: 'Device Lock / Auth Type' },

@@ -541,8 +541,24 @@ class FixSlaKpiInstance(models.Model):
                     "new_target_at": str(new_target),
                 },
             )
+            rec._fix_notify_target_moved(successor)
             successors |= successor
         return successors
+
+    def _fix_notify_target_moved(self, successor) -> None:
+        """A record that keeps its own copy of the deadline is told the new one.
+
+        The service order's sla_resolution_deadline was written once, at
+        intake, and never again: after a hold or an estimate wait the clock's
+        deadline moved and the order's did not, so the SLA compliance report,
+        the "SLA at risk" KPI, the technician app and the customer portal all
+        counted an on-time order as late (order rehearsal, 12 Nov 2026)."""
+        Model = self.env.get(successor.res_model)
+        if Model is None:
+            return
+        record = Model.sudo().browse(successor.res_id).exists()
+        if record and hasattr(record, "_fix_sla_target_moved"):
+            record._fix_sla_target_moved(successor)
 
     def succeed(self, when=None):
         """The promise was met."""

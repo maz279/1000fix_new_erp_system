@@ -1200,6 +1200,16 @@ class FixServiceOrder(models.Model):
                 order._guarded().write(order._fix_resume_stamps(now))
                 order._fix_sla_instances("resume")
 
+    def _fix_sla_target_moved(self, instance) -> None:
+        """Called by fix.sla.kpi.instance when a resumed clock gets its new
+        deadline: the order's own deadline follows it (see
+        _fix_notify_target_moved for why that matters)."""
+        if instance.kpi_code != "resolution":
+            return
+        for order in self:
+            if order.sla_resolution_deadline != instance.target_at:
+                order._guarded().write({"sla_resolution_deadline": instance.target_at})
+
     def _fix_resume_stamps(self, now) -> dict:
         minutes = self.sla_total_paused_minutes or 0.0
         if self.sla_paused_at:
