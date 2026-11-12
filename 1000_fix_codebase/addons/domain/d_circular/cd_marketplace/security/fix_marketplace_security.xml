@@ -102,4 +102,17 @@
         <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+
+    <!-- M12 capture audit (13 Nov 2026): a seller reads the consequences
+         imposed on them (FR-MKP-056); operators impose and decide them. -->
+    <record id="rule_fix_seller_consequence_self" model="ir.rule">
+        <field name="name">P07 Seller: own consequences only</field>
+        <field name="model_id" ref="model_fix_seller_consequence"/>
+        <field name="domain_force">[('seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

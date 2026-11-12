@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M12 capture audit (13 Nov 2026): seller consequence references. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_seller_consequence" model="ir.sequence">
+            <field name="name">Seller Consequence</field>
+            <field name="code">fix.seller.consequence</field>
+            <field name="prefix">SCQ/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

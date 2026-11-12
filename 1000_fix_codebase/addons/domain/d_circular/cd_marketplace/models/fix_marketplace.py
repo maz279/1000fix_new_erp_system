@@ -729,6 +729,7 @@ class FixMarketplaceOrder(models.Model):
             seller = quote.seller_id
             if seller.kyc_status != "verified" or not seller.cfo_approved:
                 raise UserError("Cannot select an unverified or unapproved seller (BRU-ECM-01).")
+            seller._assert_not_suspended("awarding a job")
 
             # Category qualification (BRU-ECM-07): a seller quotes ONLY where
             # qualified, so a seller with no approved categories is not.
@@ -821,8 +822,16 @@ class FixMarketplaceOrder(models.Model):
             if rec.state != "completed":
                 raise UserError("Customer review requires completed job.")
             vals = {"state": "reviewed", "delivery_confirmed_at": fields.Datetime.now()}
-            if rating not in (None, False, ""):
-                vals["review_rating"] = int(rating)
+            if rating not in (None, False, "", 0, "0"):
+                # M12 capture audit (13 Nov 2026): the rating feeds the seller's
+                # measured score; 7 or -3 was stored as given.
+                try:
+                    value = int(rating)
+                except (TypeError, ValueError):
+                    value = None
+                if value is None or not 1 <= value <= 5:
+                    raise UserError("A customer rating is a whole number from 1 to 5.")
+                vals["review_rating"] = value
             rec._guarded().write(vals)
 
     def action_earn_commission(self):
@@ -1038,6 +1047,10 @@ class FixSellerQuote(models.Model):
                 raise UserError(
                     "Only KYC-verified and CFO-approved sellers can submit quotes (BRU-ECM-01)."
                 )
+            if seller:
+                # M12 capture audit (13 Nov 2026): a suspended seller does not
+                # transact (seller lifecycle s.8.1, BRU-MKP-11).
+                seller._assert_not_suspended("a new quote")
             order = (
                 self.env["fix.marketplace.order"].sudo().browse(vals.get("marketplace_order_id"))
             )

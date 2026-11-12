@@ -1,6 +1,8 @@
 /** @odoo-module **/
 /* A04 · Commercial & Revenue — M12 Marketplace & Sellers (v2 rebuild).
- * Registry-faithful: 5 groups / 15 screens / 5 reports / 4 forms / freg 101.
+ * Registry-faithful: 5 groups / 15 screens / 5 reports / 4 forms / freg 101,
+ * plus the capture surfaces of the 13 Nov 2026 audit (agreements, schemes,
+ * payout runs, consequences, job completion and customer sign-off).
  * Sellers (2061), orders (2150), quotes, scorecards, statements and disputes
  * are real; listings are the new fix.marketplace.listing. Seller stock
  * (fix.seller.stock) and standards/training (fix.seller.standard and
@@ -27,7 +29,8 @@ export const MODULE = {
     { en: 'Sellers', screens: [
       { id: 'M12-sellers', en: 'Seller Directory', bn: 'সেলার ডিরেক্টরি', t: 'g' },
       { id: 'M12-kyc', en: 'KYC & Approval', bn: 'কেওয়াইসি', t: 'r' },
-      { id: 'M12-agreements', en: 'Agreements & Tiers', bn: 'চুক্তি ও টিয়ার', t: 'r' }
+      { id: 'M12-agreements', en: 'Agreements & Tiers', bn: 'চুক্তি ও টিয়ার', t: 'r' },
+      { id: 'M12-agreement-list', en: 'Seller Agreements', bn: 'সেলার চুক্তি', t: 'g' }
     ]},
     { en: 'Supply', screens: [
       { id: 'M12-listings', en: 'Listings & Moderation', bn: 'লিস্টিং', t: 'g' },
@@ -43,32 +46,51 @@ export const MODULE = {
       { id: 'M12-oversight', en: 'Execution Oversight', bn: 'তদারকি', t: 'r' }
     ]},
     { en: 'Money', screens: [
-      { id: 'M12-commission', en: 'Commission Schemes', bn: 'কমিশন', t: 'r' },
+      { id: 'M12-commission', en: 'Commission Schemes', bn: 'কমিশন', t: 'g' },
       { id: 'M12-wallet', en: 'Seller Wallets & Payouts', bn: 'ওয়ালেট', t: 'r' },
+      { id: 'M12-payout-runs', en: 'Payout Runs', bn: 'পেআউট রান', t: 'g' },
       { id: 'M12-fees', en: 'Fees & Promotion', bn: 'ফি', t: 'r' }
     ]},
     { en: 'Trust', screens: [
       { id: 'M12-reviews', en: 'Ratings & Reviews', bn: 'রেটিং', t: 'r' },
       { id: 'M12-disputes', en: 'Disputes & Mediation', bn: 'বিরোধ', t: 'g' },
       { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'r' },
+      { id: 'M12-consequences', en: 'Seller Consequences', bn: 'সেলার ব্যবস্থা', t: 'g' },
       { id: 'M12-chargebacks', en: 'Chargebacks', bn: 'চার্জব্যাক', t: 'g' }
     ]}
   ],
   reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept', 'Commission Revenue', 'Dispute Rate & Outcomes', 'Seller Scorecard Distribution', 'Listing Coverage', 'Seller Stock', 'Standards & Training'],
-  forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case', 'Stock Position', 'Seller Certification', 'Seller Standard'],
+  forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case', 'Stock Position', 'Seller Certification', 'Seller Standard',
+    'Seller Agreement', 'Seller Commission Scheme', 'Marketplace Order', 'Seller Bid', 'Job Completion', 'Customer Sign-off', 'Seller Consequence', 'Chargeback'],
   cross: ['M01 Service Orders', 'M20 AR', 'M33 Party Master', 'M40 Partners'],
-  freg: { src: 101, sub: [
+  freg: {
+    src: 101,
+    /* M12 capture audit (2026-11-13): six of the eleven pages named no form,
+     * so Agreements & Tiers, Commission & Fees, Wallet & Payouts, Execution
+     * Oversight, Ratings and Performance Consequences offered no button to
+     * record anything, and the Chargeback, Marketplace Order and Seller Bid
+     * forms sat on no page at all. Each page now names what captures its
+     * record: its own form, the record of the module that owns it (the
+     * seller agreement is an M08 contract of the Marketplace family, the
+     * seller commission scheme an M53 scheme of payee type Seller - the
+     * scheme in force sets the accrued rate and TDS, and nothing accrues
+     * without one), or a pick-then-act form that runs the workflow step
+     * (job completion, the customer's sign-off and rating). Performance
+     * Consequences records a warning, probation or suspension, decided on
+     * appeal by another operator (FR-MKP-053..055, BRU-MKP-18). Scores stay
+     * measured, never typed. `domain` stays the LAST key. */
+    sub: [
     ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'], reports: [], forms: ['Seller Application'] }],
-    ['2', 'Agreements & Tiers', 7, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'cfo_approved', 'rating'], screens: ['M12-agreements', 'M12-sellers'], reports: [], forms: [], create: false }],
-    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-rpt-listingcoverage'], reports: ['Listing Coverage', 'Seller Stock'], forms: ['Listing', 'Stock Position'] }],
-    ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast'], reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept'], forms: [] }],
-    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['state'], screens: ['M12-marketplace-order', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: [] }],
-    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews'], reports: ['Seller Scorecard Distribution'], forms: [] }],
-    ['7', 'Performance Consequences', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-rpt-scorecard'], reports: ['Seller Scorecard Distribution'], forms: [] }],
-    ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-rpt-dispute'], reports: ['Dispute Rate & Outcomes'], forms: ['Dispute Case'] }],
-    ['9', 'Commission & Fees', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'commission_amount', 'platform_fee'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'], reports: ['Commission Revenue'], forms: [] }],
-    ['10', 'Wallet & Payouts', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'net_payable', 'payout_run_id', 'state'], screens: ['M12-wallet'], reports: ['Commission Revenue'], forms: ['Payout Run'] }],
-    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-disputes'], reports: ['Standards & Training', 'Dispute Rate & Outcomes'], forms: ['Seller Certification', 'Seller Standard'], create: false }]
+    ['2', 'Agreements & Tiers', 7, { model: 'fix.contract', cols: ['name', 'customer_id', 'date_start', 'date_end', 'state', 'approval_state'], screens: ['M12-agreement-list', 'M12-agreements', 'M12-commission'], reports: [], forms: ['Seller Agreement', 'Seller Commission Scheme'], domain: [['family', '=', 'marketplace']] }],
+    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-stock-positions', 'M12-rpt-listingcoverage'], reports: ['Listing Coverage', 'Seller Stock'], forms: ['Listing', 'Stock Position'] }],
+    ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast', 'M12-marketplace-order'], reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept'], forms: ['Marketplace Order', 'Seller Bid'], create: 'M12-form-marketplace-order' }],
+    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['name', 'customer_id', 'state', 'awarded_price', 'started_at', 'completed_at'], screens: ['M12-marketplace-order', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: ['Job Completion', 'Customer Sign-off'], create: 'M12-form-job-complete', domain: [['state', 'in', ['selected', 'in_progress', 'completed', 'reviewed']]] }],
+    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews', 'M12-marketplace-order'], reports: ['Seller Scorecard Distribution'], forms: ['Customer Sign-off'], create: 'M12-form-signoff' }],
+    ['7', 'Performance Consequences', 6, { model: 'fix.seller.consequence', cols: ['name', 'seller_id', 'consequence_type', 'trigger', 'effective_from', 'state'], screens: ['M12-consequences', 'M12-seller-score', 'M12-rpt-scorecard'], reports: ['Seller Scorecard Distribution'], forms: ['Seller Consequence'] }],
+    ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-chargebacks', 'M12-rpt-dispute'], reports: ['Dispute Rate & Outcomes'], forms: ['Dispute Case', 'Chargeback'] }],
+    ['9', 'Commission & Fees', 10, { model: 'fix.commission.scheme', cols: ['name', 'seller_tier', 'commission_rate', 'tds_rate', 'date_from', 'date_to'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'], reports: ['Commission Revenue'], forms: ['Seller Commission Scheme'], domain: [['scheme_type', '=', 'seller']] }],
+    ['10', 'Wallet & Payouts', 10, { model: 'fix.payout.run', cols: ['name', 'period', 'seller_count', 'total_payable', 'rail_status', 'state'], screens: ['M12-payout-runs', 'M12-wallet'], reports: ['Commission Revenue'], forms: ['Payout Run'] }],
+    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-consequences', 'M12-chargebacks', 'M12-certifications', 'M12-disputes'], reports: ['Standards & Training', 'Dispute Rate & Outcomes'], forms: ['Seller Consequence', 'Chargeback', 'Seller Certification', 'Seller Standard'], create: 'M12-form-consequence' }]
   ] }
 };
 
@@ -129,7 +151,31 @@ export const SCREENS = {
       { m: 'action_select', l: 'Award to this Quote', states: ['submitted'] }
     ] },
   'M12-oversight': { kind: 'table_report', module: 'M12', report: 'oversight', title: 'Execution Oversight', period: false },
-  'M12-commission': { kind: 'table_report', module: 'M12', report: 'commission_revenue', title: 'Commission Schemes', period: false },
+  /* M12 capture audit (2026-11-13): "Commission Schemes" showed the revenue
+   * report a second time (the Commission Revenue chip still shows it). It now
+   * lists the seller commission schemes: the scheme in force for the seller's
+   * tier sets the rate and TDS a marketplace commission accrues at in M53,
+   * and with none in force nothing accrues. */
+  'M12-commission': { kind: 'model_list', model: 'fix.commission.scheme',
+    cols: ['name', 'seller_tier', 'commission_rate', 'tds_rate', 'tds_base', 'date_from', 'date_to', 'active'],
+    domain: [['scheme_type', '=', 'seller']],
+    empty: 'No seller commission scheme yet. Finance adds one with + New: until a scheme is in force for a seller\'s tier (or for every tier), no marketplace commission accrues.' },
+  'M12-form-scheme': { kind: 'model_form', model: 'fix.commission.scheme',
+    title: 'Seller Commission Scheme', back: 'M12-commission',
+    sections: [
+      { title: 'Rate and Withholding', note: 'Effective-dated. A tier line wins over the every-tier line. A rate of 0 keeps the rate pinned on the order at award (the seller tier\'s rate); any other rate replaces it when the commission accrues. TDS is withheld at source (ITA 2023): confirm the rate with the tax adviser.',
+        fields: [
+          { name: 'name', required: true, label: 'Scheme Name' },
+          { name: 'scheme_type', required: true, label: 'Payee Type', value: 'seller' },
+          { name: 'seller_tier', label: 'Seller Tier (empty = every tier)' },
+          { name: 'commission_rate', label: 'Commission Rate (0-1; 0 = the order\'s rate)' },
+          { name: 'tds_rate', label: 'TDS Rate (0-1)' },
+          { name: 'tds_base', label: 'TDS Base' },
+          { name: 'date_from', required: true, label: 'Effective From' },
+          { name: 'date_to', label: 'Effective To' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ] },
   'M12-wallet': { kind: 'table_report', module: 'M12', report: 'seller_wallet', title: 'Seller Wallets & Payouts', period: false },
   'M12-fees': { kind: 'table_report', module: 'M12', report: 'fees_register', title: 'Fees & Promotion', period: false },
   'M12-reviews': { kind: 'table_report', module: 'M12', report: 'reviews_summary', title: 'Ratings & Reviews', period: false },
@@ -315,7 +361,9 @@ export const SCREENS = {
 
       title: 'Seller Statements in this Run',
 
-      note: 'One statement per payee; gross GMV less commission is what is paid.',
+      readonlyGrid: true,
+
+      note: 'Issued by the system when the run is executed: one per payee, from the commissions the run collected. A statement is never typed in (it would print an untrue withholding certificate).',
 
       fields: [
 
@@ -332,7 +380,7 @@ export const SCREENS = {
       ]
 
     }, kind: 'model_form', model: 'fix.payout.run',
-    title: 'Payout Run', back: 'M12-wallet',
+    title: 'Payout Run', back: 'M12-payout-runs',
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -549,6 +597,168 @@ export const SCREENS = {
       ] }
     ] },
 
+  /* ===== M12 capture audit (2026-11-13) ===== */
+  /* Seller agreement: an M08 contract of the Marketplace family (Legal
+   * reviews it, DOFA approves its value, the signed envelope activates it). */
+  'M12-agreement-list': { kind: 'model_list', model: 'fix.contract', stateField: 'state',
+    cols: ['name', 'customer_id', 'date_start', 'date_end', 'annual_value', 'state', 'approval_state'],
+    domain: [['family', '=', 'marketplace']],
+    empty: 'No seller agreement yet. Record one with + New: it is reviewed by Legal, its value approved under DOFA, and it activates on the signed envelope.',
+    actions: [
+      { m: 'action_request_approval', l: 'Submit for Value Approval (DOFA)', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending_approval'] },
+      { m: 'action_legal_review', l: 'Legal Review (Legal Reviewer)', states: ['pending_approval'], ask: 'Legal review note', kwarg: 'note' },
+      { m: 'action_reset_to_draft', l: 'Reset to Draft', states: ['pending_approval', 'pending_signature'] },
+      { m: 'action_activate', l: 'Activate (signed envelope required)', states: ['pending_signature'] },
+      { m: 'action_renew', l: 'Draft Renewal Term', states: ['active', 'expiring', 'expired'] }
+    ] },
+  'M12-form-agreement': { kind: 'model_form', model: 'fix.contract',
+    title: 'Seller Agreement', back: 'M12-agreement-list',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'agreement', label: '1. Agreement', bn: '১. চুক্তি' },
+      { id: 'term', label: '2. Term & Value', bn: '২. মেয়াদ ও মূল্য' },
+      { id: 'signature', label: '3. Signature & Stamp Duty', bn: '৩. স্বাক্ষর ও স্ট্যাম্প' },
+      { id: 'approval', label: '4. Approval', bn: '৪. অনুমোদন' }
+    ],
+    sections: [
+      { tab: 'agreement', title: 'Seller and Agreement Version', note: 'The current Legal-signed seller agreement template; a material change needs the seller to accept the new version (FR-MKP-009).', fields: [
+        { name: 'code', label: 'Agreement No. (auto)', readonly: true },
+        { name: 'name', required: true, label: 'Agreement Title' },
+        { name: 'customer_id', required: true, label: 'Seller (party record, M33)' },
+        { name: 'family', required: true, label: 'Agreement Family', value: 'marketplace' },
+        { name: 'template_id', label: 'Seller Agreement Template (Legal-signed)' },
+        { name: 'company_id', required: true, label: 'Company' },
+        { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
+      ] },
+      { tab: 'term', title: 'Term and Expected Value', note: 'The expected annual value sets the DOFA tier that approves the agreement.', fields: [
+        { name: 'date_start', required: true, label: 'Effective From' },
+        { name: 'date_end', required: true, label: 'Term Ends' },
+        { name: 'annual_value', required: true, label: 'Expected Annual Value (BDT)' },
+        { name: 'currency_id', label: 'Currency' },
+        { name: 'auto_renew', label: 'Auto-Renewal' },
+        { name: 'renewal_lead_days', label: 'Renewal Notice (days)' }
+      ] },
+      { tab: 'signature', title: 'Digital Signature (M24) and Stamp Duty', fields: [
+        { name: 'esignature_envelope_id', label: 'E-Signature Envelope (M24)' },
+        { name: 'has_signed_contract_doc', label: 'Signed Agreement Verified', readonly: true },
+        { name: 'stamp_duty_cert_no', label: 'Stamp Duty Certificate No.' },
+        { name: 'stamp_duty_amount', label: 'Stamp Duty Paid (BDT)' }
+      ] },
+      { tab: 'approval', title: 'Legal Review and Value Approval', fields: [
+        { name: 'state', label: 'Status (set by its actions)', readonly: true },
+        { name: 'approval_state', label: 'Value Approval', readonly: true },
+        { name: 'legal_review_required', label: 'Legal Review Required', readonly: true },
+        { name: 'legal_reviewed_by', label: 'Legal Review By', readonly: true },
+        { name: 'activated_by', label: 'Activated By', readonly: true }
+      ] }
+    ] },
+
+  /* Payout runs from the seller side: the same run M53 settles. */
+  'M12-payout-runs': { kind: 'model_list', model: 'fix.payout.run', stateField: 'state',
+    cols: ['name', 'period', 'seller_count', 'total_gross', 'total_tds', 'total_clawback', 'total_payable', 'rail_status', 'state'],
+    empty: 'No payout run yet. Start one with + New Payout Run, then Collect Accrued Commissions: only commissions past the escrow window, not on hold and not disputed, are collected.',
+    actions: [
+      { m: 'action_collect_accrued', l: 'Collect Accrued Commissions' },
+      { m: 'action_prepare', l: 'Prepare & Request Approval' },
+      { m: 'action_request_payments', l: 'Release to Treasury (M50)' },
+      { m: 'action_query_status', l: 'Refresh Payment Status' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+
+  /* Execution: a pick-then-act form per workflow step that takes an input. */
+  'M12-form-job-complete': { kind: 'model_form', model: 'fix.marketplace.order',
+    title: 'Job Completion', newLabel: 'Record Job Completion', back: 'M12-marketplace-order',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the job in progress that the seller has finished',
+      search: 'Search order number or customer',
+      choose: 'Complete this job',
+      cols: ['name', 'customer_id', 'revealed_seller_id', 'awarded_price', 'started_at'],
+      domain: [['state', '=', 'in_progress']],
+      empty: 'No marketplace job is in progress. A job starts with Start Job on Marketplace Order once a quote is awarded.'
+    },
+    saveAction: { method: 'action_complete', label: 'Record Job Completed', done: 'Job recorded as completed; the customer contact window is closed' },
+    sections: [
+      { title: 'Step 2 of 2: Confirm Completion', note: 'Completion closes the seller\'s access to the customer\'s contact details (BRU-MKP-04). The customer\'s sign-off and rating follow with Record Customer Sign-off.', fields: [
+        { name: 'name', label: 'Order', readonly: true },
+        { name: 'customer_id', label: 'Customer', readonly: true },
+        { name: 'revealed_seller_id', label: 'Awarded Seller', readonly: true },
+        { name: 'awarded_price', label: 'Awarded Price', readonly: true },
+        { name: 'started_at', label: 'Job Started', readonly: true }
+      ] }
+    ] },
+  'M12-form-signoff': { kind: 'model_form', model: 'fix.marketplace.order',
+    title: 'Customer Sign-off', newLabel: 'Record Customer Sign-off', back: 'M12-marketplace-order',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the completed job the customer signed off',
+      search: 'Search order number or customer',
+      choose: 'Record sign-off',
+      cols: ['name', 'customer_id', 'revealed_seller_id', 'awarded_price', 'completed_at'],
+      domain: [['state', '=', 'completed']],
+      empty: 'No completed job awaits the customer\'s sign-off. A job is completed with Record Job Completion.'
+    },
+    saveAction: { method: 'action_review', label: 'Record Sign-off', done: 'Sign-off recorded; the 7-day escrow runs from now', kwargs: { rating: 'review_rating' } },
+    sections: [
+      { title: 'Step 2 of 2: Customer Sign-off and Rating', note: 'The sign-off is the delivery evidence the payout escrow runs from. The rating feeds the seller\'s measured score; leave it blank when the customer gave none.', fields: [
+        { name: 'name', label: 'Order', readonly: true },
+        { name: 'customer_id', label: 'Customer', readonly: true },
+        { name: 'revealed_seller_id', label: 'Seller', readonly: true },
+        { name: 'completed_at', label: 'Job Completed', readonly: true },
+        /* an INPUT here: saveAction carries it to action_review */
+        { name: 'review_rating', label: 'Customer Rating (1-5, blank for none)', readonly: true }
+      ] }
+    ] },
+
+  /* Performance consequences (FR-MKP-053..055): imposed by one operator,
+   * lifted or decided on appeal by another (BRU-MKP-18). A suspension blocks
+   * quotes, awards and live listings while in force. */
+  'M12-consequences': { kind: 'model_list', model: 'fix.seller.consequence', stateField: 'state',
+    cols: ['name', 'seller_id', 'consequence_type', 'trigger', 'effective_from', 'effective_to', 'review_date', 'imposed_by_id', 'state'],
+    empty: 'No consequence recorded. Record a warning, probation or suspension with + New, then Impose it; the seller\'s tier also moves automatically with Measure & Rank on Seller Score.',
+    actions: [
+      { m: 'action_impose', l: 'Impose', states: ['draft'] },
+      { m: 'action_appeal', l: 'Record Seller Appeal', ask: 'The seller\'s grounds of appeal', kwarg: 'reason', states: ['active'] },
+      { m: 'action_uphold_appeal', l: 'Uphold Appeal (lift)', ask: 'Why the appeal is upheld', kwarg: 'note', states: ['appealed'] },
+      { m: 'action_dismiss_appeal', l: 'Dismiss Appeal', ask: 'Why the appeal is dismissed', kwarg: 'note', states: ['appealed'] },
+      { m: 'action_lift', l: 'Lift (remediation verified)', ask: 'How the remediation was verified', kwarg: 'note', states: ['active'] },
+      { m: 'action_cancel', l: 'Cancel Draft', states: ['draft'] }
+    ] },
+  'M12-form-consequence': { kind: 'model_form', model: 'fix.seller.consequence',
+    title: 'Seller Consequence', back: 'M12-consequences',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'consequence', label: '1. Consequence', bn: '১. ব্যবস্থা' },
+      { id: 'remediation', label: '2. Remediation', bn: '২. সংশোধন পরিকল্পনা' },
+      { id: 'decision', label: '3. Imposition & Appeal', bn: '৩. আরোপ ও আপিল' }
+    ],
+    sections: [
+      { tab: 'consequence', title: 'Seller, Consequence and Trigger', note: 'Pinned once imposed. A suspension pauses the seller\'s live listings and refuses new quotes and awards until it is lifted or ends.', fields: [
+        { name: 'name', label: 'Reference (auto)', readonly: true },
+        { name: 'seller_id', required: true, label: 'Seller' },
+        { name: 'consequence_type', required: true, label: 'Consequence' },
+        { name: 'trigger', required: true, label: 'Trigger' },
+        { name: 'reason', required: true, label: 'Reason and Evidence', type: 'text' },
+        { name: 'effective_from', required: true, label: 'Effective From' },
+        { name: 'effective_to', label: 'Effective To (blank = until lifted)' }
+      ] },
+      { tab: 'remediation', title: 'Probation Remediation (FR-MKP-054)', note: 'Required for a probation: what the seller must do, and when it is reviewed.', fields: [
+        { name: 'remediation_plan', label: 'Remediation Plan', type: 'text' },
+        { name: 'review_date', label: 'Review Date' }
+      ] },
+      { tab: 'decision', title: 'Imposed, Appealed, Decided', fields: [
+        { name: 'state', label: 'Status (set by its actions)', readonly: true },
+        { name: 'imposed_by_id', label: 'Imposed By', readonly: true },
+        { name: 'imposed_at', label: 'Imposed At', readonly: true },
+        { name: 'appeal_reason', label: 'Seller\'s Appeal', readonly: true, type: 'text' },
+        { name: 'appealed_at', label: 'Appealed At', readonly: true },
+        { name: 'decided_by_id', label: 'Lifted / Appeal Decided By', readonly: true },
+        { name: 'decided_at', label: 'Decided At', readonly: true },
+        { name: 'decision_note', label: 'Decision Note', readonly: true, type: 'text' }
+      ] }
+    ] },
+
   /* computed pack that had no screen (closure 2026-10-28) */
   'M12-rpt-listingcoverage': { kind: 'table_report', module: 'M12', report: 'listing_coverage', title: "Listing Coverage", period: false },
 
@@ -685,7 +895,14 @@ export const FORM_MODELS = {
   'M12:Chargeback': 'fix.marketplace.chargeback',
   'M12:Stock Position': 'fix.seller.stock',
   'M12:Seller Certification': 'fix.seller.certification',
-  'M12:Seller Standard': 'fix.seller.standard'
+  'M12:Seller Standard': 'fix.seller.standard',
+  'M12:Seller Agreement': 'fix.contract',
+  'M12:Seller Commission Scheme': 'fix.commission.scheme',
+  'M12:Marketplace Order': 'fix.marketplace.order',
+  'M12:Seller Bid': 'fix.seller.quote',
+  'M12:Job Completion': 'fix.marketplace.order',
+  'M12:Customer Sign-off': 'fix.marketplace.order',
+  'M12:Seller Consequence': 'fix.seller.consequence'
 };
 
 export const FORM_CHIPS = {
@@ -697,6 +914,13 @@ export const FORM_CHIPS = {
   'M12:Stock Position': 'M12-form-stock',
   'M12:Seller Certification': 'M12-form-certification',
   'M12:Seller Standard': 'M12-form-standard',
+  'M12:Seller Agreement': 'M12-form-agreement',
+  'M12:Seller Commission Scheme': 'M12-form-scheme',
+  'M12:Marketplace Order': 'M12-form-marketplace-order',
+  'M12:Job Completion': 'M12-form-job-complete',
+  'M12:Customer Sign-off': 'M12-form-signoff',
+  'M12:Seller Consequence': 'M12-form-consequence',
+  'M12:Chargeback': 'M12-form-chargeback',
   'M12:__by_model__': {
     'fix.marketplace.order': 'M12-form-marketplace-order',
     'fix.seller.quote': 'M12-form-bid',
@@ -707,7 +931,10 @@ export const FORM_CHIPS = {
     'fix.marketplace.chargeback': 'M12-form-chargeback',
     'fix.seller.stock': 'M12-form-stock',
     'fix.seller.certification': 'M12-form-certification',
-    'fix.seller.standard': 'M12-form-standard'
+    'fix.seller.standard': 'M12-form-standard',
+    'fix.contract': 'M12-form-agreement',
+    'fix.commission.scheme': 'M12-form-scheme',
+    'fix.seller.consequence': 'M12-form-consequence'
   },
   'M12:__by_screen__': {
     'M12-marketplace-order': 'M12-form-marketplace-order',
@@ -719,7 +946,11 @@ export const FORM_CHIPS = {
     'M12-chargebacks': 'M12-form-chargeback',
     'M12-stock-positions': 'M12-form-stock',
     'M12-certifications': 'M12-form-certification',
-    'M12-standards': 'M12-form-standard'
+    'M12-standards': 'M12-form-standard',
+    'M12-agreement-list': 'M12-form-agreement',
+    'M12-commission': 'M12-form-scheme',
+    'M12-payout-runs': 'M12-form-payout',
+    'M12-consequences': 'M12-form-consequence'
   }
 };
 

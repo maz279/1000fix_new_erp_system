@@ -487,6 +487,18 @@ WRITABLE = {
             "standard_id",
         }
     ),
+    "fix.seller.consequence": frozenset(
+        {
+            "consequence_type",
+            "effective_from",
+            "effective_to",
+            "reason",
+            "remediation_plan",
+            "review_date",
+            "seller_id",
+            "trigger",
+        }
+    ),
     "fix.seller.quote": frozenset(
         {
             "company_id",

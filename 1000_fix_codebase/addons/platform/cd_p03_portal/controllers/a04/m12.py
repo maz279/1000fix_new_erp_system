@@ -92,6 +92,22 @@ SURFACES = {
         "limit": 500,
         "actions": {"action_submit", "action_verify", "action_reject", "action_revoke"},
     },
+    # M12 capture audit (13 Nov 2026): Performance Consequences had no record.
+    # A warning, probation or suspension is imposed by an operator; lifting it
+    # or deciding its appeal is another operator's (BRU-MKP-18), checked in
+    # the model.
+    "fix.seller.consequence": {
+        "order": "effective_from desc, id desc",
+        "limit": 300,
+        "actions": {
+            "action_impose",
+            "action_appeal",
+            "action_uphold_appeal",
+            "action_dismiss_appeal",
+            "action_lift",
+            "action_cancel",
+        },
+    },
     # A04 P2 (M12): customer chargebacks against marketplace sales.
     "fix.marketplace.chargeback": {
         "order": "received_on desc, id desc",

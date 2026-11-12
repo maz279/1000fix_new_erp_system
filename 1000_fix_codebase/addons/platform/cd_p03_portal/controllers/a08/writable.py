@@ -856,7 +856,6 @@ WRITABLE = {
             "operating_unit_id",
             "period",
             "rail_type",
-            "statement_ids",
         }
     ),
     "fix.payout.run.line": frozenset(),

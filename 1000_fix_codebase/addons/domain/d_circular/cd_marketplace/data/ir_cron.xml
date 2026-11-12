@@ -24,5 +24,16 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- M12 capture audit (13 Nov 2026): a seller consequence in force
+             past its end date expires, once a day (Dhaka calendar). -->
+        <record id="ir_cron_seller_consequence_expiry" model="ir.cron">
+            <field name="name">Marketplace: expire lapsed seller consequences</field>
+            <field name="model_id" ref="model_fix_seller_consequence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_consequences()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>
