@@ -120,6 +120,10 @@ _HOLD_TOKEN = object()
 
 NID_CASH_THRESHOLD_PARAM = "cd_billing_engine.nid_cash_threshold"
 NID_CASH_THRESHOLD_DEFAULT = 50000  # BDT — the rule is M51's (FR-ARB-026)
+# G9 (owner decision 12 Nov 2026): the receipt methods the high-value cash rule
+# covers. Cash on delivery is cash a courier collects at the door: the same
+# rule, the same threshold.
+NID_CASH_METHODS = ("cash", "cod")
 
 
 def _ar_account(env, company, role):
@@ -420,7 +424,8 @@ class FixArReceipt(models.Model):
     receipt_date = fields.Date(default=fields.Date.today, required=True)
     nid_captured = fields.Char(
         string="Customer NID (cash > BDT 50,000)",
-        help="FR-ARB-026: high-value cash must record the NID (rule owned by M51)",
+        help="FR-ARB-026: high-value cash, at the counter or collected on delivery (G9), must "
+        "record the NID (rule owned by M51)",
     )
     account_id = fields.Many2one(
         "account.account",
@@ -530,11 +535,12 @@ class FixArReceipt(models.Model):
             if rec.amount <= 0:
                 raise UserError("Receipt amount must be positive")
             threshold = rec._nid_threshold()
-            if rec.method == "cash" and rec.amount > threshold:
+            if rec.method in NID_CASH_METHODS and rec.amount > threshold:
                 nid = (rec.nid_captured or "").strip()
                 if not nid:
                     raise UserError(
-                        "Cash above BDT %s requires the customer NID (FR-ARB-026)" % threshold
+                        "%s above BDT %s requires the customer NID (FR-ARB-026)"
+                        % ("Cash on delivery" if rec.method == "cod" else "Cash", threshold)
                     )
                 # BRU-ARB-07: a National ID is 10 (smart card), 13 or 17 digits
                 if not (nid.isdigit() and len(nid) in (10, 13, 17)):

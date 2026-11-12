@@ -32,6 +32,12 @@ Bank -> Branch -> Account middle layer that sources the 9-digit BEFTN
 routing number per branch (R4 of the bank-list capability report); bank
 accounts gain a bank_branch_id that defaults institution, branch name and
 routing from the directory.
+
+Courier COD remittance (G10, owner decision 2026-11-12): the payout of a
+third-party courier (Pathao, RedX, Steadfast) for the delivered COD orders it
+carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
+clearing (gross), prepared by an accountant and settled by a different
+Accounting Administrator.
 """,
     "version": "19.0.1.4.0",
     "license": "LGPL-3",

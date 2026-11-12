@@ -39,6 +39,7 @@ from .fix_inventory_approval import (
     inv_param,
     location_class,
 )
+from .fix_valuation_suspense import PRICE_VARIANCE_PARAM
 
 _logger = logging.getLogger(__name__)
 
@@ -2471,8 +2472,10 @@ class FixStockRtv(models.Model):
     )
     vendor_invoice_ref = fields.Char(string="Vendor Bill", readonly=True, copy=False)
     # E3-10: the stock leaves at average cost (unit_cost); the vendor credits the
-    # billed price. The difference is stated here; no purchase-price-variance
-    # account exists in the estate, so it is not posted (owner decision pending).
+    # billed price. G1 (owner decision 12 Nov 2026): the difference is booked
+    # to the valuation suspense as a price_variance row that the period-close
+    # cut-over clears to the PPV account (cd_inventory.account_code.price_variance);
+    # with no such account it is stated here only, and the RTV says so.
     billed_unit_price = fields.Float(
         string="Billed Unit Price (BDT)", readonly=True, copy=False, groups=COST_GROUP
     )
@@ -2482,7 +2485,22 @@ class FixStockRtv(models.Model):
         copy=False,
         groups=COST_GROUP,
         help="Quantity x (average cost the stock left at - price the vendor billed and "
-        "credits). Not posted: no purchase-price-variance account is configured.",
+        "credits). Positive: the stock was carried above what the vendor credits (a loss). "
+        "Booked to the valuation suspense and cleared to the purchase-price-variance "
+        "account at the period close, when that account is configured.",
+    )
+    price_variance_entry_id = fields.Many2one(
+        "fix.inventory.valuation.suspense",
+        string="Price Variance Suspense Entry",
+        readonly=True,
+        copy=False,
+        help="G1: the suspense row the period-close cut-over clears to the PPV account.",
+    )
+    price_variance_status = fields.Char(
+        string="Price Variance Posting",
+        readonly=True,
+        copy=False,
+        help="Whether the price variance was booked for the period close, or why not.",
     )
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RTV quantity must be positive")
@@ -2512,6 +2530,8 @@ class FixStockRtv(models.Model):
             "vendor_invoice_ref",
             "billed_unit_price",
             "price_variance",
+            "price_variance_entry_id",
+            "price_variance_status",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -2778,8 +2798,8 @@ class FixStockRtv(models.Model):
         (Mushak 6.7) is raised on the bill of the GRN's PO that billed the part,
         at the price it billed, with the VAT and the TDS those units bore on
         it; AP approves it under its own segregation of duties. The stock left
-        at average cost: the difference is stated on the RTV, not posted (no
-        purchase-price-variance account exists). With no GRN, no mapped
+        at average cost: the difference is the RTV's price variance, booked for
+        the period close (G1, _fix_book_price_variance). With no GRN, no mapped
         product or no bill yet, nothing is guessed: the RTV says why."""
         self.ensure_one()
         if "fix.vendor.note" not in self.env or "fix.vendor.invoice" not in self.env:
@@ -2830,7 +2850,88 @@ class FixStockRtv(models.Model):
                 ),
             }
         )
+        try:
+            with self.env.cr.savepoint():
+                self._fix_book_price_variance()
+        except (UserError, AccessError, ValidationError) as exc:
+            # G1: the return is never blocked by the variance posting
+            self.sudo()._fix_variance_status("recorded only, not posted: %s" % exc.args[0])
         return note
+
+    def _fix_book_price_variance(self):
+        """G1 (owner decision 12 Nov 2026): post the price variance the way the
+        estate posts stock value. The stock left at average cost as an rtv
+        suspense row, which reaches the GL only through the period-close
+        cut-over; the AP note credits GRNI at the billed price now. After the
+        cut-over and the GRNI clearing, the suspense account is left holding
+        exactly qty x (average cost - billed price). So the variance is a
+        suspense row of its own (it moves no stock) naming the PPV account,
+        and the cut-over clears it there (Dr PPV / Cr suspense for a loss).
+
+        Never blocks the return: with no PPV account configured, an account
+        not in the chart, or stock that was never valued, it is recorded only
+        and the RTV says why. Booked once."""
+        self.ensure_one()
+        rtv = self.sudo()
+        if rtv.price_variance_entry_id:
+            return rtv.price_variance_entry_id
+        variance = rtv.price_variance or 0.0
+        if abs(variance) < 0.005:
+            return rtv._fix_variance_status("none: the vendor credits the average cost")
+        code = (
+            self.env["ir.config_parameter"].sudo().get_param(PRICE_VARIANCE_PARAM) or ""
+        ).strip()
+        if not code:
+            return rtv._fix_variance_status(
+                "recorded only, not posted: no purchase-price-variance account is configured "
+                "(system parameter %s)" % PRICE_VARIANCE_PARAM
+            )
+        company = rtv.company_id
+        account = (
+            self.env["account.account"]
+            .sudo()
+            .with_company(company)
+            .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+            if "account.account" in self.env
+            else None
+        )
+        if not account:
+            return rtv._fix_variance_status(
+                "recorded only, not posted: %s names account %s, which is not in the chart of %s"
+                % (PRICE_VARIANCE_PARAM, code, company.name)
+            )
+        Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+        stock = Suspense.search(
+            [
+                ("source_ref", "=", rtv.name),
+                ("entry_type", "=", "rtv"),
+                ("company_id", "=", company.id),
+            ],
+            limit=1,
+        )
+        if not stock:
+            return rtv._fix_variance_status(
+                "recorded only, not posted: the returned stock was not valued (it left no "
+                "valuation suspense entry)"
+            )
+        entry = Suspense._fix_post_price_variance(
+            rtv.part_id,
+            rtv.qty or 0.0,
+            variance,
+            rtv.name,
+            code,
+            location=rtv.location_id,
+            company=company,
+        )
+        rtv._guarded().write({"price_variance_entry_id": entry.id})
+        return rtv._fix_variance_status(
+            "booked to the valuation suspense (%s); the period-close cut-over clears it to "
+            "%s %s" % (entry.name, account.code, account.name)
+        )
+
+    def _fix_variance_status(self, status):
+        self._guarded().write({"price_variance_status": status})
+        return self.price_variance_entry_id
 
     def _fix_note_status(self, status):
         self._guarded().write({"vendor_note_status": status})

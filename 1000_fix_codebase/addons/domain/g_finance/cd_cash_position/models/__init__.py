@@ -4,6 +4,7 @@ from . import (
     cash_deposit,
     cheque,
     cod_settlement,
+    courier_remittance,
     facility,
     fix_a04_bond_consumer,
     fix_a04_storefront_consumer,

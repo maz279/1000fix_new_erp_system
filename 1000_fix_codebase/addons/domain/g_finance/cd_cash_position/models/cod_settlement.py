@@ -30,6 +30,7 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
+from .courier_remittance import live_cod_orders
 from .treasury_common import (
     GROUP_ACCOUNTANT,
     GROUP_ADMIN,
@@ -283,6 +284,13 @@ class FixCodSettlement(models.Model):
             )
             if other:
                 raise UserError("Some orders of %s are already in %s." % (rec.name, other.name))
+            # G10: nor in a live courier remittance (one order, one settlement)
+            taken = rec.order_ids & live_cod_orders(self.env, rec.company_id, exclude=rec)
+            if taken:
+                raise UserError(
+                    "%s carries orders already in another COD settlement or courier "
+                    "remittance: %s." % (rec.name, ", ".join(taken.mapped("name")))
+                )
 
     @api.model
     def _fix_rider_has_open_variance(self, rider) -> bool:
@@ -317,6 +325,8 @@ class FixCodSettlement(models.Model):
         settled = self.search(
             [("company_id", "=", company.id), ("state", "!=", "disputed")]
         ).mapped("order_ids")
+        # G10: an order in a live courier remittance is the courier's
+        settled |= live_cod_orders(self.env, company)
         return (orders - settled).filtered(lambda o: not o.sudo()._fix_cod_paid_elsewhere())
 
     def action_load_orders(self):

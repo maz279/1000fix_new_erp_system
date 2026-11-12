@@ -581,6 +581,16 @@ class FixPeriodClose(models.Model):
                 "close and reconcile the suspense." % (self.period_end, count, value)
             )
 
+    @staticmethod
+    def _fix_clearing_text(clearings) -> str:
+        """G1: the price-variance legs the cutover must also carry."""
+        if not clearings:
+            return ""
+        return ", plus the purchase-price variance cleared off the suspense to %s" % ", ".join(
+            "%s %.2f (%s)" % (code, value, "debit" if value > 0 else "credit")
+            for code, value in sorted(clearings.items())
+        )
+
     def action_reconcile_inventory_suspense(self) -> dict:
         """T04: Reconcile the W2 inventory suspense entries against a REAL,
         balancing cutover journal entry.
@@ -606,17 +616,30 @@ class FixPeriodClose(models.Model):
         # The net stock movement (cd_inventory signs each row by its type: a
         # consumption is value consumed, i.e. stock OUT); the raw sum of the
         # rows counted an issue as stock in. Soft: cd_inventory depends on us.
-        if hasattr(pending_entries, "_fix_stock_effect_total"):
-            total_suspense = abs(pending_entries._fix_stock_effect_total())
-        else:
-            total_suspense = round(sum(pending_entries.mapped("total_valuation")), 2)
+        stock_effect = (
+            pending_entries._fix_stock_effect_total()
+            if hasattr(pending_entries, "_fix_stock_effect_total")
+            else round(sum(pending_entries.mapped("total_valuation")), 2)
+        )
+        total_suspense = abs(stock_effect)
+        # G1: rows that are not stock (a return to vendor's purchase-price
+        # variance) are cleared by the same entry from the suspense account to
+        # the account each names: Dr that account / Cr suspense for a positive
+        # value. {code: value}; soft, cd_inventory depends on us.
+        clearings = (
+            pending_entries._fix_cutover_clearings()
+            if hasattr(pending_entries, "_fix_cutover_clearings")
+            else {}
+        )
+        cleared = round(sum(clearings.values()), 2)
         voucher_ref = False
         if pending_entries:
             move = self.cutover_move_id
             if not move:
                 raise UserError(
-                    "Post the suspense cutover journal entry (%.2f) and select it on the "
-                    "close before reconciling the inventory suspense." % total_suspense
+                    "Post the suspense cutover journal entry (%.2f%s) and select it on the "
+                    "close before reconciling the inventory suspense."
+                    % (total_suspense, self._fix_clearing_text(clearings))
                 )
             if move.state != "posted" or move.company_id != self.company_id:
                 raise UserError(
@@ -634,20 +657,59 @@ class FixPeriodClose(models.Model):
                     "Suspense account(s) %s are not in the chart of %s."
                     % (", ".join(sorted(missing)), self.company_id.name)
                 )
-            moved = round(
-                sum(
-                    move.line_ids.filtered(lambda line: line.account_id in accounts).mapped(
-                        "balance"
-                    )
-                ),
-                2,
+            targets = Account.search(
+                [*Account._check_company_domain(self.company_id), ("code", "in", list(clearings))]
             )
-            if round(abs(moved) - abs(total_suspense), 2) != 0:
+            missing = set(clearings) - set(targets.mapped("code"))
+            if missing:
+                raise UserError(
+                    "The pending suspense clears a purchase-price variance to account(s) %s, "
+                    "which are not in the chart of %s."
+                    % (", ".join(sorted(missing)), self.company_id.name)
+                )
+
+            def balance(accs):
+                return round(
+                    sum(
+                        move.line_ids.filtered(lambda line: line.account_id in accs).mapped(
+                            "balance"
+                        )
+                    ),
+                    2,
+                )
+
+            moved = balance(accounts)
+            if clearings:
+                # signs matter once two legs share the suspense account: stock
+                # in credits it, a variance cleared out credits it too
+                expected = round(-(stock_effect + cleared), 2)
+                clears = round(moved - expected, 2) == 0
+            else:
+                expected = total_suspense
+                clears = round(abs(moved) - abs(total_suspense), 2) == 0
+            if not clears:
                 raise UserError(
                     "Cutover entry %s moves the suspense account(s) %s by %.2f, but the "
-                    "pending suspense valuation is %.2f — it does not clear the suspense."
-                    % (move.name, ", ".join(sorted(codes)), abs(moved), total_suspense)
+                    "pending suspense valuation is %.2f%s — it does not clear the suspense "
+                    "(expected %.2f)."
+                    % (
+                        move.name,
+                        ", ".join(sorted(codes)),
+                        moved if clearings else abs(moved),
+                        total_suspense,
+                        self._fix_clearing_text(clearings),
+                        expected,
+                    )
                 )
+            for code, value in sorted(clearings.items()):
+                target = targets.filtered(lambda a, c=code: a.code == c)
+                got = balance(target)
+                if round(got - value, 2) != 0:
+                    raise UserError(
+                        "Cutover entry %s moves account %s by %.2f, but the pending purchase-price "
+                        "variance cleared to it is %.2f (debit a loss, credit a gain) — it does "
+                        "not clear the suspense." % (move.name, code, got, value)
+                    )
             voucher_ref = move.name
             for entry in pending_entries:
                 entry.action_reconcile_to_gl(voucher_ref)
@@ -670,6 +732,8 @@ class FixPeriodClose(models.Model):
                 "period_end": str(self.period_end),
                 "reconciled_entries_count": len(pending_entries),
                 "total_valuation_cleared": float(total_suspense),
+                # G1: purchase-price variance moved off the suspense account
+                "price_variance_cleared": float(cleared),
                 "voucher_ref": voucher_ref or "",
                 "suspense_balance": float(remaining),
             },

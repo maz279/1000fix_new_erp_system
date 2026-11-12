@@ -115,6 +115,12 @@ ORDER_POSTING_FIELDS = {
 }
 
 
+def _is_nid(value) -> bool:
+    """BRU-ARB-07: a National ID is 10 (smart card), 13 or 17 digits."""
+    value = (value or "").strip()
+    return value.isdigit() and len(value) in (10, 13, 17)
+
+
 def _message(exc) -> str:
     return str(exc.args[0]) if getattr(exc, "args", None) else str(exc)
 
@@ -207,6 +213,15 @@ class FixStorefrontOrderBooks(models.Model):
         copy=False,
         ondelete="restrict",
     )
+    # G9 (owner decision 12 Nov 2026): high-value cash collected on delivery
+    # carries the customer's NID, as counter cash does (FR-ARB-026).
+    cod_customer_nid = fields.Char(
+        string="Customer NID (cash above BDT 50,000)",
+        copy=False,
+        help="The National ID the customer showed when paying cash on delivery above the "
+        "high-value threshold. Carried to the M20 receipt; final once it is booked. Empty: the "
+        "customer's verified NID is used, else the receipt waits for it.",
+    )
     stock_location_id = fields.Many2one(
         "fix.stock.location",
         string="Issue From Location",
@@ -222,6 +237,19 @@ class FixStorefrontOrderBooks(models.Model):
         return super()._fix_guarded_fields() | ORDER_POSTING_FIELDS
 
     def write(self, vals):
+        if "cod_customer_nid" in vals:
+            value = (vals["cod_customer_nid"] or "").strip()
+            if value and not _is_nid(value):
+                raise UserError(
+                    "%r is not a National ID (10, 13 or 17 digits) - FR-ARB-026." % value
+                )
+            for order in self:
+                if order.sudo().ar_receipt_id and order._fix_guard_differs(
+                    "cod_customer_nid", vals["cod_customer_nid"], order.cod_customer_nid
+                ):
+                    raise UserError(
+                        "Order %s: its receipt is booked; the NID it carries is final." % order.name
+                    )
         if "stock_location_id" in vals and not self.env.su:
             for order in self:
                 issued = order.sudo().line_ids.filtered(
@@ -596,6 +624,7 @@ class FixStorefrontOrderBooks(models.Model):
             found = self._sf_find_m20_receipt(self.name)
             if found:
                 return found
+        nid = self._sfb_high_value_nid()
         receipt = (
             self.env["fix.ar.receipt"]
             .sudo()
@@ -609,6 +638,7 @@ class FixStorefrontOrderBooks(models.Model):
                     "method": "cash" if counter else "cod",
                     "reference": self.name,
                     "receipt_date": self._sfb_day(self.delivered_at),
+                    "nid_captured": nid or False,
                 }
             )
         )
@@ -620,6 +650,8 @@ class FixStorefrontOrderBooks(models.Model):
                 consignment.name,
                 (" by rider %s" % consignment.rider_id.name)
                 if "rider_id" in consignment._fields and consignment.rider_id
+                else (" by courier %s" % consignment.courier_partner_id.name)
+                if "courier_partner_id" in consignment._fields and consignment.courier_partner_id
                 else "",
             )
         receipt.message_post(
@@ -639,6 +671,73 @@ class FixStorefrontOrderBooks(models.Model):
                 "Cash on delivery of %s: %s%s" % (self.name, _message(exc), hint)
             ) from exc
         return receipt
+
+    # ------------------------------------------------- G9: high-value cash NID
+    def _sfb_customer_verified_nid(self) -> str:
+        """The customer's NID verified in KYC (M33 identity document, verified
+        by a data steward), read through the residency client: the number
+        lives in Z4 only. Empty when there is none or Z4 does not answer."""
+        if "fix.identity.document" not in self.env:
+            return ""
+        customer = self.customer_id
+        docs = (
+            self.env["fix.identity.document"]
+            .sudo()
+            .search(
+                [
+                    ("partner_id", "in", (customer | customer.commercial_partner_id).ids),
+                    ("document_type", "in", ("nid_10", "nid_17")),
+                    ("verification_status", "=", "verified"),
+                ],
+                order="is_primary desc, id desc",
+            )
+        )
+        for row in docs.read(["document_number"]):
+            nid = "".join(ch for ch in str(row.get("document_number") or "") if ch.isdigit())
+            if _is_nid(nid):
+                return nid
+        return ""
+
+    def _sfb_high_value_nid(self) -> str:
+        """G9 (owner decision 12 Nov 2026): cash above the high-value
+        threshold (FR-ARB-026, cd_billing_engine.nid_cash_threshold, BDT
+        50,000) is booked with the customer's NID, whether the counter or a
+        courier took it. The NID recorded on the order, else the customer's
+        verified NID. None found: refused with the reason, so the order stays
+        pending and nothing is booked until it is recorded."""
+        self.ensure_one()
+        threshold = self.env["fix.ar.receipt"]._nid_threshold()
+        if (self.total_amount or 0.0) <= threshold:
+            return ""
+        nid = (self.cod_customer_nid or "").strip() or self._sfb_customer_verified_nid()
+        if not nid:
+            raise UserError(
+                "Cash on delivery of %s: %.2f is above the BDT %s high-value cash limit and no "
+                "customer NID is recorded (FR-ARB-026). Record the customer's National ID on the "
+                "order (Record Customer NID), or verify one on the customer; the receipt is "
+                "booked on the next retry." % (self.name, self.total_amount, threshold)
+            )
+        return nid
+
+    def action_record_customer_nid(self, nid=None):
+        """Record the National ID the customer showed at delivery (G9), then
+        post what the order still owes. Final once its receipt is booked."""
+        if not (self.env.su or any(self.env.user.has_group(g) for g in RETRY_GROUPS)):
+            raise UserError("Only storefront or finance staff may record a customer's NID.")
+        value = "".join(ch for ch in str(nid or "") if not ch.isspace())
+        if not _is_nid(value):
+            raise UserError(
+                "%r is not a National ID (10, 13 or 17 digits) - FR-ARB-026." % (nid or "")
+            )
+        for order in self:
+            if order.sudo().ar_receipt_id:
+                raise UserError(
+                    "Order %s: its receipt is booked; the NID it carries is final." % order.name
+                )
+            order.sudo().write({"cod_customer_nid": value})
+            order.sudo().message_post(body="Customer NID recorded for the high-value cash rule.")
+        self._sfb_post()
+        return True
 
     def _sfb_cod_receipt_elsewhere(self) -> bool:
         """M50's COD settlement asks: was this order's receivable settled by

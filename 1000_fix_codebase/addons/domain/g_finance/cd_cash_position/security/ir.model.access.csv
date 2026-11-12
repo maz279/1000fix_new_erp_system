@@ -18,6 +18,9 @@ access_fix_cash_deposit_account_manager,fix.cash.deposit.account.manager,model_f
 access_fix_cod_settlement_account_readonly,fix.cod.settlement.account.readonly,model_fix_cod_settlement,account.group_account_readonly,1,0,0,0
 access_fix_cod_settlement_account_user,fix.cod.settlement.account.user,model_fix_cod_settlement,account.group_account_user,1,1,1,0
 access_fix_cod_settlement_account_manager,fix.cod.settlement.account.manager,model_fix_cod_settlement,account.group_account_manager,1,1,1,1
+access_fix_courier_remittance_account_readonly,fix.courier.remittance.account.readonly,model_fix_courier_remittance,account.group_account_readonly,1,0,0,0
+access_fix_courier_remittance_account_user,fix.courier.remittance.account.user,model_fix_courier_remittance,account.group_account_user,1,1,1,0
+access_fix_courier_remittance_account_manager,fix.courier.remittance.account.manager,model_fix_courier_remittance,account.group_account_manager,1,1,1,1
 access_fix_imprest_fund_account_readonly,fix.imprest.fund.account.readonly,model_fix_imprest_fund,account.group_account_readonly,1,0,0,0
 access_fix_imprest_fund_account_user,fix.imprest.fund.account.user,model_fix_imprest_fund,account.group_account_user,1,0,0,0
 access_fix_imprest_fund_account_manager,fix.imprest.fund.account.manager,model_fix_imprest_fund,account.group_account_manager,1,1,1,1

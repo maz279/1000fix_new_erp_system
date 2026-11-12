@@ -9,7 +9,7 @@
 export const MODULE = {
   area: 'A08', code: 'M50', en: 'Treasury & Banking', title: 'M50 · Treasury & Banking',
   bn: 'কোষাগার ও ব্যাংক', icon: '🏦',
-  desc: 'Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.',
+  desc: 'Bank reconciliation, branch cash consolidation, rider and courier COD, gateway/MFS settlement, BEFTN/RTGS execution.',
   kpis: [
     { l: 'Recon Exceptions', m: 'unreconciled_bank_lines' },
     { l: 'Auto-Match Rate', m: 'auto_match_rate', suffix: '%' },
@@ -22,6 +22,7 @@ export const MODULE = {
       { id: 'M50-position', en: 'Consolidated Cash Position', bn: 'নগদ অবস্থান', t: 'd' },
       { id: 'M50-branchcash', en: 'Branch Cash Consolidation', bn: 'শাখা নগদ', t: 'r' },
       { id: 'M50-ridercod', en: 'Rider COD Settlement', bn: 'রাইডার সিওডি', t: 'c' },
+      { id: 'M50-couriercod', en: 'Courier COD Remittance', bn: 'কুরিয়ার সিওডি', t: 'c' },
       { id: 'M50-petty', en: 'Petty Cash (Imprest)', bn: 'খরচি নগদ', t: 'g' },
       { id: 'M50-petty-vouchers', en: 'Petty Cash Vouchers', bn: 'খরচি নগদ ভাউচার', t: 'g' },
       { id: 'M50-petty-topups', en: 'Imprest Top-Ups', bn: 'খরচি নগদ পূরণ', t: 'g' },
@@ -66,14 +67,14 @@ export const MODULE = {
     ]}
   ],
   reports: ['Daily Cash Position', 'Bank Reconciliation Summary', 'Gateway Settlement Reconciliation', 'COD Settlement Report', '13-Week Cash Forecast', 'Bank Charges Analysis', 'Cheque Register & Cheques-in-Hand'],
-  forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up', 'Rider COD Settlement', 'Cheque Book', 'Facility Amendment', 'Reconciliation Statement'],
+  forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up', 'Rider COD Settlement', 'Courier COD Remittance', 'Cheque Book', 'Facility Amendment', 'Reconciliation Statement'],
   cross: ['Financial Accounting & GL', 'AR, Invoicing & Collections', 'AP & Employee Expense'],
   freg: { src: 88, sub: [
     ['1', 'Bank Masters', 7, { model: 'account.journal', cols: ['name', 'code', 'bank_account_id', 'currency_id', 'fix_treasury_role'], screens: ['M50-accounts'], domain: [['type', '=', 'bank']] }],
     ['2', 'Statement & Recon', 13, { model: 'fix.bank.statement.line', cols: ['date', 'journal_id', 'reference', 'amount', 'match_state'], screens: ['M50-recon', 'M50-statements', 'M50-reconstatements', 'M50-recon-items', 'M50-rpt-recon', 'M50-rpt-charges'] }],
     ['3', 'Cash Position & Consolidation', 12, { model: 'fix.cash.position', cols: ['as_of', 'bank_balance', 'petty_cash_total', 'cash_in_transit_total', 'total_position'], screens: ['M50-position', 'M50-branchcash', 'M50-rpt-position', 'M50-cit'] }],
     ['4', 'Payment Execution', 13, { model: 'fix.payment.execution', cols: ['name', 'payee', 'amount', 'method', 'state'], screens: ['M50-beftn', 'M50-mfs', 'M50-cheques', 'M50-chequebooks', 'M50-chequepay', 'M50-cashpay'] }],
-    ['5', 'Gateway/MFS Settlement', 11, { model: 'fix.gateway.settlement', cols: ['provider', 'settlement_date', 'total_net', 'exception_count', 'state'], screens: ['M50-gateway', 'M50-gateway-lines', 'M50-rpt-gateway', 'M50-ridercod'] }],
+    ['5', 'Gateway/MFS Settlement', 11, { model: 'fix.gateway.settlement', cols: ['provider', 'settlement_date', 'total_net', 'exception_count', 'state'], screens: ['M50-gateway', 'M50-gateway-lines', 'M50-rpt-gateway', 'M50-ridercod', 'M50-couriercod'] }],
     ['6', 'Forecasting', 8, { model: 'fix.cash.forecast.item', cols: ['name', 'direction', 'category', 'amount', 'frequency'], screens: ['M50-forecast', 'M50-recurring'] }],
     ['7', 'Facilities & Trade Finance', 12, { model: 'fix.bank.facility', cols: ['name', 'lender_id', 'facility_type', 'limit_amount', 'state'], screens: ['M50-facilities', 'M50-amendments', 'M50-repayments', 'M50-covenants'] }],
     ['8', 'FX', 5, { model: 'fix.fx.revaluation', cols: ['rate_date', 'currency_id', 'total_gain', 'total_loss', 'net_amount'], screens: ['M50-fx'] }],
@@ -108,6 +109,13 @@ export const SCREENS = {
     cols: ['name','rider_id','settlement_date','order_count','expected_amount','remitted_amount','variance','shortage_tier','recovery_state','state'],
     stateField: 'state',
     actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_approve_shortage',l:'Approve Shortage',ask:'Why is the shortage accepted? (required above the escalation threshold)',kwarg:'note'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute',ask:'Reason for the dispute',kwarg:'reason'},{m:'action_mark_recovered',l:'Shortage Recovered',ask:'Recovery reference (HR deduction / receipt)',kwarg:'reference'}] },
+  /* G10 (owner decision 12 Nov 2026): a third-party courier's COD payout,
+   * net of its charges; an accountant prepares, another Accounting
+   * Administrator settles. Orders are loaded by the system, never typed. */
+  'M50-couriercod': { kind: 'model_list', model: 'fix.courier.remittance',
+    cols: ['name','courier_id','batch_ref','remittance_date','order_count','gross_amount','total_charges','net_amount','difference','state'],
+    stateField: 'state',
+    actions: [{m:'action_load_orders',l:'Load COD Orders',ask:'Order, consignment or tracking numbers on the courier statement (blank: every open order of the courier)',kwarg:'references'},{m:'action_remove_orders',l:'Remove Orders',ask:'Order or consignment numbers the payout does not cover',kwarg:'references'},{m:'action_submit',l:'Submit'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute',ask:'Reason for the dispute',kwarg:'reason'}] },
   'M50-petty': { kind: 'model_list', model: 'fix.imprest.fund',
     cols: ['name','branch_id','custodian_id','imprest_limit','book_balance','pending_vouchers','replenish_amount','state'],
     stateField: 'state', actions: [{m:'action_request_topup',l:'Request Top-Up'}] },
@@ -523,6 +531,47 @@ export const SCREENS = {
         ] }
     ]
   },
+  'M50-form-courier': {
+    kind: 'model_form',
+    model: 'fix.courier.remittance',
+    title: "Courier COD Remittance",
+    back: 'M50-couriercod',
+    status: { field: 'state', labels: { draft: "Draft", submitted: "Submitted", settled: "Settled", disputed: "Disputed" } },
+    tabs: [
+      { id: 'payout', label: 'Payout', bn: 'পরিশোধ', icon: '🚚' },
+      { id: 'control', label: 'Approval', bn: 'অনুমোদন', icon: '✍️' }
+    ],
+    sections: [
+      { tab: 'payout', title: "Courier Payout",
+        note: "One payout of a third-party courier (Pathao, RedX, Steadfast). Name the courier and its payout reference, save, then Load COD Orders: the delivered cash-on-delivery orders it carried. Record the charges it deducted and the net the bank received; COD collected - charges must equal the net. Settling posts Dr bank (net) + Dr courier charges / Cr COD clearing (gross).",
+        fields: [
+          { name: 'name', readonly: true, label: "Remittance Ref" },
+          { name: 'courier_id', required: true, label: "Courier" },
+          { name: 'batch_ref', required: true, label: "Courier Payout Ref" },
+          { name: 'operating_unit_id', required: true, label: "Operating Unit" },
+          { name: 'remittance_date', required: true, label: "Remittance Date" },
+          { name: 'journal_id', label: "Received Into (Bank)" },
+          { name: 'bank_ref', label: "Bank Credit Ref" },
+          { name: 'order_count', readonly: true, label: "Orders" },
+          { name: 'gross_amount', readonly: true, label: "COD Collected" },
+          { name: 'delivery_charges', label: "Delivery Charges Deducted" },
+          { name: 'cod_charges', label: "COD Charges Deducted" },
+          { name: 'other_charges', label: "Other Deductions" },
+          { name: 'total_charges', readonly: true, label: "Charges Deducted" },
+          { name: 'net_amount', label: "Net Received" },
+          { name: 'difference', readonly: true, label: "Unexplained Difference" }
+        ] },
+      { tab: 'control', title: "Approval",
+        note: "Prepared by an accountant, settled by a different Accounting Administrator. Orders already settled, prepaid or paid by another receipt are refused.",
+        fields: [
+          { name: 'state', readonly: true, label: "State" },
+          { name: 'submitted_by_id', readonly: true, label: "Prepared By" },
+          { name: 'settled_by_id', readonly: true, label: "Settled By" },
+          { name: 'move_id', readonly: true, label: "GL Entry" },
+          { name: 'dispute_reason', label: "Dispute Reason" }
+        ] }
+    ]
+  },
   'M50-form-recon': {
     kind: 'model_form',
     model: 'fix.bank.reconciliation',
@@ -607,6 +656,7 @@ export const FORM_MODELS = {
   'M50:Cash Deposit': 'fix.cash.deposit',
   'M50:Imprest Top-Up': 'fix.imprest.topup',
   'M50:Rider COD Settlement': 'fix.cod.settlement',
+  'M50:Courier COD Remittance': 'fix.courier.remittance',
   'M50:Cheque Book': 'fix.cheque.book',
   'M50:Facility Amendment': 'fix.facility.amendment',
   'M50:Reconciliation Statement': 'fix.bank.reconciliation',
@@ -740,6 +790,7 @@ export const FORM_CHIPS = {
   'M50:Cash Deposit': 'M50-form-deposit',
   'M50:Imprest Top-Up': 'M50-form-topup',
   'M50:Rider COD Settlement': 'M50-form-cod',
+  'M50:Courier COD Remittance': 'M50-form-courier',
   'M50:Cheque Book': 'M50-form-chequebook',
   'M50:Facility Amendment': 'M50-form-amendment',
   'M50:Reconciliation Statement': 'M50-form-recon',
@@ -759,6 +810,7 @@ export const FORM_CHIPS = {
     'fix.cash.deposit': 'M50-form-deposit',
     'fix.imprest.topup': 'M50-form-topup',
     'fix.cod.settlement': 'M50-form-cod',
+    'fix.courier.remittance': 'M50-form-courier',
     'fix.cheque.book': 'M50-form-chequebook',
     'fix.facility.amendment': 'M50-form-amendment',
     'fix.bank.reconciliation': 'M50-form-recon'
@@ -780,6 +832,7 @@ export const FORM_CHIPS = {
     'M50-cit': 'M50-form-deposit',
     'M50-petty-topups': 'M50-form-topup',
     'M50-ridercod': 'M50-form-cod',
+    'M50-couriercod': 'M50-form-courier',
     'M50-chequebooks': 'M50-form-chequebook',
     'M50-amendments': 'M50-form-amendment',
     'M50-reconstatements': 'M50-form-recon',

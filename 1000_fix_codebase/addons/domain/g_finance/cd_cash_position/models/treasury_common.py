@@ -34,6 +34,9 @@ ACCOUNT_ROLES = {
     # bank statement clears it (the D365 bridging-account / SAP special G/L
     # equivalent; the company's legacy chart calls it 16556556).
     "cheque_in_hand": "Cheques in hand (received, held until the bank clears them)",
+    # G10 (owner decision 12 Nov 2026): what a third-party courier deducts
+    # from the COD cash it remits (delivery fees, COD charge, other charges).
+    "courier_charges": "Courier delivery / COD charges deducted from remittances",
 }
 
 GROUP_ACCOUNTANT = "account.group_account_user"

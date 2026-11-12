@@ -468,6 +468,21 @@ WRITABLE = {
             "target_account_id",
         }
     ),
+    "fix.courier.remittance": frozenset(
+        {
+            "bank_ref",
+            "batch_ref",
+            "cod_charges",
+            "courier_id",
+            "delivery_charges",
+            "dispute_reason",
+            "journal_id",
+            "net_amount",
+            "operating_unit_id",
+            "other_charges",
+            "remittance_date",
+        }
+    ),
     "fix.credit.note": frozenset(
         {
             "amount",

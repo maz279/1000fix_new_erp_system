@@ -457,8 +457,9 @@ def _cod_clearing(w):
     return account
 
 
-def _courier_delivered(w, qty=1):
-    """A COD order out on a rider's consignment, delivered against its POD."""
+def _courier_delivered(w, qty=1, courier=None):
+    """A COD order out on a rider's consignment (or, with `courier`, a
+    third-party courier's), delivered against its POD."""
     env = w.env
     rider = env["hr.employee"].create({"name": "SF COD rider %d" % next(_SEQ)})
     cons = env["fix.consignment"].create(
@@ -466,7 +467,8 @@ def _courier_delivered(w, qty=1):
             "operating_unit_id": w.ou.id,
             "consignment_type": "delivery",
             "scheduled_date": fields.Datetime.now(),
-            "rider_id": rider.id,
+            "rider_id": False if courier else rider.id,
+            "courier_partner_id": courier.id if courier else False,
         }
     )
     order = w.placed(qty, rail="cod", method="standard_delivery")
@@ -599,6 +601,124 @@ def test_cash_on_delivery_waits_for_the_cod_clearing_account(sf):
     assert inv.state == "paid"
     assert env["fix.ar.receipt"].search_count([("reference", "=", order.name)]) == 1
     assert _balance(env, clearing) == 2500.0
+
+
+# G9 (owner decision 12 Nov 2026): the high-value cash rule (customer NID above
+# BDT 50,000, FR-ARB-026) covers cash a courier collects. The bridge carries
+# the NID recorded on the order, else the customer's verified NID; without
+# one the receipt is not booked and the order waits, saying why.
+NID_PARAM = "cd_billing_engine.nid_cash_threshold"
+
+
+def _courier(w):
+    n = next(_SEQ)
+    return w.env["fix.courier.partner"].create({"name": "SF Pathao %d" % n, "code": "SFP%d" % n})
+
+
+def test_g9_high_value_courier_cod_waits_for_the_customer_nid(sf):
+    w = sf
+    env = w.env
+    clearing = _cod_clearing(w)
+    w.params.set_param(NID_PARAM, "2000")  # the 2,500 order is high-value here
+    order, _rider = _courier_delivered(w, courier=_courier(w))
+    inv = order.ar_invoice_id
+    assert order.state == "delivered"  # the delivery itself is not blocked
+    assert order.posting_state == "pending"
+    note = order.posting_note or ""
+    assert "NID" in note and "2000" in note
+    assert inv.state == "issued" and inv.amount_residual == 2500.0
+    assert not env["fix.ar.receipt"].search_count([("reference", "=", order.name)])
+    assert _balance(env, clearing) == 0.0
+    # the hourly job books nothing without it
+    env["fix.storefront.order"]._cron_retry_storefront_postings()
+    order.invalidate_recordset()
+    assert order.posting_state == "pending" and not order.ar_receipt_id
+    # a number that is not a National ID is refused
+    with pytest.raises(REFUSED), env.cr.savepoint():
+        order.with_user(w.operator).action_record_customer_nid("12345")
+    order.with_user(w.operator).action_record_customer_nid("1990123456789")
+    order.invalidate_recordset()
+    inv.invalidate_recordset()
+    assert order.posting_state == "posted" and not order.posting_note
+    rcpt = order.ar_receipt_id
+    assert (rcpt.method, rcpt.state, rcpt.nid_captured) == ("cod", "confirmed", "1990123456789")
+    assert inv.state == "paid" and _balance(env, clearing) == 2500.0
+    # booked with the receipt: the NID is final
+    with pytest.raises(REFUSED), env.cr.savepoint():
+        order.with_user(w.operator).action_record_customer_nid("1234567890")
+    assert order.cod_customer_nid == "1990123456789"
+
+
+def test_g9_the_customers_verified_nid_is_carried(sf, monkeypatch):
+    """An NID verified on the customer (KYC, M33) is carried to the receipt;
+    an unverified one is not."""
+    from libs.py import fix_residency
+
+    store = {}
+    fake = SimpleNamespace(put=store.__setitem__, get=lambda key: store.get(key, ""))
+    monkeypatch.setattr(fix_residency, "get_client", lambda: fake)
+    w = sf
+    env = w.env
+    _cod_clearing(w)
+    w.params.set_param(NID_PARAM, "2000")
+    doc = env["fix.identity.document"].create(
+        {"partner_id": w.customer.id, "document_type": "nid_10", "document_number": "1234567890"}
+    )
+    order, _rider = _courier_delivered(w, courier=_courier(w))
+    assert order.posting_state == "pending" and not order.ar_receipt_id
+    doc.sudo()._guarded().write({"verification_status": "verified"})
+    order.with_user(w.operator).action_retry_posting()
+    order.invalidate_recordset()
+    assert order.posting_state == "posted"
+    assert order.ar_receipt_id.nid_captured == "1234567890"
+
+
+# G10 (owner decision 12 Nov 2026): a third-party courier remits the cash it
+# collected, less its charges, into the bank; M50's courier remittance clears
+# COD clearing against the bank credit and the charges.
+def test_g10_courier_cod_is_cleared_by_the_courier_remittance(sf):
+    w = sf
+    env = w.env
+    if "fix.courier.remittance" not in env:
+        pytest.skip("cd_cash_position is not installed")
+    clearing = _cod_clearing(w)
+    charges = env["account.account"].create(
+        {"code": "SFBCC%d" % next(_SEQ), "name": "SF courier charges", "account_type": "expense"}
+    )
+    w.params.set_param("cd_cash_position.account_code.courier_charges", charges.code)
+    courier = _courier(w)
+    order, _rider = _courier_delivered(w, courier=courier)
+    assert order.posting_state == "posted" and _balance(env, clearing) == 2500.0
+    maker = _mk(env, "sfb_cr_maker_%d" % order.id, "account.group_account_user")
+    checker = _mk(env, "sfb_cr_checker_%d" % order.id, "account.group_account_manager")
+    bank = env["account.journal"].create(
+        {"name": "SF CR bank %d" % order.id, "type": "bank", "code": "SR%d" % (order.id % 999)}
+    )
+    remittance = (
+        env["fix.courier.remittance"]
+        .with_user(maker)
+        .create(
+            {
+                "operating_unit_id": w.ou.id,
+                "courier_id": courier.id,
+                "batch_ref": "PATHAO-PAY-%d" % order.id,
+                "journal_id": bank.id,
+                "bank_ref": "BANK-CR-%d" % order.id,
+                "delivery_charges": 60.0,
+                "cod_charges": 25.0,
+                "net_amount": 2415.0,
+            }
+        )
+    )
+    remittance.with_user(maker).action_load_orders()
+    assert remittance.order_ids == order
+    remittance.with_user(maker).action_submit()
+    remittance.with_user(checker).action_settle()
+    assert remittance.state == "settled"
+    assert _balance(env, clearing) == 0.0
+    assert _balance(env, bank.default_account_id) == 2415.0
+    assert _balance(env, charges) == 85.0
+    assert _balance(env, w.acc.ar, w.customer) == 0.0
 
 
 # ============================================================ fail closed, not blocking

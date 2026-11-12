@@ -68,6 +68,18 @@ SURFACES = {
             "action_mark_recovered",
         },
     },
+    # G10 (owner decision 12 Nov 2026): a third-party courier's COD payout.
+    "fix.courier.remittance": {
+        "order": "remittance_date desc, id desc",
+        "limit": 200,
+        "actions": {
+            "action_load_orders",
+            "action_remove_orders",
+            "action_submit",
+            "action_settle",
+            "action_dispute",
+        },
+    },
     "fix.imprest.fund": {"order": "name", "limit": 100, "actions": {"action_request_topup"}},
     "fix.imprest.voucher": {
         "order": "voucher_date desc, id desc",

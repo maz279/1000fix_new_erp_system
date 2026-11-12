@@ -629,6 +629,45 @@ class TestReceiptsAndAllocation:
         assert "cd_cash_position.account_code.cod_clearing" in message
         assert receipt.state == "draft" and not receipt.posted_move_id
 
+    # G9 (owner decision 12 Nov 2026): the high-value cash rule (FR-ARB-026,
+    # customer NID above BDT 50,000) covered cash at the counter only; cash
+    # a courier collects at the door is cash too.
+    def test_g9_high_value_cod_needs_the_customer_nid(self, odoo_env):
+        shop = _gl_company(odoo_env, "codnid")
+        clearing = (
+            shop.env["account.account"]
+            .with_company(shop.company)
+            .create(
+                {
+                    "name": "COD clearing",
+                    "code": "102997",
+                    "account_type": "asset_current",
+                    "company_ids": [(6, 0, shop.company.ids)],
+                }
+            )
+        )
+        params = shop.env["ir.config_parameter"].sudo()
+        params.set_param("cd_billing_engine.account_code.cod_clearing", clearing.code)
+        params.set_param("cd_billing_engine.nid_cash_threshold", False)  # the 50,000 default
+        receipt = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 60000.0, "method": "cod"}
+        )
+        with pytest.raises(UserError, match="NID"):
+            receipt.action_confirm()
+        receipt.nid_captured = "12345"
+        with pytest.raises(UserError, match="National ID"):
+            receipt.action_confirm()
+        assert receipt.state == "draft" and not receipt.posted_move_id
+        receipt.nid_captured = "1990123456789"
+        receipt.action_confirm()
+        assert receipt.state == "confirmed" and receipt.account_id == clearing
+        # at or below the threshold no NID is asked, as for counter cash
+        small = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 50000.0, "method": "cod"}
+        )
+        small.action_confirm()
+        assert small.state == "confirmed"
+
 
 # ---------------------------------------------------------------------------
 class TestCreditControlDunningAgeing:

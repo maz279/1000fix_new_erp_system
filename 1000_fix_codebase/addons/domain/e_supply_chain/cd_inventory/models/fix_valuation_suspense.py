@@ -52,7 +52,15 @@ STOCK_EFFECT = {
     "rtv": 1.0,
     "shipment": 1.0,
     "class_change": 1.0,
+    # G1: a return to vendor's purchase-price variance moves no stock; the
+    # cut-over clears it from the suspense account to its clearing account
+    "price_variance": 0.0,
 }
+
+# G1 (owner decision 12 Nov 2026): the account a return to vendor's
+# purchase-price variance is cleared to by the period-close cut-over. Unset:
+# the variance is recorded on the RTV only, never posted to a guessed account.
+PRICE_VARIANCE_PARAM = "cd_inventory.account_code.price_variance"
 
 
 class FixInventoryValuationSuspense(models.Model):
@@ -128,6 +136,7 @@ class FixInventoryValuationSuspense(models.Model):
             ("rtv", "Return to Vendor"),
             ("shipment", "Warehouse Shipment"),
             ("class_change", "Ownership-Class Change"),
+            ("price_variance", "Purchase Price Variance (RTV)"),
         ],
         string="Entry Type",
         required=True,
@@ -140,6 +149,15 @@ class FixInventoryValuationSuspense(models.Model):
         default=lambda self: suspense_account_code(self.env),
         help="Suspense clearing account code (system parameter %s, default %s)"
         % (SUSPENSE_ACCOUNT_PARAM, DEFAULT_SUSPENSE_ACCOUNT_CODE),
+    )
+    # G1: a row that is not stock (STOCK_EFFECT 0) names the account the
+    # cut-over moves its value to, off the suspense account: Dr <account> /
+    # Cr suspense for a positive value (a loss), the reverse for a gain.
+    clearing_account_code = fields.Char(
+        string="Clears To Account",
+        help="Price-variance rows: the account the period-close cut-over clears this value "
+        "to from the suspense account (system parameter %s when it was booked)."
+        % PRICE_VARIANCE_PARAM,
     )
     status = fields.Selection(
         [
@@ -203,6 +221,7 @@ class FixInventoryValuationSuspense(models.Model):
         "total_valuation",
         "entry_type",
         "suspense_account_code",
+        "clearing_account_code",
         "status",
         "gl_cutover_ref",
         "reconciled_at",
@@ -274,7 +293,50 @@ class FixInventoryValuationSuspense(models.Model):
             }
         )
 
+    @api.model
+    def _fix_post_price_variance(
+        self, part, quantity, value, source_ref, account_code, location=None, company=None
+    ):
+        """G1: book a return to vendor's purchase-price variance, `value` =
+        quantity x (average cost the stock left at - price the vendor
+        credits), as a pending row of its own. It moves no stock (STOCK_EFFECT
+        0): the period-close cut-over clears it from the suspense account to
+        `account_code` (Dr PPV / Cr suspense for a loss)."""
+        value = round(value or 0.0, 2)
+        if abs(value) < 0.005 or not account_code:
+            return self.browse()
+        company = company or (location.company_id if location else False) or part.company_id
+        operating_unit = (location.operating_unit_id if location else False) or (
+            part.operating_unit_id
+        )
+        return self.sudo().create(
+            {
+                "company_id": company.id,
+                "operating_unit_id": operating_unit.id if operating_unit else False,
+                "product_id": part.id,
+                "quantity": quantity,
+                "unit_cost": round(value / quantity, 4) if quantity else value,
+                "total_valuation": value,
+                "entry_type": "price_variance",
+                "source_ref": source_ref or False,
+                "suspense_account_code": suspense_account_code(self.env),
+                "clearing_account_code": account_code,
+                "status": "pending_gl_cutover",
+            }
+        )
+
     # ------------------------------------------------------------ reconciliation
+    def _fix_cutover_clearings(self) -> dict:
+        """G1: {account code: value} the cut-over must move off the suspense
+        account to other accounts (price-variance rows), on top of the stock
+        movement _fix_stock_effect_total sizes. A positive value is debited
+        to the account and credited to the suspense account."""
+        out = {}
+        for entry in self.filtered(lambda e: e.clearing_account_code):
+            code = entry.clearing_account_code
+            out[code] = round(out.get(code, 0.0) + entry.total_valuation, 2)
+        return out
+
     def _fix_stock_effect_total(self) -> float:
         """The net stock-value movement of these entries: each row's value with
         the sign STOCK_EFFECT gives its type (a consumption carries the value

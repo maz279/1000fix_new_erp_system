@@ -534,6 +534,129 @@ class TestPeriodClose:
         assert result["status"] == "zero_cleared" and result["voucher_ref"] == ""
         assert (close.suspense_closing, close.suspense_reconciled) == (0.0, True)
 
+    # G1 (owner decision 12 Nov 2026): a return to vendor leaves stock at its
+    # average cost (rtv row, -5 x 1,487.50) while the vendor credits the
+    # billed 1,480.00 (Dr AP / Cr GRNI 7,400). The 37.50 difference is a
+    # price_variance row: no stock movement, cleared by the cut-over from the
+    # suspense account to the PPV account it names.
+    @classmethod
+    def _ppv_world(cls, odoo_env, variance, ppv_code="600907"):
+        env, company, part, _cutover = cls._suspense_company(odoo_env)
+        Account = env["account.account"].with_company(company)
+        ppv = Account.create(
+            {
+                "code": "600907",
+                "name": "Purchase Price Variance",
+                "account_type": "expense_direct_cost",
+                "company_ids": [(6, 0, company.ids)],
+            }
+        )
+        suspense_acc = Account.search([("code", "=", "110999"), ("company_ids", "in", company.id)])
+        inventory_acc = Account.search([("code", "=", "110100"), ("company_ids", "in", company.id)])
+        journal = env["account.journal"].search(
+            [("company_id", "=", company.id), ("code", "=", "CUT")], limit=1
+        )
+        Suspense = env["fix.inventory.valuation.suspense"]
+        rows = Suspense.create(
+            {
+                "product_id": part.id,
+                "quantity": -5.0,
+                "unit_cost": 1487.5,
+                "entry_type": "rtv",
+                "source_ref": "RTV/G1",
+            }
+        ) | Suspense.create(
+            {
+                "product_id": part.id,
+                "quantity": 5.0,
+                "unit_cost": round(variance / 5.0, 4),
+                "total_valuation": variance,
+                "entry_type": "price_variance",
+                "source_ref": "RTV/G1",
+                "clearing_account_code": ppv_code,
+            }
+        )
+
+        def move(*lines):
+            entry = env["account.move"].create(
+                {
+                    "journal_id": journal.id,
+                    "date": date(2026, 9, 30),
+                    "line_ids": [
+                        (0, 0, {"name": "g1", "account_id": acc.id, "debit": dr, "credit": cr})
+                        for acc, dr, cr in lines
+                    ],
+                }
+            )
+            entry.action_post()
+            return entry
+
+        accounts = {"ppv": ppv, "suspense": suspense_acc, "inventory": inventory_acc}
+        return env, company, rows, accounts, move
+
+    def test_g1_cutover_clears_the_price_variance_to_the_ppv_account(self, odoo_env):
+        env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5)
+        close = _close(env, company_id=company.id)
+        # the stock leg alone leaves the variance in the suspense account
+        close.cutover_move_id = move(
+            (acc["suspense"], 7437.5, 0.0), (acc["inventory"], 0.0, 7437.5)
+        )
+        with pytest.raises(UserError, match="600907"), env.cr.savepoint():
+            close.action_reconcile_inventory_suspense()
+        assert rows.mapped("status") == ["pending_gl_cutover"] * 2
+        # Dr suspense 7,437.50 / Cr Inventory 7,437.50; Dr PPV 37.50 / Cr suspense 37.50
+        entry = move(
+            (acc["suspense"], 7437.5, 0.0),
+            (acc["inventory"], 0.0, 7437.5),
+            (acc["ppv"], 37.5, 0.0),
+            (acc["suspense"], 0.0, 37.5),
+        )
+        close.cutover_move_id = entry
+        result = close.action_reconcile_inventory_suspense()
+        assert result["status"] == "zero_cleared" and result["total_valuation"] == 7437.5
+        assert rows.mapped("status") == ["reconciled", "reconciled"]
+        assert set(rows.mapped("gl_cutover_ref")) == {entry.name}
+        (event,) = _events(env, "inventory.suspense.reconciled", close.id)
+        assert event["price_variance_cleared"] == 37.5
+
+    def test_g1_cutover_refuses_the_variance_booked_the_wrong_way(self, odoo_env):
+        env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5)
+        close = _close(env, company_id=company.id)
+        close.cutover_move_id = move(
+            (acc["suspense"], 7475.0, 0.0),
+            (acc["inventory"], 0.0, 7437.5),
+            (acc["ppv"], 0.0, 37.5),
+        )
+        with pytest.raises(UserError, match="does not clear"), env.cr.savepoint():
+            close.action_reconcile_inventory_suspense()
+        assert rows.mapped("status") == ["pending_gl_cutover"] * 2
+
+    def test_g1_a_favourable_variance_is_credited_to_ppv(self, odoo_env):
+        """The vendor credited more than the stock's average cost: a gain."""
+        env, company, rows, acc, move = self._ppv_world(odoo_env, -20.0)
+        close = _close(env, company_id=company.id)
+        close.cutover_move_id = move(
+            (acc["suspense"], 7457.5, 0.0),
+            (acc["inventory"], 0.0, 7437.5),
+            (acc["ppv"], 0.0, 20.0),
+        )
+        result = close.action_reconcile_inventory_suspense()
+        assert result["status"] == "zero_cleared"
+        assert rows.mapped("status") == ["reconciled", "reconciled"]
+
+    def test_g1_the_ppv_account_must_exist_in_the_chart(self, odoo_env):
+        env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5, ppv_code="600999")
+        close = _close(env, company_id=company.id)
+        close.cutover_move_id = move(
+            (acc["suspense"], 7437.5, 0.0),
+            (acc["inventory"], 0.0, 7437.5),
+            (acc["ppv"], 37.5, 0.0),
+            (acc["suspense"], 0.0, 37.5),
+        )
+        with pytest.raises(UserError, match="600999"), env.cr.savepoint():
+            close.action_reconcile_inventory_suspense()
+        assert rows.mapped("status") == ["pending_gl_cutover"] * 2
+
     def test_close_line_state_machine(self, odoo_env):
         close = _close(odoo_env)
         line = odoo_env["fix.period.close.line"].create({"close_id": close.id, "name": "Bank rec"})
