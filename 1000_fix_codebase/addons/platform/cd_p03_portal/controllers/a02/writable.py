@@ -582,6 +582,7 @@ WRITABLE = {
             "burn_in_temp_celsius",
             "dc_power_rail_readings",
             "device_serial",
+            "diagnostic_findings",
             "dofa_justification",
             "equipment_id",
             "flux_solder_spec",
@@ -593,6 +594,7 @@ WRITABLE = {
             "pre_rework_photo_attachment_id",
             "priority",
             "reflow_profile_name",
+            "repair_action_summary",
             "repair_level",
             "sam_standard_minutes",
             "schematic_designators",
@@ -600,6 +602,18 @@ WRITABLE = {
             "workshop_id",
         }
     ),
-    "fix.workshop.part.line": frozenset(),
+    "fix.workshop.part.line": frozenset(
+        {
+            "circuit_designator",
+            "donor_board_serial",
+            "job_id",
+            "lot_serial_number",
+            "notes",
+            "part_photo_attachment_id",
+            "product_id",
+            "quantity",
+            "source_origin",
+        }
+    ),
     "fix.z4.access.audit": frozenset(),
 }

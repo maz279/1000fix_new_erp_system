@@ -66,6 +66,9 @@ SURFACES = {
     "fix.workshop.part.line": {
         "order": "id desc",
         "limit": 200,
+        # Part Fitment form: a closed job takes no new parts (the model refuses
+        # it), so it is not offered
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
         # A02 audit B1: a part beyond the approved estimate is fitted after a
         # routed extra-part approval (Request Approval), decided in M63
         "actions": {
