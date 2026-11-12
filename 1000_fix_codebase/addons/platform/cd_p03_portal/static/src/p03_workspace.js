@@ -3079,8 +3079,15 @@ export class P03Workspace extends Component {
             // outcome AND a note) — chain native prompts exactly like the
             // service-order runner; cancelling any prompt aborts the action.
             const kwargs = Object.assign({}, cfg.kw || {});
+            // a record with no `name` (a warranty claim: claim_no) read
+            // "undefined — Amount received..." - fall back to its first column
+            const firstCol = (gl.modelCfg.cols || [])[0];
+            const firstVal = firstCol ? row[firstCol] : null;
+            const who = row.display_name || row.name
+                || (firstVal && typeof firstVal === "object" ? firstVal.label || firstVal[1] : firstVal)
+                || `#${row.id}`;
             for (const ask of cfg.asks) {
-                const value = window.prompt(row.name + " — " + this.t(ask.label));
+                const value = window.prompt(who + " — " + this.t(ask.label));
                 if (value === null) return;
                 kwargs[ask.kwarg] = ask.number ? Number(value) : value;
             }

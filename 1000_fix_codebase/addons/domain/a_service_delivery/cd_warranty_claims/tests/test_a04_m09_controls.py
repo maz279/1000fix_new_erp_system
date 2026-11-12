@@ -538,3 +538,73 @@ def test_the_workspace_runs_the_claim_lifecycle(wc):
     finally:
         g.request = saved
     assert claim.state == "submitted" and claim.approval_state == "pending"
+
+
+def _workspace(env_user):
+    """Call /p03/model/action exactly as the workspace does, as `env_user`."""
+    import types
+
+    import odoo.addons.cd_p03_portal.controllers.p03_generic_api as g
+
+    ctl = g.P03GenericApiController()
+    action = g.P03GenericApiController.model_action.original_endpoint
+
+    def call(model, rec, method, **kwargs):
+        saved = getattr(g, "request", None)
+        g.request = types.SimpleNamespace(env=env_user)
+        try:
+            return action(ctl, model=model, ids=[rec.id], method=method, kwargs=kwargs)
+        finally:
+            g.request = saved
+
+    return call
+
+
+def test_the_remittance_matching_page_settles_an_approved_claim(wc):
+    """M09 capture audit (2026-11-13): Record Bank Receipt / Note Brand
+    Remittance Advice on the Remittance Matching list. Neither was on the
+    workspace whitelist, so an approved claim could never become remitted."""
+    claim = _submitted(wc)
+    _as(claim, wc.clerk).action_propose_partial(approved_amount=5000.0, reason="Labour capped")
+    approve_via_inbox(claim, wc.officer)
+    assert claim.state == "partially_approved"
+    clerk = _workspace(wc.env(user=wc.clerk.id))
+    officer = _workspace(wc.env(user=wc.officer.id))
+    # the brand's advice: a clerk's note, settles nothing (the asks send a Number)
+    res = clerk(CLAIM, claim, "action_record_remittance_advice", amount=5000, bank_ref="ADV-1")
+    assert res["success"], res
+    assert (claim.state, claim.remittance_advice_amount) == ("partially_approved", 5000.0)
+    # the bank receipt is an officer's; a clerk is refused by the method, not the gate
+    res = clerk(CLAIM, claim, "action_record_remittance", amount=5000, bank_ref="BANK-77")
+    assert not res["success"] and "Action not available" not in res["error"]
+    res = officer(CLAIM, claim, "action_record_remittance", amount=5000, bank_ref="BANK-77")
+    assert res["success"], res
+    assert (claim.state, claim.remittance_amount, claim.remittance_ref) == (
+        "remitted",
+        5000.0,
+        "BANK-77",
+    )
+
+
+def test_the_repair_warranty_page_and_report_read_service_orders(wc):
+    """M09 capture audit: the repair warranty is 1000FiX's (BRU-WTY-16). The
+    page opens a comeback on the delivered order; the report lists orders
+    carrying a repair warranty and their comeback - it used to list claims."""
+    from odoo.addons.cd_p03_portal.controllers.a04 import m09 as m09_api
+
+    env = wc.env
+    so = wc.closed_order(category="standard")
+    so._guarded().write({"service_warranty_until": wc.today + timedelta(days=30)})
+    claim = wc.claim()  # a brand claim must NOT appear in this report
+    res = _workspace(env(user=wc.clerk.id))(
+        "fix.service.order", so, "action_reopen_comeback", reason="Speaker crackles again"
+    )
+    assert res["success"], res
+    rework = env["fix.service.order"].search([("rework_of_id", "=", so.id)])
+    assert rework and rework.is_rework
+    pack = m09_api.warranty_repairs(env)
+    rows = {r["order"]: r for r in pack["rows"]}
+    assert rows[so.name]["comeback"] == rework.name
+    assert rows[so.name]["days_left"] == 30
+    assert claim.claim_no not in {r["order"] for r in pack["rows"]}
+    assert set(pack["cols"]) <= set(pack["labels"])

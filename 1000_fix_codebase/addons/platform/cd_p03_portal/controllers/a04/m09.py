@@ -28,6 +28,12 @@ SURFACES = {
             "action_recall_approval",
             "action_close",
             "action_confirm_device_recheck",
+            # M09 capture audit (2026-11-13): FR-WTY-053 remittance matching.
+            # Recording the bank receipt is a Claim Decision Officer's; the
+            # brand's advice is a clerk's note and settles nothing. Neither
+            # was reachable, so an approved claim could never be remitted.
+            "action_record_remittance",
+            "action_record_remittance_advice",
         },
     },
     "fix.warranty.evidence": {
@@ -365,35 +371,55 @@ def warranty_validation(env, date_from=None, date_to=None, **params):
 
 
 def warranty_repairs(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
+    """FR-WTY-007/008: the repair warranty 1000FiX issues on its own work and
+    the comebacks it absorbed. It used to list the BRAND claims, which recover
+    a manufacturer's warranty - a repair warranty is charged to 1000FiX
+    (BRU-WTY-16) and never claimed from a brand."""
+    orders = env["fix.service.order"]
+    issued = orders.search([("service_warranty_until", "!=", False)], order="id desc", limit=500)
+    comebacks = orders.search([("rework_of_id", "in", issued.ids)]) if issued else orders
+    by_origin = {}
+    for rework in comebacks:
+        by_origin.setdefault(rework.rework_of_id.id, rework)
+    today = _today(env)
     rows = []
-    for claim in claims:
-        order = claim.service_order_id
+    for order in issued:
+        rework = by_origin.get(order.id)
         rows.append(
             {
-                "claim": claim.claim_no,
-                "order": order.name if order else "—",
-                "state": claim.state,
-                "amount": round(claim.claim_amount or 0.0, 2),
-                "remitted": round(claim.remittance_amount or 0.0, 2),
+                "order": order.name,
+                "device": order.device_id.display_name if order.device_id else "—",
+                "until": str(order.service_warranty_until),
+                "days_left": max((order.service_warranty_until - today).days, 0),
+                "comeback": rework.name if rework else "—",
+                "comeback_state": rework.state if rework else "—",
             }
         )
     return _pack(
         "Repair Warranty & Rework",
-        ["claim", "order", "state", "amount", "remitted"],
+        ["order", "device", "until", "days_left", "comeback", "comeback_state"],
         {
-            "claim": "Claim",
             "order": "Service Order",
-            "state": "State",
-            "amount": "Claim Amount",
-            "remitted": "Remitted",
+            "device": "Device",
+            "until": "Repair Warranty Until",
+            "days_left": "Days Left",
+            "comeback": "Comeback Order",
+            "comeback_state": "Comeback State",
         },
         rows,
         [
-            "A claim is a warranty repair that the brand must reimburse; the order "
-            "link is the rework record."
+            "The repair warranty is issued when an order is handed over. A customer back "
+            "with the same problem inside it gets a linked comeback order (Repair Warranty "
+            "Comebacks), free once a commercial approver confirms it; 1000FiX bears the "
+            "cost, no brand is claimed."
         ],
-        empty="No warranty claims yet.",
+        totals={
+            "order": "Total",
+            "comeback": sum(1 for r in rows if r["comeback"] != "—"),
+        }
+        if rows
+        else None,
+        empty="No order has a repair warranty yet: it is issued at handover.",
     )
 
 
