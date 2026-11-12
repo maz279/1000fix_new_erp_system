@@ -646,7 +646,7 @@ export const SCREENS = {
       { title: 'Agent', note: 'BRU-ITC-12: instructed only when active in M42, licensed and approved by an Import Approver who did not enter it. A renewed licence is a new record.',
         fields: [
           { name: 'name', required: true, label: 'Agent' },
-          { name: 'supplier_id', required: true, label: 'M42 Supplier Record', domain: [['status', '=', 'active']] },
+          { name: 'supplier_id', required: true, label: 'M42 Supplier Record', domain: [['status', '=', 'active']], emptyNote: 'No supplier is active yet. A supplier becomes active in M42 Supplier Management once its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
           { name: 'licence_no', required: true, label: 'C&F Licence No' },
           { name: 'licence_authority', label: 'Licensing Custom House' },
           { name: 'licence_expiry', required: true, label: 'Licence Expiry' },

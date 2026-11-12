@@ -215,6 +215,10 @@ export const SCREENS = {
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'company_id', label: 'Company', required: true },
         { name: 'order_id', label: 'Service Order' },  // optional for a pre-sales estimate; the server requires an order or an opportunity (A03 W8)
+        /* the other owner the server accepts: without it a pre-sales estimate
+         * could not be saved from M36 at all (fix_real, 12 Nov 2026) */
+        { name: 'lead_id', label: 'CRM Opportunity',
+          emptyNote: 'No open opportunity yet. An estimate belongs to a service order or to a CRM opportunity: create the opportunity in M07 CRM & Sales Pipeline first.' },
         { name: 'manager_approval_uid', label: 'Manager Approval', readonly: true },
         { name: 'currency_id', label: 'Currency', required: true },
         { name: 'approved_by', label: 'Approved By', readonly: true },

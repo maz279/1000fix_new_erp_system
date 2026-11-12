@@ -4731,7 +4731,37 @@ export class P03Workspace extends Component {
         const gl = this.state.gl;
         const cfg = (gl && gl.modelCfg && gl.modelCfg.actions) || [];
         if (!row) return [];
-        return cfg.filter((a) => !a.states || a.states.includes(row.state));
+        const state = this._mlStateKey(row);
+        return cfg.filter((a) => !a.states || a.states.includes(state));
+    }
+
+    /* /p03/model/records serves a selection as {key, label}; an action's
+     * `states` lists keys. Comparing the object hid every state-gated action
+     * in the record pane (fix_real 12 Nov: a draft quotation showed none). */
+    _mlStateKey(row) {
+        const gl = this.state.gl;
+        const field = (gl && gl.modelCfg && gl.modelCfg.stateField) || "state";
+        const v = row ? row[field] : null;
+        return v && typeof v === "object" ? v.key : v;
+    }
+
+    /* Why a list command cannot run now ("" when it can): a row action needs
+     * a selected row whose state it applies to. Shown as the disabled
+     * button's tooltip instead of a click that only says "Select a row". */
+    mlActionBlock(act) {
+        const gl = this.state.gl;
+        const row = gl && gl.mlSelected;
+        if (!row) {
+            const empty = !(gl && gl.data && gl.data.rows && gl.data.rows.length);
+            if (!empty) return this.t("Select a record in the list first");
+            return this.t(gl.modelCfg && gl.modelCfg.create !== false
+                ? "No record to act on yet: create one with + New first"
+                : "No record to act on yet");
+        }
+        if (act.states && !act.states.includes(this._mlStateKey(row))) {
+            return this.t("Not available for a record in this state");
+        }
+        return "";
     }
 
     /* [label, value] pairs for the record pane, from the screen's declared

@@ -193,7 +193,7 @@ export const SCREENS = {
           { name: 'justification', type: 'text', label: 'Business Justification' },
           { name: 'product_id', label: 'Product' },
           { name: 'qty', label: 'Quantity' },
-          { name: 'vendor_id', label: 'Preferred Vendor', domain: [['fix_supplier_status', '=', 'active']] },
+          { name: 'vendor_id', label: 'Preferred Vendor', domain: [['fix_supplier_status', '=', 'active']], emptyNote: 'No supplier is active yet. A supplier becomes active in M42 Supplier Management once its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
           { name: 'estimate_amount', label: 'Estimated Amount' },
           { name: 'cost_centre', required: true, label: 'Cost Centre' },
           { name: 'required_by', required: true, label: 'Required By' },
@@ -240,7 +240,8 @@ export const SCREENS = {
     sections: [
       { title: 'Order', note: 'The PO is the ordered side of the three-way match. It needs an approved requisition (or a manager\'s documented exception) and an active M42 supplier; request approval (routed by amount), then send it. Once sent it is locked: changes go through a change order that is approved again. The vendor acknowledges in the P05 portal with its delivery date. A Receiver then starts the goods receipt from this order (Start Goods Receipt).',
         fields: [
-          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active']] },
+          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active']],
+            emptyNote: 'No supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management: its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'branch_id', label: 'Deliver-to Branch' },
           { name: 'date_order', required: true, label: 'Order Date' },
@@ -463,7 +464,7 @@ export const SCREENS = {
     sections: [
       { title: 'Agreement', note: 'A Procurement Approver other than you activates the agreement; its cap and window are then fixed (Revise returns it to draft). Called off = the issued POs linked to it; a call-off beyond the cap or the window is refused at send. It expires by itself after its end date.',
         fields: [
-          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active']] },
+          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active']], emptyNote: 'No supplier is active yet. A supplier becomes active in M42 Supplier Management once its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
           { name: 'valid_from', required: true, label: 'Valid From' },
           { name: 'valid_to', required: true, label: 'Valid To' },
           { name: 'cap_amount', label: 'Cap Amount' }

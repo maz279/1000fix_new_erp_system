@@ -229,6 +229,7 @@ WRITABLE = {
             "discount",
             "dofa_justification",
             "expiry_date",
+            "lead_id",
             "line_ids",
             "operating_unit_id",
             "order_id",

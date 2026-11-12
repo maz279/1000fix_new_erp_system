@@ -1448,6 +1448,11 @@ Object.assign(P03_BN, {
   "This finance screen is not built yet": "এই অর্থ স্ক্রিনটি এখনো তৈরি হয়নি",
   "It has no backend surface, so it shows nothing rather than unrelated data.": "এর কোনো ব্যাকএন্ড উৎস নেই, তাই অপ্রাসঙ্গিক তথ্যের বদলে কিছুই দেখানো হচ্ছে না।",
   "Select a row first": "প্রথমে একটি সারি নির্বাচন করুন",
+  "Select a record in the list first": "প্রথমে তালিকা থেকে একটি রেকর্ড নির্বাচন করুন",
+  "No record to act on yet": "কাজ করার মতো কোনো রেকর্ড এখনো নেই",
+  "No record to act on yet: create one with + New first": "কাজ করার মতো কোনো রেকর্ড এখনো নেই: আগে + নতুন দিয়ে একটি তৈরি করুন",
+  "Not available for a record in this state": "এই অবস্থার রেকর্ডের জন্য প্রযোজ্য নয়",
+  "Nothing to choose yet: no record qualifies for this field.": "এখনো বেছে নেওয়ার কিছু নেই: এই ঘরের জন্য কোনো রেকর্ড যোগ্য নয়।",
   "Rows are live records straight from the Odoo model. Action buttons call the same server-side workflow methods the back-office forms use — rules and states are enforced there, not here.": "সারিগুলো Odoo মডেলের সরাসরি লাইভ রেকর্ড। অ্যাকশন বোতাম ব্যাক-অফিস ফর্মের মতো একই সার্ভার-সাইড ওয়ার্কফ্লো মেথড কল করে — নিয়ম ও অবস্থা সেখানেই কার্যকর।",
 });
 

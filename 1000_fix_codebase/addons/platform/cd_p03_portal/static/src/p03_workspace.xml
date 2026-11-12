@@ -347,6 +347,42 @@
                                 </div>
                             </aside>
                         </div>
+
+                        <!-- The record pane's actions use the same reason prompt and
+                             one-time-secret dialog as the grid. Both lived only in the
+                             grid view, so an action that asks a reason (Submit for
+                             Approval, Cancel, Reject, invoice write-off) did nothing
+                             from a record tab (fix_real, 12 Nov 2026). -->
+                        <div class="modal-scrim" t-if="state.gl &amp;&amp; state.gl.prompt" role="dialog" aria-modal="true" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 200;">
+                            <div class="modal-dialog" style="max-width: 440px;">
+                                <div class="modal-head"><h3><t t-esc="state.gl.prompt.title"/></h3></div>
+                                <div class="modal-body">
+                                    <div class="fld">
+                                        <label for="p03_rec_prompt"><t t-esc="state.gl.prompt.label"/></label>
+                                        <input id="p03_rec_prompt" type="text" t-att-value="state.gl.prompt.value" t-on-input="(ev) => this.state.gl.prompt.value = ev.target.value"/>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn" t-on-click="() => this.glPromptCancel()"><t t-esc='t("Cancel")'/></button>
+                                    <button class="btn btn-primary" t-on-click="() => this.glPromptOk()"><t t-esc='t("Confirm")'/></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-scrim" t-if="state.gl &amp;&amp; state.gl.secretDialog" role="dialog" aria-modal="true" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+                            <div class="modal-dialog" style="max-width: 520px;">
+                                <div class="modal-head"><h3><t t-esc='t("Copy this key now")'/></h3></div>
+                                <div class="modal-body">
+                                    <p t-esc="state.gl.secretDialog.note"/>
+                                    <div class="fld">
+                                        <label for="p03_rec_secret"><t t-esc='t("Key (shown once, never again)")'/></label>
+                                        <input id="p03_rec_secret" type="text" readonly="readonly" autocomplete="off" t-att-value="state.gl.secretDialog.secret" t-on-focus="(ev) => ev.target.select()"/>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" t-on-click="() => { this.state.gl.secretDialog = null; }"><t t-esc='t("I have copied it")'/></button>
+                                </div>
+                            </div>
+                        </div>
                     </t>
 
                     <!-- ========================================================
@@ -3060,7 +3096,13 @@
                                             <span style="margin-right: 4px; font-weight: 700;">+</span> <t t-esc='t("New")'/>
                                         </button>
                                         <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
-                                            <button class="btn btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
+                                            <!-- a row action is disabled, with the reason as its
+                                                 tooltip, until a row it applies to is selected:
+                                                 enabled buttons that only toasted "Select a row
+                                                 first" read as dead (fix_real PO list, 12 Nov) -->
+                                            <button class="btn btn-sm" t-att-disabled="!!this.mlActionBlock(act)"
+                                                    t-att-title="this.mlActionBlock(act) || t(act.l)"
+                                                    t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
                                         </t>
                                         <!-- R3 (2026-11-07): declared cross-links to the
                                              screen's governance siblings — navigation,
@@ -3420,6 +3462,12 @@
                                                                 <option t-att-value="opt.id" t-att-selected="formSelectValue(field.name) == opt.id" t-esc="opt.label"/>
                                                             </t>
                                                         </select>
+                                                        <!-- a picker with nothing to offer says why, instead of
+                                                             a blank box the user cannot fill (fix_real 12 Nov:
+                                                             the PO's Vendor while no supplier is active) -->
+                                                        <div t-if="!fm.truncated &amp;&amp; !fm.readonly &amp;&amp; !(fm.choices || []).length &amp;&amp; (fm.required || field.emptyNote)" class="d365-note d365-empty-choice" role="note">
+                                                            <t t-esc="t(field.emptyNote || 'Nothing to choose yet: no record qualifies for this field.')"/>
+                                                        </div>
                                                     </t>
                                                     <!-- many2many: every selected row is saved -->
                                                     <select t-elif="fm.type === 'many2many'" class="d365-input" multiple="multiple" size="5"

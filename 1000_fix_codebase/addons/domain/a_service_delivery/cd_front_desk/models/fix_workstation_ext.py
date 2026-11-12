@@ -441,7 +441,24 @@ class FixCounterSale(models.Model):
             if not vals.get("name"):
                 seq = self.env["ir.sequence"].next_by_code("fix.counter.sale")
                 vals["name"] = seq or "CS/%s" % fields.Date.today()
+            if not vals.get("operating_unit_id"):
+                vals["operating_unit_id"] = self._fd_default_operating_unit(vals)
         return super().create(vals_list)
+
+    def _fd_default_operating_unit(self, vals):
+        """The unit that rang the sale: its cash shift's, else its branch's,
+        else the seller's default. The workspace form never asked for it, so
+        no counter sale could be saved there (fix_real, 12 Nov 2026)."""
+        if vals.get("shift_id"):
+            shift = self.env["fix.cash.shift"].browse(vals["shift_id"]).exists()
+            if shift and shift.operating_unit_id:
+                return shift.operating_unit_id.id
+        if vals.get("branch_id"):
+            branch = self.env["fix.branch"].browse(vals["branch_id"]).exists()
+            if branch and "operating_unit_id" in branch._fields and branch.operating_unit_id:
+                return branch.operating_unit_id.id
+        user_ou = getattr(self.env.user, "default_operating_unit_id", False)
+        return user_ou.id if user_ou else False
 
     # ------------------------------------------------------------ roles
 

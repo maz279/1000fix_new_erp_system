@@ -138,6 +138,11 @@ export const SCREENS = {
     model: 'fix.storefront.order',
     title: 'E-Commerce Storefront Customer Order',
     back: 'M38-orders',
+    /* An online order is placed by the customer at storefront checkout; no
+     * back-office role may create one (fix.storefront.order grants staff read
+     * and write only), so "+ New" here could only fail (fix_real, 12 Nov). */
+    create: false,
+    pick: 'An online order is placed by the customer at storefront checkout: open one from Online Orders.',
     status: { field: 'state' },
     tabs: [
       { id: 'order', label: '1. Order Identity', bn: '১. অর্ডার পরিচিতি', icon: '🛍️', badge: '5' },
@@ -429,6 +434,5 @@ export const FORM_CHIPS = {
   }
 };
 
-export const CREATE = {
-  M38: { screen: 'M38-form-order', model: 'fix.storefront.order', label: 'Online Order' }
-};
+/* No "+ New Online Order": orders come from storefront checkout (see M38-form-order). */
+export const CREATE = {};
