@@ -12,6 +12,15 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 WRITABLE = {
+    "fix.branch.checklist": frozenset(
+        {
+            "branch_id",
+            "checklist_date",
+            "checklist_type",
+            "handover_notes",
+            "line_ids",
+        }
+    ),
     "fix.cash.shift": frozenset(
         {
             "bank_deposit_attachment_id",
@@ -493,6 +502,7 @@ WRITABLE = {
             "branch_id",
             "counter_number",
             "customer_id",
+            "notes",
             "priority_level",
             "service_type",
         }

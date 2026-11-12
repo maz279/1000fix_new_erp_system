@@ -12,6 +12,8 @@ from odoo import api, fields, models
 
 from libs.py.fix_events import publish  # FF-28
 
+from .fix_cash_shift import fill_operating_unit
+
 logger = logging.getLogger(__name__)
 
 # G1-02 wait-time target in seconds; a policy number (today's value: 180).
@@ -159,6 +161,8 @@ class FixTokenQueue(models.Model):
         # Auto-assign the next token number per branch. The counter is carried per
         # branch across the batch: searching the table for every vals gave two
         # tokens created in one call the SAME number.
+        # the branch decides the unit: the Token Issue form never asks
+        fill_operating_unit(self.env, vals_list)
         next_number = {}
         for vals in vals_list:
             if not vals.get("token_number"):

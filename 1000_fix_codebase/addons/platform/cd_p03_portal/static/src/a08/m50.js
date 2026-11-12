@@ -736,8 +736,8 @@ Object.assign(SCREENS, {
     title: 'Cash Deposit',
     back: 'M50-cit',
     status: { field: 'state', labels: {
-      recorded: 'Recorded', in_transit: 'In Transit', deposited: 'Deposited',
-      confirmed: 'Confirmed by Bank' } },
+      draft: 'Draft', in_transit: 'In Transit', credited: 'Credited by Bank',
+      variance: 'Variance', cancelled: 'Cancelled' } },
     sections: [
       { title: 'Cash-in-Transit', note: 'The branch cash day is deposited under a slip number; carrier tracks who moved the cash.',
         fields: [

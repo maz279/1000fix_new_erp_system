@@ -44,7 +44,7 @@ export const MODULE = {
       { id: 'M04-kiosk', en: 'Kiosk Mode', bn: 'কিয়স্ক মোড', t: 'r' }
     ]},
     { en: 'Branch Ops', screens: [
-      { id: 'M04-checklists', en: 'Open/Close Checklists', bn: 'খোলা/বন্ধ চেকলিস্ট', t: 'r' },
+      { id: 'M04-checklists', en: 'Open/Close Checklists', bn: 'খোলা/বন্ধ চেকলিস্ট', t: 'g' },
       { id: 'M04-dashboard', en: 'Branch Ops Dashboard', bn: 'ব্রাঞ্চ অপস ড্যাশবোর্ড', t: 'r' },
       { id: 'M04-receipts', en: 'Receipt & Label Printing', bn: 'রিসিট ও লেবেল প্রিন্ট', t: 'g' }
     ]}
@@ -53,28 +53,44 @@ export const MODULE = {
   /* 'Handover (ID verified)' opened a BLANK intake form; a hand-over is the
    * Complete Handover action on an existing intake (Collection & Handover).
    * 'Device Storage Assignment' was the walk-in intake form under another name. */
-  forms: ['Token Issue', 'Walk-in Intake', 'Shift Open/Close', 'Counter Sale'],
+  /* M04 sub-module audit (13 Nov 2026): only 2 of the 10 sub-module pages
+   * offered a capture button (Counter Workstation, Shift Operations). Every
+   * M04 list said `create: false`, so fregCreate offered nothing on the token,
+   * drawer and sales pages although their forms existed; the custody,
+   * hand-over and payment pages had no form at all; the registry's
+   * 'Device Storage Assignment' and 'Handover (ID verified)' forms had been
+   * dropped without a replacement; and Branch Admin listed M30's branch
+   * master. Each page now captures its own record (test_m04_submodule_capture). */
+  forms: ['Token Issue', 'Walk-in Intake', 'Device Storage Assignment', 'Handover (ID verified)',
+    'Shift Open/Close', 'Counter Sale', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist'],
   cross: ['M01 walk-in intake', 'M03 collection/delivery', 'M20 receipts', 'M47 branch infrastructure', 'M17 device custody'],
   freg: {
     src: 95,
     sub: [
       ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority'], reports: ['Token Wait-Time Distribution'], forms: ['Token Issue'] }],
       ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter'], reports: ['Token Wait-Time Distribution'], forms: ['Walk-in Intake'] }],
-      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: [], create: false }],
-      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: [], create: false, domain: [['state', 'in', ['handover_pending', 'completed']]] }],
+      /* 3 FR-FRD-011: the shelf / bin of a device already in custody */
+      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment'], create: 'M04-form-storage-assign' }],
+      /* 4 BRU-FRD-05: the customer's signed acknowledgement of an intake */
+      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)'], create: 'M04-form-handover', domain: [['state', 'in', ['handover_pending', 'completed']]] }],
       ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale'] }],
       ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close'] }],
-      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: [], create: false }],
-      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Open/Close'] }],
-      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'], reports: ['Shift Variance Register'], forms: [] }],
-      ['10', 'Branch Admin', 6, { model: 'fix.branch', cols: ['code', 'name', 'zone_id', 'manager_id', 'phone'], screens: ['M04-dashboard', 'M04-checklists'], reports: ['Branch Comparison League'], forms: [] }]
+      /* 7 FR-FRD-016: the method, reference and tender of a rung-up sale */
+      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment'], create: 'M04-form-payment' }],
+      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-shift-close', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Open/Close', 'Opening / Closing Checklist'] }],
+      /* 9 FR-FRD-018: M04 records the deposit (M50's form, M50 reconciles it) */
+      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'], reports: ['Shift Variance Register'], forms: ['Cash Deposit'], create: 'M50-form-deposit' }],
+      /* 10 FR-FRD-020/022/024: the branch's daily checklists and handover
+       * notes. The branch itself is M30's configuration (spec section 3.2). */
+      ['10', 'Branch Admin', 6, { model: 'fix.branch.checklist', cols: ['name', 'branch_id', 'checklist_type', 'checklist_date', 'open_item_count', 'state', 'completed_by_id'], screens: ['M04-checklists', 'M04-dashboard'], reports: ['Branch Comparison League'], forms: ['Opening / Closing Checklist'] }]
     ]
   }
 };
 
 /* In-workspace data screens over the whitelisted front-desk models. */
 export const SCREENS = {
-  'M04-queue': { kind: 'model_list', model: 'fix.token.queue', create: false,
+  /* a token is issued at the counter (FR-FRD-001): "+ New" opens Token Issue */
+  'M04-queue': { kind: 'model_list', model: 'fix.token.queue',
     cols: ['token_display', 'counter_number', 'service_type', 'customer_id', 'state', 'issued_at', 'called_at', 'recall_count', 'served_at'],
     stateField: 'state',
     actions: [
@@ -102,7 +118,8 @@ export const SCREENS = {
     stateField: 'state',
     actions: [{ m: 'action_complete_handover', l: 'Complete Handover' }] },
   'M04-uncollected': { kind: 'table_report', module: 'M04', report: 'uncollected_ageing', period: false },
-  'M04-drawer': { kind: 'model_list', model: 'fix.cash.shift', create: false,
+  /* a drawer starts with a counted float (FR-FRD-014): "+ New" opens a shift */
+  'M04-drawer': { kind: 'model_list', model: 'fix.cash.shift',
     cols: ['shift_date', 'shift_type', 'branch_id', 'operator_id', 'opening_float', 'cash_payments', 'cash_refunds', 'expected_closing', 'closing_counted', 'variance', 'state'],
     stateField: 'state',
     /* A02 audit M04-2/-11: the cashier submits a BLIND count (it no longer
@@ -118,11 +135,15 @@ export const SCREENS = {
       { m: 'action_reconcile', l: 'Reconcile' }
     ] },
   'M04-payments': { kind: 'model_list', model: 'fix.counter.sale', create: false,
-    cols: ['name', 'sale_date', 'branch_id', 'product_id', 'quantity', 'total', 'payment_method', 'state'],
-    stateField: 'state' },
+    cols: ['name', 'sale_date', 'branch_id', 'product_id', 'quantity', 'total', 'payment_method', 'transaction_ref', 'tendered_amount', 'state'],
+    stateField: 'state',
+    /* the payment is taken on the Counter Payment form; confirming puts cash
+     * in the open drawer and issues the Mushak-6.3 number (FR-FRD-016) */
+    actions: [{ m: 'action_confirm', l: 'Confirm Payment & Issue Receipt', states: ['draft'] }] },
   'M04-shift': { kind: 'table_report', module: 'M04', report: 'daily_cash', period: false },
   'M04-banking': { kind: 'table_report', module: 'M04', report: 'variance_register', period: false },
-  'M04-sales': { kind: 'model_list', model: 'fix.counter.sale', create: false,
+  /* a sale is rung up at the counter (FR-FRD-012): "+ New" opens Counter Sale */
+  'M04-sales': { kind: 'model_list', model: 'fix.counter.sale',
     cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'refund_state', 'sold_by'],
     stateField: 'state',
     /* A02 audit M04-5: a price below list and a refund need a manager who
@@ -136,9 +157,15 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
-  /* M04 sweep audit 2026-11-06: the checklist screen gets its own pack —
-   * it previously duplicated the branch league table verbatim. */
-  'M04-checklists': { kind: 'table_report', module: 'M04', report: 'shift_checklists', title: 'Open/Close Checklists', period: false },
+  /* M04 sub-module audit 2026-11-13: the checklists are RECORDED
+   * (fix.branch.checklist, FR-FRD-020/024). The per-shift cash-close pack that
+   * stood in for them keeps its own name under Shift Operations. */
+  'M04-checklists': { kind: 'model_list', model: 'fix.branch.checklist',
+    cols: ['name', 'branch_id', 'checklist_type', 'checklist_date', 'open_item_count', 'state', 'completed_by_id', 'completed_at'],
+    stateField: 'state',
+    empty: 'No checklist recorded yet. Start the day with + New: the opening checklist comes with its items.',
+    actions: [{ m: 'action_complete', l: 'Sign Off Checklist', states: ['draft'] }] },
+  'M04-shift-close': { kind: 'table_report', module: 'M04', report: 'shift_checklists', title: 'Shift Cash-Close Status', period: false },
   'M04-dashboard': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
   'M04-receipts': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'customer_id', 'product_id', 'total', 'payment_method', 'state'],
@@ -149,10 +176,11 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.token.queue',
     title: "Token Issue",
+    newLabel: 'Issue Queue Token',
     back: 'M04-queue',
     status: { field: 'state', labels: { waiting: "Waiting", called: "Called", serving: "Serving", completed: "Completed", no_show: "No Show", cancelled: "Cancelled" } },
     tabs: [
-      { id: 'token', label: '1. Token & Service', bn: '১. টোকেন ও সেবা', icon: '🎫', badge: '7' },
+      { id: 'token', label: '1. Token & Service', bn: '১. টোকেন ও সেবা', icon: '🎫', badge: '8' },
       { id: 'wait', label: '2. SLA Wait Time & Escalation', bn: '২. অপেক্ষার সময় ও এসকেলেশন', icon: '⏱️', badge: '5' }
     ],
     sections: [
@@ -163,6 +191,8 @@ export const SCREENS = {
           { name: 'customer_id', label: "Customer" },
           { name: 'customer_phone', label: "Customer Phone (+880)", readonly: true },
           { name: 'service_type', required: true, label: "Intake Channel / Stream" },
+          /* FR-FRD-032: the reason for the visit, so the counter is ready */
+          { name: 'notes', label: "Reason for Visit" },
           { name: 'counter_number', label: "Assigned Service Counter" },
           { name: 'service_order_id', label: "Linked Service Order", readonly: true }
         ] },
@@ -238,6 +268,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.cash.shift',
     title: "Shift Open/Close",
+    newLabel: 'Open a Cash Shift',
     back: 'M04-drawer',
     status: { field: 'state', labels: { open: "Open", counting: "Counting", closed: "Closed", reconciled: "Reconciled", discrepancy: "Discrepancy" } },
     tabs: [
@@ -332,6 +363,148 @@ export const SCREENS = {
     ]
   },
 
+  /* ===== forms on a record already at the counter (pickRecord) =====
+   * M04 sub-module audit 2026-11-13: custody, hand-over and payment are
+   * captured on an EXISTING intake or sale, so each form first asks which. */
+
+  /* 3 Device Storage & Retrieval (FR-FRD-011). Registry form 'Device Storage
+   * Assignment': it used to open a blank intake under that name. */
+  'M04-form-storage-assign': {
+    kind: 'model_form',
+    model: 'fix.walkin.intake',
+    title: 'Device Storage Assignment',
+    newLabel: 'Assign Storage Bin',
+    back: 'M04-storage',
+    status: { field: 'state', labels: { in_progress: "In Progress", handover_pending: "Handover Pending", completed: "Completed" } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the device in branch custody',
+      note: 'Walk-in intakes whose device is still at the counter (in progress or waiting for hand-over).',
+      search: 'Search customer / serial / bin',
+      choose: 'Assign a bin to this device',
+      cols: ['customer_id', 'device_id', 'device_serial_input', 'storage_bin_code', 'state'],
+      domain: [['state', 'in', ['in_progress', 'handover_pending']]],
+      empty: 'No device is in branch custody. A device enters custody with a walk-in intake (Counter Workstation).'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Storage Shelf / Bin',
+        note: 'Record where the device sits so it is found in seconds at collection. A retained charger, battery or cable goes in a sealed, barcoded accessory bag.',
+        fields: [
+          { name: 'storage_bin_code', required: true, label: 'Storage Shelf / Bin Code' },
+          { name: 'accessory_bag_barcode', label: 'Accessory Bag Barcode' },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'device_serial_input', label: 'Scanned Serial / IMEI', readonly: true },
+          { name: 'state', label: 'Intake State', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 4 Collection & Handover (BRU-FRD-05). Registry form 'Handover (ID
+   * verified)': it used to open a blank intake. The proof is written here;
+   * Complete Handover on the list checks it and creates the service order. */
+  'M04-form-handover': {
+    kind: 'model_form',
+    model: 'fix.walkin.intake',
+    title: 'Handover (ID verified)',
+    newLabel: 'Record Handover Proof',
+    back: 'M04-handover',
+    status: { field: 'state', labels: { in_progress: "In Progress", handover_pending: "Handover Pending", completed: "Completed" } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the intake the customer is acknowledging',
+      note: 'Intakes not yet handed over. A completed hand-over is frozen.',
+      search: 'Search customer / serial',
+      choose: 'Record proof for this intake',
+      cols: ['customer_id', 'device_id', 'device_serial_input', 'handover_method', 'state'],
+      domain: [['state', 'in', ['in_progress', 'handover_pending']]],
+      empty: 'No intake is waiting for hand-over. Start one with a walk-in intake (Counter Workstation).'
+    },
+    sections: [
+      { title: "Step 2 of 2: Customer's Signed Acknowledgement",
+        note: 'Choose Digital Signature and attach the receipt the customer signed. Then submit the intake for hand-over (Storage Locations) and press Complete Handover on Collection & Handover: it checks this proof, the device and the accessory bag, posts a cash diagnostic fee to the open shift and creates the service order. OTP and staff-witness acknowledgements are not accepted yet.',
+        fields: [
+          { name: 'handover_method', required: true, label: 'Acknowledgement Method' },
+          { name: 'customer_signature_attachment_id', required: true, label: 'Customer Signed Intake Receipt' },
+          { name: 'loaner_device_id', label: 'Temporary Loaner Device Issued' },
+          { name: 'accessory_bag_barcode', label: 'Accessory Bag Barcode' },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'handover_acknowledged', label: 'Hand-over Completed', readonly: true },
+          { name: 'service_order_id', label: 'Service Order Created', readonly: true },
+          { name: 'state', label: 'Intake State', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7 Payment Capture (FR-FRD-016): the method, reference and tender of a
+   * draft sale. Confirm Payment & Issue Receipt on the list then applies the
+   * rules (TrxID for non-cash, tender covers the total, open shift for cash). */
+  'M04-form-payment': {
+    kind: 'model_form',
+    model: 'fix.counter.sale',
+    title: 'Counter Payment',
+    newLabel: 'Take Counter Payment',
+    back: 'M04-payments',
+    status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", refunded: "Refunded" } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the counter sale being paid',
+      note: 'Draft counter sales. A confirmed sale is already paid and has its Mushak-6.3 number.',
+      search: 'Search sale no. / customer / product',
+      choose: 'Take payment for this sale',
+      cols: ['name', 'customer_id', 'product_id', 'total', 'payment_method', 'state'],
+      domain: [['state', '=', 'draft']],
+      empty: 'No counter sale is waiting for payment. Ring the sale up first (Counter Sales).'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Payment Method, Reference & Tender',
+        note: 'Cash, card, bKash, Nagad or bank transfer. A non-cash payment needs its TrxID or card slip number; cash needs the amount tendered. Then press Confirm Payment & Issue Receipt on Payment Capture: cash joins the open drawer and the Mushak-6.3 number is issued.',
+        fields: [
+          { name: 'payment_method', required: true, label: 'Payment Method' },
+          { name: 'transaction_ref', label: 'TrxID / Card Slip No.' },
+          { name: 'tendered_amount', label: 'Cash Tendered (BDT)' },
+          { name: 'change_due', label: 'Change Due (BDT)', readonly: true },
+          { name: 'total', label: 'Amount Due (BDT)', readonly: true },
+          { name: 'name', label: 'Sale No.', readonly: true },
+          { name: 'customer_id', label: 'Customer' },
+          { name: 'product_id', label: 'Product', readonly: true },
+          { name: 'state', label: 'Sale State', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 10 Branch Admin / 8 Shift Operations (FR-FRD-020/022/024): a new
+   * checklist comes with the items its type requires; tick each one or say
+   * why not, then Sign Off Checklist on the list. */
+  'M04-form-checklist': {
+    kind: 'model_form',
+    model: 'fix.branch.checklist',
+    title: 'Opening / Closing Checklist',
+    newLabel: 'Start Opening / Closing Checklist',
+    back: 'M04-checklists',
+    status: { field: 'state', labels: { draft: "In Progress", completed: "Completed" } },
+    lines: { field: 'line_ids', title: 'Checklist Items',
+      note: 'Saved with the items the checklist type requires (safety, equipment, stock, cash and staffing at opening; cash, device custody, orders and security at closing). Tick each item or write why it is not done; add a line for anything else.',
+      fields: [
+        { name: 'area', label: 'Area' },
+        { name: 'name', label: 'Item', required: true },
+        { name: 'done', label: 'Done' },
+        { name: 'note', label: 'Note / Why Not Done' }
+      ] },
+    sections: [
+      { title: 'Branch, Day & Handover Notes',
+        note: 'One opening and one closing checklist per branch per day. Signing off stamps who and when, and freezes the checklist.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'checklist_type', required: true, label: 'Opening or Closing' },
+          { name: 'checklist_date', required: true, label: 'Business Day' },
+          { name: 'handover_notes', label: 'Handover Notes for the Next Shift', type: 'text' },
+          { name: 'open_item_count', label: 'Items Not Done', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'completed_by_id', label: 'Signed Off By', readonly: true },
+          { name: 'completed_at', label: 'Signed Off At', readonly: true }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -344,8 +517,7 @@ export const REPORT_ROUTES = {
   "M04:Branch Comparison League": "M04-dashboard"
 };
 
-/* data-entry form chips: tokens and intakes are created by the counter
- * flows; the honest toast covers the rest until their engines land. */
+/* every M04 form chip is a declared in-workspace form (FORM_CHIPS) */
 export const FORM_MODELS = {};
 
 /* the module's "+ New" surface: no generic create — counter work starts
@@ -356,18 +528,26 @@ export const CREATE = {};
 export const FORM_CHIPS = {
   'M04:Token Issue': 'M04-form-token',
   'M04:Walk-in Intake': 'M04-form-storage',
+  'M04:Device Storage Assignment': 'M04-form-storage-assign',
+  'M04:Handover (ID verified)': 'M04-form-handover',
   'M04:Shift Open/Close': 'M04-form-shift',
   'M04:Counter Sale': 'M04-form-countersale',
+  'M04:Counter Payment': 'M04-form-payment',
+  /* the deposit is M50's record: M04 records it with M50's own form */
+  'M04:Cash Deposit': 'M50-form-deposit',
+  'M04:Opening / Closing Checklist': 'M04-form-checklist',
   'M04:__by_model__': {
     'fix.token.queue': 'M04-form-token',
     'fix.walkin.intake': 'M04-form-storage',
     'fix.cash.shift': 'M04-form-shift',
     'fix.counter.sale': 'M04-form-countersale',
+    'fix.branch.checklist': 'M04-form-checklist',
   },
   'M04:__by_screen__': {
     'M04-queue': 'M04-form-token',
     'M04-storage': 'M04-form-storage',
     'M04-drawer': 'M04-form-shift',
     'M04-sales': 'M04-form-countersale',
+    'M04-checklists': 'M04-form-checklist',
   }
 };
