@@ -261,8 +261,8 @@ export const SCREENS = {
     sections: [
       { title: 'Order', note: 'The PO is the ordered side of the three-way match. It needs an approved requisition (or a manager\'s documented exception) and an active M42 supplier; request approval (routed by amount), then send it. Once sent it is locked: changes go through a change order that is approved again. The vendor acknowledges in the P05 portal with its delivery date. A Receiver then starts the goods receipt from this order (Start Goods Receipt).',
         fields: [
-          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active']],
-            emptyNote: 'No supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management: its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
+          { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '=', 'active'], ['fix_supplier_residency', '=', 'resident']],
+            emptyNote: 'No Bangladesh-registered supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management: its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02). Overseas suppliers are ordered from on an Import Purchase Order.' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'branch_id', label: 'Deliver-to Branch' },
           { name: 'date_order', required: true, label: 'Order Date' },
@@ -302,8 +302,8 @@ export const SCREENS = {
       { title: 'Import Order', note: 'A purchase from an overseas supplier, in its own currency (USD, EUR, CNY, JPY, …). Approved and sent like a local purchase order; then Create Import Order raises the M44 import order (proforma, LC, shipment, customs) with these lines. Started from an M44 import order instead, this purchase order is raised from it.',
         fields: [
           { name: 'purchase_type', required: true, label: 'Purchase Type', value: 'import' },
-          { name: 'vendor_id', required: true, label: 'Overseas Supplier', domain: [['fix_supplier_status', '=', 'active']],
-            emptyNote: 'No supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management once it is verified, screened and activated by a Supplier Approver.' },
+          { name: 'vendor_id', required: true, label: 'Overseas Supplier', domain: [['fix_supplier_status', '=', 'active'], ['fix_supplier_residency', '=', 'foreign']],
+            emptyNote: 'No overseas supplier is active yet, so no import purchase order can be raised. In M42 Supplier Management a Supplier Steward marks the supplier Foreign; its certificate of incorporation, tax residency and bank documents are verified, it is screened, and a Supplier Approver activates it.' },
           { name: 'currency_id', required: true, label: 'Currency (the supplier\'s)', defaultRef: 'base.USD' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'date_order', required: true, label: 'Order Date' },
