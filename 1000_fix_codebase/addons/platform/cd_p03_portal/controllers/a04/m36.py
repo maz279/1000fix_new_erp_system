@@ -23,6 +23,7 @@ SURFACES = {
         "order": "create_date desc, id desc",
         "limit": 300,
         "actions": {
+            "action_pull_estimate_lines",
             "action_submit",
             "action_recall_approval",
             "action_send",

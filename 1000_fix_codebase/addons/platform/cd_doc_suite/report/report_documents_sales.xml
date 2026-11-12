@@ -65,7 +65,46 @@
                             </tr>
                         </table>
 
-                        <table class="cds-table">
+                        <!-- Quote-to-cash P1 (12 Nov 2026): the quotation lists what it quotes. -->
+                        <t t-set="firm_lines" t-value="doc.line_ids.filtered(lambda l: not l.is_optional)"/>
+                        <t t-set="option_lines" t-value="doc.line_ids.filtered(lambda l: l.is_optional and not l.display_type)"/>
+                        <table class="cds-table" t-if="firm_lines">
+                            <thead>
+                                <tr>
+                                    <th style="width: 6%;">#</th>
+                                    <th>Description</th>
+                                    <th class="cds-num" style="width: 9%;">Qty</th>
+                                    <th class="cds-num" style="width: 15%;">Unit Price</th>
+                                    <th class="cds-num" style="width: 8%;">Disc %</th>
+                                    <th class="cds-num" style="width: 18%;">Amount (excl. VAT)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-set="line_no" t-value="0"/>
+                                <t t-foreach="firm_lines" t-as="line">
+                                    <tr t-if="line.display_type == 'line_section'">
+                                        <td colspan="6" style="font-weight:bold;background:#f2f2f2;" t-esc="line.description"/>
+                                    </tr>
+                                    <tr t-elif="line.display_type == 'line_note'">
+                                        <td colspan="6" style="font-style:italic;color:#555;" t-esc="line.description"/>
+                                    </tr>
+                                    <tr t-else="">
+                                        <t t-set="line_no" t-value="line_no + 1"/>
+                                        <td class="cds-ctr" t-esc="line_no"/>
+                                        <td>
+                                            <t t-esc="line.description"/>
+                                            <div style="font-size:8pt;color:#555;" t-esc="dict(line._fields['line_type'].selection).get(line.line_type, '')"/>
+                                        </td>
+                                        <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
+                                        <td class="cds-num"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                        <td class="cds-num" t-esc="line.discount_pct and ('%g' % line.discount_pct) or ''"/>
+                                        <td class="cds-num"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="not firm_lines">
                             <thead>
                                 <tr>
                                     <th style="width: 8%;">#</th>
@@ -85,7 +124,26 @@
                             </tbody>
                         </table>
 
+                        <table class="cds-table" t-if="option_lines" style="margin-top:6px;">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">Optional items (not included in the total)</th>
+                                    <th class="cds-num" style="width: 9%;">Qty</th>
+                                    <th class="cds-num" style="width: 18%;">Amount (excl. VAT)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="option_lines" t-as="line">
+                                    <td colspan="2" t-esc="line.description"/>
+                                    <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
+                                    <td class="cds-num"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
                         <table class="cds-totals">
+                            <tr t-if="doc.discount_amount"><td class="cds-tot-label">Lines Total</td><td class="cds-tot-value"><span t-field="doc.lines_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.discount_amount"><td class="cds-tot-label">Less: Discount</td><td class="cds-tot-value"><span t-field="doc.discount_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
                             <!-- P0 quote-to-cash review (12 Nov 2026): VAT was added to a value that
                                  already included it, and the customer's TDS printed as a charge. -->
                             <tr><td class="cds-tot-label">Amount (excl. VAT)</td><td class="cds-tot-value"><span t-field="doc.value" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
@@ -104,6 +162,12 @@
                                 <li t-if="doc.valid_until">This quotation is valid until <b t-field="doc.valid_until"/>.</li>
                                 <li>Prices are quoted in <t t-esc="doc.currency_id.name"/>. VAT is shown separately and is included in the Total Payable.</li>
                                 <li t-if="doc.acceptance_method">Acceptance method: <t t-esc="{'otp':'OTP verification','esign':'e-Signature','signed_form':'Signed acceptance form'}.get(doc.acceptance_method, doc.acceptance_method)"/>.</li>
+                                <li t-if="doc.payment_term_id">Payment terms: <b t-esc="doc.payment_term_id.name"/>.</li>
+                                <li t-if="doc.advance_pct">Advance: <t t-esc="'%g' % doc.advance_pct"/>% of the total payable (<span t-field="doc.advance_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>) with the order.</li>
+                                <li t-if="doc.payment_method_ids">Payment accepted by: <t t-esc="', '.join(doc.payment_method_ids.mapped('name'))"/>.</li>
+                                <li t-if="doc.delivery_terms">Delivery: <t t-esc="doc.delivery_terms"/></li>
+                                <li t-if="doc.warranty_terms">Warranty: <t t-esc="doc.warranty_terms"/></li>
+                                <li t-if="doc.customer_po_ref">Your purchase order: <t t-esc="doc.customer_po_ref"/><t t-if="doc.customer_po_date"> dated <span t-field="doc.customer_po_date"/></t>.</li>
                                 <li>Work commences upon written acceptance and, where applicable, advance payment.</li>
                             </ul>
                         </div>

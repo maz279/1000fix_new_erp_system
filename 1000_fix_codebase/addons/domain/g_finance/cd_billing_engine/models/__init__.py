@@ -9,6 +9,7 @@ from . import (
     fix_finance_approval,
     fix_part_exemption_billing,
     fix_party_merge_consumer,
+    fix_payment_method,
     fix_vds_certificate,
 )
 

@@ -19,3 +19,7 @@ access_fix_tender_variation,fix.tender.variation,model_fix_tender_variation,base
 access_fix_tender_variation_coordinator,fix.tender.variation bid coordinator,model_fix_tender_variation,group_bid_coordinator,1,1,1,0
 access_fix_tender_variation_committee,fix.tender.variation committee,model_fix_tender_variation,group_tender_committee,1,1,0,0
 access_fix_tender_variation_manager,fix.tender.variation manager,model_fix_tender_variation,group_quotation_manager,1,1,1,1
+access_fix_quotation_line,fix.quotation.line,model_fix_quotation_line,base.group_user,1,0,0,0
+access_fix_quotation_line_author,fix.quotation.line author,model_fix_quotation_line,group_quotation_user,1,1,1,1
+access_fix_quotation_line_approver,fix.quotation.line value-band approver,model_fix_quotation_line,cd_entity_config.group_dofa_tier_1,1,0,0,0
+access_fix_quotation_line_manager,fix.quotation.line manager,model_fix_quotation_line,group_quotation_manager,1,1,1,1

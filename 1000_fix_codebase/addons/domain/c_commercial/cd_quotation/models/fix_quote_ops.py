@@ -62,6 +62,14 @@ QUOTE_TERMS = frozenset(
         "contract_months",
         "contract_start",
         "operating_unit_id",
+        # Quote-to-cash P1 (12 Nov 2026): what is quoted and on what terms.
+        "discount_amount",
+        "scope_digest",
+        "payment_term_id",
+        "payment_method_ids",
+        "advance_pct",
+        "delivery_terms",
+        "warranty_terms",
     }
 )
 
@@ -100,6 +108,12 @@ QUOTE_STAMPS = frozenset(
         "vat_amount",
         "amount_total",
         "accepted_total",
+        # P1: set from the lines, never typed
+        "scope_digest",
+        "lines_total",
+        "list_total",
+        "discount_pct",
+        "advance_amount",
         "tds_amount",
         "margin_known",
         "pretax_margin_bdt",

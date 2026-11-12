@@ -32,6 +32,11 @@ CD-M36-02/03: quotation and estimation.
         "cd_event_outbox",
         "cd_service_order",
         "cd_workflow_engine",
+        # Quote-to-cash P1 (12 Nov 2026): payment terms (account) and the
+        # customer payment-method master (M20). No cycle: the billing
+        # engine reads quotations through the registry only.
+        "account",
+        "cd_billing_engine",
     ],
     "data": [
         "security/cd_quotation_groups.xml",

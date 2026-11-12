@@ -69,6 +69,10 @@ CD-M20-01: the M20 accounts-receivable core.
         "views/fix_billing_engine_views.xml",
         "views/fix_ar_engine_views.xml",
         "views/fix_vds_certificate_views.xml",
+        # Quote-to-cash P1 (12 Nov 2026): the one customer payment-method
+        # list and the Bangladesh payment-term templates.
+        "data/fix_payment_method_data.xml",
+        "views/fix_payment_method_views.xml",
     ],
     "installable": True,
     "application": False,

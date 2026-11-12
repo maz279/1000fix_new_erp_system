@@ -133,6 +133,7 @@ export const SCREENS = {
   'M36-quotes': { kind: 'model_list', model: 'fix.quotation', stateField: 'state',
     cols: ['name', 'customer_id', 'version', 'value', 'amount_total', 'margin_pct', 'valid_until', 'state', 'approval_state'],
     actions: [
+      { m: 'action_pull_estimate_lines', l: 'Pull Lines from Estimate', states: ['draft'] },
       { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
       { m: 'action_send', l: 'Issue to Customer', states: ['approved'] },
@@ -241,6 +242,28 @@ export const SCREENS = {
     ] },
 
   'M36-record': {
+    // Quote-to-cash P1 (12 Nov 2026): WHAT is quoted. The value is the sum of
+    // these lines less the overall discount; nobody types it.
+    lines: {
+      field: 'line_ids',
+      tab: 'scope',
+      title: 'Quoted Lines (what the customer is buying)',
+      note: 'Parts, goods, labour, services, AMC and fees. Leave the price empty to take the M11 rate card or catalogue price; a lower price is a discount the approval tier covers. Optional lines are offered but not in the total. A service quotation pulls its lines from the M01 estimate.',
+      fields: [
+        { name: 'sequence', label: 'Seq' },
+        { name: 'display_type', label: 'Section / Note' },
+        { name: 'line_type', label: 'Type' },
+        { name: 'product_id', label: 'Item / Service' },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'quantity', label: 'Qty' },
+        { name: 'unit_price', label: 'Unit Price' },
+        { name: 'discount_pct', label: 'Disc %' },
+        { name: 'subtotal', label: 'Amount excl. VAT', readonly: true },
+        { name: 'list_price', label: 'List / Rate', readonly: true },
+        { name: 'cost_unit', label: 'Unit Cost' },
+        { name: 'is_optional', label: 'Optional' }
+      ]
+    },
     kind: 'model_form',
     model: 'fix.quotation',
     title: 'Commercial Proposal & Tender Quotation',
@@ -248,12 +271,14 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'header', label: '1. Proposal Header', bn: '১. প্রস্তাবনা পরিচিতি', icon: '📄', badge: '9' },
-      { id: 'pricing', label: '2. Cost, Margins & SRT', bn: '২. খরচ ও মার্জিন', icon: '💵', badge: '8' },
-      { id: 'statutory', label: '3. Withholding Tax (TDS)', bn: '৩. উৎসে কর কর্তন', icon: '⚖️', badge: '4' },
-      { id: 'approval', label: '4. Internal Approval', bn: '৪. অভ্যন্তরীণ অনুমোদন', icon: '✅', badge: '5' },
-      { id: 'esign', label: '5. Customer Acceptance', bn: '৫. গ্রাহক সম্মতি', icon: '✍️', badge: '11' },
-      { id: 'handoff', label: '6. Contract & Order Hand-off', bn: '৬. চুক্তি ও অর্ডার', icon: '🔗', badge: '6' },
-      { id: 'vault', label: '7. Document Vault', bn: '৭. নথিপত্র', icon: '📁', badge: '0' }
+      { id: 'scope', label: '2. Scope & Pricing', bn: '২. পরিধি ও মূল্য', icon: '🧾', badge: '4' },
+      { id: 'terms', label: '3. Commercial Terms', bn: '৩. বাণিজ্যিক শর্ত', icon: '🤝', badge: '8' },
+      { id: 'pricing', label: '4. Cost, Margins & SRT', bn: '৪. খরচ ও মার্জিন', icon: '💵', badge: '8' },
+      { id: 'statutory', label: '5. Withholding Tax (TDS)', bn: '৫. উৎসে কর কর্তন', icon: '⚖️', badge: '4' },
+      { id: 'approval', label: '6. Internal Approval', bn: '৬. অভ্যন্তরীণ অনুমোদন', icon: '✅', badge: '5' },
+      { id: 'esign', label: '7. Customer Acceptance', bn: '৭. গ্রাহক সম্মতি', icon: '✍️', badge: '11' },
+      { id: 'handoff', label: '8. Contract & Order Hand-off', bn: '৮. চুক্তি ও অর্ডার', icon: '🔗', badge: '6' },
+      { id: 'vault', label: '9. Document Vault', bn: '৯. নথিপত্র', icon: '📁', badge: '0' }
     ],
     sections: [
       { tab: 'header', title: 'Proposal Identity & Version Tracking',
@@ -269,10 +294,30 @@ export const SCREENS = {
           { name: 'valid_until', label: 'Validity Expiration Date' },
           { name: 'state', label: 'Lifecycle Status', readonly: true }
         ] },
-      { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
-        note: 'Linked to an estimate, the value is the estimate total before VAT; VAT is added once, giving the Total Payable. Without a direct cost the margin is unknown.',
+      { tab: 'scope', title: 'Totals from the Lines',
+        note: 'The quotation value is the lines total less the overall discount. Discount off list is measured against the rate card / catalogue prices.',
         fields: [
-          { name: 'value', required: true, label: 'Quotation Amount excl. VAT (BDT)' },
+          { name: 'lines_total', label: 'Lines Total excl. VAT (BDT)', readonly: true },
+          { name: 'discount_amount', label: 'Overall Discount (BDT)' },
+          { name: 'list_total', label: 'At List / Rate Prices (BDT)', readonly: true },
+          { name: 'discount_pct', label: 'Discount off List (%)', readonly: true }
+        ] },
+      { tab: 'terms', title: 'Payment, Delivery & Warranty Terms',
+        note: 'What the customer agrees to by accepting: how and when they pay, the advance, delivery and warranty. A change after approval sends the quotation back for approval.',
+        fields: [
+          { name: 'payment_term_id', label: 'Payment Terms' },
+          { name: 'payment_method_ids', label: 'Payment Methods Accepted' },
+          { name: 'advance_pct', label: 'Advance Required (%)' },
+          { name: 'advance_amount', label: 'Advance Required (BDT)', readonly: true },
+          { name: 'delivery_terms', label: 'Delivery / Completion Terms', type: 'text' },
+          { name: 'warranty_terms', label: 'Warranty Terms', type: 'text' },
+          { name: 'customer_po_ref', label: 'Customer PO No.' },
+          { name: 'customer_po_date', label: 'Customer PO Date' }
+        ] },
+      { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
+        note: 'The value is the lines total less the overall discount (from an estimate: its total before VAT); VAT is added once, giving the Total Payable. Without a direct cost the margin is unknown.',
+        fields: [
+          { name: 'value', readonly: true, label: 'Quotation Amount excl. VAT (BDT)' },
           { name: 'cost_amount', label: 'Direct Labor & Parts Cost (BDT)' },
           { name: 'margin_known', label: 'Margin Known (cost recorded)', readonly: true },
           { name: 'pretax_margin_bdt', label: 'Pre-Tax Operational Margin (BDT)', readonly: true },

@@ -143,14 +143,24 @@ def _approved_estimate(c, amount=3000.0):
 
 
 def _quote(c, user=None, **kw):
+    """A quotation as an author makes one: what is quoted (one line priced
+    at `value`), on which payment terms. An estimate-based quote pulls the
+    estimate's lines instead."""
     vals = {
         "customer_id": c.customer.id,
-        "value": 15000.0,
         "cost_amount": 9000.0,
         "valid_until": c.today + timedelta(days=15),
         "quote_type": "contract",
         "operating_unit_id": c.ou.id,
+        "payment_term_id": c.env.ref("account.account_payment_term_immediate").id,
     }
+    value = kw.pop("value", 15000.0)
+    if "estimate_id" in kw:
+        vals["value"] = value
+    elif "line_ids" not in kw:
+        vals["line_ids"] = [
+            (0, 0, {"description": "AMC service", "line_type": "recurring", "unit_price": value})
+        ]
     vals.update(kw)
     return c.env["fix.quotation"].with_user(user or c.author).create(vals)
 
@@ -273,6 +283,9 @@ def test_quote_from_an_estimate_charges_vat_once(c):
         )
     )
     assert (q.value, q.vat_rate, q.vat_amount, q.amount_total) == (4000.0, 15.0, 600.0, 4600.0)
+    # P1: the estimate's lines are the quotation's lines
+    assert q.line_ids.mapped("price_source") == ["estimate"]
+    assert (q.line_ids.description, q.line_ids.subtotal) == ("labour", 4000.0)
     # Margins and TDS are on the amount before VAT, never on VAT.
     assert (q.pretax_margin_bdt, q.margin_pct) == (1600.0, 40.0)
     assert q.tds_amount == 200.0
@@ -883,11 +896,16 @@ def test_quotation_lines_run_the_one_selling_check(c, monkeypatch):
         return True
 
     monkeypatch.setattr(Product, "_fix_check_sale", refuse)
-    q = _quote(
-        c, quote_type="service", estimate_id=est.id, value=estimate_untaxed(est), cost_amount=500.0
-    )
+    # P1 (12 Nov 2026): the estimate's lines become the quotation's own, and
+    # each runs the check as it is priced, so the item is refused at once.
     with pytest.raises(UserError, match="item discontinued"), c.env.cr.savepoint():
-        q.with_user(c.author).action_submit()
+        _quote(
+            c,
+            quote_type="service",
+            estimate_id=est.id,
+            value=estimate_untaxed(est),
+            cost_amount=500.0,
+        )
     assert "quotation" in seen
 
 
@@ -944,3 +962,228 @@ def test_variation_orders_within_and_beyond_the_cap(c):
     assert c.manager in assigned(big) and c.member not in assigned(big)
     inbox_task(big, c.manager).with_user(c.manager).action_approve(comment="ok")
     assert big.state == "approved" and t.contract_value == 728000.0
+
+
+# =========================================================================== P1: scope & terms
+# Quote-to-cash review P1 (12 Nov 2026): a quotation lists WHAT it quotes and
+# on WHAT terms; its value is the lines', never typed.
+def _product(c, name, price, code=None):
+    return c.env["product.product"].create(
+        {"name": name, "lst_price": price, "default_code": code or False}
+    )
+
+
+def test_the_value_is_the_lines_less_the_discount(c):
+    q = _quote(
+        c,
+        line_ids=[
+            (0, 0, {"display_type": "line_section", "description": "Site A - Gulshan"}),
+            (
+                0,
+                0,
+                {
+                    "description": "Install AC",
+                    "line_type": "installation",
+                    "quantity": 2,
+                    "unit_price": 1500.0,
+                },
+            ),
+            (
+                0,
+                0,
+                {
+                    "description": "AMC 12 months",
+                    "line_type": "recurring",
+                    "quantity": 2,
+                    "unit_price": 4000.0,
+                    "discount_pct": 10.0,
+                },
+            ),
+            (0, 0, {"display_type": "line_note", "description": "Ladder access by client"}),
+            (
+                0,
+                0,
+                {
+                    "description": "Spare remote",
+                    "line_type": "part",
+                    "unit_price": 900.0,
+                    "is_optional": True,
+                },
+            ),
+        ],
+    )
+    # 2 x 1,500 + 2 x 4,000 less 10% = 3,000 + 7,200; the option is not in it
+    assert (q.lines_total, q.value) == (10200.0, 10200.0)
+    q.with_user(c.author).write({"discount_amount": 200.0})
+    assert (q.value, q.vat_amount, q.amount_total) == (10000.0, 1500.0, 11500.0)
+    with pytest.raises(ValidationError, match="lines"), c.env.cr.savepoint():
+        q.with_user(c.author).write({"value": 1.0})
+    with pytest.raises(ValidationError), c.env.cr.savepoint():
+        q.line_ids[1].with_user(c.author).write({"unit_price": -5.0})
+
+
+def test_a_line_is_priced_from_the_rate_card_else_the_list(c):
+    listed = _product(c, "M36P1 Toner", 2500.0)
+    carded = _product(c, "M36P1 Labour Hr", 800.0, code="M36P1-LAB")
+    card = (
+        c.env["fix.rate.card"]
+        .sudo()
+        .create({"product_code": "M36P1-LAB", "unit_price": 1200.0, "line_type": "labour"})
+    )
+    card._guarded().write({"state": "released"})
+    q = _quote(
+        c,
+        line_ids=[
+            (0, 0, {"product_id": listed.id, "line_type": "part"}),
+            (0, 0, {"product_id": carded.id, "line_type": "labour", "quantity": 3}),
+            (0, 0, {"description": "Courier", "line_type": "callout", "unit_price": 300.0}),
+        ],
+    )
+    toner, labour, courier = q.line_ids.sorted("id")
+    assert (toner.unit_price, toner.price_source, toner.description) == (
+        2500.0,
+        "list",
+        listed.display_name,
+    )
+    assert (labour.unit_price, labour.price_source, labour.subtotal) == (
+        1200.0,
+        "rate_card",
+        3600.0,
+    )
+    assert (courier.price_source, courier.list_price) == ("manual", 300.0)
+    assert q.value == 6400.0 and q.discount_pct == 0.0
+    # a typed price below the rate is entered, and is a discount off list
+    labour.with_user(c.author).write({"unit_price": 600.0})
+    assert (labour.price_source, labour.list_price) == ("manual", 1200.0)
+    assert q.discount_pct == round(1800.0 / 6400.0 * 100, 2)
+
+
+def test_a_deep_discount_raises_the_approval_tier(c):
+    item = _product(c, "M36P1 Panel", 10000.0)
+    q = _quote(c, line_ids=[(0, 0, {"product_id": item.id, "unit_price": 6000.0})])
+    assert (q.value, q.discount_pct) == (6000.0, 40.0)
+    by_value = q._dofa_tier_for_amount(q.value)
+    by_discount = q._discount_tier(40.0)
+    assert q._dofa_tier_rank(by_discount) > q._dofa_tier_rank(by_value)
+    assert q._dofa_current_tier() == by_discount
+
+
+def test_a_line_change_after_approval_needs_re_approval(c):
+    q = _approved_quote(c)
+    q.line_ids.with_user(c.author).write({"description": "AMC service, 2 visits"})
+    assert (q.state, q.approval_state) == ("draft", "none")
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        q.with_user(c.author).action_send()
+
+
+def test_an_issued_quotations_lines_are_frozen(c):
+    q = _sent_quote(c)
+    with pytest.raises(UserError, match="frozen"), c.env.cr.savepoint():
+        q.line_ids.with_user(c.author).write({"unit_price": 1.0})
+    with pytest.raises(UserError, match="frozen"), c.env.cr.savepoint():
+        c.env["fix.quotation.line"].with_user(c.author).create(
+            {"quotation_id": q.id, "description": "extra", "unit_price": 10.0}
+        )
+    with pytest.raises(UserError, match="frozen"), c.env.cr.savepoint():
+        q.line_ids.with_user(c.author).unlink()
+    action = q.with_user(c.author).action_revise()
+    new = c.env["fix.quotation"].browse(action["res_id"])
+    assert new.line_ids.mapped("description") == q.line_ids.mapped("description")
+    assert new.value == q.value and new.payment_term_id == q.payment_term_id
+
+
+def test_a_quotation_states_what_and_how_it_is_paid_before_approval(c):
+    q = (
+        c.env["fix.quotation"]
+        .with_user(c.author)
+        .create(
+            {
+                "customer_id": c.customer.id,
+                "cost_amount": 100.0,
+                "valid_until": c.today + timedelta(days=5),
+                "quote_type": "contract",
+                "operating_unit_id": c.ou.id,
+                "payment_method_ids": [(5, 0, 0)],
+            }
+        )
+    )
+    with pytest.raises(UserError) as refused, c.env.cr.savepoint():
+        q.with_user(c.author).action_submit()
+    text = str(refused.value)
+    assert "List what is quoted" in text
+    assert "payment terms" in text and "payment method" in text
+
+
+def test_payment_methods_and_bd_terms_are_seeded(c):
+    codes = set(c.env["fix.payment.method"].search([]).mapped("code"))
+    assert {"CASH", "BKASH", "NAGAD", "ROCKET", "UPAY", "BEFTN", "CHEQUE"} <= codes
+    rocket = c.env.ref("cd_billing_engine.payment_method_rocket")
+    assert (rocket.method_type, rocket.receipt_method) == ("mfs", "mobile_wallet")
+    term = c.env.ref("cd_billing_engine.payment_term_bd_30_70_completion")
+    assert sorted(term.line_ids.mapped("value_amount")) == [30.0, 70.0]
+    q = _quote(c, advance_pct=30.0)
+    assert rocket in q.payment_method_ids
+    assert q.advance_amount == round(q.amount_total * 0.30, 2)
+
+
+def test_the_quotation_pdf_lists_the_lines_and_terms(c):
+    report = c.env.ref("cd_doc_suite.action_report_quotation", raise_if_not_found=False)
+    if not report:
+        pytest.skip("cd_doc_suite is not installed")
+    q = _quote(
+        c,
+        line_ids=[
+            (
+                0,
+                0,
+                {
+                    "description": "Printer AMC (12 months)",
+                    "line_type": "recurring",
+                    "quantity": 4,
+                    "unit_price": 3000.0,
+                },
+            ),
+            (0, 0, {"description": "Spare fuser", "unit_price": 2000.0, "is_optional": True}),
+        ],
+        payment_term_id=c.env.ref("cd_billing_engine.payment_term_bd_30_70_completion").id,
+        delivery_terms="First PM visit within 7 days of the order.",
+        customer_po_ref="PO-ACME-77",
+    )
+    html = (
+        c.env["ir.actions.report"].sudo()._render_qweb_html(report.report_name, q.ids)[0].decode()
+    )
+    for text in (
+        "Printer AMC (12 months)",
+        "12,000.00",
+        "Optional items",
+        "Spare fuser",
+        "30% Advance, 70% on Completion",
+        "Rocket",
+        "First PM visit within 7 days",
+        "PO-ACME-77",
+        "13,800.00",
+    ):
+        assert text in html, text
+
+
+def test_the_workspace_form_saves_lines_and_terms(c, p03):
+    q = _quote(c)
+    term = c.env.ref("cd_billing_engine.payment_term_bd_net7")
+    res = p03(
+        c.author,
+        model="fix.quotation",
+        record_id=q.id,
+        values={"payment_term_id": term.id, "advance_pct": 50.0},
+        lines={
+            "field": "line_ids",
+            "rows": [
+                {"values": {"description": "Call-out", "line_type": "callout", "unit_price": 500.0}}
+            ],
+            "removed": [],
+        },
+    )
+    assert not res.get("error"), res
+    q.invalidate_recordset()
+    assert (q.value, q.payment_term_id, q.advance_pct) == (15500.0, term, 50.0)
+    res = p03(c.author, model="fix.quotation", record_id=q.id, values={"value": 1.0})
+    assert res.get("error")
