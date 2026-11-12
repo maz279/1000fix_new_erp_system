@@ -995,6 +995,15 @@ class P03GenericApiController(http.Controller):
                 out[name] = str(value)[:10]
             else:
                 out[name] = value
+        # the form's own default overrides the model's (an import PO in USD)
+        for name, entry in by_name.items():
+            ref = entry.get("default_ref")
+            if not ref:
+                continue
+            target = env.ref(ref, raise_if_not_found=False)
+            comodel = env[model]._fields[name].comodel_name
+            if target and target._name == comodel:
+                out[name] = {"id": target.id, "label": target.sudo().display_name}
         return out
 
     def _form_field_meta(self, env, model, fields, record=None):
@@ -1023,6 +1032,11 @@ class P03GenericApiController(http.Controller):
                 "required": bool(spec.get("required") or m.get("required")),
                 "readonly": bool(spec.get("readonly") or m.get("readonly") or name in locked),
             }
+            # `defaultRef`: a form's own default for a reference, by XML id
+            # (the import purchase order starts in USD, the model's BDT is the
+            # local order's) - applied to a NEW record only (_form_defaults)
+            if spec.get("defaultRef") and field_type == "many2one":
+                entry["default_ref"] = spec["defaultRef"]
             if field_type == "selection":
                 entry["choices"] = [
                     {"key": k, "label": v}

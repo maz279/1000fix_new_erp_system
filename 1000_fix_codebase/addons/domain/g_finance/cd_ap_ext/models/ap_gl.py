@@ -30,6 +30,10 @@ AP_ACCOUNTS = {
     "expense": (None, "Default purchase / expense account"),
     "employee_payable": (None, "Employee reimbursements payable"),
     "employee_advance": (None, "Employee advances and floats"),
+    # a supplier paid before delivery against its proforma (M16 advance): an
+    # asset until the supplier's bill takes it back. No default: finance names
+    # the account (cd_ap_ext.account_code.supplier_advance) before any posts.
+    "supplier_advance": (None, "Advances to suppliers"),
     # A08 M52-8: an advance recovered through payroll clears against salaries
     # payable; Odoo generic chart: 230000 "Salary Payable"
     "salary_payable": ("230000", "Salaries payable (payroll recovery of advances)"),

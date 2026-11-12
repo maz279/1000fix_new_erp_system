@@ -59,7 +59,15 @@ SURFACES = {
     "fix.purchase.advance": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_request", "action_approve", "action_reject", "action_cancel"},
+        # action_request_payment: an Accountant asks treasury to pay an approved
+        # advance (cd_ap_ext fix_ap_supplier_advance)
+        "actions": {
+            "action_request",
+            "action_approve",
+            "action_reject",
+            "action_cancel",
+            "action_request_payment",
+        },
         "rules": True,
     },
     "fix.procurement.rfq": {

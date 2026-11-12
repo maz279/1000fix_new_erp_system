@@ -19,6 +19,7 @@ from .ap_gl import ap_account, ap_journal, post_ap_move
 from .fix_ap_ext import _q
 
 EXCESS_SOURCE = "fix.employee.advance.excess"
+SUPPLIER_ADVANCE = "fix.purchase.advance"
 
 
 class FixApPaymentEvents(models.AbstractModel):
@@ -42,6 +43,10 @@ class FixApPaymentEvents(models.AbstractModel):
         if model == EXCESS_SOURCE:
             doc = self.env["fix.employee.advance"].browse(res_id).exists()
             return doc, "employee_payable", "excess_payment_move_id", self._employee_partner(doc)
+        if model == SUPPLIER_ADVANCE:
+            # Dr advances to suppliers (an asset the bill later takes back)
+            doc = self.env[model].browse(res_id).exists()
+            return doc, "supplier_advance", "payment_move_id", doc.vendor_id.commercial_partner_id
         return self.env["res.users"].browse(), None, None, None
 
     @staticmethod
@@ -92,6 +97,8 @@ class FixApPaymentEvents(models.AbstractModel):
             self._claim_paid(doc, execution, vals)
         elif execution.source_model == "fix.vendor.invoice":
             self._bill_paid(doc, execution, vals)
+        elif execution.source_model == SUPPLIER_ADVANCE:
+            doc._guarded().write({**vals, "state": "paid", "payment_failure": False})
         else:
             self._excess_paid(doc, vals)
         return True
@@ -153,6 +160,9 @@ class FixApPaymentEvents(models.AbstractModel):
                 [("bill_id", "=", doc.id), ("state", "=", "paid"), ("run_line_id", "=", False)]
             ).write({"state": "open"})
             vals.update({"payment_state": "in_run", "payment_failure": reason[:250]})
+        elif execution.source_model == SUPPLIER_ADVANCE:
+            # treasury re-queues or cancels the instruction; the advance waits
+            vals.update({"state": "payment_requested", "payment_failure": reason[:250]})
         if vals:
             doc._guarded().write(vals)
         doc.message_post(

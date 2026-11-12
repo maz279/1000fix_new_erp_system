@@ -81,6 +81,7 @@ GUARDED_FIELDS = {
     "payment_move_id",
     "payment_failure",
     "returns_at_registration",
+    "advance_applied",
 }
 
 # G5: returns to vendor that count in the match once their goods have left
@@ -151,6 +152,11 @@ class FixVendorInvoice(models.Model):
     )
     total_payable = fields.Monetary(
         string="Total Payable", currency_field="currency_id", compute="_compute_totals", store=True
+    )
+    # a supplier advance paid against the PO's proforma (M16), taken back on
+    # this bill when it posts (fix_ap_supplier_advance.py)
+    advance_applied = fields.Monetary(
+        string="Advance Deducted", currency_field="currency_id", readonly=True, copy=False
     )
     gross_amount = fields.Monetary(
         string="Gross (incl. VAT)",
@@ -272,7 +278,12 @@ class FixVendorInvoice(models.Model):
                 inv.due_date = inv.invoice_date + timedelta(days=max(inv.payment_term_days, 0))
 
     @api.depends(
-        "line_ids.line_total", "line_ids.tds_amount", "vat_amount", "vds_rate_id", "invoice_date"
+        "line_ids.line_total",
+        "line_ids.tds_amount",
+        "vat_amount",
+        "vds_rate_id",
+        "invoice_date",
+        "advance_applied",
     )
     def _compute_totals(self) -> None:
         for inv in self:
@@ -287,7 +298,9 @@ class FixVendorInvoice(models.Model):
             inv.tds_amount = _q(tds)
             inv.vds_amount = vds
             inv.gross_amount = _q(subtotal + inv.vat_amount)
-            inv.total_payable = _q(subtotal + inv.vat_amount - tds - vds)
+            inv.total_payable = _q(
+                subtotal + inv.vat_amount - tds - vds - (inv.advance_applied or 0.0)
+            )
 
     # Every quantity/price/receipt the match reads is a dependency: with
     # only ("line_ids", "requisition_id") an invoice line edited AFTER
@@ -965,6 +978,8 @@ class FixVendorInvoice(models.Model):
         env, company = self.env, self.company_id
         partner = self.vendor_id.commercial_partner_id
         label = "Bill %s %s" % (partner.name, self.invoice_ref)
+        # the PO's paid supplier advances not yet taken back reduce the payable
+        self._apply_supplier_advances()
         lines = []
         # capital lines are posted one per CWIP project, with the project in
         # the label, so the posted items can be booked to it (M49-3)
@@ -1001,6 +1016,16 @@ class FixVendorInvoice(models.Model):
                     "VDS " + label,
                     0.0,
                     self.vds_amount,
+                    partner,
+                )
+            )
+        if self.advance_applied:
+            lines.append(
+                (
+                    ap_account(env, company, "supplier_advance"),
+                    "Advance taken back " + label,
+                    0.0,
+                    self.advance_applied,
                     partner,
                 )
             )

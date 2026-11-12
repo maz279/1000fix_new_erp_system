@@ -144,13 +144,15 @@ export const SCREENS = {
       { m: '__request_advance', l: 'Request Advance', form: 'M16-form-advance', prefill: 'proforma_id', states: ['approved'] }
     ] },
   'M16-advances': { kind: 'model_list', model: 'fix.purchase.advance', stateField: 'state',
-    cols: ['name', 'purchase_order_id', 'vendor_id', 'proforma_id', 'amount', 'purpose', 'requested_by_id', 'decided_by_id', 'above_cap', 'state'],
+    cols: ['name', 'purchase_order_id', 'vendor_id', 'proforma_id', 'amount', 'remaining_amount', 'purpose', 'requested_by_id', 'decided_by_id', 'above_cap', 'state'],
     empty: 'No supplier advance yet. An advance is requested against an approved supplier proforma (Request Advance on the proforma).',
     actions: [
       { m: 'action_request', l: 'Request Approval', states: ['draft'] },
       { m: 'action_approve', l: 'Approve Advance (approver)', ask: 'Reason (needed when the advances pass the advance cap)', kwarg: 'reason', states: ['requested'] },
       { m: 'action_reject', l: 'Reject', ask: 'Why the advance is rejected', kwarg: 'reason', states: ['requested'] },
-      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'requested'] }
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'requested'] },
+      /* treasury (M50) pays it; the supplier's bill takes it back (M52) */
+      { m: 'action_request_payment', l: 'Request Payment (accountant)', states: ['approved'] }
     ] },
   'M16-blanket': { kind: 'model_list', model: 'fix.procurement.blanket', stateField: 'state',
     cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount', 'consumed_amount', 'remaining_amount', 'state'],
@@ -302,7 +304,7 @@ export const SCREENS = {
           { name: 'purchase_type', required: true, label: 'Purchase Type', value: 'import' },
           { name: 'vendor_id', required: true, label: 'Overseas Supplier', domain: [['fix_supplier_status', '=', 'active']],
             emptyNote: 'No supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management once it is verified, screened and activated by a Supplier Approver.' },
-          { name: 'currency_id', required: true, label: 'Currency (the supplier\'s)' },
+          { name: 'currency_id', required: true, label: 'Currency (the supplier\'s)', defaultRef: 'base.USD' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'date_order', required: true, label: 'Order Date' },
           { name: 'promised_date', label: 'Expected Shipment' },
@@ -520,7 +522,8 @@ export const SCREENS = {
     title: 'Supplier Advance',
     back: 'M16-advances',
     status: { field: 'state', labels: {
-      draft: 'Draft', requested: 'Requested', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } },
+      draft: 'Draft', requested: 'Requested', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled',
+      payment_requested: 'Payment Requested', paid: 'Paid' } },
     sections: [
       { title: 'Advance', note: 'Paid to the supplier before delivery, against its approved proforma. Save, then Request Approval from the list: a Procurement Approver other than you decides it. The order\'s approved advances never exceed the proforma, and above the advance cap the approver states why. Treasury (M50) makes and posts the payment.',
         fields: [
@@ -537,7 +540,10 @@ export const SCREENS = {
           { name: 'proforma_amount', readonly: true, label: 'Proforma Amount' },
           { name: 'currency_id', readonly: true, label: 'Currency' },
           { name: 'decided_by_id', readonly: true, label: 'Decided By' },
-          { name: 'decision_reason', readonly: true, label: 'Decision Reason' }
+          { name: 'decision_reason', readonly: true, label: 'Decision Reason' },
+          { name: 'applied_amount', readonly: true, label: 'Taken Back on Bills' },
+          { name: 'remaining_amount', readonly: true, label: 'Still to Take Back' },
+          { name: 'payment_failure', readonly: true, label: 'Payment Problem (treasury)' }
         ] }
     ]
   },
