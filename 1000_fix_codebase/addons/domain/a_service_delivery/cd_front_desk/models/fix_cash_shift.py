@@ -49,6 +49,14 @@ DENOMINATIONS = (
 )
 
 
+# drawer total -> its ledger type, for the movements the system posts
+SYSTEM_TYPE_FOR = {
+    "cash_payments": "receipt",
+    "cash_refunds": "refund",
+    "field_cash_deposited": "field_cash",
+}
+
+
 def default_operating_unit(env, vals):
     """The operating unit of a front-desk record that was saved without one:
     its cash shift's, else its branch's, else the user's default.
@@ -439,13 +447,19 @@ class FixCashShift(models.Model):
 
     # ------------------------------------------------------------ movements
 
-    def _post_cash_movement(self, field, amount):
+    def _post_cash_movement(self, field, amount, reference=None, movement=None):
         """Post a drawer movement. The only writer of the drawer totals: the
         counter sale, its refund and the M02 field-cash settlement call it,
         after their own checks. A movement lands only on an OPEN shift —
-        a counted or reconciled drawer does not move (A02 audit M04-4)."""
+        a counted or reconciled drawer does not move (A02 audit M04-4).
+
+        Every posting is also a row of the drawer's ledger (fix.cash.movement,
+        FR-FRD-015): ``reference`` names the source document. A cash-out the
+        cashier recorded passes its own ``movement``, which is marked posted
+        instead of a new row being written."""
         if field not in ("cash_payments", "cash_refunds", "cash_advances", "field_cash_deposited"):
             raise UserError("Unknown drawer movement %s." % field)
+        Movement = self.env["fix.cash.movement"].sudo()._guarded()
         for rec in self:
             if rec.state != "open":
                 raise UserError(
@@ -456,13 +470,28 @@ class FixCashShift(models.Model):
             # already authorised (a refund approver need not be a cashier);
             # the acting user stays the author of the tracked change.
             rec.sudo()._guarded().write({field: (rec[field] or 0.0) + amount})
+            now = fields.Datetime.now()
+            if movement:
+                movement.sudo()._guarded().write({"state": "posted", "posted_at": now})
+            elif field in SYSTEM_TYPE_FOR:
+                Movement.create(
+                    {
+                        "shift_id": rec.id,
+                        "movement_type": SYSTEM_TYPE_FOR[field],
+                        "amount": abs(amount),
+                        "reference": reference or "",
+                        "state": "posted",
+                        "posted_at": now,
+                        "recorded_by_id": self.env.uid,
+                    }
+                )
 
-    def _post_field_cash(self, amount):
+    def _post_field_cash(self, amount, reference=None):
         """HS-08: M02 field COD handed over into this drawer (see
         cd_field_service action_handover_field_cash)."""
         if amount <= 0:
             raise UserError("Field cash handed over must be a positive amount.")
-        self._post_cash_movement("field_cash_deposited", amount)
+        self._post_cash_movement("field_cash_deposited", amount, reference=reference)
 
     @api.model
     def _fd_open_shift_for(self, branch, company=None):

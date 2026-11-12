@@ -8,6 +8,11 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_branch_announcement_company" model="ir.rule">
+        <field name="name">fix.branch.announcement: allowed companies</field>
+        <field name="model_id" ref="model_fix_branch_announcement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_branch_checklist_company" model="ir.rule">
         <field name="name">fix.branch.checklist: allowed companies</field>
         <field name="model_id" ref="model_fix_branch_checklist"/>
@@ -16,6 +21,17 @@
     <record id="rule_fix_branch_checklist_operating_unit" model="ir.rule">
         <field name="name">fix.branch.checklist: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_branch_checklist"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_movement_company" model="ir.rule">
+        <field name="name">fix.cash.movement: allowed companies</field>
+        <field name="model_id" ref="model_fix_cash_movement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_movement_operating_unit" model="ir.rule">
+        <field name="name">fix.cash.movement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cash_movement"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -38,6 +54,33 @@
     <record id="rule_fix_counter_sale_operating_unit" model="ir.rule">
         <field name="name">fix.counter.sale: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_counter_sale"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_queue_counter_company" model="ir.rule">
+        <field name="name">fix.queue.counter: allowed companies</field>
+        <field name="model_id" ref="model_fix_queue_counter"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_queue_counter_operating_unit" model="ir.rule">
+        <field name="name">fix.queue.counter: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_queue_counter"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_queue_priority_rule_company" model="ir.rule">
+        <field name="name">fix.queue.priority.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_queue_priority_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_storage_location_company" model="ir.rule">
+        <field name="name">fix.storage.location: allowed companies</field>
+        <field name="model_id" ref="model_fix_storage_location"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_storage_location_operating_unit" model="ir.rule">
+        <field name="name">fix.storage.location: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_storage_location"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

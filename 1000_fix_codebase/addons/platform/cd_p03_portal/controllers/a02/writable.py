@@ -12,6 +12,16 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 WRITABLE = {
+    "fix.branch.announcement": frozenset(
+        {
+            "body",
+            "branch_ids",
+            "kind",
+            "name",
+            "valid_from",
+            "valid_until",
+        }
+    ),
     "fix.branch.checklist": frozenset(
         {
             "branch_id",
@@ -19,6 +29,15 @@ WRITABLE = {
             "checklist_type",
             "handover_notes",
             "line_ids",
+        }
+    ),
+    "fix.cash.movement": frozenset(
+        {
+            "amount",
+            "movement_type",
+            "reason",
+            "receipt_attachment_id",
+            "shift_id",
         }
     ),
     "fix.cash.shift": frozenset(
@@ -466,6 +485,34 @@ WRITABLE = {
             "visual_inspection_passed",
         }
     ),
+    "fix.queue.counter": frozenset(
+        {
+            "active",
+            "agent_id",
+            "branch_id",
+            "can_collect",
+            "can_corporate",
+            "can_enquiry",
+            "can_intake",
+            "can_pay",
+            "can_technical",
+            "label",
+            "number",
+        }
+    ),
+    "fix.queue.priority.rule": frozenset(
+        {
+            "active",
+            "branch_id",
+            "corporate_only",
+            "loyalty_tier_name",
+            "name",
+            "partner_category_id",
+            "priority_level",
+            "sequence",
+            "service_type",
+        }
+    ),
     "fix.remote.session": frozenset(
         {
             "asset_id",
@@ -483,6 +530,11 @@ WRITABLE = {
             "accessory_bag_barcode",
             "branch_id",
             "catalog_item_id",
+            "collector_authority_attachment_id",
+            "collector_id_last4",
+            "collector_id_type",
+            "collector_is_customer",
+            "collector_relation",
             "cosmetic_condition_notes",
             "customer_id",
             "deferred_notes",
@@ -524,11 +576,22 @@ WRITABLE = {
     ),
     "fix.sla.kpi.instance": frozenset(),
     "fix.sla.policy": frozenset(),
+    "fix.storage.location": frozenset(
+        {
+            "active",
+            "bin",
+            "branch_id",
+            "code",
+            "secure",
+            "shelf",
+            "zone",
+        }
+    ),
     "fix.technician.location": frozenset(),
     "fix.token.queue": frozenset(
         {
             "branch_id",
-            "counter_number",
+            "counter_id",
             "customer_id",
             "notes",
             "priority_level",
@@ -556,6 +619,7 @@ WRITABLE = {
             "payment_channel",
             "payment_trx_ref",
             "storage_bin_code",
+            "storage_location_id",
             "token_id",
         }
     ),

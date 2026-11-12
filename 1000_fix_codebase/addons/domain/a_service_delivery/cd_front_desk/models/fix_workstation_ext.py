@@ -639,7 +639,9 @@ class FixCounterSale(models.Model):
                             shift.branch_id.display_name,
                         )
                     )
-                shift._post_cash_movement("cash_payments", sale.total)
+                shift._post_cash_movement(
+                    "cash_payments", sale.total, reference="Counter sale %s" % sale.name
+                )
             sale._guarded().write(vals)
 
     def _fd_parse_reason(self, reason, reason_code):
@@ -732,7 +734,9 @@ class FixCounterSale(models.Model):
                         "There is no open cash shift at %s to pay refund %s from. Open the "
                         "branch's cash shift first." % (branch.display_name or "", sale.name)
                     )
-                shift._post_cash_movement("cash_refunds", sale.total)
+                shift._post_cash_movement(
+                    "cash_refunds", sale.total, reference="Refund of %s" % sale.name
+                )
                 vals["refund_shift_id"] = shift.id
             sale._guarded().write(vals)
         return True

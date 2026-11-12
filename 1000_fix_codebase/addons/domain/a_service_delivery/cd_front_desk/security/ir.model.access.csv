@@ -16,3 +16,14 @@ access_fix_branch_checklist_line,fix.branch.checklist.line,model_fix_branch_chec
 access_fix_branch_checklist_line_cashier,fix.branch.checklist.line cashier,model_fix_branch_checklist_line,group_fd_cashier,1,1,1,1
 access_fix_branch_checklist_line_agent,fix.branch.checklist.line queue agent,model_fix_branch_checklist_line,group_fd_queue_agent,1,1,1,1
 access_fix_branch_checklist_line_manager,fix.branch.checklist.line manager,model_fix_branch_checklist_line,group_fd_branch_manager,1,1,1,1
+access_fix_queue_counter,fix.queue.counter,model_fix_queue_counter,base.group_user,1,0,0,0
+access_fix_queue_counter_manager,fix.queue.counter manager,model_fix_queue_counter,group_fd_branch_manager,1,1,1,0
+access_fix_queue_priority_rule,fix.queue.priority.rule,model_fix_queue_priority_rule,base.group_user,1,0,0,0
+access_fix_queue_priority_rule_manager,fix.queue.priority.rule manager,model_fix_queue_priority_rule,group_fd_branch_manager,1,1,1,0
+access_fix_storage_location,fix.storage.location,model_fix_storage_location,base.group_user,1,0,0,0
+access_fix_storage_location_manager,fix.storage.location manager,model_fix_storage_location,group_fd_branch_manager,1,1,1,0
+access_fix_cash_movement,fix.cash.movement,model_fix_cash_movement,base.group_user,1,0,0,0
+access_fix_cash_movement_cashier,fix.cash.movement cashier,model_fix_cash_movement,group_fd_cashier,1,1,1,0
+access_fix_cash_movement_manager,fix.cash.movement manager,model_fix_cash_movement,group_fd_branch_manager,1,1,1,0
+access_fix_branch_announcement,fix.branch.announcement,model_fix_branch_announcement,base.group_user,1,0,0,0
+access_fix_branch_announcement_manager,fix.branch.announcement manager,model_fix_branch_announcement,group_fd_branch_manager,1,1,1,0

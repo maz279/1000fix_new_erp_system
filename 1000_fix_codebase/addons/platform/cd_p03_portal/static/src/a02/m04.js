@@ -26,15 +26,19 @@ export const MODULE = {
     { en: 'Queue & Token', screens: [
       { id: 'M04-queue', en: 'Token & Waiting Display', bn: 'টোকেন ও অপেক্ষার ডিসপ্লে', t: 'd' },
       { id: 'M04-counter', en: 'Counter Workstation', bn: 'কাউন্টার ওয়ার্কস্টেশন', t: 'r' },
-      { id: 'M04-priority', en: 'Priority Queue Rules', bn: 'প্রায়োরিটি কিউ রুলস', t: 'g' }
+      { id: 'M04-priority', en: 'Priority Queue Rules', bn: 'প্রায়োরিটি কিউ রুলস', t: 'g' },
+      { id: 'M04-counters', en: 'Service Counters', bn: 'সার্ভিস কাউন্টার', t: 'g' }
     ]},
     { en: 'Device Custody', screens: [
-      { id: 'M04-storage', en: 'Storage Locations', bn: 'স্টোরেজ অবস্থান', t: 'g' },
-      { id: 'M04-handover', en: 'Collection & Handover', bn: 'সংগ্রহ ও হস্তান্তর', t: 'g' },
+      { id: 'M04-storage', en: 'Devices in Custody', bn: 'হেফাজতে থাকা ডিভাইস', t: 'g' },
+      { id: 'M04-locations', en: 'Storage Locations', bn: 'স্টোরেজ অবস্থান', t: 'g' },
+      { id: 'M04-collection', en: 'Ready for Collection', bn: 'সংগ্রহের জন্য প্রস্তুত', t: 'g' },
+      { id: 'M04-handover', en: 'Intake Hand-off', bn: 'ইনটেক হস্তান্তর', t: 'g' },
       { id: 'M04-uncollected', en: 'Uncollected Devices', bn: 'অসংগৃহীত ডিভাইস', t: 'r' }
     ]},
     { en: 'Cash & Shift', screens: [
       { id: 'M04-drawer', en: 'Cash Drawer', bn: 'ক্যাশ ড্রয়ার', t: 'g' },
+      { id: 'M04-movements', en: 'Drawer Movements', bn: 'ড্রয়ার লেনদেন', t: 'g' },
       { id: 'M04-payments', en: 'Payment Capture (All Methods)', bn: 'পেমেন্ট গ্রহণ', t: 'g' },
       { id: 'M04-shift', en: 'Shift Open / Close', bn: 'শিফট খোলা/বন্ধ', t: 'r' },
       { id: 'M04-banking', en: 'Banking Deposits', bn: 'ব্যাংকিং ডিপোজিট', t: 'r' }
@@ -46,6 +50,7 @@ export const MODULE = {
     { en: 'Branch Ops', screens: [
       { id: 'M04-checklists', en: 'Open/Close Checklists', bn: 'খোলা/বন্ধ চেকলিস্ট', t: 'g' },
       { id: 'M04-dashboard', en: 'Branch Ops Dashboard', bn: 'ব্রাঞ্চ অপস ড্যাশবোর্ড', t: 'r' },
+      { id: 'M04-announcements', en: 'Branch Announcements', bn: 'শাখা ঘোষণা', t: 'g' },
       { id: 'M04-receipts', en: 'Receipt & Label Printing', bn: 'রিসিট ও লেবেল প্রিন্ট', t: 'g' }
     ]}
   ],
@@ -61,20 +66,26 @@ export const MODULE = {
    * 'Device Storage Assignment' and 'Handover (ID verified)' forms had been
    * dropped without a replacement; and Branch Admin listed M30's branch
    * master. Each page now captures its own record (test_m04_submodule_capture). */
-  forms: ['Token Issue', 'Walk-in Intake', 'Device Storage Assignment', 'Handover (ID verified)',
-    'Shift Open/Close', 'Counter Sale', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist'],
+  /* M04 build 2026-11-13: counters and priority rules, storage locations,
+   * the drawer movement ledger, ID-checked device release and announcements. */
+  forms: ['Token Issue', 'Service Counter', 'Queue Priority Rule', 'Walk-in Intake',
+    'Intake Receipt Acknowledgement', 'Device Storage Assignment', 'Storage Location',
+    'Handover (ID verified)', 'Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher',
+    'Counter Sale', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist',
+    'Branch Announcement'],
   cross: ['M01 walk-in intake', 'M03 collection/delivery', 'M20 receipts', 'M47 branch infrastructure', 'M17 device custody'],
   freg: {
     src: 95,
     sub: [
-      ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority'], reports: ['Token Wait-Time Distribution'], forms: ['Token Issue'] }],
-      ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter'], reports: ['Token Wait-Time Distribution'], forms: ['Walk-in Intake'] }],
+      ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority', 'M04-counters'], reports: ['Token Wait-Time Distribution'], forms: ['Token Issue', 'Queue Priority Rule', 'Service Counter'] }],
+      ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter', 'M04-handover'], reports: ['Token Wait-Time Distribution'], forms: ['Walk-in Intake', 'Intake Receipt Acknowledgement'], create: 'M04-form-storage' }],
       /* 3 FR-FRD-011: the shelf / bin of a device already in custody */
-      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment'], create: 'M04-form-storage-assign' }],
-      /* 4 BRU-FRD-05: the customer's signed acknowledgement of an intake */
-      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)'], create: 'M04-form-handover', domain: [['state', 'in', ['handover_pending', 'completed']]] }],
+      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_location_id', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-locations', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment', 'Storage Location'], create: 'M04-form-storage-assign' }],
+      /* 4 FR-FRD-010 / BRU-FRD-05: a ready device released to its collector,
+       * whose identity is checked (the intake hand-off is Counter Workstation's) */
+      ['4', 'Collection & Handover', 9, { model: 'fix.service.order', cols: ['name', 'customer_id', 'recipient_name', 'collector_is_customer', 'collector_id_verified_by', 'delivery_otp_verified', 'state'], screens: ['M04-collection', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)'], create: 'M04-form-release', domain: [['state', 'in', ['ready', 'delivered']]] }],
       ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale'] }],
-      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close'] }],
+      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer', 'M04-movements'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher'] }],
       /* 7 FR-FRD-016: the method, reference and tender of a rung-up sale */
       ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment'], create: 'M04-form-payment' }],
       ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-shift-close', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Open/Close', 'Opening / Closing Checklist'] }],
@@ -82,7 +93,7 @@ export const MODULE = {
       ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'], reports: ['Shift Variance Register'], forms: ['Cash Deposit'], create: 'M50-form-deposit' }],
       /* 10 FR-FRD-020/022/024: the branch's daily checklists and handover
        * notes. The branch itself is M30's configuration (spec section 3.2). */
-      ['10', 'Branch Admin', 6, { model: 'fix.branch.checklist', cols: ['name', 'branch_id', 'checklist_type', 'checklist_date', 'open_item_count', 'state', 'completed_by_id'], screens: ['M04-checklists', 'M04-dashboard'], reports: ['Branch Comparison League'], forms: ['Opening / Closing Checklist'] }]
+      ['10', 'Branch Admin', 6, { model: 'fix.branch.checklist', cols: ['name', 'branch_id', 'checklist_type', 'checklist_date', 'open_item_count', 'state', 'completed_by_id'], screens: ['M04-checklists', 'M04-announcements', 'M04-dashboard'], reports: ['Branch Comparison League'], forms: ['Opening / Closing Checklist', 'Branch Announcement'] }]
     ]
   }
 };
@@ -105,11 +116,16 @@ export const SCREENS = {
       { m: 'action_evaluate_wait_sla', l: 'Check Wait SLA' }
     ] },
   'M04-counter': { kind: 'table_report', module: 'M04', report: 'wait_distribution', period: false },
-  'M04-priority': { kind: 'model_list', model: 'fix.token.queue', create: false,
-    cols: ['token_display', 'service_type', 'state', 'issued_at'],
-    domain: [['state', '=', 'waiting']] },
+  /* M04 build 2026-11-13: the RULES (BRU-FRD-07). This screen listed the
+   * waiting tokens under the rules' name; those are on Token & Waiting Display. */
+  'M04-priority': { kind: 'model_list', model: 'fix.queue.priority.rule',
+    cols: ['sequence', 'name', 'branch_id', 'corporate_only', 'partner_category_id', 'loyalty_tier_name', 'service_type', 'priority_level', 'active'],
+    empty: 'No priority rule yet: every token stays in the lane the agent picks. Add a rule with + New.' },
+  'M04-counters': { kind: 'model_list', model: 'fix.queue.counter',
+    cols: ['branch_id', 'number', 'label', 'can_intake', 'can_collect', 'can_pay', 'can_enquiry', 'can_corporate', 'can_technical', 'agent_id', 'active'],
+    empty: 'No counter is set up yet. Add each branch counter and what it serves with + New.' },
   'M04-storage': { kind: 'model_list', model: 'fix.walkin.intake', create: false,
-    cols: ['customer_id', 'device_serial_input', 'fault_description', 'state', 'intake_start', 'intake_duration_seconds', 'service_order_id'],
+    cols: ['customer_id', 'device_serial_input', 'storage_location_id', 'fault_description', 'state', 'intake_start', 'intake_duration_seconds', 'service_order_id'],
     stateField: 'state',
     actions: [{ m: 'action_submit_for_handover', l: 'Submit for Handover' }] },
   'M04-handover': { kind: 'model_list', model: 'fix.walkin.intake', create: false,
@@ -117,6 +133,22 @@ export const SCREENS = {
     domain: [['state', 'in', ['handover_pending', 'completed']]],
     stateField: 'state',
     actions: [{ m: 'action_complete_handover', l: 'Complete Handover' }] },
+  'M04-locations': { kind: 'model_list', model: 'fix.storage.location',
+    cols: ['branch_id', 'code', 'zone', 'shelf', 'bin', 'secure', 'occupied', 'occupied_by_id', 'active'],
+    empty: 'No storage location is registered yet. Add the shelves and bins of each branch with + New.' },
+  /* FR-FRD-010: ready devices; the release needs the customer's OTP and, for
+   * a third-party collector, an identity check (BRU-FRD-05) */
+  'M04-collection': { kind: 'model_list', model: 'fix.service.order', create: false,
+    cols: ['name', 'customer_id', 'device_id', 'branch_id', 'recipient_name', 'collector_is_customer', 'delivery_otp_verified', 'collector_id_verified_by', 'state'],
+    domain: [['state', '=', 'ready']],
+    stateField: 'state',
+    empty: 'No device is ready for collection.',
+    actions: [
+      { m: 'action_send_delivery_otp', l: 'Send Handover OTP', states: ['ready'] },
+      { m: 'action_verify_delivery_otp', l: 'Verify Handover OTP', states: ['ready'], ask: 'Code from the customer\'s phone', kwarg: 'code' },
+      { m: 'action_verify_collector_id', l: 'Verify Collector ID', states: ['ready'] },
+      { m: 'action_deliver', l: 'Release Device', states: ['ready'] }
+    ] },
   'M04-uncollected': { kind: 'table_report', module: 'M04', report: 'uncollected_ageing', period: false },
   /* a drawer starts with a counted float (FR-FRD-014): "+ New" opens a shift */
   'M04-drawer': { kind: 'model_list', model: 'fix.cash.shift',
@@ -133,6 +165,16 @@ export const SCREENS = {
       { m: 'action_request_approval', l: 'Request Variance Approval', ask: 'Explanation of the variance', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_reconcile', l: 'Reconcile' }
+    ] },
+  /* FR-FRD-015: every movement of the drawer; cash-outs are recorded here */
+  'M04-movements': { kind: 'model_list', model: 'fix.cash.movement',
+    cols: ['name', 'shift_id', 'branch_id', 'movement_type', 'direction', 'amount', 'reason', 'reference', 'state', 'recorded_by_id', 'approved_by_id', 'posted_at'],
+    stateField: 'state',
+    empty: 'No drawer movement yet. Sales, refunds and settlements write theirs; a cash-out is recorded with + New.',
+    actions: [
+      { m: 'action_approve', l: 'Approve Cash-Out', states: ['draft'] },
+      { m: 'action_post', l: 'Post Cash-Out', states: ['draft', 'approved'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'approved'] }
     ] },
   'M04-payments': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'branch_id', 'product_id', 'quantity', 'total', 'payment_method', 'transaction_ref', 'tendered_amount', 'state'],
@@ -166,6 +208,15 @@ export const SCREENS = {
     empty: 'No checklist recorded yet. Start the day with + New: the opening checklist comes with its items.',
     actions: [{ m: 'action_complete', l: 'Sign Off Checklist', states: ['draft'] }] },
   'M04-shift-close': { kind: 'table_report', module: 'M04', report: 'shift_checklists', title: 'Shift Cash-Close Status', period: false },
+  'M04-announcements': { kind: 'model_list', model: 'fix.branch.announcement',
+    cols: ['name', 'kind', 'valid_from', 'valid_until', 'state', 'published_by_id', 'ack_count', 'is_current'],
+    stateField: 'state',
+    empty: 'No announcement yet. A Branch Manager drafts one with + New and publishes it.',
+    actions: [
+      { m: 'action_publish', l: 'Publish', states: ['draft'] },
+      { m: 'action_acknowledge', l: 'I Have Read This', states: ['published'] },
+      { m: 'action_withdraw', l: 'Withdraw', states: ['published'] }
+    ] },
   'M04-dashboard': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
   'M04-receipts': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'customer_id', 'product_id', 'total', 'payment_method', 'state'],
@@ -193,12 +244,13 @@ export const SCREENS = {
           { name: 'service_type', required: true, label: "Intake Channel / Stream" },
           /* FR-FRD-032: the reason for the visit, so the counter is ready */
           { name: 'notes', label: "Reason for Visit" },
-          { name: 'counter_number', label: "Assigned Service Counter" },
+          { name: 'counter_id', label: "Assigned Service Counter" },
           { name: 'service_order_id', label: "Linked Service Order", readonly: true }
         ] },
       { tab: 'wait', title: "15-Minute Wait SLA & Supervisor Escalation (FLAW-04.1)",
         fields: [
           { name: 'priority_level', label: "Queue Priority Tier" },
+          { name: 'priority_rule_id', label: "Placed By Priority Rule", readonly: true },
           { name: 'wait_seconds', label: "Elapsed Waiting Time (Seconds)", readonly: true },
           { name: 'wait_sla_breached', label: "15-Min Wait SLA Breached Alert", readonly: true },
           { name: 'recall_count', label: "Times Re-called", readonly: true },
@@ -387,9 +439,10 @@ export const SCREENS = {
     },
     sections: [
       { title: 'Step 2 of 2: Storage Shelf / Bin',
-        note: 'Record where the device sits so it is found in seconds at collection. A retained charger, battery or cable goes in a sealed, barcoded accessory bag.',
+        note: 'Choose the registered location that holds the device, so it is found in seconds at collection. A location holds one device, and a device is in one location (BRU-FRD-06). A retained charger, battery or cable goes in a sealed, barcoded accessory bag.',
         fields: [
-          { name: 'storage_bin_code', required: true, label: 'Storage Shelf / Bin Code' },
+          { name: 'storage_location_id', required: true, label: 'Storage Location (free bins of this branch)' },
+          { name: 'storage_bin_code', label: 'Bin Code', readonly: true },
           { name: 'accessory_bag_barcode', label: 'Accessory Bag Barcode' },
           { name: 'customer_id', label: 'Customer', readonly: true },
           { name: 'device_id', label: 'Device', readonly: true },
@@ -405,8 +458,8 @@ export const SCREENS = {
   'M04-form-handover': {
     kind: 'model_form',
     model: 'fix.walkin.intake',
-    title: 'Handover (ID verified)',
-    newLabel: 'Record Handover Proof',
+    title: 'Intake Receipt Acknowledgement',
+    newLabel: 'Record Intake Receipt Proof',
     back: 'M04-handover',
     status: { field: 'state', labels: { in_progress: "In Progress", handover_pending: "Handover Pending", completed: "Completed" } },
     pickRecord: {
@@ -505,6 +558,172 @@ export const SCREENS = {
     ]
   },
 
+  /* ===== M04 build 2026-11-13: the five capabilities the spec gave M04
+   * that had no record behind them ===== */
+
+  /* FR-FRD-007/027: a branch counter and what it serves */
+  'M04-form-counter': {
+    kind: 'model_form',
+    model: 'fix.queue.counter',
+    title: 'Service Counter',
+    newLabel: 'Add a Service Counter',
+    back: 'M04-counters',
+    sections: [
+      { title: 'Counter & What It Serves',
+        note: 'A token is routed only to a counter that serves its service type (FR-FRD-007). Setting up counters needs a Branch Manager.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'number', required: true, label: 'Counter No.' },
+          { name: 'label', label: 'Counter Name (shown on the display)' },
+          { name: 'can_intake', label: 'Serves Device Drop-off / Intake' },
+          { name: 'can_collect', label: 'Serves Collection / Pick-up' },
+          { name: 'can_pay', label: 'Serves Payment' },
+          { name: 'can_enquiry', label: 'Serves Enquiry' },
+          { name: 'can_corporate', label: 'Corporate Accounts Desk' },
+          { name: 'can_technical', label: 'Technical Desk' },
+          { name: 'agent_id', label: 'Staffed By' },
+          { name: 'active', label: 'Open' }
+        ] }
+    ]
+  },
+
+  /* BRU-FRD-07: who goes into which priority lane, automatically */
+  'M04-form-priority-rule': {
+    kind: 'model_form',
+    model: 'fix.queue.priority.rule',
+    title: 'Queue Priority Rule',
+    newLabel: 'Add a Priority Rule',
+    back: 'M04-priority',
+    sections: [
+      { title: 'When a Token Matches, Place It In',
+        note: 'Checked in sequence order when a token is issued; the first rule that matches places the token, and a rule only ever raises the lane the agent chose. Leave the branch empty to apply everywhere. A loyalty tier is matched by its exact name (e.g. Gold).',
+        fields: [
+          { name: 'name', required: true, label: 'Rule Name' },
+          { name: 'sequence', label: 'Order Checked' },
+          { name: 'branch_id', label: 'Branch (empty = all branches)' },
+          { name: 'corporate_only', label: 'Customer is a Company / Corporate Account' },
+          { name: 'partner_category_id', label: 'Customer Tag (e.g. Senior Citizen)' },
+          { name: 'loyalty_tier_name', label: 'Loyalty Tier Name (e.g. Gold, Diamond)' },
+          { name: 'service_type', label: 'Service Type (empty = any)' },
+          { name: 'priority_level', required: true, label: 'Place In Lane' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
+  /* FR-FRD-011 / T-09: a shelf or bin that holds one device */
+  'M04-form-location': {
+    kind: 'model_form',
+    model: 'fix.storage.location',
+    title: 'Storage Location',
+    newLabel: 'Register a Storage Location',
+    back: 'M04-locations',
+    sections: [
+      { title: 'Shelf / Bin',
+        note: 'Register each place a customer device can be stored, with the code printed on its label. A location holds one device at a time and is free again when the intake leaves custody.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'code', required: true, label: 'Location Code (as on the label)' },
+          { name: 'zone', label: 'Zone / Room' },
+          { name: 'shelf', label: 'Shelf' },
+          { name: 'bin', label: 'Bin' },
+          { name: 'secure', label: 'Lockable Secure Cabinet' },
+          { name: 'active', label: 'In Use' },
+          { name: 'occupied', label: 'Occupied Now', readonly: true },
+          { name: 'occupied_by_id', label: 'Holds the Device of Intake', readonly: true }
+        ] }
+    ]
+  },
+
+  /* FR-FRD-015 / BRU-FRD-09: cash leaving the drawer, with its reason */
+  'M04-form-movement': {
+    kind: 'model_form',
+    model: 'fix.cash.movement',
+    title: 'Drawer Cash-Out',
+    newLabel: 'Record Cash-Out',
+    back: 'M04-movements',
+    status: { field: 'state', labels: { draft: 'Recorded', approved: 'Approved', posted: 'Posted', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Cash Leaving the Drawer',
+        note: 'Record cash taken out of an OPEN drawer: a safe drop, a small expense paid from the till or a staff advance. Post Cash-Out on Drawer Movements lowers the expected closing. A staff advance, and a petty expense above BDT 500, need a Branch Manager who did not record it. Sales, refunds and settlements write their own movements. Expenses from the branch petty-cash fund are M50 imprest vouchers.',
+        fields: [
+          { name: 'shift_id', required: true, label: 'Open Cash Shift' },
+          { name: 'movement_type', required: true, label: 'Kind of Cash-Out' },
+          { name: 'amount', required: true, label: 'Amount (BDT)' },
+          { name: 'reason', required: true, label: 'Reason / Payee' },
+          { name: 'receipt_attachment_id', label: 'Voucher / Receipt Scan' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'posted_at', label: 'Posted At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* FR-FRD-010 / BRU-FRD-05: a ready device released to the person collecting */
+  'M04-form-release': {
+    kind: 'model_form',
+    model: 'fix.service.order',
+    title: 'Handover (ID verified)',
+    newLabel: 'Release Device to Collector',
+    back: 'M04-collection',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the ready order being collected',
+      note: 'Service orders that are Ready for collection.',
+      search: 'Search order / customer / serial',
+      choose: 'Release this device',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'state'],
+      domain: [['state', '=', 'ready']],
+      empty: 'No device is ready for collection.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Who Is Collecting',
+        note: 'If the customer collects in person, the handover OTP from their phone is the identity check. If someone else collects, untick the box and record their relation, the ID document seen (only its last 4 digits, BRU-FRD-14) and the customer\'s authority letter. Then on Ready for Collection: Send and Verify Handover OTP, Verify Collector ID, and Release Device. The release also needs the signed delivery report.',
+        fields: [
+          { name: 'recipient_name', required: true, label: 'Collector\'s Full Name' },
+          { name: 'collector_is_customer', label: 'Customer Collects in Person' },
+          { name: 'collector_relation', label: 'Relation to Customer' },
+          { name: 'collector_id_type', label: 'ID Document Seen' },
+          { name: 'collector_id_last4', label: 'ID No. (last 4 digits only)' },
+          { name: 'collector_authority_attachment_id', label: 'Customer\'s Authority Letter' },
+          { name: 'service_report_attachment_id', label: 'Signed Delivery Report' },
+          { name: 'name', label: 'Service Order', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'delivery_otp_verified', label: 'Handover OTP Verified', readonly: true },
+          { name: 'collector_id_verified_by', label: 'Collector ID Checked By', readonly: true },
+          { name: 'collector_id_verified_at', label: 'Collector ID Checked At', readonly: true },
+          { name: 'state', label: 'Order State', readonly: true }
+        ] }
+    ]
+  },
+
+  /* FR-FRD-031: a notice, target or procedure change for the counters */
+  'M04-form-announcement': {
+    kind: 'model_form',
+    model: 'fix.branch.announcement',
+    title: 'Branch Announcement',
+    newLabel: 'Draft an Announcement',
+    back: 'M04-announcements',
+    status: { field: 'state', labels: { draft: 'Draft', published: 'Published', withdrawn: 'Withdrawn' } },
+    sections: [
+      { title: 'Announcement',
+        note: 'A Branch Manager publishes it from Branch Announcements; counter staff mark it read there. A published announcement is not rewritten: withdraw it and publish a new one.',
+        fields: [
+          { name: 'name', required: true, label: 'Title' },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'body', required: true, label: 'Message', type: 'text' },
+          { name: 'branch_ids', label: 'Branches (empty = all)' },
+          { name: 'valid_from', required: true, label: 'Show From' },
+          { name: 'valid_until', label: 'Show Until' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'published_by_id', label: 'Published By', readonly: true },
+          { name: 'ack_count', label: 'Read By (count)', readonly: true }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -529,7 +748,15 @@ export const FORM_CHIPS = {
   'M04:Token Issue': 'M04-form-token',
   'M04:Walk-in Intake': 'M04-form-storage',
   'M04:Device Storage Assignment': 'M04-form-storage-assign',
-  'M04:Handover (ID verified)': 'M04-form-handover',
+  'M04:Intake Receipt Acknowledgement': 'M04-form-handover',
+  'M04:Handover (ID verified)': 'M04-form-release',
+  'M04:Service Counter': 'M04-form-counter',
+  'M04:Queue Priority Rule': 'M04-form-priority-rule',
+  'M04:Storage Location': 'M04-form-location',
+  'M04:Drawer Cash-Out': 'M04-form-movement',
+  /* the branch petty-cash fund is M50's imprest: M04 records with its form */
+  'M04:Petty Cash Voucher': 'M50-form-voucher',
+  'M04:Branch Announcement': 'M04-form-announcement',
   'M04:Shift Open/Close': 'M04-form-shift',
   'M04:Counter Sale': 'M04-form-countersale',
   'M04:Counter Payment': 'M04-form-payment',
@@ -542,6 +769,11 @@ export const FORM_CHIPS = {
     'fix.cash.shift': 'M04-form-shift',
     'fix.counter.sale': 'M04-form-countersale',
     'fix.branch.checklist': 'M04-form-checklist',
+    'fix.queue.counter': 'M04-form-counter',
+    'fix.queue.priority.rule': 'M04-form-priority-rule',
+    'fix.storage.location': 'M04-form-location',
+    'fix.cash.movement': 'M04-form-movement',
+    'fix.branch.announcement': 'M04-form-announcement',
   },
   'M04:__by_screen__': {
     'M04-queue': 'M04-form-token',
@@ -549,5 +781,10 @@ export const FORM_CHIPS = {
     'M04-drawer': 'M04-form-shift',
     'M04-sales': 'M04-form-countersale',
     'M04-checklists': 'M04-form-checklist',
+    'M04-counters': 'M04-form-counter',
+    'M04-priority': 'M04-form-priority-rule',
+    'M04-locations': 'M04-form-location',
+    'M04-movements': 'M04-form-movement',
+    'M04-announcements': 'M04-form-announcement',
   }
 };
