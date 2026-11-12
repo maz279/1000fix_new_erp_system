@@ -160,7 +160,12 @@ class FixImportOrder(models.Model):
                     "Import %s is from %s but purchase order %s is with %s."
                     % (rec.name, rec.supplier_id.name, po.display_name, po.vendor_id.name)
                 )
-            if po.state not in PO_LINKABLE_STATES:
+            # a draft IMPORT purchase order may be linked while the two are
+            # raised from each other (12 Nov 2026); it must be issued before
+            # the proforma is approved or the goods are received
+            # (fix_import_purchase_link)
+            draft_import = po.state == "draft" and po.purchase_type == "import"
+            if po.state not in PO_LINKABLE_STATES and not draft_import:
                 raise ValidationError(
                     "Purchase order %s is %s: an import is raised against an issued order."
                     % (po.display_name, po.state)

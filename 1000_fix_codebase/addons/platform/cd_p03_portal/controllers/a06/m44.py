@@ -14,7 +14,8 @@ SURFACES = {
     "fix.import.order": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_receive", "action_close"},
+        # the import purchase order raised from a draft import order (M16 link)
+        "actions": {"action_receive", "action_close", "action_create_purchase_order"},
     },
     "fix.import.advance": {
         "order": "create_date desc, id desc",

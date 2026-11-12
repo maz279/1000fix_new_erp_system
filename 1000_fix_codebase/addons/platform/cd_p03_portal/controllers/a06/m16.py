@@ -43,6 +43,8 @@ SURFACES = {
             "action_cancel",
             "action_close",
             "action_start_receipt",
+            # an import purchase order raises its M44 import order
+            "action_create_import_order",
         },
     },
     "fix.purchase.order.line": {"order": "order_id, id", "limit": 400, "actions": set()},

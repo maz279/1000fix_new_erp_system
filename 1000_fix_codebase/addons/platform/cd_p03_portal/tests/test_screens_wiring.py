@@ -200,6 +200,20 @@ def test_list_buttons_are_actions_the_surface_allows(registry):
             continue
         allowed = (api.SURFACES.get(cfg.get("model")) or {}).get("actions", set())
         for action in cfg.get("actions") or []:
+            # `form`: opens a NEW record of another form for the row (Record
+            # Proforma) - no server call; that form must exist and take the row
+            if action.get("form"):
+                target = _configs(registry).get(action["form"]) or {}
+                names = {
+                    f.get("name")
+                    for s in target.get("sections") or []
+                    for f in s.get("fields") or []
+                }
+                if target.get("kind") != "model_form" or (
+                    action.get("prefill") and action["prefill"] not in names
+                ):
+                    refused.append("%s %s opens no form for it" % (sid, action.get("m")))
+                continue
             if action.get("m") not in allowed:
                 refused.append("%s %s.%s" % (sid, cfg.get("model"), action.get("m")))
     assert not refused, "buttons the backend refuses:\n  " + "\n  ".join(refused)

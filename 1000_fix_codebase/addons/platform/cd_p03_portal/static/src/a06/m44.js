@@ -70,6 +70,8 @@ export const SCREENS = {
     actions: [
       /* the supplier's proforma is captured on its own form for this order */
       { m: '__record_proforma', l: 'Record Proforma', form: 'M44-form-proforma', prefill: 'order_id', states: ['draft'] },
+      /* the import purchase order (M16) raised from this import order, when it came first */
+      { m: 'action_create_purchase_order', l: 'Create Purchase Order (buyer)', states: ['draft'] },
       { m: 'action_receive', l: 'Receive into Stock' },
       { m: 'action_close', l: 'Close Order' }
     ] },
@@ -202,7 +204,9 @@ export const SCREENS = {
           { name: 'country_origin', label: 'Country of Origin' },
           { name: 'incoterm', label: 'Incoterm' },
           { name: 'shipment_mode', label: 'Shipment Mode' },
-          { name: 'location_id', label: 'Receiving Location', domain: [['state', '=', 'active']] }
+          { name: 'location_id', label: 'Receiving Location', domain: [['state', '=', 'active']] },
+          { name: 'order_file', type: 'binary', filename: 'order_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Order Document (indent / signed PO)' },
+          { name: 'order_filename', label: 'Order Document Name' }
         ] },
       { tab: 'value', title: 'Value & FX', note: 'A foreign-currency order needs its FX rate, source and date before the proforma is approved or anything ships (BRU-ITC-14). The commercial terms are pinned from then on; freight and insurance once a Bill of Entry is assessed.',
         fields: [
@@ -231,10 +235,13 @@ export const SCREENS = {
       note: 'The receipt, the assessable value and the landed-cost allocation read these lines.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
+        { name: 'supplier_part_no', label: 'Supplier\'s Item Code' },
         { name: 'description', label: 'Description' },
         { name: 'hs_id', label: 'HS Classification', domain: [['state', '=', 'ruled']] },
         { name: 'quantity', required: true, label: 'Quantity' },
-        { name: 'unit_price', required: true, label: 'Unit Price' }
+        { name: 'uom', label: 'Unit' },
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'fob_amount', readonly: true, label: 'Line Value' }
       ]
     }
   },
@@ -242,23 +249,69 @@ export const SCREENS = {
   'M44-form-proforma': {
     kind: 'model_form',
     model: 'fix.import.proforma',
-    title: 'Proforma Invoice',
+    title: 'Proforma Invoice (Import)',
     back: 'M44-proforma',
     status: { field: 'state', labels: {
       received: 'Received', approved: 'Approved', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'pi', label: '1. Proforma', bn: '১. প্রফর্মা', icon: '🧾', badge: '8' },
+      { id: 'lc', label: '2. Shipment & LC Terms', bn: '২. শিপমেন্ট ও এলসি শর্ত', icon: '🚢', badge: '12' },
+      { id: 'totals', label: '3. Totals', bn: '৩. মোট', icon: '💱', badge: '6' }
+    ],
     sections: [
-      { title: 'Proforma', note: 'Approved by an Import Approver who did not record it, against the order value and a valid IRC.',
+      { tab: 'pi', title: 'Proforma', note: 'The supplier\'s PI for one import order, in the order\'s currency (or BDT). Leave the item lines empty to start from the order\'s lines, then adjust them to the PI and attach its copy. Approved by an Import Approver who did not record it, when the PI adds up, matches the order value, lists only the order\'s parts (never more than ordered) and the company holds a valid IRC.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order', domain: [['state', '=', 'draft']],
-            emptyNote: 'No import order is in draft yet. Create the import order first (M44 → + Import Order); a proforma is recorded against it. A local supplier\'s proforma goes in M16 → Supplier Proformas.' },
-          { name: 'proforma_no', required: true, label: 'Proforma No' },
-          { name: 'currency_id', required: true, label: 'Currency' },
-          { name: 'amount', label: 'Amount' },
-          { name: 'issued_on', required: true, label: 'Issued On' },
+            emptyNote: 'No import order is in draft yet. Create the import order first (M44 → + Import Order), or raise it from an import purchase order (M16 → Create Import Order). A local supplier\'s proforma goes in M16 → Supplier Proformas.' },
+          { name: 'proforma_no', required: true, label: 'Supplier\'s PI No' },
+          { name: 'issued_on', required: true, label: 'PI Date' },
           { name: 'valid_until', label: 'Valid Until' },
+          { name: 'currency_id', label: 'Currency (the order\'s, or BDT)' },
+          { name: 'supplier_id', readonly: true, label: 'Supplier' },
+          { name: 'pi_file', type: 'binary', filename: 'pi_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Supplier\'s PI (copy)' },
+          { name: 'pi_filename', label: 'PI File Name' },
           { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' }
+        ] },
+      { tab: 'lc', title: 'Shipment & LC terms', note: 'What the bank needs on the PI to open the LC. Pinned once the proforma is decided.',
+        fields: [
+          { name: 'incoterm', readonly: true, label: 'Incoterm (the order\'s)' },
+          { name: 'country_origin', readonly: true, label: 'Country of Origin (the order\'s)' },
+          { name: 'payment_terms', label: 'Payment Terms' },
+          { name: 'payment_terms_note', label: 'Payment Terms (as on the PI)' },
+          { name: 'port_of_loading', label: 'Port of Loading' },
+          { name: 'port_of_discharge', label: 'Port of Discharge' },
+          { name: 'latest_shipment_date', label: 'Latest Shipment Date' },
+          { name: 'partial_shipment', label: 'Partial Shipment Allowed' },
+          { name: 'transshipment', label: 'Transshipment Allowed' },
+          { name: 'beneficiary_bank', label: 'Beneficiary Bank' },
+          { name: 'beneficiary_swift', label: 'Beneficiary Bank SWIFT' },
+          { name: 'beneficiary_account', label: 'Beneficiary Account No' }
+        ] },
+      { tab: 'totals', title: 'Totals', note: 'The PI total must equal lines + freight + insurance + other charges.',
+        fields: [
+          { name: 'lines_total', readonly: true, label: 'Lines Total' },
+          { name: 'freight_amount', label: 'Freight' },
+          { name: 'insurance_amount', label: 'Insurance' },
+          { name: 'other_charges', label: 'Other Charges' },
+          { name: 'amount', required: true, label: 'PI Total (as printed)' },
+          { name: 'computed_total', readonly: true, label: 'Lines + Charges' }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'PI Lines — the supplier\'s items',
+      note: 'One line per item on the supplier\'s PI, priced in the proforma currency.',
+      fields: [
+        { name: 'part_id', required: true, label: 'Spare Part' },
+        { name: 'supplier_part_no', label: 'Supplier\'s Item Code' },
+        { name: 'description', label: 'Description' },
+        { name: 'hs_code', label: 'HS Code' },
+        { name: 'quantity', required: true, label: 'Qty' },
+        { name: 'uom', label: 'Unit' },
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'subtotal', readonly: true, label: 'Line Total' }
+      ]
+    }
   },
 
   'M44-form-lc': {

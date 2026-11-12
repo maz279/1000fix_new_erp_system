@@ -163,12 +163,101 @@ def test_the_recorder_never_approves_their_own_proforma(c):
 
 def test_a_proforma_that_does_not_reconcile_to_the_order_is_refused(c):
     po = _po(c)
-    pi = _proforma(c, po, amount=po.amount_total + 500)
+    line = po.line_ids[0]
+    price = (po.amount_total + 500) / line.qty_ordered
+    pi = _proforma(
+        c,
+        po,
+        amount=po.amount_total + 500,
+        line_ids=[
+            (
+                0,
+                0,
+                {
+                    "product_id": line.product_id.id,
+                    "quantity": line.qty_ordered,
+                    "unit_price": price,
+                },
+            )
+        ],
+    )
     with pytest.raises(UserError, match="does not reconcile"):
         pi.with_user(c.approver).action_approve()
     c.env["ir.config_parameter"].sudo().set_param("cd_requisition.proforma_tolerance_pct", "5")
     pi.with_user(c.approver).action_approve()
     assert pi.state == "approved"
+
+
+# ---- the PI's own lines, VAT and copy (12 Nov 2026) --------------------------------
+def test_a_new_proforma_starts_from_the_order_lines(c):
+    po = _po(c)
+    pi = _proforma(c, po)
+    assert len(pi.line_ids) == len(po.line_ids)
+    assert pi.lines_total == pytest.approx(po.amount_total)
+    assert pi.line_ids[0].product_id == po.line_ids[0].product_id
+
+
+def test_vat_and_charges_sit_beside_the_goods_and_must_add_up(c):
+    po = _po(c)
+    vat = round(po.amount_total * 0.15, 2)
+    pi = _proforma(c, po, amount=po.amount_total + vat, vat_amount=vat, pi_filename="PI.pdf")
+    assert pi.computed_total == pytest.approx(po.amount_total + vat)
+    pi.with_user(c.approver).action_approve()
+    assert pi.state == "approved"
+    short = _proforma(c, _po(c), proforma_no="PI-SHORT", vat_amount=100.0)
+    with pytest.raises(UserError, match="does not add up"):
+        short.with_user(c.approver).action_approve()
+
+
+def test_a_proforma_lists_only_the_order_products_and_never_more(c):
+    po = _po(c)
+    line = po.line_ids[0]
+    other = c.env["product.product"].create({"name": "SPI Not Ordered"})
+    stray = _proforma(
+        c,
+        po,
+        proforma_no="PI-STRAY",
+        line_ids=[
+            (0, 0, {"product_id": other.id, "quantity": 1, "unit_price": po.amount_total}),
+        ],
+    )
+    with pytest.raises(UserError, match="not on purchase order"):
+        stray.with_user(c.approver).action_approve()
+    more = _proforma(
+        c,
+        po,
+        proforma_no="PI-MORE",
+        line_ids=[
+            (
+                0,
+                0,
+                {
+                    "product_id": line.product_id.id,
+                    "quantity": line.qty_ordered * 2,
+                    "unit_price": line.unit_price / 2,
+                },
+            ),
+        ],
+    )
+    with pytest.raises(UserError, match="asks for"):
+        more.with_user(c.approver).action_approve()
+
+
+def test_an_import_purchase_order_takes_no_local_proforma(c):
+    po = _po(c, send=False)
+    po.with_user(c.buyer).write({"purchase_type": "import"})
+    with pytest.raises(ValidationError, match="import purchase order"):
+        _proforma(c, po)
+
+
+def test_a_local_order_is_in_taka_or_dollars_and_its_type_is_fixed_once_sent(c):
+    draft = _po(c, send=False)
+    with pytest.raises(ValidationError, match="BDT or USD"):
+        draft.with_user(c.buyer).write({"currency_id": c.env.ref("base.EUR").id})
+    sent = _po(c)
+    with pytest.raises(UserError):
+        sent.with_user(c.buyer).write({"purchase_type": "import"})
+    assert sent.purchase_type == "local"
 
 
 def test_a_proforma_on_an_unsent_order_waits_for_the_order(c):

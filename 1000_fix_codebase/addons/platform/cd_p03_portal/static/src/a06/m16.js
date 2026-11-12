@@ -28,7 +28,8 @@ export const MODULE = {
       { id: 'M16-award', en: 'Award Decisions', bn: 'অ্যাওয়ার্ড', t: 'g' }
     ]},
     { en: 'Orders', screens: [
-      { id: 'M16-pos', en: 'Purchase Orders', bn: 'ক্রয়াদেশ', t: 'g' },
+      { id: 'M16-pos', en: 'Local Purchase Orders', bn: 'স্থানীয় ক্রয়াদেশ', t: 'g' },
+      { id: 'M16-pos-import', en: 'Import Purchase Orders', bn: 'আমদানি ক্রয়াদেশ', t: 'g' },
       { id: 'M16-proformas', en: 'Supplier Proformas', bn: 'সরবরাহকারীর প্রফর্মা ইনভয়েস', t: 'g' },
       { id: 'M16-advances', en: 'Supplier Advances', bn: 'সরবরাহকারীকে অগ্রিম', t: 'g' },
       { id: 'M16-blanket', en: 'Blanket / Call-Off', bn: 'ব্ল্যাংকেট অর্ডার', t: 'g' },
@@ -49,14 +50,14 @@ export const MODULE = {
     ]}
   ],
   reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert', 'Maverick Spend', 'PO Cycle Time', 'GR/IR Reconciliation', 'Emergency Purchases'],
-  forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'PO Goods Receipt', 'GRN', 'RTV Request'],
+  forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'PO Goods Receipt', 'GRN', 'RTV Request'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
     ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
     ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'], reports: ['Maverick Spend'], forms: ['Purchase Requisition'] }],
     ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'], reports: [], forms: [], create: false }],
     ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ'] }],
-    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos', 'M16-proformas', 'M16-advances'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order', 'Supplier Proforma', 'Supplier Advance'] }],
+    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos', 'M16-pos-import', 'M16-proformas', 'M16-advances'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance'] }],
     ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: [] }],
     ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: [] }],
     ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'GRN', 'RTV Request'] }],
@@ -94,8 +95,12 @@ export const SCREENS = {
       { m: 'action_create_po', l: 'Raise PO from Award' },
       { m: 'action_cancel', l: 'Cancel Award', ask: 'Reason for cancelling the award', kwarg: 'reason' }
     ] },
+  /* Two purchase formats (12 Nov 2026): a local purchase order (BDT or USD)
+   * and an import purchase order (the supplier's currency) fulfilled by an
+   * M44 import order raised from it, or that raised it. */
   'M16-pos': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
-    cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'vendor_confirmed_date', 'receipt_refs', 'approval_state', 'state'],
+    domain: [['purchase_type', '=', 'local']],
+    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'vendor_confirmed_date', 'receipt_refs', 'approval_state', 'state'],
     actions: [
       { m: 'action_submit_for_approval', l: 'Request Approval', ask: 'Business justification for the PO', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
@@ -109,6 +114,20 @@ export const SCREENS = {
       /* a local supplier's proforma invoice, captured on its own form for this order */
       { m: '__record_proforma', l: 'Record Supplier Proforma', form: 'M16-form-proforma', prefill: 'purchase_order_id',
         states: ['draft', 'sent', 'acknowledged', 'partially_received'] },
+      { m: 'action_create_change_order', l: 'Raise Change Order' },
+      { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
+      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
+    ] },
+  'M16-pos-import': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
+    domain: [['purchase_type', '=', 'import']],
+    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'import_order_refs', 'approval_state', 'state'],
+    empty: 'No import purchase order yet. Raise one with + New, or from a draft M44 import order (Create Purchase Order).',
+    actions: [
+      { m: 'action_submit_for_approval', l: 'Request Approval', ask: 'Business justification for the PO', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_record_requisition_exception', l: 'No-Requisition Exception (manager)', ask: 'Why this PO has no requisition', kwarg: 'reason' },
+      { m: 'action_send', l: 'Send PO' },
+      { m: 'action_create_import_order', l: 'Create Import Order (M44)', states: ['draft', 'sent', 'acknowledged', 'partially_received'] },
       { m: 'action_create_change_order', l: 'Raise Change Order' },
       { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
       { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
@@ -231,7 +250,7 @@ export const SCREENS = {
   'M16-form-po': {
     kind: 'model_form',
     model: 'fix.purchase.order',
-    title: 'Purchase Order',
+    title: 'Local Purchase Order',
     back: 'M16-pos',
     status: { field: 'state', labels: {
       draft: 'Draft', sent: 'Sent', acknowledged: 'Acknowledged',
@@ -245,6 +264,7 @@ export const SCREENS = {
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'branch_id', label: 'Deliver-to Branch' },
           { name: 'date_order', required: true, label: 'Order Date' },
+          { name: 'currency_id', required: true, label: 'Currency (BDT or USD)', domain: [['fix_local_purchase', '=', true]] },
           { name: 'promised_date', label: 'Promised Date' },
           { name: 'blanket_id', label: 'Blanket Agreement (call-off)', domain: [['state', '=', 'active']] },
           { name: 'vendor_confirmed_date', readonly: true, label: 'Vendor-Confirmed Delivery' },
@@ -259,7 +279,47 @@ export const SCREENS = {
         { name: 'product_id', required: true, label: 'Product' },
         { name: 'description', label: 'Description' },
         { name: 'qty_ordered', required: true, label: 'Ordered' },
-        { name: 'unit_price', required: true, label: 'Unit Price' }
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'line_total', readonly: true, label: 'Line Total' }
+      ]
+    }
+  },
+
+  /* The import format: the supplier's currency, fulfilled by an M44 import
+   * order raised from it (Create Import Order) or that raised it. */
+  'M16-form-po-import': {
+    kind: 'model_form',
+    model: 'fix.purchase.order',
+    title: 'Import Purchase Order',
+    back: 'M16-pos-import',
+    status: { field: 'state', labels: {
+      draft: 'Draft', sent: 'Sent', acknowledged: 'Acknowledged',
+      partially_received: 'Partially Received', received: 'Received',
+      closed: 'Closed', cancelled: 'Cancelled', superseded: 'Superseded by Change Order' } },
+    sections: [
+      { title: 'Import Order', note: 'A purchase from an overseas supplier, in its own currency (USD, EUR, CNY, JPY, …). Approved and sent like a local purchase order; then Create Import Order raises the M44 import order (proforma, LC, shipment, customs) with these lines. Started from an M44 import order instead, this purchase order is raised from it.',
+        fields: [
+          { name: 'purchase_type', required: true, label: 'Purchase Type', value: 'import' },
+          { name: 'vendor_id', required: true, label: 'Overseas Supplier', domain: [['fix_supplier_status', '=', 'active']],
+            emptyNote: 'No supplier is active yet, so no purchase order can be raised. A supplier becomes active in M42 Supplier Management once it is verified, screened and activated by a Supplier Approver.' },
+          { name: 'currency_id', required: true, label: 'Currency (the supplier\'s)' },
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'date_order', required: true, label: 'Order Date' },
+          { name: 'promised_date', label: 'Expected Shipment' },
+          { name: 'import_order_refs', readonly: true, label: 'M44 Import Orders' },
+          { name: 'vendor_confirmed_date', readonly: true, label: 'Supplier-Confirmed Date' }
+        ] }
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'Order Lines',
+      note: 'Each product needs its M15 spare part to be imported. Prices are in the order currency.',
+      fields: [
+        { name: 'product_id', required: true, label: 'Product' },
+        { name: 'description', label: 'Description' },
+        { name: 'qty_ordered', required: true, label: 'Quantity' },
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'line_total', readonly: true, label: 'Line Total' }
       ]
     }
   },
@@ -401,20 +461,34 @@ export const SCREENS = {
     back: 'M16-proformas',
     status: { field: 'state', labels: {
       received: 'Received', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'pi', label: '1. Proforma', bn: '১. প্রফর্মা', icon: '🧾', badge: '7' },
+      { id: 'totals', label: '2. Totals', bn: '২. মোট', icon: '৳', badge: '5' },
+      { id: 'decision', label: '3. Order & Decision', bn: '৩. অর্ডার ও সিদ্ধান্ত', icon: '✔', badge: '6' }
+    ],
     sections: [
-      { title: 'Proforma', note: 'A local supplier\'s proforma invoice for one purchase order, in the order\'s currency. A Procurement Approver other than you approves it once the order is sent to the supplier, when its amount matches the order total and it has not expired; it is final once decided. An advance to the supplier is then requested against it.',
+      { tab: 'pi', title: 'Proforma', note: 'A local supplier\'s proforma invoice for one LOCAL purchase order, in the order\'s currency (BDT or USD). Leave the item lines empty to start from the order\'s lines, then adjust them to the supplier\'s PI and attach its copy. A Procurement Approver other than you approves it once the order is sent, when its goods value matches the order total, the PI adds up (lines + VAT + charges = total) and it has not expired; it is final once decided. An advance to the supplier is then requested against it.',
         fields: [
-          { name: 'purchase_order_id', required: true, label: 'Purchase Order',
-            domain: [['state', 'in', ['draft', 'sent', 'acknowledged', 'partially_received']]],
-            emptyNote: 'No open purchase order yet. Raise the purchase order first (M16 Purchase Orders); a proforma is recorded against it.' },
-          { name: 'proforma_no', required: true, label: 'Supplier\'s Proforma No' },
-          { name: 'issued_on', required: true, label: 'Issued On' },
+          { name: 'purchase_order_id', required: true, label: 'Local Purchase Order',
+            domain: [['state', 'in', ['draft', 'sent', 'acknowledged', 'partially_received']], ['purchase_type', '=', 'local']],
+            emptyNote: 'No open local purchase order yet. Raise the purchase order first (M16 Local Purchase Orders); a proforma is recorded against it. An import\'s proforma goes on its M44 import order.' },
+          { name: 'proforma_no', required: true, label: 'Supplier\'s PI No' },
+          { name: 'issued_on', required: true, label: 'PI Date' },
           { name: 'valid_until', label: 'Valid Until' },
-          { name: 'amount', required: true, label: 'Proforma Amount' },
-          { name: 'payment_terms', label: 'Payment Terms (as on the proforma)' },
+          { name: 'payment_terms', label: 'Payment Terms (as on the PI)' },
+          { name: 'pi_file', type: 'binary', filename: 'pi_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Supplier\'s PI (copy)' },
+          { name: 'pi_filename', label: 'PI File Name' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] },
-      { title: 'Order & decision', note: 'Read from the order and the approval.',
+      { tab: 'totals', title: 'Totals', note: 'Goods value is the sum of the lines; the PI total must equal goods + VAT + other charges.',
+        fields: [
+          { name: 'lines_total', readonly: true, label: 'Goods Value (lines)' },
+          { name: 'vat_amount', label: 'VAT' },
+          { name: 'other_charges', label: 'Other Charges' },
+          { name: 'amount', required: true, label: 'PI Total (as printed)' },
+          { name: 'computed_total', readonly: true, label: 'Goods + VAT + Charges' }
+        ] },
+      { tab: 'decision', title: 'Order & decision', note: 'Read from the order and the approval.',
         fields: [
           { name: 'vendor_id', readonly: true, label: 'Supplier' },
           { name: 'order_total', readonly: true, label: 'Order Total' },
@@ -423,7 +497,21 @@ export const SCREENS = {
           { name: 'decided_by_id', readonly: true, label: 'Decided By' },
           { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'PI Lines — the supplier\'s items',
+      note: 'One line per item on the supplier\'s PI. Each product must be on the purchase order, and never more than it orders.',
+      fields: [
+        { name: 'product_id', required: true, label: 'Product' },
+        { name: 'supplier_part_no', label: 'Supplier\'s Item Code / Part No' },
+        { name: 'description', label: 'Description' },
+        { name: 'quantity', required: true, label: 'Qty' },
+        { name: 'uom', label: 'Unit' },
+        { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'subtotal', readonly: true, label: 'Line Total' }
+      ]
+    }
   },
 
   'M16-form-advance': {
@@ -524,6 +612,7 @@ export const FORM_MODELS = {
   'M16:Purchase Requisition': 'fix.requisition',
   'M16:RFQ': 'fix.procurement.rfq',
   'M16:Purchase Order': 'fix.purchase.order',
+  'M16:Import Purchase Order': 'fix.purchase.order',
   'M16:Supplier Proforma': 'fix.purchase.proforma',
   'M16:Supplier Advance': 'fix.purchase.advance',
   'M16:PO Goods Receipt': 'fix.purchase.receipt',
@@ -535,6 +624,7 @@ export const FORM_CHIPS = {
   'M16:Purchase Requisition': 'M16-form-requisition',
   'M16:RFQ': 'M16-form-rfq',
   'M16:Purchase Order': 'M16-form-po',
+  'M16:Import Purchase Order': 'M16-form-po-import',
   'M16:Supplier Proforma': 'M16-form-proforma',
   'M16:Supplier Advance': 'M16-form-advance',
   'M16:PO Goods Receipt': 'M16-form-po-receipt',
@@ -561,6 +651,7 @@ export const FORM_CHIPS = {
     'M16-compare': 'M16-form-bid',
     'M16-award': 'M16-form-award',
     'M16-pos': 'M16-form-po',
+    'M16-pos-import': 'M16-form-po-import',
     'M16-proformas': 'M16-form-proforma',
     'M16-advances': 'M16-form-advance',
     'M16-blanket': 'M16-form-blanket',

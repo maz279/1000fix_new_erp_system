@@ -44,6 +44,11 @@ PROFORMA_TERMS = (
     "valid_until",
     "amount",
     "payment_terms",
+    "vat_amount",
+    "other_charges",
+    "pi_file",
+    "pi_filename",
+    "line_ids",
 )
 ADVANCE_TERMS = ("purchase_order_id", "proforma_id", "amount", "purpose", "security_ref")
 
@@ -103,6 +108,31 @@ class FixPurchaseProforma(models.Model):
         help="As written on the proforma, e.g. 50% advance, rest on delivery.",
     )
     notes = fields.Text()
+    # the supplier's document: its item lines, VAT and charges, and a copy
+    pi_file = fields.Binary(string="Supplier's PI (copy)", attachment=True, copy=False)
+    pi_filename = fields.Char(string="PI File Name", copy=False)
+    line_ids = fields.One2many(
+        "fix.purchase.proforma.line", "proforma_id", string="PI Lines", copy=True
+    )
+    lines_total = fields.Monetary(
+        string="Goods Value",
+        currency_field="currency_id",
+        compute="_compute_lines_total",
+        store=True,
+        help="The lines before VAT and charges: what reconciles to the order total.",
+    )
+    vat_amount = fields.Monetary(string="VAT", currency_field="currency_id")
+    other_charges = fields.Monetary(
+        string="Other Charges",
+        currency_field="currency_id",
+        help="Carriage, installation and the like.",
+    )
+    computed_total = fields.Monetary(
+        string="Lines + VAT + Charges",
+        currency_field="currency_id",
+        compute="_compute_lines_total",
+        store=True,
+    )
     display_label = fields.Char(compute="_compute_display_label")
     state = fields.Selection(
         [
@@ -156,6 +186,14 @@ class FixPurchaseProforma(models.Model):
                 "%s · %s" % (rec.proforma_no, rec.name) if rec.proforma_no else rec.name
             )
 
+    @api.depends("line_ids.subtotal", "vat_amount", "other_charges")
+    def _compute_lines_total(self):
+        for rec in self:
+            rec.lines_total = sum(rec.line_ids.mapped("subtotal"))
+            rec.computed_total = (
+                rec.lines_total + (rec.vat_amount or 0.0) + (rec.other_charges or 0.0)
+            )
+
     @api.depends("advance_ids.state", "advance_ids.amount")
     def _compute_advance_approved(self):
         for rec in self:
@@ -170,6 +208,13 @@ class FixPurchaseProforma(models.Model):
                 raise ValidationError(
                     "Record a proforma against an open purchase order (%s is %s)."
                     % (rec.purchase_order_id.name, rec.purchase_order_id.state)
+                )
+            # an import's proforma is the M44 one: in the supplier's currency,
+            # with HS codes, ports and the LC terms the bank needs
+            if rec.purchase_order_id.purchase_type == "import":
+                raise ValidationError(
+                    "%s is an import purchase order: record its proforma on the import "
+                    "order (M44 Proforma Invoices)." % rec.purchase_order_id.name
                 )
 
     @api.constrains("proforma_no", "vendor_id", "state")
@@ -203,6 +248,23 @@ class FixPurchaseProforma(models.Model):
                     self.env["ir.sequence"].sudo().next_by_code("fix.purchase.proforma")
                     or "SPI/New"
                 )
+            # no lines given: start from the order's, to be adjusted to the PI
+            if vals.get("purchase_order_id") and not vals.get("line_ids"):
+                order = self.env["fix.purchase.order"].browse(vals["purchase_order_id"]).sudo()
+                vals["line_ids"] = [
+                    (
+                        0,
+                        0,
+                        {
+                            "po_line_id": line.id,
+                            "product_id": line.product_id.id,
+                            "description": line.description or line.product_id.display_name,
+                            "quantity": line.qty_ordered,
+                            "unit_price": line.unit_price,
+                        },
+                    )
+                    for line in order.line_ids
+                ]
         return super().create(vals_list)
 
     def write(self, vals):
@@ -229,14 +291,20 @@ class FixPurchaseProforma(models.Model):
                     "Approve the proforma once purchase order %s is sent to the supplier "
                     "(it is %s)." % (order.name, order.state)
                 )
-            expected = order.amount_total or 0.0
-            if expected <= 0 or abs(rec.amount - expected) > expected * tol / 100.0 + 0.01:
+            if not rec.line_ids:
                 raise UserError(
-                    "Proforma %s (%.2f %s) does not reconcile to purchase order %s "
+                    "Proforma %s has no item lines: enter the supplier's PI lines (or start "
+                    "from the order's) before it is approved." % rec.proforma_no
+                )
+            expected = order.amount_total or 0.0
+            goods = rec.lines_total
+            if expected <= 0 or abs(goods - expected) > expected * tol / 100.0 + 0.01:
+                raise UserError(
+                    "Proforma %s goods value (%.2f %s) does not reconcile to purchase order %s "
                     "(%.2f %s, tolerance %.2f%%)."
                     % (
                         rec.proforma_no,
-                        rec.amount,
+                        goods,
                         rec.currency_id.name,
                         order.name,
                         expected,
@@ -244,6 +312,21 @@ class FixPurchaseProforma(models.Model):
                         tol,
                     )
                 )
+            if abs((rec.amount or 0.0) - rec.computed_total) > 0.01:
+                raise UserError(
+                    "Proforma %s does not add up: its total %.2f %s, but goods %.2f + VAT %.2f "
+                    "+ other charges %.2f = %.2f."
+                    % (
+                        rec.proforma_no,
+                        rec.amount or 0.0,
+                        rec.currency_id.name,
+                        goods,
+                        rec.vat_amount or 0.0,
+                        rec.other_charges or 0.0,
+                        rec.computed_total,
+                    )
+                )
+            rec._check_lines_against_order(order)
             if rec.valid_until and rec.valid_until < today:
                 raise UserError("Proforma %s expired on %s." % (rec.proforma_no, rec.valid_until))
             live = rec.sudo().search_count(
@@ -264,6 +347,28 @@ class FixPurchaseProforma(models.Model):
                 }
             )
         return True
+
+    def _check_lines_against_order(self, order):
+        """Every PI line is a product of the order, and never more of it."""
+        self.ensure_one()
+        ordered = {}
+        for line in order.line_ids:
+            ordered[line.product_id.id] = ordered.get(line.product_id.id, 0.0) + line.qty_ordered
+        asked = {}
+        for line in self.line_ids:
+            if line.product_id.id not in ordered:
+                raise UserError(
+                    "Proforma %s lists %s, which is not on purchase order %s."
+                    % (self.proforma_no, line.product_id.display_name, order.name)
+                )
+            asked[line.product_id.id] = asked.get(line.product_id.id, 0.0) + line.quantity
+        for product_id, qty in asked.items():
+            if qty > ordered[product_id] + 1e-6:
+                product = self.env["product.product"].sudo().browse(product_id)
+                raise UserError(
+                    "Proforma %s asks for %g of %s; purchase order %s orders %g."
+                    % (self.proforma_no, qty, product.display_name, order.name, ordered[product_id])
+                )
 
     def action_reject(self, reason=None):
         require_role(self.env, GROUP_APPROVER, "Rejecting a supplier proforma")
@@ -555,3 +660,132 @@ class FixPurchaseOrderProforma(models.Model):
             order.advance_approved_total = sum(
                 order.advance_ids.filtered(lambda a: a.state == "approved").mapped("amount")
             )
+
+    # Two purchase formats (user request, 12 Nov 2026): a LOCAL purchase order
+    # to a Bangladeshi supplier, in taka or US dollars; an IMPORT purchase order
+    # in the supplier's currency, fulfilled through an M44 import order (raised
+    # from the PO, or the PO raised from the import order).
+    purchase_type = fields.Selection(
+        [("local", "Local Purchase"), ("import", "Import Purchase")],
+        string="Purchase Type",
+        required=True,
+        default="local",
+        tracking=True,
+        index=True,
+    )
+
+    @api.constrains("currency_id", "purchase_type")
+    def _check_local_currency(self):
+        for order in self:
+            if (
+                order.purchase_type == "local"
+                and order.currency_id
+                and not order.currency_id.fix_local_purchase
+            ):
+                raise ValidationError(
+                    "Purchase order %s is in %s: a local purchase order is in BDT or USD. "
+                    "Make it an import purchase order for the supplier's currency."
+                    % (order.name or "", order.currency_id.name)
+                )
+
+    def write(self, vals):
+        if "purchase_type" in vals:
+            for order in self:
+                if order.purchase_type != vals["purchase_type"] and (
+                    order.state != "draft" or order.proforma_ids
+                ):
+                    raise UserError(
+                        "Purchase order %s is %s or has a proforma: its purchase type is fixed."
+                        % (order.name, order.state)
+                    )
+        return super().write(vals)
+
+
+LOCAL_PURCHASE_CURRENCIES = ("BDT", "USD")
+
+
+class ResCurrencyLocalPurchase(models.Model):
+    """Whether a local purchase order may be in this currency: a stored flag
+    the order form's picker can filter on (a picker filters on flags and
+    links, never on a currency's name)."""
+
+    _inherit = "res.currency"
+
+    fix_local_purchase = fields.Boolean(
+        string="Allowed for Local Purchase",
+        compute="_compute_fix_local_purchase",
+        store=True,
+    )
+
+    @api.depends("name")
+    def _compute_fix_local_purchase(self):
+        for currency in self:
+            currency.fix_local_purchase = currency.name in LOCAL_PURCHASE_CURRENCIES
+
+
+class FixPurchaseProformaLine(models.Model):
+    """One item of a local supplier's proforma invoice."""
+
+    _name = "fix.purchase.proforma.line"
+    _description = "Supplier Proforma Line"
+    _order = "proforma_id, sequence, id"
+
+    proforma_id = fields.Many2one(
+        "fix.purchase.proforma", required=True, ondelete="cascade", index=True
+    )
+    sequence = fields.Integer(default=10)
+    company_id = fields.Many2one(related="proforma_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(
+        related="proforma_id.operating_unit_id", store=True, index=True
+    )
+    currency_id = fields.Many2one(related="proforma_id.currency_id")
+    po_line_id = fields.Many2one(
+        "fix.purchase.order.line", string="Order Line", ondelete="set null", copy=False
+    )
+    product_id = fields.Many2one("product.product", string="Product", required=True)
+    supplier_part_no = fields.Char(string="Supplier's Item Code / Part No")
+    description = fields.Char(required=True)
+    quantity = fields.Float(required=True, default=1.0)
+    uom = fields.Char(string="Unit", default="Pcs")
+    unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id", required=True)
+    subtotal = fields.Monetary(
+        string="Line Total", currency_field="currency_id", compute="_compute_subtotal", store=True
+    )
+
+    _qty_positive = models.Constraint(
+        "CHECK (quantity > 0)", "A proforma line needs a positive quantity"
+    )
+    _price_non_negative = models.Constraint(
+        "CHECK (unit_price >= 0)", "A unit price cannot be negative"
+    )
+
+    @api.depends("quantity", "unit_price")
+    def _compute_subtotal(self):
+        for line in self:
+            line.subtotal = (line.quantity or 0.0) * (line.unit_price or 0.0)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Product = self.env["product.product"]
+        for vals in vals_list:
+            if not vals.get("description") and vals.get("product_id"):
+                vals["description"] = Product.browse(vals["product_id"]).sudo().display_name
+        records = super().create(vals_list)
+        records._refuse_on_decided("added")
+        return records
+
+    def write(self, vals):
+        self._refuse_on_decided("changed")
+        return super().write(vals)
+
+    def unlink(self):
+        self._refuse_on_decided("removed")
+        return super().unlink()
+
+    def _refuse_on_decided(self, what):
+        for line in self.sudo():
+            if line.proforma_id.state != "received":
+                raise UserError(
+                    "Proforma %s is %s: its lines cannot be %s. Record a new proforma."
+                    % (line.proforma_id.proforma_no, line.proforma_id.state, what)
+                )

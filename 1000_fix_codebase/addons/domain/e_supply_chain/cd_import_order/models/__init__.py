@@ -5,6 +5,8 @@ from . import (
     fix_import_common,
     fix_import_order,
     fix_import_ops,
+    fix_import_proforma_detail,
+    fix_import_purchase_link,
     fix_import_compliance,
     fix_import_advance,
     fix_import_gl,

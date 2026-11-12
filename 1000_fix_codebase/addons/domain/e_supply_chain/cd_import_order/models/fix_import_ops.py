@@ -193,6 +193,8 @@ class FixImportProforma(models.Model):
                 )
             if rec.valid_until and rec.valid_until < today(rec):
                 raise UserError("Proforma %s expired on %s." % (rec.proforma_no, rec.valid_until))
+            # the PI's own lines, totals and LC terms (fix_import_proforma_detail)
+            rec._import_check_proforma_detail()
             rec.env["fix.import.irc"]._irc_require_valid(order.company_id, "Approving a proforma")
             order._import_check_eligibility("Approving proforma %s" % rec.proforma_no)
             order._import_check_fx("Approving proforma %s" % rec.proforma_no)
@@ -203,6 +205,11 @@ class FixImportProforma(models.Model):
                     "decided_on": fields.Datetime.now(),
                 }
             )
+        return True
+
+    def _import_check_proforma_detail(self):
+        """The PI's own lines, totals and terms; extended in
+        fix_import_proforma_detail.py (item lines, attachment, LC terms)."""
         return True
 
     def action_reject(self, reason=None):

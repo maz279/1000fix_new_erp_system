@@ -32,6 +32,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "security/fix_import_child_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/res_currency_import.xml",
         "data/ir_cron.xml",
         "data/fix_import_consumers.xml",
         "views/cd_import_order_views.xml",
