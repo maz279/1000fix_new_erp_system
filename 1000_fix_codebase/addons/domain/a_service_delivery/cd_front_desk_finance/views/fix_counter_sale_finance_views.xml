@@ -67,6 +67,26 @@
         </field>
     </record>
 
+    <!-- E2E2 flow 2: the reconciled drawer variance in the GL, and the retry. -->
+    <record id="view_fix_cash_shift_form_finance" model="ir.ui.view">
+        <field name="name">fix.cash.shift.form.finance</field>
+        <field name="model">fix.cash.shift</field>
+        <field name="inherit_id" ref="cd_front_desk.view_fix_cash_shift_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_retry_variance_posting" type="object"
+                        string="Retry Variance Posting"
+                        invisible="variance_posting_state != 'pending'"/>
+            </xpath>
+            <xpath expr="//field[@name='variance']" position="after">
+                <field name="variance_posting_state"/>
+                <field name="variance_posting_note" invisible="not variance_posting_note"/>
+                <field name="variance_move_id" invisible="not variance_move_id"/>
+                <field name="variance_account_id" invisible="not variance_account_id"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="view_fix_branch_form_counter_stock" model="ir.ui.view">
         <field name="name">fix.branch.form.counter.stock</field>
         <field name="model">fix.branch</field>

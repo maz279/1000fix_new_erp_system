@@ -25,3 +25,7 @@ from . import fix_party_merge_consumer
 # A02 audit B2 / M01-P2: hand-back consumers and the abandoned-device cron;
 # extends fix.service.order, so it imports after it.
 from . import fix_service_order_handback
+
+# D-11: the close gate refuses billed estimate parts that never left stock;
+# extends fix.service.order, so it imports after it.
+from . import fix_service_order_parts_gate

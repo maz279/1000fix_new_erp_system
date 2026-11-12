@@ -73,6 +73,7 @@ PARAM = "cd_front_desk_finance.account_code."
 BILLING = "cd_billing_engine.account_code."
 DRAWER_PARAM = "cd_cash_position.account_code.branch_cash"
 CHANNEL_PARAM = "cd_cash_position.account_code.channel_clearing"
+SHORTAGE_PARAM = "cd_cash_position.account_code.cash_shortage"
 ACCOUNT_ROLES = {
     "parts_revenue": ("parts revenue", (PARAM + "parts_revenue", BILLING + "revenue")),
     "labour_revenue": ("labour / service revenue", (PARAM + "labour_revenue", BILLING + "revenue")),
@@ -90,6 +91,14 @@ ACCOUNT_ROLES = {
         (DRAWER_PARAM, BILLING + "cash"),
     ),
     "vat_output": ("VAT output (Mushak 6.3)", (BILLING + "vat_output",)),
+    # the reconciled drawer variance (fix_cash_shift_posting): the treasury's
+    # "Cash shortage / over" account, where M50 already books deposit overs;
+    # an overage goes to its own account once one is named
+    "cash_shortage": ("cash shortage (drawer short)", (SHORTAGE_PARAM,)),
+    "cash_overage": (
+        "cash overage (drawer over)",
+        (PARAM + "cash_overage", SHORTAGE_PARAM),
+    ),
 }
 PAYMENT_ROLE = {
     "cash": "drawer_cash",

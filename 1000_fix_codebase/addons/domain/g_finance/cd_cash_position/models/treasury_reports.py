@@ -342,6 +342,72 @@ def gateway_recon(env, date_from=None, date_to=None, **_kw):
     }
 
 
+# M50 COD report. Two channels clear COD clearing (debited by the M20 cod
+# receipt on a verified delivery): in-house riders (fix.cod.settlement:
+# Dr cash/bank remitted [+ Dr rider shortage] / Cr COD clearing expected) and,
+# since G10, third-party couriers (fix.courier.remittance: Dr bank net + Dr
+# courier charges / Cr COD clearing gross). The report lists both, with each
+# channel's total, and proves its figures against the ledger: a settled row
+# shows what its own entry credited to COD clearing, and the period's gross
+# settled, net banked and charges are tied to the COD clearing, bank and
+# charges movements; a COD clearing credit no settlement made is called out.
+_COD_COLS = [
+    "channel",
+    "ref",
+    "date",
+    "orders",
+    "gross",
+    "charges",
+    "net",
+    "variance",
+    "gl_cleared",
+    "tie",
+    "state",
+]
+_COD_SUMMED = ("orders", "gross", "charges", "net", "variance", "gl_cleared")
+RIDER_CHANNEL = "Rider"
+COURIER_CHANNEL = "Courier"
+
+
+def _cod_entry_split(move, clearing, cash_account, charges_account):
+    """(credited to COD clearing, debited to the bank / cash account, debited
+    to courier charges) by one settlement or remittance entry."""
+    cleared = banked = charged = 0.0
+    for line in move.line_ids:
+        if clearing and line.account_id == clearing:
+            cleared += line.credit - line.debit
+        elif cash_account and line.account_id == cash_account:
+            banked += line.debit - line.credit
+        elif charges_account and line.account_id == charges_account:
+            charged += line.debit - line.credit
+    return _r(cleared), _r(banked), _r(charged)
+
+
+def _cod_tie_label(row, split):
+    cleared, banked, charged = split
+    off = []
+    if abs(cleared - row["gross"]) > 0.005:
+        off.append("COD clearing %.2f vs gross %.2f" % (cleared, row["gross"]))
+    if abs(banked - row["net"]) > 0.005:
+        off.append("bank %.2f vs net %.2f" % (banked, row["net"]))
+    if abs(charged - row["charges"]) > 0.005:
+        off.append("charges %.2f vs %.2f" % (charged, row["charges"]))
+    return "Ties" if not off else "Off: " + "; ".join(off)
+
+
+def _cod_summed(rows):
+    out = {}
+    for key in _COD_SUMMED:
+        total = sum(r[key] or 0 for r in rows)
+        out[key] = total if key == "orders" else _r(total)
+    return out
+
+
+def _cod_channel_group(row):
+    """Riders are one channel; each courier is its own."""
+    return RIDER_CHANNEL + "s" if row["channel"].startswith(RIDER_CHANNEL) else row["channel"]
+
+
 def cod_report(env, date_from=None, date_to=None, **_kw):
     company = _company(env)
     if not _has(env, "fix.storefront.order"):
@@ -350,83 +416,208 @@ def cod_report(env, date_from=None, date_to=None, **_kw):
             "rows": [],
             "empty": "No COD source model is installed (storefront orders).",
         }
+    from .courier_remittance import live_cod_orders
+
+    d_from, d_to = _d(date_from), _d(date_to)
+    clearing = treasury_account(env, company, "cod_clearing", required=False)
+    charges_account = treasury_account(env, company, "courier_charges", required=False)
+    settled = []  # (row, entry split) of the settled documents: the tie
+
+    def in_period(field):
+        dom = [("company_id", "=", company.id)]
+        if d_from:
+            dom.append((field, ">=", d_from))
+        if d_to:
+            dom.append((field, "<=", d_to))
+        return dom
+
+    def finish(row, doc, cash_account):
+        if doc.state == "settled" and doc.move_id:
+            split = _cod_entry_split(doc.move_id, clearing, cash_account, charges_account)
+            row["gl_cleared"], row["tie"] = split[0], _cod_tie_label(row, split)
+            settled.append((row, split))
+        else:
+            row["gl_cleared"], row["tie"] = None, ""
+        return row
+
+    details = []
     Settlement = env["fix.cod.settlement"]
-    dom = [("company_id", "=", company.id)]
-    if date_from:
-        dom.append(("settlement_date", ">=", _d(date_from)))
-    if date_to:
-        dom.append(("settlement_date", "<=", _d(date_to)))
     sel = dict(Settlement._fields["state"].selection)
-    rows = []
-    for s in Settlement.search(dom):
-        rows.append(
-            {
-                "rider": s.rider_id.name,
-                "ref": s.name,
-                "date": str(s.settlement_date),
-                "orders": s.order_count,
-                "expected": _r(s.expected_amount),
-                "remitted": _r(s.remitted_amount),
-                "variance": _r(s.variance),
-                "state": sel.get(s.state),
+    for s in Settlement.search(in_period("settlement_date"), order="settlement_date, id"):
+        row = {
+            "channel": "%s — %s" % (RIDER_CHANNEL, s.rider_id.name or "-"),
+            "ref": s.name,
+            "date": str(s.settlement_date),
+            "orders": s.order_count,
+            "gross": _r(s.expected_amount),
+            "charges": 0.0,
+            "net": _r(s.remitted_amount),
+            "variance": _r(s.variance),
+            "state": sel.get(s.state),
+        }
+        details.append(finish(row, s, s.remittance_journal_id.default_account_id))
+    if _has(env, "fix.courier.remittance"):
+        Remittance = env["fix.courier.remittance"]
+        rsel = dict(Remittance._fields["state"].selection)
+        for r in Remittance.search(in_period("remittance_date"), order="remittance_date, id"):
+            row = {
+                "channel": "%s — %s" % (COURIER_CHANNEL, r.courier_id.name or "-"),
+                "ref": r.name,
+                "date": str(r.remittance_date),
+                "orders": r.order_count,
+                "gross": _r(r.gross_amount),
+                "charges": _r(r.total_charges),
+                "net": _r(r.net_amount),
+                # net + charges - gross: 0 on any submitted remittance
+                "variance": _r(-r.difference),
+                "state": rsel.get(r.state),
             }
-        )
-    # riders holding delivered COD not yet in any settlement
+            details.append(finish(row, r, r.journal_id.default_account_id))
+
+    # delivered COD not yet in any live settlement or remittance: held by the
+    # rider, else by the courier that carried it (one owner per order)
     orders = env["fix.storefront.order"].search(
         [
             ("company_id", "=", company.id),
             ("payment_rail", "=", "cod"),
             ("state", "not in", ("cancelled", "draft")),
             ("carrier_consignment_id.state", "=", "delivered"),
-            ("carrier_consignment_id.rider_id", "!=", False),
         ]
     )
-    settled = Settlement.search(
-        [("company_id", "=", company.id), ("state", "!=", "disputed")]
-    ).mapped("order_ids")
-    open_by_rider = defaultdict(lambda: [0, 0.0])
-    for o in orders - settled:
-        slot = open_by_rider[o.carrier_consignment_id.rider_id.name]
-        slot[0] += 1
-        slot[1] += o.total_amount
-    for rider, (count, amount) in sorted(open_by_rider.items()):
-        rows.append(
+    held = defaultdict(lambda: [0, 0.0])
+    for o in orders - live_cod_orders(env, company):
+        cons = o.carrier_consignment_id
+        if cons.rider_id:
+            key = "%s — %s" % (RIDER_CHANNEL, cons.rider_id.name)
+        elif "courier_partner_id" in cons._fields and cons.courier_partner_id:
+            if o._fix_cod_paid_elsewhere():
+                continue  # prepaid or settled by another receipt: no cash held
+            key = "%s — %s" % (COURIER_CHANNEL, cons.courier_partner_id.name)
+        else:
+            continue
+        held[key][0] += 1
+        held[key][1] += o.total_amount
+    for channel, (count, amount) in sorted(held.items()):
+        details.append(
             {
-                "rider": rider,
+                "channel": channel,
                 "ref": "—",
                 "date": "",
                 "orders": count,
-                "expected": _r(amount),
-                "remitted": None,
+                "gross": _r(amount),
+                "charges": None,
+                "net": None,
                 "variance": None,
+                "gl_cleared": None,
+                "tie": "",
                 "state": "Unsettled",
             }
         )
+
+    # per-channel totals, shown after each channel's rows
+    groups = defaultdict(list)
+    for row in details:
+        groups[_cod_channel_group(row)].append(row)
+    rows, channel_totals = [], []
+    for channel in sorted(groups, key=lambda k: (not k.startswith(RIDER_CHANNEL), k)):
+        members = sorted(
+            groups[channel], key=lambda r: (r["state"] == "Unsettled", r["date"], r["ref"])
+        )
+        total = dict(_cod_summed(members), channel=channel)
+        channel_totals.append(total)
+        rows.extend(members)
+        rows.append(dict(total, channel="%s — total" % channel, ref="", date="", tie="", state=""))
+
+    # the tie: the report's settled figures against what the ledger moved
+    credits = debits = 0.0
+    if clearing:
+        dom = [
+            ("account_id", "=", clearing.id),
+            ("company_id", "=", company.id),
+            ("parent_state", "=", "posted"),
+        ]
+        if d_from:
+            dom.append(("date", ">=", d_from))
+        if d_to:
+            dom.append(("date", "<=", d_to))
+        lines = env["account.move.line"].search(dom)
+        credits = _r(sum(lines.mapped("credit")))
+        debits = _r(sum(lines.mapped("debit")))
+    gross_settled = _r(sum(r["gross"] for r, _split in settled))
+    tie = {
+        "gross_settled": gross_settled,
+        "gl_cleared_by_entries": _r(sum(split[0] for _row, split in settled)),
+        "gl_cod_clearing_credits": credits,
+        "gl_cod_clearing_debits": debits,
+        "gross_difference": _r(gross_settled - credits),
+        "net_banked": _r(sum(r["net"] for r, _split in settled)),
+        "gl_net_banked": _r(sum(split[1] for _row, split in settled)),
+        "charges": _r(sum(r["charges"] for r, _split in settled)),
+        "gl_charges": _r(sum(split[2] for _row, split in settled)),
+    }
+    notes = [
+        "Channels: in-house riders (COD settlements) and third-party couriers (courier "
+        "remittances, net of the delivery and COD charges they deduct). Gross = the cash on "
+        "delivery of the orders; Net = what reached the bank or cash; Variance = net + "
+        "charges - gross (a rider's shortage is recovered from the rider).",
+    ]
+    if not clearing:
+        notes.append(
+            "COD clearing GL account not configured (cd_cash_position.account_code."
+            "cod_clearing): the report cannot be tied to the ledger."
+        )
+    else:
+        notes.append(
+            "GL Cleared = what the row's own entry credited to COD clearing (%s). In the "
+            "period COD clearing was debited %.2f (cash collected on delivery) and credited "
+            "%.2f." % (clearing.code, debits, credits)
+        )
+        if abs(tie["gross_difference"]) > 0.005:
+            notes.append(
+                "Does NOT tie: COD clearing was credited %.2f in the period but the settled "
+                "gross is %.2f: %.2f of credits came from no settlement or remittance."
+                % (credits, gross_settled, -tie["gross_difference"])
+            )
+        else:
+            notes.append(
+                "Ties: settled gross %.2f = COD clearing credits %.2f." % (gross_settled, credits)
+            )
+    for label, reported, booked in (
+        ("Net banked", tie["net_banked"], tie["gl_net_banked"]),
+        ("Charges", tie["charges"], tie["gl_charges"]),
+    ):
+        if abs(reported - booked) > 0.005:
+            notes.append(
+                "Does NOT tie: %s %.2f, but the entries debited %.2f." % (label, reported, booked)
+            )
+        else:
+            notes.append("%s %.2f = the entries' debits." % (label, reported))
+    notes.append(
+        "Cash collected by field technicians on service orders is not recorded by any model "
+        "yet, so it is not in this report."
+    )
     return {
-        "title": "COD Settlement Report",
-        "cols": ["rider", "ref", "date", "orders", "expected", "remitted", "variance", "state"],
+        "title": "COD Settlement Report (riders and couriers)",
+        "cols": list(_COD_COLS),
         "labels": {
-            "rider": "Rider",
-            "ref": "Settlement",
+            "channel": "Channel",
+            "ref": "Settlement / Remittance",
             "date": "Date",
             "orders": "Orders",
-            "expected": "COD Expected",
-            "remitted": "Remitted",
+            "gross": "Gross Collected",
+            "charges": "Charges Deducted",
+            "net": "Net Banked",
             "variance": "Variance",
+            "gl_cleared": "GL Cleared (COD clearing)",
+            "tie": "GL Tie",
             "state": "Status",
         },
         "rows": rows,
-        "totals": {
-            "rider": "Total",
-            "orders": sum(r["orders"] for r in rows),
-            "expected": _r(sum(r["expected"] for r in rows)),
-            "remitted": _r(sum(r["remitted"] or 0.0 for r in rows)),
-        },
-        "notes": [
-            "COD source: storefront orders paid Cash on Delivery whose consignment the rider delivered.",
-            "Cash collected by field technicians on service orders is not recorded by any model yet, so it is not in this report.",
-        ],
-        "empty": "No COD collections or settlements in the period.",
+        "totals": dict(_cod_summed(details), channel="Total"),
+        "channel_totals": channel_totals,
+        "tie": tie,
+        "notes": notes,
+        "empty": "No COD collections, settlements or courier remittances in the period.",
     }
 
 
