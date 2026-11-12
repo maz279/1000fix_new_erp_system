@@ -344,6 +344,16 @@ WRITABLE = {
             "threshold",
         }
     ),
+    "fix.msp.backup.job": frozenset(
+        {
+            "asset_id",
+            "note",
+            "outcome",
+            "plan_ref",
+            "restore_tested",
+            "run_at",
+        }
+    ),
     "fix.msp.change.record": frozenset(
         {
             "asset_id",
@@ -425,7 +435,15 @@ WRITABLE = {
             "trigger",
         }
     ),
-    "fix.msp.runbook.run": frozenset(),
+    "fix.msp.runbook.run": frozenset(
+        {
+            "alert_id",
+            "asset_id",
+            "outcome",
+            "output_note",
+            "runbook_id",
+        }
+    ),
     "fix.msp.service.report": frozenset(),
     "fix.msp.sla.credit": frozenset(
         {
@@ -453,6 +471,8 @@ WRITABLE = {
             "asset_id",
             "consent_partner_id",
             "msp_contract_id",
+            "order_id",
+            "session_protocol",
             "session_summary",
             "technician_id",
             "tool",

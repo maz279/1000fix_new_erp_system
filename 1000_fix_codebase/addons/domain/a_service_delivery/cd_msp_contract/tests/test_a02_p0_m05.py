@@ -183,6 +183,8 @@ def _change(m5, user=None, **vals):
         "name": "Reconfigure client firewall",
         "msp_contract_id": m5.msp.id,
         "risk": "medium",
+        # BRU-RMS-08: every change carries its rollback plan
+        "rollback_plan": "restore the saved configuration",
         "operating_unit_id": m5.ou.id,
     }
     base.update(vals)
@@ -219,7 +221,7 @@ def test_cab_approval_is_stamped_with_the_acting_user(m5):
 
 
 def test_high_risk_change_needs_a_rollback_plan_before_approval(m5):
-    ch = _change(m5, risk="high")
+    ch = _change(m5, risk="high", rollback_plan="")
     with pytest.raises(UserError, match="rollback plan"):
         _as(ch, m5.eng).action_request_approval()
     _as(ch, m5.eng).write({"rollback_plan": "restore the switch config snapshot"})
