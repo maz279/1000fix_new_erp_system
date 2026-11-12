@@ -277,6 +277,88 @@ class OfflineSyncApiController(http.Controller):
             [("id", "=", rec_id), ("technician_id", "=", tech.id)], limit=1
         )
 
+    # The people a panic alert reaches: dispatch and HSE, in the technician's company.
+    PANIC_GROUPS = (
+        "cd_field_service.group_fix_field_service_manager",
+        "cd_hse.group_hse_officer",
+    )
+    PANIC_ACTIVE_STATES = ("dispatched", "accepted", "en_route", "arrived", "in_progress")
+
+    def _raise_panic(self, env, tech, payload, now):
+        """A panic alert reaches people (FR-FSM-031, M02 capture audit 2026-11-13).
+
+        It used to write a log line and answer ``dispatch_notified: True`` while
+        nobody was told. Now: the technician's open lone-worker session escalates
+        (M59's contact chain), and every dispatcher and HSE Officer of the
+        technician's company, plus the session's buddy and the dispatcher who
+        opened it, gets an urgent to-do on the active field order (or on the
+        technician). ``dispatch_notified`` says whether anyone was reached.
+        """
+        lat, lng = payload.get("lat"), payload.get("lng")
+        notes = str(payload.get("notes") or "").strip()[:500]
+        where = "%s, %s" % (lat, lng) if lat not in (None, "") and lng not in (None, "") else ""
+        _logger.critical(
+            "PANIC SOS RECEIVED from technician %s at (%s): %s", tech.name, where or "-", notes
+        )
+        company = tech.company_id or env.company
+        users = env["res.users"]
+        for xmlid in self.PANIC_GROUPS:
+            group = env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                users |= group.sudo().all_user_ids
+        order = env["fix.field.order"].search(
+            [("technician_id", "=", tech.id), ("state", "in", self.PANIC_ACTIVE_STATES)],
+            order="scheduled_start desc, id desc",
+            limit=1,
+        )
+        escalated = False
+        if "fix.hse.loneworker" in env:
+            session = env["fix.hse.loneworker"].search(
+                [("employee_id", "=", tech.id), ("state", "in", ("checked_in", "missed"))],
+                order="checkin_time desc, id desc",
+                limit=1,
+            )
+            if session:
+                session._fix_escalate()
+                escalated = session.name
+                users |= session.buddy_id.user_id | session.opened_by_id
+        users = users.filtered(
+            lambda u: u.active and not u.share and company in u.company_ids and u != tech.user_id
+        )
+        target = order or tech
+        note = (
+            "%s pressed the panic button at %s%s.%s%s Contact them now; open an incident "
+            "if they cannot be reached."
+        ) % (
+            tech.name,
+            now,
+            " (position %s)" % where if where else " (no position sent)",
+            " Field order %s." % order.name if order else "",
+            " Message: %s." % notes if notes else "",
+        )
+        for user in users:
+            target.activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=fields.Date.context_today(target),
+                summary="PANIC SOS: %s" % tech.name,
+                note=note,
+                user_id=user.id,
+            )
+        target.message_post(body=note)
+        result = {
+            "sos_acknowledged": True,
+            "timestamp": str(now),
+            "dispatch_notified": bool(users),
+            "notified_count": len(users),
+            "field_order": order.name or False,
+            "loneworker_escalated": escalated,
+        }
+        if not users:
+            result["message"] = (
+                "No dispatcher or HSE Officer could be alerted: call the 16743 hotline now."
+            )
+        return ("applied", result, None)
+
     @staticmethod
     def _find_part(env, payload):
         product_id, barcode = payload.get("product_id"), payload.get("barcode")
@@ -704,20 +786,6 @@ class OfflineSyncApiController(http.Controller):
 
         # 7. Panic SOS Distress Signal (M59 slice)
         if operation == "panic_sos":
-            lat = payload.get("lat")
-            lng = payload.get("lng")
-            notes = payload.get("notes", "Technician distress alert triggered from mobile P02")
-            _logger.critical(
-                "PANIC SOS RECEIVED from technician %s at (%s, %s): %s",
-                tech.name,
-                lat,
-                lng,
-                notes,
-            )
-            return (
-                "applied",
-                {"sos_acknowledged": True, "timestamp": str(now), "dispatch_notified": True},
-                None,
-            )
+            return self._raise_panic(env, tech, payload, now)
 
         return "rejected", {}, f"Unrecognized operation: {operation}"

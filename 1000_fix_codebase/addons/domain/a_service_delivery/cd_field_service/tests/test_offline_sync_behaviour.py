@@ -502,10 +502,61 @@ def test_customer_signature_is_posted_on_the_own_order(world):
 
 
 def test_panic_sos_and_unknown_operations(world):
+    """A panic alert reaches a person: it used to answer dispatch_notified=True
+    after only writing a log line (M02 capture audit, 2026-11-13)."""
+    env = world.env
+    dispatcher = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "OS Dispatcher",
+                "login": "os.dispatcher@sync.test",
+                "group_ids": [
+                    Command.link(env.ref("cd_field_service.group_fix_field_service_manager").id)
+                ],
+            }
+        )
+    )
+    fo = _fo(world, state="en_route")
     out = _sync(world, [_cmd("osb-sos", "panic_sos", lat=23.7, lng=90.3), _cmd("osb-x", "fly")])
     sos = out["acknowledged"]["osb-sos"]
     assert (sos["sos_acknowledged"], sos["dispatch_notified"]) == (True, True)
+    assert sos["field_order"] == fo.name and sos["notified_count"] >= 1
+    todo = fo.activity_ids.filtered(lambda a: a.user_id == dispatcher)
+    assert todo and todo.summary == "PANIC SOS: OS Tech"
+    assert "23.7, 90.3" in str(todo.note)
     assert out["rejected"] == {"osb-x": "Unrecognized operation: fly"}
+
+
+def test_panic_sos_escalates_the_open_lone_worker_session(world):
+    env = world.env
+    if "fix.hse.loneworker" not in env:
+        pytest.skip("cd_hse is not installed")
+    buddy_user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create({"name": "OS Buddy", "login": "os.buddy@sync.test"})
+    )
+    buddy = env["hr.employee"].create({"name": "OS Buddy", "user_id": buddy_user.id})
+    session = (
+        env["fix.hse.loneworker"]
+        .with_user(world.tech_user)
+        .sudo()
+        .create(
+            {
+                "employee_id": world.tech.id,
+                "expected_end": datetime(2099, 1, 1),
+                "buddy_id": buddy.id,
+            }
+        )
+    )
+    out = _sync(world, [_cmd("osb-sos2", "panic_sos")])
+    sos = out["acknowledged"]["osb-sos2"]
+    assert session.state == "escalated" and sos["loneworker_escalated"] == session.name
+    assert sos["dispatch_notified"] is True
+    # with no field order on the move, the alert lands on the technician
+    assert world.tech.activity_ids.filtered(lambda a: a.user_id == buddy_user)
 
 
 # --- SP-09 deferred evidence channel ----------------------------------------------------
