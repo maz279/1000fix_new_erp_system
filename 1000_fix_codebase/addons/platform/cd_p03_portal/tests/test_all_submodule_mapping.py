@@ -101,9 +101,43 @@ def test_mapped_screens_belong_to_their_own_module():
     assert not bad, "\n  ".join(bad)
 
 
+def _report_fed():
+    """Sub-modules with no record of their own (events are counted, not
+    opened): `report: '<key>'` in place of `model`, fed by a module report."""
+    for code, no, title, mp in _mapped():
+        if not _field(mp, "model") and _field(mp, "report"):
+            yield code, no, title, _field(mp, "report")
+
+
+def test_a_report_fed_submodule_names_a_report_its_module_serves():
+    """/p03/model/report answers "Report not available" for an unknown key,
+    and the page would show that instead of rows."""
+    controllers = importlib.import_module("odoo.addons.cd_p03_portal.controllers")
+    fed = list(_report_fed())
+    assert ("M01", "13") in {(code, no) for code, no, _t, _r in fed}
+    bad = []
+    for code, no, title, report in fed:
+        module = next(
+            (
+                getattr(controllers, area).MODULES.get(code)
+                for area in dir(controllers)
+                if re.fullmatch(r"a\d\d", area) and getattr(controllers, area).MODULES.get(code)
+            ),
+            None,
+        )
+        if report not in getattr(module, "REPORTS", {}):
+            bad.append(
+                "%s/%s '%s': report '%s' is not in %s REPORTS" % (code, no, title, report, code)
+            )
+    assert not bad, "\n  ".join(bad)
+
+
 def test_mapped_models_and_columns_exist_in_the_orm(odoo_env):
     bad = []
+    report_fed = {(code, no) for code, no, _t, _r in _report_fed()}
     for code, no, title, mp in _mapped():
+        if (code, no) in report_fed:
+            continue  # no model by design; its report is checked above
         model = _field(mp, "model")
         if not model or model not in odoo_env:
             bad.append("%s/%s '%s': model %s is not in the registry" % (code, no, title, model))

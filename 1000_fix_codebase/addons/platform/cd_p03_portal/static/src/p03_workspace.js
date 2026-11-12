@@ -2434,6 +2434,16 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
 
     openFormScreen(screenId, hit, cfg) {
         const recordId = cfg.recordId || null;
+        // `create: false` - a form of a record nobody types in from scratch
+        // (a hold on an existing order, an SLA clock the engine started). With
+        // no record it used to open blank with a Save button that could only
+        // fail; the record is picked from its list instead.
+        if (!recordId && cfg.create === false) {
+            const back = cfg.back && P03_DATA_SCREENS[cfg.back];
+            if (back && back.kind !== "model_form") this.openScreen(cfg.back);
+            this.showToast(this.t(cfg.pick || "This form shows an existing record: open one from this list."));
+            return;
+        }
         const activeTab = (cfg.tabs && cfg.tabs.length && cfg.tabs[0].id) || "";
         this.state.gl = {
             screenId,
@@ -3822,7 +3832,16 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         };
         const screens = map && map.screens ? map.screens.map(resolve).filter(Boolean) : [];
 
+        // The page's "+ New", form chips and report chips all resolve against
+        // the ACTIVE module. A Function Register tab restored after another
+        // module was opened kept that other module's id, so its button and
+        // chips belonged to the wrong module.
+        this.state.activeModuleId = mid;
+        this.state.activeModule = mod;
+
+        const panels = this.fregPanels(mid, mod, map);
         this.state.activeFreg = {
+            create: this.fregCreate(mid, map),
             mid,
             fnIndex,
             subModuleNo: sub[0],
@@ -3830,16 +3849,146 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             functionCount: sub[2],
             module: mod,
             model: (map && map.model) || null,
+            cols: (map && map.cols) || [],
+            sliced: !!(map && map.domain && map.domain.length),
+            // a sub-module with no record of its own (domain events are
+            // counted, not listed) is fed by one of the module's reports
+            report: (map && !map.model && map.report) || null,
+            reportTitle: "",
             mapped: !!map,
             screens,
-            reports: (map && map.reports) || [],
-            forms: (map && map.forms) || [],
-            loading: !!(map && map.model),
+            reports: panels.reports,
+            forms: panels.forms,
+            loading: !!(map && (map.model || map.report)),
             gridData: { cols: [], rows: [] }
         };
         this.state.viewMode = "freg";
         this.ensureTab(`freg-${mid}-${fnIndex}`, `⌘ ${sub[1]}`, "⌘", "freg", { mid, fnIndex });
         if (map && map.model) this.loadFregRecords(map);
+        else if (map && map.report) this.loadFregReport(mid, map.report);
+    }
+
+    /* The two panels of a sub-module page. A mapping that names its reports
+     * and forms is taken as written (an empty list included). One that names
+     * none used to show two empty panels on 400+ pages although the module
+     * declares the chips: it now lists the module's own chips that PROVABLY
+     * belong to the sub-module - a report whose screen is one of its screens,
+     * a form bound to its record or to the record of one of its lists.
+     * Nothing is guessed from names. */
+    fregPanels(mid, mod, map) {
+        if (!map) return { reports: [], forms: [] };
+        const ids = map.screens || [];
+        const models = new Set(
+            [map.model, ...ids.map((id) => (P03_DATA_SCREENS[id] || {}).model)].filter(Boolean)
+        );
+        const chips = P03_FORM_CHIPS || {};
+        const reports = map.reports || (mod.reports || []).filter(
+            (name) => ids.includes(P03_REPORT_ROUTES[`${mid}:${name}`])
+        );
+        const forms = map.forms || (mod.forms || []).filter((name) => {
+            const cfg = P03_DATA_SCREENS[chips[`${mid}:${name}`]];
+            return !!(cfg && cfg.kind === "model_form" && models.has(cfg.model));
+        });
+        return { reports, forms };
+    }
+
+    /* A report-fed sub-module: the same rows its report screen shows. */
+    async loadFregReport(mid, report) {
+        const fr = this.state.activeFreg;
+        try {
+            const res = await this.rpc("/p03/model/report", { module: mid, report, params: {} });
+            if (!this.state.activeFreg || this.state.activeFreg !== fr) return;
+            if (!res || res.error) {
+                fr.gridData = { cols: [], rows: [], error: (res && res.error) || "unavailable" };
+            } else {
+                const cols = res.cols || [];
+                const labels = res.labels || {};
+                fr.reportTitle = res.title || "";
+                fr.gridData = {
+                    cols: cols.map((c) => labels[c] || c),
+                    rows: (res.rows || []).map((r) => cols.map((c) => {
+                        const v = r[c];
+                        if (typeof v === "boolean") return v ? "✓" : "✗";
+                        return v === null || v === undefined || v === "" ? "—" : v;
+                    })),
+                    total: (res.rows || []).length,
+                };
+            }
+        } catch (e) {
+            fr.gridData = { cols: [], rows: [], error: this.t("Could not load records") };
+        }
+        fr.loading = false;
+        this.render(true);
+    }
+
+    /* What the "+ New" of a sub-module page captures: the sub-module's OWN
+     * record. The page used to carry the module's one create button whatever
+     * the sub-module was, so M01 "Estimate & Customer Approval Loop" (records:
+     * fix.estimate) offered "+ New Service Order" - 358 of the 603 sub-module
+     * pages had a form of their own and showed the module's (2026-11-12).
+     *   { module: true }   its record IS the module's: the module's button
+     *   { screen, label }  its own in-workspace form
+     *   null               nothing is captured here - its own lists refuse
+     *                      "+ New" (a workflow elsewhere makes the record) or
+     *                      the module has no form for it: no button, as on
+     *                      those lists */
+    fregCreate(mid, map) {
+        const creatable = (id) => {
+            const cfg = id && P03_DATA_SCREENS[id];
+            return !!(cfg && cfg.kind === "model_form" && cfg.create !== false);
+        };
+        // the mapping may say so itself: `create: false` for a page that only
+        // works on existing records (a slice of the module's list: holds,
+        // delivered orders, the WIP board), `create: '<form screen>'` to name
+        // the form
+        if (map && map.create === false) return null;
+        // a page fed by a computed report has no record of its own to create
+        if (map && map.report && !map.model) return null;
+        if (map && typeof map.create === "string") {
+            return creatable(map.create)
+                ? { screen: map.create, label: P03_DATA_SCREENS[map.create].title || map.create }
+                : null;
+        }
+        const moduleCreate = P03_MODULE_CREATE[mid];
+        const moduleModel = moduleCreate ? moduleCreate.model : "fix.service.order";
+        if (!map || !map.model || map.model === moduleModel) return { module: true };
+        const chips = P03_FORM_CHIPS || {};
+        const byScreen = chips[`${mid}:__by_screen__`] || {};
+        const byModel = chips[`${mid}:__by_model__`] || {};
+        const lists = (map.screens || [])
+            .map((id) => ({ id, cfg: P03_DATA_SCREENS[id] }))
+            .filter((s) => s.cfg && s.cfg.kind === "model_list" && s.cfg.model === map.model);
+        const creating = lists.filter((s) => s.cfg.create !== false);
+        if (lists.length && !creating.length) return null;
+        // the form its own list opens (a screen override first, as "+ New" there)
+        const screen = [...creating.map((s) => byScreen[s.id]), byModel[map.model]].find(
+            (id) => creatable(id) && P03_DATA_SCREENS[id].model === map.model
+        );
+        return screen ? { screen, label: P03_DATA_SCREENS[screen].title || map.model } : null;
+    }
+
+    get fregNewLabel() {
+        const create = this.state.activeFreg && this.state.activeFreg.create;
+        if (!create) return "";
+        if (create.module) return this.newButtonLabel;
+        const title = this.t(create.label);
+        return /^new\s/i.test(create.label) ? `+ ${title}` : `${this.t("+ New")} ${title}`;
+    }
+
+    onFregNew() {
+        const fr = this.state.activeFreg;
+        const create = fr && fr.create;
+        if (!create) return;
+        if (create.module) {
+            this.onModuleNew();
+            return;
+        }
+        const cfg = P03_DATA_SCREENS[create.screen];
+        this.openFormScreen(
+            create.screen,
+            { sc: { en: cfg.title || create.label, t: "f" }, m: { title: (fr.module && fr.module.title) || "" } },
+            cfg
+        );
     }
 
     /* The sub-module's OWN live records, from the same whitelisted endpoint
@@ -3870,7 +4019,11 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
                     rows: (res.rows || []).map(r => {
                         const row = cols.map(c => {
                             const v = r[c];
-                            if (v === null || v === undefined || v === false) return "—";
+                            // a boolean shows its verdict, as the lists do
+                            // (mlCell): "Active: true" leaked the literal, and
+                            // false read "—" like a value nobody recorded
+                            if (typeof v === "boolean") return v ? "✓" : "✗";
+                            if (v === null || v === undefined || v === "") return "—";
                             if (typeof v === "object") return v.label || v.name || v.key || "—";
                             return v;
                         });
@@ -4022,22 +4175,77 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
      *
      * Routes through the module's declared form for the sub-module's model,
      * which is the same path a normal list row takes. */
-    openFregRecord(row) {
+    async openFregRecord(row) {
         const fr = this.state.activeFreg;
-        if (!fr || !fr.model) return;
+        if (!fr) return;
+        if (!fr.model) {
+            // a report row is a total, not a record: its report screen is the detail
+            if (fr.report && fr.screens && fr.screens[0]) this.openScreen(fr.screens[0].id);
+            return;
+        }
         const recId = (row && row.recId) || null;
-        // open the sub-module's own screen first so the form has its context
-        const target = (fr.screens && fr.screens[0] && fr.screens[0].id) || null;
+        const ids = (fr.screens || []).map((s) => s.id);
+        const cfgOf = (id) => P03_DATA_SCREENS[id] || {};
+        // The screen that holds THIS record, not just the sub-module's first
+        // one (which may be a console or a report): a list whose rows open a
+        // form of their own (FORM_CHIPS __by_screen__), else the model's list.
+        const byScreen = (P03_FORM_CHIPS || {})[`${fr.mid}:__by_screen__`] || {};
+        const rowForm = (id) => {
+            const form = byScreen[id] && P03_DATA_SCREENS[byScreen[id]];
+            return form && form.kind === "model_form" && form.model === fr.model ? byScreen[id] : null;
+        };
+        const formHost = ids.find((id) => rowForm(id)) || null;
+        const listId = ids.find((id) => cfgOf(id).kind === "model_list" && cfgOf(id).model === fr.model) || null;
+        const target = formHost || listId || ids[0] || null;
         if (target) this.openScreen(target);
         if (!recId) return;
+        if (formHost) {
+            const formId = rowForm(formHost);
+            this.openFormScreen(
+                formId,
+                this.state.activeScreen ? { sc: this.state.activeScreen, m: { title: (fr.module && fr.module.title) || "" } } : null,
+                { ...P03_DATA_SCREENS[formId], recordId: recId }
+            );
+            return;
+        }
+        // a service order opens as it does from every order list: the order
+        // record (stepper, estimates, actions), not a second copy of the
+        // intake form
+        if (fr.model === "fix.service.order") {
+            this.openRecord(recId);
+            return;
+        }
         if (this.openModuleFormForModel(fr.model, recId)) return;
+        // No in-workspace form: the record pane. It renders the ROW, and was
+        // opened without one - every value read "—" under the heading
+        // "#undefined" (2026-11-12: fault codes, diagnostic nodes, SLA
+        // policies and every other sub-module record that has no form).
+        const cols = (listId && cfgOf(listId).cols) || fr.cols || [];
+        let full = null;
+        try {
+            const res = await this.rpc("/p03/model/records", {
+                model: fr.model,
+                cols,
+                domain: [["id", "=", recId]],
+                lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+            });
+            full = (res && !res.error && res.rows && res.rows[0]) || null;
+        } catch (e) {
+            full = null;
+        }
+        if (!full) {
+            this.showToast(this.t("Could not load the record"));
+            return;
+        }
         this.openRecordTab({
             kind: "model_record",
             id: recId,
             icon: (this.state.activeModule && this.state.activeModule.icon) || "▤",
-            title: String((row && row[0]) || ("#" + recId)),
+            title: String((row && row[0]) || full.name || ("#" + recId)),
             subtitle: fr.model,
+            screenId: target,
             moduleId: this.state.activeModuleId,
+            row: full,
         });
     }
 

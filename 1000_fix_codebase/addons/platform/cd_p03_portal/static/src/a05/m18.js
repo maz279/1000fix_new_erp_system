@@ -7,7 +7,7 @@
  * changes only through its action (the server guards it as well). */
 
 export const MODULE = {
-  area: 'A05', code: 'M18', en: 'E-Waste & Recycling', title: 'M18 — E-Waste & Recycling',
+  area: 'A05', code: 'M18', en: 'E-Waste & Recycling', title: 'M18 · E-Waste & Recycling',
   bn: 'ই-বর্জ্য ও পুনর্ব্যবহার', icon: '♻️',
   desc: 'Intake and bulk collections, reuse/refurbish/recycle triage, secure data destruction with certificates, authorized recycler hand-off, green certificates, hazardous fraction tracking (lead, mercury, cadmium, lithium), public collection drives and EPR compliance reporting.',
   kpis: [

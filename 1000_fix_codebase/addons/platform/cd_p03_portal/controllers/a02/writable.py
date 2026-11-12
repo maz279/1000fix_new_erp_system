@@ -229,11 +229,9 @@ WRITABLE = {
             "discount",
             "dofa_justification",
             "expiry_date",
-            "labour_total",
             "line_ids",
             "operating_unit_id",
             "order_id",
-            "parts_total",
             "signed_estimate_attachment_id",
             "tender_ref",
             "valid_days",
@@ -325,7 +323,18 @@ WRITABLE = {
             "rollback_plan",
         }
     ),
-    "fix.msp.contract": frozenset(),
+    "fix.msp.contract": frozenset(
+        {
+            "alert_resolve_hours_major",
+            "alert_resolve_hours_minor",
+            "contract_id",
+            "device_count",
+            "monitoring_scope",
+            "name",
+            "per_device_monthly",
+            "sla_target_pct",
+        }
+    ),
     "fix.msp.maintenance.window": frozenset(
         {
             "end_at",

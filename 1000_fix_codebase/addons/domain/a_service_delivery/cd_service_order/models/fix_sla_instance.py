@@ -71,15 +71,18 @@ class FixSlaItem(models.Model):
     _order = "policy_id, sequence, id"
 
     policy_id = fields.Many2one("fix.sla.policy", required=True, ondelete="cascade", index=True)
-    sequence = fields.Integer(required=True, default=10)
-    name = fields.Char(required=True)
+    sequence = fields.Integer(string="Order", required=True, default=10)
+    name = fields.Char(string="Item", required=True)
     kpi_code = fields.Char(
+        string="KPI Code",
         required=True,
         help="The KPI this item measures, e.g. 'first_response' or "
         "'resolution'. Instances are grouped and reported by this.",
     )
     target_hours = fields.Float(
-        required=True, help="Target in BUSINESS hours against the item's calendar."
+        string="Target (business hours)",
+        required=True,
+        help="Target in BUSINESS hours against the item's calendar.",
     )
     calendar_id = fields.Many2one(
         "fix.working.calendar",
@@ -95,6 +98,7 @@ class FixSlaItem(models.Model):
         "promise usually is.",
     )
     warn_at_pct = fields.Float(
+        string="Warn At % Of Target",
         default=80.0,
         help="Raise a near-breach warning at this percentage of the target.",
     )
@@ -194,8 +198,8 @@ class FixSlaKpiInstance(models.Model):
     partner_id = fields.Many2one("res.partner", string="Customer", index=True)
     policy_id = fields.Many2one("fix.sla.policy", required=True, ondelete="restrict")
     item_id = fields.Many2one("fix.sla.item", ondelete="restrict")
-    kpi_code = fields.Char(required=True, index=True)
-    display_label = fields.Char(compute="_compute_display_label", store=True)
+    kpi_code = fields.Char(string="KPI", required=True, index=True)
+    display_label = fields.Char(string="Instance", compute="_compute_display_label", store=True)
 
     calendar_id = fields.Many2one(
         "fix.working.calendar",
@@ -205,9 +209,13 @@ class FixSlaKpiInstance(models.Model):
         "documented behaviour and the reason this is a stored field rather "
         "than a lookup.",
     )
-    target_hours = fields.Float(required=True)
-    started_at = fields.Datetime(required=True, default=fields.Datetime.now, index=True)
-    target_at = fields.Datetime(required=True, index=True, help="The deadline, in calendar time.")
+    target_hours = fields.Float(string="Target (hours)", required=True)
+    started_at = fields.Datetime(
+        string="Started", required=True, default=fields.Datetime.now, index=True
+    )
+    target_at = fields.Datetime(
+        string="Deadline", required=True, index=True, help="The deadline, in calendar time."
+    )
     warn_at = fields.Datetime(index=True)
 
     state = fields.Selection(

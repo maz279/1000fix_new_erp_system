@@ -5,7 +5,7 @@
  * Zero phantom fields: all fields verified against PostgreSQL fix_dev. */
 
 export const MODULE = {
-  area: 'A05', code: 'M14', en: 'Trade-In & Refurbishment', title: 'M14 — Trade-In & Refurbishment',
+  area: 'A05', code: 'M14', en: 'Trade-In & Refurbishment', title: 'M14 · Trade-In & Refurbishment',
   bn: 'ট্রেড-ইন ও রিফার্বিশমেন্ট', icon: '🔄',
   desc: 'Trade-in intake across five channels, automated valuation with manual override, IMEI/blacklist provenance screening, settlement and four-eyes payout, refurb work orders, QA and battery health, A–E grading, harvest to parts, graded stock, resale channel and unit economics.',
   kpis: [

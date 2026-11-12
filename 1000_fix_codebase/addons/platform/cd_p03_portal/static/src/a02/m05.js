@@ -60,7 +60,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register'],
-  forms: ['Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window'],
+  forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window'],
   cross: ['M08 contract entitlement', 'M17 monitored assets', 'M48 telemetry streams', 'M20 SLA credit billing', 'P04 client portal'],
   freg: {
     src: 93,
@@ -174,7 +174,7 @@ export const SCREENS = {
     cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'pending_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en'],
     actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' }] },
   /* the monthly report and the SLA credit run, per MSP contract */
-  'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract', create: false,
+  'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract',
     cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'monitoring_scope', 'sla_target_pct', 'monthly_value'],
     actions: [
       { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
@@ -441,6 +441,50 @@ export const SCREENS = {
     cols: ['name', 'active', 'company_id', 'operating_unit_id', 'msp_contract_id', 'category', 'auto_approve', 'approved_by_id', 'approved_by_cab'],
     actions: [{ m: 'action_approve', l: 'Approve Policy (CAB / Change Manager)' }] },
 
+  /* The module's anchor record had no in-workspace form: "+ MSP Contract"
+   * opened the stock Odoo form in a dialog, the one surface in M05 that left
+   * the shell (M05 has forms for eight other records). Found 2026-11-12 from
+   * the sub-module pages, whose create button is this one. */
+  'M05-form-msp-contract': {
+    kind: 'model_form',
+    model: 'fix.msp.contract',
+    title: "MSP Contract",
+    back: 'M05-contracts',
+    lines: { field: 'asset_ids', title: 'Monitored Assets', readonlyGrid: true,
+      note: 'Assets are enrolled on the Managed Estate screen; this is the estate the contract covers.',
+      fields: [
+        { name: 'agent_id', label: 'RMM Agent', readonly: true },
+        { name: 'hostname', label: 'Hostname', readonly: true },
+        { name: 'device_id', label: 'Device', readonly: true },
+        { name: 'health', label: 'Health', readonly: true },
+        { name: 'last_seen', label: 'Last Seen', readonly: true },
+      ] },
+    tabs: [
+      { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
+      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '5' }
+    ],
+    sections: [
+      { tab: 'contract', title: "Contract & Monitoring Scope",
+        note: "An MSP contract hangs off an M08 contract: monitoring, patching and remote work are entitled only while that contract is in force.",
+        fields: [
+          { name: 'name', required: true, label: "MSP Contract" },
+          { name: 'contract_id', required: true, label: "Contract (M08)" },
+          { name: 'contract_state', label: "M08 Contract State", readonly: true },
+          { name: 'entitled', label: "Entitled Today", readonly: true },
+          { name: 'monitoring_scope', required: true, label: "Monitoring Scope" },
+          { name: 'device_count', label: "Covered Devices" }
+        ] },
+      { tab: 'commercial', title: "Commercials & Service Levels",
+        note: "The monthly value is the covered devices times the per-device price; the SLA credit of a month can never exceed it.",
+        fields: [
+          { name: 'per_device_monthly', label: "Per-Device Monthly (BDT)" },
+          { name: 'monthly_value', label: "Monthly Value (BDT)", readonly: true },
+          { name: 'sla_target_pct', label: "SLA Target %" },
+          { name: 'alert_resolve_hours_major', label: "Major Alert Resolution Target (h)" },
+          { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" }
+        ] }
+    ] },
+
   'M05-form-credit': {
     kind: 'model_form',
     model: 'fix.msp.sla.credit',
@@ -529,6 +573,7 @@ export const FORM_CHIPS = {
     'M05-patching': 'M05-form-patch',
     'M05-credits': 'M05-form-credit',
   },
+  'M05:MSP Contract': 'M05-form-msp-contract',
   'M05:Managed Estate Device': 'M05-form-estate',
   'M05:On-Call Shift': 'M05-form-oncall',
   'M05:Runbook': 'M05-form-runbook',
@@ -538,6 +583,7 @@ export const FORM_CHIPS = {
   'M05:Change Record': 'M05-form-change',
   'M05:Maintenance Window': 'M05-form-window',
   'M05:__by_model__': {
+    'fix.msp.contract': 'M05-form-msp-contract',
     'fix.msp.patch.policy': 'M05-form-msp-patch-policy',
     'fix.monitored.asset': 'M05-form-estate',
     'fix.msp.oncall.shift': 'M05-form-oncall',
@@ -553,6 +599,7 @@ export const FORM_CHIPS = {
 
 /* data-entry form chips -> the REAL model forms (the registry's four). */
 export const FORM_MODELS = {
+  'M05:MSP Contract': 'fix.msp.contract',
   'M05:Remote Session (consent recorded)': 'fix.remote.session',
   'M05:MSP Ticket': 'fix.msp.alert',
   'M05:Change Record': 'fix.msp.change.record',
@@ -562,5 +609,5 @@ export const FORM_MODELS = {
 /* the module's "+ New" surface: the MSP contract is the module's anchor
  * record — per-device pricing, SLA target, monthly report + credits. */
 export const CREATE = {
-  M05: { model: 'fix.msp.contract', label: 'MSP Contract' }
+  M05: { screen: 'M05-form-msp-contract', model: 'fix.msp.contract', label: 'MSP Contract' }
 };

@@ -741,7 +741,8 @@
                                 <p class="pg-sub"><t t-esc='t("Sub-module")'/> <t t-esc="state.activeFreg.subModuleNo"/> of <t t-esc="state.activeFreg.mid"/> — <t t-esc="state.activeFreg.functionCount"/> <t t-esc='t("automated functions mapped to production screens below")'/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="onModuleNew">+ <t t-esc='newButtonLabel.replace("+ ", "")'/></button>
+                                <!-- the sub-module's OWN record, not the module's (fregCreate) -->
+                                <button t-if="fregNewLabel" class="btn btn-primary" t-on-click="onFregNew"><t t-esc="fregNewLabel"/></button>
                                 <button class="btn" t-on-click="() => this.openModule(state.activeFreg.mid)"><t t-esc='t("‹ Back to Workspace")'/></button>
                             </div>
                         </div>
@@ -765,6 +766,9 @@
                                 </div>
                                 <div class="group-block">
                                     <h4><t t-esc='t("Reports Measuring It")'/></h4>
+                                    <div t-if="!state.activeFreg.reports.length" style="padding:6px 2px; color:var(--ink-300); font-size:12px;">
+                                        <t t-esc='t("No report is mapped to this sub-module.")'/>
+                                    </div>
                                     <t t-foreach="state.activeFreg.reports" t-as="r" t-key="r">
                                         <button class="screen-link" t-on-click="() => this.openFregReport(r)">
                                             <span class="sc-glyph">▤</span>
@@ -774,6 +778,16 @@
                                 </div>
                                 <div class="group-block">
                                     <h4><t t-esc='t("Forms Capturing It")'/></h4>
+                                    <!-- the page's own "+ New" form is a form capturing it, even
+                                         when the module declares no chip for it: the panel must
+                                         not say "no form" under a button that opens one -->
+                                    <button t-if="!state.activeFreg.forms.length &amp;&amp; fregNewLabel"
+                                            class="form-chip" t-on-click="onFregNew">
+                                        ⛁ <t t-esc='fregNewLabel.replace("+ ", "")'/>
+                                    </button>
+                                    <div t-elif="!state.activeFreg.forms.length" style="padding:6px 2px; color:var(--ink-300); font-size:12px;">
+                                        <t t-esc='t("No data-entry form: these records are not typed in here.")'/>
+                                    </div>
                                     <t t-foreach="state.activeFreg.forms" t-as="f" t-key="f">
                                         <button class="form-chip" t-on-click="() => this.openFormChip(f)">
                                             ⛁ <t t-esc="f"/>
@@ -793,15 +807,28 @@
                                     <t t-esc="state.activeFreg.model"/>
                                     <t t-if="state.activeFreg.gridData.total"> · <t t-esc="state.activeFreg.gridData.total"/></t>
                                 </span>
+                                <span t-elif="state.activeFreg.report" class="chip">
+                                    <t t-esc='t(state.activeFreg.reportTitle || "Computed report")'/>
+                                    <t t-if="state.activeFreg.gridData.total"> · <t t-esc="state.activeFreg.gridData.total"/></t>
+                                </span>
                             </div>
                             <div t-if="state.activeFreg.loading" style="padding:18px; color:var(--ink-300);">
                                 <t t-esc='t("Loading live records…")'/>
                             </div>
-                            <div t-elif="!state.activeFreg.model" style="padding:18px; color:var(--ink-300);">
+                            <div t-elif="!state.activeFreg.model &amp;&amp; !state.activeFreg.report" style="padding:18px; color:var(--ink-300);">
                                 <t t-esc='t("No live data surface is mapped to this sub-module yet. The screens above are the ones that implement it.")'/>
                             </div>
                             <div t-elif="state.activeFreg.gridData.error" style="padding:18px; color:var(--ink-300);">
                                 <t t-esc="state.activeFreg.gridData.error"/>
+                            </div>
+                            <!-- a sub-module that is a SLICE of a shared model (holds,
+                                 delivered orders) is empty when nothing matches its
+                                 filter - which is not "no records in the model" -->
+                            <div t-elif="!state.activeFreg.gridData.rows.length &amp;&amp; state.activeFreg.report" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc='t("Nothing to report yet: this sub-module is measured, not listed, and its report has no rows.")'/>
+                            </div>
+                            <div t-elif="!state.activeFreg.gridData.rows.length &amp;&amp; state.activeFreg.sliced" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc='t("No records fall under this sub-module yet. It shows a filtered part of")'/> <code t-esc="state.activeFreg.model"/>.
                             </div>
                             <div t-elif="!state.activeFreg.gridData.rows.length" style="padding:18px; color:var(--ink-300);">
                                 <t t-esc='t("No records yet in")'/> <code t-esc="state.activeFreg.model"/>.

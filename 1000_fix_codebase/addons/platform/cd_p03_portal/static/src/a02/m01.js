@@ -31,8 +31,8 @@ export const MODULE = {
     ]},
     { en: 'Order Lifecycle', screens: [
       { id: 'M01-order', en: 'Service Order Record', bn: 'সার্ভিস অর্ডার নথি', t: 'f' },
-      { id: 'M01-types', en: 'Order Types (12)', bn: 'অর্ডার ক্যাটাগরি', t: 'g' },
-      { id: 'M01-wip', en: 'WIP & Ageing Analysis', bn: 'চলমান কাজ ও এজিং', t: 'r' },
+      { id: 'M01-types', en: 'Order Types (12)', bn: 'অর্ডার ক্যাটাগরি', t: 'r' },
+      { id: 'M01-wip', en: 'WIP & Ageing Analysis', bn: 'চলমান কাজ ও এজিং', t: 'g' },
       { id: 'M01-holds', en: 'Hold Management', bn: 'হোল্ড ব্যবস্থাপনা', t: 'g' },
       { id: 'M01-rework', en: 'Rework Detection', bn: 'রিওয়ার্ক শনাক্তকরণ', t: 'g' }
     ]},
@@ -40,7 +40,7 @@ export const MODULE = {
       { id: 'M01-templates', en: 'Diagnostic Templates', bn: 'ডায়াগনস্টিক টেমপ্লেট', t: 'g' },
       { id: 'M01-fault', en: 'Fault & Symptom Coding', bn: 'ত্রুটি ও লক্ষণ কোডিং', t: 'g' },
       { id: 'M01-estimates', en: 'Estimates & Approvals', bn: 'অনুমান ও অনুমোদন', t: 'g' },
-      { id: 'M01-thresholds', en: 'Approval Thresholds', bn: 'অনুমোদন সীমা', t: 'g' }
+      { id: 'M01-thresholds', en: 'Approval Thresholds', bn: 'অনুমোদন সীমা', t: 'r' }
     ]},
     { en: 'Entitlement & SLA', screens: [
       { id: 'M01-entitle', en: 'Entitlement Evaluation', bn: 'সুবিধা ও ওয়ারেন্টি যাচাই', t: 'g' },
@@ -51,7 +51,8 @@ export const MODULE = {
     { en: 'Quality & Release', screens: [
       { id: 'M01-qc', en: 'QC Checkpoints', bn: 'কিউসি পরিদর্শন', t: 'g' },
       { id: 'M01-reports', en: 'Service Reports', bn: 'সার্ভিস রিপোর্ট ও প্রমাণক', t: 'g' },
-      { id: 'M01-rwty', en: 'Repair Warranty Issuance', bn: 'মেরামত ওয়ারেন্টি সার্টিফিকেট', t: 'g' }
+      { id: 'M01-rwty', en: 'Repair Warranty Issuance', bn: 'মেরামত ওয়ারেন্টি সার্টিফিকেট', t: 'g' },
+      { id: 'M01-events', en: 'Domain Events (Outbox)', bn: 'ডোমেইন ইভেন্ট (আউটবক্স)', t: 'r' }
     ]},
     { en: 'SLA Instances (S9)', bn: 'এসএলএ ইনস্ট্যান্স', screens: [
       { id: 'M01-sla-items', en: 'SLA Items & Targets', bn: 'এসএলএ আইটেম', t: 'g' },
@@ -62,7 +63,8 @@ export const MODULE = {
   ],
   reports: [
     'Daily Intake by Channel', 'WIP Ageing by Branch', 'SLA Compliance & Escalations',
-    'Estimate Conversion Funnel', 'Rework & Repeat-Fault Analysis', 'Order Cycle-Time (TAT) Distribution', 'Uncollected Device Register'
+    'Estimate Conversion Funnel', 'Rework & Repeat-Fault Analysis', 'Order Cycle-Time (TAT) Distribution', 'Uncollected Device Register',
+    'Domain Events Published'
   ],
   forms: [
     'New Service Order (12 channels, 34 fields)', 'Diagnostic Estimate Request', 'Hold / Release Reason', 'QC Checklist Inspection'
@@ -73,19 +75,30 @@ export const MODULE = {
   freg: {
     src: 128,
     sub: [
-      ['1', 'Omni-Channel Intake (12 channels)', 14, { model: 'fix.service.order', cols: ['name', 'service_type', 'customer_id', 'device_id', 'create_date'], screens: ['M01-intake', 'M01-channels', 'M01-hotline'] }],
-      ['2', 'Lifecycle State Machine & Stepper', 9, { model: 'fix.service.order', cols: ['name', 'state', 'order_category', 'priority', 'technician_id'], screens: ['M01-order', 'M01-all', 'M01-types'] }],
-      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'] }],
-      ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'] }],
-      ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'] }],
-      ['6', 'Estimate & Customer Approval Loop', 12, { model: 'fix.estimate', cols: ['order_id', 'version', 'grand_total', 'state', 'approved_at'], screens: ['M01-estimates', 'M01-thresholds'] }],
-      ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all', 'M01-order'], domain: [['service_type', '=', 'onsite']] }],
-      ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-sla-rep', 'M01-sla-items'] }],
-      ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], domain: [['is_deferred_block', '=', true]] }],
-      ['10', 'QC Checkpoints & Rework Detection', 11, { model: 'fix.qc.checklist', cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'], screens: ['M01-qc', 'M01-rework'] }],
-      ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
-      ['12', 'Operations Boards & WIP Analysis', 11, { model: 'fix.service.order', cols: ['name', 'state', 'branch_id', 'priority', 'create_date'], screens: ['M01-board', 'M01-wip'], domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']]] }],
-      ['13', 'API & Domain Event Broadcasting', 10, { model: 'fix.device.history', cols: ['event_type', 'service_order_id', 'device_id', 'date', 'branch_id'], screens: ['M01-reports'] }]
+      /* Each sub-module names what implements it: its screens, the reports that
+       * measure it, the forms that capture it. Twelve of the thirteen pages
+       * showed two empty panels although the module ships 7 reports and 6
+       * forms - every one of them is now on the sub-module it belongs to.
+       * `create: false`: the page works on EXISTING orders (a slice of the
+       * order book), so it offers no "+ New Service Order" - a new order is
+       * not a hold, a dispatch hand-off, a delivered job or a WIP analysis.
+       * `domain` stays the LAST key (the mapping guard parses it there). */
+      ['1', 'Omni-Channel Intake (12 channels)', 14, { model: 'fix.service.order', cols: ['name', 'service_type', 'customer_id', 'device_id', 'create_date'], screens: ['M01-intake', 'M01-channels', 'M01-hotline'], reports: ['Daily Intake by Channel'], forms: ['New Service Order (12 channels, 34 fields)'] }],
+      ['2', 'Lifecycle State Machine & Stepper', 9, { model: 'fix.service.order', cols: ['name', 'state', 'order_category', 'priority', 'technician_id'], screens: ['M01-all', 'M01-order', 'M01-types'], reports: ['Order Cycle-Time (TAT) Distribution'], forms: ['New Service Order (12 channels, 34 fields)'] }],
+      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'], reports: ['SLA Compliance & Escalations'], forms: ['SLA KPI Instance'] }],
+      ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'], reports: ['Rework & Repeat-Fault Analysis'], forms: [] }],
+      ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'], reports: [], forms: [] }],
+      ['6', 'Estimate & Customer Approval Loop', 12, { model: 'fix.estimate', cols: ['order_id', 'version', 'grand_total', 'state', 'approved_at'], screens: ['M01-estimates', 'M01-thresholds'], reports: ['Estimate Conversion Funnel'], forms: ['Diagnostic Estimate Request'] }],
+      ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all'], reports: [], forms: [], create: false, domain: [['service_type', '=', 'onsite']] }],
+      ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-sla-rep', 'M01-sla-items'], reports: ['SLA Compliance & Escalations'], forms: ['SLA Item'] }],
+      ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], reports: [], forms: ['Hold / Release Reason'], create: false, domain: [['is_deferred_block', '=', true]] }],
+      ['10', 'QC Checkpoints & Rework Detection', 11, { model: 'fix.qc.checklist', cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'], screens: ['M01-qc', 'M01-rework'], reports: ['Rework & Repeat-Fault Analysis'], forms: ['QC Checklist Inspection'] }],
+      ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], reports: ['Uncollected Device Register'], forms: [], create: false, domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
+      ['12', 'Operations Boards & WIP Analysis', 11, { model: 'fix.service.order', cols: ['name', 'state', 'branch_id', 'priority', 'create_date'], screens: ['M01-board', 'M01-wip'], reports: ['WIP Ageing by Branch', 'Order Cycle-Time (TAT) Distribution'], forms: [], create: false, domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']]] }],
+      /* 13 has no record of its own: an event is counted, not opened. It
+       * pointed at the device-history list (Service Reports, which is
+       * sub-module 11's); it is fed by the outbox report instead. */
+      ['13', 'API & Domain Event Broadcasting', 10, { report: 'domain_events', screens: ['M01-events'], reports: ['Domain Events Published'], forms: [] }]
     ]
   }
 };
@@ -148,8 +161,11 @@ export const SCREENS = {
   'M01-hotline': { kind: 'model_list', model: 'fix.token.queue', create: false,
     cols: ['token_display', 'counter_number', 'service_type', 'customer_id', 'state', 'create_date'],
     stateField: 'state' },
+  /* The RECORD of an order, not a second "new order" form: with no order it
+   * opened blank, a twin of M01-form-order under another name. */
   'M01-order': { kind: 'model_form', model: 'fix.service.order',
     title: 'Service Order Record', back: 'M01-all',
+    create: false, pick: 'Open an order from All Service Orders to see its record. A new order starts with + New Service Order.',
     status: { field: 'state' },
     tabs: [
       { id: 'intake', label: '1. Customer & Intake', bn: '১. গ্রাহক ও গ্রহণ', icon: '👤', badge: '9' },
@@ -362,8 +378,11 @@ export const SCREENS = {
       ]}
     ] },
 
+  /* A hold is placed on an EXISTING order (Defer / Resume on the order lists);
+   * blank, this form could only fail on Save - it has no customer or device. */
   'M01-form-hold': { kind: 'model_form', model: 'fix.service.order',
     title: 'Hold / Release Reason', back: 'M01-holds',
+    create: false, pick: 'A hold is placed on an existing order: use Defer on the order, then open it here from Hold Management.',
     status: { field: 'state' },
     tabs: [
       { id: 'target', label: '1. Order Context', bn: '১. অর্ডার তথ্য', icon: '📋', badge: '5' },
@@ -393,9 +412,25 @@ export const SCREENS = {
   'M01-form-estimate': { kind: 'model_form', model: 'fix.estimate',
     title: 'Diagnostic Estimate Request', back: 'M01-estimates',
     status: { field: 'state' },
+    /* The lines ARE the estimate: the totals below are computed from them and
+     * the model refuses to send an estimate that has none. This form showed
+     * the totals and no lines, so an estimate raised in M01 could never be
+     * sent (2026-11-12). Same grid as M36's estimate form. */
+    lines: { field: 'line_ids', title: 'Estimate Lines (Parts, Labour, Diagnostic Fee)',
+      note: 'A line left without a type is a Part and without a quantity is 1. Each line is quoted at or above its list price; a lower price is a discount, which the DOFA tiers approve.',
+      /* no `defaults`: a starter row carrying values is SENT on save, and a
+       * row with no description is refused - a header could not be saved alone */
+      fields: [
+        { name: 'line_type', label: 'Type', required: true },
+        { name: 'product_id', label: 'Product' },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'quantity', label: 'Qty', required: true },
+        { name: 'unit_price', label: 'Unit Price', required: true },
+        { name: 'line_total', label: 'Total', readonly: true },
+      ] },
     tabs: [
       { id: 'scope', label: '1. Estimate Scope', bn: '১. প্রাক্কলন পরিধি', icon: '📄', badge: '5' },
-      { id: 'pricing', label: '2. Commercials & VAT', bn: '২. মূল্য ও ভ্যাট', icon: '💰', badge: '6' },
+      { id: 'pricing', label: '2. Commercials & VAT', bn: '২. মূল্য ও ভ্যাট', icon: '💰', badge: '7' },
       { id: 'dofa', label: '3. DOFA & Customer Approval', bn: '৩. অনুমোদন ও প্রমাণক', icon: '✅', badge: '5' }
     ],
     sections: [
@@ -407,8 +442,9 @@ export const SCREENS = {
         { name: 'diagnostic_notes', label: 'Diagnostic Breakdown & Parts Scope', type: 'text' },
       ]},
       { tab: 'pricing', title: 'Commercial Breakdown & 15% Mushak VAT', fields: [
-        { name: 'parts_total', label: 'Parts Total (BDT)' },
-        { name: 'labour_total', label: 'Labour Total (BDT)' },
+        { name: 'parts_total', label: 'Parts Total (BDT)', readonly: true },
+        { name: 'labour_total', label: 'Labour Total (BDT)', readonly: true },
+        { name: 'diagnostic_total', label: 'Diagnostic Fee Total (BDT)', readonly: true },
         { name: 'discount', label: 'Discount Amount (BDT)' },
         { name: 'discount_pct', label: 'Discount (%)', readonly: true },
         { name: 'vat_amount', label: 'VAT 15% (BDT)', readonly: true },
@@ -468,6 +504,8 @@ export const SCREENS = {
   'M01-rpt-rework': { kind: 'table_report', module: 'M01', report: 'rework_analysis', title: 'Rework & Repeat-Fault Analysis', period: true },
   'M01-rpt-tat': { kind: 'table_report', module: 'M01', report: 'tat_distribution', title: 'Order Cycle-Time (TAT) Distribution', period: true },
   'M01-rpt-uncollected': { kind: 'table_report', module: 'M01', report: 'uncollected_register', title: 'Uncollected Device Register', period: false },
+  /* what M01 has put on the transactional outbox, per event type (counts only) */
+  'M01-events': { kind: 'table_report', module: 'M01', report: 'domain_events', title: 'Domain Events Published (Outbox)', period: false },
   /* ==================================================================
    * A03 GAP-CLOSURE BUILD - new surfaces for this module
    * Every cols list was validated against the model's real fields
@@ -524,6 +562,8 @@ export const SCREENS = {
   'M01-form-sla-instance': {
     kind: 'model_form', model: 'fix.sla.kpi.instance',
     title: 'SLA KPI Instance', back: 'M01-sla-instances',
+    /* every field is read-only: the clock engine starts an instance, nobody types one */
+    create: false, pick: 'An SLA clock is started by its order, never typed in: open one from Live SLA Clocks.',
     status: { field: 'state', labels: { in_progress: 'In progress', paused: 'Paused', succeeded: 'Succeeded', breached: 'Breached', cancelled: 'Cancelled' } },
     tabs: [
       { id: 'clock', label: '1. The Clock', bn: '১. ঘড়ি', icon: '🕒' },
@@ -588,7 +628,8 @@ export const REPORT_ROUTES = {
   "M01:Estimate Conversion Funnel": "M01-rpt-estfunnel",
   "M01:Rework & Repeat-Fault Analysis": "M01-rpt-rework",
   "M01:Order Cycle-Time (TAT) Distribution": "M01-rpt-tat",
-  "M01:Uncollected Device Register": "M01-rpt-uncollected"
+  "M01:Uncollected Device Register": "M01-rpt-uncollected",
+  "M01:Domain Events Published": "M01-events"
 };
 
 /* data-entry form chips: M01 data-entry chips open real in-workspace D365 model_form
@@ -604,6 +645,11 @@ export const FORM_CHIPS = {
   'M01:Diagnostic Estimate Request': 'M01-form-estimate',
   'M01:Hold / Release Reason': 'M01-form-hold',
   'M01:QC Checklist Inspection': 'M01-form-qc',
+  /* the row of a HOLD list is the hold: it opens the Hold / Release form for
+   * that order (the sub-module page; M01-holds itself opens the order record) */
+  'M01:__by_screen__': {
+    'M01-holds': 'M01-form-hold'
+  },
   'M01:__by_model__': {
     'fix.sla.item': 'M01-form-sla-item',
     'fix.sla.kpi.instance': 'M01-form-sla-instance',

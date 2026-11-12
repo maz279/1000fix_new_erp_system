@@ -11,7 +11,7 @@
 import datetime
 import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal, _user_error
@@ -586,7 +586,73 @@ def approval_thresholds_report(env, **params):
     }
 
 
+# The aggregates cd_service_order publishes under (its publish() call sites).
+_M01_EVENT_AGGREGATES = ("fix.service.order", "fix.estimate", "fix.sla.kpi.instance")
+
+
+def domain_events_report(env, **params):
+    """Domain Events Published: what M01 has written to the transactional
+    outbox, per event type. The sub-module "API & Domain Event Broadcasting"
+    had no screen of its own and showed the device-history list. Counts and
+    the latest timestamp only - a payload is never read here."""
+    Outbox = env["fix.event.outbox"].sudo()
+    domain = [
+        ("company_id", "in", env.companies.ids),
+        ("aggregate", "in", list(_M01_EVENT_AGGREGATES)),
+    ]
+    by_type = {}
+    for event_type, aggregate, status, count, last in Outbox._read_group(
+        domain, ["event_type", "aggregate", "status"], ["__count", "create_date:max"]
+    ):
+        row = by_type.setdefault(
+            (event_type, aggregate),
+            {
+                "event_type": event_type,
+                "aggregate": aggregate,
+                "total": 0,
+                "published": 0,
+                "pending": 0,
+                "failed": 0,
+                "last": None,
+            },
+        )
+        row["total"] += count
+        if status in ("published", "pending", "failed"):
+            row[status] += count
+        if last and (row["last"] is None or last > row["last"]):
+            row["last"] = last
+    rows = [by_type[key] for key in sorted(by_type)]
+    for row in rows:
+        # shown in the reader's own time zone, as the lists show a datetime
+        row["last"] = (
+            fields.Datetime.context_timestamp(env.user, row["last"]).strftime("%Y-%m-%d %H:%M")
+            if row["last"]
+            else None
+        )
+    return {
+        "title": "Domain Events Published (Outbox)",
+        "cols": ["event_type", "aggregate", "total", "published", "pending", "failed", "last"],
+        "labels": {
+            "event_type": "Event",
+            "aggregate": "Record",
+            "total": "Events",
+            "published": "Published to the Bus",
+            "pending": "Waiting in the Outbox",
+            "failed": "Failed",
+            "last": "Latest Event",
+        },
+        "rows": rows,
+        "notes": [
+            "An event is written in the same transaction as the change it reports "
+            "(order state changes, estimate decisions, SLA clock movements); the relay "
+            "then publishes it to the bus.",
+            "Waiting events that keep growing mean the relay is not draining the outbox.",
+        ],
+    }
+
+
 REPORTS = {
+    "domain_events": domain_events_report,
     "channel_intake": channel_intake_report,
     "wip_ageing": wip_ageing_report,
     "sla_compliance": sla_compliance_report,
