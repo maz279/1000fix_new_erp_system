@@ -1701,19 +1701,26 @@ class FixTradeinRequest(models.Model):
             withholding = rec._tradein_raise_withholding()
             payment = rec.payout_execution_id
             if not payment:
+                # A05 E10 / A08 hand-off: THE treasury request, pinned to the
+                # approved payee, net and currency and to the approver, so
+                # treasury cannot re-point or resize what the payout approval
+                # covered; idempotent on this trade-in. A wallet payout still
+                # needs a two-person-confirmed wallet row before release (M50).
                 payment = (
                     self.env["fix.payment.execution"]
                     .sudo()
-                    .create(
-                        {
-                            "operating_unit_id": rec._operating_unit().id,
-                            "source_model": "fix.tradein.request",
-                            "source_id": rec.id,
-                            "payee": rec.customer_id.name,
-                            "partner_id": rec.customer_id.id,
-                            "amount": net_to_seller,
-                            "method": "mobile_fs",  # default bKash/Nagad
-                        }
+                    ._fix_request_payment(
+                        "fix.tradein.request",
+                        rec.id,
+                        rec.customer_id,
+                        False,
+                        net_to_seller,
+                        rec.currency_id,
+                        rec.name,
+                        rec.payout_approved_by_id,
+                        operating_unit_id=rec._operating_unit().id,
+                        payee=rec.customer_id.name,
+                        method="mobile_fs",  # default bKash/Nagad
                     )
                 )
             # M14-15: the stock is capitalised at what the seller is paid

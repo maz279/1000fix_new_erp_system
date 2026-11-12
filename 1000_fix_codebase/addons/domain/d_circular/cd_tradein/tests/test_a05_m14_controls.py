@@ -813,6 +813,35 @@ def test_stock_is_capitalised_at_the_payout_not_the_offer(m):
     assert rec.inventory_valuation == 15000.0 + rec.refurbishment_cost
 
 
+def test_the_payout_is_a_pinned_treasury_request(m):
+    """A05 E10 / A08 hand-off: the payout is raised through THE treasury
+    request (_fix_request_payment), pinned to the approved payee and net and
+    carrying the approver, so treasury cannot re-point or resize it; a replay
+    pays once."""
+    rec = resale(m)
+    approved(m, rec, value=12000.0)
+    rec.action_pay()
+    pay = rec.payout_execution_id
+    assert pay.source_pinned and pay.source_model == rec._name and pay.source_id == rec.id
+    assert (pay.partner_id, pay.amount) == (rec.customer_id, 12000.0)
+    assert pay.source_approved_by_id == rec.payout_approved_by_id
+    Exec = m.env["fix.payment.execution"].sudo()
+    again = Exec._fix_request_payment(
+        rec._name, rec.id, rec.customer_id, False, 12000.0, rec.currency_id, rec.name, False
+    )
+    assert again == pay
+    with pytest.raises(UserError, match="different terms"), m.env.cr.savepoint():
+        Exec._fix_request_payment(
+            rec._name, rec.id, rec.customer_id, False, 15000.0, rec.currency_id, rec.name, False
+        )
+    other = m.env["res.partner"].create({"name": "Not the seller"})
+    # even the administrator (not the superuser) cannot re-point it in treasury
+    admin = m.env.ref("base.user_admin")
+    for vals in ({"partner_id": other.id}, {"amount": 15000.0}):
+        with pytest.raises(UserError, match="cannot change in treasury"), m.env.cr.savepoint():
+            pay.with_user(admin).write(vals)
+
+
 def test_tds_is_registered_with_m51_for_nbr_remittance(m):
     """M14-11 (A_08, A_09): the withheld tax becomes an M51 register line."""
     rec = resale(m)

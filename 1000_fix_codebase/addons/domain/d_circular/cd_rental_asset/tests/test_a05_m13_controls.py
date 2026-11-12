@@ -408,6 +408,10 @@ def test_rental_clerk_posts_the_deposit_and_closes_without_accounting_rights(c):
     refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
     assert r.state == "closed" and refund.amount == 5000
     assert refund.gl_state == "refund_queued" and refund.payment_execution_id
+    # A05 E10 / A08 hand-off: THE treasury request, pinned to this refund
+    pay = refund.payment_execution_id
+    assert pay.source_pinned and (pay.source_model, pay.source_id) == (refund._name, refund.id)
+    assert (pay.partner_id, pay.amount) == (r.customer_id, 5000)
 
 
 def test_refused_posting_leaves_no_move_and_repost_posts_once(c):

@@ -817,24 +817,29 @@ class FixRentalDeposit(models.Model):
             journal = env["account.journal"].search(
                 [("type", "=", "bank"), ("company_id", "=", reservation.company_id.id)], limit=1
             )
-            payment = env["fix.payment.execution"].create(
-                {
-                    "company_id": reservation.company_id.id,
-                    "operating_unit_id": (
-                        reservation.operating_unit_id
-                        or env["operating.unit"].search(
-                            [("company_id", "=", reservation.company_id.id)], limit=1
-                        )
-                    ).id,
-                    "source_model": "fix.rental.deposit",
-                    "source_id": rec.id,
-                    "payee": reservation.customer_id.name,
-                    "partner_id": reservation.customer_id.id,
-                    "amount": rec.amount,
-                    "method": PAYMENT_METHOD.get(rec.method, "bank_transfer"),
-                    "debit_account_id": liability.id,
-                    "journal_id": journal.id,
-                }
+            # A05 E10 / A08 hand-off: THE treasury request, pinned to the
+            # customer, amount and currency of this refund movement and
+            # idempotent on it, so treasury cannot re-point the refund.
+            payment = env["fix.payment.execution"]._fix_request_payment(
+                "fix.rental.deposit",
+                rec.id,
+                reservation.customer_id,
+                False,
+                rec.amount,
+                rec.currency_id,
+                "%s refund" % reservation.name,
+                False,  # computed from the posted ledger at close: no person approves it
+                company_id=reservation.company_id.id,
+                operating_unit_id=(
+                    reservation.operating_unit_id
+                    or env["operating.unit"].search(
+                        [("company_id", "=", reservation.company_id.id)], limit=1
+                    )
+                ).id,
+                payee=reservation.customer_id.name,
+                method=PAYMENT_METHOD.get(rec.method, "bank_transfer"),
+                debit_account_id=liability.id,
+                journal_id=journal.id,
             )
             rec._guarded().write(
                 {
