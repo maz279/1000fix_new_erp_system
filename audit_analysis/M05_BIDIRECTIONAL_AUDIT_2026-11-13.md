@@ -35,7 +35,7 @@
 | BRU-RMS-04 unmonitored asset = coverage gap within 24 h | **not built** | hourly `M05: report monitoring coverage gaps`: one major alert per silent asset, respecting maintenance windows |
 | BRU-RMS-06 auto credits; manual needs CFO | enforced | unchanged |
 | BRU-RMS-08 every change has a rollback plan | only **high-risk** changes | every change; a problem record is exempt |
-| BRU-RMS-09 patch outside window needs approval | built behind a switch (off by default) | unchanged: switching it on is a business decision |
+| BRU-RMS-09 patch outside window needs approval | built behind a switch, OFF on fix_real | **switched ON 13 Nov (owner decision)**: an install outside an open, approved window needs a routed exception. With no CAB Member or Change Manager appointed, neither a window nor an exception can be approved, so **no patch can be installed until those roles are filled** (fix_real has 0 patch records today) |
 | BRU-RMS-03 credentials never in a ticket or note | not built | free text on alerts and tickets, sessions, runbooks and their runs, changes and backup jobs refuses credential-shaped text (`password: …`, `pwd=…`, `API key = …`, `token: …`) and points to the vault. Ordinary sentences ("password reset done") pass |
 | BRU-RMS-13 a client sees only its own estate | internal company and operating-unit isolation rules on every M05 model | unchanged. No client portal (P04) access to M05 exists yet, so no client can see any MSP record |
 | BRU-RMS-02 unattended access only where the contract grants it | not built | contract flag `Unattended Access Granted`; a session's access mode is attended unless it is set; refused at create and at start |
@@ -57,7 +57,7 @@ On fix_real today:
 The owner decided on 13 Nov to **leave these roles unassigned for now**. The natural pool is the Corporate Service department (15 staff); the spec makes the Corporate Services Head the rule owner.
 
 ## Still not built (spec features, not rules)
-Every business rule BRU-RMS-01..13 now has its control. Two are scoped: BRU-RMS-09's window enforcement is a business switch (off by default), and BRU-RMS-13 holds trivially until a client portal exposes M05. Spec features with no model yet: FR-RMS-036 service-review meetings, FR-RMS-020 major-incident declaration, FR-RMS-049 client contact permissions, FR-RMS-040..046 cloud subscription, DR/BC and strategy service lines. None is a discrepancy between the screens and the backend: no screen promises them.
+Every business rule BRU-RMS-01..13 now has its control. BRU-RMS-09 is enforced (switch on since 13 Nov), and BRU-RMS-13 holds trivially until a client portal exposes M05. Approvals under 08 and 09 wait for the role appointments above. Spec features with no model yet: FR-RMS-036 service-review meetings, FR-RMS-020 major-incident declaration, FR-RMS-049 client contact permissions, FR-RMS-040..046 cloud subscription, DR/BC and strategy service lines. None is a discrepancy between the screens and the backend: no screen promises them.
 
 ## Evidence
 - `cd_msp_contract/tests/test_m05_bidirectional_audit.py` pins every fix above (20 tests).
@@ -66,4 +66,5 @@ Every business rule BRU-RMS-01..13 now has its control. Two are scoped: BRU-RMS-
 - **Live on 8069 after deploy (13 Nov 03:51):** 40/40 M05 surfaces served (lists, forms, pick lists, reports with and without a period, KPIs), 0 dropped columns, 0 errors.
 - Deploy: backup `_migration/backups/fix_real_pre_m05_audit_deploy_2026-11-13.dump`, `-u cd_msp_contract` (19.0.3.2.0), then 8089 and 8069 restarted.
 - Event payloads unchanged; only the three msp_* contracts' publisher lists were regenerated.
+- **BRU-RMS-03 (third deploy):** credential guard upgraded and live after 8089 and 8069 restarted; a ticket message containing "admin password: …" is refused on 8069 and nothing is saved; probe 40/40 on both servers. Backup `fix_real_pre_m05_bru03_deploy_2026-11-13.dump`.
 - **Business rules (second deploy, 13 Nov 06:13):** `cd_msp_contract/tests/test_m05_business_rules.py` 13/13. The full M05 suite passes 161 behaviour tests; the two contract-form layout tests were updated for the new Lifecycle tab and pass 6/6. The estate and capture guards pass 635/635. Backup `fix_real_pre_m05_bru_deploy_2026-11-13.dump`, `-u cd_msp_contract` 19.0.3.3.0 (all 15 new columns present). Live probe on 8069 (pid started 06:13) and 8089: **40/40, 0 problems**; the new actions are whitelisted.
