@@ -183,7 +183,46 @@ def _picker_source(env, comodel):
     """Where a picker reads. Names are read sudo, since a clerk may pick a partner they
     hold no ACL on. A comodel whose own screens are fenced by record rules is read as the
     caller instead, or a picker would hand over the rows those screens hide."""
+    if comodel == "ir.attachment":
+        # never sudo: a file name is the file's content to a reader (payslips,
+        # contracts, IDs) - M03 audit 2026-11-13
+        return env[comodel]
     return env[comodel] if (SURFACES.get(comodel) or {}).get("rules") else env[comodel].sudo()
+
+
+# An evidence field (a many2one to ir.attachment: signed waybill, POD scan,
+# damage photo) is an UPLOAD, not a choice. M03 audit 2026-11-13: the form
+# offered a dropdown of every attachment name in the company, read as
+# superuser, and no way to attach a new file - so a courier POD could never
+# be recorded. The browser sends {"upload": <base64>, "filename": <name>}.
+UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+
+def _is_upload(value) -> bool:
+    return isinstance(value, dict) and "upload" in value
+
+
+def _store_upload(env, value):
+    """Create the caller's attachment for one upload and return it. It is
+    linked to its record by _link_uploads once the record is saved."""
+    data = value.get("upload") or ""
+    if isinstance(data, str) and data.startswith("data:"):
+        data = data.split(",", 1)[1] if "," in data else ""
+    if not data:
+        raise UserError("The uploaded file is empty.")
+    if len(data) * 3 // 4 > UPLOAD_MAX_BYTES:
+        raise UserError("The file is larger than 10 MB.")
+    name = str(value.get("filename") or "upload").strip()[:200] or "upload"
+    return env["ir.attachment"].create({"name": name, "datas": data})
+
+
+def _link_uploads(attachments, model, res_id):
+    """Attach the uploads to the record they evidence. sudo: the caller has
+    just written that record (its ACL and rules applied), and linking may
+    need write access on the record that the caller's attachment ACL checks
+    again with stricter rights (a rider cannot edit a consignment header)."""
+    if attachments:
+        attachments.sudo().write({"res_model": model, "res_id": res_id})
 
 
 def _child_value_changed(rec, field, value) -> bool:
@@ -489,6 +528,7 @@ class P03GenericApiController(http.Controller):
             if (
                 not spec
                 or spec.type not in ("many2one", "many2many")
+                or spec.comodel_name == "ir.attachment"
                 or (writable is not None and field not in writable)
             ):
                 return {"error": "This field cannot be searched on this screen."}
@@ -995,6 +1035,15 @@ class P03GenericApiController(http.Controller):
                 out[name] = str(value)[:10]
             else:
                 out[name] = value
+        # the form's own default overrides the model's (an import PO in USD)
+        for name, entry in by_name.items():
+            ref = entry.get("default_ref")
+            if not ref:
+                continue
+            target = env.ref(ref, raise_if_not_found=False)
+            comodel = env[model]._fields[name].comodel_name
+            if target and target._name == comodel:
+                out[name] = {"id": target.id, "label": target.sudo().display_name}
         return out
 
     def _form_field_meta(self, env, model, fields, record=None):
@@ -1016,6 +1065,8 @@ class P03GenericApiController(http.Controller):
             if not m:
                 continue
             field_type = spec.get("type") or m["type"]
+            if m["type"] == "many2one" and env[model]._fields[name].comodel_name == "ir.attachment":
+                field_type = "attachment"  # an upload, never a list of files
             entry = {
                 "name": name,
                 "label": spec.get("label") or m["string"],
@@ -1023,6 +1074,11 @@ class P03GenericApiController(http.Controller):
                 "required": bool(spec.get("required") or m.get("required")),
                 "readonly": bool(spec.get("readonly") or m.get("readonly") or name in locked),
             }
+            # `defaultRef`: a form's own default for a reference, by XML id
+            # (the import purchase order starts in USD, the model's BDT is the
+            # local order's) - applied to a NEW record only (_form_defaults)
+            if spec.get("defaultRef") and field_type == "many2one":
+                entry["default_ref"] = spec["defaultRef"]
             if field_type == "selection":
                 entry["choices"] = [
                     {"key": k, "label": v}
@@ -1073,7 +1129,17 @@ class P03GenericApiController(http.Controller):
         record = {"id": rec.id}
         for entry in out_fields:
             value = rec[entry["name"]]
-            if entry["type"] == "many2one":
+            if entry["type"] == "attachment":
+                record[entry["name"]] = (
+                    {
+                        "id": value.id,
+                        "label": value.sudo().name or "file",
+                        "url": "/web/content/%d?download=true" % value.id,
+                    }
+                    if value
+                    else None
+                )
+            elif entry["type"] == "many2one":
                 record[entry["name"]] = (
                     {"id": value.id, "label": value.display_name} if value else None
                 )
@@ -1256,6 +1322,18 @@ class P03GenericApiController(http.Controller):
             }
         try:
             with env.cr.savepoint():
+                # an evidence upload becomes the caller's attachment, linked to
+                # the record below (in this savepoint: a refusal keeps no file)
+                uploads = env["ir.attachment"]
+                for key, value in list(vals.items()):
+                    if not _is_upload(value):
+                        continue
+                    spec = env[model]._fields.get(key)
+                    if getattr(spec, "comodel_name", None) != "ir.attachment":
+                        return {"error": "This field does not take a file."}
+                    attachment = _store_upload(env, value)
+                    uploads |= attachment
+                    vals[key] = attachment.id
                 if lines and lines.get("field"):
                     field = env[model]._fields.get(lines.get("field"))
                     if not field or field.type != "one2many":
@@ -1291,6 +1369,7 @@ class P03GenericApiController(http.Controller):
                 else:
                     env[model].check_access("create")
                     rec = env[model].create(vals)
+                _link_uploads(uploads, model, rec.id)
                 return {"id": rec.id, "display_name": rec.display_name}
         except (UserError, AccessError, ValidationError) as exc:
             return {"error": _user_error(exc)}
@@ -1377,7 +1456,19 @@ class P03GenericApiController(http.Controller):
                 records = env[model].browse([int(i) for i in (ids or [])]).exists()
                 if not records:
                     return {"success": False, "error": "Record not found"}
-                result = getattr(records, method)(**(kwargs or {}))
+                # a form's evidence upload (Record Courier POD) reaches the
+                # method as the id of the caller's new attachment, linked to
+                # the record the method acts on
+                kwargs = dict(kwargs or {})
+                uploads = env["ir.attachment"]
+                for key, value in list(kwargs.items()):
+                    if _is_upload(value):
+                        attachment = _store_upload(env, value)
+                        uploads |= attachment
+                        kwargs[key] = attachment.id
+                if len(records) == 1:
+                    _link_uploads(uploads, model, records.id)
+                result = getattr(records, method)(**kwargs)
                 payload = result if isinstance(result, dict) else {}
                 return {"success": True, "result": payload}
         except (UserError, AccessError) as exc:

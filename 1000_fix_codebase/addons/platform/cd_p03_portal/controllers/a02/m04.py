@@ -53,6 +53,22 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_complete"},
     },
+    # M04 build (13 Nov 2026): counters and priority rules (FR-FRD-007/027,
+    # BRU-FRD-07), storage locations (FR-FRD-011), the drawer movement ledger
+    # (FR-FRD-015, BRU-FRD-09) and branch announcements (FR-FRD-031).
+    "fix.queue.counter": {"order": "branch_id, number", "limit": 300, "actions": set()},
+    "fix.queue.priority.rule": {"order": "sequence, id", "limit": 200, "actions": set()},
+    "fix.storage.location": {"order": "branch_id, code", "limit": 500, "actions": set()},
+    "fix.cash.movement": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_post", "action_cancel"},
+    },
+    "fix.branch.announcement": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_publish", "action_withdraw", "action_acknowledge"},
+    },
 }
 
 # tokens actually served vs issued today

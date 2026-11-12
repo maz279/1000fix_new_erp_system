@@ -102,6 +102,7 @@ def w(odoo_env, monkeypatch):
         rec = env["fix.consignment"].create(
             {
                 "consignment_type": ctype,
+                "declared_value_bdt": 1000.0,  # BRU-LOG-12: needed to confirm
                 "scheduled_date": fields.Datetime.now(),
                 "operating_unit_id": ou.id,
                 "dest_branch_id": branch.id,

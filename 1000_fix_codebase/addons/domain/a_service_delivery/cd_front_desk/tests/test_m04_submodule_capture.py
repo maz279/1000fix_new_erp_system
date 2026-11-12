@@ -48,7 +48,7 @@ EXPECTED = {
     "1": ("M04-form-token", "Issue Queue Token"),
     "2": ("M04-form-storage", "Walk-in Intake"),
     "3": ("M04-form-storage-assign", "Assign Storage Bin"),
-    "4": ("M04-form-handover", "Record Handover Proof"),
+    "4": ("M04-form-release", "Release Device to Collector"),
     "5": ("M04-form-countersale", "Counter Sale"),
     "6": ("M04-form-shift", "Open a Cash Shift"),
     "7": ("M04-form-payment", "Take Counter Payment"),
@@ -245,12 +245,13 @@ def test_storage_and_handover_proof_are_recorded_on_the_picked_intake(m04, ui, s
         )
         assert intake.id in {r["id"] for r in listed["rows"]}
 
+    loc = m04.env["fix.storage.location"].create({"branch_id": m04.branch.id, "code": "SHELF-B3"})
     res = ui.write(
         m04.cashier,
         model="fix.walkin.intake",
         record_id=intake.id,
         values=_form_values(
-            store, {"storage_bin_code": "SHELF-B3", "accessory_bag_barcode": "BAG-7"}
+            store, {"storage_location_id": loc.id, "accessory_bag_barcode": "BAG-7"}
         ),
     )
     assert "error" not in res, res

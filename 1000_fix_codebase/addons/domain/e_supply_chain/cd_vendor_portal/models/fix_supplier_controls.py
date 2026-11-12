@@ -65,6 +65,30 @@ class ResPartnerSupplierLink(models.Model):
         suppliers = self.env["fix.supplier"].sudo().search([("status", operator, value)])
         return [("id", "in", suppliers.mapped("partner_id").ids)]
 
+    # The supplier's residency, for the same pickers: a local purchase order offers
+    # Bangladesh-registered suppliers, an import purchase order foreign ones
+    # (user decision, 13 Nov 2026). Read as the system, like the status above.
+    fix_supplier_residency = fields.Selection(
+        selection=lambda self: self.env["fix.supplier"]._fields["residency"].selection,
+        string="Supplier Residency",
+        compute="_compute_fix_supplier_residency",
+        search="_search_fix_supplier_residency",
+        compute_sudo=True,
+    )
+
+    def _compute_fix_supplier_residency(self):
+        Supplier = self.env["fix.supplier"].sudo()
+        records = Supplier.search([("partner_id", "in", self._origin.ids)])
+        residency = {supplier.partner_id.id: supplier.residency for supplier in records}
+        for partner in self:
+            partner.fix_supplier_residency = residency.get(partner._origin.id, False)
+
+    def _search_fix_supplier_residency(self, operator, value):
+        if operator in ("in", "not in"):
+            value = list(value)
+        suppliers = self.env["fix.supplier"].sudo().search([("residency", operator, value)])
+        return [("id", "in", suppliers.mapped("partner_id").ids)]
+
 
 class FixPurchaseOrderSupplierGate(models.Model):
     _inherit = "fix.purchase.order"

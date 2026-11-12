@@ -193,9 +193,9 @@ export const SCREENS = {
       reported: 'Reported', investigating: 'Investigating', action_taken: 'Action Taken',
       closed: 'Closed' } },
     tabs: [
-      { id: 'severity', label: 'Incident Severity', bn: 'দুর্ঘটনার মাত্রা', icon: '🚨', badge: '6' },
-      { id: 'statutory', label: 'Statutory Investigation', bn: 'তদন্ত ও নোটিশ', icon: '📑', badge: '3' },
-      { id: 'corrective', label: 'Corrective Action', bn: 'সংশোধনী ব্যবস্থা', icon: '🔧', badge: '2' }
+      { id: 'severity', label: 'Incident Severity', bn: 'দুর্ঘটনার মাত্রা', icon: '🚨', badge: '7' },
+      { id: 'statutory', label: 'Statutory Investigation', bn: 'তদন্ত ও নোটিশ', icon: '📑', badge: '10' },
+      { id: 'corrective', label: 'Corrective Action', bn: 'সংশোধনী ব্যবস্থা', icon: '🔧', badge: '6' }
     ],
     sections: [
       {
@@ -677,7 +677,7 @@ export const SCREENS = {
       missed: 'Missed Check-Out' } },
     tabs: [
       { id: 'checkin', label: 'Session & Window', bn: 'চেক-ইন ও সময়সীমা', icon: '📍', badge: '6' },
-      { id: 'buddy', label: 'Buddy & Escalation', bn: 'সহযোগী ও জরুরি পদক্ষেপ', icon: '🆘', badge: '3' }
+      { id: 'buddy', label: 'Buddy & Escalation', bn: 'সহযোগী ও জরুরি পদক্ষেপ', icon: '🆘', badge: '5' }
     ],
     sections: [
       {

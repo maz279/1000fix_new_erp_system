@@ -296,3 +296,418 @@ class FixMspContractReportOnce(models.Model):
                 "Reviews (Regenerate Summary rewrites its text)." % (label, self.name)
             )
         return super().action_generate_monthly_report()
+
+
+# ---------------------------------------------------------------------------
+# M05 bidirectional audit (2026-11-13)
+# ---------------------------------------------------------------------------
+
+COVERAGE_GAP_HOURS = 24
+EVIDENCE_MIN = 10
+
+
+class FixMspChangeRecordRollback(models.Model):
+    _inherit = "fix.msp.change.record"
+
+    def _msp_check_rollback(self):
+        """BRU-RMS-08: a change to a client environment needs a rollback plan,
+        whatever its risk. The check demanded one only for high risk, so a
+        medium-risk firewall change could be approved and implemented with
+        no way back. A problem record is analysis, not a change: exempt."""
+        if self.kind == "change" and not (self.rollback_plan or "").strip():
+            raise UserError(
+                "Change %s has no rollback plan: document the backout and rollback "
+                "plan before it is approved or implemented (BRU-RMS-08)." % self.name
+            )
+
+
+class FixMspRunbookLog(models.Model):
+    _inherit = "fix.msp.runbook"
+
+    def _msp_log_run(self, target, alert=None, outcome="success", evidence=""):
+        """Record one execution of this runbook on ``target`` (spec T-08:
+        target, outcome and output). A failed execution never resolves the
+        alert; a successful one resolves it only when the runbook says so and
+        the evidence is written down."""
+        self.ensure_one()
+        evidence = (evidence or "").strip()
+        if not self.active:
+            raise UserError("Runbook %s is archived — reactivate it first" % self.name)
+        if outcome not in ("success", "failed"):
+            raise UserError("The outcome of an execution is Success or Failed.")
+        asset_name = target.hostname or target.agent_id
+        if self.scope_contract_id and target.msp_contract_id != self.scope_contract_id:
+            raise UserError(
+                "Runbook %s is scoped to %s; asset %s belongs to %s."
+                % (
+                    self.name,
+                    self.scope_contract_id.name,
+                    asset_name,
+                    target.msp_contract_id.name,
+                )
+            )
+        if alert and alert.asset_id != target:
+            raise UserError(
+                "The alert was raised on %s, not on %s: log the execution on the "
+                "asset the alert is about."
+                % (alert.asset_id.hostname or alert.asset_id.agent_id, asset_name)
+            )
+        if outcome == "failed" and len(evidence) < EVIDENCE_MIN:
+            raise UserError(
+                "Write what failed in the execution of %s (at least %d characters)."
+                % (self.name, EVIDENCE_MIN)
+            )
+        if outcome == "success" and self.auto_resolve_alert and len(evidence) < EVIDENCE_MIN:
+            raise UserError(
+                "Runbook %s resolves the asset's alert: record the evidence of the "
+                "execution (what the steps showed, at least %d characters)."
+                % (self.name, EVIDENCE_MIN)
+            )
+        now = fields.Datetime.now()
+        run = (
+            self.env["fix.msp.runbook.run"]
+            ._guarded()
+            .create(
+                {
+                    "runbook_id": self.id,
+                    "asset_id": target.id,
+                    "alert_id": alert.id if alert else False,
+                    "outcome": outcome,
+                    "state": outcome,
+                    "started_at": now,
+                    "finished_at": now,
+                    "output_note": evidence or "Executed via workspace/ops console",
+                    "operating_unit_id": self.operating_unit_id.id or False,
+                }
+            )
+            .with_env(self.env)
+        )
+        if outcome == "success" and self.auto_resolve_alert:
+            if not alert:
+                alert = self.env["fix.msp.alert"].search(
+                    [("asset_id", "=", target.id), ("state", "in", ("new", "acked"))], limit=1
+                )
+            # BRU-RMS-10: a recurring incident with no problem record stays open
+            if alert and alert.state in ("new", "acked") and not alert._msp_needs_problem():
+                alert.action_resolve(
+                    note="Runbook '%s' executed (run #%s): %s" % (self.name, run.id, evidence)
+                )
+        publish(
+            self.env,
+            "msp.runbook_executed",
+            "fix.msp.runbook.run",
+            run.id,
+            {"runbook": self.name, "asset": target.agent_id},
+        )
+        return run
+
+    def action_execute(self, asset=None, alert_id=None, evidence=None, outcome="success"):
+        """Record an execution against an EXPLICIT asset: the one named (id,
+        agent id or hostname), else the alert's own asset, else the scope's
+        only asset. It fell back to the first asset in scope, so an execution
+        with evidence but no asset was logged on whatever device sorted
+        first, and an alert's execution on another device than the alert's."""
+        Asset = self.env["fix.monitored.asset"]
+        alert = None
+        if alert_id:
+            alert = self.env["fix.msp.alert"].browse(int(alert_id)).exists()
+            if not alert:
+                raise UserError("Alert %s does not exist" % alert_id)
+        for book in self:
+            if isinstance(asset, str) and asset.strip():
+                target = Asset.search(
+                    ["|", ("agent_id", "=", asset.strip()), ("hostname", "=", asset.strip())],
+                    limit=1,
+                )
+                if not target:
+                    raise UserError("No monitored asset matches '%s'" % asset)
+            elif isinstance(asset, int) and asset:
+                target = Asset.browse(asset).exists()
+                if not target:
+                    raise UserError("Monitored asset %s does not exist" % asset)
+            elif alert:
+                target = alert.asset_id
+            else:
+                domain = (
+                    [("msp_contract_id", "=", book.scope_contract_id.id)]
+                    if book.scope_contract_id
+                    else []
+                )
+                target = Asset.search(domain, limit=2)
+                if len(target) != 1:
+                    raise UserError(
+                        "Name the asset the runbook %s was executed on%s."
+                        % (book.name, "" if target else " (no monitored asset is in its scope)")
+                    )
+            book._msp_log_run(target, alert=alert, outcome=outcome, evidence=evidence)
+        return True
+
+
+class FixMspRunbookRunLog(models.Model):
+    _inherit = "fix.msp.runbook.run"
+
+    outcome = fields.Selection(
+        [("success", "Success"), ("failed", "Failed")],
+        string="Outcome",
+        default="success",
+        help="What the operator reports the execution achieved. Set when the "
+        "execution is logged; the log is evidence and does not change after.",
+    )
+    logged_by_id = fields.Many2one(
+        "res.users",
+        string="Logged By",
+        default=lambda self: self.env.user,
+        readonly=True,
+        copy=False,
+        help="Who logged the execution: the engineer accountable for it (T-08).",
+    )
+
+    _LOGGED = ("runbook_id", "asset_id", "alert_id", "outcome", "output_note", "logged_by_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | set(self._LOGGED)
+
+    def _fix_form_locked_fields(self) -> set:
+        # a NEW execution is typed on the form; a logged one is evidence
+        if not self:
+            return {"state", "started_at", "finished_at"}
+        return super()._fix_form_locked_fields()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """An execution typed on the workspace form goes through the same
+        checks as the runbook's own button (scope, alert on the asset,
+        evidence, alert resolution, event)."""
+        if self._fix_guard_open():
+            return super().create(vals_list)
+        require_role(self.env, [GROUP_ENGINEER], "Logging a runbook execution")
+        runs = self.browse()
+        for vals in vals_list:
+            book = self.env["fix.msp.runbook"].browse(vals.get("runbook_id") or 0).exists()
+            target = self.env["fix.monitored.asset"].browse(vals.get("asset_id") or 0).exists()
+            if not book or not target:
+                raise UserError("Choose the runbook and the asset it was executed on.")
+            alert = self.env["fix.msp.alert"].browse(vals.get("alert_id") or 0).exists() or None
+            runs |= book._msp_log_run(
+                target,
+                alert=alert,
+                outcome=vals.get("outcome") or "success",
+                evidence=vals.get("output_note") or "",
+            )
+        return runs
+
+
+class FixMspAlertCoverage(models.Model):
+    _inherit = "fix.msp.alert"
+
+    coverage_gap = fields.Boolean(
+        string="Coverage Gap",
+        readonly=True,
+        copy=False,
+        help="Raised because the asset's agent has not reported for 24 hours "
+        "(BRU-RMS-04). Set by the coverage check only.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"coverage_gap"}
+
+
+class FixMonitoredAssetCoverage(models.Model):
+    _inherit = "fix.monitored.asset"
+
+    @api.model
+    def cron_coverage_gaps(self):
+        """BRU-RMS-04: an asset whose agent has not reported for 24 hours is a
+        coverage gap - a contractual failure, reported within the 24 hours.
+        One open gap alert per asset; none while a maintenance window
+        suppresses alerting. An asset never seen counts from its enrolment."""
+        cutoff = fields.Datetime.now() - timedelta(hours=COVERAGE_GAP_HOURS)
+        stale = self.sudo().search(
+            [
+                "|",
+                ("last_seen", "<", cutoff),
+                "&",
+                ("last_seen", "=", False),
+                ("create_date", "<", cutoff),
+            ]
+        )
+        Alert = self.env["fix.msp.alert"].sudo()
+        Window = self.env["fix.msp.maintenance.window"].sudo()
+        raised = 0
+        for asset in stale:
+            if Alert.search_count(
+                [
+                    ("asset_id", "=", asset.id),
+                    ("coverage_gap", "=", True),
+                    ("state", "!=", "resolved"),
+                ]
+            ):
+                continue
+            if Window.alerting_suppressed(asset):
+                continue
+            seen = (
+                "last reported %s UTC" % fields.Datetime.to_string(asset.last_seen)
+                if asset.last_seen
+                else "never reported since enrolment"
+            )
+            alert = Alert._guarded().create(
+                {
+                    "company_id": asset.company_id.id,
+                    "operating_unit_id": asset.operating_unit_id.id or False,
+                    "msp_contract_id": asset.msp_contract_id.id,
+                    "asset_id": asset.id,
+                    "severity": "major",
+                    "coverage_gap": True,
+                    "message": "Coverage gap: %s has no agent report for %d hours (%s)"
+                    % (asset.hostname or asset.agent_id, COVERAGE_GAP_HOURS, seen),
+                }
+            )
+            publish(
+                self.env,
+                "msp.alert_raised",
+                "fix.msp.alert",
+                alert.id,
+                {"agent": asset.agent_id, "health": asset.health},
+            )
+            raised += 1
+        return raised
+
+
+class FixMspBackupJob(models.Model):
+    """FR-RMS-039 backup service oversight: one backup job outcome (and
+    whether a restore was tested) on a client asset. The "Backup & Restore
+    Test Log" report said "not built yet"; it now reads these. A job is
+    evidence: recorded once, never edited."""
+
+    _name = "fix.msp.backup.job"
+    _description = "MSP Backup Job"
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _order = "run_at desc, id desc"
+
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    asset_id = fields.Many2one("fix.monitored.asset", string="Asset", required=True, index=True)
+    msp_contract_id = fields.Many2one(
+        related="asset_id.msp_contract_id", store=True, string="MSP Contract", index=True
+    )
+    plan_ref = fields.Char(string="Backup Plan / Job", required=True)
+    run_at = fields.Datetime(string="Run At", required=True, default=fields.Datetime.now)
+    outcome = fields.Selection(
+        [("success", "Succeeded"), ("partial", "Partial"), ("failed", "Failed")],
+        required=True,
+        default="success",
+    )
+    restore_tested = fields.Boolean(
+        string="Restore Tested", help="A restore was performed and the data read back."
+    )
+    note = fields.Text(string="Note")
+    alert_id = fields.Many2one(
+        "fix.msp.alert", string="Alert Raised", readonly=True, copy=False, ondelete="set null"
+    )
+    consecutive_failures = fields.Integer(
+        string="Failures in a Row",
+        compute="_compute_consecutive_failures",
+        help="Failed or partial jobs of this plan on this asset since its last success, "
+        "counting this one.",
+    )
+
+    _LOGGED = ("asset_id", "plan_ref", "run_at", "outcome", "restore_tested", "note", "alert_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | set(self._LOGGED)
+
+    def _fix_form_locked_fields(self) -> set:
+        if not self:
+            return {"alert_id"}
+        return super()._fix_form_locked_fields()
+
+    @api.depends("asset_id", "plan_ref", "run_at", "outcome")
+    def _compute_consecutive_failures(self):
+        for job in self:
+            if not job.id or not job.asset_id:
+                job.consecutive_failures = 0 if job.outcome == "success" else 1
+                continue
+            history = self.search(
+                [
+                    ("asset_id", "=", job.asset_id.id),
+                    ("plan_ref", "=", job.plan_ref),
+                    ("run_at", "<=", job.run_at),
+                ],
+                order="run_at desc, id desc",
+            )
+            count = 0
+            for past in history:
+                if past.outcome == "success":
+                    break
+                count += 1
+            job.consecutive_failures = count
+
+    @api.constrains("run_at")
+    def _check_run_at(self):
+        for job in self:
+            if job.run_at and job.run_at > fields.Datetime.now() + timedelta(minutes=5):
+                raise ValidationError("A backup job cannot be recorded for a future time.")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self._fix_guard_open():
+            return super().create(vals_list)
+        require_role(self.env, [GROUP_ENGINEER], "Recording a backup job")
+        for vals in vals_list:
+            if (
+                vals.get("outcome", "success") != "success"
+                and len((vals.get("note") or "").strip()) < EVIDENCE_MIN
+            ):
+                raise UserError(
+                    "Write what failed in the backup job (at least %d characters)." % EVIDENCE_MIN
+                )
+        # validated above: the logged fields are written once, here
+        jobs = super(FixMspBackupJob, self._guarded()).create(vals_list).with_env(self.env)
+        for job in jobs:
+            job._msp_alert_on_failure()
+        return jobs
+
+    def _msp_alert_on_failure(self):
+        """A failed or partial job raises one alert on its asset (driving the
+        remediation), unless a maintenance window suppresses alerting or an
+        alert for this plan is still open."""
+        self.ensure_one()
+        if self.outcome == "success":
+            return
+        Alert = self.env["fix.msp.alert"]
+        if self.env["fix.msp.maintenance.window"].alerting_suppressed(self.asset_id):
+            return
+        open_alert = self.search(
+            [
+                ("asset_id", "=", self.asset_id.id),
+                ("plan_ref", "=", self.plan_ref),
+                ("alert_id.state", "!=", "resolved"),
+                ("id", "!=", self.id),
+            ],
+            limit=1,
+        ).alert_id
+        if open_alert:
+            self._guarded().write({"alert_id": open_alert.id})
+            return
+        label = dict(self._fields["outcome"].selection)[self.outcome].lower()
+        alert = Alert.create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id or False,
+                "msp_contract_id": self.asset_id.msp_contract_id.id,
+                "asset_id": self.asset_id.id,
+                "severity": "major" if self.outcome == "failed" else "minor",
+                "message": "Backup %s on %s: %s"
+                % (label, self.asset_id.hostname or self.asset_id.agent_id, self.plan_ref),
+            }
+        )
+        self._guarded().write({"alert_id": alert.id})
+        publish(
+            self.env,
+            "msp.alert_raised",
+            "fix.msp.alert",
+            alert.id,
+            {"agent": self.asset_id.agent_id, "health": self.asset_id.health},
+        )

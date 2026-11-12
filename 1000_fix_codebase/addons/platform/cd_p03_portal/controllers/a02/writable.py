@@ -12,6 +12,16 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 WRITABLE = {
+    "fix.branch.announcement": frozenset(
+        {
+            "body",
+            "branch_ids",
+            "kind",
+            "name",
+            "valid_from",
+            "valid_until",
+        }
+    ),
     "fix.branch.checklist": frozenset(
         {
             "branch_id",
@@ -19,6 +29,15 @@ WRITABLE = {
             "checklist_type",
             "handover_notes",
             "line_ids",
+        }
+    ),
+    "fix.cash.movement": frozenset(
+        {
+            "amount",
+            "movement_type",
+            "reason",
+            "receipt_attachment_id",
+            "shift_id",
         }
     ),
     "fix.cash.shift": frozenset(
@@ -62,6 +81,7 @@ WRITABLE = {
             "scheduled_date",
             "security_bag_barcode",
             "service_order_id",
+            "shockwatch_triggered",
             "vehicle_registration",
             "volumetric_divisor",
             "waybill_attachment_id",
@@ -97,6 +117,8 @@ WRITABLE = {
             "height_cm",
             "length_cm",
             "partner_id",
+            "recipient_name",
+            "recipient_phone",
             "weight_kg",
             "width_cm",
         }
@@ -109,9 +131,13 @@ WRITABLE = {
             "cod_cycle_days",
             "cod_supported",
             "code",
+            "contact_phone",
+            "insurance_max_bdt",
             "name",
             "per_kg_rate",
             "service_area",
+            "sla_delivery_hours",
+            "volumetric_divisor",
         }
     ),
     "fix.custody.scan": frozenset(),
@@ -127,6 +153,7 @@ WRITABLE = {
             "evidence_ref",
             "incident_photo_attachment_id",
             "liability",
+            "operating_unit_id",
             "requested_payout",
         }
     ),
@@ -277,7 +304,6 @@ WRITABLE = {
             "field_job_sheet_attachment_id",
             "geofence_id",
             "latitude",
-            "lone_worker_checkin_at",
             "longitude",
             "notes",
             "order_id",
@@ -295,7 +321,9 @@ WRITABLE = {
     "fix.field.route": frozenset(
         {
             "date",
-            "name",
+            "depot_location",
+            "field_order_ids",
+            "notes",
             "technician_id",
         }
     ),
@@ -326,6 +354,7 @@ WRITABLE = {
             "asset_id",
             "message",
             "msp_contract_id",
+            "problem_id",
             "severity",
             "source",
         }
@@ -341,6 +370,16 @@ WRITABLE = {
             "operator",
             "severity",
             "threshold",
+        }
+    ),
+    "fix.msp.backup.job": frozenset(
+        {
+            "asset_id",
+            "note",
+            "outcome",
+            "plan_ref",
+            "restore_tested",
+            "run_at",
         }
     ),
     "fix.msp.change.record": frozenset(
@@ -362,11 +401,14 @@ WRITABLE = {
             "alert_resolve_hours_major",
             "alert_resolve_hours_minor",
             "contract_id",
+            "coverage_window",
             "device_count",
             "monitoring_scope",
             "name",
             "per_device_monthly",
+            "recording_retention_days",
             "sla_target_pct",
+            "unattended_access",
         }
     ),
     "fix.msp.maintenance.window": frozenset(
@@ -424,7 +466,15 @@ WRITABLE = {
             "trigger",
         }
     ),
-    "fix.msp.runbook.run": frozenset(),
+    "fix.msp.runbook.run": frozenset(
+        {
+            "alert_id",
+            "asset_id",
+            "outcome",
+            "output_note",
+            "runbook_id",
+        }
+    ),
     "fix.msp.service.report": frozenset(),
     "fix.msp.sla.credit": frozenset(
         {
@@ -447,11 +497,42 @@ WRITABLE = {
             "visual_inspection_passed",
         }
     ),
+    "fix.queue.counter": frozenset(
+        {
+            "active",
+            "agent_id",
+            "branch_id",
+            "can_collect",
+            "can_corporate",
+            "can_enquiry",
+            "can_intake",
+            "can_pay",
+            "can_technical",
+            "label",
+            "number",
+        }
+    ),
+    "fix.queue.priority.rule": frozenset(
+        {
+            "active",
+            "branch_id",
+            "corporate_only",
+            "loyalty_tier_name",
+            "name",
+            "partner_category_id",
+            "priority_level",
+            "sequence",
+            "service_type",
+        }
+    ),
     "fix.remote.session": frozenset(
         {
+            "access_mode",
             "asset_id",
             "consent_partner_id",
             "msp_contract_id",
+            "order_id",
+            "session_protocol",
             "session_summary",
             "technician_id",
             "tool",
@@ -462,6 +543,11 @@ WRITABLE = {
             "accessory_bag_barcode",
             "branch_id",
             "catalog_item_id",
+            "collector_authority_attachment_id",
+            "collector_id_last4",
+            "collector_id_type",
+            "collector_is_customer",
+            "collector_relation",
             "cosmetic_condition_notes",
             "customer_id",
             "deferred_notes",
@@ -503,11 +589,22 @@ WRITABLE = {
     ),
     "fix.sla.kpi.instance": frozenset(),
     "fix.sla.policy": frozenset(),
+    "fix.storage.location": frozenset(
+        {
+            "active",
+            "bin",
+            "branch_id",
+            "code",
+            "secure",
+            "shelf",
+            "zone",
+        }
+    ),
     "fix.technician.location": frozenset(),
     "fix.token.queue": frozenset(
         {
             "branch_id",
-            "counter_number",
+            "counter_id",
             "customer_id",
             "notes",
             "priority_level",
@@ -535,6 +632,7 @@ WRITABLE = {
             "payment_channel",
             "payment_trx_ref",
             "storage_bin_code",
+            "storage_location_id",
             "token_id",
         }
     ),

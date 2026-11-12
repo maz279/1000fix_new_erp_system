@@ -489,7 +489,9 @@ class FixWalkinIntake(models.Model):
                     "not in any drawer." % fee
                 )
                 continue
-            shift._post_cash_movement("cash_payments", fee)
+            shift._post_cash_movement(
+                "cash_payments", fee, reference="Diagnostic fee, intake %s" % label
+            )
             rec._guarded().write({"diagnostic_fee_shift_id": shift.id})
 
     def action_complete_handover(self):

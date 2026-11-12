@@ -270,6 +270,7 @@ def _in_transit(env, branches, **vals):
             "dest_branch_id": b.id,
             "outbound_seal_number": "SEAL-001",
             "dispatch_weight_g": 1200,
+            "declared_value_bdt": 15000.0,
             **vals,
         }
     )

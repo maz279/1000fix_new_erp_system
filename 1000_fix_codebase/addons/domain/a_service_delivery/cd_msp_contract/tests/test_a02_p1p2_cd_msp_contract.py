@@ -143,6 +143,8 @@ def _change(m5, user=None, **vals):
         "name": "Rotate firewall keys",
         "msp_contract_id": m5.msp.id,
         "risk": "medium",
+        # BRU-RMS-08: every change carries its rollback plan
+        "rollback_plan": "restore the previous keys",
         "operating_unit_id": m5.ou.id,
     }
     base.update(vals)
@@ -207,7 +209,7 @@ def test_b1_editing_a_pending_change_voids_the_request(m5):
 
 
 def test_b1_emergency_change_goes_to_the_change_manager_only(m5):
-    ch = _change(m5, change_type="emergency", risk="high")
+    ch = _change(m5, change_type="emergency", risk="high", rollback_plan="")
     with pytest.raises(UserError, match="rollback plan"):
         _as(ch, m5.eng).action_request_approval()
     _as(ch, m5.eng).write({"rollback_plan": "revert config"})

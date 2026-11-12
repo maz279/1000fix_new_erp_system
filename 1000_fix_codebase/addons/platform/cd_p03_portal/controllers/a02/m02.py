@@ -67,7 +67,9 @@ SURFACES = {
     "fix.work.order": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_request_certification_waiver"},
+        # action_assign: the dispatcher-only way to name a slot's technician
+        # (it checks the dispatcher group itself and sets the slot Assigned)
+        "actions": {"action_assign", "action_request_certification_waiver"},
     },
     "fix.geofence": {
         "order": "id",
@@ -169,19 +171,15 @@ def kpis(env):
     dispatched_orders = FieldOrder.search_count(
         [*company_domain, ("state", "in", (*_ACTIVE_FIELD_STATES, "completed"))]
     )
-    assigned_orders = FieldOrder.search_count(
-        [
-            *company_domain,
-            ("state", "in", (*_ACTIVE_FIELD_STATES, "completed")),
-            ("technician_id", "!=", False),
-        ]
-    )
     # Nothing measured is None (the tile says "no activity"). These four used
     # to fall back to 84.5 / 91.5 / 32.7 / 100.0, shown as "Live from Odoo" on
     # fix_real with no field order at all (M02 capture audit, 2026-11-12).
-    auto_assignment = (
-        round(100.0 * assigned_orders / max(dispatched_orders, 1), 1) if dispatched_orders else None
-    )
+    # KPI-013 "automatic assignment rate": automatic dispatches / dispatches.
+    # Every dispatch is a dispatcher's choice from the suggestion engine (no
+    # automatic dispatch exists, FR-FSM-002), so the rate is 0 % once there
+    # are dispatches. It was assigned / dispatched, which is 100 % by
+    # construction (a dispatched order always has a technician).
+    auto_assignment = 0.0 if dispatched_orders else None
 
     return {
         "jobs_tech_day": jobs_tech_day,
@@ -900,32 +898,53 @@ def _cash_recon_report(env, **_params):
 
 
 def _safety_events_report(env, kind="lone_worker", **_params):
-    """Field Safety — LONE-WORKER CHECK-INS / PANIC ALERTS.
+    """Field Safety: lone-worker sessions (M59 fix.hse.loneworker) or panic
+    alerts (the technician app's panic_sos commands in the offline journal),
+    counted by state.
 
-    HONEST ABSENCE (audit D-M02-2): no safety-event model exists yet in the
-    estate; the P02 technician app's safety stream (AR-010) is the intended
-    source. Reporting zero is the truthful answer; the note states where the
-    events will come from, so the screen is never mistaken for a working log.
+    It used to report a fixed zero and say no safety store existed, after M59
+    had built one (bidirectional audit 2026-11-13).
     """
     FieldOrder = _field(env)
-    in_progress = FieldOrder.search_count(
-        [("company_id", "in", env.companies.ids), ("state", "in", _ACTIVE_FIELD_STATES)]
-    )
-    label = "Lone-Worker Check-Ins" if kind == "lone_worker" else "Panic Alerts"
+    company_domain = [("company_id", "in", env.companies.ids)]
+    in_field = FieldOrder.search_count([*company_domain, ("state", "in", _ACTIVE_FIELD_STATES)])
+    rows = []
+    if kind == "lone_worker":
+        title = "Lone-Worker Check-Ins"
+        if "fix.hse.loneworker" in env:
+            Session = env["fix.hse.loneworker"].sudo()
+            labels = dict(Session._fields["state"].selection)
+            for state, label in labels.items():
+                rows.append(
+                    {
+                        "event": "Sessions: %s" % label,
+                        "count": Session.search_count([*company_domain, ("state", "=", state)]),
+                    }
+                )
+        note = (
+            "Lone-worker sessions are opened on the Lone-Worker Check-In screen (M59). A "
+            "session past its expected end escalates to the emergency contact and HSE."
+        )
+    else:
+        title = "Panic Alerts"
+        Ledger = env["fix.offline.idempotency.ledger"].sudo()
+        rows.append(
+            {
+                "event": "Panic alerts received",
+                "count": Ledger.search_count([*company_domain, ("operation", "=", "panic_sos")]),
+            }
+        )
+        note = (
+            "A panic alert is sent from the technician app. It escalates the technician's "
+            "open lone-worker session and gives every dispatcher and HSE Officer a to-do."
+        )
+    rows.append({"event": "Technicians in the field now", "count": in_field})
     return {
-        "title": label,
+        "title": title,
         "cols": ["event", "count"],
         "labels": {"event": "Event", "count": "Count"},
-        "rows": [
-            {"event": "Recorded %s" % label.lower(), "count": 0},
-            {"event": "Technicians currently in the field", "count": in_progress},
-        ],
-        "notes": [
-            "No safety-event store exists in the estate yet — the P02 technician app's "
-            "lone-worker timer and panic button (AR-010) are the intended source, and their "
-            "events will land here when that stream ships.",
-            "The in-field technician count IS live (field orders in an active state).",
-        ],
+        "rows": rows,
+        "notes": [note],
         "empty": "No safety events recorded.",
     }
 
@@ -1046,7 +1065,10 @@ class P03M02Controller(http.Controller):
     def field_kpis(self, **kw):
         _require_internal(request.env)
         try:
-            return {"M02": kpis(request.env)}
+            # the viewer's employee: the dispatch board offers a job's next
+            # step (accept, travel, arrive, work, complete) only to the
+            # technician it is dispatched to - the server refuses anyone else
+            return {"M02": kpis(request.env), "me_employee_id": request.env.user.employee_id.id}
         except Exception:
             _logger.exception("p03 field_kpis failed")
             return {"error": "KPI computation failed"}

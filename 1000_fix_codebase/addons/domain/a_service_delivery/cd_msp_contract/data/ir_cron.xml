@@ -29,5 +29,27 @@
             <field name="interval_type">minutes</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- BRU-RMS-04: an asset with no agent report for 24 hours is reported
+             as a coverage gap within the 24 hours; hourly keeps it inside. -->
+        <record id="ir_cron_msp_coverage_gaps" model="ir.cron">
+            <field name="name">M05: report monitoring coverage gaps</field>
+            <field name="model_id" ref="model_fix_monitored_asset"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_coverage_gaps()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-RMS-12: a recording reference is kept for its contract's
+             retention, then purged (the purge is logged on the session). -->
+        <record id="ir_cron_msp_purge_recordings" model="ir.cron">
+            <field name="name">M05: purge session recordings past retention</field>
+            <field name="model_id" ref="model_fix_remote_session"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_purge_recordings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

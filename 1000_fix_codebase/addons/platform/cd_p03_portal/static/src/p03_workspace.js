@@ -1524,6 +1524,7 @@ export class P03Workspace extends Component {
                 ]);
                 gl.data = {
                     kpis: kpis.M02 || kpis,
+                    me: kpis.me_employee_id || false,
                     unassigned: unassigned.rows || [],
                     active: active.rows || [],
                 };
@@ -1919,13 +1920,23 @@ export class P03Workspace extends Component {
 
     /** Field-order lifecycle button (accept / travel / arrive / work / complete). */
     async fsAction(row, method, labelEn) {
-        if (!window.confirm(row.name + " — " + this.t(labelEn) + "?")) return;
+        // an arrival is tested against the order's geofence: it needs the
+        // position (without one a fenced order's arrival is always refused)
+        const kwargs = {};
+        if (method === "action_arrive") {
+            const position = window.prompt(row.name + " — " + this.t("Your position: latitude, longitude (e.g. 23.8103, 90.4125)"));
+            if (position === null) return;
+            kwargs.position = position;
+        } else if (!window.confirm(row.name + " — " + this.t(labelEn) + "?")) {
+            return;
+        }
         this.state.gl.fsBusy = row.id;
         try {
             const res = await this.rpc("/p03/model/action", {
                 model: "fix.field.order",
                 ids: [row.id],
                 method,
+                kwargs,
             });
             if (res && res.success) {
                 this.showToast(row.name + " — " + this.t(labelEn) + " ✓");
@@ -1941,6 +1952,12 @@ export class P03Workspace extends Component {
     fsNextAction(row) {
         // the forward path of the field-order state machine (authority: the
         // backend VALID transitions; this only picks the next button)
+        // Accept / travel / arrive / work / complete are the ASSIGNED
+        // technician's steps (_fix_require_assigned_technician): for anyone
+        // else every press was refused, so the button is theirs alone.
+        const me = this.state.gl && this.state.gl.data && this.state.gl.data.me;
+        const tech = row.technician_id && typeof row.technician_id === "object" ? row.technician_id.id : row.technician_id;
+        if (!me || tech !== me) return null;
         const forward = {
             draft: ["action_request_dispatch", "Submit for Dispatch"],
             pending_dispatch: ["action_dispatch", "Dispatch"],
@@ -2361,7 +2378,9 @@ export class P03Workspace extends Component {
         const gl = this.state.gl;
         const map = {};
         ((gl && gl.data && gl.data.fields) || []).forEach((f) => {
-            map[f.name] = f;
+            // an evidence field (many2one to a file) is an upload: the server
+            // types it "attachment" and sends no list of files (M03 audit)
+            map[f.name] = f.type === "attachment" ? { ...f, type: "file", attachment: true } : f;
         });
         // a `saveAction` carries its fields to a workflow method: they are
         // inputs on this form even where the generic write must refuse them
@@ -2433,6 +2452,8 @@ export class P03Workspace extends Component {
     formFileDownloadHref(name) {
         const v = this.formFieldValue(name);
         if (!v) return "#";
+        // an evidence attachment: its stored file, or the one just picked
+        if (typeof v === "object") return v.url || (v.upload ? `data:application/octet-stream;base64,${v.upload}` : "#");
         if (typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))) return v;
         if (typeof v === "string" && v.startsWith("JVBERi")) return `data:application/pdf;base64,${v}`;
         if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `data:image/png;base64,${v}`;
@@ -2449,6 +2470,7 @@ export class P03Workspace extends Component {
         if (directFn) return directFn;
         const v = this.formFieldValue(name);
         if (!v) return "";
+        if (typeof v === "object") return v.filename || v.label || "";
         if (typeof v === "string" && v.startsWith("JVBERi")) return `${name}.pdf`;
         if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `${name}.png`;
         if (typeof v === "string" && v.startsWith("/9j/")) return `${name}.jpg`;
@@ -2463,6 +2485,12 @@ export class P03Workspace extends Component {
         reader.onload = (e) => {
             const dataUrl = e.target.result;
             const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            if ((this.formFieldsMeta[name] || {}).attachment) {
+                // saved as the caller's attachment, linked to this record
+                this.formSet(name, { upload: base64, filename: file.name });
+                this.render(true);
+                return;
+            }
             this.formSet(name, base64);
             const fnCandidates = [
                 name + "_filename",
@@ -2933,7 +2961,8 @@ export class P03Workspace extends Component {
         const kwargs = Object.assign({}, act.kw || {});
         for (const [kwarg, name] of Object.entries(act.kwargs || {})) {
             let v = gl.form.values[name];
-            if (v && typeof v === "object") v = v.key !== undefined ? v.key : v.id;
+            // an upload travels as is: the server stores it and passes its id
+            if (v && typeof v === "object" && !v.upload) v = v.key !== undefined ? v.key : v.id;
             if (v === undefined || v === null || v === "" || v === false) {
                 if (specs[name] && specs[name].required) {
                     gl.form.error = `${this.t(specs[name].label || name)}: ${this.t("this is required.")}`;

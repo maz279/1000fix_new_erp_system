@@ -2,10 +2,9 @@
 # screens may read, the workflow methods they may call (/p03/model/records,
 # /p03/model/action), the module KPI payload (/p03/logistics/kpis) and the
 # built-in reports (/p03/model/report). Same contract as a02/m01..m31.
-import datetime
 import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -39,8 +38,10 @@ SURFACES = {
         "order": "booked_on desc, id desc",
         "limit": 400,
         # A02 audit M03-P2: pick-up starts the consignment's custody, and
-        # delivery closes it on the courier's POD.
-        "actions": {"action_pick_up", "action_deliver"},
+        # delivery closes it on the courier's POD. M03 audit 2026-11-13: the
+        # POD itself could not be recorded (guarded field, method not served),
+        # so no courier booking could ever be marked delivered.
+        "actions": {"action_pick_up", "action_record_pod", "action_deliver"},
     },
     "fix.damage.claim": {
         "order": "claimed_on desc, id desc",
@@ -70,7 +71,8 @@ def kpis(env):
     """The M03 module-tile KPI row (registry-canonical metrics)."""
     Cons = _cons(env)
     domain = [("company_id", "in", env.companies.ids)]
-    today = datetime.date.today()
+    # the business day in the user's time zone (Asia/Dhaka), not the server's UTC date
+    today = fields.Date.context_today(env.user)
 
     in_transit = Cons.search_count([*domain, ("state", "=", "in_transit")])
 
@@ -87,14 +89,32 @@ def kpis(env):
     # on-time = closed by the scheduled date (schedule = promised window end)
     on_time_pct = round(100.0 * on_time / len(delivered), 1) if delivered else None
 
+    # M03 audit 2026-11-13: a lost leg with a broken chain was counted twice,
+    # and a seal or weight tamper hold (the headline custody exception) not at all
     custody_exceptions = Cons.search_count(
-        [*domain, ("chain_broken", "=", True)]
-    ) + Cons.search_count([*domain, ("state", "=", "lost")])
+        [
+            *domain,
+            "|",
+            "|",
+            ("chain_broken", "=", True),
+            ("state", "in", ("lost", "held")),
+            ("seal_status", "=", "tampered_mismatch"),
+        ]
+    )
 
+    # COD Today is money (BDT), not a count of settlement sheets: the cash
+    # riders handed over today, in the caller's companies
     cod_today = None
     if "fix.cod.settlement" in env:
         Settlement = env["fix.cod.settlement"].sudo()
-        cod_today = Settlement.search_count([("settlement_date", "=", today)])
+        todays = Settlement.search(
+            [
+                ("company_id", "in", env.companies.ids),
+                ("settlement_date", "=", today),
+                ("state", "!=", "disputed"),
+            ]
+        )
+        cod_today = round(sum(todays.mapped("remitted_amount")), 2)
 
     round_trips = [
         ((c.delivered_at or c.write_date) - c.create_date).total_seconds() / 86400.0
@@ -116,6 +136,11 @@ def kpis(env):
 
 
 # ---------------------------------------------------------------- reports
+
+
+def _labels(model, field):
+    """Selection key -> label for a report cell (rows showed raw keys)."""
+    return dict(model._fields[field]._description_selection(model.env))
 
 
 def _closed_at(consignment):
@@ -168,66 +193,116 @@ def _cycle_time_report(env, **params):
 
 
 def _custody_exception_report(env, **params):
+    """Custody Exception Register (spec §14: seal breaks, discrepancies,
+    unexplained gaps). M03 audit 2026-11-13: it listed broken chains and lost
+    legs only - a seal or weight tamper hold, the headline exception, was
+    missing (the Sealing & Tamper Log showed none) - and a lost leg with a
+    broken chain appeared twice. One row per consignment, every issue named."""
     Cons = _cons(env)
-    rows = [
-        {
-            "consignment": c.name,
-            "type": c.consignment_type,
-            "state": c.state,
-            "issue": "broken chain" if c.chain_broken else "reported lost",
-            "chain": c.custody_summary or "",
-        }
-        for c in Cons.search([("chain_broken", "=", True)])
-    ]
-    rows += [
-        {
-            "consignment": c.name,
-            "type": c.consignment_type,
-            "state": c.state,
-            "issue": "reported lost",
-            "chain": c.custody_summary or "",
-        }
-        for c in Cons.search([("state", "=", "lost")])
-    ]
+    types = _labels(Cons, "consignment_type")
+    states = _labels(Cons, "state")
+    seals = _labels(Cons, "seal_status")
+    found = Cons.search(
+        [
+            "|",
+            "|",
+            "|",
+            ("chain_broken", "=", True),
+            ("state", "in", ("lost", "held")),
+            ("seal_status", "=", "tampered_mismatch"),
+            ("custody_ids.exception_reason", "!=", False),
+        ],
+        order="scheduled_date desc, id desc",
+        limit=500,
+    )
+    rows = []
+    for c in found:
+        issues = []
+        if c.seal_status == "tampered_mismatch" or c.hold_reason:
+            issues.append(c.hold_reason or seals.get(c.seal_status, ""))
+        if c.chain_broken:
+            issues.append("Broken chain: %s" % (c.chain_problem or "out of order"))
+        if c.state == "lost":
+            issues.append("Reported lost: %s" % (c.exception_note or "no reason recorded"))
+        notes = [s.exception_reason for s in c.custody_ids if s.exception_reason]
+        if notes:
+            issues.append("Scan exception: %s" % "; ".join(notes))
+        rows.append(
+            {
+                "consignment": c.name,
+                "type": types.get(c.consignment_type, c.consignment_type),
+                "state": states.get(c.state, c.state),
+                "seal": seals.get(c.seal_status, c.seal_status or ""),
+                "variance_g": c.weight_variance_g or None,
+                "issue": " | ".join(i for i in issues if i),
+                "released_by": c.hold_released_by_id.name or "",
+                "chain": c.custody_summary or "",
+            }
+        )
     return {
         "title": "Custody Exception Register",
-        "cols": ["consignment", "type", "state", "issue", "chain"],
+        "cols": [
+            "consignment",
+            "type",
+            "state",
+            "seal",
+            "variance_g",
+            "issue",
+            "released_by",
+            "chain",
+        ],
         "labels": {
             "consignment": "Consignment",
             "type": "Type",
             "state": "State",
-            "issue": "Issue",
+            "seal": "Seal Verdict",
+            "variance_g": "Weight Variance (g)",
+            "issue": "Exception",
+            "released_by": "Hold Released By",
             "chain": "Recorded Chain",
         },
         "rows": rows,
-        "notes": ["Broken chains (out-of-order scans) and lost consignments — live."],
+        "notes": [
+            "Seal or weight mismatches at hub intake (the leg is held until a logistics "
+            "manager releases it), broken custody chains, lost consignments and scans "
+            "recorded with an exception. One row per consignment."
+        ],
+        "empty": "No custody exception recorded.",
     }
 
 
 def _courier_performance_report(env, **params):
-    """Courier performance from the real booking records: volume, on-time
-    delivery, COD exposure and charges per partner."""
-    bookings = env["fix.courier.booking"].sudo().search([])
-    partners = env["fix.courier.partner"].sudo().search([])
+    """Courier performance from the real booking records. M03 audit
+    2026-11-13: on-time used a fixed 3 days although each partner carries its
+    contractual SLA, and 'COD not settled' summed cash on returned and
+    cancelled bookings, which the courier never collected."""
+    bookings = env["fix.courier.booking"].sudo().search([("company_id", "in", env.companies.ids)])
+    partners = env["fix.courier.partner"].sudo().search([("company_id", "in", env.companies.ids)])
     rows = []
     for partner in partners:
         mine = bookings.filtered(lambda b, p=partner: b.partner_id.id == p.id)
         delivered = mine.filtered(lambda b: b.state == "delivered")
         returned = mine.filtered(lambda b: b.state == "returned")
-        closed = delivered | returned
+        sla_days = max(1, -(-(partner.sla_delivery_hours or 48) // 24))
         on_time = delivered.filtered(
-            lambda b: b.delivered_on and b.booked_on and (b.delivered_on - b.booked_on).days <= 3
+            lambda b, d=sla_days: b.delivered_on
+            and b.booked_on
+            and (b.delivered_on - b.booked_on).days <= d
         )
         rows.append(
             {
                 "courier": partner.name,
+                "sla": "%dh" % (partner.sla_delivery_hours or 48),
                 "bookings": len(mine),
                 "delivered": len(delivered),
                 "returned": len(returned),
-                "on_time_pct": round(100.0 * len(on_time) / len(closed), 1) if closed else None,
+                "on_time_pct": round(100.0 * len(on_time) / len(delivered), 1)
+                if delivered
+                else None,
                 "charges": round(sum(mine.mapped("charged_amount")), 2),
                 "cod_open": round(
-                    sum(mine.filtered(lambda b: not b.cod_settled_on).mapped("cod_amount")), 2
+                    sum(delivered.filtered(lambda b: not b.cod_settled_on).mapped("cod_amount")),
+                    2,
                 ),
             }
         )
@@ -236,6 +311,7 @@ def _courier_performance_report(env, **params):
         % (len(bookings), len(partners)),
         "cols": [
             "courier",
+            "sla",
             "bookings",
             "delivered",
             "returned",
@@ -245,96 +321,199 @@ def _courier_performance_report(env, **params):
         ],
         "labels": {
             "courier": "Courier",
+            "sla": "Delivery SLA",
             "bookings": "Bookings",
             "delivered": "Delivered",
             "returned": "Returned",
             "on_time_pct": "On-time %",
-            "charges": "Charges",
-            "cod_open": "COD not settled",
+            "charges": "Charges (৳)",
+            "cod_open": "COD Held by Courier (৳)",
         },
         "rows": rows,
         "notes": [
-            "On-time = delivered within 3 days of booking, measured from the booking "
-            "and delivery dates. COD not settled is cash the partner still holds."
+            "On-time = delivered within the courier's contractual SLA (booking date to "
+            "delivery date, whole days). COD held is cash on delivered bookings the "
+            "courier has not yet paid over (Treasury M50 courier remittance)."
         ],
         "empty": "No courier bookings yet.",
     }
 
 
 def _cod_settlement_report(env, **params):
+    """Rider cash hand-overs (M50 settlements). M03 audit 2026-11-13: it had
+    no rider column although BRU-LOG-06 reconciles per rider, and showed raw
+    state keys."""
     rows = []
     if "fix.cod.settlement" in env:
         Settlement = env["fix.cod.settlement"].sudo()
-        for s in Settlement.search([], order="id desc", limit=100):
+        states = _labels(Settlement, "state")
+        for s in Settlement.search(
+            [("company_id", "in", env.companies.ids)],
+            order="settlement_date desc, id desc",
+            limit=200,
+        ):
             rows.append(
                 {
                     "settlement": s.name or str(s.id),
-                    "state": s.state or "",
+                    "date": str(s.settlement_date or "")[:10],
+                    "rider": s.rider_id.name or "",
+                    "orders": s.order_count,
                     "expected": s.expected_amount,
                     "remitted": s.remitted_amount,
                     "variance": s.variance,
-                    "date": str(s.settlement_date or "")[:10],
+                    "state": states.get(s.state, s.state or ""),
                 }
             )
     return {
         "title": "COD Settlement Report",
-        "cols": ["settlement", "state", "expected", "remitted", "variance", "date"],
+        "cols": [
+            "settlement",
+            "date",
+            "rider",
+            "orders",
+            "expected",
+            "remitted",
+            "variance",
+            "state",
+        ],
         "labels": {
             "settlement": "Settlement",
-            "state": "State",
-            "expected": "Expected",
-            "remitted": "Remitted",
-            "variance": "Variance",
             "date": "Date",
+            "rider": "Rider",
+            "orders": "COD Orders",
+            "expected": "Expected (৳)",
+            "remitted": "Remitted (৳)",
+            "variance": "Variance (৳)",
+            "state": "State",
         },
         "rows": rows,
         "notes": [
-            "Cash-on-delivery settlements are recorded in Treasury (M50); collection by "
-            "riders is recorded once the rider app is in use."
+            "Each rider's cash hand-over, reconciled against the delivered cash-on-delivery "
+            "orders (BRU-LOG-06: zero tolerance for an unexplained variance; a shortage "
+            "needs an approval and is recovered through HR). Prepared and settled in "
+            "Treasury (M50)."
         ],
+        "empty": "No rider cash hand-over recorded yet.",
     }
 
 
 def _reverse_volume_report(env, **params):
+    """Reverse logistics: returns to vendor (FR-LOG-024) and legs returned to
+    origin (FR-LOG-026). M03 audit 2026-11-13: it counted returned-to-origin
+    legs only - every return to vendor was missing."""
     Cons = _cons(env)
-    returned = Cons.search([("state", "=", "returned")], limit=200)
+    types = _labels(Cons, "consignment_type")
+    states = _labels(Cons, "state")
+    found = Cons.search(
+        ["|", ("state", "=", "returned"), ("consignment_type", "=", "return_to_vendor")],
+        order="scheduled_date desc, id desc",
+        limit=300,
+    )
     rows = [
-        {"consignment": c.name, "type": c.consignment_type, "chain": c.custody_summary or ""}
-        for c in returned
+        {
+            "consignment": c.name,
+            "flow": "Return to vendor"
+            if c.consignment_type == "return_to_vendor"
+            else "Returned to origin",
+            "type": types.get(c.consignment_type, c.consignment_type),
+            "state": states.get(c.state, c.state),
+            "reference": c.purchase_order_id.display_name or c.service_order_id.display_name or "",
+            "reason": c.exception_note or "",
+            "chain": c.custody_summary or "",
+        }
+        for c in found
     ]
     return {
         "title": "Reverse Logistics Volume",
-        "cols": ["consignment", "type", "chain"],
-        "labels": {"consignment": "Consignment", "type": "Type", "chain": "Chain"},
+        "cols": ["consignment", "flow", "type", "state", "reference", "reason", "chain"],
+        "labels": {
+            "consignment": "Consignment",
+            "flow": "Reverse Flow",
+            "type": "Type",
+            "state": "State",
+            "reference": "Order / PO",
+            "reason": "Return Reason",
+            "chain": "Chain",
+        },
         "rows": rows,
-        "notes": ["Returned consignments (reverse logistics legs), live."],
+        "notes": ["Returns to vendor (any state) and legs returned to origin."],
+        "empty": "No reverse logistics movement yet.",
     }
 
 
 def _damage_claims_report(env, **params):
+    """Damage & Insurance Claims (spec §14 loss and damage register). M03
+    audit 2026-11-13: it listed lost consignments only, ignored the claim
+    records (fix.damage.claim, with its M63 DOFA approval) and said the claims
+    engine was 'a later phase'. Claims first, then lost legs with no claim."""
+    Claim = env["fix.damage.claim"].sudo()
     Cons = _cons(env)
-    lost = Cons.search([("state", "=", "lost")], limit=200)
+    kinds = _labels(Claim, "damage_kind")
+    states = _labels(Claim, "state")
+    liability = _labels(Claim, "liability")
+    claims = Claim.search(
+        [("company_id", "in", env.companies.ids)] if "company_id" in Claim._fields else [],
+        order="claimed_on desc, id desc",
+        limit=300,
+    )
     rows = [
         {
-            "consignment": c.name,
-            "last_known": c.custody_summary or "",
-            "rider": c.rider_id.name or "",
+            "ref": c.name,
+            "consignment": c.consignment_id.name or "",
+            "kind": kinds.get(c.damage_kind, c.damage_kind or ""),
+            "liability": liability.get(c.liability, c.liability or ""),
+            "claimed": c.claimed_amount or None,
+            "approved": c.approved_amount or None,
+            "settled": c.settled_amount or None,
+            "state": states.get(c.state, c.state or ""),
         }
-        for c in lost
+        for c in claims
     ]
+    claimed = set(claims.mapped("consignment_id").ids)
+    for c in Cons.search([("state", "=", "lost")], limit=200):
+        if c.id in claimed:
+            continue
+        rows.append(
+            {
+                "ref": "No claim yet",
+                "consignment": c.name,
+                "kind": "Lost in transit",
+                "liability": "",
+                "claimed": None,
+                "approved": None,
+                "settled": None,
+                "state": "Candidate: last custody %s" % (c.custody_summary or "unknown"),
+            }
+        )
     return {
         "title": "Damage & Insurance Claims",
-        "cols": ["consignment", "last_known", "rider"],
+        "cols": [
+            "ref",
+            "consignment",
+            "kind",
+            "liability",
+            "claimed",
+            "approved",
+            "settled",
+            "state",
+        ],
         "labels": {
+            "ref": "Claim",
             "consignment": "Consignment",
-            "last_known": "Last Known Custody",
-            "rider": "Rider",
+            "kind": "Damage Kind",
+            "liability": "Liability",
+            "claimed": "Claimed (৳)",
+            "approved": "Approved (৳)",
+            "settled": "Settled (৳)",
+            "state": "State",
         },
         "rows": rows,
         "notes": [
-            "Lost consignments are the claim candidates; the insurance-claims "
-            "engine (valuation, adjuster flow) is a later phase."
+            "Claims raised on consignments, with the payout approved in the M63 approval "
+            "inbox (DOFA tier; never by the person who raised it; capped at the claim and "
+            "the declared value). Lost consignments without a claim follow as candidates."
         ],
+        "empty": "No damage claim and no lost consignment.",
     }
 
 
@@ -402,8 +581,9 @@ def _zone_charges_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Own-fleet legs only — courier bookings carry their own charges. "
-            "Charge basis: chargeable weight × route, exactly as invoiced per leg."
+            "Every leg, priced from its courier's tariff (base + per-kg) or, for an own-fleet "
+            "leg, the default BDT 80 + 40/kg until a zone tariff is set; insurance is 1% of "
+            "the declared value. Computed per leg - no logistics invoice is raised yet (M20)."
         ],
     }
 
@@ -452,50 +632,82 @@ def _manifest_register_report(env, **params):
 
 
 def _rider_day_report(env, **params):
-    """Rider App (P09) Preview: the rider's own day — jobs per rider per
-    scheduled date with live state mix (M03 sweep audit 2026-11-06: the
-    screen previously borrowed the cycle-time report)."""
+    """The rider's day: assigned legs per rider per run date with the live
+    state mix and carried weight. Serves Route Manifests and the Rider App
+    (P09) preview (route_manifest / rider_day below)."""
     Cons = _cons(env)
     groups = {}
     for c in Cons.search([("rider_id", "!=", False)], limit=400):
         stamp = c.scheduled_date or c.create_date
         day = stamp.date() if hasattr(stamp, "date") else stamp
         key = (c.rider_id.name, day)
-        row = groups.setdefault(key, {"jobs": 0, "transit": 0, "delivered": 0, "kg": 0.0})
+        row = groups.setdefault(
+            key, {"jobs": 0, "open": 0, "transit": 0, "delivered": 0, "kg": 0.0, "value": 0.0}
+        )
         row["jobs"] += 1
-        if c.state in ("out_for_delivery", "in_transit"):
+        if c.state in ("draft", "confirmed"):
+            row["open"] += 1
+        elif c.state in ("in_transit", "held"):
             row["transit"] += 1
         elif c.state in ("delivered", "returned"):
             row["delivered"] += 1
         row["kg"] += c.chargeable_weight_kg or 0.0
+        row["value"] += c.declared_value_bdt or 0.0
     rows = [
         {
             "rider": rider,
             "day": str(day),
             "jobs": v["jobs"],
+            "to_start": v["open"] or None,
             "in_progress": v["transit"] or None,
             "completed": v["delivered"] or None,
             "chargeable_kg": round(v["kg"], 2) or None,
+            "declared": round(v["value"], 2) or None,
         }
         for (rider, day), v in sorted(groups.items(), key=lambda kv: (kv[0][1], kv[0][0]))
     ]
     return {
-        "title": "Rider App (P09) Preview",
-        "cols": ["rider", "day", "jobs", "in_progress", "completed", "chargeable_kg"],
+        "title": params.get("_title") or "Rider App (P09) Preview",
+        "cols": [
+            "rider",
+            "day",
+            "jobs",
+            "to_start",
+            "in_progress",
+            "completed",
+            "chargeable_kg",
+            "declared",
+        ],
         "labels": {
             "rider": "Rider",
-            "day": "Day",
-            "jobs": "Jobs",
-            "in_progress": "Out / In Transit",
+            "day": "Run Date",
+            "jobs": "Legs",
+            "to_start": "Not Started",
+            "in_progress": "In Transit / Held",
             "completed": "Delivered / Returned",
-            "chargeable_kg": "Chargeable (kg)",
+            "chargeable_kg": "Load (kg)",
+            "declared": "Load Value (৳)",
         },
         "rows": rows,
         "notes": [
-            "What P09 shows the rider at day start: assigned legs by date with "
-            "live state mix and carried weight."
+            params.get("_note")
+            or "What P09 shows the rider at day start: assigned legs by run date with "
+            "the live state mix, carried weight and value."
         ],
+        "empty": "No consignment has a rider assigned.",
     }
+
+
+def _route_manifest_report(env, **params):
+    """Route Manifests: the same rider-day grouping, titled for the
+    coordinator (there is no stored manifest record; stop sequencing and route
+    optimisation are not built - FR-LOG-014)."""
+    return _rider_day_report(
+        env,
+        _title="Route Manifests",
+        _note="Each rider's legs per run date with the load carried (weight and declared "
+        "value, for FR-LOG-029 load limits). Stop order is not sequenced yet.",
+    )
 
 
 REPORTS = {
@@ -510,6 +722,7 @@ REPORTS = {
     "zone_charges": _zone_charges_report,
     "manifest_register": _manifest_register_report,
     "rider_day": _rider_day_report,
+    "route_manifest": _route_manifest_report,
 }
 
 

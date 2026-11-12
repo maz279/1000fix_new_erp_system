@@ -112,11 +112,13 @@ export const SCREENS = {
     stateField: 'state',
     /* A02 audit M02-13: the actions the dispatch board does not offer.
      * The server checks who may run each one (dispatcher / assigned technician). */
+    /* `states` mirror the model's own guards (bidirectional audit 2026-11-13):
+     * a button shows as available only where the server accepts it. */
     actions: [
       /* A09 M22-F3: decided in the Certification Override Approver's inbox,
        * never by the dispatcher who asks. */
-      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver' },
-      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
+      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver', states: ['draft', 'pending_dispatch', 'declined'] },
+      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason', states: ['draft', 'pending_dispatch', 'declined'] }
     ] },
   'M02-sla-risk': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'zone_id', 'priority', 'sla_deadline', 'scheduled_start', 'state', 'technician_id'],
@@ -124,8 +126,11 @@ export const SCREENS = {
   'M02-wo': { kind: 'model_list', model: 'fix.work.order',
     cols: ['name', 'order_id', 'technician_id', 'sequence', 'state', 'start_time', 'end_time', 'duration_hours'],
     stateField: 'state',
+    /* A pending slot had no way to get its technician: action_assign (the
+     * dispatcher-only path, which also sets it Assigned) was on no button. */
     actions: [
-      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver' }
+      { m: 'action_assign', l: 'Assign Technician (dispatcher)', ask: 'Technician employee id', kwarg: 'technician_id', states: ['pending', 'assigned'] },
+      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver', ask: 'Technician employee id, then the reason', kwarg: 'waiver', states: ['pending', 'assigned'] }
     ] },
   'M02-record': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'technician_id', 'zone_id', 'scheduled_start', 'state',
@@ -137,13 +142,13 @@ export const SCREENS = {
      * the customer's sign-off, a post-work photo and the work summary (M02-2),
      * captured through the technician app's evidence channel. */
     actions: [
-      { m: 'action_decline', l: 'Decline', ask: 'Reason for declining the job', kwarg: 'reason' },
-      { m: 'action_arrive', l: 'Mark Arrival', ask: 'Your position: latitude, longitude (e.g. 23.8103, 90.4125)', kwarg: 'position' },
-      { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment' },
-      { m: 'action_handover_field_cash', l: 'Hand Over Cash' },
-      { m: 'action_reassign', l: 'Reassign (dispatcher)', ask: 'New technician employee id, then the reason', kwarg: 'reassignment' },
-      { m: 'action_waive_geofence', l: 'Waive Geofence (dispatcher)', ask: 'Reason for waiving the arrival geofence', kwarg: 'reason' },
-      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
+      { m: 'action_decline', l: 'Decline', ask: 'Reason for declining the job', kwarg: 'reason', states: ['dispatched'] },
+      { m: 'action_arrive', l: 'Mark Arrival', ask: 'Your position: latitude, longitude (e.g. 23.8103, 90.4125)', kwarg: 'position', states: ['en_route'] },
+      { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment', states: ['arrived', 'in_progress'] },
+      { m: 'action_handover_field_cash', l: 'Hand Over Cash', states: ['completed'] },
+      { m: 'action_reassign', l: 'Reassign (dispatcher)', ask: 'New technician employee id, then the reason', kwarg: 'reassignment', states: ['dispatched', 'accepted', 'en_route'] },
+      { m: 'action_waive_geofence', l: 'Waive Geofence (dispatcher)', ask: 'Reason for waiving the arrival geofence', kwarg: 'reason', states: ['dispatched', 'accepted', 'en_route'] },
+      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason', states: ['draft', 'pending_dispatch', 'declined', 'dispatched', 'accepted', 'en_route', 'arrived', 'in_progress'] }
     ] },
   /* A decline is recorded by Decline on the field order (Work Order Record),
    * which checks the order is dispatched to the decliner; the model refuses
@@ -155,9 +160,16 @@ export const SCREENS = {
     title: 'Crews & Multi-Tech Jobs', period: false },
   'M02-zones': { kind: 'model_list', model: 'fix.geofence',
     cols: ['name', 'zone_id', 'geofence_type', 'active'] },
+  /* The route's three workflow methods were whitelisted but on no button, so
+   * a plan stayed "Draft Itinerary" for good (bidirectional audit 2026-11-13). */
   'M02-routes': { kind: 'model_list', model: 'fix.field.route',
     cols: ['name', 'technician_id', 'date', 'order_count', 'total_distance_km', 'total_duration_hours', 'improvement_pct', 'route_state'],
-    stateField: 'route_state' },
+    stateField: 'route_state',
+    actions: [
+      { m: 'action_optimize_route', l: 'Optimise Route', states: ['draft', 'optimized'] },
+      { m: 'action_start_route', l: 'Start Route', states: ['draft', 'optimized'] },
+      { m: 'action_complete_route', l: 'Complete Route', states: ['in_progress'] }
+    ] },
   'M02-territory': { kind: 'table_report', module: 'M02', report: 'zone_workload', title: 'Territory Workload Balance', period: false },
 
   /* ============ TECHNICIAN APP (P02) + SAFETY & PAYMENTS (registry v2) ====
@@ -239,19 +251,22 @@ export const SCREENS = {
     back: 'M02-zones',
     tabs: [
       { id: 'boundary', label: '1. Territory & Zone', bn: '১. অঞ্চল ও জোন', icon: '🗺️', badge: '4' },
-      { id: 'geometry', label: '2. GeoJSON Polygon', bn: '২. জিওজেসন বহুভুজ', icon: '📐', badge: '1' }
+      { id: 'geometry', label: '2. Fence Geometry', bn: '২. সীমানার জ্যামিতি', icon: '📐', badge: '1' }
     ],
     sections: [
-      { tab: 'boundary', title: 'Geofence Territory Identity', note: 'A geofence bounds a dispatch zone: the geometry the P02 app tests a technician position against, and the zone it belongs to.',
+      { tab: 'boundary', title: 'Geofence Territory Identity', note: 'A geofence bounds a dispatch zone: the geometry an arrival is tested against, and the zone it belongs to. The fence register is Platform Admin master data: only a Platform Admin can save one.',
         fields: [
           { name: 'name', required: true, label: 'Geofence Name' },
           { name: 'geofence_type', required: true, label: 'Geofence Type' },
           { name: 'zone_id', required: true, label: 'Dispatch Zone' },
           { name: 'active', label: 'Active' }
         ] },
-      { tab: 'geometry', title: 'GeoJSON Polygon Coordinates',
+      /* It said "GeoJSON": real GeoJSON fails the model's check, which reads
+       * the two shapes below (fix.geofence._check_geometry). */
+      { tab: 'geometry', title: 'Fence Geometry',
+        note: 'A circle: {"lat": 23.7937, "lng": 90.4066, "radius_m": 500} (radius up to 100,000 m). A polygon: {"points": [[23.79, 90.40], [23.80, 90.41], [23.78, 90.42]]}, at least three latitude, longitude points. An unreadable fence refuses every arrival.',
         fields: [
-          { name: 'geometry_json', required: true, type: 'text', label: 'Geometry (GeoJSON)' }
+          { name: 'geometry_json', required: true, type: 'text', label: 'Geometry (JSON)' }
         ] }
     ]
   },
@@ -376,7 +391,7 @@ export const SCREENS = {
         title: 'Lone-Worker Safety Check-In & Field Evidence Pack',
         note: 'Completion needs the customer sign-off (verified OTP or signature), a post-work photo and the work summary. The signature and photos come from the technician app.',
         fields: [
-          { name: 'lone_worker_checkin_at', label: 'Last Safety Heartbeat At' },
+          { name: 'lone_worker_checkin_at', label: 'Last Safety Heartbeat At', readonly: true },
           { name: 'work_summary', label: 'On-Site Work Summary', type: 'text' },
           { name: 'customer_otp_verified', label: 'Customer OTP Verified', readonly: true },
           { name: 'customer_signature_attachment_id', label: 'Customer Signature', readonly: true },
@@ -495,17 +510,23 @@ export const SCREENS = {
     back: 'M02-routes',
     status: { field: 'route_state' },
     tabs: [
-      { id: 'plan', label: '1. Route Header', bn: '১. রুট তথ্য', icon: '🗺️', badge: '3' },
+      { id: 'plan', label: '1. Route & Stops', bn: '১. রুট ও স্টপ', icon: '🗺️', badge: '6' },
       { id: 'metrics', label: '2. Optimisation Metrics', bn: '২. অপ্টিমাইজেশন ফলাফল', icon: '📊', badge: '4' }
     ],
     sections: [
       {
         tab: 'plan',
-        title: 'Route Schedule & Technician',
+        title: 'Route Schedule, Technician & Stops',
+        /* The stops were not on the form, and Optimise refuses a route of
+         * fewer than two orders: a plan made here could never leave Draft. */
+        note: 'The reference is numbered on save. Add field orders as stops, the technician\'s own or ones not yet dispatched (two or more, each with a site position), then Optimise Route on the Route Optimisation list, Start it and Complete it there.',
         fields: [
-          { name: 'name', required: true, label: 'Route Reference' },
+          { name: 'name', label: 'Route Reference', readonly: true },
           { name: 'technician_id', required: true, label: 'Technician' },
-          { name: 'date', required: true, label: 'Route Date' }
+          { name: 'date', required: true, label: 'Route Date' },
+          { name: 'field_order_ids', label: 'Stops (field orders)', domain: [['state', 'in', ['draft', 'pending_dispatch', 'dispatched', 'accepted', 'en_route']]] },
+          { name: 'depot_location', label: 'Starting Depot / Hub' },
+          { name: 'notes', type: 'text', label: 'Route Notes' }
         ]
       },
       {

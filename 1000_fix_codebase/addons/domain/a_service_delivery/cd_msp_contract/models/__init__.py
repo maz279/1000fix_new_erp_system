@@ -4,4 +4,13 @@
 # (A02 audit P1/P2) extends all of them, so it comes last.
 # fix_msp_rules (M05 capture audit) extends the alert, asset and contract
 # after all of them.
-from . import fix_msp, fix_msp_engines, fix_msp_ext, fix_msp_lifecycle, fix_msp_rules
+# fix_msp_rules_bru (the business rules found unbuilt by the audit) extends them all
+# and comes last.
+from . import (
+    fix_msp,
+    fix_msp_engines,
+    fix_msp_ext,
+    fix_msp_lifecycle,
+    fix_msp_rules,
+    fix_msp_rules_bru,
+)

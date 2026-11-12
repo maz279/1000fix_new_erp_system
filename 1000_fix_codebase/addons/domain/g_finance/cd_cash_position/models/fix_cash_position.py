@@ -812,6 +812,16 @@ class FixPaymentExecution(models.Model):
             "options": {"method": "cash"} if inv.payment_channel == "non_bank" else {},
         }
 
+    def _payment_resolvers(self):
+        """The documents that may request a payment, each with the resolver
+        that re-reads its payee, bank, amount and approver. A module that adds
+        a payable document extends this (cd_ap_ext: the supplier advance)."""
+        return {
+            "fix.expense.claim": self._resolve_expense_claim,
+            "fix.employee.advance": self._resolve_advance_excess,
+            "fix.vendor.invoice": self._resolve_vendor_invoice,
+        }
+
     @api.model
     def consume_payment_requested(self, event: dict) -> FixPaymentExecution:
         """Registered consumer of payment.requested (fix.event.consumer).
@@ -831,11 +841,7 @@ class FixPaymentExecution(models.Model):
             res_id = int(event.get("aggregate_id") or 0)
         except (TypeError, ValueError):
             res_id = 0
-        resolvers = {
-            "fix.expense.claim": self._resolve_expense_claim,
-            "fix.employee.advance": self._resolve_advance_excess,
-            "fix.vendor.invoice": self._resolve_vendor_invoice,
-        }
+        resolvers = self._payment_resolvers()
         if model not in resolvers or model not in self.env:
             raise UserError("payment.requested from %s is not a known payment source." % model)
         source = self.env[model].sudo().browse(res_id).exists()

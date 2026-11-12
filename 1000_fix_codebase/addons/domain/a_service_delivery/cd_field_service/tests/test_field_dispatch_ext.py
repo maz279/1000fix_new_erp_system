@@ -51,6 +51,13 @@ def fx(odoo_env):
     )()
 
 
+def _visit_day(env):
+    """The day the suggestion engine reads for an order with no scheduled start:
+    the acting user's calendar day (the M55 frame), not the UTC test clock -
+    between 00:00 and 06:00 Dhaka the two differ."""
+    return fields.Date.context_today(env["fix.field.order"])
+
+
 def _shift(env):
     """A shift template for roster slots (fix_test ships none)."""
     shift = env["fix.shift.template"].search([], limit=1)
@@ -180,7 +187,7 @@ def test_suggestions_rank_rostered_certified_zone_technician_first(fx):
     env["fix.roster.slot"].create(
         {
             "employee_id": star.id,
-            "date": date.today(),
+            "date": _visit_day(env),  # the day the engine reads (user frame)
             "shift_id": _shift(env).id,
             "branch_id": fx.branch.id,  # branch carries the order's zone
         }
@@ -278,7 +285,7 @@ def test_a_suggestion_says_what_the_gate_will_say_about_the_brand(fx):
         env["fix.roster.slot"].create(
             {
                 "employee_id": tech.id,
-                "date": date.today(),
+                "date": _visit_day(env),  # the day the engine reads (user frame)
                 "shift_id": _shift(env).id,
                 "branch_id": fx.branch.id,
             }

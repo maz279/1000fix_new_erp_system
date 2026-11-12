@@ -125,3 +125,20 @@ def test_the_foreign_set_is_configurable_and_fails_closed(c):
     assert s._a06_mandatory_docs() == ("incorporation", "bank")
     params.set_param("cd_vendor_portal.mandatory_docs_foreign", "nonsense")
     assert s._a06_mandatory_docs() == FOREIGN_DOCS
+
+
+def test_vendor_pickers_can_filter_contacts_by_residency(c):
+    """The local PO picker asks for resident suppliers, the import PO picker
+    for foreign ones (13 Nov 2026)."""
+    home = supplier(c)
+    abroad = foreign_supplier(c)
+    Partner = c.env["res.partner"]
+    resident = Partner.search([("fix_supplier_residency", "=", "resident")])
+    foreign = Partner.search([("fix_supplier_residency", "=", "foreign")])
+    assert home.partner_id in resident and home.partner_id not in foreign
+    assert abroad.partner_id in foreign and abroad.partner_id not in resident
+    assert abroad.partner_id.fix_supplier_residency == "foreign"
+    # a contact with no supplier record matches neither
+    stranger = Partner.create({"name": "A06M42T not a supplier"})
+    assert stranger not in resident | foreign
+    assert not stranger.fix_supplier_residency

@@ -30,9 +30,6 @@ export const MODULE = {
     { l: 'On-Call Escalations', m: 'oncall_escalations' }
   ],
   groups: [
-    { en: 'Record Coverage', screens: [
-      { id: 'M05-msp-patch-policy', en: "Msp Patch Policy", bn: "এমএসপি প্যাচ পলিসি", t: 'g' }
-    ]},
     { en: 'Remote Sessions', screens: [
       { id: 'M05-sessions', en: 'Remote Sessions', bn: 'রিমোট সেশন', t: 'g' },
       { id: 'M05-console', en: 'Session Console', bn: 'সেশন কনসোল', t: 'g' }
@@ -41,15 +38,18 @@ export const MODULE = {
       { id: 'M05-estate', en: 'Estate & Agents', bn: 'এস্টেট ও এজেন্ট', t: 'g' },
       { id: 'M05-health', en: 'Health Scoring', bn: 'হেলথ স্কোরিং', t: 'r' },
       { id: 'M05-alerts', en: 'Alert Rules & Inbox', bn: 'অ্যালার্ট ইনবক্স', t: 'g' },
-      { id: 'M05-alert-rules', en: 'Alert Rules', bn: 'অ্যালার্ট নিয়ম', t: 'g' }
+      { id: 'M05-alert-rules', en: 'Alert Rules', bn: 'অ্যালার্ট নিয়ম', t: 'g' },
+      { id: 'M05-backups', en: 'Backup Jobs', bn: 'ব্যাকআপ জব', t: 'g' }
     ]},
     { en: 'Service Desk', screens: [
       { id: 'M05-tickets', en: 'MSP Tickets', bn: 'এমএসপি টিকেট', t: 'g' },
       { id: 'M05-oncall', en: 'On-Call Rota', bn: 'অন-কল রোটা', t: 'g' },
-      { id: 'M05-runbooks', en: 'Runbooks & Auto-Remediation', bn: 'রানবুক ও অটো-রিমিডিয়েশন', t: 'g' }
+      { id: 'M05-runbooks', en: 'Runbooks & Auto-Remediation', bn: 'রানবুক ও অটো-রিমিডিয়েশন', t: 'g' },
+      { id: 'M05-runbook-runs', en: 'Runbook Executions', bn: 'রানবুক সম্পাদন', t: 'g' }
     ]},
     { en: 'Compliance', screens: [
       { id: 'M05-patching', en: 'Patch Management', bn: 'প্যাচ ব্যবস্থাপনা', t: 'g' },
+      { id: 'M05-msp-patch-policy', en: 'Patch Policies', bn: 'প্যাচ পলিসি', t: 'g' },
       { id: 'M05-windows', en: 'Maintenance Windows', bn: 'মেইনটেন্যান্স উইন্ডো', t: 'g' },
       { id: 'M05-problem', en: 'Problem & Change', bn: 'সমস্যা ও পরিবর্তন', t: 'g' }
     ]},
@@ -65,7 +65,7 @@ export const MODULE = {
    * each sub-module page names the forms that capture its records */
   forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window',
     'Managed Estate Device', 'Health Reading', 'Alert Rule', 'On-Call Shift', 'Runbook', 'Patch Update',
-    'Monthly Service Report'],
+    'Monthly Service Report', 'Runbook Execution', 'Backup Job'],
   cross: ['M08 contract entitlement', 'M17 monitored assets', 'M48 telemetry streams', 'M20 SLA credit billing', 'P04 client portal'],
   freg: {
     src: 93,
@@ -75,12 +75,12 @@ export const MODULE = {
       /* 3 FR-RMS-010/011: an engineer's reading of an asset (an agentless
        * device or a site check) - the health score is computed from it. The
        * page had no button: the metrics were written by the collector only. */
-      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading'], create: 'M05-form-reading' }],
+      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate', 'M05-backups'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading', 'Backup Job'], create: 'M05-form-reading' }],
       /* 4 FR-RMS-015: the engine is configured by its rules; alerts are
        * raised by readings that cross them. The button opened the ticket form. */
       ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket'], create: 'M05-form-alert-rule' }],
       ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: ['On-Call Shift'] }],
-      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'], reports: [], forms: ['Runbook'] }],
+      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks', 'M05-runbook-runs'], reports: [], forms: ['Runbook', 'Runbook Execution'] }],
       ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Patch Update', 'Maintenance Window'] }],
       /* 8 FR-RMS-026: a client reports by phone, email, portal or chat; the
        * desk lists those and every ticketed alert. Its list refused "+ New",
@@ -99,27 +99,34 @@ export const MODULE = {
 export const SCREENS = {
   /* --- Remote Sessions --- */
   'M05-sessions': { kind: 'model_list', model: 'fix.remote.session',
-    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at'],
+    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'access_mode', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at'],
     stateField: 'tool',
     actions: [
       { m: 'action_request_consent', l: 'Request Consent' },
       { m: 'action_verify_consent', l: 'Verify Consent', ask: "Consent code the client read back", kwarg: 'code' },
       { m: 'action_start', l: 'Start Session' },
-      { m: 'action_end', l: 'End Session', ask: 'Session recording reference', kwarg: 'recording_url' }
+      { m: 'action_end', l: 'End Session', ask: 'Session recording reference', kwarg: 'recording_url' },
+      /* BRU-RMS-12: the reference is shown and the opening logged */
+      { m: 'action_open_recording', l: 'Open Recording' }
     ] },
   /* the console = what is RUNNING right now (started, not yet ended) */
-  'M05-console': { kind: 'model_list', model: 'fix.remote.session', create: true,
+  'M05-console': { kind: 'model_list', model: 'fix.remote.session', create: false,
+    empty: 'No remote session is running. Open one on Remote Sessions: request and verify the client\u2019s consent, then Start Session.',
     cols: ['started_at', 'msp_contract_id', 'asset_id', 'technician_id', 'tool', 'consent_captured'],
     domain: [['started', '=', true], ['ended_at', '=', false]],
     actions: [{ m: 'action_end', l: 'End Session', ask: 'Session recording reference', kwarg: 'recording_url' }] },
 
   /* --- Monitored Estate --- */
   'M05-estate': { kind: 'model_list', model: 'fix.monitored.asset', create: true,
-    cols: ['agent_id', 'hostname', 'msp_contract_id', 'device_id', 'health', 'health_score', 'open_alert_count', 'last_seen'],
-    stateField: 'health' },
+    cols: ['agent_id', 'hostname', 'msp_contract_id', 'device_id', 'health', 'health_score', 'open_alert_count', 'last_seen', 'agent_removed_at'],
+    stateField: 'health',
+    /* BRU-RMS-11: during a client's offboarding each agent's removal is evidenced */
+    actions: [
+      { m: 'action_record_agent_removal', l: 'Record Agent Removal (offboarding)', ask: 'Evidence: how the removal was confirmed', kwarg: 'evidence' }
+    ] },
   'M05-health': { kind: 'table_report', module: 'M05', report: 'estate_health', period: false },
   'M05-alerts': { kind: 'model_list', model: 'fix.msp.alert', create: true,
-    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'state', 'escalated', 'order_id', 'resolved_at'],
+    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'coverage_gap', 'state', 'escalated', 'order_id', 'resolved_at'],
     stateField: 'state',
     actions: [
       { m: 'action_acknowledge', l: 'Acknowledge' },
@@ -137,7 +144,7 @@ export const SCREENS = {
    * the desk = what clients reported (phone, email, portal, chat) and every
    * alert that became a ticket. "+ New" logs a client's report. */
   'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert',
-    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
+    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'recurring', 'problem_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
     stateField: 'state',
     domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']],
     actions: [
@@ -156,10 +163,21 @@ export const SCREENS = {
   'M05-runbooks': { kind: 'model_list', model: 'fix.msp.runbook',
     cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert', 'run_count', 'last_run_at'],
     stateField: 'trigger',
+    /* a quick log names the asset; an execution with its evidence and
+     * outcome (a failure too) is logged on + Log Runbook Execution */
     actions: [
-      { m: 'action_execute', l: 'Log Execution', ask: 'Asset agent ID (blank = first in scope)', kwarg: 'asset' },
-      { m: 'action_execute_with_evidence', l: 'Log Execution with Evidence', ask: 'Evidence: what the steps showed (required to resolve the alert)', kwarg: 'evidence' }
+      { m: 'action_execute', l: 'Log Successful Execution', ask: 'Asset the steps were run on (agent ID or hostname)', kwarg: 'asset' }
     ] },
+  /* spec T-08: every execution with its target, outcome and output */
+  'M05-runbook-runs': { kind: 'model_list', model: 'fix.msp.runbook.run',
+    cols: ['started_at', 'runbook_id', 'asset_id', 'alert_id', 'outcome', 'output_note', 'logged_by_id'],
+    stateField: 'outcome',
+    empty: 'No runbook execution logged yet. Log one with + Log Runbook Execution after running the steps.' },
+  /* FR-RMS-039: backup job outcomes and restore tests per asset */
+  'M05-backups': { kind: 'model_list', model: 'fix.msp.backup.job',
+    cols: ['run_at', 'msp_contract_id', 'asset_id', 'plan_ref', 'outcome', 'restore_tested', 'consecutive_failures', 'alert_id'],
+    stateField: 'outcome',
+    empty: 'No backup job recorded yet. Record each job with + Record a Backup Job; a failed job raises an alert on its asset.' },
 
   /* --- Compliance --- */
   'M05-patching': { kind: 'model_list', model: 'fix.msp.patch.update',
@@ -200,14 +218,19 @@ export const SCREENS = {
   /* --- Client Reporting --- */
   'M05-sla': { kind: 'table_report', module: 'M05', report: 'sla_by_client', title: 'MSP SLA Attainment by Client', period: false },
   'M05-reviews': { kind: 'model_list', model: 'fix.msp.service.report', create: false,
-    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'pending_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en'],
+    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'pending_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en', 'summary_bn'],
     actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' }] },
   /* the monthly report and the SLA credit run, per MSP contract */
   'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract',
-    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'monitoring_scope', 'sla_target_pct', 'monthly_value'],
+    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'enrolled_count', 'coverage_window', 'sla_target_pct', 'monthly_value', 'lifecycle'],
+    stateField: 'lifecycle',
     actions: [
       { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
-      { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' }
+      { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' },
+      /* BRU-RMS-11 offboarding: start, record access revoked, complete */
+      { m: 'action_start_offboarding', l: 'Start Offboarding' },
+      { m: 'action_record_access_revoked', l: 'Record Access Revoked', ask: 'Evidence: which access was revoked and how it was checked', kwarg: 'evidence' },
+      { m: 'action_complete_offboarding', l: 'Complete Offboarding' }
     ] },
   /* credits are computed from the service report; a manual credit is typed
    * on the credit form and needs the DOFA tier of its amount */
@@ -229,7 +252,7 @@ export const SCREENS = {
   'M05-rpt-resolution': { kind: 'table_report', module: 'M05', report: 'remote_resolution', title: 'Remote Resolution Rate', period: true },
   'M05-rpt-patch': { kind: 'table_report', module: 'M05', report: 'patch_compliance', title: 'Patch Compliance Report', period: false },
   'M05-rpt-alertconv': { kind: 'table_report', module: 'M05', report: 'alert_conversion', title: 'Alert-to-Ticket Conversion', period: true },
-  'M05-rpt-backup': { kind: 'table_report', module: 'M05', report: 'backup_log', title: 'Backup & Restore Test Log', period: false },
+  'M05-rpt-backup': { kind: 'table_report', module: 'M05', report: 'backup_log', title: 'Backup & Restore Test Log', period: true },
   'M05-rpt-credits': { kind: 'table_report', module: 'M05', report: 'sla_credit_register', title: 'SLA Credit Register', period: true },
 
   /* ============ THE FOUR REGISTRY FORMS as D365 model_forms (v2) ==========
@@ -237,27 +260,35 @@ export const SCREENS = {
   'M05-form-session': { kind: 'model_form', model: 'fix.remote.session',
     title: 'Remote Session', back: 'M05-sessions',
     tabs: [
-      { id: 'session', label: '1. Session Identity', bn: '১. সেশন তথ্য', icon: '🖥️', badge: '5' },
-      { id: 'consent', label: '2. Consent & Recording', bn: '২. সম্মতি ও অডিট', icon: '🔒', badge: '5' }
+      { id: 'session', label: '1. Session Identity', bn: '১. সেশন তথ্য', icon: '🖥️', badge: '7' },
+      { id: 'consent', label: '2. Consent & Recording', bn: '২. সম্মতি ও অডিট', icon: '🔒', badge: '11' }
     ],
     sections: [
       { tab: 'session', title: 'Remote Support Session Scope & Asset', fields: [
         { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
-        { name: 'asset_id', label: 'Monitored Asset' },
-        { name: 'technician_id', label: 'Technician' },
-        { name: 'tool', label: 'Remote Access Tool' },
+        { name: 'asset_id', required: true, label: 'Monitored Asset' },
+        { name: 'technician_id', required: true, label: 'Technician' },
+        { name: 'tool', required: true, label: 'Remote Access Tool' },
+        { name: 'access_mode', required: true, label: 'Access Mode (unattended only if the contract grants it)' },
+        { name: 'session_protocol', label: 'Transport Encryption' },
+        { name: 'order_id', label: 'Service Order (the ticket worked on)' },
         { name: 'started', label: 'Session Active', readonly: true },
       ]},
-      { tab: 'consent', title: 'Customer Explicit Consent & Session Log (FLAW-05.1)',
+      { tab: 'consent', title: 'Customer Explicit Consent & Session Log',
         note: 'A remote session strictly requires customer consent recording prior to opening remote desktop tunnels.',
         fields: [
           { name: 'consent_partner_id', label: 'Consenting Client Contact (receives the code)' },
+          { name: 'consent_requested_at', label: 'Consent Code Sent At', readonly: true },
+          { name: 'consent_expires_at', label: 'Consent Code Expires At', readonly: true },
           { name: 'consent_captured', label: 'Customer Explicit Consent Captured', readonly: true },
+          { name: 'consent_verified_by_id', label: 'Consent Code Entered By', readonly: true },
           { name: 'consent_token_ref', label: 'Consent Token Reference', readonly: true },
           { name: 'consent_captured_at', label: 'Consent Captured At', readonly: true },
           { name: 'started_at', label: 'Session Started At', readonly: true },
           { name: 'ended_at', label: 'Session Ended At', readonly: true },
           { name: 'recording_url', label: 'Session Recording Reference', readonly: true },
+          { name: 'recording_access_count', label: 'Recording Opened (times, each logged)', readonly: true },
+          { name: 'recording_purged_at', label: 'Recording Purged At (retention)', readonly: true },
           { name: 'session_summary', label: 'Session Actions / Troubleshooting Summary', type: 'text' }
         ]},
     ] },
@@ -282,9 +313,13 @@ export const SCREENS = {
         { name: 'message', required: true, label: 'What the Client Reported' },
         { name: 'rule_id', label: 'Raised by Alert Rule', readonly: true },
         { name: 'escalated', label: 'Escalated to On-Call Rota', readonly: true },
+        { name: 'escalated_at', label: 'Escalated At', readonly: true },
+        { name: 'coverage_gap', label: 'Coverage Gap (no agent report for 24 h)', readonly: true },
       ]},
       { tab: 'resolution', title: 'Ticket Conversion & Resolution Verification', fields: [
         { name: 'order_id', label: 'Commercial Service Order (M01)', readonly: true },
+        { name: 'recurring', label: 'Recurring on This Asset (BRU-RMS-10)', readonly: true },
+        { name: 'problem_id', label: 'Problem Record (needed to resolve a recurring incident)' },
         { name: 'state', label: 'Ticket / Alert State', readonly: true },
         { name: 'resolved_at', label: 'Resolved Timestamp', readonly: true },
         { name: 'resolution_note', label: 'Root Cause & Resolution Summary', type: 'text', readonly: true }
@@ -303,17 +338,17 @@ export const SCREENS = {
         { name: 'name', required: true, label: 'Change Title' },
         { name: 'msp_contract_id', label: 'MSP Contract' },
         { name: 'asset_id', label: 'Target Asset / Service' },
-        { name: 'kind', label: 'Record Kind (Problem / Change)' },
-        { name: 'change_type', label: 'Change Type (Standard/Normal/Emergency)' },
+        { name: 'kind', required: true, label: 'Record Kind (Problem / Change)' },
+        { name: 'change_type', required: true, label: 'Change Type (Standard/Normal/Emergency)' },
         { name: 'emergency', label: 'Emergency Path (change manager approves)', readonly: true },
         { name: 'requested_by', label: 'Requested By Engineer' },
         { name: 'maintenance_window_id', label: 'Approved Maintenance Window' },
         { name: 'state', label: 'Change Lifecycle State', readonly: true }
       ]},
       { tab: 'approval', title: 'Risk Assessment, CAB Approval & Rollback Plan',
-        note: 'A high-risk change needs a rollback plan before CAB approval. A normal change is implemented only inside its approved, open window; an emergency change needs a post-implementation review before close.',
+        note: 'Every change needs a rollback plan before CAB approval (BRU-RMS-08); a problem record does not. A normal change is implemented only inside its approved, open window; an emergency change needs a post-implementation review before close.',
         fields: [
-        { name: 'risk', label: 'Risk Rating (Low/Medium/High)' },
+        { name: 'risk', required: true, label: 'Risk Rating (Low/Medium/High)' },
         { name: 'description', label: 'Scope of Change & Implementation Plan', type: 'text' },
         { name: 'rollback_plan', label: 'Backout & Rollback Plan', type: 'text' },
         { name: 'cab_approver_id', label: 'CAB Approving Authority', readonly: true },
@@ -323,6 +358,7 @@ export const SCREENS = {
         { name: 'resolution_note', label: 'Implementation / Closing Note', type: 'text', readonly: true },
         { name: 'pir_note', label: 'Post-Implementation Review', type: 'text', readonly: true },
         { name: 'pir_by_id', label: 'Reviewed By', readonly: true },
+        { name: 'pir_at', label: 'Reviewed At', readonly: true },
         { name: 'approval_state', label: 'Approval (M63 inbox)', readonly: true },
         { name: 'approval_request_id', label: 'Approval Request', readonly: true }
       ]},
@@ -347,7 +383,9 @@ export const SCREENS = {
         { name: 'purpose', label: 'Maintenance Objective & Work Items', type: 'text' },
         { name: 'suppress_alerts', label: 'Suppress Automated Outage Alerts' },
         { name: 'approved_by_id', label: 'Approved By (CAB / Change Manager)', readonly: true },
-        { name: 'approved_at', label: 'Approved At', readonly: true }
+        { name: 'approved_at', label: 'Approved At', readonly: true },
+        { name: 'closed_by_id', label: 'Closed Early By', readonly: true },
+        { name: 'closed_at', label: 'Closed At', readonly: true }
       ]},
     ] },
 
@@ -360,10 +398,10 @@ export const SCREENS = {
     back: 'M05-estate',
     tabs: [
       { id: 'asset', label: '1. Device Identity', bn: '১. ডিভাইসের পরিচিতি', icon: '💻', badge: '9' },
-      { id: 'telemetry', label: '2. Telemetry & Agent Health', bn: '২. এজেন্ট স্থিতি ও অডিট', icon: '📊', badge: '3' }
+      { id: 'telemetry', label: '2. Telemetry & Agent Health', bn: '২. এজেন্ট স্থিতি ও অডিট', icon: '📊', badge: '5' }
     ],
     sections: [
-      { tab: 'asset', title: "Managed Estate Device Inventory", note: "One device under the MSP contract: serials, warranty window and covered-customer link.",
+      { tab: 'asset', title: "Managed Estate Device Inventory", note: "One endpoint under the MSP contract: its monitoring agent, network identity and the registered device a ticket is raised on.",
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'msp_contract_id', required: true, label: "MSP Contract" },
@@ -381,7 +419,9 @@ export const SCREENS = {
         fields: [
           { name: 'health_score', label: "Composite Health Score (0-100)", readonly: true },
           { name: 'open_alert_count', label: "Active Unresolved Alerts", readonly: true },
-          { name: 'last_seen', label: "Agent Last Heartbeat Timestamp", readonly: true }
+          { name: 'last_seen', label: "Agent Last Heartbeat Timestamp", readonly: true },
+          { name: 'agent_removed_at', label: "Agent Removed At (offboarding)", readonly: true },
+          { name: 'agent_removal_evidence', label: "Agent Removal Evidence", readonly: true }
         ] }
     ]
   },
@@ -462,7 +502,10 @@ export const SCREENS = {
           { name: 'category', required: true, label: "Patch Category (OS / App / Firmware)" },
           { name: 'state', label: "Deployment State", readonly: true },
           { name: 'approved_by_id', label: "Approved By", readonly: true },
+          { name: 'approved_date', label: "Approved On", readonly: true },
           { name: 'auto_approved_policy_id', label: "Auto-Approved By Policy", readonly: true },
+          { name: 'deferred_until', label: "Deferred Until", readonly: true },
+          { name: 'tested_by_id', label: "Tested By", readonly: true },
           { name: 'installed_at', label: "Installation Verified At", readonly: true },
           { name: 'fail_note', label: "Failure Note", readonly: true },
           { name: 'tested_at', label: "Pre-Deployment Test Passed At", readonly: true },
@@ -501,7 +544,8 @@ export const SCREENS = {
       ] },
     tabs: [
       { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
-      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '5' }
+      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '8' },
+      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '7' }
     ],
     sections: [
       { tab: 'contract', title: "Contract & Monitoring Scope",
@@ -512,7 +556,9 @@ export const SCREENS = {
           { name: 'contract_state', label: "M08 Contract State", readonly: true },
           { name: 'entitled', label: "Entitled Today", readonly: true },
           { name: 'monitoring_scope', required: true, label: "Monitoring Scope" },
-          { name: 'device_count', label: "Covered Devices" }
+          { name: 'device_count', label: "Covered Devices (0 = bill every enrolled device)" },
+          { name: 'enrolled_count', label: "Enrolled Devices", readonly: true },
+          { name: 'unattended_access', label: "Unattended Access Granted (BRU-RMS-02)" }
         ] },
       { tab: 'commercial', title: "Commercials & Service Levels",
         note: "The monthly value is the covered devices times the per-device price; the SLA credit of a month can never exceed it.",
@@ -521,7 +567,19 @@ export const SCREENS = {
           { name: 'monthly_value', label: "Monthly Value (BDT)", readonly: true },
           { name: 'sla_target_pct', label: "SLA Target %" },
           { name: 'alert_resolve_hours_major', label: "Major Alert Resolution Target (h)" },
-          { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" }
+          { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" },
+          { name: 'coverage_window', required: true, label: "SLA Coverage Window (the hours the clock runs)" },
+          { name: 'recording_retention_days', label: "Session Recording Retention (days, 0 = contract life)" }
+        ] },
+      { tab: 'lifecycle', title: "Service Lifecycle & Offboarding (BRU-RMS-11)",
+        note: "Offboarding is run from MSP Contracts: Start Offboarding, record each agent's removal on Estate & Agents and the access revocation here, then Complete Offboarding. It completes only when every agent is removed and access is revoked, each with its evidence.",
+        fields: [
+          { name: 'lifecycle', label: "Service Lifecycle", readonly: true },
+          { name: 'offboarding_started_at', label: "Offboarding Started At", readonly: true },
+          { name: 'access_revoked_at', label: "Access Revoked At", readonly: true },
+          { name: 'access_revoked_evidence', label: "Access Revocation Evidence", readonly: true },
+          { name: 'offboarded_at', label: "Offboarded At", readonly: true },
+          { name: 'offboarded_by_id', label: "Offboarded By", readonly: true }
         ] }
     ] },
 
@@ -553,11 +611,15 @@ export const SCREENS = {
           { name: 'computed_amount', label: "Computed Credit (BDT)", readonly: true },
           { name: 'credit_amount', label: "Credit Amount (BDT)", readonly: true },
           { name: 'dofa_tier_required', label: "DOFA Tier Required", readonly: true },
+          { name: 'is_manual', label: "Manual Credit / Override", readonly: true },
+          { name: 'breach_count', label: "SLA Breaches in the Month", readonly: true },
           { name: 'approved_by_id', label: "Approved By", readonly: true },
+          { name: 'approved_at', label: "Approved At", readonly: true },
           { name: 'approved_amount', label: "Amount Approved (BDT)", readonly: true },
           { name: 'approval_state', label: "Approval (M63 inbox)", readonly: true },
           { name: 'approval_request_id', label: "Approval Request", readonly: true },
-          { name: 'applied_at', label: "Applied to Billing At", readonly: true }
+          { name: 'applied_at', label: "Applied to Billing At", readonly: true },
+          { name: 'applied_by_id', label: "Applied By", readonly: true }
         ] }
     ]
   },
@@ -675,17 +737,66 @@ export const SCREENS = {
     ]
   },
 
+  /* 6 Runbooks & Remediation: spec T-08. Saved once, then evidence; the
+   * server checks the asset is in the runbook's scope, the alert is the
+   * asset's, and that a failure (or an alert resolution) says what happened. */
+  'M05-form-runbook-run': {
+    kind: 'model_form',
+    model: 'fix.msp.runbook.run',
+    title: 'Runbook Execution',
+    newLabel: 'Log Runbook Execution',
+    back: 'M05-runbook-runs',
+    sections: [
+      { title: 'What Was Run, Where, and What Happened',
+        note: 'Log the execution after running the steps. A successful run of a runbook set to resolve alerts resolves the asset’s open alert; a failed run never does. Needs the MSP Engineer role.',
+        fields: [
+          { name: 'runbook_id', required: true, label: 'Runbook' },
+          { name: 'asset_id', required: true, label: 'Asset the Steps Were Run On' },
+          { name: 'alert_id', label: 'Alert It Answers (optional)' },
+          { name: 'outcome', required: true, label: 'Outcome' },
+          { name: 'output_note', label: 'Evidence: What the Steps Showed' },
+          { name: 'started_at', label: 'Logged At', readonly: true },
+          { name: 'logged_by_id', label: 'Logged By', readonly: true },
+          { name: 'state', label: 'Recorded Result', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 3 Metrics & Health Scoring: FR-RMS-039 backup oversight */
+  'M05-form-backup-job': {
+    kind: 'model_form',
+    model: 'fix.msp.backup.job',
+    title: 'Backup Job',
+    newLabel: 'Record a Backup Job',
+    back: 'M05-backups',
+    sections: [
+      { title: 'Backup Job Outcome & Restore Test',
+        note: 'One job of a backup plan on a client asset. A failed or partial job raises an alert on the asset (one per plan until it is resolved). Saved once; a job is not edited afterwards. Needs the MSP Engineer role.',
+        fields: [
+          { name: 'asset_id', required: true, label: 'Asset' },
+          { name: 'plan_ref', required: true, label: 'Backup Plan / Job' },
+          { name: 'run_at', required: true, label: 'Run At' },
+          { name: 'outcome', required: true, label: 'Outcome' },
+          { name: 'restore_tested', label: 'Restore Tested (data read back)' },
+          { name: 'note', label: 'Note (what failed, when it did)', type: 'text' },
+          { name: 'msp_contract_id', label: 'MSP Contract', readonly: true },
+          { name: 'consecutive_failures', label: 'Failures in a Row', readonly: true },
+          { name: 'alert_id', label: 'Alert Raised', readonly: true }
+        ] }
+    ]
+  },
+
   'M05-form-msp-patch-policy': {
     kind: 'model_form',
     model: 'fix.msp.patch.policy',
-    title: "Msp Patch Policy",
+    title: "Patch Policy",
     back: 'M05-msp-patch-policy',
     tabs: [
       { id: 'policy', label: '1. Policy Scope', bn: '১. পলিসির পরিধি', icon: '📋', badge: '5' },
       { id: 'rules', label: '2. Approval Rules', bn: '২. অনুমোদন নিয়মাবলী', icon: '⚙️', badge: '5' }
     ],
     sections: [
-      { tab: 'policy', title: "MSP Patch Policy Governance", note: "Opened from the module's own record set. Every field here is the model's real field.",
+      { tab: 'policy', title: "Patch Policy", note: "Which patches a contract (or every contract) approves automatically, and how long one may be deferred. Auto-approval of critical patches needs a CAB member's approval of the policy.",
         fields: [
           { name: 'name', required: true, label: "Policy Name" },
           { name: 'company_id', required: true, label: "Company" },
@@ -699,7 +810,8 @@ export const SCREENS = {
           { name: 'auto_approve', label: "Auto-Approve Patches (critical only if a CAB member approved the policy)" },
           { name: 'max_defer_days', label: "Max Defer Days" },
           { name: 'approved_by_id', label: "Policy Approved By", readonly: true },
-          { name: 'approved_by_cab', label: "Approved by a CAB Member", readonly: true }
+          { name: 'approved_by_cab', label: "Approved by a CAB Member", readonly: true },
+          { name: 'approved_at', label: "Policy Approved At", readonly: true }
         ] }
     ]
   },
@@ -727,7 +839,11 @@ export const FORM_CHIPS = {
     'M05-credits': 'M05-form-credit',
     'M05-alert-rules': 'M05-form-alert-rule',
     'M05-tickets': 'M05-form-ticket',
+    'M05-runbook-runs': 'M05-form-runbook-run',
+    'M05-backups': 'M05-form-backup-job',
   },
+  'M05:Runbook Execution': 'M05-form-runbook-run',
+  'M05:Backup Job': 'M05-form-backup-job',
   'M05:Health Reading': 'M05-form-reading',
   'M05:Alert Rule': 'M05-form-alert-rule',
   'M05:Monthly Service Report': 'M05-form-monthly-report',
@@ -752,7 +868,9 @@ export const FORM_CHIPS = {
     'fix.msp.alert': 'M05-form-ticket',
     'fix.msp.change.record': 'M05-form-change',
     'fix.msp.maintenance.window': 'M05-form-window',
-    'fix.msp.alert.rule': 'M05-form-alert-rule'
+    'fix.msp.alert.rule': 'M05-form-alert-rule',
+    'fix.msp.runbook.run': 'M05-form-runbook-run',
+    'fix.msp.backup.job': 'M05-form-backup-job'
   }
 };
 

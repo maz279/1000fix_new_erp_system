@@ -20,6 +20,7 @@ from odoo.tools import misc
 from libs.py.fix_events import publish  # FF-28
 
 from .fix_consignment import (
+    FROZEN_STATES,
     GROUP_HUB,
     GROUP_MANAGER,
     GROUP_RIDER,
@@ -495,6 +496,16 @@ class FixServiceOrderConsignmentBridge(models.Model):
                 ctype, origin, dest = "pickup", False, branch.id
             else:
                 ctype, origin, dest = "delivery", branch.id, False
+            # M03 audit 2026-11-13: a second press made a second live leg for
+            # the same move (two riders sent for one device)
+            live = order.consignment_ids.filtered(
+                lambda c, t=ctype: c.consignment_type == t and c.state not in FROZEN_STATES
+            )
+            if live:
+                raise UserError(
+                    "Order %s already has a live %s leg (%s); finish or return it before "
+                    "raising another." % (order.name, ctype, ", ".join(live.mapped("name")))
+                )
             ou = order.operating_unit_id or branch.operating_unit_id
             created |= Consignment.create(
                 {

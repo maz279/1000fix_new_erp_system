@@ -5,7 +5,7 @@ import os
 
 import requests
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 # Planning model constants (R01 re-audit 2026-10-22: the previous optimiser
 # multiplied the baseline by a hardcoded 0.813 - a constant masquerading as a
@@ -222,6 +222,34 @@ class FixFieldRoute(models.Model):
 
     notes = fields.Text(string="Route Notes")
     active = fields.Boolean(default=True)
+
+    @api.constrains("technician_id", "field_order_ids")
+    def _check_stops_belong_to_the_technician(self):
+        """A route is one technician's day: no stop is another technician's
+        field order, and none is cancelled (bidirectional audit 2026-11-13;
+        the stops became editable on the workspace Route Plan). An order not
+        yet dispatched may be planned onto the route before it is sent."""
+        for route in self:
+            tech = route.technician_id
+            foreign = route.field_order_ids.filtered(
+                lambda o, tech=tech: o.technician_id and o.technician_id != tech
+            )
+            if foreign:
+                raise ValidationError(
+                    "Route %s is %s's day: %s %s dispatched to someone else."
+                    % (
+                        route.name,
+                        route.technician_id.name,
+                        ", ".join(foreign.mapped("name")),
+                        "is" if len(foreign) == 1 else "are",
+                    )
+                )
+            cancelled = route.field_order_ids.filtered(lambda o: o.state == "cancelled")
+            if cancelled:
+                raise ValidationError(
+                    "A cancelled field order is not a stop: %s."
+                    % ", ".join(cancelled.mapped("name"))
+                )
 
     @api.depends("field_order_ids")
     def _compute_order_count(self):

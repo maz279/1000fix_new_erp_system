@@ -59,7 +59,10 @@ const S = P03_DATA_SCREENS;
 console.log(JSON.stringify({ subs, screens: Object.fromEntries(
   Object.entries(S).filter(([id]) => id.startsWith('M02-')).map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, pick: c.pick || null,
-    pickRecord: !!c.pickRecord, empty: !!c.empty, actions: (c.actions || []).map((a) => a.m) }])) }));
+    pickRecord: !!c.pickRecord, empty: !!c.empty, actions: (c.actions || []).map((a) => a.m),
+    gated: (c.actions || []).map((a) => [a.m, a.states || null]),
+    fields: (c.sections || []).flatMap((s) => (s.fields || []).map((f) => [f.name, !!f.readonly])),
+    text: JSON.stringify([c.tabs || [], (c.sections || []).map((s) => [s.title, s.note || '', (s.fields || []).map((f) => f.label)])]) }])) }));
 """
 
 # How each page's record is captured. 'form': a "+ New" or a chip that opens
@@ -191,3 +194,45 @@ def test_kpis_report_nothing_measured_as_none():
         and n.orelse.value != 0.0
     ]
     assert not invented, invented
+
+
+# --- bidirectional audit (2026-11-13): the screen agrees with the backend ----
+
+
+def test_every_list_button_names_the_states_the_server_accepts(m02):
+    """A button without `states` showed as available in every state, and the
+    server then refused most presses (Decline outside 'dispatched', ...)."""
+    ungated = [
+        "%s:%s" % (sid, m)
+        for sid, s in m02["screens"].items()
+        if s["kind"] == "model_list"
+        for m, states in s["gated"]
+        if not states
+    ]
+    assert not ungated, ungated
+
+
+def test_a_route_plan_can_be_built_and_run(m02):
+    routes = m02["screens"]["M02-routes"]
+    assert {"action_optimize_route", "action_start_route", "action_complete_route"} <= set(
+        routes["actions"]
+    )
+    fields = dict(m02["screens"]["M02-form-route"]["fields"])
+    # optimise needs two stops: the stops are on the form
+    assert fields.get("field_order_ids") is False
+    # the reference is numbered on save (read-only on the model)
+    assert fields.get("name") is True
+
+
+def test_a_work_order_slot_can_get_its_technician(m02):
+    assert "action_assign" in m02["screens"]["M02-wo"]["actions"]
+
+
+def test_nobody_types_a_safety_heartbeat(m02):
+    assert dict(m02["screens"]["M02-form-wo"]["fields"])["lone_worker_checkin_at"] is True
+
+
+def test_the_geofence_form_asks_for_the_shape_the_model_checks(m02):
+    text = m02["screens"]["M02-form-zone"]["text"]
+    assert "GeoJSON" not in text
+    assert "radius_m" in text and "points" in text

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "msp.runbook_executed",
-  "description": "Published by cd_msp_contract through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_msp_contract through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -40,7 +40,7 @@
           "type": "string"
         },
         "asset": {
-          "type": "string"
+          "description": "Type not statically derivable at every publish site."
         }
       },
       "additionalProperties": false
@@ -48,7 +48,8 @@
   },
   "x-owner-module": "cd_msp_contract",
   "x-publishers": [
-    "addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp_engines.py"
+    "addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp_engines.py",
+    "addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp_rules.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }
