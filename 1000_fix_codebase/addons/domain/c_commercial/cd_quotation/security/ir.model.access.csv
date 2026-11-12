@@ -23,3 +23,7 @@ access_fix_quotation_line,fix.quotation.line,model_fix_quotation_line,base.group
 access_fix_quotation_line_author,fix.quotation.line author,model_fix_quotation_line,group_quotation_user,1,1,1,1
 access_fix_quotation_line_approver,fix.quotation.line value-band approver,model_fix_quotation_line,cd_entity_config.group_dofa_tier_1,1,0,0,0
 access_fix_quotation_line_manager,fix.quotation.line manager,model_fix_quotation_line,group_quotation_manager,1,1,1,1
+access_fix_tender_line,fix.tender.line,model_fix_tender_line,base.group_user,1,0,0,0
+access_fix_tender_line_coordinator,fix.tender.line bid coordinator,model_fix_tender_line,group_bid_coordinator,1,1,1,1
+access_fix_quotation_bid_coordinator,fix.quotation bid pricing,model_fix_quotation,group_bid_coordinator,1,1,1,0
+access_fix_quotation_line_bid_coordinator,fix.quotation.line bid pricing,model_fix_quotation_line,group_bid_coordinator,1,1,1,1

@@ -4,8 +4,10 @@
 # Each test replays an attack of working/A04_evidence/probes/m11_m36_m37/
 # probe_m36.py (named in its docstring) as a role holder, so the evidence
 # does not depend on the probe's plain clerk, who now lacks write access.
+import base64
+import io
 import types
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from odoo import fields
@@ -14,6 +16,7 @@ from odoo.addons.cd_quotation.models.fix_quote_ops import (
     esign_signature,
     estimate_untaxed,
 )
+from odoo.addons.cd_quotation.models.fix_tender_boq import add_bd_working_days
 from odoo.addons.cd_service_order.models import fix_otp_util
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import assigned, inbox_task
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -577,6 +580,7 @@ def _tender(c, **kw):
         "estimated_value": 750000.0,
         "bid_value": 700000.0,
         "due_date": c.today + timedelta(days=10),
+        "bid_validity_days": 60,
         "score_fit": 4,
         "score_capacity": 4,
         "score_competition": 3,
@@ -740,7 +744,7 @@ def test_bond_activation_needs_the_bank_evidence_and_the_band(c):
     t = _tender(c)
     with pytest.raises(UserError, match="guarantee number"), c.env.cr.savepoint():
         _bond(c, t, bank=False, guarantee_no=False).with_user(c.coord).action_activate()
-    with pytest.raises(UserError, match="PPR 2008 r.25"), c.env.cr.savepoint():
+    with pytest.raises(UserError, match="PPR 2025"), c.env.cr.savepoint():
         _bond(c, t, amount=37500.0).with_user(c.coord).action_activate()
     b = _bond(c, t)
     b.with_user(c.coord).action_activate()
@@ -1187,3 +1191,412 @@ def test_the_workspace_form_saves_lines_and_terms(c, p03):
     assert (q.value, q.payment_term_id, q.advance_pct) == (15500.0, term, 50.0)
     res = p03(c.author, model="fix.quotation", record_id=q.id, values={"value": 1.0})
     assert res.get("error")
+
+
+# =========================================================================== tender BOQ, pricing, PPR 2025
+# Quote-to-cash, tender part (13 Nov 2026): the BOQ / price schedule (BPPA
+# e-PG2-3A / 3B, prices incl. VAT) is imported, priced on a contract
+# quotation at prices excluding VAT, approved by value band, and frozen once
+# the bid is lodged.
+BOQ_HEADER = [
+    "Item No.",
+    "Type",
+    "Description of Item",
+    "Country of Origin",
+    "Unit",
+    "Quantity",
+    "Unit Price (incl. VAT & levies) BDT",
+    "Total Price (incl. VAT) BDT",
+    "Point of Delivery",
+    "Delivery Period Required",
+    "Delivery Period Offered",
+]
+BOQ_ROWS = [
+    [
+        "1",
+        "Goods",
+        "Laptop, Core i5, 16 GB",
+        "China",
+        "Nos",
+        10,
+        115000,
+        1150000,
+        "Dhaka HQ",
+        "30 days",
+        "21 days",
+    ],
+    [
+        "2",
+        "Related service",
+        "Installation and 1-year support",
+        "Bangladesh",
+        "Lot",
+        1,
+        57500,
+        57500,
+        "Dhaka HQ",
+        "45 days",
+        "30 days",
+    ],
+    [
+        "3",
+        "Goods",
+        "Toner cartridge",
+        "Japan",
+        "Pcs",
+        3,
+        "1,000.00",
+        3000,
+        "Dhaka HQ",
+        "30 days",
+        "21 days",
+    ],
+]
+
+
+def _xlsx(header=None, rows=None):
+    import openpyxl
+
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["Form e-PG2-3A: Price Schedule for Goods"])
+    sheet.append([])
+    sheet.append(header or BOQ_HEADER)
+    for row in BOQ_ROWS if rows is None else rows:
+        sheet.append(row)
+    sheet.append(["", "", "Total", None, None, None, None, 1210500])
+    out = io.BytesIO()
+    book.save(out)
+    return out.getvalue()
+
+
+def _csv(header, rows):
+    lines = [",".join(header)] + [",".join(str(v) for v in row) for row in rows]
+    return ("\n".join(lines) + "\n").encode()
+
+
+def _boq_tender(c, data, filename="boq.xlsx", **kw):
+    t = _tender(c, **kw)
+    t.with_user(c.coord).write({"boq_file": base64.b64encode(data), "boq_filename": filename})
+    return t
+
+
+def _priced(c, **kw):
+    t = _boq_tender(c, _xlsx(), **kw)
+    t.with_user(c.coord).action_import_boq()
+    t.with_user(c.coord).action_price_as_quotation()
+    return t
+
+
+def _approve_pricing(c, t):
+    q = t.quotation_id.with_user(c.coord)
+    q.write(
+        {
+            "cost_amount": 800000.0,
+            "payment_term_id": c.env.ref("account.account_payment_term_immediate").id,
+        }
+    )
+    q.action_submit(justification="tender bid price")
+    task = inbox_task(q, c.t1) or inbox_task(q, c.t2) or inbox_task(q, c.t3)
+    task.with_user(task.assigned_user_id).action_approve(comment="price approved")
+    assert q.state == "approved", q.state
+    return q
+
+
+def test_boq_import_reads_the_price_schedule_xlsx(c):
+    t = _boq_tender(c, _xlsx())
+    t.with_user(c.coord).action_import_boq()
+    lines = t.boq_line_ids.sorted("sequence")
+    assert lines.mapped("item_no") == ["1", "2", "3"]
+    assert lines.mapped("line_kind") == ["goods", "related_service", "goods"]
+    first = lines[0]
+    assert (first.country_of_origin, first.unit, first.quantity) == ("China", "Nos", 10.0)
+    assert (first.unit_price_incl_vat, first.total_price) == (115000.0, 1150000.0)
+    assert (first.point_of_delivery, first.delivery_period_required) == ("Dhaka HQ", "30 days")
+    assert first.delivery_period_offered == "21 days"
+    assert lines[2].unit_price_incl_vat == 1000.0  # "1,000.00" read as a number
+    assert (t.boq_total, t.boq_line_count, t.boq_unpriced_count) == (1210500.0, 3, 0)
+    assert t.company_id == first.company_id and first.operating_unit_id == c.ou
+    # a re-import replaces the draft lines
+    t.with_user(c.coord).action_import_boq()
+    assert t.boq_line_count == 3
+    # the plain clerk reads the BOQ but cannot write it
+    with pytest.raises(AccessError), c.env.cr.savepoint():
+        c.env["fix.tender.line"].with_user(c.clerk).create(
+            {"tender_id": t.id, "item_no": "9", "description": "x"}
+        )
+
+
+def test_boq_import_from_csv_and_its_refusals(c):
+    header = ["Item No", "Description", "Unit", "Qty", "Unit Price"]
+    t = _boq_tender(c, _csv(header, [["A1", "Router", "Nos", 2, ""]]), "boq.csv")
+    t.with_user(c.coord).action_import_boq()
+    assert t.boq_line_count == 1 and t.boq_unpriced_count == 1
+    assert t.boq_line_ids.line_kind == "goods"
+    for data, name, match in (
+        (
+            _csv(["Item No", "Description", "Unit", "Unit Price"], [["1", "x", "Nos", 5]]),
+            "boq.csv",
+            "missing: Quantity",
+        ),
+        (_csv(header, [["1", "x", "Nos", "abc", 5]]), "boq.csv", "Row 2: quantity 'abc'"),
+        (_csv(header, [["1", "x", "Nos", 2, "-5"]]), "boq.csv", "cannot be negative"),
+        (
+            _xlsx(rows=[["1", "Goods", "x", "BD", "Nos", 2, 100, 999, "", "", ""]]),
+            "boq.xlsx",
+            "not quantity x unit price",
+        ),
+        (
+            _xlsx(rows=[["1", "Spare", "x", "BD", "Nos", 2, 100, 200, "", "", ""]]),
+            "boq.xlsx",
+            "neither goods nor related service",
+        ),
+        (b"%PDF-1.4", "boq.pdf", "neither"),
+    ):
+        t.with_user(c.coord).write({"boq_file": base64.b64encode(data), "boq_filename": name})
+        with pytest.raises(UserError, match=match), c.env.cr.savepoint():
+            t.with_user(c.coord).action_import_boq()
+    assert t.boq_line_count == 1  # a refused import leaves the BOQ as it was
+
+
+def test_price_as_quotation_prices_ex_vat_and_sets_the_bid_value(c):
+    t = _priced(c)
+    q = t.quotation_id
+    assert q and q.state == "draft" and q.quote_type == "contract"
+    assert (q.customer_id, q.operating_unit_id) == (c.agency, c.ou)
+    assert q.valid_until == t.due_date + timedelta(days=60)
+    assert q.contract_family == t.contract_family
+    ql = q.line_ids.sorted("sequence")
+    assert ql.mapped("unit_price") == [100000.0, 50000.0, 869.57]  # incl. VAT / 1.15
+    assert ql.mapped("line_type") == ["goods", "service", "goods"]
+    assert ql.mapped("quantity") == [10.0, 1.0, 3.0]
+    assert ql[0].description == "Item 1: Laptop, Core i5, 16 GB"
+    assert t.boq_line_ids.sorted("sequence").mapped("quotation_line_id") == ql
+    assert q.value == 1052608.71
+    assert t.bid_value == q.amount_total == 1210500.02  # VAT once, on the ex-VAT lines
+    assert abs(t.bid_value - t.boq_total) < 0.05
+    with pytest.raises(UserError, match="priced by quotation"), c.env.cr.savepoint():
+        t.with_user(c.coord).write({"bid_value": 1.0})
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        t.boq_line_ids[:1].with_user(c.coord).write({"quotation_line_id": False})
+    # re-pricing the same (draft) quotation follows the BOQ
+    t.boq_line_ids.filtered(lambda r: r.item_no == "3").with_user(c.coord).write(
+        {"unit_price_incl_vat": 1150.0}
+    )
+    t.with_user(c.coord).action_price_as_quotation()
+    assert t.quotation_id == q and len(q.line_ids) == 3
+    assert q.line_ids.filtered(lambda r: r.description.startswith("Item 3")).unit_price == 1000.0
+    assert t.bid_value == q.amount_total == 1210950.0
+    # nothing to price without a full BOQ
+    blank = _tender(c)
+    with pytest.raises(UserError, match="BOQ first"), c.env.cr.savepoint():
+        blank.with_user(c.coord).action_price_as_quotation()
+
+
+def test_submit_needs_the_approved_quotation_and_freezes_the_bid(c):
+    t = _boq_tender(c, _xlsx())
+    t.with_user(c.coord).action_import_boq()
+    t.with_user(c.member).action_decide_bid(reason="good fit")
+    with pytest.raises(UserError, match="Price the BOQ"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_submit()
+    t.with_user(c.coord).action_price_as_quotation()
+    with pytest.raises(UserError, match="internal approval"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_submit()
+    q = _approve_pricing(c, t)
+    # a BOQ change after approval makes the priced quotation stale
+    item = t.boq_line_ids.filtered(lambda r: r.item_no == "3")
+    item.with_user(c.coord).write({"unit_price_incl_vat": 1150.0})
+    with pytest.raises(UserError, match="not priced as the BOQ states"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_submit()
+    item.with_user(c.coord).write({"unit_price_incl_vat": 1000.0})
+    # the quotation is not issued to the customer: the award makes the contract
+    with pytest.raises(UserError, match="not issued"), c.env.cr.savepoint():
+        q.with_user(c.coord).action_send()
+    t.with_user(c.coord).action_submit()
+    assert t.state == "submitted" and t.bid_value == q.amount_total == 1210500.02
+    # the lodged bid is frozen: BOQ, file, terms, and its quotation
+    for attempt in (
+        lambda: item.with_user(c.coord).write({"quantity": 5}),
+        lambda: c.env["fix.tender.line"]
+        .with_user(c.coord)
+        .create({"tender_id": t.id, "item_no": "4", "description": "late add"}),
+        lambda: t.boq_line_ids.with_user(c.coord).unlink(),
+        lambda: t.with_user(c.coord).action_import_boq(),
+        lambda: t.with_user(c.coord).action_price_as_quotation(),
+        lambda: t.with_user(c.coord).write({"retention_pct": 5.0}),
+        lambda: q.line_ids[:1].with_user(c.coord).write({"unit_price": 1.0}),
+        lambda: q.with_user(c.coord).write({"cost_amount": 1.0}),
+    ):
+        with pytest.raises(UserError), c.env.cr.savepoint():
+            attempt()
+    assert t.bid_value == 1210500.02
+
+
+def test_a_public_tender_states_its_validity_and_terms(c):
+    with pytest.raises(ValidationError, match="60 to 150"), c.env.cr.savepoint():
+        _tender(c, bid_validity_days=30)
+    private = _tender(c, tender_type="private_rfq", bid_validity_days=30)
+    assert private.bid_validity_days == 30
+    t = _tender(c, bid_validity_days=0)
+    t.with_user(c.member).action_decide_bid(reason="ok")
+    with pytest.raises(UserError, match="tender validity"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_submit()
+    assert (t.retention_pct, t.ld_rate_pct_per_day, t.ld_cap_pct) == (10.0, 0.05, 10.0)
+    assert t.performance_security_pct == 10.0
+    for vals, match in (
+        ({"retention_pct": 120.0}, "Retention"),
+        ({"ld_rate_pct_per_day": 2.0}, "daily rate"),
+        ({"ld_cap_pct": 0.0}, "need a cap"),
+        ({"performance_security_pct": 12.0}, "PPR 2025"),
+        ({"noa_date": c.today + timedelta(days=3)}, "future"),
+    ):
+        with pytest.raises(ValidationError, match=match), c.env.cr.savepoint():
+            t.with_user(c.coord).write(vals)
+    t.with_user(c.coord).write({"ld_rate_pct_per_day": 0.08, "bid_validity_days": 90})
+    assert "outside" in (t.ppr_warnings or "")
+    t.with_user(c.coord).write({"ld_rate_pct_per_day": 0.04})
+    assert not t.ppr_warnings
+
+
+def test_noa_deadlines_run_on_the_bangladesh_working_week(c):
+    thursday = date(2026, 11, 12)
+    # Fri/Sat skipped: Sun 15 .. Thu 19, Sun 22, Mon 23
+    assert add_bd_working_days(thursday, 7) == date(2026, 11, 23)
+    assert add_bd_working_days(thursday, 7, {date(2026, 11, 17)}) == date(2026, 11, 24)
+    assert add_bd_working_days(date(2026, 11, 13), 1) == date(2026, 11, 15)  # Friday NoA
+    t = _tender(c, contract_months=12)
+    noa = c.today - timedelta(days=2)
+    t.with_user(c.coord).write({"noa_date": noa})
+    holidays = t._bd_holidays(noa, noa + timedelta(days=60))
+    assert t.performance_security_due == add_bd_working_days(noa, 7, holidays)
+    assert t.performance_security_due.weekday() not in (4, 5)
+    assert t.contract_signing_due == noa + timedelta(days=14)
+    assert t.performance_security_valid_until == date(noa.year + 1, noa.month, noa.day) + timedelta(
+        days=28
+    )
+
+
+def test_the_acceptance_certificate_is_recorded_after_the_award(c):
+    t = _submitted(c)
+    with pytest.raises(UserError, match="awarded"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_record_acceptance()
+    t.with_user(c.coord).write(
+        {"award_ref": "NOA-ACC", "awarded_value": 700000.0, "noa_date": c.today}
+    )
+    t.with_user(c.coord).action_request_award()
+    inbox_task(t, c.member).with_user(c.member).action_approve(comment="ok")
+    assert t.state == "won"
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        t.with_user(c.coord).write({"noa_date": c.today - timedelta(days=1)})
+    with pytest.raises(UserError, match="certificate number"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_record_acceptance()
+    t.with_user(c.coord).write(
+        {
+            "teac_certificate_no": "TEAC-9",
+            "teac_certificate_date": c.today,
+            "teac_accepted_value": 800000.0,
+        }
+    )
+    with pytest.raises(UserError, match="exceeds the contract value"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_record_acceptance()
+    t.with_user(c.coord).write({"teac_accepted_value": 650000.0})
+    t.with_user(c.coord).action_record_acceptance()
+    assert (t.acceptance_recorded_by, t.retention_amount) == (c.coord, 65000.0)
+    with pytest.raises(UserError, match="already"), c.env.cr.savepoint():
+        t.with_user(c.coord).action_record_acceptance()
+    with pytest.raises(UserError, match="acceptance is recorded"), c.env.cr.savepoint():
+        t.with_user(c.coord).write({"teac_accepted_value": 700000.0})
+    with pytest.raises(UserError), c.env.cr.savepoint():
+        t.with_user(c.coord).write({"acceptance_recorded_by": c.member.id})
+
+
+def test_the_workspace_writes_the_boq_grid_until_the_bid_is_lodged(c, p03):
+    t = _tender(c)
+    res = p03(
+        c.coord,
+        model="fix.tender",
+        record_id=t.id,
+        values={"egp_package_no": "GD-17", "tender_type": "public_egp"},
+        lines={
+            "field": "boq_line_ids",
+            "rows": [
+                {
+                    "values": {
+                        "item_no": "1",
+                        "line_kind": "goods",
+                        "description": "UPS 1 kVA",
+                        "unit": "Nos",
+                        "quantity": 4,
+                        "unit_price_incl_vat": 11500.0,
+                    }
+                }
+            ],
+            "removed": [],
+        },
+    )
+    assert not res.get("error"), res
+    t.invalidate_recordset()
+    assert (t.egp_package_no, t.boq_line_count, t.boq_total) == ("GD-17", 1, 46000.0)
+    line = t.boq_line_ids
+    res = p03(
+        c.coord,
+        model="fix.tender",
+        record_id=t.id,
+        values={},
+        lines={"field": "boq_line_ids", "rows": [{"id": line.id, "values": {"quantity": 5}}]},
+    )
+    assert not res.get("error"), res
+    assert line.quantity == 5.0
+    res = p03(c.coord, model="fix.tender", record_id=t.id, values={"quotation_id": 1})
+    assert res.get("error")
+    t.with_user(c.coord).action_price_as_quotation()
+    _approve_pricing(c, t)
+    t.with_user(c.member).action_decide_bid(reason="ok")
+    t.with_user(c.coord).action_submit()
+    res = p03(
+        c.coord,
+        model="fix.tender",
+        record_id=t.id,
+        values={},
+        lines={"field": "boq_line_ids", "rows": [{"id": line.id, "values": {"quantity": 9}}]},
+    )
+    assert res.get("error") and line.quantity == 5.0
+
+
+def test_the_boq_screen_and_actions_are_declared(c):
+    from pathlib import Path
+
+    from odoo.addons.cd_p03_portal.controllers.a04 import m36, writable
+
+    acts = m36.SURFACES["fix.tender"]["actions"]
+    assert {"action_import_boq", "action_price_as_quotation", "action_record_acceptance"} <= acts
+    assert {"boq_line_ids", "boq_file", "noa_date"} <= writable.WRITABLE["fix.tender"]
+    assert "quotation_id" not in writable.WRITABLE["fix.tender"]
+    js = (Path(m36.__file__).resolve().parents[2] / "static" / "src" / "a04" / "m36.js").read_text(
+        encoding="utf-8"
+    )
+    assert "'M36-boq': 'M36-form-boq'" in js and "field: 'boq_line_ids'" in js
+
+
+def test_the_price_schedule_pdf_lists_the_boq(c):
+    report = c.env.ref("cd_doc_suite.action_report_tender_price_schedule", raise_if_not_found=False)
+    if not report:
+        pytest.skip("cd_doc_suite is not installed")
+    t = _boq_tender(c, _xlsx(), reference="eGP-881", egp_package_no="GD-881")
+    t.with_user(c.coord).action_import_boq()
+    html = (
+        c.env["ir.actions.report"].sudo()._render_qweb_html(report.report_name, t.ids)[0].decode()
+    )
+    for text in (
+        "Form e-PG2-3A",
+        "Form e-PG2-3B",
+        "eGP-881",
+        "GD-881",
+        "Laptop, Core i5, 16 GB",
+        "China",
+        "1,150,000.00",
+        "1,210,500.00",
+        "30 days / 21 days",
+        "include VAT",
+    ):
+        assert text in html, text

@@ -8,6 +8,7 @@
   - Delivery Challan     fix.service.order    (handover document, 90-day policy
                                                wording carried over from the
                                                legacy TFSL/SI/RT-006 invoice)
+  - Tender Price Schedule fix.tender       (cd_quotation; BPPA e-PG2-3A/3B)
 
   Template rules (repo conventions): labels translatable via bn_BD.po later;
   identifiers stay ASCII; amounts via monetary widget with doc.currency_id;
@@ -489,6 +490,120 @@
                             <tr>
                                 <td class="cds-sign-pad">Received with good condition by<br/>(Signature, NID/Phone &amp; Date)</td>
                                 <td class="cds-sign-pad">Authorized Signature &amp; Company Stamp<br/>1000FiX Services Ltd.</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+
+    <!-- ================= TENDER PRICE SCHEDULE (e-PG2-3A / 3B) ================= -->
+    <!-- Quote-to-cash, tender part (13 Nov 2026): the BOQ as the BPPA standard
+         tender documents lay out the price schedule. Prices INCLUDE VAT and
+         levies (the STD rule); goods (e-PG2-3A) and related services (3B)
+         are scheduled separately. -->
+    <record id="action_report_tender_price_schedule" model="ir.actions.report">
+        <field name="name">Tender Price Schedule (e-PG2-3A/3B)</field>
+        <field name="model">fix.tender</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_tender_price_schedule</field>
+        <field name="report_file">cd_doc_suite.report_tender_price_schedule</field>
+        <field name="print_report_name">'Price Schedule %s' % (object.reference or object.name)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_tender"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_tender_price_schedule">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+
+                        <div class="cds-title-band">
+                            <h1>PRICE SCHEDULE <span class="cds-chip" t-esc="{'draft':'DRAFT','no_bid':'NO BID','submitted':'SUBMITTED','won':'AWARDED','lost':'LOST','cancelled':'CANCELLED'}.get(doc.state, doc.state)"/></h1>
+                            <div class="cds-title-sub">
+                                Tender <b t-esc="doc.name"/>
+                                <t t-if="doc.reference"> · Tender ID <b t-esc="doc.reference"/></t>
+                                <t t-if="doc.egp_package_no"> · Package No. <b t-esc="doc.egp_package_no"/></t>
+                                · Submission deadline <b t-field="doc.due_date"/>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Procuring Entity</div>
+                                    <div class="cds-party-name" t-esc="doc.procuring_entity or doc.client_id.name or doc.client_name"/>
+                                    <div t-if="doc.client_name and doc.client_name != (doc.procuring_entity or doc.client_id.name)" t-esc="doc.client_name"/>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Tender</div>
+                                    <table class="cds-meta">
+                                        <tr><td class="cds-meta-label">Type</td><td t-esc="dict(doc._fields['tender_type'].selection).get(doc.tender_type, '')"/></tr>
+                                        <tr t-if="doc.bid_validity_days"><td class="cds-meta-label">Validity</td><td t-esc="'%d days' % doc.bid_validity_days"/></tr>
+                                        <tr t-if="doc.quotation_id"><td class="cds-meta-label">Priced on</td><td t-esc="doc.quotation_id.name"/></tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <t t-foreach="[('goods', 'Form e-PG2-3A: Price Schedule for Goods'), ('related_service', 'Form e-PG2-3B: Price Schedule for Related Services')]" t-as="kind">
+                            <t t-set="rows" t-value="doc.boq_line_ids.filtered(lambda l: l.line_kind == kind[0])"/>
+                            <t t-if="rows">
+                                <div style="font-weight:bold;margin:8px 0 4px 0;" t-esc="kind[1]"/>
+                                <table class="cds-table" style="font-size:8pt;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:6%;">Item No.</th>
+                                            <th>Description</th>
+                                            <th style="width:9%;">Country of Origin</th>
+                                            <th style="width:6%;">Unit</th>
+                                            <th class="cds-num" style="width:7%;">Qty</th>
+                                            <th class="cds-num" style="width:12%;">Unit Price (incl. VAT)</th>
+                                            <th class="cds-num" style="width:13%;">Total Price (incl. VAT)</th>
+                                            <th style="width:10%;">Point of Delivery</th>
+                                            <th style="width:12%;">Delivery Period (required / offered)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="rows" t-as="line">
+                                            <td class="cds-ctr" t-esc="line.item_no"/>
+                                            <td t-esc="line.description"/>
+                                            <td t-esc="line.country_of_origin or ''"/>
+                                            <td t-esc="line.unit or ''"/>
+                                            <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
+                                            <td class="cds-num"><span t-field="line.unit_price_incl_vat" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                            <td class="cds-num"><span t-field="line.total_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                            <td t-esc="line.point_of_delivery or ''"/>
+                                            <td t-esc="'%s / %s' % (line.delivery_period_required or '-', line.delivery_period_offered or '-')"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <table class="cds-totals">
+                                    <tr><td class="cds-tot-label" t-esc="'Subtotal, %s' % ('goods' if kind[0] == 'goods' else 'related services')"/><td class="cds-tot-value"><span t-esc="sum(rows.mapped('total_price'))" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                                </table>
+                            </t>
+                        </t>
+
+                        <table class="cds-totals">
+                            <tr class="cds-grand"><td class="cds-tot-label">Total Tender Price (incl. VAT)</td><td class="cds-tot-value"><span t-field="doc.boq_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+
+                        <div class="cds-notes">
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li>Unit and total prices include VAT and all applicable levies, as the standard tender documents require.</li>
+                                <li t-if="doc.bid_validity_days">This tender is valid for <t t-esc="doc.bid_validity_days"/> days from the submission deadline.</li>
+                            </ul>
+                        </div>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Authorized Signature, Name &amp; Date</td>
+                                <td class="cds-sign-pad">Seal</td>
                             </tr>
                         </table>
 

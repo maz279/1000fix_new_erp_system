@@ -32,14 +32,16 @@ from .fix_quote_ops import CONTRACT_FAMILIES
 
 TENDER_COMMITTEE = "cd_quotation.group_tender_committee"
 
-# PPR 2008 rule 25: the tender security stays valid for the tender validity
+# PPR 2025 (in force 28 Sep 2025; was PPR 2008 r.25): the tender security
+# stays valid for the tender validity
 # period plus 28 days.
 BID_SECURITY_EXTRA_DAYS = 28
 
 # Bond amount bands, in % of their base. Business defaults the business must
-# confirm (report §7.4, tender-bond policy under PPR 2008/2025):
-#   bid          at most 3% of the tender's official estimated value (PPR 2008 r.25)
-#   performance  5% to 10% of the awarded contract value (PPR 2008 r.27 range)
+# confirm (report §7.4, tender-bond policy under PPR 2025, which replaced PPR 2008):
+#   bid          at most 3% of the tender's official estimated cost, a fixed amount (PPR 2025)
+#   performance  5% to 10% of the awarded contract value (PPR 2025; the BPPA STDs
+#                ask 10%, furnished within 7 working days of the NoA)
 #   advance      up to the awarded value
 BOND_BANDS = {
     "bid": (0.0, 3.0),
@@ -62,7 +64,7 @@ BOND_DOFA_THRESHOLDS = [
 BOND_EXPIRY_ALERT_DAYS = 30
 
 COMMERCIAL_MANAGER = "cd_quotation.group_quotation_manager"
-# Variation cap (report §6 P2 M36; PPR 2008 r.74-style cumulative variation
+# Variation cap (report §6 P2 M36; PPR 2025-style cumulative variation
 # limit). BUSINESS DEFAULT THE BUSINESS MUST CONFIRM (report §7.4): 15% of the
 # awarded contract value, overridable in this ir.config_parameter. Within the
 # cap a variation, or an award that differs from the bid lodged, is decided
@@ -190,7 +192,7 @@ class FixTender(models.Model):
     bid_validity_days = fields.Integer(
         string="Bid Validity (days)",
         help="Tender validity after the deadline; the bid security must cover it plus "
-        "28 days (PPR 2008 r.25).",
+        "28 days (PPR 2025).",
     )
     # Bid / no-bid (FR-QTE-044): scored 1-5, decided by the Tender Committee.
     score_fit = fields.Integer(string="Score: Fit")
@@ -331,14 +333,14 @@ class FixTender(models.Model):
             ):
                 raise ValidationError(
                     "A bid security of BDT %.2f is above %.1f%% of the estimated value "
-                    "(PPR 2008 r.25)." % (rec.bid_security_amount, high)
+                    "(PPR 2025)." % (rec.bid_security_amount, high)
                 )
             pct = rec.performance_security_pct or 0.0
             low, high = BOND_BANDS["performance"]
             if pct and not low <= pct <= high:
                 raise ValidationError(
                     "Performance security must be between %.0f%% and %.0f%% of the contract "
-                    "value (PPR 2008 r.27)." % (low, high)
+                    "value (PPR 2025)." % (low, high)
                 )
 
     # ---- guard -------------------------------------------------------------
@@ -453,7 +455,7 @@ class FixTender(models.Model):
         if self.bonds_required and not self._valid_bid_security(dhaka_today(self)):
             problems.append(
                 "No active, unexpired bid security of BDT %.2f or more is on file "
-                "(PPA 2006 / PPR 2008 tender security)." % (self.bid_security_amount or 0.0)
+                "(PPA 2006 / PPR 2025 tender security)." % (self.bid_security_amount or 0.0)
             )
         return problems
 
@@ -532,7 +534,7 @@ class FixTender(models.Model):
                 if not rec._valid_bid_security(cover):
                     raise UserError(
                         "Tender %s needs an active bid security of BDT %.2f valid until at "
-                        "least %s (bid validity + 28 days, PPR 2008 r.25)."
+                        "least %s (bid validity + 28 days, PPR 2025)."
                         % (rec.name, rec.bid_security_amount, cover)
                     )
             rec._guarded().write(
@@ -588,7 +590,7 @@ class FixTender(models.Model):
             elif not authority.has_group(TENDER_COMMITTEE):
                 raise UserError("A tender award is decided by a Tender Committee member.")
             # The committee is separate from the people who prepared the bid
-            # (the PPR 2008 r.36(2) separation, applied to the bidder's side).
+            # (the PPR separation of preparer and evaluator, applied to the bidder's side).
             prepared = rec.create_uid | rec.submitted_by | rec.award_requested_by
             if rec._approval_acting_users() & prepared:
                 raise UserError(
@@ -1197,7 +1199,7 @@ class FixTenderBond(models.Model):
             if base and self.amount > base * high / 100.0 + 0.005:
                 problems.append(
                     "BDT %.2f is above %.1f%% of the tender's estimated value BDT %.2f "
-                    "(PPR 2008 r.25)." % (self.amount, high, base)
+                    "(PPR 2025)." % (self.amount, high, base)
                 )
             if tender.bid_security_amount and self.amount + 0.005 < tender.bid_security_amount:
                 problems.append(
@@ -1216,7 +1218,7 @@ class FixTenderBond(models.Model):
         return []
 
     def _release_blockers(self) -> list:
-        """Release only after the award (PPR 2008 r.25): a bid security
+        """Release only after the award (PPR 2025): a bid security
         while its tender is undecided, or a performance security while its
         contract runs, stays with the procuring entity."""
         self.ensure_one()

@@ -55,6 +55,10 @@ SURFACES = {
             "action_record_loss",
             "action_cancel",
             "action_create_contract",
+            # quote-to-cash, tender part (13 Nov 2026): BOQ, pricing, acceptance
+            "action_import_boq",
+            "action_price_as_quotation",
+            "action_record_acceptance",
         },
     },
     # Variation orders on an awarded tender (report §6 P2 M36, variation cap).

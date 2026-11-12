@@ -1,6 +1,7 @@
 /** @odoo-module **/
 /* A04 · Commercial & Revenue — M36 Quotations & Tenders (v2 rebuild).
- * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 86.
+ * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 86,
+ * plus the tender BOQ / price schedule screen (quote-to-cash, 13 Nov 2026).
  * Estimates and counter-sales are real; quotations, internal reviews, tenders
  * and bonds are new. Conversion/win rates are measured; the declined→
  * diagnostic-fee conversion is a declared gap. */
@@ -35,6 +36,7 @@ export const MODULE = {
     ]},
     { en: 'Tenders', screens: [
       { id: 'M36-tenders', en: 'Tenders & Bids', bn: 'দরপত্র', t: 'g' },
+      { id: 'M36-boq', en: 'Tender BOQ / Price Schedule', bn: 'দরপত্র BOQ / মূল্য তফসিল', t: 'g' },
       { id: 'M36-compliance', en: 'Compliance Matrix', bn: 'কমপ্লায়েন্স ম্যাট্রিক্স', t: 'r' },
       { id: 'M36-bonds', en: 'Bid Bonds', bn: 'বিড বন্ড', t: 'g' },
       { id: 'M36-variations', en: 'Variation Orders', bn: 'ভেরিয়েশন অর্ডার', t: 'g' }
@@ -52,7 +54,7 @@ export const MODULE = {
     ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'], reports: [], forms: [], create: false }],
     ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'], reports: [], forms: [], create: false }],
     ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'], reports: ['Decline Reasons Pareto'], forms: [], create: false }],
-    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-bonds', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid'] }],
+    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-bonds', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid'] }],
     ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance'], reports: [], forms: [] }]
   ] }
 };
@@ -77,12 +79,27 @@ export const SCREENS = {
     actions: [
       { m: 'action_decide_bid', l: 'Decide: Bid (Tender Committee)', ask: 'Basis of the bid decision (scores are on the form)', kwarg: 'reason', states: ['draft'] },
       { m: 'action_decide_no_bid', l: 'Decide: No Bid (Tender Committee)', ask: 'Why not bid?', kwarg: 'reason', states: ['draft'] },
-      { m: 'action_submit', l: 'Submit Bid', states: ['draft'] },
+      { m: 'action_import_boq', l: 'Import BOQ (price schedule file on the BOQ screen)', states: ['draft'] },
+      { m: 'action_price_as_quotation', l: 'Price BOQ as Quotation (for internal approval)', states: ['draft'] },
+      { m: 'action_submit', l: 'Submit Bid (quotation approved, every BOQ item priced)', states: ['draft'] },
       { m: 'action_request_award', l: 'Request Award Approval (award ref and value staged on the form)', ask: 'Justification for the award', kwarg: 'justification', states: ['submitted'] },
       { m: 'action_recall_approval', l: 'Recall Award Request', states: ['submitted'] },
       { m: 'action_record_loss', l: 'Record Loss', ask: 'Loss reason', kwarg: 'reason', states: ['submitted'] },
       { m: 'action_create_contract', l: 'Create Contract (retry)', states: ['won'] },
+      { m: 'action_record_acceptance', l: 'Record Acceptance Certificate (staged on the form)', states: ['won'] },
       { m: 'action_cancel', l: 'Cancel Tender', ask: 'Why is the tender withdrawn?', kwarg: 'reason', states: ['draft', 'submitted'] }
+    ] },
+  // Quote-to-cash, tender part (13 Nov 2026): the BOQ / price schedule
+  // (BPPA e-PG2-3A goods / 3B related services, prices incl. VAT) is imported
+  // from the procuring entity's sheet, priced on a contract quotation that
+  // takes the value-band approval, and frozen once the bid is submitted.
+  'M36-boq': { kind: 'model_list', model: 'fix.tender', create: false, stateField: 'state',
+    cols: ['name', 'reference', 'egp_package_no', 'state', 'boq_line_count', 'boq_unpriced_count', 'boq_total', 'quotation_id', 'quotation_state', 'bid_value'],
+    empty: 'No tender yet. Register the tender on Tenders & Bids, then open it here to load its price schedule.',
+    actions: [
+      { m: 'action_import_boq', l: 'Import BOQ (from the uploaded / attached .xlsx or .csv)', states: ['draft'] },
+      { m: 'action_price_as_quotation', l: 'Price BOQ as Quotation (for internal approval)', states: ['draft'] },
+      { m: 'action_submit', l: 'Submit Bid', states: ['draft'] }
     ] },
   'M36-compliance': { kind: 'table_report', module: 'M36', report: 'tender_compliance', title: 'Tender Compliance', period: true },
   // Report §6 P2 M36 (variation cap): within the cumulative cap the Tender
@@ -377,6 +394,7 @@ export const SCREENS = {
   'M36-form-tender': {
     lines: {
       field: 'requirement_ids',
+      tab: 'bond_compliance',
       title: 'Compliance Matrix',
       note: 'Every mandatory requirement must be complied with (against its evidence document) or not applicable before the bid is submitted (BRU-QTE-15). Frozen once submitted.',
       fields: [
@@ -394,22 +412,31 @@ export const SCREENS = {
     back: 'M36-tenders',
     status: { field: 'state' },
     tabs: [
-      { id: 'tender_header', label: '1. Tender Bid Info', bn: '১. দরপত্রের তথ্য', icon: '📑', badge: '8' },
+      { id: 'tender_header', label: '1. Tender Bid Info', bn: '১. দরপত্রের তথ্য', icon: '📑', badge: '15' },
       { id: 'decision', label: '2. Bid / No-Bid', bn: '২. বিড সিদ্ধান্ত', icon: '⚖️', badge: '9' },
       { id: 'bond_compliance', label: '3. Bond & Compliance', bn: '৩. বন্ড ও সম্মতি', icon: '🛡️', badge: '5' },
-      { id: 'status', label: '4. Tender Outcome', bn: '৪. দরপত্রের ফলাফল', icon: '🏁', badge: '12' }
+      { id: 'contract_terms', label: '4. Contract Terms (PPR 2025)', bn: '৪. চুক্তির শর্ত', icon: '📜', badge: '5' },
+      { id: 'status', label: '5. Tender Outcome', bn: '৫. দরপত্রের ফলাফল', icon: '🏁', badge: '14' },
+      { id: 'noa', label: '6. NoA Deadlines', bn: '৬. NoA সময়সীমা', icon: '⏱️', badge: '3' },
+      { id: 'acceptance', label: '7. Acceptance & Retention', bn: '৭. গ্রহণ ও রিটেনশন', icon: '✅', badge: '6' }
     ],
     sections: [
-      { tab: 'tender_header', title: 'Tender Identification', note: 'Public Procurement Act (PPA 2006) tender bid details. Frozen once the bid is submitted.',
+      { tab: 'tender_header', title: 'Tender Identification', note: 'Public Procurement Act 2006 / PPR 2025 tender bid details. The bid price comes from the pricing quotation of the BOQ (Tender BOQ / Price Schedule) once it is priced. Frozen once the bid is submitted.',
         fields: [
           { name: 'name', required: true, label: 'Tender Name' },
+          { name: 'tender_type', required: true, label: 'Tender Type' },
           { name: 'reference', label: 'Tender ID / e-GP Ref' },
+          { name: 'egp_package_no', label: 'e-GP Package No.' },
           { name: 'client_name', required: true, label: 'Tendering Client' },
+          { name: 'procuring_entity', label: 'Procuring Entity (office)' },
           { name: 'client_id', label: 'Procuring Entity (contract party)' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'due_date', required: true, label: 'Submission Deadline' },
-          { name: 'estimated_value', label: 'Official Estimated Value' },
-          { name: 'bid_value', label: 'Bid Price Lodged' },
+          { name: 'estimated_value', label: 'Official Estimated Cost' },
+          { name: 'boq_total', label: 'BOQ Total incl. VAT', readonly: true },
+          { name: 'quotation_id', label: 'Pricing Quotation', readonly: true },
+          { name: 'quotation_state', label: 'Quotation State', readonly: true },
+          { name: 'bid_value', label: 'Bid Price Lodged (incl. VAT)' },
           { name: 'state', label: 'Bid Lifecycle State', readonly: true }
         ] },
       { tab: 'decision', title: 'Bid / No-Bid Decision (FR-QTE-044)', note: 'Score 1-5; the Tender Committee decides, never the person who registered the tender.',
@@ -424,11 +451,11 @@ export const SCREENS = {
           { name: 'bid_decision_by', label: 'Decided By', readonly: true },
           { name: 'bid_decision_reason', label: 'Basis', readonly: true }
         ] },
-      { tab: 'bond_compliance', title: 'Bank Guarantee & Technical Compliance', note: 'The bid security must cover the bid validity plus 28 days and stay within 3% of the estimated value (PPR 2008 r.25).',
+      { tab: 'bond_compliance', title: 'Bank Guarantee & Technical Compliance', note: 'The tender security is a fixed amount of at most 3% of the official estimated cost and must cover the tender validity plus 28 days (PPR 2025). A public tender is valid 60-150 days.',
         fields: [
           { name: 'bonds_required', label: 'Bid Security Required' },
           { name: 'bid_security_amount', label: 'Bid Security Required (BDT)' },
-          { name: 'bid_validity_days', label: 'Bid Validity (days)' },
+          { name: 'bid_validity_days', label: 'Tender Validity (days)' },
           { name: 'compliance_pct', label: 'Compliance % (computed)', readonly: true },
           { name: 'open_mandatory_count', label: 'Open Mandatory Items', readonly: true }
         ] },
@@ -440,7 +467,7 @@ export const SCREENS = {
           { name: 'contract_value', label: 'Contract Value (with variations)', readonly: true },
           { name: 'contract_family', label: 'Contract Family' },
           { name: 'contract_months', label: 'Contract Term (months)' },
-          { name: 'performance_security_pct', label: 'Performance Security (%)' },
+          { name: 'noa_date', label: 'NoA Date' },
           { name: 'approval_state', label: 'Award Approval', readonly: true },
           { name: 'awarded_by', label: 'Award Approved By', readonly: true },
           { name: 'award_date', label: 'Award Date', readonly: true },
@@ -448,6 +475,89 @@ export const SCREENS = {
           { name: 'awarded_to', label: 'Awarded To (on a loss)' },
           { name: 'winning_value', label: 'Winning Value (on a loss)' },
           { name: 'loss_reason', label: 'Loss Reason', readonly: true }
+        ] },
+      { tab: 'contract_terms', title: 'Contract Terms from the Tender Documents', note: 'PPR 2025 STDs: performance security 10% of the contract price; liquidated damages 0.03-0.05% per day capped at 10%; 10% retention from payments after acceptance. Values outside the usual are flagged, not refused. Frozen once the bid is submitted.',
+        fields: [
+          { name: 'performance_security_pct', label: 'Performance Security (%)' },
+          { name: 'retention_pct', label: 'Retention (%)' },
+          { name: 'ld_rate_pct_per_day', label: 'Liquidated Damages (% per day)' },
+          { name: 'ld_cap_pct', label: 'LD Cap (%)' },
+          { name: 'ppr_warnings', label: 'PPR 2025 Checks', readonly: true, type: 'text' }
+        ] },
+      { tab: 'noa', title: 'Notification of Award Deadlines', note: 'From the NoA date on the Tender Outcome tab: performance security within 7 working days (Sunday-Thursday week, national holidays skipped); contract signed within 14 days; performance security valid 28 days past completion.',
+        fields: [
+          { name: 'performance_security_due', label: 'Performance Security Due', readonly: true },
+          { name: 'contract_signing_due', label: 'Contract Signing Due', readonly: true },
+          { name: 'performance_security_valid_until', label: 'Performance Security Valid Until', readonly: true }
+        ] },
+      { tab: 'acceptance', title: 'Acceptance Certificate & Retention', note: 'After the award: stage the procuring entity acceptance committee certificate, then Record Acceptance Certificate. Retention runs on the accepted value.',
+        fields: [
+          { name: 'teac_certificate_no', label: 'Acceptance Certificate No.' },
+          { name: 'teac_certificate_date', label: 'Certificate Date' },
+          { name: 'teac_accepted_value', label: 'Accepted Value (BDT)' },
+          { name: 'retention_amount', label: 'Retention (BDT)', readonly: true },
+          { name: 'acceptance_recorded_by', label: 'Recorded By', readonly: true },
+          { name: 'acceptance_recorded_at', label: 'Recorded At', readonly: true }
+        ] }
+    ]
+  },
+
+  'M36-form-boq': {
+    lines: {
+      field: 'boq_line_ids',
+      tab: 'schedule',
+      title: 'Price Schedule (BPPA e-PG2-3A goods / 3B related services)',
+      note: 'Unit and total prices INCLUDE VAT and all levies, as the standard tender documents require. Import replaces these rows from the uploaded sheet; Price as Quotation prices them on a contract quotation at the unit price excluding VAT. Frozen once the bid is submitted.',
+      fields: [
+        { name: 'sequence', label: 'Seq' },
+        { name: 'item_no', label: 'Item No.', required: true },
+        { name: 'line_kind', label: 'Type', required: true },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'product_id', label: 'Our Item / Service' },
+        { name: 'country_of_origin', label: 'Country of Origin' },
+        { name: 'unit', label: 'Unit' },
+        { name: 'quantity', label: 'Qty', required: true },
+        { name: 'unit_price_incl_vat', label: 'Unit Price incl. VAT' },
+        { name: 'total_price', label: 'Total Price incl. VAT', readonly: true },
+        { name: 'point_of_delivery', label: 'Point of Delivery' },
+        { name: 'delivery_period_required', label: 'Delivery Required' },
+        { name: 'delivery_period_offered', label: 'Delivery Offered' },
+        { name: 'quotation_line_id', label: 'Priced On', readonly: true }
+      ]
+    },
+    kind: 'model_form',
+    model: 'fix.tender',
+    title: 'Tender BOQ / Price Schedule',
+    back: 'M36-boq',
+    create: false, pick: 'Register the tender on Tenders & Bids, then open it from Tender BOQ / Price Schedule.',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'file', label: '1. Tender & BOQ File', bn: '১. দরপত্র ও BOQ ফাইল', icon: '📑', badge: '5' },
+      { id: 'schedule', label: '2. Price Schedule', bn: '২. মূল্য তফসিল', icon: '🧾', badge: '3' },
+      { id: 'pricing', label: '3. Pricing Quotation', bn: '৩. মূল্য কোটেশন', icon: '💵', badge: '3' }
+    ],
+    sections: [
+      { tab: 'file', title: 'Tender & Price Schedule File',
+        note: 'Upload the procuring entity BOQ (.xlsx or .csv) with a header row naming Item No., Description, Unit, Quantity and Unit Price (Country of Origin, Total Price, Point of Delivery and Delivery Period columns are read when present), save, then run Import BOQ.',
+        fields: [
+          { name: 'name', label: 'Tender', readonly: true },
+          { name: 'reference', label: 'Tender ID / e-GP Ref', readonly: true },
+          { name: 'state', label: 'Bid Lifecycle State', readonly: true },
+          { name: 'boq_file', type: 'file', label: 'BOQ File (.xlsx / .csv)' },
+          { name: 'boq_filename', label: 'BOQ File Name' }
+        ] },
+      { tab: 'schedule', title: 'Price Schedule Totals',
+        fields: [
+          { name: 'boq_line_count', label: 'BOQ Items', readonly: true },
+          { name: 'boq_unpriced_count', label: 'Unpriced Items', readonly: true },
+          { name: 'boq_total', label: 'BOQ Total incl. VAT (BDT)', readonly: true }
+        ] },
+      { tab: 'pricing', title: 'Internal Price Approval',
+        note: 'The bid price is the pricing quotation total payable (incl. VAT). Approve the quotation through its value band (Customer Quotations: Submit for Approval) before submitting the bid; it is never issued to the customer.',
+        fields: [
+          { name: 'quotation_id', label: 'Pricing Quotation', readonly: true },
+          { name: 'quotation_state', label: 'Quotation State', readonly: true },
+          { name: 'bid_value', label: 'Bid Price incl. VAT (BDT)', readonly: true }
         ] }
     ]
   },
@@ -652,6 +762,7 @@ export const FORM_CHIPS = {
     'M36-loop': 'M36-form-review',
     'M36-declined': 'M36-record',
     'M36-tenders': 'M36-form-tender',
+    'M36-boq': 'M36-form-boq',
     'M36-bonds': 'M36-form-bond',
     'M36-variations': 'M36-form-variation'
   }
