@@ -299,7 +299,10 @@ WRITABLE = {
             "device_id",
             "health",
             "hostname",
+            "ip_address",
+            "mac_address",
             "msp_contract_id",
+            "os_version",
         }
     ),
     "fix.msp.alert": frozenset(
@@ -308,6 +311,20 @@ WRITABLE = {
             "message",
             "msp_contract_id",
             "severity",
+            "source",
+        }
+    ),
+    "fix.msp.alert.rule": frozenset(
+        {
+            "active",
+            "company_id",
+            "metric",
+            "msp_contract_id",
+            "name",
+            "operating_unit_id",
+            "operator",
+            "severity",
+            "threshold",
         }
     ),
     "fix.msp.change.record": frozenset(
