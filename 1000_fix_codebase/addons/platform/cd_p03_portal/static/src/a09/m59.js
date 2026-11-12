@@ -670,10 +670,13 @@ export const SCREENS = {
     model: 'fix.hse.loneworker',
     title: 'Lone-Worker Check-In & Emergency SOS',
     back: 'M59-loneworker',
+    // the model's states are checked_in / checked_out / escalated / missed
+    // (there is no 'active': the open session showed its raw key)
     status: { field: 'state', labels: {
-      active: 'Active Session', checked_out: 'Checked Out Safe', escalated: 'Emergency Escalated' } },
+      checked_in: 'Checked In', checked_out: 'Checked Out Safe', escalated: 'Emergency Escalated',
+      missed: 'Missed Check-Out' } },
     tabs: [
-      { id: 'checkin', label: 'Session & Window', bn: 'চেক-ইন ও সময়সীমা', icon: '📍', badge: '4' },
+      { id: 'checkin', label: 'Session & Window', bn: 'চেক-ইন ও সময়সীমা', icon: '📍', badge: '6' },
       { id: 'buddy', label: 'Buddy & Escalation', bn: 'সহযোগী ও জরুরি পদক্ষেপ', icon: '🆘', badge: '3' }
     ],
     sections: [
@@ -685,7 +688,9 @@ export const SCREENS = {
           { name: 'name', label: 'Session Reference', readonly: true },
           { name: 'employee_id', required: true, label: 'Field Technician' },
           { name: 'checkin_time', required: true, label: 'Check-In Timestamp' },
-          { name: 'expected_end', required: true, label: 'Expected Check-Out Timestamp' }
+          { name: 'expected_end', required: true, label: 'Expected Check-Out Timestamp' },
+          { name: 'location', label: 'Site / Location' },
+          { name: 'notes', label: 'Notes' }
         ]
       },
       {

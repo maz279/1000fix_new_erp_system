@@ -54,30 +54,41 @@ export const MODULE = {
       { id: 'M02-fieldparts', en: 'Field Order Parts', bn: 'ফিল্ড অর্ডারের যন্ত্রাংশ', t: 'g' }
     ]},
     { en: 'Safety & Payments', screens: [
-      { id: 'M02-loneworker', en: 'Lone-Worker Check-In', bn: 'একাকী কর্মী নিরাপত্তা', t: 'r' },
-      { id: 'M02-panic', en: 'Panic Alert Log', bn: 'প্যানিক অ্যালার্ট', t: 'r' },
+      { id: 'M02-loneworker', en: 'Lone-Worker Check-In', bn: 'একাকী কর্মী নিরাপত্তা', t: 'g' },
+      { id: 'M02-panic', en: 'Panic Alert Log', bn: 'প্যানিক অ্যালার্ট', t: 'g' },
+      { id: 'M02-collect', en: 'Collect & Hand Over', bn: 'সংগ্রহ ও নগদ হস্তান্তর', t: 'g' },
       { id: 'M02-fieldpay', en: 'On-Site Payments', bn: 'স্থানে পেমেন্ট', t: 'r' },
       { id: 'M02-cashrec', en: 'Daily Cash Reconciliation', bn: 'নগদ মিলকরণ', t: 'r' }
     ]}
   ],
   reports: ['Dispatch Performance by Zone', 'Travel-Time Analysis', 'Jobs per Technician', 'Field Exception Summary', 'Van Stock Variance', 'On-Site Payment Reconciliation', 'Technician Utilization & Travel Time', 'First-Time Fix Rate by Skill', 'Geofence Breach & Delay Log'],
-  forms: ['Field Work Order', 'Field Exception Report', 'Crew Assignment', 'Route Plan'],
+  forms: ['Field Work Order', 'Field Exception Report', 'Crew Assignment', 'Route Plan', 'Emergency Reschedule Request', 'Zone Geofence', 'Dispatch Zone', 'Technician Work Order', 'Van Stock Reconciliation', 'Lone-Worker Check-In', 'Field Incident Report'],
   cross: ['M01 order → work order', 'M55 availability & roster', 'M22 certification gate', 'M03 logistics handover', 'M17 asset context'],
   freg: {
     src: 106,
+    /* M02 capture audit (2026-11-12): nine of the twelve pages named no form,
+     * so a dispatcher on Van Stock, Field Safety or Territory had no button to
+     * record anything. Each page now names what captures its record - its own
+     * form, the master form of the module that owns the record (van counts:
+     * M15, lone-worker sessions: M59, zones: M30), or, where the record is
+     * written by a workflow or the technician app, the screen whose buttons
+     * write it (Dispatch Board, Record Collection, Decline). Telemetry (GPS,
+     * the offline journal) and field evidence stay capture-free on purpose:
+     * typing them in would fabricate tracking or a customer's sign-off.
+     * `domain` stays the LAST key (the mapping guard parses it there). */
     sub: [
-      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-unassigned', 'M02-exceptions'], reports: ['Field Exception Summary', 'First-Time Fix Rate by Skill'], forms: ['Field Exception Report'], create: false, domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
-      ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk'], reports: ['Dispatch Performance by Zone'], forms: [], create: false, domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
+      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-dispatch', 'M02-unassigned', 'M02-exceptions'], reports: ['Field Exception Summary', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order'], create: false, domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
+      ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk', 'M02-redispatch'], reports: ['Dispatch Performance by Zone'], forms: ['Emergency Reschedule Request'], create: 'M02-form-reschedule', domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
       ['3', 'Route Optimisation & Re-optimisation', 9, { model: 'fix.field.route', cols: ['name', 'technician_id', 'date', 'total_distance_km', 'improvement_pct'], screens: ['M02-routes'], reports: ['Travel-Time Analysis'], forms: ['Route Plan'] }],
-      ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'], reports: ['Geofence Breach & Delay Log', 'Dispatch Performance by Zone'], forms: [] }],
-      ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews'], reports: ['Jobs per Technician', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order', 'Crew Assignment'] }],
-      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo'], reports: ['Technician Utilization & Travel Time', 'Jobs per Technician'], forms: [] }],
-      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'], reports: [], forms: [] }],
+      ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'], reports: ['Geofence Breach & Delay Log', 'Dispatch Performance by Zone'], forms: ['Zone Geofence', 'Dispatch Zone'] }],
+      ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews', 'M02-exceptions'], reports: ['Jobs per Technician', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order', 'Crew Assignment', 'Field Exception Report'] }],
+      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo', 'M02-fieldparts'], reports: ['Technician Utilization & Travel Time', 'Jobs per Technician'], forms: ['Technician Work Order'] }],
+      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'], reports: [], forms: [], create: false }],
       ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location'], reports: ['Geofence Breach & Delay Log', 'Travel-Time Analysis'], forms: [], create: false }],
-      ['9', 'Field Evidence Capture', 6, { model: 'fix.workshop.evidence', cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at'], screens: ['M02-evidence'], reports: ['Field Exception Summary'], forms: [] }],
-      ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'technician_id', 'recon_date', 'variance', 'state'], screens: ['M02-vanstock'], reports: ['Van Stock Variance'], forms: [] }],
-      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-fieldpay', 'M02-cashrec'], reports: ['On-Site Payment Reconciliation'], forms: [], create: false, domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
-      ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'], reports: [], forms: [] }]
+      ['9', 'Field Evidence Capture', 6, { model: 'fix.field.order', cols: ['name', 'technician_id', 'customer_signature_signer', 'customer_otp_verified', 'post_work_photo_attachment_id'], screens: ['M02-evidence'], reports: ['Field Exception Summary'], forms: [], create: false, domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]] }],
+      ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'state'], screens: ['M02-vanstock', 'M02-fieldparts'], reports: ['Van Stock Variance'], forms: ['Van Stock Reconciliation'], create: 'M15-form-recon' }],
+      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-collect', 'M02-fieldpay', 'M02-cashrec'], reports: ['On-Site Payment Reconciliation'], forms: [], create: false, domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
+      ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'field_order_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'], reports: [], forms: ['Lone-Worker Check-In', 'Field Incident Report'], create: 'M59-form-loneworker', domain: [['field_order_id', '!=', false]] }]
     ]
   }
 };
@@ -134,8 +145,12 @@ export const SCREENS = {
       { m: 'action_waive_geofence', l: 'Waive Geofence (dispatcher)', ask: 'Reason for waiving the arrival geofence', kwarg: 'reason' },
       { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
     ] },
-  'M02-exceptions': { kind: 'model_list', model: 'fix.field.decline.log',
-    cols: ['name', 'field_order_id', 'technician_id', 'reason', 'decline_date', 'notes'] },
+  /* A decline is recorded by Decline on the field order (Work Order Record),
+   * which checks the order is dispatched to the decliner; the model refuses
+   * any other create, so this list's "+ New" could only fail on Save. */
+  'M02-exceptions': { kind: 'model_list', model: 'fix.field.decline.log', create: false,
+    cols: ['name', 'field_order_id', 'technician_id', 'reason', 'decline_date', 'notes'],
+    empty: 'No field exception recorded. An exception is recorded when the assigned technician declines a field order (Decline on Work Order Record, or the technician app), with a coded reason: it cannot be typed in here.' },
   'M02-crews': { kind: 'table_report', module: 'M02', report: 'crews',
     title: 'Crews & Multi-Tech Jobs', period: false },
   'M02-zones': { kind: 'model_list', model: 'fix.geofence',
@@ -152,17 +167,50 @@ export const SCREENS = {
   'M02-day': { kind: 'table_report', module: 'M02', report: 'day_queue', title: 'Day / Job Queue Preview', period: false },
   'M02-offline': { kind: 'model_list', model: 'fix.offline.idempotency.ledger', create: false,
     cols: ['command_id', 'technician_id', 'device_id', 'model', 'operation', 'status', 'conflict_reason', 'client_created_at', 'applied_at'],
-    stateField: 'status' },
-  'M02-evidence': { kind: 'model_list', model: 'fix.workshop.evidence', create: false,
-    cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at', 'description'],
-    stateField: 'evidence_type' },
+    stateField: 'status',
+    empty: 'No offline command received yet. The technician app writes one entry per action it replays after working offline, with its result and any conflict: the journal is audit evidence and cannot be typed in.' },
+  /* Field evidence is the signature, photos and job sheet linked to a FIELD
+   * order by the technician app's evidence channel (bound to the assigned
+   * technician). This list used to read fix.workshop.evidence - M31's bench
+   * repair evidence, which needs a workshop job and holds no field visit. */
+  'M02-evidence': { kind: 'model_list', model: 'fix.field.order', create: false,
+    cols: ['name', 'technician_id', 'state', 'customer_otp_verified', 'customer_signature_signer', 'customer_signature_attachment_id', 'pre_work_photo_attachment_id', 'post_work_photo_attachment_id', 'field_job_sheet_attachment_id'],
+    domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]],
+    stateField: 'state',
+    empty: 'No field order has reached the customer site yet. Evidence (customer signature or OTP, before and after photos) is captured on site by the assigned technician in the technician app and linked to the order here; completion is refused without it.' },
   'M02-fieldparts': { kind: 'model_list', model: 'fix.field.order.part', create: false,
     cols: ['field_order_id', 'product_id', 'quantity', 'lot_serial_number', 'state', 'consumed_by_id', 'consumed_at'],
     stateField: 'state',
     note: 'Parts are fitted from the technician app on site; a fitted line is frozen (A02 audit M02-P2).' },
   'M02-vanstock': { kind: 'table_report', module: 'M02', report: 'van_stock', title: 'Van Stock Consumption', period: false },
-  'M02-loneworker': { kind: 'table_report', module: 'M02', report: 'lone_worker', title: 'Lone-Worker Check-In', period: false },
-  'M02-panic': { kind: 'table_report', module: 'M02', report: 'panic_alerts', title: 'Panic Alert Log', period: false },
+  /* These two said "no safety-event store exists yet". fix.hse.loneworker
+   * (M59) exists: the field-order slice of its sessions is listed here, and
+   * "+ New" opens M59's check-in form (a dispatcher opens a session for the
+   * technician on the order that sent them; the model checks that). */
+  'M02-loneworker': { kind: 'model_list', model: 'fix.hse.loneworker', stateField: 'state',
+    cols: ['name', 'employee_id', 'field_order_id', 'opened_by_id', 'checkin_time', 'expected_end', 'buddy_id', 'state'],
+    domain: [['field_order_id', '!=', false]],
+    actions: [{ m: 'action_checkout', l: 'Check Out', states: ['checked_in', 'missed', 'escalated'] }, { m: 'action_escalate', l: 'Escalate', states: ['checked_in', 'missed'] }],
+    empty: 'No lone-worker session is open on a field order. A dispatcher opens one with + New for the technician on the order that sent them; the technician checks out, and a missed check-out escalates to the emergency contact.' },
+  /* The technician app's panic button arrives as a 'panic_sos' command in the
+   * offline journal; it is listed from there, never typed in. */
+  'M02-panic': { kind: 'model_list', model: 'fix.offline.idempotency.ledger', create: false,
+    cols: ['command_id', 'technician_id', 'device_id', 'status', 'client_created_at', 'applied_at'],
+    domain: [['operation', '=', 'panic_sos']],
+    stateField: 'status',
+    empty: 'No panic alert received. A panic alert is sent from the technician app and lands here with the technician and the time; it cannot be typed in.' },
+  /* On-site collection: Record Collection while on site, Hand Over Cash to an
+   * open branch shift after completion. The On-Site Payment page had only two
+   * reports, so the buttons that write a collection were on no page of it. */
+  'M02-collect': { kind: 'model_list', model: 'fix.field.order', create: false,
+    cols: ['name', 'order_id', 'technician_id', 'state', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'onsite_payment_state', 'cash_shift_id'],
+    domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]],
+    stateField: 'state',
+    actions: [
+      { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment', states: ['arrived', 'in_progress'] },
+      { m: 'action_handover_field_cash', l: 'Hand Over Cash', states: ['completed'] }
+    ],
+    empty: 'No field order is on site or completed. A collection is recorded while the technician is on site (arrived or working); cash is handed over to an open branch shift after completion.' },
   'M02-fieldpay': { kind: 'table_report', module: 'M02', report: 'field_payments', title: 'On-Site Payments', period: false },
   'M02-cashrec': { kind: 'table_report', module: 'M02', report: 'cash_recon', title: 'Daily Cash Reconciliation', period: false },
 
@@ -349,6 +397,19 @@ export const SCREENS = {
     model: 'fix.field.order',
     title: 'Emergency Reschedule Request',
     back: 'M02-sla-risk',
+    /* From the chip or the Dispatch Board page it first asks which order (a
+     * reschedule never creates a field order); from an SLA Risk row it opens
+     * on that order directly. */
+    newLabel: 'Reschedule a Field Order',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the field order to reschedule',
+      note: 'Field orders still to be attended. A completed or cancelled order cannot be rescheduled.',
+      search: 'Search field order / service order',
+      choose: 'Reschedule this order',
+      cols: ['name', 'order_id', 'technician_id', 'zone_id', 'scheduled_start', 'sla_deadline', 'state'],
+      domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined', 'dispatched', 'accepted', 'en_route']]],
+      empty: 'There is no field order waiting to be attended, so there is nothing to reschedule.'
+    },
     status: { field: 'state' },
     tabs: [
       { id: 'target', label: '1. Order & Territory', bn: '১. অর্ডার ও অঞ্চল', icon: '📋', badge: '4' },
@@ -398,6 +459,7 @@ export const SCREENS = {
     model: 'fix.field.decline.log',
     title: 'Field Exception Report',
     back: 'M02-exceptions',
+    create: false, pick: 'A field exception is written by Decline on the field order: open one from Field Exceptions to add notes.',
     tabs: [
       { id: 'source', label: '1. Exception Source', bn: '১. ব্যতিক্রম উৎস', icon: '⚠️', badge: '3' },
       { id: 'resolution', label: '2. Coded Reason & Notes', bn: '২. কারণ ও মন্তব্য', icon: '📎', badge: '2' }
@@ -516,20 +578,33 @@ export const REPORT_ROUTES = {
 /* Data-entry form chips: the registry's four forms, each a D365 in-workspace
  * model_form screen (zero modal popups). Labelled with the registry names —
  * the older prototype chip labels were drift (v2 forensic audit). */
+/* 'Crew Assignment' opened the FIELD order form, which has no crew field: a
+ * crew is two or more technician work orders on one service order (the Crews
+ * report measures exactly that), so it adds a technician work order.
+ * Records another module masters open THAT module's form (M38 does the same
+ * for promotions): van counts M15, lone-worker sessions M59, zones M30. */
 export const FORM_CHIPS = {
   'M02:Field Work Order': 'M02-form-wo',
   'M02:Field Exception Report': 'M02-form-exception',
-  'M02:Crew Assignment': 'M02-form-wo',
+  'M02:Crew Assignment': 'M02-form-workorder',
+  'M02:Technician Work Order': 'M02-form-workorder',
   'M02:Route Plan': 'M02-form-route',
-  'M02:Field Work Order (work order)': 'M02-form-workorder',
+  'M02:Emergency Reschedule Request': 'M02-form-reschedule',
   'M02:Zone Geofence': 'M02-form-zone',
+  'M02:Dispatch Zone': 'M30-form-zone',
+  'M02:Van Stock Reconciliation': 'M15-form-recon',
+  'M02:Lone-Worker Check-In': 'M59-form-loneworker',
+  /* FR-FSM-059: an accident, hazard or abuse in the field goes to M59 */
+  'M02:Field Incident Report': 'M59-form-incident',
   'M02:__by_model__': {
     'fix.geofence': 'M02-form-zone',
     'fix.technician.location': 'M02-form-technician-location',
     'fix.field.order': 'M02-form-wo',
     'fix.field.decline.log': 'M02-form-exception',
     'fix.field.route': 'M02-form-route',
-    'fix.work.order': 'M02-form-workorder'
+    'fix.work.order': 'M02-form-workorder',
+    'fix.stock.van.recon': 'M15-form-recon',
+    'fix.hse.loneworker': 'M59-form-loneworker'
   },
   'M02:__by_screen__': {
     'M02-wo': 'M02-form-workorder',
@@ -537,15 +612,23 @@ export const FORM_CHIPS = {
     'M02-record': 'M02-form-wo',
     'M02-exceptions': 'M02-form-exception',
     'M02-routes': 'M02-form-route',
-    'M02-sla-risk': 'M02-form-reschedule'
+    'M02-sla-risk': 'M02-form-reschedule',
+    'M02-loneworker': 'M59-form-loneworker'
   }
 };
 
 export const FORM_MODELS = {
   'M02:Field Work Order': 'fix.field.order',
   'M02:Field Exception Report': 'fix.field.decline.log',
-  'M02:Crew Assignment': 'fix.field.order',
-  'M02:Route Plan': 'fix.field.route'
+  'M02:Crew Assignment': 'fix.work.order',
+  'M02:Technician Work Order': 'fix.work.order',
+  'M02:Route Plan': 'fix.field.route',
+  'M02:Emergency Reschedule Request': 'fix.field.order',
+  'M02:Zone Geofence': 'fix.geofence',
+  'M02:Dispatch Zone': 'fix.zone',
+  'M02:Van Stock Reconciliation': 'fix.stock.van.recon',
+  'M02:Lone-Worker Check-In': 'fix.hse.loneworker',
+  'M02:Field Incident Report': 'fix.hse.incident'
 };
 
 /* The module's "+ New" surface: opens the canonical Dynamics 365 Create Field Work Order form */

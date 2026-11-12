@@ -176,17 +176,20 @@ def kpis(env):
             ("technician_id", "!=", False),
         ]
     )
+    # Nothing measured is None (the tile says "no activity"). These four used
+    # to fall back to 84.5 / 91.5 / 32.7 / 100.0, shown as "Live from Odoo" on
+    # fix_real with no field order at all (M02 capture audit, 2026-11-12).
     auto_assignment = (
-        round(100.0 * assigned_orders / max(dispatched_orders, 1), 1) if dispatched_orders else 84.5
+        round(100.0 * assigned_orders / max(dispatched_orders, 1), 1) if dispatched_orders else None
     )
 
     return {
         "jobs_tech_day": jobs_tech_day,
         "auto_assignment": auto_assignment,
-        "on_time_arrival": round(100.0 * on_time / arrived, 1) if arrived else 91.5,
-        "travel_share": travel_share if travel_share is not None else 32.7,
+        "on_time_arrival": round(100.0 * on_time / arrived, 1) if arrived else None,
+        "travel_share": travel_share,
         "unassigned_15m": aged_15m,
-        "offline_sync_health": round(100.0 * applied / total_ledger, 1) if total_ledger else 100.0,
+        "offline_sync_health": round(100.0 * applied / total_ledger, 1) if total_ledger else None,
     }
 
 
