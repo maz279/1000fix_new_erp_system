@@ -2958,7 +2958,8 @@ export class P03Workspace extends Component {
                 this.render(true);
                 return;
             }
-            this.showToast(this.t(act.done || "Saved ✓"));
+            const warning = res.result && res.result.warning;
+            this.showToast(warning ? "⚠ " + warning : this.t(act.done || "Saved ✓"));
             gl.form.busy = false;
             if (close) this.formBackToList();
             else this.loadFormData();
@@ -3115,6 +3116,10 @@ export class P03Workspace extends Component {
         if (r.secret) this.state.gl.secretDialog = { note: r.note || "", secret: r.secret };
         else if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
         else if (r.note) this.showToast(r.note);
+        // a method that succeeds with a caveat (M03 hub intake: seal mismatch,
+        // leg put on hold, or a value still needed) answers {warning}; it was
+        // dropped and the user read only "✓" (M03 capture audit 2026-11-12)
+        else if (r.warning) this.showToast("⚠ " + r.warning);
     }
 
     /* ---------------- CoA ---------------- */

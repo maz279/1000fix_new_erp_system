@@ -124,7 +124,14 @@ class FixConsignment(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
+    # M03 capture audit 2026-11-12: required with no default, and no form
+    # showed it, so a consignment raised in the workspace could never save.
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        required=True,
+        index=True,
+        default=lambda self: self.env.user.default_operating_unit_id,
+    )
     name = fields.Char(string="Consignment No.", readonly=True, index=True, copy=False)
     consignment_type = fields.Selection(
         [
@@ -454,7 +461,25 @@ class FixConsignment(models.Model):
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.consignment") or (
                     "CSG/%s" % fields.Date.today()
                 )
+            if not vals.get("operating_unit_id"):
+                ou = self._derive_operating_unit(vals)
+                if ou:
+                    vals["operating_unit_id"] = ou.id
         return super().create(vals_list)
+
+    def _derive_operating_unit(self, vals):
+        """The unit a consignment raised without one belongs to: its service
+        order's, else its origin or destination branch's (the M01 hand-over
+        rule), else the creator's default (a user with none gets the
+        required-field message)."""
+        order = self.env["fix.service.order"].browse(vals.get("service_order_id") or [])
+        if order.operating_unit_id:
+            return order.operating_unit_id
+        for key in ("origin_branch_id", "dest_branch_id"):
+            branch = self.env["fix.branch"].browse(vals.get(key) or [])
+            if branch.operating_unit_id:
+                return branch.operating_unit_id
+        return self.env.user.default_operating_unit_id
 
     def _custody_chain(self):
         """The scans in time order (ties by creation order)."""
