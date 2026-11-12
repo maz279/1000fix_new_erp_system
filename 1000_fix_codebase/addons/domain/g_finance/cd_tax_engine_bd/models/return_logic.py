@@ -316,10 +316,16 @@ def reconcile_vat_subledger(
     gl_210100_output_vat: Decimal | float | int | None = None,
     register_input_vat: Decimal | float | int | None = None,
     gl_110500_input_vat: Decimal | float | int | None = None,
+    output_account_code: str | None = None,
+    input_account_code: str | None = None,
 ) -> SubledgerReconciliation:
     """T02: Strict comparison between operational VAT sub-ledgers and General Ledger accounts.
-    Output VAT: fix.mushak.register vs Account 210100 (VAT Output Payable).
-    Input VAT: purchase bills vs Account 110500 (VAT Input Credit Receivable).
+    Output VAT: fix.mushak.register vs the configured VAT output account.
+    Input VAT: purchase bills vs the configured VAT input account.
+    The variance message names the accounts actually reconciled
+    (`output_account_code` / `input_account_code`; fix_real: 200902 / 200901),
+    never a hard-coded chart code. (The gl_210100 / gl_110500 keyword names are
+    kept for callers; they carry whatever account the return reconciled.)
     Variances are never silently absorbed (IRB-09 zero-absorption mandate)."""
     raw_out_sub = register_output_vat if register_output_vat is not None else subledger_output_vat
     raw_out_gl = gl_210100_output_vat if gl_210100_output_vat is not None else gl_output_vat
@@ -336,13 +342,15 @@ def reconcile_vat_subledger(
     is_rec = out_var == 0 and in_var == 0
     status = "RECONCILED" if is_rec else "VARIANCE_DETECTED"
     reasons: list[str] = []
+    out_name = output_account_code or "VAT output account"
+    in_name = input_account_code or "VAT input account"
     if out_var != 0:
         reasons.append(
-            f"GL 210100 Output VAT variance: subledger={out_sub}, gl={out_gl}, delta={out_var}"
+            f"GL {out_name} Output VAT variance: subledger={out_sub}, gl={out_gl}, delta={out_var}"
         )
     if in_var != 0:
         reasons.append(
-            f"GL 110500 Input VAT variance: subledger={in_sub}, gl={in_gl}, delta={in_var}"
+            f"GL {in_name} Input VAT variance: subledger={in_sub}, gl={in_gl}, delta={in_var}"
         )
 
     return SubledgerReconciliation(

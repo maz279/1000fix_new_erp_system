@@ -278,6 +278,81 @@ def test_a_partial_decision_and_its_remittance(wc):
         wc.officer,
     )
     assert _event(env, claim, "warranty_claim.remitted")["settled"] is True
+    _oem_invoice(wc, claim)  # E3-07: the receivable on the brand exists
+    _as(claim, wc.officer).action_close()
+    assert claim.state == "closed"
+
+
+def _oem_invoice(wc, claim):
+    """The M20 receivable on the brand for this claim, shaped as the
+    warranty_claim.decided hand-off (cd_billing_engine) raises it: a draft
+    invoice to the res.partner whose ref is the brand's code."""
+    env = wc.env
+    oem = env["res.partner"].search([("ref", "=", claim.brand_id.code)], limit=1)
+    if not oem:
+        oem = env["res.partner"].create(
+            {"name": "OEM %s" % claim.brand_id.name, "ref": claim.brand_id.code}
+        )
+    amount = claim.approved_amount
+    return (
+        env["fix.ar.invoice"]
+        .sudo()
+        .create(
+            {
+                "company_id": claim.company_id.id,
+                "operating_unit_id": claim.operating_unit_id.id,
+                "customer_id": oem.id,
+                "currency_id": claim.currency_id.id,
+                "source_model": CLAIM,
+                "source_id": claim.id,
+                "manual_reason": "Warranty claim %s - OEM reimbursement" % claim.claim_no,
+                "line_ids": [
+                    Command.create(
+                        {
+                            "description": "Warranty claim %s reimbursement" % claim.claim_no,
+                            "taxable_amount": amount,
+                            "vat_amount": 0.0,
+                            "line_total": amount,
+                        }
+                    )
+                ],
+            }
+        )
+    )
+
+
+# ---------------------------------------------------------------- E3-07
+
+
+def _approved_and_remitted(wc, amount=12500.0):
+    claim = _submitted(wc, amount=amount)
+    claim.action_decide(approved=True)  # the brand path
+    assert claim.state == "approved" and claim.approved_amount == amount
+    _as(claim, wc.officer).action_record_remittance(amount, "BANK-E307")
+    assert claim.state == "remitted"
+    return claim
+
+
+def test_e3_07_an_approved_claim_with_no_oem_invoice_is_not_closed(wc):
+    claim = _approved_and_remitted(wc)
+    # remitted, but no receivable was ever raised on the brand: refused
+    with wc.refused(UserError, "OEM invoice"):
+        _as(claim, wc.officer).action_close()
+    assert claim.state == "remitted"
+    # a cancelled invoice is no receivable either
+    invoice = _oem_invoice(wc, claim)
+    invoice.sudo()._guarded().write({"state": "cancelled"})
+    with wc.refused(UserError, "OEM invoice"):
+        _as(claim, wc.officer).action_close()
+    invoice.sudo()._guarded().write({"state": "draft"})
+    _as(claim, wc.officer).action_close()
+    assert claim.state == "closed"
+
+
+def test_e3_07_a_rejected_claim_closes_without_an_invoice(wc):
+    claim = _submitted(wc)
+    claim.action_decide(approved=False, reason="Out of warranty")
+    assert claim.state == "rejected" and not claim.approved_amount
     _as(claim, wc.officer).action_close()
     assert claim.state == "closed"
 

@@ -624,9 +624,12 @@ class _StubClient:
         return _StubResult(self.status, self.messages)
 
 
-def _vat_gl(env, output_posted=None, input_posted=None, when="2026-09-15"):
-    """The private company's VAT GL accounts (210100 / 110500), optionally
-    with a posted entry carrying the given output / input VAT."""
+def _vat_gl(
+    env, output_posted=None, input_posted=None, when="2026-09-15", codes=("210100", "110500")
+):
+    """The private company's VAT GL accounts (210100 / 110500 unless `codes`
+    names others, as fix_real's 200902 / 200901), optionally with a posted
+    entry carrying the given output / input VAT."""
     company = env.company
     Account = env["account.account"]
 
@@ -640,11 +643,13 @@ def _vat_gl(env, output_posted=None, input_posted=None, when="2026-09-15"):
             }
         )
 
-    out_acc = acc("210100", "VAT Output Payable", "liability_current")
-    in_acc = acc("110500", "VAT Input Credit", "asset_current")
+    out_acc = acc(codes[0], "VAT Output Payable", "liability_current")
+    in_acc = acc(codes[1], "VAT Input Credit", "asset_current")
     # A08 M51-8: the input-VAT role has no default code: it is configured
     icp = env["ir.config_parameter"].sudo()
-    icp.set_param("cd_tax_engine_bd.vat_input_account_code", "110500")
+    icp.set_param("cd_tax_engine_bd.vat_input_account_code", codes[1])
+    if codes[0] != "210100":
+        icp.set_param("cd_tax_engine_bd.vat_output_account_code", codes[0])
     bank = acc("100199", "Clearing", "asset_current")
     journal = env["account.journal"].create(
         {"name": "VAT test", "code": "VATT", "type": "general", "company_id": company.id}
@@ -700,15 +705,17 @@ class TestVatSubledger:
         assert ret.subledger_status == "variance_detected"
 
     def test_variance_is_raised_never_absorbed(self, tax_env):
-        _vat_gl(tax_env, output_posted=1400.0, input_posted=200.5)
+        # fix_real's configured VAT accounts: the message names THEM (it said
+        # "GL 210100 / 110500" whatever the chart reconciled against)
+        _vat_gl(tax_env, output_posted=1400.0, input_posted=200.5, codes=("200902", "200901"))
         ret = self._return(tax_env)
         ret.action_subledger_reconciliation()
         assert ret.subledger_status == "variance_detected"
         assert _money(ret.subledger_output_variance) == D("100.00")  # 1500.00 - 1400.00
         assert _money(ret.subledger_input_variance) == D("-0.50")  # 200.00 - 200.50
         assert ret.subledger_notes == (
-            "GL 210100 Output VAT variance: subledger=1500.00, gl=1400.00, delta=100.00; "
-            "GL 110500 Input VAT variance: subledger=200.00, gl=200.50, delta=-0.50"
+            "GL 200902 Output VAT variance: subledger=1500.00, gl=1400.00, delta=100.00; "
+            "GL 200901 Input VAT variance: subledger=200.00, gl=200.50, delta=-0.50"
         )
         (event,) = _events(tax_env, "vat_subledger.variance_detected", ret.id)
         assert (event["output_variance"], event["input_variance"]) == (100.0, -0.5)

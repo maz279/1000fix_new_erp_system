@@ -152,6 +152,41 @@ def _ar_account(env, company, role):
     )
 
 
+AGE_SLOTS = ("current", "d1_30", "d31_60", "d61_90", "d90_plus")
+
+
+def age_slot(days_past_due):
+    """The ageing bucket for a number of days past due (<= 0 is current)."""
+    if days_past_due <= 0:
+        return "current"
+    if days_past_due <= 30:
+        return "d1_30"
+    if days_past_due <= 60:
+        return "d31_60"
+    if days_past_due <= 90:
+        return "d61_90"
+    return "d90_plus"
+
+
+def takeon_ar_opening(env, company, as_of=None):
+    """The legacy take-on still open on the company's AR control, per
+    customer (commercial partner id; 0 = a line with no party): the
+    amount_residual of the take-on journal's lines on the account M20 posts
+    invoices to. The opening balance is part of the customer's balance, so
+    every ageing, statement and sub-ledger figure counts it; it is aged from
+    the take-on date (the lines' due date). Read as superuser — callers gate
+    who sees it."""
+    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import open_takeon_balances
+
+    return open_takeon_balances(env, company, _ar_account(env, company, "ar"), as_of=as_of)
+
+
+def takeon_label(on):
+    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import OPENING_LABEL
+
+    return OPENING_LABEL % on
+
+
 def _ar_journal(env, company):
     """The company's general journal for AR postings, or None (skip)."""
     return env["account.journal"].search(
@@ -1253,11 +1288,13 @@ class FixArAgingSnapshot(models.Model):
 
     def action_capture(self, as_of=None):
         """Capture per-customer buckets for every open issued invoice, aged
-        as of `as_of` (backdated ageing supported, the D365 pattern)."""
+        as of `as_of` (backdated ageing supported, the D365 pattern), plus
+        each customer's legacy take-on still open on the AR control, aged
+        from the take-on date (an opening balance is owed like an invoice)."""
         for rec in self:
             if rec.state == "captured":
                 raise UserError("Snapshot already captured — take a new one instead")
-            on = as_of or rec.as_of_date or fields.Date.today()
+            on = fields.Date.to_date(as_of or rec.as_of_date or fields.Date.today())
             rec.write({"as_of_date": on})
             per_customer = {}
             invoices = (
@@ -1284,6 +1321,13 @@ class FixArAgingSnapshot(models.Model):
                     dict.fromkeys(self.BUCKETS, 0.0),
                 )
                 slot[bucket] += inv.amount_residual
+            for customer_id, opening in takeon_ar_opening(
+                self.env, rec.company_id, as_of=on
+            ).items():
+                if not customer_id or abs(opening["residual"]) <= 0.005:
+                    continue
+                slot = per_customer.setdefault(customer_id, dict.fromkeys(self.BUCKETS, 0.0))
+                slot[age_slot((on - opening["date"]).days)] += opening["residual"]
             rec.line_ids = [
                 (
                     0,
@@ -1450,7 +1494,13 @@ class FixArPaymentLink(models.Model):
 def compute_customer_statement(env, customer_id, date_from: date, date_to: date) -> dict:
     """An honest open-item statement: opening balance, invoices, credit
     notes and receipts in the window, closing balance. Receipts reduce AR at
-    confirm (not at allocation) — that is when the GL moves."""
+    confirm (not at allocation) — that is when the GL moves.
+
+    The customer's legacy take-on (journal MIG on the AR control) is the
+    statement's starting point: taken on before the window it is in the
+    opening balance; inside the window it is the first line, "Opening
+    balance (take-on <date>)". It counts at the amount taken on — receipts
+    against it are already the statement's own receipt lines."""
     Invoice = env["fix.ar.invoice"]
     Receipt = env["fix.ar.receipt"]
     CreditNote = env["fix.credit.note"]
@@ -1485,13 +1535,51 @@ def compute_customer_statement(env, customer_id, date_from: date, date_to: date)
                 result.append(note)
         return result
 
+    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import TAKEON_JOURNAL_CODE
+
+    takeon_before = 0.0
+    takeon_rows = []
+    for company in env.companies:
+        ar = _ar_account(env, company, "ar")
+        if not ar:
+            continue
+        for line in (
+            env["account.move.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("account_id", "=", ar.id),
+                    ("partner_id", "=", customer_id),
+                    ("parent_state", "=", "posted"),
+                    ("journal_id.code", "=", TAKEON_JOURNAL_CODE),
+                    ("date", "<=", date_to),
+                ],
+                order="date, id",
+            )
+        ):
+            if line.date < date_from:
+                takeon_before += line.balance
+            else:
+                takeon_rows.append(
+                    {
+                        "date": str(line.date),
+                        "kind": "takeon",
+                        "ref": line.move_id.name,
+                        "detail": takeon_label(line.date),
+                        "charge": line.balance,
+                    }
+                )
+
     opening = (
-        sum(i.total_payable for i in _invoices(before=date_from))
+        takeon_before
+        + sum(i.total_payable for i in _invoices(before=date_from))
         - sum(r.amount for r in _receipts(before=date_from))
         - sum(n.amount for n in _credits(before=date_from))
     )
 
-    rows = []
+    # the take-on lines first: on its date the opening balance precedes the day's documents
+    rows = list(takeon_rows)
     for inv in _invoices(window=(date_from, date_to)):
         rows.append(
             {

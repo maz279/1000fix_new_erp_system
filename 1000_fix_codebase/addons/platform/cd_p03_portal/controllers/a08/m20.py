@@ -215,6 +215,61 @@ def _age_slot(inv, today):
     return "d90_plus"
 
 
+def _takeon_open(env, as_of=None):
+    """Each customer's legacy take-on still open on the AR control (journal
+    MIG, cd_billing_engine.account_code.ar), in the caller's companies:
+    [{"company", "partner_id" (commercial; 0 = no party), "residual",
+    "date"}]. None when the caller may not read the GL (the AR ledger lines
+    are finance-only); the reports then say so instead of hiding it."""
+    if not env["account.move.line"].has_access("read"):
+        return None
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import takeon_ar_opening
+
+    out = []
+    for company in env.companies:
+        for partner_id, opening in takeon_ar_opening(env, company, as_of=as_of).items():
+            if abs(opening["residual"]) > 0.005:
+                out.append(
+                    {
+                        "company": company,
+                        "partner_id": partner_id,
+                        "residual": opening["residual"],
+                        "date": opening["date"],
+                    }
+                )
+    return out
+
+
+def _takeon_slot(opening, today):
+    """Aged from the take-on date (the lines' due date)."""
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import age_slot
+
+    return age_slot((today - opening["date"]).days)
+
+
+def _opening_label(on):
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import takeon_label
+
+    return takeon_label(on)
+
+
+TAKEON_NOTE = (
+    "Opening balances taken on from the legacy system (journal MIG, one line per party "
+    "on the AR control) are listed as their own line, 'Opening balance (take-on <date>)', "
+    "at what is still open on them and aged from the take-on date."
+)
+TAKEON_HIDDEN = (
+    "Opening balances taken on from the legacy system are GL lines, visible to finance "
+    "roles only: they are not in this table for your role."
+)
+
+
+def _party_key(partner):
+    """The commercial entity a balance belongs to; a party whose stored
+    commercial partner is unset (raw-loaded rows) is its own; 0 = none."""
+    return (partner.commercial_partner_id or partner).id or 0
+
+
 def _ar_window(date_from, date_to):
     start = _as_date(date_from, None)
     end = _as_date(date_to, None)
@@ -227,7 +282,11 @@ def ageing_by_segment(env, date_from=None, date_to=None, **params):
     (fix.credit.profile), exactly the rule the ageing jobs use."""
     today = _as_date(date_to, datetime.date.today())
     invoices = _open_invoices(env)
-    partner_ids = invoices.mapped("customer_id").ids
+    takeon = _takeon_open(env, as_of=today)
+    partner_ids = sorted(
+        set(invoices.mapped("customer_id").ids)
+        | {t["partner_id"] for t in takeon or [] if t["partner_id"]}
+    )
     segment_of = {}
     if partner_ids:
         for mem in env["fix.segment.membership"].search(
@@ -243,6 +302,14 @@ def ageing_by_segment(env, date_from=None, date_to=None, **params):
         row["invoices"] += 1
         row[_age_slot(inv, today)] += inv.amount_residual
         row["total"] += inv.amount_residual
+    for opening in takeon or []:
+        seg = segment_of.get(opening["partner_id"]) or "Unsegmented"
+        key = "%s · %s" % (seg, _opening_label(opening["date"]))
+        row = by_seg.setdefault(
+            key, {"segment": key, "invoices": 0, "total": 0.0, **{s: 0.0 for s in AGE_SLOTS}}
+        )
+        row[_takeon_slot(opening, today)] += opening["residual"]
+        row["total"] += opening["residual"]
     rows = [
         {k: (round(v, 2) if isinstance(v, float) else v) for k, v in r.items()}
         for r in sorted(by_seg.values(), key=lambda r: -r["total"])
@@ -266,10 +333,11 @@ def ageing_by_segment(env, date_from=None, date_to=None, **params):
         },
         "rows": rows,
         "totals": totals if rows else None,
-        "empty": "No open issued invoices — nothing to age.",
+        "empty": "No open issued invoices or opening balances — nothing to age.",
         "notes": [
             "Bucket boundary = (as-of date − invoice date) − the customer's own credit terms "
             "(fix.credit.profile); segments are the customer's current fix.segment memberships.",
+            TAKEON_NOTE if takeon is not None else TAKEON_HIDDEN,
         ],
     }
 
@@ -506,6 +574,30 @@ def brand_receivable_ageing(env, date_from=None, date_to=None, **params):
         or "claim" in (i.source_model or "").lower()
     )
     rows = []
+    # a brand's own legacy take-on: the OEM billing partner is the res.partner
+    # whose ref is a brand code (the warranty-claim hand-off's own rule)
+    takeon = _takeon_open(env, as_of=today)
+    brand_partners = set()
+    if takeon and "fix.brand" in env:
+        codes = [c for c in env["fix.brand"].sudo().search([]).mapped("code") if c]
+        if codes:
+            brand_partners = {
+                _party_key(p) for p in env["res.partner"].sudo().search([("ref", "in", codes)])
+            }
+    Partner = env["res.partner"].sudo()
+    for opening in takeon or []:
+        if opening["partner_id"] not in brand_partners:
+            continue
+        rows.append(
+            {
+                "invoice": _opening_label(opening["date"]),
+                "customer": Partner.browse(opening["partner_id"]).name,
+                "date": str(opening["date"]),
+                "residual": round(opening["residual"], 2),
+                "bucket": _takeon_slot(opening, today),
+                "state": "take-on",
+            }
+        )
     for inv in invoices:
         rows.append(
             {
@@ -539,6 +631,10 @@ def brand_receivable_ageing(env, date_from=None, date_to=None, **params):
             "Rows are restricted to invoices whose source is a brand/warranty claim "
             "(source_model contains 'brand' or 'claim'). Ordinary customer invoices are never "
             "reported as brand receivables.",
+            "A brand's opening balance taken on from the legacy system (the partner whose ref "
+            "is the brand code) is its own line, aged from the take-on date."
+            if takeon is not None
+            else TAKEON_HIDDEN,
         ],
     }
 
@@ -624,6 +720,7 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
         "company": "Company",
         "customer": "Customer",
         "invoices_open": "Open on Invoices",
+        "takeon_open": "Opening Balance (take-on)",
         "unapplied": "Unapplied Receipts",
         "subledger": "Sub-ledger Balance",
         "gl": "GL Balance",
@@ -640,8 +737,11 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
             ["Visible to finance roles only."],
             empty="Not available to your role.",
         )
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import takeon_ar_opening
+
     rows = []
     notes = []
+    takeon_dates = set()
     MoveLine = env["account.move.line"].sudo()
     Partner = env["res.partner"].sudo()
     for company in env.companies:
@@ -656,13 +756,20 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
         for inv in env["fix.ar.invoice"].search(
             [("company_id", "=", company.id), ("state", "in", ("issued", "paid"))]
         ):
-            key = inv.customer_id.commercial_partner_id.id
+            key = _party_key(inv.customer_id)
             side.setdefault(key, [0.0, 0.0])[0] += inv.amount_residual
         for receipt in env["fix.ar.receipt"].search(
             [("company_id", "=", company.id), ("state", "=", "confirmed")]
         ):
-            key = receipt.customer_id.commercial_partner_id.id
+            key = _party_key(receipt.customer_id)
             side.setdefault(key, [0.0, 0.0])[1] += receipt.unapplied_amount
+        # the legacy take-on still open is part of the customer's sub-ledger
+        # (without it every taken-on customer showed a false difference)
+        takeon = {}
+        for key, opening in takeon_ar_opening(env, company).items():
+            if abs(opening["residual"]) > 0.005:
+                takeon[key] = opening["residual"]
+                takeon_dates.add(opening["date"])
         gl = {}
         for line in MoveLine.search(
             [
@@ -671,17 +778,21 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
                 ("parent_state", "=", "posted"),
             ]
         ):
-            key = line.partner_id.commercial_partner_id.id or 0
+            key = _party_key(line.partner_id)
             gl[key] = gl.get(key, 0.0) + line.balance
-        for key in sorted(set(side) | set(gl)):
+        for key in sorted(set(side) | set(gl) | set(takeon)):
             open_amount, unapplied = side.get(key, (0.0, 0.0))
+            opening = takeon.get(key, 0.0)
             balance = round(gl.get(key, 0.0), 2)
-            subledger = round(open_amount - unapplied, 2)
+            subledger = round(open_amount + opening - unapplied, 2)
+            if not key and abs(subledger) < 0.005 and abs(balance) < 0.005:
+                continue  # party-less lines that net to nothing (a take-on and its rollback)
             rows.append(
                 {
                     "company": company.name,
                     "customer": Partner.browse(key).name if key else "(no customer on the GL line)",
                     "invoices_open": round(open_amount, 2),
+                    "takeon_open": round(opening, 2),
                     "unapplied": round(unapplied, 2),
                     "subledger": subledger,
                     "gl": balance,
@@ -693,6 +804,10 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
     for col in cols[2:]:
         totals[col] = round(sum(r[col] for r in rows), 2)
     differing = sum(1 for r in rows if abs(r["difference"]) > 0.005)
+    if takeon_dates:
+        labels["takeon_open"] = "Opening Balance (take-on %s)" % ", ".join(
+            str(d) for d in sorted(takeon_dates)
+        )
     return _pack(
         "%s: %d customer(s) differ" % (title, differing),
         cols,
@@ -701,6 +816,8 @@ def ar_subledger_gl_recon(env, date_from=None, date_to=None, **params):
         [
             "Differences are listed for a person to explain and are never adjusted here. "
             "Largest differences first.",
+            "Sub-ledger = open on invoices + the legacy take-on still open (journal MIG on "
+            "the AR control) − unapplied receipts.",
             *notes,
         ],
         totals=totals if rows else None,

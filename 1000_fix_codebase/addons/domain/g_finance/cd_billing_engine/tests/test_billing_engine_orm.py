@@ -165,7 +165,9 @@ class TestAutoInvoice:
         expected_no = "%d-%06d" % (fy_start.year, before + 1)
         assert mushak.mushak_no == expected_no
         assert (mushak.supplier_bin, mushak.customer_bin) == (COMPANY_BIN, CUSTOMER_BIN)
-        assert mushak.invoice_ref == "AR/%s" % invoice.id
+        # E3-20: the 6.3 row cites the invoice's gapless number, not AR/<id>
+        assert invoice.name and invoice.name != "New"
+        assert mushak.invoice_ref == invoice.name
         assert _money(mushak.total_payable) == D("6785.00")
         assert mushak.treatment_summary == (
             "SVC: standard_15 @ 15%\nPART-LCD: standard_15 @ 15%\nSVC: standard_15 @ 15%"

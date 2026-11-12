@@ -951,13 +951,16 @@ class FixArInvoice(models.Model):
                 inv.customer_id._fix_assert_party_usable_downstream("an invoice")
             inv._credit_hold_check()
             company = inv.company_id
+            # E3-20: the 6.3 row cites the invoice's gapless number (drawn in
+            # this same transaction), never the internal AR/<id>
+            invoice_no = inv._next_invoice_no()
             mushak = _issue_mushak_row(
                 self.env,
                 {
                     "operating_unit_id": inv.operating_unit_id.id,
                     "company_id": company.id,
                     "mushak_no": self._next_mushak_no(company, inv.invoice_date),
-                    "invoice_ref": "AR/%s" % inv.id,
+                    "invoice_ref": invoice_no,
                     "invoice_date": inv.invoice_date,
                     "supplier_name": company.name,
                     "supplier_bin": self._company_bin(company),
@@ -971,7 +974,7 @@ class FixArInvoice(models.Model):
             )
             inv._guarded().write(
                 {
-                    "name": inv._next_invoice_no(),
+                    "name": invoice_no,
                     "mushak_id": mushak.id,
                     "state": "issued",
                     "issued_by_id": self.env.uid,
@@ -1168,13 +1171,15 @@ class FixArInvoice(models.Model):
 
         # Mushak register row — same transaction (T08 atomicity)
         company = invoice.company_id
+        # E3-20: the 6.3 row cites the invoice's gapless number
+        invoice_no = invoice._next_invoice_no()
         mushak = _issue_mushak_row(
             self.env,
             {
                 "operating_unit_id": invoice.operating_unit_id.id,
                 "company_id": company.id,
                 "mushak_no": self._next_mushak_no(company, invoice.invoice_date),
-                "invoice_ref": "AR/%s" % invoice.id,
+                "invoice_ref": invoice_no,
                 "invoice_date": invoice.invoice_date,
                 "supplier_name": company.name,
                 "supplier_bin": self._company_bin(company),
@@ -1194,7 +1199,7 @@ class FixArInvoice(models.Model):
             {
                 "mushak_id": mushak.id,
                 "state": "issued",
-                "name": invoice._next_invoice_no(),
+                "name": invoice_no,
                 "issued_by_id": self.env.uid,
             }
         )

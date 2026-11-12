@@ -88,6 +88,77 @@ def _norm_name(name):
     return re.sub(r"\s+", " ", s).strip()
 
 
+# The journal every take-on (partner ledger and voucher-level AP) posts on.
+TAKEON_JOURNAL_CODE = "MIG"
+OPENING_LABEL = "Opening balance (take-on %s)"
+
+
+def takeon_control_account(env, company, kind):
+    """The control account a party's take-on sits on: `receivable` reads the
+    AR engine's parameter first (cd_billing_engine.account_code.ar, the
+    account M20 posts invoices to), then the take-on parameter; `payable`
+    reads cd_gl_ext.ledger_takeon.payable_account_code. Nothing configured
+    means an empty recordset: the caller reports no opening balance rather
+    than guessing an account (the first payable by code is not the control)."""
+    params = env["ir.config_parameter"].sudo()
+    keys = {
+        "receivable": (
+            "cd_billing_engine.account_code.ar",
+            "cd_gl_ext.ledger_takeon.receivable_account_code",
+        ),
+        "payable": ("cd_gl_ext.ledger_takeon.payable_account_code",),
+    }[kind]
+    Account = env["account.account"].sudo().with_company(company)
+    for key in keys:
+        code = (params.get_param(key) or "").strip()
+        if code:
+            return Account.search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+    return Account
+
+
+def open_takeon_balances(env, company, account, as_of=None):
+    """The legacy take-on still open on a control account, per party.
+
+    Reads the posted lines of the take-on journal (MIG) on `account` dated on
+    or before `as_of`, grouped by the party's commercial partner (the party
+    itself when that is unset; 0 = a line with no party). Returns {partner_id: {"residual", "balance", "date",
+    "lines"}}: `residual` is what is still open (amount_residual, signed as
+    the GL: + debit, - credit), `balance` the amount taken on (net of any
+    rollback mirror), `date` the earliest take-on date. Read as superuser:
+    callers gate who may see it (the reports they feed are finance-only)."""
+    if not account:
+        return {}
+    domain = [
+        ("company_id", "=", company.id),
+        ("account_id", "=", account.id),
+        ("parent_state", "=", "posted"),
+        ("journal_id.code", "=", TAKEON_JOURNAL_CODE),
+    ]
+    if as_of:
+        domain.append(("date", "<=", as_of))
+    out = {}
+    groups = (
+        env["account.move.line"]
+        .sudo()
+        ._read_group(
+            domain,
+            ["partner_id"],
+            ["amount_residual:sum", "balance:sum", "date:min", "__count"],
+        )
+    )
+    for partner, residual, balance, first, count in groups:
+        # a party loaded without its stored commercial partner (fix_real: 11
+        # take-on parties) is its own commercial entity, never "no party"
+        key = (partner.commercial_partner_id or partner).id if partner else 0
+        slot = out.setdefault(key, {"residual": 0.0, "balance": 0.0, "date": first, "lines": 0})
+        slot["residual"] += residual or 0.0
+        slot["balance"] += balance or 0.0
+        slot["lines"] += count
+        if first and (not slot["date"] or first < slot["date"]):
+            slot["date"] = first
+    return out
+
+
 class FixLedgerTakeonBatch(models.Model):
     _name = "fix.ledger.takeon.batch"
     _description = "Legacy Partner-Ledger Take-on"

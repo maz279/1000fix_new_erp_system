@@ -225,6 +225,7 @@ def ap_ageing(env, date_from=None, date_to=None, **params):
         )
     for note in notes:
         by_vendor[note.vendor_id.commercial_partner_id.display_name]["current"] += note.signed_total
+    takeon_note = _add_payable_takeon(env, by_vendor, as_of)
     rows, totals = [], dict.fromkeys([k for k, _ in BUCKETS], 0.0)
     for vendor in sorted(by_vendor):
         vals = by_vendor[vendor]
@@ -243,9 +244,51 @@ def ap_ageing(env, date_from=None, date_to=None, **params):
         "rows": rows,
         "totals": totals,
         "notes": "Approved, unpaid bills net of TDS/VDS by days past due date; approved "
-        "debit/credit notes not yet netted in a payment run are shown as not due.",
-        "empty": "No approved, unpaid vendor bills.",
+        "debit/credit notes not yet netted in a payment run are shown as not due. " + takeon_note,
+        "empty": "No approved, unpaid vendor bills or opening balances.",
     }
+
+
+def _add_payable_takeon(env, by_vendor, as_of):
+    """Each vendor's legacy take-on still open on the payable control (journal
+    MIG on cd_gl_ext.ledger_takeon.payable_account_code; fix_real 200101) as
+    its own line, "<vendor> · Opening balance (take-on <date>)", aged from
+    the take-on date. Returns the note the report prints."""
+    if not env["account.move.line"].has_access("read"):
+        return (
+            "Opening balances taken on from the legacy system are GL lines, visible to "
+            "finance roles only: they are not in this table for your role."
+        )
+    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import (
+        OPENING_LABEL,
+        open_takeon_balances,
+        takeon_control_account,
+    )
+
+    Partner = env["res.partner"].sudo()
+    configured = False
+    for company in env.companies:
+        control = takeon_control_account(env, company, "payable")
+        if not control:
+            continue
+        configured = True
+        for partner_id, opening in open_takeon_balances(env, company, control, as_of).items():
+            owed = -opening["residual"]  # credit-normal: a payable is a credit residual
+            if abs(owed) <= 0.005:
+                continue
+            name = Partner.browse(partner_id).display_name if partner_id else "(no vendor)"
+            key = "%s · %s" % (name, OPENING_LABEL % opening["date"])
+            by_vendor[key][_bucket((as_of - opening["date"]).days)] += owed
+    if not configured:
+        return (
+            "No payable control is configured (cd_gl_ext.ledger_takeon.payable_account_code): "
+            "legacy opening balances are not shown."
+        )
+    return (
+        "Opening balances taken on from the legacy system (journal MIG on the payable "
+        "control) are each vendor's own line, at what is still open, aged from the take-on "
+        "date."
+    )
 
 
 def _receipt_dates(env, po_line_ids):

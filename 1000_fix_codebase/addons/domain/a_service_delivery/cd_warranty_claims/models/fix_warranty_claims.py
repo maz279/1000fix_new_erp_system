@@ -1180,12 +1180,54 @@ class FixWarrantyClaim(models.Model):
             )
         return True
 
+    def _oem_invoice(self):
+        """The M20 receivable raised on the brand for this claim (the
+        warranty_claim.decided hand-off in cd_billing_engine), not cancelled.
+        cd_billing_engine depends on this module, so the model is reached by
+        name; without it there is no receivable model at all."""
+        self.ensure_one()
+        if "fix.ar.invoice" not in self.env:
+            return None
+        return (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            .search(
+                [
+                    ("source_model", "=", self._name),
+                    ("source_id", "=", self.id),
+                    ("state", "!=", "cancelled"),
+                ],
+                limit=1,
+            )
+        )
+
+    def _check_receivable_raised(self):
+        """E3-07: a claim the brand agreed to pay is closed only once the
+        receivable on the brand exists. Recording a remittance posts nothing
+        to the ledger, so a claim could be remitted and closed with the money
+        never owed in the books. A rejection, or an approval of nothing, has
+        no money leg and closes as before."""
+        self.ensure_one()
+        if (self.approved_amount or 0.0) <= 0.005:
+            return
+        if self._oem_invoice():
+            return
+        raise UserError(
+            "Claim %s was approved for %.2f but no OEM invoice was ever raised on the brand "
+            "(M20, source %s). Raise and issue the brand's invoice first — the remittance is "
+            "collected against it — then close the claim."
+            % (self.claim_no, self.approved_amount, self._name)
+        )
+
     def action_close(self):
-        """Close a settled claim, or a rejected one with no open appeal."""
+        """Close a settled claim, or a rejected one with no open appeal. A
+        claim with an approved amount closes only once its OEM invoice exists
+        (E3-07)."""
         for claim in self:
             _assert_role(self.env, OFFICER_GROUP, "Closing a warranty claim")
             open_appeal = claim.appeal_ids.filtered(lambda a: a.decision == "pending")
             if claim.state == "remitted" or (claim.state == "rejected" and not open_appeal):
+                claim._check_receivable_raised()
                 claim._guarded().write({"state": "closed"})
             else:
                 raise UserError(

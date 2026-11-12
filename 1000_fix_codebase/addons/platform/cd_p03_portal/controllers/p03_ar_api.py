@@ -17,8 +17,11 @@ from datetime import timedelta
 
 from odoo import http
 from odoo.addons.cd_billing_engine.models.fix_ar_engine import (
+    age_slot,
     compute_customer_statement,
     compute_leakage,
+    takeon_ar_opening,
+    takeon_label,
 )
 from odoo.exceptions import UserError
 from odoo.http import request
@@ -389,6 +392,26 @@ class P03ArApiController(http.Controller):
                 {"current": 0.0, "d1_30": 0.0, "d31_60": 0.0, "d61_90": 0.0, "d90_plus": 0.0},
             )
             per[slot] += inv.amount_residual
+        # each customer's legacy take-on still open on the AR control: its own
+        # line, aged from the take-on date (finance roles: GL lines)
+        if env["account.move.line"].has_access("read"):
+            Partner = env["res.partner"].sudo()
+            for company in env.companies:
+                for partner_id, opening in takeon_ar_opening(env, company, as_of=today).items():
+                    if abs(opening["residual"]) <= 0.005:
+                        continue
+                    name = Partner.browse(partner_id).name if partner_id else "(no customer)"
+                    per = buckets.setdefault(
+                        "%s · %s" % (name, takeon_label(opening["date"])),
+                        {
+                            "current": 0.0,
+                            "d1_30": 0.0,
+                            "d31_60": 0.0,
+                            "d61_90": 0.0,
+                            "d90_plus": 0.0,
+                        },
+                    )
+                    per[age_slot((today - opening["date"]).days)] += opening["residual"]
         live_rows = [
             dict({"customer": name}, **{k: round(v, 2) for k, v in amounts.items()})
             for name, amounts in sorted(buckets.items())
@@ -482,8 +505,17 @@ class P03ArApiController(http.Controller):
         invoiced = env["fix.ar.invoice"].search([]).mapped("customer_id")
         receipted = env["fix.ar.receipt"].search([]).mapped("customer_id")
         ranked = env["res.partner"].search([("customer_rank", ">", 0)], limit=50)
+        # a customer whose whole balance was taken on from the legacy system
+        # has no invoice or receipt yet: list them too (their statement opens
+        # on the take-on balance)
+        taken_on = env["res.partner"]
+        if env["account.move.line"].has_access("read"):
+            ids = set()
+            for company in env.companies:
+                ids |= {k for k, v in takeon_ar_opening(env, company).items() if k and v["lines"]}
+            taken_on = env["res.partner"].browse(sorted(ids)).exists()
         seen, partners = set(), []
-        for p in list(invoiced) + list(receipted) + list(ranked):
+        for p in list(invoiced) + list(receipted) + list(ranked) + list(taken_on):
             if p.id not in seen:
                 seen.add(p.id)
                 partners.append({"id": p.id, "name": p.name})

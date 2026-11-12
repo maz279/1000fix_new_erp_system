@@ -209,13 +209,15 @@ class FixVatReturn(models.Model):
         string="Output VAT Variance",
         currency_field="currency_id",
         readonly=True,
-        help="Variance between Output VAT register and GL 210100 (must be 0.00)",
+        help="Variance between the Output VAT register and the configured VAT output GL "
+        "account (cd_tax_engine_bd.vat_output_account_code; must be 0.00)",
     )
     subledger_input_variance = fields.Monetary(
         string="Input VAT Variance",
         currency_field="currency_id",
         readonly=True,
-        help="Variance between Input VAT register and GL 110500 (must be 0.00)",
+        help="Variance between the Input VAT register and the configured VAT input GL "
+        "account (cd_tax_engine_bd.vat_input_account_code; must be 0.00)",
     )
     subledger_status = fields.Selection(
         [
@@ -555,9 +557,27 @@ class FixVatReturn(models.Model):
             balances[account.id] = sum((Decimal(str(line.balance)) for line in lines), Decimal("0"))
         return -balances[out_acc.id], balances[in_acc.id]
 
+    def _gl_vat_account_codes(self) -> tuple[str | None, str | None]:
+        """The codes of the VAT output / input accounts the GL side is read
+        from, for the variance message (fix_real: 200902 / 200901). The GL
+        read (_gl_vat_balances) is what refuses an unconfigured role; a code
+        that cannot be resolved here is left unnamed, never invented."""
+        self.ensure_one()
+        codes = []
+        for role in ("vat_output", "vat_input"):
+            try:
+                account = tax_account(self.env, self.company_id, role)
+            except UserError:
+                codes.append(None)
+                continue
+            codes.append(account.with_company(self.company_id).code or None)
+        return codes[0], codes[1]
+
     def action_subledger_reconciliation(self) -> None:
-        """T02: the VAT sub-ledger — register output VAT vs the GL's VAT account (210100)
-        and input VAT vs GL (110500). A variance is RAISED, never silently absorbed.
+        """T02: the VAT sub-ledger — register output VAT vs the configured VAT output
+        account and input VAT vs the configured VAT input account (fix_real: 200902 /
+        200901); the variance message names those accounts. A variance is RAISED,
+        never silently absorbed.
 
         The GL side is ALWAYS read from posted account.move.line for the
         period. (Previously, called without GL figures — as the form button
@@ -568,6 +588,7 @@ class FixVatReturn(models.Model):
             if ret.state == "draft":
                 raise UserError("Prepare return %s before reconciling it" % ret.period)
             target_gl_output, target_gl_input = ret.sudo()._gl_vat_balances()
+            out_code, in_code = ret.sudo()._gl_vat_account_codes()
 
             recon = return_logic.reconcile_vat_subledger(
                 period=ret.period,
@@ -575,6 +596,8 @@ class FixVatReturn(models.Model):
                 gl_210100_output_vat=target_gl_output,
                 register_input_vat=ret.input_vat,
                 gl_110500_input_vat=target_gl_input,
+                output_account_code=out_code,
+                input_account_code=in_code,
             )
 
             status = "reconciled" if recon.is_reconciled else "variance_detected"

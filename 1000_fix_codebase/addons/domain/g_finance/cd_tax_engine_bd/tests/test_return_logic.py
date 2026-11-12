@@ -224,11 +224,17 @@ class TestVatSubledgerReconciliation(unittest.TestCase):
             gl_210100_output_vat=D("148500.00"),
             register_input_vat=D("45000.00"),
             gl_110500_input_vat=D("45000.00"),
+            output_account_code="200902",
+            input_account_code="200901",
         )
         self.assertFalse(recon.is_reconciled)
         self.assertEqual(recon.output_variance, D("1500.00"))
         self.assertEqual(recon.input_variance, D("0.00"))
-        self.assertTrue(any("GL 210100" in n for n in recon.notes))
+        # the message names the account actually reconciled, never a hard-coded one
+        self.assertEqual(
+            recon.notes,
+            ["GL 200902 Output VAT variance: subledger=150000.00, gl=148500.00, delta=1500.00"],
+        )
 
     def test_reconciliation_input_variance_detected(self):
         recon = reconcile_vat_subledger(
@@ -237,11 +243,29 @@ class TestVatSubledgerReconciliation(unittest.TestCase):
             gl_210100_output_vat=D("150000.00"),
             register_input_vat=D("45000.00"),
             gl_110500_input_vat=D("47200.00"),
+            output_account_code="200902",
+            input_account_code="200901",
         )
         self.assertFalse(recon.is_reconciled)
         self.assertEqual(recon.output_variance, D("0.00"))
         self.assertEqual(recon.input_variance, D("-2200.00"))
-        self.assertTrue(any("GL 110500" in n for n in recon.notes))
+        self.assertEqual(
+            recon.notes,
+            ["GL 200901 Input VAT variance: subledger=45000.00, gl=47200.00, delta=-2200.00"],
+        )
+
+    def test_reconciliation_without_account_codes_names_no_account(self):
+        recon = reconcile_vat_subledger(
+            period="2026-10",
+            register_output_vat=D("10.00"),
+            gl_210100_output_vat=D("0.00"),
+            register_input_vat=D("5.00"),
+            gl_110500_input_vat=D("0.00"),
+        )
+        joined = "; ".join(recon.notes)
+        self.assertNotIn("210100", joined)
+        self.assertNotIn("110500", joined)
+        self.assertIn("VAT output account", joined)
 
 
 class TestTdsSectionLines(unittest.TestCase):
