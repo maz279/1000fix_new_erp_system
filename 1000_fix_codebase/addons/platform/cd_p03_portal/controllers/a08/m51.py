@@ -254,11 +254,12 @@ def signoff_queue(env, date_from=None, date_to=None, **params):
         },
         "rows": rows,
         "notes": [
-            "Rows in force stay in use while they wait, or every bill and invoice would stop: "
-            "a deduction or Mushak row using one shows Rate Unconfirmed. Act on a row on its "
-            "own master screen (Tax Rate Master, Statutory Parameters, Tax Determination "
-            "Service, Statutory Calendar Rules). Once this list is empty, system parameter "
-            "cd_tax_engine_bd.enforce_rate_signoff = 1 makes an unsigned row refuse."
+            "Rates and parameters in force stay in use while they await sign-off, or every "
+            "bill and invoice would stop; a deduction or Mushak line that uses one shows Rate "
+            "Unconfirmed. Sign each one off on its own master screen (Tax Rate Master, "
+            "Statutory Parameters, Tax Determination Service, Statutory Calendar Rules). Once "
+            "this list is empty, an administrator can switch on enforcement so that an "
+            "unsigned rate is refused."
         ],
         "empty": "Every statutory master row is signed off.",
     }
@@ -553,6 +554,7 @@ def tds_annual_summary(env, date_from=None, date_to=None, **params):
         }
         for k, v in sorted(groups.items())
     ]
+    unconfirmed = len(lines.filtered("rate_flagged"))
     return {
         "title": "TDS Annual Summary — FY %s-%s by statutory section"
         % (fy_start.year, fy_end.year),
@@ -574,9 +576,10 @@ def tds_annual_summary(env, date_from=None, date_to=None, **params):
             "outstanding": _num(sum(r["outstanding"] for r in rows)),
         },
         "notes": [
-            "Bangladesh fiscal year (July-June); deposited = challan-linked or certified lines.",
+            "Bangladesh fiscal year (July-June); deposited means the deduction is covered by "
+            "a deposit challan or a certificate.",
             "%d of %d deduction(s) use a rate not yet signed off by the adviser and the CFO "
-            "(Sign-Off Queue)." % (len(lines.filtered("rate_flagged")), len(lines)),
+            "(Sign-Off Queue)." % (unconfirmed, len(lines)),
         ],
         "empty": "No TDS withholding this fiscal year.",
     }

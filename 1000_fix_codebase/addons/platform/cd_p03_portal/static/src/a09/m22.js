@@ -43,12 +43,12 @@ export const MODULE = {
   forms: ['Certification', 'Course', 'Learning Path', 'Assessment'],
   cross: ['M02 Dispatch eligibility', 'M21 Workforce', 'M57 Incentives'],
   freg: { src: 52, sub: [
-    ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices'] }],
-    ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix'] }],
-    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility'] }],
-    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'] }],
-    ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt'] }],
-    ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso'] }]
+    ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices'], reports: ['Skill-Gap Heatmap'], forms: [] }],
+    ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix'], reports: ['Skill-Gap Heatmap'], forms: ['Assessment'] }],
+    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility'], reports: ['Certification Coverage by Brand', 'Expiry Forecast'], forms: ['Certification'] }],
+    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Course', 'Learning Path'] }],
+    ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt'], reports: ['Training Effectiveness'], forms: [] }],
+    ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso'], reports: ['Audit Evidence Pack'], forms: [] }]
   ] }
 };
 

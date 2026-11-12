@@ -39,25 +39,25 @@ export const MODULE = {
       { id: 'M02-wo', en: 'Field Work Orders', bn: 'ফিল্ড ওয়ার্ক অর্ডার', t: 'g' },
       { id: 'M02-record', en: 'Work Order Record', bn: 'ওয়ার্ক অর্ডার নথি', t: 'g' },
       { id: 'M02-exceptions', en: 'Field Exceptions', bn: 'ফিল্ড ব্যতিক্রম', t: 'g' },
-      { id: 'M02-crews', en: 'Crews & Multi-Tech Jobs', bn: 'ক্রু নিয়োগ', t: 'g' }
+      { id: 'M02-crews', en: 'Crews & Multi-Tech Jobs', bn: 'ক্রু নিয়োগ', t: 'r' }
     ]},
     { en: 'Routing & Territories', screens: [
       { id: 'M02-zones', en: 'Zones & Geofences', bn: 'জোন ও জিওফেন্স', t: 'g' },
-      { id: 'M02-routes', en: 'Route Optimisation', bn: 'রুট অপ্টিমাইজেশন', t: 'c' },
+      { id: 'M02-routes', en: 'Route Optimisation', bn: 'রুট অপ্টিমাইজেশন', t: 'g' },
       { id: 'M02-territory', en: 'Territory Balancing', bn: 'টেরিটরি সমন্বয়', t: 'r' }
     ]},
     { en: 'Technician App (P02)', screens: [
-      { id: 'M02-day', en: 'Day / Job Queue Preview', bn: 'দিনের কাজ', t: 'd' },
+      { id: 'M02-day', en: 'Day / Job Queue Preview', bn: 'দিনের কাজ', t: 'r' },
       { id: 'M02-offline', en: 'Offline Sync Monitor', bn: 'অফলাইন সিঙ্ক', t: 'g' },
       { id: 'M02-evidence', en: 'Field Evidence Hub', bn: 'ফিল্ড প্রমাণ', t: 'g' },
-      { id: 'M02-vanstock', en: 'Van Stock Consumption', bn: 'ভ্যান স্টক', t: 'g' },
+      { id: 'M02-vanstock', en: 'Van Stock Consumption', bn: 'ভ্যান স্টক', t: 'r' },
       { id: 'M02-fieldparts', en: 'Field Order Parts', bn: 'ফিল্ড অর্ডারের যন্ত্রাংশ', t: 'g' }
     ]},
     { en: 'Safety & Payments', screens: [
-      { id: 'M02-loneworker', en: 'Lone-Worker Check-In', bn: 'একাকী কর্মী নিরাপত্তা', t: 'g' },
-      { id: 'M02-panic', en: 'Panic Alert Log', bn: 'প্যানিক অ্যালার্ট', t: 'g' },
-      { id: 'M02-fieldpay', en: 'On-Site Payments', bn: 'স্থানে পেমেন্ট', t: 'g' },
-      { id: 'M02-cashrec', en: 'Daily Cash Reconciliation', bn: 'নগদ মিলকরণ', t: 'c' }
+      { id: 'M02-loneworker', en: 'Lone-Worker Check-In', bn: 'একাকী কর্মী নিরাপত্তা', t: 'r' },
+      { id: 'M02-panic', en: 'Panic Alert Log', bn: 'প্যানিক অ্যালার্ট', t: 'r' },
+      { id: 'M02-fieldpay', en: 'On-Site Payments', bn: 'স্থানে পেমেন্ট', t: 'r' },
+      { id: 'M02-cashrec', en: 'Daily Cash Reconciliation', bn: 'নগদ মিলকরণ', t: 'r' }
     ]}
   ],
   reports: ['Dispatch Performance by Zone', 'Travel-Time Analysis', 'Jobs per Technician', 'Field Exception Summary', 'Van Stock Variance', 'On-Site Payment Reconciliation', 'Technician Utilization & Travel Time', 'First-Time Fix Rate by Skill', 'Geofence Breach & Delay Log'],
@@ -66,18 +66,18 @@ export const MODULE = {
   freg: {
     src: 106,
     sub: [
-      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-unassigned', 'M02-exceptions'], domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
-      ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk'], domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
-      ['3', 'Route Optimisation & Re-optimisation', 9, { model: 'fix.field.route', cols: ['name', 'technician_id', 'date', 'total_distance_km', 'improvement_pct'], screens: ['M02-routes'] }],
-      ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'] }],
-      ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews'] }],
-      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo'] }],
-      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'] }],
-      ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location'] }],
-      ['9', 'Field Evidence Capture', 6, { model: 'fix.workshop.evidence', cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at'], screens: ['M02-evidence'] }],
-      ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'technician_id', 'recon_date', 'variance', 'state'], screens: ['M02-vanstock'] }],
-      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-fieldpay', 'M02-cashrec'], domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
-      ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'] }]
+      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-unassigned', 'M02-exceptions'], reports: ['Field Exception Summary', 'First-Time Fix Rate by Skill'], forms: ['Field Exception Report'], create: false, domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
+      ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk'], reports: ['Dispatch Performance by Zone'], forms: [], create: false, domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
+      ['3', 'Route Optimisation & Re-optimisation', 9, { model: 'fix.field.route', cols: ['name', 'technician_id', 'date', 'total_distance_km', 'improvement_pct'], screens: ['M02-routes'], reports: ['Travel-Time Analysis'], forms: ['Route Plan'] }],
+      ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'], reports: ['Geofence Breach & Delay Log', 'Dispatch Performance by Zone'], forms: [] }],
+      ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews'], reports: ['Jobs per Technician', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order', 'Crew Assignment'] }],
+      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo'], reports: ['Technician Utilization & Travel Time', 'Jobs per Technician'], forms: [] }],
+      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'], reports: [], forms: [] }],
+      ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location'], reports: ['Geofence Breach & Delay Log', 'Travel-Time Analysis'], forms: [], create: false }],
+      ['9', 'Field Evidence Capture', 6, { model: 'fix.workshop.evidence', cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at'], screens: ['M02-evidence'], reports: ['Field Exception Summary'], forms: [] }],
+      ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'technician_id', 'recon_date', 'variance', 'state'], screens: ['M02-vanstock'], reports: ['Van Stock Variance'], forms: [] }],
+      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-fieldpay', 'M02-cashrec'], reports: ['On-Site Payment Reconciliation'], forms: [], create: false, domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
+      ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'], reports: [], forms: [] }]
     ]
   }
 };
@@ -461,14 +461,18 @@ export const SCREENS = {
   },
 
   /* ===== triage coverage screens ===== */
-  'M02-technician-location': { kind: 'model_list', model: 'fix.technician.location',
-    cols: ['name', 'company_id', 'operating_unit_id', 'name_bn', 'technician_id', 'latitude', 'longitude', 'is_mock_location', 'gnss_hdop'] },
+  /* A GPS ping is the technician app's telemetry, anti-spoof checked: typing one
+   * here, or editing a ping's coordinates, fabricates tracking (2026-11-12). */
+  'M02-technician-location': { kind: 'model_list', model: 'fix.technician.location', create: false,
+    cols: ['name', 'company_id', 'operating_unit_id', 'name_bn', 'technician_id', 'latitude', 'longitude', 'is_mock_location', 'gnss_hdop'],
+    empty: 'No GPS ping received yet. Pings arrive from the technician mobile app while a technician is on duty; they are tracking evidence and cannot be typed in.' },
 
   'M02-form-technician-location': {
     kind: 'model_form',
     model: 'fix.technician.location',
     title: "Technician Location",
     back: 'M02-technician-location',
+    create: false, pick: 'A GPS ping comes from the technician mobile app: open one from Technician Locations.',
     tabs: [
       { id: 'ping', label: '1. GPS Coordinates', bn: '১. জিপিএস স্থানাঙ্ক', icon: '📡', badge: '7' },
       { id: 'telemetry', label: '2. Anti-Spoof & Device Health', bn: '২. অ্যান্টি-স্পুফ ও টেলিমেট্রি', icon: '🛡️', badge: '4' }
@@ -476,20 +480,20 @@ export const SCREENS = {
     sections: [
       { tab: 'ping', title: "Technician GPS Ping Identity", note: "Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
         fields: [
-          { name: 'name', required: true, label: "Ping Reference" },
-          { name: 'name_bn', label: "Ping Reference (Bengali)" },
-          { name: 'company_id', required: true, label: "Company" },
-          { name: 'operating_unit_id', required: true, label: "Operating Unit" },
-          { name: 'technician_id', required: true, label: "Technician" },
-          { name: 'latitude', required: true, label: "Latitude" },
-          { name: 'longitude', required: true, label: "Longitude" }
+          { name: 'name', label: "Ping Reference", readonly: true },
+          { name: 'name_bn', label: "Ping Reference (Bengali)", readonly: true },
+          { name: 'company_id', label: "Company", readonly: true },
+          { name: 'operating_unit_id', label: "Operating Unit", readonly: true },
+          { name: 'technician_id', label: "Technician", readonly: true },
+          { name: 'latitude', label: "Latitude", readonly: true },
+          { name: 'longitude', label: "Longitude", readonly: true }
         ] },
       { tab: 'telemetry', title: "GNSS Anti-Spoofing & Mobile Telemetry (FLAW-02.2)",
         fields: [
           { name: 'is_mock_location', label: "Mock Location Flagged", readonly: true },
-          { name: 'gnss_hdop', label: "GNSS HDOP Precision" },
-          { name: 'speed_kmh', label: "Speed (km/h)" },
-          { name: 'battery_pct', label: "Device Battery (%)" }
+          { name: 'gnss_hdop', label: "GNSS HDOP Precision", readonly: true },
+          { name: 'speed_kmh', label: "Speed (km/h)", readonly: true },
+          { name: 'battery_pct', label: "Device Battery (%)", readonly: true }
         ] }
     ]
   },

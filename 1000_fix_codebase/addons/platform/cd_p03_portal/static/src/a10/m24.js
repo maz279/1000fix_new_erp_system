@@ -34,16 +34,16 @@ export const MODULE = {
     ]}
   ],
   reports: ['Retention Compliance', 'Signature Status', 'Repository Growth', 'Access Audit Export'],
-  forms: ['Upload', 'Signature Envelope', 'Share Token', 'Retention Policy'],
+  forms: ['Upload', 'Signature Envelope', 'Retention Policy'],
   cross: ['M23 QMS', 'M08 Contracts', 'M60 GRC', 'M21 HR'],
   freg: { src: 56, sub: [
-    ['1', 'Repository & Integrity', 7, { model: 'fix.document', cols: ['name', 'document_type', 'version', 'is_current', 'checksum_sha256'], screens: ['M24-browser'] }],
-    ['2', 'Auto-Filing', 6, { model: 'fix.document', cols: ['name', 'document_type', 'res_model', 'res_id', 'template_id'], screens: ['M24-generation', 'M24-browser'] }],
-    ['3', 'Classification & Search', 9, { model: 'fix.document', cols: ['name', 'name_bn', 'document_type', 'isolation_tier', 'retention_class_id'], screens: ['M24-search', 'M24-browser'] }],
-    ['4', 'Versioning & Control', 7, { model: 'fix.document', cols: ['name', 'version', 'is_current', 'previous_version_id', 'template_id'], screens: ['M24-controlled'] }],
-    ['5', 'E-Signature', 10, { model: 'fix.esignature.envelope', cols: ['name', 'document_id', 'state', 'completed_at'], screens: ['M24-envelopes', 'M24-audit'] }],
-    ['6', 'Retention & Holds', 10, { model: 'fix.document', cols: ['name', 'retention_class_id', 'retention_expires', 'legal_hold', 'state'], screens: ['M24-retention', 'M24-holds', 'M24-disposal'] }],
-    ['7', 'Evidence Packs', 7, { model: 'fix.document', cols: ['name', 'version', 'retention_class_id', 'legal_hold', 'state'], screens: ['M24-browser'], domain: [['document_type', '=', 'evidence_pack']] }]
+    ['1', 'Repository & Integrity', 7, { model: 'fix.document', cols: ['name', 'document_type', 'version', 'is_current', 'checksum_sha256'], screens: ['M24-browser'], reports: ['Repository Growth'], forms: ['Upload'] }],
+    ['2', 'Auto-Filing', 6, { model: 'fix.document', cols: ['name', 'document_type', 'res_model', 'res_id', 'template_id'], screens: ['M24-generation', 'M24-browser'], reports: [], forms: [] }],
+    ['3', 'Classification & Search', 9, { model: 'fix.document', cols: ['name', 'name_bn', 'document_type', 'isolation_tier', 'retention_class_id'], screens: ['M24-search', 'M24-browser'], reports: ['Access Audit Export'], forms: [] }],
+    ['4', 'Versioning & Control', 7, { model: 'fix.document', cols: ['name', 'version', 'is_current', 'previous_version_id', 'template_id'], screens: ['M24-controlled'], reports: [], forms: ['Upload'] }],
+    ['5', 'E-Signature', 10, { model: 'fix.esignature.envelope', cols: ['name', 'document_id', 'state', 'completed_at'], screens: ['M24-envelopes', 'M24-audit'], reports: ['Signature Status'], forms: ['Signature Envelope'] }],
+    ['6', 'Retention & Holds', 10, { model: 'fix.document', cols: ['name', 'retention_class_id', 'retention_expires', 'legal_hold', 'state'], screens: ['M24-retention', 'M24-holds', 'M24-disposal'], reports: ['Retention Compliance'], forms: ['Retention Policy'] }],
+    ['7', 'Evidence Packs', 7, { model: 'fix.document', cols: ['name', 'version', 'retention_class_id', 'legal_hold', 'state'], screens: ['M24-browser'], reports: [], forms: [], create: false, domain: [['document_type', '=', 'evidence_pack']] }]
   ] }
 };
 
@@ -170,14 +170,12 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M24:Upload': 'fix.document',
   'M24:Signature Envelope': 'fix.esignature.envelope',
-  'M24:Share Token': 'fix.document',
   'M24:Retention Policy': 'fix.retention.class'
 };
 
 export const FORM_CHIPS = {
   'M24:Upload': 'M24-form-document',
   'M24:Signature Envelope': 'M24-form-envelope',
-  'M24:Share Token': 'M24-form-document',
   'M24:Retention Policy': 'M24-form-retention',
   'M24:__by_model__': {
     'fix.document': 'M24-form-document',

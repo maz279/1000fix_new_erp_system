@@ -26,16 +26,16 @@ export const MODULE = {
     { en: 'Registry', screens: [
       { id: 'M17-assets', en: 'Asset Register', bn: 'অ্যাসেট রেজিস্টার', t: 'g' },
       { id: 'M17-asset', en: 'Asset Record', bn: 'অ্যাসেট রেকর্ড', t: 'g' },
-      { id: 'M17-360', en: 'Asset 360', bn: 'অ্যাসেট ৩৬০', t: 'g' },
-      { id: 'M17-identifiers', en: 'Multi-Identifier Model', bn: 'মাল্টি-আইডেন্টিফায়ার', t: 'g' },
+      { id: 'M17-360', en: 'Asset 360', bn: 'অ্যাসেট ৩৬০', t: 'r' },
+      { id: 'M17-identifiers', en: 'Multi-Identifier Model', bn: 'মাল্টি-আইডেন্টিফায়ার', t: 'r' },
       { id: 'M17-merge', en: 'Identity Resolution & Merge', bn: 'আইডেন্টিটি রেজলিউশন', t: 'g' },
       { id: 'M17-merges', en: 'Merge Lineage & Reversal', bn: 'মার্জ লিনিয়েজ', t: 'g' },
       { id: 'M17-idhistory', en: 'Identifier History & NEIR', bn: 'আইডেন্টিফায়ার ইতিহাস ও NEIR', t: 'g' }
     ]},
     { en: 'History', screens: [
       { id: 'M17-history', en: 'Service History', bn: 'সেবা ইতিহাস', t: 'g' },
-      { id: 'M17-genealogy', en: 'Parts Genealogy', bn: 'পার্টস বংশতালিকা', t: 'g' },
-      { id: 'M17-rework', en: 'Repeat-Fault Detection', bn: 'পুনরাবৃত্তি ত্রুটি', t: 'g' },
+      { id: 'M17-genealogy', en: 'Parts Genealogy', bn: 'পার্টস বংশতালিকা', t: 'r' },
+      { id: 'M17-rework', en: 'Repeat-Fault Detection', bn: 'পুনরাবৃত্তি ত্রুটি', t: 'r' },
       { id: 'M17-components', en: 'Installed Components', bn: 'ইনস্টলড কম্পোনেন্ট', t: 'g' }
     ]},
     { en: 'Custody', screens: [
@@ -45,7 +45,7 @@ export const MODULE = {
     ]},
     { en: 'Corporate Estates', screens: [
       { id: 'M17-estates', en: 'Estates (Site/Dept/User)', bn: 'কর্পোরেট এস্টেট', t: 'g' },
-      { id: 'M17-bulk', en: 'Bulk Registration', bn: 'বাল্ক রেজিস্ট্রেশন', t: 'g' }
+      { id: 'M17-bulk', en: 'Bulk Registration', bn: 'বাল্ক রেজিস্ট্রেশন', t: 'r' }
     ]},
     { en: 'Coverage', screens: [
       { id: 'M17-wty', en: 'Warranty Dates & Priority', bn: 'ওয়ারেন্টি তারিখ', t: 'g' },
@@ -57,17 +57,17 @@ export const MODULE = {
   forms: ['Asset (6 identifiers)', 'Estate Assignment', 'Ownership Transfer', 'Condition Grading'],
   cross: ['M01 every order links asset', 'M09 warranty evidence', 'M05 monitored assets', 'M48 telemetry streams', 'P01 customer devices'],
   freg: { src: 96, sub: [
-    ['1', 'Identity & Resolution', 14, { model: 'fix.device', cols: ['name', 'serial_number', 'imei_1', 'mac_address', 'legacy_reference'], screens: ['M17-asset', 'M17-identifiers', 'M17-assets'] }],
-    ['2', 'Configuration & Components', 8, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'installed_on', 'state'], screens: ['M17-components', 'M17-device-part-compatibility'] }],
-    ['3', 'Ownership & Custody', 12, { model: 'fix.device.ownership', cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date'], screens: ['M17-ownership', 'M17-custody'] }],
-    ['4', 'Service History', 9, { model: 'fix.device.history', cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'], screens: ['M17-history', 'M17-360'] }],
-    ['5', 'Parts Genealogy', 7, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'source_ref', 'removed_on'], screens: ['M17-genealogy', 'M17-components'] }],
-    ['6', 'Repeat-Fault Detection', 6, { model: 'fix.device.history', cols: ['device_id', 'date', 'event_type', 'service_order_id', 'description'], screens: ['M17-rework', 'M17-history'], domain: [['event_type', 'in', ['repair', 'service_order']]] }],
-    ['7', 'Warranty Projection', 7, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'], screens: ['M17-wty'] }],
-    ['8', 'Corporate Estates', 12, { model: 'fix.device.estate', cols: ['name', 'client_id', 'site', 'department', 'cost_centre'], screens: ['M17-estates'] }],
-    ['9', 'Bulk Registration', 7, { model: 'fix.device', cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'estate_id'], screens: ['M17-bulk', 'M17-assets'] }],
-    ['10', 'Condition & EOL Routing', 8, { model: 'fix.device.condition', cols: ['device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on'], screens: ['M17-conditions', 'M17-pm'] }],
-    ['11', 'Data Quality', 6, { model: 'fix.device.identity', cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_score', 'state'], screens: ['M17-merge', 'M17-identifiers'] }]
+    ['1', 'Identity & Resolution', 14, { model: 'fix.device', cols: ['name', 'serial_number', 'imei_1', 'mac_address', 'legacy_reference'], screens: ['M17-asset', 'M17-identifiers', 'M17-assets'], reports: ['Installed Base by Brand/Model', 'Data Quality Scorecard'], forms: ['Asset (6 identifiers)'] }],
+    ['2', 'Configuration & Components', 8, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'installed_on', 'state'], screens: ['M17-components', 'M17-device-part-compatibility'], reports: [], forms: [] }],
+    ['3', 'Ownership & Custody', 12, { model: 'fix.device.ownership', cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date'], screens: ['M17-ownership', 'M17-custody'], reports: ['Custody Exceptions'], forms: ['Ownership Transfer'] }],
+    ['4', 'Service History', 9, { model: 'fix.device.history', cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'], screens: ['M17-history', 'M17-360'], reports: ['Repeat-Fault Pareto'], forms: [] }],
+    ['5', 'Parts Genealogy', 7, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'source_ref', 'removed_on'], screens: ['M17-genealogy', 'M17-components'], reports: [], forms: [] }],
+    ['6', 'Repeat-Fault Detection', 6, { model: 'fix.device.history', cols: ['device_id', 'date', 'event_type', 'service_order_id', 'description'], screens: ['M17-rework', 'M17-history'], reports: ['Repeat-Fault Pareto'], forms: [], domain: [['event_type', 'in', ['repair', 'service_order']]] }],
+    ['7', 'Warranty Projection', 7, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'], screens: ['M17-wty'], reports: [], forms: ['Device Warranty'] }],
+    ['8', 'Corporate Estates', 12, { model: 'fix.device.estate', cols: ['name', 'client_id', 'site', 'department', 'cost_centre'], screens: ['M17-estates'], reports: ['Estate Coverage by Client'], forms: ['Estate Assignment'] }],
+    ['9', 'Bulk Registration', 7, { model: 'fix.device', cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'estate_id'], screens: ['M17-bulk', 'M17-assets'], reports: ['Installed Base by Brand/Model'], forms: ['Asset (6 identifiers)'] }],
+    ['10', 'Condition & EOL Routing', 8, { model: 'fix.device.condition', cols: ['device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on'], screens: ['M17-conditions', 'M17-pm'], reports: [], forms: ['Condition Grading'] }],
+    ['11', 'Data Quality', 6, { model: 'fix.device.identity', cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_score', 'state'], screens: ['M17-merge', 'M17-identifiers'], reports: ['Data Quality Scorecard'], forms: [] }]
   ] }
 };
 
@@ -290,6 +290,7 @@ export const SCREENS = {
     model: 'fix.device.ownership',
     title: 'Ownership Transfer',
     back: 'M17-ownership',
+    create: false, pick: 'A transfer is staged on the asset (Asset Register, open the asset, Ownership Transfer tab) and recorded by Transfer Ownership; past transfers are listed here.',
     sections: [
       { title: 'Transfer', note: 'A transfer is a permanent audit record written only by Transfer Ownership on the asset: the device, both parties, the type, the date, the reason, the evidence and who recorded it. It is never edited here.',
         fields: [
@@ -454,6 +455,7 @@ export const SCREENS = {
     model: 'fix.service.order.device.hold',
     title: 'Lost / Stolen Hold',
     back: 'M17-holds',
+    create: false, pick: 'A hold is raised by flagging a device lost or stolen on the Asset Register: open one from Lost / Stolen Holds.',
     status: { field: 'state', labels: { open: 'Device Reported Lost / Stolen', cleared: 'Flag Cleared' } },
     sections: [
       { title: 'Hold', note: 'Raised by the lost or stolen flag on the device, and ended only by a Branch Manager clearing that flag. While it is open the service order cannot be handed over.',
@@ -478,6 +480,7 @@ export const SCREENS = {
     model: 'fix.device.merge',
     title: 'Merge Lineage',
     back: 'M17-merges',
+    create: false, pick: 'A merge is written by an approved identity resolution: open one from Merge Lineage & Reversal.',
     status: { field: 'state', labels: { merged: 'Merged', reversed: 'Reversed' } },
     sections: [
       { title: 'Lineage', note: 'Written by the approved merge: both devices, the approver and the rows re-pointed. Reverse Merge (Quality Manager) moves those rows back inside the window.',
@@ -501,6 +504,7 @@ export const SCREENS = {
     model: 'fix.device.identifier',
     title: 'Identifier History',
     back: 'M17-idhistory',
+    create: false, pick: 'Identifier history is written by registration, capture and correction: open one from Identifier History & NEIR.',
     sections: [
       { title: 'Identifier', note: 'Written by registration, capture and correction; never edited. A Branch Manager records the NEIR result of an IMEI with its reference.',
         fields: [
@@ -572,7 +576,7 @@ export const FORM_CHIPS = {
   'M17:Device Warranty': 'M17-form-warranty',
   'M17:Asset (6 identifiers)': 'M17-form-asset',
   'M17:Estate Assignment': 'M17-form-estate',
-  'M17:Ownership Transfer': 'M17-assets',
+  'M17:Ownership Transfer': 'M17-form-transfer',
   'M17:Condition Grading': 'M17-form-condition',
   'M17:__by_model__': {
     'fix.device.part.compatibility': 'M17-form-compat',

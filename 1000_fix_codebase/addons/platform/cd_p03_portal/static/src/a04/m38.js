@@ -24,14 +24,14 @@ export const MODULE = {
       { id: 'M38-storefront-return', en: "Storefront Return", bn: "Storefront Return", t: 'g' }
     ]},
     { en: 'Storefront', screens: [
-      { id: 'M38-storefront', en: 'Storefront Preview', bn: 'স্টোরফ্রন্ট', t: 'd' },
-      { id: 'M38-merch', en: 'Merchandising', bn: 'মার্চেন্ডাইজিং', t: 'g' },
-      { id: 'M38-compat', en: 'Compatibility Filters', bn: 'কম্প্যাটিবিলিটি', t: 'g' }
+      { id: 'M38-storefront', en: 'Storefront Preview', bn: 'স্টোরফ্রন্ট', t: 'r' },
+      { id: 'M38-merch', en: 'Merchandising', bn: 'মার্চেন্ডাইজিং', t: 'r' },
+      { id: 'M38-compat', en: 'Compatibility Filters', bn: 'কম্প্যাটিবিলিটি', t: 'r' }
     ]},
     { en: 'Cart & Checkout', screens: [
       { id: 'M38-carts', en: 'Carts & Abandonment', bn: 'কার্ট', t: 'g' },
-      { id: 'M38-checkout', en: 'Checkout & Payment Orchestration', bn: 'চেকআউট', t: 'c' },
-      { id: 'M38-delivery', en: 'Delivery Options', bn: 'ডেলিভারি', t: 'g' },
+      { id: 'M38-checkout', en: 'Checkout & Payment Orchestration', bn: 'চেকআউট', t: 'r' },
+      { id: 'M38-delivery', en: 'Delivery Options', bn: 'ডেলিভারি', t: 'r' },
       { id: 'M38-slots', en: 'Delivery Slots', bn: 'ডেলিভারি স্লট', t: 'g' }
     ]},
     { en: 'Orders', screens: [
@@ -41,23 +41,23 @@ export const MODULE = {
     ]},
     { en: 'Commerce Marketing', screens: [
       { id: 'M38-promos', en: 'Checkout Promotions (from M11)', bn: 'প্রমোশন (M11)', t: 'g' },
-      { id: 'M38-recovery', en: 'Abandoned-Cart Recovery', bn: 'কার্ট রিকভারি', t: 'c' }
+      { id: 'M38-recovery', en: 'Abandoned-Cart Recovery', bn: 'কার্ট রিকভারি', t: 'r' }
     ]}
   ],
   reports: ['Funnel & Conversion', 'Payment Method Mix', 'Refurb GMV by Grade', 'Delivery Performance', 'RMA & Returns Report', 'Abandonment Recovery Rate'],
   forms: ['Online Order', 'RMA Request', 'Storefront Slot', 'Delivery Slot'],
   cross: ['M20 AR', 'M37 Catalogue', 'M11 Pricing', 'M31 Refurb'],
   freg: { src: 92, sub: [
-    ['1', 'Storefront & Browse', 12, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-storefront', 'M38-rpt-funnel', 'M38-carts'] }],
-    ['2', 'Merchandising', 7, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M38-merch', 'M38-compat', 'M38-stock'] }],
-    ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'state', 'customer_id', 'total', 'order_id'], screens: ['M38-carts'] }],
-    ['4', 'Checkout & Payments', 14, { model: 'fix.storefront.order', cols: ['name', 'customer_id', 'payment_rail', 'total_amount', 'state'], screens: ['M38-checkout', 'M38-rpt-pay', 'M38-orders'] }],
-    ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['state'], screens: ['M38-orders'] }],
-    ['6', 'Stock Exposure', 6, { model: 'fix.graded.stock', cols: ['name', 'state', 'device_id', 'grade_id', 'location_id'], screens: ['M38-stock', 'M38-rpt-refurb'] }],
-    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-rpt-rma'] }],
-    ['8', 'B2B Commerce', 11, { model: 'fix.storefront.return', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'refund_amount'], screens: ['M38-storefront-return'] }],
-    ['9', 'Recovery & Analytics', 9, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-recovery', 'M38-rpt-recovery', 'M38-carts'], domain: [['state', 'in', ['open', 'checkout']]] }],
-    ['10', 'Service Booking Commerce', 6, { model: 'fix.storefront.slot', cols: ['name', 'slot_date', 'capacity', 'booked', 'state'], screens: ['M38-delivery', 'M38-rpt-delivery'] }]
+    ['1', 'Storefront & Browse', 12, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-storefront', 'M38-rpt-funnel', 'M38-carts'], reports: ['Funnel & Conversion'], forms: [] }],
+    ['2', 'Merchandising', 7, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M38-merch', 'M38-compat', 'M38-stock'], reports: ['Refurb GMV by Grade'], forms: [] }],
+    ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'state', 'customer_id', 'total', 'order_id'], screens: ['M38-carts'], reports: ['Abandonment Recovery Rate'], forms: [] }],
+    ['4', 'Checkout & Payments', 14, { model: 'fix.storefront.order', cols: ['name', 'customer_id', 'payment_rail', 'total_amount', 'state'], screens: ['M38-checkout', 'M38-rpt-pay', 'M38-orders'], reports: ['Payment Method Mix', 'Funnel & Conversion'], forms: [], create: false }],
+    ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['state'], screens: ['M38-orders'], reports: ['Payment Method Mix'], forms: ['Online Order'] }],
+    ['6', 'Stock Exposure', 6, { model: 'fix.graded.stock', cols: ['name', 'state', 'device_id', 'grade_id', 'location_id'], screens: ['M38-stock', 'M38-rpt-refurb'], reports: ['Refurb GMV by Grade'], forms: [] }],
+    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-rpt-rma'], reports: ['RMA & Returns Report'], forms: ['RMA Request'] }],
+    ['8', 'B2B Commerce', 11, { model: 'fix.storefront.return', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'refund_amount'], screens: ['M38-storefront-return'], reports: ['RMA & Returns Report'], forms: [] }],
+    ['9', 'Recovery & Analytics', 9, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-recovery', 'M38-rpt-recovery', 'M38-carts'], reports: ['Abandonment Recovery Rate'], forms: [], domain: [['state', 'in', ['open', 'checkout']]] }],
+    ['10', 'Service Booking Commerce', 6, { model: 'fix.storefront.slot', cols: ['name', 'slot_date', 'capacity', 'booked', 'state'], screens: ['M38-delivery', 'M38-rpt-delivery'], reports: ['Delivery Performance'], forms: ['Storefront Slot', 'Delivery Slot'] }]
   ] }
 };
 
@@ -66,7 +66,8 @@ export const SCREENS = {
   'M38-merch': { kind: 'table_report', module: 'M38', report: 'merchandising', title: 'Merchandising', period: false },
   'M38-compat': { kind: 'table_report', module: 'M38', report: 'stock_availability', title: 'Compatibility Filters', period: false },
   'M38-carts': { kind: 'model_list', create: false, model: 'fix.storefront.cart', stateField: 'state',
-    cols: ['name', 'customer_id', 'state', 'total', 'order_id'] },
+    cols: ['name', 'customer_id', 'state', 'total', 'order_id'],
+    empty: 'No cart yet. Carts are opened by customers on the online storefront; they are not typed in here.' },
   'M38-checkout': { kind: 'table_report', module: 'M38', report: 'checkout_conversion', title: 'Checkout & Payment Orchestration', period: false },
   'M38-delivery': { kind: 'table_report', module: 'M38', report: 'delivery_performance', title: 'Delivery Options', period: false },
   /* A04 audit (2026-11-04) C3: the order lifecycle runs from these buttons;

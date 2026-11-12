@@ -265,8 +265,10 @@ def weekly_exec_review(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Approved = fix.estimate state 'approved' in the week; invoiced = AR invoices issued/paid. ",
-            "Delivered counts the order's own delivered_at/closed_at stamp — an edit does not move it.",
+            "Approved counts estimates approved in the week; invoiced counts customer invoices "
+            "issued or paid.",
+            "Delivered counts orders by the date they were delivered or closed; a later edit "
+            "does not move them.",
         ],
     }
 

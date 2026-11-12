@@ -624,7 +624,7 @@
                                 <p class="pg-sub"><t t-esc="t(state.activeModule.desc)"/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="onModuleNew"><t t-esc="newButtonLabel"/></button>
+                                <button t-if="newButtonLabel" class="btn btn-primary" t-on-click="onModuleNew"><t t-esc="newButtonLabel"/></button>
                                 <button class="btn" t-on-click="scrollToBuiltinReports">▤ Reports (<t t-esc="state.activeModule.reports.length"/>)</button>
                             </div>
                         </div>
@@ -716,9 +716,13 @@
                             <div class="fx-card">
                                 <h3>⇄ Quick Cross-Navigation</h3>
                                 <t t-foreach="state.activeModule.cross" t-as="c" t-key="c">
-                                    <button class="screen-link" t-on-click="() => this.openCross(c)" t-att-title="'Navigate to ' + c">
+                                    <!-- a description ("P04 client portal") is shown, not offered as a link -->
+                                    <button t-if="resolveCross(c)" class="screen-link" t-on-click="() => this.openCross(c)" t-att-title="'Navigate to ' + c">
                                         ⇄ <t t-esc="c"/>
                                     </button>
+                                    <span t-else="" class="screen-link" style="cursor: default; opacity: .75;">
+                                        ⇢ <t t-esc="c"/>
+                                    </span>
                                 </t>
                             </div>
                         </div>
@@ -803,8 +807,9 @@
                         <div class="fx-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h3><t t-esc='t("Live Database Records")'/></h3>
+                                <!-- the record count, not the technical model name -->
                                 <span t-if="state.activeFreg.model" class="chip">
-                                    <t t-esc="state.activeFreg.model"/>
+                                    <t t-esc='t("Records")'/>
                                     <t t-if="state.activeFreg.gridData.total"> · <t t-esc="state.activeFreg.gridData.total"/></t>
                                 </span>
                                 <span t-elif="state.activeFreg.report" class="chip">
@@ -828,10 +833,10 @@
                                 <t t-esc='t("Nothing to report yet: this sub-module is measured, not listed, and its report has no rows.")'/>
                             </div>
                             <div t-elif="!state.activeFreg.gridData.rows.length &amp;&amp; state.activeFreg.sliced" style="padding:18px; color:var(--ink-300);">
-                                <t t-esc='t("No records fall under this sub-module yet. It shows a filtered part of")'/> <code t-esc="state.activeFreg.model"/>.
+                                <t t-esc='t("No records fall under this sub-module yet.")'/>
                             </div>
                             <div t-elif="!state.activeFreg.gridData.rows.length" style="padding:18px; color:var(--ink-300);">
-                                <t t-esc='t("No records yet in")'/> <code t-esc="state.activeFreg.model"/>.
+                                <t t-esc='t("No records yet.")'/>
                             </div>
                             <div t-else="" class="tbl-wrap">
                                 <table class="fx-table">
@@ -3317,7 +3322,7 @@
                                     <div t-elif="state.gl.form.pick.error" class="d365-formerror" t-esc="state.gl.form.pick.error"/>
                                     <div t-elif="!state.gl.form.pick.rows.length" style="padding: 14px 2px; color: var(--ink-300);">
                                         <t t-esc="t(state.gl.formCfg.pickRecord.empty || 'There is no record to choose yet.')"/>
-                                        <div t-if="state.gl.formCfg.pickRecord.emptyNew" style="margin-top: 12px;">
+                                        <div t-if="state.gl.formCfg.pickRecord.emptyNew &amp;&amp; newButtonLabel" style="margin-top: 12px;">
                                             <button class="btn btn-primary btn-sm" t-on-click="onModuleNew"><t t-esc="newButtonLabel"/></button>
                                         </div>
                                     </div>

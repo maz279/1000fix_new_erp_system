@@ -238,7 +238,8 @@ def _utilization_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Measured from verified journey timestamps (en_route→arrived = travel, work-start→completed = on-site)."
+            "Travel time runs from leaving for the job to arriving on site; on-site time "
+            "from starting work to completing it, both from the technician's verified journey."
         ],
     }
 
@@ -369,9 +370,9 @@ def _dispatch_performance_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Acceptance time = accepted_at - dispatched_at, measured from the order's "
-            "own timestamps. On-time % is over completed jobs (the field order flags "
-            "it), and a zone with no completed job shows no percentage rather than 100%."
+            "Acceptance time is the time from dispatch until the technician accepted the "
+            "job. On-time % covers completed jobs only; a zone with no completed job shows "
+            "no percentage rather than 100%."
         ],
         "empty": "No field orders in any zone yet.",
     }
@@ -491,9 +492,10 @@ def _field_pay_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Amount due = the service order's latest estimate grand_total (computed from its lines).",
-            "Receipts are read from fix.ar.receipt (M20). Field-till settlement and cash deposit "
-            "reconciliation are owned by the cash module (M50) — no amounts are estimated here.",
+            "The amount due is the total of the service order's latest approved estimate.",
+            "Receipts are those recorded in Accounts Receivable (M20). Settling the field "
+            "cash till and matching bank deposits is done in Treasury (M50); no amounts are "
+            "estimated here.",
         ],
         "empty": "No completed field orders in scope.",
     }
@@ -544,8 +546,8 @@ def _travel_time_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Travel minutes are the dispatch records' actual_travel_minutes; on-site "
-            "minutes come from started_work_at → completed_at. Nothing is estimated."
+            "Travel minutes are the actual travel time recorded on each dispatch; on-site "
+            "minutes run from the start of work to completion. Nothing is estimated."
         ],
         "empty": "No completed field jobs yet.",
     }
@@ -587,7 +589,8 @@ def _jobs_per_technician_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Live counts from fix.field.order; on-time = the dispatch record's arrival flag."
+            "Live counts of field jobs; a job is on time when the technician arrived within "
+            "the promised window."
         ],
         "empty": "No technician-assigned field jobs.",
     }
@@ -617,8 +620,8 @@ def _field_exceptions_report(env, **params):
         "labels": {"exception": "Exception", "count": "Occurrences"},
         "rows": rows,
         "notes": [
-            "Declines are read from fix.field.decline.log (coded reasons); "
-            "cancellations from the field order state. No synthetic rows."
+            "Declines are the jobs technicians turned down, with their recorded reason; "
+            "cancellations are field jobs that were cancelled."
         ],
         "empty": "No field exceptions recorded.",
     }
@@ -672,8 +675,8 @@ def _van_stock_report(env, **params):
             },
             "rows": [],
             "notes": [
-                "No van stock count exists yet (fix.stock.van.recon). Consumption "
-                "alone is not a variance, so none is shown until a count is taken."
+                "No van stock count has been taken yet. Parts used alone are not a "
+                "variance, so none is shown until a count is taken."
             ],
             "empty": "No van stock count recorded.",
         }
@@ -705,9 +708,9 @@ def _van_stock_report(env, **params):
         "rows": rows,
         "totals": {"recon": "Net", "variance": total_var},
         "notes": [
-            "Variance is the model's own counted - expected on the van count record. "
-            "Consumption is the field parts ledger (fix.work.order.part) attributed to "
-            "the same technician; it is evidence of use, not of shrinkage."
+            "Variance is the counted quantity less the expected quantity on each van count. "
+            "Parts used are the parts the same technician fitted on field jobs; they show "
+            "use, not loss."
         ],
         "empty": "No van stock count recorded.",
     }
@@ -885,9 +888,9 @@ def _cash_recon_report(env, **_params):
         },
         "rows": rows,
         "notes": [
-            "Read from the cash shift register (fix.cash.shift, M50 owns the model). "
-            "Variance = counted − expected, exactly as the shift recorded it; an "
-            "unreconciled shift has no reconciler."
+            "Taken from the cash shift register kept in Treasury (M50). Variance is the "
+            "counted cash less the expected cash, as the shift recorded it; a shift not yet "
+            "reconciled shows no reconciler."
         ],
         "empty": "No cash shifts recorded.",
     }

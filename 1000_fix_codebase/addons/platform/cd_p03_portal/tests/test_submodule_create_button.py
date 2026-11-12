@@ -45,6 +45,7 @@ for (const [mid, mod] of Object.entries(P03_MODULES)) {
     rows.push({ mid, no: sub[0], title: sub[1], model: map && map.model,
       moduleModel: moduleCreate ? moduleCreate.model : 'fix.service.order',
       create, formKind: form && form.kind, formModel: form && form.model,
+      declared: !!(map && typeof map.create === 'string'),
       forms: (map && map.forms) || [], reports: (map && map.reports) || [] });
   }
 }
@@ -147,12 +148,17 @@ def test_no_submodule_page_offers_another_records_button(registry):
 
 
 def test_an_offered_form_is_a_form_of_the_submodules_own_record(registry):
+    """A DERIVED "+ New" is a form of the page's own record. A page may name
+    its form itself (`create: '<form screen>'`) when what it captures is a
+    related record - a test result on a job in testing (M31/7), an appeal on
+    a claim decision (M09/9), a hold on an order (M01/9): that is a choice
+    written in the mapping, still a real in-workspace form."""
     offered = [r for r in registry["rows"] if r["create"] and r["create"].get("screen")]
     assert len(offered) >= 300, "only %d sub-modules resolve a form of their own" % len(offered)
     bad = [
         "%s -> %s is a %s on %s" % (_tag(r), r["create"]["screen"], r["formKind"], r["formModel"])
         for r in offered
-        if r["formKind"] != "model_form" or r["formModel"] != r["model"]
+        if r["formKind"] != "model_form" or (r["formModel"] != r["model"] and not r["declared"])
     ]
     assert not bad, "\n  ".join(bad)
     unlabelled = [_tag(r) for r in offered if not r["create"].get("label")]

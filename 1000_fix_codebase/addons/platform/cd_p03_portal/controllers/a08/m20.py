@@ -335,8 +335,8 @@ def ageing_by_segment(env, date_from=None, date_to=None, **params):
         "totals": totals if rows else None,
         "empty": "No open issued invoices or opening balances — nothing to age.",
         "notes": [
-            "Bucket boundary = (as-of date − invoice date) − the customer's own credit terms "
-            "(fix.credit.profile); segments are the customer's current fix.segment memberships.",
+            "Each invoice is aged by the days since its invoice date less the customer's own "
+            "credit terms; segments are the customer's current segment memberships.",
             TAKEON_NOTE if takeon is not None else TAKEON_HIDDEN,
         ],
     }
@@ -628,9 +628,8 @@ def brand_receivable_ageing(env, date_from=None, date_to=None, **params):
         "totals": totals if rows else None,
         "empty": "No brand-claim invoices yet — M08/M12 claim events are the source (FR-ARB-009).",
         "notes": [
-            "Rows are restricted to invoices whose source is a brand/warranty claim "
-            "(source_model contains 'brand' or 'claim'). Ordinary customer invoices are never "
-            "reported as brand receivables.",
+            "Only invoices raised for a brand or warranty claim are included; ordinary "
+            "customer invoices are never reported as brand receivables.",
             "A brand's opening balance taken on from the legacy system (the partner whose ref "
             "is the brand code) is its own line, aged from the take-on date."
             if takeon is not None

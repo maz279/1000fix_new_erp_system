@@ -52,14 +52,14 @@ export const MODULE = {
   forms: ['Incident Report', 'Anonymous Safety Report', 'JSA', 'PPE Issue', 'Return-to-Work'],
   cross: ['M47 Facility safety', 'M21 Workforce', 'M46 Fleet', 'M02 Field Safety'],
   freg: { src: 60, sub: [
-    ['1', 'Hazard Register & Risk', 9, { model: 'fix.hse.hazard', cols: ['name', 'hazard_type', 'risk_score', 'residual_risk', 'state'], screens: ['M59-hazards', 'M59-safety-inspection'] }],
-    ['2', 'Procedures & Permits', 7, { model: 'fix.hse.jsa', cols: ['name', 'job_type', 'ppe_required', 'approved_on', 'state'], screens: ['M59-jsa'] }],
-    ['3', 'Incident Management', 13, { model: 'fix.hse.incident', cols: ['name', 'incident_type', 'severity', 'branch_id', 'state'], screens: ['M59-report', 'M59-investigate'] }],
-    ['4', 'Statutory Notification', 5, { model: 'fix.statutory.accident.register', cols: ['register_entry_no', 'employee_id', 'accident_date', 'notice_form_type', 'dife_notified'], screens: ['M59-statutory', 'M59-statutory-accident-register'] }],
-    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe-stock', 'M59-ppe'] }],
-    ['6', 'Field & Road Safety', 8, { model: 'fix.hse.roadcheck', cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'passed'], screens: ['M59-road', 'M59-loneworker', 'M59-battery'] }],
-    ['7', 'Training & Drills', 6, { model: 'fix.hse.drill', cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'state'], screens: ['M59-drills', 'M59-committee'] }],
-    ['8', 'Health & Wellbeing', 7, { model: 'fix.hse.health', cols: ['name', 'employee_id', 'record_type', 'valid_until', 'fitness'], screens: ['M59-wellbeing'] }]
+    ['1', 'Hazard Register & Risk', 9, { model: 'fix.hse.hazard', cols: ['name', 'hazard_type', 'risk_score', 'residual_risk', 'state'], screens: ['M59-hazards', 'M59-safety-inspection'], reports: ['Leading Indicators'], forms: [] }],
+    ['2', 'Procedures & Permits', 7, { model: 'fix.hse.jsa', cols: ['name', 'job_type', 'ppe_required', 'approved_on', 'state'], screens: ['M59-jsa'], reports: [], forms: ['JSA'] }],
+    ['3', 'Incident Management', 13, { model: 'fix.hse.incident', cols: ['name', 'incident_type', 'severity', 'branch_id', 'state'], screens: ['M59-report', 'M59-investigate'], reports: ['Incident Statistics'], forms: ['Incident Report', 'Anonymous Safety Report'] }],
+    ['4', 'Statutory Notification', 5, { model: 'fix.statutory.accident.register', cols: ['register_entry_no', 'employee_id', 'accident_date', 'notice_form_type', 'dife_notified'], screens: ['M59-statutory', 'M59-statutory-accident-register'], reports: ['Statutory Compliance'], forms: [] }],
+    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe-stock', 'M59-ppe'], reports: ['PPE Compliance'], forms: ['PPE Issue'] }],
+    ['6', 'Field & Road Safety', 8, { model: 'fix.hse.roadcheck', cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'passed'], screens: ['M59-road', 'M59-loneworker', 'M59-battery'], reports: ['Leading Indicators'], forms: [] }],
+    ['7', 'Training & Drills', 6, { model: 'fix.hse.drill', cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'state'], screens: ['M59-drills', 'M59-committee'], reports: ['Drill Calendar Coverage'], forms: [] }],
+    ['8', 'Health & Wellbeing', 7, { model: 'fix.hse.health', cols: ['name', 'employee_id', 'record_type', 'valid_until', 'fitness'], screens: ['M59-wellbeing'], reports: [], forms: ['Return-to-Work'] }]
   ] }
 };
 

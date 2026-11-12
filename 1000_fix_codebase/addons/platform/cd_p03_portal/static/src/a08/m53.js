@@ -37,8 +37,8 @@ export const MODULE = {
       { id: 'M53-schemes', en: 'Commission Schemes', bn: 'কমিশন কর্মসূচি', t: 'g' }
     ]},
     { en: 'Settlements', screens: [
-      { id: 'M53-payouts', en: 'Payout Runs', bn: 'পেআউট রান', t: 'c' },
-      { id: 'M53-sellers', en: 'Seller Statements', bn: 'বিক্রেতা বিবৃতি', t: 'r' },
+      { id: 'M53-payouts', en: 'Payout Runs', bn: 'পেআউট রান', t: 'g' },
+      { id: 'M53-sellers', en: 'Seller Statements', bn: 'বিক্রেতা বিবৃতি', t: 'g' },
       { id: 'M53-partners', en: 'Partner / Referral Payouts', bn: 'পার্টনার পেআউট', t: 'g' },
       { id: 'M53-escrow', en: 'Escrow & Clawbacks', bn: 'এসক্রো ও ফেরত আদায়', t: 'g' },
       { id: 'M53-recon', en: 'Payout Reconciliation', bn: 'পেআউট সমন্বয়', t: 'g' }
@@ -48,15 +48,15 @@ export const MODULE = {
   forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract', 'Payout Reconciliation'],
   cross: ['Subscriptions & Recurring', 'Marketplace & Sellers', 'Partner & Channel'],
   freg: { src: 74, sub: [
-    ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations'] }],
-    ['2', 'Allocation & SSP', 8, { model: 'fix.performance.obligation', cols: ['subscription_id', 'name', 'standalone_price', 'allocated_amount', 'state'], screens: ['M53-obligations', 'M53-contract'] }],
-    ['3', 'Schedules & Triggers', 12, { model: 'fix.revenue.schedule', cols: ['description', 'total_amount', 'recognized_amount', 'deferred_balance', 'state'], screens: ['M53-schedules', 'M53-bridge'] }],
-    ['4', 'Modifications & Reversals', 8, { model: 'fix.subscription', cols: ['name', 'customer_id', 'contract_value', 'last_refund_amount', 'state'], screens: ['M53-subscriptions'] }],
-    ['5', 'Principal vs Agent', 5, { model: 'fix.commission.ledger', cols: ['name', 'seller_partner_id', 'gross_amount', 'commission_amount', 'state'], screens: ['M53-ledger'], domain: [['source_type', '=', 'marketplace']] }],
-    ['6', 'Commission Ledger', 8, { model: 'fix.commission.ledger', cols: ['seller_partner_id', 'commission_amount', 'tds_amount', 'net_payable', 'state'], screens: ['M53-ledger', 'M53-schemes'] }],
-    ['7', 'Seller Settlement', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'net_payable', 'state'], screens: ['M53-sellers', 'M53-payouts', 'M53-recon'] }],
-    ['8', 'Partner Payouts', 7, { model: 'fix.referral', cols: ['name', 'partner_id', 'referred_partner_id', 'commission_amount', 'state'], screens: ['M53-partners'], domain: [['state', 'in', ['converted', 'commissioned']]] }],
-    ['9', 'Escrow & Clawbacks', 6, { model: 'fix.settlement.adjustment', cols: ['adjustment_type', 'seller_partner_id', 'amount', 'remaining_amount', 'state'], screens: ['M53-escrow'] }]
+    ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations'], reports: ['Rev-Rec by Stream'], forms: ['Performance Obligation'] }],
+    ['2', 'Allocation & SSP', 8, { model: 'fix.performance.obligation', cols: ['subscription_id', 'name', 'standalone_price', 'allocated_amount', 'state'], screens: ['M53-obligations', 'M53-contract'], reports: ['Contract Assets & Liabilities'], forms: ['Performance Obligation'] }],
+    ['3', 'Schedules & Triggers', 12, { model: 'fix.revenue.schedule', cols: ['description', 'total_amount', 'recognized_amount', 'deferred_balance', 'state'], screens: ['M53-schedules', 'M53-bridge'], reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream'], forms: ['Revenue Schedule'] }],
+    ['4', 'Modifications & Reversals', 8, { model: 'fix.subscription', cols: ['name', 'customer_id', 'contract_value', 'last_refund_amount', 'state'], screens: ['M53-subscriptions'], reports: [], forms: ['Subscription Contract'] }],
+    ['5', 'Principal vs Agent', 5, { model: 'fix.commission.ledger', cols: ['name', 'seller_partner_id', 'gross_amount', 'commission_amount', 'state'], screens: ['M53-ledger'], reports: ['Commission Accrual'], forms: [], create: false, domain: [['source_type', '=', 'marketplace']] }],
+    ['6', 'Commission Ledger', 8, { model: 'fix.commission.ledger', cols: ['seller_partner_id', 'commission_amount', 'tds_amount', 'net_payable', 'state'], screens: ['M53-ledger', 'M53-schemes'], reports: ['Commission Accrual'], forms: ['Commission Scheme'] }],
+    ['7', 'Seller Settlement', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'net_payable', 'state'], screens: ['M53-sellers', 'M53-payouts', 'M53-recon'], reports: ['Payout Reconciliation'], forms: ['Payout Run', 'Payout Reconciliation'] }],
+    ['8', 'Partner Payouts', 7, { model: 'fix.referral', cols: ['name', 'partner_id', 'referred_partner_id', 'commission_amount', 'state'], screens: ['M53-partners'], reports: ['Commission Accrual'], forms: [], domain: [['state', 'in', ['converted', 'commissioned']]] }],
+    ['9', 'Escrow & Clawbacks', 6, { model: 'fix.settlement.adjustment', cols: ['adjustment_type', 'seller_partner_id', 'amount', 'remaining_amount', 'state'], screens: ['M53-escrow'], reports: ['Clawback Register'], forms: ['Clawback'] }]
   ] }
 };
 
@@ -73,7 +73,7 @@ export const SCREENS = {
       {m:'action_request_cfo_approval',l:'Request CFO Approval (manual schedule)'}] },
   /* M53-6: schedules with no contract and no CFO approval post nothing; a person
    * cancels them, or reopens them as a manual schedule for the CFO. */
-  'M53-schedules-held': { kind: 'model_list', model: 'fix.revenue.schedule', create: false,
+  'M53-schedules-held': { empty: 'No held schedule. A schedule is held when recognition waits for a modification or an approval.', kind: 'model_list', model: 'fix.revenue.schedule', create: false,
     domain: [['state', '=', 'held']],
     cols: ['source_model','source_id','description','total_amount','recognized_amount','start_date','end_date','hold_reason','state'],
     stateField: 'state', actions: [{m:'action_cancel_held',l:'Cancel (no contract)',ask:'Why this schedule is cancelled',kwarg:'reason'},
@@ -96,11 +96,11 @@ export const SCREENS = {
       {m:'action_approve_contract_value',l:'Approve Transaction Price (second person)'},
       {m:'action_request_refund',l:'Cancel & Refund'}] },
   // Commission
-  'M53-ledger': { kind: 'model_list', model: 'fix.commission.ledger',
+  'M53-ledger': { empty: 'Commission ledger entries are written from the sales, service and referral events that earn them; they are not typed in.', kind: 'model_list', model: 'fix.commission.ledger', create: false,
     cols: ['name','seller_partner_id','source_type','gross_amount','commission_amount','tds_amount','net_payable','escrow_hold','state'],
     stateField: 'state', actions: [{m:'action_post_to_gl',l:'Post Accrual to GL'}] },
   /* M53-4: an earned row with no order or referral never accrues; this is its exit. */
-  'M53-ledger-unsourced': { kind: 'model_list', model: 'fix.commission.ledger', create: false,
+  'M53-ledger-unsourced': { empty: 'No commission is missing its source.', kind: 'model_list', model: 'fix.commission.ledger', create: false,
     domain: [['state','=','earned'],['marketplace_order_id','=',false],['referral_id','=',false]],
     cols: ['name','seller_partner_id','source_type','gross_amount','commission_amount','create_date','state'],
     stateField: 'state',
@@ -128,7 +128,7 @@ export const SCREENS = {
     stateField: 'state',
     actions: [{m:'action_issue_statement',l:'Issue Statement'},{m:'action_settle_statement',l:'Mark Settled'},
       {m:'action_attach_challan',l:'Attach TDS Challan (issues the certificate)',ask:'Deposited, verified TDS challan number',kwarg:'challan_no'}] },
-  'M53-partners': { kind: 'model_list', model: 'fix.referral',
+  'M53-partners': { empty: 'Referrals are recorded by partners and the sales team; they earn commission when converted.', kind: 'model_list', model: 'fix.referral',
     cols: ['name','partner_id','referred_partner_id','base_amount','commission_amount','state','commission_ledger_id','payout_state'],
     stateField: 'state', domain: [['state','in',['submitted','converted','commissioned']]], create: false,
     /* Convert: the Referral Manager (cd_partner.group_fix_referral_manager). */
@@ -244,6 +244,7 @@ export const SCREENS = {
     model: 'fix.commission.ledger',
     title: "Commission Ledger",
     back: 'M53-ledger',
+    create: false, pick: 'A commission entry is written from the event that earns it: open one from Commission Ledger.',
     status: { field: 'state', labels: { draft: "Draft", approved: "Approved", paid: "Paid" } },
     sections: [
       { title: "Commission",
@@ -517,5 +518,5 @@ export const FORM_CHIPS = {
 
 /* the module's "+ New" surface */
 export const CREATE = {
-  M53: { model: 'fix.payout.run', label: 'Payout Run' },
+  M53: { screen: 'M53-form-payoutrun', model: 'fix.payout.run', label: 'Payout Run' },
 };

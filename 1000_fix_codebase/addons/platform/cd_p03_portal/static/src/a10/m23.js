@@ -45,14 +45,14 @@ export const MODULE = {
   forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template', 'Review Action'],
   cross: ['M01 Service Orders', 'M34 Complaints', 'M42 Suppliers', 'M24 Documents'],
   freg: { src: 78, sub: [
-    ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual'], screens: ['M23-policy'] }],
-    ['2', 'Process Register', 7, { model: 'fix.qms.process', cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'state'], screens: ['M23-processes'] }],
-    ['3', 'Checklists & Gates', 10, { model: 'fix.qms.checklist', cols: ['name', 'checklist_type', 'iso_clause', 'version', 'state'], screens: ['M23-checklists', 'M23-gates'] }],
-    ['4', 'NCR Management', 12, { model: 'fix.ncr', cols: ['name', 'source', 'severity', 'disposition', 'state'], screens: ['M23-ncr'] }],
-    ['5', 'RCA & CAPA', 14, { model: 'fix.capa', cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'state'], screens: ['M23-rca', 'M23-capa'] }],
-    ['6', 'Audit Programme', 13, { model: 'fix.internal.audit', cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'], screens: ['M23-internal', 'M23-external'] }],
-    ['7', 'Management Review', 7, { model: 'fix.qms.review', cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'], screens: ['M23-review'] }],
-    ['8', 'Statistics & CoPQ', 9, { model: 'fix.qms.copq', cols: ['name', 'period', 'category', 'amount'], screens: ['M23-stat', 'M23-copq', 'M23-qms-copq'] }]
+    ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual'], screens: ['M23-policy'], reports: [], forms: [] }],
+    ['2', 'Process Register', 7, { model: 'fix.qms.process', cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'state'], screens: ['M23-processes'], reports: [], forms: [] }],
+    ['3', 'Checklists & Gates', 10, { model: 'fix.qms.checklist', cols: ['name', 'checklist_type', 'iso_clause', 'version', 'state'], screens: ['M23-checklists', 'M23-gates'], reports: [], forms: ['Checklist Template'] }],
+    ['4', 'NCR Management', 12, { model: 'fix.ncr', cols: ['name', 'source', 'severity', 'disposition', 'state'], screens: ['M23-ncr'], reports: ['NCR & CAPA Register'], forms: ['NCR'] }],
+    ['5', 'RCA & CAPA', 14, { model: 'fix.capa', cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'state'], screens: ['M23-rca', 'M23-capa'], reports: ['NCR & CAPA Register', 'Repeat-Failure Escalation'], forms: ['CAPA'] }],
+    ['6', 'Audit Programme', 13, { model: 'fix.internal.audit', cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'], screens: ['M23-internal', 'M23-external'], reports: ['Audit Programme Status'], forms: ['Audit Finding'] }],
+    ['7', 'Management Review', 7, { model: 'fix.qms.review', cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'], screens: ['M23-review'], reports: ['Management Review Pack'], forms: ['Review Action'] }],
+    ['8', 'Statistics & CoPQ', 9, { model: 'fix.qms.copq', cols: ['name', 'period', 'category', 'amount'], screens: ['M23-stat', 'M23-copq', 'M23-qms-copq'], reports: ['CoPQ Analysis', 'Repeat-Failure Escalation'], forms: [] }]
   ] }
 };
 

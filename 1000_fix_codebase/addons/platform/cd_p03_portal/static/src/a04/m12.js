@@ -26,31 +26,31 @@ export const MODULE = {
     ]},
     { en: 'Sellers', screens: [
       { id: 'M12-sellers', en: 'Seller Directory', bn: 'সেলার ডিরেক্টরি', t: 'g' },
-      { id: 'M12-kyc', en: 'KYC & Approval', bn: 'কেওয়াইসি', t: 'c' },
-      { id: 'M12-agreements', en: 'Agreements & Tiers', bn: 'চুক্তি ও টিয়ার', t: 'g' }
+      { id: 'M12-kyc', en: 'KYC & Approval', bn: 'কেওয়াইসি', t: 'r' },
+      { id: 'M12-agreements', en: 'Agreements & Tiers', bn: 'চুক্তি ও টিয়ার', t: 'r' }
     ]},
     { en: 'Supply', screens: [
       { id: 'M12-listings', en: 'Listings & Moderation', bn: 'লিস্টিং', t: 'g' },
-      { id: 'M12-stock', en: 'Seller Stock', bn: 'সেলার স্টক', t: 'g' },
+      { id: 'M12-stock', en: 'Seller Stock', bn: 'সেলার স্টক', t: 'r' },
       { id: 'M12-stock-positions', en: 'Stock Positions', bn: 'স্টক পজিশন', t: 'g' },
-      { id: 'M12-training', en: 'Standards & Training', bn: 'প্রশিক্ষণ', t: 'g' },
+      { id: 'M12-training', en: 'Standards & Training', bn: 'প্রশিক্ষণ', t: 'r' },
       { id: 'M12-certifications', en: 'Seller Certifications', bn: 'সেলার সনদ', t: 'g' },
       { id: 'M12-standards', en: 'Standards Catalogue', bn: 'মানদণ্ড তালিকা', t: 'g' }
     ]},
     { en: 'Job Market', screens: [
-      { id: 'M12-broadcast', en: 'Job Broadcast', bn: 'জব ব্রডকাস্ট', t: 'c' },
+      { id: 'M12-broadcast', en: 'Job Broadcast', bn: 'জব ব্রডকাস্ট', t: 'r' },
       { id: 'M12-bids', en: 'Bidding & Award', bn: 'বিডিং', t: 'g' },
-      { id: 'M12-oversight', en: 'Execution Oversight', bn: 'তদারকি', t: 'g' }
+      { id: 'M12-oversight', en: 'Execution Oversight', bn: 'তদারকি', t: 'r' }
     ]},
     { en: 'Money', screens: [
-      { id: 'M12-commission', en: 'Commission Schemes', bn: 'কমিশন', t: 'g' },
-      { id: 'M12-wallet', en: 'Seller Wallets & Payouts', bn: 'ওয়ালেট', t: 'g' },
-      { id: 'M12-fees', en: 'Fees & Promotion', bn: 'ফি', t: 'g' }
+      { id: 'M12-commission', en: 'Commission Schemes', bn: 'কমিশন', t: 'r' },
+      { id: 'M12-wallet', en: 'Seller Wallets & Payouts', bn: 'ওয়ালেট', t: 'r' },
+      { id: 'M12-fees', en: 'Fees & Promotion', bn: 'ফি', t: 'r' }
     ]},
     { en: 'Trust', screens: [
-      { id: 'M12-reviews', en: 'Ratings & Reviews', bn: 'রেটিং', t: 'g' },
-      { id: 'M12-disputes', en: 'Disputes & Mediation', bn: 'বিরোধ', t: 'c' },
-      { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'g' },
+      { id: 'M12-reviews', en: 'Ratings & Reviews', bn: 'রেটিং', t: 'r' },
+      { id: 'M12-disputes', en: 'Disputes & Mediation', bn: 'বিরোধ', t: 'g' },
+      { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'r' },
       { id: 'M12-chargebacks', en: 'Chargebacks', bn: 'চার্জব্যাক', t: 'g' }
     ]}
   ],
@@ -58,17 +58,17 @@ export const MODULE = {
   forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case', 'Stock Position', 'Seller Certification', 'Seller Standard'],
   cross: ['M01 Service Orders', 'M20 AR', 'M33 Party Master', 'M40 Partners'],
   freg: { src: 101, sub: [
-    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'] }],
-    ['2', 'Agreements & Tiers', 7, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'cfo_approved', 'rating'], screens: ['M12-agreements', 'M12-sellers'] }],
-    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-rpt-listingcoverage'] }],
-    ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast'] }],
-    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['state'], screens: ['M12-marketplace-order', 'M12-oversight'] }],
-    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews'] }],
-    ['7', 'Performance Consequences', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-rpt-scorecard'] }],
-    ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-rpt-dispute'] }],
-    ['9', 'Commission & Fees', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'commission_amount', 'platform_fee'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'] }],
-    ['10', 'Wallet & Payouts', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'net_payable', 'payout_run_id', 'state'], screens: ['M12-wallet'] }],
-    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-disputes'] }]
+    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'], reports: [], forms: ['Seller Application'] }],
+    ['2', 'Agreements & Tiers', 7, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'cfo_approved', 'rating'], screens: ['M12-agreements', 'M12-sellers'], reports: [], forms: [], create: false }],
+    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-rpt-listingcoverage'], reports: ['Listing Coverage', 'Seller Stock'], forms: ['Listing', 'Stock Position'] }],
+    ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast'], reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept'], forms: [] }],
+    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['state'], screens: ['M12-marketplace-order', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: [] }],
+    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews'], reports: ['Seller Scorecard Distribution'], forms: [] }],
+    ['7', 'Performance Consequences', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-rpt-scorecard'], reports: ['Seller Scorecard Distribution'], forms: [] }],
+    ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-rpt-dispute'], reports: ['Dispute Rate & Outcomes'], forms: ['Dispute Case'] }],
+    ['9', 'Commission & Fees', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'commission_amount', 'platform_fee'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'], reports: ['Commission Revenue'], forms: [] }],
+    ['10', 'Wallet & Payouts', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'net_payable', 'payout_run_id', 'state'], screens: ['M12-wallet'], reports: ['Commission Revenue'], forms: ['Payout Run'] }],
+    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-disputes'], reports: ['Standards & Training', 'Dispute Rate & Outcomes'], forms: ['Seller Certification', 'Seller Standard'], create: false }]
   ] }
 };
 
@@ -568,6 +568,7 @@ export const SCREENS = {
     ] },
   'M12-seller-score': { kind: 'model_list', model: 'fix.seller.score', create: false,
     cols: ['company_id', 'operating_unit_id', 'seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'metrics_measured'],
+    empty: 'No seller score yet. Scores are measured each period from the seller\'s accepted jobs, on-time completion and customer reviews; they are not typed in.',
     // A04 C5: the KPIs are measured from the seller's records, never typed.
     actions: [
       { m: 'action_publish', l: 'Measure & Rank' }

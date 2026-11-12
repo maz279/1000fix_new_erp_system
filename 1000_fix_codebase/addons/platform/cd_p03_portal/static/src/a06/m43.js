@@ -21,20 +21,20 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Forecasting', screens: [
-      { id: 'M43-history', en: 'History Assembly', bn: 'ইতিহাস সংকলন', t: 'g' },
+      { id: 'M43-history', en: 'History Assembly', bn: 'ইতিহাস সংকলন', t: 'r' },
       { id: 'M43-models', en: 'Model Orchestration', bn: 'মডেল অর্কেস্ট্রেশন', t: 'g' },
-      { id: 'M43-accuracy', en: 'Accuracy & Bias (MAPE)', bn: 'নির্ভুলতা ও বায়াস', t: 'g' }
+      { id: 'M43-accuracy', en: 'Accuracy & Bias (MAPE)', bn: 'নির্ভুলতা ও বায়াস', t: 'r' }
     ]},
     { en: 'Policies', screens: [
       { id: 'M43-segments', en: 'Part Segmentation', bn: 'পার্ট সেগমেন্টেশন', t: 'g' },
       { id: 'M43-safety', en: 'Safety Stock & ROP', bn: 'সেফটি স্টক ও আরওপি', t: 'g' },
-      { id: 'M43-leadtime', en: 'Lead-Time Modelling', bn: 'লিড-টাইম মডেলিং', t: 'g' }
+      { id: 'M43-leadtime', en: 'Lead-Time Modelling', bn: 'লিড-টাইম মডেলিং', t: 'r' }
     ]},
     { en: 'Execution', screens: [
       { id: 'M43-planned', en: 'Planned Orders → PR', bn: 'পরিকল্পিত অর্ডার', t: 'g' },
       { id: 'M43-reviews', en: 'Review Cycles', bn: 'পর্যালোচনা চক্র', t: 'g' },
       { id: 'M43-rebalance', en: 'Network Rebalancing', bn: 'নেটওয়ার্ক রিব্যালান্স', t: 'g' },
-      { id: 'M43-vanpar', en: 'Van-Stock Par Calculation', bn: 'ভ্যান পার', t: 'g' }
+      { id: 'M43-vanpar', en: 'Van-Stock Par Calculation', bn: 'ভ্যান পার', t: 'r' }
     ]},
     { en: 'Simulation', screens: [
       { id: 'M43-whatif', en: 'What-If Simulation', bn: 'হোয়াট-ইফ সিমুলেশন', t: 'g' }
@@ -44,15 +44,15 @@ export const MODULE = {
   forms: ['Review Cycle', 'Policy Assignment', 'Rebalance Proposal'],
   cross: ['M26 forecast models', 'M16 planned orders', 'M15 stock positions', 'M37 lifecycle states'],
   freg: { src: 58, sub: [
-    ['1', 'History & Cleansing', 7, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'actual_qty', 'source', 'state'], screens: ['M43-history'] }],
-    ['2', 'Segmentation', 6, { model: 'fix.demand.segment', cols: ['product_id', 'abc_class', 'xyz_class', 'criticality', 'state'], screens: ['M43-segments'] }],
-    ['3', 'Forecast Orchestration', 8, { model: 'fix.demand.forecast', cols: ['name', 'product_id', 'period', 'forecast_qty', 'method'], screens: ['M43-models', 'M43-reviews'] }],
-    ['4', 'Accuracy Tracking', 6, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'forecast_qty', 'actual_qty', 'abs_error_pct'], screens: ['M43-accuracy'] }],
-    ['5', 'Safety Stock & ROP', 9, { model: 'fix.demand.policy', cols: ['product_id', 'service_level_pct', 'safety_stock', 'reorder_point', 'target_level', 'state'], screens: ['M43-safety'] }],
-    ['6', 'Lead-Time', 5, { model: 'fix.demand.policy', cols: ['product_id', 'lead_time_days', 'avg_daily_demand', 'demand_stddev'], screens: ['M43-leadtime'] }],
-    ['7', 'Planned Orders', 6, { model: 'fix.demand.plan', cols: ['name', 'product_id', 'forecast_quantity', 'recommended_order', 'state'], screens: ['M43-planned'] }],
-    ['8', 'Multi-Echelon Rebalancing', 7, { model: 'fix.demand.rebalance', cols: ['name', 'product_id', 'source_location_id', 'target_location_id', 'qty'], screens: ['M43-rebalance', 'M43-vanpar'] }],
-    ['9', 'What-If', 4, { model: 'fix.demand.scenario', cols: ['name', 'product_id', 'demand_adjust_pct', 'projected_reorder_point', 'state'], screens: ['M43-whatif'] }]
+    ['1', 'History & Cleansing', 7, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'actual_qty', 'source', 'state'], screens: ['M43-history'], reports: ['Stockout Root Causes'], forms: [], create: false }],
+    ['2', 'Segmentation', 6, { model: 'fix.demand.segment', cols: ['product_id', 'abc_class', 'xyz_class', 'criticality', 'state'], screens: ['M43-segments'], reports: ['Excess & Obsolescence Exposure'], forms: [] }],
+    ['3', 'Forecast Orchestration', 8, { model: 'fix.demand.forecast', cols: ['name', 'product_id', 'period', 'forecast_qty', 'method'], screens: ['M43-models', 'M43-reviews'], reports: ['Forecast Accuracy by Class'], forms: ['Review Cycle'] }],
+    ['4', 'Accuracy Tracking', 6, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'forecast_qty', 'actual_qty', 'abs_error_pct'], screens: ['M43-accuracy'], reports: ['Forecast Accuracy by Class'], forms: [], create: false }],
+    ['5', 'Safety Stock & ROP', 9, { model: 'fix.demand.policy', cols: ['product_id', 'service_level_pct', 'safety_stock', 'reorder_point', 'target_level', 'state'], screens: ['M43-safety'], reports: ['Stockout Root Causes'], forms: ['Policy Assignment'] }],
+    ['6', 'Lead-Time', 5, { model: 'fix.demand.policy', cols: ['product_id', 'lead_time_days', 'avg_daily_demand', 'demand_stddev'], screens: ['M43-leadtime'], reports: [], forms: [], create: false }],
+    ['7', 'Planned Orders', 6, { model: 'fix.demand.plan', cols: ['name', 'product_id', 'forecast_quantity', 'recommended_order', 'state'], screens: ['M43-planned'], reports: ['New-Part Introduction'], forms: [] }],
+    ['8', 'Multi-Echelon Rebalancing', 7, { model: 'fix.demand.rebalance', cols: ['name', 'product_id', 'source_location_id', 'target_location_id', 'qty'], screens: ['M43-rebalance', 'M43-vanpar'], reports: ['Rebalancing Value Moved'], forms: ['Rebalance Proposal'] }],
+    ['9', 'What-If', 4, { model: 'fix.demand.scenario', cols: ['name', 'product_id', 'demand_adjust_pct', 'projected_reorder_point', 'state'], screens: ['M43-whatif'], reports: ['Excess & Obsolescence Exposure'], forms: [] }]
   ] }
 };
 

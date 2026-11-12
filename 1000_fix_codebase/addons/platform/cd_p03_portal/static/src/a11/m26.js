@@ -27,30 +27,30 @@ export const MODULE = {
     ]},
     { en: 'Operations', screens: [
       { id: 'M26-deploy', en: 'Deployment Patterns', bn: 'ডিপ্লয়মেন্ট প্যাটার্ন', t: 'g' },
-      { id: 'M26-monitor', en: 'Production Monitoring', bn: 'প্রোডাকশন মনিটরিং', t: 'd' },
-      { id: 'M26-fallback', en: 'Inference Fallback', bn: 'ফলব্যাক', t: 'g' }
+      { id: 'M26-monitor', en: 'Production Monitoring', bn: 'প্রোডাকশন মনিটরিং', t: 'r' },
+      { id: 'M26-fallback', en: 'Inference Fallback', bn: 'ফলব্যাক', t: 'r' }
     ]},
     { en: 'Governance', screens: [
       { id: 'M26-governance', en: 'Guard Rails & HITL', bn: 'গার্ড রেল', t: 'g' },
-      { id: 'M26-bias', en: 'Bias Testing', bn: 'বায়াস টেস্টিং', t: 'g' },
+      { id: 'M26-bias', en: 'Bias Testing', bn: 'বায়াস টেস্টিং', t: 'r' },
       { id: 'M26-cards', en: 'Model Cards', bn: 'মডেল কার্ড', t: 'g' }
     ]},
     { en: 'Generative', screens: [
-      { id: 'M26-genai', en: 'Self-Hosted GenAI + RAG', bn: 'জেনএআই ও RAG', t: 'c' },
-      { id: 'M26-ocr', en: 'OCR & Bengali NLP', bn: 'ওসিআর ও বাংলা এনএলপি', t: 'g' }
+      { id: 'M26-genai', en: 'Self-Hosted GenAI + RAG', bn: 'জেনএআই ও RAG', t: 'r' },
+      { id: 'M26-ocr', en: 'OCR & Bengali NLP', bn: 'ওসিআর ও বাংলা এনএলপি', t: 'r' }
     ]}
   ],
   reports: ['Model Performance Pack', 'Override Analysis', 'Drift Report', 'Fairness Summary', 'Model Accuracy & Retraining Log'],
   forms: ['Model Version', 'Evaluation Gate', 'Guard-Rail Config', 'Run ML Model Inference'],
   cross: ['M02 Dispatch', 'M15 Parts', 'M48 Predictive Maintenance'],
   freg: { src: 58, sub: [
-    ['1', 'Portfolio & Governance', 10, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'implementation', 'status', 'owning_module'], screens: ['M26-models', 'M26-governance'] }],
-    ['2', 'Training Pipelines', 8, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'training_dataset', 'artifact_ref', 'state'], screens: ['M26-registry'] }],
-    ['3', 'Evaluation Gates', 7, { model: 'fix.ml.evaluation.gate', cols: ['version_id', 'gate', 'result', 'checked_by', 'checked_at'], screens: ['M26-bias', 'M26-registry'] }],
-    ['4', 'Deployment & Monitoring', 11, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'deployment_mode', 'deployed_at', 'drift_score', 'state'], screens: ['M26-deploy', 'M26-monitor', 'M26-fallback'], domain: [['deployment_mode', '!=', 'none']] }],
-    ['5', 'Explainability', 5, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'model_card', 'bias_status', 'approved_by'], screens: ['M26-cards', 'M26-runs'] }],
-    ['6', 'GenAI & RAG', 9, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'implementation', 'status'], screens: ['M26-genai', 'M26-governance'] }],
-    ['7', 'Bengali NLP & OCR', 8, { model: 'fix.ml.inference.run', cols: ['model_code', 'input_text', 'state', 'latency_ms', 'ran_at'], screens: ['M26-ocr', 'M26-runs'] }]
+    ['1', 'Portfolio & Governance', 10, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'implementation', 'status', 'owning_module'], screens: ['M26-models', 'M26-governance'], reports: ['Model Performance Pack'], forms: ['Guard-Rail Config'] }],
+    ['2', 'Training Pipelines', 8, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'training_dataset', 'artifact_ref', 'state'], screens: ['M26-registry'], reports: ['Model Accuracy & Retraining Log'], forms: ['Model Version'] }],
+    ['3', 'Evaluation Gates', 7, { model: 'fix.ml.evaluation.gate', cols: ['version_id', 'gate', 'result', 'checked_by', 'checked_at'], screens: ['M26-bias', 'M26-registry'], reports: ['Fairness Summary'], forms: ['Evaluation Gate'] }],
+    ['4', 'Deployment & Monitoring', 11, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'deployment_mode', 'deployed_at', 'drift_score', 'state'], screens: ['M26-deploy', 'M26-monitor', 'M26-fallback'], reports: ['Drift Report', 'Model Performance Pack'], forms: [], create: false, domain: [['deployment_mode', '!=', 'none']] }],
+    ['5', 'Explainability', 5, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'model_card', 'bias_status', 'approved_by'], screens: ['M26-cards', 'M26-runs'], reports: ['Override Analysis'], forms: [] }],
+    ['6', 'GenAI & RAG', 9, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'implementation', 'status'], screens: ['M26-genai', 'M26-governance'], reports: [], forms: ['Guard-Rail Config'] }],
+    ['7', 'Bengali NLP & OCR', 8, { model: 'fix.ml.inference.run', cols: ['model_code', 'input_text', 'state', 'latency_ms', 'ran_at'], screens: ['M26-ocr', 'M26-runs'], reports: [], forms: ['Run ML Model Inference'] }]
   ] }
 };
 

@@ -25,17 +25,17 @@ export const MODULE = {
     ]},
     { en: 'Stock Ledger', screens: [
       { id: 'M15-onhand', en: 'On-Hand by Location', bn: 'স্টক অন-হ্যান্ড', t: 'g' },
-      { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'g' },
+      { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'r' },
       { id: 'M15-movements', en: 'Issues & Returns', bn: 'ইস্যু ও রিটার্ন', t: 'g' },
-      { id: 'M15-network', en: 'Network Availability Search', bn: 'প্রাপ্যতা অনুসন্ধান', t: 'g' },
+      { id: 'M15-network', en: 'Network Availability Search', bn: 'প্রাপ্যতা অনুসন্ধান', t: 'r' },
       { id: 'M15-receipts', en: 'Goods Receipts', bn: 'পণ্য গ্রহণ', t: 'g' }
     ]},
     { en: 'Traceability', screens: [
       { id: 'M15-serials', en: 'Serial & Lot Trace', bn: 'সিরিয়াল ও লট ট্রেস', t: 'g' },
-      { id: 'M15-genealogy', en: 'Consumption Genealogy', bn: 'ব্যবহারের বংশতালিকা', t: 'g' }
+      { id: 'M15-genealogy', en: 'Consumption Genealogy', bn: 'ব্যবহারের বংশতালিকা', t: 'r' }
     ]},
     { en: 'Van Stock', screens: [
-      { id: 'M15-van', en: 'Van Stock by Technician', bn: 'ভ্যান স্টক', t: 'g' },
+      { id: 'M15-van', en: 'Van Stock by Technician', bn: 'ভ্যান স্টক', t: 'r' },
       { id: 'M15-replen', en: 'Replenishment & Par', bn: 'রিপ্লেনিশমেন্ট', t: 'g' },
       { id: 'M15-recon', en: 'Daily Reconciliation', bn: 'দৈনিক মিলকরণ', t: 'g' }
     ]},
@@ -57,19 +57,19 @@ export const MODULE = {
   forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
-    ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'] }],
-    ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-network', 'M15-onhand'] }],
-    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership'] }],
-    ['4', 'Reservations', 7, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'reserved', 'available_qty'], screens: ['M15-onhand'], domain: [['reserved', '>', 0]] }],
-    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-genealogy'] }],
-    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'] }],
-    ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-genealogy'] }],
-    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation'] }],
-    ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'] }],
-    ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'] }],
-    ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'] }],
-    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'] }],
-    ['13', 'Item Master (real inventory)', 12, { model: 'fix.spare.part', cols: ['part_number', 'name', 'brand_id', 'category_id', 'qty_available', 'unit_cost', 'state'], screens: ['M15-parts'] }]
+    ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'], reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit'], forms: [] }],
+    ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-network', 'M15-onhand'], reports: [], forms: [] }],
+    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership'], reports: ['Stock Valuation by Class'], forms: [] }],
+    ['4', 'Reservations', 7, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'reserved', 'available_qty'], screens: ['M15-onhand'], reports: [], forms: [], create: false, domain: [['reserved', '>', 0]] }],
+    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-genealogy'], reports: [], forms: ['Stock Issue'] }],
+    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: [] }],
+    ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-genealogy'], reports: [], forms: [] }],
+    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation'], reports: ['Stock Valuation by Class'], forms: [] }],
+    ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'], reports: [], forms: ['Goods Receipt (inspection gate)'] }],
+    ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'], reports: ['Inventory Accuracy Audit'], forms: ['Cycle Count'] }],
+    ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'], reports: ['Ageing & Dead Stock', 'ABC Segmentation'], forms: [] }],
+    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'], reports: ['Transfer Performance'], forms: ['Transfer Request', 'Scrap Order'] }],
+    ['13', 'Item Master (real inventory)', 12, { model: 'fix.spare.part', cols: ['part_number', 'name', 'brand_id', 'category_id', 'qty_available', 'unit_cost', 'state'], screens: ['M15-parts'], reports: ['ABC Segmentation'], forms: ['Item Master (7 tabs)'] }]
   ] }
 };
 
@@ -80,8 +80,11 @@ export const SCREENS = {
   'M15-parts': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
     cols: ['part_number', 'name', 'brand_id', 'category_id', 'product_id', 'qty_available', 'qty_reserved', 'unit_cost', 'state'] },
 
-  'M15-onhand': { kind: 'model_list', model: 'fix.stock.onhand',
-    cols: ['part_id', 'location_id', 'ownership_class', 'stock_status', 'qty', 'reserved', 'available_qty', 'unit_cost'] },
+  /* the stock ledger's position: it moves only by receipts, issues, transfers,
+   * approved counts, quarantine, scrap and RTV - never typed in (2026-11-12) */
+  'M15-onhand': { kind: 'model_list', model: 'fix.stock.onhand', create: false,
+    cols: ['part_id', 'location_id', 'ownership_class', 'stock_status', 'qty', 'reserved', 'available_qty', 'unit_cost'],
+    empty: 'No stock on hand yet. Quantities appear when goods are received, and change only through issues, transfers, approved counts, quarantine, scrap and returns to vendor.' },
   'M15-ownership': { kind: 'table_report', module: 'M15', report: 'ownership_classes', title: '6 Ownership Classes', period: false },
   'M15-movements': { kind: 'model_list', model: 'fix.stock.consumption', stateField: 'state',
     cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'ownership_class', 'state', 'consumed_at'],
@@ -439,6 +442,7 @@ export const SCREENS = {
     model: 'fix.stock.onhand',
     title: 'On-Hand Adjustment',
     back: 'M15-onhand',
+    create: false, pick: 'Stock on hand changes through receipts, issues, transfers and counts: open a position from On-Hand.',
     sections: [
       { title: 'Bucket', note: 'Read-only: the ledger moves only by receipts, issues, transfers, approved counts, quarantine, scrap, RTV and approved class changes.',
         fields: [

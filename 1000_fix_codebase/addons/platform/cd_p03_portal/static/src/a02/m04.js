@@ -25,46 +25,49 @@ export const MODULE = {
   groups: [
     { en: 'Queue & Token', screens: [
       { id: 'M04-queue', en: 'Token & Waiting Display', bn: 'টোকেন ও অপেক্ষার ডিসপ্লে', t: 'd' },
-      { id: 'M04-counter', en: 'Counter Workstation', bn: 'কাউন্টার ওয়ার্কস্টেশন', t: 'c' },
+      { id: 'M04-counter', en: 'Counter Workstation', bn: 'কাউন্টার ওয়ার্কস্টেশন', t: 'r' },
       { id: 'M04-priority', en: 'Priority Queue Rules', bn: 'প্রায়োরিটি কিউ রুলস', t: 'g' }
     ]},
     { en: 'Device Custody', screens: [
       { id: 'M04-storage', en: 'Storage Locations', bn: 'স্টোরেজ অবস্থান', t: 'g' },
       { id: 'M04-handover', en: 'Collection & Handover', bn: 'সংগ্রহ ও হস্তান্তর', t: 'g' },
-      { id: 'M04-uncollected', en: 'Uncollected Devices', bn: 'অসংগৃহীত ডিভাইস', t: 'g' }
+      { id: 'M04-uncollected', en: 'Uncollected Devices', bn: 'অসংগৃহীত ডিভাইস', t: 'r' }
     ]},
     { en: 'Cash & Shift', screens: [
       { id: 'M04-drawer', en: 'Cash Drawer', bn: 'ক্যাশ ড্রয়ার', t: 'g' },
       { id: 'M04-payments', en: 'Payment Capture (All Methods)', bn: 'পেমেন্ট গ্রহণ', t: 'g' },
-      { id: 'M04-shift', en: 'Shift Open / Close', bn: 'শিফট খোলা/বন্ধ', t: 'c' },
-      { id: 'M04-banking', en: 'Banking Deposits', bn: 'ব্যাংকিং ডিপোজিট', t: 'g' }
+      { id: 'M04-shift', en: 'Shift Open / Close', bn: 'শিফট খোলা/বন্ধ', t: 'r' },
+      { id: 'M04-banking', en: 'Banking Deposits', bn: 'ব্যাংকিং ডিপোজিট', t: 'r' }
     ]},
     { en: 'Counter Sales', screens: [
       { id: 'M04-sales', en: 'Counter Sales (Parts/Plans)', bn: 'কাউন্টার বিক্রয়', t: 'g' },
-      { id: 'M04-kiosk', en: 'Kiosk Mode', bn: 'কিয়স্ক মোড', t: 'd' }
+      { id: 'M04-kiosk', en: 'Kiosk Mode', bn: 'কিয়স্ক মোড', t: 'r' }
     ]},
     { en: 'Branch Ops', screens: [
-      { id: 'M04-checklists', en: 'Open/Close Checklists', bn: 'খোলা/বন্ধ চেকলিস্ট', t: 'g' },
-      { id: 'M04-dashboard', en: 'Branch Ops Dashboard', bn: 'ব্রাঞ্চ অপস ড্যাশবোর্ড', t: 'd' },
+      { id: 'M04-checklists', en: 'Open/Close Checklists', bn: 'খোলা/বন্ধ চেকলিস্ট', t: 'r' },
+      { id: 'M04-dashboard', en: 'Branch Ops Dashboard', bn: 'ব্রাঞ্চ অপস ড্যাশবোর্ড', t: 'r' },
       { id: 'M04-receipts', en: 'Receipt & Label Printing', bn: 'রিসিট ও লেবেল প্রিন্ট', t: 'g' }
     ]}
   ],
   reports: ['Branch Daily Cash Summary', 'Token Wait-Time Distribution', 'Uncollected Device Ageing', 'Counter Sales by Category', 'Shift Variance Register', 'Branch Comparison League'],
-  forms: ['Token Issue', 'Device Storage Assignment', 'Shift Open/Close', 'Counter Sale', 'Handover (ID verified)'],
+  /* 'Handover (ID verified)' opened a BLANK intake form; a hand-over is the
+   * Complete Handover action on an existing intake (Collection & Handover).
+   * 'Device Storage Assignment' was the walk-in intake form under another name. */
+  forms: ['Token Issue', 'Walk-in Intake', 'Shift Open/Close', 'Counter Sale'],
   cross: ['M01 walk-in intake', 'M03 collection/delivery', 'M20 receipts', 'M47 branch infrastructure', 'M17 device custody'],
   freg: {
     src: 95,
     sub: [
-      ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority'] }],
-      ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter'] }],
-      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'] }],
-      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], domain: [['state', 'in', ['handover_pending', 'completed']]] }],
-      ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'] }],
-      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer'] }],
-      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'] }],
-      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-checklists'] }],
-      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'] }],
-      ['10', 'Branch Admin', 6, { model: 'fix.branch', cols: ['code', 'name', 'zone_id', 'manager_id', 'phone'], screens: ['M04-dashboard', 'M04-checklists'] }]
+      ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority'], reports: ['Token Wait-Time Distribution'], forms: ['Token Issue'] }],
+      ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter'], reports: ['Token Wait-Time Distribution'], forms: ['Walk-in Intake'] }],
+      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: [], create: false }],
+      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: [], create: false, domain: [['state', 'in', ['handover_pending', 'completed']]] }],
+      ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale'] }],
+      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close'] }],
+      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: [], create: false }],
+      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Open/Close'] }],
+      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'], reports: ['Shift Variance Register'], forms: [] }],
+      ['10', 'Branch Admin', 6, { model: 'fix.branch', cols: ['code', 'name', 'zone_id', 'manager_id', 'phone'], screens: ['M04-dashboard', 'M04-checklists'], reports: ['Branch Comparison League'], forms: [] }]
     ]
   }
 };
@@ -177,7 +180,7 @@ export const SCREENS = {
   'M04-form-storage': {
     kind: 'model_form',
     model: 'fix.walkin.intake',
-    title: "Device Storage Assignment",
+    title: "Walk-in Intake",
     back: 'M04-storage',
     status: { field: 'state', labels: { in_progress: "In Progress", handover_pending: "Handover Pending", completed: "Completed" } },
     tabs: [
@@ -351,9 +354,8 @@ export const CREATE = {};
 
 
 export const FORM_CHIPS = {
-  'M04:Handover (ID verified)': 'M04-form-storage',
   'M04:Token Issue': 'M04-form-token',
-  'M04:Device Storage Assignment': 'M04-form-storage',
+  'M04:Walk-in Intake': 'M04-form-storage',
   'M04:Shift Open/Close': 'M04-form-shift',
   'M04:Counter Sale': 'M04-form-countersale',
   'M04:__by_model__': {

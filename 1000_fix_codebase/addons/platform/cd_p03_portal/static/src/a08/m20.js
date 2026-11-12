@@ -62,16 +62,16 @@ export const MODULE = {
   forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'Write-off', 'ECL Loss Rates'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 99, sub: [
-    ['1', 'Billable-Event Intake', 12, { model: 'fix.ar.invoice', cols: ['name', 'source_model', 'source_id', 'invoice_date', 'state'], screens: ['M20-events'] }],
-    ['2', 'Invoice Assembly', 12, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'invoice_date', 'total_payable', 'state'], screens: ['M20-invoices', 'M20-consolidated', 'M20-brand'] }],
-    ['3', 'Mushak 6.3 Rendering', 8, { model: 'fix.ar.invoice', cols: ['name', 'mushak_id', 'generated_at', 'vat_amount', 'total_payable'], screens: ['M20-invoice'] }],
-    ['4', 'Delivery Channels', 6, { model: 'fix.ar.consolidated.bill', cols: ['bill_ref', 'customer_id', 'period_start', 'total_payable', 'state'], screens: ['M20-statements', 'M20-ar-consolidated-bill'] }],
-    ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links'] }],
-    ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-closeout', 'M20-vds', 'M20-vds-register'] }],
-    ['7', 'Credit Control', 9, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'exposure', 'over_limit', 'credit_hold'], screens: ['M20-credit', 'M20-aging', 'M20-ecl'] }],
-    ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-disputes', 'M20-ar-dispute'] }],
-    ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register'] }],
-    ['10', 'Leakage Detection', 7, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'manual_reason', 'total_payable', 'state'], screens: ['M20-leakage'] }]
+    ['1', 'Billable-Event Intake', 12, { model: 'fix.ar.invoice', cols: ['name', 'source_model', 'source_id', 'invoice_date', 'state'], screens: ['M20-events'], reports: ['Invoice Accuracy'], forms: [], create: false }],
+    ['2', 'Invoice Assembly', 12, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'invoice_date', 'total_payable', 'state'], screens: ['M20-invoices', 'M20-consolidated', 'M20-brand'], reports: ['Invoice Accuracy', 'Brand Receivable Ageing'], forms: ['Invoice Request'] }],
+    ['3', 'Mushak 6.3 Rendering', 8, { model: 'fix.ar.invoice', cols: ['name', 'mushak_id', 'generated_at', 'vat_amount', 'total_payable'], screens: ['M20-invoice'], reports: [], forms: [], create: false }],
+    ['4', 'Delivery Channels', 6, { model: 'fix.ar.consolidated.bill', cols: ['bill_ref', 'customer_id', 'period_start', 'total_payable', 'state'], screens: ['M20-statements', 'M20-ar-consolidated-bill'], reports: [], forms: [] }],
+    ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links'], reports: ['Payment Method Mix'], forms: ['Receipt', 'Payment Link'] }],
+    ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-closeout', 'M20-vds', 'M20-vds-register'], reports: ['VDS Received Register', 'AR Sub-ledger to GL Reconciliation'], forms: ['VDS Certificate'], create: false }],
+    ['7', 'Credit Control', 9, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'exposure', 'over_limit', 'credit_hold'], screens: ['M20-credit', 'M20-aging', 'M20-ecl'], reports: ['AR Ageing by Segment', 'Brand Receivable Ageing'], forms: ['Write-off', 'ECL Loss Rates'] }],
+    ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-disputes', 'M20-ar-dispute'], reports: ['Dunning Effectiveness', 'Collections Productivity'], forms: [] }],
+    ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register'], reports: [], forms: ['Credit Note', 'Refund'] }],
+    ['10', 'Leakage Detection', 7, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'manual_reason', 'total_payable', 'state'], screens: ['M20-leakage'], reports: ['Invoice Accuracy'], forms: [], create: false }]
   ] }
 };
 
@@ -173,7 +173,7 @@ export const SCREENS = {
     ]
   },
   /* BRU-ARB-22: money received and not applied, aged; the daily job escalates. */
-  'M20-unapplied': { kind: 'model_list', model: 'fix.ar.receipt', create: false,
+  'M20-unapplied': { empty: 'No unapplied receipt: every receipt recorded is allocated to invoices.', kind: 'model_list', model: 'fix.ar.receipt', create: false,
     domain: [['state', '=', 'confirmed'], ['unapplied_amount', '>', 0]],
     cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'allocated_amount', 'unapplied_amount', 'unapplied_escalated_at'] },
   'M20-gl-recon': { kind: 'table_report', module: 'M20', report: 'ar_subledger_gl_recon', title: 'AR Sub-ledger to GL Reconciliation', period: false },
@@ -197,7 +197,7 @@ export const SCREENS = {
     cols: ['name','customer_id','invoice_id','certificate_no','certificate_date','period','vds_amount','state'],
     stateField: 'state',
     actions: [{m:'action_verify',l:'Verify (checker)'},{m:'action_settle',l:'Settle against Receivable'},{m:'action_cancel',l:'Cancel'}] },
-  'M20-closeout': { kind: 'model_list', model: 'fix.ar.invoice',
+  'M20-closeout': { empty: 'No invoice is waiting for close-out.', kind: 'model_list', model: 'fix.ar.invoice',
     cols: ['name','customer_id','invoice_date','total_payable','amount_paid','credited_amount','vds_settled_amount','amount_residual','state'],
     domain: [['state','=','issued']], create: false,
     actions: [{m:'action_register_paid',l:'Register Paid (residual covered)'}] },
@@ -215,7 +215,7 @@ export const SCREENS = {
 
   /* Credit-note register with the submit → approve → issue workflow (the
    * D365 form creates the draft; the register moves it). */
-  'M20-notes-register': { kind: 'model_list', model: 'fix.credit.note', stateField: 'state',
+  'M20-notes-register': { empty: 'Credit notes and refunds are requested from Credit Notes & Refunds; they are listed here once requested.', kind: 'model_list', model: 'fix.credit.note', stateField: 'state',
     create: false,
     cols: ['invoice_id', 'amount', 'reason_code', 'state', 'approval_state', 'issued_at', 'approved_by', 'refund_amount', 'refund_ref', 'gl_note'],
     actions: [
@@ -373,7 +373,7 @@ export const SCREENS = {
   },
 
   /* ===== triage coverage screens ===== */
-  'M20-ar-dispute': { kind: 'model_list', model: 'fix.ar.dispute', stateField: 'state', create: false,
+  'M20-ar-dispute': { empty: 'No open dispute. A dispute is raised against an invoice by the customer or by the collections team.', kind: 'model_list', model: 'fix.ar.dispute', stateField: 'state', create: false,
     cols: ['name', 'state', 'invoice_id', 'amount_disputed', 'reason', 'outcome_code', 'resolution_note', 'resolved_by'],
     actions: [
       { m: 'action_resolve_upheld_credit', l: 'Resolve: Upheld (credit note)', ask: 'Resolution note', kwarg: 'note' },
@@ -382,9 +382,9 @@ export const SCREENS = {
       { m: 'action_resolve_withdrawn', l: 'Resolve: Withdrawn', ask: 'Resolution note', kwarg: 'note' },
       { m: 'action_resolve_payment_plan', l: 'Resolve: Payment Plan', ask: 'Resolution note', kwarg: 'note' }
     ] },
-  'M20-ar-consolidated-bill': { kind: 'model_list', model: 'fix.ar.consolidated.bill', stateField: 'state', create: false,
+  'M20-ar-consolidated-bill': { empty: 'Consolidated bills are assembled from a corporate customer\'s invoices in Invoice Assembly.', kind: 'model_list', model: 'fix.ar.consolidated.bill', stateField: 'state', create: false,
     cols: ['state', 'company_id', 'operating_unit_id', 'customer_id', 'currency_id', 'bill_ref', 'period_start'] },
-  'M20-dunning-register': { kind: 'model_list', model: 'fix.dunning', create: false,
+  'M20-dunning-register': { empty: 'Dunning steps are generated by the collections cycle for overdue invoices.', kind: 'model_list', model: 'fix.dunning', create: false,
     cols: ['name', 'invoice_id', 'overdue_amount', 'step', 'step_date', 'suppressed', 'suppression_reason', 'suppressed_until', 'suppression_note'],
     actions: [
       { m: 'action_suppress_payment_plan', l: 'Suppress: Payment Plan', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },

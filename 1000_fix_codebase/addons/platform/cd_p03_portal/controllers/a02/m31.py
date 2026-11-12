@@ -208,7 +208,10 @@ def _cycle_time_report(env, **params):
             "max_days": "Max Days",
         },
         "rows": rows,
-        "notes": ["Cycle time = job creation → completed_at, delivered jobs only."],
+        "notes": [
+            "Cycle time runs from the creation of the repair job to its completion; "
+            "only delivered jobs are counted."
+        ],
     }
 
 
@@ -229,7 +232,10 @@ def _rework_loop_report(env, **params):
         "cols": ["reason", "jobs"],
         "labels": {"reason": "Rework Reason", "jobs": "Jobs"},
         "rows": rows,
-        "notes": ["Rework loops opened by failed QC (qc_failed → in_repair), live counts."],
+        "notes": [
+            "A rework loop is a job sent back to repair after failing its quality check; "
+            "counts are live."
+        ],
     }
 
 

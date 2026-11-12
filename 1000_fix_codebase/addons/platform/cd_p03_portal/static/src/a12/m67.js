@@ -29,12 +29,11 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Registry Completion', screens: [
-      { id: 'M67-record', en: 'Project Record', bn: 'প্রজেক্ট রেকর্ড', t: 'f' },
       { id: 'M67-templates', en: 'Templates (6 types)', bn: 'Templates (6 types)', t: 'g' },
-      { id: 'M67-evm', en: 'Earned Value', bn: 'Earned Value', t: 'g' },
+      { id: 'M67-evm', en: 'Earned Value', bn: 'Earned Value', t: 'r' },
       { id: 'M67-billing', en: 'Milestone Billing', bn: 'Milestone Billing', t: 'g' },
       { id: 'M67-billstatus', en: 'Billing Status', bn: 'বিলিং স্ট্যাটাস', t: 'r' },
-      { id: 'M67-profit', en: 'Project P&L', bn: 'Project P&L', t: 'g' },
+      { id: 'M67-profit', en: 'Project P&L', bn: 'Project P&L', t: 'r' },
       { id: 'M67-risks', en: 'Risk & Issue Registers', bn: 'Risk & Issue Registers', t: 'g' }
     ]},
     { en: 'Portfolio', screens: [
@@ -57,12 +56,12 @@ export const MODULE = {
   forms: ['Project (6 types)', 'Milestone', 'Task', 'Stage Gate Review'],
   cross: ['M49 capex budgets', 'M54 costing', 'M21 project staffing', 'M60 enterprise register (project.risk_escalated)'],
   freg: { src: 54, sub: [
-    ['1', 'Portfolio', 10, { model: 'fix.project', cols: ['name', 'code', 'project_type', 'manager_id', 'state'], screens: ['M67-projects', 'M67-portfolio', 'M67-budget'] }],
-    ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-record'] }],
-    ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-tracker', 'M67-resources'] }],
-    ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-compliance'] }],
-    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'invoice_id', 'state'], screens: ['M67-billing', 'M67-billstatus', 'M67-evm', 'M67-profit'] }],
-    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'state'], screens: ['M67-risks'] }]
+    ['1', 'Portfolio', 10, { model: 'fix.project', cols: ['name', 'code', 'project_type', 'manager_id', 'state'], screens: ['M67-projects', 'M67-portfolio', 'M67-budget'], reports: ['Portfolio Status', 'Budget vs Actual'], forms: ['Project (6 types)'] }],
+    ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-projects'], reports: [], forms: ['Project (6 types)'] }],
+    ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-tracker', 'M67-resources'], reports: ['Milestone Tracker', 'Task Workload by Assignee'], forms: ['Task', 'Milestone'] }],
+    ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-compliance'], reports: ['Stage-Gate Compliance'], forms: ['Stage Gate Review'] }],
+    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'invoice_id', 'state'], screens: ['M67-billing', 'M67-billstatus', 'M67-evm', 'M67-profit'], reports: ['Billing Status', 'Budget vs Actual'], forms: [] }],
+    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'state'], screens: ['M67-risks'], reports: [], forms: [] }]
   ] }
 };
 
@@ -71,36 +70,6 @@ export const SCREENS = {
     title: 'Resource Utilisation', period: false },
   'M67-rpt-benefits': { kind: 'table_report', module: 'M67', report: 'benefits_realisation',
     title: 'Benefits Realisation', period: false },
-  'M67-record': { kind: 'model_form', model: 'fix.project', title: 'Project Record',
-    back: 'M67-projects',
-    status: { field: 'state', labels: { draft: 'Draft', active: 'Active',
-      on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled' } },
-    sections: [
-      { title: 'Project Record', note: 'The full project record: type, manager, dates, budget and contract value. Activation needs the DOFA budget approval, the contract value of a client project and gates G1 and G2 passed; it freezes the baseline, the contract and the manager.',
-        fields: [
-          { name: 'name', required: true, label: 'Project Name' },
-          { name: 'project_type', required: true, label: 'Project Type' },
-          { name: 'manager_id', label: 'Project Manager' },
-          { name: 'date_start', label: 'Start' },
-          { name: 'date_end', label: 'End' },
-          { name: 'budget', label: 'Budget' },
-          { name: 'contract_value', label: 'Contract Value' },
-          { name: 'dofa_justification', type: 'text', label: 'Budget Justification', bn: 'বাজেটের যৌক্তিকতা' }
-        ] },
-      { title: 'Overrun on a running project', note: 'Enter the new figure here and use Request Budget Approval. It routes at the tier of the new amount; when granted it becomes the budget and the new baseline. The budget itself cannot be raised after activation.',
-        fields: [
-          { name: 'baseline_budget', label: 'Baselined Budget', bn: 'বেসলাইন বাজেট', readonly: true },
-          { name: 'budget_requested', label: 'Requested Budget', bn: 'অনুরোধকৃত বাজেট' },
-          { name: 'contract_value_requested', label: 'Requested Contract Value', bn: 'অনুরোধকৃত চুক্তি মূল্য' }
-        ] },
-      { title: 'Measured results', note: 'Computed, never typed. Cost comes from ledger postings tagged with the project code and task hours at the configured rate; with neither, the cost basis says Not measured.',
-        fields: [
-          { name: 'actual_cost', label: 'Actual Cost', bn: 'প্রকৃত খরচ', readonly: true },
-          { name: 'cost_basis', label: 'Cost Basis', bn: 'খরচের ভিত্তি', readonly: true },
-          { name: 'billed_revenue', label: 'Billed Revenue', bn: 'বিল করা আয়', readonly: true }
-        ] }
-    ] },
-
   'M67-projects': { kind: 'model_list', model: 'fix.project', stateField: 'state',
     cols: ['name', 'code', 'project_type', 'manager_id', 'date_start', 'date_end', 'budget', 'baseline_budget', 'contract_value', 'billed_revenue', 'cost_basis', 'approval_state', 'billing_confirmed_by_id', 'state'],
     actions: [
@@ -154,7 +123,7 @@ export const SCREENS = {
       draft: 'Draft', active: 'Active', on_hold: 'On Hold',
       completed: 'Completed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Project', note: 'The project code is generated on creation (PRJ/year). The budget needs DOFA approval before activation; the baseline, the contract value and the manager freeze at activation, and billing may not exceed the contract value (or the baseline where no contract is recorded).',
+      { title: 'Project', note: 'The project code is generated on creation (PRJ/year). Activation needs the DOFA budget approval, the contract value of a client project and gates G1 and G2 passed; the baseline, the contract value and the manager freeze at activation, and billing may not exceed the contract value (or the baseline where no contract is recorded).',
         fields: [
           { name: 'name', required: true, label: 'Project Name' },
           { name: 'project_type', required: true, label: 'Project Type' },
@@ -165,7 +134,7 @@ export const SCREENS = {
           { name: 'contract_value', label: 'Contract Value' },
           { name: 'dofa_justification', type: 'text', label: 'Budget Justification', bn: 'বাজেটের যৌক্তিকতা' }
         ] },
-      { title: 'Overrun on a running project', note: 'Enter the new figure here and use Request Budget Approval. It routes at the tier of the new amount; when granted it becomes the budget and the new baseline.',
+      { title: 'Overrun on a running project', note: 'Enter the new figure here and use Request Budget Approval. It routes at the tier of the new amount; when granted it becomes the budget and the new baseline. The budget itself cannot be raised after activation.',
         fields: [
           { name: 'baseline_budget', label: 'Baselined Budget', bn: 'বেসলাইন বাজেট', readonly: true },
           { name: 'budget_requested', label: 'Requested Budget', bn: 'অনুরোধকৃত বাজেট' },

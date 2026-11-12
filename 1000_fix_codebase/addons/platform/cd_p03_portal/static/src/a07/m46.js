@@ -39,23 +39,23 @@ export const MODULE = {
     ]},
     { en: 'Safety & Cost', screens: [
       { id: 'M46-accidents', en: 'Accidents & Insurance', bn: 'দুর্ঘটনা ও বীমা', t: 'g' },
-      { id: 'M46-insurers', en: 'Insurers', bn: 'বিমাকারী', t: 'g' },
-      { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'g' },
-      { id: 'M46-cost', en: 'Cost per Kilometre', bn: 'প্রতি কিমি খরচ', t: 'g' }
+      { id: 'M46-insurers', en: 'Insurers', bn: 'বিমাকারী', t: 'r' },
+      { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'r' },
+      { id: 'M46-cost', en: 'Cost per Kilometre', bn: 'প্রতি কিমি খরচ', t: 'r' }
     ]}
   ],
   reports: ['Fleet Availability', 'Fuel Efficiency Trend', 'Maintenance Cost per Vehicle', 'Statutory Compliance Register', 'Incident Summary'],
   forms: ['Vehicle', 'Driver', 'Fuel Transaction', 'Accident Report', 'PM Service'],
   cross: ['M03 rider fleet', 'M02 field vans', 'M52 fuel expenses', 'M47 site vehicles'],
   freg: { src: 62, sub: [
-    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles'] }],
-    ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-renewal'] }],
-    ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour'] }],
-    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'] }],
-    ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-pm'] }],
-    ['6', 'Fuel & Odometer', 8, { model: 'fix.vehicle.fuel', cols: ['vehicle_id', 'filled_on', 'litres', 'odometer', 'amount'], screens: ['M46-fuel', 'M46-cost'] }],
-    ['7', 'Telematics', 5, { model: 'fix.vehicle.telemetry', cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'state'], screens: ['M46-telematics'] }],
-    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents'] }]
+    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles'], reports: ['Fleet Availability', 'Maintenance Cost per Vehicle'], forms: ['Vehicle'] }],
+    ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-renewal'], reports: ['Statutory Compliance Register'], forms: [] }],
+    ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour'], reports: [], forms: ['Driver'] }],
+    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'], reports: ['Fleet Availability'], forms: [] }],
+    ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-pm'], reports: ['Maintenance Cost per Vehicle'], forms: ['PM Service'] }],
+    ['6', 'Fuel & Odometer', 8, { model: 'fix.vehicle.fuel', cols: ['vehicle_id', 'filled_on', 'litres', 'odometer', 'amount'], screens: ['M46-fuel', 'M46-cost'], reports: ['Fuel Efficiency Trend'], forms: ['Fuel Transaction'] }],
+    ['7', 'Telematics', 5, { model: 'fix.vehicle.telemetry', cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'state'], screens: ['M46-telematics'], reports: [], forms: [] }],
+    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents'], reports: ['Incident Summary'], forms: ['Accident Report'] }]
   ] }
 };
 

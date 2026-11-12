@@ -469,8 +469,8 @@ def job_success_rate(env, date_from=None, date_to=None, **params):
             "Success rate is measured on finished data loads; a scheduled job that has "
             "never run shows its cron state with no rate rather than an assumed success.",
             "Scheduled-job failure counts show '-' until the monitoring feed supplies "
-            "them: ir.cron holds no counter, and a hard-coded 0 claimed no silent "
-            "failures (BRU-ADM-12).",
+            "them: the job scheduler keeps no failure counter, and showing 0 would claim "
+            "there were no silent failures (BRU-ADM-12).",
             "This is an inventory of Odoo's job table. No job registry with owner, expected "
             "duration or failure impact exists yet (BRU-ADM-11/12 are not built).",
         ],

@@ -44,13 +44,13 @@ export const MODULE = {
   forms: ['Requisition', 'Candidate', 'Interview Evaluation', 'Offer'],
   cross: ['M21 Workforce', 'M22 Competency', 'M54 Budgeting'],
   freg: { src: 50, sub: [
-    ['1', 'Workforce Planning & Requisition', 9, { model: 'fix.job.requisition', cols: ['name', 'department_id', 'position_id', 'openings', 'state'], screens: ['M58-reqs', 'M58-approval'] }],
-    ['2', 'Sourcing', 7, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'operating_unit_id', 'state'], screens: ['M58-postings', 'M58-candidates'] }],
-    ['3', 'Screening', 6, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'state', 'create_date'], screens: ['M58-candidates'], domain: [['state', 'in', ['applied', 'screening']]] }],
-    ['4', 'Interviews & Assessments', 11, { model: 'fix.talent.interview', cols: ['name', 'candidate_id', 'scheduled_on', 'score', 'recommendation'], screens: ['M58-interviews', 'M58-practical', 'M58-talent-assessment'] }],
-    ['5', 'Checks & Offers', 7, { model: 'fix.talent.offer', cols: ['name', 'candidate_id', 'position_id', 'joining_date', 'state'], screens: ['M58-checks', 'M58-offers'] }],
-    ['6', 'Pre-Boarding', 4, { model: 'fix.onboarding.plan', cols: ['name', 'candidate_id', 'joined_date', 'contract_signed', 'state'], screens: ['M58-preboard'] }],
-    ['7', 'Onboarding Orchestration', 6, { model: 'fix.talent.first90', cols: ['name', 'employee_id', 'milestone', 'check_date', 'on_track'], screens: ['M58-first90'] }]
+    ['1', 'Workforce Planning & Requisition', 9, { model: 'fix.job.requisition', cols: ['name', 'department_id', 'position_id', 'openings', 'state'], screens: ['M58-reqs', 'M58-approval'], reports: ['Time-to-Fill by Role'], forms: ['Requisition'] }],
+    ['2', 'Sourcing', 7, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'operating_unit_id', 'state'], screens: ['M58-postings', 'M58-candidates'], reports: ['Source Effectiveness', 'Funnel & Conversion'], forms: ['Candidate'] }],
+    ['3', 'Screening', 6, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'state', 'create_date'], screens: ['M58-candidates'], reports: ['Funnel & Conversion'], forms: [], create: false, domain: [['state', 'in', ['applied', 'screening']]] }],
+    ['4', 'Interviews & Assessments', 11, { model: 'fix.talent.interview', cols: ['name', 'candidate_id', 'scheduled_on', 'score', 'recommendation'], screens: ['M58-interviews', 'M58-practical', 'M58-talent-assessment'], reports: ['Practical Assessment Results'], forms: ['Interview Evaluation'] }],
+    ['5', 'Checks & Offers', 7, { model: 'fix.talent.offer', cols: ['name', 'candidate_id', 'position_id', 'joining_date', 'state'], screens: ['M58-checks', 'M58-offers'], reports: ['Funnel & Conversion'], forms: ['Offer'] }],
+    ['6', 'Pre-Boarding', 4, { model: 'fix.onboarding.plan', cols: ['name', 'candidate_id', 'joined_date', 'contract_signed', 'state'], screens: ['M58-preboard'], reports: [], forms: [] }],
+    ['7', 'Onboarding Orchestration', 6, { model: 'fix.talent.first90', cols: ['name', 'employee_id', 'milestone', 'check_date', 'on_track'], screens: ['M58-first90'], reports: ['First-90 Retention'], forms: [] }]
   ] }
 };
 

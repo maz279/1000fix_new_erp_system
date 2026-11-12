@@ -247,9 +247,7 @@ def customer_growth(env, date_from=None, date_to=None, **_kw):
         "labels": {"district": "District", "new_parties": "New Parties"},
         "rows": rows,
         "totals": {"district": "Total", "new_parties": len(partners)} if rows else None,
-        "notes": [
-            "District = Odoo state on the party (the governed BD geography seam is cd_entity_config.fix.bd.address)."
-        ],
+        "notes": ["The district is the one recorded on the party's address."],
         "empty": "No new parties in this window.",
     }
 
@@ -395,7 +393,8 @@ def credit_exposure_by_segment(env, **_kw):
         },
         "rows": rows,
         "notes": [
-            "Model of record: cd_billing_engine fix.credit.profile (M20); enforcement at order time is M20."
+            "Credit profiles are kept by Accounts Receivable (M20), which also enforces "
+            "the limits when an order is taken."
         ],
         "empty": "No credit profiles in any segment.",
     }

@@ -21,7 +21,7 @@ export const MODULE = {
     { en: 'Campaigns', screens: [
       { id: 'M35-campaigns', en: 'Campaign Manager', bn: 'ক্যাম্পেইন ম্যানেজার', t: 'g' },
       { id: 'M35-form-campaign', en: 'Campaign Form', bn: 'ক্যাম্পেইন ফর্ম', t: 'f' },
-      { id: 'M35-approval', en: 'Planning & Approval', bn: 'পরিকল্পনা ও অনুমোদন', t: 'c' }
+      { id: 'M35-approval', en: 'Planning & Approval', bn: 'পরিকল্পনা ও অনুমোদন', t: 'r' }
     ]},
     { en: 'Journeys', screens: [
       { id: 'M35-journeys', en: 'Journey Orchestration', bn: 'জার্নি অর্কেস্ট্রেশন', t: 'g' },
@@ -38,25 +38,24 @@ export const MODULE = {
       { id: 'M35-roi', en: 'Budget & ROI', bn: 'বাজেট ও ROI', t: 'r' }
     ]},
     { en: 'Journey Runtime (S10)', bn: 'জার্নি রানটাইম', screens: [
-      { id: 'M35-journey-members', en: 'Journey Members', bn: 'জার্নি সদস্য', t: 'g' },
-      { id: 'M35-form-journey-member', en: 'Journey Member', bn: 'সদস্য ফর্ম', t: 'f' }
+      { id: 'M35-journey-members', en: 'Journey Members', bn: 'জার্নি সদস্য', t: 'g' }
     ]},
     { en: 'Multi-Touch Attribution', bn: 'মাল্টি-টাচ অ্যাট্রিবিউশন', screens: [
       { id: 'M35-touches', en: 'Touchpoint Ledger', bn: 'টাচপয়েন্ট লেজার', t: 'g' }
     ]}
   ],
   reports: ['Campaign Funnel by Channel', 'Attribution & ROI', 'Seasonal Template Performance', 'Co-Marketing Partner Report', 'Lead-to-Order Conversion'],
-  forms: ['Campaign', 'Journey (multi-step)', 'Offer', 'Creative Asset', 'Journey Member'],
+  forms: ['Campaign', 'Journey (multi-step)', 'Offer', 'Creative Asset'],
   cross: ['M33 Customer Master', 'M10 Loyalty', 'M34 CX Feedback'],
   freg: { src: 58, sub: [
-    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval'] }],
-    ['2', 'Audience from Segments', 6, { model: 'fix.campaign', cols: ['name', 'target_audience_type', 'audience_domain', 'excluded_no_consent_count', 'state'], screens: ['M35-campaigns'] }],
-    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers'] }],
-    ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'reference'], screens: ['M35-content', 'M35-offers'] }],
-    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variant_a_pct', 'metric', 'result_note'], screens: ['M35-ab'] }],
-    ['6', 'Budget & Attribution', 8, { model: 'fix.campaign.touch', cols: ['occurred_at', 'campaign_id', 'touch_type', 'channel', 'value_bdt'], screens: ['M35-attribution', 'M35-roi', 'M35-rpt-roi', 'M35-touches'] }],
-    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'impressions', 'clicks'], screens: ['M35-ads'] }],
-    ['8', 'Co-Marketing', 6, { model: 'fix.campaign', cols: ['name', 'channel', 'budget', 'start_date', 'state'], screens: ['M35-rpt-co', 'M35-campaigns'] }]
+    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval'], reports: ['Campaign Funnel by Channel'], forms: ['Campaign'] }],
+    ['2', 'Audience from Segments', 6, { model: 'fix.campaign', cols: ['name', 'target_audience_type', 'audience_domain', 'excluded_no_consent_count', 'state'], screens: ['M35-campaigns'], reports: [], forms: ['Campaign'] }],
+    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers'], reports: [], forms: ['Journey (multi-step)'] }],
+    ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'reference'], screens: ['M35-content', 'M35-offers'], reports: ['Seasonal Template Performance'], forms: ['Creative Asset', 'Offer'] }],
+    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variant_a_pct', 'metric', 'result_note'], screens: ['M35-ab'], reports: [], forms: [] }],
+    ['6', 'Budget & Attribution', 8, { model: 'fix.campaign.touch', cols: ['occurred_at', 'campaign_id', 'touch_type', 'channel', 'value_bdt'], screens: ['M35-attribution', 'M35-roi', 'M35-rpt-roi', 'M35-touches'], reports: ['Attribution & ROI', 'Lead-to-Order Conversion'], forms: [] }],
+    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'impressions', 'clicks'], screens: ['M35-ads'], reports: [], forms: [] }],
+    ['8', 'Co-Marketing', 6, { model: 'fix.campaign', cols: ['name', 'channel', 'budget', 'start_date', 'state'], screens: ['M35-rpt-co', 'M35-campaigns'], reports: ['Co-Marketing Partner Report'], forms: ['Campaign'] }]
   ] }
 };
 
@@ -512,6 +511,7 @@ export const SCREENS = {
   'M35-form-journey-member': {
     kind: 'model_form', model: 'fix.campaign.journey.member',
     title: 'Journey Member', back: 'M35-journey-members',
+    create: false, pick: 'A journey member is enrolled by the journey\'s trigger or audience: open one from Journey Members.',
     status: { field: 'state', labels: { active: 'Active', completed: 'Completed', exited: 'Exited', suppressed: 'Suppressed', failed: 'Failed' } },
     tabs: [
       { id: 'member', label: '1. Member', bn: '১. সদস্য', icon: '👤' },

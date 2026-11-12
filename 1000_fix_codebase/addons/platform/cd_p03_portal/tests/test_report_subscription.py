@@ -65,9 +65,11 @@ class TestScheduledDelivery:
         from PyPDF2 import PdfReader
 
         text = "".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(data)).pages)
-        # brand constants (company record may differ between databases)
-        assert "Hot Line: 16743" in text
-        assert "ISO 9001:2015 Certified" in text
+        # brand constants (company record may differ between databases); the
+        # company-document letterhead (report_pdf.py, 12 Nov) prints
+        # "<ISO line> · Hotline 16743" on every page
+        assert "Hotline 16743" in text, text[:400]
+        assert "ISO 9001:2015" in text, text[:400]
         assert subscription.last_state and subscription.delivery_count == 1
 
     def test_xlsx_format_delivery(self, odoo_env, subscription):

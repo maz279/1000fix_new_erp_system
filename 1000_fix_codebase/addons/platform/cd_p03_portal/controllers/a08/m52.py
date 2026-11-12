@@ -388,8 +388,8 @@ def grni_accruals(env, date_from=None, date_to=None, **params):
         },
         "rows": rows,
         "totals": {"po": "Total", "accrual": _num(total)},
-        "notes": "Receipts are the GRN quantities recorded on purchase orders (cd_requisition); "
-        "receipt dates come from the goods.received events. The accrual is at the PO unit "
+        "notes": "Receipts are the goods-received quantities recorded on purchase orders, "
+        "dated by their goods receipt. The accrual is valued at the purchase order unit "
         "price, excluding VAT.",
         "empty": "No goods received awaiting a vendor bill.",
     }

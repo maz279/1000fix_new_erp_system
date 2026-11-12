@@ -35,7 +35,7 @@ export const MODULE = {
       { id: 'M47-utilities', en: 'Utilities & Anomalies', bn: 'ইউটিলিটি', t: 'g' }
     ]},
     { en: 'Infrastructure', screens: [
-      { id: 'M47-infra', en: 'Branch Asset Register', bn: 'শাখা সম্পদ', t: 'r' },
+      { id: 'M47-infra', en: 'Branch Asset Register', bn: 'শাখা সম্পদ', t: 'g' },
       { id: 'M47-pm', en: 'Building Services PM', bn: 'ভবন সেবা', t: 'g' },
       { id: 'M47-wo', en: 'Facility Work Orders', bn: 'সুবিধা কাজ', t: 'g' },
       { id: 'M47-demand', en: 'Maintenance Demand Queue', bn: 'রক্ষণাবেক্ষণ চাহিদা সারি', t: 'g' }
@@ -59,16 +59,16 @@ export const MODULE = {
   forms: ['Site', 'Lease', 'Licence', 'Facility Work Order', 'Safety Inspection'],
   cross: ['M04 branch operations', 'M30 branch provisioning', 'M49 ROU assets', 'M59 safety committee'],
   freg: { src: 71, sub: [
-    ['1', 'Site Register', 7, { model: 'fix.site', cols: ['name', 'site_type', 'branch_id', 'floor_area_sqm', 'state'], screens: ['M47-sites', 'M47-occupancy'] }],
-    ['2', 'Lease Administration', 11, { model: 'fix.site.lease', cols: ['name', 'site_id', 'lessor_id', 'end_date', 'monthly_rent', 'state'], screens: ['M47-leases', 'M47-dates'] }],
-    ['3', 'Statutory Compliance', 9, { model: 'fix.site.licence', cols: ['name', 'site_id', 'licence_type', 'valid_to', 'state'], screens: ['M47-licences', 'M47-dates'] }],
-    ['4', 'Utilities', 6, { model: 'fix.site.utility', cols: ['site_id', 'period', 'utility_type', 'amount', 'flagged'], screens: ['M47-utilities'] }],
-    ['5', 'Infrastructure Assets', 9, { model: 'fix.site.asset', cols: ['name', 'site_id', 'asset_type', 'tag', 'warranty_end', 'state'], screens: ['M47-infra'] }],
-    ['6', 'Building PM', 7, { model: 'fix.site.pm', cols: ['name', 'site_id', 'service_type', 'provider_id', 'scheduled_on', 'state'], screens: ['M47-pm'] }],
-    ['7', 'Work Orders', 6, { model: 'fix.facility.work.order', cols: ['name', 'site_id', 'work_type', 'scheduled_date', 'assigned_to', 'state'], screens: ['M47-wo'] }],
-    ['8', 'Safety & Security', 10, { model: 'fix.site.safety', cols: ['name', 'site_id', 'equipment_type', 'next_check', 'state'], screens: ['M47-safety', 'M47-security'] }],
-    ['9', 'Open / Close Projects', 6, { model: 'fix.site.project', cols: ['name', 'site_id', 'project_type', 'planned_on', 'budget', 'state'], screens: ['M47-opening'] }],
-    ['10', 'Maintenance Demand Queue', 6, { model: 'fix.maintenance.demand', cols: ['name', 'origin', 'source_ref', 'site_id', 'work_order_id', 'state'], screens: ['M47-demand'] }]
+    ['1', 'Site Register', 7, { model: 'fix.site', cols: ['name', 'site_type', 'branch_id', 'floor_area_sqm', 'state'], screens: ['M47-sites', 'M47-occupancy'], reports: ['Cost per Site / per Job', 'Branch Asset Register'], forms: ['Site'] }],
+    ['2', 'Lease Administration', 11, { model: 'fix.site.lease', cols: ['name', 'site_id', 'lessor_id', 'end_date', 'monthly_rent', 'state'], screens: ['M47-leases', 'M47-dates'], reports: ['Lease Expiry Register'], forms: ['Lease'] }],
+    ['3', 'Statutory Compliance', 9, { model: 'fix.site.licence', cols: ['name', 'site_id', 'licence_type', 'valid_to', 'state'], screens: ['M47-licences', 'M47-dates'], reports: ['Licence Compliance'], forms: ['Licence'] }],
+    ['4', 'Utilities', 6, { model: 'fix.site.utility', cols: ['site_id', 'period', 'utility_type', 'amount', 'flagged'], screens: ['M47-utilities'], reports: ['Utilities Variance'], forms: [] }],
+    ['5', 'Infrastructure Assets', 9, { model: 'fix.site.asset', cols: ['name', 'site_id', 'asset_type', 'tag', 'warranty_end', 'state'], screens: ['M47-infra'], reports: ['Branch Asset Register'], forms: [] }],
+    ['6', 'Building PM', 7, { model: 'fix.site.pm', cols: ['name', 'site_id', 'service_type', 'provider_id', 'scheduled_on', 'state'], screens: ['M47-pm'], reports: [], forms: [] }],
+    ['7', 'Work Orders', 6, { model: 'fix.facility.work.order', cols: ['name', 'site_id', 'work_type', 'scheduled_date', 'assigned_to', 'state'], screens: ['M47-wo'], reports: ['Facility Work Order Performance', 'Cost per Site / per Job'], forms: ['Facility Work Order'] }],
+    ['8', 'Safety & Security', 10, { model: 'fix.site.safety', cols: ['name', 'site_id', 'equipment_type', 'next_check', 'state'], screens: ['M47-safety', 'M47-security'], reports: [], forms: ['Safety Inspection'] }],
+    ['9', 'Open / Close Projects', 6, { model: 'fix.site.project', cols: ['name', 'site_id', 'project_type', 'planned_on', 'budget', 'state'], screens: ['M47-opening'], reports: [], forms: [] }],
+    ['10', 'Maintenance Demand Queue', 6, { model: 'fix.maintenance.demand', cols: ['name', 'origin', 'source_ref', 'site_id', 'work_order_id', 'state'], screens: ['M47-demand'], reports: [], forms: [] }]
   ] }
 };
 
@@ -663,6 +663,7 @@ export const SCREENS = {
     model: 'fix.site.lease.schedule',
     title: 'Rent Schedule Row',
     back: 'M47-lease-schedule',
+    create: false, pick: 'Rent schedule rows are built by the lease from its terms: open one from the Rent Schedule.',
     sections: [
       { title: 'Scheduled Rent (FR-FAC-012)', note: 'Built by the lease from its terms: one row per month, the rent escalated on each anniversary. Send Rent to Accounts Payable raises a pending cost entry on the landlord; accounts payable matching it to the landlord\'s bill fills in the paid amount, date and invoice reference. Nobody edits the rows directly.',
         fields: [
@@ -685,6 +686,7 @@ export const SCREENS = {
     model: 'fix.site.lease.extract',
     title: 'Lease Data Extract',
     back: 'M47-lease-extracts',
+    create: false, pick: 'A lease data extract is published by the lease itself: open one from Lease Data Extracts.',
     sections: [
       { title: 'IFRS 16 Data Extract (BRU-FAC-13 / -14)', note: 'A versioned, insert-only copy of the accounting-relevant lease data, published to M19 / M49 when a lease is recorded, on every modification and when it is terminated. A lease recorded before this existed has no extract until a Facility Manager presses Publish to IFRS 16 on it. M47 never computes the right-of-use asset or the lease liability.',
         fields: [

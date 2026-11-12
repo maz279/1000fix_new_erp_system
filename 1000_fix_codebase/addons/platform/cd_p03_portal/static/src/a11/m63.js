@@ -53,13 +53,13 @@ export const MODULE = {
   forms: ['Workflow Definition', 'Approval Chain', 'Business Rule'],
   cross: ['All modules consume the engine', 'M60 SoD', 'M52 approval matrix', 'M29 access'],
   freg: { src: 54, sub: [
-    ['1', 'Workflow Engine', 11, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'failure_policy', 'active'], screens: ['M63-definitions', 'M63-monitor'] }],
-    ['2', 'Approval Chains', 10, { model: 'fix.workflow.task', cols: ['name', 'instance_id', 'assigned_to_id', 'due_at', 'decision', 'state'], screens: ['M63-inbox', 'M63-substitution'], domain: [['task_type', '=', 'approval']] }],
-    ['3', 'DoA Matrix', 6, { model: 'fix.approval.matrix', cols: ['decision_domain', 'threshold', 'approver_role', 'notes'], screens: ['M63-doa'] }],
-    ['4', 'Business Rules', 9, { model: 'fix.business.rule', cols: ['code', 'name', 'domain_area', 'rule_type', 'version', 'active'], screens: ['M63-rules', 'M63-simulation'] }],
-    ['5', 'Scheduled & Event Jobs', 7, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'], screens: ['M63-jobs'], domain: [['engine', '=', 'airflow']] }],
-    ['6', 'Task Inbox', 5, { model: 'fix.workflow.task', cols: ['name', 'task_type', 'assigned_to_id', 'due_at', 'state'], screens: ['M63-inbox'] }],
-    ['7', 'Audit & Performance', 6, { model: 'fix.workflow.instance', cols: ['name', 'automation_id', 'started_at', 'finished_at', 'escalated', 'state'], screens: ['M63-monitor'] }]
+    ['1', 'Workflow Engine', 11, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'failure_policy', 'active'], screens: ['M63-definitions', 'M63-monitor'], reports: ['Automation Rate by Process'], forms: ['Workflow Definition'] }],
+    ['2', 'Approval Chains', 10, { model: 'fix.workflow.task', cols: ['name', 'instance_id', 'assigned_to_id', 'due_at', 'decision', 'state'], screens: ['M63-inbox', 'M63-substitution'], reports: ['Approval Cycle Time', 'Approval KPIs', 'Escalation Analysis'], forms: [], domain: [['task_type', '=', 'approval']] }],
+    ['3', 'DoA Matrix', 6, { model: 'fix.approval.matrix', cols: ['decision_domain', 'threshold', 'approver_role', 'notes'], screens: ['M63-doa'], reports: [], forms: ['Approval Chain'] }],
+    ['4', 'Business Rules', 9, { model: 'fix.business.rule', cols: ['code', 'name', 'domain_area', 'rule_type', 'version', 'active'], screens: ['M63-rules', 'M63-simulation'], reports: ['Rule Change Log', 'Automation Rate by Process'], forms: ['Business Rule'] }],
+    ['5', 'Scheduled & Event Jobs', 7, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'], screens: ['M63-jobs'], reports: [], forms: ['Workflow Definition'], create: 'M63-form-automation', domain: [['engine', '=', 'airflow']] }],
+    ['6', 'Task Inbox', 5, { model: 'fix.workflow.task', cols: ['name', 'task_type', 'assigned_to_id', 'due_at', 'state'], screens: ['M63-inbox'], reports: ['Approval Cycle Time'], forms: [] }],
+    ['7', 'Audit & Performance', 6, { model: 'fix.workflow.instance', cols: ['name', 'automation_id', 'started_at', 'finished_at', 'escalated', 'state'], screens: ['M63-monitor'], reports: ['Approval KPIs', 'Escalation Analysis', 'Automation Rate by Process'], forms: [] }]
   ] }
 };
 
@@ -88,7 +88,10 @@ export const SCREENS = {
     cols: ['code', 'name', 'domain_area', 'rule_type', 'version', 'last_changed_by', 'last_changed_on', 'active'],
     actions: [{ m: 'action_new_version', l: 'New Version' }] },
   'M63-simulation': { kind: 'table_report', module: 'M63', report: 'automation_rate', title: 'Rule Simulation', period: false },
-  'M63-inbox': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state',
+  /* An approval task is raised by the engine when a document needs a decision;
+   * it is evidence of who decided what, and is never typed in (2026-11-12). */
+  'M63-inbox': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state', create: false,
+    empty: 'Nothing waits for your decision. A task arrives here when a document you may approve is submitted; tasks are raised by the approval engine and cannot be typed in.',
     cols: ['name', 'res_name', 'tier', 'amount', 'requested_by_id', 'justification', 'on_behalf_of_id', 'due_at', 'state'],
     domain: [['is_mine', '=', true], ['state', '=', 'pending']],
     actions: [
@@ -97,7 +100,8 @@ export const SCREENS = {
       { m: 'action_return', l: 'Return for Information', ask: 'What information is needed?', kwarg: 'comment' }
     ],
     note: 'Only tasks assigned to you. Approving runs the record rules (tier, segregation of duties, justification) under your name.' },
-  'M63-tasks': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state',
+  'M63-tasks': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state', create: false,
+    empty: 'No approval task yet. The approval engine raises a task whenever a document needs a decision.',
     cols: ['name', 'task_type', 'res_name', 'assigned_user_id', 'on_behalf_of_id', 'created_at', 'due_at', 'decision', 'state'] },
   'M63-requests': { kind: 'model_list', model: 'fix.approval.request', create: false, stateField: 'state',
     cols: ['name', 'res_name', 'res_model', 'tier', 'amount', 'requested_by_id', 'requested_at', 'escalation_level', 'decided_by_id', 'cycle_hours', 'state'] },
@@ -232,6 +236,7 @@ export const SCREENS = {
     model: 'fix.workflow.task',
     title: 'Task Inbox Entry',
     back: 'M63-inbox',
+    create: false, pick: 'An approval task is raised by the approval engine: open one from your Task Inbox.',
     status: { field: 'state', labels: {
       pending: 'Pending', done: 'Done', cancelled: 'Cancelled' } },
     sections: [

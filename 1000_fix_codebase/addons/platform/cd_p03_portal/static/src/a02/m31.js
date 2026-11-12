@@ -26,12 +26,12 @@ export const MODULE = {
     { en: 'Repair Orders', screens: [
       { id: 'M31-orders', en: 'Repair Orders', bn: 'রিপেয়ার অর্ডার', t: 'g' },
       { id: 'M31-record', en: 'Repair Order Record', bn: 'রিপেয়ার অর্ডার নথি', t: 'g' },
-      { id: 'M31-transfer', en: 'Workshop Transfers', bn: 'ওয়ার্কশপ ট্রান্সফার', t: 'g' }
+      { id: 'M31-transfer', en: 'Bench Utilisation by Workshop', bn: 'ওয়ার্কশপভিত্তিক বেঞ্চ ব্যবহার', t: 'r' }
     ]},
     { en: 'Bench Board', screens: [
       { id: 'M31-benches', en: 'Bench & WIP Board', bn: 'বেঞ্চ ও ডাব্লিউআইপি বোর্ড', t: 'd' },
       { id: 'M31-benchmaster', en: 'Bench Master (Capacity)', bn: 'বেঞ্চ মাস্টার', t: 'g' },
-      { id: 'M31-levels', en: 'L1/L2/L3 Classification', bn: 'এল১/এল২/এল৩ শ্রেণি', t: 'g' }
+      { id: 'M31-levels', en: 'L1/L2/L3 Classification', bn: 'এল১/এল২/এল৩ শ্রেণি', t: 'r' }
     ]},
     { en: 'Execution', screens: [
       { id: 'M31-diag', en: 'Component Diagnosis', bn: 'কম্পোনেন্ট ডায়াগনোসিস', t: 'g' },
@@ -41,24 +41,25 @@ export const MODULE = {
     { en: 'Costing & Knowledge', screens: [
       { id: 'M31-costing', en: 'Repair Costing', bn: 'মেরামত ব্যয়', t: 'r' },
       { id: 'M31-throughput', en: 'Throughput Analytics', bn: 'থ্রুপুট বিশ্লেষণ', t: 'r' },
-      { id: 'M31-methods', en: 'Repair-Method Capture', bn: 'মেরামত পদ্ধতি', t: 'g' }
+      { id: 'M31-methods', en: 'Repair-Method Capture', bn: 'মেরামত পদ্ধতি', t: 'r' }
     ]}
   ],
   reports: ['Bench Utilisation by Workshop', 'Repair Cycle Time by Level', 'Internal Rework Loop Analysis', 'Workshop Cost per Repair', 'Parts Genealogy Trace', 'Burn-In Failure Report'],
-  forms: ['Repair Order', 'Bench Allocation', 'Test Protocol Result', 'Workshop Transfer'],
+  /* 'Workshop Transfer' was the workshop FACILITY master form under another name */
+  forms: ['Repair Order', 'Bench Allocation', 'Test Protocol Result', 'Workshop Facility'],
   cross: ['M01 device release', 'M15 parts consumption', 'M61 knowledge capture', 'M45 test equipment', 'M22 skill routing'],
   freg: {
     src: 76,
     sub: [
-      ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record'] }],
-      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'] }],
-      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'] }],
-      ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record'] }],
-      ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods'], domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
-      ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts'] }],
-      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.job', cols: ['name', 'burn_in_started_at', 'burn_in_passed', 'qc_passed', 'state'], screens: ['M31-testing'], domain: [['state', 'in', ['burn_in', 'qc_pending', 'qc_failed']]] }],
-      ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfer', 'M31-record'], domain: [['is_rework', '=', true]] }],
-      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput'] }]
+      ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: ['Repair Order'] }],
+      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'], reports: ['Bench Utilisation by Workshop'], forms: ['Workshop Facility'] }],
+      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'], reports: ['Bench Utilisation by Workshop'], forms: ['Bench Allocation'] }],
+      ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: [], create: false }],
+      ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods'], reports: ['Internal Rework Loop Analysis'], forms: [], create: false, domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
+      ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts'], reports: ['Parts Genealogy Trace'], forms: [] }],
+      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.job', cols: ['name', 'burn_in_started_at', 'burn_in_passed', 'qc_passed', 'state'], screens: ['M31-testing'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result'], create: 'M31-form-evidence', domain: [['state', 'in', ['burn_in', 'qc_pending', 'qc_failed']]] }],
+      ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: [], create: false, domain: [['is_rework', '=', true]] }],
+      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: [], create: false }]
     ]
   }
 };
@@ -334,7 +335,7 @@ export const SCREENS = {
   'M31-form-workshop': {
     kind: 'model_form',
     model: 'fix.workshop',
-    title: "Workshop Transfer",
+    title: "Workshop Facility",
     back: 'M31-benchmaster',
     tabs: [
       { id: 'facility', label: '1. Facility Profile', bn: '১. ফ্যাসিলিটি পরিচিতি', icon: '🏢', badge: '7' },
@@ -388,7 +389,7 @@ export const FORM_CHIPS = {
   'M31:Repair Order': 'M31-form-job',
   'M31:Bench Allocation': 'M31-form-bench',
   'M31:Test Protocol Result': 'M31-form-evidence',
-  'M31:Workshop Transfer': 'M31-form-workshop',
+  'M31:Workshop Facility': 'M31-form-workshop',
   'M31:__by_model__': {
     'fix.workshop.job': 'M31-form-job',
     'fix.workshop.bench': 'M31-form-bench',

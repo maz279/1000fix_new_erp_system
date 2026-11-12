@@ -26,12 +26,12 @@ export const MODULE = {
       { id: 'M37-items', en: 'Unified Item Master', bn: 'ইউনিফায়েড আইটেম মাস্টার', t: 'g' },
       { id: 'M37-item', en: 'Item Record', bn: 'আইটেম রেকর্ড', t: 'f' },
       { id: 'M37-taxonomy', en: 'Typed Taxonomy (14 streams)', bn: 'টাইপড ট্যাক্সোনমি', t: 'g' },
-      { id: 'M37-hierarchy', en: 'Product Hierarchy', bn: 'পণ্য শ্রেণিবিন্যাস', t: 'g' }
+      { id: 'M37-hierarchy', en: 'Product Hierarchy', bn: 'পণ্য শ্রেণিবিন্যাস', t: 'r' }
     ]},
     { en: 'Service Definitions', screens: [
       { id: 'M37-services', en: 'Service Definitions', bn: 'সেবা সংজ্ঞা', t: 'g' },
       { id: 'M37-rbom', en: 'Repair BOM (rBOM)', bn: 'রিপেয়ার BOM', t: 'g' },
-      { id: 'M37-srt', en: 'Standard Repair Time (SRT)', bn: 'স্ট্যান্ডার্ড রিপেয়ার টাইম', t: 'g' },
+      { id: 'M37-srt', en: 'Standard Repair Time (SRT)', bn: 'স্ট্যান্ডার্ড রিপেয়ার টাইম', t: 'r' },
       { id: 'M37-kits', en: 'Kits & Bundles', bn: 'কিট ও বান্ডল', t: 'g' }
     ]},
     { en: 'Compatibility & Faults', screens: [
@@ -45,9 +45,9 @@ export const MODULE = {
       { id: 'M37-rental-sku', en: 'Rental SKUs & Grades', bn: 'রেন্টাল SKU', t: 'g' }
     ]},
     { en: 'Catalogue Governance', screens: [
-      { id: 'M37-approval', en: 'Item Approval Workflow', bn: 'আইটেম অনুমোদন', t: 'c' },
-      { id: 'M37-lifecycle', en: 'Item Lifecycle & Deprecation', bn: 'লাইফসাইকেল', t: 'g' },
-      { id: 'M37-publication', en: 'Channel Publication', bn: 'প্রকাশনা', t: 'g' }
+      { id: 'M37-approval', en: 'Item Approval Workflow', bn: 'আইটেম অনুমোদন', t: 'r' },
+      { id: 'M37-lifecycle', en: 'Item Lifecycle & Deprecation', bn: 'লাইফসাইকেল', t: 'r' },
+      { id: 'M37-publication', en: 'Channel Publication', bn: 'প্রকাশনা', t: 'r' }
     ]}
   ],
   reports: ['Catalogue Coverage by Brand', 'rBOM Completeness', 'SRT Calibration Variance', 'Item Margin Analysis', 'Deprecated Items Register', 'Bilingual Content Gaps'],
@@ -55,18 +55,18 @@ export const MODULE = {
   cross: ['M11 Pricing', 'M36 Quotations', 'M15 Inventory', 'M16 Procurement'],
   freg: { src: 120, sub: [
     ['1', 'Unified Item Master', 14, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'], screens: ['M37-items'], reports: ['Catalogue Coverage by Brand', 'Deprecated Items Register'], forms: ['Catalogue Item (9 types)'] }],
-    ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['name', 'parent_id'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'] }],
-    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'state', 'active'], screens: ['M37-services'], reports: ['Item Margin Analysis'], forms: ['Service Definition'] }],
+    ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['name', 'parent_id'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: [] }],
+    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'state', 'active'], screens: ['M37-services'], reports: ['Item Margin Analysis'], forms: ['Service Definition'], create: 'M37-form-service' }],
     ['4', 'rBOM & SRT', 12, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'sequence', 'quantity', 'note'], screens: ['M37-rbom', 'M37-srt'], reports: ['rBOM Completeness', 'SRT Calibration Variance'], forms: ['rBOM Line'] }],
     ['5', 'Repair Operations', 8, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'quantity'], screens: ['M37-srt'], reports: ['SRT Calibration Variance'], forms: ['rBOM Line'] }],
-    ['6', 'Kits & Bundles', 4, { model: 'fix.service.kit', cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'], screens: ['M37-kits'], reports: ['Item Margin Analysis'] }],
-    ['7', 'Product Hierarchy & Variants', 8, { model: 'fix.catalogue.item', cols: ['name', 'item_type', 'category_id', 'brand_id', 'product_tmpl_id'], screens: ['M37-hierarchy', 'M37-taxonomy'], reports: ['Catalogue Coverage by Brand'] }],
-    ['8', 'Brand-Model-Device Master', 9, { model: 'fix.brand', cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'], screens: ['M37-brand', 'M37-brandmodel'], reports: ['Catalogue Coverage by Brand'] }],
-    ['9', 'Fault Taxonomy', 10, { model: 'fix.fault.code', cols: ['name', 'code', 'category', 'default_severity', 'active'], screens: ['M37-fault'] }],
+    ['6', 'Kits & Bundles', 4, { model: 'fix.service.kit', cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'], screens: ['M37-kits'], reports: ['Item Margin Analysis'], forms: [] }],
+    ['7', 'Product Hierarchy & Variants', 8, { model: 'fix.catalogue.item', cols: ['name', 'item_type', 'category_id', 'brand_id', 'product_tmpl_id'], screens: ['M37-hierarchy', 'M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: [], create: false }],
+    ['8', 'Brand-Model-Device Master', 9, { model: 'fix.brand', cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'], screens: ['M37-brand', 'M37-brandmodel'], reports: ['Catalogue Coverage by Brand'], forms: [] }],
+    ['9', 'Fault Taxonomy', 10, { model: 'fix.fault.code', cols: ['name', 'code', 'category', 'default_severity', 'active'], screens: ['M37-fault'], reports: [], forms: ['Fault Code'] }],
     ['10', 'Part Identity', 9, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'quantity', 'note'], screens: ['M37-parts-id'], reports: ['rBOM Completeness'], forms: ['rBOM Line'] }],
-    ['11', 'Contract & Protection Templates', 10, { model: 'fix.contract.template', cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'], screens: ['M37-contract-tpl', 'M37-protection'], forms: ['Protection Product Template'] }],
-    ['12', 'Tax & Rev-Rec Classification', 7, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'item_type', 'state'], screens: ['M37-items'], reports: ['Item Margin Analysis'] }],
-    ['13', 'Lifecycle & Governance', 10, { model: 'fix.catalogue.item', cols: ['name', 'state', 'approved_by', 'is_published', 'active'], screens: ['M37-lifecycle', 'M37-approval', 'M37-publication', 'M37-items'], reports: ['Deprecated Items Register', 'Bilingual Content Gaps'] }]
+    ['11', 'Contract & Protection Templates', 10, { model: 'fix.contract.template', cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'], screens: ['M37-contract-tpl', 'M37-protection'], reports: [], forms: ['Protection Product Template'] }],
+    ['12', 'Tax & Rev-Rec Classification', 7, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'item_type', 'state'], screens: ['M37-items'], reports: ['Item Margin Analysis'], forms: [], create: false }],
+    ['13', 'Lifecycle & Governance', 10, { model: 'fix.catalogue.item', cols: ['name', 'state', 'approved_by', 'is_published', 'active'], screens: ['M37-lifecycle', 'M37-approval', 'M37-publication', 'M37-items'], reports: ['Deprecated Items Register', 'Bilingual Content Gaps'], forms: [], create: false }]
   ] }
 };
 

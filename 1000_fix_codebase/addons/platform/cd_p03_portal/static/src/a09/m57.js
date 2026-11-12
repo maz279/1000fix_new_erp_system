@@ -42,13 +42,13 @@ export const MODULE = {
   forms: ['Goal', 'Review', 'Incentive Scheme', 'Recognition'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M01 Service Orders', 'M54 Costing'],
   freg: { src: 58, sub: [
-    ['1', 'Goals & KPIs', 11, { model: 'fix.performance.goal', cols: ['name', 'employee_id', 'period', 'target_value', 'actual_value'], screens: ['M57-goals', 'M57-kpis'] }],
-    ['2', 'Review Cycles', 10, { model: 'fix.performance.review', cols: ['name', 'employee_id', 'period', 'reviewer_id', 'state'], screens: ['M57-reviews', 'M57-pips'] }],
-    ['3', 'Multi-Source Feedback', 6, { model: 'fix.performance.review', cols: ['employee_id', 'reviewer_id', 'period', 'self_rating', 'manager_rating'], screens: ['M57-reviews'] }],
-    ['4', 'Rating & Calibration', 8, { model: 'fix.performance.review', cols: ['employee_id', 'period', 'manager_rating', 'calibrated_rating', 'state'], screens: ['M57-calibration', 'M57-reviews'] }],
-    ['5', 'Incentive Design & Calculation', 12, { model: 'fix.incentive.line', cols: ['run_id', 'employee_id', 'scorecard_id', 'amount', 'applied_to_payslip'], screens: ['M57-schemes', 'M57-scheme-versions', 'M57-calc', 'M57-disputes', 'M57-clawbacks'] }],
-    ['6', 'Recognition', 4, { model: 'fix.performance.recognition', cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount'], screens: ['M57-recognition'] }],
-    ['7', 'Compensation Review', 7, { model: 'fix.compensation.band', cols: ['name', 'grade', 'range_min', 'range_mid', 'range_max'], screens: ['M57-comp', 'M57-proposals', 'M57-succession'] }]
+    ['1', 'Goals & KPIs', 11, { model: 'fix.performance.goal', cols: ['name', 'employee_id', 'period', 'target_value', 'actual_value'], screens: ['M57-goals', 'M57-kpis'], reports: ['Technician Scorecards'], forms: ['Goal'] }],
+    ['2', 'Review Cycles', 10, { model: 'fix.performance.review', cols: ['name', 'employee_id', 'period', 'reviewer_id', 'state'], screens: ['M57-reviews', 'M57-pips'], reports: ['PIP Outcomes', 'Rating Distribution'], forms: ['Review'] }],
+    ['3', 'Multi-Source Feedback', 6, { model: 'fix.performance.review', cols: ['employee_id', 'reviewer_id', 'period', 'self_rating', 'manager_rating'], screens: ['M57-reviews'], reports: [], forms: ['Review'] }],
+    ['4', 'Rating & Calibration', 8, { model: 'fix.performance.review', cols: ['employee_id', 'period', 'manager_rating', 'calibrated_rating', 'state'], screens: ['M57-calibration', 'M57-reviews'], reports: ['Rating Distribution', 'Calibration Summary'], forms: [], create: false }],
+    ['5', 'Incentive Design & Calculation', 12, { model: 'fix.incentive.line', cols: ['run_id', 'employee_id', 'scorecard_id', 'amount', 'applied_to_payslip'], screens: ['M57-schemes', 'M57-scheme-versions', 'M57-calc', 'M57-disputes', 'M57-clawbacks'], reports: ['Incentive Payout by Scheme'], forms: ['Incentive Scheme'] }],
+    ['6', 'Recognition', 4, { model: 'fix.performance.recognition', cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount'], screens: ['M57-recognition'], reports: [], forms: ['Recognition'] }],
+    ['7', 'Compensation Review', 7, { model: 'fix.compensation.band', cols: ['name', 'grade', 'range_min', 'range_mid', 'range_max'], screens: ['M57-comp', 'M57-proposals', 'M57-succession'], reports: [], forms: [] }]
   ] }
 };
 
@@ -78,7 +78,9 @@ export const SCREENS = {
     cols: ['period', 'scheme_id', 'scheme_version_id', 'band_base', 'total', 'dispute_deadline', 'approval_state', 'state'],
     actions: [{ m: 'action_compute', l: 'Calculate Pool' }, { m: 'action_request_approval', l: 'Request Approval' },
               { m: 'action_recall_approval', l: 'Recall Approval' }, { m: 'action_reset_draft', l: 'Reset to Draft' }] },
-  'M57-calc': { kind: 'model_list', model: 'fix.incentive.line',
+  /* payout lines are calculated by the incentive run: nothing is typed in here */
+  'M57-calc': { kind: 'model_list', model: 'fix.incentive.line', create: false,
+    empty: 'No payout line calculated yet. Lines are produced when an incentive run is calculated from the approved scheme; they cannot be typed in.',
     cols: ['run_id', 'employee_id', 'line_type', 'gross_amount', 'proration_factor', 'amount', 'eligibility_note', 'run_state', 'applied_to_payslip'],
     actions: [{ m: 'action_raise_dispute', l: 'Dispute My Line', ask: 'What is wrong with the figure, and on what evidence?', kwarg: 'reason' }] },
   'M57-scheme-versions': { kind: 'model_list', model: 'fix.incentive.scheme.version', stateField: 'state',
@@ -368,6 +370,8 @@ export const SCREENS = {
     model: 'fix.incentive.line',
     title: 'Technician Incentive Payout Line',
     back: 'M57-calc',
+    /* a payout line is calculated by its incentive run (2026-11-12) */
+    create: false, pick: 'A payout line is calculated by its incentive run: open one from Calculation Runs.',
     tabs: [
       { id: 'payout', label: 'Scorecard & Payout', bn: 'স্কোরকার্ড ও প্রণোদনা', icon: '💵', badge: '4' },
       { id: 'payroll', label: 'Payslip Link (M56)', bn: 'পে-স্লিপ সংযোগ', icon: '🔗', badge: '2' }
@@ -490,6 +494,7 @@ export const SCREENS = {
     model: 'fix.incentive.dispute',
     title: 'Incentive Dispute',
     back: 'M57-disputes',
+    create: false, pick: 'A dispute is raised from its payout line: open one from Incentive Disputes.',
     status: { field: 'state', labels: { open: 'Open', upheld: 'Upheld', rejected: 'Rejected' } },
     tabs: [
       { id: 'dispute', label: 'Dispute', bn: 'আপত্তি', icon: '⚖️', badge: '5' },
@@ -527,6 +532,7 @@ export const SCREENS = {
     model: 'fix.incentive.clawback',
     title: 'Incentive Clawback',
     back: 'M57-clawbacks',
+    create: false, pick: 'A clawback is raised by its trigger (a rework or a reversal): open one from Clawbacks.',
     tabs: [
       { id: 'trigger', label: 'Trigger', bn: 'কারণ', icon: '♻️', badge: '6' },
       { id: 'recovery', label: 'Recovery', bn: 'আদায়', icon: '💵', badge: '4' }
@@ -564,6 +570,7 @@ export const SCREENS = {
     model: 'fix.compensation.proposal',
     title: 'Compensation Proposal',
     back: 'M57-proposals',
+    create: false, pick: 'A compensation proposal is raised in the review cycle: open one from Compensation Proposals.',
     status: { field: 'state', labels: {
       submitted: 'Awaiting Calibration', calibrated: 'Awaiting Compensation Approval',
       approved: 'Approved', returned: 'Returned', rejected: 'Rejected', withdrawn: 'Withdrawn' } },

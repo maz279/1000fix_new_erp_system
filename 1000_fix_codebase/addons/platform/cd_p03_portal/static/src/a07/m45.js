@@ -23,7 +23,7 @@ export const MODULE = {
   groups: [
     { en: 'Register', screens: [
       { id: 'M45-register', en: 'Equipment Register', bn: 'ইকুইপমেন্ট রেজিস্টার', t: 'g' },
-      { id: 'M45-classes', en: 'Classification', bn: 'শ্রেণিবিন্যাস', t: 'g' },
+      { id: 'M45-classes', en: 'Classification', bn: 'শ্রেণিবিন্যাস', t: 'r' },
       { id: 'M45-kits', en: 'Kit Management', bn: 'কিট ম্যানেজমেন্ট', t: 'g' }
     ]},
     { en: 'Custody', screens: [
@@ -32,10 +32,10 @@ export const MODULE = {
       { id: 'M45-audits', en: 'Physical Verification', bn: 'শারীরিক যাচাই', t: 'g' }
     ]},
     { en: 'Calibration', screens: [
-      { id: 'M45-calibration', en: 'Calibration Schedule', bn: 'ক্যালিব্রেশন সূচি', t: 'g' },
+      { id: 'M45-calibration', en: 'Calibration Schedule', bn: 'ক্যালিব্রেশন সূচি', t: 'r' },
       { id: 'M45-certificates', en: 'Certificates & Trace', bn: 'সার্টিফিকেট ও ট্রেস', t: 'g' },
       { id: 'M45-oos', en: 'Out-of-Service Enforcement', bn: 'আউট-অব-সার্ভিস', t: 'g' },
-      { id: 'M45-retro', en: 'Retrospective Impact', bn: 'পূর্ববর্তী প্রভাব', t: 'g' },
+      { id: 'M45-retro', en: 'Retrospective Impact', bn: 'পূর্ববর্তী প্রভাব', t: 'r' },
       { id: 'M45-profiles', en: 'Calibration Profiles', bn: 'ক্যালিব্রেশন প্রোফাইল', t: 'g' },
       { id: 'M45-impacts', en: 'Impact Assessments', bn: 'প্রভাব মূল্যায়ন', t: 'g' }
     ]},
@@ -51,13 +51,13 @@ export const MODULE = {
   forms: ['Equipment', 'Calibration Record', 'Issue/Return', 'Write-Off'],
   cross: ['M31 bench equipment', 'M23 ISO 7.1.5 evidence', 'M21 custodians', 'M47 branch assets'],
   freg: { src: 64, sub: [
-    ['1', 'Register & Classification', 10, { model: 'fix.equipment', cols: ['code', 'name', 'category', 'custodian_id', 'operational_status'], screens: ['M45-register', 'M45-classes'] }],
-    ['2', 'Issue / Custody / Transfer', 11, { model: 'fix.equipment.issue', cols: ['name', 'equipment_id', 'custodian_id', 'issued_on', 'due_on', 'state'], screens: ['M45-issue', 'M45-transfer'] }],
-    ['3', 'Kit Management', 6, { model: 'fix.equipment.kit', cols: ['code', 'name', 'active'], screens: ['M45-kits'] }],
-    ['4', 'Calibration Management', 16, { model: 'fix.calibration', cols: ['equipment_id', 'calibrated_on', 'result', 'next_due', 'certificate_ref'], screens: ['M45-calibration', 'M45-certificates', 'M45-oos'] }],
-    ['5', 'PM & Repair', 8, { model: 'fix.equipment.pm', cols: ['name', 'equipment_id', 'pm_type', 'scheduled_on', 'done_on', 'state'], screens: ['M45-pm'] }],
-    ['6', 'Usage Capture', 6, { model: 'fix.equipment.usage', cols: ['equipment_id', 'job_ref', 'used_on', 'uses', 'qc_result'], screens: ['M45-usage', 'M45-retro'] }],
-    ['7', 'Verification & Loss', 7, { model: 'fix.equipment.verification', cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'found', 'state'], screens: ['M45-audits'] }]
+    ['1', 'Register & Classification', 10, { model: 'fix.equipment', cols: ['code', 'name', 'category', 'custodian_id', 'operational_status'], screens: ['M45-register', 'M45-classes'], reports: ['Cost of Ownership', 'Tool Loss & Write-Off'], forms: ['Equipment', 'Write-Off'] }],
+    ['2', 'Issue / Custody / Transfer', 11, { model: 'fix.equipment.issue', cols: ['name', 'equipment_id', 'custodian_id', 'issued_on', 'due_on', 'state'], screens: ['M45-issue', 'M45-transfer'], reports: [], forms: ['Issue/Return'] }],
+    ['3', 'Kit Management', 6, { model: 'fix.equipment.kit', cols: ['code', 'name', 'active'], screens: ['M45-kits'], reports: [], forms: [] }],
+    ['4', 'Calibration Management', 16, { model: 'fix.calibration', cols: ['equipment_id', 'calibrated_on', 'result', 'next_due', 'certificate_ref'], screens: ['M45-calibration', 'M45-certificates', 'M45-oos'], reports: ['Calibration Compliance Report'], forms: ['Calibration Record'] }],
+    ['5', 'PM & Repair', 8, { model: 'fix.equipment.pm', cols: ['name', 'equipment_id', 'pm_type', 'scheduled_on', 'done_on', 'state'], screens: ['M45-pm'], reports: ['Cost of Ownership'], forms: [] }],
+    ['6', 'Usage Capture', 6, { model: 'fix.equipment.usage', cols: ['equipment_id', 'job_ref', 'used_on', 'uses', 'qc_result'], screens: ['M45-usage', 'M45-retro'], reports: ['Equipment Utilisation'], forms: [] }],
+    ['7', 'Verification & Loss', 7, { model: 'fix.equipment.verification', cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'found', 'state'], screens: ['M45-audits'], reports: ['Tool Loss & Write-Off'], forms: ['Write-Off'] }]
   ] }
 };
 
@@ -146,6 +146,49 @@ export const SCREENS = {
           { name: 'retired_on', readonly: true, label: 'Retired On' },
           { name: 'retired_by_id', readonly: true, label: 'Approved By' },
           { name: 'fixed_asset_id', readonly: true, label: 'Fixed Asset (Finance)' }
+        ] }
+    ]
+  },
+
+  /* A write-off is requested on an item that EXISTS: the form first asks which
+   * (pickRecord: items back in the store - the only ones the model lets go),
+   * then takes the reason; its button runs action_request_approval, which routes
+   * the request on the acquisition cost to an approver other than the requester
+   * (BRU-EAM-11/12). The Write-Off chip opened the register list instead, with
+   * nothing on it saying what to do (2026-11-12). */
+  'M45-form-writeoff': {
+    kind: 'model_form',
+    model: 'fix.equipment',
+    title: 'Request Write-Off',
+    back: 'M45-register',
+    newLabel: 'Request Write-Off',
+    status: { field: 'operational_status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the item to write off',
+      note: 'Items back in the store: available, out of service or missing. An item out on issue or in transit is returned first.',
+      search: 'Search code / name',
+      choose: 'Write off this item',
+      cols: ['code', 'name', 'category', 'custodian_id', 'operational_status', 'acquisition_cost'],
+      domain: [['operational_status', 'in', ['available', 'out_of_service', 'missing']]],
+      empty: 'No item is in the store to be written off.'
+    },
+    saveAction: {
+      method: 'action_request_approval', label: 'Request Write-Off Approval',
+      done: 'Write-off requested: it now waits in the approval inbox',
+      kwargs: { justification: 'retirement_reason' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: Why the Item Is Written Off',
+        note: 'Only the Equipment Custodian or a Quality Manager may request a write-off. It is approved on the acquisition cost (Branch / Operations Manager up to BDT 25,000, CFO / CCO / COO above), never by the requester.',
+        fields: [
+          { name: 'code', label: 'Code', readonly: true },
+          { name: 'name', label: 'Equipment', readonly: true },
+          { name: 'custodian_id', label: 'Custodian', readonly: true },
+          { name: 'operational_status', label: 'Status', readonly: true },
+          { name: 'acquisition_cost', label: 'Acquisition Cost (BDT)', readonly: true },
+          /* readonly for the generic write; an INPUT here because saveAction
+           * carries it to action_request_approval as the justification */
+          { name: 'retirement_reason', type: 'text', label: 'Write-Off Reason', required: true, readonly: true }
         ] }
     ]
   },
@@ -467,9 +510,9 @@ export const FORM_CHIPS = {
   'M45:Equipment': 'M45-form-equipment',
   'M45:Calibration Record': 'M45-form-calibration',
   'M45:Issue/Return': 'M45-form-issue',
-  /* A write-off is requested on an item that already exists, so the chip opens the
-   * register; a new-equipment form here wrote nothing off. */
-  'M45:Write-Off': 'M45-register',
+  /* A write-off is requested on an item that already exists: the chip opens the
+   * write-off form, which first asks which item. */
+  'M45:Write-Off': 'M45-form-writeoff',
   'M45:__by_model__': {
     'fix.equipment': 'M45-form-equipment',
     'fix.calibration': 'M45-form-calibration',

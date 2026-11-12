@@ -35,6 +35,12 @@ import pytest
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 
 SRC = Path(__file__).resolve().parents[1] / "static" / "src"
+# Form chips openFormChip sends to a dedicated editor (M19 journal editor,
+# M20 invoice editor) before any P03_FORM_CHIPS lookup.
+EDITOR_CHIPS = {
+    ("M19", "Journal Entry (manual/recurring)"),
+    ("M20", "Invoice Request"),
+}
 IMPORT = re.compile(r'from\s+"(\./a\d\d/\w+)"')
 FREG_CREATE = re.compile(r"^    (fregCreate\(mid, map\) \{\n.*?\n    \})\n", re.S | re.M)
 FREG_RECORD = re.compile(r"^    async (openFregRecord\(row\) \{\n.*?\n    \})\n", re.S | re.M)
@@ -575,7 +581,7 @@ def test_no_panel_chip_points_nowhere(m01):
         bad += [
             "%s form '%s' -> %s (%s)" % (tag, f["name"], f["screen"], f["kind"])
             for f in page["forms"]
-            if f["kind"] != "model_form"
+            if f["kind"] != "model_form" and (page["mid"], f["name"]) not in EDITOR_CHIPS
         ]
     assert not bad, "\n  ".join(bad)
 
@@ -604,9 +610,12 @@ def test_a_derived_chip_provably_belongs_to_its_page(m01):
                 if f["model"] not in page["models"]
             ]
     assert not bad, "\n  ".join(bad)
-    # the point of the rule: these pages showed two empty panels
-    assert derived_forms >= 300, "only %d pages derive a form" % derived_forms
-    assert derived_reports >= 100, "only %d pages derive a report" % derived_reports
+    # The derivation once filled 300+ pages that showed two empty panels.
+    # Since 12 Nov every area names its pages' reports and forms itself, so
+    # few pages derive any more; that no page is left with an unexplained
+    # empty panel is held estate-wide by test_estate_module_pages.py
+    # (test_every_page_names_both_panels). The count is reported, not floored.
+    print("derived: %d form panels, %d report panels" % (derived_forms, derived_reports))
 
 
 # --- Hold Management: the list where a hold is placed (2026-11-12) -----------

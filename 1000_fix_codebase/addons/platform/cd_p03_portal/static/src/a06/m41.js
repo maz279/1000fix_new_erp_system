@@ -32,18 +32,18 @@ export const MODULE = {
     ]},
     { en: 'Inbound', screens: [
       { id: 'M41-docks', en: 'Dock Appointments', bn: 'ডক অ্যাপয়েন্টমেন্ট', t: 'g' },
-      { id: 'M41-receiving', en: 'Scan Receiving', bn: 'স্ক্যান রিসিভিং', t: 'c' },
+      { id: 'M41-receiving', en: 'Scan Receiving', bn: 'স্ক্যান রিসিভিং', t: 'g' },
       { id: 'M41-putaway', en: 'Directed Put-Away', bn: 'ডিরেক্টেড পুট-অ্যাওয়ে', t: 'g' }
     ]},
     { en: 'Outbound', screens: [
-      { id: 'M41-waves', en: 'Wave Planning', bn: 'ওয়েভ প্ল্যানিং', t: 'c' },
+      { id: 'M41-waves', en: 'Wave Planning', bn: 'ওয়েভ প্ল্যানিং', t: 'g' },
       { id: 'M41-pick-lines', en: 'Pick Lines', bn: 'পিক লাইন', t: 'g' },
-      { id: 'M41-picking', en: 'Pick Strategies', bn: 'পিক কৌশল', t: 'g' },
+      { id: 'M41-picking', en: 'Pick Strategies', bn: 'পিক কৌশল', t: 'r' },
       { id: 'M41-packing', en: 'Packing & Cartons', bn: 'প্যাকিং', t: 'g' },
       { id: 'M41-staging', en: 'Staging & Load', bn: 'স্টেজিং ও লোড', t: 'g' }
     ]},
     { en: 'Floor Ops', screens: [
-      { id: 'M41-rf', en: 'RF Mobile App', bn: 'আরএফ কিউ', t: 'd' },
+      { id: 'M41-rf', en: 'RF Mobile App', bn: 'আরএফ কিউ', t: 'r' },
       { id: 'M41-tasks', en: 'Task Management', bn: 'টাস্ক ম্যানেজমেন্ট', t: 'g' },
       { id: 'M41-counting', en: 'Floor Counts', bn: 'ফ্লোর কাউন্ট', t: 'g' }
     ]}
@@ -52,15 +52,15 @@ export const MODULE = {
   forms: ['Bin', 'Wave Template', 'Dock Appointment', 'Packing Station Config'],
   cross: ['M15 stock ledger', 'M16 goods receipt', 'M03 outbound staging', 'M44 import receiving'],
   freg: { src: 78, sub: [
-    ['1', 'Physical Structure', 8, { model: 'fix.warehouse.bin', cols: ['name', 'zone_id', 'barcode', 'capacity_qty'], screens: ['M41-zones', 'M41-warehouse', 'M41-stock-location'] }],
-    ['2', 'Slotting', 7, { model: 'fix.wms.slot', cols: ['part_id', 'bin_id', 'velocity', 'slot_type', 'state'], screens: ['M41-slotting'] }],
-    ['3', 'Inbound & Put-Away', 12, { model: 'fix.wms.putaway', cols: ['name', 'part_id', 'qty', 'to_bin_id', 'state'], screens: ['M41-docks', 'M41-receiving', 'M41-putaway'] }],
-    ['4', 'Wave Planning', 9, { model: 'fix.wms.wave', cols: ['name', 'wave_date', 'strategy', 'released_at', 'state'], screens: ['M41-waves'] }],
-    ['5', 'Picking', 11, { model: 'fix.wms.task', cols: ['name', 'part_id', 'bin_id', 'qty', 'state'], screens: ['M41-picking', 'M41-tasks'], domain: [['task_type', '=', 'pick']] }],
-    ['6', 'Packing & Staging', 8, { model: 'fix.wms.carton', cols: ['name', 'wave_id', 'carton_size', 'weight_kg', 'state'], screens: ['M41-packing', 'M41-staging'] }],
-    ['7', 'Replenishment', 6, { model: 'fix.spare.part', cols: ['name', 'part_number', 'qty_available', 'min_qty', 'max_qty'], screens: ['M41-spare-part', 'M41-tasks'] }],
-    ['8', 'RF Execution', 8, { model: 'fix.wms.task', cols: ['name', 'task_type', 'bin_id', 'assignee_id', 'state'], screens: ['M41-rf', 'M41-tasks'] }],
-    ['9', 'Labour & Analytics', 9, { model: 'fix.wms.task', cols: ['assignee_id', 'task_type', 'qty', 'done_at', 'state'], screens: ['M41-tasks', 'M41-counting', 'M41-inventory-valuation-suspense'] }]
+    ['1', 'Physical Structure', 8, { model: 'fix.warehouse.bin', cols: ['name', 'zone_id', 'barcode', 'capacity_qty'], screens: ['M41-zones', 'M41-warehouse', 'M41-stock-location'], reports: ['Bin Utilisation Heatmap'], forms: ['Bin'] }],
+    ['2', 'Slotting', 7, { model: 'fix.wms.slot', cols: ['part_id', 'bin_id', 'velocity', 'slot_type', 'state'], screens: ['M41-slotting'], reports: ['Bin Utilisation Heatmap'], forms: [] }],
+    ['3', 'Inbound & Put-Away', 12, { model: 'fix.wms.putaway', cols: ['name', 'part_id', 'qty', 'to_bin_id', 'state'], screens: ['M41-docks', 'M41-receiving', 'M41-putaway'], reports: ['Throughput by Shift'], forms: ['Dock Appointment'] }],
+    ['4', 'Wave Planning', 9, { model: 'fix.wms.wave', cols: ['name', 'wave_date', 'strategy', 'released_at', 'state'], screens: ['M41-waves'], reports: ['Wave Cycle Time'], forms: ['Wave Template'] }],
+    ['5', 'Picking', 11, { model: 'fix.wms.task', cols: ['name', 'part_id', 'bin_id', 'qty', 'state'], screens: ['M41-picking', 'M41-tasks'], reports: ['Pick Accuracy Trend'], forms: [], create: false, domain: [['task_type', '=', 'pick']] }],
+    ['6', 'Packing & Staging', 8, { model: 'fix.wms.carton', cols: ['name', 'wave_id', 'carton_size', 'weight_kg', 'state'], screens: ['M41-packing', 'M41-staging'], reports: ['Throughput by Shift'], forms: ['Packing Station Config'] }],
+    ['7', 'Replenishment', 6, { model: 'fix.spare.part', cols: ['name', 'part_number', 'qty_available', 'min_qty', 'max_qty'], screens: ['M41-spare-part', 'M41-tasks'], reports: [], forms: [], create: false }],
+    ['8', 'RF Execution', 8, { model: 'fix.wms.task', cols: ['name', 'task_type', 'bin_id', 'assignee_id', 'state'], screens: ['M41-rf', 'M41-tasks'], reports: ['Pick Accuracy Trend'], forms: [], create: false }],
+    ['9', 'Labour & Analytics', 9, { model: 'fix.wms.task', cols: ['assignee_id', 'task_type', 'qty', 'done_at', 'state'], screens: ['M41-tasks', 'M41-counting', 'M41-inventory-valuation-suspense'], reports: ['Labour Productivity', 'Throughput by Shift'], forms: [], create: false }]
   ] }
 };
 
@@ -106,6 +106,7 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel Wave (supervisor)', ask: 'Why the wave is cancelled', kwarg: 'reason' }
     ] },
   'M41-pick-lines': { kind: 'model_list', model: 'fix.wms.wave.line', stateField: 'state', create: false,
+    empty: 'No pick line yet. Lines are generated from the reserved stock when a wave is released.',
     cols: ['wave_id', 'part_id', 'bin_id', 'qty', 'reserved_qty', 'picked_qty', 'lot_id', 'scanned_bin', 'scanned_item', 'state'],
     actions: [
       { m: 'action_scan_pick', l: 'Scan Pick', asks: [
@@ -283,6 +284,7 @@ export const SCREENS = {
     model: 'fix.wms.wave.line',
     title: 'Pick Line',
     back: 'M41-pick-lines',
+    create: false, pick: 'Pick lines are generated when a wave is released: open one from Pick Lines.',
     status: { field: 'state', labels: {
       pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled' } },
     sections: [
@@ -426,8 +428,10 @@ export const SCREENS = {
         { label: 'Lines with a discrepancy', kwarg: 'discrepancy_count', number: true }
       ] }
     ] },
-  'M41-inventory-valuation-suspense': { kind: 'model_list', model: 'fix.inventory.valuation.suspense',
-    cols: ['name', 'company_id', 'product_id', 'operating_unit_id', 'name_bn', 'consumption_id', 'quantity'] },
+  /* written by stock movements, reconciled only by the GL cutover: a ledger */
+  'M41-inventory-valuation-suspense': { kind: 'model_list', model: 'fix.inventory.valuation.suspense', create: false,
+    cols: ['name', 'company_id', 'product_id', 'operating_unit_id', 'name_bn', 'consumption_id', 'quantity'],
+    empty: 'No valuation suspense entry. Entries are written by stock movements awaiting the general-ledger cutover; they cannot be typed in.' },
   'M41-spare-part': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
     cols: ['name', 'part_number', 'product_id', 'is_serialized', 'uom', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'],
     actions: [
@@ -469,6 +473,7 @@ export const SCREENS = {
     model: 'fix.inventory.valuation.suspense',
     title: "Inventory Valuation Suspense",
     back: 'M41-inventory-valuation-suspense',
+    create: false, pick: 'A suspense entry is written by a stock movement: open one from Inventory Valuation Suspense.',
     sections: [
       { title: "Inventory Valuation Suspense", note: "Read-only: the stock movements write these entries and only the M19 GL cutover reconciles them.",
         fields: [

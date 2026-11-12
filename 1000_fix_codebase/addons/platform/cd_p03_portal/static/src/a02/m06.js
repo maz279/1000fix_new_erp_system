@@ -36,17 +36,18 @@ export const MODULE = {
     { en: 'Media Custody', screens: [
       { id: 'M06-custody', en: 'Sealed Media Custody', bn: 'সিলড মিডিয়া', t: 'g' },
       { id: 'M06-cleanroom', en: 'Cleanroom Schedule', bn: 'ক্লিনরুম', t: 'g' },
-      { id: 'M06-inventory', en: 'Recovered-Data Inventory', bn: 'উদ্ধার তালিকা', t: 'g' }
+      { id: 'M06-inventory', en: 'Recovered-Data Inventory', bn: 'উদ্ধার তালিকা', t: 'r' }
     ]},
     { en: 'Quotation & Handover', screens: [
       { id: 'M06-eval', en: 'Free Evaluations', bn: 'ফ্রি মূল্যায়ন', t: 'g' },
       { id: 'M06-quotes', en: 'Firm Quotations', bn: 'চূড়ান্ত কোট', t: 'g' },
-      { id: 'M06-handover', en: 'Secure Handover & Purge', bn: 'নিরাপদ হস্তান্তর', t: 'c' }
+      { id: 'M06-handover', en: 'Secure Handover & Purge', bn: 'নিরাপদ হস্তান্তর', t: 'g' }
     ]},
     { en: 'Backup & Destruction', screens: [
       { id: 'M06-backup', en: 'Backup Plans & Tests', bn: 'ব্যাকআপ পরিকল্পনা', t: 'g' },
-      { id: 'M06-destroy', en: 'Secure Destruction', bn: 'নিরাপদ ধ্বংস', t: 'c' },
-      { id: 'M06-certs', en: 'Destruction Certificates', bn: 'ধ্বংস সনদ', t: 'g' }
+      { id: 'M06-destroy', en: 'Secure Destruction', bn: 'নিরাপদ ধ্বংস', t: 'g' },
+      { id: 'M06-certs', en: 'Destruction Certificates', bn: 'ধ্বংস সনদ', t: 'g' },
+      { id: 'M06-access-audit', en: 'Access Audit Log', bn: 'অ্যাক্সেস অডিট লগ', t: 'g' }
     ]}
   ],
   reports: ['Recovery Success by Specialism', 'Case Cycle Time', 'Data Service Revenue', 'Destruction & Purge Audit', 'Backup Restore-Test Compliance'],
@@ -55,22 +56,28 @@ export const MODULE = {
   freg: {
     src: 75,
     sub: [
-      ['1', 'Case Management (7 specialisms)', 12, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'specialism', 'media_type', 'state'], screens: ['M06-cases', 'M06-record'] }],
-      ['2', 'Media Chain of Custody', 11, { model: 'fix.data.media.unit', cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state'], screens: ['M06-custody', 'M06-cleanroom'] }],
-      ['3', 'Evaluation & Quotation', 8, { model: 'fix.data.quote', cols: ['name', 'case_id', 'amount', 'valid_until', 'state'], screens: ['M06-eval', 'M06-quotes'] }],
-      ['4', 'Methodology Logging', 6, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'method', 'donor_part_used', 'imaged_pct', 'notes'], screens: ['M06-attempts', 'M06-cleanroom'] }],
-      ['5', 'Attempt Tracking', 5, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'sequence', 'started_at', 'finished_at', 'outcome'], screens: ['M06-attempts'] }],
-      ['6', 'Recovered-Data Inventory', 5, { model: 'fix.data.recovery.case', cols: ['name', 'recovered_files_count', 'recovered_volume_gb', 'image_sha256_hash', 'state'], screens: ['M06-inventory'], domain: [['state', 'in', ['recovered', 'handover']]] }],
-      ['7', 'Secure Handover & Purge', 7, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'purge_certificate_id', 'residency_zone', 'state'], screens: ['M06-handover'], domain: [['state', 'in', ['handover', 'purged']]] }],
-      ['8', 'Backup Plans', 6, { model: 'fix.data.backup.plan', cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'next_test_due'], screens: ['M06-backup'] }],
-      ['9', 'Secure Destruction', 9, { model: 'fix.data.wipe.certificate', cols: ['name', 'serial_number', 'method', 'sanitization_status', 'certified_at'], screens: ['M06-destroy', 'M06-certs'] }],
-      ['10', 'Access Control & Audit', 6, { model: 'fix.z4.access.audit', cols: ['case_id', 'user_name', 'access_type', 'access_time', 'step_up_verified'], screens: ['M06-cases'] }]
+      ['1', 'Case Management (7 specialisms)', 12, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'specialism', 'media_type', 'state'], screens: ['M06-cases', 'M06-record'], reports: ['Recovery Success by Specialism', 'Case Cycle Time'], forms: ['Recovery Case'] }],
+      ['2', 'Media Chain of Custody', 11, { model: 'fix.data.media.unit', cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state'], screens: ['M06-custody', 'M06-cleanroom'], reports: [], forms: ['Media Intake (sealed)'] }],
+      ['3', 'Evaluation & Quotation', 8, { model: 'fix.data.quote', cols: ['name', 'case_id', 'amount', 'valid_until', 'state'], screens: ['M06-eval', 'M06-quotes'], reports: ['Data Service Revenue'], forms: ['Firm Quotation'] }],
+      ['4', 'Methodology Logging', 6, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'method', 'donor_part_used', 'imaged_pct', 'notes'], screens: ['M06-attempts', 'M06-cleanroom'], reports: ['Recovery Success by Specialism'], forms: [] }],
+      ['5', 'Attempt Tracking', 5, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'sequence', 'started_at', 'finished_at', 'outcome'], screens: ['M06-attempts'], reports: ['Recovery Success by Specialism', 'Case Cycle Time'], forms: [] }],
+      ['6', 'Recovered-Data Inventory', 5, { model: 'fix.data.recovery.case', cols: ['name', 'recovered_files_count', 'recovered_volume_gb', 'image_sha256_hash', 'state'], screens: ['M06-inventory'], reports: ['Recovery Success by Specialism'], forms: [], create: false, domain: [['state', 'in', ['recovered', 'handover']]] }],
+      ['7', 'Secure Handover & Purge', 7, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'purge_certificate_id', 'residency_zone', 'state'], screens: ['M06-handover'], reports: ['Destruction & Purge Audit'], forms: [], create: false, domain: [['state', 'in', ['handover', 'purged']]] }],
+      ['8', 'Backup Plans', 6, { model: 'fix.data.backup.plan', cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'next_test_due'], screens: ['M06-backup'], reports: ['Backup Restore-Test Compliance'], forms: [] }],
+      ['9', 'Secure Destruction', 9, { model: 'fix.data.wipe.certificate', cols: ['name', 'serial_number', 'method', 'sanitization_status', 'certified_at'], screens: ['M06-destroy', 'M06-certs'], reports: ['Destruction & Purge Audit'], forms: ['Destruction Request (dual control)'] }],
+      ['10', 'Access Control & Audit', 6, { model: 'fix.z4.access.audit', cols: ['case_id', 'user_name', 'access_type', 'access_time', 'step_up_verified'], screens: ['M06-access-audit'], reports: ['Destruction & Purge Audit'], forms: [], create: false }]
     ]
   }
 };
 
 /* In-workspace data screens over the whitelisted cd_data_case models. */
 export const SCREENS = {
+  /* Every opening of a recovery case's data is logged with its accessor,
+   * purpose and step-up check (Z4). The sub-module 'Access Control & Audit'
+   * listed the CASES instead: the log had no screen (2026-11-12). */
+  'M06-access-audit': { kind: 'model_list', model: 'fix.z4.access.audit', create: false,
+    cols: ['access_time', 'case_id', 'user_name', 'access_type', 'purpose', 'step_up_verified', 'ip_address'],
+    empty: 'No access to recovered data has been logged yet. Each time the data of a case is opened, the accessor, purpose and second-factor check are recorded here automatically; entries cannot be typed in or changed.' },
   /* --- Recovery Cases --- */
   'M06-cases': { kind: 'model_list', model: 'fix.data.recovery.case',
     cols: ['name', 'customer_id', 'media_type', 'specialism', 'residency_zone', 'attempt_count', 'audit_count', 'state'],

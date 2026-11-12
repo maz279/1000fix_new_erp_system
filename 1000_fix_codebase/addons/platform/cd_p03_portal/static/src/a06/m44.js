@@ -24,7 +24,7 @@ export const MODULE = {
       { id: 'M44-lc-amend', en: 'LC Amendments', bn: 'এলসি সংশোধন', t: 'g' },
       { id: 'M44-lc-pay', en: 'LC Payments', bn: 'এলসি পেমেন্ট', t: 'g' },
       { id: 'M44-advance', en: 'Advance Payments', bn: 'অগ্রিম পেমেন্ট', t: 'g' },
-      { id: 'M44-incoterms', en: 'Incoterms & FX', bn: 'ইনকোটার্ম ও এফএক্স', t: 'g' }
+      { id: 'M44-incoterms', en: 'Incoterms & FX', bn: 'ইনকোটার্ম ও এফএক্স', t: 'r' }
     ]},
     { en: 'Compliance', screens: [
       { id: 'M44-tariff', en: 'HS Tariff Master', bn: 'শুল্ক তালিকা', t: 'g' },
@@ -40,27 +40,27 @@ export const MODULE = {
       { id: 'M44-agent', en: 'C&F Agents', bn: 'সিএন্ডএফ এজেন্ট', t: 'g' },
       { id: 'M44-arrival', en: 'Arrival & Port Handling', bn: 'আগমন ও বন্দর', t: 'g' },
       { id: 'M44-boe', en: 'Bill of Entry (ASYCUDA)', bn: 'বিল অব এন্ট্রি', t: 'g' },
-      { id: 'M44-duty', en: 'Duty Cascade (CD/RD/SD/VAT/AT/AIT)', bn: 'শুল্ক ক্যাসকেড', t: 'g' },
-      { id: 'M44-boe-match', en: 'Bill of Entry to Remittance', bn: 'বিল অব এন্ট্রি ও রেমিট্যান্স', t: 'g' },
-      { id: 'M44-doc-pack', en: 'Document Checklist (ASYCUDA/BSW Pack)', bn: 'নথি চেকলিস্ট', t: 'g' }
+      { id: 'M44-duty', en: 'Duty Cascade (CD/RD/SD/VAT/AT/AIT)', bn: 'শুল্ক ক্যাসকেড', t: 'r' },
+      { id: 'M44-boe-match', en: 'Bill of Entry to Remittance', bn: 'বিল অব এন্ট্রি ও রেমিট্যান্স', t: 'r' },
+      { id: 'M44-doc-pack', en: 'Document Checklist (ASYCUDA/BSW Pack)', bn: 'নথি চেকলিস্ট', t: 'r' }
     ]},
     { en: 'Costing', screens: [
       { id: 'M44-landed', en: 'Landed Cost Allocation', bn: 'ল্যান্ডেড কস্ট', t: 'g' },
-      { id: 'M44-cf', en: 'C&F Management', bn: 'সিএন্ডএফ ম্যানেজমেন্ট', t: 'g' }
+      { id: 'M44-cf', en: 'C&F Management', bn: 'সিএন্ডএফ ম্যানেজমেন্ট', t: 'r' }
     ]}
   ],
   reports: ['Landed Cost by Shipment', 'Duty & Tax Cascade', 'Cycle-Time Analysis', 'Demurrage Avoidance', 'FX Exposure', 'Bill of Entry to Remittance', 'Document Checklist'],
   forms: ['Import Order', 'LC Application', 'HS Ruling Request', 'Bill of Entry'],
   cross: ['M16 import POs', 'M50 trade finance', 'M51 import VAT/duty', 'M15 landed cost'],
   freg: { src: 64, sub: [
-    ['1', 'Import Order Lifecycle', 9, { model: 'fix.import.order', cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'state'], screens: ['M44-orders', 'M44-proforma'] }],
-    ['2', 'LC & Payments', 10, { model: 'fix.import.lc', cols: ['lc_no', 'order_id', 'bank', 'amount', 'state'], screens: ['M44-lc', 'M44-incoterms'] }],
-    ['3', 'HS Classification', 7, { model: 'fix.import.hs', cols: ['product_id', 'hs_code', 'description', 'cd_pct', 'state'], screens: ['M44-hs'] }],
-    ['4', 'Eligibility & IRC', 5, { model: 'fix.import.irc', cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'], screens: ['M44-irc', 'M44-lca'] }],
-    ['5', 'Shipping & Insurance', 8, { model: 'fix.import.shipdoc', cols: ['name', 'order_id', 'doc_type', 'ref', 'state'], screens: ['M44-docs'] }],
-    ['6', 'Port & Customs', 9, { model: 'fix.import.arrival', cols: ['name', 'order_id', 'vessel', 'arrival_date', 'demurrage_days'], screens: ['M44-arrival', 'M44-boe', 'M44-cf'] }],
-    ['7', 'Duty Computation', 8, { model: 'fix.import.boe', cols: ['boe_no', 'order_id', 'cd_amount', 'vat_amount', 'total_tax'], screens: ['M44-duty', 'M44-boe'] }],
-    ['8', 'Landed Cost', 8, { model: 'fix.import.landed', cols: ['name', 'order_id', 'freight', 'duty', 'total_landed'], screens: ['M44-landed'] }]
+    ['1', 'Import Order Lifecycle', 9, { model: 'fix.import.order', cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'state'], screens: ['M44-orders', 'M44-proforma'], reports: ['Cycle-Time Analysis'], forms: ['Import Order'] }],
+    ['2', 'LC & Payments', 10, { model: 'fix.import.lc', cols: ['lc_no', 'order_id', 'bank', 'amount', 'state'], screens: ['M44-lc', 'M44-incoterms'], reports: ['FX Exposure', 'Bill of Entry to Remittance'], forms: ['LC Application'] }],
+    ['3', 'HS Classification', 7, { model: 'fix.import.hs', cols: ['product_id', 'hs_code', 'description', 'cd_pct', 'state'], screens: ['M44-hs'], reports: [], forms: ['HS Ruling Request'] }],
+    ['4', 'Eligibility & IRC', 5, { model: 'fix.import.irc', cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'], screens: ['M44-irc', 'M44-lca'], reports: ['Document Checklist'], forms: [] }],
+    ['5', 'Shipping & Insurance', 8, { model: 'fix.import.shipdoc', cols: ['name', 'order_id', 'doc_type', 'ref', 'state'], screens: ['M44-docs'], reports: ['Document Checklist'], forms: [] }],
+    ['6', 'Port & Customs', 9, { model: 'fix.import.arrival', cols: ['name', 'order_id', 'vessel', 'arrival_date', 'demurrage_days'], screens: ['M44-arrival', 'M44-boe', 'M44-cf'], reports: ['Demurrage Avoidance'], forms: ['Bill of Entry'] }],
+    ['7', 'Duty Computation', 8, { model: 'fix.import.boe', cols: ['boe_no', 'order_id', 'cd_amount', 'vat_amount', 'total_tax'], screens: ['M44-duty', 'M44-boe'], reports: ['Duty & Tax Cascade'], forms: ['Bill of Entry'] }],
+    ['8', 'Landed Cost', 8, { model: 'fix.import.landed', cols: ['name', 'order_id', 'freight', 'duty', 'total_landed'], screens: ['M44-landed'], reports: ['Landed Cost by Shipment'], forms: [] }]
   ] }
 };
 
@@ -169,7 +169,7 @@ export const SCREENS = {
   'M44-rpt-duty': { kind: 'table_report', module: 'M44', report: 'duty_cascade', title: 'Duty & Tax Cascade', period: false },
   'M44-rpt-cycle': { kind: 'table_report', module: 'M44', report: 'cycle_time', title: 'Cycle-Time Analysis', period: false },
   'M44-rpt-demurrage': { kind: 'table_report', module: 'M44', report: 'demurrage_avoidance', title: 'Demurrage Avoidance', period: false },
-  'M44-rpt-fx': { kind: 'table_report', module: 'M44', report: 'fx_exposure', title: 'Open FX Commitments', period: false },
+  'M44-rpt-fx': { kind: 'table_report', module: 'M44', report: 'fx_exposure', title: 'FX Exposure', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============
    * A06 audit M44-6: no form offers a state, approval, evidence or stamp

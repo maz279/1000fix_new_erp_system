@@ -15,11 +15,11 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Registry Completion', screens: [
-      { id: 'M65-bengali', en: 'Bengali Support (bn-BD)', bn: 'Bengali Support (bn-BD)', t: 'g' },
-      { id: 'M65-translations', en: 'Translation Infrastructure', bn: 'Translation Infrastructure', t: 'g' },
+      { id: 'M65-bengali', en: 'Bengali Support (bn-BD)', bn: 'Bengali Support (bn-BD)', t: 'r' },
+      { id: 'M65-translations', en: 'Translation Infrastructure', bn: 'Translation Infrastructure', t: 'r' },
       { id: 'M65-intercompany', en: 'Intercompany', bn: 'Intercompany', t: 'g' },
       { id: 'M65-gateways', en: 'Payment Gateways (Storefront Checkout Only)', bn: 'পেমেন্ট গেটওয়ে', t: 'g' },
-      { id: 'M65-assessment', en: 'Expansion Assessment', bn: 'Expansion Assessment', t: 'g' }
+      { id: 'M65-assessment', en: 'Expansion Assessment', bn: 'Expansion Assessment', t: 'r' }
     ]},
     { en: 'Structure', screens: [
       { id: 'M65-entities', en: 'Entities per Country', bn: 'প্রতিষ্ঠান', t: 'g' },
@@ -40,12 +40,12 @@ export const MODULE = {
   forms: ['Country Pack', 'Locale Pack', 'Jurisdiction Rule'],
   cross: ['M30 branch registry', 'M51 BD tax rules', 'M55 holidays'],
   freg: { src: 48, sub: [
-    ['1', 'Entity Structure', 10, { model: 'fix.entity', cols: ['code', 'legal_name', 'country_id', 'currency_id', 'active'], screens: ['M65-entities', 'M65-structure'] }],
-    ['2', 'Country Packs', 9, { model: 'fix.country.pack', cols: ['name', 'code', 'kind', 'version', 'loaded_at'], screens: ['M65-packs', 'M65-packlines', 'M65-packstatus', 'M65-gateways'] }],
-    ['3', 'Locale Packs', 8, { model: 'fix.locale.pack', cols: ['code', 'name', 'number_format', 'date_format', 'coverage_pct'], screens: ['M65-locales', 'M65-readiness'] }],
-    ['4', 'Jurisdiction', 7, { model: 'fix.jurisdiction.rule', cols: ['jurisdiction', 'rule_area', 'requirement', 'frequency', 'authority'], screens: ['M65-jurisdictions', 'M65-assessment'] }],
-    ['5', 'Translation', 8, { model: 'fix.locale.pack', cols: ['code', 'name', 'coverage_pct', 'state'], screens: ['M65-translations', 'M65-bengali'] }],
-    ['6', 'Audit', 6, { model: 'fix.intercompany.rule', cols: ['name', 'scope', 'transaction_type', 'transfer_pricing_compliant', 'documentation_ref'], screens: ['M65-intercompany'] }]
+    ['1', 'Entity Structure', 10, { model: 'fix.entity', cols: ['code', 'legal_name', 'country_id', 'currency_id', 'active'], screens: ['M65-entities', 'M65-structure'], reports: ['Entity Structure'], forms: [] }],
+    ['2', 'Country Packs', 9, { model: 'fix.country.pack', cols: ['name', 'code', 'kind', 'version', 'loaded_at'], screens: ['M65-packs', 'M65-packlines', 'M65-packstatus', 'M65-gateways'], reports: ['Country Pack Status'], forms: ['Country Pack'] }],
+    ['3', 'Locale Packs', 8, { model: 'fix.locale.pack', cols: ['code', 'name', 'number_format', 'date_format', 'coverage_pct'], screens: ['M65-locales', 'M65-readiness'], reports: ['Locale Readiness'], forms: ['Locale Pack'] }],
+    ['4', 'Jurisdiction', 7, { model: 'fix.jurisdiction.rule', cols: ['jurisdiction', 'rule_area', 'requirement', 'frequency', 'authority'], screens: ['M65-jurisdictions', 'M65-assessment'], reports: [], forms: ['Jurisdiction Rule'] }],
+    ['5', 'Translation', 8, { model: 'fix.locale.pack', cols: ['code', 'name', 'coverage_pct', 'state'], screens: ['M65-translations', 'M65-bengali'], reports: ['Locale Readiness'], forms: ['Locale Pack'] }],
+    ['6', 'Audit', 6, { model: 'fix.intercompany.rule', cols: ['name', 'scope', 'transaction_type', 'transfer_pricing_compliant', 'documentation_ref'], screens: ['M65-intercompany'], reports: [], forms: [] }]
   ] }
 };
 

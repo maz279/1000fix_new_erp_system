@@ -21,8 +21,8 @@ export const MODULE = {
     { en: 'Cash', screens: [
       { id: 'M50-position', en: 'Consolidated Cash Position', bn: 'নগদ অবস্থান', t: 'd' },
       { id: 'M50-branchcash', en: 'Branch Cash Consolidation', bn: 'শাখা নগদ', t: 'r' },
-      { id: 'M50-ridercod', en: 'Rider COD Settlement', bn: 'রাইডার সিওডি', t: 'c' },
-      { id: 'M50-couriercod', en: 'Courier COD Remittance', bn: 'কুরিয়ার সিওডি', t: 'c' },
+      { id: 'M50-ridercod', en: 'Rider COD Settlement', bn: 'রাইডার সিওডি', t: 'g' },
+      { id: 'M50-couriercod', en: 'Courier COD Remittance', bn: 'কুরিয়ার সিওডি', t: 'g' },
       { id: 'M50-petty', en: 'Petty Cash (Imprest)', bn: 'খরচি নগদ', t: 'g' },
       { id: 'M50-petty-vouchers', en: 'Petty Cash Vouchers', bn: 'খরচি নগদ ভাউচার', t: 'g' },
       { id: 'M50-petty-topups', en: 'Imprest Top-Ups', bn: 'খরচি নগদ পূরণ', t: 'g' },
@@ -31,7 +31,7 @@ export const MODULE = {
     { en: 'Banking', screens: [
       { id: 'M50-accounts', en: 'Bank Account Master', bn: 'ব্যাংক হিসাব', t: 'g' },
       { id: 'M50-statements', en: 'Statements Import', bn: 'স্টেটমেন্ট', t: 'g' },
-      { id: 'M50-recon', en: 'Auto Reconciliation', bn: 'স্বয়ংক্রিয় মিলকরণ', t: 'c' },
+      { id: 'M50-recon', en: 'Auto Reconciliation', bn: 'স্বয়ংক্রিয় মিলকরণ', t: 'g' },
       { id: 'M50-reconstatements', en: 'Reconciliation Statements', bn: 'মিলকরণ বিবরণী', t: 'g' },
       { id: 'M50-recon-items', en: 'Reconciling Items', bn: 'মিলকরণের খাত', t: 'g' }
     ]},
@@ -44,7 +44,7 @@ export const MODULE = {
       { id: 'M50-cashpay', en: 'Cash Payments', bn: 'নগদ পরিশোধ', t: 'g' }
     ]},
     { en: 'Settlement', screens: [
-      { id: 'M50-gateway', en: 'Gateway / MFS Settlement', bn: 'গেটওয়ে সেটেলমেন্ট', t: 'c' },
+      { id: 'M50-gateway', en: 'Gateway / MFS Settlement', bn: 'গেটওয়ে সেটেলমেন্ট', t: 'g' },
       { id: 'M50-gateway-lines', en: 'Settlement Exceptions', bn: 'সেটেলমেন্ট ব্যতিক্রম', t: 'g' },
       { id: 'M50-cit', en: 'Cash-in-Transit', bn: 'নগদ পরিবহন', t: 'g' }
     ]},
@@ -70,15 +70,15 @@ export const MODULE = {
   forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up', 'Rider COD Settlement', 'Courier COD Remittance', 'Cheque Book', 'Facility Amendment', 'Reconciliation Statement'],
   cross: ['Financial Accounting & GL', 'AR, Invoicing & Collections', 'AP & Employee Expense'],
   freg: { src: 88, sub: [
-    ['1', 'Bank Masters', 7, { model: 'account.journal', cols: ['name', 'code', 'bank_account_id', 'currency_id', 'fix_treasury_role'], screens: ['M50-accounts'], domain: [['type', '=', 'bank']] }],
-    ['2', 'Statement & Recon', 13, { model: 'fix.bank.statement.line', cols: ['date', 'journal_id', 'reference', 'amount', 'match_state'], screens: ['M50-recon', 'M50-statements', 'M50-reconstatements', 'M50-recon-items', 'M50-rpt-recon', 'M50-rpt-charges'] }],
-    ['3', 'Cash Position & Consolidation', 12, { model: 'fix.cash.position', cols: ['as_of', 'bank_balance', 'petty_cash_total', 'cash_in_transit_total', 'total_position'], screens: ['M50-position', 'M50-branchcash', 'M50-rpt-position', 'M50-cit'] }],
-    ['4', 'Payment Execution', 13, { model: 'fix.payment.execution', cols: ['name', 'payee', 'amount', 'method', 'state'], screens: ['M50-beftn', 'M50-mfs', 'M50-cheques', 'M50-chequebooks', 'M50-chequepay', 'M50-cashpay'] }],
-    ['5', 'Gateway/MFS Settlement', 11, { model: 'fix.gateway.settlement', cols: ['provider', 'settlement_date', 'total_net', 'exception_count', 'state'], screens: ['M50-gateway', 'M50-gateway-lines', 'M50-rpt-gateway', 'M50-ridercod', 'M50-couriercod'] }],
-    ['6', 'Forecasting', 8, { model: 'fix.cash.forecast.item', cols: ['name', 'direction', 'category', 'amount', 'frequency'], screens: ['M50-forecast', 'M50-recurring'] }],
-    ['7', 'Facilities & Trade Finance', 12, { model: 'fix.bank.facility', cols: ['name', 'lender_id', 'facility_type', 'limit_amount', 'state'], screens: ['M50-facilities', 'M50-amendments', 'M50-repayments', 'M50-covenants'] }],
-    ['8', 'FX', 5, { model: 'fix.fx.revaluation', cols: ['rate_date', 'currency_id', 'total_gain', 'total_loss', 'net_amount'], screens: ['M50-fx'] }],
-    ['9', 'Controls', 7, { model: 'fix.imprest.count', cols: ['fund_id', 'count_date', 'counted_amount', 'variance', 'state'], screens: ['M50-petty', 'M50-petty-counts', 'M50-petty-vouchers', 'M50-petty-topups'] }]
+    ['1', 'Bank Masters', 7, { model: 'account.journal', cols: ['name', 'code', 'bank_account_id', 'currency_id', 'fix_treasury_role'], screens: ['M50-accounts'], reports: [], forms: [], domain: [['type', '=', 'bank']] }],
+    ['2', 'Statement & Recon', 13, { model: 'fix.bank.statement.line', cols: ['date', 'journal_id', 'reference', 'amount', 'match_state'], screens: ['M50-recon', 'M50-statements', 'M50-reconstatements', 'M50-recon-items', 'M50-rpt-recon', 'M50-rpt-charges'], reports: ['Bank Reconciliation Summary', 'Bank Charges Analysis'], forms: ['Bank Statement Import', 'Reconciliation Statement'] }],
+    ['3', 'Cash Position & Consolidation', 12, { model: 'fix.cash.position', cols: ['as_of', 'bank_balance', 'petty_cash_total', 'cash_in_transit_total', 'total_position'], screens: ['M50-position', 'M50-branchcash', 'M50-rpt-position', 'M50-cit'], reports: ['Daily Cash Position'], forms: ['Cash Deposit'] }],
+    ['4', 'Payment Execution', 13, { model: 'fix.payment.execution', cols: ['name', 'payee', 'amount', 'method', 'state'], screens: ['M50-beftn', 'M50-mfs', 'M50-cheques', 'M50-chequebooks', 'M50-chequepay', 'M50-cashpay'], reports: ['Cheque Register & Cheques-in-Hand'], forms: ['Payment Instruction', 'Cheque Book'] }],
+    ['5', 'Gateway/MFS Settlement', 11, { model: 'fix.gateway.settlement', cols: ['provider', 'settlement_date', 'total_net', 'exception_count', 'state'], screens: ['M50-gateway', 'M50-gateway-lines', 'M50-rpt-gateway', 'M50-ridercod', 'M50-couriercod'], reports: ['Gateway Settlement Reconciliation', 'COD Settlement Report'], forms: ['Rider COD Settlement', 'Courier COD Remittance'] }],
+    ['6', 'Forecasting', 8, { model: 'fix.cash.forecast.item', cols: ['name', 'direction', 'category', 'amount', 'frequency'], screens: ['M50-forecast', 'M50-recurring'], reports: ['13-Week Cash Forecast'], forms: [] }],
+    ['7', 'Facilities & Trade Finance', 12, { model: 'fix.bank.facility', cols: ['name', 'lender_id', 'facility_type', 'limit_amount', 'state'], screens: ['M50-facilities', 'M50-amendments', 'M50-repayments', 'M50-covenants'], reports: [], forms: ['Facility Amendment'] }],
+    ['8', 'FX', 5, { model: 'fix.fx.revaluation', cols: ['rate_date', 'currency_id', 'total_gain', 'total_loss', 'net_amount'], screens: ['M50-fx'], reports: [], forms: [] }],
+    ['9', 'Controls', 7, { model: 'fix.imprest.count', cols: ['fund_id', 'count_date', 'counted_amount', 'variance', 'state'], screens: ['M50-petty', 'M50-petty-counts', 'M50-petty-vouchers', 'M50-petty-topups'], reports: [], forms: ['Imprest Top-Up'] }]
   ] }
 };
 
@@ -101,7 +101,7 @@ const PAYMENT_ACTIONS = [
 /* in-workspace data screens (checked before any stock Odoo view) */
 export const SCREENS = {
   // ---- Cash
-  'M50-position': { kind: 'model_list', create: false, model: 'fix.cash.position',
+  'M50-position': { empty: 'Cash positions are snapshots of the bank and cash balances, taken with Take Snapshot.', kind: 'model_list', create: false, model: 'fix.cash.position',
     cols: ['as_of','bank_balance','drawer_float_total','petty_cash_total','cash_in_transit_total','pending_payments','total_position'],
     actions: [{m:'action_take_snapshot',l:'Take Snapshot'}] },
   'M50-branchcash': { kind: 'table_report', module: 'M50', report: 'branch_cash' },
@@ -146,7 +146,7 @@ export const SCREENS = {
     cols: ['name','journal_id','period','statement_balance','gl_balance','unmatched_net','book_items_net','difference','unexplained_count','state','prepared_by_id','reviewed_by_id'],
     stateField: 'state',
     actions: [{m:'action_prepare',l:'Prepare from Ledger'},{m:'action_submit',l:'Submit for Review'},{m:'action_review',l:'Review & Sign Off'},{m:'action_return',l:'Return to Preparer',ask:'Why is it returned?',kwarg:'reason'}] },
-  'M50-recon-items': { kind: 'model_list', model: 'fix.bank.reconciliation.line', create: false,
+  'M50-recon-items': { empty: 'Reconciliation lines are produced when a bank statement is reconciled.', kind: 'model_list', model: 'fix.bank.reconciliation.line', create: false,
     cols: ['reconciliation_id','kind','date','reference','amount','counts','age_days','explanation','explained_by_id','state'],
     stateField: 'kind',
     actions: [{m:'action_explain',l:'Explain Item',ask:'Explanation of this reconciling item',kwarg:'explanation'}] },
@@ -175,7 +175,7 @@ export const SCREENS = {
     cols: ['name','provider','settlement_date','line_count','total_gross','total_fee','total_fee_vat','total_net','exception_count','bank_matched','state'],
     stateField: 'state',
     actions: [{m:'action_import_report',l:'Import Report'},{m:'action_match',l:'Re-run Match'},{m:'action_post',l:'Post'}] },
-  'M50-gateway-lines': { kind: 'model_list', model: 'fix.gateway.settlement.line',
+  'M50-gateway-lines': { empty: 'Settlement lines arrive with each gateway or MFS settlement.', kind: 'model_list', model: 'fix.gateway.settlement.line',
     cols: ['batch_id','provider','trx_id','txn_date','gross','fee','net','receipt_name','receipt_amount','match_state'],
     stateField: 'match_state', domain: [['match_state','!=','matched']], create: false },
   'M50-cit': { kind: 'model_list', model: 'fix.cash.deposit',
@@ -194,7 +194,7 @@ export const SCREENS = {
     cols: ['facility_id','reason','new_limit_amount','new_interest_rate','new_instalments','new_next_due_date','state','requested_by_id','approved_by_id','approved_at'],
     stateField: 'state',
     actions: [{m:'action_approve',l:'Approve & Apply'},{m:'action_reject',l:'Reject'}] },
-  'M50-repayments': { kind: 'model_list', model: 'fix.facility.repayment',
+  'M50-repayments': { empty: 'Repayment instalments are scheduled from the facility\'s terms.', kind: 'model_list', model: 'fix.facility.repayment',
     cols: ['facility_id','sequence','due_date','principal','interest','total','state','is_overdue'],
     stateField: 'state', create: false, actions: [{m:'action_pay',l:'Pay Instalment'}] },
   'M50-covenants': { kind: 'model_list', model: 'fix.facility.covenant',

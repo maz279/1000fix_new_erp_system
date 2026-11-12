@@ -31,22 +31,22 @@ export const MODULE = {
       { id: 'M33-directory', en: 'Party Directory', bn: 'পার্টি ডিরেক্টরি', t: 'g' },
       { id: 'M33-form-party', en: 'Party Master Record', bn: 'পার্টি রেকর্ড ফর্ম', t: 'f' },
       { id: 'M33-party', en: 'Party Record (roles)', bn: 'পার্টি রোল', t: 'g' },
-      { id: 'M33-360', en: 'Customer 360', bn: 'কাস্টমার ৩৬০', t: 'x' },
+      { id: 'M33-360', en: 'Customer 360', bn: 'কাস্টমার ৩৬০', t: 'r' },
       { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' }
     ]},
     { en: 'Identity & Verification', screens: [
       { id: 'M33-identity', en: 'Identity Documents (NID/BIN)', bn: 'পরিচয়পত্র', t: 'g' },
       { id: 'M33-otp', en: 'OTP Verification Log', bn: 'ওটিপি যাচাই', t: 'g' },
-      { id: 'M33-approval', en: 'Registration Approvals', bn: 'নিবন্ধন অনুমোদন', t: 'c' }
+      { id: 'M33-approval', en: 'Registration Approvals', bn: 'নিবন্ধন অনুমোদন', t: 'g' }
     ]},
     { en: 'Data Quality', screens: [
       { id: 'M33-dedupe', en: 'Duplicate Detection', bn: 'সদৃশ শনাক্তকরণ', t: 'g' },
-      { id: 'M33-merge', en: 'Supervised Merge', bn: 'মার্জ তত্ত্বাবধান', t: 'c' },
-      { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'r' }
+      { id: 'M33-merge', en: 'Supervised Merge', bn: 'মার্জ তত্ত্বাবধান', t: 'g' },
+      { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'g' }
     ]},
     { en: 'Consent & Rights', screens: [
       { id: 'M33-consent', en: 'Consent Register', bn: 'সম্মতি রেজিস্টার', t: 'g' },
-      { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'c' }
+      { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'g' }
     ]},
     { en: 'Segments & Credit', screens: [
       { id: 'M33-segments', en: 'Segments', bn: 'সেগমেন্ট', t: 'g' },
@@ -68,19 +68,19 @@ export const MODULE = {
   freg: {
     src: 100,
     sub: [
-      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'] }],
-      ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party'] }],
-      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'] }],
-      ['4', 'Addresses (BD structure + GPS)', 7, { model: 'res.partner', cols: ['name', 'street', 'city', 'country_id', 'phone'], screens: ['M33-directory'] }],
-      ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-otp'] }],
-      ['6', 'Registration Approval', 6, { model: 'fix.registration.approval', cols: ['partner_id', 'party_class', 'lm_state', 'admin_state', 'requested_at', 'lm_decided_by'], screens: ['M33-approval'] }],
-      ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'] }],
-      ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'] }],
-      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-rpt-consentcov'] }],
-      ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'] }],
-      ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'] }],
-      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'] }],
-      ['13', 'Real-Customer Cut-over', 5, { model: 'fix.party.import.batch', cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count'], screens: ['M33-import-batches', 'M33-import-lines'] }]
+      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Party Master', 'Party (multi-role)'] }],
+      ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party'], reports: [], forms: ['Party (multi-role)'] }],
+      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'], reports: ['Corporate Hierarchy Map'], forms: [] }],
+      ['4', 'Addresses (BD structure + GPS)', 7, { model: 'res.partner', cols: ['name', 'street', 'city', 'country_id', 'phone'], screens: ['M33-directory'], reports: ['Customer Growth by District'], forms: ['Address with GPS', 'Party Master'] }],
+      ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-otp'], reports: [], forms: ['Identity Document'] }],
+      ['6', 'Registration Approval', 6, { model: 'fix.registration.approval', cols: ['partner_id', 'party_class', 'lm_state', 'admin_state', 'requested_at', 'lm_decided_by'], screens: ['M33-approval'], reports: [], forms: [] }],
+      ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'], reports: ['Duplicate Merge Audit'], forms: ['Merge Request', 'Duplicate Detection Job'] }],
+      ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'], reports: ['Data Quality Scorecard'], forms: [] }],
+      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-rpt-consentcov'], reports: ['Consent Coverage Report'], forms: [] }],
+      ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'], reports: ['Credit Exposure by Segment'], forms: [] }],
+      ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'], reports: ['Credit Exposure by Segment'], forms: ['Credit Profile'] }],
+      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'], reports: ['Customer Growth by District'], forms: [], create: false }],
+      ['13', 'Real-Customer Cut-over', 5, { model: 'fix.party.import.batch', cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count'], screens: ['M33-import-batches', 'M33-import-lines'], reports: [], forms: [] }]
     ]
   }
 };

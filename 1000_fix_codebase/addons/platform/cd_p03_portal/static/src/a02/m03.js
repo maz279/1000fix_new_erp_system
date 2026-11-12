@@ -30,47 +30,49 @@ export const MODULE = {
       { id: 'M03-cons', en: 'Consignments', bn: 'কনসাইনমেন্ট', t: 'g' },
       { id: 'M03-record', en: 'Consignment Record', bn: 'কনসাইনমেন্ট নথি', t: 'g' },
       { id: 'M03-journeys', en: 'Multi-Leg Journeys', bn: 'মাল্টি-লেগ জার্নি', t: 'g' },
-      { id: 'M03-manifest', en: 'Item Manifests', bn: 'আইটেম ম্যানিফেস্ট', t: 'g' }
+      { id: 'M03-manifest', en: 'Item Manifests', bn: 'আইটেম ম্যানিফেস্ট', t: 'r' }
     ]},
     { en: 'Custody & POD', screens: [
       { id: 'M03-custody', en: 'Chain-of-Custody Ledger', bn: 'কাস্টডি চেইন লেজার', t: 'g' },
       { id: 'M03-pod', en: 'Proof of Delivery (OTP)', bn: 'ডেলিভারি প্রমাণ (ওটিপি)', t: 'g' },
-      { id: 'M03-seals', en: 'Sealing & Tamper Log', bn: 'সিলিং ও ট্যাম্পার লগ', t: 'g' }
+      { id: 'M03-seals', en: 'Sealing & Tamper Log', bn: 'সিলিং ও ট্যাম্পার লগ', t: 'r' }
     ]},
     { en: 'Riders & Fleet', screens: [
       { id: 'M03-riders', en: 'Rider Assignment', bn: 'রাইডার নিয়োগ', t: 'g' },
-      { id: 'M03-routes', en: 'Route Manifests', bn: 'রুট ম্যানিফেস্ট', t: 'g' },
-      { id: 'M03-app', en: 'Rider App (P09) Preview', bn: 'রাইডার অ্যাপ (P09) প্রিভিউ', t: 'd' }
+      { id: 'M03-routes', en: 'Route Manifests', bn: 'রুট ম্যানিফেস্ট', t: 'r' },
+      { id: 'M03-app', en: 'Rider App (P09) Preview', bn: 'রাইডার অ্যাপ (P09) প্রিভিউ', t: 'r' }
     ]},
     { en: 'Courier Partners', screens: [
       { id: 'M03-couriers', en: 'Courier Partners', bn: 'কুরিয়ার পার্টনার', t: 'g' },
       { id: 'M03-bookings', en: 'Courier Bookings', bn: 'কুরিয়ার বুকিং', t: 'g' },
-      { id: 'M03-recon', en: 'Courier Reconciliation', bn: 'কুরিয়ার রিকনসিলিয়েশন', t: 'c' }
+      { id: 'M03-recon', en: 'Courier Reconciliation', bn: 'কুরিয়ার রিকনসিলিয়েশন', t: 'r' }
     ]},
     { en: 'Exceptions & Billing', screens: [
       { id: 'M03-exc', en: 'Loss / Damage Claims', bn: 'ক্ষতি ও হারানোর দাবি', t: 'g' },
-      { id: 'M03-charges', en: 'Distance & Zone Charging', bn: 'দূরত্ব ও জোন চার্জ', t: 'g' },
-      { id: 'M03-cod', en: 'COD Reconciliation', bn: 'ক্যাশ অন ডেলিভারি রিকনসিলিয়েশন', t: 'c' }
+      { id: 'M03-charges', en: 'Distance & Zone Charging', bn: 'দূরত্ব ও জোন চার্জ', t: 'r' },
+      { id: 'M03-cod', en: 'COD Reconciliation', bn: 'ক্যাশ অন ডেলিভারি রিকনসিলিয়েশন', t: 'r' }
     ]}
   ],
-  reports: ['Consignment Cycle Time', 'Custody Exception Register', 'Courier Performance (Pathao/RedX/Steadfast)', 'COD Settlement Report', 'Reverse Logistics Volume', 'Damage & Insurance Claims', 'Damage & Claims'],
-  forms: ['Consignment (5 types)', 'Rider Shift Open / Close', 'Courier Booking', 'Damage Claim'],
+  reports: ['Consignment Cycle Time', 'Custody Exception Register', 'Courier Performance (Pathao/RedX/Steadfast)', 'COD Settlement Report', 'Reverse Logistics Volume', 'Damage & Insurance Claims'],
+  /* the custody-scan view is evidence, not data entry (it was offered as
+   * 'Rider Shift Open / Close' over append-only custody scans) */
+  forms: ['Consignment (5 types)', 'Courier Booking', 'Damage Claim'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
   freg: {
     src: 93,
     sub: [
-      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'] }],
-      ['2', 'Multi-Leg Journey Planning', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'location_branch_id', 'scanned_at'], screens: ['M03-journeys'] }],
-      ['3', 'Chain-of-Custody Scanning', 9, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'exception_reason'], screens: ['M03-custody', 'M03-record'] }],
-      ['4', 'POD with OTP Verification', 7, { model: 'fix.consignment', cols: ['name', 'recipient_name', 'pod_verified_at', 'pod_verified_by', 'state'], screens: ['M03-pod'], domain: [['state', '=', 'delivered']] }],
-      ['5', 'Sealing & Tamper Evidence', 6, { model: 'fix.consignment', cols: ['name', 'outbound_seal_number', 'inbound_seal_number', 'seal_status', 'weight_variance_g'], screens: ['M03-seals'] }],
-      ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders'], domain: [['rider_id', '!=', false]] }],
-      ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
-      ['8', 'Rider App Offline Sync (P09)', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_by', 'scanned_at', 'device_serial'], screens: ['M03-app'] }],
-      ['9', 'Courier Partner Integration', 10, { model: 'fix.courier.booking', cols: ['name', 'partner_id', 'awb_no', 'booked_on', 'state'], screens: ['M03-bookings', 'M03-couriers', 'M03-recon'] }],
-      ['10', 'COD Collection & Handover', 7, { model: 'fix.cod.settlement', cols: ['name', 'rider_id', 'expected_amount', 'remitted_amount', 'state'], screens: ['M03-cod'] }],
-      ['11', 'Loss / Damage Claims', 6, { model: 'fix.damage.claim', cols: ['name', 'consignment_id', 'damage_kind', 'claimed_amount', 'state'], screens: ['M03-damage-claim', 'M03-exc'] }],
-      ['12', 'Distance & Zone Charging', 5, { model: 'fix.consignment', cols: ['name', 'chargeable_weight_kg', 'base_freight_bdt', 'volumetric_surcharge_bdt', 'insurance_fee_bdt'], screens: ['M03-charges'] }]
+      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'], reports: ['Consignment Cycle Time'], forms: ['Consignment (5 types)'] }],
+      ['2', 'Multi-Leg Journey Planning', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'location_branch_id', 'scanned_at'], screens: ['M03-journeys'], reports: ['Consignment Cycle Time'], forms: [], create: false }],
+      ['3', 'Chain-of-Custody Scanning', 9, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'exception_reason'], screens: ['M03-custody', 'M03-record'], reports: ['Custody Exception Register'], forms: [], create: false }],
+      ['4', 'POD with OTP Verification', 7, { model: 'fix.consignment', cols: ['name', 'recipient_name', 'pod_verified_at', 'pod_verified_by', 'state'], screens: ['M03-pod'], reports: ['Consignment Cycle Time'], forms: [], create: false, domain: [['state', '=', 'delivered']] }],
+      ['5', 'Sealing & Tamper Evidence', 6, { model: 'fix.consignment', cols: ['name', 'outbound_seal_number', 'inbound_seal_number', 'seal_status', 'weight_variance_g'], screens: ['M03-seals'], reports: ['Custody Exception Register'], forms: [], create: false }],
+      ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders'], reports: [], forms: [], create: false, domain: [['rider_id', '!=', false]] }],
+      ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], reports: ['Reverse Logistics Volume'], forms: [], create: false, domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
+      ['8', 'Rider App Offline Sync (P09)', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_by', 'scanned_at', 'device_serial'], screens: ['M03-app'], reports: [], forms: [], create: false }],
+      ['9', 'Courier Partner Integration', 10, { model: 'fix.courier.booking', cols: ['name', 'partner_id', 'awb_no', 'booked_on', 'state'], screens: ['M03-bookings', 'M03-couriers', 'M03-recon'], reports: ['Courier Performance (Pathao/RedX/Steadfast)'], forms: ['Courier Booking'] }],
+      ['10', 'COD Collection & Handover', 7, { model: 'fix.cod.settlement', cols: ['name', 'rider_id', 'expected_amount', 'remitted_amount', 'state'], screens: ['M03-cod'], reports: ['COD Settlement Report'], forms: [] }],
+      ['11', 'Loss / Damage Claims', 6, { model: 'fix.damage.claim', cols: ['name', 'consignment_id', 'damage_kind', 'claimed_amount', 'state'], screens: ['M03-damage-claim', 'M03-exc'], reports: ['Damage & Insurance Claims'], forms: ['Damage Claim'] }],
+      ['12', 'Distance & Zone Charging', 5, { model: 'fix.consignment', cols: ['name', 'chargeable_weight_kg', 'base_freight_bdt', 'volumetric_surcharge_bdt', 'insurance_fee_bdt'], screens: ['M03-charges'], reports: [], forms: [], create: false }]
     ]
   }
 };
@@ -161,11 +163,13 @@ export const SCREENS = {
       'chain_problem', 'pod_verified_at', 'pod_verified_by', 'delivered_at', 'create_date'],
     stateField: 'state' },
   'M03-journeys': { kind: 'model_list', model: 'fix.custody.scan', create: false,
-    cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'scanned_by_user_id', 'location_branch_id', 'device_serial', 'exception_reason'] },
+    cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'scanned_by_user_id', 'location_branch_id', 'device_serial', 'exception_reason'],
+    empty: 'No custody scan recorded yet. Each hand-over of a device (pickup, branch, rider, delivery) is scanned in the rider app or at the counter and recorded here; scans cannot be typed in.' },
   'M03-manifest': { kind: 'table_report', module: 'M03', report: 'manifest_register', title: 'Item Manifests', period: false },
   'M03-custody': { kind: 'model_list', model: 'fix.custody.scan', create: false,
     cols: ['consignment_id', 'step', 'scanned_at', 'exception_reason', 'device_serial'],
-    domain: [['exception_reason', '!=', false]] },
+    domain: [['exception_reason', '!=', false]],
+    empty: 'No custody exception recorded. A scan that finds a problem (seal broken, wrong device, missing item) is listed here with its note.' },
   'M03-pod': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'state', 'service_order_id', 'rider_id', 'pod_otp_channel', 'pod_verified_at', 'pod_verified_by', 'custody_summary'],
     domain: [['state', 'in', ['confirmed', 'in_transit', 'delivered']]],
@@ -201,7 +205,7 @@ export const SCREENS = {
   'M03-cod': { kind: 'table_report', module: 'M03', report: 'cod_settlement', period: false },
 
   /* computed pack that had no screen (closure 2026-10-28) */
-  'M03-rpt-damage': { kind: 'table_report', module: 'M03', report: 'damage_claims', title: "Damage & Claims", period: false },
+  'M03-rpt-damage': { kind: 'table_report', module: 'M03', report: 'damage_claims', title: "Damage & Insurance Claims", period: false },
   /* M03 sweep audit 2026-11-06 (D17): the registry report tiles now open
    * their own computed reports instead of the nearest grid. */
   'M03-rpt-cycletime': { kind: 'table_report', module: 'M03', report: 'cycle_time', title: 'Consignment Cycle Time', period: false },
@@ -274,8 +278,10 @@ export const SCREENS = {
   'M03-form-rider-shift': {
     kind: 'model_form',
     model: 'fix.custody.scan',
-    title: "Rider Shift Open/Close",
+    title: "Custody Scan",
     back: 'M03-custody',
+    /* append-only evidence written by the rider app and the counters */
+    create: false, pick: 'A custody scan is recorded by the rider app or at the counter: open one from Chain-of-Custody Scans.',
     tabs: [
       { id: 'scan', label: '1. Custody Hop', bn: '১. স্ক্যান তথ্য', icon: '📡', badge: '7' },
       { id: 'device', label: '2. Device & Serial', bn: '২. ডিভাইস ও অবস্থা', icon: '📱', badge: '1' }
@@ -356,7 +362,6 @@ export const SCREENS = {
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
-  'M03:Damage & Claims': 'M03-rpt-damage',
   "M03:Consignment Cycle Time": "M03-rpt-cycletime",
   "M03:Custody Exception Register": "M03-rpt-custody",
   "M03:Courier Performance (Pathao/RedX/Steadfast)": "M03-rpt-courier",
@@ -379,7 +384,6 @@ export const FORM_CHIPS = {
   'M03:Courier Booking': 'M03-form-booking',
   'M03:Damage Claim': 'M03-form-damage-claim',
   'M03:Consignment (5 types)': 'M03-form-consignment',
-  'M03:Rider Shift Open / Close': 'M03-form-rider-shift',
   'M03:__by_model__': {
     'fix.courier.partner': 'M03-form-courier',
     'fix.courier.booking': 'M03-form-booking',

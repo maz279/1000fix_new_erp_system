@@ -22,24 +22,24 @@ export const MODULE = {
     ]},
     { en: 'Price Books', screens: [
       { id: 'M11-books', en: 'Price Books', bn: 'প্রাইস বুক', t: 'g' },
-      { id: 'M11-engine', en: 'Price Resolution Engine', bn: 'প্রাইস ইঞ্জিন', t: 'c' },
+      { id: 'M11-engine', en: 'Price Resolution Engine', bn: 'প্রাইস ইঞ্জিন', t: 'r' },
       { id: 'M11-versions', en: 'Versioning & Mass Changes', bn: 'ভার্সনিং', t: 'g' }
     ]},
     { en: 'Rate Cards', screens: [
       { id: 'M11-labour', en: 'Labour Rate Cards', bn: 'শ্রম রেট কার্ড', t: 'g' },
       { id: 'M11-parts', en: 'Parts Pricing Rules', bn: 'পার্টস মূল্য', t: 'g' },
-      { id: 'M11-brand', en: 'Brand Reimbursement Rates', bn: 'ব্র্যান্ড রেট', t: 'g' },
+      { id: 'M11-brand', en: 'Brand Reimbursement Rates', bn: 'ব্র্যান্ড রেট', t: 'r' },
       { id: 'M11-adjust', en: 'Adjustment Rules', bn: 'সমন্বয় নিয়ম', t: 'g' }
     ]},
     { en: 'Pricing Governance', screens: [
-      { id: 'M11-discounts', en: 'Discount Governance', bn: 'ডিসকাউন্ট গভর্নেন্স', t: 'c' },
+      { id: 'M11-discounts', en: 'Discount Governance', bn: 'ডিসকাউন্ট গভর্নেন্স', t: 'g' },
       { id: 'M11-floors', en: 'Cost-Plus & Margin Floors', bn: 'মার্জিন ফ্লোর', t: 'g' },
       { id: 'M11-promos', en: 'Promotions', bn: 'প্রমোশন', t: 'g' },
       { id: 'M11-changes', en: 'Rate & Floor Changes', bn: 'রেট ও ফ্লোর পরিবর্তন', t: 'g' },
       { id: 'M11-policies', en: 'Discount Ladder', bn: 'ডিসকাউন্ট ধাপ', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
-      { id: 'M11-simulate', en: 'Price Simulation', bn: 'মূল্য সিমুলেশন', t: 'c' },
+      { id: 'M11-simulate', en: 'Price Simulation', bn: 'মূল্য সিমুলেশন', t: 'g' },
       { id: 'M11-realised', en: 'Realised-Price Analytics', bn: 'বাস্তব মূল্য বিশ্লেষণ', t: 'r' }
     ]}
   ],
@@ -47,17 +47,17 @@ export const MODULE = {
   forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request'],
   cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR'],
   freg: { src: 97, sub: [
-    ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation'] }],
-    ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }],
-    ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-labour'] }],
-    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-parts'] }],
-    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }],
-    ['6', 'Brand Reimbursement', 7, { model: 'fix.warranty.claim', cols: ['brand_id', 'claim_no', 'claim_amount', 'remittance_amount', 'state'], screens: ['M11-brand', 'M11-rpt-brand'] }],
-    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-rpt-discount'] }],
-    ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'] }],
-    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'] }],
-    ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'] }],
-    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions'] }]
+    ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation'], reports: ['Realised Price vs Card', 'Margin by Service Line'], forms: [] }],
+    ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'], reports: ['Realised Price vs Card'], forms: ['Price Book'] }],
+    ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-labour'], reports: ['Rate-Card Utilisation', 'Floor vs Realised Rate'], forms: ['Rate Card'] }],
+    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-parts'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Rate Card'] }],
+    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'], reports: ['Realised Price vs Card'], forms: ['Price Book'] }],
+    ['6', 'Brand Reimbursement', 7, { model: 'fix.warranty.claim', cols: ['brand_id', 'claim_no', 'claim_amount', 'remittance_amount', 'state'], screens: ['M11-brand', 'M11-rpt-brand'], reports: ['Brand Reimbursement Recovery'], forms: [] }],
+    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-rpt-discount'], reports: ['Discount Register by Approver'], forms: ['Discount Policy'] }],
+    ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'], reports: ['Promotion Effectiveness'], forms: ['Promotion'] }],
+    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'], reports: [], forms: [] }],
+    ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'], reports: [], forms: ['Price Simulation Request'] }],
+    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions'], reports: [], forms: [] }]
   ] }
 };
 
@@ -554,6 +554,7 @@ export const SCREENS = {
   /* ===== triage coverage screens ===== */
   'M11-price-explanation': { kind: 'model_list', model: 'fix.price.explanation', create: false,
     cols: ['name', 'company_id', 'operating_unit_id', 'rule_id', 'currency_id', 'base_price', 'final_price'],
+    empty: 'No price has been explained yet. An explanation is written each time the pricing engine prices a line; it is the audit trail of that price and cannot be typed in.',
     // append-only trail (BRU-PRC-02): reconstruct, never edit
     actions: [{ m: 'action_reconstruct', l: 'Reconstruct from the Rule' }] },
 
@@ -562,6 +563,7 @@ export const SCREENS = {
     model: 'fix.price.explanation',
     title: "Price Explanation",
     back: 'M11-price-explanation',
+    create: false, pick: 'A price explanation is written by the pricing engine: open one from Price Explanations.',
     tabs: [
       { id: 'general', label: '1. Explanation Header', bn: '১. ব্যাখ্যার শিরোনাম', icon: '📄', badge: '3' },
       { id: 'commercial', label: '2. Price Derivation', bn: '২. মূল্য নির্ধারণ', icon: '💵', badge: '4' },

@@ -54,12 +54,12 @@ export const MODULE = {
   forms: ['Incident', 'Change', 'Asset', 'Service Request'],
   cross: ['M29 identity/access', 'M28 dead letters raise incidents', 'M30 platform releases (itsm.change_implemented)', 'M06 destruction review (itsm.asset_retired)', 'M21 exit clearance (asset recovery)', 'M67 project changes'],
   freg: { src: 52, sub: [
-    ['1', 'Service Desk', 12, { model: 'fix.itsm.ticket', cols: ['name', 'title', 'category', 'priority', 'state'], screens: ['M66-incidents', 'M66-requests', 'M66-catalogue'] }],
-    ['2', 'Change Management', 10, { model: 'fix.itsm.change', cols: ['name', 'title', 'change_type', 'risk', 'risk_score', 'state'], screens: ['M66-changes', 'M66-success'] }],
-    ['3', 'Asset Register', 9, { model: 'fix.itsm.asset', cols: ['name', 'asset_tag', 'asset_kind', 'assigned_to_id', 'state'], screens: ['M66-assets', 'M66-lifecycle', 'M66-cmdb'] }],
-    ['4', 'Knowledge', 6, { model: 'fix.itsm.problem', cols: ['name', 'title', 'severity', 'known_error', 'state'], screens: ['M66-problems'] }],
-    ['5', 'Analytics', 8, { model: 'fix.itsm.ticket', cols: ['category', 'priority', 'state', 'assigned_to', 'create_date'], screens: ['M66-mix', 'M66-all'] }],
-    ['6', 'Audit', 7, { model: 'fix.jml.event', cols: ['name', 'event_type', 'user_id', 'effective_on', 'state'], screens: ['M66-onboard', 'M66-licences'] }]
+    ['1', 'Service Desk', 12, { model: 'fix.itsm.ticket', cols: ['name', 'title', 'category', 'priority', 'state'], screens: ['M66-incidents', 'M66-requests', 'M66-catalogue'], reports: ['ITSM Ticket SLA'], forms: ['Incident', 'Service Request'] }],
+    ['2', 'Change Management', 10, { model: 'fix.itsm.change', cols: ['name', 'title', 'change_type', 'risk', 'risk_score', 'state'], screens: ['M66-changes', 'M66-success'], reports: ['Change Success Rate'], forms: ['Change'] }],
+    ['3', 'Asset Register', 9, { model: 'fix.itsm.asset', cols: ['name', 'asset_tag', 'asset_kind', 'assigned_to_id', 'state'], screens: ['M66-assets', 'M66-lifecycle', 'M66-cmdb'], reports: ['IT Asset Lifecycle'], forms: ['Asset'] }],
+    ['4', 'Knowledge', 6, { model: 'fix.itsm.problem', cols: ['name', 'title', 'severity', 'known_error', 'state'], screens: ['M66-problems'], reports: [], forms: [] }],
+    ['5', 'Analytics', 8, { model: 'fix.itsm.ticket', cols: ['category', 'priority', 'state', 'assigned_to', 'create_date'], screens: ['M66-mix', 'M66-all'], reports: ['Ticket Category Mix', 'ITSM Ticket SLA'], forms: [], create: false }],
+    ['6', 'Audit', 7, { model: 'fix.jml.event', cols: ['name', 'event_type', 'user_id', 'effective_on', 'state'], screens: ['M66-onboard', 'M66-licences'], reports: [], forms: [] }]
   ] }
 };
 

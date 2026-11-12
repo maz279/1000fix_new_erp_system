@@ -35,11 +35,11 @@ export const MODULE = {
     ]},
     { en: 'Remote Sessions', screens: [
       { id: 'M05-sessions', en: 'Remote Sessions', bn: 'রিমোট সেশন', t: 'g' },
-      { id: 'M05-console', en: 'Session Console', bn: 'সেশন কনসোল', t: 'c' }
+      { id: 'M05-console', en: 'Session Console', bn: 'সেশন কনসোল', t: 'g' }
     ]},
     { en: 'Monitored Estate', screens: [
       { id: 'M05-estate', en: 'Estate & Agents', bn: 'এস্টেট ও এজেন্ট', t: 'g' },
-      { id: 'M05-health', en: 'Health Scoring', bn: 'হেলথ স্কোরিং', t: 'd' },
+      { id: 'M05-health', en: 'Health Scoring', bn: 'হেলথ স্কোরিং', t: 'r' },
       { id: 'M05-alerts', en: 'Alert Rules & Inbox', bn: 'অ্যালার্ট ইনবক্স', t: 'g' }
     ]},
     { en: 'Service Desk', screens: [
@@ -65,16 +65,16 @@ export const MODULE = {
   freg: {
     src: 93,
     sub: [
-      ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'] }],
-      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'] }],
-      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'] }],
-      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'state', 'create_date'], screens: ['M05-alerts'] }],
-      ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'] }],
-      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'] }],
-      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'] }],
-      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], domain: [['state', 'in', ['ticketed', 'resolved']]] }],
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'] }],
-      ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-estate'] }]
+      ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'], reports: ['Remote Resolution Rate'], forms: ['Remote Session (consent recorded)'] }],
+      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'], reports: [], forms: [] }],
+      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'], reports: ['Backup & Restore Test Log'], forms: [], create: false }],
+      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'state', 'create_date'], screens: ['M05-alerts'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket'] }],
+      ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: [] }],
+      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'], reports: [], forms: [] }],
+      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Maintenance Window'] }],
+      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record'], domain: [['state', 'in', ['ticketed', 'resolved']]] }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: [] }],
+      ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['MSP Contract'] }]
     ]
   }
 };

@@ -26,12 +26,12 @@ export const MODULE = {
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
       { id: 'M36-record', en: 'Quotation Record', bn: 'কোটেশন রেকর্ড', t: 'f' },
       { id: 'M36-versions', en: 'Versions & Counter-Offer', bn: 'ভার্সন ও কাউন্টার', t: 'g' },
-      { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'g' }
+      { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'r' }
     ]},
     { en: 'Approval Loop', screens: [
-      { id: 'M36-loop', en: 'Customer Approval Loop', bn: 'গ্রাহক অনুমোদন', t: 'c' },
+      { id: 'M36-loop', en: 'Customer Approval Loop', bn: 'গ্রাহক অনুমোদন', t: 'g' },
       { id: 'M36-internal', en: 'Internal Approval Routing', bn: 'অভ্যন্তরীণ অনুমোদন', t: 'g' },
-      { id: 'M36-declined', en: 'Declined-Repair Handling', bn: 'প্রত্যাখ্যাত মেরামত', t: 'g' }
+      { id: 'M36-declined', en: 'Declined-Repair Handling', bn: 'প্রত্যাখ্যাত মেরামত', t: 'r' }
     ]},
     { en: 'Tenders', screens: [
       { id: 'M36-tenders', en: 'Tenders & Bids', bn: 'দরপত্র', t: 'g' },
@@ -41,19 +41,19 @@ export const MODULE = {
     ]}
   ],
   reports: ['Quote Conversion by Channel', 'Approval Cycle Time', 'Decline Reasons Pareto', 'Tender Win/Loss', 'Margin on Approved Quotes'],
-  forms: ['Estimate', 'Quotation (versioned)', 'Tender Bid', 'Counter-Offer'],
+  forms: ['Estimate', 'Quotation (versioned)', 'Tender Bid'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   freg: { src: 86, sub: [
-    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'] }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }],
-    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'] }],
-    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'] }],
-    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'] }],
-    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }],
-    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'] }],
-    ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'] }],
-    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-bonds', 'M36-rpt-tender'] }],
-    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance'] }]
+    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)'] }],
+    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'], reports: [], forms: [], create: false }],
+    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'], reports: ['Approval Cycle Time'], forms: [] }],
+    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'], reports: ['Approval Cycle Time', 'Quote Conversion by Channel'], forms: [] }],
+    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'], reports: [], forms: [], create: false }],
+    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'], reports: [], forms: [], create: false }],
+    ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'], reports: ['Decline Reasons Pareto'], forms: [], create: false }],
+    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-bonds', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid'] }],
+    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance'], reports: [], forms: [] }]
   ] }
 };
 
@@ -63,9 +63,11 @@ export const SCREENS = {
     cols: ["name", "customer_id", "state", "currency_id", "create_date", "company_id", "estimate_id"] },
   'M36-esign': { kind: 'table_report', module: 'M36', report: 'esign_status', title: 'E-Signature Status', period: true },
   'M36-loop': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"] },
+    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"],
+    empty: 'No quotation review yet. A review is recorded when a quotation is sent for approval or decided by the customer; it is not typed in here.' },
   'M36-internal': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"] },
+    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"],
+    empty: 'No quotation review yet. A review is recorded when a quotation is sent for approval or decided by the customer; it is not typed in here.' },
   'M36-declined': { kind: 'table_report', module: 'M36', report: 'decline_pareto', title: 'Decline Pareto', period: true },
   // A04 audit M36-7 (C2-C13 build 2026-11-04): a tender moves only through
   // these. The bid decision and the award are the Tender Committee's; a win
@@ -398,6 +400,13 @@ export const SCREENS = {
         ] }
     ]
   },
+  /* NOT a counter-offer: fix.counter.sale is the Front-Desk cash-drawer sale
+   * (M04). The "Counter-Offer" chip opened this form; a customer's counter is
+   * an action on the quotation ("Customer Counter (negotiating)", "Revise
+   * (new version)") on Quotations. The chip is gone (2026-11-12). The screen
+   * stays only because its fields still feed the counter-sale write
+   * whitelist in a02/writable.py (the generator unions every form on a
+   * model); removing it is an A02 change. */
   'M36-form-counter': { kind: 'model_form', model: 'fix.counter.sale',
     title: 'Counter-Offer', back: 'M36-versions',
     status: { field: 'state' },
@@ -525,6 +534,7 @@ export const SCREENS = {
 
   'M36-form-review': { kind: 'model_form', model: 'fix.quote.review',
     title: 'Quotation Review', back: 'M36-internal',
+    create: false, pick: 'A review is recorded by the approval workflow: open one from Internal Approvals.',
     status: { field: 'decision' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -569,20 +579,17 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M36:Estimate': 'fix.estimate',
   'M36:Quotation (versioned)': 'fix.quotation',
-  'M36:Tender Bid': 'fix.tender',
-  'M36:Counter-Offer': 'fix.counter.sale'
+  'M36:Tender Bid': 'fix.tender'
 };
 
 export const FORM_CHIPS = {
   'M36:Estimate': 'M36-form-estimate',
   'M36:Quotation (versioned)': 'M36-record',
   'M36:Tender Bid': 'M36-form-tender',
-  'M36:Counter-Offer': 'M36-form-counter',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
     'fix.quotation': 'M36-record',
     'fix.tender': 'M36-form-tender',
-    'fix.counter.sale': 'M36-form-counter',
     'fix.tender.bond': 'M36-form-bond',
     'fix.quote.review': 'M36-form-review',
     'fix.tender.variation': 'M36-form-variation'

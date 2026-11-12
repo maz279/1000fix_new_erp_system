@@ -25,15 +25,15 @@ export const MODULE = {
     { en: 'Complaints', screens: [
       { id: 'M34-complaints', en: 'Complaints', bn: 'অভিযোগ', t: 'g' },
       { id: 'M34-record', en: 'Complaint Record', bn: 'অভিযোগ রেকর্ড', t: 'f' },
-      { id: 'M34-escalation', en: 'Severity & Escalation', bn: 'তীব্রতা ও এসক্যালেশন', t: 'g' },
-      { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'g' }
+      { id: 'M34-escalation', en: 'Severity & Escalation', bn: 'তীব্রতা ও এসক্যালেশন', t: 'r' },
+      { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'r' }
     ]},
     { en: 'Closed Loop', screens: [
-      { id: 'M34-detractor', en: 'Detractor Recovery', bn: 'ডিট্রাক্টর রিকভারি', t: 'c' },
+      { id: 'M34-detractor', en: 'Detractor Recovery', bn: 'ডিট্রাক্টর রিকভারি', t: 'g' },
       { id: 'M34-journey', en: 'Journey Measurement', bn: 'যাত্রা পরিমাপ', t: 'r' }
     ]},
     { en: 'Voice of Customer', screens: [
-      { id: 'M34-voc', en: 'VoC Analytics', bn: 'ভিওসি বিশ্লেষণ', t: 'd' },
+      { id: 'M34-voc', en: 'VoC Analytics', bn: 'ভিওসি বিশ্লেষণ', t: 'r' },
       { id: 'M34-reviews', en: 'Reviews & Testimonials', bn: 'রিভিউ', t: 'g' },
       { id: 'M34-byybranch', en: 'Experience by Branch/Tech', bn: 'শাখাভিত্তিক অভিজ্ঞতা', t: 'r' }
     ]},
@@ -47,14 +47,14 @@ export const MODULE = {
   forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument'],
   cross: ['M01 Service Orders', 'M20 Credit Notes', 'M23 QMS / NCR'],
   freg: { src: 69, sub: [
-    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-design', 'M34-responses'] }],
-    ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'] }],
-    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.cx.review', cols: ['name', 'state', 'customer_id', 'source', 'service_order_id', 'rating'], screens: ['M34-reviews'] }],
-    ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id'], screens: ['M34-detractor', 'M34-rpt-loop'] }],
-    ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'] }],
-    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-escalation', 'M34-rpt-pareto'] }],
-    ['7', 'Compensation & Goodwill', 6, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'state', 'approved_by', 'issued_at'], screens: ['M34-goodwill'], domain: [['reason_code', '=', 'goodwill']] }],
-    ['8', 'VoC Analytics', 9, { model: 'fix.survey', cols: ['service_order_id', 'customer_id', 'rating', 'nps_score', 'ces_score'], screens: ['M34-voc', 'M34-journey', 'M34-rpt-sentiment', 'M34-responses'], domain: [['state', '=', 'responded']] }]
+    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-design', 'M34-responses'], reports: [], forms: ['Survey Instrument', 'Survey'] }],
+    ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'], reports: ['CSAT by Branch & Technician', 'NPS Trend & Drivers'], forms: ['Survey'] }],
+    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.cx.review', cols: ['name', 'state', 'customer_id', 'source', 'service_order_id', 'rating'], screens: ['M34-reviews'], reports: ['Review Sentiment Summary'], forms: [] }],
+    ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id'], screens: ['M34-detractor', 'M34-rpt-loop'], reports: ['Closed-Loop Effectiveness'], forms: ['Detractor Follow-up'] }],
+    ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'], reports: ['Complaint Category Pareto'], forms: ['Complaint'] }],
+    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-escalation', 'M34-rpt-pareto'], reports: ['Complaint Category Pareto'], forms: ['Complaint'] }],
+    ['7', 'Compensation & Goodwill', 6, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'state', 'approved_by', 'issued_at'], screens: ['M34-goodwill'], reports: [], forms: ['Goodwill Credit'], domain: [['reason_code', '=', 'goodwill']] }],
+    ['8', 'VoC Analytics', 9, { model: 'fix.survey', cols: ['service_order_id', 'customer_id', 'rating', 'nps_score', 'ces_score'], screens: ['M34-voc', 'M34-journey', 'M34-rpt-sentiment', 'M34-responses'], reports: ['Review Sentiment Summary', 'NPS Trend & Drivers'], forms: [], create: false, domain: [['state', '=', 'responded']] }]
   ] }
 };
 

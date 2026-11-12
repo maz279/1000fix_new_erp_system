@@ -61,13 +61,13 @@ export const MODULE = {
   forms: ['User', 'Role', 'Record Rule', 'Access Request'],
   cross: ['M28 credentials', 'M60 controls', 'M24 retention', 'M33 party master'],
   freg: { src: 78, sub: [
-    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-sessions'], domain: [['share', '=', false]] }],
-    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'] }],
-    ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'] }],
-    ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert', 'M29-jml'] }],
-    ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod'] }],
-    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'] }],
-    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-privileged', 'M29-incidents'] }]
+    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['User'], domain: [['share', '=', false]] }],
+    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'], reports: ['Access Review Pack'], forms: ['Role'] }],
+    ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'], reports: [], forms: ['Record Rule'] }],
+    ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert', 'M29-jml'], reports: ['Access Review Pack'], forms: ['Access Request'] }],
+    ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod'], reports: ['SoD Test Results'], forms: [] }],
+    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'], reports: ['Sensitive-Data Access'], forms: [] }],
+    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-privileged', 'M29-incidents'], reports: ['Privileged Session Log', 'Sensitive-Data Access'], forms: [] }]
   ] }
 };
 

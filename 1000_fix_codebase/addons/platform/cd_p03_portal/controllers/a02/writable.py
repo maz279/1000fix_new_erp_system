@@ -469,20 +469,7 @@ WRITABLE = {
     ),
     "fix.sla.kpi.instance": frozenset(),
     "fix.sla.policy": frozenset(),
-    "fix.technician.location": frozenset(
-        {
-            "battery_pct",
-            "company_id",
-            "gnss_hdop",
-            "latitude",
-            "longitude",
-            "name",
-            "name_bn",
-            "operating_unit_id",
-            "speed_kmh",
-            "technician_id",
-        }
-    ),
+    "fix.technician.location": frozenset(),
     "fix.token.queue": frozenset(
         {
             "branch_id",

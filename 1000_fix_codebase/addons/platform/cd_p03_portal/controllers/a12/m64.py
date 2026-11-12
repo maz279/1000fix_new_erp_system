@@ -476,11 +476,11 @@ def dq_by_domain(env, date_from=None, date_to=None, **params):
         },
         "rows": rows,
         "notes": [
-            "Violations are the evaluator's MEASURED counts from its latest run (the daily "
-            "cron / action_evaluate). A master domain with no active rule is ungoverned "
-            "and does not appear here - the gap is visible by absence. Skipped rules "
-            "target a model or field that is not installed (e.g. a stale res.partner "
-            "rule) and are reported, not silently counted clean.",
+            "Violations are the counts measured by the latest data-quality run (daily, or "
+            "when a steward runs it). A master-data domain with no active rule is "
+            "ungoverned and does not appear here - the gap is visible by its absence. "
+            "Skipped rules point at a record type or field that is not installed (for "
+            "example an outdated rule on contacts); they are reported, not counted clean.",
         ],
         "empty": "No active DQ rules.",
     }

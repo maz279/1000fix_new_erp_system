@@ -32,8 +32,8 @@ export const MODULE = {
       { id: 'M25-quality', en: 'Quality Analytics', bn: 'কোয়ালিটি অ্যানালিটিক্স', t: 'd' }
     ]},
     { en: 'Self-Service', screens: [
-      { id: 'M25-datasets', en: 'Certified Datasets', bn: 'সার্টিফাইড ডেটাসেট', t: 'g' },
-      { id: 'M25-builder', en: 'Dashboard Builder', bn: 'ড্যাশবোর্ড বিল্ডার', t: 'c' },
+      { id: 'M25-datasets', en: 'Certified Datasets', bn: 'সার্টিফাইড ডেটাসেট', t: 'r' },
+      { id: 'M25-builder', en: 'Dashboard Builder', bn: 'ড্যাশবোর্ড বিল্ডার', t: 'g' },
       { id: 'M25-bi', en: 'BI Role Explorer', bn: 'বিআই রোল এক্সপ্লোরার', t: 'c' }
     ]},
     { en: 'Operations', screens: [
@@ -47,13 +47,13 @@ export const MODULE = {
   forms: ['Dashboard', 'Distribution Schedule', 'Alert Subscription'],
   cross: ['All Modules'],
   freg: { src: 58, sub: [
-    ['1', 'Role Dashboards', 12, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-ceo', 'M25-coo', 'M25-cfo', 'M25-ccO'] }],
-    ['2', 'Standard Report Library', 10, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'is_shared', 'owner_id'], screens: ['M25-weekly', 'M25-branch', 'M25-service', 'M25-finance'] }],
-    ['3', 'Self-Service', 8, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-builder', 'M25-datasets', 'M25-bi'] }],
-    ['4', 'Distribution & Alerting', 9, { model: 'fix.bi.distribution.schedule', cols: ['name', 'report_key', 'cadence', 'format', 'last_status'], screens: ['M25-schedules', 'M25-alerts'] }],
-    ['5', 'Embedded Analytics', 7, { model: 'fix.bi.sync.config', cols: ['name', 'dataset_scope', 'target_workspace', 'sync_frequency', 'enabled'], screens: ['M25-sync', 'M25-logs'] }],
-    ['6', 'Mobile', 5, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'last_viewed_at'], screens: ['M25-coo', 'M25-people', 'M25-quality'] }],
-    ['7', 'Lifecycle & Usage', 7, { model: 'fix.bi.dashboard', cols: ['name', 'owner_id', 'last_viewed_at', 'is_shared'], screens: ['M25-builder', 'M25-logs'] }]
+    ['1', 'Role Dashboards', 12, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-ceo', 'M25-coo', 'M25-cfo', 'M25-ccO'], reports: ['Executive Pack'], forms: ['Dashboard'] }],
+    ['2', 'Standard Report Library', 10, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'is_shared', 'owner_id'], screens: ['M25-weekly', 'M25-branch', 'M25-service', 'M25-finance'], reports: ['Executive Pack', 'Branch League', 'Service KPI Pack', 'Finance Pack', 'People Pack'], forms: [] }],
+    ['3', 'Self-Service', 8, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-builder', 'M25-datasets', 'M25-bi'], reports: ['Any dashboard → export'], forms: ['Dashboard'] }],
+    ['4', 'Distribution & Alerting', 9, { model: 'fix.bi.distribution.schedule', cols: ['name', 'report_key', 'cadence', 'format', 'last_status'], screens: ['M25-schedules', 'M25-alerts'], reports: [], forms: ['Distribution Schedule', 'Alert Subscription'] }],
+    ['5', 'Embedded Analytics', 7, { model: 'fix.bi.sync.config', cols: ['name', 'dataset_scope', 'target_workspace', 'sync_frequency', 'enabled'], screens: ['M25-sync', 'M25-logs'], reports: [], forms: [] }],
+    ['6', 'Mobile', 5, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'last_viewed_at'], screens: ['M25-coo', 'M25-people', 'M25-quality'], reports: ['Service KPI Pack', 'People Pack'], forms: [] }],
+    ['7', 'Lifecycle & Usage', 7, { model: 'fix.bi.dashboard', cols: ['name', 'owner_id', 'last_viewed_at', 'is_shared'], screens: ['M25-builder', 'M25-logs'], reports: ['Any dashboard → export'], forms: ['Dashboard'] }]
   ] }
 };
 

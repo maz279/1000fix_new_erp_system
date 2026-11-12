@@ -289,8 +289,8 @@ def _cod_settlement_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "COD settlements live in the M50 treasury engine (fix.cod.settlement); "
-            "the M03 collection model arrives with the rider-app phase."
+            "Cash-on-delivery settlements are recorded in Treasury (M50); collection by "
+            "riders is recorded once the rider app is in use."
         ],
     }
 

@@ -35,10 +35,10 @@ export const MODULE = {
       { id: 'M19-tb', en: 'Trial Balance', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' },
       { id: 'M19-partner-ledger', en: 'Partner Ledger (GL)', bn: 'পার্টনার খতিয়ান (GL)', t: 'r' },
       { id: 'M19-partner-statement', en: 'Partner Statement Drill-down', bn: 'পার্টনার স্টেটমেন্ট', t: 'r' },
-      { id: 'M19-takeon', en: 'Legacy Take-on Wizard', bn: 'লেগেসি টেক-অন উইজার্ড', t: 'c' },
+      { id: 'M19-takeon', en: 'Legacy Take-on Wizard', bn: 'লেগেসি টেক-অন উইজার্ড', t: 'g' },
       { id: 'M19-takeon-lines', en: 'Take-on Lines (audit)', bn: 'টেক-অন লাইন (অডিট)', t: 'g' },
       { id: 'M19-dimensions', en: '7-Dimension Model', bn: 'মাত্রা মডেল', t: 'g' },
-      { id: 'M19-coa-loader', en: 'CoA Master Loader', bn: 'হিসাবের ছক লোডার', t: 'c' },
+      { id: 'M19-coa-loader', en: 'CoA Master Loader', bn: 'হিসাবের ছক লোডার', t: 'g' },
       { id: 'M19-coa-register', en: 'CoA Register Pack', bn: 'হিসাবের ছক রেজিস্টার প্যাক', t: 'r' },
       { id: 'M19-recurring', en: 'Recurring & Accrual Journals', bn: 'পুনরাবৃত্ত ও বকেয়া জার্নাল', t: 'g' },
       { id: 'M19-alloc-rules', en: 'Allocation Rules', bn: 'বরাদ্দ নিয়ম', t: 'g' }
@@ -65,19 +65,19 @@ export const MODULE = {
       { id: 'M19-tp-rates', en: 'Transfer-Pricing Rates', bn: 'স্থানান্তর মূল্য হার', t: 'g' }
     ]},
     { en: 'Group & Inter-Branch', bn: 'গ্রুপ ও আন্তঃশাখা', screens: [
-      { id: 'M19-consol-books', en: 'Consolidation Books', bn: 'একীভূতকরণ খাতা', t: 'c' },
+      { id: 'M19-consol-books', en: 'Consolidation Books', bn: 'একীভূতকরণ খাতা', t: 'g' },
       { id: 'M19-eliminations', en: 'Eliminations', bn: 'বাদকরণ', t: 'g' },
       { id: 'M19-ic-txns', en: 'Inter-Company / Inter-Branch Transactions', bn: 'আন্তঃকোম্পানি ও আন্তঃশাখা লেনদেন', t: 'g' },
       { id: 'M19-ic-balances', en: 'Due-To / Due-From Balances', bn: 'প্রদেয় ও প্রাপ্য স্থিতি', t: 'r' },
       { id: 'M19-ic-rules', en: 'Inter-Company Rules', bn: 'আন্তঃকোম্পানি নিয়ম', t: 'g' }
     ]},
     { en: 'Legacy AR Ledger (201)', bn: 'লেগেসি প্রাপ্য খতিয়ান (২০১)', screens: [
-      { id: 'M19-legacy-ledger', en: 'Legacy Control-Ledger Import', bn: 'লেগেসি কন্ট্রোল খতিয়ান ইম্পোর্ট', t: 'c' },
+      { id: 'M19-legacy-ledger', en: 'Legacy Control-Ledger Import', bn: 'লেগেসি কন্ট্রোল খতিয়ান ইম্পোর্ট', t: 'g' },
       { id: 'M19-legacy-ledger-lines', en: 'Archive Lines (audit)', bn: 'আর্কাইভ লাইন (অডিট)', t: 'g' },
       { id: 'M19-legacy-ar-recon', en: 'Legacy AR Control Recon', bn: 'লেগেসি প্রাপ্য নিয়ন্ত্রণ মিলকরণ', t: 'r' }
     ]},
     { en: 'Legacy Bank Ledgers', bn: 'লেগেসি ব্যাংক খতিয়ান', screens: [
-      { id: 'M19-bank-takeon', en: 'Bank-Ledger Take-on', bn: 'ব্যাংক খতিয়ান টেক-অন', t: 'c' },
+      { id: 'M19-bank-takeon', en: 'Bank-Ledger Take-on', bn: 'ব্যাংক খতিয়ান টেক-অন', t: 'g' },
       { id: 'M19-bank-takeon-lines', en: 'Take-on Lines (audit)', bn: 'টেক-অন লাইন (অডিট)', t: 'g' }
     ]}
   ],
@@ -85,18 +85,18 @@ export const MODULE = {
   forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   freg: { src: 95, sub: [
-    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'] }],
-    ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'] }],
-    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'] }],
-    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'] }],
-    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol', 'M19-tp-rates'] }],
-    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'] }],
-    ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'] }],
-    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'] }],
-    ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'] }],
-    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'] }],
-    ['11', 'Legacy AR Control Archive', 3, { model: 'fix.legacy.ledger.batch', cols: ['name', 'state', 'line_count', 'branch_count', 'total_net'], screens: ['M19-legacy-ledger', 'M19-legacy-ledger-lines', 'M19-legacy-ar-recon'] }],
-    ['12', 'Legacy Bank-Ledger Take-on', 2, { model: 'fix.bank.takeon.batch', cols: ['name', 'state', 'bank_gl_code', 'date_from', 'date_to', 'line_count', 'branch_count', 'total_net'], screens: ['M19-bank-takeon', 'M19-bank-takeon-lines'] }]
+    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes'], reports: ['Dimensional P&L by Branch'], forms: [] }],
+    ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'], reports: ['Partner Ledger (GL)', 'Partner Statement Drill-down', 'Trial Balance'], forms: ['Journal Entry (manual/recurring)', 'Legacy Partner-Ledger Take-on'] }],
+    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'], reports: ['Trial Balance'], forms: [] }],
+    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'], reports: ['Close Checklist Report', 'Close SLA Breaches'], forms: [] }],
+    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol', 'M19-tp-rates'], reports: ['Due-To / Due-From Balances'], forms: ['Intercompany Charge'] }],
+    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'], reports: [], forms: [] }],
+    ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'], reports: ['P&L (BFRS)', 'Balance Sheet', 'Cash Flow'], forms: ['Nil Return Declaration'] }],
+    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'], reports: [], forms: [] }],
+    ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'], reports: [], forms: ['Recurring Journal Template', 'Allocation Rule'] }],
+    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'], reports: [], forms: [] }],
+    ['11', 'Legacy AR Control Archive', 3, { model: 'fix.legacy.ledger.batch', cols: ['name', 'state', 'line_count', 'branch_count', 'total_net'], screens: ['M19-legacy-ledger', 'M19-legacy-ledger-lines', 'M19-legacy-ar-recon'], reports: ['Legacy AR Control Reconciliation'], forms: ['Legacy GL Control-Ledger Import'] }],
+    ['12', 'Legacy Bank-Ledger Take-on', 2, { model: 'fix.bank.takeon.batch', cols: ['name', 'state', 'bank_gl_code', 'date_from', 'date_to', 'line_count', 'branch_count', 'total_net'], screens: ['M19-bank-takeon', 'M19-bank-takeon-lines'], reports: [], forms: ['Legacy Bank-Ledger Take-on'] }]
   ] }
 };
 
@@ -159,7 +159,7 @@ export const SCREENS = {
       { m: 'action_post', l: '4. Post opening entry' },
       { m: 'action_rollback', l: 'Rollback (mirror entry)' },
     ] },
-  'M19-takeon-lines': { kind: 'model_list', model: 'fix.ledger.takeon.line', create: false,
+  'M19-takeon-lines': { empty: 'Take-on lines are imported from the legacy file staged on a take-on batch; they are not typed in.', kind: 'model_list', model: 'fix.ledger.takeon.line', create: false,
     cols: ['row_no', 'raw_name', 'clean_name', 'legacy_reference', 'line_state', 'suspense_kind', 'debit', 'credit', 'balance', 'matched_partner_id', 'created_partner_id'],
     stateField: 'line_state' },
 
@@ -176,7 +176,7 @@ export const SCREENS = {
       { m: 'action_post', l: '3. Post control entry (MIG)' },
       { m: 'action_rollback', l: 'Rollback (mirror entry)' },
     ] },
-  'M19-legacy-ledger-lines': { kind: 'model_list', model: 'fix.legacy.ledger.line', create: false,
+  'M19-legacy-ledger-lines': { empty: 'Ledger lines are imported from the legacy control-ledger file staged on its batch; they are not typed in.', kind: 'model_list', model: 'fix.legacy.ledger.line', create: false,
     cols: ['row_no', 'entry_date', 'journal_prefix', 'journal_entry', 'invoice_ref', 'branch_raw', 'branch_resolved_id', 'line_state', 'debit', 'credit', 'balance', 'created_by_name', 'notes'],
     stateField: 'line_state' },
   'M19-legacy-ar-recon': { kind: 'table_report', module: 'M19', report: 'legacy_ar_control', title: 'Legacy AR Control Reconciliation', period: false },
@@ -234,7 +234,7 @@ export const SCREENS = {
       { m: 'action_post', l: '3. Post row-level history (MIG)' },
       { m: 'action_rollback', l: 'Rollback (combined mirror)' },
     ] },
-  'M19-bank-takeon-lines': { kind: 'model_list', model: 'fix.bank.takeon.line', create: false,
+  'M19-bank-takeon-lines': { empty: 'Bank take-on lines are imported from the legacy bank-ledger file staged on its batch; they are not typed in.', kind: 'model_list', model: 'fix.bank.takeon.line', create: false,
     cols: ['row_no', 'entry_date', 'journal_entry', 'branch_raw', 'branch_resolved_id', 'line_state', 'debit', 'credit', 'balance', 'created_by_name', 'notes'],
     stateField: 'line_state' },
   'M19-form-bank-takeon': {
@@ -364,7 +364,7 @@ export const SCREENS = {
       { m: 'action_generate_eliminations', l: 'Generate Eliminations' },
       { m: 'action_close', l: 'Close Book' },
     ] },
-  'M19-eliminations': { kind: 'model_list', model: 'fix.elimination.entry', create: false,
+  'M19-eliminations': { empty: 'Elimination entries are generated by a consolidation run (Generate Eliminations on a consolidation book).', kind: 'model_list', model: 'fix.elimination.entry', create: false,
     cols: ['book_id', 'name', 'elimination_type', 'from_entity_id', 'to_entity_id', 'amount',
       'reference'] },
   'M19-ic-txns': { kind: 'model_list', model: 'fix.intercompany.transaction', stateField: 'state',
@@ -787,10 +787,10 @@ export const SCREENS = {
       { s: 'M19-control-changes', l: 'Control Changes approval' },
       { s: 'M19-coa', l: 'Statutory Register (hierarchy & balances)' },
     ] },
-  'M19-fiscal-period-bridge': { kind: 'model_list', model: 'fix.fiscal.period.bridge', create: false,
+  'M19-fiscal-period-bridge': { empty: 'Fiscal periods come from the fiscal calendar; their journals are locked from this list.', kind: 'model_list', model: 'fix.fiscal.period.bridge', create: false,
     cols: ['company_id', 'operating_unit_id', 'fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'],
     actions: [{ m: 'action_lock_journals', l: 'Re-apply Lock (Accounting Administrator)' }] },
-  'M19-journal-dimension': { kind: 'model_list', model: 'fix.journal.dimension', create: false,
+  'M19-journal-dimension': { empty: 'Dimension lines are written when a journal entry is posted with its branch, cost centre and business line.', kind: 'model_list', model: 'fix.journal.dimension', create: false,
     cols: ['company_id', 'operating_unit_id', 'branch_id', 'cost_centre', 'business_line', 'project_ref', 'brand'] },
   'M19-period-close': { kind: 'model_list', model: 'fix.period.close', stateField: 'state',
     cols: ['period_end', 'state', 'company_id', 'started_at', 'cutover_move_id', 'suspense_reconciled', 'is_locked', 'closed_by_id', 'lock_date_set'],

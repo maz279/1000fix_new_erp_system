@@ -19,28 +19,28 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Unified Queue', bn: 'একত্র সারি', screens: [
-      { id: 'M27-queue', en: 'Unified Queue Board', bn: 'একত্র সারি বোর্ড', t: 'b' },
+      { id: 'M27-queue', en: 'Unified Queue Board', bn: 'একত্র সারি বোর্ড', t: 'g' },
       { id: 'M27-conversations', en: 'Call & Chat Conversations', bn: 'কথোপকথন', t: 'g' },
       { id: 'M27-routing', en: 'Skills Routing', bn: 'স্কিল রাউটিং', t: 'g' }
     ]},
     { en: 'Agent Desktop (P10)', bn: 'এজেন্ট ডেস্কটপ', screens: [
-      { id: 'M27-desktop', en: 'Agent Desktop Preview', bn: 'এজেন্ট ডেস্কটপ', t: 'd' },
-      { id: 'M27-states', en: 'Agent States & Wrap-Up', bn: 'এজেন্ট অবস্থা', t: 'g' },
+      { id: 'M27-desktop', en: 'Agent Desktop Preview', bn: 'এজেন্ট ডেস্কটপ', t: 'r' },
+      { id: 'M27-states', en: 'Agent States & Wrap-Up', bn: 'এজেন্ট অবস্থা', t: 'r' },
       { id: 'M27-dispositions', en: 'Disposition Codes', bn: 'নিষ্পত্তি কোড', t: 'g' }
     ]},
     { en: 'Channels', bn: 'চ্যানেল', screens: [
       { id: 'M27-voice', en: 'Voice & IVR Flows', bn: 'ভয়েস ও আইভিআর', t: 'g' },
-      { id: 'M27-digital', en: 'WhatsApp / Chat / Email / Social', bn: 'ডিজিটাল চ্যানেল', t: 'g' },
+      { id: 'M27-digital', en: 'WhatsApp / Chat / Email / Social', bn: 'ডিজিটাল চ্যানেল', t: 'r' },
       { id: 'M27-outbound', en: 'Outbound Campaigns', bn: 'আউটবাউন্ড ক্যাম্পেইন', t: 'g' }
     ]},
     { en: 'Notification Hub', bn: 'নোটিফিকেশন হাব', screens: [
       { id: 'M27-templates', en: 'Notification Templates', bn: 'বিজ্ঞপ্তি টেমপ্লেট', t: 'g' },
-      { id: 'M27-delivery', en: 'Delivery Tracking & Retry', bn: 'ডেলিভারি ট্র্যাকিং', t: 'g' },
-      { id: 'M27-preferences', en: 'Consent & DND', bn: 'সম্মতি ও ডিএনডি', t: 'g' }
+      { id: 'M27-delivery', en: 'Delivery Tracking & Retry', bn: 'ডেলিভারি ট্র্যাকিং', t: 'r' },
+      { id: 'M27-preferences', en: 'Consent & DND', bn: 'সম্মতি ও ডিএনডি', t: 'r' }
     ]},
     { en: 'Quality & WFM', bn: 'গুণগত মান ও ওয়ার্কফোর্স', screens: [
       { id: 'M27-qa', en: 'QA Evaluations', bn: 'কিউএ মূল্যায়ন', t: 'g' },
-      { id: 'M27-wfm', en: 'Forecast & Roster', bn: 'পূর্বাভাস ও রোস্টার', t: 'r' }
+      { id: 'M27-wfm', en: 'Forecast & Roster', bn: 'পূর্বাভাস ও রোস্টার', t: 'g' }
     ]},
     { en: 'Contact Centre Configuration', bn: 'কনফিগারেশন ও ফর্ম', screens: [
       { id: 'M27-queues', en: 'Queue Definitions', bn: 'কিউ সংজ্ঞা', t: 'g' },
@@ -62,7 +62,6 @@ export const MODULE = {
     ]},
     { en: 'Message Delivery (S1)', bn: 'বার্তা ডেলিভারি', screens: [
       { id: 'M27-deliveries', en: 'Delivery Log & Retry', bn: 'ডেলিভারি লগ', t: 'g' },
-      { id: 'M27-form-delivery', en: 'Delivery Record', bn: 'ডেলিভারি রেকর্ড', t: 'f' },
       { id: 'M27-providers', en: 'Delivery Providers & Tariffs', bn: 'প্রোভাইডার ও ট্যারিফ', t: 'g' },
       { id: 'M27-form-provider', en: 'Delivery Provider', bn: 'প্রোভাইডার ফর্ম', t: 'f' }
     ]},
@@ -70,14 +69,12 @@ export const MODULE = {
       { id: 'M27-workstreams', en: 'Workstreams', bn: 'ওয়ার্কস্ট্রিম', t: 'g' },
       { id: 'M27-form-workstream', en: 'Workstream', bn: 'ওয়ার্কস্ট্রিম ফর্ম', t: 'f' },
       { id: 'M27-workitems', en: 'Routed Work Items', bn: 'রাউট করা কাজ', t: 'g' },
-      { id: 'M27-form-workitem', en: 'Work Item', bn: 'কাজের ফর্ম', t: 'f' },
       { id: 'M27-bullseye', en: 'Bullseye Rings', bn: 'বুলসআই রিং', t: 'g' }
     ]},
     { en: 'Capacity & Presence (S4)', bn: 'সক্ষমতা ও উপস্থিতি', screens: [
       { id: 'M27-capacity', en: 'Capacity Profiles', bn: 'সক্ষমতা প্রোফাইল', t: 'g' },
       { id: 'M27-form-capacity', en: 'Capacity Profile', bn: 'সক্ষমতা ফর্ম', t: 'f' },
       { id: 'M27-presence', en: 'Live Agent Presence', bn: 'এজেন্ট উপস্থিতি', t: 'g' },
-      { id: 'M27-form-presence', en: 'Agent Presence', bn: 'উপস্থিতি ফর্ম', t: 'f' },
       { id: 'M27-presence-statuses', en: 'Presence Statuses', bn: 'উপস্থিতি অবস্থা', t: 'g' },
       { id: 'M27-presence-history', en: 'Presence History', bn: 'উপস্থিতির ইতিহাস', t: 'g' }
     ]},
@@ -95,20 +92,20 @@ export const MODULE = {
     ]}
   ],
   reports: ['Channel Mix & Volumes', 'Service Level by Interval', 'AHT & FCR by Disposition', 'Notification Delivery by Channel', 'QA Score Distribution'],
-  forms: ['IVR Flow', 'Notification Template', 'Disposition Code', 'Outbound List', 'Call Conversation', 'Queue Definition', 'QA Evaluation', 'Roster Shift', 'Delivery Record', 'Delivery Provider', 'Routing Workstream', 'Routed Work Item', 'Capacity Profile', 'Agent Presence', 'Agent Script', 'QA Rubric'],
+  forms: ['IVR Flow', 'Notification Template', 'Disposition Code', 'Outbound List', 'Call Conversation', 'Queue Definition', 'QA Evaluation', 'Roster Shift', 'Delivery Provider', 'Routing Workstream', 'Capacity Profile', 'Agent Script', 'QA Rubric'],
   cross: ['M32 AI handoff', 'M33 Customer-360 pop', 'M01 create SO in-conversation', 'M55 agent roster'],
   freg: {
     src: 87,
     sub: [
-      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice'] }],
-      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
-      ['3', 'Unified Conversation Object', 8, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M27-conversations'] }],
-      ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'] }],
-      ['5', 'Agent Desktop', 10, { model: 'fix.cc.disposition', cols: ['name', 'code', 'active', 'category', 'is_resolved'], screens: ['M27-desktop', 'M27-dispositions'] }],
-      ['6', 'Workforce Management', 7, { model: 'fix.cc.wfm.shift', cols: ['state', 'agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour'], screens: ['M27-wfm', 'M27-rpt-slinterval'] }],
-      ['7', 'Quality Monitoring', 9, { model: 'fix.cc.qa.evaluation', cols: ['conversation_id', 'agent_id', 'score', 'criteria_json', 'notes', 'evaluated_at'], screens: ['M27-qa', 'M27-rpt-qadist'] }],
-      ['8', 'ERP Notification Service', 14, { model: 'fix.cc.notif.template', cols: ['name', 'active', 'channel', 'subject', 'body', 'consent_class'], screens: ['M27-templates', 'M27-delivery', 'M27-rpt-delivery'] }],
-      ['9', 'Consent Enforcement', 6, { model: 'fix.cc.outbound.list', cols: ['name', 'state', 'campaign_key', 'queue_id', 'priority', 'contact_count'], screens: ['M27-outbound', 'M27-preferences'] }]
+      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice'], reports: ['Channel Mix & Volumes'], forms: ['IVR Flow'] }],
+      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], reports: ['Channel Mix & Volumes'], forms: [], create: false, domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
+      ['3', 'Unified Conversation Object', 8, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M27-conversations'], reports: ['AHT & FCR by Disposition'], forms: ['Call Conversation'] }],
+      ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'], reports: ['Service Level by Interval'], forms: ['Queue Definition', 'Routing Workstream', 'Capacity Profile'] }],
+      ['5', 'Agent Desktop', 10, { model: 'fix.cc.disposition', cols: ['name', 'code', 'active', 'category', 'is_resolved'], screens: ['M27-desktop', 'M27-dispositions'], reports: ['AHT & FCR by Disposition'], forms: ['Disposition Code', 'Agent Script'] }],
+      ['6', 'Workforce Management', 7, { model: 'fix.cc.wfm.shift', cols: ['state', 'agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour'], screens: ['M27-wfm', 'M27-rpt-slinterval'], reports: ['Service Level by Interval'], forms: ['Roster Shift'] }],
+      ['7', 'Quality Monitoring', 9, { model: 'fix.cc.qa.evaluation', cols: ['conversation_id', 'agent_id', 'score', 'criteria_json', 'notes', 'evaluated_at'], screens: ['M27-qa', 'M27-rpt-qadist'], reports: ['QA Score Distribution'], forms: ['QA Evaluation', 'QA Rubric'] }],
+      ['8', 'ERP Notification Service', 14, { model: 'fix.cc.notif.template', cols: ['name', 'active', 'channel', 'subject', 'body', 'consent_class'], screens: ['M27-templates', 'M27-delivery', 'M27-rpt-delivery'], reports: ['Notification Delivery by Channel'], forms: ['Notification Template', 'Delivery Provider'] }],
+      ['9', 'Consent Enforcement', 6, { model: 'fix.cc.outbound.list', cols: ['name', 'state', 'campaign_key', 'queue_id', 'priority', 'contact_count'], screens: ['M27-outbound', 'M27-preferences'], reports: [], forms: ['Outbound List'] }]
     ]
   }
 };
@@ -480,6 +477,7 @@ export const SCREENS = {
   'M27-form-delivery': {
     kind: 'model_form', model: 'fix.notif.delivery',
     title: 'Delivery Record', back: 'M27-deliveries',
+    create: false, pick: 'A delivery record is written when a notification is sent: open one from Delivery Log & Retry.',
     status: { field: 'state', labels: { queued: 'Queued', sent: 'Sent', delivered: 'Delivered', failed: 'Failed', suppressed: 'Suppressed', cancelled: 'Cancelled' } },
     tabs: [
       { id: 'message', label: '1. Message', bn: '১. বার্তা', icon: '✉️' },
@@ -674,6 +672,7 @@ export const SCREENS = {
   'M27-form-workitem': {
     kind: 'model_form', model: 'fix.routing.workitem',
     title: 'Routed Work Item', back: 'M27-workitems',
+    create: false, pick: 'A work item is created by routing when a conversation or case arrives: open one from Routed Work Items.',
     status: { field: 'state', labels: { pending: 'Pending', offered: 'Offered', assigned: 'Assigned', active: 'Active', closed: 'Closed', abandoned: 'Abandoned' } },
     tabs: [
       { id: 'work', label: '1. The Work', bn: '১. কাজ', icon: '📋' },
@@ -833,6 +832,7 @@ export const SCREENS = {
     },
     kind: 'model_form', model: 'fix.cc.agent.state',
     title: 'Agent Presence', back: 'M27-presence',
+    create: false, pick: 'An agent\'s presence is set by the agent\'s own status and heartbeat: open one from Live Agent Presence.',
     status: { field: 'presence_source', labels: { manual: 'Self-set', capacity_block: 'Capacity-forced', missed_notification: 'Missed-offer', shift: 'Roster', system: 'System' } },
     tabs: [
       { id: 'live', label: '1. Live State', bn: '১. চলমান অবস্থা', icon: '🟢' },

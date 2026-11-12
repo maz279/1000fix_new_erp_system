@@ -30,7 +30,7 @@ export const MODULE = {
       { id: 'M51-mushak63', en: 'Mushak 6.3 Records', bn: 'মুশক ৬.৩', t: 'g' },
       { id: 'M51-unclassified', en: 'Rows Blocking the 9.1', bn: 'শ্রেণিহীন সারি', t: 'g' },
       { id: 'M51-corrections', en: 'VAT Register Corrections', bn: 'রেজিস্টার সংশোধন', t: 'g' },
-      { id: 'M51-vat91', en: 'VAT Return 9.1 Filing', bn: 'ভ্যাট রিটার্ন ৯.১', t: 'c' },
+      { id: 'M51-vat91', en: 'VAT Return 9.1 Filing', bn: 'ভ্যাট রিটার্ন ৯.১', t: 'g' },
       { id: 'M51-challans', en: 'Challans (A-Challan)', bn: 'চালান', t: 'g' },
       { id: 'M51-input', en: 'Input Credit Tracking', bn: 'ইনপুট ক্রেডিট', t: 'g' }
     ]},
@@ -41,11 +41,11 @@ export const MODULE = {
       { id: 'M51-certs', en: 'Certificates', bn: 'সনদ', t: 'g' }
     ]},
     { en: 'Compliance', screens: [
-      { id: 'M51-determination', en: 'Tax Determination Service', bn: 'কর নির্ধারণ', t: 'c' },
+      { id: 'M51-determination', en: 'Tax Determination Service', bn: 'কর নির্ধারণ', t: 'g' },
       { id: 'M51-nid', en: 'High-Value NID Capture', bn: 'মুশক ৬.১০ উচ্চমূল্য রেজিস্টার', t: 'r' },
       { id: 'M51-notes', en: 'Credit / Debit Note Register', bn: 'ক্রেডিট ও ডেবিট নোট রেজিস্টার', t: 'r' },
-      { id: 'M51-calendar', en: 'Statutory Calendar', bn: 'বিধিবদ্ধ ক্যালেন্ডার', t: 'c' },
-      { id: 'M51-audit', en: 'Audit Support Pack', bn: 'অডিট সহায়তা', t: 'r' }
+      { id: 'M51-calendar', en: 'Statutory Calendar', bn: 'বিধিবদ্ধ ক্যালেন্ডার', t: 'r' },
+      { id: 'M51-audit', en: 'Audit Support Pack', bn: 'অডিট সহায়তা', t: 'g' }
     ]},
     { en: 'Master Data', screens: [
       { id: 'M51-signoff', en: 'Sign-Off Queue', bn: 'অনুমোদনের অপেক্ষায়', t: 'r' },
@@ -59,15 +59,15 @@ export const MODULE = {
   forms: ['Challan', 'TDS Return', 'Input VAT Adjustment', 'Filing Evidence', 'Tax Rate', 'VAT Register Correction'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Financial Accounting & GL'],
   freg: { src: 78, sub: [
-    ['1', 'Determination Service', 9, { model: 'fix.vat.treatment', cols: ['code', 'name', 'treatment_type', 'rate', 'active'], screens: ['M51-determination', 'M51-rates', 'M51-params', 'M51-signoff'] }],
-    ['2', 'VAT Output/Input', 12, { model: 'fix.input.vat.credit', cols: ['partner_id', 'invoice_date', 'taxable_amount', 'vat_amount', 'state'], screens: ['M51-input', 'M51-mushak61'] }],
-    ['3', 'Mushak Registers', 11, { model: 'fix.mushak.register', cols: ['mushak_no', 'invoice_ref', 'invoice_date', 'vat_amount', 'posted'], screens: ['M51-mushak62', 'M51-mushak63', 'M51-unclassified', 'M51-corrections', 'M51-notes'] }],
-    ['4', 'VAT Return 9.1', 8, { model: 'fix.vat.return', cols: ['period', 'output_vat', 'input_vat', 'net_payable', 'state'], screens: ['M51-vat91'] }],
-    ['5', 'VDS', 7, { model: 'fix.withholding.line', cols: ['document_date', 'partner_id', 'base_amount', 'amount', 'state'], screens: ['M51-vds', 'M51-tds-lines'], domain: [['tax_kind', '=', 'vds']] }],
-    ['6', 'TDS', 12, { model: 'fix.tds.return', cols: ['quarter', 'fiscal_year', 'total_withheld', 'due_date', 'state'], screens: ['M51-tds'] }],
-    ['7', 'Challans & Certificates', 7, { model: 'fix.tax.challan', cols: ['challan_no', 'challan_date', 'tax_kind', 'amount', 'state'], screens: ['M51-challans', 'M51-certs'] }],
-    ['8', 'High-Value Register', 4, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'amount', 'nid_captured'], screens: ['M51-nid'] }],
-    ['9', 'Calendar & Audit', 8, { model: 'fix.statutory.due.rule', cols: ['obligation', 'name', 'frequency', 'due_day', 'roll_to_working_day'], screens: ['M51-calendar', 'M51-duerules', 'M51-filings', 'M51-audit'] }]
+    ['1', 'Determination Service', 9, { model: 'fix.vat.treatment', cols: ['code', 'name', 'treatment_type', 'rate', 'active'], screens: ['M51-determination', 'M51-rates', 'M51-params', 'M51-signoff'], reports: [], forms: ['Tax Rate'] }],
+    ['2', 'VAT Output/Input', 12, { model: 'fix.input.vat.credit', cols: ['partner_id', 'invoice_date', 'taxable_amount', 'vat_amount', 'state'], screens: ['M51-input', 'M51-mushak61'], reports: ['VAT Reconciliation'], forms: ['Input VAT Adjustment'] }],
+    ['3', 'Mushak Registers', 11, { model: 'fix.mushak.register', cols: ['mushak_no', 'invoice_ref', 'invoice_date', 'vat_amount', 'posted'], screens: ['M51-mushak62', 'M51-mushak63', 'M51-unclassified', 'M51-corrections', 'M51-notes'], reports: ['Credit / Debit Note Register'], forms: ['VAT Register Correction'] }],
+    ['4', 'VAT Return 9.1', 8, { model: 'fix.vat.return', cols: ['period', 'output_vat', 'input_vat', 'net_payable', 'state'], screens: ['M51-vat91'], reports: ['Mushak 9.1 Return Draft', 'VAT Reconciliation'], forms: [] }],
+    ['5', 'VDS', 7, { model: 'fix.withholding.line', cols: ['document_date', 'partner_id', 'base_amount', 'amount', 'state'], screens: ['M51-vds', 'M51-tds-lines'], reports: ['VDS Deduction Register'], forms: [], domain: [['tax_kind', '=', 'vds']] }],
+    ['6', 'TDS', 12, { model: 'fix.tds.return', cols: ['quarter', 'fiscal_year', 'total_withheld', 'due_date', 'state'], screens: ['M51-tds'], reports: ['TDS Annual Summary'], forms: ['TDS Return'] }],
+    ['7', 'Challans & Certificates', 7, { model: 'fix.tax.challan', cols: ['challan_no', 'challan_date', 'tax_kind', 'amount', 'state'], screens: ['M51-challans', 'M51-certs'], reports: [], forms: ['Challan'] }],
+    ['8', 'High-Value Register', 4, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'amount', 'nid_captured'], screens: ['M51-nid'], reports: ['Mushak 6.10 High-Value Register'], forms: [] }],
+    ['9', 'Calendar & Audit', 8, { model: 'fix.statutory.due.rule', cols: ['obligation', 'name', 'frequency', 'due_day', 'roll_to_working_day'], screens: ['M51-calendar', 'M51-duerules', 'M51-filings', 'M51-audit'], reports: ['Statutory Compliance Calendar'], forms: ['Filing Evidence'] }]
   ] }
 };
 
@@ -94,13 +94,13 @@ export const SCREENS = {
   'M51-rpt-sdat': { kind: 'table_report', module: 'M51', report: 'sd_at_liability',
     title: 'SD & AT Liability', period: false },
 
-  'M51-mushak61': { kind: 'model_list', model: 'fix.input.vat.credit', create: false,
+  'M51-mushak61': { empty: 'Purchase register lines come from approved vendor bills that carry input VAT.', kind: 'model_list', model: 'fix.input.vat.credit', create: false,
     cols: ['invoice_date','partner_id','supplier_bin','supplier_mushak_no','adjustment_type','taxable_amount','vat_amount','claim_period','state'] },
-  'M51-mushak62': { kind: 'model_list', model: 'fix.mushak.register', create: false,
+  'M51-mushak62': { empty: 'Register lines are written by the tax engine from posted sales and purchases; a correction is made with a VAT Register Correction.', kind: 'model_list', model: 'fix.mushak.register', create: false,
     cols: ['mushak_no','invoice_ref','invoice_date','customer_name','customer_bin','taxable_amount','vat_amount','total_payable','vat_line','rate_flagged','posted'] },
-  'M51-mushak63': { kind: 'model_list', model: 'fix.mushak.register', create: false,
+  'M51-mushak63': { empty: 'Register lines are written by the tax engine from posted sales; a correction is made with a VAT Register Correction.', kind: 'model_list', model: 'fix.mushak.register', create: false,
     cols: ['mushak_no','row_type','invoice_ref','invoice_date','customer_name','taxable_amount','vat_amount','total_payable','vat_line','rate_flagged','original_id','posted'] },
-  'M51-unclassified': { kind: 'model_list', model: 'fix.mushak.register', create: false,
+  'M51-unclassified': { empty: 'No unclassified register line: every posted line carries its VAT treatment.', kind: 'model_list', model: 'fix.mushak.register', create: false,
     cols: ['mushak_no','invoice_ref','invoice_date','supplier_bin','customer_name','taxable_amount','vat_amount','vat_line','posted'],
     domain: [['vat_line','=like','unclassified%']] },
   'M51-corrections': { kind: 'model_list', model: 'fix.mushak.correction',
@@ -121,15 +121,15 @@ export const SCREENS = {
   'M51-tds': { kind: 'model_list', model: 'fix.tds.return',
     cols: ['quarter','fiscal_year','total_withheld','deductor_count','due_date','state','filed_at','nbr_acknowledgment'],
     stateField: 'state', actions: [{m:'action_prepare',l:'Prepare from Deductions'},{m:'action_file',l:'Record NBR Filing'}] },
-  'M51-tds-lines': { kind: 'model_list', model: 'fix.withholding.line', create: false,
+  'M51-tds-lines': { empty: 'Withholding lines are calculated on approved vendor bills; they are not typed in.', kind: 'model_list', model: 'fix.withholding.line', create: false,
     cols: ['document_date','partner_id','partner_bin','section','base_amount','rate','multiplier','amount','statutory_shortfall','rate_flagged','source_ref','challan_no','certificate_id','duplicate_refs','correction_kind','correction_state','correction_reason','state'],
     stateField: 'state', domain: [['tax_kind','=','tds']],
     actions: [{m:'action_apply_statutory_uplift',l:'Apply Statutory Uplift'}, ...DEDUCTION_ACTIONS] },
-  'M51-vds': { kind: 'model_list', model: 'fix.withholding.line', create: false,
+  'M51-vds': { empty: 'Withholding lines are calculated on approved vendor bills and receipts; they are not typed in.', kind: 'model_list', model: 'fix.withholding.line', create: false,
     cols: ['document_date','partner_id','partner_bin','section','base_amount','rate','multiplier','amount','statutory_shortfall','rate_flagged','source_ref','challan_no','certificate_id','duplicate_refs','correction_kind','correction_state','correction_reason','state'],
     stateField: 'state', domain: [['tax_kind','=','vds']],
     actions: DEDUCTION_ACTIONS },
-  'M51-certs': { kind: 'model_list', model: 'fix.withholding.certificate', create: false,
+  'M51-certs': { empty: 'Certificates are issued from a withholding line (Issue Certificate).', kind: 'model_list', model: 'fix.withholding.certificate', create: false,
     cols: ['certificate_no','certificate_type','supplier_name','base_amount','rate_percent','withheld_amount','challan_no','state'],
     stateField: 'state' },
   'M51-determination': { kind: 'model_list', model: 'fix.vat.treatment',

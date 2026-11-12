@@ -26,15 +26,15 @@ export const MODULE = {
     { en: 'Vendor Payables', screens: [
       { id: 'M52-bills', en: 'Vendor Bills', bn: 'বিক্রেতার বিল', t: 'g' },
       { id: 'M52-match', en: 'Match Exceptions', bn: 'মিল ব্যতিক্রম', t: 'g' },
-      { id: 'M52-approval', en: 'Approval Workflow', bn: 'অনুমোদন', t: 'c' },
+      { id: 'M52-approval', en: 'Approval Workflow', bn: 'অনুমোদন', t: 'g' },
       { id: 'M52-matrix', en: 'Approval Matrix', bn: 'অনুমোদন ম্যাট্রিক্স', t: 'g' },
       { id: 'M52-matrix-change', en: 'Matrix Change Requests', bn: 'ম্যাট্রিক্স পরিবর্তনের অনুরোধ', t: 'g' },
       { id: 'M52-taxprofile', en: 'Vendor Tax Profile', bn: 'বিক্রেতার কর প্রোফাইল', t: 'g' }
     ]},
     { en: 'Payments', screens: [
-      { id: 'M52-bank-queue', en: 'Bank Accounts to Confirm', bn: 'নিশ্চিতকরণের অপেক্ষায় ব্যাংক হিসাব', t: 'c' },
+      { id: 'M52-bank-queue', en: 'Bank Accounts to Confirm', bn: 'নিশ্চিতকরণের অপেক্ষায় ব্যাংক হিসাব', t: 'g' },
       { id: 'M52-bank-changes', en: 'Payee Bank Changes', bn: 'প্রাপকের ব্যাংক পরিবর্তন', t: 'g' },
-      { id: 'M52-runs', en: 'Payment Runs', bn: 'পেমেন্ট রান', t: 'c' },
+      { id: 'M52-runs', en: 'Payment Runs', bn: 'পেমেন্ট রান', t: 'g' },
       { id: 'M52-tds', en: 'TDS / VDS at Source', bn: 'উৎসে কর', t: 'g' },
       { id: 'M52-notes', en: 'Debit / Credit Notes', bn: 'ডেবিট ও ক্রেডিট নোট', t: 'g' }
     ]},
@@ -57,7 +57,7 @@ export const MODULE = {
      * workbook through the governed M19 funnel. Operational screens beyond
      * the nav registry, per the M29 precedent. */
     { en: 'Legacy Take-on', screens: [
-      { id: 'M52-ap-takeon', en: 'AP Register Take-on Wizard', bn: 'এপি রেজিস্টার টেক-অন উইজার্ড', t: 'c' },
+      { id: 'M52-ap-takeon', en: 'AP Register Take-on Wizard', bn: 'এপি রেজিস্টার টেক-অন উইজার্ড', t: 'g' },
       { id: 'M52-ap-takeon-lines', en: 'AP Take-on Vouchers (audit)', bn: 'টেক-অন ভাউচার (অডিট)', t: 'g' }
     ]}
   ],
@@ -65,15 +65,15 @@ export const MODULE = {
   forms: ['Vendor Bill', 'Expense Claim', 'Employee Advance', 'Debit Note', 'Vendor Tax Profile'],
   cross: ['Procurement & Sourcing', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 82, sub: [
-    ['1', 'Invoice Capture', 10, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'invoice_date', 'due_date', 'total_payable'], screens: ['M52-bills', 'M52-dupes'] }],
-    ['2', 'Matching', 11, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'bill_type', 'total_payable', 'match_state'], screens: ['M52-match'], domain: [['match_state', 'in', ['unmatched', 'blocked']]] }],
-    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix', 'M52-matrix-change'], domain: [['approval_state', '!=', 'draft']] }],
-    ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes'], domain: [['payment_state', '!=', 'paid']] }],
-    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs', 'M52-bank-queue', 'M52-bank-changes'] }],
-    ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'] }],
-    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-claim-lines', 'M52-policy', 'M52-perdiem', 'M52-expcat'] }],
-    ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances'] }],
-    ['9', 'GRNI', 5, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M52-grni'] }]
+    ['1', 'Invoice Capture', 10, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'invoice_date', 'due_date', 'total_payable'], screens: ['M52-bills', 'M52-dupes'], reports: ['Duplicate Prevention Log'], forms: ['Vendor Bill'] }],
+    ['2', 'Matching', 11, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'bill_type', 'total_payable', 'match_state'], screens: ['M52-match'], reports: ['GRNI Reconciliation'], forms: [], create: false, domain: [['match_state', 'in', ['unmatched', 'blocked']]] }],
+    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix', 'M52-matrix-change'], reports: [], forms: [], create: false, domain: [['approval_state', '!=', 'draft']] }],
+    ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes'], reports: ['AP Ageing'], forms: ['Debit Note'], create: false, domain: [['payment_state', '!=', 'paid']] }],
+    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs', 'M52-bank-queue', 'M52-bank-changes'], reports: ['Payment Run Summary'], forms: [] }],
+    ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'], reports: ['TDS Deduction Register'], forms: ['Vendor Tax Profile'] }],
+    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-claim-lines', 'M52-policy', 'M52-perdiem', 'M52-expcat'], reports: ['Expense by Category'], forms: ['Expense Claim'] }],
+    ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances'], reports: [], forms: ['Employee Advance'] }],
+    ['9', 'GRNI', 5, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M52-grni'], reports: ['GRNI Reconciliation'], forms: [] }]
   ] }
 };
 
@@ -83,14 +83,14 @@ export const SCREENS = {
     cols: ['vendor_id','invoice_ref','invoice_date','due_date','gross_amount','tds_amount','vds_amount','total_payable','tds_category_review','match_state','approval_state','payment_state'],
     stateField: 'approval_state',
     actions: [{m:'action_submit_approval',l:'Submit for Approval'},{m:'action_confirm_tds_category',l:'Confirm Defaulted TDS Category'},{m:'action_request_payment',l:'Request Payment'}] },
-  'M52-match': { kind: 'model_list', model: 'fix.vendor.invoice',
+  'M52-match': { kind: 'model_list', model: 'fix.vendor.invoice', create: false,
     cols: ['vendor_id','invoice_ref','invoice_date','total_payable','match_state','match_detail'],
     stateField: 'match_state', domain: [['match_state','in',['unmatched','blocked']]] },
-  'M52-approval': { kind: 'model_list', model: 'fix.vendor.invoice',
+  'M52-approval': { kind: 'model_list', model: 'fix.vendor.invoice', create: false,
     cols: ['vendor_id','invoice_ref','invoice_date','gross_amount','approval_level','approval_levels_required','submitted_by','approval_state'],
     stateField: 'approval_state', domain: [['approval_state','!=','draft']],
     actions: [{m:'action_approve',l:'Approve Level'},{m:'action_reject',l:'Reject'},{m:'action_reset_draft',l:'Reset to Draft'}] },
-  'M52-matrix': { kind: 'model_list', model: 'fix.ap.approval.rule', create: false,
+  'M52-matrix': { empty: 'The approval matrix changes only through an approved rule change (Approval Matrix Changes).', kind: 'model_list', model: 'fix.ap.approval.rule', create: false,
     cols: ['level','name','amount_min','group_id','active'] },
   'M52-matrix-change': { kind: 'model_list', model: 'fix.ap.approval.rule.change',
     cols: ['rule_id','name','level','amount_min','group_id','active','reason','proposed_by_id','decided_by_id','state'],
@@ -109,7 +109,7 @@ export const SCREENS = {
     cols: ['name','rail','payment_date','due_by','bill_count','total_tds','total_vds','total_amount','prepared_by','approved_by','state'],
     stateField: 'state',
     actions: [{m:'action_propose',l:'Build Proposal'},{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'},{m:'action_release',l:'Release to Bank'},{m:'action_sync_bank_status',l:'Read Bank Status'},{m:'action_cancel',l:'Cancel'}] },
-  'M52-tds': { kind: 'model_list', model: 'fix.withholding.line', create: false,
+  'M52-tds': { empty: 'Withholding lines are calculated when a vendor bill is approved; they are not typed in.', kind: 'model_list', model: 'fix.withholding.line', create: false,
     cols: ['document_date','tax_kind','partner_id','section','base_amount','rate','multiplier','amount','source_ref','challan_no','state'],
     stateField: 'state', actions: [{m:'action_issue_certificate',l:'Issue Certificate'}] },
   'M52-notes': { kind: 'model_list', model: 'fix.vendor.note',
@@ -124,7 +124,7 @@ export const SCREENS = {
     actions: [{m:'action_approve',l:'Approve'},{m:'action_confirm_disbursement',l:'Confirm Disbursement'},{m:'action_sync_disbursement',l:'Read Bank Status'},{m:'action_settle',l:'Settle Against Claims'},{m:'action_record_recovery',l:'Recover Balance'},
       {m:'action_confirm_payroll_recovery',l:'Confirm Payroll Deduction',asks:[{label:'Amount payroll deducted',kwarg:'amount',number:true},{label:'Payslip or payroll run reference',kwarg:'reference'}]},
       {m:'action_cancel',l:'Cancel',ask:'Why is this advance cancelled?',kwarg:'reason'}] },
-  'M52-claim-lines': { kind: 'model_list', model: 'fix.expense.claim.line', create: false,
+  'M52-claim-lines': { empty: 'Claim lines are entered on their expense claim.', kind: 'model_list', model: 'fix.expense.claim.line', create: false,
     cols: ['claim_id','category_id','date','description','cost_centre','quantity','unit_amount','amount','receipt_names'] },
   'M52-perdiem': { kind: 'model_list', model: 'fix.expense.rate',
     cols: ['rate_type','grade_id','location','vehicle','rate','date_from','date_to'] },
@@ -150,7 +150,7 @@ export const SCREENS = {
       { m: 'action_post', l: '3. Post opening entry' },
       { m: 'action_rollback', l: 'Rollback (mirror entry)' },
     ] },
-  'M52-ap-takeon-lines': { kind: 'model_list', model: 'fix.ap.takeon.line', create: false,
+  'M52-ap-takeon-lines': { empty: 'Take-on lines are imported from the legacy payables file staged on its batch; they are not typed in.', kind: 'model_list', model: 'fix.ap.takeon.line', create: false,
     cols: ['row_no', 'legacy_ref', 'source_ref_note', 'legacy_date', 'legacy_branch', 'branch_id', 'legacy_created_by', 'legacy_created_on', 'debit', 'credit', 'balance', 'line_state'],
     stateField: 'line_state' },
   'M52-form-ap-takeon': {
@@ -502,6 +502,7 @@ export const SCREENS = {
     model: 'fix.ap.approval.rule',
     title: "AP Approval Rule",
     back: 'M52-matrix',
+    create: false, pick: 'An approval rule changes only through an approved rule change: open one from Approval Matrix.',
     sections: [
       { title: "AP Approval Rule", note: "The value band and role ladder that decide who approves a vendor bill. Read-only here: a matrix row changes through a matrix change request proposed by one accounting manager and confirmed by another (A08 M52-12).",
         fields: [

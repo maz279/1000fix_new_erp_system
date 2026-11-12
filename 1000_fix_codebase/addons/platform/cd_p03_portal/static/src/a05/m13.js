@@ -19,7 +19,7 @@ export const MODULE = {
   groups: [
     { en: 'Fleet', screens: [
       { id: 'M13-fleet', en: 'Fleet Register', bn: 'ফ্লিট রেজিস্টার', t: 'g' },
-      { id: 'M13-availability', en: 'Real-Time Availability', bn: 'রিয়েল-টাইম প্রাপ্যতা', t: 'd' },
+      { id: 'M13-availability', en: 'Real-Time Availability', bn: 'রিয়েল-টাইম প্রাপ্যতা', t: 'r' },
       { id: 'M13-kits', en: 'Kits & Accessories', bn: 'কিট ও এক্সেসরিজ', t: 'g' }
     ]},
     { en: 'Booking', screens: [
@@ -53,20 +53,19 @@ export const MODULE = {
     'Damage Assessment & Recovery',
     'Fleet Serialized Asset Master',
     'Rental Kit Bundle',
-    'Deposit Movement Ledger',
     'Turnaround & Regrading'
   ],
   cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
   freg: { src: 78, sub: [
-    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'] }],
-    ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations'] }],
-    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'] }],
-    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method'], screens: ['M13-deposits'] }],
-    ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage'] }],
-    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'] }],
-    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], domain: [['state', 'in', ['delivered', 'active']]] }],
-    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'] }],
-    ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'] }]
+    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle'] }],
+    ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations'], reports: ['Real-Time Availability'], forms: ['Reservation Cockpit'] }],
+    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'], reports: [], forms: ['Rental Agreement (e-sign)'] }],
+    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method'], screens: ['M13-deposits'], reports: ['Deposit Reconciliation'], forms: [], create: false }],
+    ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage'], reports: ['Damage & Loss Rate'], forms: ['Condition Report', 'Damage Assessment & Recovery'] }],
+    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Damage Assessment & Recovery'] }],
+    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], reports: ['Late Return Analysis'], forms: [], create: false, domain: [['state', 'in', ['delivered', 'active']]] }],
+    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading'] }],
+    ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'], reports: ['Utilisation by Category', 'Rental P&L', 'Fleet Health & Retirement'], forms: [], create: false }]
   ] }
 };
 
@@ -104,8 +103,11 @@ export const SCREENS = {
       { m: 'action_sign_agreement', l: 'Enter Customer Signing Code', ask: 'Code the customer received by SMS', kwarg: 'code' },
       { m: 'action_reset_agreement', l: 'Reset Unsigned Agreement' }
     ] },
-  'M13-deposits': { kind: 'model_list', model: 'fix.rental.deposit',
+  /* A deposit movement is made by the rental money path (reserve, close, refund)
+   * and is guarded: it is a ledger line, never typed in (2026-11-12). */
+  'M13-deposits': { kind: 'model_list', model: 'fix.rental.deposit', create: false,
     cols: ['name', 'reservation_id', 'customer_id', 'kind', 'amount', 'method', 'date', 'gl_state'],
+    empty: 'No deposit movement yet. A deposit is recorded when a reservation is confirmed and released or applied when the rental closes; movements are ledger entries and cannot be typed in.',
     actions: [
       { m: 'action_repost_gl', l: 'Repost GL' }
     ] },
@@ -493,6 +495,7 @@ export const SCREENS = {
     model: 'fix.rental.deposit',
     title: 'Deposit Movement Ledger',
     back: 'M13-deposits',
+    create: false, pick: 'A deposit movement is made by the rental money path: open one from Deposits & Waivers.',
     tabs: [
       { id: 'general', label: '1. Transaction', bn: '১. লেনদেন বিবরণ', icon: '💳', badge: '4' },
       { id: 'payment', label: '2. Payment Channel', bn: '২. পেমেন্ট মাধ্যম', icon: '🏦', badge: '3' },
@@ -609,7 +612,6 @@ export const FORM_MODELS = {
   'M13:Damage Assessment & Recovery': 'fix.rental.damage',
   'M13:Fleet Serialized Asset Master': 'fix.rental.asset',
   'M13:Rental Kit Bundle': 'fix.rental.kit',
-  'M13:Deposit Movement Ledger': 'fix.rental.deposit',
   'M13:Turnaround & Regrading': 'fix.rental.turnaround'
 };
 
@@ -620,7 +622,6 @@ export const FORM_CHIPS = {
   'M13:Damage Assessment & Recovery': 'M13-form-damage',
   'M13:Fleet Serialized Asset Master': 'M13-form-asset',
   'M13:Rental Kit Bundle': 'M13-form-kit',
-  'M13:Deposit Movement Ledger': 'M13-form-deposit',
   'M13:Turnaround & Regrading': 'M13-form-turnaround',
   'M13:__by_model__': {
     'fix.rental.reservation': 'M13-form-reservation',

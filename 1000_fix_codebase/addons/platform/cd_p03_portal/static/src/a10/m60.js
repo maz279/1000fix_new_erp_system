@@ -44,14 +44,14 @@ export const MODULE = {
   forms: ['Risk', 'Risk Appetite', 'Control Test', 'Licence', 'Policy', 'Whistleblow Report'],
   cross: ['M23 QMS', 'M51 Tax', 'M24 Documents', 'M19 GL'],
   freg: { src: 70, sub: [
-    ['1', 'Risk Register', 12, { model: 'fix.risk.register', cols: ['name', 'category', 'risk_score', 'residual_band', 'state'], screens: ['M60-register', 'M60-appetite'] }],
-    ['2', 'Control Framework & Testing', 14, { model: 'fix.control', cols: ['control_code', 'name', 'control_type', 'frequency', 'test_result'], screens: ['M60-framework', 'M60-testing'] }],
-    ['3', 'SoD & Authority', 8, { model: 'fix.grc.sod.rule', cols: ['name', 'role_a', 'role_b', 'severity', 'state'], screens: ['M60-sod', 'M60-authority'] }],
-    ['4', 'Compliance Obligations', 9, { model: 'fix.compliance.obligation', cols: ['name', 'framework_id', 'clause_reference', 'mandatory', 'compliance_status'], screens: ['M60-obligations', 'M60-compliance-framework', 'M60-licences'] }],
-    ['5', 'Policy Governance', 6, { model: 'fix.grc.policy', cols: ['code', 'name', 'policy_type', 'review_due', 'state'], screens: ['M60-policies'] }],
-    ['6', 'Legal & IP', 7, { model: 'fix.grc.legal', cols: ['name', 'matter_type', 'counterparty', 'opened_on', 'state'], screens: ['M60-legal'] }],
-    ['7', 'PDPA Governance', 9, { model: 'fix.grc.pdpa', cols: ['name', 'request_type', 'received_on', 'due_on', 'outcome'], screens: ['M60-pdpa'] }],
-    ['8', 'Whistleblowing', 5, { model: 'fix.grc.whistle', cols: ['name', 'channel', 'category', 'reported_on', 'state'], screens: ['M60-whistle'] }]
+    ['1', 'Risk Register', 12, { model: 'fix.risk.register', cols: ['name', 'category', 'risk_score', 'residual_band', 'state'], screens: ['M60-register', 'M60-appetite'], reports: ['Risk Heat Map', 'Board Risk Pack'], forms: ['Risk', 'Risk Appetite'] }],
+    ['2', 'Control Framework & Testing', 14, { model: 'fix.control', cols: ['control_code', 'name', 'control_type', 'frequency', 'test_result'], screens: ['M60-framework', 'M60-testing'], reports: ['Control Deficiency Log'], forms: ['Control Test'] }],
+    ['3', 'SoD & Authority', 8, { model: 'fix.grc.sod.rule', cols: ['name', 'role_a', 'role_b', 'severity', 'state'], screens: ['M60-sod', 'M60-authority'], reports: [], forms: [] }],
+    ['4', 'Compliance Obligations', 9, { model: 'fix.compliance.obligation', cols: ['name', 'framework_id', 'clause_reference', 'mandatory', 'compliance_status'], screens: ['M60-obligations', 'M60-compliance-framework', 'M60-licences'], reports: ['Licence Expiry Register'], forms: ['Licence'] }],
+    ['5', 'Policy Governance', 6, { model: 'fix.grc.policy', cols: ['code', 'name', 'policy_type', 'review_due', 'state'], screens: ['M60-policies'], reports: ['Attestation Status'], forms: ['Policy'] }],
+    ['6', 'Legal & IP', 7, { model: 'fix.grc.legal', cols: ['name', 'matter_type', 'counterparty', 'opened_on', 'state'], screens: ['M60-legal'], reports: [], forms: [] }],
+    ['7', 'PDPA Governance', 9, { model: 'fix.grc.pdpa', cols: ['name', 'request_type', 'received_on', 'due_on', 'outcome'], screens: ['M60-pdpa'], reports: [], forms: [] }],
+    ['8', 'Whistleblowing', 5, { model: 'fix.grc.whistle', cols: ['name', 'channel', 'category', 'reported_on', 'state'], screens: ['M60-whistle'], reports: [], forms: ['Whistleblow Report'] }]
   ] }
 };
 
@@ -76,7 +76,9 @@ export const SCREENS = {
     cols: ['name', 'role_a', 'role_b', 'conflict_area', 'severity', 'state'],
     actions: [{ m: 'action_waive', l: 'Waive Rule',
       asks: [{ label: 'Why is the rule waived? The compensating control is part of the record', kwarg: 'reason' }] }] },
-  'M60-authority': { kind: 'model_list', model: 'fix.grc.authority',
+  /* Derived from the approval matrix: the model refuses a typed entry (2026-11-12). */
+  'M60-authority': { kind: 'model_list', model: 'fix.grc.authority', create: false,
+    empty: 'The delegated authority register is built from the approval matrix (M63): use Rebuild Register to refresh it. Entries cannot be typed in.',
     cols: ['name', 'role_title', 'amount_limit', 'authority_scope', 'source', 'synced_at', 'effective_from'],
     actions: [{ m: 'action_rebuild', l: 'Rebuild Register' }] },
   'M60-obligations': { kind: 'model_list', model: 'fix.compliance.obligation',
@@ -349,6 +351,7 @@ export const SCREENS = {
     model: 'fix.grc.authority',
     title: "Delegated Authority",
     back: 'M60-authority',
+    create: false, pick: 'The register is built from the approval matrix: open an entry from the Delegated Authority register.',
     sections: [
       { title: "Delegated Authority (derived)", note: "One enforced authority limit, read from the DOFA ladder in force or the M63 approval matrix. Every field is a view onto machinery that actually refuses a document above the limit — change the ladder (M30) or the matrix (M63), then rebuild this register; nothing is typed here (P1-4).",
         fields: [

@@ -20,7 +20,7 @@ export const MODULE = {
   groups: [
     { en: 'Requisitions', screens: [
       { id: 'M16-prs', en: 'Purchase Requisitions', bn: 'ক্রয়ের অনুরোধ', t: 'g' },
-      { id: 'M16-consol', en: 'Cross-Branch Consolidation', bn: 'শাখা একীকরণ', t: 'g' }
+      { id: 'M16-consol', en: 'Cross-Branch Consolidation', bn: 'শাখা একীকরণ', t: 'r' }
     ]},
     { en: 'Sourcing', screens: [
       { id: 'M16-rfqs', en: 'RFQ Events', bn: 'আরএফকিউ', t: 'g' },
@@ -35,9 +35,9 @@ export const MODULE = {
     { en: 'Receiving & Match', screens: [
       { id: 'M16-po-receipts', en: 'PO Goods Receipts', bn: 'ক্রয়াদেশের পণ্য গ্রহণ', t: 'g' },
       { id: 'M16-inspection', en: 'Inspection Outcomes', bn: 'পরিদর্শন ফলাফল', t: 'g' },
-      { id: 'M16-match', en: '3-Way Match Workbench', bn: 'থ্রি-ওয়ে ম্যাচ', t: 'g' },
+      { id: 'M16-match', en: '3-Way Match Workbench', bn: 'থ্রি-ওয়ে ম্যাচ', t: 'r' },
       { id: 'M16-grir', en: 'GR/IR Reconciliation', bn: 'জিআর/আইআর সমন্বয়', t: 'r' },
-      { id: 'M16-grn', en: 'Warehouse Stock Receipts (M15)', bn: 'গুদামের স্টক রসিদ (M15)', t: 'c' }
+      { id: 'M16-grn', en: 'Warehouse Stock Receipts (M15)', bn: 'গুদামের স্টক রসিদ (M15)', t: 'g' }
     ]},
     { en: 'Analysis', screens: [
       { id: 'M16-spend', en: 'Spend Analysis', bn: 'ব্যয় বিশ্লেষণ', t: 'r' },
@@ -50,16 +50,16 @@ export const MODULE = {
   forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'PO Goods Receipt', 'GRN', 'RTV Request'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
-    ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'] }],
-    ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'] }],
-    ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'] }],
-    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'] }],
-    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos'] }],
-    ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'] }],
-    ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'] }],
-    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'] }],
-    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], screens: ['M16-match'] }],
-    ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'] }]
+    ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
+    ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'], reports: ['Maverick Spend'], forms: ['Purchase Requisition'] }],
+    ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'], reports: [], forms: [], create: false }],
+    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ'] }],
+    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order'] }],
+    ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: [] }],
+    ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: [] }],
+    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'GRN', 'RTV Request'] }],
+    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], screens: ['M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: [] }],
+    ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'], reports: ['Spend by Category & Vendor', 'Maverick Spend', 'Price Variance Alert', 'Emergency Purchases'], forms: [], create: false }]
   ] }
 };
 

@@ -29,7 +29,7 @@ export const MODULE = {
       { id: 'M49-categories', en: 'Asset Categories', bn: 'সম্পদের শ্রেণি', t: 'g' }
     ]},
     { en: 'Depreciation', screens: [
-      { id: 'M49-dep', en: 'Dual-Book Depreciation', bn: 'দ্বৈত অবচয়', t: 'c' },
+      { id: 'M49-dep', en: 'Dual-Book Depreciation', bn: 'দ্বৈত অবচয়', t: 'g' },
       { id: 'M49-dualbook', en: 'Book vs Tax Depreciation', bn: 'হিসাব বনাম কর অবচয়', t: 'r' },
       { id: 'M49-schedules', en: 'Schedules & Movements', bn: 'সূচি', t: 'r' },
       { id: 'M49-nbv', en: 'NBV by Category', bn: 'শ্রেণিভিত্তিক নিট মূল্য', t: 'r' },
@@ -40,7 +40,7 @@ export const MODULE = {
       { id: 'M49-impairment', en: 'Revaluation & Impairment', bn: 'পুনর্মূল্যায়ন', t: 'g' },
       { id: 'M49-disposal', en: 'Disposal & Write-Off', bn: 'নিষ্পত্তি', t: 'g' },
       { id: 'M49-disposal-gl', en: 'Disposal Gains/Losses', bn: 'নিষ্পত্তির লাভ/ক্ষতি', t: 'r' },
-      { id: 'M49-verify', en: 'Physical Verification', bn: 'শারীরিক যাচাই', t: 'c' },
+      { id: 'M49-verify', en: 'Physical Verification', bn: 'শারীরিক যাচাই', t: 'g' },
       { id: 'M49-verify-results', en: 'Verification Results', bn: 'যাচাইয়ের ফলাফল', t: 'g' }
     ]},
     { en: 'Leases (IFRS 16)', screens: [
@@ -53,14 +53,14 @@ export const MODULE = {
   forms: ['Capex Request', 'Asset Capitalisation', 'Transfer', 'Disposal', 'Revaluation / Impairment', 'Lease Contract'],
   cross: ['Financial Accounting & GL', 'Enterprise Assets & Test Equipment', 'Fleet & Vehicles'],
   freg: { src: 66, sub: [
-    ['1', 'Capex & Approval', 9, { model: 'fix.capex.request', cols: ['name', 'title', 'request_date', 'amount', 'state'], screens: ['M49-requests', 'M49-budget', 'M49-capex-budget'] }],
-    ['2', 'Register & Capitalisation', 11, { model: 'fix.fixed.asset', cols: ['code', 'name', 'category_id', 'gross', 'state'], screens: ['M49-register', 'M49-categories', 'M49-nbv', 'M49-leases'] }],
-    ['3', 'Componentisation', 5, { model: 'fix.cwip.entry', cols: ['name', 'category_id', 'life_months', 'amount', 'asset_id'], screens: ['M49-cwip'] }],
-    ['4', 'Dual-Book Depreciation', 12, { model: 'fix.asset.depreciation.run', cols: ['name', 'book', 'period_start', 'total_amount', 'state'], screens: ['M49-dep', 'M49-dualbook', 'M49-schedules', 'M49-taxrates'] }],
-    ['5', 'Revaluation & Impairment', 7, { model: 'fix.asset.revaluation', cols: ['asset_id', 'kind', 'date', 'new_value', 'state'], screens: ['M49-impairment'] }],
-    ['6', 'Transfers & Custody', 6, { model: 'fix.asset.transfer', cols: ['asset_id', 'date', 'from_operating_unit_id', 'operating_unit_id', 'state'], screens: ['M49-transfer'] }],
-    ['7', 'Verification & Tagging', 7, { model: 'fix.asset.verification.campaign', cols: ['name', 'date', 'operating_unit_id', 'responsible_id', 'state'], screens: ['M49-verify', 'M49-verify-results'] }],
-    ['8', 'Disposal', 9, { model: 'fix.asset.disposal', cols: ['asset_id', 'kind', 'date', 'gain_loss', 'state'], screens: ['M49-disposal', 'M49-disposal-gl'] }]
+    ['1', 'Capex & Approval', 9, { model: 'fix.capex.request', cols: ['name', 'title', 'request_date', 'amount', 'state'], screens: ['M49-requests', 'M49-budget', 'M49-capex-budget'], reports: ['Capex vs Budget'], forms: ['Capex Request'] }],
+    ['2', 'Register & Capitalisation', 11, { model: 'fix.fixed.asset', cols: ['code', 'name', 'category_id', 'gross', 'state'], screens: ['M49-register', 'M49-categories', 'M49-nbv', 'M49-leases'], reports: ['NBV by Category', 'IFRS 16 Lease Summary', 'Fixed Asset Movement Schedule'], forms: ['Asset Capitalisation', 'Lease Contract'] }],
+    ['3', 'Componentisation', 5, { model: 'fix.cwip.entry', cols: ['name', 'category_id', 'life_months', 'amount', 'asset_id'], screens: ['M49-cwip'], reports: [], forms: [] }],
+    ['4', 'Dual-Book Depreciation', 12, { model: 'fix.asset.depreciation.run', cols: ['name', 'book', 'period_start', 'total_amount', 'state'], screens: ['M49-dep', 'M49-dualbook', 'M49-schedules', 'M49-taxrates'], reports: ['Depreciation (Dual Book)', 'Fixed Asset Movement Schedule'], forms: [] }],
+    ['5', 'Revaluation & Impairment', 7, { model: 'fix.asset.revaluation', cols: ['asset_id', 'kind', 'date', 'new_value', 'state'], screens: ['M49-impairment'], reports: [], forms: ['Revaluation / Impairment'] }],
+    ['6', 'Transfers & Custody', 6, { model: 'fix.asset.transfer', cols: ['asset_id', 'date', 'from_operating_unit_id', 'operating_unit_id', 'state'], screens: ['M49-transfer'], reports: [], forms: ['Transfer'] }],
+    ['7', 'Verification & Tagging', 7, { model: 'fix.asset.verification.campaign', cols: ['name', 'date', 'operating_unit_id', 'responsible_id', 'state'], screens: ['M49-verify', 'M49-verify-results'], reports: [], forms: [] }],
+    ['8', 'Disposal', 9, { model: 'fix.asset.disposal', cols: ['asset_id', 'kind', 'date', 'gain_loss', 'state'], screens: ['M49-disposal', 'M49-disposal-gl'], reports: ['Disposal Gains/Losses'], forms: ['Disposal'] }]
   ] }
 };
 
@@ -110,7 +110,7 @@ export const SCREENS = {
     stateField: 'state', actions: [{m:'action_start',l:'Start Count'},
       {m:'action_record_scan',l:'Record Scanned Tag',asks:[{label:'Scan or type the asset tag',kwarg:'tag'},{label:'Branch code it was found at (empty: its expected branch)',kwarg:'branch'}]},
       {m:'action_close',l:'Close Campaign'}] },
-  'M49-verify-results': { kind: 'model_list', model: 'fix.asset.verification.line',
+  'M49-verify-results': { empty: 'Verification lines are created when a verification campaign is started.', kind: 'model_list', model: 'fix.asset.verification.line',
     cols: ['campaign_id','asset_id','asset_code','operating_unit_id','scanned_tag','scanned_operating_unit_id','result'],
     stateField: 'result', create: false,
     actions: [{m:'action_mark_found',l:'Mark Found'},{m:'action_mark_missing',l:'Mark Missing'}] },
@@ -118,7 +118,7 @@ export const SCREENS = {
   'M49-leases': { kind: 'model_list', model: 'fix.lease',
     cols: ['reference','name','operating_unit_id','commencement_date','term_months','payment_amount','ibr_percent','liability_balance','state'],
     stateField: 'state', actions: [{m:'action_activate',l:'Activate (Commence)'},{m:'action_post_due',l:'Post Due Months'}] },
-  'M49-lease-schedule': { kind: 'model_list', model: 'fix.lease.schedule.line',
+  'M49-lease-schedule': { empty: 'The payment schedule is generated from the lease contract.', kind: 'model_list', model: 'fix.lease.schedule.line',
     cols: ['lease_id','sequence','period_start','opening','payment','interest','principal','closing','depreciation','state'],
     stateField: 'state', create: false, actions: [{m:'action_post',l:'Post Month'}] },
   'M49-lease-summary': { kind: 'table_report', module: 'M49', report: 'lease_summary' },

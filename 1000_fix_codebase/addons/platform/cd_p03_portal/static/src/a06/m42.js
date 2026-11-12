@@ -43,15 +43,15 @@ export const MODULE = {
   forms: ['Supplier Profile', 'Qualification Questionnaire', 'CAR', 'Risk Assessment'],
   cross: ['M33 party extension', 'M16 activation gate', 'P05 vendor portal', 'M40 brand class'],
   freg: { src: 71, sub: [
-    ['1', 'Supplier Profiles', 9, { model: 'fix.supplier', cols: ['name', 'supplier_code', 'partner_id', 'category', 'status'], screens: ['M42-suppliers'] }],
-    ['2', 'Segmentation', 6, { model: 'fix.supplier', cols: ['name', 'segment', 'category', 'buyer_id', 'status'], screens: ['M42-segments'] }],
-    ['3', 'Qualification', 10, { model: 'fix.supplier.qualification', cols: ['name', 'supplier_id', 'stage', 'score', 'state'], screens: ['M42-qualification', 'M42-gate', 'M42-requal'] }],
-    ['4', 'Documents & Validity', 8, { model: 'fix.supplier.document', cols: ['name', 'supplier_id', 'doc_type', 'valid_to', 'state'], screens: ['M42-docs'] }],
-    ['5', 'Contracts & Price Lists', 7, { model: 'fix.supplier.document', cols: ['name', 'supplier_id', 'number', 'valid_from', 'valid_to'], screens: ['M42-docs'], domain: [['doc_type', '=', 'contract']] }],
-    ['6', 'Scorecards', 9, { model: 'fix.supplier.performance', cols: ['name', 'supplier_id', 'period', 'total_score', 'grade'], screens: ['M42-scorecards', 'M42-reviews'] }],
-    ['7', 'Corrective Actions', 7, { model: 'fix.supplier.car', cols: ['name', 'supplier_id', 'issue', 'severity', 'state'], screens: ['M42-cars'] }],
-    ['8', 'Risk Assessment', 9, { model: 'fix.supplier.risk', cols: ['name', 'supplier_id', 'risk_type', 'risk_score', 'band'], screens: ['M42-risk'] }],
-    ['9', 'Compliance Screening', 6, { model: 'fix.supplier.screening', cols: ['name', 'supplier_id', 'screening_type', 'result', 'screened_on'], screens: ['M42-screening'] }]
+    ['1', 'Supplier Profiles', 9, { model: 'fix.supplier', cols: ['name', 'supplier_code', 'partner_id', 'category', 'status'], screens: ['M42-suppliers'], reports: ['Supplier Scorecard League'], forms: ['Supplier Profile'] }],
+    ['2', 'Segmentation', 6, { model: 'fix.supplier', cols: ['name', 'segment', 'category', 'buyer_id', 'status'], screens: ['M42-segments'], reports: ['Supplier Scorecard League'], forms: [], create: false }],
+    ['3', 'Qualification', 10, { model: 'fix.supplier.qualification', cols: ['name', 'supplier_id', 'stage', 'score', 'state'], screens: ['M42-qualification', 'M42-gate', 'M42-requal'], reports: [], forms: ['Qualification Questionnaire'] }],
+    ['4', 'Documents & Validity', 8, { model: 'fix.supplier.document', cols: ['name', 'supplier_id', 'doc_type', 'valid_to', 'state'], screens: ['M42-docs'], reports: ['Contract Coverage'], forms: [] }],
+    ['5', 'Contracts & Price Lists', 7, { model: 'fix.supplier.document', cols: ['name', 'supplier_id', 'number', 'valid_from', 'valid_to'], screens: ['M42-docs'], reports: ['Contract Coverage'], forms: [], domain: [['doc_type', '=', 'contract']] }],
+    ['6', 'Scorecards', 9, { model: 'fix.supplier.performance', cols: ['name', 'supplier_id', 'period', 'total_score', 'grade'], screens: ['M42-scorecards', 'M42-reviews'], reports: ['Supplier Scorecard League'], forms: [] }],
+    ['7', 'Corrective Actions', 7, { model: 'fix.supplier.car', cols: ['name', 'supplier_id', 'issue', 'severity', 'state'], screens: ['M42-cars'], reports: ['CAR Closure Performance'], forms: ['CAR'] }],
+    ['8', 'Risk Assessment', 9, { model: 'fix.supplier.risk', cols: ['name', 'supplier_id', 'risk_type', 'risk_score', 'band'], screens: ['M42-risk'], reports: ['Risk Heat Map'], forms: ['Risk Assessment'] }],
+    ['9', 'Compliance Screening', 6, { model: 'fix.supplier.screening', cols: ['name', 'supplier_id', 'screening_type', 'result', 'screened_on'], screens: ['M42-screening'], reports: ['Compliance Screening Log'], forms: [] }]
   ] }
 };
 

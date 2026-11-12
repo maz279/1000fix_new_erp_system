@@ -24,16 +24,16 @@ export const MODULE = {
     ]},
     { en: 'Understanding', bn: 'বোঝা', screens: [
       { id: 'M32-intents', en: 'Intent Library', bn: 'ইনটেন্ট লাইব্রেরি', t: 'g' },
-      { id: 'M32-entities', en: 'Entity Extraction', bn: 'সত্তা নিষ্কাশন', t: 'g' },
+      { id: 'M32-entities', en: 'Entity Extraction', bn: 'সত্তা নিষ্কাশন', t: 'r' },
       { id: 'M32-dialogue', en: 'Dialogue Flows', bn: 'ডায়ালগ ফ্লো', t: 'g' }
     ]},
     { en: 'Grounding & Safety', bn: 'গ্রাউন্ডিং ও সুরক্ষা', screens: [
       { id: 'M32-rag', en: 'RAG Knowledge Sources', bn: 'আরএজি জ্ঞান ভাণ্ডার', t: 'g' },
       { id: 'M32-guardrails', en: 'Guard Rails', bn: 'গার্ডরেইল', t: 'g' },
-      { id: 'M32-handoff', en: 'Handoff Packages', bn: 'হ্যান্ডঅফ প্যাকেজ', t: 'g' }
+      { id: 'M32-handoff', en: 'Handoff Packages', bn: 'হ্যান্ডঅফ প্যাকেজ', t: 'r' }
     ]},
     { en: 'Agent Assist', bn: 'এজেন্ট সহায়তা', screens: [
-      { id: 'M32-assist', en: 'Suggested Replies / NBA', bn: 'প্রস্তাবিত উত্তর', t: 'd' },
+      { id: 'M32-assist', en: 'Suggested Replies / NBA', bn: 'প্রস্তাবিত উত্তর', t: 'r' },
       { id: 'M32-analytics', en: 'Conversation Analytics', bn: 'কথোপকথন বিশ্লেষণ', t: 'r' }
     ]},
     { en: 'Assistant Configuration', bn: 'কনফিগারেশন ও ফর্ম', screens: [
@@ -52,33 +52,31 @@ export const MODULE = {
     { en: 'Grounding Service (S7)', bn: 'গ্রাউন্ডিং সার্ভিস', screens: [
       { id: 'M32-llm-providers', en: 'Model Providers & Residency', bn: 'মডেল প্রোভাইডার', t: 'g' },
       { id: 'M32-form-llm-provider', en: 'Model Provider', bn: 'প্রোভাইডার ফর্ম', t: 'f' },
-      { id: 'M32-asks', en: 'Grounded Answers Log', bn: 'গ্রাউন্ডেড উত্তর', t: 'g' },
-      { id: 'M32-form-ask', en: 'Grounded Answer', bn: 'উত্তর ফর্ম', t: 'f' }
+      { id: 'M32-asks', en: 'Grounded Answers Log', bn: 'গ্রাউন্ডেড উত্তর', t: 'g' }
     ]},
     { en: 'NLU Release Gate', bn: 'এনএলইউ রিলিজ গেট', screens: [
       { id: 'M32-datasets', en: 'NLU Release Bundles', bn: 'এনএলইউ রিলিজ বান্ডেল', t: 'g' },
       { id: 'M32-form-dataset', en: 'NLU Release Bundle', bn: 'রিলিজ বান্ডেল ফর্ম', t: 'f' }
     ]},
     { en: 'Intent Mining', bn: 'ইনটেন্ট মাইনিং', screens: [
-      { id: 'M32-intent-candidates', en: 'Candidate Intents', bn: 'প্রস্তাবিত ইনটেন্ট', t: 'g' },
-      { id: 'M32-form-intent-candidate', en: 'Candidate Intent', bn: 'প্রস্তাব ফর্ম', t: 'f' }
+      { id: 'M32-intent-candidates', en: 'Candidate Intents', bn: 'প্রস্তাবিত ইনটেন্ট', t: 'g' }
     ]}
   ],
   reports: ['Intent Coverage & FCR', 'Handoff Reasons', 'Guard-Rail Intervention Log', 'Bengali vs English Performance', 'Assistant CSAT'],
-  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'Grounded Answer', 'Candidate Intent', 'NLU Release Bundle'],
+  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'NLU Release Bundle'],
   cross: ['M27 Contact Centre', 'M33 Party Master', 'M01 Service Orders Central Hub', 'M61 Knowledge Base'],
   freg: {
     src: 62,
     sub: [
-      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-rpt-coverage'] }],
-      ['2', 'Entity Extraction', 7, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'question', 'language', 'grounded'], screens: ['M32-entities', 'M32-asks'] }],
-      ['3', 'Dialogue Management', 8, { model: 'fix.assistant.dialogue', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M32-dialogue'] }],
-      ['4', 'RAG Grounding', 7, { model: 'fix.assistant.rag.source', cols: ['name', 'active', 'source_type', 'reference', 'chunk_count', 'last_indexed_at'], screens: ['M32-rag'] }],
-      ['5', 'Authenticated Actions', 6, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M32-sessions'] }],
-      ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'active', 'rule', 'action', 'note'], screens: ['M32-guardrails', 'M32-rpt-guardlog'] }],
-      ['7', 'Handoff Decision', 5, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'handoff_reason', 'state'], screens: ['M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], domain: [['state', 'in', ['with_agent', 'resolved_agent']]] }],
-      ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human'], screens: ['M32-assist', 'M32-asks'], domain: [['consumer', '=', 'm27_agent_assist']] }],
-      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'] }]
+      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-rpt-coverage'], reports: ['Intent Coverage & FCR'], forms: ['Intent', 'NLU Release Bundle'] }],
+      ['2', 'Entity Extraction', 7, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'question', 'language', 'grounded'], screens: ['M32-entities', 'M32-asks'], reports: [], forms: [] }],
+      ['3', 'Dialogue Management', 8, { model: 'fix.assistant.dialogue', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M32-dialogue'], reports: [], forms: ['Dialogue Flow'] }],
+      ['4', 'RAG Grounding', 7, { model: 'fix.assistant.rag.source', cols: ['name', 'active', 'source_type', 'reference', 'chunk_count', 'last_indexed_at'], screens: ['M32-rag'], reports: [], forms: ['RAG Knowledge Source', 'Model Provider'] }],
+      ['5', 'Authenticated Actions', 6, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M32-sessions'], reports: [], forms: [] }],
+      ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'active', 'rule', 'action', 'note'], screens: ['M32-guardrails', 'M32-rpt-guardlog'], reports: ['Guard-Rail Intervention Log'], forms: ['Guard-Rail Rule'] }],
+      ['7', 'Handoff Decision', 5, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'handoff_reason', 'state'], screens: ['M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: [], domain: [['state', 'in', ['with_agent', 'resolved_agent']]] }],
+      ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human'], screens: ['M32-assist', 'M32-asks'], reports: [], forms: [], domain: [['consumer', '=', 'm27_agent_assist']] }],
+      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'], reports: ['Bengali vs English Performance', 'Assistant CSAT', 'Intent Coverage & FCR'], forms: [] }]
     ]
   }
 };
@@ -290,6 +288,7 @@ export const SCREENS = {
   'M32-form-ask': {
     kind: 'model_form', model: 'fix.assistant.ask',
     title: 'Grounded Answer', back: 'M32-asks',
+    create: false, pick: 'A grounded answer is recorded when the assistant answers a question: open one from the Grounded Answers Log.',
     status: { field: 'engine', labels: { rule_grounder: 'Rule-grounded', llm: 'Generated', refused: 'Refused' } },
     tabs: [
       { id: 'question', label: '1. Question', bn: '১. প্রশ্ন', icon: '❓' },
@@ -427,6 +426,7 @@ export const SCREENS = {
   'M32-form-intent-candidate': {
     kind: 'model_form', model: 'fix.assistant.intent.candidate',
     title: 'Candidate Intent', back: 'M32-intent-candidates',
+    create: false, pick: 'Candidate intents are mined from conversations: open one from Candidate Intents to review it.',
     status: { field: 'state', labels: { proposed: 'Proposed', accepted: 'Accepted', rejected: 'Rejected', duplicate: 'Already covered' } },
     tabs: [
       { id: 'evidence', label: '1. Evidence', bn: '১. প্রমাণ', icon: '📈' },

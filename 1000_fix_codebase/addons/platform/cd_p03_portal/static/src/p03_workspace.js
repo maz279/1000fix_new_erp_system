@@ -938,8 +938,13 @@ export class P03Workspace extends Component {
     /* The module's "+ New" label — finance modules create their OWN record
      * type (P03_MODULE_CREATE), everything else stays the service order. */
     get newButtonLabel() {
-        const create = P03_MODULE_CREATE[this.state.activeModuleId];
-        return create ? `+ ${this.t(create.label)}` : this.t("+ New Service Order");
+        const mid = this.state.activeModuleId;
+        const create = P03_MODULE_CREATE[mid];
+        if (create) return `+ ${this.t(create.label)}`;
+        // only M01's own record is the service order: a module that declares no
+        // create surface used to offer "+ New Service Order" on its page too
+        // (M03 Logistics, M04 Front-Desk, M31 Workshop - 2026-11-12)
+        return mid === "M01" ? this.t("+ New Service Order") : "";
     }
 
     onModuleNew() {
@@ -2505,6 +2510,8 @@ export class P03Workspace extends Component {
                         if (field.value !== undefined) gl.form.values[field.name] = field.value;
                     }
                 }
+                // the filter of the page the record is created from
+                Object.assign(gl.form.values, gl.formCfg.presets || {});
                 // a brand-new record with a required child grid starts with
                 // one blank target so the form is usable without hunting
                 // (fixedRows: the server fills the rows, nothing is keyed in)
@@ -3656,27 +3663,64 @@ export class P03Workspace extends Component {
 
     /* Resolve a cross-navigation term to a real module/screen — no dead
        hardcoded targets. */
-    openCross(term) {
-        const q = String(term).toLowerCase();
-        const mod = Object.values(P03_MODULES).find(m =>
+    /* Where a cross link leads: {module, screen} or null. "M02 Field Dispatch
+     * Handoff" names its module first; it was matched as one whole phrase
+     * against titles and screen names, so 237 of the estate's cross links
+     * answered "No module matches" (2026-11-12). The module opens; a screen of
+     * it opens too when every word of the rest of the phrase names that
+     * screen. A phrase that names no module ("P04 client portal", "All
+     * modules consume the engine") is a description, not a link. */
+    resolveCross(term) {
+        const text = String(term || "").trim();
+        const named = text.match(/^(M\d\d)\b\s*(.*)$/i);
+        const target = named && P03_MODULES[named[1].toUpperCase()];
+        if (target) {
+            const wordsOf = (s) => String(s || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+            // whole words: "work" must not match inside "rework"
+            const covers = (name, words) => words.every((w) => name.some((n) => n.startsWith(w)));
+            const words = wordsOf(named[2]).filter((w) => w.length > 2);
+            let screen = null;
+            // a phrase that only names the module ("M37 Catalogue", "M01
+            // Service Orders") opens the module page
+            const moduleName = wordsOf(target.en + " " + target.title);
+            if (words.length >= 2 && !covers(moduleName, words)) {
+                // a link never opens a blank form; the SCREEN's own name must
+                // say it (not its group's); and only an unambiguous phrase of
+                // two words or more picks a screen ("M22 Training" opened the
+                // training BUDGET; "M53 Commissions" unsourced commissions)
+                const hits = target.groups
+                    .flatMap((g) => g.screens)
+                    .filter((sc) => sc.t !== "f" && covers(wordsOf(sc.en), words));
+                if (hits.length === 1) screen = hits[0].id;
+            }
+            return { module: named[1].toUpperCase(), screen };
+        }
+        const q = text.toLowerCase();
+        if (!q) return null;
+        const mod = Object.values(P03_MODULES).find((m) =>
             m.title.toLowerCase().includes(q) || m.en.toLowerCase().includes(q) ||
             m.area.toLowerCase() === q);
-        if (mod) return this.openModule(mod.code);
-        let hit = null;
+        if (mod) return { module: mod.code, screen: null };
         for (const m of Object.values(P03_MODULES)) {
             for (const g of m.groups) {
                 for (const sc of g.screens) {
                     if (sc.en.toLowerCase().includes(q) || g.en.toLowerCase().includes(q)) {
-                        hit = sc.id;
-                        break;
+                        return { module: m.code, screen: sc.id };
                     }
                 }
-                if (hit) break;
             }
-            if (hit) break;
         }
-        if (hit) return this.openScreen(hit);
-        this.showToast(`No module matches '${term}' yet — it lands with its porting phase.`);
+        return null;
+    }
+
+    openCross(term) {
+        const to = this.resolveCross(term);
+        if (!to) {
+            this.showToast(this.t("This is a reference, not a screen of the workspace."));
+            return null;
+        }
+        const opened = this.openModule(to.module);
+        return to.screen ? this.openScreen(to.screen) : opened;
     }
 
     /* Open the P03 Report Center (A10/A11) for the report library. */
@@ -4029,13 +4073,38 @@ export class P03Workspace extends Component {
         // works on existing records (a slice of the module's list: holds,
         // delivered orders, the WIP board), `create: '<form screen>'` to name
         // the form
+        // A record created from a filtered page (M63 "Scheduled & Event Jobs":
+        // engine = airflow) starts with that filter filled in, so it shows on
+        // the page it was made from. Only a plain `field = value` clause on a
+        // field the form shows and lets the user type; the user can still
+        // change it, and the server validates the save as usual.
+        const presetsFor = (cfg) => {
+            if (!map || !map.domain || !cfg || cfg.model !== map.model) return null;
+            const editable = new Set();
+            for (const section of cfg.sections || []) {
+                for (const field of section.fields || []) {
+                    if (!field.readonly) editable.add(field.name);
+                }
+            }
+            const presets = {};
+            for (const clause of map.domain) {
+                if (!Array.isArray(clause) || clause.length !== 3 || clause[1] !== "=") continue;
+                const [name, , value] = clause;
+                const plain = ["string", "number", "boolean"].includes(typeof value);
+                if (plain && editable.has(name)) presets[name] = value;
+            }
+            return Object.keys(presets).length ? presets : null;
+        };
         // `newLabel` on a form is the button's own wording ("Place Order on
         // Hold"): shown as written, not as "+ New <form title>"
         const offer = (id) => {
             const cfg = P03_DATA_SCREENS[id];
-            return cfg.newLabel
+            const out = cfg.newLabel
                 ? { screen: id, label: cfg.newLabel, verbatim: true }
                 : { screen: id, label: cfg.title || id };
+            const presets = presetsFor(cfg);
+            if (presets) out.presets = presets;
+            return out;
         };
         if (map && map.create === false) return null;
         // a page fed by a computed report has no record of its own to create
@@ -4044,8 +4113,12 @@ export class P03Workspace extends Component {
             return creatable(map.create) ? offer(map.create) : null;
         }
         const moduleCreate = P03_MODULE_CREATE[mid];
-        const moduleModel = moduleCreate ? moduleCreate.model : "fix.service.order";
-        if (!map || !map.model || map.model === moduleModel) return { module: true };
+        const moduleModel = moduleCreate ? moduleCreate.model : (mid === "M01" ? "fix.service.order" : null);
+        if (!map || !map.model || map.model === moduleModel) {
+            // the module's own record: the module's button - or none, when the
+            // module declares no create surface
+            return moduleModel ? { module: true } : null;
+        }
         const chips = P03_FORM_CHIPS || {};
         const byScreen = chips[`${mid}:__by_screen__`] || {};
         const byModel = chips[`${mid}:__by_model__`] || {};
@@ -4078,7 +4151,8 @@ export class P03Workspace extends Component {
             this.onModuleNew();
             return;
         }
-        const cfg = P03_DATA_SCREENS[create.screen];
+        const base = P03_DATA_SCREENS[create.screen];
+        const cfg = create.presets ? { ...base, presets: create.presets } : base;
         this.openFormScreen(
             create.screen,
             { sc: { en: cfg.title || create.label, t: "f" }, m: { title: (fr.module && fr.module.title) || "" } },

@@ -19,7 +19,7 @@ export const MODULE = {
   groups: [
     { en: 'Trade-In', screens: [
       { id: 'M14-intake', en: 'Trade-In Intake', bn: 'ট্রেড-ইন গ্রহণ', t: 'g' },
-      { id: 'M14-valuation', en: 'Automated Valuation', bn: 'স্বয়ংক্রিয় মূল্যায়ন', t: 'c' },
+      { id: 'M14-valuation', en: 'Automated Valuation', bn: 'স্বয়ংক্রিয় মূল্যায়ন', t: 'g' },
       { id: 'M14-grid', en: 'Governed Price Grid', bn: 'মূল্য গ্রিড', t: 'g' },
       { id: 'M14-provenance', en: 'Provenance & IMEI Screen', bn: 'আইএমইআই যাচাই', t: 'g' },
       { id: 'M14-settlement', en: 'Settlement', bn: 'পরিশোধ ও নিষ্পত্তি', t: 'g' }
@@ -27,12 +27,12 @@ export const MODULE = {
     { en: 'Refurbishment', screens: [
       { id: 'M14-orders', en: 'Refurb Work Orders', bn: 'রিফার্বিশমেন্ট কার্যআদেশ', t: 'g' },
       { id: 'M14-qa', en: 'QA & Battery Health', bn: 'কিউএ ও ব্যাটারি স্বাস্থ্য', t: 'g' },
-      { id: 'M14-grading', en: 'A–D Grading', bn: 'গ্রেডিং নির্ধারণ', t: 'c' },
+      { id: 'M14-grading', en: 'A–D Grading', bn: 'গ্রেডিং নির্ধারণ', t: 'g' },
       { id: 'M14-harvest', en: 'Harvest to Parts', bn: 'যন্ত্রাংশ সংগ্রহ', t: 'g' }
     ]},
     { en: 'Resale', screens: [
       { id: 'M14-stock', en: 'Graded Stock', bn: 'গ্রেডেড স্টক', t: 'g' },
-      { id: 'M14-listings', en: 'Resale Listings', bn: 'পুনর্বিক্রয় তালিকা', t: 'g' },
+      { id: 'M14-listings', en: 'Resale Listings', bn: 'পুনর্বিক্রয় তালিকা', t: 'r' },
       { id: 'M14-wty', en: 'Refurb Warranty', bn: 'রিফার্বিশড ওয়ারেন্টি', t: 'g' },
       { id: 'M14-economics', en: 'Unit Economics', bn: 'ইউনিট অর্থনীতি', t: 'r' }
     ]}
@@ -56,21 +56,20 @@ export const MODULE = {
     'Refurbishment Work Order',
     'QA & Battery Health Dossier',
     'Grading Certificate',
-    'Harvest to Parts Dossier',
-    'Refurbished Warranty Master'
+    'Harvest to Parts Dossier'
   ],
   cross: ['M06 destruction gate', 'M31 refurb repairs', 'M15 graded stock', 'M38 online resale', 'M18 recycle routing'],
   freg: { src: 84, sub: [
-    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake'] }],
-    ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'] }],
-    ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'] }],
-    ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'] }],
-    ['5', 'Bulk Buy-Back', 6, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'marketplace_seller_id', 'offered_value', 'state'], screens: ['M14-intake'] }],
-    ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-intake', 'M14-orders'], domain: [['state', 'in', ['collected', 'wiped']]] }],
-    ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'] }],
-    ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'] }],
-    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'] }],
-    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-harvest'] }]
+    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake'], reports: ['Valuation Queue'], forms: ['Trade-In Intake Dossier'] }],
+    ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'], reports: ['Valuation Queue', 'Trade-In Margin by Model'], forms: ['Automated Valuation File', 'Governed Price Grid Row'] }],
+    ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'], reports: [], forms: ['Provenance Screening & Anti-Theft'] }],
+    ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'], reports: ['Unit Economics'], forms: ['Settlement & Four-Eyes Payout'], create: 'M14-form-settlement' }],
+    ['5', 'Bulk Buy-Back', 6, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'marketplace_seller_id', 'offered_value', 'state'], screens: ['M14-intake'], reports: ['Trade-In Margin by Model'], forms: ['Trade-In Intake Dossier'] }],
+    ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-intake', 'M14-orders'], reports: [], forms: [], create: false, domain: [['state', 'in', ['collected', 'wiped']]] }],
+    ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'], reports: ['Refurb Cost per Grade'], forms: ['Refurbishment Work Order'] }],
+    ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'], reports: ['Refurb Cost per Grade'], forms: ['Grading Certificate', 'QA & Battery Health Dossier'] }],
+    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: [] }],
+    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-harvest'], reports: ['Harvest Yield'], forms: ['Harvest to Parts Dossier'] }]
   ] }
 };
 
@@ -143,6 +142,7 @@ export const SCREENS = {
   'M14-listings': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: false },
   'M14-wty': { kind: 'model_list', model: 'fix.tradein.warranty', stateField: 'state', create: false,
     cols: ['name', 'tradein_id', 'graded_stock_ref', 'months', 'start_date', 'end_date', 'claims_count', 'state'],
+    empty: 'No refurbished warranty issued yet. A warranty is issued automatically when a refurbished unit is resold; it cannot be typed in.',
     actions: [{ m: 'action_void', l: 'Void (Warranty Officer)', ask: 'Reason for voiding', kwarg: 'reason' }] },
   'M14-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: false },
 
@@ -407,6 +407,18 @@ export const SCREENS = {
     model: 'fix.tradein.request',
     title: 'Settlement & Four-Eyes Payout',
     back: 'M14-settlement',
+    /* settlement is captured on an EXISTING trade-in: opened blank it created a
+     * request with no device or intake (2026-11-12). It asks which first. */
+    newLabel: 'Settle a Trade-In',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the trade-in to settle',
+      note: 'Accepted trade-ins that are not closed or rejected.',
+      search: 'Search trade-in / customer',
+      choose: 'Settle this trade-in',
+      cols: ['name', 'customer_id', 'graded_value', 'payout_approval_state', 'state'],
+      domain: [['state', 'not in', ['draft', 'offered', 'closed', 'rejected']]],
+      empty: 'No accepted trade-in is waiting for settlement. A trade-in reaches settlement once the customer accepts the offer.'
+    },
     status: { field: 'payout_approval_state', labels: {
       none: 'Not Requested', pending: 'Approval Pending', approved: 'Approved', rejected: 'Rejected' } },
     tabs: [
@@ -673,6 +685,8 @@ export const SCREENS = {
     model: 'fix.tradein.warranty',
     title: 'Refurbished Warranty Master',
     back: 'M14-wty',
+    /* issued by the resale itself, every field read-only: a record, not data entry */
+    create: false, pick: 'A refurbished warranty is issued when the unit is resold: open one from Refurb Warranty.',
     status: { field: 'state', labels: { active: 'Active', expired: 'Expired', void: 'Void' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🛡️', badge: '4' },
@@ -736,8 +750,7 @@ export const FORM_MODELS = {
   'M14:Refurbishment Work Order': 'fix.refurbishment',
   'M14:QA & Battery Health Dossier': 'fix.refurb.qa',
   'M14:Grading Certificate': 'fix.tradein.grade',
-  'M14:Harvest to Parts Dossier': 'fix.tradein.harvest',
-  'M14:Refurbished Warranty Master': 'fix.tradein.warranty'
+  'M14:Harvest to Parts Dossier': 'fix.tradein.harvest'
 };
 
 export const FORM_CHIPS = {
@@ -750,7 +763,6 @@ export const FORM_CHIPS = {
   'M14:QA & Battery Health Dossier': 'M14-form-qa',
   'M14:Grading Certificate': 'M14-form-grade',
   'M14:Harvest to Parts Dossier': 'M14-form-harvest',
-  'M14:Refurbished Warranty Master': 'M14-form-warranty',
   'M14:__by_model__': {
     'fix.tradein.request': 'M14-form-request',
     'fix.tradein.valuation': 'M14-form-valuation',

@@ -28,13 +28,13 @@ export const MODULE = {
     { en: 'Points & Wallet', screens: [
       { id: 'M10-ledger', en: 'Points Ledger', bn: 'পয়েন্ট লেজার', t: 'g' },
       { id: 'M10-wallet', en: 'Wallet & Credits', bn: 'ওয়ালেট', t: 'g' },
-      { id: 'M10-redemption', en: 'Redemption Rules', bn: 'রিডেম্পশন নিয়ম', t: 'g' }
+      { id: 'M10-redemption', en: 'Redemption Rules', bn: 'রিডেম্পশন নিয়ম', t: 'r' }
     ]},
     { en: 'Vouchers & Referrals', screens: [
       { id: 'M10-vouchers', en: 'Vouchers & Coupons', bn: 'ভাউচার', t: 'g' },
       { id: 'M10-hooks', en: 'Campaign Reward Hooks', bn: 'ক্যাম্পেইন হুক', t: 'g' },
       { id: 'M10-referral', en: 'Referral Programme', bn: 'রেফারেল কর্মসূচি', t: 'g' },
-      { id: 'M10-fraud', en: 'Fraud Controls', bn: 'প্রতারণা নিয়ন্ত্রণ', t: 'g' }
+      { id: 'M10-fraud', en: 'Fraud Controls', bn: 'প্রতারণা নিয়ন্ত্রণ', t: 'r' }
     ]},
     { en: 'Finance', screens: [
       { id: 'M10-liability', en: 'Liability & Breakage (IFRS 15)', bn: 'দায় ও ব্রেকেজ', t: 'r' },
@@ -56,14 +56,14 @@ export const MODULE = {
   forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation'],
   cross: ['M33 Customer Master', 'M20 AR &Invoicing', 'M07 CRM'],
   freg: { src: 63, sub: [
-    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol'] }],
-    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes'] }],
-    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-rpt-earnburn'] }],
-    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet'] }],
-    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-rpt-voucher'] }],
-    ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'] }],
-    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'points_multiplier'], screens: ['M10-alliance'] }],
-    ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'points_balance', 'lifetime_points_earned', 'lifetime_points_redeemed'], screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl', 'M10-wallet'] }]
+    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol'], reports: ['Member Growth & Tier Mix'], forms: ['Tier Configuration'] }],
+    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes'], reports: ['Points Earn/Burn Analysis'], forms: ['Loyalty Programme', 'Loyalty Scheme'] }],
+    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-rpt-earnburn'], reports: ['Points Earn/Burn Analysis'], forms: ['Points Adjustment'] }],
+    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet'], reports: ['Member Growth & Tier Mix'], forms: [], create: false }],
+    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-rpt-voucher'], reports: ['Voucher Usage & Fraud'], forms: ['Voucher Campaign'] }],
+    ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'], reports: ['Referral Funnel'], forms: ['Referral Code'] }],
+    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'points_multiplier'], screens: ['M10-alliance'], reports: [], forms: ['Loyalty Affiliation', 'Tier Configuration'] }],
+    ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'points_balance', 'lifetime_points_earned', 'lifetime_points_redeemed'], screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl', 'M10-wallet'], reports: ['Programme P&L'], forms: [], create: false }]
   ] }
 };
 

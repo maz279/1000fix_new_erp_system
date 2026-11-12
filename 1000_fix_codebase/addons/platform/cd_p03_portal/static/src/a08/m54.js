@@ -21,7 +21,7 @@ export const MODULE = {
     { en: 'Costing', screens: [
       { id: 'M54-pools', en: 'Cost Pools & Elements', bn: 'ব্যয় পুল ও উপাদান', t: 'g' },
       { id: 'M54-elements', en: 'Cost Elements', bn: 'ব্যয় উপাদান', t: 'g' },
-      { id: 'M54-allocation', en: 'Allocation Cycles', bn: 'বণ্টন চক্র', t: 'c' },
+      { id: 'M54-allocation', en: 'Allocation Cycles', bn: 'বণ্টন চক্র', t: 'g' },
       { id: 'M54-jobs', en: 'Job / Work-Order Costing', bn: 'কাজের ব্যয়', t: 'r' },
       { id: 'M54-jobdist', en: 'Job Margin Distribution', bn: 'কাজের মার্জিন বিন্যাস', t: 'r' },
       { id: 'M54-loaded', en: 'Technician Loaded Cost', bn: 'কর্মী ব্যয়', t: 'r' }
@@ -36,12 +36,12 @@ export const MODULE = {
     { en: 'Budgeting', screens: [
       { id: 'M54-budgets', en: 'Operating & Capital Budgets', bn: 'বাজেট', t: 'g' },
       { id: 'M54-budget-lines', en: 'Budget Lines', bn: 'বাজেট লাইন', t: 'g' },
-      { id: 'M54-workflow', en: 'Budget Workflow', bn: 'বাজেট প্রবাহ', t: 'c' },
+      { id: 'M54-workflow', en: 'Budget Workflow', bn: 'বাজেট প্রবাহ', t: 'g' },
       { id: 'M54-bva', en: 'Variance Analysis', bn: 'বিচ্যুতি বিশ্লেষণ', t: 'r' }
     ]},
     { en: 'Planning', screens: [
       { id: 'M54-rolling', en: 'Rolling Forecast', bn: 'রোলিং পূর্বাভাস', t: 'r' },
-      { id: 'M54-scenario', en: 'Scenario Modelling', bn: 'পরিস্থিতি মডেল', t: 'c' },
+      { id: 'M54-scenario', en: 'Scenario Modelling', bn: 'পরিস্থিতি মডেল', t: 'g' },
       { id: 'M54-board', en: 'Board Pack', bn: 'বোর্ড প্যাক', t: 'r' },
       { id: 'M54-boardpacks', en: 'Board Pack Archive', bn: 'বোর্ড প্যাক সংরক্ষণ', t: 'g' }
     ]}
@@ -50,14 +50,14 @@ export const MODULE = {
   forms: ['Budget Version', 'Allocation Rule', 'Allocation Cycle', 'Scenario', 'Board Pack'],
   cross: ['Financial Accounting & GL', 'Workshop & Depot Repair', 'Business Intelligence'],
   freg: { src: 70, sub: [
-    ['1', 'Cost Model', 9, { model: 'fix.cost.pool', cols: ['code', 'name', 'pool_type', 'receiver_type', 'allocation_basis'], screens: ['M54-pools', 'M54-elements', 'M54-loaded'] }],
-    ['2', 'Allocation Cycles', 10, { model: 'fix.cost.allocation', cols: ['name', 'pool_id', 'date_from', 'allocated_overhead', 'state'], screens: ['M54-allocation'] }],
-    ['3', 'Job & Contract Costing', 11, { model: 'fix.workshop.job', cols: ['name', 'customer_id', 'parts_total', 'labour_total', 'total_repair_cost'], screens: ['M54-jobs', 'M54-jobdist'] }],
-    ['4', 'Business-Line Profitability', 9, { model: 'fix.business.line', cols: ['code', 'name', 'revenue_stream_no', 'is_profit_centre'], screens: ['M54-lines', 'M54-streams', 'M54-unitecon'] }],
-    ['5', 'Branch & Channel Profitability', 8, { model: 'fix.journal.dimension', cols: ['branch_id', 'channel', 'business_line', 'cost_centre', 'move_line_id'], screens: ['M54-branches', 'M54-customers'] }],
-    ['6', 'Budgeting', 11, { model: 'fix.budget', cols: ['name', 'budget_type', 'fiscal_year', 'planned_amount', 'state'], screens: ['M54-budgets', 'M54-budget-lines', 'M54-workflow'] }],
-    ['7', 'Variance & Forecast', 8, { model: 'fix.budget', cols: ['name', 'fiscal_year', 'planned_amount', 'actual_amount', 'variance'], screens: ['M54-bva', 'M54-rolling', 'M54-scenario'] }],
-    ['8', 'Board Pack', 4, { model: 'fix.board.pack', cols: ['name', 'date_from', 'date_to', 'issued_by', 'state'], screens: ['M54-board', 'M54-boardpacks'] }]
+    ['1', 'Cost Model', 9, { model: 'fix.cost.pool', cols: ['code', 'name', 'pool_type', 'receiver_type', 'allocation_basis'], screens: ['M54-pools', 'M54-elements', 'M54-loaded'], reports: [], forms: ['Allocation Rule'] }],
+    ['2', 'Allocation Cycles', 10, { model: 'fix.cost.allocation', cols: ['name', 'pool_id', 'date_from', 'allocated_overhead', 'state'], screens: ['M54-allocation'], reports: [], forms: ['Allocation Cycle'] }],
+    ['3', 'Job & Contract Costing', 11, { model: 'fix.workshop.job', cols: ['name', 'customer_id', 'parts_total', 'labour_total', 'total_repair_cost'], screens: ['M54-jobs', 'M54-jobdist'], reports: ['Job Margin Distribution'], forms: [] }],
+    ['4', 'Business-Line Profitability', 9, { model: 'fix.business.line', cols: ['code', 'name', 'revenue_stream_no', 'is_profit_centre'], screens: ['M54-lines', 'M54-streams', 'M54-unitecon'], reports: ['Business-Line P&L', 'Unit Economics per Repair'], forms: [] }],
+    ['5', 'Branch & Channel Profitability', 8, { model: 'fix.journal.dimension', cols: ['branch_id', 'channel', 'business_line', 'cost_centre', 'move_line_id'], screens: ['M54-branches', 'M54-customers'], reports: ['Branch League Table', 'Customer Profitability Deciles'], forms: [] }],
+    ['6', 'Budgeting', 11, { model: 'fix.budget', cols: ['name', 'budget_type', 'fiscal_year', 'planned_amount', 'state'], screens: ['M54-budgets', 'M54-budget-lines', 'M54-workflow'], reports: ['Budget vs Actual'], forms: ['Budget Version'] }],
+    ['7', 'Variance & Forecast', 8, { model: 'fix.budget', cols: ['name', 'fiscal_year', 'planned_amount', 'actual_amount', 'variance'], screens: ['M54-bva', 'M54-rolling', 'M54-scenario'], reports: ['Budget vs Actual', 'Rolling Forecast'], forms: ['Scenario'] }],
+    ['8', 'Board Pack', 4, { model: 'fix.board.pack', cols: ['name', 'date_from', 'date_to', 'issued_by', 'state'], screens: ['M54-board', 'M54-boardpacks'], reports: ['Board Pack'], forms: ['Board Pack'] }]
   ] }
 };
 
@@ -86,7 +86,7 @@ export const SCREENS = {
   'M54-budgets': { kind: 'model_list', model: 'fix.budget',
     cols: ['name','version_id','budget_type','fiscal_year','planned_amount','actual_amount','variance','state'],
     stateField: 'state', actions: [{m:'action_refresh_actuals',l:'Refresh Actuals'}] },
-  'M54-budget-lines': { kind: 'model_list', model: 'fix.budget.line', create: false,
+  'M54-budget-lines': { empty: 'Budget lines are entered on their budget.', kind: 'model_list', model: 'fix.budget.line', create: false,
     cols: ['budget_id','version_id','account_id','branch_id','business_line_id','cost_centre','date_from','date_to','planned_amount','actual_amount','variance'] },
   'M54-workflow': { kind: 'model_list', model: 'fix.budget.version',
     cols: ['name','version_type','fiscal_year','date_from','date_to','planned_revenue','planned_cost','dofa_tier_required','approval_state','state','submitted_by','approved_by'],

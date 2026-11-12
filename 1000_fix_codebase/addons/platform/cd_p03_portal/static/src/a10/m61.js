@@ -39,14 +39,14 @@ export const MODULE = {
   forms: ['Article', 'Troubleshooting Tree', 'Bulletin', 'Bulletin Recipient'],
   cross: ['M02 Dispatch knowledge links', 'M32 Bengali NLU', 'M22 Training', 'M23 QMS'],
   freg: { src: 48, sub: [
-    ['1', 'Authoring & Versioning', 8, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'version', 'state'], screens: ['M61-articles', 'M61-review'] }],
-    ['2', 'Troubleshooting Trees', 7, { model: 'fix.knowledge.tree', cols: ['name', 'device_brand', 'device_model', 'fault_symptom', 'state'], screens: ['M61-trees'] }],
-    ['3', 'Technical Library', 7, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'device_brand', 'device_model'], screens: ['M61-manuals', 'M61-media'], domain: [['category', 'in', ['schematic', 'device_guide', 'repair_procedure']]] }],
-    ['4', 'Search & Surfacing', 7, { model: 'fix.knowledge.article', cols: ['name', 'device_brand', 'device_model', 'fault_symptom', 'views'], screens: ['M61-context'], domain: [['state', '=', 'published']] }],
-    ['5', 'Offline Distribution', 5, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'version', 'content_hash'], screens: ['M61-offline'], domain: [['offline_available', '=', true]] }],
-    ['6', 'Feedback & Health', 6, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'views', 'helpful_votes', 'state'], screens: ['M61-health'] }],
-    ['7', 'Brand Bulletins', 4, { model: 'fix.knowledge.bulletin', cols: ['name', 'brand', 'bulletin_type', 'issued_on', 'severity'], screens: ['M61-bulletins'] }],
-    ['8', 'Expertise Mapping', 4, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'device_brand', 'rework_level', 'category'], screens: ['M61-articles'] }]
+    ['1', 'Authoring & Versioning', 8, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'version', 'state'], screens: ['M61-articles', 'M61-review'], reports: ['Contribution Leaderboard'], forms: ['Article'] }],
+    ['2', 'Troubleshooting Trees', 7, { model: 'fix.knowledge.tree', cols: ['name', 'device_brand', 'device_model', 'fault_symptom', 'state'], screens: ['M61-trees'], reports: [], forms: ['Troubleshooting Tree'] }],
+    ['3', 'Technical Library', 7, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'device_brand', 'device_model'], screens: ['M61-manuals', 'M61-media'], reports: ['Gap Report by Brand/Model'], forms: [], create: false, domain: [['category', 'in', ['schematic', 'device_guide', 'repair_procedure']]] }],
+    ['4', 'Search & Surfacing', 7, { model: 'fix.knowledge.article', cols: ['name', 'device_brand', 'device_model', 'fault_symptom', 'views'], screens: ['M61-context'], reports: ['Article Usage & Usefulness'], forms: [], create: false, domain: [['state', '=', 'published']] }],
+    ['5', 'Offline Distribution', 5, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'category', 'version', 'content_hash'], screens: ['M61-offline'], reports: [], forms: [], create: false, domain: [['offline_available', '=', true]] }],
+    ['6', 'Feedback & Health', 6, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'views', 'helpful_votes', 'state'], screens: ['M61-health'], reports: ['Coverage Analysis', 'Article Usage & Usefulness', 'Gap Report by Brand/Model'], forms: [] }],
+    ['7', 'Brand Bulletins', 4, { model: 'fix.knowledge.bulletin', cols: ['name', 'brand', 'bulletin_type', 'issued_on', 'severity'], screens: ['M61-bulletins'], reports: ['Recall Routing'], forms: ['Bulletin', 'Bulletin Recipient'] }],
+    ['8', 'Expertise Mapping', 4, { model: 'fix.knowledge.article', cols: ['article_code', 'name', 'device_brand', 'rework_level', 'category'], screens: ['M61-articles'], reports: ['Contribution Leaderboard'], forms: [] }]
   ] }
 };
 

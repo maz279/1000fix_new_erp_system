@@ -26,19 +26,19 @@ export const MODULE = {
     { en: 'Pipeline', bn: 'পাইপলাইন', screens: [
       { id: 'M07-opps', en: 'Opportunities', bn: 'সুযোগ', t: 'g' },
       { id: 'M07-kanban', en: 'Pipeline Kanban', bn: 'পাইপলাইন কানবান', t: 'd' },
-      { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'r' },
+      { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'g' },
       { id: 'M07-quotes', en: 'Opportunity Estimates', bn: 'সুযোগের প্রাক্কলন', t: 'g' },
       { id: 'M07-form-quote', en: 'Opportunity Estimate', bn: 'প্রাক্কলন ফর্ম', t: 'f' }
     ]},
     { en: 'Accounts', bn: 'অ্যাকাউন্ট', screens: [
       { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
       { id: 'M07-plans', en: 'Account Plans', bn: 'অ্যাকাউন্ট পরিকল্পনা', t: 'g' },
-      { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর সময়সূচি', t: 'c' },
+      { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর সময়সূচি', t: 'g' },
       { id: 'M07-activities', en: 'Activities & Visits', bn: 'কার্যক্রম ও সাক্ষাৎ', t: 'g' }
     ]},
     { en: 'Renewals & Growth', bn: 'নবায়ন ও প্রবৃদ্ধি', screens: [
-      { id: 'M07-t90', en: 'T-90 Renewal Register', bn: 'টি-৯০ নবায়ন রেজিস্টার', t: 'g' },
-      { id: 'M07-crosssell', en: 'Cross-Sell / Upsell', bn: 'ক্রস-সেল / আপসেল', t: 'g' },
+      { id: 'M07-t90', en: 'T-90 Renewal Register', bn: 'টি-৯০ নবায়ন রেজিস্টার', t: 'r' },
+      { id: 'M07-crosssell', en: 'Cross-Sell / Upsell', bn: 'ক্রস-সেল / আপসেল', t: 'r' },
       { id: 'M07-winloss', en: 'Win/Loss Analysis', bn: 'জয়/পরাজয় বিশ্লেষণ', t: 'r' }
     ]},
     { en: 'CRM Configuration & Forms', bn: 'কনফিগারেশন ও ফর্ম', screens: [
@@ -77,16 +77,16 @@ export const MODULE = {
   freg: {
     src: 79,
     sub: [
-      ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads'] }],
-      ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban'] }],
-      ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-rpt-pipeline', 'M07-rpt-funnel'] }],
-      ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans'] }],
-      ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-rpt-amscore'] }],
-      ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'] }],
-      ['7', 'Activities', 8, { model: 'crm.lead', cols: ['name', 'partner_id', 'activity_summary', 'activity_date_deadline', 'activity_user_id'], screens: ['M07-activities'] }],
-      ['8', 'Renewal Pipeline', 6, { model: 'fix.renewal', cols: ['state', 'partner_id', 'source_type', 'source_ref', 'value', 'expiry_date'], screens: ['M07-renewals', 'M07-rpt-renewalrisk'] }],
-      ['9', 'Cross-Sell / Upsell', 7, { model: 'crm.lead', cols: ['name', 'partner_id', 'is_cross_sell', 'expected_revenue', 'stage_id'], screens: ['M07-crosssell', 'M07-rpt-crosssell', 'M07-opps'], domain: [['type', '=', 'opportunity']] }],
-      ['10', 'Competitor Intelligence', 5, { model: 'crm.lead', cols: ['name', 'won_status', 'competitor', 'competitor_price_bdt', 'loss_reason_category'], screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'], domain: [['won_status', 'in', ['won', 'lost']]] }]
+      ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads'], reports: ['Win Rate by Source'], forms: ['Lead', 'Lead Scoring Model'], create: 'M07-form-lead' }],
+      ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban'], reports: ['Funnel Conversion'], forms: ['Opportunity', 'Pipeline Configuration'] }],
+      ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-rpt-pipeline', 'M07-rpt-funnel'], reports: ['Pipeline by Stream', 'Funnel Conversion'], forms: ['Forecast Snapshot'] }],
+      ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans'], reports: [], forms: ['Account Plan'] }],
+      ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-rpt-amscore'], reports: ['Account Manager Scorecard'], forms: ['Account Assignment'] }],
+      ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'], reports: [], forms: ['Quarterly Business Review'] }],
+      ['7', 'Activities', 8, { model: 'crm.lead', cols: ['name', 'partner_id', 'activity_summary', 'activity_date_deadline', 'activity_user_id'], screens: ['M07-activities'], reports: [], forms: ['Activity (call/visit/meeting)', 'Sequence / Playbook'], create: false }],
+      ['8', 'Renewal Pipeline', 6, { model: 'fix.renewal', cols: ['state', 'partner_id', 'source_type', 'source_ref', 'value', 'expiry_date'], screens: ['M07-renewals', 'M07-rpt-renewalrisk'], reports: ['Renewal Risk Report'], forms: ['Renewal Pursuit'] }],
+      ['9', 'Cross-Sell / Upsell', 7, { model: 'crm.lead', cols: ['name', 'partner_id', 'is_cross_sell', 'expected_revenue', 'stage_id'], screens: ['M07-crosssell', 'M07-rpt-crosssell', 'M07-opps'], reports: ['Cross-Sell Attach Rate'], forms: ['Opportunity Estimate'], create: false, domain: [['type', '=', 'opportunity']] }],
+      ['10', 'Competitor Intelligence', 5, { model: 'crm.lead', cols: ['name', 'won_status', 'competitor', 'competitor_price_bdt', 'loss_reason_category'], screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'], reports: ['Win Rate by Source'], forms: [], create: false, domain: [['won_status', 'in', ['won', 'lost']]] }]
     ]
   }
 };

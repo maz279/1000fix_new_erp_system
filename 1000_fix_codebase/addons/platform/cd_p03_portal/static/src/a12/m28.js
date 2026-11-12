@@ -56,14 +56,14 @@ export const MODULE = {
   forms: ['API Consumer', 'Event Subscription', 'Connector Credential'],
   cross: ['M29 credentials security', 'M63 automation triggers', 'M48 telemetry', 'M24 evidence'],
   freg: { src: 70, sub: [
-    ['1', 'Gateway', 10, { model: 'fix.api.endpoint', cols: ['code', 'path', 'method', 'auth_type', 'active'], screens: ['M28-apis', 'M28-quotas'] }],
-    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'name', 'version', 'path', 'active'], screens: ['M28-apis', 'M28-consumers'] }], // gitleaks:allow (screen ids, not a key)
-    ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'] }],
-    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay'] }],
-    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries'] }],
-    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-health'] }],
-    ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'] }],
-    ['8', 'Reconciliation', 6, { model: 'fix.sync.conflict', cols: ['res_model', 'res_id', 'field_name', 'local_value', 'remote_value'], screens: ['M28-conflicts', 'M28-health'] }]
+    ['1', 'Gateway', 10, { model: 'fix.api.endpoint', cols: ['code', 'path', 'method', 'auth_type', 'active'], screens: ['M28-apis', 'M28-quotas'], reports: ['API Usage by Consumer'], forms: [] }],
+    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'name', 'version', 'path', 'active'], screens: ['M28-apis', 'M28-consumers'], reports: ['API Usage by Consumer'], forms: ['API Consumer'] }], // gitleaks:allow (screen ids, not a key)
+    ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'], reports: ['Event Delivery SLO'], forms: [] }],
+    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay'], reports: ['DLQ Analysis', 'Event Delivery SLO'], forms: ['Event Subscription'] }],
+    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries'], reports: ['Webhook Success Rate', 'Event Delivery SLO'], forms: ['Event Subscription'] }],
+    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-health'], reports: ['Connector Latency'], forms: ['Connector Credential'] }],
+    ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'], reports: [], forms: [] }],
+    ['8', 'Reconciliation', 6, { model: 'fix.sync.conflict', cols: ['res_model', 'res_id', 'field_name', 'local_value', 'remote_value'], screens: ['M28-conflicts', 'M28-health'], reports: ['Connector Latency'], forms: [] }]
   ] }
 };
 
@@ -128,7 +128,8 @@ export const SCREENS = {
       { m: 'action_rotate_secret', l: 'Rotate Signing Secret Reference' }
     ] },
   'M28-deliveries': { kind: 'model_list', model: 'fix.webhook.delivery', stateField: 'state', create: false, // engine-raised: one row per event per subscription
-    cols: ['event_type', 'subscription_id', 'state', 'attempts', 'next_attempt_at', 'last_outcome', 'last_status_code', 'sent_at'] },
+    cols: ['event_type', 'subscription_id', 'state', 'attempts', 'next_attempt_at', 'last_outcome', 'last_status_code', 'sent_at'],
+    empty: 'No webhook delivery yet. A delivery is recorded automatically for each event sent to a subscriber; deliveries are evidence and cannot be typed in.' },
   'M28-allowlist': { kind: 'model_list', model: 'fix.integration.allowed.host', stateField: 'state',
     cols: ['host', 'reason', 'state', 'listed_by_id', 'listed_at', 'removed_by_id', 'removal_reason'],
     actions: [
@@ -152,9 +153,11 @@ export const SCREENS = {
       { m: 'action_end', l: 'End Now' }
     ] },
   'M28-log': { kind: 'model_list', model: 'fix.integration.log', stateField: 'status', create: false, // system-written only
-    cols: ['created_at', 'kind', 'status', 'measured', 'consumer_id', 'endpoint_id', 'route', 'topic_code', 'subscription_id', 'connector_id', 'status_code', 'latency_ms', 'outcome'] },
+    cols: ['created_at', 'kind', 'status', 'measured', 'consumer_id', 'endpoint_id', 'route', 'topic_code', 'subscription_id', 'connector_id', 'status_code', 'latency_ms', 'outcome'],
+    empty: 'No integration call logged yet. Every API call, event and connector probe is logged automatically; the log is audit evidence and cannot be typed in.' },
   'M28-dlq': { kind: 'model_list', model: 'fix.event.dlq', stateField: 'state', create: false, // engine-raised: DLQ entries come from failed deliveries
     cols: ['display_label', 'topic_code', 'reason', 'origin', 'attempts', 'created_at', 'decision_reason', 'approval_state', 'state'],
+    empty: 'No dead letter. An event lands here automatically when its delivery fails after every retry; select one to replay or discard it with a reason.',
     actions: DLQ_ACTIONS },
   'M28-replay': { kind: 'model_list', model: 'fix.event.dlq', stateField: 'state', create: false,
     cols: ['display_label', 'topic_code', 'reason', 'origin', 'attempts', 'replayed_at', 'replayed_by', 'decision_reason', 'approval_state', 'state'],
@@ -175,6 +178,7 @@ export const SCREENS = {
   'M28-offline': { kind: 'table_report', module: 'M28', report: 'offline_sync', title: 'Offline Sync Protocol', period: false },
   'M28-conflicts': { kind: 'model_list', model: 'fix.sync.conflict', stateField: 'resolution', create: false, // engine-raised: conflicts come from the offline ledger
     cols: ['name', 'device_ref', 'res_model', 'res_id', 'field_name', 'policy_class', 'local_value', 'remote_value', 'engine_note', 'resolution', 'resolved_by_id', 'resolution_note'],
+    empty: 'No sync conflict. A conflict is raised automatically when an offline change collides with the server record; select one to decide which value wins.',
     actions: [
       { m: 'action_local_wins', l: 'Local Wins' },
       { m: 'action_remote_wins', l: 'Remote Wins' },
@@ -349,6 +353,8 @@ export const SCREENS = {
     model: 'fix.sync.conflict',
     title: 'Sync Conflict',
     back: 'M28-conflicts',
+    /* raised by the sync engine, never typed: opened only from its list */
+    create: false, pick: 'A sync conflict is raised by the offline sync engine: open one from Sync Conflicts.',
     status: { field: 'resolution', labels: {
       pending: 'Pending', local_wins: 'Local Wins', remote_wins: 'Remote Wins',
       merged: 'Manually Merged', dismissed: 'Closed, Nothing Applied' } },

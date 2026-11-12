@@ -16,10 +16,10 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Registry Completion', screens: [
-      { id: 'M30-provisioning', en: 'Branch Provisioning (<1d)', bn: 'Branch Provisioning (<1d)', t: 'g' },
+      { id: 'M30-provisioning', en: 'Branch Provisioning (<1d)', bn: 'Branch Provisioning (<1d)', t: 'r' },
       { id: 'M30-params', en: 'Parameter Registry (Inventory Only)', bn: 'Parameter Registry', t: 'g' },
       { id: 'M30-jobs', en: 'Scheduled Job Registry (Inventory Only)', bn: 'Scheduled Job Registry', t: 'g' },
-      { id: 'M30-health', en: 'Platform Health Console', bn: 'Platform Health Console', t: 'g' },
+      { id: 'M30-health', en: 'Platform Health Console', bn: 'Platform Health Console', t: 'r' },
       { id: 'M30-env', en: 'Environments', bn: 'Environments', t: 'g' },
       { id: 'M30-backup', en: 'Backup & DR (Customer Plans)', bn: 'Backup & DR', t: 'g' },
       { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' }
@@ -51,12 +51,12 @@ export const MODULE = {
   forms: ['Branch', 'Feature Flag', 'Announcement', 'Authority Ladder'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
-    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'] }],
-    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities', 'M30-env'] }],
-    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-config', 'M30-params', 'M30-jobs'] }],
-    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars'] }],
-    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'] }],
-    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-rulings', 'M30-drift', 'M30-release'] }]
+    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry'], forms: ['Branch'] }],
+    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities', 'M30-env'], reports: [], forms: [] }],
+    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-config', 'M30-params', 'M30-jobs'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory'], forms: ['Feature Flag'] }],
+    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars'], reports: ['Calendar Coverage'], forms: [] }],
+    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'], reports: [], forms: ['Announcement'] }],
+    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-rulings', 'M30-drift', 'M30-release'], reports: ['DOFA Coverage', 'Config Parameter Inventory'], forms: ['Authority Ladder'] }]
   ] }
 };
 
