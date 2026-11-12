@@ -81,6 +81,7 @@ WRITABLE = {
             "scheduled_date",
             "security_bag_barcode",
             "service_order_id",
+            "shockwatch_triggered",
             "vehicle_registration",
             "volumetric_divisor",
             "waybill_attachment_id",
@@ -116,6 +117,8 @@ WRITABLE = {
             "height_cm",
             "length_cm",
             "partner_id",
+            "recipient_name",
+            "recipient_phone",
             "weight_kg",
             "width_cm",
         }
@@ -128,9 +131,13 @@ WRITABLE = {
             "cod_cycle_days",
             "cod_supported",
             "code",
+            "contact_phone",
+            "insurance_max_bdt",
             "name",
             "per_kg_rate",
             "service_area",
+            "sla_delivery_hours",
+            "volumetric_divisor",
         }
     ),
     "fix.custody.scan": frozenset(),
@@ -146,6 +153,7 @@ WRITABLE = {
             "evidence_ref",
             "incident_photo_attachment_id",
             "liability",
+            "operating_unit_id",
             "requested_payout",
         }
     ),

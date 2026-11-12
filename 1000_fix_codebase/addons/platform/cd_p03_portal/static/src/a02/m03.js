@@ -62,7 +62,7 @@ export const MODULE = {
    * nothing writes a scan or a seal verdict directly. */
   forms: ['Consignment (5 types)', 'Courier Booking', 'Damage Claim', 'Courier Partner',
     'Seal for Dispatch', 'Hub Intake Scan', 'Proof of Delivery Record', 'Rider & Vehicle Assignment',
-    'Rider COD Settlement'],
+    'Rider COD Settlement', 'Courier POD Record'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
   freg: {
     src: 93,
@@ -70,7 +70,7 @@ export const MODULE = {
       /* 1 FR-LOG-001: a consignment is created from any source - the M01
        * hand-over makes pickup / delivery legs, and a branch transfer or a
        * return to vendor is raised here. The page had no button at all. */
-      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'], reports: ['Consignment Cycle Time'], forms: ['Consignment (5 types)'] }],
+      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'], reports: ['Consignment Cycle Time', 'Reverse Logistics Volume'], forms: ['Consignment (5 types)'] }],
       /* 2 FR-LOG-002: a journey is the chain of legs (consignments) of one
        * service order; planning it is raising the next leg. It listed the
        * custody scans, which are sub-module 3's records. */
@@ -90,10 +90,10 @@ export const MODULE = {
        * No rider-shift or route-manifest record exists yet (the manifest is
        * the rider's legs of the day, computed). */
       ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders'], reports: [], forms: ['Rider & Vehicle Assignment'], create: 'M03-form-rider', domain: [['rider_id', '!=', false]] }],
-      ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], reports: ['Reverse Logistics Volume'], forms: ['Rider & Vehicle Assignment'], create: 'M03-form-rider', domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
+      ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], reports: [], forms: ['Rider & Vehicle Assignment'], create: 'M03-form-rider', domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
       /* 8: written by the rider app (P09) on sync - nothing to type here */
       ['8', 'Rider App Offline Sync (P09)', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_by', 'scanned_at', 'device_serial'], screens: ['M03-app'], reports: [], forms: [], create: false }],
-      ['9', 'Courier Partner Integration', 10, { model: 'fix.courier.booking', cols: ['name', 'partner_id', 'awb_no', 'booked_on', 'state'], screens: ['M03-bookings', 'M03-couriers', 'M03-recon'], reports: ['Courier Performance (Pathao/RedX/Steadfast)'], forms: ['Courier Booking', 'Courier Partner'] }],
+      ['9', 'Courier Partner Integration', 10, { model: 'fix.courier.booking', cols: ['name', 'partner_id', 'awb_no', 'booked_on', 'state'], screens: ['M03-bookings', 'M03-couriers', 'M03-recon'], reports: ['Courier Performance (Pathao/RedX/Steadfast)'], forms: ['Courier Booking', 'Courier POD Record', 'Courier Partner'] }],
       /* 10 FR-LOG-030: the rider's cash hand-over is the M50 settlement
        * (Finance prepares and settles it; the orders load from delivered COD) */
       ['10', 'COD Collection & Handover', 7, { model: 'fix.cod.settlement', cols: ['name', 'rider_id', 'expected_amount', 'remitted_amount', 'state'], screens: ['M03-cod'], reports: ['COD Settlement Report'], forms: ['Rider COD Settlement'] }],
@@ -113,22 +113,27 @@ export const SCREENS = {
     title: 'Courier Partner',
     back: 'M03-couriers',
     tabs: [
-      { id: 'profile', label: '1. Partner Identity', bn: '১. কুরিয়ার পরিচিতি', icon: '🏢', badge: '5' },
-      { id: 'commercial', label: '2. Tariff & Billing', bn: '২. ভাড়া ও বিলিং', icon: '💵', badge: '4' }
+      { id: 'profile', label: '1. Partner Identity', bn: '১. কুরিয়ার পরিচিতি', icon: '🏢', badge: '7' },
+      { id: 'commercial', label: '2. Tariff & Billing', bn: '২. ভাড়া ও বিলিং', icon: '💵', badge: '6' }
     ],
     sections: [
-      { tab: 'profile', title: 'Partner Profile & Service Coverage', note: 'A third-party courier account: coverage, rate basis and COD settlement cycle.',
+      { tab: 'profile', title: 'Partner Profile & Service Coverage', note: 'A third-party courier account: coverage, contractual delivery SLA and the account manager. Courier Performance measures on-time against this SLA.',
         fields: [
           { name: 'name', required: true, label: 'Partner Name' },
           { name: 'code', required: true, label: 'Code' },
           { name: 'service_area', label: 'Service Area' },
-          { name: 'api_ref', label: 'API Credential Reference' },
+          { name: 'sla_delivery_hours', label: 'Contractual Delivery SLA (hours)' },
+          { name: 'contact_phone', label: 'Account Manager Phone' },
+          { name: 'api_ref', label: 'API Credential Reference (vault://)' },
           { name: 'active', label: 'Active' }
         ] },
       { tab: 'commercial', title: 'Tariff Matrix & COD Settlement Cycle',
+        note: 'A leg carried by this courier is priced base + per-kg on its chargeable weight (the greater of actual and volumetric weight).',
         fields: [
           { name: 'base_rate', label: 'Base Rate (BDT)' },
           { name: 'per_kg_rate', label: 'Per-kg Rate (BDT)' },
+          { name: 'volumetric_divisor', label: 'Volumetric Divisor (cm³/kg)' },
+          { name: 'insurance_max_bdt', label: 'Max Insured Liability (BDT)' },
           { name: 'cod_supported', label: 'COD Supported' },
           { name: 'cod_cycle_days', label: 'COD Cycle (days)' }
         ] }
@@ -143,17 +148,22 @@ export const SCREENS = {
     status: { field: 'state', labels: { booked: 'Booked', picked_up: 'Picked Up',
       delivered: 'Delivered', returned: 'Returned', cancelled: 'Cancelled' } },
     tabs: [
-      { id: 'booking', label: '1. Booking & Consignment', bn: '১. বুকিং ও চালান', icon: '📦', badge: '5' },
+      { id: 'booking', label: '1. Booking & Consignment', bn: '১. বুকিং ও চালান', icon: '📦', badge: '10' },
       { id: 'freight', label: '2. Freight & Volumetric', bn: '২. ভাড়া ও ওজন', icon: '⚖️', badge: '6' }
     ],
     sections: [
-      { tab: 'booking', title: 'Courier Booking & AWB Tracking', note: 'A third-party courier booking for one consignment: the AWB number, weight, and status.',
+      { tab: 'booking', title: 'Courier Booking & AWB Tracking', note: 'A third-party courier booking for one consignment: the AWB number, the recipient, weight and status. The courier’s signed POD is recorded with Record Courier POD; only then can the booking be marked delivered.',
         fields: [
           { name: 'partner_id', required: true, label: 'Courier' },
           { name: 'consignment_id', label: 'Consignment' },
           { name: 'awb_no', label: 'AWB / Tracking No' },
           { name: 'booked_on', required: true, label: 'Booked On' },
-          { name: 'state', label: 'State', readonly: true }
+          { name: 'recipient_name', label: 'Recipient Name' },
+          { name: 'recipient_phone', label: 'Recipient Phone' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'delivered_on', label: 'Delivered On', readonly: true },
+          { name: 'pod_attachment_id', label: 'Courier POD Scan', readonly: true },
+          { name: 'pod_recorded_by_id', label: 'POD Recorded By', readonly: true }
         ] },
       { tab: 'freight', title: 'Weight & Volumetric Pricing (FLAW-03.2)',
         fields: [
@@ -216,10 +226,10 @@ export const SCREENS = {
     domain: [['rider_id', '!=', false]] },
   /* the rider's legs per day ARE the route manifest; this screen showed the
    * reverse-logistics volume report (M03 capture audit 2026-11-12) */
-  'M03-routes': { kind: 'table_report', module: 'M03', report: 'rider_day', title: 'Route Manifests', period: false },
+  'M03-routes': { kind: 'table_report', module: 'M03', report: 'route_manifest', title: 'Route Manifests', period: false },
   'M03-app': { kind: 'table_report', module: 'M03', report: 'rider_day', title: 'Rider App (P09) Preview', period: false },
   'M03-couriers': { kind: 'model_list', model: 'fix.courier.partner', cols: ['name', 'code', 'service_area', 'base_rate', 'cod_supported', 'cod_cycle_days', 'active'] },
-  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [
+  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'cod_amount', 'pod_attachment_id', 'state'], actions: [
       { m: 'action_pick_up', l: 'Handed to Courier' },
       { m: 'action_deliver', l: 'Mark Delivered (needs POD)' }
     ] },
@@ -254,8 +264,8 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", in_transit: "In Transit", held: "Exception Hold", delivered: "Delivered", returned: "Returned", lost: "Lost" } },
     tabs: [
       { id: 'journey', label: '1. Journey & Legs', bn: '১. রুট ও স্থানান্তর', icon: '🚚', badge: '12' },
-      { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '11' },
-      { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '9' },
+      { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '16' },
+      { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '11' },
       { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '8' }
     ],
     sections: [
@@ -285,9 +295,17 @@ export const SCREENS = {
           { name: 'dispatch_weight_g', label: "Dispatch Scale Weight (g)" },
           { name: 'receive_weight_g', label: "Intake Scale Weight (g) (hub intake)", readonly: true },
           { name: 'weight_variance_g', label: "Weight Variance (g)", readonly: true },
+          { name: 'shockwatch_triggered', label: "ShockWatch / Tilt Indicator Tripped" },
           { name: 'chain_broken', label: "Custody Chain Broken Alert", readonly: true },
           { name: 'chain_problem', label: "Chain Problem", readonly: true },
-          { name: 'hold_reason', label: "Exception Hold Reason", readonly: true }
+          { name: 'hold_reason', label: "Exception Hold Reason", readonly: true },
+          /* M03 audit 2026-11-13: the release and the return/loss reason are
+           * evidence the model stamps; no screen showed them */
+          { name: 'hold_released_by_id', label: "Hold Released By", readonly: true },
+          { name: 'hold_released_at', label: "Hold Released At", readonly: true },
+          { name: 'hold_release_reason', label: "Hold Release Reason", readonly: true },
+          { name: 'rto_flag', label: "Returned to Origin", readonly: true },
+          { name: 'exception_note', label: "Return / Loss Reason", readonly: true }
         ] },
       { tab: 'volumetric', title: "IATA Volumetric Weight & Freight Rating (FLAW-03.2)",
         fields: [
@@ -298,8 +316,10 @@ export const SCREENS = {
           { name: 'volumetric_divisor', label: "Volumetric Divisor" },
           /* BRU-LOG-12: recorded before collection; drives the insurance fee */
           { name: 'declared_value_bdt', label: "Declared Value (BDT)" },
+          { name: 'volumetric_weight_kg', label: "Volumetric Weight (kg)", readonly: true },
           { name: 'chargeable_weight_kg', label: "Chargeable Weight (kg)", readonly: true },
           { name: 'base_freight_bdt', label: "Base Freight (BDT)", readonly: true },
+          { name: 'volumetric_surcharge_bdt', label: "Volumetric Surcharge (BDT)", readonly: true },
           { name: 'insurance_fee_bdt', label: "Transit Insurance (BDT)", readonly: true }
         ] },
       { tab: 'pod', title: "Proof of Delivery (POD) & OTP Handover",
@@ -455,6 +475,45 @@ export const SCREENS = {
         ] }
     ]
   },
+  /* M03 audit 2026-11-13: a courier booking closes only on a recorded POD,
+   * and the POD could not be recorded anywhere (guarded field, method not
+   * served) - no courier booking could ever be marked delivered. */
+  'M03-form-courier-pod': {
+    kind: 'model_form',
+    model: 'fix.courier.booking',
+    title: 'Courier POD Record',
+    newLabel: 'Record Courier POD',
+    back: 'M03-bookings',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the courier booking',
+      note: 'Bookings the courier has not closed yet (booked or picked up).',
+      search: 'Search booking / AWB',
+      choose: 'Record its POD',
+      cols: ['name', 'partner_id', 'awb_no', 'consignment_id', 'booked_on', 'state'],
+      domain: [['state', 'in', ['booked', 'picked_up']]],
+      empty: 'No open courier booking.'
+    },
+    saveAction: {
+      method: 'action_record_pod', label: 'Record POD',
+      done: 'Courier POD recorded: the booking can now be marked delivered',
+      kwargs: { attachment_id: 'pod_attachment_id' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: The Courier’s Signed Waybill / POD Scan (FR-LOG-018)',
+        note: 'Needs the Logistics Hub Operator role. Upload the scan the courier returned (PDF or photo, up to 10 MB); then press Mark Delivered on Courier Bookings.',
+        fields: [
+          { name: 'name', label: 'Booking', readonly: true },
+          { name: 'partner_id', label: 'Courier', readonly: true },
+          { name: 'awb_no', label: 'AWB / Tracking No', readonly: true },
+          { name: 'consignment_id', label: 'Consignment', readonly: true },
+          /* readonly for the generic write (guarded); an INPUT here because
+           * saveAction carries it to action_record_pod */
+          { name: 'pod_attachment_id', required: true, label: 'Signed POD Scan', readonly: true }
+        ] }
+    ]
+  },
+
   'M03-form-rider-shift': {
     kind: 'model_form',
     model: 'fix.custody.scan',
@@ -505,7 +564,7 @@ export const SCREENS = {
     back: 'M03-damage-claim',
     status: { field: 'state' },
     tabs: [
-      { id: 'claim', label: '1. Incident Claim', bn: '১. দাবির বিবরণ', icon: '⚠️', badge: '9' },
+      { id: 'claim', label: '1. Incident Claim', bn: '১. দাবির বিবরণ', icon: '⚠️', badge: '10' },
       { id: 'dofa', label: '2. DOFA & Financial Sign-Off', bn: '২. অনুমোদন ও আর্থিক সিদ্ধান্ত', icon: '✍️', badge: '9' }
     ],
     sections: [
@@ -514,6 +573,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Claim Reference", readonly: true },
           { name: 'state', label: "Claim Status", readonly: true },
           { name: 'consignment_id', required: true, label: "Consignment" },
+          /* required by the model and on no form: a claim could not be saved */
+          { name: 'operating_unit_id', required: true, label: "Operating Unit" },
           { name: 'claimed_on', required: true, label: "Incident / Claim Date" },
           { name: 'claimant', required: true, label: "Claimant / Consignee" },
           { name: 'damage_kind', required: true, label: "Damage Kind" },
@@ -573,6 +634,7 @@ export const FORM_CHIPS = {
   'M03:Rider & Vehicle Assignment': 'M03-form-rider',
   /* the M50 form: the rider's hand-over is a Finance settlement */
   'M03:Rider COD Settlement': 'M50-form-cod',
+  'M03:Courier POD Record': 'M03-form-courier-pod',
   'M03:__by_model__': {
     'fix.courier.partner': 'M03-form-courier',
     'fix.courier.booking': 'M03-form-booking',

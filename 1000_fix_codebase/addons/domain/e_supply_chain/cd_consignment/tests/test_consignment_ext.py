@@ -59,6 +59,7 @@ def lg(odoo_env):
             "service_order_id": order.id,
             "operating_unit_id": ou.id,
             "rider_id": rider.id,
+            "declared_value_bdt": 1000.0,  # BRU-LOG-12: needed to confirm
         }
         base.update(vals)
         return env["fix.consignment"].create(base)

@@ -73,7 +73,15 @@ class FixDamageClaim(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit", required=True)
+    # M03 audit 2026-11-13: required, no default and on no form, so no claim
+    # could be raised from the workspace. Defaults to the user's unit; on
+    # create it follows the claimed consignment's unit (create below).
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Operating Unit",
+        required=True,
+        default=lambda self: self.env.user.default_operating_unit_id,
+    )
     consignment_id = fields.Many2one(
         "fix.consignment", string="Consignment", required=True, ondelete="cascade", index=True
     )
@@ -317,6 +325,10 @@ class FixDamageClaim(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.damage.claim") or "DMC/New"
+            if not vals.get("operating_unit_id") and vals.get("consignment_id"):
+                consignment = self.env["fix.consignment"].browse(vals["consignment_id"])
+                if consignment.operating_unit_id:
+                    vals["operating_unit_id"] = consignment.operating_unit_id.id
         return super().create(vals_list)
 
     # ------------------------------------------------------------ decisions

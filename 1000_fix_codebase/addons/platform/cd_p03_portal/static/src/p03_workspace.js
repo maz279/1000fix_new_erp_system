@@ -2378,7 +2378,9 @@ export class P03Workspace extends Component {
         const gl = this.state.gl;
         const map = {};
         ((gl && gl.data && gl.data.fields) || []).forEach((f) => {
-            map[f.name] = f;
+            // an evidence field (many2one to a file) is an upload: the server
+            // types it "attachment" and sends no list of files (M03 audit)
+            map[f.name] = f.type === "attachment" ? { ...f, type: "file", attachment: true } : f;
         });
         // a `saveAction` carries its fields to a workflow method: they are
         // inputs on this form even where the generic write must refuse them
@@ -2450,6 +2452,8 @@ export class P03Workspace extends Component {
     formFileDownloadHref(name) {
         const v = this.formFieldValue(name);
         if (!v) return "#";
+        // an evidence attachment: its stored file, or the one just picked
+        if (typeof v === "object") return v.url || (v.upload ? `data:application/octet-stream;base64,${v.upload}` : "#");
         if (typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))) return v;
         if (typeof v === "string" && v.startsWith("JVBERi")) return `data:application/pdf;base64,${v}`;
         if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `data:image/png;base64,${v}`;
@@ -2466,6 +2470,7 @@ export class P03Workspace extends Component {
         if (directFn) return directFn;
         const v = this.formFieldValue(name);
         if (!v) return "";
+        if (typeof v === "object") return v.filename || v.label || "";
         if (typeof v === "string" && v.startsWith("JVBERi")) return `${name}.pdf`;
         if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `${name}.png`;
         if (typeof v === "string" && v.startsWith("/9j/")) return `${name}.jpg`;
@@ -2480,6 +2485,12 @@ export class P03Workspace extends Component {
         reader.onload = (e) => {
             const dataUrl = e.target.result;
             const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            if ((this.formFieldsMeta[name] || {}).attachment) {
+                // saved as the caller's attachment, linked to this record
+                this.formSet(name, { upload: base64, filename: file.name });
+                this.render(true);
+                return;
+            }
             this.formSet(name, base64);
             const fnCandidates = [
                 name + "_filename",
@@ -2950,7 +2961,8 @@ export class P03Workspace extends Component {
         const kwargs = Object.assign({}, act.kw || {});
         for (const [kwarg, name] of Object.entries(act.kwargs || {})) {
             let v = gl.form.values[name];
-            if (v && typeof v === "object") v = v.key !== undefined ? v.key : v.id;
+            // an upload travels as is: the server stores it and passes its id
+            if (v && typeof v === "object" && !v.upload) v = v.key !== undefined ? v.key : v.id;
             if (v === undefined || v === null || v === "" || v === false) {
                 if (specs[name] && specs[name].required) {
                     gl.form.error = `${this.t(specs[name].label || name)}: ${this.t("this is required.")}`;

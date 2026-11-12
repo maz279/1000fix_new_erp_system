@@ -28,7 +28,12 @@ def _events(env, event_type, consignment):
 def consignment(odoo_env):
     ou = odoo_env["operating.unit"].search([("company_id", "=", odoo_env.company.id)], limit=1)
     return odoo_env["fix.consignment"].create(
-        {"operating_unit_id": ou.id, "scheduled_date": T0, "consignment_type": "delivery"}
+        {
+            "operating_unit_id": ou.id,
+            "scheduled_date": T0,
+            "consignment_type": "delivery",
+            "declared_value_bdt": 1000.0,
+        }
     )
 
 

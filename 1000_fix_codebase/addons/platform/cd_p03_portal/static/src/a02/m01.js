@@ -142,6 +142,12 @@ const SO_ACTIONS = [
     states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
   { id: 'workshop_job', m: 'action_create_workshop_job', l: 'Create Workshop Job',
     states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
+  /* M03 audit 2026-11-13: the M01 -> M03 hand-over was served by the server
+   * and offered by no button. A collection / mail-in order gets a pickup leg,
+   * any other a delivery leg; a second live leg of the same kind is refused. */
+  { id: 'consignment', m: 'action_create_consignment', l: 'Hand to Logistics (Pick & Drop)',
+    states: ['intake', 'diagnostic', 'estimate_pending', 'estimate_sent', 'awaiting_approval',
+      'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready'] },
   /* a hold is captured on its form: it was typed as a reason CODE into a
    * browser prompt, and the resume date could not be given at all */
   { id: 'defer', m: 'action_defer_order', l: 'Defer / Hold (supervisor)', states: SO_HOLDABLE,

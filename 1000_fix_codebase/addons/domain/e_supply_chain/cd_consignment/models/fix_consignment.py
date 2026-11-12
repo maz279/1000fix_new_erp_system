@@ -336,6 +336,8 @@ class FixConsignment(models.Model):
             "hold_released_at",
             "hold_release_reason",
             "exception_note",
+            # set by Return to Origin only (it was never set at all before)
+            "rto_flag",
             "chain_broken",
             "chain_problem",
             "custody_summary",
@@ -523,6 +525,15 @@ class FixConsignment(models.Model):
                 raise UserError(
                     "Only draft consignments can be confirmed (current: %s)." % consignment.state
                 )
+            # BRU-LOG-12 (class H): the declared value is recorded before the
+            # item leaves - it caps a damage payout and prices the insurance.
+            # M03 bidirectional audit 2026-11-13: nothing enforced it.
+            if consignment.declared_value_bdt <= 0:
+                raise UserError(
+                    "%s has no declared value. Record what the consignment is worth "
+                    "(Seal for Dispatch or the consignment form) before confirming it "
+                    "for dispatch (BRU-LOG-12)." % consignment.name
+                )
             consignment._guarded().write({"state": "confirmed"})
         return True
 
@@ -623,7 +634,9 @@ class FixConsignment(models.Model):
                         "device_serial": consignment.service_order_id.device_serial or "",
                     }
                 )
-            consignment._guarded().write({"state": "returned", "exception_note": reason})
+            consignment._guarded().write(
+                {"state": "returned", "exception_note": reason, "rto_flag": True}
+            )
             publish(
                 self.env,
                 "consignment.returned",
