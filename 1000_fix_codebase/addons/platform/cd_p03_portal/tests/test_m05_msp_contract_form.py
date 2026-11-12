@@ -36,6 +36,10 @@ EDITABLE = {
     "sla_target_pct",
     "alert_resolve_hours_major",
     "alert_resolve_hours_minor",
+    # BRU-RMS-02 / 05 / 12 (M05 audit 2026-11-13)
+    "unattended_access",
+    "coverage_window",
+    "recording_retention_days",
 }
 
 PROBE = """
@@ -96,14 +100,15 @@ def test_rows_chips_and_the_list_reach_the_same_form(m05):
 def test_the_form_is_tabbed_and_shows_the_estate_it_covers(m05, odoo_env):
     form = m05["screens"][FORM]
     tabs = {t["id"] for t in form["tabs"]}
-    assert len(tabs) == 2 and {s["tab"] for s in form["sections"]} == tabs
+    # contract, commercials & SLA, lifecycle & offboarding (BRU-RMS-11)
+    assert len(tabs) == 3 and {s["tab"] for s in form["sections"]} == tabs
     contract_fields = odoo_env["fix.msp.contract"]._fields
     names = [f["name"] for f in _fields(form)]
     assert len(names) == len(set(names)), "a field declared twice locks its first input"
     assert [n for n in names if n not in contract_fields] == []
     # what the model refuses to save without
     required = {f["name"] for f in _fields(form) if f.get("required")}
-    assert required == {"name", "contract_id", "monitoring_scope"}
+    assert required == {"name", "contract_id", "monitoring_scope", "coverage_window"}
     grid = form["lines"]
     assert grid["field"] == "asset_ids" and grid["readonlyGrid"] is True
     asset_fields = odoo_env["fix.monitored.asset"]._fields

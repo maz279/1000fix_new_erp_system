@@ -33,7 +33,14 @@ SURFACES = {
     "fix.msp.contract": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_generate_monthly_report", "action_compute_sla_credits"},
+        "actions": {
+            "action_generate_monthly_report",
+            "action_compute_sla_credits",
+            # BRU-RMS-11 offboarding
+            "action_start_offboarding",
+            "action_record_access_revoked",
+            "action_complete_offboarding",
+        },
     },
     # M05 capture audit (2026-11-13): an engineer's health reading of an
     # asset runs the same alerting the collector does, and the alert rules
@@ -41,7 +48,7 @@ SURFACES = {
     "fix.monitored.asset": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_record_reading"},
+        "actions": {"action_record_reading", "action_record_agent_removal"},
     },
     "fix.msp.alert.rule": {
         "order": "id desc",
@@ -66,6 +73,7 @@ SURFACES = {
             "action_verify_consent",
             "action_start",
             "action_end",
+            "action_open_recording",  # BRU-RMS-12: shown and logged
         },
     },
     "fix.msp.service.report": {

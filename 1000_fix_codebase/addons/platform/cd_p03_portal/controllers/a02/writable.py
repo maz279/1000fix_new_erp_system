@@ -354,6 +354,7 @@ WRITABLE = {
             "asset_id",
             "message",
             "msp_contract_id",
+            "problem_id",
             "severity",
             "source",
         }
@@ -400,11 +401,14 @@ WRITABLE = {
             "alert_resolve_hours_major",
             "alert_resolve_hours_minor",
             "contract_id",
+            "coverage_window",
             "device_count",
             "monitoring_scope",
             "name",
             "per_device_monthly",
+            "recording_retention_days",
             "sla_target_pct",
+            "unattended_access",
         }
     ),
     "fix.msp.maintenance.window": frozenset(
@@ -523,6 +527,7 @@ WRITABLE = {
     ),
     "fix.remote.session": frozenset(
         {
+            "access_mode",
             "asset_id",
             "consent_partner_id",
             "msp_contract_id",

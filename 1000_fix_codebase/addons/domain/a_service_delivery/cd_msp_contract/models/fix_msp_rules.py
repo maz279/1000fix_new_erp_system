@@ -387,7 +387,8 @@ class FixMspRunbookLog(models.Model):
                 alert = self.env["fix.msp.alert"].search(
                     [("asset_id", "=", target.id), ("state", "in", ("new", "acked"))], limit=1
                 )
-            if alert and alert.state in ("new", "acked"):
+            # BRU-RMS-10: a recurring incident with no problem record stays open
+            if alert and alert.state in ("new", "acked") and not alert._msp_needs_problem():
                 alert.action_resolve(
                     note="Runbook '%s' executed (run #%s): %s" % (self.name, run.id, evidence)
                 )

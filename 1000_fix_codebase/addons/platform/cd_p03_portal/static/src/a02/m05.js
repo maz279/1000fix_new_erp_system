@@ -99,13 +99,15 @@ export const MODULE = {
 export const SCREENS = {
   /* --- Remote Sessions --- */
   'M05-sessions': { kind: 'model_list', model: 'fix.remote.session',
-    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at'],
+    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'access_mode', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at'],
     stateField: 'tool',
     actions: [
       { m: 'action_request_consent', l: 'Request Consent' },
       { m: 'action_verify_consent', l: 'Verify Consent', ask: "Consent code the client read back", kwarg: 'code' },
       { m: 'action_start', l: 'Start Session' },
-      { m: 'action_end', l: 'End Session', ask: 'Session recording reference', kwarg: 'recording_url' }
+      { m: 'action_end', l: 'End Session', ask: 'Session recording reference', kwarg: 'recording_url' },
+      /* BRU-RMS-12: the reference is shown and the opening logged */
+      { m: 'action_open_recording', l: 'Open Recording' }
     ] },
   /* the console = what is RUNNING right now (started, not yet ended) */
   'M05-console': { kind: 'model_list', model: 'fix.remote.session', create: false,
@@ -116,8 +118,12 @@ export const SCREENS = {
 
   /* --- Monitored Estate --- */
   'M05-estate': { kind: 'model_list', model: 'fix.monitored.asset', create: true,
-    cols: ['agent_id', 'hostname', 'msp_contract_id', 'device_id', 'health', 'health_score', 'open_alert_count', 'last_seen'],
-    stateField: 'health' },
+    cols: ['agent_id', 'hostname', 'msp_contract_id', 'device_id', 'health', 'health_score', 'open_alert_count', 'last_seen', 'agent_removed_at'],
+    stateField: 'health',
+    /* BRU-RMS-11: during a client's offboarding each agent's removal is evidenced */
+    actions: [
+      { m: 'action_record_agent_removal', l: 'Record Agent Removal (offboarding)', ask: 'Evidence: how the removal was confirmed', kwarg: 'evidence' }
+    ] },
   'M05-health': { kind: 'table_report', module: 'M05', report: 'estate_health', period: false },
   'M05-alerts': { kind: 'model_list', model: 'fix.msp.alert', create: true,
     cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'coverage_gap', 'state', 'escalated', 'order_id', 'resolved_at'],
@@ -138,7 +144,7 @@ export const SCREENS = {
    * the desk = what clients reported (phone, email, portal, chat) and every
    * alert that became a ticket. "+ New" logs a client's report. */
   'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert',
-    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
+    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'recurring', 'problem_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
     stateField: 'state',
     domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']],
     actions: [
@@ -216,10 +222,15 @@ export const SCREENS = {
     actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' }] },
   /* the monthly report and the SLA credit run, per MSP contract */
   'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract',
-    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'monitoring_scope', 'sla_target_pct', 'monthly_value'],
+    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'enrolled_count', 'coverage_window', 'sla_target_pct', 'monthly_value', 'lifecycle'],
+    stateField: 'lifecycle',
     actions: [
       { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
-      { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' }
+      { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' },
+      /* BRU-RMS-11 offboarding: start, record access revoked, complete */
+      { m: 'action_start_offboarding', l: 'Start Offboarding' },
+      { m: 'action_record_access_revoked', l: 'Record Access Revoked', ask: 'Evidence: which access was revoked and how it was checked', kwarg: 'evidence' },
+      { m: 'action_complete_offboarding', l: 'Complete Offboarding' }
     ] },
   /* credits are computed from the service report; a manual credit is typed
    * on the credit form and needs the DOFA tier of its amount */
@@ -258,6 +269,7 @@ export const SCREENS = {
         { name: 'asset_id', required: true, label: 'Monitored Asset' },
         { name: 'technician_id', required: true, label: 'Technician' },
         { name: 'tool', required: true, label: 'Remote Access Tool' },
+        { name: 'access_mode', required: true, label: 'Access Mode (unattended only if the contract grants it)' },
         { name: 'session_protocol', label: 'Transport Encryption' },
         { name: 'order_id', label: 'Service Order (the ticket worked on)' },
         { name: 'started', label: 'Session Active', readonly: true },
@@ -275,6 +287,8 @@ export const SCREENS = {
           { name: 'started_at', label: 'Session Started At', readonly: true },
           { name: 'ended_at', label: 'Session Ended At', readonly: true },
           { name: 'recording_url', label: 'Session Recording Reference', readonly: true },
+          { name: 'recording_access_count', label: 'Recording Opened (times, each logged)', readonly: true },
+          { name: 'recording_purged_at', label: 'Recording Purged At (retention)', readonly: true },
           { name: 'session_summary', label: 'Session Actions / Troubleshooting Summary', type: 'text' }
         ]},
     ] },
@@ -304,6 +318,8 @@ export const SCREENS = {
       ]},
       { tab: 'resolution', title: 'Ticket Conversion & Resolution Verification', fields: [
         { name: 'order_id', label: 'Commercial Service Order (M01)', readonly: true },
+        { name: 'recurring', label: 'Recurring on This Asset (BRU-RMS-10)', readonly: true },
+        { name: 'problem_id', label: 'Problem Record (needed to resolve a recurring incident)' },
         { name: 'state', label: 'Ticket / Alert State', readonly: true },
         { name: 'resolved_at', label: 'Resolved Timestamp', readonly: true },
         { name: 'resolution_note', label: 'Root Cause & Resolution Summary', type: 'text', readonly: true }
@@ -382,7 +398,7 @@ export const SCREENS = {
     back: 'M05-estate',
     tabs: [
       { id: 'asset', label: '1. Device Identity', bn: '১. ডিভাইসের পরিচিতি', icon: '💻', badge: '9' },
-      { id: 'telemetry', label: '2. Telemetry & Agent Health', bn: '২. এজেন্ট স্থিতি ও অডিট', icon: '📊', badge: '3' }
+      { id: 'telemetry', label: '2. Telemetry & Agent Health', bn: '২. এজেন্ট স্থিতি ও অডিট', icon: '📊', badge: '5' }
     ],
     sections: [
       { tab: 'asset', title: "Managed Estate Device Inventory", note: "One endpoint under the MSP contract: its monitoring agent, network identity and the registered device a ticket is raised on.",
@@ -403,7 +419,9 @@ export const SCREENS = {
         fields: [
           { name: 'health_score', label: "Composite Health Score (0-100)", readonly: true },
           { name: 'open_alert_count', label: "Active Unresolved Alerts", readonly: true },
-          { name: 'last_seen', label: "Agent Last Heartbeat Timestamp", readonly: true }
+          { name: 'last_seen', label: "Agent Last Heartbeat Timestamp", readonly: true },
+          { name: 'agent_removed_at', label: "Agent Removed At (offboarding)", readonly: true },
+          { name: 'agent_removal_evidence', label: "Agent Removal Evidence", readonly: true }
         ] }
     ]
   },
@@ -526,7 +544,8 @@ export const SCREENS = {
       ] },
     tabs: [
       { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
-      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '5' }
+      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '8' },
+      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '7' }
     ],
     sections: [
       { tab: 'contract', title: "Contract & Monitoring Scope",
@@ -537,7 +556,9 @@ export const SCREENS = {
           { name: 'contract_state', label: "M08 Contract State", readonly: true },
           { name: 'entitled', label: "Entitled Today", readonly: true },
           { name: 'monitoring_scope', required: true, label: "Monitoring Scope" },
-          { name: 'device_count', label: "Covered Devices" }
+          { name: 'device_count', label: "Covered Devices (0 = bill every enrolled device)" },
+          { name: 'enrolled_count', label: "Enrolled Devices", readonly: true },
+          { name: 'unattended_access', label: "Unattended Access Granted (BRU-RMS-02)" }
         ] },
       { tab: 'commercial', title: "Commercials & Service Levels",
         note: "The monthly value is the covered devices times the per-device price; the SLA credit of a month can never exceed it.",
@@ -546,7 +567,19 @@ export const SCREENS = {
           { name: 'monthly_value', label: "Monthly Value (BDT)", readonly: true },
           { name: 'sla_target_pct', label: "SLA Target %" },
           { name: 'alert_resolve_hours_major', label: "Major Alert Resolution Target (h)" },
-          { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" }
+          { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" },
+          { name: 'coverage_window', required: true, label: "SLA Coverage Window (the hours the clock runs)" },
+          { name: 'recording_retention_days', label: "Session Recording Retention (days, 0 = contract life)" }
+        ] },
+      { tab: 'lifecycle', title: "Service Lifecycle & Offboarding (BRU-RMS-11)",
+        note: "Offboarding is run from MSP Contracts: Start Offboarding, record each agent's removal on Estate & Agents and the access revocation here, then Complete Offboarding. It completes only when every agent is removed and access is revoked, each with its evidence.",
+        fields: [
+          { name: 'lifecycle', label: "Service Lifecycle", readonly: true },
+          { name: 'offboarding_started_at', label: "Offboarding Started At", readonly: true },
+          { name: 'access_revoked_at', label: "Access Revoked At", readonly: true },
+          { name: 'access_revoked_evidence', label: "Access Revocation Evidence", readonly: true },
+          { name: 'offboarded_at', label: "Offboarded At", readonly: true },
+          { name: 'offboarded_by_id', label: "Offboarded By", readonly: true }
         ] }
     ] },
 

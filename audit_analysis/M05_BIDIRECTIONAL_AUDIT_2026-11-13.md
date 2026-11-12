@@ -36,7 +36,14 @@
 | BRU-RMS-06 auto credits; manual needs CFO | enforced | unchanged |
 | BRU-RMS-08 every change has a rollback plan | only **high-risk** changes | every change; a problem record is exempt |
 | BRU-RMS-09 patch outside window needs approval | built behind a switch (off by default) | unchanged: switching it on is a business decision |
-| BRU-RMS-02, 05, 07, 10, 11, 12 | not built | not built (see below) |
+| BRU-RMS-03 credentials never in a ticket or note | not built | free text on alerts and tickets, sessions, runbooks and their runs, changes and backup jobs refuses credential-shaped text (`password: …`, `pwd=…`, `API key = …`, `token: …`) and points to the vault. Ordinary sentences ("password reset done") pass |
+| BRU-RMS-13 a client sees only its own estate | internal company and operating-unit isolation rules on every M05 model | unchanged. No client portal (P04) access to M05 exists yet, so no client can see any MSP record |
+| BRU-RMS-02 unattended access only where the contract grants it | not built | contract flag `Unattended Access Granted`; a session's access mode is attended unless it is set; refused at create and at start |
+| BRU-RMS-05 SLA clocks follow the coverage window | not built (clock hours always) | contract `SLA Coverage Window`: 24 × 7 or Sun–Thu 09:00–18:00 Dhaka. Breach deadlines, monthly attainment and credits use it (public holidays not yet in the calendar) |
+| BRU-RMS-07 overage never absorbed | not built | enrolling a device beyond the covered count is refused until the count is raised (an uplift, billed per device); the count cannot drop below the estate; a contract with no count bills every enrolled device |
+| BRU-RMS-10 recurring incident linked to a problem | not built | the 3rd alert on an asset within 30 days (both values are settings) cannot be resolved until it is linked to a problem record; a runbook logs its run but leaves such an alert open |
+| BRU-RMS-11 offboarding evidenced | not built | MSP Contracts: Start Offboarding, then Record Agent Removal per asset (evidence) and Record Access Revoked (evidence), then Complete Offboarding. It is refused while any agent remains or access is not revoked. No new asset or session once offboarding starts |
+| BRU-RMS-12 recording retention, access logged | not built | contract `Recording Retention (days)` (365 by default; 0 = contract life); a daily job purges expired references (logged); **Open Recording** shows the reference and logs who opened it |
 
 ### Cross-module (verified on fix_real)
 M08: entitlement and `contract.renewed` consumer. M17: device link for ticketing. M01: alert to service order and its outcome. M20: `msp.sla_credit_applied` consumer in `cd_settlement_ext`. M63: change, credit and patch-exception approvals. RMM collector: `ingest_telemetry`. All modules are installed and both M05 crons are active.
@@ -47,8 +54,10 @@ On fix_real today:
 - **MSP Engineer: only the System Administrator.** No staff user can record a reading, ticket, rule, runbook execution or backup job.
 - MSP SLA Credit Approver: 3 holders (fine).
 
-## Still not built (spec features without a model)
-BRU-RMS-02 unattended access per contract, BRU-RMS-05 coverage-window SLA clocks, BRU-RMS-07 entitlement consumption and overage, BRU-RMS-10 recurring incidents linked to a problem record, BRU-RMS-11 client offboarding, BRU-RMS-12 recording retention. Also FR-RMS-036 service-review meetings, FR-RMS-020 major incidents, FR-RMS-049 client contact permissions, FR-RMS-040..046 cloud, DR and strategy lines.
+The owner decided on 13 Nov to **leave these roles unassigned for now**. The natural pool is the Corporate Service department (15 staff); the spec makes the Corporate Services Head the rule owner.
+
+## Still not built (spec features, not rules)
+Every business rule BRU-RMS-01..13 now has its control. Two are scoped: BRU-RMS-09's window enforcement is a business switch (off by default), and BRU-RMS-13 holds trivially until a client portal exposes M05. Spec features with no model yet: FR-RMS-036 service-review meetings, FR-RMS-020 major-incident declaration, FR-RMS-049 client contact permissions, FR-RMS-040..046 cloud subscription, DR/BC and strategy service lines. None is a discrepancy between the screens and the backend: no screen promises them.
 
 ## Evidence
 - `cd_msp_contract/tests/test_m05_bidirectional_audit.py` pins every fix above (20 tests).
@@ -57,3 +66,4 @@ BRU-RMS-02 unattended access per contract, BRU-RMS-05 coverage-window SLA clocks
 - **Live on 8069 after deploy (13 Nov 03:51):** 40/40 M05 surfaces served (lists, forms, pick lists, reports with and without a period, KPIs), 0 dropped columns, 0 errors.
 - Deploy: backup `_migration/backups/fix_real_pre_m05_audit_deploy_2026-11-13.dump`, `-u cd_msp_contract` (19.0.3.2.0), then 8089 and 8069 restarted.
 - Event payloads unchanged; only the three msp_* contracts' publisher lists were regenerated.
+- **Business rules (second deploy, 13 Nov 06:13):** `cd_msp_contract/tests/test_m05_business_rules.py` 13/13. The full M05 suite passes 161 behaviour tests; the two contract-form layout tests were updated for the new Lifecycle tab and pass 6/6. The estate and capture guards pass 635/635. Backup `fix_real_pre_m05_bru_deploy_2026-11-13.dump`, `-u cd_msp_contract` 19.0.3.3.0 (all 15 new columns present). Live probe on 8069 (pid started 06:13) and 8089: **40/40, 0 problems**; the new actions are whitelisted.
