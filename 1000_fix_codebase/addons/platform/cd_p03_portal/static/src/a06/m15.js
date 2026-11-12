@@ -508,8 +508,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Awaiting Approval', approved: 'Approved', shipped: 'Shipped',
       credited: 'Credited / Closed', cancelled: 'Cancelled' } },
+    // 16 fields: tabbed, not one long scroll (forms over 15 fields, AGENTS.md)
+    tabs: [
+      { id: 'rtv', label: '1. Return', bn: '১. ফেরত', icon: '↩', badge: '11' },
+      { id: 'grn', label: '2. GRN, PO & Bill', bn: '২. জিআরএন, পিও ও বিল', icon: '🧾', badge: '5' }
+    ],
     sections: [
-      { title: 'RTV', note: 'Approved by an Inventory Controller who did not raise it; after submission the vendor, part, location and quantity are pinned. It ships only with the vendor\'s RMA reference and closes when the credit is recorded.',
+      { tab: 'rtv', title: 'RTV', note: 'Approved by an Inventory Controller who did not raise it; after submission the vendor, part, location and quantity are pinned. It ships only with the vendor\'s RMA reference and closes when the credit is recorded.',
         fields: [
           { name: 'partner_id', required: true, label: 'Vendor' },
           { name: 'part_id', required: true, label: 'Spare Part' },
@@ -523,7 +528,7 @@ export const SCREENS = {
           { name: 'credit_ref', label: 'Credit Reference', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] },
-      { title: 'Goods Receipt, PO and Bill', note: 'Name the goods receipt the goods came in on: the PO comes from it and the AP credit note is raised on the bill of that PO, at the billed price with its VAT and TDS. The return is held to what the GRN accepted and the bill billed. Stock with no goods receipt records why; AP then raises its credit by hand.',
+      { tab: 'grn', title: 'Goods Receipt, PO and Bill', note: 'Name the goods receipt the goods came in on: the PO comes from it and the AP credit note is raised on the bill of that PO, at the billed price with its VAT and TDS. The return is held to what the GRN accepted and the bill billed. Stock with no goods receipt records why; AP then raises its credit by hand.',
         fields: [
           { name: 'receipt_id', label: 'Goods Receipt (GRN)', domain: [['state', '=', 'posted']] },
           { name: 'no_receipt_reason', label: 'Why No Goods Receipt' },
