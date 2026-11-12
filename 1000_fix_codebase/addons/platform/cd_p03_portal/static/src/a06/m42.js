@@ -65,7 +65,7 @@ export const SCREENS = {
     ],
     note: 'Readable only by Supplier Stewards and Approvers. A proposal blocks payment to the supplier until a second person confirms or rejects it.' },
   'M42-suppliers': { kind: 'model_list', model: 'fix.supplier', stateField: 'status',
-    cols: ['name', 'supplier_code', 'partner_id', 'segment', 'category', 'payment_block', 'status'],
+    cols: ['name', 'supplier_code', 'partner_id', 'segment', 'residency', 'category', 'payment_block', 'status'],
     actions: [
       { m: 'action_suspend', l: 'Suspend', ask: 'Reason for suspending the supplier', kwarg: 'reason' },
       { m: 'action_block', l: 'Block (CFO / CEO)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
@@ -164,11 +164,14 @@ export const SCREENS = {
       prospect: 'Prospect', qualified: 'Qualified', active: 'Active',
       suspended: 'Suspended', deactivated: 'Deactivated (Blocked)' } },
     sections: [
-      { title: 'Profile', note: 'One supplier record per partner. The status moves only by its actions: prospect → qualified (qualification approved) → active (activation gate, decided by a Supplier Approver) → suspended / blocked (blocking is the CFO or CEO\'s); a suspended or blocked supplier returns only through an approved reinstatement. Bank details change only through a confirmed bank-change request. Approved categories are read by the PO gate when it is switched on. The segment sets the review cadence.',
+      { title: 'Profile', note: 'One supplier record per partner. The status moves only by its actions: prospect → qualified (qualification approved) → active (activation gate, decided by a Supplier Approver) → suspended / blocked (blocking is the CFO or CEO\'s); a suspended or blocked supplier returns only through an approved reinstatement. Bank details change only through a confirmed bank-change request. Approved categories are read by the PO gate when it is switched on. The segment sets the review cadence. Residency decides the documents activation requires: a Bangladesh-registered supplier its trade licence, TIN and VAT registration; a foreign one its certificate of incorporation, home-country tax residency and bank letter. It must agree with the contact\'s country and changes only before activation.',
         fields: [
           { name: 'name', required: true, label: 'Supplier Name' },
           { name: 'partner_id', required: true, label: 'Contact Partner' },
           { name: 'segment', required: true, label: 'Segment' },
+          /* decides the mandatory documents: BD trade licence, TIN and VAT, or a foreign
+           * supplier's incorporation, tax residency and bank letter (12 Nov 2026) */
+          { name: 'residency', required: true, label: 'Residency (decides mandatory documents)' },
           { name: 'category', label: 'Spend Category' },
           { name: 'approved_category_ids', label: 'Approved Product Categories' },
           { name: 'buyer_id', label: 'Buyer' },

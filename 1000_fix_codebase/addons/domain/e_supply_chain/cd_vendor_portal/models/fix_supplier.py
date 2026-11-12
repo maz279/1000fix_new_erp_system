@@ -31,7 +31,16 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-MANDATORY_DOCS = ("trade_licence", "tin", "vat")
+MANDATORY_DOCS = ("trade_licence", "tin", "vat")  # a Bangladesh-registered supplier
+# A foreign (non-resident) supplier has no Bangladeshi trade licence, TIN or VAT
+# registration, so it could never be activated (fix_real, 12 Nov 2026: 13 of
+# the 25 largest suppliers by open payable are foreign). Each residency has
+# its own set, kept as configuration: comma-separated document types. A blank
+# or misspelt setting falls back to the default and never empties the set.
+PARAM_DOCS_RESIDENT = "cd_vendor_portal.mandatory_docs_resident"
+PARAM_DOCS_FOREIGN = "cd_vendor_portal.mandatory_docs_foreign"
+DEFAULT_DOCS_FOREIGN = ("incorporation", "tax_residency", "bank")
+HOME_COUNTRY = "BD"
 
 GROUP_STEWARD = "cd_vendor_portal.group_fix_supplier_steward"
 GROUP_APPROVER = "cd_vendor_portal.group_fix_supplier_approver"
@@ -126,6 +135,16 @@ class FixSupplier(models.Model):
         required=True,
         default="transactional",
     )
+    residency = fields.Selection(
+        [("resident", "Bangladesh-registered"), ("foreign", "Foreign (non-resident)")],
+        required=True,
+        default="resident",
+        tracking=True,
+        help="Decides the documents the activation gate requires: a Bangladesh-registered "
+        "supplier its trade licence, TIN and VAT registration; a foreign one its "
+        "incorporation, home-country tax residency and bank letter. Set by a Supplier "
+        "Steward before activation; it must agree with the contact's country.",
+    )
     category = fields.Char(string="Spend Category")
     approved_category_ids = fields.Many2many(
         "product.category",
@@ -205,6 +224,18 @@ class FixSupplier(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if "residency" in vals and not self._fix_guard_has_token():
+            for rec in self:
+                if not rec._fix_guard_differs("residency", vals["residency"], rec.residency):
+                    continue
+                # it decides which documents are mandatory: never re-labelled to
+                # escape them once the gate has passed, and only by a steward
+                if rec.status not in ("prospect", "qualified"):
+                    raise UserError(
+                        "Supplier %s is %s: its residency decides its mandatory documents "
+                        "and changes only before activation." % (rec.supplier_code, rec.status)
+                    )
+                _require(self.env, "Changing a supplier's residency", GROUP_STEWARD)
         if "partner_id" in vals and not self._fix_guard_has_token():
             for rec in self:
                 if rec.status != "prospect" and rec._fix_guard_differs(
@@ -224,12 +255,41 @@ class FixSupplier(models.Model):
         return self.sudo().search([("partner_id", "in", ids)], limit=1)
 
     # ---- compliance -------------------------------------------------------
+    def _a06_mandatory_docs(self):
+        """The document types this supplier's residency requires."""
+        self.ensure_one()
+        known = dict(self.env["fix.supplier.document"]._fields["doc_type"].selection)
+        if self.residency == "foreign":
+            key, default = PARAM_DOCS_FOREIGN, DEFAULT_DOCS_FOREIGN
+        else:
+            key, default = PARAM_DOCS_RESIDENT, MANDATORY_DOCS
+        raw = self.env["ir.config_parameter"].sudo().get_param(key) or ""
+        wanted = tuple(t for t in (x.strip() for x in raw.split(",")) if t in known)
+        return wanted or default
+
+    def _a06_residency_problems(self):
+        """The residency must agree with the contact's country, so a Bangladeshi
+        supplier cannot be labelled foreign to escape its TIN and VAT."""
+        self.ensure_one()
+        country = self.partner_id.sudo().commercial_partner_id.country_id
+        if self.residency == "foreign" and (not country or country.code == HOME_COUNTRY):
+            return [
+                "a foreign supplier's contact needs its home country (it shows %s)"
+                % (country.name or "none")
+            ]
+        if self.residency == "resident" and country and country.code != HOME_COUNTRY:
+            return [
+                "the contact's country is %s: record the supplier as foreign or correct "
+                "the country" % country.name
+            ]
+        return []
+
     def _a06_document_problems(self):
         self.ensure_one()
         docs = self.env["fix.supplier.document"].sudo().search([("supplier_id", "=", self.id)])
         labels = dict(docs._fields["doc_type"].selection)
         problems = []
-        for doc_type in MANDATORY_DOCS:
+        for doc_type in self._a06_mandatory_docs():
             if not docs.filtered(lambda d, t=doc_type: d.doc_type == t and d.is_valid):
                 problems.append("no verified, unexpired %s" % labels.get(doc_type, doc_type))
         return problems
@@ -297,7 +357,8 @@ class FixSupplier(models.Model):
     def _a06_activation_problems(self):
         self.ensure_one()
         return (
-            self._a06_document_problems()
+            self._a06_residency_problems()
+            + self._a06_document_problems()
             + self._a06_screening_problems()
             + self._a06_required_screening_problems()
             + self._a06_risk_problems()
@@ -548,13 +609,14 @@ class FixSupplier(models.Model):
             .search(
                 [
                     ("state", "=", "valid"),
-                    ("doc_type", "in", MANDATORY_DOCS),
                     ("valid_to", ">=", today),
                     ("valid_to", "<=", horizon),
                     ("supplier_id.status", "=", "active"),
                 ]
             )
         )
+        # the mandatory set depends on the supplier's residency
+        docs = docs.filtered(lambda d: d.doc_type in d.supplier_id._a06_mandatory_docs())
         for doc in docs:
             items.append(
                 (doc.supplier_id, "document %s expires %s" % (doc.name, doc.valid_to), doc.valid_to)
@@ -615,6 +677,9 @@ class FixSupplierDocument(models.Model):
             ("trade_licence", "Trade Licence"),
             ("tin", "TIN Certificate"),
             ("vat", "VAT Registration"),
+            # a foreign (non-resident) supplier's equivalents
+            ("incorporation", "Certificate of Incorporation / Business Registration"),
+            ("tax_residency", "Home-Country Tax ID / Tax Residency Certificate"),
             ("iso", "ISO Certificate"),
             ("insurance", "Insurance"),
             ("bank", "Bank Details"),
