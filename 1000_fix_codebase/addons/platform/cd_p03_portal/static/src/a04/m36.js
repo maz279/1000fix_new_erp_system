@@ -270,7 +270,7 @@ export const SCREENS = {
           { name: 'state', label: 'Lifecycle Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
-        note: 'Linked to an estimate, the value is the estimate total. Without a direct cost the margin is unknown.',
+        note: 'Linked to an estimate, the value is the estimate total before VAT; VAT is added once, giving the Total Payable. Without a direct cost the margin is unknown.',
         fields: [
           { name: 'value', required: true, label: 'Quotation Amount excl. VAT (BDT)' },
           { name: 'cost_amount', label: 'Direct Labor & Parts Cost (BDT)' },
