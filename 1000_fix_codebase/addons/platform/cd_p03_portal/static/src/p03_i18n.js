@@ -1694,3 +1694,17 @@ Object.assign(P03_BN, {
   "Import Lines (audit)": "ইমপোর্ট লাইন (অডিট)",
   "Import Lines (per-row audit)": "ইমপোর্ট লাইন (প্রতি সারি অডিট)",
 });
+
+/* ---- Report export standard (13 Nov 2026): the one action bar on every
+   built-in report of M01-M67 ---- */
+Object.assign(P03_BN, {
+  "CSV": "সিএসভি",
+  "Export or send this report": "এই রিপোর্ট এক্সপোর্ট বা পাঠান",
+  "Raw data for a spreadsheet": "স্প্রেডশিটের জন্য কাঁচা ডেটা",
+  "Excel workbook with the company letterhead, period, filters and totals": "কোম্পানির লেটারহেড, সময়কাল, ফিল্টার ও মোটসহ এক্সেল ওয়ার্কবুক",
+  "PDF company document — opens in a new tab to print or save": "পিডিএফ কোম্পানি ডকুমেন্ট — প্রিন্ট বা সংরক্ষণের জন্য নতুন ট্যাবে খোলে",
+  "Send this report by email as an Excel or PDF attachment": "এই রিপোর্টটি এক্সেল বা পিডিএফ সংযুক্তি হিসেবে ইমেইলে পাঠান",
+  "Run the report first — there is nothing to export yet.": "আগে রিপোর্টটি চালান — এখনো এক্সপোর্ট করার কিছু নেই।",
+  "Run the report first — there is nothing to send yet.": "আগে রিপোর্টটি চালান — এখনো পাঠানোর কিছু নেই।",
+  "rows": "সারি",
+});

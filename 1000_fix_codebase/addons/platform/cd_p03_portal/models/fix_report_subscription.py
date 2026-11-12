@@ -20,14 +20,6 @@ _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PERIODS = {"daily": 1, "weekly": 7, "monthly": 30}
 
 
-def _pack_registry():
-    """The module REPORTS registry (imported lazily: controllers import
-    odoo.http and must not load at module-import time of the model)."""
-    from ..controllers import a02, a03, a04, a05, a06, a07, a08, a09, a10, a11, a12
-
-    yield from (a08, a02, a03, a04, a05, a06, a07, a09, a10, a12, a11)
-
-
 class FixReportSubscription(models.Model):
     _name = "fix.report.subscription"
     _description = "Scheduled Report Delivery (branded pack by email)"
@@ -80,110 +72,61 @@ class FixReportSubscription(models.Model):
 
     @staticmethod
     def _pack_function(module_key, report_key):
-        # MODULES maps the module code (e.g. 'M19') to its FRAGMENT; the
-        # REPORTS registry lives on the fragment (a08.m19.REPORTS), not on
-        # the area package itself.
-        for mod in _pack_registry():
-            inner = getattr(mod, "MODULES", {}).get(module_key)
-            if inner is not None:
-                fn = getattr(inner, "REPORTS", {}).get(report_key)
-                if fn:
-                    return fn
-        return None
+        # the one resolver every delivery path uses (download, email, here)
+        from ..controllers import report_delivery
 
-    def _build_attachment(self):
-        """The branded artefact, built by the SAME shared byte-builder the
-        download buttons and the send-by-email route use (report_bytes)."""
-        import base64
+        return report_delivery.pack_function(module_key, report_key)
 
-        from ..controllers import report_bytes
+    def _build_artifact(self):
+        """The branded artefact, built by the SAME function the download
+        buttons and the send-by-email route use (report_delivery.build)."""
+        from ..controllers import report_delivery
 
         self.ensure_one()
-        fn = self._pack_function(self.module_key, self.report_key)
-        if not fn:
+        if not self._pack_function(self.module_key, self.report_key):
             raise ValidationError(
                 "Pack %s:%s disappeared from the registry" % (self.module_key, self.report_key)
             )
-        out = fn(self.env)
-        cols = out.get("cols") or []
-        labels = out.get("labels") or {}
-        base_name = "%s_%s" % (self.module_key, self.report_key.replace("/", "_"))
-        if self.format == "xlsx":
-            data = report_bytes.xlsx_bytes(self.env, out, cols, labels, base_name, {})
-        else:
-            rows = list(out.get("rows") or [])
-            payload = {
-                "rows": rows,
-                "cols": cols,
-                "labels": labels,
-                "count": len(rows),
-                "meta": {
-                    "module": self.module_key,
-                    "report": self.report_key,
-                    "params": {},
-                    "totals": out.get("totals") or {},
-                    "notes": out.get("notes") or [],
-                    "title": out.get("title"),
-                },
-            }
-            data = report_bytes.pdf_bytes(self.env, payload, base_name, title=out.get("title"))
-        attachment = self.env["ir.attachment"].create(
-            {
-                "name": "%s.%s" % (base_name, self.format),
-                "datas": base64.b64encode(data).decode(),
-                "public": False,
-            }
-        )
-        return attachment, len(out.get("rows") or []), out.get("title") or base_name
+        return report_delivery.build(self.env, self.module_key, self.report_key, self.format, {})
 
     def action_deliver_now(self):
         """Send this subscription's pack now (also the cron body). Records
         the outcome honestly — an SMTP failure is a state, not an error."""
-        import base64 as _b64  # noqa: F401  (kept for parity with the route)
-
-        from ..controllers import brand as _brand
+        from ..controllers import report_delivery, report_pdf
 
         self.ensure_one()
-        attachment, row_count, title = self._build_attachment()
-        emails = [e.strip() for e in re.split(r"[;,\s]+", self.recipients or "") if e.strip()]
-        lh = _brand.letterhead(self.env)
-        mail = self.env["mail.mail"].create(
-            {
-                "subject": "%s — %s (%s)"
-                % (lh["name"], title, fields.Datetime.now().strftime("%Y-%m-%d")),
-                "body_html": (
-                    "<p>Scheduled delivery of the <b>%s</b> pack — %d rows, generated %s.</p>"
-                    "<p style='color:#888;font-size:12px'>%s · %s</p>"
-                    % (
-                        title,
-                        row_count,
-                        fields.Datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        lh["name"] + " · " + _brand.ISO_BADGE,
-                        lh["contact_line"],
-                    )
-                ),
-                "email_to": ", ".join(emails),
-                "auto_delete": False,
-                "attachment_ids": [(6, 0, [attachment.id])],
-            }
+        art = self._build_artifact()
+        emails, _err = report_delivery.parse_recipients(self.recipients)
+        result = report_delivery.send_mail(
+            self.env,
+            emails,
+            art["data"],
+            art["filename"],
+            art["title"],
+            art["count"],
+            body="Scheduled %s delivery of this report." % self.period,
         )
-        try:
-            mail.send(raise_exception=False)
-        except Exception:
-            _logger.exception("scheduled delivery %s send failed", self.name)
+        report_delivery.log_export(
+            self.env,
+            "%s:%s" % (self.module_key, self.report_key),
+            "distribution",
+            self.format,
+            art["count"],
+            {"subscription": self.name},
+        )
+        stamp = report_pdf.local_now(self.env).strftime("%Y-%m-%d %H:%M")
         self.write(
             {
                 "last_run": fields.Datetime.now(),
-                "last_state": "%s: %s (%d rows)"
-                % (fields.Datetime.now().strftime("%Y-%m-%d %H:%M"), mail.state, row_count),
+                "last_state": "%s (Dhaka): %s (%d rows)" % (stamp, result["state"], art["count"]),
                 "delivery_count": self.delivery_count + 1,
             }
         )
         return {
-            "mail_id": mail.id,
-            "state": mail.state,
-            "attachment": attachment.name,
-            "rows": row_count,
+            "mail_id": result["mail_id"],
+            "state": result["state"],
+            "attachment": result["attachment"],
+            "rows": art["count"],
         }
 
     @api.model

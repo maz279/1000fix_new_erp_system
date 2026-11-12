@@ -1089,28 +1089,115 @@ export class P03Workspace extends Component {
         this.openNewForm();
     }
 
-    /* Report exports: the download hits the SAME pack function the screen
-     * renders — the export cannot drift from what the user sees. xlsx is
-     * the presentation artefact (brand header, meta, totals); csv is raw.
-     */
-    exportReport(format, inline) {
+    /* The estate report standard (13 Nov 2026): every built-in report, on
+     * every module page, downloads as CSV, Excel or PDF and goes by email,
+     * from ONE action bar (template cd_p03_portal.ReportActions). This getter
+     * says which report pack is on screen and with which params - the
+     * period, filters and pick the user made - so the screen, the download
+     * and the email are one query and can never drift apart.
+     * table_report screens are packs by construction; the bespoke M19/M20
+     * report screens name the pack that reads through the same function. */
+    get reportTarget() {
         const gl = this.state.gl;
-        const cfg = gl && gl.reportCfg;
-        if (!cfg) return;
-        const params = new URLSearchParams({ module: cfg.module, report: cfg.report, format });
-        // the document names its module ("M01 · Service Requests & Orders")
-        const mod = P03_MODULES[cfg.module];
-        if (mod) params.set("module_label", `${cfg.module} · ${mod.en}`);
-        if (inline) params.set("inline", "1");
-        if (cfg.period !== false) {
-            params.set("date_from", gl.stmtFrom);
-            params.set("date_to", gl.stmtTo);
+        if (!gl) return null;
+        // the screen's own name: the document carries the pack's full title
+        const title = this.glTitle || gl.title || (gl.data && gl.data.title) || "";
+        if (gl.kind === "table_report" && gl.reportCfg) {
+            const cfg = gl.reportCfg;
+            const params = Object.assign({}, cfg.params || {});
+            if (cfg.period !== false) {
+                params.date_from = gl.stmtFrom;
+                params.date_to = gl.stmtTo;
+            }
+            // pack-declared filters (channel, group-by, ...) ride the same params
+            Object.entries(gl.reportFilters || {}).forEach(([k, v]) => {
+                if (v && v !== "All") params[k] = v;
+            });
+            return { module: cfg.module, report: cfg.report, params, title };
         }
-        Object.entries(cfg.params || {}).forEach(([k, v]) => params.set(k, v));
-        Object.entries(gl.reportFilters || {}).forEach(([k, v]) => {
-            if (v && v !== "All") params.set(k, v);
+        const statements = {
+            trial_balance: "trial_balance", pnl: "pnl", balance_sheet: "balance_sheet",
+            cash_flow: "cash_flow", consolidated: "consolidated_pnl",
+        };
+        switch (gl.kind) {
+            case "statement":
+                if (!statements[gl.report]) return null;
+                return {
+                    module: "M19", report: statements[gl.report], title,
+                    // a balance sheet is "as at" its date: no opening date
+                    params: gl.report === "balance_sheet"
+                        ? { date_to: gl.stmtTo }
+                        : { date_from: gl.stmtFrom, date_to: gl.stmtTo },
+                };
+            case "dimensions":
+                return { module: "M19", report: "journal_dimensions", params: {}, title };
+            case "close":
+                return { module: "M19", report: "close_checklist", params: gl.selectedCloseId ? { close_id: gl.selectedCloseId } : {}, title };
+            case "coa":
+                return { module: "M19", report: "coa_register", params: {}, title: "Chart of Accounts Register" };
+            case "ar_aging":
+                return { module: "M20", report: "ar_aging", params: {}, title };
+            case "ar_leakage":
+                return { module: "M20", report: "revenue_leakage", params: {}, title };
+            case "ar_statements":
+                // a statement is one customer's: nothing to send until one is run
+                if (!gl.stmtCustomer || !(gl.data && gl.data.statement)) return null;
+                return {
+                    module: "M20", report: "customer_statement", title,
+                    params: { customer_id: gl.stmtCustomer, date_from: gl.arFrom, date_to: gl.arTo },
+                };
+            default:
+                return null;
+        }
+    }
+
+    /* Report exports: the download hits the SAME pack function the screen
+     * renders. CSV is raw data; Excel and PDF are the company documents
+     * (letterhead, period, filters, totals, notes). */
+    exportReport(format, inline) {
+        const target = this.reportTarget;
+        if (!target) {
+            this.showToast(this.t("Run the report first — there is nothing to export yet."));
+            return;
+        }
+        const params = new URLSearchParams({ module: target.module, report: target.report, format });
+        // the document names its module ("M01 · Service Requests & Orders")
+        const mod = P03_MODULES[target.module];
+        if (mod) params.set("module_label", `${target.module} · ${mod.en}`);
+        if (inline) params.set("inline", "1");
+        Object.entries(target.params || {}).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && v !== "") params.set(k, v);
         });
         window.open(`/p03/model/report/export?${params.toString()}`, "_blank");
+    }
+
+    /* Email on the report bar: the dialog captures the report as it is on
+     * screen NOW (period, filters, pick) and the server attaches the SAME
+     * Excel/PDF document the download buttons give. */
+    reportEmailOpen() {
+        const gl = this.state.gl;
+        const target = this.reportTarget;
+        if (!gl || !target) {
+            this.showToast(this.t("Run the report first — there is nothing to send yet."));
+            return;
+        }
+        const mod = P03_MODULES[target.module];
+        const title = this.t(target.title || target.report);
+        gl.mlEmail = {
+            open: true, mode: "pack",
+            module: target.module, report: target.report,
+            params: Object.assign({}, target.params || {}),
+            moduleLabel: mod ? `${target.module} · ${mod.en}` : target.module,
+            title,
+            to: "",
+            subject: `1000 FiX — ${title} — ${this._localToday()}`,
+            body: "", format: "pdf", sending: false, result: null,
+        };
+    }
+
+    _localToday() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
 
     /* The report's PDF is the SERVER's document (report_pdf.py): the official
@@ -1363,19 +1450,11 @@ export class P03Workspace extends Component {
                 gl.customers = res.rows;
                 if (!gl.data) gl.data = { statement: null };
             } else if (gl.kind === "table_report") {
-                const cfg = gl.reportCfg;
-                const params = Object.assign({}, cfg.params || {});
-                if (cfg.period !== false) {
-                    params.date_from = gl.stmtFrom;
-                    params.date_to = gl.stmtTo;
-                }
-                // pack-declared filters (channel, group-by, …) ride the same
-                // params — exports and screen stay one query
-                Object.entries(gl.reportFilters || {}).forEach(([k, v]) => {
-                    if (v && v !== "All") params[k] = v;
-                });
+                // the SAME params the export and email send (reportTarget):
+                // screen, download and attachment stay one query
+                const target = this.reportTarget;
                 const res = await this.rpc("/p03/model/report", {
-                    module: cfg.module, report: cfg.report, params,
+                    module: target.module, report: target.report, params: target.params,
                 });
                 gl.data = res.error ? { error: res.error } : res;
             } else if (gl.kind === "model_list") {
@@ -1973,18 +2052,38 @@ export class P03Workspace extends Component {
         }
     }
 
+    /* The list's own scope, as the grid read it: a scoped view's domain,
+     * the status pill and the Quick Find text. An export or email carries
+     * exactly the rows the screen shows - it used to carry the whole model
+     * (the Unassigned Queue exported every field order). */
+    get mlScope() {
+        const gl = this.state.gl;
+        if (!gl || !gl.modelCfg) return null;
+        return {
+            domain: gl.modelCfg.domain || [],
+            state_field: gl.modelCfg.stateField || null,
+            state_filter: gl.mlState && gl.mlState !== "__all" ? gl.mlState : null,
+            search: (gl.mlSearch || "").trim() || null,
+        };
+    }
+
     /* Branded server-side export (user directive 2026-11-07): the workbook /
      * PDF is rendered by the server from EXACTLY the rows this screen serves,
      * with the official 1000 FiX letterhead (logo + address + ISO badge). */
     mlExportServer(fmt) {
         const gl = this.state.gl;
         if (!gl || !gl.modelCfg || !gl.modelCfg.model) return;
+        const scope = this.mlScope;
         const q = new URLSearchParams({
             model: gl.modelCfg.model,
             format: fmt,
             cols: (gl.modelCfg.cols || []).join(","),
             lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+            domain: JSON.stringify(scope.domain),
         });
+        if (scope.state_field) q.set("state_field", scope.state_field);
+        if (scope.state_filter) q.set("state_filter", scope.state_filter);
+        if (scope.search) q.set("search", scope.search);
         // the PDF is titled as the screen is, under its module
         const mid = this.state.activeModuleId;
         const mod = mid && P03_MODULES[mid];
@@ -1993,35 +2092,25 @@ export class P03Workspace extends Component {
         window.open(`/p03/model/list/export?${q.toString()}`, "_blank");
     }
 
-    /* Register-screen export (R1): the statutory CoA screen exports the
-     * coa_register pack — hierarchy, flags and live ledger balances — through
-     * the same branded engine as every pack. */
-    coaExport(fmt) {
-        const q = new URLSearchParams({ module: "M19", report: "coa_register", format: fmt });
-        window.open(`/p03/model/report/export?${q.toString()}`, "_blank");
-    }
-
     mlEmailOpen() {
         const gl = this.state.gl;
         if (!gl) return;
-        const today = new Date().toISOString().slice(0, 10);
-        // pack mode (register screens) vs list mode (model_list grids)
-        if (gl.kind === "coa") {
-            gl.mlEmail = {
-                open: true, mode: "pack", module: "M19", report: "coa_register",
-                title: "Chart of Accounts Register",
-                to: "",
-                subject: `1000 FiX — Chart of Accounts Register ${today}`,
-                body: "", format: "xlsx", sending: false, result: null,
-            };
+        // a report screen (register, statement, pack) sends its report
+        if (gl.kind !== "model_list" && this.reportTarget) {
+            this.reportEmailOpen();
             return;
         }
         if (!gl.modelCfg || !gl.modelCfg.model) return;
+        const mid = this.state.activeModuleId;
+        const mod = mid && P03_MODULES[mid];
+        const title = gl.title || (gl.modelCfg.model || "").split(".").pop().replace(/_/g, " ");
         gl.mlEmail = {
             open: true, mode: "list",
-            title: (gl.modelCfg.model || "").split(".").pop().replace(/_/g, " "),
+            title,
+            module: mod ? mid : null,
+            moduleLabel: mod ? `${mid} · ${mod.en}` : null,
             to: "",
-            subject: `1000 FiX — ${gl.modelCfg.model.split(".").pop()} list export ${today}`,
+            subject: `1000 FiX — ${title} — ${this._localToday()}`,
             body: "", format: "xlsx", sending: false, result: null,
         };
     }
@@ -2043,14 +2132,21 @@ export class P03Workspace extends Component {
             format: dlg.format,
             lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
         };
-        const payload = dlg.mode === "pack"
-            ? Object.assign(base, { module: dlg.module, report: dlg.report })
-            : Object.assign(base, {
+        const pack = dlg.mode === "pack";
+        const payload = pack
+            ? Object.assign(base, {
+                module: dlg.module, report: dlg.report,
+                params: dlg.params || {}, module_label: dlg.moduleLabel,
+            })
+            : Object.assign(base, this.mlScope, {
                 model: gl.modelCfg.model,
                 cols: (gl.modelCfg.cols || []).join(","),
+                title: dlg.title,
+                module: dlg.module,
+                module_label: dlg.moduleLabel,
             });
         try {
-            const res = await this.rpc("/p03/model/list/email", payload);
+            const res = await this.rpc(pack ? "/p03/model/report/email" : "/p03/model/list/email", payload);
             dlg.result = res;
             if (res && res.ok) this.showToast(this.t(`Emailed ${res.attachment} to ${res.recipients.length} recipient(s)`));
         } catch (e) {
@@ -3644,21 +3740,6 @@ export class P03Workspace extends Component {
         } catch (e) {
             this.showToast(t('Statement run failed'));
         }
-    }
-
-    arStatementCsv() {
-        const stmt = this.state.gl.data && this.state.gl.data.statement;
-        if (!stmt) return;
-        const rows = [["Date", "Type", "Reference", "Detail", "Amount (BDT)"]]
-            .concat(stmt.rows.map((r) => [r.date, r.kind, r.ref, r.detail, r.charge.toFixed(2)]));
-        const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `1000FiX_Statement_${stmt.customer_id}_${stmt.date_to}.csv`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        this.showToast(`Statement exported (${stmt.rows.length} lines) ✓`);
     }
 
     /* Resolve a cross-navigation term to a real module/screen — no dead

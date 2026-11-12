@@ -161,11 +161,14 @@ def xlsx_bytes(env, out, cols, labels, base_name, params):
         )
         ws.column_dimensions[get_column_letter(c)].width = min(max(width + 2, 10), 42)
     ws.freeze_panes = ws.cell(row=head_row + 1, column=1)
-    ws.auto_filter.ref = "A%d:%s%d" % (
-        head_row,
-        get_column_letter(len(cols)),
-        head_row + len(rows),
-    )
+    # a report with no columns (an empty state) has no table to filter: an
+    # auto-filter over column 0 raised and the Excel download failed
+    if cols:
+        ws.auto_filter.ref = "A%d:%s%d" % (
+            head_row,
+            get_column_letter(len(cols)),
+            head_row + max(len(rows), 1),
+        )
 
     import io as _io
 

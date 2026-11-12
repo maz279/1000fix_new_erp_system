@@ -29,6 +29,63 @@ from odoo.http import request
 from .p03_service_order_api import _require_internal, _user_error
 
 
+def aging_live_rows(env):
+    """Open receivables by customer and age bucket as of today: issued
+    invoices with a balance, plus each customer's legacy take-on still open
+    on the AR control (the Aging screen and its report pack share this)."""
+    # live current view (as of today) for the grid before any capture
+    today = datetime.date.today()
+    buckets = {}
+    invoices = (
+        env["fix.ar.invoice"]
+        .search([("state", "=", "issued")])
+        .filtered(lambda i: i.amount_residual > 0.005)
+    )
+    for inv in invoices:
+        days_past = (today - inv.invoice_date).days - inv._payment_terms_days()
+        slot = (
+            "current"
+            if days_past <= 0
+            else "d1_30"
+            if days_past <= 30
+            else "d31_60"
+            if days_past <= 60
+            else "d61_90"
+            if days_past <= 90
+            else "d90_plus"
+        )
+        per = buckets.setdefault(
+            inv.customer_id.name,
+            {"current": 0.0, "d1_30": 0.0, "d31_60": 0.0, "d61_90": 0.0, "d90_plus": 0.0},
+        )
+        per[slot] += inv.amount_residual
+    # each customer's legacy take-on still open on the AR control: its own
+    # line, aged from the take-on date (finance roles: GL lines)
+    if env["account.move.line"].has_access("read"):
+        Partner = env["res.partner"].sudo()
+        for company in env.companies:
+            for partner_id, opening in takeon_ar_opening(env, company, as_of=today).items():
+                if abs(opening["residual"]) <= 0.005:
+                    continue
+                name = Partner.browse(partner_id).name if partner_id else "(no customer)"
+                per = buckets.setdefault(
+                    "%s · %s" % (name, takeon_label(opening["date"])),
+                    {
+                        "current": 0.0,
+                        "d1_30": 0.0,
+                        "d31_60": 0.0,
+                        "d61_90": 0.0,
+                        "d90_plus": 0.0,
+                    },
+                )
+                per[age_slot((today - opening["date"]).days)] += opening["residual"]
+    live_rows = [
+        dict({"customer": name}, **{k: round(v, 2) for k, v in amounts.items()})
+        for name, amounts in sorted(buckets.items())
+    ]
+    return live_rows
+
+
 def _invoice_row(inv):
     return {
         "id": inv.id,
@@ -366,56 +423,7 @@ class P03ArApiController(http.Controller):
         _require_internal(request.env)
         env = request.env
         snapshots = env["fix.ar.aging.snapshot"].search([], order="as_of_date desc", limit=10)
-        # live current view (as of today) for the grid before any capture
-        today = datetime.date.today()
-        buckets = {}
-        invoices = (
-            env["fix.ar.invoice"]
-            .search([("state", "=", "issued")])
-            .filtered(lambda i: i.amount_residual > 0.005)
-        )
-        for inv in invoices:
-            days_past = (today - inv.invoice_date).days - inv._payment_terms_days()
-            slot = (
-                "current"
-                if days_past <= 0
-                else "d1_30"
-                if days_past <= 30
-                else "d31_60"
-                if days_past <= 60
-                else "d61_90"
-                if days_past <= 90
-                else "d90_plus"
-            )
-            per = buckets.setdefault(
-                inv.customer_id.name,
-                {"current": 0.0, "d1_30": 0.0, "d31_60": 0.0, "d61_90": 0.0, "d90_plus": 0.0},
-            )
-            per[slot] += inv.amount_residual
-        # each customer's legacy take-on still open on the AR control: its own
-        # line, aged from the take-on date (finance roles: GL lines)
-        if env["account.move.line"].has_access("read"):
-            Partner = env["res.partner"].sudo()
-            for company in env.companies:
-                for partner_id, opening in takeon_ar_opening(env, company, as_of=today).items():
-                    if abs(opening["residual"]) <= 0.005:
-                        continue
-                    name = Partner.browse(partner_id).name if partner_id else "(no customer)"
-                    per = buckets.setdefault(
-                        "%s · %s" % (name, takeon_label(opening["date"])),
-                        {
-                            "current": 0.0,
-                            "d1_30": 0.0,
-                            "d31_60": 0.0,
-                            "d61_90": 0.0,
-                            "d90_plus": 0.0,
-                        },
-                    )
-                    per[age_slot((today - opening["date"]).days)] += opening["residual"]
-        live_rows = [
-            dict({"customer": name}, **{k: round(v, 2) for k, v in amounts.items()})
-            for name, amounts in sorted(buckets.items())
-        ]
+        live_rows = aging_live_rows(env)
         return {
             "live": live_rows,
             "history": [

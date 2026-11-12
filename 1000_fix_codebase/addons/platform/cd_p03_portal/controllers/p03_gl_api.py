@@ -65,6 +65,164 @@ def _parse_date(value, fallback):
     return datetime.date.fromisoformat(str(value)[:10])
 
 
+def statement_data(env, report, date_from=None, date_to=None):
+    """A financial statement for the caller's company, as the M19 screens and
+    the M19 report packs show it (one computation for both)."""
+    _require_finance(env)
+    fy_from, fy_to = _fy_window()
+    date_from = _parse_date(date_from, fy_from)
+    date_to = _parse_date(date_to, fy_to)
+    company = env.company
+    if report == "trial_balance":
+        return compute_trial_balance(env, company, date_from, date_to)
+    if report == "pnl":
+        return compute_pnl(env, company, date_from, date_to)
+    if report == "balance_sheet":
+        return compute_balance_sheet(env, company, date_to)
+    if report == "cash_flow":
+        return compute_cash_flow(env, company, date_from, date_to)
+    if report == "consolidated":
+        return compute_consolidated(env, date_from, date_to, "pnl")
+    raise LookupError("Unknown report: %s" % report)
+
+
+def dimensions_data(env, limit=80):
+    """The journal posting dimensions: the latest lines and the distinct
+    count of each dimension (screen and report pack share this read)."""
+    _require_finance(env)
+    dims = (
+        env["fix.journal.dimension"]
+        .sudo()
+        .search([("company_id", "in", env.companies.ids)], order="id desc", limit=limit)
+    )
+    rows = dims.mapped(
+        lambda d: {
+            "id": d.id,
+            "move": d.move_line_id.move_id.name or "",
+            "date": str(d.move_line_id.move_id.date),
+            "account": "%s %s"
+            % (d.move_line_id.account_id.code or "", d.move_line_id.account_id.name or ""),
+            "ou": d.operating_unit_id.name or "",
+            "branch": d.branch_id.name or "",
+            "cost_centre": d.cost_centre or "",
+            "business_line": d.business_line or "",
+            "project": d.project_ref or "",
+            "brand": d.brand or "",
+            "channel": d.channel or "",
+        }
+    )
+    counts = {}
+    for field in (
+        "branch_id",
+        "cost_centre",
+        "business_line",
+        "brand",
+        "channel",
+        "project_ref",
+    ):
+        try:
+            groups = (
+                env["fix.journal.dimension"]
+                .sudo()
+                ._read_group(
+                    [(field, "!=", False), ("company_id", "in", env.companies.ids)],
+                    [field],
+                    ["__count"],
+                )
+            )
+            counts[field] = len(groups)
+        except Exception:
+            counts[field] = None
+    return {"rows": rows, "count": len(rows), "distinct": counts}
+
+
+def close_data(env, close_id=None):
+    """The close console. A finance role reads every close. A step owner
+    outside finance (the stock manager owns the subledger cut-off, M19-5)
+    reads only the steps they own, and no ledger figure, so the step they
+    must complete can actually be found."""
+    _require_internal(env)
+    finance = env.su or any(env.user.has_group(g) for g in FINANCE_READ_GROUPS)
+    domain = [("company_id", "in", env.companies.ids)]
+    if close_id:
+        domain.append(("id", "=", int(close_id)))
+    closes = env["fix.period.close"].sudo().search(domain, order="period_end desc")
+    my_groups = env.user.sudo().all_group_ids
+    if not finance:
+        closes = closes.filtered(
+            lambda c: c.line_ids.filtered(lambda s: s.owner_group_id in my_groups)
+        )
+        if not closes:
+            raise AccessError(
+                "The close console needs a finance (accounting) role or a close step you own."
+            )
+
+    def steps(close):
+        lines = close.line_ids
+        if not finance:
+            lines = lines.filtered(lambda s: s.owner_group_id in my_groups)
+        return lines.mapped(
+            lambda s: {
+                "id": s.id,
+                "sequence": s.sequence,
+                "name": s.name,
+                "owner": s.owner_role or "",
+                "target_day": s.target_day,
+                "blocking": s.blocking,
+                "state": s.state,
+                "evidence": s.evidence_ref or "",
+            }
+        )
+
+    def row(close):
+        out = {
+            "id": close.id,
+            "period_end": str(close.period_end),
+            "state": close.state,
+            "sla_status": close.sla_status,
+            "target_completion": str(close.target_completion_date or ""),
+            "closed_at": str(close.closed_at or ""),
+            "duration_days": close.close_duration_days,
+            "steps": steps(close),
+        }
+        if finance:
+            pending_count, pending_value = close._fix_suspense_pending()
+            out.update(
+                {
+                    "suspense_opening": round(close.suspense_opening or 0.0, 2),
+                    "suspense_closing": round(close.suspense_closing or 0.0, 2),
+                    "suspense_reconciled": close.suspense_reconciled,
+                    "cutover_ref": close.cutover_voucher_ref or "",
+                    "cutover_entry": close.cutover_move_id.name or "",
+                    # what the ready check reads; suspense_closing stays 0
+                    # until a reconciliation has run
+                    "suspense_pending_count": pending_count,
+                    "suspense_pending_value": pending_value,
+                }
+            )
+        else:
+            out.update(
+                {
+                    "suspense_opening": None,
+                    "suspense_closing": None,
+                    "suspense_reconciled": None,
+                    "cutover_ref": "",
+                    "cutover_entry": "",
+                    "suspense_pending_count": None,
+                    "suspense_pending_value": None,
+                }
+            )
+        return out
+
+    return {
+        "closes": [row(close) for close in closes],
+        "limited": not finance,
+        "next_period_end": (
+            str(env["fix.period.close"].sudo()._fix_next_period_end()) if finance else ""
+        ),
+    }
+
+
 class P03GlApiController(http.Controller):
     """M19 in-workspace screen data."""
 
@@ -432,24 +590,10 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/statements", type="jsonrpc", auth="user", readonly=True)
     def gl_statements(self, report="trial_balance", date_from=None, date_to=None, **kw):
-        _require_finance(request.env)
-        env = request.env
-        fy_from, fy_to = _fy_window()
-        date_from = _parse_date(date_from, fy_from)
-        date_to = _parse_date(date_to, fy_to)
-        company = env.company
-        if report == "trial_balance":
-            data = compute_trial_balance(env, company, date_from, date_to)
-        elif report == "pnl":
-            data = compute_pnl(env, company, date_from, date_to)
-        elif report == "balance_sheet":
-            data = compute_balance_sheet(env, company, date_to)
-        elif report == "cash_flow":
-            data = compute_cash_flow(env, company, date_from, date_to)
-        elif report == "consolidated":
-            data = compute_consolidated(env, date_from, date_to, "pnl")
-        else:
-            return {"success": False, "error": "Unknown report: %s" % report}
+        try:
+            data = statement_data(request.env, report, date_from, date_to)
+        except LookupError as exc:
+            return {"success": False, "error": str(exc)}
         data["success"] = True
         return data
 
@@ -457,142 +601,13 @@ class P03GlApiController(http.Controller):
 
     @http.route("/p03/gl/dimensions", type="jsonrpc", auth="user", readonly=True)
     def gl_dimensions(self, limit=80, **kw):
-        _require_finance(request.env)
-        env = request.env
-        dims = (
-            env["fix.journal.dimension"]
-            .sudo()
-            .search([("company_id", "in", env.companies.ids)], order="id desc", limit=limit)
-        )
-        rows = dims.mapped(
-            lambda d: {
-                "id": d.id,
-                "move": d.move_line_id.move_id.name or "",
-                "date": str(d.move_line_id.move_id.date),
-                "account": "%s %s"
-                % (d.move_line_id.account_id.code or "", d.move_line_id.account_id.name or ""),
-                "ou": d.operating_unit_id.name or "",
-                "branch": d.branch_id.name or "",
-                "cost_centre": d.cost_centre or "",
-                "business_line": d.business_line or "",
-                "project": d.project_ref or "",
-                "brand": d.brand or "",
-                "channel": d.channel or "",
-            }
-        )
-        counts = {}
-        for field in (
-            "branch_id",
-            "cost_centre",
-            "business_line",
-            "brand",
-            "channel",
-            "project_ref",
-        ):
-            try:
-                groups = (
-                    env["fix.journal.dimension"]
-                    .sudo()
-                    ._read_group(
-                        [(field, "!=", False), ("company_id", "in", env.companies.ids)],
-                        [field],
-                        ["__count"],
-                    )
-                )
-                counts[field] = len(groups)
-            except Exception:
-                counts[field] = None
-        return {"rows": rows, "count": len(rows), "distinct": counts}
+        return dimensions_data(request.env, limit=limit)
 
     # ---------------------------------------------------------------- close
 
     @http.route("/p03/gl/close", type="jsonrpc", auth="user", readonly=True)
     def gl_close(self, close_id=None, **kw):
-        """The close console. A finance role reads every close. A step owner
-        outside finance (the stock manager owns the subledger cut-off, M19-5)
-        reads only the steps they own, and no ledger figure, so the step they
-        must complete can actually be found."""
-        _require_internal(request.env)
-        env = request.env
-        finance = env.su or any(env.user.has_group(g) for g in FINANCE_READ_GROUPS)
-        domain = [("company_id", "in", env.companies.ids)]
-        if close_id:
-            domain.append(("id", "=", int(close_id)))
-        closes = env["fix.period.close"].sudo().search(domain, order="period_end desc")
-        my_groups = env.user.sudo().all_group_ids
-        if not finance:
-            closes = closes.filtered(
-                lambda c: c.line_ids.filtered(lambda s: s.owner_group_id in my_groups)
-            )
-            if not closes:
-                raise AccessError(
-                    "The close console needs a finance (accounting) role or a close step you own."
-                )
-
-        def steps(close):
-            lines = close.line_ids
-            if not finance:
-                lines = lines.filtered(lambda s: s.owner_group_id in my_groups)
-            return lines.mapped(
-                lambda s: {
-                    "id": s.id,
-                    "sequence": s.sequence,
-                    "name": s.name,
-                    "owner": s.owner_role or "",
-                    "target_day": s.target_day,
-                    "blocking": s.blocking,
-                    "state": s.state,
-                    "evidence": s.evidence_ref or "",
-                }
-            )
-
-        def row(close):
-            out = {
-                "id": close.id,
-                "period_end": str(close.period_end),
-                "state": close.state,
-                "sla_status": close.sla_status,
-                "target_completion": str(close.target_completion_date or ""),
-                "closed_at": str(close.closed_at or ""),
-                "duration_days": close.close_duration_days,
-                "steps": steps(close),
-            }
-            if finance:
-                pending_count, pending_value = close._fix_suspense_pending()
-                out.update(
-                    {
-                        "suspense_opening": round(close.suspense_opening or 0.0, 2),
-                        "suspense_closing": round(close.suspense_closing or 0.0, 2),
-                        "suspense_reconciled": close.suspense_reconciled,
-                        "cutover_ref": close.cutover_voucher_ref or "",
-                        "cutover_entry": close.cutover_move_id.name or "",
-                        # what the ready check reads; suspense_closing stays 0
-                        # until a reconciliation has run
-                        "suspense_pending_count": pending_count,
-                        "suspense_pending_value": pending_value,
-                    }
-                )
-            else:
-                out.update(
-                    {
-                        "suspense_opening": None,
-                        "suspense_closing": None,
-                        "suspense_reconciled": None,
-                        "cutover_ref": "",
-                        "cutover_entry": "",
-                        "suspense_pending_count": None,
-                        "suspense_pending_value": None,
-                    }
-                )
-            return out
-
-        return {
-            "closes": [row(close) for close in closes],
-            "limited": not finance,
-            "next_period_end": (
-                str(env["fix.period.close"].sudo()._fix_next_period_end()) if finance else ""
-            ),
-        }
+        return close_data(request.env, close_id=close_id)
 
     @http.route("/p03/gl/close/action", type="jsonrpc", auth="user", readonly=False)
     def gl_close_action(

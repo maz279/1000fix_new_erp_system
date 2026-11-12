@@ -361,16 +361,29 @@ def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
     )
 
 
+_VARIANCE_LABELS = {
+    "employee": "Employee",
+    "previous": "Previous Paid Net",
+    "current": "Current Net",
+    "variance": "Variance",
+    "pct": "Variance %",
+    "flag": "Over Threshold",
+    "acknowledged": "Acknowledged By",
+}
+
+
 def payroll_variance(env, date_from=None, date_to=None, **params):
     """Payroll variance (BRU-PAY-06): the latest run's net per employee
     against the previous PAID period, as computed by its calculation or, before
     that, by its trial run; with the threshold and who acknowledged what."""
     lines = _payroll(env, "fix.payroll.variance", order="period_id desc, id desc", limit=1)
     if not lines:
+        # the empty report keeps its columns: the screen shows the headers and
+        # the Excel export has a table to put them in (it crashed on none)
         return _pack(
             "Payroll Variance — no trial or calculated run yet",
-            [],
-            {},
+            list(_VARIANCE_LABELS),
+            _VARIANCE_LABELS,
             [],
             [
                 "Run a trial or calculate a period: the variance is recorded against the "
@@ -411,16 +424,8 @@ def payroll_variance(env, date_from=None, date_to=None, **params):
     previous = rows_rec[:1].previous_period_id.name or "no paid period"
     return _pack(
         "Payroll Variance — %s (%s) vs %s" % (period.name, kind, previous),
-        ["employee", "previous", "current", "variance", "pct", "flag", "acknowledged"],
-        {
-            "employee": "Employee",
-            "previous": "Previous Paid Net",
-            "current": "Current Net",
-            "variance": "Variance",
-            "pct": "Variance %",
-            "flag": "Over Threshold",
-            "acknowledged": "Acknowledged By",
-        },
+        list(_VARIANCE_LABELS),
+        _VARIANCE_LABELS,
         rows,
         [
             "Threshold %s: an employee over it blocks the approval until a reviewer who did not "

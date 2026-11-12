@@ -877,7 +877,257 @@ def legacy_ar_control(env, **_params):
     )
 
 
+# ---------------------------------------------------------------------------
+# The M19 statement screens as report packs (13 Nov 2026). Trial Balance,
+# P&L, Balance Sheet, Cash Flow, the consolidated P&L, the posting
+# dimensions and the close checklist render on bespoke screens; as packs
+# they download as CSV/Excel/PDF and go by email like every other built-in
+# report. Each pack reads through the SAME function its screen calls
+# (controllers/p03_gl_api.py), with the same finance-role gate.
+# ---------------------------------------------------------------------------
+_LEDGER_COLS = ["account_code", "account_name", "debit", "credit", "balance"]
+_LEDGER_LABELS = {
+    "account_code": "Account",
+    "account_name": "Name",
+    "opening_balance": "Opening Balance",
+    "debit": "Debit",
+    "credit": "Credit",
+    "balance": "Balance",
+}
+
+
+def _gl():
+    # lazy: p03_gl_api imports the generic API, which imports this package
+    from .. import p03_gl_api
+
+    return p03_gl_api
+
+
+def _ledger_totals(rows, cols):
+    return {
+        "account_name": "Total",
+        **{c: round(sum(r.get(c) or 0.0 for r in rows), 2) for c in cols},
+    }
+
+
+def _money(value):
+    return f"{value or 0.0:,.2f}"
+
+
+def trial_balance(env, date_from=None, date_to=None, **_params):
+    data = _gl().statement_data(env, "trial_balance", date_from, date_to)
+    rows = data["lines"]
+    cols = ["account_code", "account_name", "opening_balance", "debit", "credit", "balance"]
+    notes = [
+        "Opening balance brought forward + movement in the period = closing balance. "
+        "Income and expense accounts open from the start of the fiscal year.",
+        "Only posted journal entries are included.",
+    ]
+    notes.append(
+        "The trial balance agrees: total debit equals total credit."
+        if data.get("balanced")
+        else "The trial balance does NOT agree: debit %s against credit %s."
+        % (_money(data.get("total_debit")), _money(data.get("total_credit")))
+    )
+    return {
+        "title": "Trial Balance — %s" % data.get("company", ""),
+        "cols": cols,
+        "labels": _LEDGER_LABELS,
+        "rows": rows,
+        "totals": _ledger_totals(rows, ["opening_balance", "debit", "credit", "balance"]),
+        "notes": notes,
+        "empty": "No posted ledger movement in this period.",
+    }
+
+
+def pnl(env, date_from=None, date_to=None, **_params):
+    data = _gl().statement_data(env, "pnl", date_from, date_to)
+    rows = data["lines"]
+    net = _money(data.get("net_profit"))
+    return {
+        "title": "Profit & Loss (BFRS) — %s" % data.get("company", ""),
+        "cols": _LEDGER_COLS,
+        "labels": _LEDGER_LABELS,
+        "rows": rows,
+        "totals": _ledger_totals(rows, ["debit", "credit", "balance"]),
+        "notes": [
+            "Income and expense accounts, posted journal entries in the period.",
+            "Net profit for the period: %s %s (income less expense)."
+            % (data.get("currency", ""), net),
+        ],
+        "empty": "No income or expense posted in this period.",
+    }
+
+
+def balance_sheet(env, date_from=None, date_to=None, **_params):
+    data = _gl().statement_data(env, "balance_sheet", date_from, date_to)
+    rows = data["lines"]
+    unclosed = _money(data.get("unclosed_profit_and_loss"))
+    return {
+        "title": "Balance Sheet as at %s — %s" % (data.get("date_to"), data.get("company", "")),
+        "cols": _LEDGER_COLS,
+        "labels": _LEDGER_LABELS,
+        "rows": rows,
+        "totals": _ledger_totals(rows, ["debit", "credit", "balance"]),
+        "notes": [
+            "Asset, liability and equity accounts from inception to the report date.",
+            "Profit and loss not yet closed to equity: %s %s."
+            % (data.get("currency", ""), unclosed),
+            "The balance sheet balances."
+            if data.get("balanced")
+            else "The balance sheet does NOT balance once the unclosed profit is included.",
+        ],
+        "empty": "No balance-sheet account carries a posted balance at this date.",
+    }
+
+
+def cash_flow(env, date_from=None, date_to=None, **_params):
+    data = _gl().statement_data(env, "cash_flow", date_from, date_to)
+    rows = [{"line": "Opening cash and bank", "amount": data.get("opening_cash") or 0.0}]
+    rows += [{"line": c["category"], "amount": c["amount"]} for c in data.get("categories") or []]
+    rows.append({"line": "Net cash movement", "amount": data.get("net_movement") or 0.0})
+    rows.append({"line": "Closing cash and bank", "amount": data.get("closing_cash") or 0.0})
+    from_execs = not str(data.get("basis", "")).startswith("posted")
+    return {
+        "title": "Cash Flow Statement — %s" % data.get("company", ""),
+        "cols": ["line", "amount"],
+        "labels": {"line": "Cash Flow", "amount": "Amount (%s)" % data.get("currency", "BDT")},
+        "rows": rows,
+        "notes": [
+            "Direct method: each entry on a cash or bank account is classed as operating, "
+            "investing or financing by what it was paid or received for.",
+            "No cash or bank account moved in this period, so the lines are the payments "
+            "executed, by method, without a category."
+            if from_execs
+            else "Entries moving money only between cash and bank accounts are internal "
+            "transfers.",
+        ],
+    }
+
+
+def consolidated_pnl(env, date_from=None, date_to=None, **_params):
+    data = _gl().statement_data(env, "consolidated", date_from, date_to)
+    rows = data["lines"]
+    combined = _money(data.get("net_profit"))
+    per = "; ".join(
+        "%s %s" % (pc.get("company", ""), _money(pc.get("net_profit")))
+        for pc in data.get("per_company") or []
+    )
+    return {
+        "title": "Consolidated Profit & Loss (%s companies)" % data.get("company_count", 0),
+        "cols": _LEDGER_COLS,
+        "labels": _LEDGER_LABELS,
+        "rows": rows,
+        "totals": _ledger_totals(rows, ["debit", "credit", "balance"]),
+        "notes": [
+            "Every company's profit and loss added together. Inter-company eliminations "
+            "are applied in the Consolidation Books, not here.",
+            "Combined net profit: %s." % combined,
+            *(["Net profit by company: %s." % per] if per else []),
+        ],
+        "empty": "No income or expense posted in this period.",
+    }
+
+
+_DIM_LABELS = {
+    "move": "Entry",
+    "date": "Date",
+    "account": "Account",
+    "ou": "Operating Unit",
+    "branch": "Branch",
+    "cost_centre": "Cost Centre",
+    "business_line": "Business Line",
+    "project": "Project",
+    "brand": "Brand",
+    "channel": "Channel",
+}
+
+
+def journal_dimensions(env, limit=80, **_params):
+    data = _gl().dimensions_data(env, limit=min(int(limit or 80), 5000))
+    distinct = data.get("distinct") or {}
+    shown = {
+        "Branches": distinct.get("branch_id"),
+        "Cost centres": distinct.get("cost_centre"),
+        "Business lines": distinct.get("business_line"),
+        "Brands": distinct.get("brand"),
+        "Channels": distinct.get("channel"),
+        "Projects": distinct.get("project_ref"),
+    }
+    return {
+        "title": "Journal Posting Dimensions",
+        "cols": list(_DIM_LABELS),
+        "labels": _DIM_LABELS,
+        "rows": data.get("rows") or [],
+        "notes": [
+            "The latest %d posted lines and the dimensions each was booked to." % len(data["rows"]),
+            "Distinct values across all lines: %s."
+            % ", ".join("%s %s" % (k, "—" if v is None else v) for k, v in shown.items()),
+        ],
+        "empty": "No journal line carries posting dimensions yet.",
+    }
+
+
+_STEP_STATES = {"pending": "Pending", "in_progress": "In progress", "done": "Done"}
+_SLA = {"within_sla": "Within the 5-day target", "breached": "5-day target missed"}
+
+
+def close_checklist(env, close_id=None, **_params):
+    data = _gl().close_data(env, close_id=close_id or None)
+    closes = data.get("closes") or []
+    close = closes[0] if closes else None
+    steps = (close or {}).get("steps") or []
+    rows = [
+        {
+            "sequence": s["sequence"],
+            "name": s["name"],
+            "owner": s["owner"],
+            "target_day": s["target_day"],
+            "blocking": s["blocking"],
+            "state": _STEP_STATES.get(s["state"], (s["state"] or "").replace("_", " ").title()),
+            "evidence": s["evidence"],
+        }
+        for s in steps
+    ]
+    notes = []
+    if close:
+        done = sum(1 for s in steps if s["state"] == "done")
+        notes.append("Steps done: %d of %d." % (done, len(steps)))
+        if close.get("sla_status") in _SLA:
+            notes.append(_SLA[close["sla_status"]] + ".")
+        if close.get("suspense_pending_count") is not None:
+            notes.append(
+                "Suspense still to clear: %s (%s items)."
+                % (_money(close.get("suspense_pending_value")), close["suspense_pending_count"])
+            )
+        if data.get("limited"):
+            notes.append("Only the close steps you own are listed.")
+    return {
+        "title": "Close Checklist — period ending %s" % (close["period_end"] if close else "—"),
+        "cols": ["sequence", "name", "owner", "target_day", "blocking", "state", "evidence"],
+        "labels": {
+            "sequence": "#",
+            "name": "Step",
+            "owner": "Owner",
+            "target_day": "Target Day",
+            "blocking": "Blocking",
+            "state": "State",
+            "evidence": "Evidence",
+        },
+        "rows": rows,
+        "notes": notes,
+        "empty": "No month-end close has been started yet.",
+    }
+
+
 REPORTS = {
+    "trial_balance": trial_balance,
+    "pnl": pnl,
+    "balance_sheet": balance_sheet,
+    "cash_flow": cash_flow,
+    "consolidated_pnl": consolidated_pnl,
+    "journal_dimensions": journal_dimensions,
+    "close_checklist": close_checklist,
     "fx_revaluation": fx_revaluation,
     "ic_balances": ic_balances,
     "close_sla": close_sla,

@@ -20,7 +20,11 @@ class FixBiExportLog(models.Model):
     )
     pack = fields.Char(required=True, index=True, help="module:report, e.g. M25:finance_pack")
     channel = fields.Selection(
-        [("download", "Screen Download"), ("distribution", "Scheduled Distribution")],
+        [
+            ("download", "Screen Download"),
+            ("email", "Sent by Email"),
+            ("distribution", "Scheduled Distribution"),
+        ],
         required=True,
         default="download",
     )

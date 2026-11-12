@@ -1934,18 +1934,7 @@
                                     </button>
                                     <button class="btn btn-sm" t-on-click="() => this.openScreen('M19-coa-loader')"><t t-esc='t("Import — CoA Master Loader")'/></button>
                                     <button class="btn btn-sm" t-on-click="() => this.openScreen('M19-control-changes')"><t t-esc='t("Control Changes approval")'/></button>
-                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('csv')" title="Export current register to CSV">
-                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Export CSV")'/>
-                                    </button>
-                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('xlsx')" title="Branded Excel workbook with the 1000 FiX letterhead (logo + address)">
-                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Excel")'/>
-                                    </button>
-                                    <button class="btn btn-sm" t-on-click="() => this.coaExport('pdf')" title="Branded PDF with the 1000 FiX letterhead (logo + address)">
-                                        <span style="margin-right: 4px;">⤓</span> <t t-esc='t("PDF")'/>
-                                    </button>
-                                    <button class="btn btn-sm" t-on-click="() => this.mlEmailOpen()" title="Send this register by email as a branded attachment">
-                                        <span style="margin-right: 4px;">✉</span> <t t-esc='t("Email")'/>
-                                    </button>
+                                    <t t-call="cd_p03_portal.ReportActions"/>
                                     <button class="btn btn-sm" t-on-click="() => this.mlRefresh()" title="Refresh the register from Odoo">
                                         <span style="margin-right: 4px;">↻</span> <t t-esc='t("Refresh")'/>
                                     </button>
@@ -2122,6 +2111,7 @@
                                         <input type="date" t-att-aria-label='t("From date")' t-att-value="state.gl.stmtFrom" t-on-change="(ev) => this.glStmtInput('stmtFrom', ev.target.value)"/>
                                         <input type="date" t-att-aria-label='t("To date")' t-att-value="state.gl.stmtTo" t-on-change="(ev) => this.glStmtInput('stmtTo', ev.target.value)"/>
                                         <button class="btn btn-primary" t-on-click="glRunStatement"><t t-esc='t("Run")'/></button>
+                                        <t t-call="cd_p03_portal.ReportActions"/>
                                     </div>
                                 </div>
                                 <p style="font-size: 12px; color: var(--ink-500); margin: 0 0 12px;"><t t-esc='t("Basis:")'/> <t t-esc="state.gl.data.basis"/></p>
@@ -2186,7 +2176,10 @@
                         <!-- ============ MONTH-END CLOSE CONSOLE ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'close' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <h3><t t-esc='t("Close Checklist —")'/> <t t-esc="glSelectedClose ? glSelectedClose.period_end : ''"/> <t t-esc='t("(SOP SP-020 · 5-day target)")'/></h3>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                                    <h3><t t-esc='t("Close Checklist —")'/> <t t-esc="glSelectedClose ? glSelectedClose.period_end : ''"/> <t t-esc='t("(SOP SP-020 · 5-day target)")'/></h3>
+                                    <t t-call="cd_p03_portal.ReportActions"/>
+                                </div>
                                 <button class="btn btn-sm" t-if="!state.gl.data.limited" t-on-click="() => this.glCloseAction('start_period')"><t t-esc='t("Start Next Period")'/> <t t-esc="state.gl.data.next_period_end"/></button>
                                 <div t-if="glSelectedClose">
                                     <div style="display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap;">
@@ -2279,7 +2272,10 @@
                                 <div class="kpi"><span class="kpi-l"><t t-esc='t("Projects")'/></span><span class="kpi-v"><t t-esc="state.gl.data.distinct.project_ref ?? '—'"/></span></div>
                             </div>
                             <div class="fx-card">
-                                <h3><t t-esc='t("Journal Posting Dimensions —")'/> <t t-esc="state.gl.data.count"/> rows</h3>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                                    <h3><t t-esc='t("Journal Posting Dimensions —")'/> <t t-esc="state.gl.data.count"/> <t t-esc='t("rows")'/></h3>
+                                    <t t-call="cd_p03_portal.ReportActions"/>
+                                </div>
                                 <div class="tbl-wrap">
                                     <table class="fx-table">
                                         <thead><tr><th><t t-esc='t("Entry")'/></th><th><t t-esc='t("Date")'/></th><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Operating Unit")'/></th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("Cost Centre")'/></th><th><t t-esc='t("Business Line")'/></th><th><t t-esc='t("Project")'/></th><th><t t-esc='t("Brand")'/></th><th><t t-esc='t("Channel")'/></th></tr></thead>
@@ -2863,6 +2859,7 @@
                                     <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
                                         <div class="fld"><label><t t-esc='t("Capture as-of")'/></label><input type="date" t-att-value="state.gl.asOfDate" t-on-input="(ev) => this.state.gl.asOfDate = ev.target.value"/></div>
                                         <button class="btn btn-primary btn-sm" t-on-click="() => this.arCaptureSnapshot()"><t t-esc='t("📷 Capture immutable snapshot")'/></button>
+                                        <t t-call="cd_p03_portal.ReportActions"/>
                                     </div>
                                 </div>
                                 <div class="tbl-wrap">
@@ -2908,7 +2905,10 @@
                         <!-- ============ M20 · REVENUE LEAKAGE ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'ar_leakage' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <h3><t t-esc='t("Delivered-but-Unbilled — closed jobs without an invoice (FR-ARB-043)")'/></h3>
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                                    <h3><t t-esc='t("Delivered-but-Unbilled — closed jobs without an invoice (FR-ARB-043)")'/></h3>
+                                    <t t-call="cd_p03_portal.ReportActions"/>
+                                </div>
                                 <div class="tbl-wrap">
                                     <table class="fx-table">
                                         <thead><tr><th><t t-esc='t("Order")'/></th><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Age")'/></th><th><t t-esc='t("Escalation")'/></th></tr></thead>
@@ -2951,7 +2951,7 @@
                                         <div class="fld"><label><t t-esc='t("From")'/></label><input type="date" t-att-value="state.gl.arFrom" t-on-input="(ev) => this.state.gl.arFrom = ev.target.value"/></div>
                                         <div class="fld"><label>To</label><input type="date" t-att-value="state.gl.arTo" t-on-input="(ev) => this.state.gl.arTo = ev.target.value"/></div>
                                         <button class="btn btn-primary btn-sm" t-on-click="() => this.arRunStatement()"><t t-esc='t("Run")'/></button>
-                                        <button class="btn btn-sm" t-if="state.gl.data.statement" t-on-click="() => this.arStatementCsv()"><t t-esc='t("⤓ CSV")'/></button>
+                                        <t t-if="state.gl.data.statement"><t t-call="cd_p03_portal.ReportActions"/></t>
                                     </div>
                                 </div>
                                 <div t-if="state.gl.data.statement">
@@ -3001,17 +3001,7 @@
                                         <h3 t-if="state.gl.data.title"><t t-esc="t(state.gl.data.title)"/>
                                             <span style="font-weight: 400; color: var(--ink-500); font-size: 12px; margin-left: 8px;"><t t-esc="state.gl.data.rows.length"/> <t t-esc='t("rows")'/></span>
                                         </h3>
-                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                            <button class="btn btn-sm" t-on-click="() => this.exportReport('csv')" title="Raw data — spreadsheet-ready">
-                                                <t t-esc='t("⬇ CSV")'/>
-                                            </button>
-                                            <button class="btn btn-sm" t-on-click="() => this.exportReport('xlsx')" title="Formatted workbook with header, meta and totals">
-                                                <t t-esc='t("⬇ Excel")'/>
-                                            </button>
-                                            <button class="btn btn-sm" t-on-click="() => this.printReportPdf()" title="Print-ready document (Save as PDF)">
-                                                <t t-esc='t("🖨 PDF")'/>
-                                            </button>
-                                        </div>
+                                        <t t-call="cd_p03_portal.ReportActions"/>
                                     </div>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
@@ -4754,6 +4744,28 @@
             <span><t t-esc="state.toastMessage"/></span>
         </div>
 
+    </div>
+</t>
+
+<!-- The estate report standard (13 Nov 2026): ONE action bar on every
+     built-in report screen of M01-M67 - raw CSV, the Excel workbook and the
+     PDF company document, and Email with either attached. Everything reads
+     reportTarget, so a download or an email is the report on screen: same
+     period, filters and pick. Guard: tests/test_report_export_standard.py. -->
+<t t-name="cd_p03_portal.ReportActions">
+    <div class="p03-report-actions" role="group" t-att-aria-label='t("Export or send this report")' style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-sm" data-report-action="csv" t-on-click="() => this.exportReport('csv')" t-att-title='t("Raw data for a spreadsheet")'>
+            <span aria-hidden="true">⤓</span> <t t-esc='t("CSV")'/>
+        </button>
+        <button class="btn btn-sm" data-report-action="xlsx" t-on-click="() => this.exportReport('xlsx')" t-att-title='t("Excel workbook with the company letterhead, period, filters and totals")'>
+            <span aria-hidden="true">⤓</span> <t t-esc='t("Excel")'/>
+        </button>
+        <button class="btn btn-sm" data-report-action="pdf" t-on-click="() => this.printReportPdf()" t-att-title='t("PDF company document — opens in a new tab to print or save")'>
+            <span aria-hidden="true">⤓</span> <t t-esc='t("PDF")'/>
+        </button>
+        <button class="btn btn-sm" data-report-action="email" t-on-click="() => this.reportEmailOpen()" t-att-title='t("Send this report by email as an Excel or PDF attachment")'>
+            <span aria-hidden="true">✉</span> <t t-esc='t("Email")'/>
+        </button>
     </div>
 </t>
 

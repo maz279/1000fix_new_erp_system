@@ -137,13 +137,31 @@ def test_model_list_screens_match_surfaces_and_fields(registry, odoo_env):
             assert callable(getattr(odoo_env[model], method, None)), f"{model}.{method}"
 
 
+# The packs M19's own screens export and email through the report bar
+# (p03_workspace.js reportTarget, 13 Nov 2026): the statements, the posting
+# dimensions and the close checklist render on bespoke screens, not on a
+# generic table_report screen.
+BESPOKE_SCREEN_PACKS = {
+    "trial_balance": "statement",
+    "pnl": "statement",
+    "balance_sheet": "statement",
+    "cash_flow": "statement",
+    "consolidated_pnl": "statement",
+    "journal_dimensions": "dimensions",
+    "close_checklist": "close",
+}
+
+
 def test_table_reports_name_real_report_functions(registry):
     reports = [c for c in registry["screens"].values() if c["kind"] == "table_report"]
     assert reports
     for cfg in reports:
         assert cfg["module"] == "M19"
         assert cfg["report"] in m19.REPORTS
-    assert {c["report"] for c in reports} == set(m19.REPORTS)
+    # every pack is reachable: from a table_report screen or a bespoke one
+    kinds = {c["kind"] for c in registry["screens"].values()}
+    assert set(BESPOKE_SCREEN_PACKS.values()) <= kinds
+    assert {c["report"] for c in reports} | set(BESPOKE_SCREEN_PACKS) == set(m19.REPORTS)
 
 
 def test_report_and_form_chips_route_to_real_targets(registry, odoo_env):

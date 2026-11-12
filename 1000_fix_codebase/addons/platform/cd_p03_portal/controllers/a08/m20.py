@@ -902,7 +902,159 @@ def ecl_provision(env, date_from=None, date_to=None, **params):
     )
 
 
+# ---------------------------------------------------------------------------
+# The M20 report screens as report packs (13 Nov 2026): AR Aging, Revenue
+# Leakage and the Customer Statement render on bespoke screens; as packs
+# they download as CSV/Excel/PDF and go by email like every other built-in
+# report, read through the SAME functions their screens call.
+# ---------------------------------------------------------------------------
+_AGE_COLS = ["current", "d1_30", "d31_60", "d61_90", "d90_plus"]
+
+
+def ar_aging(env, **_params):
+    from ..p03_ar_api import aging_live_rows
+
+    rows = [dict(r, total=round(sum(r[c] for c in _AGE_COLS), 2)) for r in aging_live_rows(env)]
+    rows.sort(key=lambda r: -r["total"])
+    totals = {c: round(sum(r[c] for r in rows), 2) for c in [*_AGE_COLS, "total"]}
+    totals["customer"] = "Total"
+    return _pack(
+        "AR Aging by Customer (as of %s)" % datetime.date.today(),
+        ["customer", *_AGE_COLS, "total"],
+        {
+            "customer": "Customer",
+            "current": "Current",
+            "d1_30": "1-30 Days",
+            "d31_60": "31-60 Days",
+            "d61_90": "61-90 Days",
+            "d90_plus": "Over 90 Days",
+            "total": "Total Open",
+        },
+        rows,
+        [
+            "Open balances on issued invoices, aged from the invoice date after the "
+            "customer's payment terms.",
+            "A customer's balance brought over from the legacy system is its own line, "
+            "aged from the take-on date.",
+        ],
+        totals=totals,
+        empty="No customer has an open balance.",
+    )
+
+
+def revenue_leakage(env, **_params):
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import compute_leakage
+
+    data = compute_leakage(env)
+    rows = [
+        {
+            "kind": "Closed order not invoiced",
+            "reference": r["order"],
+            "customer": r["customer"] or "",
+            "age_days": r["age_days"],
+            "detail": "Escalation: %s" % r["escalation"],
+        }
+        for r in data.get("unbilled_closed_orders") or []
+    ]
+    rows += [
+        {
+            "kind": "Billing event %s" % (r["state"] or "").replace("_", " "),
+            "reference": r["source"],
+            "customer": "",
+            "age_days": r["age_days"],
+            "detail": "%s attempt(s). %s" % (r["attempts"], r["error"] or ""),
+        }
+        for r in data.get("failed_events") or []
+    ]
+    return _pack(
+        "Revenue Leakage",
+        ["kind", "reference", "customer", "age_days", "detail"],
+        {
+            "kind": "Leak",
+            "reference": "Reference",
+            "customer": "Customer",
+            "age_days": "Age (days)",
+            "detail": "Detail",
+        },
+        rows,
+        [
+            "Service orders that were closed without an invoice, oldest first.",
+            "Billing events that failed or were skipped; they stay listed until billed "
+            "and never expire silently.",
+        ],
+        empty="No leakage: every closed order is invoiced and no billing event failed.",
+    )
+
+
+def customer_statement(env, customer_id=None, date_from=None, date_to=None, **_params):
+    from odoo.addons.cd_billing_engine.models.fix_ar_engine import compute_customer_statement
+
+    labels = {
+        "date": "Date",
+        "kind": "Type",
+        "ref": "Reference",
+        "detail": "Detail",
+        "charge": "Charge / (Credit)",
+        "running": "Balance",
+    }
+    cols = ["date", "kind", "ref", "detail", "charge", "running"]
+    if not customer_id:
+        return _pack(
+            "Customer Statement",
+            cols,
+            labels,
+            [],
+            ["Choose a customer to produce a statement."],
+            empty="No customer chosen.",
+        )
+    start = _as_date(date_from, datetime.date.today().replace(day=1))
+    end = _as_date(date_to, datetime.date.today())
+    stmt = compute_customer_statement(env, int(customer_id), start, end)
+    name = env["res.partner"].browse(int(customer_id)).name or ""
+    running = stmt["opening"]
+    rows = [
+        {
+            "date": stmt["date_from"],
+            "kind": "Opening",
+            "ref": "",
+            "detail": "Balance brought forward",
+            "charge": None,
+            "running": round(running, 2),
+        }
+    ]
+    kinds = {"invoice": "Invoice", "credit": "Credit note", "receipt": "Receipt"}
+    for r in stmt["rows"]:
+        running = round(running + r["charge"], 2)
+        rows.append(
+            {
+                "date": r["date"],
+                "kind": kinds.get(r["kind"], (r["kind"] or "").title()),
+                "ref": r["ref"],
+                "detail": r["detail"] or "",
+                "charge": r["charge"],
+                "running": running,
+            }
+        )
+    return _pack(
+        "Statement of Account — %s" % name,
+        cols,
+        labels,
+        rows,
+        [
+            "Opening balance %s; closing balance %s (BDT)."
+            % (f"{stmt['opening']:,.2f}", f"{stmt['closing']:,.2f}"),
+            "Invoices and credit notes count from their issue date; receipts from the "
+            "date they were confirmed.",
+        ],
+        totals={"detail": "Closing balance", "running": stmt["closing"]},
+        empty="No movement in this period.",
+    )
+
+
 REPORTS = {
+    "ar_aging": ar_aging,
+    "revenue_leakage": revenue_leakage,
+    "customer_statement": customer_statement,
     "ecl_provision": ecl_provision,
     "ar_subledger_gl_recon": ar_subledger_gl_recon,
     "vds_claim_register": vds_claim_register,
