@@ -5,4 +5,5 @@ from . import (
     fix_consignment_ext,
     fix_courier,
     fix_damage_claim,
+    fix_logistics_controls,
 )

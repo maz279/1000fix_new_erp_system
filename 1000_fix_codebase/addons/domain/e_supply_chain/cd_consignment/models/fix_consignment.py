@@ -63,6 +63,10 @@ TRANSIT_LOCKED = frozenset(
         "purchase_order_id",
         "origin_branch_id",
         "dest_branch_id",
+        # BRU-LOG-03/05: what was declared and insured when it left
+        "restricted_item",
+        "restricted_item_class",
+        "insurance_flag",
     }
 )
 
@@ -534,6 +538,8 @@ class FixConsignment(models.Model):
                     "(Seal for Dispatch or the consignment form) before confirming it "
                     "for dispatch (BRU-LOG-12)." % consignment.name
                 )
+            # BRU-LOG-03 high value / BRU-LOG-05 restricted carrier (fix_logistics_controls)
+            consignment._check_dispatch_controls()
             consignment._guarded().write({"state": "confirmed"})
         return True
 

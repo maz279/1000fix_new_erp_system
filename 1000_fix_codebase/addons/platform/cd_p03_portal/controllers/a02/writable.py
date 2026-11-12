@@ -69,6 +69,7 @@ WRITABLE = {
             "dest_branch_id",
             "dispatch_weight_g",
             "height_cm",
+            "insurance_flag",
             "length_cm",
             "operating_unit_id",
             "origin_branch_id",
@@ -77,6 +78,8 @@ WRITABLE = {
             "purchase_order_id",
             "recipient_name",
             "recipient_nid_last4",
+            "restricted_item",
+            "restricted_item_class",
             "rider_id",
             "scheduled_date",
             "security_bag_barcode",
@@ -145,6 +148,8 @@ WRITABLE = {
             "insurance_max_bdt",
             "name",
             "per_kg_rate",
+            "restricted_cert_valid_until",
+            "restricted_item_certified",
             "service_area",
             "sla_delivery_hours",
             "volumetric_divisor",
@@ -546,6 +551,16 @@ WRITABLE = {
             "session_summary",
             "technician_id",
             "tool",
+        }
+    ),
+    "fix.rider.certification": frozenset(
+        {
+            "attachment_id",
+            "certificate_ref",
+            "employee_id",
+            "issued_on",
+            "item_class",
+            "valid_until",
         }
     ),
     "fix.service.order": frozenset(

@@ -39,6 +39,7 @@ export const MODULE = {
     ]},
     { en: 'Riders & Fleet', screens: [
       { id: 'M03-riders', en: 'Rider Assignment', bn: 'রাইডার নিয়োগ', t: 'g' },
+      { id: 'M03-rider-certs', en: 'Restricted-Item Certifications', bn: 'বিপজ্জনক পণ্য বহনের সনদ', t: 'g' },
       { id: 'M03-routes', en: 'Route Manifests', bn: 'রুট ম্যানিফেস্ট', t: 'r' },
       { id: 'M03-app', en: 'Rider App (P09) Preview', bn: 'রাইডার অ্যাপ (P09) প্রিভিউ', t: 'r' }
     ]},
@@ -62,7 +63,7 @@ export const MODULE = {
    * nothing writes a scan or a seal verdict directly. */
   forms: ['Consignment (5 types)', 'Courier Booking', 'Damage Claim', 'Courier Partner',
     'Seal for Dispatch', 'Hub Intake Scan', 'Proof of Delivery Record', 'Rider & Vehicle Assignment',
-    'Rider COD Settlement', 'Courier POD Record'],
+    'Rider COD Settlement', 'Courier POD Record', 'Rider Certification'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
   freg: {
     src: 93,
@@ -89,7 +90,7 @@ export const MODULE = {
       /* 6/7 FR-LOG-013/014/029: the rider, vehicle and run date of a leg.
        * No rider-shift or route-manifest record exists yet (the manifest is
        * the rider's legs of the day, computed). */
-      ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders'], reports: [], forms: ['Rider & Vehicle Assignment'], create: 'M03-form-rider', domain: [['rider_id', '!=', false]] }],
+      ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders', 'M03-rider-certs'], reports: [], forms: ['Rider & Vehicle Assignment', 'Rider Certification'], create: 'M03-form-rider', domain: [['rider_id', '!=', false]] }],
       ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], reports: [], forms: ['Rider & Vehicle Assignment'], create: 'M03-form-rider', domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
       /* 8: written by the rider app (P09) on sync - nothing to type here */
       ['8', 'Rider App Offline Sync (P09)', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_by', 'scanned_at', 'device_serial'], screens: ['M03-app'], reports: [], forms: [], create: false }],
@@ -113,7 +114,7 @@ export const SCREENS = {
     title: 'Courier Partner',
     back: 'M03-couriers',
     tabs: [
-      { id: 'profile', label: '1. Partner Identity', bn: '১. কুরিয়ার পরিচিতি', icon: '🏢', badge: '7' },
+      { id: 'profile', label: '1. Partner Identity', bn: '১. কুরিয়ার পরিচিতি', icon: '🏢', badge: '9' },
       { id: 'commercial', label: '2. Tariff & Billing', bn: '২. ভাড়া ও বিলিং', icon: '💵', badge: '6' }
     ],
     sections: [
@@ -122,6 +123,9 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Partner Name' },
           { name: 'code', required: true, label: 'Code' },
           { name: 'service_area', label: 'Service Area' },
+          /* BRU-LOG-10: restricted items only with a valid certification */
+          { name: 'restricted_item_certified', label: 'Certified for Restricted Items' },
+          { name: 'restricted_cert_valid_until', label: 'Restricted Certification Valid Until' },
           { name: 'sla_delivery_hours', label: 'Contractual Delivery SLA (hours)' },
           { name: 'contact_phone', label: 'Account Manager Phone' },
           { name: 'api_ref', label: 'API Credential Reference (vault://)' },
@@ -196,7 +200,9 @@ export const SCREENS = {
       { m: 'action_out_for_delivery', l: 'Out for Delivery' },
       { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
       { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' },
-      { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' }
+      { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' },
+      /* BRU-LOG-03: a second person vouches for a high-value dispatch */
+      { m: 'action_countersign_dispatch', l: 'Countersign High-Value Dispatch' }
     ] },
   'M03-record': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'service_order_id', 'custody_summary', 'chain_broken',
@@ -263,9 +269,9 @@ export const SCREENS = {
     back: 'M03-cons',
     status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", in_transit: "In Transit", held: "Exception Hold", delivered: "Delivered", returned: "Returned", lost: "Lost" } },
     tabs: [
-      { id: 'journey', label: '1. Journey & Legs', bn: '১. রুট ও স্থানান্তর', icon: '🚚', badge: '12' },
+      { id: 'journey', label: '1. Journey & Legs', bn: '১. রুট ও স্থানান্তর', icon: '🚚', badge: '14' },
       { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '16' },
-      { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '11' },
+      { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '16' },
       { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '8' }
     ],
     sections: [
@@ -282,6 +288,9 @@ export const SCREENS = {
           { name: 'rider_id', label: "Assigned Rider" },
           { name: 'courier_partner_id', label: "3PL Courier Partner" },
           { name: 'vehicle_registration', label: "Vehicle / Bike Reg No." },
+          /* BRU-LOG-05: carried only by a certified rider or courier */
+          { name: 'restricted_item', label: "Carries a Restricted Item" },
+          { name: 'restricted_item_class', label: "Restricted Class" },
           { name: 'state', label: "Consignment Status", readonly: true }
         ] },
       { tab: 'custody', title: "Tamper-Evident Security Seals & Scale Verification (FLAW-03.3)",
@@ -316,6 +325,12 @@ export const SCREENS = {
           { name: 'volumetric_divisor', label: "Volumetric Divisor" },
           /* BRU-LOG-12: recorded before collection; drives the insurance fee */
           { name: 'declared_value_bdt', label: "Declared Value (BDT)" },
+          /* BRU-LOG-03: above the threshold, insured and countersigned */
+          { name: 'insurance_flag', label: "Transit Insurance Taken" },
+          { name: 'high_value', label: "High Value (dual signature)", readonly: true },
+          { name: 'dispatch_countersigned_by_id', label: "Countersigned By", readonly: true },
+          { name: 'dispatch_countersigned_at', label: "Countersigned At", readonly: true },
+          { name: 'dispatch_countersigned_value', label: "Value Countersigned (BDT)", readonly: true },
           { name: 'volumetric_weight_kg', label: "Volumetric Weight (kg)", readonly: true },
           { name: 'chargeable_weight_kg', label: "Chargeable Weight (kg)", readonly: true },
           { name: 'base_freight_bdt', label: "Base Freight (BDT)", readonly: true },
@@ -367,7 +382,10 @@ export const SCREENS = {
           { name: 'security_bag_barcode', label: 'Tamper-Evident Bag Barcode' },
           { name: 'outbound_seal_number', required: true, label: 'Outbound Security Seal No' },
           { name: 'dispatch_weight_g', label: 'Dispatch Scale Weight (g)' },
-          { name: 'declared_value_bdt', label: 'Declared Value (BDT)' }
+          { name: 'declared_value_bdt', label: 'Declared Value (BDT)' },
+          { name: 'insurance_flag', label: 'Transit Insurance Taken' },
+          { name: 'restricted_item', label: 'Carries a Restricted Item' },
+          { name: 'restricted_item_class', label: 'Restricted Class' }
         ] }
     ]
   },
@@ -514,6 +532,33 @@ export const SCREENS = {
     ]
   },
 
+  /* BRU-LOG-05: who may carry which restricted class, and until when. A
+   * rider without a valid row cannot be assigned a restricted consignment. */
+  'M03-rider-certs': { kind: 'model_list', model: 'fix.rider.certification',
+    cols: ['employee_id', 'item_class', 'certificate_ref', 'issued_on', 'valid_until', 'active'],
+    empty: 'No rider is certified for restricted items yet. A consignment carrying a battery, refrigerant or other hazardous item can only go with a certified rider or a certified courier.' },
+  'M03-form-rider-cert': {
+    kind: 'model_form',
+    model: 'fix.rider.certification',
+    title: 'Rider Certification',
+    back: 'M03-rider-certs',
+    tabs: [
+      { id: 'cert', label: '1. Certification', bn: '১. সনদ', icon: '🪪', badge: '6' }
+    ],
+    sections: [
+      { tab: 'cert', title: 'Restricted-Item Certification (BRU-LOG-05)',
+        note: 'Recorded by a logistics manager from the certificate the rider holds. It covers its class from the issue date to the valid-until date; after that the rider cannot take that class.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Rider' },
+          { name: 'item_class', required: true, label: 'Restricted Class' },
+          { name: 'certificate_ref', required: true, label: 'Certificate No.' },
+          { name: 'issued_on', label: 'Issued On' },
+          { name: 'valid_until', required: true, label: 'Valid Until' },
+          { name: 'attachment_id', label: 'Certificate Scan' }
+        ] }
+    ]
+  },
+
   'M03-form-rider-shift': {
     kind: 'model_form',
     model: 'fix.custody.scan',
@@ -635,6 +680,7 @@ export const FORM_CHIPS = {
   /* the M50 form: the rider's hand-over is a Finance settlement */
   'M03:Rider COD Settlement': 'M50-form-cod',
   'M03:Courier POD Record': 'M03-form-courier-pod',
+  'M03:Rider Certification': 'M03-form-rider-cert',
   'M03:__by_model__': {
     'fix.courier.partner': 'M03-form-courier',
     'fix.courier.booking': 'M03-form-booking',
@@ -642,6 +688,7 @@ export const FORM_CHIPS = {
     'fix.consignment': 'M03-form-consignment',
     'fix.custody.scan': 'M03-form-rider-shift',
     'fix.cod.settlement': 'M50-form-cod',
+    'fix.rider.certification': 'M03-form-rider-cert',
   },
   'M03:__by_screen__': {
     'M03-couriers': 'M03-form-courier',
@@ -649,5 +696,6 @@ export const FORM_CHIPS = {
     'M03-damage-claim': 'M03-form-damage-claim',
     'M03-cons': 'M03-form-consignment',
     'M03-custody': 'M03-form-rider-shift',
+    'M03-rider-certs': 'M03-form-rider-cert',
   }
 };
