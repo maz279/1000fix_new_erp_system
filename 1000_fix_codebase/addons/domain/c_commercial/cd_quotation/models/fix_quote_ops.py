@@ -70,6 +70,10 @@ QUOTE_TERMS = frozenset(
         "advance_pct",
         "delivery_terms",
         "warranty_terms",
+        # P2: the segment's terms, the customer's withholding and where goods leave from
+        "segment",
+        "expected_vds_rate",
+        "picking_type_id",
     }
 )
 
@@ -114,6 +118,8 @@ QUOTE_STAMPS = frozenset(
         "list_total",
         "discount_pct",
         "advance_amount",
+        "expected_vds_amount",
+        "expected_net_receipt",
         "tds_amount",
         "margin_known",
         "pretax_margin_bdt",

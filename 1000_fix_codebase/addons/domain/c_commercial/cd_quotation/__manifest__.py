@@ -37,6 +37,9 @@ CD-M36-02/03: quotation and estimation.
         # engine reads quotations through the registry only.
         "account",
         "cd_billing_engine",
+        # P2: deliveries for goods lines; the contract scope on M08 contracts.
+        "stock",
+        "cd_contract_core",
     ],
     "data": [
         "security/cd_quotation_groups.xml",
@@ -44,6 +47,7 @@ CD-M36-02/03: quotation and estimation.
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/ir_cron.xml",
+        "data/fix_quotation_template_data.xml",
         "views/fix_quotation_views.xml",
     ],
     "installable": True,

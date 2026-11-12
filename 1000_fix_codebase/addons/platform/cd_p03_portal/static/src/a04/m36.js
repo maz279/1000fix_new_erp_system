@@ -26,6 +26,11 @@ export const MODULE = {
     { en: 'Quotations', screens: [
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
       { id: 'M36-record', en: 'Quotation Record', bn: 'কোটেশন রেকর্ড', t: 'f' },
+      { id: 'M36-billing-quotes', en: 'Billing Plan & Advances', bn: 'বিলিং পরিকল্পনা ও অগ্রিম', t: 'g' },
+      { id: 'M36-billing-lines', en: 'Billing Plan Lines', bn: 'বিলিং লাইন', t: 'g' },
+      { id: 'M36-handoffs', en: 'Fulfilment Hand-offs', bn: 'হস্তান্তর লগ', t: 'g' },
+      { id: 'M36-templates', en: 'Quotation Templates', bn: 'কোটেশন টেমপ্লেট', t: 'g' },
+      { id: 'M36-contract-scope', en: 'Contracted Scope (from quotations)', bn: 'চুক্তির পরিধি', t: 'g' },
       { id: 'M36-versions', en: 'Versions & Counter-Offer', bn: 'ভার্সন ও কাউন্টার', t: 'g' },
       { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'r' }
     ]},
@@ -47,7 +52,7 @@ export const MODULE = {
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   freg: { src: 86, sub: [
     ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'] }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)'] }],
     ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'], reports: [], forms: [], create: false }],
     ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'], reports: ['Approval Cycle Time'], forms: [] }],
     ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'], reports: ['Approval Cycle Time', 'Quote Conversion by Channel'], forms: [] }],
@@ -55,7 +60,7 @@ export const MODULE = {
     ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'], reports: [], forms: [], create: false }],
     ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'], reports: ['Decline Reasons Pareto'], forms: [], create: false }],
     ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-bonds', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid'] }],
-    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance'], reports: [], forms: [] }]
+    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance', 'M36-templates'], reports: [], forms: [] }]
   ] }
 };
 
@@ -151,6 +156,8 @@ export const SCREENS = {
     cols: ['name', 'customer_id', 'version', 'value', 'amount_total', 'margin_pct', 'valid_until', 'state', 'approval_state'],
     actions: [
       { m: 'action_pull_estimate_lines', l: 'Pull Lines from Estimate', states: ['draft'] },
+      { m: 'action_apply_template', l: 'Apply Template (replaces the lines)', states: ['draft'] },
+      { m: 'action_choose_option', l: 'Customer Chooses Option', ask: 'Which option did the customer take? (its description)', kwarg: 'choice', states: ['draft', 'approved', 'sent'] },
       { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
       { m: 'action_send', l: 'Issue to Customer', states: ['approved'] },
@@ -162,6 +169,94 @@ export const SCREENS = {
       { m: 'action_convert', l: 'Convert (retry hand-off)', states: ['accepted'] },
       { m: 'action_cancel', l: 'Cancel Quotation', ask: 'Why is it withdrawn?', kwarg: 'reason', states: ['draft', 'approved', 'sent'] }
     ] },
+  // P2 (12-13 Nov 2026): the billing plan, the advance and what acceptance created.
+  'M36-billing-quotes': { kind: 'model_list', model: 'fix.quotation', create: false, stateField: 'state',
+    cols: ['name', 'customer_id', 'segment', 'quote_type', 'amount_total', 'advance_amount', 'advance_received', 'advance_outstanding', 'state'],
+    actions: [
+      { m: 'action_record_advance', l: 'Record Advance Received (amount and method on the form)', states: ['sent', 'accepted'] }
+    ] },
+  'M36-billing-lines': { kind: 'model_list', model: 'fix.quotation.billing.line', create: false, stateField: 'state',
+    cols: ['quotation_id', 'sequence', 'kind', 'pct', 'amount', 'note', 'state', 'invoice_id'],
+    actions: [
+      { m: 'action_invoice', l: 'Draft the Invoice for this Share', states: ['planned'] }
+    ] },
+  'M36-templates': { kind: 'model_list', model: 'fix.quotation.template',
+    cols: ['sequence', 'name', 'segment', 'quote_type', 'payment_term_id', 'advance_pct', 'validity_days'] },
+  'M36-form-template': {
+    lines: {
+      field: 'line_ids',
+      title: 'Template Lines',
+      note: 'Lines a quotation starts with. Empty unit price: priced from the M11 rate card / catalogue when applied. Lines sharing an option group are alternatives (good / better / best).',
+      fields: [
+        { name: 'sequence', label: 'Seq' },
+        { name: 'display_type', label: 'Section / Note' },
+        { name: 'line_type', label: 'Type' },
+        { name: 'product_id', label: 'Item / Service' },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'quantity', label: 'Qty' },
+        { name: 'unit_price', label: 'Unit Price' },
+        { name: 'discount_pct', label: 'Disc %' },
+        { name: 'is_optional', label: 'Optional' },
+        { name: 'alternative_group', label: 'Option Group' },
+        { name: 'is_selected', label: 'Chosen' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.quotation.template',
+    title: 'Quotation Template', back: 'M36-templates',
+    sections: [
+      { title: 'Template', fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'segment', label: 'Customer Segment' },
+        { name: 'quote_type', label: 'Converts Into' },
+        { name: 'validity_days', label: 'Valid For (days)' },
+        { name: 'payment_term_id', label: 'Payment Terms' },
+        { name: 'payment_method_ids', label: 'Payment Methods' },
+        { name: 'advance_pct', label: 'Advance Required (%)' },
+        { name: 'expected_vds_rate', label: 'Expected VDS (%)' },
+        { name: 'picking_type_id', label: 'Deliver From' },
+        { name: 'delivery_terms', label: 'Delivery Terms', type: 'text' },
+        { name: 'warranty_terms', label: 'Warranty Terms', type: 'text' },
+        { name: 'note', label: 'When to Use' }
+      ] }
+    ]
+  },
+  'M36-contract-scope': { kind: 'model_list', model: 'fix.contract.scope.line', create: false,
+    cols: ['contract_id', 'line_type', 'description', 'device_id', 'site_id', 'quantity', 'unit_price', 'subtotal'] },
+  'M36-handoffs': { kind: 'model_list', model: 'fix.quotation.handoff', create: false,
+    cols: ['quotation_id', 'kind', 'ref', 'state', 'note', 'create_date'] },
+  'M36-billing': {
+    lines: {
+      field: 'billing_line_ids',
+      title: 'Billing Plan (shares total 100%)',
+      note: 'How the quoted value is invoiced: milestones, on delivery, on completion, recurring (contract / subscription billing), retention. Left empty, Submit fills the default plan. The advance is not an invoice: it is a receipt applied to these invoices.',
+      fields: [
+        { name: 'sequence', label: 'Seq' },
+        { name: 'kind', label: 'When', required: true },
+        { name: 'pct', label: 'Share %', required: true },
+        { name: 'amount', label: 'Amount excl. VAT', readonly: true },
+        { name: 'due_days', label: 'Due (days)' },
+        { name: 'note', label: 'Trigger / Milestone' },
+        { name: 'state', label: 'State', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Billing Plan & Advance', back: 'M36-billing-quotes',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Advance', note: 'Record what the customer paid in advance; Finance confirms the receipt, and it is applied to this quotation\'s invoices as they are issued.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT (BDT)', readonly: true },
+          { name: 'advance_pct', label: 'Advance Required (%)', readonly: true },
+          { name: 'advance_amount', label: 'Advance Required (BDT)', readonly: true },
+          { name: 'advance_received', label: 'Advance Received (BDT)', readonly: true },
+          { name: 'advance_outstanding', label: 'Advance Outstanding (BDT)', readonly: true },
+          { name: 'advance_entry_amount', label: 'Advance Amount Received Now (BDT)' },
+          { name: 'advance_entry_method_id', label: 'Received By' },
+          { name: 'advance_entry_ref', label: 'Payment Reference (TrxID / cheque no.)' }
+        ] }
+    ]
+  },
   'M36-form-estimate': {
 
     lines: {
@@ -278,7 +373,12 @@ export const SCREENS = {
         { name: 'subtotal', label: 'Amount excl. VAT', readonly: true },
         { name: 'list_price', label: 'List / Rate', readonly: true },
         { name: 'cost_unit', label: 'Unit Cost' },
-        { name: 'is_optional', label: 'Optional' }
+        { name: 'is_optional', label: 'Optional' },
+        { name: 'alternative_group', label: 'Option Group' },
+        { name: 'is_selected', label: 'Chosen' },
+        { name: 'fulfilment', label: 'Fulfilled By' },
+        { name: 'device_id', label: 'Device' },
+        { name: 'site_id', label: 'Site' }
       ]
     },
     kind: 'model_form',
@@ -303,6 +403,9 @@ export const SCREENS = {
         fields: [
           { name: 'name', label: 'Quotation Reference (auto)', readonly: true },
           { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'segment', label: 'Customer Segment' },
+          { name: 'template_id', label: 'Start From Template (then Apply Template)' },
+          { name: 'document_lang', label: 'Document Language' },
           { name: 'estimate_id', label: 'Originating Technical Estimate (M01)' },
           { name: 'quote_type', required: true, label: 'Converts Into' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
@@ -329,7 +432,8 @@ export const SCREENS = {
           { name: 'delivery_terms', label: 'Delivery / Completion Terms', type: 'text' },
           { name: 'warranty_terms', label: 'Warranty Terms', type: 'text' },
           { name: 'customer_po_ref', label: 'Customer PO No.' },
-          { name: 'customer_po_date', label: 'Customer PO Date' }
+          { name: 'customer_po_date', label: 'Customer PO Date' },
+          { name: 'picking_type_id', label: 'Deliver Goods From' }
         ] },
       { tab: 'pricing', title: 'Direct Cost, Pre-Tax Margin & Value',
         note: 'The value is the lines total less the overall discount (from an estimate: its total before VAT); VAT is added once, giving the Total Payable. Without a direct cost the margin is unknown.',
@@ -349,7 +453,10 @@ export const SCREENS = {
           { name: 'tds_rate', label: 'Withholding Tax TDS Rate (%)' },
           { name: 'tds_amount', label: 'TDS Deduction (BDT)', readonly: true },
           { name: 'net_cash_margin_bdt', label: 'Net Cash Margin After-Tax (BDT)', readonly: true },
-          { name: 'net_cash_margin_pct', label: 'Net Cash Margin (%)', readonly: true }
+          { name: 'net_cash_margin_pct', label: 'Net Cash Margin (%)', readonly: true },
+          { name: 'expected_vds_rate', label: 'Expected VDS by Customer (%)' },
+          { name: 'expected_vds_amount', label: 'Expected VDS (BDT)', readonly: true },
+          { name: 'expected_net_receipt', label: 'Expected Cash Receipt (BDT)', readonly: true }
         ] },
       { tab: 'approval', title: 'Value-Band Approval (BRU-QTE-06/07/09)',
         note: 'Submit routes the quotation to a holder of its value band who is not its author; any change after approval sends it back for re-approval.',
@@ -758,6 +865,8 @@ export const FORM_CHIPS = {
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
     'M36-quotes': 'M36-record',
+    'M36-billing-quotes': 'M36-billing',
+    'M36-templates': 'M36-form-template',
     'M36-versions': 'M36-record',
     'M36-loop': 'M36-form-review',
     'M36-declined': 'M36-record',

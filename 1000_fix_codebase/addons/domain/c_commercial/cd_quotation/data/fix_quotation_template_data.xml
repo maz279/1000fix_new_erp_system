@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Quote-to-cash P3 (13 Nov 2026): the starting points of a quotation, one per
+  common case. noupdate: the commercial team owns them after install. Empty
+  unit prices take the M11 rate card / catalogue price when applied.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="quote_template_consumer_onsite" model="fix.quotation.template">
+            <field name="name">Consumer on-site service (call-out + part options)</field>
+            <field name="sequence">10</field>
+            <field name="segment">consumer</field>
+            <field name="quote_type">project</field>
+            <field name="validity_days">7</field>
+            <field name="payment_term_id" ref="account.account_payment_term_immediate"/>
+            <field name="warranty_terms">90 days on the replaced part and the workmanship.</field>
+            <field name="delivery_terms">Technician visit within 24 hours of acceptance (Dhaka metro).</field>
+            <field name="note">Doorstep repair where the customer chooses the part grade.</field>
+            <field name="line_ids" eval="[
+                (0, 0, {'sequence': 10, 'line_type': 'callout', 'description': 'Doorstep call-out', 'unit_price': 500.0}),
+                (0, 0, {'sequence': 20, 'line_type': 'labour', 'description': 'Repair labour', 'unit_price': 800.0}),
+                (0, 0, {'sequence': 30, 'display_type': 'line_section', 'description': 'Replacement part: choose one'}),
+                (0, 0, {'sequence': 40, 'line_type': 'part', 'description': 'Original (OEM) part', 'alternative_group': 'Part', 'is_selected': True}),
+                (0, 0, {'sequence': 50, 'line_type': 'part', 'description': 'Compatible part', 'alternative_group': 'Part', 'is_selected': False}),
+                (0, 0, {'sequence': 60, 'line_type': 'part', 'description': 'Refurbished part', 'alternative_group': 'Part', 'is_selected': False}),
+                (0, 0, {'sequence': 70, 'line_type': 'warranty_ext', 'description': 'Extended warranty, +12 months', 'unit_price': 1500.0, 'is_optional': True}),
+            ]"/>
+        </record>
+
+        <record id="quote_template_corporate_amc" model="fix.quotation.template">
+            <field name="name">Corporate printer AMC (12 months)</field>
+            <field name="sequence">20</field>
+            <field name="segment">corporate</field>
+            <field name="quote_type">contract</field>
+            <field name="validity_days">30</field>
+            <field name="payment_term_id" ref="cd_billing_engine.payment_term_bd_amc_quarterly_advance"/>
+            <field name="expected_vds_rate">15.0</field>
+            <field name="warranty_terms">Parts replaced under the AMC carry the manufacturer's warranty.</field>
+            <field name="delivery_terms">Quarterly preventive maintenance visits; response within 8 business hours.</field>
+            <field name="line_ids" eval="[
+                (0, 0, {'sequence': 10, 'line_type': 'recurring', 'description': 'Printer AMC, per printer, 12 months (4 PM visits)', 'quantity': 1.0}),
+                (0, 0, {'sequence': 20, 'line_type': 'fee', 'description': 'Consumables kit (toner and drum, per printer)', 'is_optional': True}),
+            ]"/>
+            <field name="billing_line_ids" eval="[(0, 0, {'sequence': 10, 'kind': 'recurring', 'pct': 100.0, 'note': 'Quarterly in advance'})]"/>
+        </record>
+
+        <record id="quote_template_corporate_project" model="fix.quotation.template">
+            <field name="name">Corporate goods supply and installation</field>
+            <field name="sequence">30</field>
+            <field name="segment">corporate</field>
+            <field name="quote_type">project</field>
+            <field name="validity_days">30</field>
+            <field name="payment_term_id" ref="cd_billing_engine.payment_term_bd_50_advance"/>
+            <field name="advance_pct">50.0</field>
+            <field name="expected_vds_rate">15.0</field>
+            <field name="delivery_terms">Delivery within 10 working days of the PO and the advance; installation within 5 days of delivery.</field>
+            <field name="warranty_terms">Manufacturer's warranty on goods; 6 months on installation workmanship.</field>
+            <field name="line_ids" eval="[
+                (0, 0, {'sequence': 10, 'display_type': 'line_section', 'description': 'Goods'}),
+                (0, 0, {'sequence': 20, 'line_type': 'goods', 'description': 'Goods (select the item)'}),
+                (0, 0, {'sequence': 30, 'display_type': 'line_section', 'description': 'Services'}),
+                (0, 0, {'sequence': 40, 'line_type': 'installation', 'description': 'Installation and configuration'}),
+                (0, 0, {'sequence': 50, 'line_type': 'service', 'description': 'User training (half day)', 'is_optional': True}),
+            ]"/>
+            <field name="billing_line_ids" eval="[
+                (0, 0, {'sequence': 10, 'kind': 'on_delivery', 'pct': 70.0, 'note': 'Goods delivered'}),
+                (0, 0, {'sequence': 20, 'kind': 'on_completion', 'pct': 30.0, 'note': 'Installation accepted'}),
+            ]"/>
+        </record>
+
+        <record id="quote_template_gov_tender" model="fix.quotation.template">
+            <field name="name">Government tender (e-GP) bid</field>
+            <field name="sequence">40</field>
+            <field name="segment">gov_tender</field>
+            <field name="quote_type">project</field>
+            <field name="validity_days">90</field>
+            <field name="payment_term_id" ref="cd_billing_engine.payment_term_bd_tender_retention"/>
+            <field name="expected_vds_rate">15.0</field>
+            <field name="delivery_terms">As the tender's delivery schedule (point of delivery and period per the price schedule).</field>
+            <field name="warranty_terms">As the tender's Particular Conditions of Contract (PCC).</field>
+            <field name="note">Price the BOQ through Tenders &gt; Price as Quotation; this template sets the terms.</field>
+            <field name="billing_line_ids" eval="[
+                (0, 0, {'sequence': 10, 'kind': 'on_completion', 'pct': 90.0, 'note': 'After TEAC acceptance'}),
+                (0, 0, {'sequence': 20, 'kind': 'retention', 'pct': 10.0, 'note': 'Released after the warranty period'}),
+            ]"/>
+        </record>
+    </data>
+</odoo>

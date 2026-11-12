@@ -291,7 +291,8 @@ def test_quote_from_an_estimate_charges_vat_once(c):
     assert (q.line_ids.description, q.line_ids.subtotal) == ("labour", 4000.0)
     # Margins and TDS are on the amount before VAT, never on VAT.
     assert (q.pretax_margin_bdt, q.margin_pct) == (1600.0, 40.0)
-    assert q.tds_amount == 200.0
+    # a consumer withholds no income tax; a corporate customer would (P2 segments)
+    assert (q.segment, q.tds_amount) == ("consumer", 0.0)
     # The VAT-inclusive total can no longer be quoted as the value.
     with pytest.raises(ValidationError), c.env.cr.savepoint():
         q.sudo().write({"value": est.grand_total})
@@ -1108,6 +1109,7 @@ def test_a_quotation_states_what_and_how_it_is_paid_before_approval(c):
                 "quote_type": "contract",
                 "operating_unit_id": c.ou.id,
                 "payment_method_ids": [(5, 0, 0)],
+                "payment_term_id": False,
             }
         )
     )

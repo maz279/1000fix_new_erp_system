@@ -27,3 +27,15 @@ access_fix_tender_line,fix.tender.line,model_fix_tender_line,base.group_user,1,0
 access_fix_tender_line_coordinator,fix.tender.line bid coordinator,model_fix_tender_line,group_bid_coordinator,1,1,1,1
 access_fix_quotation_bid_coordinator,fix.quotation bid pricing,model_fix_quotation,group_bid_coordinator,1,1,1,0
 access_fix_quotation_line_bid_coordinator,fix.quotation.line bid pricing,model_fix_quotation_line,group_bid_coordinator,1,1,1,1
+access_fix_quotation_billing_line,fix.quotation.billing.line,model_fix_quotation_billing_line,base.group_user,1,0,0,0
+access_fix_quotation_billing_line_author,fix.quotation.billing.line author,model_fix_quotation_billing_line,group_quotation_user,1,1,1,1
+access_fix_quotation_billing_line_manager,fix.quotation.billing.line manager,model_fix_quotation_billing_line,group_quotation_manager,1,1,1,1
+access_fix_quotation_billing_line_account,fix.quotation.billing.line accountant,model_fix_quotation_billing_line,account.group_account_user,1,1,0,0
+access_fix_quotation_handoff,fix.quotation.handoff,model_fix_quotation_handoff,base.group_user,1,0,0,0
+access_fix_contract_scope_line,fix.contract.scope.line,model_fix_contract_scope_line,base.group_user,1,0,0,0
+access_fix_quotation_template,fix.quotation.template,model_fix_quotation_template,base.group_user,1,0,0,0
+access_fix_quotation_template_manager,fix.quotation.template manager,model_fix_quotation_template,group_quotation_manager,1,1,1,1
+access_fix_quotation_template_line,fix.quotation.template.line,model_fix_quotation_template_line,base.group_user,1,0,0,0
+access_fix_quotation_template_line_manager,fix.quotation.template.line manager,model_fix_quotation_template_line,group_quotation_manager,1,1,1,1
+access_fix_quotation_template_billing,fix.quotation.template.billing,model_fix_quotation_template_billing,base.group_user,1,0,0,0
+access_fix_quotation_template_billing_manager,fix.quotation.template.billing manager,model_fix_quotation_template_billing,group_quotation_manager,1,1,1,1

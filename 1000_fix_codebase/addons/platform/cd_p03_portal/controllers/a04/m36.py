@@ -24,6 +24,9 @@ SURFACES = {
         "limit": 300,
         "actions": {
             "action_pull_estimate_lines",
+            "action_record_advance",
+            "action_apply_template",
+            "action_choose_option",
             "action_submit",
             "action_recall_approval",
             "action_send",
@@ -35,6 +38,27 @@ SURFACES = {
             "action_revise",
             "action_convert",
         },
+    },
+    # P2 (12-13 Nov 2026): the billing plan, the hand-off log and contract scope.
+    "fix.quotation.billing.line": {
+        "order": "quotation_id desc, sequence, id",
+        "limit": 300,
+        "actions": {"action_invoice"},
+    },
+    "fix.quotation.handoff": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.quotation.template": {
+        "order": "sequence, name",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.contract.scope.line": {
+        "order": "contract_id desc, id",
+        "limit": 300,
+        "actions": set(),
     },
     # Written only by the approval engine's decision (append-only log).
     "fix.quote.review": {

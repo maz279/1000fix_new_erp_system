@@ -29,9 +29,75 @@
         <field name="binding_type">report</field>
     </record>
 
+    <record id="action_report_advance_request" model="ir.actions.report">
+        <field name="name">Advance Payment Request</field>
+        <field name="model">fix.quotation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_advance_request</field>
+        <field name="report_file">cd_doc_suite.report_advance_request</field>
+        <field name="print_report_name">'Advance Request %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_quotation.model_fix_quotation"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- Quote-to-cash P2 (13 Nov 2026): what the customer pays before work
+         starts, how, and what is already received. Not a tax invoice. -->
+    <template id="report_advance_request">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="cd_doc_suite.report_advance_request_document" t-lang="doc.document_lang or doc.customer_id.lang or 'en_US'"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_advance_request_document">
+                <t t-set="doc" t-value="doc.with_context(lang=doc.document_lang or doc.customer_id.lang or 'en_US')"/>
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+                        <div class="cds-title-band">
+                            <h1>ADVANCE PAYMENT REQUEST</h1>
+                            <div class="cds-title-sub">
+                                Against quotation <b t-esc="doc.name"/> v<b t-esc="doc.version or 1"/>
+                                <t t-if="doc.customer_po_ref"> · Your PO <b t-esc="doc.customer_po_ref"/></t>
+                            </div>
+                        </div>
+                        <table class="cds-parties">
+                            <tr><td>
+                                <div class="cds-party-label">Requested From</div>
+                                <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                <div t-field="doc.customer_id" t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
+                            </td></tr>
+                        </table>
+                        <table class="cds-totals">
+                            <tr><td class="cds-tot-label">Quotation Total (incl. VAT)</td><td class="cds-tot-value"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr><td class="cds-tot-label">Advance Required (<t t-esc="'%g' % (doc.advance_pct or 0)"/>%)</td><td class="cds-tot-value"><span t-field="doc.advance_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr t-if="doc.advance_received"><td class="cds-tot-label">Already Received</td><td class="cds-tot-value"><span t-field="doc.advance_received" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                            <tr class="cds-grand"><td class="cds-tot-label">Please Pay Now</td><td class="cds-tot-value"><span t-field="doc.advance_outstanding" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
+                        </table>
+                        <div class="cds-notes">
+                            <b>How to pay</b>
+                            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                                <li t-foreach="doc.payment_method_ids" t-as="m"><t t-esc="m.name"/><t t-if="m.note">: <t t-esc="m.note"/></t></li>
+                            </ul>
+                            <p style="margin-top:6px;">Quote <b t-esc="doc.name"/> as the payment reference. This request is not a tax invoice: VAT is charged on the invoice the advance is applied to.</p>
+                        </div>
+                    </div>
+                </t>
+    </template>
+
+    <!-- Quote-to-cash P3 (13 Nov 2026): printed in the quotation's document
+         language (English or Bangla, cd_doc_suite/i18n/bn_BD.po). -->
     <template id="report_quotation">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
+                <t t-call="cd_doc_suite.report_quotation_document" t-lang="doc.document_lang or doc.customer_id.lang or 'en_US'"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_quotation_document">
+                <t t-set="doc" t-value="doc.with_context(lang=doc.document_lang or doc.customer_id.lang or 'en_US')"/>
                 <t t-call="web.external_layout">
                     <div class="page cds-doc">
 
@@ -56,7 +122,7 @@
                                 <td>
                                     <div class="cds-party-label">Details</div>
                                     <table class="cds-meta">
-                                        <tr><td class="cds-meta-label">Type</td><td t-esc="{'service':'Service','contract':'Contract','subscription':'Subscription'}.get(doc.quote_type, doc.quote_type or '')"/></tr>
+                                        <tr><td class="cds-meta-label">Type</td><td t-esc="{'service':'Service','contract':'Contract','subscription':'Subscription','project':'Goods &amp; Works'}.get(doc.quote_type, doc.quote_type or '')"/></tr>
                                         <tr t-if="doc.contract_family"><td class="cds-meta-label">Family</td><td t-esc="{'amc':'AMC','ramc':'R-AMC','managed':'Managed Services','rental':'Rental','marketplace':'Marketplace'}.get(doc.contract_family, doc.contract_family)"/></tr>
                                         <tr t-if="doc.contract_months"><td class="cds-meta-label">Duration</td><td t-esc="str(doc.contract_months) + ' months'"/></tr>
                                         <tr t-if="doc.contract_start"><td class="cds-meta-label">Starts</td><td><span t-field="doc.contract_start"/></td></tr>
@@ -169,6 +235,8 @@
                                 <li t-if="doc.delivery_terms">Delivery: <t t-esc="doc.delivery_terms"/></li>
                                 <li t-if="doc.warranty_terms">Warranty: <t t-esc="doc.warranty_terms"/></li>
                                 <li t-if="doc.customer_po_ref">Your purchase order: <t t-esc="doc.customer_po_ref"/><t t-if="doc.customer_po_date"> dated <span t-field="doc.customer_po_date"/></t>.</li>
+                                <li t-if="doc.billing_line_ids">Invoicing: <t t-esc="'; '.join(('%.4g' % b.pct) + '% ' + dict(b._fields['kind'].selection).get(b.kind, '').lower() + ((' (' + b.note + ')') if b.note else '') for b in doc.billing_line_ids)"/>.</li>
+                                <li t-if="doc.segment in ('corporate', 'gov_tender', 'private_tender') and (doc.expected_vds_amount or doc.tds_amount)">Withholding at source: VDS <span t-field="doc.expected_vds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/> (Mushak 6.6) and TDS <span t-field="doc.tds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/> (Income Tax Act 2023) may be deducted from the payment against your certificates; expected cash receipt <span t-field="doc.expected_net_receipt" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>.</li>
                                 <li>Work commences upon written acceptance and, where applicable, advance payment.</li>
                             </ul>
                         </div>
@@ -182,8 +250,6 @@
 
                     </div>
                 </t>
-            </t>
-        </t>
     </template>
 
     <!-- ========================= REPAIR ESTIMATE ========================= -->
