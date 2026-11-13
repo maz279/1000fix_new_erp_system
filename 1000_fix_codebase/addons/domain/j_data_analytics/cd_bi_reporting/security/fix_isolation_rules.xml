@@ -23,6 +23,11 @@
         <field name="model_id" ref="model_fix_bi_distribution_schedule"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_bi_manual_pack_company" model="ir.rule">
+        <field name="name">fix.bi.manual.pack: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_manual_pack"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_bi_sync_config_company" model="ir.rule">
         <field name="name">fix.bi.sync.config: allowed companies</field>
         <field name="model_id" ref="model_fix_bi_sync_config"/>

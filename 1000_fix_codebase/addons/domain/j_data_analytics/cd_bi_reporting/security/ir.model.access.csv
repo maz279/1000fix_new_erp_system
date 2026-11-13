@@ -18,3 +18,7 @@ access_fix_bi_sync_log_operator,fix.bi.sync.log.operator,model_fix_bi_sync_log,g
 access_fix_bi_export_log_certifier,fix.bi.export.log.certifier,model_fix_bi_export_log,group_bi_certifier,1,0,0,0
 access_fix_bi_export_log_operator,fix.bi.export.log.operator,model_fix_bi_export_log,group_bi_operator,1,0,0,0
 access_fix_bi_export_log_system,fix.bi.export.log.system,model_fix_bi_export_log,base.group_system,1,0,0,0
+access_fix_bi_manual_pack_user,fix.bi.manual.pack.user,model_fix_bi_manual_pack,base.group_user,1,0,0,0
+access_fix_bi_manual_pack_author,fix.bi.manual.pack.author,model_fix_bi_manual_pack,group_bi_author,1,1,1,0
+access_fix_bi_manual_pack_certifier,fix.bi.manual.pack.certifier,model_fix_bi_manual_pack,group_bi_certifier,1,1,0,0
+access_fix_bi_manual_pack_system,fix.bi.manual.pack.system,model_fix_bi_manual_pack,base.group_system,1,1,1,1

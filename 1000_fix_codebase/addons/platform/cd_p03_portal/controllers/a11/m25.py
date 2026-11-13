@@ -52,6 +52,18 @@ SURFACES = {
         "limit": 200,
         "actions": set(),
     },
+    # FR-BID-034: the spreadsheet-retirement register. The lifecycle moves
+    # only through these actions; the model refuses typed state changes.
+    "fix.bi.manual.pack": {
+        "order": "state, name",
+        "limit": 200,
+        "actions": {
+            "action_start_parallel_run",
+            "action_reconcile_matched",
+            "action_reconcile_discrepancy",
+            "action_retire",
+        },
+    },
     # E6/BRU-BID-11: the export audit trail (append-only, no actions).
     "fix.bi.export.log": {
         "order": "ran_at desc, id desc",
@@ -451,6 +463,14 @@ class P03BiApi(http.Controller):
         except Exception:
             schedules = None
         usage = _weekly_usage(env)
+        # KPI-094: packs retired from the spreadsheet-retirement register
+        # (FR-BID-034); None - withheld - when the register is unreadable.
+        try:
+            retired = _read(env, "fix.bi.manual.pack").search_count(
+                _bi_domain(env, "fix.bi.manual.pack", [("state", "=", "retired")])
+            )
+        except Exception:
+            retired = None
         return {
             "M25": {
                 "bi_data_freshness": fresh if fresh is not None else "never",
@@ -467,7 +487,7 @@ class P03BiApi(http.Controller):
                 "weekly_manager_usage": usage,
                 "load_time_p95": None,
                 "scheduled_distributions": schedules,
-                "spreadsheets_retired": None,
+                "spreadsheets_retired": retired,
             }
         }
 
@@ -1213,8 +1233,88 @@ def dataset_catalog(env, date_from=None, date_to=None, **params):
     )
 
 
+# The standard report library (FR-BID-011): every canonical pack, who it is
+# for and who may open it. Entitlements mirror the on-screen gates
+# (_require_company_wide / _require_finance_reader) - not a second policy.
+STANDARD_REPORTS = (
+    ("executive_pack", "Executive Pack", "CEO, board", "BI Company-Wide Reader"),
+    ("branch_league", "Branch League", "COO, branch managers", "Internal user (own scope)"),
+    ("service_kpi_pack", "Service KPI Pack", "Service heads", "Internal user (own scope)"),
+    ("finance_pack", "Finance Pack", "CFO, finance", "BI Finance Reader"),
+    ("people_pack", "People Pack", "HR", "Internal user (own scope)"),
+    (
+        "weekly_exec_review",
+        "Weekly Executive Review",
+        "Executive team",
+        "Internal user (own scope)",
+    ),
+)
+
+
+def report_library(env, date_from=None, date_to=None, **params):
+    """Standard Report Library: each canonical pack with its audience, the
+    entitlement that opens it, the distributions scheduled for it and how
+    often it left the system in the last 30 days (export log). Measured, not
+    declared: a pack nobody schedules or exports shows zeros."""
+    since = datetime.datetime.now() - datetime.timedelta(days=30)
+    schedules = _read(env, "fix.bi.distribution.schedule")
+    try:
+        exports = _read(env, "fix.bi.export.log")
+        exports.check_access("read")
+    except Exception:
+        exports = None  # the export audit is a steward/operator read
+    rows = []
+    for key, title, audience, entitlement in STANDARD_REPORTS:
+        pack = "M25:%s" % key
+        scheduled = schedules.search_count(
+            _bi_domain(
+                env,
+                "fix.bi.distribution.schedule",
+                [("report_key", "=", pack), ("active", "=", True)],
+            )
+        )
+        if exports is not None:
+            used = exports.search_count([("pack", "=", pack), ("ran_at", ">=", since)])
+            last = exports.search([("pack", "=", pack)], limit=1, order="ran_at desc")
+            last_txt = last.ran_at.strftime("%Y-%m-%d %H:%M") if last else "—"
+        else:
+            used, last_txt = "—", "—"
+        rows.append(
+            {
+                "report": title,
+                "key": pack,
+                "audience": audience,
+                "entitlement": entitlement,
+                "schedules": scheduled,
+                "exports_30d": used,
+                "last_export": last_txt,
+            }
+        )
+    return _pack(
+        "Standard Report Library — every canonical pack and its use",
+        ["report", "key", "audience", "entitlement", "schedules", "exports_30d", "last_export"],
+        {
+            "report": "Report",
+            "key": "Report Key",
+            "audience": "Audience",
+            "entitlement": "Who May Open It",
+            "schedules": "Active Schedules",
+            "exports_30d": "Exports (30 days)",
+            "last_export": "Last Export",
+        },
+        rows,
+        [
+            "Each pack is computed live from the transaction tables; open it from its chip. "
+            "To receive one by e-mail on a cadence, add a Distribution Schedule.",
+            "Exports are read from the append-only export log (BRU-BID-11); a user who may "
+            "not read that log sees '—'.",
+        ],
+    )
+
+
 REPORTS.update(
     {
+        "report_library": report_library,
         "executive_pack": executive_pack,
         "branch_league": branch_league,
         "service_kpi_pack": service_kpi_pack,

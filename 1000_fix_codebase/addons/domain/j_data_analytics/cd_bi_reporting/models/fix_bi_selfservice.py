@@ -140,6 +140,20 @@ class FixBiDashboard(models.Model):
                     )
         return super().write(vals)
 
+    @api.constrains("is_shared", "state")
+    def _check_shared_only_when_certified(self):
+        """BRU-BID-06 (H): content reaching an audience must be certified -
+        a draft, in-review or retired dashboard is never marked shared."""
+        for rec in self:
+            if rec.is_shared and rec.state != "certified":
+                raise ValidationError(
+                    _(
+                        "Dashboard %s is %s - only a CERTIFIED dashboard can be shared "
+                        "with every internal user (BRU-BID-06)."
+                    )
+                    % (rec.display_name, dict(rec._fields["state"].selection).get(rec.state))
+                )
+
     def action_submit_review(self):
         """Draft -> review: the steward picks it up (spec §8.1 step 3)."""
         for rec in self:
@@ -191,6 +205,8 @@ class FixBiDashboard(models.Model):
             rec.with_context(bi_lifecycle_engine=True).write(
                 {
                     "state": "retired",
+                    # a retired dashboard leaves its audience (BRU-BID-06)
+                    "is_shared": False,
                     "retired_by": self.env.user.id,
                     "retired_at": fields.Datetime.now(),
                 }
@@ -321,23 +337,27 @@ class FixBiDistributionSchedule(models.Model):
         env = self.with_context(allowed_company_ids=self.company_id.ids).sudo().env
         return fn(env)
 
-    def _pack_csv(self, out):
-        header = out.get("labels") or {}
-        lines = [",".join(header.get(c, c) for c in out.get("cols") or [])]
-        for row in out.get("rows") or []:
-            lines.append(
-                ",".join(
-                    '"%s"' % str(row.get(c, "")).replace('"', "'") for c in out.get("cols") or []
-                )
-            )
-        text = "\n".join(lines)
-        return ("Report %s\n\n%s" % (self.report_key, text)).encode("utf-8")
+    def _pack_artifact(self):
+        """The pack rendered in the schedule's OWN format (CSV, XLSX or PDF)
+        by the same renderer the workspace download and send-by-email use
+        (cd_p03_portal report_delivery.build). The schedule used to offer
+        PDF and XLSX and then always attach a CSV."""
+        self.ensure_one()
+        self._pack_out()  # validates the key against the library
+        try:
+            from odoo.addons.cd_p03_portal.controllers import report_delivery
+        except ImportError as exc:
+            raise UserError(_("The report renderer is unavailable: %s") % exc) from exc
+        module, _sep, report = self.report_key.partition(":")
+        env = self.with_context(allowed_company_ids=self.company_id.ids).sudo().env
+        return report_delivery.build(env, module, report, self.format or "csv")
 
     def _dispatch_one(self):
         """Send one schedule now: validate the key, re-check every
         recipient's entitlement, mail the entitled ones, log the dispatch."""
         self.ensure_one()
-        out = self._pack_out()
+        art = self._pack_artifact()
+        out = art["out"]
         required_group = _pack_required_group(self.report_key)
         sent, skipped = 0, []
         for email in self._recipients_list():
@@ -362,8 +382,9 @@ class FixBiDistributionSchedule(models.Model):
                             0,
                             0,
                             {
-                                "name": "%s.csv" % self.report_key.replace(":", "_"),
-                                "datas": base64.b64encode(self._pack_csv(out)).decode("ascii"),
+                                "name": art["filename"],
+                                "datas": base64.b64encode(art["data"]).decode("ascii"),
+                                "mimetype": art["mimetype"].split(";")[0],
                             },
                         )
                     ],
@@ -375,7 +396,7 @@ class FixBiDistributionSchedule(models.Model):
                 "user_id": self.env.user.id,
                 "pack": self.report_key,
                 "channel": "distribution",
-                "format": "csv",
+                "format": self.format or "csv",
                 "company_ids": self.company_id.name,
                 "row_count": len(out.get("rows") or []),
             }

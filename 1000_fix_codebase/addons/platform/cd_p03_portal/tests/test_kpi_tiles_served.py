@@ -347,7 +347,7 @@ NO_SOURCE = {
     "M11": {"brand_reimb_rates"},  # no brand reimbursement-rate ledger
     "M12": {"marketplace_share", "seller_nps"},  # no cross-channel GMV; no seller survey
     "M24": {"search_p95"},  # no search latency log
-    "M25": {"load_time_p95", "spreadsheets_retired"},  # no dashboard timing; no register
+    "M25": {"load_time_p95"},  # no dashboard timing (retirement register feeds the rest)
     "M26": {"auto_assign_rate", "demand_mape", "fault_f1", "churn_auc"},  # no ground truth
     "M32": {"handoff_precision"},  # no labelled should-have-handed-off truth
     "M36": {"declined_conversion"},  # diagnostic fee not linked to quotes

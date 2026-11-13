@@ -4257,11 +4257,14 @@ export class P03Workspace extends Component {
         // journal register and captures through the journal-entry editor,
         // which is the module's button and no model_form (2026-11-13)
         if (map && map.create === "module") return P03_MODULE_CREATE[mid] ? { module: true } : null;
-        // a page fed by a computed report has no record of its own to create
-        if (map && map.report && !map.model) return null;
+        // a named form is taken as written - also on a report-fed page: M25
+        // "Standard Report Library" lists computed packs and captures the
+        // schedule that sends one (2026-11-13)
         if (map && typeof map.create === "string") {
             return creatable(map.create) ? offer(map.create) : null;
         }
+        // a page fed by a computed report has no record of its own to create
+        if (map && map.report && !map.model) return null;
         const moduleCreate = P03_MODULE_CREATE[mid];
         const moduleModel = moduleCreate ? moduleCreate.model : (mid === "M01" ? "fix.service.order" : null);
         if (!map || !map.model || map.model === moduleModel) {
