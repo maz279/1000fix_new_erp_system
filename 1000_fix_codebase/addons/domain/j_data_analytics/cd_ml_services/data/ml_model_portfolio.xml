@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M26 capture audit 2026-11-14: fill the portfolio declarations the module
+     spec states (consumer, target, fallback, risk class) on catalogue entries
+     that carry none. Runs on every update; never overwrites a typed value. -->
+<odoo>
+    <function model="fix.ml.model" name="_seed_portfolio_declarations"/>
+</odoo>

@@ -8,9 +8,24 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_ml_ai_risk_company" model="ir.rule">
+        <field name="name">fix.ml.ai.risk: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_ai_risk"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ml_drift_observation_company" model="ir.rule">
+        <field name="name">fix.ml.drift.observation: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_drift_observation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_ml_evaluation_gate_company" model="ir.rule">
         <field name="name">fix.ml.evaluation.gate: allowed companies</field>
         <field name="model_id" ref="model_fix_ml_evaluation_gate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ml_fallback_test_company" model="ir.rule">
+        <field name="name">fix.ml.fallback.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_fallback_test"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_ml_guardrail_company" model="ir.rule">

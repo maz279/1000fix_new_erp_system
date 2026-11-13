@@ -51,6 +51,51 @@ LEAD_SCORE_DEFAULT_WEIGHTS = {
     "stale_over_30_days": -15,
 }
 
+# What the M26 spec (§5.3-5.5) declares for each kind the estate runs: the
+# named consumer, the stated target and the defined fallback (FR-AIM-001).
+# Lead scoring and the BI aggregator have no spec line, so no target or
+# fallback is invented for them.
+PORTFOLIO_FROM_SPEC = {
+    "dispatch_scoring": {
+        "consumer_modules": "M02 Dispatch",
+        "accuracy_target": "70% auto-assign; dispatcher agreement >= 90% (FR-AIM-018)",
+        "fallback_definition": "Rule-based scoring",
+        "risk_class": "people_affecting",
+    },
+    "fault_classifier": {
+        "consumer_modules": "M01 Service Orders, M32 Conversational AI",
+        "accuracy_target": "Top-3 accuracy > 80% (FR-AIM-021)",
+        "fallback_definition": "Manual fault selection",
+        "risk_class": "operational",
+    },
+    "predictive_maintenance": {
+        "consumer_modules": "M48 Predictive Maintenance, M08",
+        "accuracy_target": "Precision > 70% (FR-AIM-025)",
+        "fallback_definition": "Calendar-based maintenance",
+        "risk_class": "operational",
+    },
+    "tradein_valuation": {
+        "consumer_modules": "M14 Trade-In",
+        "accuracy_target": "Within 10% of assessed value, 75% of the time (FR-AIM-027)",
+        "fallback_definition": "Depreciation table",
+        "risk_class": "financial",
+    },
+    "demand_forecast": {
+        "consumer_modules": "M43 Demand Planning",
+        "accuracy_target": "MAPE < 22% (FR-AIM-024)",
+        "fallback_definition": "Moving average",
+        "risk_class": "operational",
+    },
+    "lead_scoring": {
+        "consumer_modules": "M07 Sales",
+        "risk_class": "people_affecting",
+    },
+    "bi_aggregator": {
+        "consumer_modules": "M25 Business Intelligence",
+        "risk_class": "advisory",
+    },
+}
+
 # Fields only the engine may ever set on a run (G7/R01): a portal write that
 # reaches these would forge the machine's half of the decision log.
 _ENGINE_OWNED_CREATE_FIELDS = (
@@ -95,6 +140,33 @@ class FixMlModel(models.Model):
         string="Owning Module", help="The addon that implements the engine."
     )
     notes = fields.Text()
+    # ---- the portfolio register (FR-AIM-001, BRU-AIM-11) --------------------
+    # Capture audit 2026-11-14: the catalogue entry recorded the engine but not
+    # what the spec says every model must declare - who consumes it, the
+    # target it must meet, the fallback when it cannot answer, its risk class,
+    # its owner and when it is next reviewed.
+    purpose = fields.Text(help="Why the model exists: the decision it informs.")
+    consumer_modules = fields.Char(
+        string="Named Consumer(s)", help="The consuming module(s), e.g. 'M02 Dispatch'."
+    )
+    accuracy_target = fields.Char(
+        help="The stated target it is accepted against, e.g. 'top-3 accuracy > 80%'."
+    )
+    fallback_definition = fields.Text(
+        string="Defined Fallback",
+        help="What the consumer does when the model is unavailable, times out or abstains.",
+    )
+    risk_class = fields.Selection(
+        [
+            ("people_affecting", "People-affecting"),
+            ("financial", "Financial"),
+            ("operational", "Operational"),
+            ("advisory", "Advisory"),
+        ],
+        help="People-affecting models need a passed bias review (BRU-AIM-07).",
+    )
+    owner_id = fields.Many2one("res.users", string="Model Owner", index=True)
+    review_date = fields.Date(help="Next governance review (BRU-AIM-26: at least annually).")
     weights_json = fields.Text(
         string="Factor Weights (JSON)",
         help="For an explainable factor engine: the weight vector, as governed "
@@ -111,6 +183,20 @@ class FixMlModel(models.Model):
         help="The newest DEPLOYED version. G7: inference refuses a model with "
         "none — a model nobody promoted does not serve.",
     )
+
+    @api.model
+    def _seed_portfolio_declarations(self):
+        """Fill the portfolio declarations the module spec states for the
+        estate's kinds (M26 spec §5.3-5.5: consumer, target, fallback) on
+        entries that carry none. Only EMPTY fields are filled - a value an
+        owner typed is never overwritten. Owner and review date stay empty:
+        they are the owner's decision, not the spec's."""
+        for model in self.sudo().search([]):
+            declared = PORTFOLIO_FROM_SPEC.get(model.kind) or {}
+            vals = {k: v for k, v in declared.items() if v and not model[k]}
+            if vals:
+                model.write(vals)
+        return True
 
     def factor_weights(self):
         """The weight vector in force for this model."""
@@ -272,9 +358,34 @@ class FixMlInferenceRun(models.Model):
                     )
         return super().create(vals_list)
 
+    def _changed_keys(self, vals):
+        """The keys of `vals` that would change at least one of these runs.
+        Capture audit 2026-11-14: the workspace form posts every field it
+        shows, so recording the human decision on a computed run sent the
+        model and input back unchanged - and the guard below refused the
+        whole save. An unchanged echo changes nothing and is not an edit."""
+        changed = []
+        for key, value in vals.items():
+            field = self._fields.get(key)
+            if field is None:
+                changed.append(key)
+                continue
+            for rec in self:
+                current = field.convert_to_write(rec[key], rec)
+                if field.type in ("many2one", "char", "text"):
+                    # an empty reference or text reads False either way
+                    current = current or False
+                    value = value or False
+                if current != value:
+                    changed.append(key)
+                    break
+        return changed
+
     def write(self, vals):
         engine = self.env.su or self.env.context.get("ml_engine_run")
         if not engine:
+            echoed = set(vals) - set(self._changed_keys(vals)) - set(_HUMAN_WRITABLE_FIELDS)
+            vals = {k: v for k, v in vals.items() if k not in echoed}
             off_limits = [k for k in vals if k not in _HUMAN_WRITABLE_FIELDS]
             if off_limits:
                 raise UserError(

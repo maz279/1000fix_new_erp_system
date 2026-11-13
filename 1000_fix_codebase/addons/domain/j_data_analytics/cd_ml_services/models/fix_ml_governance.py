@@ -109,6 +109,22 @@ class FixMlModelVersion(models.Model):
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     deployed_at = fields.Datetime(readonly=True, copy=False)
     gate_ids = fields.One2many("fix.ml.evaluation.gate", "version_id", string="Evaluation Gates")
+    drift_observation_ids = fields.One2many(
+        "fix.ml.drift.observation", "version_id", string="Drift Observations"
+    )
+
+    def _sync_drift_score(self):
+        """drift_score = the highest PSI observed on the version's newest
+        monitoring day (capture audit 2026-11-14). Written by the engine: the
+        observation is the evidence, the score its summary."""
+        observations = self.env["fix.ml.drift.observation"].sudo()
+        for version in self:
+            rows = observations.search([("version_id", "=", version.id)])
+            if not rows:
+                continue
+            newest = max(rows.mapped("observed_at")).date()
+            score = max(r.psi for r in rows if r.observed_at.date() == newest)
+            version.sudo().write({"drift_score": score})
 
     # M26-9: the stored compute had no @api.depends, so every version was
     # named False. It depends on exactly what it reads.

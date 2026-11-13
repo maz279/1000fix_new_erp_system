@@ -17,3 +17,14 @@ access_fix_ml_guardrail_system,fix.ml.guardrail.system,model_fix_ml_guardrail,ba
 access_fix_ml_guardrail_scientist,fix.ml.guardrail.scientist,model_fix_ml_guardrail,group_ml_data_scientist,1,1,1,1
 access_fix_ml_weights_revision_user,fix.ml.weights.revision.user,model_fix_ml_weights_revision,base.group_user,1,0,0,0
 access_fix_ml_weights_revision_system,fix.ml.weights.revision.system,model_fix_ml_weights_revision,base.group_system,1,1,1,1
+access_fix_ml_fallback_test_user,fix.ml.fallback.test.user,model_fix_ml_fallback_test,base.group_user,1,0,0,0
+access_fix_ml_fallback_test_system,fix.ml.fallback.test.system,model_fix_ml_fallback_test,base.group_system,1,1,1,1
+access_fix_ml_fallback_test_scientist,fix.ml.fallback.test.scientist,model_fix_ml_fallback_test,group_ml_data_scientist,1,0,1,0
+access_fix_ml_fallback_test_owner,fix.ml.fallback.test.owner,model_fix_ml_fallback_test,group_ml_model_owner,1,0,1,0
+access_fix_ml_drift_observation_user,fix.ml.drift.observation.user,model_fix_ml_drift_observation,base.group_user,1,0,0,0
+access_fix_ml_drift_observation_system,fix.ml.drift.observation.system,model_fix_ml_drift_observation,base.group_system,1,1,1,1
+access_fix_ml_drift_observation_scientist,fix.ml.drift.observation.scientist,model_fix_ml_drift_observation,group_ml_data_scientist,1,0,1,0
+access_fix_ml_ai_risk_user,fix.ml.ai.risk.user,model_fix_ml_ai_risk,base.group_user,1,0,0,0
+access_fix_ml_ai_risk_system,fix.ml.ai.risk.system,model_fix_ml_ai_risk,base.group_system,1,1,1,1
+access_fix_ml_ai_risk_owner,fix.ml.ai.risk.owner,model_fix_ml_ai_risk,group_ml_model_owner,1,1,1,0
+access_fix_ml_ai_risk_scientist,fix.ml.ai.risk.scientist,model_fix_ml_ai_risk,group_ml_data_scientist,1,1,1,0

@@ -20,10 +20,31 @@ _logger = logging.getLogger(__name__)
 _BENGALI_RE = re.compile(r"[ঀ-৿]")
 
 SURFACES = {
+    # Capture audit 2026-11-14: every M26 form surface now declares what its
+    # form may write (R3). Without it the Model Version form posted `state`
+    # (a selection with a default) and the model's lifecycle guard refused
+    # every create AND every edit - no version could be registered and no
+    # model card written from the workspace.
     "fix.ml.model": {
         "order": "code",
         "limit": 50,
         "actions": set(),
+        "writable": {
+            "code",
+            "name",
+            "kind",
+            "implementation",
+            "status",
+            "owning_module",
+            "notes",
+            "purpose",
+            "consumer_modules",
+            "accuracy_target",
+            "fallback_definition",
+            "risk_class",
+            "owner_id",
+            "review_date",
+        },
     },
     "fix.ml.inference.run": {
         "order": "ran_at desc, id desc",
@@ -51,16 +72,79 @@ SURFACES = {
         # G7: state moves only through these actions (deploy lands via the
         # M63 inbox apply, never as a surface action).
         "actions": {"action_evaluate", "action_request_promotion", "action_retire"},
+        # state / approver / deploy date move only through the actions above;
+        # the drift score follows the drift observations
+        "writable": {
+            "model_id",
+            "version",
+            "artifact_ref",
+            "training_dataset",
+            "metrics_json",
+            "bias_status",
+            "bias_notes",
+            "deployment_mode",
+            "model_card",
+        },
     },
     "fix.ml.evaluation.gate": {
         "order": "checked_at desc, id desc",
         "limit": 200,
         "actions": set(),
+        "writable": {"version_id", "gate", "result", "notes"},
     },
     "fix.ml.guardrail": {
         "order": "name",
         "limit": 200,
         "actions": set(),
+        "writable": {"name", "model_id", "rule", "threshold", "action", "active", "note"},
+    },
+    # Deployment & Monitoring evidence (capture audit 2026-11-14)
+    "fix.ml.fallback.test": {
+        "order": "tested_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "model_id",
+            "consumer_module",
+            "method",
+            "consumer_behaviour",
+            "outcome",
+            "incidents_raised",
+            "tested_at",
+        },
+    },
+    "fix.ml.drift.observation": {
+        "order": "observed_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "version_id",
+            "feature_name",
+            "psi",
+            "ks_statistic",
+            "threshold",
+            "observed_at",
+            "note",
+        },
+    },
+    # The AI risk register (Portfolio & Governance, GenAI & RAG)
+    "fix.ml.ai.risk": {
+        "order": "review_date, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "name",
+            "model_id",
+            "category",
+            "description",
+            "likelihood",
+            "impact",
+            "treatment",
+            "control_ref",
+            "owner_id",
+            "review_date",
+            "state",
+        },
     },
 }
 
@@ -403,6 +487,8 @@ def production_monitoring(env, date_from=None, date_to=None, **params):
 def fallback_status(env, date_from=None, date_to=None, **params):
     runs = _runs(env)
     guardrails = env["fix.ml.guardrail"].search([("active", "=", True)])
+    # BRU-AIM-06: a fallback counts when it was TESTED - the newest test per model
+    tests = env["fix.ml.fallback.test"].search([], order="tested_at desc, id desc")
     rows = []
     for model in _models(env):
         fallbacks = guardrails.filtered(
@@ -413,10 +499,14 @@ def fallback_status(env, date_from=None, date_to=None, **params):
             order="ran_at desc",
             limit=1,
         )
+        last_test = tests.filtered(lambda t, mid=model.id: t.model_id.id == mid)[:1]
         rows.append(
             {
                 "code": model.code,
                 "status": model.status,
+                "fallback": model.fallback_definition or "not declared",
+                "last_test": last_test.tested_at.strftime("%Y-%m-%d") if last_test else "never",
+                "test_outcome": last_test.outcome if last_test else "—",
                 "fallback_rules": len(fallbacks),
                 "last_failure": last_failed.ran_at.strftime("%Y-%m-%d %H:%M")
                 if last_failed
@@ -427,10 +517,23 @@ def fallback_status(env, date_from=None, date_to=None, **params):
         )
     return _pack(
         "Inference Fallback — what happens when a model cannot answer",
-        ["code", "status", "fallback_rules", "last_failure", "last_error", "guardrail_rules"],
+        [
+            "code",
+            "status",
+            "fallback",
+            "last_test",
+            "test_outcome",
+            "fallback_rules",
+            "last_failure",
+            "last_error",
+            "guardrail_rules",
+        ],
         {
             "code": "Model",
             "status": "Status",
+            "fallback": "Defined Fallback",
+            "last_test": "Last Fallback Test",
+            "test_outcome": "Test Outcome",
             "fallback_rules": "Fallback Rules",
             "last_failure": "Last Failure",
             "last_error": "Last Error",
@@ -439,7 +542,9 @@ def fallback_status(env, date_from=None, date_to=None, **params):
         rows,
         [
             "A model with zero fallback rules has no deterministic path when it "
-            "fails — configure one on the guard-rail screen."
+            "fails — configure one on the guard-rail screen.",
+            "BRU-AIM-06: every consumer needs a TESTED fallback — record each test "
+            "with Record Fallback Test (Deployment & Monitoring).",
         ],
     )
 
