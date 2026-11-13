@@ -30,6 +30,7 @@ export const MODULE = {
     ]},
     { en: 'Service Definitions', screens: [
       { id: 'M37-services', en: 'Service Definitions', bn: 'সেবা সংজ্ঞা', t: 'g' },
+      { id: 'M37-operations', en: 'Repair Operations', bn: 'মেরামত অপারেশন', t: 'g' },
       { id: 'M37-rbom', en: 'Repair BOM (rBOM)', bn: 'রিপেয়ার BOM', t: 'g' },
       { id: 'M37-srt', en: 'Standard Repair Time (SRT)', bn: 'স্ট্যান্ডার্ড রিপেয়ার টাইম', t: 'r' },
       { id: 'M37-kits', en: 'Kits & Bundles', bn: 'কিট ও বান্ডল', t: 'g' }
@@ -51,21 +52,41 @@ export const MODULE = {
     ]}
   ],
   reports: ['Catalogue Coverage by Brand', 'rBOM Completeness', 'SRT Calibration Variance', 'Item Margin Analysis', 'Deprecated Items Register', 'Bilingual Content Gaps'],
-  forms: ['Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template'],
+  forms: ['Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template',
+    'Service Kit', 'Brand & Authorisation', 'Catalogue Category', 'Contract Template', 'Rental SKU', 'VAT Treatment'],
   cross: ['M11 Pricing', 'M36 Quotations', 'M15 Inventory', 'M16 Procurement'],
+  /* M37 capture audit (2026-11-13): each page captures what its functions
+   * (FR-CAT-001..046) record. Before it, Typed Taxonomy, Product Hierarchy,
+   * Tax & Rev-Rec and Lifecycle had no capture; rBOM & SRT and Fault Taxonomy
+   * only a chip (their lists refused + New though the forms worked); Repair
+   * Operations and Part Identity both captured rBOM lines; Service
+   * Definitions and the Protection Plan list showed all 16,178 items (every
+   * one a part, accessory or finished good on fix_real); Kits and Brands
+   * had no chip; rental SKUs and refurb grades sat on no page. */
   freg: { src: 120, sub: [
     ['1', 'Unified Item Master', 14, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'], screens: ['M37-items'], reports: ['Catalogue Coverage by Brand', 'Deprecated Items Register'], forms: ['Catalogue Item (9 types)'] }],
-    ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['name', 'parent_id'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: [] }],
-    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'state', 'active'], screens: ['M37-services'], reports: ['Item Margin Analysis'], forms: ['Service Definition'], create: 'M37-form-service' }],
+    // FR-CAT-004: the category tree. Saving a node needs the product-manager
+    // role (product.category ACL), so it is a chip, not a + New.
+    ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['complete_name', 'parent_id', 'product_count'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: ['Catalogue Category'] }],
+    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'state', 'active'], screens: ['M37-services'], reports: ['Item Margin Analysis'], forms: ['Service Definition'], create: 'M37-form-service', domain: [['item_type', 'in', ['service', 'inspection']]] }],
     ['4', 'rBOM & SRT', 12, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'sequence', 'quantity', 'note'], screens: ['M37-rbom', 'M37-srt'], reports: ['rBOM Completeness', 'SRT Calibration Variance'], forms: ['rBOM Line'] }],
-    ['5', 'Repair Operations', 8, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'quantity'], screens: ['M37-srt'], reports: ['SRT Calibration Variance'], forms: ['rBOM Line'] }],
-    ['6', 'Kits & Bundles', 4, { model: 'fix.service.kit', cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'], screens: ['M37-kits'], reports: ['Item Margin Analysis'], forms: [] }],
-    ['7', 'Product Hierarchy & Variants', 8, { model: 'fix.catalogue.item', cols: ['name', 'item_type', 'category_id', 'brand_id', 'product_tmpl_id'], screens: ['M37-hierarchy', 'M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: [], create: false }],
-    ['8', 'Brand-Model-Device Master', 9, { model: 'fix.brand', cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'], screens: ['M37-brand', 'M37-brandmodel'], reports: ['Catalogue Coverage by Brand'], forms: [] }],
+    // FR-CAT-021/023/027: a repair operation is a labour-only catalogue item
+    // with its standard repair time; its parts are its rBOM lines.
+    ['5', 'Repair Operations', 8, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'standard_labour_time', 'srt_observed_minutes', 'requires_brand_authorisation', 'state'], screens: ['M37-operations', 'M37-srt'], reports: ['SRT Calibration Variance'], forms: ['Service Definition', 'rBOM Line'], create: 'M37-form-service', domain: [['item_type', '=', 'labour']] }],
+    ['6', 'Kits & Bundles', 4, { model: 'fix.service.kit', cols: ['name', 'name_bn', 'catalogue_item_id', 'component_count', 'estimated_cost', 'estimated_time', 'active'], screens: ['M37-kits'], reports: ['Item Margin Analysis'], forms: ['Service Kit'] }],
+    ['7', 'Product Hierarchy & Variants', 8, { model: 'fix.catalogue.item', cols: ['name', 'item_type', 'category_id', 'brand_id', 'product_tmpl_id'], screens: ['M37-hierarchy', 'M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: ['Catalogue Category'], create: false }],
+    ['8', 'Brand-Model-Device Master', 9, { model: 'fix.brand', cols: ['name', 'name_bn', 'code', 'authorised', 'authorisation_expiry', 'model_count', 'active'], screens: ['M37-brand', 'M37-brandmodel'], reports: ['Catalogue Coverage by Brand'], forms: ['Brand & Authorisation'] }],
     ['9', 'Fault Taxonomy', 10, { model: 'fix.fault.code', cols: ['name', 'code', 'category', 'default_severity', 'active'], screens: ['M37-fault'], reports: [], forms: ['Fault Code'] }],
-    ['10', 'Part Identity', 9, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'quantity', 'note'], screens: ['M37-parts-id'], reports: ['rBOM Completeness'], forms: ['rBOM Line'] }],
-    ['11', 'Contract & Protection Templates', 10, { model: 'fix.contract.template', cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'], screens: ['M37-contract-tpl', 'M37-protection'], reports: [], forms: ['Protection Product Template'] }],
-    ['12', 'Tax & Rev-Rec Classification', 7, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'item_type', 'state'], screens: ['M37-items'], reports: ['Item Margin Analysis'], forms: [], create: false }],
+    // FR-CAT-029/031: a part is a catalogue item of type Spare Part; its
+    // successor is staged on the item and set by Discontinue.
+    ['10', 'Part Identity', 9, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'brand_id', 'category_id', 'state', 'successor_id', 'active'], screens: ['M37-parts-id'], reports: ['rBOM Completeness'], forms: ['Catalogue Item (9 types)'], create: 'M37-item', domain: [['item_type', '=', 'part']] }],
+    // FR-CAT-036..040: contract, protection, rental and refurb templates.
+    ['11', 'Contract & Protection Templates', 10, { model: 'fix.contract.template', cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'], screens: ['M37-contract-tpl', 'M37-protection', 'M37-rental-sku', 'M37-refurb-grade'], reports: [], forms: ['Contract Template', 'Protection Product Template', 'Rental SKU'] }],
+    // FR-CAT-043: the tariff code -> VAT treatment master is M51's; the
+    // catalogue item itself carries no tax, HS or revenue class yet (gap).
+    ['12', 'Tax & Rev-Rec Classification', 7, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'item_type', 'state'], screens: ['M37-items'], reports: ['Item Margin Analysis'], forms: ['VAT Treatment'], create: false }],
+    // FR-CAT-045: the lifecycle moves by the actions on the item lists
+    // (Submit, Publish, Restrict, Discontinue, Revise); nothing is created here.
     ['13', 'Lifecycle & Governance', 10, { model: 'fix.catalogue.item', cols: ['name', 'state', 'approved_by', 'is_published', 'active'], screens: ['M37-lifecycle', 'M37-approval', 'M37-publication', 'M37-items'], reports: ['Deprecated Items Register', 'Bilingual Content Gaps'], forms: [], create: false }]
   ] }
 };
@@ -73,10 +94,16 @@ export const MODULE = {
 export const SCREENS = {
   /* ---- registry screens restored (A04 zero-trust audit 2026-10-31): nav ids that dead-ended ---- */
   'M37-taxonomy': { kind: 'model_list', model: 'product.category', create: false,
-    cols: ['complete_name', 'parent_id', 'product_count'] },
+    cols: ['complete_name', 'parent_id', 'product_count'],
+    note: 'The commercial category tree. A node is added with Catalogue Category; saving one needs the product-manager role.' },
   'M37-hierarchy': { kind: 'table_report', module: 'M37', report: 'catalogue_hierarchy', title: 'Catalogue Hierarchy', period: true },
-  'M37-services': { kind: 'model_list', model: 'fix.catalogue.item', create: false,
-    cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'],
+  // M37 capture audit: this list had no filter, so "Service Definitions"
+  // showed all 16,178 items (every one a part, accessory or finished good on
+  // fix_real) and refused + New although its form worked.
+  'M37-services': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'brand_id', 'state', 'active'],
+    domain: [['item_type', 'in', ['service', 'inspection']]],
+    empty: 'No service or inspection items yet: add one with + New Service Definition.',
     stateField: 'state',
     // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
     // from a Catalogue Publisher's M63 inbox (approver != author), never here.
@@ -90,8 +117,26 @@ export const SCREENS = {
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
-  'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line', create: false,
-    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note"] },
+  'M37-rbom': { kind: 'model_list', model: 'fix.rbom.line',
+    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note"],
+    note: 'The standard parts a service or repair operation consumes. Adding a line needs the Catalogue Officer role.',
+    empty: 'No repair BOM lines yet: add one with + New rBOM Line.' },
+  // FR-CAT-021/023/027: repair operations are the labour-only items, each
+  // with its standard repair time; the rBOM lists their parts.
+  'M37-operations': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'name_bn', 'standard_labour_time', 'srt_observed_minutes', 'requires_brand_authorisation', 'state', 'active'],
+    domain: [['item_type', '=', 'labour']],
+    note: 'A repair operation is a labour-only catalogue item with its standard repair time. Its parts are its rBOM lines.',
+    empty: 'No repair operations yet: add one with + New Service Definition (type Labour Only).',
+    stateField: 'state',
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_restrict', l: 'Restrict Sale', ask: 'Why is it restricted, and to whom is it still sold?', kwarg: 'reason' },
+      { m: 'action_lift_restriction', l: 'Lift Restriction' },
+      { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
   'M37-srt': { kind: 'table_report', module: 'M37', report: 'srt_variance', title: 'SRT Variance', period: true },
   // A kit is defined by its components, so the list must be able to
   // create one and the form must show them (see M37-form-kit.lines).
@@ -106,10 +151,22 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
       { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
     ] },
-  'M37-fault': { kind: 'model_list', model: 'fix.fault.code', create: false,
+  'M37-fault': { kind: 'model_list', model: 'fix.fault.code',
     cols: ["name", "code", "create_date", "active", "category", "default_severity"] },
-  'M37-parts-id': { kind: 'model_list', model: 'fix.rbom.line', create: false,
-    cols: ["create_date", "item_id", "component_item_id", "sequence", "quantity", "note"] },
+  // M37 capture audit: "Part Identity & Supersession" listed rBOM lines.
+  // A part is a catalogue item of type Spare Part; its successor is staged
+  // on the item and set by Discontinue (FR-CAT-029/031).
+  'M37-parts-id': { kind: 'model_list', model: 'fix.catalogue.item',
+    cols: ['product_tmpl_id', 'brand_id', 'category_id', 'state', 'successor_id', 'end_of_support_date', 'active'],
+    domain: [['item_type', '=', 'part']],
+    note: 'Spare parts. A superseded part is discontinued with its successor staged on the item; it stays searchable.',
+    stateField: 'state',
+    actions: [
+      { m: 'action_submit', l: 'Submit for Review (Catalogue Officer)' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_discontinue', l: 'Discontinue / Supersede (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
+      { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
+    ] },
   'M37-contract-tpl': { kind: 'model_list', model: 'fix.contract.template', create: true,
     cols: ['code', 'name', 'contract_type', 'generation_type', 'duration_months', 'notice_period_days', 'active'],
     stateField: 'contract_type',
@@ -121,6 +178,8 @@ export const SCREENS = {
     ] },
   'M37-protection': { kind: 'model_list', model: 'fix.catalogue.item', create: true,
     cols: ['product_tmpl_id', 'name_bn', 'item_type', 'brand_id', 'state', 'active'],
+    domain: [['item_type', '=', 'protection']],
+    empty: 'No protection plans yet: add one with Protection Product Template.',
     stateField: 'state',
     // A04 audit 2026-11-04 (M37-1): the item lifecycle. Approval is decided
     // from a Catalogue Publisher's M63 inbox (approver != author), never here.
@@ -134,8 +193,10 @@ export const SCREENS = {
       { m: 'action_discontinue', l: 'Discontinue (successor staged on the form)', ask: 'Reason (required when no successor is declared)', kwarg: 'reason' },
       { m: 'action_revise', l: 'Revise (back to Draft for re-approval)' }
     ] },
-  'M37-rental-sku': { kind: 'model_list', model: 'fix.rental.sku', create: false,
-    cols: ['name', 'catalogue_item_id', 'daily_rate', 'weekly_rate', 'monthly_rate', 'security_deposit', 'max_rental_days', 'active'] },
+  'M37-rental-sku': { kind: 'model_list', model: 'fix.rental.sku',
+    cols: ['name', 'catalogue_item_id', 'daily_rate', 'weekly_rate', 'monthly_rate', 'security_deposit', 'max_rental_days', 'active'],
+    note: 'A rental SKU hangs off a Rental-type catalogue item (FR-CAT-039). Saving one needs the Catalogue Officer role.',
+    empty: 'No rental SKUs yet: add one with Rental SKU.' },
   'M37-approval': { kind: 'table_report', module: 'M37', report: 'approval_queue', title: 'Catalogue Approval Queue', period: false },
   'M37-lifecycle': { kind: 'table_report', module: 'M37', report: 'lifecycle_summary', title: 'Item Lifecycle Summary', period: false },
   'M37-publication': { kind: 'table_report', module: 'M37', report: 'publication_status', title: 'Publication Status', period: false },
@@ -224,6 +285,8 @@ export const SCREENS = {
     ]
   },
 
+  // A new definition starts as a Service; opened from Repair Operations the
+  // page filter makes it Labour Only (fregCreate presets).
   'M37-form-service': { kind: 'model_form', model: 'fix.catalogue.item',
     title: 'Service Definition', back: 'M37-services',
     status: { field: 'state' },
@@ -240,7 +303,7 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name_bn', label: 'Name (Bengali)' },
         { name: 'description_bn', label: 'Description (Bengali)' },
-        { name: 'item_type', label: 'Item Type', required: true },
+        { name: 'item_type', label: 'Item Type', required: true, value: 'service' },
         { name: 'standard_labour_time', label: 'Standard Labour Time (hours)' },
         { name: 'state', label: 'Lifecycle State', readonly: true },
         { name: 'srt_observed_minutes', label: 'Observed Repair Minutes' }
@@ -349,7 +412,7 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name_bn', label: 'Name (Bengali)' },
         { name: 'description_bn', label: 'Description (Bengali)' },
-        { name: 'item_type', label: 'Item Type', required: true },
+        { name: 'item_type', label: 'Item Type', required: true, value: 'protection' },
         { name: 'standard_labour_time', label: 'Standard Labour Time (hours)' },
         { name: 'state', label: 'Lifecycle State', readonly: true },
         { name: 'srt_observed_minutes', label: 'Observed Repair Minutes' }
@@ -537,8 +600,12 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Authorisation Request' },
       { m: 'action_revoke_authorisation', l: 'Revoke Authorisation (Publisher)', ask: 'Why is it revoked?', kwarg: 'reason' }
     ] },
-  'M37-refurb-grade': { kind: 'model_list', model: 'fix.refurb.grade',
-    cols: ['name', 'code', 'active', 'sequence', 'name_bn', 'currency_id', 'price_multiplier'] },
+  // The grade bands A-D are a fixed set (selection) that no workspace role
+  // may create (model ACL: read only); the list offered a + New that every
+  // save would refuse (M37 capture audit).
+  'M37-refurb-grade': { kind: 'model_list', model: 'fix.refurb.grade', create: false,
+    cols: ['name', 'code', 'active', 'sequence', 'name_bn', 'currency_id', 'price_multiplier'],
+    note: 'The fixed grade bands A to D (FR-CAT-040). Their multipliers and warranty days are maintained by the system administrator.' },
 
   'M37-form-brand': {
 
@@ -608,6 +675,18 @@ export const SCREENS = {
       ] },
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (device_model_ids, api_user_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
+  'M37-form-category': { kind: 'model_form', model: 'product.category',
+    title: 'Catalogue Category', back: 'M37-taxonomy',
+    sections: [
+      { title: 'Category Node (FR-CAT-004)',
+        note: 'A node of the commercial tree: give it a parent to place it under a category, or none for a top-level stream. Saving needs the product-manager role.',
+        fields: [
+          { name: 'name', label: 'Category Name', required: true },
+          { name: 'parent_id', label: 'Parent Category' },
+          { name: 'complete_name', label: 'Full Path', readonly: true }
+        ] }
+    ] },
+
   'M37-form-refurb-grade': { kind: 'model_form', model: 'fix.refurb.grade',
     title: 'Refurbishment Grade', back: 'M37-refurb-grade',
     tabs: [
@@ -664,7 +743,13 @@ export const FORM_MODELS = {
   'M37:Service Definition': 'fix.catalogue.item',
   'M37:rBOM Line': 'fix.rbom.line',
   'M37:Fault Code': 'fix.fault.code',
-  'M37:Protection Product Template': 'fix.catalogue.item'
+  'M37:Protection Product Template': 'fix.catalogue.item',
+  'M37:Service Kit': 'fix.service.kit',
+  'M37:Brand & Authorisation': 'fix.brand',
+  'M37:Catalogue Category': 'product.category',
+  'M37:Contract Template': 'fix.contract.template',
+  'M37:Rental SKU': 'fix.rental.sku',
+  'M37:VAT Treatment': 'fix.vat.treatment'
 };
 
 export const FORM_CHIPS = {
@@ -676,6 +761,11 @@ export const FORM_CHIPS = {
   'M37:rBOM Line': 'M37-form-rbom',
   'M37:Fault Code': 'M37-form-fault',
   'M37:Protection Product Template': 'M37-form-protection',
+  'M37:Brand & Authorisation': 'M37-form-brand',
+  'M37:Catalogue Category': 'M37-form-category',
+  // M51 owns the tariff code -> VAT treatment master (a change is a proposal
+  // a second tax manager activates); M37 opens M51's own form.
+  'M37:VAT Treatment': 'M51-form-treatment',
   'M37:__by_model__': {
     'fix.brand': 'M37-form-brand',
     'fix.refurb.grade': 'M37-form-refurb-grade',
@@ -684,7 +774,8 @@ export const FORM_CHIPS = {
     'fix.rental.sku': 'M37-form-rentalsku',
     'fix.catalogue.item': 'M37-item',
     'fix.rbom.line': 'M37-form-rbom',
-    'fix.fault.code': 'M37-form-fault'
+    'fix.fault.code': 'M37-form-fault',
+    'product.category': 'M37-form-category'
   },
   'M37:__by_screen__': {
     'M37-brand': 'M37-form-brand',
@@ -694,10 +785,12 @@ export const FORM_CHIPS = {
     'M37-rental-sku': 'M37-form-rentalsku',
     'M37-items': 'M37-item',
     'M37-services': 'M37-form-service',
-    'M37-parts-id': 'M37-form-rbom',
     'M37-protection': 'M37-form-protection',
     'M37-rbom': 'M37-form-rbom',
-    'M37-fault': 'M37-form-fault'
+    'M37-fault': 'M37-form-fault',
+    'M37-operations': 'M37-form-service',
+    'M37-parts-id': 'M37-item',
+    'M37-taxonomy': 'M37-form-category'
   }
 };
 

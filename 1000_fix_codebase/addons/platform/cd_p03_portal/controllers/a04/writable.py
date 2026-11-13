@@ -859,5 +859,10 @@ WRITABLE = {
             "warranty_id",
         }
     ),
-    "product.category": frozenset(),
+    "product.category": frozenset(
+        {
+            "name",
+            "parent_id",
+        }
+    ),
 }
