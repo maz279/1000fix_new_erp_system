@@ -72,6 +72,19 @@ class FixProcurementRfq(models.Model):
         index=True,
         help="The approved requisition this sourcing event buys for; the award's PO converts it.",
     )
+    # FR-PRO-006 (13 Nov 2026): one sourcing event for the same part requested
+    # by several branches. The RFQ buys their total; the award's PO converts
+    # every one of them, one line each, so each branch keeps its own line.
+    requisition_ids = fields.Many2many(
+        "fix.requisition",
+        "fix_procurement_rfq_requisition_rel",
+        "rfq_id",
+        "requisition_id",
+        string="Consolidated Requisitions",
+        copy=False,
+        help="Approved, unconverted requisitions for this product, from any branch. "
+        "The RFQ quantity is their total.",
+    )
     product_id = fields.Many2one("product.product", string="Product", required=True)
     qty = fields.Float(string="Quantity", default=1.0)
     required_by = fields.Date(string="Required By")
@@ -94,7 +107,9 @@ class FixProcurementRfq(models.Model):
     bid_ids = fields.One2many("fix.procurement.bid", "rfq_id", string="Bids")
     notes = fields.Text()
 
-    RFQ_FIXED = ("product_id", "qty", "currency_id", "requisition_id")
+    RFQ_FIXED = ("product_id", "qty", "currency_id", "requisition_id", "requisition_ids")
+    # an RFQ in these states still has its requisitions out to tender
+    SOURCING_STATES = ("draft", "open", "closed")
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RFQ quantity must be positive")
 
@@ -107,6 +122,60 @@ class FixProcurementRfq(models.Model):
             locked |= set(self.RFQ_FIXED)
         return locked
 
+    def _sourced_requisitions(self):
+        """Every requisition this event buys for: the single source and the
+        consolidated ones."""
+        self.ensure_one()
+        return (self.requisition_id | self.requisition_ids).sudo()
+
+    def _check_consolidation(self):
+        """FR-PRO-006: only approved, unconverted requisitions for this RFQ's
+        product, each out to tender on one live RFQ at a time."""
+        for rec in self:
+            reqs = rec.requisition_ids.sudo()
+            if not reqs:
+                continue
+            for req in reqs:
+                if req.state != "approved" or req.purchase_order_id:
+                    raise UserError(
+                        "Requisition %s is %s: only approved requisitions not yet converted "
+                        "to a PO can be consolidated." % (req.display_name, req.state)
+                    )
+                if req.product_id != rec.product_id:
+                    raise UserError(
+                        "Requisition %s asks for %s, not %s: a consolidated RFQ buys one part."
+                        % (
+                            req.display_name,
+                            req.product_id.display_name or "no product",
+                            rec.product_id.display_name,
+                        )
+                    )
+            busy = self.sudo().search(
+                [
+                    ("id", "!=", rec.id),
+                    ("state", "in", self.SOURCING_STATES),
+                    "|",
+                    ("requisition_ids", "in", reqs.ids),
+                    ("requisition_id", "in", reqs.ids),
+                ],
+                limit=1,
+            )
+            if busy:
+                raise UserError(
+                    "RFQ %s is already sourcing %s."
+                    % (
+                        busy.name,
+                        ", ".join((busy._sourced_requisitions() & reqs).mapped("display_name")),
+                    )
+                )
+            total = sum(reqs.mapped("qty")) + (
+                rec.requisition_id.sudo().qty
+                if rec.requisition_id and rec.requisition_id not in reqs
+                else 0.0
+            )
+            if total > 0 and abs((rec.qty or 0.0) - total) > 1e-6:
+                rec._guarded().write({"qty": total})
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -114,7 +183,9 @@ class FixProcurementRfq(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.procurement.rfq") or "RFQ/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records.filtered("requisition_ids")._check_consolidation()
+        return records
 
     def write(self, vals):
         fixed = set(self.RFQ_FIXED) & set(vals)
@@ -127,7 +198,10 @@ class FixProcurementRfq(models.Model):
                         "RFQ %s is %s: what is being bought is fixed once bids are invited."
                         % (rec.name, rec.state)
                     )
-        return super().write(vals)
+        res = super().write(vals)
+        if {"requisition_ids", "requisition_id", "product_id", "qty"} & set(vals):
+            self.filtered("requisition_ids")._check_consolidation()
+        return res
 
     def action_open(self):
         for rec in self:
@@ -486,14 +560,48 @@ class FixProcurementAward(models.Model):
                 )
             rfq, bid = rec.rfq_id.sudo(), rec.bid_id.sudo()
             Order._fix_vendor_gate(bid.vendor_id, "Raising a PO from award %s" % rec.name)
-            req = rfq.requisition_id
-            if req and (req.state != "approved" or req.purchase_order_id):
-                raise UserError(
-                    "Requisition %s behind RFQ %s is %s; it cannot be converted by this award."
-                    % (req.display_name, rfq.name, req.state)
-                )
-            if req:
-                req._dofa_assert_approved("Converting requisition %s" % req.display_name)
+            reqs = rfq._sourced_requisitions()
+            for one in reqs:
+                if one.state != "approved" or one.purchase_order_id:
+                    raise UserError(
+                        "Requisition %s behind RFQ %s is %s; it cannot be converted by this award."
+                        % (one.display_name, rfq.name, one.state)
+                    )
+                one._dofa_assert_approved("Converting requisition %s" % one.display_name)
+            # the PO's own requisition (BRU-PRO-01) is the single source, else
+            # the first consolidated one; every one of them is converted below
+            req = rfq.requisition_id or reqs[:1]
+            if len(reqs) > 1:
+                # FR-PRO-006: one line per requisition, so each branch keeps
+                # its quantity and its own delivery on the order
+                lines = [
+                    (
+                        0,
+                        0,
+                        {
+                            "product_id": rfq.product_id.id,
+                            "description": "%s · %s"
+                            % (one.branch_id.name or "No branch", one.description),
+                            "qty_ordered": one.qty,
+                            "unit_price": bid.unit_price,
+                        },
+                    )
+                    for one in reqs
+                ]
+            else:
+                lines = [
+                    (
+                        0,
+                        0,
+                        {
+                            "product_id": rfq.product_id.id,
+                            "description": rfq.description,
+                            "qty_ordered": rfq.qty,
+                            "unit_price": bid.unit_price,
+                        },
+                    )
+                ]
+            branches = reqs.mapped("branch_id")
             ou = (
                 req.operating_unit_id if req else False
             ) or self.env.user.default_operating_unit_id
@@ -504,7 +612,8 @@ class FixProcurementAward(models.Model):
             order = Order._guarded().create(
                 {
                     "operating_unit_id": ou.id,
-                    "branch_id": req.branch_id.id if req else False,
+                    # several branches: delivered per line, no single branch
+                    "branch_id": branches.id if len(branches) == 1 else False,
                     "vendor_id": bid.vendor_id.id,
                     "currency_id": bid.currency_id.id,
                     "award_id": rec.id,
@@ -512,22 +621,11 @@ class FixProcurementAward(models.Model):
                     "dofa_justification": (req.dofa_justification if req else False)
                     or "Award %s on RFQ %s: %s"
                     % (rec.name, rfq.name, rec.rationale or "lowest compliant bid"),
-                    "line_ids": [
-                        (
-                            0,
-                            0,
-                            {
-                                "product_id": rfq.product_id.id,
-                                "description": rfq.description,
-                                "qty_ordered": rfq.qty,
-                                "unit_price": bid.unit_price,
-                            },
-                        )
-                    ],
+                    "line_ids": lines,
                 }
             )
-            if req:
-                req._guarded().write({"state": "converted", "purchase_order_id": order.id})
+            if reqs:
+                reqs._guarded().write({"state": "converted", "purchase_order_id": order.id})
             rec._guarded().write({"purchase_order_id": order.id})
         return True
 

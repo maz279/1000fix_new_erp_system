@@ -372,6 +372,7 @@ WRITABLE = {
             "qty",
             "required_by",
             "requisition_id",
+            "requisition_ids",
             "target_price",
         }
     ),

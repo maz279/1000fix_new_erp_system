@@ -424,49 +424,108 @@ def po_cycle_time(env, date_from=None, date_to=None, **params):
 
 
 def consolidation(env, date_from=None, date_to=None, **params):
-    reqs = env["fix.requisition"].search(_company_domain(env))
+    """FR-PRO-006: the same part asked for by several branches is one sourcing
+    event. Approved requisitions not yet converted, by part: those of two or
+    more branches are the candidates, and one already out to tender says on
+    which RFQ (13 Nov 2026: this grouped every requisition by branch and
+    urgency, which is the opposite of consolidating across branches)."""
+    reqs = env["fix.requisition"].search(
+        [*_company_domain(env), ("state", "=", "approved"), ("purchase_order_id", "=", False)]
+    )
+    rfqs = (
+        env["fix.procurement.rfq"]
+        .sudo()
+        .search(
+            [
+                ("state", "in", ("draft", "open", "closed")),
+                "|",
+                ("requisition_ids", "in", reqs.ids),
+                ("requisition_id", "in", reqs.ids),
+            ]
+        )
+    )
+    tender = {}
+    for rfq in rfqs:
+        for req in rfq.requisition_id | rfq.requisition_ids:
+            tender[req.id] = rfq.name
     buckets = {}
     for req in reqs:
-        key = (
-            req.branch_id.name if req.branch_id else "No branch",
-            dict(req._fields["urgency"].selection).get(req.urgency),
-        )
+        key = req.product_id.id or 0
         row = buckets.setdefault(
             key,
             {
-                "branch": key[0],
-                "urgency": key[1],
+                "product": req.product_id.display_name or "No product (free text)",
+                "branches": set(),
                 "requests": 0,
+                "qty": 0.0,
                 "amount": 0.0,
+                "required_by": None,
+                "rfqs": set(),
             },
         )
+        row["branches"].add(req.branch_id.name or "No branch")
         row["requests"] += 1
+        row["qty"] += req.qty or 0.0
         row["amount"] += req.estimate_amount or 0.0
+        if req.required_by and (not row["required_by"] or req.required_by < row["required_by"]):
+            row["required_by"] = req.required_by
+        if req.id in tender:
+            row["rfqs"].add(tender[req.id])
     rows = []
     for row in buckets.values():
-        row["amount"] = round(row["amount"], 2)
-        rows.append(row)
-    rows.sort(key=lambda r: -r["amount"])
+        count = len(row["branches"])
+        rows.append(
+            {
+                "product": row["product"],
+                "branches": ", ".join(sorted(row["branches"])),
+                "branch_count": count,
+                "requests": row["requests"],
+                "qty": round(row["qty"], 3),
+                "amount": round(row["amount"], 2),
+                "required_by": (row["required_by"] and str(row["required_by"])) or "",
+                "status": (
+                    "Out to tender: " + ", ".join(sorted(row["rfqs"]))
+                    if row["rfqs"]
+                    else ("Consolidate" if count > 1 else "Single branch")
+                ),
+            }
+        )
+    rows.sort(key=lambda r: (-r["branch_count"], -r["amount"]))
     return _pack(
-        "Cross-Branch Consolidation — requisitions by branch and urgency",
-        ["branch", "urgency", "requests", "amount"],
+        "Cross-Branch Consolidation — approved requisitions by part",
+        [
+            "product",
+            "branches",
+            "branch_count",
+            "requests",
+            "qty",
+            "amount",
+            "required_by",
+            "status",
+        ],
         {
-            "branch": "Branch",
-            "urgency": "Urgency",
+            "product": "Part",
+            "branches": "Requesting Branches",
+            "branch_count": "Branches",
             "requests": "Requisitions",
+            "qty": "Total Quantity",
             "amount": "Estimated Amount",
+            "required_by": "Earliest Required By",
+            "status": "Sourcing",
         },
         rows,
         [
-            "Consolidation view: the same branch/urgency bucket is one buying "
-            "conversation. Amounts are the requisition estimates."
+            "Only approved requisitions that are not yet on a purchase order are counted.",
+            "A part asked for by two or more branches can be bought in one event: use "
+            "Consolidate Requisitions into an RFQ on this page. The award then raises one "
+            "purchase order with a line for each branch.",
         ],
         totals={
-            "branch": "Total",
+            "product": "Total",
             "requests": sum(r["requests"] for r in rows),
             "amount": round(sum(r["amount"] for r in rows), 2),
         },
-        empty="No requisitions yet.",
+        empty="No approved requisition is waiting to be bought.",
     )
 
 
