@@ -66,6 +66,12 @@ def _account(env, company, code, name, account_type):
 @pytest.fixture
 def w(odoo_env):
     env = odoo_env
+    # The relay takes the oldest unrelayed events first, a batch at a time. A
+    # database copied from a live one carries tens of thousands of them
+    # (53,621 on fix_test copies, 13 Nov 2026), which starved this test's own
+    # events: every delivery assertion failed. Mark the backlog relayed inside
+    # this rolled-back transaction so the test proves its own events only.
+    env.cr.execute("UPDATE fix_event_outbox SET relayed_at = now() WHERE relayed_at IS NULL")
     bdt = env.ref("base.BDT")
     bdt.active = True
     n = next(_SEQ)
