@@ -675,7 +675,18 @@ export const SCREENS = {
       ] },
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (device_model_ids, api_user_ids) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
-  'M37-form-category': { kind: 'model_form', model: 'product.category',
+  'M37-form-category': {
+    lines: {
+      field: 'child_id',
+      title: 'Sub-categories',
+      readonlyGrid: true,
+      note: 'A sub-category is placed here by giving it this category as its parent.',
+      fields: [
+        { name: 'name', label: 'Category Name', readonly: true },
+        { name: 'complete_name', label: 'Full Path', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'product.category',
     title: 'Catalogue Category', back: 'M37-taxonomy',
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
