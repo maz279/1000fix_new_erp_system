@@ -144,3 +144,15 @@ def test_the_basket_page_is_on_the_counter_sales_submodule(screens):
 
     assert screens["M04-baskets"]["model"] == "fix.counter.basket"
     assert "action_confirm" in api.SURFACES["fix.counter.basket"]["actions"]
+    paid_by = next(
+        f
+        for sec in screens["M04-form-basket"]["sections"]
+        for f in sec["fields"]
+        if f["name"] == "payment_method_id"
+    )
+    # the picker offers exactly the tenders a counter sale confirms
+    offered = paid_by["domain"][1][2]
+    assert paid_by["domain"][0] == ["for_counter", "=", True]
+    from odoo.addons.cd_front_desk_finance.models.fix_counter_basket import COUNTER_METHOD
+
+    assert set(offered) == set(COUNTER_METHOD) - {"SSLCZ"}

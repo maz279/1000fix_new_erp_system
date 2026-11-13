@@ -456,7 +456,8 @@ export const SCREENS = {
         ] },
       { tab: 'pay', title: 'One Payment for the Whole Basket', note: 'bKash, Nagad, Rocket, Upay and card need the TrxID / slip number.',
         fields: [
-          { name: 'payment_method_id', label: 'Paid By', required: true },
+          /* the tenders a counter sale confirms (cash, the four wallets, card POS) */
+          { name: 'payment_method_id', label: 'Paid By', required: true, domain: [['for_counter', '=', true], ['code', 'in', ['CASH', 'BKASH', 'NAGAD', 'ROCKET', 'UPAY', 'CARD']]] },
           { name: 'transaction_ref', label: 'TrxID / Card Slip No.' },
           { name: 'tendered_amount', label: 'Cash Tendered (BDT)' },
           { name: 'total', label: 'Total (BDT)', readonly: true },
