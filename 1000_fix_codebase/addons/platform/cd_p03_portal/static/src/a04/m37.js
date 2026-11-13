@@ -677,14 +677,19 @@ export const SCREENS = {
     ] },
   'M37-form-category': { kind: 'model_form', model: 'product.category',
     title: 'Catalogue Category', back: 'M37-taxonomy',
+    tabs: [
+      { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক' }
+    ],
     sections: [
-      { title: 'Category Node (FR-CAT-004)',
+      { tab: 'general', title: 'Category Node (FR-CAT-004)',
         note: 'A node of the commercial tree: give it a parent to place it under a category, or none for a top-level stream. Saving needs the product-manager role.',
         fields: [
           { name: 'name', label: 'Category Name', required: true },
           { name: 'parent_id', label: 'Parent Category' },
           { name: 'complete_name', label: 'Full Path', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'File evidence attaches to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   'M37-form-refurb-grade': { kind: 'model_form', model: 'fix.refurb.grade',
