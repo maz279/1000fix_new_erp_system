@@ -27,6 +27,17 @@ from libs.py.fix_events import publish
 
 from .fix_hr_controls_common import CLEAR_ASSETS, EXECUTIVE, FINANCE, OFFICER, digest
 
+# read from the employee master and the active contract at recommendation (T7)
+SNAPSHOT_FIELDS = (
+    "from_operating_unit_id",
+    "from_department_id",
+    "from_position_id",
+    "from_job_title",
+    "from_manager_id",
+    "from_grade_band",
+    "from_repair_tier",
+)
+
 PROPOSAL_FIELDS = (
     "employee_id",
     "movement_type",
@@ -53,6 +64,59 @@ PROPOSAL_FIELDS = (
     "transfer_grant",
     "luggage_allowance",
     "travel_allowance",
+    # who signs a step is part of the proposal: an HR officer could name
+    # themselves the evaluator after the recommendation (M21 audit T6)
+    "technical_evaluator_id",
+    # the accreditations the movement grants reach the master that M02
+    # dispatch matches skills on (they were captured and never applied)
+    "esd_certified",
+    "bga_license",
+    "oem_brand_authorizations",
+)
+# The one-off relocation money a movement grants: Finance clears it and it is
+# part of the amount the executive decides (it bypassed both, M21 audit T3).
+RELOCATION_MONEY = (
+    "transfer_grant",
+    "luggage_allowance",
+    "travel_allowance",
+    "deputation_allowance",
+)
+# contract component -> the movement's proposal for it
+COMPONENTS = (
+    ("basic_monthly", "proposed_basic"),
+    ("house_rent", "proposed_house_rent"),
+    ("medical_allowance", "proposed_medical"),
+    ("conveyance_allowance", "proposed_conveyance"),
+    ("technical_allowance", "proposed_skill_allowance"),
+    ("other_allowance", None),
+    ("dearness_allowance", None),
+    ("adhoc_allowance", None),
+)
+# hr.employee.job_band <-> the movement grade (band_7 "Head of Dept" was never reached)
+BAND_MAP = {
+    "L1": "band_2",
+    "L2": "band_3",
+    "L3": "band_4",
+    "L4": "band_5",
+    "M1": "band_6",
+    "M2": "band_7",
+    "EX": "band_8",
+}
+TIER_MAP = {
+    "tier1_basic": "l1_modular",
+    "tier2_component": "l2_subassembly",
+    "tier3_board": "l3_component",
+    "tier4_bga_micro": "l4_schematic",
+}
+OPEN_STATES = (
+    "draft",
+    "recommended",
+    "concurred",
+    "tech_evaluated",
+    "hr_audited",
+    "finance_approved",
+    "approved",
+    "handover_cleared",
 )
 PAY_PROPOSALS = (
     "proposed_basic",
@@ -159,11 +223,42 @@ class FixHrTransferControls(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and self.state != "draft":
-            locked |= set(PROPOSAL_FIELDS)
+            locked |= set(PROPOSAL_FIELDS) | set(SNAPSHOT_FIELDS)
+        if self and self.tech_head_approval == "approved":
+            locked.add("technical_assessment_score")
+        if self and self.storekeeper_cleared:
+            locked.add("storekeeper_id")
         return locked
 
     def write(self, vals):
         if not self._fix_guard_open():
+            for rec in self.filtered("id"):
+                if (
+                    "technical_assessment_score" in vals
+                    and rec.tech_head_approval == "approved"
+                    and rec._fix_guard_differs(
+                        "technical_assessment_score",
+                        vals["technical_assessment_score"],
+                        rec.technical_assessment_score,
+                    )
+                ):
+                    raise UserError("The technical evaluation is signed: its score is frozen.")
+                if (
+                    "storekeeper_id" in vals
+                    and rec.storekeeper_cleared
+                    and (vals["storekeeper_id"] or False) != rec.storekeeper_id.id
+                ):
+                    raise UserError("The storekeeper signed the clearance: it is never re-named.")
+                snap = set(vals) & set(SNAPSHOT_FIELDS)
+                if (
+                    snap
+                    and rec.state != "draft"
+                    and any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in snap)
+                ):
+                    raise UserError(
+                        "%s: the current position, branch and pay are read from the employee "
+                        "master when it is recommended, never typed." % rec.name
+                    )
             frozen = set(vals) & set(PROPOSAL_FIELDS)
             for rec in self.filtered("id") if frozen else self.browse():
                 if rec.state != "draft" and any(
@@ -177,9 +272,17 @@ class FixHrTransferControls(models.Model):
 
     # ---- approval hooks ----------------------------------------------------------
     def _approval_amount(self) -> float:
-        if not self.proposed_gross:
-            return 0.0
-        return (self.proposed_gross or 0.0) - (self.current_gross or 0.0)
+        """The monthly pay delta read from the employee's ACTIVE contract plus
+        the one-off relocation money. It was proposed_gross - current_gross,
+        both typed by the maker: equal figures routed a raise at amount 0 and
+        picked the lowest DOFA tier (M21 audit T2)."""
+        self.ensure_one()
+        delta = 0.0
+        if self._fix_pay_changes():
+            current = self._fix_active_contract()
+            now = self._fix_contract_gross(current) if current else (self.current_gross or 0.0)
+            delta = abs(self._fix_new_gross() - now)
+        return delta + sum(self[f] or 0.0 for f in RELOCATION_MONEY)
 
     def _approval_preparers(self):
         return self.mapped("initiator_user_id")
@@ -187,6 +290,117 @@ class FixHrTransferControls(models.Model):
     def _fix_pay_changes(self):
         self.ensure_one()
         return any(self[f] for f in PAY_PROPOSALS)
+
+    def _fix_needs_finance(self):
+        """Finance clears a pay change AND any relocation money (T3)."""
+        self.ensure_one()
+        return self._fix_pay_changes() or any(self[f] for f in RELOCATION_MONEY)
+
+    def _fix_tech_eval_required(self):
+        """A technical promotion, a tier change or a named evaluator needs the
+        technical evaluation; other movements may go from concurrence to HR."""
+        self.ensure_one()
+        return bool(
+            self.movement_category == "technical_promotion"
+            or self.to_repair_tier
+            or self.technical_evaluator_id
+        )
+
+    # ---- the employee's contract (what payroll pays) -----------------------------
+    def _fix_active_contract(self):
+        self.ensure_one()
+        return (
+            self.env["fix.employment.contract"]
+            .sudo()
+            .search([("employee_id", "=", self.employee_id.id), ("state", "=", "active")], limit=1)
+        )
+
+    @staticmethod
+    def _fix_contract_gross(contract):
+        return sum((contract[c] or 0.0) for c, _p in COMPONENTS if c in contract._fields)
+
+    def _fix_new_gross(self):
+        """The gross the new contract version will carry: each proposed
+        component, else the active contract's."""
+        self.ensure_one()
+        current = self._fix_active_contract()
+        total = 0.0
+        for comp, prop in COMPONENTS:
+            if prop and self[prop]:
+                total += self[prop]
+            elif current and comp in current._fields:
+                total += current[comp] or 0.0
+        return total
+
+    def _fix_check_pay_terms(self):
+        """Payroll pays the CONTRACT components. A gross-only raise reached the
+        employee master's wage and an unchanged contract version, so payroll
+        kept paying the old figure (M21 audit T1)."""
+        self.ensure_one()
+        if not self._fix_pay_changes():
+            return
+        current = self._fix_active_contract()
+        if not current:
+            raise UserError(
+                "%s changes pay but %s has no active employment contract: payroll pays from "
+                "the contract, so activate the hire contract first (Hire / Onboard)."
+                % (self.name, self.employee_id.name)
+            )
+        has_component = any(self[p] for _c, p in COMPONENTS if p)
+        if self.proposed_gross and not has_component:
+            raise UserError(
+                "%s proposes a gross of %.2f with no component: state the basic and the "
+                "allowances that make it up (payroll pays the contract components)."
+                % (self.name, self.proposed_gross)
+            )
+        new_gross = self._fix_new_gross()
+        if self.proposed_gross and abs(self.proposed_gross - new_gross) > 0.5:
+            raise UserError(
+                "%s: the proposed gross %.2f does not equal its components (%.2f: basic and "
+                "allowances, unchanged ones from the active contract)."
+                % (self.name, self.proposed_gross, new_gross)
+            )
+
+    def _fix_refuse_second_open(self):
+        """One open movement per employee: a second one applied on top of the
+        first from stale figures and versioned the contract twice (T10)."""
+        for rec in self:
+            other = self.sudo().search_count(
+                [
+                    ("employee_id", "=", rec.employee_id.id),
+                    ("state", "in", OPEN_STATES),
+                    ("id", "!=", rec.id),
+                ]
+            )
+            if other:
+                raise UserError(
+                    "%s already has an open movement: finish or cancel it before raising "
+                    "another." % rec.employee_id.name
+                )
+
+    def _fix_snapshot_current(self):
+        """The 'from' side is the employee master and the active contract at
+        recommendation, never typed (T7): the employee.moved event and the
+        M29 mover review read it."""
+        for rec in self:
+            emp = rec.employee_id.sudo()
+            band_back = {v: k for k, v in BAND_MAP.items() if k != "M1"}
+            band_back["band_6"] = "M1"
+            tier_back = {v: k for k, v in TIER_MAP.items()}
+            contract = rec._fix_active_contract()
+            vals = {
+                "from_operating_unit_id": emp.operating_unit_id.id or False,
+                "from_department_id": emp.department_id.id or False,
+                "from_position_id": emp.position_id.id or False,
+                "from_job_title": emp.job_title or False,
+                "from_manager_id": emp.parent_id.id or False,
+                "from_grade_band": band_back.get(emp.job_band) or False,
+                "from_repair_tier": tier_back.get(emp.repair_tier) or False,
+            }
+            if contract:
+                vals["current_basic"] = contract.basic_monthly or 0.0
+                vals["current_gross"] = rec._fix_contract_gross(contract)
+            rec.sudo()._guarded().write(vals)
 
     def _fix_proposal_digest(self):
         self.ensure_one()
@@ -246,6 +460,16 @@ class FixHrTransferControls(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft movement requisition can be recommended.")
+            if rec.effective_date and rec.effective_date < fields.Date.context_today(self):
+                raise UserError(
+                    "%s takes effect on %s, a date already past: a movement is never "
+                    "back-dated (payroll runs already paid the old terms)."
+                    % (rec.name, rec.effective_date)
+                )
+        self._fix_refuse_second_open()
+        self._fix_snapshot_current()
+        for rec in self:
+            rec._fix_check_pay_terms()
         self._fix_owner(
             lambda r: r.employee_id.sudo().parent_id.user_id, OFFICER, "The recommendation"
         )
@@ -264,9 +488,12 @@ class FixHrTransferControls(models.Model):
 
     def action_tech_eval(self):
         for rec in self:
-            if rec.state not in ("recommended", "concurred"):
+            # after the destination's concurrence: evaluating straight from
+            # "recommended" skipped the receiving manager altogether (T4)
+            if rec.state != "concurred":
                 raise UserError(
-                    "Movement must be recommended or concurred before Technical Evaluation."
+                    "Movement must be concurred by the destination manager before Technical "
+                    "Evaluation."
                 )
             if not 0 <= (rec.technical_assessment_score or 0.0) <= 100:
                 raise UserError("The technical assessment score is a 0-100 figure.")
@@ -281,6 +508,11 @@ class FixHrTransferControls(models.Model):
             if rec.state not in ("concurred", "tech_evaluated"):
                 raise UserError(
                     "Movement must pass Destination Concurrence or Technical Evaluation before HR Audit."
+                )
+            if rec.state == "concurred" and rec._fix_tech_eval_required():
+                raise UserError(
+                    "%s needs its technical evaluation before the HR audit (technical "
+                    "promotion, tier change or a named evaluator)." % rec.name
                 )
         self._hr_require(OFFICER, "The HR audit")
         self._fix_sign("hr", "hr_audited")
@@ -298,18 +530,21 @@ class FixHrTransferControls(models.Model):
         """Route the movement to the executive (M63)."""
         for rec in self:
             needed = (
-                "finance_approved" if rec._fix_pay_changes() else ("hr_audited", "finance_approved")
+                "finance_approved"
+                if rec._fix_needs_finance()
+                else ("hr_audited", "finance_approved")
             )
             if rec.state not in (needed if isinstance(needed, tuple) else (needed,)):
                 raise UserError(
                     "%s needs %s before the executive decision."
                     % (
                         rec.name,
-                        "Finance clearance (the pay changes)"
-                        if rec._fix_pay_changes()
+                        "Finance clearance (pay or relocation money changes)"
+                        if rec._fix_needs_finance()
                         else "the HR audit",
                     )
                 )
+            rec._fix_check_pay_terms()
             if rec.to_position_id:
                 rec._fix_check_seat()
             rec._guarded().write({"approved_digest": rec._fix_proposal_digest()})
@@ -324,8 +559,8 @@ class FixHrTransferControls(models.Model):
                 raise UserError(
                     "Movement must be Finance Cleared (or HR Audited) before Executive Approval."
                 )
-            if rec._fix_pay_changes() and rec.state != "finance_approved":
-                raise UserError("A pay change needs Finance clearance first.")
+            if rec._fix_needs_finance() and rec.state != "finance_approved":
+                raise UserError("A pay change or relocation money needs Finance clearance first.")
             if rec.approved_digest != rec._fix_proposal_digest():
                 raise UserError("%s changed after it was routed; route it again." % rec.name)
             decider = rec._people_decider()
@@ -395,6 +630,8 @@ class FixHrTransferControls(models.Model):
                     "Movement must be Executive Approved before clearing handover custody."
                 )
             rec._hr_require(OFFICER, "Clearing the handover")
+            # the subject and the initiator never clear their own handover (T17)
+            rec._hr_refuse_conflicted("clear the handover of", extra=lambda r: r.initiator_user_id)
             rec._check_custody_gate()
             rec._guarded().write({"state": "handover_cleared"})
         return True
@@ -404,7 +641,19 @@ class FixHrTransferControls(models.Model):
         self.ensure_one()
         position = self.to_position_id.sudo()
         holders = position.employee_ids - self.employee_id
-        if position.headcount and len(holders) >= position.headcount:
+        if (
+            self.to_operating_unit_id
+            and position.operating_unit_id
+            and position.operating_unit_id != self.to_operating_unit_id
+        ):
+            raise UserError(
+                "Position %s belongs to %s, not the destination branch %s."
+                % (position.name, position.operating_unit_id.name, self.to_operating_unit_id.name)
+            )
+        # 0 sanctioned seats is a full position, as the hr.employee seat
+        # constraint reads it; treating 0 as unlimited let routing pass and
+        # the apply fail after every approval (T12)
+        if len(holders) >= (position.headcount or 0):
             raise UserError(
                 "Position %s is full (%d of %d sanctioned seats): no dual occupancy (BRU-HCM-10)."
                 % (position.name, len(holders), position.headcount)
@@ -422,6 +671,13 @@ class FixHrTransferControls(models.Model):
                 raise UserError("%s has no executive approval." % rec.name)
             if rec.approved_digest != rec._fix_proposal_digest():
                 raise UserError("%s differs from what was approved." % rec.name)
+            if rec.effective_date and rec.effective_date > fields.Date.context_today(self):
+                # the master moved at once whatever the date: payroll costed the
+                # new branch and M29 reviewed access weeks early (T5)
+                raise UserError(
+                    "%s takes effect on %s: apply it on or after that date."
+                    % (rec.name, rec.effective_date)
+                )
             rec._fix_apply_to_master()
         return True
 
@@ -441,26 +697,20 @@ class FixHrTransferControls(models.Model):
         if rec.to_manager_id:
             vals["parent_id"] = rec.to_manager_id.id
         if rec.to_grade_band:
-            band_map = {
-                "L1": "band_2",
-                "L2": "band_3",
-                "L3": "band_4",
-                "L4": "band_5",
-                "M1": "band_6",
-                "M2": "band_6",
-                "EX": "band_8",
-            }
-            vals["job_band"] = band_map.get(rec.to_grade_band, rec.to_grade_band)
+            vals["job_band"] = BAND_MAP.get(rec.to_grade_band, rec.to_grade_band)
         if rec.to_repair_tier:
-            tier_map = {
-                "tier1_basic": "l1_modular",
-                "tier2_component": "l2_subassembly",
-                "tier3_board": "l3_component",
-                "tier4_bga_micro": "l4_schematic",
-            }
-            vals["repair_tier"] = tier_map.get(rec.to_repair_tier, rec.to_repair_tier)
+            vals["repair_tier"] = TIER_MAP.get(rec.to_repair_tier, rec.to_repair_tier)
+        if rec.esd_certified:
+            vals["esd_certified"] = True
+        if rec.bga_license:
+            vals["bga_rework_capable"] = True
+        if rec.oem_brand_authorizations:
+            vals["oem_brand_certs"] = rec.oem_brand_authorizations
+        # the master's gross is the new contract's gross (the components),
+        # never a typed total payroll would not pay (T1)
+        if rec._fix_pay_changes():
+            vals["wage"] = rec._fix_new_gross()
         pay_map = {
-            "proposed_gross": "wage",
             "proposed_basic": "basic_wage",
             "proposed_house_rent": "house_rent",
             "proposed_medical": "medical_allowance",
@@ -473,7 +723,7 @@ class FixHrTransferControls(models.Model):
         if rec.to_tax_location:
             tax_map = {"dhaka_chittagong": "dhaka_chattogram"}
             vals["minimum_tax_location"] = tax_map.get(rec.to_tax_location, rec.to_tax_location)
-        rec.employee_id.sudo()._guarded().write(vals)
+        rec.employee_id.sudo().with_context(fix_movement_event=True)._guarded().write(vals)
         # BRU-HCM-03: a pay change is a new contract version, never an edit.
         contract = self.env["fix.employment.contract"]
         if rec._fix_pay_changes():
@@ -545,7 +795,9 @@ class FixHrTransferControls(models.Model):
     def action_reset_draft(self):
         """Back to draft only BEFORE the executive decision; the signatures go."""
         for rec in self:
-            if rec.state in ("approved", "handover_cleared", "applied"):
+            if rec.state in ("approved", "handover_cleared", "applied") or (
+                rec.executive_approval == "approved"
+            ):
                 raise UserError(
                     "%s was approved: it never returns to draft. Cancel it or raise a new one."
                     % rec.name

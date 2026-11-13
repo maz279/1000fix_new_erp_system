@@ -464,14 +464,13 @@ def test_a_role_change_opens_one_access_review_and_changes_no_access(w):
     Role = w.env["fix.role"]
     blocks = w.env["fix.sod.control"].search([("active", "=", True)])
     blocked = blocks.filtered(lambda c: c.conflict_action == "block")
-    warn = blocks.filtered(lambda c: c.conflict_action == "warn")[:1]
     user = _user(w.env)
     emp = _emp(w.env, user)
     groups_before = user.group_ids
 
     if blocked:
         # the A10 P1-3 gate: a conflicting pair never lands on the employee
-        pair = (blocked[0].role_a_id | blocked[0].role_b_id)
+        pair = blocked[0].role_a_id | blocked[0].role_b_id
         with pytest.raises(ValidationError, match="SoD control"):
             emp.write(
                 {"primary_role_id": pair[0].id, "additional_role_ids": [(6, 0, pair[1:].ids)]}
@@ -592,8 +591,18 @@ def test_abandonment_follows_the_s27_3a_timeline_and_is_a_routed_decision(w, cal
 
 
 def test_an_abandonment_exit_is_never_confirmed_by_hand(w):
-    ex = w.env(user=w.hro.id)["fix.hr.exit"].create(
-        {"employee_id": w.colleague.id, "exit_type": "abandonment"}
+    # M21 audit E14: a hand-made abandonment exit could never be confirmed yet
+    # blocked the real s.27(3A) decision as the employee's open exit; it is
+    # now refused when raised, and an abandonment exit can only be confirmed
+    # through its case
+    with pytest.raises(UserError, match="absence case"):
+        w.env(user=w.hro.id)["fix.hr.exit"].create(
+            {"employee_id": w.colleague.id, "exit_type": "abandonment"}
+        )
+    ex = (
+        w.env["fix.hr.exit"]
+        ._guarded()
+        .create({"employee_id": w.colleague.id, "exit_type": "abandonment"})
     )
     with pytest.raises(UserError, match="absence case"):
         ex.with_user(w.hro2).action_confirm_notice()

@@ -406,6 +406,7 @@ def test_document_is_verified_by_a_second_person_with_a_file(w):
 
 def test_generated_letters_never_self_verify_and_only_the_employee_acknowledges(w):
     me = w.me
+    _contract(w.env, me, state="active")  # Form 6 states the contract's terms
     doc = me.with_user(w.hro).action_generate_form6_appointment()
     assert doc.generated and not doc.verified and not me.doc_appointment_signed
     with pytest.raises(UserError, match="unsigned"):
@@ -658,13 +659,19 @@ def test_fixed_term_expiry_alerts_once_and_expires(w):
 
 # ============================================================ movement (M21-3)
 def _promotion(c, subject, **vals):
+    # A pay change is a new version of the employee's ACTIVE contract and its
+    # gross is the sum of the components (M21 audit T1): the subject is on a
+    # 30,000-basic contract and is promoted to a 36,000 basic.
+    if not c.env["fix.employment.contract"].search(
+        [("employee_id", "=", subject.id), ("state", "=", "active")]
+    ):
+        _contract(c.env, subject, state="active")
     return c.env(user=c.hro.id)["fix.hr.transfer"].create(
         {
             "employee_id": subject.id,
             "movement_type": "promotion",
             "to_manager_id": c.dmgr_emp.id,
-            "current_gross": 60000,
-            "proposed_gross": 66000,
+            "proposed_gross": 36000,
             "proposed_basic": 36000,
             **vals,
         }
@@ -698,7 +705,7 @@ def test_promotion_proper_path_with_distinct_owners(w):
     mv.with_user(w.hro3).action_clear_handover()
     mv.with_user(w.hro3).action_apply()
     assert mv.state == "applied"
-    assert w.me.sudo().wage == 66000 and w.me.parent_id == w.dmgr_emp
+    assert w.me.sudo().wage == 36000 and w.me.parent_id == w.dmgr_emp
     assert old.state == "superseded" and mv.new_contract_id.state == "active"
     assert mv.new_contract_id.basic_monthly == 36000
     assert _events(w.env, "salary_structure.changed", mv.new_contract_id.id)
@@ -1047,8 +1054,9 @@ def test_disciplinary_procedure_follows_s24(w):
     _approve(case, w.execu)
     assert case.state == "decided" and case.outcome == "dismissal"
     assert _events(w.env, "disciplinary.decided", case.id)
-    # now the dismissal exit can be confirmed
-    ex = _exit(w, w.colleague, exit_type="dismissal", disciplinary_case_id=case.id)
+    # the decision opened the draft dismissal exit (M21 audit E12); HR confirms it
+    ex = w.env["fix.hr.exit"].search([("disciplinary_case_id", "=", case.id)])
+    assert len(ex) == 1 and ex.exit_type == "dismissal" and ex.state == "draft"
     ex.with_user(w.hro2).action_confirm_notice()
     assert ex.state == "notice"
 

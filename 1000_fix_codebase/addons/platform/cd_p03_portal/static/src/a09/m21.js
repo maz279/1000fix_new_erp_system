@@ -39,6 +39,7 @@ export const MODULE = {
     { en: 'Documents', screens: [
       { id: 'M21-appointment', en: 'Appointment Letters', bn: 'নিয়োগপত্র', t: 'g' },
       { id: 'M21-servicebook', en: 'Service Books', bn: 'সার্ভিস বুক', t: 'g' },
+      { id: 'M21-documents', en: 'All Statutory Documents', bn: 'সকল সংবিধিবদ্ধ নথি', t: 'g' },
       { id: 'M21-nominees', en: 'Dependants & Nominees', bn: 'মনোনীত ব্যক্তি', t: 'g' }
     ]},
     { en: 'Self-Service', screens: [
@@ -58,11 +59,11 @@ export const MODULE = {
     ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-employee', 'M21-education', 'M21-experience'], reports: ['Identity Read Log', 'Data Clean-up Findings'], forms: ['Employee'] }],
     ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'], reports: ['Probation Conversion'], forms: [] }],
     ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-orgchart'], reports: ['Org Distribution', 'Establishment Register'], forms: [] }],
-    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion'] }],
-    ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook'], reports: ['Form 6(a) Register'], forms: [] }],
+    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement', 'M21-master-change', 'M21-disciplinary'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion'] }],
+    ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook', 'M21-documents'], reports: ['Form 6(a) Register'], forms: [] }],
     ['6', 'Dependants & Nominees', 5, { model: 'fix.hr.dependant', cols: ['employee_id', 'name', 'relation', 'is_nominee', 'nominee_pct'], screens: ['M21-nominees'], reports: [], forms: [] }],
     ['7', 'ESS / MSS', 9, { model: 'hr.employee', cols: ['name', 'employee_code', 'employment_type', 'joining_date', 'confirmation_date'], screens: ['M21-ess'], reports: ['Probation Conversion'], forms: [], create: false }],
-    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit'], reports: ['Attrition Analysis'], forms: ['Exit Clearance'] }]
+    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit', 'M21-abandonment'], reports: ['Attrition Analysis'], forms: ['Exit Clearance'] }]
   ] }
 };
 
@@ -99,13 +100,13 @@ export const SCREENS = {
       { m: 'action_generate_contract_document', l: 'Generate Contract Document' }
     ] },
   'M21-transfer': { kind: 'model_list', model: 'fix.hr.transfer', stateField: 'state',
-    cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'from_position_id', 'to_position_id', 'state'],
+    cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'from_position_id', 'to_position_id', 'approval_state', 'state'],
     /* Each step is its owner's (line manager, destination manager,
      * evaluator, HR, Finance); the executive decision is routed (M63). */
     actions: [
       { m: 'action_recommend', l: 'Recommend', states: ['draft'] },
       { m: 'action_concur', l: 'Concur', states: ['recommended'] },
-      { m: 'action_tech_eval', l: 'Technical Evaluation', states: ['recommended', 'concurred'] },
+      { m: 'action_tech_eval', l: 'Technical Evaluation', states: ['concurred'] },
       { m: 'action_hr_audit', l: 'HR Audit', states: ['concurred', 'tech_evaluated'] },
       { m: 'action_finance_approve', l: 'Finance Clearance', states: ['hr_audited'] },
       { m: 'action_request_approval', l: 'Request Executive Approval', states: ['hr_audited', 'finance_approved'] },
@@ -117,8 +118,8 @@ export const SCREENS = {
       { m: 'action_tick_imprest', l: 'Imprest Settled', states: ['approved'] },
       { m: 'action_clear_handover', l: 'Clear Handover', states: ['approved'] },
       { m: 'action_apply', l: 'Apply Movement', states: ['handover_cleared'] },
-      { m: 'action_reset_draft', l: 'Reset to Draft' },
-      { m: 'action_cancel', l: 'Cancel' }
+      { m: 'action_reset_draft', l: 'Reset to Draft', states: ['recommended', 'concurred', 'tech_evaluated', 'hr_audited', 'finance_approved', 'rejected', 'cancelled'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'recommended', 'concurred', 'tech_evaluated', 'hr_audited', 'finance_approved', 'approved', 'handover_cleared', 'rejected'] }
     ] },
   'M21-exit': { kind: 'model_list', model: 'fix.hr.exit', stateField: 'state',
     cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'clearance_it', 'clearance_finance', 'clearance_hr', 'clearance_assets', 'settlement_amount', 'settlement_due_date', 'approval_state', 'state'],
@@ -146,12 +147,14 @@ export const SCREENS = {
     actions: [
       { m: 'action_issue_notice', l: 'Serve s.27(3A) Notice', states: ['draft'] },
       { m: 'action_record_explanation', l: 'Record Explanation / Rejoined', states: ['noticed', 'hearing', 'decision'] },
-      { m: 'action_request_approval', l: 'Request Decision', states: ['hearing'] },
+      { m: 'action_request_approval', l: 'Request Decision', states: ['hearing', 'decision'] },
       { m: 'action_recall_approval', l: 'Recall Decision Request', states: ['decision'] },
       { m: 'action_cancel', l: 'Cancel', states: ['draft', 'noticed', 'hearing', 'decision'] }
     ] },
   'M21-movement': { kind: 'table_report', module: 'M21', report: 'headcount_movement', title: 'Movement History', period: true },
   'M21-appointment': { kind: 'model_list', model: 'fix.hr.document',
+    domain: [['doc_type', '=', 'appointment']],
+    empty: 'No appointment letter is on record yet.',
     cols: ['name', 'employee_id', 'doc_type', 'reference', 'issued_on', 'generated', 'verified', 'acknowledged'],
     actions: [
       { m: 'action_verify', l: 'Verify (second person)' },
@@ -159,9 +162,18 @@ export const SCREENS = {
       { m: 'action_acknowledge', l: 'Acknowledge (the employee)' }
     ] },
   'M21-servicebook': { kind: 'model_list', model: 'fix.hr.document',
+    domain: [['doc_type', '=', 'service_book']],
+    empty: 'No service book entry is on record yet.',
     cols: ['name', 'employee_id', 'reference', 'issued_on', 'verified', 'acknowledged', 'notes'],
     actions: [
       { m: 'action_verify', l: 'Verify (second person)' },
+      { m: 'action_acknowledge', l: 'Acknowledge (the employee)' }
+    ] },
+  'M21-documents': { kind: 'model_list', model: 'fix.hr.document',
+    cols: ['name', 'employee_id', 'doc_type', 'reference', 'issued_on', 'expiry_date', 'verified', 'acknowledged'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (second person)' },
+      { m: 'action_unverify', l: 'Withdraw Verification' },
       { m: 'action_acknowledge', l: 'Acknowledge (the employee)' }
     ] },
   'M21-nominees': { kind: 'model_list', model: 'fix.hr.dependant',
@@ -309,7 +321,7 @@ export const SCREENS = {
           { name: 'company_id', label: 'Company Entity' },
           { name: 'operating_unit_id', label: 'Branch / Operating Unit Hub' },
           { name: 'department_id', label: 'Corporate Department' },
-          { name: 'work_location_type', label: 'Workplace Category (Workshop/Field/Office)' }
+          { name: 'workplace_category', label: 'Workplace Category (Workshop/Field/Office)' }
         ]
       },
       {
@@ -714,9 +726,9 @@ export const SCREENS = {
         title: 'Branch & Department Realignment',
         note: 'Source and destination branch hubs and functional departments.',
         fields: [
-          { name: 'from_operating_unit_id', label: 'Current Branch' },
+          { name: 'from_operating_unit_id', label: 'Current Branch (from the master at recommendation)', readonly: true },
           { name: 'to_operating_unit_id', required: true, label: 'Destination Branch' },
-          { name: 'from_department_id', label: 'Current Department' },
+          { name: 'from_department_id', label: 'Current Department (from the master at recommendation)', readonly: true },
           { name: 'to_department_id', label: 'Destination Department' }
         ]
       },
@@ -725,13 +737,13 @@ export const SCREENS = {
         title: 'Position, Grade & Reporting Hierarchy',
         note: 'Establishment position slot, corporate grade band, and direct reporting manager.',
         fields: [
-          { name: 'from_position_id', label: 'Current Position' },
+          { name: 'from_position_id', label: 'Current Position (from the master at recommendation)', readonly: true },
           { name: 'to_position_id', required: true, label: 'Destination Position' },
-          { name: 'from_job_title', label: 'Current Job Title' },
+          { name: 'from_job_title', label: 'Current Job Title (from the master at recommendation)', readonly: true },
           { name: 'to_job_title', label: 'Destination Job Title' },
-          { name: 'from_grade_band', label: 'Current Corporate Grade' },
+          { name: 'from_grade_band', label: 'Current Corporate Grade (from the master at recommendation)', readonly: true },
           { name: 'to_grade_band', label: 'Destination Corporate Grade' },
-          { name: 'from_manager_id', label: 'Current Reporting Manager' },
+          { name: 'from_manager_id', label: 'Current Reporting Manager (from the master at recommendation)', readonly: true },
           { name: 'to_manager_id', label: 'Destination Reporting Manager' }
         ]
       },
@@ -742,10 +754,10 @@ export const SCREENS = {
         title: 'Basic Salary & Monthly Emoluments',
         note: 'Current vs proposed basic wages and monthly gross salary structuring.',
         fields: [
-          { name: 'current_basic', label: 'Current Basic Salary' },
+          { name: 'current_basic', label: 'Current Basic Salary (from the master at recommendation)', readonly: true },
           { name: 'proposed_basic', label: 'Proposed Basic Salary' },
           { name: 'basic_increment_pct', label: 'Increment Percentage' },
-          { name: 'current_gross', label: 'Current Monthly Gross' },
+          { name: 'current_gross', label: 'Current Monthly Gross (from the master at recommendation)', readonly: true },
           { name: 'proposed_gross', label: 'Proposed Monthly Gross' }
         ]
       },
@@ -770,7 +782,7 @@ export const SCREENS = {
         title: 'Repair Competency & Technical Accreditations',
         note: 'After-sales repair tier competency, OEM brand authorizations, and technical board scores.',
         fields: [
-          { name: 'from_repair_tier', label: 'Current Repair Tier' },
+          { name: 'from_repair_tier', label: 'Current Repair Tier (from the master at recommendation)', readonly: true },
           { name: 'to_repair_tier', label: 'Assigned Technical Repair Tier' },
           { name: 'oem_brand_authorizations', label: 'OEM Brand Authorizations' },
           { name: 'technical_assessment_score', label: 'Technical Assessment Score (0-100)' },
@@ -935,6 +947,7 @@ export const SCREENS = {
           { name: 'notice_required_days', label: 'Statutory Notice (days)', readonly: true },
           { name: 'notice_served_days', label: 'Notice Served (days)', readonly: true },
           { name: 'notice_basis', label: 'Statutory Basis', readonly: true },
+          { name: 'notice_shortfall_days', label: 'Notice Shortfall (days)', readonly: true },
           { name: 'notice_shortfall_treatment', label: 'Notice Shortfall Treatment' },
           { name: 'chief_inspector_notified_on', label: 'Retrenchment: Chief Inspector / CBA Copy Sent' },
           { name: 'disciplinary_case_id', label: 'Disciplinary Case (dismissal)' },
@@ -955,6 +968,10 @@ export const SCREENS = {
           { name: 'clearance_finance', label: 'Finance & Advances Dues Cleared', readonly: true },
           { name: 'clearance_hr', label: 'HR Documents & Service Book Handed Over', readonly: true },
           { name: 'clearance_assets', label: 'Physical Tools & Uniform Returned', readonly: true },
+          { name: 'clearance_it_by_id', label: 'IT Cleared By', readonly: true },
+          { name: 'clearance_finance_by_id', label: 'Finance Cleared By', readonly: true },
+          { name: 'clearance_hr_by_id', label: 'HR Cleared By', readonly: true },
+          { name: 'clearance_assets_by_id', label: 'Assets Cleared By', readonly: true },
           { name: 'asset_return_receipt_no', label: 'Asset Return Receipt / MRN No' },
           { name: 'asset_return_receipt_file', label: 'Signed Asset Return Receipt Scan', type: 'file' }
         ]
@@ -966,6 +983,7 @@ export const SCREENS = {
         fields: [
           { name: 'settlement_amount', label: 'Total Net Settlement Amount (BDT, computed by payroll)', readonly: true },
           { name: 'settlement_basis', label: 'Settlement Basis (payroll)', readonly: true },
+          { name: 'settlement_lines', label: 'Settlement Lines (payroll)', readonly: true },
           { name: 'settlement_due_date', label: 'Dues Payable By (s.30 / s.123(2))', readonly: true },
           { name: 'settlement_overdue', label: 'Settlement Overdue', readonly: true },
           { name: 'approval_state', label: 'Finance Approval (M63)', readonly: true },
@@ -982,7 +1000,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.hr.document',
     title: 'Statutory Document',
-    back: 'M21-appointment',
+    back: 'M21-documents',
     tabs: [
       { id: 'document', label: 'Document Particulars', bn: 'নথির বিবরণ', icon: '📄', badge: '5' },
       { id: 'file', label: 'Physical Document Scan', bn: 'কাগজপত্রের স্ক্যান ফাইল', icon: '📎', badge: '3' },
@@ -1017,6 +1035,44 @@ export const SCREENS = {
         title: 'Audit Verification & Employee Acknowledgement',
         note: 'Statutory verification signoff under Bangladesh Labour Act 2006.',
         fields: [
+          { name: 'verified', label: 'Verified by HR Compliance', readonly: true },
+          { name: 'acknowledged', label: 'Acknowledged by Employee', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M21-form-servicebook': {
+    kind: 'model_form',
+    model: 'fix.hr.document',
+    title: 'Service Book Entry (Form 7)',
+    back: 'M21-servicebook',
+    presets: { doc_type: 'service_book' },
+    tabs: [
+      { id: 'document', label: 'Entry Particulars', bn: 'এন্ট্রির বিবরণ', icon: '📕', badge: '4' },
+      { id: 'file', label: 'Signed Entry Scan', bn: 'স্বাক্ষরিত স্ক্যান', icon: '📎', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'document',
+        title: 'Service Book Entry (BLR r.21)',
+        note: 'Append-only: a correction is a new entry. The entry endorses the service book when a second HR person verifies its signed scan.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'doc_type', required: true, label: 'Document Classification' },
+          { name: 'reference', label: 'Service Book Reference' },
+          { name: 'issued_on', label: 'Entry Date' },
+          { name: 'corrects_id', label: 'Corrects Entry' }
+        ]
+      },
+      {
+        tab: 'file',
+        title: 'Signed Entry Scan',
+        note: 'Upload the signed page; verification is by an HR officer who neither recorded nor uploaded it.',
+        fields: [
+          { name: 'file_data', label: 'Signed Service Book Page (Scan)', type: 'file' },
+          { name: 'file_name', label: 'Attached Filename' },
+          { name: 'notes', label: 'Notes' },
           { name: 'verified', label: 'Verified by HR Compliance', readonly: true },
           { name: 'acknowledged', label: 'Acknowledged by Employee', readonly: true }
         ]
@@ -1166,6 +1222,7 @@ export const SCREENS = {
       { m: 'action_start_enquiry', l: 'Start Enquiry', states: ['hearing'] },
       { m: 'action_conclude_enquiry', l: 'Conclude Enquiry', states: ['enquiry'] },
       { m: 'action_request_approval', l: 'Request Decision', states: ['concluded'] },
+      { m: 'action_recall_approval', l: 'Recall Decision Request', states: ['concluded'] },
       { m: 'action_suspend', l: 'Suspend (max 60 days)', states: ['charged', 'explained', 'hearing', 'enquiry'] },
       { m: 'action_end_suspension', l: 'End Suspension' },
       { m: 'action_withdraw', l: 'Withdraw Case' }
@@ -1289,7 +1346,7 @@ export const SCREENS = {
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'misconduct_category', required: true, label: 'Misconduct (s.23(4))' },
           { name: 'allegation', required: true, label: 'Written Allegation' },
-          { name: 'charge_date', label: 'Charge Served On' },
+          { name: 'charge_date', label: 'Charge Served On (set when served)', readonly: true },
           { name: 'reply_days', label: 'Days to Explain (minimum 7)' },
           { name: 'explanation_due', label: 'Explanation Due', readonly: true },
           { name: 'explanation', label: "Worker's Explanation" },
@@ -1457,7 +1514,8 @@ export const FORM_CHIPS = {
     'M21-transfer': 'M21-form-transfer',
     'M21-exit': 'M21-form-exit',
     'M21-appointment': 'M21-form-document',
-    'M21-servicebook': 'M21-form-document',
+    'M21-servicebook': 'M21-form-servicebook',
+    'M21-documents': 'M21-form-document',
     'M21-nominees': 'M21-form-dependant',
     'M21-education': 'M21-form-education',
     'M21-experience': 'M21-form-experience',

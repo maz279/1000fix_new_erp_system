@@ -19,28 +19,46 @@ from .fix_payroll_statutory import (
     statutory_basis,
 )
 
+# A contract that RAN: active now, or ended (terminated, expired, superseded).
+# A fixed-term contract the expiry cron moved to "expired" is what a
+# contract-end exit is settled on; it was refused before (M21 audit E7).
+RAN_STATES = ("active", "terminated", "expired", "superseded")
 
-def separation_contract(env, employee, as_of):
-    """(basic, joining date) for a separation at `as_of`: the basic of the
-    latest active or terminated contract, service from the earliest one."""
+
+def separation_contract(env, employee, as_of, pinned=None):
+    """(basic, joining date) for a separation at `as_of`.
+
+    The basic is the exit's PINNED contract (the one in force when its notice
+    was confirmed) when there is one, otherwise the latest contract that ran.
+    A draft version the settlement closed (terminated, never activated) is
+    never the basic: it made the settled figure unpayable (M21 audit E8).
+    Service runs from the earliest contract that ran."""
     contracts = (
         env["fix.employment.contract"]
         .sudo()
         .search(
-            [
-                ("employee_id", "=", employee.id),
-                ("state", "in", ("active", "terminated")),
-                ("joining_date", "<=", as_of),
-            ],
+            [("employee_id", "=", employee.id), ("joining_date", "<=", as_of)],
             order="joining_date desc, id desc",
         )
     )
-    if not contracts:
-        raise UserError(
-            "No active or terminated contract of %s starts on or before %s: there is no basic "
-            "to compute a separation from." % (employee.display_name, as_of)
+    never_ran = "activated_on" in contracts._fields
+
+    def ran(c):
+        if c.state not in RAN_STATES:
+            return False
+        return not (
+            never_ran and c.state == "terminated" and c.previous_contract_id and not c.activated_on
         )
-    return contracts[0].basic_monthly, fields.Date.to_date(contracts[-1].joining_date)
+
+    ran_contracts = contracts.filtered(ran)
+    if not ran_contracts:
+        raise UserError(
+            "No active or terminated contract of %s starts on or before %s (none that ever "
+            "ran): there is no basic to compute a separation from." % (employee.display_name, as_of)
+        )
+    current = ran_contracts.filtered(lambda c: c.state != "superseded") or ran_contracts
+    basic_from = pinned if pinned and pinned in ran_contracts else current[0]
+    return basic_from.basic_monthly, fields.Date.to_date(ran_contracts[-1].joining_date)
 
 
 def unused_leave_days(employee, as_of):
@@ -58,7 +76,8 @@ class FixHrExitPayrollSettlement(models.Model):
         last_day = fields.Date.to_date(self.last_working_day)
         if not last_day:
             raise UserError("Set the last working day of %s before settling." % self.display_name)
-        basic, joining = separation_contract(self.env, employee, last_day)
+        pinned = self.contract_id if "contract_id" in self._fields else None
+        basic, joining = separation_contract(self.env, employee, last_day, pinned=pinned)
         death = {}
         if self.exit_type == "death":
             min_years, at_work = death_rules(self)
@@ -71,6 +90,7 @@ class FixHrExitPayrollSettlement(models.Model):
             notice_served_days=notice_served_days(self.notice_date, last_day),
             unused_leave_days=unused_leave_days(employee, last_day),
             **death,
+            **self._fix_settlement_notice_terms(),
         )
         company = self.company_id or employee.company_id
         # M56-11: the statutory pack in force on the last day names the rule set
@@ -86,6 +106,26 @@ class FixHrExitPayrollSettlement(models.Model):
             "net": round(net, 2),
             "basis": basis,
         }
+
+    def _fix_settlement_notice_terms(self):
+        """The notice terms M21 decided at confirmation, for payroll's lines:
+        the notice the exit requires (s.26: 120 days permanent, 30 temporary),
+        whether the worker is permanent (s.26(4) compensation), and the days a
+        resigning worker pays in lieu (s.27(3), "Wages in Lieu of Notice")."""
+        self.ensure_one()
+        terms = {}
+        contract = self.contract_id if "contract_id" in self._fields else None
+        if contract:
+            terms["permanent"] = contract.contract_type == "permanent"
+        if "notice_required_days" in self._fields and self.exit_type == "termination":
+            terms["notice_required_days"] = self.notice_required_days
+        if (
+            "notice_shortfall_treatment" in self._fields
+            and self.exit_type == "resignation"
+            and self.notice_shortfall_treatment == "pay_in_lieu"
+        ):
+            terms["shortfall_recovery_days"] = self.notice_shortfall_days
+        return terms
 
     def action_create_settlement_payment(self):
         """A settled exit -> a DRAFT off-cycle payment of the pinned net."""

@@ -202,6 +202,9 @@ def separation_figures(
     unused_leave_days=0.0,
     death_min_service_years=None,
     death_at_work=False,
+    notice_required_days=None,
+    permanent=True,
+    shortfall_recovery_days=0,
 ):
     """The final-settlement lines for one separation, as [(key, label, amount)].
 
@@ -239,18 +242,43 @@ def separation_figures(
             "Retrenchment compensation, 30 days per completed year (BLA s.20(2)(c))",
         )
     elif exit_type == "termination":
-        notice = daily * max(TERMINATION_NOTICE_DAYS - served, 0)
-        if notice:
-            lines.append(("notice_pay", "Notice pay in lieu (BLA s.26, 120 days)", q2(notice)))
-        higher_of_service_or_gratuity(
-            daily * SERVICE_COMPENSATION_DAYS * years,
-            "Termination compensation, 30 days per completed year (BLA s.26(4))",
+        # s.26(1)/(2): 120 days for a permanent worker, 30 for a temporary one.
+        # M21 computes the notice the exit requires and passes it in; it was a
+        # flat 120 days for every worker, so a temporary worker given his 30
+        # days' notice was still paid 90 days in lieu.
+        required = (
+            int(notice_required_days)
+            if notice_required_days is not None
+            else (TERMINATION_NOTICE_DAYS if permanent else RETRENCHMENT_NOTICE_DAYS)
         )
+        notice = daily * max(required - served, 0)
+        if notice:
+            lines.append(
+                ("notice_pay", "Notice pay in lieu (BLA s.26, %d days)" % required, q2(notice))
+            )
+        if permanent:
+            # s.26(4): the 30-days-a-year compensation is a PERMANENT worker's
+            higher_of_service_or_gratuity(
+                daily * SERVICE_COMPENSATION_DAYS * years,
+                "Termination compensation, 30 days per completed year (BLA s.26(4))",
+            )
+        elif grat:
+            lines.append(("gratuity", "Gratuity (engine bands)", q2(grat)))
     elif exit_type == "resignation":
         higher_of_service_or_gratuity(
             resignation_compensation(basic, joining, separation),
             "Resignation compensation (BLA s.27, engine bands)",
         )
+        recovery = int(shortfall_recovery_days or 0)
+        if recovery > 0:
+            # s.27(3): a worker who leaves short of the notice pays wages in lieu
+            lines.append(
+                (
+                    "notice_recovery",
+                    "Wages in lieu of %d day(s) of notice not served (BLA s.27(3))" % recovery,
+                    -q2(daily * recovery),
+                )
+            )
     elif exit_type in ("retirement", "contract_end"):
         if grat:
             lines.append(("gratuity", "Gratuity (engine bands)", q2(grat)))
@@ -269,6 +297,13 @@ def separation_figures(
         elif grat:
             # under the minimum service s.19 pays nothing; the gratuity, if any, stays due
             lines.append(("gratuity", "Gratuity (engine bands)", q2(grat)))
+    elif exit_type == "dismissal":
+        # s.23 dismissal after a decided disciplinary case: no notice and no
+        # service compensation is computed. Whether any compensation or gratuity
+        # is due on dismissal is a labour-counsel question (A09 report 7.4);
+        # it raised "no settlement rule" before, so a dismissal was never paid
+        # even its earned leave. The earned leave (s.11) is paid below.
+        pass
     elif exit_type == "abandonment":
         # s.27(3A) abandonment: whether any compensation is due is a labour-counsel
         # question (A09 report §7.4); nothing is computed beyond the earned leave.

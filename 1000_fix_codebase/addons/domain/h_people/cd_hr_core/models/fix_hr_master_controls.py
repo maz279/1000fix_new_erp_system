@@ -55,6 +55,12 @@ PAY_FIELDS = (
     "overtime_eligible",
 )
 SENSITIVE_FIELDS = set(BANK_FIELDS) | set(IDENTITY_FIELDS) | set(PAY_FIELDS)
+# FR-HCM-042 applied only to employees with an ACTIVE contract: an officer
+# could overwrite the salary account of every employee without one (all 504
+# imported ones), and payroll paid it once a contract started (M21 audit F4).
+# A first capture is typed on the form; changing a recorded value is a routed
+# Employee Master Change, contract or not.
+GATED_CHANNELS = tuple(n for n in (*BANK_FIELDS, *IDENTITY_FIELDS) if n != "bank_account_ids")
 # NID, birth registration and e-TIN are checked by their inverse, before the
 # value is routed to the resident store (fix_hr_identity_residency.py).
 FORMATS = (
@@ -191,10 +197,21 @@ class HrEmployeeMasterControls(models.Model):
         )
         return contracts.mapped("employee_id")
 
+    def _fix_recorded_channel(self, name):
+        """Is a bank/MFS/identity value already on record (no value read for
+        an identifier: its hash says whether one is held)?"""
+        self.ensure_one()
+        srec = self.sudo()
+        if name in IDENTITY:
+            hash_field = self._fix_identity_fields[name][2]
+            return bool(srec[hash_field] or self._fix_identity_legacy_value(name))
+        return bool(srec[name])
+
     def _fix_form_locked_fields(self) -> set:
         """The form offers an input only where the server accepts a change."""
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and isinstance(self.id, int):
+            locked |= {n for n in GATED_CHANNELS if self._fix_recorded_channel(n)}
             if self._fix_under_contract():
                 locked |= SENSITIVE_FIELDS
             if self.sudo().employee_code:
@@ -211,6 +228,26 @@ class HrEmployeeMasterControls(models.Model):
                         raise UserError(
                             "Employee code %s is permanent (FR-HCM-003); it is never "
                             "rewritten." % old
+                        )
+            gated = set(GATED_CHANNELS) & set(vals)
+            if gated:
+                for rec in real - real._fix_under_contract():
+                    changed = [
+                        n
+                        for n in gated
+                        if rec._fix_recorded_channel(n)
+                        and (
+                            not rec._fix_identity_unchanged(n, vals[n])
+                            if n in IDENTITY
+                            else rec.sudo()._fix_guard_differs(n, vals[n], rec.sudo()[n])
+                        )
+                    ]
+                    if changed:
+                        labels = ", ".join(sorted(self._fields[n].string for n in changed))
+                        raise UserError(
+                            "%s: %s is already recorded and changes only through an approved "
+                            "Employee Master Change (maker-checker, FR-HCM-042)."
+                            % (rec.name, labels)
                         )
             touched = SENSITIVE_FIELDS & set(vals)
             if touched:

@@ -379,6 +379,23 @@ class FixEmploymentContractControls(models.Model):
                     "activated_on": fields.Datetime.now(),
                 }
             )
+            # A version made before the probation was confirmed copied the
+            # probation terms; activating it re-ran the probation and the cron
+            # deemed the worker permanent a second time (M21 audit F10).
+            if (
+                previous
+                and rec.contract_type == "probation"
+                and previous.probation_decision
+                and previous.contract_type == "permanent"
+            ):
+                rec._guarded().write(
+                    {
+                        "contract_type": "permanent",
+                        "probation_decision": previous.probation_decision,
+                        "probation_decided_on": previous.probation_decided_on,
+                    }
+                )
+            rec._fix_sync_employee_terms()
             publish(
                 self.env,
                 "employment.contract.activated",
@@ -420,6 +437,38 @@ class FixEmploymentContractControls(models.Model):
                             "effective_date": str(rec.effective_date or rec.joining_date),
                         },
                     )
+
+    def _fix_sync_employee_terms(self):
+        """The active contract is the employee's terms: the master's wage
+        fields, joining date and employment nature follow it. Nothing kept
+        them in step, so Form 6/7 and the Form 6(a) register printed zeros and
+        stale natures (M21 audit F2)."""
+        nature = {
+            "permanent": "permanent",
+            "probation": "probationary",
+            "fixed_term": "contractual",
+        }
+        for rec in self:
+            emp = rec.employee_id.sudo()
+            gross = sum(rec[f] or 0.0 for f in PAY_TERMS if f in rec._fields)
+            vals = {
+                "basic_wage": rec.basic_monthly or 0.0,
+                "house_rent": rec.house_rent or 0.0,
+                "medical_allowance": rec.medical_allowance or 0.0,
+                "conveyance_allowance": rec.conveyance_allowance or 0.0,
+                "technical_allowance": rec.technical_allowance or 0.0,
+                "wage": gross,
+            }
+            if rec.contract_type in nature:
+                vals["employment_type"] = nature[rec.contract_type]
+            first = self.sudo().search(
+                [("employee_id", "=", emp.id), ("state", "in", ("active", "superseded"))],
+                order="joining_date asc",
+                limit=1,
+            )
+            if first and not emp.joining_date:
+                vals["joining_date"] = first.joining_date
+            emp.with_context(fix_movement_event=True)._guarded().write(vals)
 
     # ---- versioning (BRU-HCM-03) -------------------------------------------------
     def _fix_version_vals(self, effective_date, **changes):
@@ -617,6 +666,14 @@ class FixEmploymentContractControls(models.Model):
             ) or (
                 rec.approval_state == "approved" and rec.signoff_digest == rec._fix_terms_digest()
             )
+            if rec.contract_type == "fixed_term" and not rec.date_end:
+                # action_activate refuses this; the cron activated it and the
+                # fixed-term version never expired (M21 audit F11)
+                rec._fix_activity(
+                    "Version %s has no end date" % rec.name,
+                    "A fixed-term contract needs its end date before it takes effect.",
+                )
+                continue
             if ready and rec.previous_contract_id.state == "active":
                 rec._fix_activate()
         running = Contract.search([("state", "=", "active"), ("date_end", "!=", False)])

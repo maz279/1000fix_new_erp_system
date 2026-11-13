@@ -230,10 +230,12 @@ class FixHrDisciplinaryCase(models.Model):
             rec._fix_officer("Serving a charge")
             if not (rec.allegation or "").strip():
                 raise UserError("The charge is a written allegation (s.24).")
+            # The charge is served today: a typed earlier date shortened the
+            # worker's s.24 seven days to explain (M21 audit E6).
             rec._guarded().write(
                 {
                     "state": "charged",
-                    "charge_date": rec.charge_date or fields.Date.context_today(self),
+                    "charge_date": fields.Date.context_today(self),
                     "handled_by_id": self.env.uid,
                 }
             )
@@ -246,13 +248,14 @@ class FixHrDisciplinaryCase(models.Model):
             rec._fix_officer("Recording an explanation")
             if not (rec.explanation or "").strip():
                 raise UserError("Enter the worker's explanation.")
-            rec._guarded().write(
-                {
-                    "state": "explained",
-                    "explanation_received_on": rec.explanation_received_on
-                    or fields.Date.context_today(self),
-                }
-            )
+            today = fields.Date.context_today(self)
+            received = rec.explanation_received_on or today
+            if received > today or (rec.charge_date and received < rec.charge_date):
+                raise UserError(
+                    "The explanation is received between the charge (%s) and today."
+                    % rec.charge_date
+                )
+            rec._guarded().write({"state": "explained", "explanation_received_on": received})
         return True
 
     def action_hold_hearing(self):
@@ -266,7 +269,17 @@ class FixHrDisciplinaryCase(models.Model):
                     "The worker has until %s to explain (at least %d days, s.24); the hearing "
                     "cannot come first." % (rec.explanation_due, DISCIPLINARY_REPLY_DAYS)
                 )
-            rec._guarded().write({"state": "hearing", "hearing_date": rec.hearing_date or today})
+            held = rec.hearing_date or today
+            if held > today:
+                raise UserError("Record the hearing on or after the day it is held.")
+            if rec.explanation_due and held < rec.explanation_due and rec.state == "charged":
+                raise UserError(
+                    "The hearing cannot be dated before the worker's explanation window "
+                    "closes on %s (s.24)." % rec.explanation_due
+                )
+            if rec.charge_date and held < rec.charge_date:
+                raise UserError("The hearing cannot be dated before the charge.")
+            rec._guarded().write({"state": "hearing", "hearing_date": held})
         return True
 
     def action_start_enquiry(self):
@@ -310,6 +323,38 @@ class FixHrDisciplinaryCase(models.Model):
                 raise UserError("The decision is requested once the enquiry is concluded.")
         return super().action_request_approval(justification=justification)
 
+    def _fix_open_dismissal_exit(self):
+        """A dismissal decision opens the employee's draft dismissal exit (s.23),
+        linked to this case; HR confirms it. Nothing followed the decision
+        before: the dismissed worker stayed on the books (M21 audit E12)."""
+        self.ensure_one()
+        Exit = self.env["fix.hr.exit"].sudo()
+        open_exit = Exit.search(
+            [
+                ("employee_id", "=", self.employee_id.id),
+                ("state", "not in", ("cancelled", "settled")),
+            ],
+            limit=1,
+        )
+        if open_exit:
+            self.message_post(
+                body="Dismissal decided; %s already has exit %s open: link it to this case."
+                % (self.employee_id.name, open_exit.name)
+            )
+            return open_exit
+        ex = Exit.create(
+            {
+                "employee_id": self.employee_id.id,
+                "company_id": self.company_id.id or self.env.company.id,
+                "exit_type": "dismissal",
+                "disciplinary_case_id": self.id,
+                "last_working_day": fields.Date.context_today(self),
+                "reason": "Dismissal for misconduct decided on %s (BLA s.23)." % self.name,
+            }
+        )
+        self.message_post(body="Dismissal exit %s opened for HR to confirm." % ex.name)
+        return ex
+
     def action_decide(self):
         """The employer's decision (approval inbox only)."""
         self._approval_assert_routed()
@@ -328,6 +373,8 @@ class FixHrDisciplinaryCase(models.Model):
             )
             if rec.suspended:
                 rec._fix_end_suspension()
+            if rec.outcome == "dismissal":
+                rec._fix_open_dismissal_exit()
             publish(
                 self.env,
                 "disciplinary.decided",

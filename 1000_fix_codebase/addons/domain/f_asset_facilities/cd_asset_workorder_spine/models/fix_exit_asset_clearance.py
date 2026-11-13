@@ -61,7 +61,9 @@ class FixHrExitAssetClearance(models.Model):
         return held
 
     def action_clear(self):
-        for rec in self.filtered(lambda r: r.state == "draft"):
+        # action_clear accepts a confirmed exit ("notice"); the gate filtered
+        # on "draft" and so never ran (M21 audit E5).
+        for rec in self.filtered(lambda r: r.state in ("draft", "notice")):
             held = rec._spine_assets_held()
             if held:
                 raise UserError(

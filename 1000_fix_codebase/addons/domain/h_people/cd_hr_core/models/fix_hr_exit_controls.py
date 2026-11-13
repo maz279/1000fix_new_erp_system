@@ -464,7 +464,18 @@ class FixHrExitControls(models.Model):
                 )
             today = fields.Date.context_today(self)
             rec._guarded().write({"state": "settled", "settled_on": today})
-            rec._fix_end_employment()
+            # The employment ends ON the last working day (I3). A settlement
+            # approved earlier (dues prepared ahead) waits for that day: ending
+            # it now terminated the contract, dropped the worker from the
+            # running payroll and revoked their access while they still worked
+            # (M21 audit E2). The daily leaver cron ends it on the day.
+            if not rec.last_working_day or rec.last_working_day <= today:
+                rec._fix_end_employment()
+            else:
+                rec.message_post(
+                    body="Settled ahead of the last working day: the contract ends and the "
+                    "leaver is recorded on %s." % rec.last_working_day
+                )
             publish(
                 self.env,
                 "exit.settled",
@@ -538,7 +549,10 @@ class FixHrExitControls(models.Model):
                 ("leaver_processed", "=", False),
             ]
         )
-        due._fix_record_leaver()
+        # an exit settled ahead of its last working day ends the contract today
+        settled = due.filtered(lambda r: r.state == "settled")
+        settled._fix_end_employment()
+        (due - settled)._fix_record_leaver()
         return len(due)
 
     @api.model

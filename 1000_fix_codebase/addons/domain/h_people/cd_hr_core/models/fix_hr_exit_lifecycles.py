@@ -108,7 +108,9 @@ class FixHrAbandonment(models.Model):
         locked = super()._fix_form_locked_fields()
         if self and self.state != "draft":
             locked |= {"employee_id", "absence_start_date"}
-        if self and self.state not in ("noticed", "hearing"):
+        # "decision": a worker who reappears while the decision is pending is
+        # recorded (action_record_explanation accepts it and needs the text)
+        if self and self.state not in ("noticed", "hearing", "decision"):
             locked.add("explanation")
         return locked
 
@@ -400,11 +402,30 @@ class FixHrExitLifecycles(models.Model):
             locked |= {"death_at_work", "death_certificate_file"}
         return locked
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A hand-made abandonment exit could never be confirmed, yet it counted
+        # as the employee's open exit and blocked the real s.27(3A) decision
+        # (M21 audit E14): the case's decision opens it, nothing else.
+        if not self._fix_guard_open():
+            for vals in vals_list:
+                if vals.get("exit_type") == "abandonment" and not vals.get("abandonment_id"):
+                    raise UserError(
+                        "An abandonment exit is opened by the decision on its absence case "
+                        "(Absence Without Leave, BLA s.27(3A)), never raised by hand."
+                    )
+        return super().create(vals_list)
+
     def write(self, vals):
         if not self._fix_guard_open():
             frozen = {"death_at_work", "death_certificate_file"} & set(vals)
             if frozen and any(r.state != "draft" for r in self.filtered("id")):
                 raise UserError("A confirmed exit keeps its terms; cancel it and raise a new one.")
+            if vals.get("exit_type") == "abandonment" and any(not r.abandonment_id for r in self):
+                raise UserError(
+                    "An abandonment exit is opened by the decision on its absence case "
+                    "(BLA s.27(3A)), never typed onto another exit."
+                )
         return super().write(vals)
 
     # ---- s.27(3A) and s.19 at confirmation ----------------------------------------
@@ -442,6 +463,15 @@ class FixHrExitLifecycles(models.Model):
             .search([("employee_id", "=", emp.id), ("is_nominee", "=", True)], order="id")
         )
         shares = [(d.id, d.name, d.relation, float(d.nominee_pct or 0.0)) for d in nominees]
+        named = (emp.nominee_name or "").strip().lower()
+        if shares and named and named not in {(d.name or "").strip().lower() for d in nominees}:
+            # the employee form's nominee was silently dropped once any
+            # dependant nominee existed (M21 audit F5)
+            raise UserError(
+                "%s names %s as nominee on the employee record, but the dependant nominees "
+                "do not include them: reconcile the nomination (Dependants & Nominees) "
+                "before the s.19 settlement." % (emp.name, emp.nominee_name)
+            )
         if not shares and emp.nominee_name:
             shares = [
                 (False, emp.nominee_name, emp.nominee_relation, float(emp.nominee_pct or 0.0))

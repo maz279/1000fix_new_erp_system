@@ -37,6 +37,9 @@ def _second_person(rec, what):
         raise UserError("%s needs the HR Officer role." % what)
     if env.user == rec.sudo().create_uid:
         raise UserError("%s is done by someone other than who recorded it." % what)
+    uploader = rec.sudo()["file_uploaded_by_id"] if "file_uploaded_by_id" in rec._fields else None
+    if uploader and env.user == uploader:
+        raise UserError("%s is done by someone other than who uploaded the file." % what)
     if env.user == rec.employee_id.sudo().user_id:
         raise UserError("You cannot %s on your own record." % what.lower())
 
@@ -57,6 +60,11 @@ class FixHrDocumentControls(models.Model):
     corrects_id = fields.Many2one(
         "fix.hr.document", string="Corrects Entry", help="A service-book correction is a new entry"
     )
+    # The verifier must be neither the creator nor whoever uploaded the file:
+    # officer B could upload a file onto A's row and verify it (M21 audit F8).
+    file_uploaded_by_id = fields.Many2one(
+        "res.users", string="File Uploaded By", readonly=True, copy=False
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -66,11 +74,18 @@ class FixHrDocumentControls(models.Model):
             "acknowledged",
             "acknowledged_on",
             "generated",
+            "file_uploaded_by_id",
         }
 
     def write(self, vals):
         if not self._fix_guard_open():
-            books = self.filtered(lambda d: d.id and d.doc_type == "service_book")
+            # the system-generated (unsigned) entry takes its signed scan once:
+            # freezing its file made it a dead end (never verifiable, M21 F8)
+            books = self.filtered(
+                lambda d: d.id
+                and d.doc_type == "service_book"
+                and not (d.generated and set(vals) <= {"file_data", "file_name"})
+            )
             frozen = set(vals) & set(SERVICE_BOOK_FROZEN)
             if (
                 books
@@ -83,16 +98,33 @@ class FixHrDocumentControls(models.Model):
                 )
             if "file_data" in vals:
                 # a new file is new evidence: it must be verified again
-                for doc in self.filtered(lambda d: d.id and (d.verified or d.generated)):
+                for doc in self.filtered(
+                    lambda d: d.id and (d.verified or d.generated or d.acknowledged)
+                ):
+                    # a new file is a new document: the employee acknowledges it again
                     doc._guarded().write(
                         {
                             "verified": False,
                             "verified_by_id": False,
                             "verified_on": False,
                             "generated": False,
+                            "acknowledged": False,
+                            "acknowledged_on": False,
                         }
                     )
-        return super().write(vals)
+        result = super().write(vals)
+        if "file_data" in vals and vals.get("file_data"):
+            self.filtered("id").sudo()._guarded().write({"file_uploaded_by_id": self.env.uid})
+        return result
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        if not self.env.su:
+            records.filtered("file_data").sudo()._guarded().write(
+                {"file_uploaded_by_id": self.env.uid}
+            )
+        return records
 
     def unlink(self):
         if not self.env.su and self.filtered(lambda d: d.doc_type == "service_book"):
@@ -116,6 +148,13 @@ class FixHrDocumentControls(models.Model):
                     "verified_on": fields.Datetime.now(),
                 }
             )
+            if rec.doc_type == "service_book":
+                # BLR r.21: the service book is endorsed when its signed entry
+                # is verified - this, not generating a draft, clears the
+                # 15-day clock
+                rec.employee_id.sudo()._guarded().write(
+                    {"form7_endorsed_on": rec.issued_on or fields.Date.context_today(self)}
+                )
         return True
 
     def action_unverify(self):

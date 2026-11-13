@@ -223,7 +223,6 @@ WRITABLE = {
     "fix.hr.disciplinary.case": frozenset(
         {
             "allegation",
-            "charge_date",
             "employee_id",
             "employer_rep_ids",
             "explanation",
@@ -239,6 +238,7 @@ WRITABLE = {
     ),
     "fix.hr.document": frozenset(
         {
+            "corrects_id",
             "doc_type",
             "employee_id",
             "expiry_date",
@@ -343,8 +343,6 @@ WRITABLE = {
             "clearance_mrn_file",
             "clearance_mrn_no",
             "contract_addendum_file",
-            "current_basic",
-            "current_gross",
             "deputation_allowance",
             "deputation_months",
             "destination_joining_date",
@@ -352,13 +350,6 @@ WRITABLE = {
             "effective_payroll_month",
             "employee_id",
             "esd_certified",
-            "from_department_id",
-            "from_grade_band",
-            "from_job_title",
-            "from_manager_id",
-            "from_operating_unit_id",
-            "from_position_id",
-            "from_repair_tier",
             "handover_challan_file",
             "joining_report_file",
             "luggage_allowance",
@@ -1199,8 +1190,8 @@ WRITABLE = {
             "toolkit_custody_ref",
             "wage",
             "work_email",
-            "work_location_type",
             "work_restrictions",
+            "workplace_category",
         }
     ),
 }

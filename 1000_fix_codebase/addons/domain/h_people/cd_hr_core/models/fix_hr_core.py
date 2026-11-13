@@ -198,7 +198,11 @@ class HrEmployeeCdCoreExt(models.Model):
         default="band_2",
         help="Standard job band for salary scale & approval limits",
     )
-    work_location_type = fields.Selection(
+    # M21 audit: this was declared as an override of hr's work_location_type,
+    # which kept hr's compute (home/office/other from the work location): the
+    # form offered it, the server refused it as read-only, and nothing was ever
+    # stored. The workplace category is its own stored field.
+    workplace_category = fields.Selection(
         [
             ("central_workshop", "Central Workshop Lab"),
             ("branch_counter", "Branch Walk-in Counter"),
@@ -207,7 +211,6 @@ class HrEmployeeCdCoreExt(models.Model):
             ("hybrid", "Hybrid"),
         ],
         string="Workplace Category",
-        default="central_workshop",
         help="Controls GPS tracking and mobile app permissions",
     )
     employment_type = fields.Selection(
@@ -822,7 +825,9 @@ class HrEmployeeCdCoreExt(models.Model):
                     }
                 )
             )
-            rec._guarded().write({"form7_endorsed_on": today})
+            # A generated, unsigned text is not an endorsement: stamping it
+            # cleared the BLR r.21 15-day overdue flag with nothing signed (M21
+            # audit F3). The entry is endorsed when its signed scan is verified.
             docs |= doc
         return docs
 
@@ -831,19 +836,53 @@ class HrEmployeeCdCoreExt(models.Model):
         docs = self.env["fix.hr.document"]
         today = fields.Date.context_today(self)
         for rec in self:
+            # The letter states the CONTRACT's terms. It printed the employee
+            # master's wage fields, which nothing maintained ("Basic Wage: BDT
+            # 0.00" on a signed-off contract) and a blank nature as "permanent".
+            contract = (
+                self.env["fix.employment.contract"]
+                .sudo()
+                .search(
+                    [("employee_id", "=", rec.id), ("state", "in", ("active", "draft"))],
+                    order="state, id desc",
+                    limit=1,
+                )
+            )
+            if not contract:
+                raise UserError(
+                    "%s has no employment contract: Form 6 states the contract's terms, so "
+                    "record the contract (Hire / Onboard) first." % rec.name
+                )
+            nature = dict(
+                self.env["fix.employment.contract"]._fields["contract_type"].selection
+            ).get(contract.contract_type, contract.contract_type)
+            gross = sum(
+                contract[f] or 0.0
+                for f in (
+                    "basic_monthly",
+                    "house_rent",
+                    "medical_allowance",
+                    "conveyance_allowance",
+                    "technical_allowance",
+                    "other_allowance",
+                )
+                if f in contract._fields
+            )
             payload = (
                 f"FORM 6 - APPOINTMENT LETTER (Bangladesh Labour Rules 2015, Rule 19)\n"
                 f"Employee: {rec.name} ({rec.employee_code or 'N/A'})\n"
                 f"Father's Name: {rec.father_name or ''}\n"
                 f"Mother's Name: {rec.mother_name or ''}\n"
                 f"Permanent Address: {rec.permanent_address or ''}\n"
-                f"Joining Date: {rec.joining_date or today}\n"
-                f"Employment Nature: {rec.employment_type or 'permanent'}\n"
-                f"Basic Wage: BDT {rec.basic_wage or 0.0:,.2f}\n"
-                f"House Rent: BDT {rec.house_rent or 0.0:,.2f}\n"
-                f"Medical: BDT {rec.medical_allowance or 0.0:,.2f}\n"
-                f"Conveyance: BDT {rec.conveyance_allowance or 0.0:,.2f}\n"
-                f"Gross Salary: BDT {rec.wage or 0.0:,.2f}\n"
+                f"Contract: {contract.name}\n"
+                f"Joining Date: {contract.joining_date}\n"
+                f"Employment Nature: {nature}\n"
+                f"Probation Ends: {contract.probation_end or 'not applicable'}\n"
+                f"Basic Wage: BDT {contract.basic_monthly or 0.0:,.2f}\n"
+                f"House Rent: BDT {contract.house_rent or 0.0:,.2f}\n"
+                f"Medical: BDT {contract.medical_allowance or 0.0:,.2f}\n"
+                f"Conveyance: BDT {contract.conveyance_allowance or 0.0:,.2f}\n"
+                f"Gross Salary: BDT {gross:,.2f}\n"
             ).encode()
             doc = (
                 self.env["fix.hr.document"]
@@ -1115,13 +1154,29 @@ class HrEmployeeCdCoreExt(models.Model):
 
     # P08-M01-T06 / R06-M01-T03: joiner/mover/leaver event set drives M29 provisioning
     def write(self, vals):
+        # The workspace form posts every field it shows. An unchanged position
+        # re-ran the seat constraint (BRU-HCM-10), so an employee of a
+        # position already over its sanctioned headcount could not be saved at
+        # all; and every save announced a move to M29 (M21 audit F6/F7).
+        if "position_id" in vals and self:
+            new_pos = vals["position_id"] or False
+            if isinstance(new_pos, models.BaseModel):
+                new_pos = new_pos.id
+            if all(rec.position_id.id == new_pos for rec in self.sudo()):
+                vals = {k: v for k, v in vals.items() if k != "position_id"}
+        movers = [f for f in MOVER_FIELDS & set(vals) if f in self._fields]
+        before = {rec.id: {f: rec[f] for f in movers} for rec in self.sudo()} if movers else {}
         result = super().write(vals)
         # Odoo 19's field is work_location_id (there is no `work_location`):
         # a location move used to go unannounced to M29.
         # A09 audit M21-13 (E11): a direct position, branch, operating-unit or
         # band change moved the employee without telling M29.
-        if MOVER_FIELDS & set(vals):
+        # An applied movement publishes its own, richer employee.moved.
+        if movers and not self.env.context.get("fix_movement_event"):
             for rec in self:
+                old = before.get(rec.id, {})
+                if not any(rec.sudo()[f] != old.get(f) for f in movers):
+                    continue
                 publish(
                     self.env,
                     "employee.moved",
@@ -1511,6 +1566,7 @@ class HrVersionCdCoreExt(models.Model):
 
     @api.model
     def _get_marital_status_selection(self):
-        return super()._get_marital_status_selection() + [
-            ("unspecified", "Unrecorded (migration default)")
+        return [
+            *super()._get_marital_status_selection(),
+            ("unspecified", "Unrecorded (migration default)"),
         ]

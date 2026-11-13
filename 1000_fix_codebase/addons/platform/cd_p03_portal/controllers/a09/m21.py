@@ -127,6 +127,7 @@ SURFACES = {
             "action_start_enquiry",
             "action_conclude_enquiry",
             "action_request_approval",
+            "action_recall_approval",
             "action_suspend",
             "action_end_suspension",
             "action_withdraw",
@@ -160,8 +161,49 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _employees(env):
-    return env["hr.employee"].search([])
+def _today(env):
+    from odoo import fields
+
+    return fields.Date.context_today(env.user.with_context(tz=env.user.tz or "Asia/Dhaka"))
+
+
+def _employees(env, as_of=None):
+    """The employees on the books at `as_of` (default today): a leaver keeps
+    an active record with `left_date` (the exit records it), so a plain
+    search counted every leaver in the headcount (M21 audit)."""
+    as_of = as_of or _today(env)
+    return env["hr.employee"].search(["|", ("left_date", "=", False), ("left_date", ">", as_of)])
+
+
+def _period(env, date_from, date_to):
+    today = _today(env)
+    start = (
+        datetime.date.fromisoformat(str(date_from)) if date_from else today.replace(month=1, day=1)
+    )
+    end = datetime.date.fromisoformat(str(date_to)) if date_to else today
+    if end < start:
+        start, end = end, start
+    return start, end
+
+
+def _joined_on(env, employees):
+    """{employee id: joining date or None}: the master's date, else the
+    earliest contract that ran (a contract VERSION is never a joining)."""
+    out = {e.id: e.joining_date for e in employees}
+    missing = [i for i, d in out.items() if not d]
+    if missing:
+        contracts = env["fix.employment.contract"].search(
+            [
+                ("employee_id", "in", missing),
+                ("previous_contract_id", "=", False),
+                ("state", "in", ("active", "terminated", "expired", "superseded")),
+            ],
+            order="joining_date asc",
+        )
+        for c in contracts:
+            if not out.get(c.employee_id.id):
+                out[c.employee_id.id] = c.joining_date
+    return out
 
 
 def _unit_name(unit) -> str:
@@ -177,128 +219,161 @@ def _unit_name(unit) -> str:
 
 
 def headcount_movement(env, date_from=None, date_to=None, **params):
-    """Headcount and movement for the period: opening, joiners, leavers,
-    closing, by branch."""
-    today = datetime.date.today()
-    start = date_from or str(today.replace(month=1, day=1))
-    end = date_to or str(today)
-    employees = _employees(env)
-    contracts = env["fix.employment.contract"].search([])
-    movement = env["fix.hr.transfer"].search(
-        [
-            ("state", "=", "applied"),
-            ("effective_date", ">=", start),
-            ("effective_date", "<=", end),
-        ]
-    )
-    exits = env["fix.hr.exit"].search(
-        [
-            ("state", "in", ("cleared", "settled")),
-            ("last_working_day", ">=", start),
-            ("last_working_day", "<=", end),
-        ]
-    )
-    rows = []
+    """Headcount and movement for the period, by branch: opening, joiners,
+    leavers, transfers in and out, closing.
+
+    It took today's headcount as the closing for any period, counted every
+    contract (drafts, versions) as a joiner and ignored transfers out, so the
+    columns never reconciled (M21 audit). Now closing = opening + joiners -
+    leavers + transfers in - transfers out, row by row."""
+    start, end = _period(env, date_from, date_to)
+    people = env["hr.employee"].with_context(active_test=False).search([])
+    joined = _joined_on(env, people)
+    undated = 0
     branches = {}
-    for emp in employees:
-        key = _unit_name(emp.operating_unit_id)
-        branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
-        branches[key]["head"] += 1
-    for contract in contracts:
-        if contract.joining_date and str(start) <= str(contract.joining_date) <= str(end):
-            key = _unit_name(contract.employee_id.operating_unit_id)
-            branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
-            branches[key]["joiners"] += 1
-    for exit_rec in exits:
-        key = _unit_name(exit_rec.employee_id.operating_unit_id)
-        branches.setdefault(key, {"head": 0, "joiners": 0, "leavers": 0})
-        branches[key]["leavers"] += 1
+
+    def row(key):
+        return branches.setdefault(
+            key, {"opening": 0, "joiners": 0, "leavers": 0, "t_in": 0, "t_out": 0, "closing": 0}
+        )
+
+    for emp in people:
+        j = joined.get(emp.id)
+        left = emp.left_date
+        if not j:
+            undated += 1
+        if not emp.active and not left:
+            continue  # archived without a leaving date: not on the books
+        r = row(_unit_name(emp.operating_unit_id))
+        if (not j or j < start) and (not left or left >= start):
+            r["opening"] += 1
+        if j and start <= j <= end:
+            r["joiners"] += 1
+        if left and start <= left <= end:
+            r["leavers"] += 1
+        if (not j or j <= end) and (not left or left > end):
+            r["closing"] += 1
+    moves = env["fix.hr.transfer"].search(
+        [("state", "=", "applied"), ("effective_date", ">=", start), ("effective_date", "<=", end)]
+    )
+    for m in moves:
+        src, dst = m.from_operating_unit_id, m.to_operating_unit_id
+        if src and dst and src != dst:
+            row(_unit_name(dst))["t_in"] += 1
+            row(_unit_name(src))["t_out"] += 1
+    rows = []
     for key, v in sorted(branches.items()):
-        opening = v["head"] - v["joiners"] + v["leavers"]
+        if not any(v.values()):
+            continue
+        # the branch is today's: a transfer in the period moved the person, so
+        # the opening is restated from the closing to keep the row balanced
+        opening = v["closing"] - v["joiners"] + v["leavers"] - v["t_in"] + v["t_out"]
         rows.append(
             {
                 "branch": key,
-                "opening": max(opening, 0),
+                "opening": opening,
                 "joiners": v["joiners"],
                 "leavers": v["leavers"],
-                "transfers": len(
-                    movement.filtered(lambda m, k=key: _unit_name(m.to_operating_unit_id) == k)
-                ),
-                "closing": v["head"],
+                "transfers_in": v["t_in"],
+                "transfers_out": v["t_out"],
+                "closing": v["closing"],
             }
         )
+    notes = [
+        "Closing = opening + joiners - leavers + transfers in - transfers out for each branch. "
+        "A leaver counts up to the last working day. A contract version is not a joiner."
+    ]
+    if undated:
+        notes.append(
+            "%d employee(s) have no joining date on record or on a contract: they are counted "
+            "as present throughout and never as joiners." % undated
+        )
+    cols = ["branch", "opening", "joiners", "leavers", "transfers_in", "transfers_out", "closing"]
     return _pack(
         "Headcount & Movement — %s to %s" % (start, end),
-        ["branch", "opening", "joiners", "leavers", "transfers", "closing"],
+        cols,
         {
             "branch": "Branch",
             "opening": "Opening",
             "joiners": "Joiners",
             "leavers": "Leavers",
-            "transfers": "Inbound Transfers",
+            "transfers_in": "Transfers In",
+            "transfers_out": "Transfers Out",
             "closing": "Closing",
         },
         rows,
-        [
-            "Opening is derived: current headcount minus joiners plus leavers in the period. "
-            "Transfers are applied movements into the branch."
-        ],
-        totals={
-            "branch": "Total",
-            "opening": sum(r["opening"] for r in rows),
-            "joiners": sum(r["joiners"] for r in rows),
-            "leavers": sum(r["leavers"] for r in rows),
-            "transfers": sum(r["transfers"] for r in rows),
-            "closing": sum(r["closing"] for r in rows),
-        },
+        notes,
+        totals=dict({"branch": "Total"}, **{c: sum(r[c] for r in rows) for c in cols[1:]}),
         empty="No employees registered.",
     )
 
 
 def attrition_analysis(env, date_from=None, date_to=None, **params):
-    """Attrition YTD by exit type and branch."""
-    today = datetime.date.today()
-    year_start = today.replace(month=1, day=1)
+    """Attrition for the period (default: year to date) by exit type.
+
+    It ignored the period the screen offers and divided by today's headcount,
+    which leaves out the very people who left (M21 audit). Now: exits whose
+    last working day falls in the period (and has passed), over the average
+    of the opening and closing headcount."""
+    start, end = _period(env, date_from, date_to)
+    today = _today(env)
     exits = env["fix.hr.exit"].search(
-        [("state", "in", ("cleared", "settled")), ("last_working_day", ">=", year_start)]
+        [
+            ("state", "in", ("notice", "cleared", "settled")),
+            ("last_working_day", ">=", start),
+            ("last_working_day", "<=", min(end, today)),
+        ]
     )
-    head = len(_employees(env))
+    opening = len(_employees(env, start - datetime.timedelta(days=1)))
+    closing = len(_employees(env, end))
+    average = (opening + closing) / 2.0
     groups = {}
     for rec in exits:
-        key = rec.exit_type
-        g = groups.setdefault(key, {"count": 0, "branches": set()})
+        g = groups.setdefault(rec.exit_type, {"count": 0, "branches": set()})
         g["count"] += 1
         if rec.employee_id.operating_unit_id:
             # counted, never shown: the id is enough (no label read as the caller)
             g["branches"].add(rec.employee_id.operating_unit_id.id)
+    labels = dict(env["fix.hr.exit"]._fields["exit_type"]._description_selection(env))
     rows = [
         {
-            "exit_type": dict(env["fix.hr.exit"]._fields["exit_type"].selection).get(k),
+            "exit_type": labels.get(k, k),
             "exits": v["count"],
             "branches": len(v["branches"]),
-            "share": round(v["count"] / head * 100.0, 1) if head else 0.0,
+            "share": round(v["count"] / average * 100.0, 1) if average else 0.0,
         }
         for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["count"])
     ]
+    total = sum(r["exits"] for r in rows)
     return _pack(
-        "Attrition Analysis — YTD %s" % today.year,
+        "Attrition Analysis — %s to %s" % (start, end),
         ["exit_type", "exits", "branches", "share"],
         {
             "exit_type": "Exit Type",
-            "exits": "Exits",
+            "exits": "Leavers",
             "branches": "Branches Affected",
-            "share": "% of Headcount",
+            "share": "% of Average Headcount",
         },
         rows,
-        ["Attrition YTD = settled/cleared exits over the current headcount."],
-        totals={"exit_type": "Total", "exits": sum(r["exits"] for r in rows)},
-        empty="No exits recorded this year.",
+        [
+            "Leavers are confirmed exits whose last working day fell in the period. The rate "
+            "is over the average of the opening (%d) and closing (%d) headcount."
+            % (opening, closing)
+        ],
+        totals={
+            "exit_type": "Total",
+            "exits": total,
+            "share": round(total / average * 100.0, 1) if average else 0.0,
+        },
+        empty="No leavers in the period.",
     )
 
 
 def probation_conversion(env, date_from=None, date_to=None, **params):
-    """Probation contracts and their conversion window (next 90 days)."""
-    today = datetime.date.today()
+    """Probation contracts and their conversion window (next 90 days), and the
+    employees recorded as probationary who have no probation contract (they
+    were invisible to this report and to the KPI)."""
+    today = _today(env)
     contracts = env["fix.employment.contract"].search(
         [("contract_type", "=", "probation"), ("state", "=", "active")]
     )
@@ -315,8 +390,32 @@ def probation_conversion(env, date_from=None, date_to=None, **params):
                 "due_window": "Yes" if (days_left is not None and 0 <= days_left <= 90) else "No",
             }
         )
-    rows.sort(key=lambda r: (r["days_left"] == "—", r["days_left"]))
+    rows.sort(key=lambda r: (r["days_left"] == "—", r["days_left"] if r["days_left"] != "—" else 0))
+    on_contract = contracts.mapped("employee_id")
+    unrecorded = _employees(env).filtered(
+        lambda e: e.employment_type == "probationary" and e not in on_contract
+    )
+    for emp in unrecorded.sorted("name"):
+        rows.append(
+            {
+                "employee": emp.name,
+                "contract": "No probation contract on record",
+                "joining": str(emp.joining_date or "—"),
+                "probation_end": "—",
+                "days_left": "—",
+                "due_window": "Unknown",
+            }
+        )
     due = len([r for r in rows if r["due_window"] == "Yes"])
+    notes = [
+        "BLA s.4(8): probation is 6 months (clerical) or 3 (others, +3 for a skilled "
+        "worker); a worker not decided by the end is deemed permanent by the daily cron."
+    ]
+    if unrecorded:
+        notes.append(
+            "%d employee(s) are recorded as probationary with no probation contract: their "
+            "probation end cannot be tracked until the contract is recorded." % len(unrecorded)
+        )
     return _pack(
         "Probation Conversion — %d due in the next 90 days" % due,
         ["employee", "contract", "joining", "probation_end", "days_left", "due_window"],
@@ -329,16 +428,15 @@ def probation_conversion(env, date_from=None, date_to=None, **params):
             "due_window": "Due (90d)",
         },
         rows,
-        [
-            "BLA s.4(8): probation is 6 months (clerical) or 3 (others, +3 for a skilled "
-            "worker); a worker not decided by the end is deemed permanent by the daily cron."
-        ],
+        notes,
         empty="No active probation contracts.",
     )
 
 
 def establishment_register(env, date_from=None, date_to=None, **params):
-    """Establishment register: sanctioned positions vs heads per branch."""
+    """Establishment register: sanctioned seats vs holders per position, with
+    the holders beyond the sanction shown (BRU-HCM-10). Vacant was clipped at
+    0, so a position with 1 seat and 133 holders read as simply 'full'."""
     positions = env["fix.org.position"].search([])
     employees = _employees(env)
     rows = []
@@ -353,12 +451,23 @@ def establishment_register(env, date_from=None, date_to=None, **params):
                 "sanctioned": sanctioned,
                 "filled": heads,
                 "vacant": max(sanctioned - heads, 0),
+                "over": max(heads - sanctioned, 0),
             }
         )
-    rows.sort(key=lambda r: r["position"])
+    rows.sort(key=lambda r: (-r["over"], r["position"]))
+    over = [r for r in rows if r["over"]]
+    notes = [
+        "Sanctioned is the position's headcount (BRU-HCM-10: no holder beyond it); "
+        "filled counts the employees currently holding it."
+    ]
+    if over:
+        notes.append(
+            "%d position(s) hold %d employee(s) beyond their sanctioned seats: the sanctioned "
+            "establishment is the business's to set." % (len(over), sum(r["over"] for r in over))
+        )
     return _pack(
         "Establishment Register — positions and holders",
-        ["position", "grade", "parent", "sanctioned", "filled", "vacant"],
+        ["position", "grade", "parent", "sanctioned", "filled", "vacant", "over"],
         {
             "position": "Position",
             "grade": "Grade",
@@ -366,17 +475,16 @@ def establishment_register(env, date_from=None, date_to=None, **params):
             "sanctioned": "Sanctioned",
             "filled": "Filled",
             "vacant": "Vacant",
+            "over": "Over Establishment",
         },
         rows,
-        [
-            "Sanctioned is the position's headcount (BRU-HCM-10: no holder beyond it); "
-            "filled counts the employees currently holding it."
-        ],
+        notes,
         totals={
             "position": "Total",
             "sanctioned": sum(r["sanctioned"] for r in rows),
             "filled": sum(r["filled"] for r in rows),
             "vacant": sum(r["vacant"] for r in rows),
+            "over": sum(r["over"] for r in rows),
         },
         empty="No positions defined.",
     )
@@ -526,9 +634,20 @@ REPORTS = {
 }
 
 
+def _technicians(env, employees):
+    """The M02 dispatch pool: employees whose user holds Field Service /
+    Technician. It counted positions whose name contains "tech" (a Technology
+    Head counted, a Service Engineer did not)."""
+    group = env.ref("cd_field_service.group_fix_field_service_user", raise_if_not_found=False)
+    if not group:
+        return 0
+    users = group.sudo().all_user_ids
+    return len(employees.filtered(lambda e: e.user_id and e.user_id in users))
+
+
 def kpis(env):
     employees = _employees(env)
-    today = datetime.date.today()
+    today = _today(env)
     positions = env["fix.org.position"].search([])
     contracts = env["fix.employment.contract"].search(
         [("contract_type", "=", "probation"), ("state", "=", "active")]
@@ -538,27 +657,31 @@ def kpis(env):
     documents = env["fix.hr.document"].search(
         [("doc_type", "=", "service_book"), ("verified", "=", True)]
     )
+    year_start = today.replace(month=1, day=1)
     exits = env["fix.hr.exit"].search(
         [
-            ("state", "in", ("cleared", "settled")),
-            ("last_working_day", ">=", today.replace(month=1, day=1)),
+            ("state", "in", ("notice", "cleared", "settled")),
+            ("last_working_day", ">=", year_start),
+            ("last_working_day", "<=", today),
         ]
     )
     horizon = today + datetime.timedelta(days=30)
     probation_due = len(
         [c for c in contracts if c.probation_end and today <= c.probation_end <= horizon]
     )
-    filled = len(employees.filtered(lambda e: e.position_id))
     headcount = len(employees)
+    average = (len(_employees(env, year_start - datetime.timedelta(days=1))) + headcount) / 2.0
+    holders = {}
+    for emp in employees.filtered("position_id"):
+        holders[emp.position_id.id] = holders.get(emp.position_id.id, 0) + 1
     return {
         "headcount": headcount,
-        "attrition_ytd": round(len(exits) / headcount * 100.0, 1) if headcount else 0.0,
-        "technicians": len(
-            employees.filtered(
-                lambda e: e.position_id and "tech" in (e.position_id.name or "").lower()
-            )
-        ),
-        "open_positions": max(sum(positions.mapped("headcount")) - filled, 0),
+        # leavers YTD over the average headcount (as the Attrition report)
+        "attrition_ytd": round(len(exits) / average * 100.0, 1) if average else 0.0,
+        "technicians": _technicians(env, employees),
+        # vacant seats summed per position: over-filled positions no longer
+        # cancel out another position's vacancies
+        "open_positions": sum(max((p.headcount or 0) - holders.get(p.id, 0), 0) for p in positions),
         "probation_ending_30d": probation_due,
         "service_books_complete": len(documents.mapped("employee_id") & employees),
     }
