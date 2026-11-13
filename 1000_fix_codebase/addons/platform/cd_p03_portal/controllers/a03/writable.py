@@ -278,14 +278,7 @@ WRITABLE = {
     ),
     "fix.cc.agent.state": frozenset(
         {
-            "agent_id",
-            "changed_at",
-            "heartbeat_at",
             "is_bookable",
-            "log_ids",
-            "missed_offers",
-            "presence_source",
-            "presence_status_id",
         }
     ),
     "fix.cc.agent.state.log": frozenset(),
@@ -343,10 +336,13 @@ WRITABLE = {
         {
             "active",
             "body",
+            "body_bn",
             "channel",
             "consent_class",
             "name",
+            "name_bn",
             "subject",
+            "subject_bn",
         }
     ),
     "fix.cc.outbound.list": frozenset(
@@ -375,6 +371,7 @@ WRITABLE = {
             "criteria_json",
             "evaluated_at",
             "notes",
+            "rubric_id",
             "score",
         }
     ),
@@ -475,7 +472,8 @@ WRITABLE = {
             "intent",
             "operating_unit_id",
             "pii_masked",
-            "recording_url",
+            "queue_id",
+            "started_at",
             "turn_ids",
             "urgency_level",
             "wrapup_notes",
@@ -575,6 +573,14 @@ WRITABLE = {
             "name",
             "scope",
             "threshold",
+        }
+    ),
+    "fix.dnd.registry": frozenset(
+        {
+            "active",
+            "msisdn",
+            "registered_on",
+            "source",
         }
     ),
     "fix.forecast.snapshot": frozenset(

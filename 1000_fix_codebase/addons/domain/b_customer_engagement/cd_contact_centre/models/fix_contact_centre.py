@@ -553,6 +553,53 @@ class FixConversation(models.Model):
             )
             conversation._dispatch_csat_survey()
 
+    def action_wrap_up(self, disposition_id=None, wrapup_notes="", fcr=False):
+        """FR-CCE-033 / BRU-CCE-11: the agent's wrap-up, in one step.
+
+        The workspace Agent Desktop page used to offer "+ New Disposition
+        Code" (configuration) and no way for an agent to record the outcome of
+        the contact they had just handled: the disposition and notes had to be
+        typed on the record and Resolve found on another list. This takes
+        both and closes the conversation through action_resolve, so every
+        gate there (disposition, substantive notes, recording digest) still
+        decides. Only the handling agent or a contact-centre supervisor may
+        close an agent's conversation.
+        """
+        self.ensure_one()
+        if self.state != "with_agent":
+            raise UserError(
+                "Only a conversation an agent is handling is wrapped up; this one is %s."
+                % dict(self._fields["state"].selection).get(self.state, self.state)
+            )
+        if (
+            self.agent_id
+            and self.agent_id != self.env.user
+            and not self.env.su
+            and not self.env.user.has_group("cd_contact_centre.group_cc_supervisor")
+        ):
+            raise AccessError(
+                "This conversation is handled by %s: only that agent or a contact-centre "
+                "supervisor wraps it up." % self.agent_id.name
+            )
+        disposition = (
+            self.env["fix.cc.disposition"].browse(int(disposition_id)).exists()
+            if disposition_id
+            else self.env["fix.cc.disposition"]
+        )
+        if not disposition:
+            raise ValidationError(
+                "Choose the disposition: a conversation cannot close without one (BRU-CCE-11)."
+            )
+        self.write(
+            {
+                "disposition_id": disposition.id,
+                "wrapup_notes": (wrapup_notes or "").strip() or False,
+                "fcr": bool(fcr),
+            }
+        )
+        self.action_resolve()
+        return True
+
     # --- Consent-gated recording --------------------------------------
     def action_announce_recording_notice(self, notice=None):
         """Record that the recording notice was READ TO THE CALLER.

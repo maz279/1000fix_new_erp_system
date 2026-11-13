@@ -20,9 +20,12 @@ SURFACES = {
         # M02 (it used to raise on a non-existent 'customer_id').
         # Create Complaint hands the contact to M34; the method is added by
         # cd_cx_feedback (A03 audit M27 G6).
+        # Wrap Up (M27 capture audit 2026-11-14): the Agent Desktop page's
+        # capture - disposition + notes, then the same resolve gates.
         "actions": {
             "action_claim",
             "action_resolve",
+            "action_wrap_up",
             "action_create_field_work_order",
             "action_create_complaint",
         },
@@ -84,9 +87,17 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_cancel", "action_mark_sent_manually", "action_send"},
     },
+    # Set My Presence (FR-CCE-032): the agent's own, logged presence change.
     "fix.cc.presence.status": {
         "order": "sequence, id",
         "limit": 100,
+        "actions": {"action_set_my_presence"},
+    },
+    # BTRC Do-Not-Disturb registry (spec 10.1: M27 owns it; read at the point
+    # of send by the delivery service). It was on no screen at all.
+    "fix.dnd.registry": {
+        "order": "msisdn",
+        "limit": 300,
         "actions": set(),
     },
     "fix.cc.capacity.profile": {

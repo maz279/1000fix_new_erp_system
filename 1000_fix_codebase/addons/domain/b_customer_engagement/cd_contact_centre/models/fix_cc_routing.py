@@ -119,6 +119,23 @@ class FixCcPresenceStatus(models.Model):
     def dnd_status(self):
         return self.sudo().search([("is_system_dnd", "=", True)], limit=1)
 
+    def action_set_my_presence(self):
+        """FR-CCE-032: the signed-in agent sets their OWN presence to this status.
+
+        Every set_presence() caller was system-forced (capacity blocking, a
+        missed offer, the capacity release), so no agent could ever make
+        themselves available and the routing pool could only be filled by a
+        script. This goes through set_presence(), so the change is logged
+        with source "manual" and adherence is measured from it; an agent
+        with no presence row yet gets one (offline first, then this status).
+        """
+        self.ensure_one()
+        if not self.active:
+            raise UserError("Presence %s is retired and cannot be chosen." % self.name)
+        state = self.env["fix.cc.agent.state"].state_for(self.env.user)
+        state.set_presence(self, source="manual")
+        return True
+
 
 class FixCcCapacityProfile(models.Model):
     """A capacity profile — the four fields Microsoft defines, and no more."""

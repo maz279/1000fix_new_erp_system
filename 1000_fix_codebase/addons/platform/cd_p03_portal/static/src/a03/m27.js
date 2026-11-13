@@ -36,7 +36,9 @@ export const MODULE = {
     { en: 'Notification Hub', bn: 'নোটিফিকেশন হাব', screens: [
       { id: 'M27-templates', en: 'Notification Templates', bn: 'বিজ্ঞপ্তি টেমপ্লেট', t: 'g' },
       { id: 'M27-delivery', en: 'Delivery Tracking & Retry', bn: 'ডেলিভারি ট্র্যাকিং', t: 'r' },
-      { id: 'M27-preferences', en: 'Consent & DND', bn: 'সম্মতি ও ডিএনডি', t: 'r' }
+      { id: 'M27-preferences', en: 'Consent & DND', bn: 'সম্মতি ও ডিএনডি', t: 'r' },
+      { id: 'M27-dnd', en: 'BTRC DND Registry', bn: 'বিটিআরসি ডিএনডি তালিকা', t: 'g' },
+      { id: 'M27-suppressed', en: 'Suppressed at Send', bn: 'পাঠানোর সময় আটকানো', t: 'g' }
     ]},
     { en: 'Quality & WFM', bn: 'গুণগত মান ও ওয়ার্কফোর্স', screens: [
       { id: 'M27-qa', en: 'QA Evaluations', bn: 'কিউএ মূল্যায়ন', t: 'g' },
@@ -51,7 +53,12 @@ export const MODULE = {
       { id: 'M27-form-outbound', en: 'Outbound List', bn: 'আউটবাউন্ট ফর্ম', t: 'f' },
       { id: 'M27-form-queue', en: 'Queue Definition', bn: 'কিউ ফর্ম', t: 'f' },
       { id: 'M27-form-qa', en: 'QA Evaluation', bn: 'কিউএ ফর্ম', t: 'f' },
-      { id: 'M27-form-wfm', en: 'Roster Shift', bn: 'শিফট ফর্ম', t: 'f' }
+      { id: 'M27-form-wfm', en: 'Roster Shift', bn: 'শিফট ফর্ম', t: 'f' },
+      { id: 'M27-form-digital', en: 'Log a Digital Contact', bn: 'ডিজিটাল যোগাযোগ লিপিবদ্ধ', t: 'f' },
+      { id: 'M27-form-wrapup', en: 'Wrap Up a Conversation', bn: 'কথোপকথন র‍্যাপ-আপ', t: 'f' },
+      { id: 'M27-form-set-presence', en: 'Set My Presence', bn: 'আমার উপস্থিতি', t: 'f' },
+      { id: 'M27-form-routing', en: 'Skills Routing Rule', bn: 'রাউটিং নিয়ম ফর্ম', t: 'f' },
+      { id: 'M27-form-dnd', en: 'DND Registry Entry', bn: 'ডিএনডি এন্ট্রি', t: 'f' }
     ]},
     { en: 'Contact Centre Reports', bn: 'রিপোর্ট', screens: [
       { id: 'M27-rpt-channelmix', en: 'Channel Mix & Volumes', bn: 'চ্যানেল মিশ্রণ ও ভলিউম', t: 'r' },
@@ -92,20 +99,33 @@ export const MODULE = {
     ]}
   ],
   reports: ['Channel Mix & Volumes', 'Service Level by Interval', 'AHT & FCR by Disposition', 'Notification Delivery by Channel', 'QA Score Distribution'],
-  forms: ['IVR Flow', 'Notification Template', 'Disposition Code', 'Outbound List', 'Call Conversation', 'Queue Definition', 'QA Evaluation', 'Roster Shift', 'Delivery Provider', 'Routing Workstream', 'Capacity Profile', 'Agent Script', 'QA Rubric'],
+  forms: ['IVR Flow', 'Notification Template', 'Disposition Code', 'Outbound List', 'Call Conversation', 'Queue Definition', 'QA Evaluation', 'Roster Shift', 'Delivery Provider', 'Routing Workstream', 'Capacity Profile', 'Agent Script', 'QA Rubric',
+    'Digital Contact', 'Wrap-Up & Disposition', 'Set My Presence', 'Routing Rule', 'DND Registry Entry', 'Consent Record'],
   cross: ['M32 AI handoff', 'M33 Customer-360 pop', 'M01 create SO in-conversation', 'M55 agent roster'],
   freg: {
     src: 87,
     sub: [
-      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice'], reports: ['Channel Mix & Volumes'], forms: ['IVR Flow'] }],
-      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], reports: ['Channel Mix & Volumes'], forms: [], create: false, domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
+      /* M27 capture audit 2026-11-14: each page captures what its FR-CCE
+       * block (spec section 5) says the sub-module does - see
+       * audit_analysis/M27_CAPTURE_BUTTON_AUDIT_2026-11-14.md. */
+      /* FR-CCE-001..008: the IVR menu, and the outbound dial lists (outbound voice, FR-004) */
+      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice', 'M27-outbound'], reports: ['Channel Mix & Volumes'], forms: ['IVR Flow', 'Outbound List'] }],
+      /* FR-CCE-009..016: adapters write WhatsApp / chat contacts; e-mail and
+       * social have no adapter, so an agent logs the contact with its messages */
+      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], reports: ['Channel Mix & Volumes'], forms: ['Digital Contact'], create: 'M27-form-digital', domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
       ['3', 'Unified Conversation Object', 8, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M27-conversations'], reports: ['AHT & FCR by Disposition'], forms: ['Call Conversation'] }],
-      ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'], reports: ['Service Level by Interval'], forms: ['Queue Definition', 'Routing Workstream', 'Capacity Profile'] }],
-      ['5', 'Agent Desktop', 10, { model: 'fix.cc.disposition', cols: ['name', 'code', 'active', 'category', 'is_resolved'], screens: ['M27-desktop', 'M27-dispositions'], reports: ['AHT & FCR by Disposition'], forms: ['Disposition Code', 'Agent Script'] }],
+      ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'], reports: ['Service Level by Interval'], forms: ['Queue Definition', 'Routing Rule', 'Routing Workstream', 'Capacity Profile'] }],
+      /* FR-CCE-026..034: the agent's own desk - the conversations being
+       * handled, wrapped up with a disposition (FR-033), and the agent's
+       * presence (FR-032). It used to list and capture disposition CODES. */
+      ['5', 'Agent Desktop', 10, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'agent_id', 'queue_id', 'state'], screens: ['M27-desktop', 'M27-conversations', 'M27-presence', 'M27-dispositions'], reports: ['AHT & FCR by Disposition'], forms: ['Wrap-Up & Disposition', 'Set My Presence', 'Disposition Code', 'Agent Script'], create: 'M27-form-wrapup', domain: [['state', '=', 'with_agent']] }],
       ['6', 'Workforce Management', 7, { model: 'fix.cc.wfm.shift', cols: ['state', 'agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour'], screens: ['M27-wfm', 'M27-rpt-slinterval'], reports: ['Service Level by Interval'], forms: ['Roster Shift'] }],
       ['7', 'Quality Monitoring', 9, { model: 'fix.cc.qa.evaluation', cols: ['conversation_id', 'agent_id', 'score', 'criteria_json', 'notes', 'evaluated_at'], screens: ['M27-qa', 'M27-rpt-qadist'], reports: ['QA Score Distribution'], forms: ['QA Evaluation', 'QA Rubric'] }],
       ['8', 'ERP Notification Service', 14, { model: 'fix.cc.notif.template', cols: ['name', 'active', 'channel', 'subject', 'body', 'consent_class'], screens: ['M27-templates', 'M27-delivery', 'M27-rpt-delivery'], reports: ['Notification Delivery by Channel'], forms: ['Notification Template', 'Delivery Provider'] }],
-      ['9', 'Consent Enforcement', 6, { model: 'fix.cc.outbound.list', cols: ['name', 'state', 'campaign_key', 'queue_id', 'priority', 'contact_count'], screens: ['M27-outbound', 'M27-preferences'], reports: [], forms: ['Outbound List'] }]
+      /* FR-CCE-038..041, 046: consent is OWNED by M33 and enforced here; the
+       * BTRC DND registry is M27's. It used to list and capture outbound dial
+       * lists, which enforce nothing. */
+      ['9', 'Consent Enforcement', 6, { model: 'fix.dnd.registry', cols: ['msisdn', 'source', 'registered_on', 'active'], screens: ['M27-dnd', 'M27-suppressed', 'M27-preferences'], reports: [], forms: ['DND Registry Entry', 'Consent Record'], create: 'M27-form-dnd' }]
     ]
   }
 };
@@ -223,7 +243,8 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: 'Telephony Session Identification', fields: [
-        { name: 'call_sid', required: true, label: 'Telephony Call SID / Session UUID' },
+        /* not required: a walk-in, e-mail or chat contact has no telephony session */
+        { name: 'call_sid', label: 'Telephony Call SID / Session UUID (voice only)' },
         { name: 'channel', required: true, label: 'Omnichannel Ingress (Voice / Web / WhatsApp)' },
         { name: 'state', label: 'Conversation Lifecycle State', readonly: true },
         { name: 'agent_id', label: 'Assigned Customer Support Agent', readonly: true },
@@ -244,11 +265,13 @@ export const SCREENS = {
         { name: 'pii_masked', label: 'PII Scrubbing & Audio Masking Applied' },
       ]},
       { tab: 'disposition', title: 'Mandatory Wrap-Up & FCR Governance (FLAW-27.1)',
-        note: 'Every completed hotline interaction mandates selecting an approved disposition code and documenting resolution notes before ticket closure.',
+        /* Required at CLOSE, not at capture: a contact logged as it starts has
+         * no outcome yet. Resolve and Wrap Up refuse a close without both. */
+        note: 'A conversation cannot close without an approved disposition code and at least 20 characters of wrap-up notes. Both may be left empty while the contact is still open.',
         fields: [
-          { name: 'disposition_id', required: true, label: 'Primary Disposition Code' },
+          { name: 'disposition_id', label: 'Primary Disposition Code' },
           { name: 'fcr', label: 'First Contact Resolution (FCR) Confirmed' },
-          { name: 'wrapup_notes', required: true, label: 'Detailed Interaction Wrap-up Notes', type: 'text' },
+          { name: 'wrapup_notes', label: 'Detailed Interaction Wrap-up Notes', type: 'text' },
           { name: 'company_id', label: 'Operating Corporate Legal Entity' },
         ]},
       { tab: 'dispatch', title: 'Field Operations Escalation & Work Order Creation', fields: [
@@ -259,9 +282,14 @@ export const SCREENS = {
         { name: 'sla_answer_due_at', label: 'Answer Due By (SLA)', readonly: true },
       ]},
       { tab: 'docs', title: 'Statutory Audio Recording Vault & BTRC Retention (FLAW-27.2)',
-        note: 'Under Bangladesh Telecommunication Regulatory Commission (BTRC) guidelines, call voice recordings are stored with immutable SHA-256 cryptographic digests for 180 days.',
+        /* recording_url is read-only: a typed URL has no digest of the audio,
+         * and Resolve then refuses the call for ever (REQ-27.2). The telephony
+         * layer attaches the audio, after the consent check. */
+        note: 'Under Bangladesh Telecommunication Regulatory Commission (BTRC) guidelines, call voice recordings are stored with immutable SHA-256 cryptographic digests for 180 days. The recording is attached by the telephony system after the recording-consent check, never typed.',
         fields: [
-          { name: 'recording_url', label: 'Secure S3/R2 Recording Audio URL' },
+          { name: 'recording_url', label: 'Secure S3/R2 Recording Audio URL', readonly: true },
+          { name: 'recording_consent_state', label: 'Recording Basis', readonly: true },
+          { name: 'recording_refusal_reason', label: 'Why Not Recorded', readonly: true },
           { name: 'recording_sha256', label: 'Immutable SHA-256 Audio Checksum', readonly: true },
           { name: 'recording_retention_days', label: 'Statutory Retention Remaining (Days)', readonly: true },
           { name: 'create_date', label: 'Call Logging Timestamp', readonly: true },
@@ -305,13 +333,21 @@ export const SCREENS = {
     sections: [
       { tab: 'header', title: 'Template Scope & Channel', fields: [
         { name: 'name', required: true, label: 'Template Name' },
+        { name: 'name_bn', label: 'Template Name (Bengali)' },
         { name: 'channel', required: true, label: 'Transmission Channel (SMS / WhatsApp / Email)' },
         { name: 'consent_class', label: 'Consent Class (transactional / promotional)' },
         { name: 'active', label: 'Active Status' },
       ]},
-      { tab: 'content', title: 'Message Subject & Body', fields: [
-        { name: 'subject', label: 'Message Subject' },
-        { name: 'body', label: 'Message Body (bilingual content)', type: 'text' },
+      /* The Bengali body is what a Bengali-preferring recipient is sent (DE-17);
+       * the form showed only the English one, so every workspace template
+       * sent English to them. */
+      { tab: 'content', title: 'Message Subject & Body',
+        note: 'The delivery service sends the Bengali text to a recipient whose preferred language is Bengali, and the English text otherwise. Placeholders go in {{braces}}.',
+        fields: [
+        { name: 'subject', label: 'Message Subject (English)' },
+        { name: 'body', required: true, label: 'Message Body (English)', type: 'text' },
+        { name: 'subject_bn', label: 'Message Subject (Bengali)' },
+        { name: 'body_bn', label: 'Message Body (Bengali)', type: 'text' },
       ]},
       { tab: 'variables', title: 'Dynamic Placeholder Tags',
         note: 'Merge variables (order code, ETA, branch) are resolved by the notification service at dispatch time from the conversation and service-order context.',
@@ -414,9 +450,18 @@ export const SCREENS = {
         { name: 'agent_id', required: true, label: 'Handling Contact Centre Agent' },
         { name: 'evaluated_at', required: true, label: 'Evaluation Timestamp' },
       ]},
-      { tab: 'scorecard', title: 'Quality Score & Benchmark Evaluation', fields: [
+      /* FR-CCE-054: scored against a published rubric - the form had no
+       * rubric, so a score said nothing about what it measured. */
+      { tab: 'scorecard', title: 'Quality Score & Benchmark Evaluation',
+        note: 'Choose the published rubric the interaction is scored against. Measurable criteria may be auto-scored; tone, empathy and accuracy stay manual.',
+        fields: [
+        { name: 'rubric_id', label: 'Scored Against Rubric', domain: [['state', '=', 'published']] },
         { name: 'score', required: true, label: 'Overall Quality Score (0-100)' },
-        { name: 'criteria_json', label: '10-Criteria Scorecard Breakdown (JSON)', type: 'text' },
+        { name: 'criteria_json', label: 'Per-Criterion Breakdown (JSON)', type: 'text' },
+        { name: 'handled_by', label: 'Handled By (derived)', readonly: true },
+        { name: 'auto_score', label: 'Auto-Scored Portion', readonly: true },
+        { name: 'coverage_pct', label: 'Rubric Weight Covered by Auto-Score (%)', readonly: true },
+        { name: 'manual_criteria_pending', label: 'Criteria Still to Score by Hand', readonly: true },
       ]},
       { tab: 'feedback', title: 'Agent Coaching & Remedial Action', fields: [
         { name: 'notes', label: 'Coaching Notes / Feedback Communicated to Agent' },
@@ -822,6 +867,7 @@ export const SCREENS = {
       field: 'log_ids',
       title: 'Presence History',
       note: 'Append-only. Adherence is measured from these intervals.',
+      readonlyGrid: true,
       fields: [
         { name: 'from_at', label: 'From', required: true },
         { name: 'to_at', label: 'To' },
@@ -842,13 +888,16 @@ export const SCREENS = {
       {
         tab: 'live',
         title: 'Current Presence',
-        note: 'A stale heartbeat means the state is untrustworthy, and the agent is treated as offline rather than silently drained of work.',
+        /* read-only: typing here changed presence with no history row and any
+         * "Set By", so adherence and the missed-offer rule lost their evidence.
+         * Presence changes through Set My Presence (logged). */
+        note: 'A stale heartbeat means the state is untrustworthy, and the agent is treated as offline rather than silently drained of work. An agent changes their own presence with Set My Presence; every change is logged below.',
         fields: [
-        { name: 'agent_id', label: 'Agent', required: true },
-        { name: 'presence_status_id', label: 'Presence', required: true },
-        { name: 'presence_source', label: 'Set By', required: true },
-        { name: 'changed_at', label: 'Changed At', required: true },
-        { name: 'heartbeat_at', label: 'Last Heartbeat' }
+        { name: 'agent_id', label: 'Agent', readonly: true },
+        { name: 'presence_status_id', label: 'Presence', readonly: true },
+        { name: 'presence_source', label: 'Set By', readonly: true },
+        { name: 'changed_at', label: 'Changed At', readonly: true },
+        { name: 'heartbeat_at', label: 'Last Heartbeat', readonly: true }
         ]
       },
       {
@@ -857,7 +906,7 @@ export const SCREENS = {
         note: 'Unified routing only considers agents who exist as bookable resources. Missed offers cost an agent their available status.',
         fields: [
         { name: 'is_bookable', label: 'Bookable Resource' },
-        { name: 'missed_offers', label: 'Consecutive Missed Offers' }
+        { name: 'missed_offers', label: 'Consecutive Missed Offers', readonly: true }
         ]
       }
     ]
@@ -1079,6 +1128,153 @@ export const SCREENS = {
   'M27-adherence': { kind: 'model_list', model: 'fix.cc.wfm.adherence', create: false,
     cols: ['adherence_date', 'agent_id', 'scheduled_minutes', 'available_minutes', 'adherence_pct', 'shift_count', 'note'],
     note: 'Scheduled versus actually present. Time available outside the shift is overtime, not adherence.' },
+
+  /* ==================================================================
+   * M27 CAPTURE AUDIT 2026-11-14 - the captures the sub-module pages lacked
+   * ================================================================== */
+
+  /* Consent Enforcement (FR-CCE-039, BRU-CCE-02): the BTRC DND registry the
+   * delivery service reads before every promotional SMS / WhatsApp / voice
+   * send. Spec 10.1 makes it M27's; it was on no screen. */
+  'M27-dnd': { kind: 'model_list', model: 'fix.dnd.registry', create: true,
+    cols: ['msisdn', 'source', 'registered_on', 'active'],
+    note: 'A promotional message to a listed number is suppressed at send; transactional messages are exempt. Adding or removing a number is a manager decision.',
+    empty: 'No number is listed yet. The operator feed loads the national list; + New DND Registry Entry records a number by hand.' },
+  'M27-form-dnd': {
+    kind: 'model_form', model: 'fix.dnd.registry',
+    title: 'DND Registry Entry', back: 'M27-dnd',
+    sections: [
+      {
+        title: 'Listed Number',
+        note: 'Enter the number as it is stored on the customer (for example 01711123456); every common spelling of it is matched at send. A customer who asks the hotline to stop promotions is recorded as a direct opt-out - record the withdrawal of marketing consent as well.',
+        fields: [
+        { name: 'msisdn', label: 'Subscriber Number', required: true },
+        { name: 'source', label: 'Listed By', required: true },
+        { name: 'registered_on', label: 'Listed On', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+  /* the evidence the consent, DND and quiet-hours rules worked (FR-CCE-038..040) */
+  'M27-suppressed': { kind: 'model_list', model: 'fix.notif.delivery', create: false,
+    cols: ['queued_at', 'channel', 'purpose', 'to_address', 'partner_id', 'consent_decision', 'consent_reason'],
+    domain: [['state', '=', 'suppressed']],
+    note: 'Every message consent, the DND registry or the BTRC window stopped. A suppression is kept, not dropped: it is the proof the rule worked.',
+    empty: 'Nothing has been suppressed yet. A row appears here whenever a send is stopped by consent, the DND registry or the BTRC window.' },
+
+  /* Digital Channels (FR-CCE-011, 013): WhatsApp and web chat arrive through
+   * the chat adapter; an e-mail to a shared mailbox or a social message has
+   * no adapter, so the agent logs the contact here with what was said. */
+  'M27-form-digital': {
+    lines: {
+      field: 'turn_ids',
+      title: 'Messages',
+      note: 'What the customer wrote and what was replied, in order. Personal numbers and e-mail addresses are masked as each message is saved.',
+      fields: [
+        { name: 'sequence', label: '#' },
+        { name: 'speaker', label: 'From', required: true },
+        { name: 'text', label: 'Message', required: true },
+        { name: 'lang', label: 'Language' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.conversation',
+    title: 'Digital Contact', newLabel: 'Log a Digital Contact', back: 'M27-conversations',
+    tabs: [
+      { id: 'contact', label: '1. Channel & Sender', bn: '১. চ্যানেল ও প্রেরক', icon: '💬' },
+      { id: 'handling', label: '2. Intent & Queue', bn: '২. উদ্দেশ্য ও কিউ', icon: '🎯' }
+    ],
+    sections: [
+      {
+        tab: 'contact',
+        title: 'Where It Came From',
+        note: 'Link the customer when you can identify them: a contact left unidentified is flagged as such (BRU-CCE-10).',
+        fields: [
+        { name: 'channel', label: 'Channel', required: true,
+          choices: [['email', 'Email'], ['whatsapp', 'WhatsApp'], ['chat', 'Web Chat'], ['in_app', 'In-App']] },
+        { name: 'contact_identity', label: 'Sender (number, WhatsApp ID or e-mail)', required: true },
+        { name: 'customer_id', label: 'Customer' },
+        { name: 'operating_unit_id', label: 'Contact Centre Operating Unit', required: true },
+        { name: 'started_at', label: 'Received At', required: true }
+        ]
+      },
+      {
+        tab: 'handling',
+        title: 'What It Is About',
+        note: 'It opens as a new contact. Claim it from Call & Chat Conversations, then wrap it up with a disposition to close it.',
+        fields: [
+        { name: 'intent', label: 'Reason for Contact' },
+        { name: 'urgency_level', label: 'Urgency' },
+        { name: 'queue_id', label: 'Queue' }
+        ]
+      }
+    ]
+  },
+
+  /* Agent Desktop (FR-CCE-033, BRU-CCE-11): the wrap-up of a handled
+   * contact. action_wrap_up stores the disposition and notes and closes
+   * through action_resolve, so its gates still decide. */
+  'M27-form-wrapup': {
+    kind: 'model_form', model: 'fix.conversation',
+    title: 'Wrap-Up & Disposition', newLabel: 'Wrap Up a Conversation', back: 'M27-conversations',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the conversation you are closing',
+      note: 'Conversations an agent is handling. Only the handling agent or a contact-centre supervisor can close one.',
+      search: 'Search conversation',
+      choose: 'Wrap up this conversation',
+      cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'agent_id', 'queue_id'],
+      domain: [['state', '=', 'with_agent']],
+      empty: 'No conversation is with an agent. A conversation reaches an agent when it is claimed from Call & Chat Conversations or handed over by the assistant.'
+    },
+    saveAction: {
+      method: 'action_wrap_up', label: 'Wrap Up & Close', done: 'Conversation closed with its disposition',
+      kwargs: { disposition_id: 'disposition_id', wrapup_notes: 'wrapup_notes', fcr: 'fcr' }
+    },
+    sections: [
+      {
+        title: 'Step 2 of 2: Disposition & Notes',
+        note: 'A conversation cannot close without a disposition and at least 20 characters of notes. A voice call carrying a recording must have its audio digest. The customer is sent the satisfaction survey when it closes.',
+        fields: [
+        { name: 'channel', label: 'Channel', readonly: true },
+        { name: 'contact_identity', label: 'Contact', readonly: true },
+        { name: 'customer_id', label: 'Customer', readonly: true },
+        { name: 'intent', label: 'Reason for Contact', readonly: true },
+        { name: 'disposition_id', label: 'Disposition', required: true },
+        { name: 'fcr', label: 'Resolved at First Contact' },
+        { name: 'wrapup_notes', label: 'Wrap-Up Notes', required: true, type: 'text' }
+        ]
+      }
+    ]
+  },
+
+  /* Agent Desktop (FR-CCE-032): an agent's own presence. Every other
+   * set_presence() caller is system-forced, so no agent could make
+   * themselves available; this one is logged with source "Set by the agent". */
+  'M27-form-set-presence': {
+    kind: 'model_form', model: 'fix.cc.presence.status',
+    title: 'Set My Presence', newLabel: 'Set My Presence', back: 'M27-presence',
+    pickRecord: {
+      label: 'Step 1 of 2: choose your presence',
+      note: 'Only a status that receives work puts you in the routing pool. Every change is logged, and schedule adherence is measured from that log.',
+      search: 'Search presence',
+      choose: 'Use this presence',
+      cols: ['sequence', 'name', 'code', 'is_available_class', 'is_system_dnd'],
+      domain: [['active', '=', true]],
+      empty: 'No presence status is configured. A supervisor adds them under Presence Statuses.'
+    },
+    saveAction: { method: 'action_set_my_presence', label: 'Set My Presence', done: 'Your presence is changed and logged' },
+    sections: [
+      {
+        title: 'Step 2 of 2: Confirm',
+        note: 'This changes the presence of the signed-in user only. A Busy-DND forced by capacity or missed offers is lifted by the system; one you set yourself is yours to clear.',
+        fields: [
+        { name: 'name', label: 'Presence', readonly: true },
+        { name: 'is_available_class', label: 'Receives Work', readonly: true },
+        { name: 'is_system_dnd', label: 'Busy-DND', readonly: true }
+        ]
+      }
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -1106,7 +1302,15 @@ export const FORM_CHIPS = {
   'M27:Queue Definition': 'M27-form-queue',
   'M27:QA Evaluation': 'M27-form-qa',
   'M27:Roster Shift': 'M27-form-wfm',
+  'M27:Digital Contact': 'M27-form-digital',
+  'M27:Wrap-Up & Disposition': 'M27-form-wrapup',
+  'M27:Set My Presence': 'M27-form-set-presence',
+  'M27:Routing Rule': 'M27-form-routing',
+  'M27:DND Registry Entry': 'M27-form-dnd',
+  /* consent is M33's record; M27 enforces it at send */
+  'M27:Consent Record': 'M33-form-consent',
   'M27:__by_model__': {
+    'fix.dnd.registry': 'M27-form-dnd',
     'fix.notif.delivery': 'M27-form-delivery',
     'fix.notif.provider': 'M27-form-provider',
     'fix.routing.workstream': 'M27-form-workstream',
@@ -1152,7 +1356,9 @@ export const FORM_CHIPS = {
     'M27-bullseye': 'M27-form-bullseye',
     'M27-presence-statuses': 'M27-form-presence-status',
     'M27-macros': 'M27-form-macro',
-    'M27-knowledge': 'M27-form-knowledge'
+    'M27-knowledge': 'M27-form-knowledge',
+    'M27-dnd': 'M27-form-dnd',
+    'M27-suppressed': 'M27-form-delivery'
   }
 };
 
@@ -1172,7 +1378,13 @@ export const FORM_MODELS = {
   'M27:Call Conversation': 'fix.conversation',
   'M27:Queue Definition': 'fix.cc.queue',
   'M27:QA Evaluation': 'fix.cc.qa.evaluation',
-  'M27:Roster Shift': 'fix.cc.wfm.shift'
+  'M27:Roster Shift': 'fix.cc.wfm.shift',
+  'M27:Digital Contact': 'fix.conversation',
+  'M27:Wrap-Up & Disposition': 'fix.conversation',
+  'M27:Set My Presence': 'fix.cc.presence.status',
+  'M27:Routing Rule': 'fix.cc.routing.rule',
+  'M27:DND Registry Entry': 'fix.dnd.registry',
+  'M27:Consent Record': 'fix.consent'
 };
 
 export const CREATE = {
