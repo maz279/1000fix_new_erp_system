@@ -46,6 +46,10 @@ SURFACES = {
             "action_request_refund",
         },
     },
+    # Quote-to-cash (13 Nov 2026): a customer's several items, one payment.
+    # Confirming raises one counter sale per item through the sale's own
+    # confirm (cd_front_desk_finance fix.counter.basket).
+    "fix.counter.basket": {"order": "id desc", "limit": 200, "actions": {"action_confirm"}},
     # M04 sub-module audit (13 Nov 2026): the opening / closing checklist
     # (FR-FRD-020/024) is recorded, not derived from the cash shifts.
     "fix.branch.checklist": {

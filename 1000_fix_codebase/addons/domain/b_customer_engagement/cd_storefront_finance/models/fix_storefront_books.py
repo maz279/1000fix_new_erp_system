@@ -75,7 +75,14 @@ LOCATION_PARAM = "cd_storefront_finance.stock_location_code"
 
 # the order's payment rail -> the M20 receipt method (and so the clearing
 # account) a gateway capture is booked as
-RAIL_RECEIPT_METHOD = {"bkash": "bkash", "nagad": "nagad", "sslcommerz": "card"}
+RAIL_RECEIPT_METHOD = {
+    "bkash": "bkash",
+    "nagad": "nagad",
+    # Rocket / Upay: the M20 "other mobile wallet" tender (its clearing account)
+    "rocket": "mobile_wallet",
+    "upay": "mobile_wallet",
+    "sslcommerz": "card",
+}
 
 POSTING_STATES = [
     ("none", "Nothing to Post"),

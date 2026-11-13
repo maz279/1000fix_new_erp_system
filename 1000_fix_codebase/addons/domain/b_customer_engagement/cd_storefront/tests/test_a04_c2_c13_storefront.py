@@ -269,6 +269,26 @@ def test_the_gateway_callback_confirms_only_a_signed_exact_notice(w):
     assert status == 409 and other.sudo().state == "pending_payment"
 
 
+@pytest.mark.parametrize("rail", ["rocket", "upay"])
+def test_rocket_and_upay_pay_through_their_own_signed_callback(w, rail):
+    """Quote-to-cash (13 Nov 2026): the storefront takes the two other MFS
+    wallets on the M20 payment-method list, each on its own secret."""
+    env = w.env
+    order = _placed(w, rail=rail)
+    assert order.sudo().payment_rail == rail
+    handle = storefront_api.handle_gateway_callback
+    payload = {"order": order.sudo().name, "trx_id": rail.upper() + "-77", "amount": "2500.00"}
+    assert handle(env, rail, dict(payload, signature="x"))[1] == 503  # no secret yet
+    env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret." + rail, "k3y")
+    # another rail's secret does not pay this order
+    env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret.bkash", "k3y")
+    signed = dict(payload, signature=_sign("k3y", order, payload["trx_id"], "2500.00"))
+    assert handle(env, "bkash", signed)[1] == 409
+    body, status = handle(env, rail, signed)
+    assert (status, body["status"]) == (200, "paid")
+    assert order.sudo().payment_ref == payload["trx_id"]
+
+
 # ============================================================ order: fulfilment
 def test_dispatch_needs_the_role_payment_and_a_consignment(w):
     order = _placed(w)

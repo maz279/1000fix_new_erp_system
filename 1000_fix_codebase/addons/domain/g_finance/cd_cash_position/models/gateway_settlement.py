@@ -38,6 +38,8 @@ from .treasury_common import (
 PROVIDERS = [
     ("bkash", "bKash"),
     ("nagad", "Nagad"),
+    ("rocket", "Rocket (DBBL)"),
+    ("upay", "Upay"),
     ("sslcommerz", "SSLCOMMERZ"),
     ("other", "Other Gateway / Wallet"),
 ]
@@ -45,6 +47,9 @@ PROVIDERS = [
 PROVIDER_RECEIPT_METHODS = {
     "bkash": ("bkash",),
     "nagad": ("nagad",),
+    # Rocket / Upay receipts are M20's "other mobile wallet" tender
+    "rocket": ("mobile_wallet",),
+    "upay": ("mobile_wallet",),
     "sslcommerz": ("card",),
     "other": ("mobile_wallet", "card", "bkash", "nagad"),
 }
@@ -542,7 +547,7 @@ class FixGatewaySettlementLine(models.Model):
         if "fix.storefront.order" in self.env:
             rail_domain = (
                 [("payment_rail", "=", self.batch_id.provider)]
-                if self.batch_id.provider in ("bkash", "nagad", "sslcommerz")
+                if self.batch_id.provider in ("bkash", "nagad", "rocket", "upay", "sslcommerz")
                 else [("payment_rail", "!=", "cod")]
             )
             orders = self.env["fix.storefront.order"].search(

@@ -371,6 +371,7 @@ class FixCreditNoteStorefront(models.Model):
         "bkash": "mobile_fs",
         "nagad": "mobile_fs",
         "rocket": "mobile_fs",
+        "upay": "mobile_fs",
         "mobile_wallet": "mobile_fs",
     }
 

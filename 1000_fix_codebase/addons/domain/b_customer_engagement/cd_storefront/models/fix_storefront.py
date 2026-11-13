@@ -434,6 +434,10 @@ class FixStorefrontOrder(models.Model):
         [
             ("bkash", "bKash Direct Pay"),
             ("nagad", "Nagad Direct Pay"),
+            # quote-to-cash (13 Nov 2026): the other two MFS wallets on the M20
+            # payment-method list, on the same signed-callback contract
+            ("rocket", "Rocket (DBBL) Merchant Pay"),
+            ("upay", "Upay Merchant Pay"),
             ("sslcommerz", "SSLCOMMERZ Card / Gateway"),
             ("cod", "Cash on Delivery"),
         ],

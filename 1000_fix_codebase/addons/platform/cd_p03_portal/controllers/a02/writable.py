@@ -88,6 +88,16 @@ WRITABLE = {
             "width_cm",
         }
     ),
+    "fix.counter.basket": frozenset(
+        {
+            "branch_id",
+            "customer_id",
+            "line_ids",
+            "payment_method_id",
+            "tendered_amount",
+            "transaction_ref",
+        }
+    ),
     "fix.counter.sale": frozenset(
         {
             "branch_id",

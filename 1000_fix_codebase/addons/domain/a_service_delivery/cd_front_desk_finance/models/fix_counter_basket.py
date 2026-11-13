@@ -110,8 +110,13 @@ class FixCounterBasket(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        Sale = self.env["fix.counter.sale"]
         for vals in vals_list:
             vals.pop("state", None)
+            # the workspace form never asks: the unit is the branch's, as on a
+            # single counter sale
+            if not vals.get("operating_unit_id"):
+                vals["operating_unit_id"] = Sale._fd_default_operating_unit(vals)
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].sudo().next_by_code("fix.counter.basket") or "New"
@@ -200,7 +205,8 @@ class FixCounterBasketLine(models.Model):
     def create(self, vals_list):
         Product = self.env["product.product"]
         for vals in vals_list:
-            if vals.get("unit_price") in (None, False, ""):
+            # an empty price (the workspace grid sends 0) is the list price
+            if not vals.get("unit_price"):
                 vals["unit_price"] = Product.browse(vals.get("product_id")).lst_price
         lines = super().create(vals_list)
         if lines.basket_id.filtered(lambda b: b.state != "draft"):

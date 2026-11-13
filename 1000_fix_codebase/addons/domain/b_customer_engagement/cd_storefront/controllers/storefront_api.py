@@ -33,7 +33,8 @@ from libs.py.fix_api_edge import api_edge
 _logger = logging.getLogger(__name__)
 
 GATEWAY_SECRET_PARAM = "cd_storefront.gateway_secret.%s"  # noqa: S105 - a parameter key, not a secret
-GATEWAY_RAILS = ("bkash", "nagad", "sslcommerz")
+# Rocket and Upay since 13 Nov 2026 (quote-to-cash): each has its own secret
+GATEWAY_RAILS = ("bkash", "nagad", "rocket", "upay", "sslcommerz")
 
 
 def gateway_signature(secret, order_name, trx_id, amount):

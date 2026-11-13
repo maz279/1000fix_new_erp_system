@@ -45,6 +45,7 @@ export const MODULE = {
     ]},
     { en: 'Counter Sales', screens: [
       { id: 'M04-sales', en: 'Counter Sales (Parts/Plans)', bn: 'কাউন্টার বিক্রয়', t: 'g' },
+      { id: 'M04-baskets', en: 'Multi-Item Baskets', bn: 'একাধিক পণ্যের বাস্কেট', t: 'g' },
       { id: 'M04-kiosk', en: 'Kiosk Mode', bn: 'কিয়স্ক মোড', t: 'r' }
     ]},
     { en: 'Branch Ops', screens: [
@@ -71,7 +72,7 @@ export const MODULE = {
   forms: ['Token Issue', 'Service Counter', 'Queue Priority Rule', 'Walk-in Intake',
     'Intake Receipt Acknowledgement', 'Device Storage Assignment', 'Storage Location',
     'Handover (ID verified)', 'Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher',
-    'Counter Sale', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist',
+    'Counter Sale', 'Counter Basket', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist',
     'Branch Announcement'],
   cross: ['M01 walk-in intake', 'M03 collection/delivery', 'M20 receipts', 'M47 branch infrastructure', 'M17 device custody'],
   freg: {
@@ -84,7 +85,7 @@ export const MODULE = {
       /* 4 FR-FRD-010 / BRU-FRD-05: a ready device released to its collector,
        * whose identity is checked (the intake hand-off is Counter Workstation's) */
       ['4', 'Collection & Handover', 9, { model: 'fix.service.order', cols: ['name', 'customer_id', 'recipient_name', 'collector_is_customer', 'collector_id_verified_by', 'delivery_otp_verified', 'state'], screens: ['M04-collection', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)'], create: 'M04-form-release', domain: [['state', 'in', ['ready', 'delivered']]] }],
-      ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale'] }],
+      ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-baskets', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale', 'Counter Basket'] }],
       ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer', 'M04-movements'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher'] }],
       /* 7 FR-FRD-016: the method, reference and tender of a rung-up sale */
       ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment'], create: 'M04-form-payment' }],
@@ -199,6 +200,14 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
+  /* quote-to-cash 2026-11-13: a customer buying several items pays once.
+   * Confirming raises one counter sale per item (each posted, priced and
+   * approved as a single sale); any refusal confirms none. */
+  'M04-baskets': { kind: 'model_list', model: 'fix.counter.basket',
+    cols: ['name', 'branch_id', 'customer_id', 'payment_method_id', 'transaction_ref', 'total', 'change_due', 'state'],
+    stateField: 'state',
+    empty: 'No basket yet. + New rings up several items for one customer and one payment.',
+    actions: [{ m: 'action_confirm', l: 'Confirm Basket & Issue Receipts', states: ['draft'] }] },
   /* M04 sub-module audit 2026-11-13: the checklists are RECORDED
    * (fix.branch.checklist, FR-FRD-020/024). The per-shift cash-close pack that
    * stood in for them keeps its own name under Shift Operations. */
@@ -411,6 +420,48 @@ export const SCREENS = {
           { name: 'refund_state', label: "Refund Status", readonly: true },
           { name: 'refund_reason_code', label: "Refund Reason", readonly: true },
           { name: 'refund_approved_by', label: "Refund Approved By", readonly: true }
+        ] }
+    ]
+  },
+
+  'M04-form-basket': {
+    kind: 'model_form',
+    model: 'fix.counter.basket',
+    title: 'Counter Basket',
+    newLabel: 'Ring Up a Basket',
+    back: 'M04-baskets',
+    status: { field: 'state', labels: { draft: 'Draft', confirmed: 'Confirmed' } },
+    lines: {
+      field: 'line_ids',
+      tab: 'items',
+      title: 'Items',
+      note: 'One line per item. Leave the unit price empty to charge the list price; a price below list needs a manager approval on its counter sale.',
+      fields: [
+        { name: 'product_id', label: 'Item', required: true },
+        { name: 'quantity', label: 'Qty' },
+        { name: 'unit_price', label: 'Unit Price (BDT)' },
+        { name: 'subtotal', label: 'Amount (BDT)', readonly: true }
+      ]
+    },
+    tabs: [
+      { id: 'items', label: '1. Customer & Items', bn: '১. গ্রাহক ও পণ্য', icon: '🛒', badge: '4' },
+      { id: 'pay', label: '2. Payment', bn: '২. পেমেন্ট', icon: '💳', badge: '6' }
+    ],
+    sections: [
+      { tab: 'items', title: 'Customer & Branch', note: 'The branch decides the operating unit and, for cash, the open drawer.',
+        fields: [
+          { name: 'name', label: 'Basket No.', readonly: true },
+          { name: 'branch_id', label: 'Branch', required: true },
+          { name: 'customer_id', label: 'Customer' }
+        ] },
+      { tab: 'pay', title: 'One Payment for the Whole Basket', note: 'bKash, Nagad, Rocket, Upay and card need the TrxID / slip number.',
+        fields: [
+          { name: 'payment_method_id', label: 'Paid By', required: true },
+          { name: 'transaction_ref', label: 'TrxID / Card Slip No.' },
+          { name: 'tendered_amount', label: 'Cash Tendered (BDT)' },
+          { name: 'total', label: 'Total (BDT)', readonly: true },
+          { name: 'change_due', label: 'Change Due (BDT)', readonly: true },
+          { name: 'state', label: 'Status', readonly: true }
         ] }
     ]
   },
@@ -759,6 +810,7 @@ export const FORM_CHIPS = {
   'M04:Branch Announcement': 'M04-form-announcement',
   'M04:Shift Open/Close': 'M04-form-shift',
   'M04:Counter Sale': 'M04-form-countersale',
+  'M04:Counter Basket': 'M04-form-basket',
   'M04:Counter Payment': 'M04-form-payment',
   /* the deposit is M50's record: M04 records it with M50's own form */
   'M04:Cash Deposit': 'M50-form-deposit',
@@ -768,6 +820,7 @@ export const FORM_CHIPS = {
     'fix.walkin.intake': 'M04-form-storage',
     'fix.cash.shift': 'M04-form-shift',
     'fix.counter.sale': 'M04-form-countersale',
+    'fix.counter.basket': 'M04-form-basket',
     'fix.branch.checklist': 'M04-form-checklist',
     'fix.queue.counter': 'M04-form-counter',
     'fix.queue.priority.rule': 'M04-form-priority-rule',
@@ -780,6 +833,7 @@ export const FORM_CHIPS = {
     'M04-storage': 'M04-form-storage',
     'M04-drawer': 'M04-form-shift',
     'M04-sales': 'M04-form-countersale',
+    'M04-baskets': 'M04-form-basket',
     'M04-checklists': 'M04-form-checklist',
     'M04-counters': 'M04-form-counter',
     'M04-priority': 'M04-form-priority-rule',

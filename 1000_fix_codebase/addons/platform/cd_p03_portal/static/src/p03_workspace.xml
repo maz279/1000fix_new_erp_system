@@ -3580,7 +3580,7 @@
                                      Allocation targets / recurring-journal lines: the
                                      model refuses a header without lines, so the header
                                      and its lines save in ONE D365 form. -->
-                                <div t-if="formLineCfg and (!formLineCfg.tab or !formTabs.length or formLineCfg.tab === formActiveTab)" class="d365-section d365-lines-card">
+                                <div t-if="formLineCfg &amp;&amp; (!formLineCfg.tab || !formTabs.length || formLineCfg.tab === formActiveTab)" class="d365-section d365-lines-card">
                                     <div class="d365-sectiontitle">
                                         <t t-esc="t(formLineCfg.title || 'Lines')"/>
                                     </div>

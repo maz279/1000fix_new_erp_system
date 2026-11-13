@@ -267,6 +267,23 @@ def test_a_gateway_payment_is_captured_as_an_m20_receipt(sf):
         other.with_user(w.cashier).action_confirm_payment(payment_ref="GW-TRX-SFB-1")
 
 
+@pytest.mark.parametrize("rail", ["rocket", "upay"])
+def test_a_rocket_or_upay_capture_is_an_m20_mobile_wallet_receipt(sf, rail):
+    """Quote-to-cash (13 Nov 2026): Rocket and Upay book as M20's other-mobile-
+    wallet tender, on the same MFS channel clearing as bKash."""
+    w = sf
+    env = w.env
+    order = w.placed(1, rail=rail)
+    env["fix.storefront.order"]._sf_gateway_confirm(rail, order.name, "GW-%s-1" % rail, 2500.0)
+    order = order.sudo()
+    order.invalidate_recordset()
+    rcpt = order.ar_receipt_id
+    assert order.state == "paid" and order.ar_invoice_id.state == "paid"
+    assert (rcpt.state, rcpt.method, rcpt.amount) == ("confirmed", "mobile_wallet", 2500.0)
+    assert _balance(env, w.acc.mfs) == 2500.0
+    assert _balance(env, w.acc.ar, w.customer) == 0.0
+
+
 def test_dispatch_issues_the_stock_once(sf):
     """The goods leave the M15 ledger when they leave the store (dispatch),
     at the average cost, with their valuation suspense row (the COGS the
