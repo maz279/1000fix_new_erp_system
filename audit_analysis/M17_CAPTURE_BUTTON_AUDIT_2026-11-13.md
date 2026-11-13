@@ -1,6 +1,6 @@
 # M17 Device & Asset Registry: data-capture button audit
 
-**Date:** 13 Nov 2026 · **Estate:** fix_real on port 8069 · **Status:** see §7
+**Date:** 13 Nov 2026 · **Estate:** fix_real on port 8069 · **Status:** live on 8069 (fix_real upgraded), committed 472ee6c6, not pushed
 
 ## 1. The question
 
@@ -154,4 +154,4 @@ The Ownership Transfer chip opened its step 1 (pick the device) correctly.
 
 **Data note:** fix_real holds 0 devices, 0 estates and **0 catalogue device models** (M37). Until device models are loaded, every bulk-upload row will be rejected as "not in the device catalogue", correctly.
 
-**Not committed.**
+**Committed** as 472ee6c6 on fix/a03-live-data-and-pending-work (13 files, all hooks passed); not pushed.
