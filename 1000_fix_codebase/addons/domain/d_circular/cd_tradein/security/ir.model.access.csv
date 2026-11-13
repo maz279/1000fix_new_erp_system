@@ -8,3 +8,5 @@ access_fix_refurb_qa,fix.refurb.qa,model_fix_refurb_qa,base.group_user,1,1,1,0
 access_fix_tradein_harvest,fix.tradein.harvest,model_fix_tradein_harvest,base.group_user,1,1,1,0
 access_fix_tradein_warranty,fix.tradein.warranty,model_fix_tradein_warranty,base.group_user,1,1,1,0
 access_fix_tradein_price_grid,fix.tradein.price.grid,model_fix_tradein_price_grid,base.group_user,1,1,1,0
+access_fix_bulk_buyback,fix.bulk.buyback,model_fix_bulk_buyback,base.group_user,1,1,1,0
+access_fix_bulk_buyback_asset,fix.bulk.buyback.asset,model_fix_bulk_buyback_asset,base.group_user,1,1,1,1

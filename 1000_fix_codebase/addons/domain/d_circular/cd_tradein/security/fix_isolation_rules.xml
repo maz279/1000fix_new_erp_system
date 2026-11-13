@@ -8,6 +8,22 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_bulk_buyback_company" model="ir.rule">
+        <field name="name">fix.bulk.buyback: allowed companies</field>
+        <field name="model_id" ref="model_fix_bulk_buyback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bulk_buyback_operating_unit" model="ir.rule">
+        <field name="name">fix.bulk.buyback: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_bulk_buyback"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_bulk_buyback_asset_company" model="ir.rule">
+        <field name="name">fix.bulk.buyback.asset: allowed companies</field>
+        <field name="model_id" ref="model_fix_bulk_buyback_asset"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_refurb_qa_company" model="ir.rule">
         <field name="name">fix.refurb.qa: allowed companies</field>
         <field name="model_id" ref="model_fix_refurb_qa"/>

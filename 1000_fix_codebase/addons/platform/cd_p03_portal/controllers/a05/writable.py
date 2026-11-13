@@ -12,6 +12,20 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a05
 
 WRITABLE = {
+    "fix.bulk.buyback": frozenset(
+        {
+            "account_manager_id",
+            "asset_ids",
+            "company_id",
+            "contract_ref",
+            "currency_id",
+            "lot_price",
+            "lot_price_basis",
+            "notes",
+            "operating_unit_id",
+            "partner_id",
+        }
+    ),
     "fix.esg.metric": frozenset(),
     "fix.ewaste.basel.pic": frozenset(
         {

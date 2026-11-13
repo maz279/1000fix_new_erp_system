@@ -73,6 +73,14 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_void"},
     },
+    # M14 capture audit (2026-11-13): the corporate bulk buy-back lot
+    # (FR-TRF-009). Its declared assets are written as the form's child grid;
+    # each asset's trade-in is opened by action_open_intakes, never typed.
+    "fix.bulk.buyback": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_open_intakes", "action_close"},
+    },
 }
 
 _RESALE_STATES = ("graded", "resale_ready", "closed")
