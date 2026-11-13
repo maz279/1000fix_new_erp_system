@@ -63,6 +63,7 @@ WRITABLE = {
             "description",
             "document_type",
             "is_controlled",
+            "isolation_tier",
             "name",
             "name_bn",
             "retention_class_id",
@@ -72,9 +73,13 @@ WRITABLE = {
     ),
     "fix.document.template": frozenset(
         {
+            "bilingual",
             "code",
             "document_type",
             "name",
+            "name_bn",
+            "report_ref",
+            "requires_approval",
         }
     ),
     "fix.esignature.envelope": frozenset(
@@ -82,6 +87,7 @@ WRITABLE = {
             "document_id",
             "name",
             "operating_unit_id",
+            "signer_ids",
         }
     ),
     "fix.esignature.signer": frozenset(),
