@@ -308,6 +308,7 @@ export const P03_BN = {
   "This form shows an existing record: open one from this list.": "এই ফর্ম বিদ্যমান রেকর্ড দেখায়: এই তালিকা থেকে একটি খুলুন।",
   "Open an order from All Service Orders to see its record. A new order starts with + New Service Order.": "অর্ডারের নথি দেখতে সকল সার্ভিস অর্ডার থেকে একটি অর্ডার খুলুন। নতুন অর্ডার শুরু হয় + নতুন সার্ভিস অর্ডার দিয়ে।",
   "A hold is placed on an existing order: use Defer on the order, then open it here from Hold Management.": "হোল্ড বিদ্যমান অর্ডারে দেওয়া হয়: অর্ডারে স্থগিত (ডেফার) ব্যবহার করুন, তারপর হোল্ড ব্যবস্থাপনা থেকে এখানে খুলুন।",
+  "A certificate is drafted when its batch is processed: open it from Green Certificates to enter the recycler’s details.": "ব্যাচ প্রক্রিয়াজাত হলে সনদের খসড়া তৈরি হয়: রিসাইক্লারের তথ্য লিখতে সবুজ সনদপত্র থেকে সেটি খুলুন।",
   "An SLA clock is started by its order, never typed in: open one from Live SLA Clocks.": "এসএলএ ঘড়ি অর্ডার থেকেই শুরু হয়, হাতে লেখা হয় না: চলমান এসএলএ ঘড়ি থেকে একটি খুলুন।",
   "Reports Measuring It": "এটি পরিমাপকারী রিপোর্ট",
   "Built-in Reports": "বিল্ট-ইন রিপোর্ট",

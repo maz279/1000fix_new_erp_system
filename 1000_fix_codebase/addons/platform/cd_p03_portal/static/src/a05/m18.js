@@ -372,6 +372,7 @@ export const SCREENS = {
     /* never typed from blank (the server refuses it): the recycler's details
      * are entered on the draft its processed batch recorded */
     create: false,
+    pick: 'A certificate is drafted when its batch is processed: open it from Green Certificates to enter the recycler’s details.',
     newLabel: 'Enter a Recycler Certificate',
     pickRecord: {
       label: 'Step 1 of 2: choose the draft certificate the recycler sent',
