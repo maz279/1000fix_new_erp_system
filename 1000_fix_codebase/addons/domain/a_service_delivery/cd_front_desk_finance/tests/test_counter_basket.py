@@ -139,8 +139,9 @@ def test_the_workspace_refuses_a_wallet_basket_without_its_trxid(fin, ui, screen
     assert not res["success"] and "TrxID" in res["error"]
 
 
-def test_the_basket_page_is_on_the_counter_sales_submodule(screens):
+def test_the_basket_page_is_on_the_counter_sales_submodule(screens, odoo_env):
     import odoo.addons.cd_p03_portal.controllers.p03_generic_api as api
+    from odoo.addons.cd_front_desk_finance.models.fix_counter_basket import COUNTER_METHOD
 
     assert screens["M04-baskets"]["model"] == "fix.counter.basket"
     assert "action_confirm" in api.SURFACES["fix.counter.basket"]["actions"]
@@ -150,9 +151,9 @@ def test_the_basket_page_is_on_the_counter_sales_submodule(screens):
         for f in sec["fields"]
         if f["name"] == "payment_method_id"
     )
-    # the picker offers exactly the tenders a counter sale confirms
-    offered = paid_by["domain"][1][2]
-    assert paid_by["domain"][0] == ["for_counter", "=", True]
-    from odoo.addons.cd_front_desk_finance.models.fix_counter_basket import COUNTER_METHOD
-
-    assert set(offered) == set(COUNTER_METHOD) - {"SSLCZ"}
+    # the server's own picker guard accepts the filter (a refused filter makes
+    # the whole form "not available")
+    domain = api._choice_domain(odoo_env, "fix.payment.method", paid_by["domain"])
+    offered = odoo_env["fix.payment.method"].search(domain)
+    # and it offers exactly the tenders a counter sale confirms
+    assert set(offered.mapped("code")) == set(COUNTER_METHOD) - {"SSLCZ"}
