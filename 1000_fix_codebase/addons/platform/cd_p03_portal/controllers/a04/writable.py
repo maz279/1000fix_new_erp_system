@@ -26,6 +26,19 @@ WRITABLE = {
             "website",
         }
     ),
+    "fix.brand.reimbursement.rate": frozenset(
+        {
+            "brand_id",
+            "circular_reference",
+            "company_id",
+            "currency_id",
+            "labour_rate",
+            "note",
+            "parts_markup_pct",
+            "repair_level",
+            "valid_from",
+        }
+    ),
     "fix.catalogue.item": frozenset(
         {
             "active",
@@ -507,6 +520,7 @@ WRITABLE = {
         {
             "catalogue_item_id",
             "change_reason",
+            "contract_no",
             "line_type",
             "min_tier",
             "product_code",

@@ -1,6 +1,6 @@
 /** @odoo-module **/
 /* A04 · Commercial & Revenue — M11 Pricing & Rate Cards (v2 rebuild).
- * Registry-faithful: 4 groups / 12 screens / 6 reports / 5 forms / freg 97.
+ * Registry-faithful: freg 97 (11 sub-modules), each with its capture.
  * Rate cards, dynamic rules, explanations and discount approvals are real;
  * price books/versions/floors/promotions/simulations/policies are new. */
 
@@ -12,7 +12,7 @@ export const MODULE = {
     { l: 'Realised Margin', m: 'realised_margin', suffix: '%' },
     { l: 'Discount Leaks MTD', m: 'discount_leaks_mtd' },
     { l: 'Rate Cards Live', m: 'rate_cards_live' },
-    { l: 'Brand Reimb. Rates', m: 'brand_reimb_rates', src: false },
+    { l: 'Brand Reimb. Rates', m: 'brand_reimb_rates' },
     { l: 'Simulations MTD', m: 'simulations_mtd' },
     { l: 'Margin Floors Breached', m: 'margin_floors_breached' }
   ],
@@ -26,9 +26,10 @@ export const MODULE = {
       { id: 'M11-versions', en: 'Versioning & Mass Changes', bn: 'ভার্সনিং', t: 'g' }
     ]},
     { en: 'Rate Cards', screens: [
-      { id: 'M11-labour', en: 'Labour Rate Cards', bn: 'শ্রম রেট কার্ড', t: 'g' },
+      { id: 'M11-labour', en: 'Labour & Service Rate Cards', bn: 'শ্রম ও সার্ভিস রেট কার্ড', t: 'g' },
       { id: 'M11-parts', en: 'Parts Pricing Rules', bn: 'পার্টস মূল্য', t: 'g' },
-      { id: 'M11-brand', en: 'Brand Reimbursement Rates', bn: 'ব্র্যান্ড রেট', t: 'r' },
+      { id: 'M11-contract', en: 'Contract Rates', bn: 'চুক্তিভিত্তিক রেট', t: 'g' },
+      { id: 'M11-brand', en: 'Brand Reimbursement Rates', bn: 'ব্র্যান্ড রেট', t: 'g' },
       { id: 'M11-adjust', en: 'Adjustment Rules', bn: 'সমন্বয় নিয়ম', t: 'g' }
     ]},
     { en: 'Pricing Governance', screens: [
@@ -44,20 +45,34 @@ export const MODULE = {
     ]}
   ],
   reports: ['Realised Price vs Card', 'Discount Register by Approver', 'Rate-Card Utilisation', 'Margin by Service Line', 'Promotion Effectiveness', 'Brand Reimbursement Recovery', 'Floor vs Realised Rate'],
-  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request'],
-  cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR'],
+  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate'],
+  cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR', 'M09 Warranty Claims'],
+  /* M11 capture audit (2026-11-13): pages 1 and 6 offered no button, 9 and 11
+   * no form chip, and three pages captured the wrong record:
+   *  - Customer/Contract Pricing listed price books. A contract rate is a rate
+   *    card in the engine's contract lane (min_tier 99 + contract no., BRU-
+   *    PRC-11), and the Rate Card form did not even show the contract no., so
+   *    no contract rate could be recorded at all.
+   *  - Rate Cards and Parts Pricing listed every card, labour and parts alike.
+   *  - Brand Reimbursement listed warranty claims (M09's record) under the
+   *    heading "rates": the brand rate card the spec gives M11 (FR-PRC-015)
+   *    did not exist. It is now fix.brand.reimbursement.rate.
+   * Cost-Plus & Margin Floors, Rate & Floor Changes and the Discount Ladder
+   * sat on no page. A price explanation stays engine-written (BRU-PRC-02): the
+   * Pricing Engine page offers the what-if simulation an agent runs instead.
+   * `domain` stays the LAST key (the mapping guard parses it there). */
   freg: { src: 97, sub: [
-    ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation'], reports: ['Realised Price vs Card', 'Margin by Service Line'], forms: [] }],
-    ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'], reports: ['Realised Price vs Card'], forms: ['Price Book'] }],
-    ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-labour'], reports: ['Rate-Card Utilisation', 'Floor vs Realised Rate'], forms: ['Rate Card'] }],
-    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-parts'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Rate Card'] }],
-    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'], reports: ['Realised Price vs Card'], forms: ['Price Book'] }],
-    ['6', 'Brand Reimbursement', 7, { model: 'fix.warranty.claim', cols: ['brand_id', 'claim_no', 'claim_amount', 'remittance_amount', 'state'], screens: ['M11-brand', 'M11-rpt-brand'], reports: ['Brand Reimbursement Recovery'], forms: [] }],
-    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-rpt-discount'], reports: ['Discount Register by Approver'], forms: ['Discount Policy'] }],
+    ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation', 'M11-simulate'], reports: ['Realised Price vs Card', 'Margin by Service Line'], forms: ['Price Simulation Request'], create: false }],
+    ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books', 'M11-versions'], reports: ['Realised Price vs Card'], forms: ['Price Book', 'Price Book Version'] }],
+    ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'state'], screens: ['M11-labour'], reports: ['Rate-Card Utilisation', 'Floor vs Realised Rate'], forms: ['Rate Card'], domain: [['line_type', '!=', 'part'], ['min_tier', '!=', 99]] }],
+    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from', 'state'], screens: ['M11-parts', 'M11-floors'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Rate Card', 'Price Floor'], create: 'M11-form-card', domain: [['line_type', '=', 'part'], ['min_tier', '!=', 99]] }],
+    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.rate.card', cols: ['contract_no', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state'], screens: ['M11-contract'], reports: ['Rate-Card Utilisation'], forms: ['Rate Card'], create: 'M11-form-card', domain: [['min_tier', '=', 99]] }],
+    ['6', 'Brand Reimbursement', 7, { model: 'fix.brand.reimbursement.rate', cols: ['brand_id', 'repair_level', 'labour_rate', 'parts_markup_pct', 'valid_from', 'valid_to', 'version', 'state'], screens: ['M11-brand', 'M11-rpt-brand'], reports: ['Brand Reimbursement Recovery'], forms: ['Brand Reimbursement Rate'] }],
+    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-policies', 'M11-floors', 'M11-rpt-discount'], reports: ['Discount Register by Approver', 'Floor vs Realised Rate'], forms: ['Discount Approval', 'Discount Policy', 'Price Floor'] }],
     ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'], reports: ['Promotion Effectiveness'], forms: ['Promotion'] }],
-    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'], reports: [], forms: [] }],
+    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'], reports: [], forms: ['Dynamic Price Rule'] }],
     ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'], reports: [], forms: ['Price Simulation Request'] }],
-    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions'], reports: [], forms: [] }]
+    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions', 'M11-changes'], reports: [], forms: ['Price Book Version', 'Price Change Request'] }]
   ] }
 };
 
@@ -78,9 +93,14 @@ export const SCREENS = {
       { m: 'action_submit', l: 'Submit for Release' },
       { m: 'action_recall_approval', l: 'Recall Submission' }
     ] },
+  /* Labour and the fixed-price service lines (transport, consumables): they
+   * were on no list at all, as labour-only filtering left them out. Contract
+   * rates show here too (tier 99): the Rate Card form returns here on Save &
+   * Close, and a saved contract rate must not seem to vanish. Contract Rates
+   * lists them on their own. */
   'M11-labour': { kind: 'model_list', model: 'fix.rate.card', stateField: 'state',
-    domain: [['line_type', '=', 'labour']],
-    cols: ['product_code', 'name', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'state', 'active'],
+    domain: [['line_type', '!=', 'part']],
+    cols: ['product_code', 'name', 'line_type', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'state', 'active'],
     // A rate prices nothing until released; a released rate changes only
     // through a price change a releaser approves (A04 audit M11-5).
     actions: [
@@ -98,7 +118,28 @@ export const SCREENS = {
       { m: 'action_request_change', l: 'Request Change to the Proposed Rate' },
       { m: 'action_request_retire', l: 'Request Retirement', ask: 'Why is the rate retired?', kwarg: 'reason' }
     ] },
-  'M11-brand': { kind: 'table_report', module: 'M11', report: 'brand_reimbursement', title: 'Brand Reimbursement Rates', period: false },
+  /* FR-PRC-016 / BRU-PRC-11: a negotiated contract rate is a rate card in
+   * the engine's contract lane (tier 99 + the contract no.); it overrides
+   * every tier rate for that contract. "+ New" starts one in that lane. */
+  'M11-contract': { kind: 'model_list', model: 'fix.rate.card', stateField: 'state',
+    domain: [['min_tier', '=', 99]],
+    cols: ['contract_no', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state', 'active'],
+    actions: [
+      { m: 'action_request_release', l: 'Request Release (Releaser approves)' },
+      { m: 'action_request_change', l: 'Request Change to the Proposed Rate' },
+      { m: 'action_request_retire', l: 'Request Retirement', ask: 'Why is the rate retired?', kwarg: 'reason' }
+    ] },
+  /* This heading listed the claim-recovery report: there was no rate to list.
+   * The recovery report stays a chip (Brand Reimbursement Recovery). */
+  'M11-brand': { kind: 'model_list', model: 'fix.brand.reimbursement.rate', stateField: 'state',
+    cols: ['brand_id', 'repair_level', 'labour_rate', 'parts_markup_pct', 'valid_from', 'valid_to', 'version', 'state', 'approval_state', 'approved_by'],
+    // FR-PRC-015 / BRU-PRC-12: released by a Price-Book Releaser who is not
+    // the author (M63 inbox); a released rate is superseded, never edited.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Submission', states: ['in_review'] },
+      { m: 'action_retire', l: 'Retire Rate (Releaser)', ask: 'Why does the brand stop paying this rate?', kwarg: 'reason', states: ['active'] }
+    ] },
   'M11-adjust': { kind: 'model_list', model: 'fix.dynamic.price.rule', stateField: 'active',
     cols: ['name', 'channel', 'rule_type', 'adjustment_pct', 'surge_multiplier', 'active'],
     actions: [
@@ -196,20 +237,22 @@ export const SCREENS = {
   'M11-form-card': {
     kind: 'model_form',
     model: 'fix.rate.card',
-    title: 'Standard Commercial Rate Card',
+    title: 'Rate Card',
     back: 'M11-labour',
-    status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
+    status: { field: 'state', labels: { draft: 'Draft', released: 'Released', retired: 'Retired' } },
+    /* M11 capture audit (2026-11-13): the form had no Contract No., so a
+     * contract rate could not be recorded; two tabs (VAT, documents) had no
+     * field at all and a "Surge Multipliers" tab held only the validity dates.
+     * VAT is M51's, surges are Adjustment Rules. */
     tabs: [
-      { id: 'identity', label: '1. Identity & Scope', bn: '১. রেট পরিচিতি', icon: '🏷️', badge: '4' },
-      { id: 'pricing', label: '2. Labor & Parts Rates', bn: '২. মূল্য ও মার্জিন', icon: '💵', badge: '3' },
-      { id: 'multipliers', label: '3. Surge Multipliers', bn: '৩. সার্জ গুণক', icon: '📈', badge: '2' },
-      { id: 'statutory', label: '4. Statutory Tax & NBR', bn: '৪. ভ্যাট ও কর', icon: '⚖️', badge: '2' },
-      { id: 'governance', label: '5. Governance & DOFA', bn: '৫. ফ্লোর ও অনুমোদন', icon: '🏛️', badge: '3' },
-      { id: 'vault', label: '6. Document Vault', bn: '৬. নথিপত্র', icon: '📁', badge: '2' }
+      { id: 'identity', label: '1. Identity & Scope', bn: '১. রেট পরিচিতি', icon: '🏷️', badge: '5' },
+      { id: 'pricing', label: '2. Rate & Who It Applies To', bn: '২. রেট ও প্রযোজ্যতা', icon: '💵', badge: '3' },
+      { id: 'validity', label: '3. Validity Window', bn: '৩. মেয়াদ', icon: '📅', badge: '2' },
+      { id: 'governance', label: '4. Release & Changes', bn: '৪. অনুমোদন ও পরিবর্তন', icon: '🏛️', badge: '4' }
     ],
     sections: [
       { tab: 'identity', title: 'Rate Scope & Catalogue Association',
-        note: 'Published pricing schedule for workshop labor, onsite field service, and genuine spare parts.',
+        note: 'One rate per product code, customer tier and contract. Labour is charged against the catalogue standard repair time; parts, consumables and transport at the rate per unit.',
         fields: [
           { name: 'product_code', required: true, label: 'Product SKU / Service Code' },
           { name: 'line_type', required: true, label: 'Service Line Classification' },
@@ -217,19 +260,18 @@ export const SCREENS = {
           { name: 'state', label: 'Release State', readonly: true },
           { name: 'active', label: 'Active Rate Status', readonly: true }
         ] },
-      { tab: 'pricing', title: 'Base Tariff & Tier Qualification',
+      { tab: 'pricing', title: 'Rate and Who It Applies To',
+        note: 'A customer tier rate applies to that tier and above. A contract rate is tier 99 with the contract number, and overrides every tier rate for that contract (BRU-PRC-11).',
         fields: [
           { name: 'unit_price', required: true, label: 'Base Rate (VAT-exclusive BDT)' },
-          { name: 'min_tier', label: 'Customer Tier Requirement' }
+          { name: 'min_tier', label: 'Customer Tier (99 = contract rate)' },
+          { name: 'contract_no', label: 'Contract No. (contract rates only)' }
         ] },
-      { tab: 'multipliers', title: 'Effective Windows & Dynamic Surge Rules',
+      { tab: 'validity', title: 'Effective Window',
         fields: [
           { name: 'valid_from', label: 'Tariff Effective From' },
           { name: 'valid_to', label: 'Tariff Valid Until' }
         ] },
-      { tab: 'statutory', title: 'Statutory VAT & Mushak Alignment',
-        note: 'All rate card items must comply with NBR standard VAT rates and Mushak 6.3 invoice rules.',
-        fields: [] },
       { tab: 'governance', title: 'Price Floor Governance & Delegation of Authority',
         note: 'A released rate changes only through a price change that a Price-Book Releaser other than its author approves (BRU-PRC-07). Stage the new rate and reason here, then use Request Change.',
         fields: [
@@ -237,10 +279,55 @@ export const SCREENS = {
           { name: 'change_reason', label: 'Change Reason', type: 'text' },
           { name: 'released_by', label: 'Released By', readonly: true },
           { name: 'released_at', label: 'Released On', readonly: true }
+        ] }
+    ]
+  },
+
+  /* FR-PRC-015 / BRU-PRC-12: what a brand pays 1000FiX for warranty work. */
+  'M11-form-brand-rate': {
+    kind: 'model_form',
+    model: 'fix.brand.reimbursement.rate',
+    title: 'Brand Reimbursement Rate',
+    back: 'M11-brand',
+    status: { field: 'state', labels: { draft: 'Draft', in_review: 'In Review', active: 'In Force', superseded: 'Superseded', retired: 'Retired' } },
+    tabs: [
+      { id: 'scope', label: '1. Brand & Repair Level', bn: '১. ব্র্যান্ড ও মেরামতের স্তর', icon: '🏷️', badge: '3' },
+      { id: 'rate', label: '2. What the Brand Pays', bn: '২. ব্র্যান্ড যা পরিশোধ করে', icon: '💵', badge: '3' },
+      { id: 'validity', label: '3. Effective Date & Version', bn: '৩. কার্যকর তারিখ ও সংস্করণ', icon: '📅', badge: '3' },
+      { id: 'release', label: '4. Release', bn: '৪. অনুমোদন', icon: '✅', badge: '5' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Brand and Repair Level',
+        note: 'One rate per brand and repair level at a time. Warranty claims against the brand are valued at the rate in force on the service date (BRU-PRC-12).',
+        fields: [
+          { name: 'brand_id', required: true, label: 'Brand' },
+          { name: 'repair_level', required: true, label: 'Repair Level' },
+          { name: 'circular_reference', label: 'Brand Circular / Agreement Ref.' }
         ] },
-      { tab: 'vault', title: 'Rate Card Circulars & Approval Documents',
-        note: 'Executive committee pricing approvals, OEM recommended pricing circulars, and market parity surveys.',
-        fields: [] }
+      { tab: 'rate', title: 'What the Brand Pays',
+        note: 'Labour per warranty job at this level, plus the parts fitted at cost and the handling markup.',
+        fields: [
+          { name: 'labour_rate', required: true, label: 'Labour Rate per Job (BDT)' },
+          { name: 'parts_markup_pct', label: 'Parts Handling Markup (%)' },
+          { name: 'currency_id', required: true, label: 'Currency' }
+        ] },
+      { tab: 'validity', title: 'Effective Date and Version',
+        note: 'A released rate is never edited. A new brand circular is a new version with its own effective date; the previous version stays valid up to the day before.',
+        fields: [
+          { name: 'valid_from', required: true, label: 'Effective From' },
+          { name: 'valid_to', label: 'Effective Until', readonly: true },
+          { name: 'version', label: 'Version', readonly: true }
+        ] },
+      { tab: 'release', title: 'Release',
+        fields: [
+          { name: 'state', label: 'Rate State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'submitted_by', label: 'Submitted By', readonly: true },
+          { name: 'approved_by', label: 'Released By', readonly: true },
+          { name: 'approved_at', label: 'Released On', readonly: true },
+          { name: 'note', label: 'Notes', type: 'text' },
+          { name: 'company_id', label: 'Legal Entity' }
+        ] }
     ]
   },
   'M11-form-policy': {
@@ -610,7 +697,13 @@ export const FORM_MODELS = {
   'M11:Rate Card': 'fix.rate.card',
   'M11:Discount Policy': 'fix.discount.policy',
   'M11:Promotion': 'fix.promotion',
-  'M11:Price Simulation Request': 'fix.price.simulation'
+  'M11:Price Simulation Request': 'fix.price.simulation',
+  'M11:Dynamic Price Rule': 'fix.dynamic.price.rule',
+  'M11:Discount Approval': 'fix.discount.approval',
+  'M11:Price Floor': 'fix.price.floor',
+  'M11:Price Book Version': 'fix.price.version',
+  'M11:Price Change Request': 'fix.price.change',
+  'M11:Brand Reimbursement Rate': 'fix.brand.reimbursement.rate'
 };
 
 export const FORM_CHIPS = {
@@ -620,7 +713,13 @@ export const FORM_CHIPS = {
   'M11:Discount Policy': 'M11-form-policy',
   'M11:Promotion': 'M11-form-promo',
   'M11:Price Simulation Request': 'M11-form-simulation',
+  'M11:Discount Approval': 'M11-form-discount-approval',
+  'M11:Price Floor': 'M11-form-floor',
+  'M11:Price Book Version': 'M11-form-version',
+  'M11:Price Change Request': 'M11-form-change',
+  'M11:Brand Reimbursement Rate': 'M11-form-brand-rate',
   'M11:__by_model__': {
+    'fix.brand.reimbursement.rate': 'M11-form-brand-rate',
     'fix.price.explanation': 'M11-form-price-explanation',
     'fix.dynamic.price.rule': 'M11-form-pricerule',
     'fix.price.book': 'M11-form-book',
@@ -639,6 +738,8 @@ export const FORM_CHIPS = {
     'M11-books': 'M11-form-book',
     'M11-labour': 'M11-form-card',
     'M11-parts': 'M11-form-card',
+    'M11-contract': 'M11-form-card',
+    'M11-brand': 'M11-form-brand-rate',
     'M11-versions': 'M11-form-version',
     'M11-floors': 'M11-form-floor',
     'M11-promos': 'M11-form-promo',

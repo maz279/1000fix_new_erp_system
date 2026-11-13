@@ -14,3 +14,5 @@ access_fix_discount_policy,fix.discount.policy,model_fix_discount_policy,base.gr
 access_fix_discount_policy_officer,fix.discount.policy officer,model_fix_discount_policy,group_pricing_officer,1,1,1,0
 access_fix_price_change,fix.price.change,model_fix_price_change,base.group_user,1,0,0,0
 access_fix_price_change_officer,fix.price.change officer,model_fix_price_change,group_pricing_officer,1,1,1,0
+access_fix_brand_reimbursement_rate,fix.brand.reimbursement.rate,model_fix_brand_reimbursement_rate,base.group_user,1,0,0,0
+access_fix_brand_reimbursement_rate_officer,fix.brand.reimbursement.rate officer,model_fix_brand_reimbursement_rate,group_pricing_officer,1,1,1,0

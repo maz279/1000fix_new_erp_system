@@ -74,6 +74,13 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_submit", "action_recall_approval", "action_retire"},
     },
+    # M11 capture audit (2026-11-13): FR-PRC-015, what a brand pays us for
+    # warranty work; released by a releaser other than the author (M63).
+    "fix.brand.reimbursement.rate": {
+        "order": "brand_id, repair_level, valid_from desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_recall_approval", "action_retire"},
+    },
     # A04 audit (2026-11-04) M11-5: the one way a live rate or floor changes.
     "fix.price.change": {
         "order": "id desc",
@@ -357,6 +364,33 @@ def _claim_invoices(env, claims):
     )
 
 
+def _brand_cards_in_force(env):
+    """{brand id: 'L1 1,200.00 (+10% parts) · L2 ...'} from the released brand
+    reimbursement rates in force today (BRU-PRC-12)."""
+    if "fix.brand.reimbursement.rate" not in env:
+        return {}
+    Rate = env["fix.brand.reimbursement.rate"]
+    today = datetime.date.today()
+    rates = Rate.search(
+        [
+            *_company_domain(env, "fix.brand.reimbursement.rate"),
+            ("state", "=", "active"),
+            ("valid_from", "<=", today),
+        ],
+        order="brand_id, repair_level",
+    )
+    out = {}
+    for rate in rates:
+        level = (rate.repair_level or "").upper()
+        text = f"{level} {rate.labour_rate:,.2f}"
+        if rate.parts_markup_pct:
+            text += " (+%g%% parts)" % rate.parts_markup_pct
+        out[rate.brand_id.id] = (
+            "%s · %s" % (out[rate.brand_id.id], text) if rate.brand_id.id in out else text
+        )
+    return out
+
+
 def brand_reimbursement(env, date_from=None, date_to=None, **params):
     from odoo.addons.cd_p03_portal.controllers.p03_generic_api import _datetime_to_local
 
@@ -373,6 +407,7 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
         "recovery_pct",
         "avg_days",
         "last_received",
+        "card_in_force",
     ]
     labels = {
         "brand": "Brand",
@@ -387,6 +422,7 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
         "recovery_pct": "Recovery %",
         "avg_days": "Avg Days to Reimbursement",
         "last_received": "Last Receipt",
+        "card_in_force": "Brand Rate Card in Force",
     }
     claims = _brand_claims(env)
     if claims is None:
@@ -446,8 +482,9 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
                 span = claim.remitted_at - claim.submitted_at
                 row["days"].append(span.total_seconds() / 86400.0)
 
+    cards = _brand_cards_in_force(env)
     rows = []
-    for row in by_brand.values():
+    for brand_id, row in by_brand.items():
         days = row["days"]
         rows.append(
             {
@@ -465,6 +502,7 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
                 else 0.0,
                 "avg_days": round(sum(days) / len(days), 1) if days else "—",
                 "last_received": _datetime_to_local(env, row["last"])[:16] if row["last"] else "—",
+                "card_in_force": cards.get(brand_id) or "None recorded",
             }
         )
     rows.sort(key=lambda r: -r["claimed"])
@@ -480,6 +518,10 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
         "received ÷ claimed.",
         "Days to reimbursement run from submission to the brand to the last recorded "
         "receipt, over settled claims only; '—' means none is settled yet.",
+        "Brand Rate Card in Force is what the brand pays per warranty job at each repair "
+        "level today, with the parts handling markup, from the released brand "
+        "reimbursement rates (FR-PRC-015). 'None recorded' means no rate is released "
+        "for the brand.",
     ]
     totals = None
     if rows:
@@ -580,6 +622,16 @@ REPORTS = {
 }
 
 
+def _brand_rates_in_force(env):
+    if "fix.brand.reimbursement.rate" not in env:
+        return None
+    return (
+        env["fix.brand.reimbursement.rate"]
+        .sudo()
+        .search_count([("state", "=", "active"), ("valid_from", "<=", datetime.date.today())])
+    )
+
+
 def kpis(env):
     cards = _cards(env)
     floors = env["fix.price.floor"].sudo().search([])
@@ -616,10 +668,12 @@ def kpis(env):
     return {
         "realised_margin": round(sum(margins) / len(margins), 1) if margins else None,
         "discount_leaks_mtd": leaks,
-        "rate_cards_live": len(cards.filtered(lambda c: c.active)),
-        # the tile is `src: false` in m11.js; per-brand recovery is served by
-        # the brand_reimbursement pack over the claim ledger, not as a tile
-        "brand_reimb_rates": None,
+        # a draft card prices nothing until a releaser releases it (M11-5):
+        # counting `active` showed unreleased drafts as live
+        "rate_cards_live": len(cards.filtered(lambda c: c.active and c.state == "released")),
+        # released brand reimbursement rates in force (FR-PRC-015); a count,
+        # so 0 when none is recorded
+        "brand_reimb_rates": _brand_rates_in_force(env),
         "simulations_mtd": sims_mtd,
         "margin_floors_breached": breaches,
     }
