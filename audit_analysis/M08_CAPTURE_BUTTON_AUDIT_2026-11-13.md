@@ -87,3 +87,16 @@ Files:
 - The registry part is JavaScript, read from disk: it reaches users with the next asset rebuild or restart; `?debug=assets` shows it now.
 - The two report fixes are a controller change: live only after a restart of 8069/8089.
 - Postgres went into crash recovery from about 01:02 to 01:26 (whole-container fsync of the data directory, under load from the many parallel test databases); a run during that window skipped every DB test. The figures in §5 come from the re-run after recovery.
+
+## 8. Follow-up delivered (13 Nov 2026, 03:10)
+
+Commit `42e74bfb feat(CD-M08): scope amendments, parties, exclusions, obligations`, pushed with the branch; fix_real upgraded to `cd_contract_core` 19.0.1.2.0 (backup `_migration/backups/fix_real_pre_m08_gaps_2026-11-13.dump` first) and 8089/8069 restarted 03:08.
+
+| §6 item | Now |
+|---|---|
+| 1 Scope amendments change nothing | A scope amendment carries lines (attach / detach asset, add / adjust entitlement, add / remove SLA or exclusion), applied when approved and effective; an attached asset gets PM visits from that date, a detached one has its future visits skipped; `contract.asset_attached` / `asset_detached` carry the effective date for M39 proration. A scope amendment with no lines is refused. |
+| 3 Entities not built | `fix.contract.party` (signatories freeze once signed), `fix.contract.exclusion` (draft-only, later by amendment), `fix.contract.obligation` (evidence, recurrence, daily due/overdue job, mandatory ones never waived), churn reason / competitor / win-back on a lost renewal. Workspace: Parties & Signatories, Coverage Exclusions and Obligation Register screens and forms; page 12 now captures obligations; "Record a Lost Renewal" on page 9. |
+| 2 Locked many2many silently dropped | Not changed (shared engine). |
+| 4 No devices on fix_real | Not changed: no source holds devices. Customer ledgers show two AMC customers — Kadamtali Steel Mills (Printer AMC, 22 lines, BDT 96,500) and Siemens Healthineers (AMC Support, 43 lines, BDT 1,284,003.18) — with no serials. |
+
+Tests: `test_m08_contract_gaps` 12/12 and the workspace and contract suites green on a private copy; five A04 guard failures remain and fail identically on the parent commit (M12 forms, unupgraded peer models) — reported to the M12 session. Live on 8069: all six M08 lists and nine forms load every declared field.
