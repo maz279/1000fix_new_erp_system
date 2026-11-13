@@ -45,7 +45,9 @@ export const MODULE = {
       { id: 'M05-tickets', en: 'MSP Tickets', bn: 'এমএসপি টিকেট', t: 'g' },
       { id: 'M05-oncall', en: 'On-Call Rota', bn: 'অন-কল রোটা', t: 'g' },
       { id: 'M05-runbooks', en: 'Runbooks & Auto-Remediation', bn: 'রানবুক ও অটো-রিমিডিয়েশন', t: 'g' },
-      { id: 'M05-runbook-runs', en: 'Runbook Executions', bn: 'রানবুক সম্পাদন', t: 'g' }
+      { id: 'M05-runbook-runs', en: 'Runbook Executions', bn: 'রানবুক সম্পাদন', t: 'g' },
+      { id: 'M05-contacts', en: 'Client Contacts', bn: 'ক্লায়েন্ট যোগাযোগ', t: 'g' },
+      { id: 'M05-major-incidents', en: 'Major Incidents', bn: 'বড় ঘটনা', t: 'g' }
     ]},
     { en: 'Compliance', screens: [
       { id: 'M05-patching', en: 'Patch Management', bn: 'প্যাচ ব্যবস্থাপনা', t: 'g' },
@@ -55,9 +57,16 @@ export const MODULE = {
     ]},
     { en: 'Client Reporting', screens: [
       { id: 'M05-sla', en: 'SLA Attainment', bn: 'এসএলএ অর্জন', t: 'r' },
-      { id: 'M05-reviews', en: 'Client Service Reviews', bn: 'ক্লায়েন্ট সার্ভিস রিভিউ', t: 'g' },
+      { id: 'M05-reviews', en: 'Monthly Service Reports', bn: 'মাসিক সেবা প্রতিবেদন', t: 'g' },
+      { id: 'M05-review-meetings', en: 'Service Review Meetings', bn: 'সেবা পর্যালোচনা সভা', t: 'g' },
+      { id: 'M05-roadmap', en: 'Technology Roadmap', bn: 'প্রযুক্তি রোডম্যাপ', t: 'g' },
       { id: 'M05-contracts', en: 'MSP Contracts & Monthly Reports', bn: 'এমএসপি চুক্তি ও মাসিক প্রতিবেদন', t: 'g' },
       { id: 'M05-credits', en: 'SLA Credits', bn: 'এসএলএ ক্রেডিট', t: 'g' }
+    ]},
+    { en: 'Specialist Services', screens: [
+      { id: 'M05-cloud', en: 'Cloud Subscriptions', bn: 'ক্লাউড সাবস্ক্রিপশন', t: 'g' },
+      { id: 'M05-dr-plans', en: 'DR / BC Plans', bn: 'ডিআর / বিসি পরিকল্পনা', t: 'g' },
+      { id: 'M05-dr-tests', en: 'DR Tests', bn: 'ডিআর পরীক্ষা', t: 'g' }
     ]}
   ],
   reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register'],
@@ -65,17 +74,18 @@ export const MODULE = {
    * each sub-module page names the forms that capture its records */
   forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window',
     'Managed Estate Device', 'Health Reading', 'Alert Rule', 'On-Call Shift', 'Runbook', 'Patch Update',
-    'Monthly Service Report', 'Runbook Execution', 'Backup Job'],
+    'Monthly Service Report', 'Runbook Execution', 'Backup Job', 'Client Contact', 'Major Incident',
+    'Service Review Meeting', 'Roadmap Item', 'Cloud Subscription', 'DR Plan', 'DR Test'],
   cross: ['M08 contract entitlement', 'M17 monitored assets', 'M48 telemetry streams', 'M20 SLA credit billing', 'P04 client portal'],
   freg: {
     src: 93,
     sub: [
       ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'], reports: ['Remote Resolution Rate'], forms: ['Remote Session (consent recorded)'] }],
-      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'], reports: [], forms: ['Managed Estate Device'] }],
+      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate', 'M05-cloud'], reports: [], forms: ['Managed Estate Device', 'Cloud Subscription'] }],
       /* 3 FR-RMS-010/011: an engineer's reading of an asset (an agentless
        * device or a site check) - the health score is computed from it. The
        * page had no button: the metrics were written by the collector only. */
-      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate', 'M05-backups'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading', 'Backup Job'], create: 'M05-form-reading' }],
+      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate', 'M05-backups', 'M05-dr-plans', 'M05-dr-tests'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading', 'Backup Job', 'DR Plan', 'DR Test'], create: 'M05-form-reading' }],
       /* 4 FR-RMS-015: the engine is configured by its rules; alerts are
        * raised by readings that cross them. The button opened the ticket form. */
       ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket'], create: 'M05-form-alert-rule' }],
@@ -85,10 +95,10 @@ export const MODULE = {
       /* 8 FR-RMS-026: a client reports by phone, email, portal or chat; the
        * desk lists those and every ticketed alert. Its list refused "+ New",
        * so the page had no button and a phoned-in fault had no input. */
-      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
+      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem', 'M05-contacts', 'M05-major-incidents'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record', 'Client Contact', 'Major Incident'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
       /* 9 FR-RMS-035: the monthly report is generated from its contract,
        * never typed - its figures decide the SLA credit. No button before. */
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: ['Monthly Service Report'], create: 'M05-form-monthly-report' }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: ['Monthly Service Report', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
       ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['MSP Contract'] }]
     ]
   }
@@ -144,7 +154,7 @@ export const SCREENS = {
    * the desk = what clients reported (phone, email, portal, chat) and every
    * alert that became a ticket. "+ New" logs a client's report. */
   'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert',
-    cols: ['asset_id', 'severity', 'message', 'source', 'order_id', 'recurring', 'problem_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
+    cols: ['asset_id', 'severity', 'message', 'source', 'reported_by_contact_id', 'order_id', 'recurring', 'problem_id', 'major_incident_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
     stateField: 'state',
     domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']],
     actions: [
@@ -244,6 +254,52 @@ export const SCREENS = {
       { m: 'action_apply', l: 'Apply to Billing' }
     ] },
 
+  /* ===== M05 spec features built 2026-11-13 (audit) ===== */
+  /* FR-RMS-049 who at the client may do what */
+  'M05-contacts': { kind: 'model_list', model: 'fix.msp.client.contact',
+    cols: ['msp_contract_id', 'partner_id', 'role', 'can_raise_tickets', 'can_approve_changes', 'can_receive_consent', 'escalation_order', 'escalation_channel'],
+    empty: 'No client contact registered. Register who may raise tickets, approve changes and receive consent codes with + New Client Contact.' },
+  /* FR-RMS-020 declared, contacts notified, resolved, reviewed by another person */
+  'M05-major-incidents': { kind: 'model_list', model: 'fix.msp.major.incident',
+    cols: ['name', 'msp_contract_id', 'declared_by_id', 'declared_at', 'notified_count', 'resolved_at', 'reviewed_by_id', 'state'],
+    stateField: 'state',
+    empty: 'No major incident declared.',
+    actions: [
+      { m: 'action_notify_contacts', l: 'Notify All Client Contacts' },
+      { m: 'action_resolve', l: 'Resolve', ask: 'How the incident was resolved', kwarg: 'note' },
+      { m: 'action_record_review', l: 'Record Post-Incident Review', ask: 'Root cause, what changes, follow-ups', kwarg: 'note' }
+    ] },
+  /* FR-RMS-036 the meeting, its attendees and the actions agreed */
+  'M05-review-meetings': { kind: 'model_list', model: 'fix.msp.service.review',
+    cols: ['meeting_date', 'msp_contract_id', 'service_report_id', 'open_action_count', 'next_review_date', 'state'],
+    stateField: 'state',
+    empty: 'No service review held yet. Record one with + New Service Review Meeting.',
+    actions: [{ m: 'action_close', l: 'Close Review (all actions done)' }] },
+  /* FR-RMS-045/046 strategy deliverables and refresh recommendations */
+  'M05-roadmap': { kind: 'model_list', model: 'fix.msp.roadmap.item',
+    cols: ['msp_contract_id', 'kind', 'name', 'asset_id', 'target_quarter', 'estimated_value', 'lead_id', 'state'],
+    stateField: 'state',
+    empty: 'No roadmap item yet.',
+    actions: [
+      { m: 'action_accept', l: 'Client Accepted' },
+      { m: 'action_decline', l: 'Client Declined' },
+      { m: 'action_deliver', l: 'Mark Delivered' },
+      { m: 'action_create_opportunity', l: 'Raise Sales Opportunity' }
+    ] },
+  /* FR-RMS-040 */
+  'M05-cloud': { kind: 'model_list', model: 'fix.msp.cloud.subscription',
+    cols: ['msp_contract_id', 'provider', 'name', 'seats', 'seats_used', 'monthly_cost', 'renewal_date', 'renewal_due', 'state'],
+    stateField: 'state',
+    empty: 'No cloud subscription tracked yet.' },
+  /* FR-RMS-042 / 043 */
+  'M05-dr-plans': { kind: 'model_list', model: 'fix.msp.dr.plan',
+    cols: ['msp_contract_id', 'name', 'rto_hours', 'rpo_hours', 'test_interval_days', 'last_test_date', 'next_test_due'],
+    empty: 'No DR / BC plan registered yet.' },
+  'M05-dr-tests': { kind: 'model_list', model: 'fix.msp.dr.test',
+    cols: ['test_date', 'msp_contract_id', 'plan_id', 'outcome', 'rto_achieved_hours', 'rpo_achieved_hours', 'meets_targets', 'tested_by_id'],
+    stateField: 'outcome',
+    empty: 'No DR test recorded yet.' },
+
   /* ============ SIX REGISTRY REPORT SCREENS (v2 forensic audit) =============
    * Every report chip opens its OWN titled computed report. Previously four of
    * the six routed to OPERATIONAL screens (console / patching / alerts /
@@ -309,6 +365,8 @@ export const SCREENS = {
         /* a ticket logged here is a client's report: it starts as a phone
          * call, never as "Monitoring" (that would hide it from the desk) */
         { name: 'source', required: true, value: 'phone', label: 'Reported Through' },
+        /* FR-RMS-049: a client's report names the registered contact who raised it */
+        { name: 'reported_by_contact_id', label: 'Reported By (registered client contact; required for a client report)' },
         { name: 'severity', required: true, label: 'Severity' },
         { name: 'message', required: true, label: 'What the Client Reported' },
         { name: 'rule_id', label: 'Raised by Alert Rule', readonly: true },
@@ -320,6 +378,7 @@ export const SCREENS = {
         { name: 'order_id', label: 'Commercial Service Order (M01)', readonly: true },
         { name: 'recurring', label: 'Recurring on This Asset (BRU-RMS-10)', readonly: true },
         { name: 'problem_id', label: 'Problem Record (needed to resolve a recurring incident)' },
+        { name: 'major_incident_id', label: 'Major Incident' },
         { name: 'state', label: 'Ticket / Alert State', readonly: true },
         { name: 'resolved_at', label: 'Resolved Timestamp', readonly: true },
         { name: 'resolution_note', label: 'Root Cause & Resolution Summary', type: 'text', readonly: true }
@@ -786,6 +845,130 @@ export const SCREENS = {
     ]
   },
 
+  'M05-form-contact': { kind: 'model_form', model: 'fix.msp.client.contact', title: 'Client Contact', back: 'M05-contacts',
+    sections: [
+      { title: 'Authorised Client Contact (FR-RMS-049)',
+        note: 'A contact of the client of this contract. A client report names its contact, who must be allowed to raise tickets; once contacts are registered, only one allowed to receive consent codes can consent to a remote session.',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'partner_id', required: true, label: 'Contact' },
+          { name: 'role', required: true, label: 'Role' },
+          { name: 'can_raise_tickets', label: 'May Raise Tickets' },
+          { name: 'can_approve_changes', label: 'May Approve Changes' },
+          { name: 'can_receive_consent', label: 'Receives Remote-Session Consent Codes' },
+          { name: 'escalation_order', label: 'Escalation Order (1 = first)' },
+          { name: 'escalation_channel', required: true, label: 'Escalation Channel' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ] },
+  'M05-form-major-incident': { kind: 'model_form', model: 'fix.msp.major.incident', title: 'Major Incident', newLabel: 'Declare a Major Incident', back: 'M05-major-incidents',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Major Incident (FR-RMS-020)',
+        note: 'Declare it, then Notify All Client Contacts, Resolve, and a Post-Incident Review by someone other than the declarer closes it. Link the alerts and tickets from the MSP Ticket form.',
+        fields: [
+          { name: 'name', required: true, label: 'Incident' },
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'impact', required: true, label: 'Impact on the Client', type: 'text' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'declared_by_id', label: 'Declared By', readonly: true },
+          { name: 'declared_at', label: 'Declared At', readonly: true },
+          { name: 'notified_at', label: 'Contacts Notified At', readonly: true },
+          { name: 'notified_count', label: 'Contacts Notified', readonly: true },
+          { name: 'resolved_at', label: 'Resolved At', readonly: true },
+          { name: 'resolution_note', label: 'Resolution', type: 'text', readonly: true },
+          { name: 'review_note', label: 'Post-Incident Review', type: 'text', readonly: true },
+          { name: 'reviewed_by_id', label: 'Reviewed By', readonly: true }
+        ] }
+    ] },
+  'M05-form-review-meeting': { kind: 'model_form', model: 'fix.msp.service.review', title: 'Service Review Meeting', back: 'M05-review-meetings',
+    status: { field: 'state' },
+    lines: { field: 'action_ids', title: 'Actions Agreed',
+      note: 'The review closes only when every action is done.',
+      fields: [
+        { name: 'name', label: 'Action' },
+        { name: 'owner_id', label: 'Owner' },
+        { name: 'due_date', label: 'Due' },
+        { name: 'done', label: 'Done' }
+      ] },
+    sections: [
+      { title: 'Client Service Review (FR-RMS-036)',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'meeting_date', required: true, label: 'Meeting Date' },
+          { name: 'attendees', required: true, label: 'Attendees', type: 'text' },
+          { name: 'service_report_id', label: 'Service Report Discussed' },
+          { name: 'summary', label: 'Discussion & Decisions', type: 'text' },
+          { name: 'next_review_date', label: 'Next Review' },
+          { name: 'open_action_count', label: 'Open Actions', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] }
+    ] },
+  'M05-form-roadmap': { kind: 'model_form', model: 'fix.msp.roadmap.item', title: 'Roadmap Item', back: 'M05-roadmap',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Technology Roadmap & Strategy (FR-RMS-045 / 046)',
+        note: 'A refresh, recommendation or strategy deliverable for the client. Once the client accepts it, Raise Sales Opportunity opens it in the sales pipeline (M07).',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'name', required: true, label: 'Item' },
+          { name: 'description', label: 'Rationale', type: 'text' },
+          { name: 'asset_id', label: 'Asset Concerned' },
+          { name: 'target_quarter', label: 'Target Quarter (YYYY-Qn)' },
+          { name: 'estimated_value', label: 'Estimated Value (BDT)' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'lead_id', label: 'Sales Opportunity', readonly: true }
+        ] }
+    ] },
+  'M05-form-cloud': { kind: 'model_form', model: 'fix.msp.cloud.subscription', title: 'Cloud Subscription', back: 'M05-cloud',
+    sections: [
+      { title: 'Client Cloud Subscription (FR-RMS-040)',
+        note: 'Flagged when it renews within 30 days.',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'provider', required: true, label: 'Provider' },
+          { name: 'name', required: true, label: 'Plan / Subscription' },
+          { name: 'seats', label: 'Seats / Licences' },
+          { name: 'seats_used', label: 'Seats In Use' },
+          { name: 'unit_cost', label: 'Monthly Cost per Seat (BDT)' },
+          { name: 'monthly_cost', label: 'Monthly Cost (BDT)', readonly: true },
+          { name: 'renewal_date', required: true, label: 'Renews On' },
+          { name: 'state', required: true, label: 'State' },
+          { name: 'renewal_due', label: 'Renews Within 30 Days', readonly: true }
+        ] }
+    ] },
+  'M05-form-dr-plan': { kind: 'model_form', model: 'fix.msp.dr.plan', title: 'DR Plan', back: 'M05-dr-plans',
+    sections: [
+      { title: 'Disaster Recovery / Continuity Plan (FR-RMS-042)',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'name', required: true, label: 'Plan' },
+          { name: 'scope', required: true, label: 'Systems Covered', type: 'text' },
+          { name: 'rto_hours', required: true, label: 'Recovery Time Objective (h)' },
+          { name: 'rpo_hours', required: true, label: 'Recovery Point Objective (h)' },
+          { name: 'test_interval_days', required: true, label: 'Test Every (days)' },
+          { name: 'last_test_date', label: 'Last Test', readonly: true },
+          { name: 'next_test_due', label: 'Next Test Due', readonly: true },
+          { name: 'active', label: 'Active' }
+        ] }
+    ] },
+  'M05-form-dr-test': { kind: 'model_form', model: 'fix.msp.dr.test', title: 'DR Test', newLabel: 'Record a DR Test', back: 'M05-dr-tests',
+    sections: [
+      { title: 'DR Test Result (FR-RMS-043)',
+        note: 'Passed only when both the recovery time and the data-loss window met the plan targets. Recorded once; a test is evidence.',
+        fields: [
+          { name: 'plan_id', required: true, label: 'DR Plan' },
+          { name: 'test_date', required: true, label: 'Test Date' },
+          { name: 'outcome', required: true, label: 'Outcome' },
+          { name: 'rto_achieved_hours', required: true, label: 'Recovery Time Achieved (h)' },
+          { name: 'rpo_achieved_hours', required: true, label: 'Data Loss Window Achieved (h)' },
+          { name: 'evidence', required: true, label: 'Evidence', type: 'text' },
+          { name: 'meets_targets', label: 'Met Targets', readonly: true },
+          { name: 'tested_by_id', label: 'Tested By', readonly: true }
+        ] }
+    ] },
+
   'M05-form-msp-patch-policy': {
     kind: 'model_form',
     model: 'fix.msp.patch.policy',
@@ -841,7 +1024,21 @@ export const FORM_CHIPS = {
     'M05-tickets': 'M05-form-ticket',
     'M05-runbook-runs': 'M05-form-runbook-run',
     'M05-backups': 'M05-form-backup-job',
+    'M05-contacts': 'M05-form-contact',
+    'M05-major-incidents': 'M05-form-major-incident',
+    'M05-review-meetings': 'M05-form-review-meeting',
+    'M05-roadmap': 'M05-form-roadmap',
+    'M05-cloud': 'M05-form-cloud',
+    'M05-dr-plans': 'M05-form-dr-plan',
+    'M05-dr-tests': 'M05-form-dr-test',
   },
+  'M05:Client Contact': 'M05-form-contact',
+  'M05:Major Incident': 'M05-form-major-incident',
+  'M05:Service Review Meeting': 'M05-form-review-meeting',
+  'M05:Roadmap Item': 'M05-form-roadmap',
+  'M05:Cloud Subscription': 'M05-form-cloud',
+  'M05:DR Plan': 'M05-form-dr-plan',
+  'M05:DR Test': 'M05-form-dr-test',
   'M05:Runbook Execution': 'M05-form-runbook-run',
   'M05:Backup Job': 'M05-form-backup-job',
   'M05:Health Reading': 'M05-form-reading',
@@ -870,7 +1067,14 @@ export const FORM_CHIPS = {
     'fix.msp.maintenance.window': 'M05-form-window',
     'fix.msp.alert.rule': 'M05-form-alert-rule',
     'fix.msp.runbook.run': 'M05-form-runbook-run',
-    'fix.msp.backup.job': 'M05-form-backup-job'
+    'fix.msp.backup.job': 'M05-form-backup-job',
+    'fix.msp.client.contact': 'M05-form-contact',
+    'fix.msp.major.incident': 'M05-form-major-incident',
+    'fix.msp.service.review': 'M05-form-review-meeting',
+    'fix.msp.roadmap.item': 'M05-form-roadmap',
+    'fix.msp.cloud.subscription': 'M05-form-cloud',
+    'fix.msp.dr.plan': 'M05-form-dr-plan',
+    'fix.msp.dr.test': 'M05-form-dr-test'
   }
 };
 

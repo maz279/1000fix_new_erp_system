@@ -56,8 +56,17 @@ On fix_real today:
 
 The owner decided on 13 Nov to **leave these roles unassigned for now**. The natural pool is the Corporate Service department (15 staff); the spec makes the Corporate Services Head the rule owner.
 
-## Still not built (spec features, not rules)
-Every business rule BRU-RMS-01..13 now has its control. BRU-RMS-09 is enforced (switch on since 13 Nov), and BRU-RMS-13 holds trivially until a client portal exposes M05. Approvals under 08 and 09 wait for the role appointments above. Spec features with no model yet: FR-RMS-036 service-review meetings, FR-RMS-020 major-incident declaration, FR-RMS-049 client contact permissions, FR-RMS-040..046 cloud subscription, DR/BC and strategy service lines. None is a discrepancy between the screens and the backend: no screen promises them.
+## Spec features built after the audit (13 Nov, owner decision "build all now")
+| Spec | Built |
+|---|---|
+| FR-RMS-049 client contacts & permissions | **Client Contacts** screen and form: role, may raise tickets / approve changes / receive consent codes, escalation order and channel. A contact must belong to the client. A client-reported ticket must name a contact allowed to raise tickets; once contacts exist, only a permitted contact can consent to a remote session |
+| FR-RMS-020 major incidents | **Major Incidents**: declare (engineer), Notify All Client Contacts (posts to every registered contact), Resolve (written resolution), Post-Incident Review by someone other than the declarer, which closes it. The workflow fields are guarded; alerts and tickets link to the incident |
+| FR-RMS-036 service review meetings | **Service Review Meetings**: attendees, the report discussed (must be the contract's own), decisions, an actions grid, next review. It closes only when every action is done. The monthly reports screen is renamed **Monthly Service Reports** |
+| FR-RMS-040 cloud subscriptions | **Cloud Subscriptions**: provider, plan, seats and seats in use, cost per seat, monthly cost, renewal date, a 30-day renewal flag (searchable) |
+| FR-RMS-042/043 DR/BC plans & tests | **DR / BC Plans** (scope, RTO, RPO, test interval, last test, next due) and **DR Tests** (achieved RTO/RPO, evidence, tested by). A test is **Passed** only if both targets were met; it is evidence once recorded |
+| FR-RMS-045/046 strategy & technology roadmap | **Technology Roadmap**: refresh, recommendation or deliverable per client; accept, decline, deliver. An accepted item becomes **one** M07 sales opportunity |
+
+Every business rule BRU-RMS-01..13 has its control (BRU-RMS-09 switch on; BRU-RMS-13 holds trivially until a client portal exposes M05). Still outside M05's build: FR-RMS-039's backup data feed from M06/M48 (backup jobs are recorded by engineers), public holidays in the business-hours SLA calendar, and FR-RMS-041/044/052 (cloud cost optimisation, security-posture deliverable, licence compliance reporting). No screen promises any of them.
 
 ## Evidence
 - `cd_msp_contract/tests/test_m05_bidirectional_audit.py` pins every fix above (20 tests).
@@ -68,3 +77,5 @@ Every business rule BRU-RMS-01..13 now has its control. BRU-RMS-09 is enforced (
 - Event payloads unchanged; only the three msp_* contracts' publisher lists were regenerated.
 - **BRU-RMS-03 (third deploy):** credential guard upgraded and live after 8089 and 8069 restarted; a ticket message containing "admin password: …" is refused on 8069 and nothing is saved; probe 40/40 on both servers. Backup `fix_real_pre_m05_bru03_deploy_2026-11-13.dump`.
 - **Business rules (second deploy, 13 Nov 06:13):** `cd_msp_contract/tests/test_m05_business_rules.py` 13/13. The full M05 suite passes 161 behaviour tests; the two contract-form layout tests were updated for the new Lifecycle tab and pass 6/6. The estate and capture guards pass 635/635. Backup `fix_real_pre_m05_bru_deploy_2026-11-13.dump`, `-u cd_msp_contract` 19.0.3.3.0 (all 15 new columns present). Live probe on 8069 (pid started 06:13) and 8089: **40/40, 0 problems**; the new actions are whitelisted.
+- **Spec features (fourth deploy, 13 Nov):** `test_m05_services.py` 10/10; on a fix_test copy the full M05 suite plus the estate-wide page and sub-module guards pass **790/790, 0 failed, 0 skipped**. Backup `fix_real_pre_m05_services_deploy_2026-11-13.dump`, `-u cd_msp_contract` 19.0.3.4.0 (8 new tables). **Live probe 54/54 M05 surfaces on 8069 and 8089, 0 problems.**
+- **Mutation check of the rules built after the audit, run in memory** (a pytest plugin that switches each rule off for that test process only, so the shared code on disk never changed): business rules BRU-02, 03, 05, 07, 10, 11, 12 **7/7 killed**; features FR-049, 020, 036, 043, 046 **5/5 killed**. Each failure was the rule's own assertion ("did not raise"), not a crash.

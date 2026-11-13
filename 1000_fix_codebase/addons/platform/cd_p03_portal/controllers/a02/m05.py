@@ -135,6 +135,36 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_approve", "action_close"},
     },
+    # M05 spec features built by the audit (2026-11-13)
+    "fix.msp.client.contact": {
+        "order": "msp_contract_id, escalation_order",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.msp.major.incident": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_notify_contacts", "action_resolve", "action_record_review"},
+    },
+    "fix.msp.service.review": {
+        "order": "meeting_date desc",
+        "limit": 100,
+        "actions": {"action_close"},
+    },
+    "fix.msp.review.action": {"order": "due_date", "limit": 200, "actions": set()},
+    "fix.msp.roadmap.item": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_accept",
+            "action_decline",
+            "action_deliver",
+            "action_create_opportunity",
+        },
+    },
+    "fix.msp.cloud.subscription": {"order": "renewal_date", "limit": 200, "actions": set()},
+    "fix.msp.dr.plan": {"order": "id desc", "limit": 100, "actions": set()},
+    "fix.msp.dr.test": {"order": "test_date desc", "limit": 200, "actions": set()},
     "fix.msp.change.record": {
         "order": "id desc",
         "limit": 200,

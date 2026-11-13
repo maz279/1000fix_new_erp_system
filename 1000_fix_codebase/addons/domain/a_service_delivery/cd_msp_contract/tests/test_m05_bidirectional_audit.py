@@ -244,7 +244,9 @@ def test_the_backup_log_report_reads_the_jobs(m5):
 
 
 def test_period_reports_honour_the_period(m5):
-    _alert(m5, source="phone", message="printer down")
+    _alert(
+        m5, source="phone", message="printer down", reported_by_contact_id=_reporting_contact(m5).id
+    )
     today = fields.Date.context_today(m5.env["fix.msp.alert"])
     last_year = (today - timedelta(days=400), today - timedelta(days=370))
     now = (today, today)
@@ -284,7 +286,12 @@ def test_the_credit_register_filters_by_service_month(m5):
 
 def test_open_msp_tickets_counts_a_phoned_in_ticket(m5):
     before = ctl.kpis(m5.env)["open_msp_tickets"]
-    _alert(m5, source="phone", message="client phoned: VPN down")
+    _alert(
+        m5,
+        source="phone",
+        message="client phoned: VPN down",
+        reported_by_contact_id=_reporting_contact(m5).id,
+    )
     _alert(m5, message="monitoring alert, not a ticket")
     assert ctl.kpis(m5.env)["open_msp_tickets"] == before + 1
 
@@ -294,3 +301,10 @@ def test_every_report_answers_without_a_placeholder(m5):
         out = report(m5.env, date_from="2026-01-01", date_to="2026-12-31")
         assert out["cols"] and all(c in out["labels"] for c in out["cols"]), key
         assert "not built" not in str(out), key
+
+
+def _reporting_contact(m5):
+    """The client's IT lead, registered and allowed to raise tickets (FR-RMS-049)."""
+    return m5.env["fix.msp.client.contact"].create(
+        {"msp_contract_id": m5.msp.id, "partner_id": m5.contact.id, "role": "it_manager"}
+    )

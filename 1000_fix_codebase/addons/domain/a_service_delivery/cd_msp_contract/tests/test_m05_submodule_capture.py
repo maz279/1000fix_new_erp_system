@@ -292,6 +292,7 @@ def test_the_metrics_are_not_typed_through_the_generic_write(m5, call):
 
 
 def test_a_client_ticket_is_logged_on_the_desk(m5, call, screens):
+    contact = _reporting_contact(m5)
     out = call(
         m5.env(user=m5.eng.id),
         "model_write",
@@ -301,6 +302,7 @@ def test_a_client_ticket_is_logged_on_the_desk(m5, call, screens):
             "msp_contract_id": m5.msp.id,
             "asset_id": m5.asset.id,
             "source": "phone",
+            "reported_by_contact_id": contact.id,
             "severity": "minor",
             "message": "Client reports the shared printer is not printing",
         },
@@ -355,3 +357,10 @@ def test_the_monthly_report_is_generated_once_per_month(m5, call):
     again = generate()
     assert not again.get("success") and "already exists" in again["error"]
     assert m5.env["fix.msp.service.report"].search_count([("msp_contract_id", "=", m5.msp.id)]) == 1
+
+
+def _reporting_contact(m5):
+    """The client's IT lead, registered and allowed to raise tickets (FR-RMS-049)."""
+    return m5.env["fix.msp.client.contact"].create(
+        {"msp_contract_id": m5.msp.id, "partner_id": m5.contact.id, "role": "it_manager"}
+    )

@@ -63,6 +63,28 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_msp_client_contact_company" model="ir.rule">
+        <field name="name">fix.msp.client.contact: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_client_contact"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_client_contact_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.client.contact: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_client_contact"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_cloud_subscription_company" model="ir.rule">
+        <field name="name">fix.msp.cloud.subscription: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_cloud_subscription"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_cloud_subscription_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.cloud.subscription: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_cloud_subscription"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_msp_contract_company" model="ir.rule">
         <field name="name">fix.msp.contract: allowed companies</field>
         <field name="model_id" ref="model_fix_msp_contract"/>
@@ -74,6 +96,28 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_msp_dr_plan_company" model="ir.rule">
+        <field name="name">fix.msp.dr.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_dr_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_dr_plan_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.dr.plan: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_dr_plan"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_dr_test_company" model="ir.rule">
+        <field name="name">fix.msp.dr.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_dr_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_dr_test_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.dr.test: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_dr_test"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_msp_maintenance_window_company" model="ir.rule">
         <field name="name">fix.msp.maintenance.window: allowed companies</field>
         <field name="model_id" ref="model_fix_msp_maintenance_window"/>
@@ -82,6 +126,17 @@
     <record id="rule_fix_msp_maintenance_window_operating_unit" model="ir.rule">
         <field name="name">fix.msp.maintenance.window: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_msp_maintenance_window"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_major_incident_company" model="ir.rule">
+        <field name="name">fix.msp.major.incident: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_major_incident"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_major_incident_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.major.incident: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_major_incident"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -118,6 +173,22 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_msp_review_action_company" model="ir.rule">
+        <field name="name">fix.msp.review.action: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_review_action"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_roadmap_item_company" model="ir.rule">
+        <field name="name">fix.msp.roadmap.item: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_roadmap_item"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_roadmap_item_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.roadmap.item: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_roadmap_item"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_msp_runbook_company" model="ir.rule">
         <field name="name">fix.msp.runbook: allowed companies</field>
         <field name="model_id" ref="model_fix_msp_runbook"/>
@@ -148,6 +219,17 @@
     <record id="rule_fix_msp_service_report_operating_unit" model="ir.rule">
         <field name="name">fix.msp.service.report: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_msp_service_report"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_service_review_company" model="ir.rule">
+        <field name="name">fix.msp.service.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_service_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_service_review_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.service.review: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_service_review"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
