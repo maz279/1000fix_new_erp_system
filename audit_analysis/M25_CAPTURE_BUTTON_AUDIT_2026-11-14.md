@@ -1,7 +1,7 @@
 # M25 Business Intelligence: data-capture button audit
 
 **Date:** 13–14 Nov 2026 · **Estate:** fix_real on port 8069
-**Status:** live on 8069 since the 14 Nov 01:13 restart. `-u cd_bi_reporting` ran on fix_real first, and the user approved the deploy.
+**Status:** live on 8069 since the 14 Nov 01:13 restart, and checked page by page in the running workspace. `-u cd_bi_reporting` ran on fix_real first, and the user approved the deploy.
 
 - The served bundle `f61c973` carries the new screens and the engine change.
 - 8089 was down and no supervisor was running. A peer session relaunched 8069 while my relaunch was still booting. Its log is clean (155 modules, no errors).
@@ -96,7 +96,25 @@ The model follows spec §8.2: registered → parallel run → (discrepancy inves
   - the surface serves the 4 actions
   - `report_library` answers as a real non-admin user with the six packs (exports show "—", because that user may not read the export audit)
 - **Served bundle `f61c973`:** contains *Register a Manual Pack*, `M25-form-sync`, `report_library`, *Reconciled: Figures Match*, the metric choices, and `fregCreate` with the named-form check ahead of the report guard.
-- **Not done:** a click-through in the browser pane. The pane is not signed in to 8069, and I did not type the admin password. The engine evaluation in §4 runs the same `fregCreate`/`fregPanels` code the browser runs.
+- **Live click-through, 8069 in normal mode (bundle `f61c973`)**, after the user signed in to the browser pane. Each of the 7 sub-module pages was opened from the Function Register:
+
+  | # | Page | Primary button | Chips |
+  |---|---|---|---|
+  | 1 | Role Dashboards | + Dashboard | Dashboard |
+  | 2 | Standard Report Library | + New Distribution Schedule | Distribution Schedule |
+  | 3 | Self-Service | + Dashboard | Dashboard |
+  | 4 | Distribution & Alerting | + New Distribution Schedule | Distribution Schedule, Alert Subscription |
+  | 5 | Embedded Analytics | + New Sync Connection | Sync Connection |
+  | 6 | Mobile | + Dashboard | Dashboard, Distribution Schedule |
+  | 7 | Lifecycle & Usage | + Register a Manual Pack | Manual Pack, Dashboard |
+
+  "+ Dashboard" is the module's own button (its standard label).
+  - The library page shows its seven-column grid (Report … Last Export).
+  - Three forms were opened from their buttons, and nothing was saved:
+    - the manual-pack form: Pack Name, Function, Owner, Frequency, Effort, Metrics, Replacement Dashboard, and a Replacement Report dropdown of 7 packs
+    - the sync-connection form: Dataset Scope and Frequency dropdowns
+    - the schedule form: Report dropdown of 7 packs, Format CSV/PDF/XLSX
+  - None of the three showed an error. The Replacement Dashboard picker is empty because fix_real holds no dashboards.
 
 ## 6. Not built: needs an owner decision or a model
 
