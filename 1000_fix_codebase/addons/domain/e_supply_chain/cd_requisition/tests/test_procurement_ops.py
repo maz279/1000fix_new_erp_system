@@ -241,3 +241,97 @@ def test_po_promised_and_received_dates(ctx):
         }
     )
     assert po.received_on <= po.promised_date
+
+
+# ---- FR-PRO-006: cross-branch consolidation (M16 capture audit, 13 Nov 2026)
+def _branches(ctx):
+    env = ctx["env"]
+    entity = env["fix.entity"].create(
+        {"code": f"CN{TAG}", "legal_name": f"Consolidation {TAG}", "company_id": env.company.id}
+    )
+    return env["fix.branch"].create(
+        [
+            {
+                "name": f"Consol North {TAG}",
+                "code": f"CN1{TAG}",
+                "entity_id": entity.id,
+                "operating_unit_id": ctx["ou"].id,
+            },
+            {
+                "name": f"Consol South {TAG}",
+                "code": f"CS1{TAG}",
+                "entity_id": entity.id,
+                "operating_unit_id": ctx["ou"].id,
+            },
+        ]
+    )
+
+
+def _consolidated_rfq(ctx, reqs, **vals):
+    return ctx["env"]["fix.procurement.rfq"].create(
+        {
+            "description": f"Consolidated {TAG}",
+            "product_id": ctx["product"].id,
+            "requisition_ids": [(6, 0, reqs.ids)],
+            **vals,
+        }
+    )
+
+
+def test_consolidated_rfq_buys_the_branches_total(ctx):
+    north, south = _branches(ctx)
+    a = _requisition(ctx, description=f"North {TAG}", branch_id=north.id, qty=4)
+    b = _requisition(ctx, description=f"South {TAG}", branch_id=south.id, qty=6)
+    rfq = _consolidated_rfq(ctx, a | b, qty=1)
+    # the typed quantity gives way to the requisitions' total
+    assert rfq.qty == pytest.approx(10.0)
+    assert rfq.requisition_ids == a | b
+
+
+def test_consolidated_award_raises_one_po_with_a_line_per_branch(ctx):
+    env = ctx["env"]
+    north, south = _branches(ctx)
+    a = _requisition(ctx, description=f"North {TAG}", branch_id=north.id, qty=4)
+    b = _requisition(ctx, description=f"South {TAG}", branch_id=south.id, qty=6)
+    rfq = _consolidated_rfq(ctx, a | b)
+    rfq.action_open()
+    Bid = env["fix.procurement.bid"]
+    win = Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor"].id, "unit_price": 90})
+    Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor2"].id, "unit_price": 100})
+    Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor3"].id, "unit_price": 110})
+    rfq.action_close()
+    award = env["fix.procurement.award"].create({"rfq_id": rfq.id, "bid_id": win.id})
+    assert award.state == "decided"
+    award.action_create_po()
+    po = award.purchase_order_id
+    assert a.state == b.state == "converted"
+    assert a.purchase_order_id == b.purchase_order_id == po
+    assert po.requisition_id in (a | b)
+    assert not po.branch_id  # two branches: each keeps its own line
+    assert sorted(po.line_ids.mapped("qty_ordered")) == [4.0, 6.0]
+    assert set(po.line_ids.mapped("unit_price")) == {90.0}
+    assert any(north.name in d for d in po.line_ids.mapped("description"))
+    assert any(south.name in d for d in po.line_ids.mapped("description"))
+
+
+def test_consolidation_refuses_what_it_cannot_buy(ctx):
+    env = ctx["env"]
+    north, south = _branches(ctx)
+    draft = _requisition(ctx, approved=False, description=f"Draft {TAG}", branch_id=north.id)
+    with pytest.raises(UserError, match="only approved"), env.cr.savepoint():
+        _consolidated_rfq(ctx, draft)
+    other_part = env["product.product"].create({"name": f"Other part {TAG}"})
+    wrong = _requisition(ctx, description=f"Wrong part {TAG}", product_id=other_part.id)
+    with pytest.raises(UserError, match="buys one part"), env.cr.savepoint():
+        _consolidated_rfq(ctx, wrong)
+    a = _requisition(ctx, description=f"North {TAG}", branch_id=north.id)
+    b = _requisition(ctx, description=f"South {TAG}", branch_id=south.id)
+    first = _consolidated_rfq(ctx, a | b)
+    # out to tender once: neither a second RFQ nor a direct PO
+    with pytest.raises(UserError, match="already sourcing"), env.cr.savepoint():
+        _consolidated_rfq(ctx, b)
+    with pytest.raises(UserError, match="being sourced"), env.cr.savepoint():
+        a.action_convert_to_po()
+    first.action_open()
+    with pytest.raises(UserError, match="fixed once bids are invited"), env.cr.savepoint():
+        first.write({"requisition_ids": [(6, 0, a.ids)]})

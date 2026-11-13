@@ -654,7 +654,7 @@ class FixRentalDeposit(models.Model):
             _refuse("The deposit ledger is append-only: a movement is never deleted.")
         return super().unlink()
 
-    def _post(self, reservation, kind, amount, note="", damage=None, method="cash"):
+    def _post(self, reservation, kind, amount, note="", damage=None, method=None, reference=None):
         """One money movement against a rental deposit — sub-ledger row AND
         General Ledger, or an honest refusal.
 
@@ -672,6 +672,14 @@ class FixRentalDeposit(models.Model):
         branch REFUSES the movement — money is never parked on a guess."""
         if not amount or amount <= 0:
             return self.browse()
+        if not method:
+            # M13 capture audit (2026-11-13): every movement used to be booked as
+            # cash. A refund, deduction or forfeit follows the tender the deposit
+            # was taken in, so a bKash deposit is refunded by bKash (M50).
+            collected = reservation.deposit_ids.filtered(lambda d: d.kind == "collect")
+            method = collected.sorted("id")[-1:].method or "cash"
+        if method not in dict(self._fields["method"].selection):
+            raise UserError("Unknown deposit tender %r" % method)
         vals = {
             "reservation_id": reservation.id,
             "company_id": reservation.company_id.id,
@@ -682,6 +690,8 @@ class FixRentalDeposit(models.Model):
             "note": note or dict(self._fields["kind"].selection).get(kind, ""),
             "damage_id": damage.id if damage else False,
         }
+        if reference:
+            vals["reference"] = reference
         # the guard token stays inside this transition: hand back a clean record
         rec = self.browse(self._guarded().create(vals).id)
         if kind == "refund":

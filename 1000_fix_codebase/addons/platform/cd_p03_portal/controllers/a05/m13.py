@@ -41,6 +41,7 @@ SURFACES = {
             "action_sign_agreement",
             "action_reset_agreement",
             "action_issue_rental_invoice",
+            "action_report_fault",
         },
     },
     "fix.rental.damage": {

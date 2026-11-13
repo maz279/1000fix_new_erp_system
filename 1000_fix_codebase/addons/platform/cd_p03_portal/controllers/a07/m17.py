@@ -135,6 +135,22 @@ SURFACES = {
         "rules": True,
         "actions": set(),
     },
+    # M17 capture audit (2026-11-13), FR-AST-039 / BRU-AST-18: an estate is
+    # registered from a file. Uploading validates it; Commit as a Set (Device
+    # Registry Agent) registers every row or none. The lines are the reject
+    # report, written only by the validation.
+    "fix.device.bulk.load": {
+        "order": "id desc",
+        "limit": 200,
+        "rules": True,
+        "actions": {"action_validate", "action_commit"},
+    },
+    "fix.device.bulk.line": {
+        "order": "load_id desc, row_no",
+        "limit": 2000,
+        "rules": True,
+        "actions": set(),
+    },
 }
 
 

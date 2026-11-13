@@ -135,6 +135,36 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_approve", "action_close"},
     },
+    # M05 spec features built by the audit (2026-11-13)
+    "fix.msp.client.contact": {
+        "order": "msp_contract_id, escalation_order",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.msp.major.incident": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_notify_contacts", "action_resolve", "action_record_review"},
+    },
+    "fix.msp.service.review": {
+        "order": "meeting_date desc",
+        "limit": 100,
+        "actions": {"action_close"},
+    },
+    "fix.msp.review.action": {"order": "due_date", "limit": 200, "actions": set()},
+    "fix.msp.roadmap.item": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_accept",
+            "action_decline",
+            "action_deliver",
+            "action_create_opportunity",
+        },
+    },
+    "fix.msp.cloud.subscription": {"order": "renewal_date", "limit": 200, "actions": set()},
+    "fix.msp.dr.plan": {"order": "id desc", "limit": 100, "actions": set()},
+    "fix.msp.dr.test": {"order": "test_date desc", "limit": 200, "actions": set()},
     "fix.msp.change.record": {
         "order": "id desc",
         "limit": 200,
@@ -577,6 +607,185 @@ def _backup_log_report(env, date_from=None, date_to=None, **params):
     }
 
 
+def _cloud_cost_report(env, **params):
+    """FR-RMS-041: what each client spends on cloud subscriptions and what
+    paying only for the seats in use would save."""
+    Sub = env["fix.msp.cloud.subscription"].sudo().with_context(lang="en_US")
+    subs = Sub.search([*_company(env), ("state", "=", "active")], order="msp_contract_id, name")
+    providers = dict(Sub._fields["provider"].selection)
+    rows = []
+    for sub in subs:
+        unused = max((sub.seats or 0) - (sub.seats_used or 0), 0)
+        saving = round(unused * (sub.unit_cost or 0.0), 2)
+        rows.append(
+            {
+                "contract": sub.msp_contract_id.name,
+                "provider": providers.get(sub.provider, sub.provider),
+                "plan": sub.name,
+                "seats": sub.seats,
+                "used": sub.seats_used,
+                "monthly_cost": round(sub.monthly_cost, 2),
+                "saving": saving,
+                "advice": (
+                    "Release %d unused seat(s)" % unused
+                    if unused
+                    else ("Renews within 30 days: review" if sub.renewal_due else "Right-sized")
+                ),
+            }
+        )
+    if not rows:
+        rows = [{"advice": "No active cloud subscription is tracked yet."}]
+    return {
+        "title": "Cloud Cost & Optimisation",
+        "cols": [
+            "contract",
+            "provider",
+            "plan",
+            "seats",
+            "used",
+            "monthly_cost",
+            "saving",
+            "advice",
+        ],
+        "labels": {
+            "contract": "Contract",
+            "provider": "Provider",
+            "plan": "Plan",
+            "seats": "Seats",
+            "used": "In Use",
+            "monthly_cost": "Monthly Cost (BDT)",
+            "saving": "Possible Saving / Month (BDT)",
+            "advice": "Recommendation",
+        },
+        "rows": rows,
+        "notes": [
+            "Saving = unused seats x cost per seat. Seats in use are as recorded on the subscription."
+        ],
+    }
+
+
+def _licence_compliance_report(env, **params):
+    """FR-RMS-052: seats in use against seats bought. More in use than
+    bought is a licence breach; the subscriptions are the ones tracked under
+    each contract."""
+    Sub = env["fix.msp.cloud.subscription"].sudo().with_context(lang="en_US")
+    subs = Sub.search([*_company(env), ("state", "=", "active")], order="msp_contract_id, name")
+    rows = []
+    for sub in subs:
+        gap = (sub.seats_used or 0) - (sub.seats or 0)
+        rows.append(
+            {
+                "contract": sub.msp_contract_id.name,
+                "plan": sub.name,
+                "seats": sub.seats,
+                "used": sub.seats_used,
+                "status": (
+                    "Non-compliant: %d licence(s) short" % gap
+                    if gap > 0
+                    else "Compliant (%d spare)" % -gap
+                ),
+            }
+        )
+    if not rows:
+        rows = [{"status": "No active subscription is tracked yet."}]
+    return {
+        "title": "Licence Compliance",
+        "cols": ["contract", "plan", "seats", "used", "status"],
+        "labels": {
+            "contract": "Contract",
+            "plan": "Subscription",
+            "seats": "Licences Bought",
+            "used": "In Use",
+            "status": "Compliance",
+        },
+        "rows": rows,
+        "notes": [
+            "Covers the subscriptions tracked under each MSP contract; software installed "
+            "on the client's own devices is not inventoried."
+        ],
+    }
+
+
+def _security_posture_report(env, **params):
+    """FR-RMS-044: each client's security posture as one periodic
+    deliverable: patching, monitoring coverage, backups, recurring incidents
+    and DR testing."""
+    Contract = env["fix.msp.contract"].sudo()
+    Patch = env["fix.msp.patch.update"].sudo()
+    Alert = env["fix.msp.alert"].sudo()
+    Job = env["fix.msp.backup.job"].sudo()
+    Plan = env["fix.msp.dr.plan"].sudo()
+    today = fields.Date.context_today(Contract)
+    rows = []
+    for msp in Contract.search(_company(env), order="name"):
+        tracked = Patch.search_count([("msp_contract_id", "=", msp.id)])
+        installed = Patch.search_count(
+            [("msp_contract_id", "=", msp.id), ("state", "=", "installed")]
+        )
+        critical_open = Patch.search_count(
+            [
+                ("msp_contract_id", "=", msp.id),
+                ("severity", "in", ("critical", "high")),
+                ("state", "!=", "installed"),
+            ]
+        )
+        gaps = Alert.search_count(
+            [
+                ("msp_contract_id", "=", msp.id),
+                ("coverage_gap", "=", True),
+                ("state", "!=", "resolved"),
+            ]
+        )
+        failing = len(
+            {
+                (j.asset_id.id, j.plan_ref)
+                for j in Job.search([("msp_contract_id", "=", msp.id)], order="run_at desc")
+                if j.consecutive_failures
+            }
+        )
+        overdue = Plan.search_count(
+            [("msp_contract_id", "=", msp.id), ("next_test_due", "<", today)]
+        )
+        rows.append(
+            {
+                "contract": msp.name,
+                "assets": msp.enrolled_count,
+                "patch_pct": round(100.0 * installed / tracked, 1) if tracked else None,
+                "critical_open": critical_open,
+                "coverage_gaps": gaps,
+                "failing_backups": failing,
+                "dr_overdue": overdue,
+            }
+        )
+    if not rows:
+        rows = [{"contract": "No MSP contract yet."}]
+    return {
+        "title": "Security Posture",
+        "cols": [
+            "contract",
+            "assets",
+            "patch_pct",
+            "critical_open",
+            "coverage_gaps",
+            "failing_backups",
+            "dr_overdue",
+        ],
+        "labels": {
+            "contract": "Contract",
+            "assets": "Monitored Assets",
+            "patch_pct": "Patch Compliance %",
+            "critical_open": "Critical / High Patches Open",
+            "coverage_gaps": "Open Coverage Gaps",
+            "failing_backups": "Backup Plans Failing",
+            "dr_overdue": "DR Tests Overdue",
+        },
+        "rows": rows,
+        "notes": [
+            "A backup plan is failing while its latest jobs have failed since its last success."
+        ],
+    }
+
+
 REPORTS = {
     "sla_by_client": _sla_by_client_report,
     "remote_resolution": _remote_resolution_report,
@@ -585,6 +794,9 @@ REPORTS = {
     "alert_conversion": _alert_conversion_report,
     "sla_credit_register": _sla_credit_register_report,
     "backup_log": _backup_log_report,
+    "cloud_cost": _cloud_cost_report,
+    "licence_compliance": _licence_compliance_report,
+    "security_posture": _security_posture_report,
 }
 
 

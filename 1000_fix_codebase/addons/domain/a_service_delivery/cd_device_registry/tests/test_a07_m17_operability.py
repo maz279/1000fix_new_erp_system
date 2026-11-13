@@ -727,12 +727,16 @@ def test_13_every_disposition_has_a_button(c, ui, js):  # noqa: F811
 
 
 # ------------------------------------------------------------ 15, 17 what the screens say
-def test_15_the_ownership_transfer_chip_points_at_the_asset_register(js):
-    # a transfer is made on the device: the chip opens the register, not an empty form
+def test_15_the_ownership_transfer_chip_runs_the_transfer_on_a_picked_device(js):
+    # a transfer is made on the device: the chip picks one and runs the governed
+    # transfer with what is entered (M17 capture audit 2026-11-13), never an
+    # empty ownership row
     target = js["chips"]["M17:Ownership Transfer"]
-    assert target == "M17-assets"
-    assert js["screens"][target]["kind"] == "model_list"
-    assert "action_transfer_ownership" in {a["m"] for a in js["screens"][target]["actions"]}
+    cfg = js["screens"][target]
+    assert cfg["kind"] == "model_form" and cfg["model"] == "fix.device"
+    assert cfg["pickRecord"]
+    assert cfg["saveAction"]["method"] == "action_transfer_ownership"
+    assert "action_transfer_ownership" in buttons(js, "M17-assets")
 
 
 def test_15_a_save_on_it_says_where_a_transfer_is_made(c, ui):  # noqa: F811

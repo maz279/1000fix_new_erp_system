@@ -5,7 +5,12 @@
  * no list screen, so the inspection gate could not be exercised in-workspace).
  * Real-inventory upgrade (2026-11-07, fit-gap report R4): +Item Master group,
  * the M15-parts grid and the 7-tab M15-form-part master form — the D365
- * data-capture surface for the 14,198-row real inventory statement. */
+ * data-capture surface for the 14,198-row real inventory statement.
+ * Capture audit (2026-11-13): each sub-module page now offers the form that
+ * captures its record - a stock location (FR-INV-002), the approved
+ * ownership-class change (FR-INV-018), van par levels (FR-INV-029), a return
+ * to vendor (FR-INV-052) - and serials, which only goods receipts create, are
+ * no longer offered as a blank form the server refuses. */
 
 export const MODULE = {
   area: 'A06', code: 'M15', en: 'Spare Parts & Inventory', title: 'M15 · Spare Parts & Inventory',
@@ -25,6 +30,7 @@ export const MODULE = {
     ]},
     { en: 'Stock Ledger', screens: [
       { id: 'M15-onhand', en: 'On-Hand by Location', bn: 'স্টক অন-হ্যান্ড', t: 'g' },
+      { id: 'M15-locations', en: 'Stock Locations', bn: 'স্টক লোকেশন', t: 'g' },
       { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'r' },
       { id: 'M15-movements', en: 'Issues & Returns', bn: 'ইস্যু ও রিটার্ন', t: 'g' },
       { id: 'M15-network', en: 'Network Availability Search', bn: 'প্রাপ্যতা অনুসন্ধান', t: 'r' },
@@ -54,21 +60,24 @@ export const MODULE = {
     ]}
   ],
   reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock', 'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation'],
-  forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)'],
+  forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)',
+    'Stock Location', 'Ownership-Class Change', 'Reorder Rule', 'Return to Vendor'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
     ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'], reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit'], forms: [] }],
-    ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-network', 'M15-onhand'], reports: [], forms: [] }],
-    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership'], reports: ['Stock Valuation by Class'], forms: [] }],
+    /* a location (van, store, quarantine...) is mastered on M41's form */
+    ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-locations', 'M15-network', 'M15-onhand'], reports: [], forms: ['Stock Location'], create: 'M41-form-stock-location' }],
+    /* stock changes class only by the approved document (BRU-INV-06) */
+    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership', 'M15-classchange'], reports: ['Stock Valuation by Class'], forms: ['Ownership-Class Change'], create: 'M15-form-classchange' }],
     ['4', 'Reservations', 7, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'reserved', 'available_qty'], screens: ['M15-onhand'], reports: [], forms: [], create: false, domain: [['reserved', '>', 0]] }],
     ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-genealogy'], reports: [], forms: ['Stock Issue'] }],
-    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: [] }],
+    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: ['Reorder Rule'] }],
     ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-genealogy'], reports: [], forms: [] }],
-    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation'], reports: ['Stock Valuation by Class'], forms: [] }],
+    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation', 'M15-suspense'], reports: ['Stock Valuation by Class'], forms: [] }],
     ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'], reports: [], forms: ['Goods Receipt (inspection gate)'] }],
     ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'], reports: ['Inventory Accuracy Audit'], forms: ['Cycle Count'] }],
     ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'], reports: ['Ageing & Dead Stock', 'ABC Segmentation'], forms: [] }],
-    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'], reports: ['Transfer Performance'], forms: ['Transfer Request', 'Scrap Order'] }],
+    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'], reports: ['Transfer Performance'], forms: ['Transfer Request', 'Scrap Order', 'Return to Vendor'] }],
     ['13', 'Item Master (real inventory)', 12, { model: 'fix.spare.part', cols: ['part_number', 'name', 'brand_id', 'category_id', 'qty_available', 'unit_cost', 'state'], screens: ['M15-parts'], reports: ['ABC Segmentation'], forms: ['Item Master (7 tabs)'] }]
   ] }
 };
@@ -85,6 +94,14 @@ export const SCREENS = {
   'M15-onhand': { kind: 'model_list', model: 'fix.stock.onhand', create: false,
     cols: ['part_id', 'location_id', 'ownership_class', 'stock_status', 'qty', 'reserved', 'available_qty', 'unit_cost'],
     empty: 'No stock on hand yet. Quantities appear when goods are received, and change only through issues, transfers, approved counts, quarantine, scrap and returns to vendor.' },
+  /* the location hierarchy (FR-INV-002): stores, vans, workbenches,
+   * quarantine and scrap; "+ New" and row clicks open M41's location form */
+  'M15-locations': { kind: 'model_list', model: 'fix.stock.location', stateField: 'state',
+    cols: ['name', 'code', 'location_type', 'parent_id', 'technician_id', 'branch_id', 'operating_unit_id', 'state'],
+    actions: [
+      { m: 'action_set_active', l: 'Activate (controller)' },
+      { m: 'action_set_inactive', l: 'Deactivate (controller)' }
+    ] },
   'M15-ownership': { kind: 'table_report', module: 'M15', report: 'ownership_classes', title: '6 Ownership Classes', period: false },
   'M15-movements': { kind: 'model_list', model: 'fix.stock.consumption', stateField: 'state',
     cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'ownership_class', 'state', 'consumed_at'],
@@ -93,8 +110,11 @@ export const SCREENS = {
       { m: 'action_return_part', l: 'Return Part', ask: 'Return reason: wrong_diagnosis, defective_new (goes to quarantine), customer_refusal or excess_draw', kwarg: 'reason' }
     ] },
   'M15-network': { kind: 'table_report', module: 'M15', report: 'availability', title: 'Network Availability Search', period: false },
-  'M15-serials': { kind: 'model_list', model: 'fix.stock.lot', stateField: 'status',
-    cols: ['name', 'part_id', 'location_id', 'qty', 'status', 'received_on'] },
+  /* serials are created by goods receipts and moved by the ledger: the lot's
+   * identity is guarded and no store role may create one (2026-11-13) */
+  'M15-serials': { kind: 'model_list', model: 'fix.stock.lot', stateField: 'status', create: false,
+    cols: ['name', 'part_id', 'location_id', 'qty', 'status', 'received_on'],
+    empty: 'No serial or lot yet. A serial is recorded when a goods receipt of a serialized part is posted, and then follows every issue, transfer, quarantine and return.' },
   'M15-genealogy': { kind: 'table_report', module: 'M15', report: 'genealogy', title: 'Consumption Genealogy', period: false },
   'M15-van': { kind: 'table_report', module: 'M15', report: 'van_stock', title: 'Van Stock by Technician', period: false },
   'M15-replen': { kind: 'model_list', model: 'fix.reorder.rule', stateField: 'state',
@@ -463,6 +483,7 @@ export const SCREENS = {
     model: 'fix.stock.lot',
     title: 'Serial / Lot',
     back: 'M15-serials',
+    create: false, pick: 'A serial is recorded by its goods receipt: open one from Serial & Lot Trace.',
     status: { field: 'status', labels: {
       in_stock: 'In Stock', issued: 'Issued', quarantined: 'Quarantined', scrapped: 'Scrapped',
       returned: 'Returned to Vendor', in_transit: 'In Transit', staged: 'Staged for Dispatch', shipped: 'Shipped' } },
@@ -604,7 +625,11 @@ export const FORM_MODELS = {
   'M15:Transfer Request': 'fix.stock.transfer',
   'M15:Cycle Count': 'fix.stock.count',
   'M15:Scrap Order': 'fix.stock.quarantine',
-  'M15:Item Master (7 tabs)': 'fix.spare.part'
+  'M15:Item Master (7 tabs)': 'fix.spare.part',
+  'M15:Stock Location': 'fix.stock.location',
+  'M15:Ownership-Class Change': 'fix.stock.class.change',
+  'M15:Reorder Rule': 'fix.reorder.rule',
+  'M15:Return to Vendor': 'fix.stock.rtv'
 };
 
 export const FORM_CHIPS = {
@@ -614,8 +639,14 @@ export const FORM_CHIPS = {
   'M15:Cycle Count': 'M15-form-count',
   'M15:Scrap Order': 'M15-form-scrap',
   'M15:Item Master (7 tabs)': 'M15-form-part',
+  /* the location master is M41's form (one form, two modules' pages) */
+  'M15:Stock Location': 'M41-form-stock-location',
+  'M15:Ownership-Class Change': 'M15-form-classchange',
+  'M15:Reorder Rule': 'M15-form-reorder',
+  'M15:Return to Vendor': 'M15-form-rtv',
   'M15:__by_model__': {
     'fix.spare.part': 'M15-form-part',
+    'fix.stock.location': 'M41-form-stock-location',
     'fix.stock.receipt': 'M15-form-receipt',
     'fix.stock.consumption': 'M15-form-issue',
     'fix.stock.transfer': 'M15-form-transfer',
@@ -631,6 +662,7 @@ export const FORM_CHIPS = {
   'M15:__by_screen__': {
     'M15-parts': 'M15-form-part',
     'M15-onhand': 'M15-form-onhand',
+    'M15-locations': 'M41-form-stock-location',
     'M15-movements': 'M15-form-issue',
     'M15-serials': 'M15-form-lot',
     'M15-replen': 'M15-form-reorder',

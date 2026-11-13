@@ -40,16 +40,17 @@ def _evidence(text, what):
     return text
 
 
-def add_business_hours(start_utc, hours):
+def add_business_hours(start_utc, hours, holidays=frozenset()):
     """``start_utc`` (naive UTC) plus ``hours`` of Sunday–Thursday 09:00–18:00
-    Asia/Dhaka working time, as naive UTC. Public holidays are not in the
-    calendar here: they count as working days."""
+    Asia/Dhaka working time, as naive UTC. A date in ``holidays`` (the
+    contract's holiday calendar) is closed like the weekend."""
     local = pytz.utc.localize(start_utc).astimezone(BD_TZ).replace(tzinfo=None)
     remaining = timedelta(hours=hours)
     for _ in range(3660):  # ten years of days: a target never runs that long
         day_open = datetime.combine(local.date(), BUSINESS_START)
         day_close = datetime.combine(local.date(), BUSINESS_END)
-        if local.weekday() in BUSINESS_DAYS and local < day_close:
+        open_day = local.weekday() in BUSINESS_DAYS and local.date() not in holidays
+        if open_day and local < day_close:
             begin = max(local, day_open)
             available = day_close - begin
             if remaining <= available:
@@ -78,6 +79,13 @@ class FixMspContractBru(models.Model):
         required=True,
         tracking=True,
         help="The hours in which the resolution clock runs (BRU-RMS-05).",
+    )
+    holiday_calendar_id = fields.Many2one(
+        "fix.working.calendar",
+        string="Holiday Calendar",
+        tracking=True,
+        help="Business-hours SLA clocks stop on this calendar's holidays and closures. "
+        "Empty: only the Friday–Saturday weekend is closed.",
     )
     # BRU-RMS-12
     recording_retention_days = fields.Integer(
@@ -152,8 +160,19 @@ class FixMspContractBru(models.Model):
         self.ensure_one()
         hours = self._msp_target_hours(alert)
         if self.coverage_window == "business":
-            return add_business_hours(alert.create_date, hours)
+            return add_business_hours(alert.create_date, hours, self._msp_holiday_dates())
         return alert.create_date + timedelta(hours=hours)
+
+    def _msp_holiday_dates(self):
+        """Every closed date of the contract's holiday calendar."""
+        self.ensure_one()
+        days = set()
+        for holiday in self.holiday_calendar_id.sudo().holiday_ids:
+            day = holiday.date_from
+            while day <= holiday.date_to:
+                days.add(day)
+                day += timedelta(days=1)
+        return frozenset(days)
 
     def _msp_period_sla(self, alerts, as_of=None) -> dict:
         """As before (within / breached / pending), with the deadline taken

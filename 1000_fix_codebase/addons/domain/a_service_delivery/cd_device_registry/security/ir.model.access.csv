@@ -16,3 +16,6 @@ access_fix_device_custody,fix.device.custody,model_fix_device_custody,base.group
 access_fix_device_component,fix.device.component,model_fix_device_component,base.group_user,1,1,1,0
 access_fix_device_identifier,fix.device.identifier,model_fix_device_identifier,base.group_user,1,0,0,0
 access_fix_device_merge,fix.device.merge,model_fix_device_merge,base.group_user,1,0,0,0
+access_fix_device_bulk_load,fix.device.bulk.load,model_fix_device_bulk_load,base.group_user,1,1,1,0
+access_fix_device_bulk_load_manager,fix.device.bulk.load manager,model_fix_device_bulk_load,group_device_branch_manager,1,1,1,1
+access_fix_device_bulk_line,fix.device.bulk.line,model_fix_device_bulk_line,base.group_user,1,0,0,0

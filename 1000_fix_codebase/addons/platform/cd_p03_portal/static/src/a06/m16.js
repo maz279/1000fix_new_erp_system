@@ -3,7 +3,14 @@
  * Requisition/PO existed; RFQ+bids+awards, blankets, expediting, inspection
  * and the requisition→PO conversion are new. PO Goods Receipts are this
  * module's own document: they feed the PO lines and the three-way match. The
- * warehouse stock receipts and RTV read M15's documents (single-owner surfaces). */
+ * warehouse stock receipts and RTV read M15's documents (single-owner surfaces).
+ *
+ * Capture-button audit (13 Nov 2026): Consolidation and 3-Way Match offered
+ * nothing; RFQ & Bidding had no chip for the bid or the award, Blanket Orders
+ * and Expediting no chip at all; GRN & Inspection offered a "GRN" chip that
+ * made an M15 warehouse receipt with no purchase order, and the RTV list
+ * refused "+ New" although its chip raised one. Each page now names what
+ * captures its record (report: audit_analysis/M16_CAPTURE_BUTTON_AUDIT_2026-11-13.md). */
 
 export const MODULE = {
   area: 'A06', code: 'M16', en: 'Procurement & Sourcing', title: 'M16 · Procurement & Sourcing',
@@ -50,18 +57,25 @@ export const MODULE = {
     ]}
   ],
   reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert', 'Maverick Spend', 'PO Cycle Time', 'GR/IR Reconciliation', 'Emergency Purchases'],
-  forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'PO Goods Receipt', 'GRN', 'RTV Request'],
+  forms: ['Purchase Requisition', 'Consolidated RFQ', 'RFQ', 'Supplier Bid', 'Award Decision', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'Blanket Agreement', 'Expediting Case', 'PO Goods Receipt', 'Inspection Outcome', 'RTV Request', 'Vendor Bill'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
     ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
     ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'], reports: ['Maverick Spend'], forms: ['Purchase Requisition'] }],
-    ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'], reports: [], forms: [], create: false }],
-    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ'] }],
+    /* FR-PRO-006: the approved requisitions still to be bought; the capture is
+     * the one sourcing event that buys a part for several branches */
+    ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'required_by', 'estimate_amount', 'state'], domain: [['state', '=', 'approved'], ['purchase_order_id', '=', false]], screens: ['M16-consol'], reports: [], forms: ['Consolidated RFQ'], create: 'M16-form-rfq-consol' }],
+    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ', 'Supplier Bid', 'Award Decision'] }],
     ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos', 'M16-pos-import', 'M16-proformas', 'M16-advances'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance'] }],
-    ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: [] }],
-    ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: [] }],
-    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'GRN', 'RTV Request'] }],
-    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], screens: ['M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: [] }],
+    ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: ['Blanket Agreement'] }],
+    ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: ['Expediting Case'] }],
+    /* goods are received against a PO here (PO Goods Receipt), judged
+     * (Inspection Outcome) and returned (RTV Request); the warehouse's own
+     * stock receipt is M15's and is only read here */
+    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'Inspection Outcome', 'RTV Request'] }],
+    /* the match itself is computed when the bill is registered; the record a
+     * person enters is the vendor's bill (M52's form), the third document */
+    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], domain: [['bill_type', '=', 'po']], screens: ['M16-match-queue', 'M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: ['Vendor Bill'], create: 'M52-form-bill' }],
     ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'], reports: ['Spend by Category & Vendor', 'Maverick Spend', 'Price Variance Alert', 'Emergency Purchases'], forms: [], create: false }]
   ] }
 };
@@ -181,12 +195,26 @@ export const SCREENS = {
     cols: ['name', 'receipt_ref', 'purchase_order_id', 'product_id', 'qty_received', 'qty_accepted', 'outcome', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Outcome' }] },
   'M16-match': { kind: 'table_report', module: 'M16', report: 'three_way', title: '3-Way Match Workbench', period: false },
+  /* The PO bills and their match verdict, as M16 reads them: the match runs
+   * when AP registers the bill (M52) and again when a receipt or inspection
+   * changes; it is never typed. */
+  'M16-match-queue': { kind: 'model_list', model: 'fix.vendor.invoice', stateField: 'match_state', create: false,
+    domain: [['bill_type', '=', 'po']],
+    cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'invoice_date', 'total_payable', 'match_state', 'match_detail', 'approval_state'],
+    empty: 'No purchase-order bill yet. A vendor bill is registered by Accounts Payable (+ New Vendor Bill on this page opens the M52 form); the match then runs against its purchase order and posted goods receipts.' },
   'M16-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: false },
   'M16-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend Analysis', period: false },
   'M16-pricehist': { kind: 'table_report', module: 'M16', report: 'price_history', title: 'Price History & Alerts', period: false },
   'M16-emergency': { kind: 'table_report', module: 'M16', report: 'emergency_spend', title: 'Emergency Purchases', period: false },
-  'M16-rtv': { kind: 'model_list', model: 'fix.stock.rtv', stateField: 'state', create: false,
-    cols: ['name', 'partner_id', 'part_id', 'qty', 'reason', 'state'] },
+  /* FR-PRO-033/034: procurement raises the return and tracks its credit;
+   * M15 approves it and ships the stock (its own RTV screen). */
+  'M16-rtv': { kind: 'model_list', model: 'fix.stock.rtv', stateField: 'state',
+    cols: ['name', 'partner_id', 'part_id', 'qty', 'reason', 'rtv_ref', 'purchase_order_id', 'state'],
+    empty: 'No return to vendor yet. A rejection at inspection raises one as a draft; + New raises one for goods found defective later.',
+    actions: [
+      { m: 'action_submit', l: 'Submit RTV', states: ['draft'] },
+      { m: 'action_mark_credited', l: 'Record Credit', ask: 'Vendor credit note / replacement reference', kwarg: 'credit_ref', states: ['shipped'] }
+    ] },
 
   /* Report chips -> their own computed pack */
   'M16-rpt-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend by Category & Vendor', period: false },
@@ -240,8 +268,36 @@ export const SCREENS = {
         fields: [
           { name: 'description', required: true, label: 'Description' },
           { name: 'requisition_id', label: 'Source Requisition', domain: [['state', '=', 'approved']] },
+          { name: 'requisition_ids', readonly: true, label: 'Consolidated Requisitions' },
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'qty', label: 'Quantity' },
+          { name: 'required_by', label: 'Required By' },
+          { name: 'target_price', label: 'Target Price' },
+          { name: 'notes', type: 'text', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  /* FR-PRO-006: one sourcing event for a part several branches asked for.
+   * The quantity is the requisitions' total, set at save; the award's PO
+   * converts every requisition with a line of its own. */
+  'M16-form-rfq-consol': {
+    kind: 'model_form',
+    model: 'fix.procurement.rfq',
+    title: 'Consolidated RFQ',
+    newLabel: 'Consolidate Requisitions into an RFQ',
+    back: 'M16-rfqs',
+    status: { field: 'state', labels: {
+      draft: 'Draft', open: 'Open for Bids', closed: 'Closed', awarded: 'Awarded' } },
+    sections: [
+      { title: 'Consolidation', note: 'Choose the part, then every approved requisition for it that this event should buy, from any branch (Cross-Branch Consolidation on this page lists the candidates). The RFQ quantity becomes their total. A requisition already on another open RFQ, already on a purchase order, or for another part is refused. Then open the RFQ and record the bids as usual; the award raises one purchase order with a line for each requisition.',
+        fields: [
+          { name: 'description', required: true, label: 'Description' },
+          { name: 'product_id', required: true, label: 'Part' },
+          { name: 'requisition_ids', required: true, label: 'Requisitions to Consolidate',
+            domain: [['state', '=', 'approved'], ['purchase_order_id', '=', false]],
+            emptyNote: 'No approved requisition is waiting to be bought. Requisitions are raised and approved on Purchase Requisitions first.' },
+          { name: 'qty', readonly: true, label: 'Total Quantity' },
           { name: 'required_by', label: 'Required By' },
           { name: 'target_price', label: 'Target Price' },
           { name: 'notes', type: 'text', label: 'Notes' }
@@ -363,6 +419,7 @@ export const SCREENS = {
     model: 'fix.stock.receipt',
     title: 'Warehouse Stock Receipt (M15)',
     back: 'M16-grn',
+    create: false, pick: 'A warehouse stock receipt is raised by posting a PO goods receipt (or in M15): open one from Warehouse Stock Receipts.',
     status: { field: 'state', labels: {
       draft: 'Draft', inspected: 'Inspected', posted: 'Posted' } },
     sections: [
@@ -622,8 +679,14 @@ export const FORM_MODELS = {
   'M16:Supplier Proforma': 'fix.purchase.proforma',
   'M16:Supplier Advance': 'fix.purchase.advance',
   'M16:PO Goods Receipt': 'fix.purchase.receipt',
-  'M16:GRN': 'fix.stock.receipt',
-  'M16:RTV Request': 'fix.stock.rtv'
+  'M16:RTV Request': 'fix.stock.rtv',
+  'M16:Consolidated RFQ': 'fix.procurement.rfq',
+  'M16:Supplier Bid': 'fix.procurement.bid',
+  'M16:Award Decision': 'fix.procurement.award',
+  'M16:Blanket Agreement': 'fix.procurement.blanket',
+  'M16:Expediting Case': 'fix.procurement.expedite',
+  'M16:Inspection Outcome': 'fix.procurement.inspection',
+  'M16:Vendor Bill': 'fix.vendor.invoice'
 };
 
 export const FORM_CHIPS = {
@@ -634,8 +697,15 @@ export const FORM_CHIPS = {
   'M16:Supplier Proforma': 'M16-form-proforma',
   'M16:Supplier Advance': 'M16-form-advance',
   'M16:PO Goods Receipt': 'M16-form-po-receipt',
-  'M16:GRN': 'M16-form-grn',
   'M16:RTV Request': 'M16-form-rtv',
+  'M16:Consolidated RFQ': 'M16-form-rfq-consol',
+  'M16:Supplier Bid': 'M16-form-bid',
+  'M16:Award Decision': 'M16-form-award',
+  'M16:Blanket Agreement': 'M16-form-blanket',
+  'M16:Expediting Case': 'M16-form-expedite',
+  'M16:Inspection Outcome': 'M16-form-inspection',
+  /* the bill is M52's record: its own form, as on M52 Invoice Capture */
+  'M16:Vendor Bill': 'M52-form-bill',
   'M16:__by_model__': {
     'fix.requisition': 'M16-form-requisition',
     'fix.procurement.rfq': 'M16-form-rfq',
@@ -665,7 +735,8 @@ export const FORM_CHIPS = {
     'M16-inspection': 'M16-form-inspection',
     'M16-po-receipts': 'M16-form-po-receipt',
     'M16-grn': 'M16-form-grn',
-    'M16-rtv': 'M16-form-rtv'
+    'M16-rtv': 'M16-form-rtv',
+    'M16-match-queue': 'M52-form-bill'
   }
 };
 

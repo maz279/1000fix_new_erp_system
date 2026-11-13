@@ -367,9 +367,11 @@ WRITABLE = {
     "fix.msp.alert": frozenset(
         {
             "asset_id",
+            "major_incident_id",
             "message",
             "msp_contract_id",
             "problem_id",
+            "reported_by_contact_id",
             "severity",
             "source",
         }
@@ -411,6 +413,31 @@ WRITABLE = {
             "rollback_plan",
         }
     ),
+    "fix.msp.client.contact": frozenset(
+        {
+            "active",
+            "can_approve_changes",
+            "can_raise_tickets",
+            "can_receive_consent",
+            "escalation_channel",
+            "escalation_order",
+            "msp_contract_id",
+            "partner_id",
+            "role",
+        }
+    ),
+    "fix.msp.cloud.subscription": frozenset(
+        {
+            "msp_contract_id",
+            "name",
+            "provider",
+            "renewal_date",
+            "seats",
+            "seats_used",
+            "state",
+            "unit_cost",
+        }
+    ),
     "fix.msp.contract": frozenset(
         {
             "alert_resolve_hours_major",
@@ -418,12 +445,34 @@ WRITABLE = {
             "contract_id",
             "coverage_window",
             "device_count",
+            "holiday_calendar_id",
             "monitoring_scope",
             "name",
             "per_device_monthly",
             "recording_retention_days",
             "sla_target_pct",
             "unattended_access",
+        }
+    ),
+    "fix.msp.dr.plan": frozenset(
+        {
+            "active",
+            "msp_contract_id",
+            "name",
+            "rpo_hours",
+            "rto_hours",
+            "scope",
+            "test_interval_days",
+        }
+    ),
+    "fix.msp.dr.test": frozenset(
+        {
+            "evidence",
+            "outcome",
+            "plan_id",
+            "rpo_achieved_hours",
+            "rto_achieved_hours",
+            "test_date",
         }
     ),
     "fix.msp.maintenance.window": frozenset(
@@ -434,6 +483,13 @@ WRITABLE = {
             "purpose",
             "start_at",
             "suppress_alerts",
+        }
+    ),
+    "fix.msp.major.incident": frozenset(
+        {
+            "impact",
+            "msp_contract_id",
+            "name",
         }
     ),
     "fix.msp.oncall.shift": frozenset(
@@ -469,6 +525,18 @@ WRITABLE = {
             "title",
         }
     ),
+    "fix.msp.review.action": frozenset(),
+    "fix.msp.roadmap.item": frozenset(
+        {
+            "asset_id",
+            "description",
+            "estimated_value",
+            "kind",
+            "msp_contract_id",
+            "name",
+            "target_quarter",
+        }
+    ),
     "fix.msp.runbook": frozenset(
         {
             "active",
@@ -491,6 +559,17 @@ WRITABLE = {
         }
     ),
     "fix.msp.service.report": frozenset(),
+    "fix.msp.service.review": frozenset(
+        {
+            "action_ids",
+            "attendees",
+            "meeting_date",
+            "msp_contract_id",
+            "next_review_date",
+            "service_report_id",
+            "summary",
+        }
+    ),
     "fix.msp.sla.credit": frozenset(
         {
             "dofa_justification",

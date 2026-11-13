@@ -19,9 +19,11 @@ export const MODULE = {
   groups: [
     { en: 'Trade-In', screens: [
       { id: 'M14-intake', en: 'Trade-In Intake', bn: 'ট্রেড-ইন গ্রহণ', t: 'g' },
+      { id: 'M14-bulk', en: 'Corporate Bulk Buy-Back', bn: 'কর্পোরেট বাল্ক বাই-ব্যাক', t: 'g' },
       { id: 'M14-valuation', en: 'Automated Valuation', bn: 'স্বয়ংক্রিয় মূল্যায়ন', t: 'g' },
       { id: 'M14-grid', en: 'Governed Price Grid', bn: 'মূল্য গ্রিড', t: 'g' },
       { id: 'M14-provenance', en: 'Provenance & IMEI Screen', bn: 'আইএমইআই যাচাই', t: 'g' },
+      { id: 'M14-gate', en: 'Destruction Gate', bn: 'ডেটা ধ্বংস গেট', t: 'g' },
       { id: 'M14-settlement', en: 'Settlement', bn: 'পরিশোধ ও নিষ্পত্তি', t: 'g' }
     ]},
     { en: 'Refurbishment', screens: [
@@ -31,6 +33,7 @@ export const MODULE = {
       { id: 'M14-harvest', en: 'Harvest to Parts', bn: 'যন্ত্রাংশ সংগ্রহ', t: 'g' }
     ]},
     { en: 'Resale', screens: [
+      { id: 'M14-resale-prep', en: 'Resale Preparation', bn: 'পুনর্বিক্রয় প্রস্তুতি', t: 'g' },
       { id: 'M14-stock', en: 'Graded Stock', bn: 'গ্রেডেড স্টক', t: 'g' },
       { id: 'M14-listings', en: 'Resale Listings', bn: 'পুনর্বিক্রয় তালিকা', t: 'r' },
       { id: 'M14-wty', en: 'Refurb Warranty', bn: 'রিফার্বিশড ওয়ারেন্টি', t: 'g' },
@@ -56,7 +59,10 @@ export const MODULE = {
     'Refurbishment Work Order',
     'QA & Battery Health Dossier',
     'Grading Certificate',
-    'Harvest to Parts Dossier'
+    'Harvest to Parts Dossier',
+    'Destruction Certificate Attachment',
+    'Resale Listing Preparation',
+    'Corporate Bulk Buy-Back Lot'
   ],
   cross: ['M06 destruction gate', 'M31 refurb repairs', 'M15 graded stock', 'M38 online resale', 'M18 recycle routing'],
   freg: { src: 84, sub: [
@@ -64,11 +70,16 @@ export const MODULE = {
     ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'], reports: ['Valuation Queue', 'Trade-In Margin by Model'], forms: ['Automated Valuation File', 'Governed Price Grid Row'] }],
     ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'], reports: [], forms: ['Provenance Screening & Anti-Theft'] }],
     ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'], reports: ['Unit Economics'], forms: ['Settlement & Four-Eyes Payout'], create: 'M14-form-settlement' }],
-    ['5', 'Bulk Buy-Back', 6, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'marketplace_seller_id', 'offered_value', 'state'], screens: ['M14-intake'], reports: ['Trade-In Margin by Model'], forms: ['Trade-In Intake Dossier'] }],
-    ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-intake', 'M14-orders'], reports: [], forms: [], create: false, domain: [['state', 'in', ['collected', 'wiped']]] }],
+    ['5', 'Bulk Buy-Back', 6, { model: 'fix.bulk.buyback', cols: ['name', 'partner_id', 'declared_asset_count', 'pending_count', 'state'], screens: ['M14-bulk', 'M14-intake'], reports: ['Trade-In Margin by Model'], forms: ['Corporate Bulk Buy-Back Lot'] }],
+    /* M14 capture audit (2026-11-13): Destruction Gate and Resale named no
+     * form, so neither page had a button. The gate's record is the M06
+     * certificate ATTACHED to a collected unit (M14 never issues one: SoD,
+     * spec §13), then Data Wipe; resale is the listing prepared on a graded
+     * unit (FR-TRF-021), then Resale Ready, which stocks it. */
+    ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-gate', 'M14-orders'], reports: [], forms: ['Destruction Certificate Attachment'], create: 'M14-form-wipe', domain: [['state', 'in', ['collected', 'wiped']]] }],
     ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'], reports: ['Refurb Cost per Grade'], forms: ['Refurbishment Work Order'] }],
     ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'], reports: ['Refurb Cost per Grade'], forms: ['Grading Certificate', 'QA & Battery Health Dossier'] }],
-    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: [] }],
+    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-resale-prep', 'M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: ['Resale Listing Preparation'], create: 'M14-form-resale' }],
     ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-harvest'], reports: ['Harvest Yield'], forms: ['Harvest to Parts Dossier'] }]
   ] }
 };
@@ -89,6 +100,28 @@ export const SCREENS = {
       { m: 'action_refurbish', l: 'Refurbish' },
       { m: 'action_grade', l: 'Grade' },
       { m: 'action_resale_ready', l: 'Resale Ready' }
+    ] },
+  /* The destruction gate (FR-TRF-011, BRU-TRF-01): a collected unit waits
+   * here for its M06 certificate; Data Wipe checks it is VERIFIED and bound
+   * to this device's media serial, Refurbish re-checks it. */
+  'M14-gate': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state', create: false,
+    cols: ['name', 'customer_id', 'device_id', 'wipe_certificate_id', 'hold_until', 'state'],
+    domain: [['state', 'in', ['collected', 'wiped']]],
+    actions: [
+      { m: 'action_wipe', l: 'Data Wipe (passes the gate)', states: ['collected'] },
+      { m: 'action_refurbish', l: 'Refurbish', states: ['wiped'] }
+    ],
+    empty: 'No collected unit is waiting at the destruction gate. A trade-in arrives here when it is collected; attach its verified M06 certificate with + Attach Destruction Certificate, then press Data Wipe.' },
+  /* FR-TRF-009 / BRU-TRF-23: a corporate fleet is bought back as a LOT. The
+   * client's declared assets are listed on the lot; Receive Lot opens one
+   * trade-in per declared asset (valued, screened and wiped per unit); the
+   * lot closes only when every declared asset has an intake or a documented
+   * exception. */
+  'M14-bulk': { kind: 'model_list', model: 'fix.bulk.buyback', stateField: 'state',
+    cols: ['name', 'partner_id', 'contract_ref', 'lot_price_basis', 'declared_asset_count', 'matched_count', 'exception_count', 'pending_count', 'state'],
+    actions: [
+      { m: 'action_open_intakes', l: 'Receive Lot & Open Intakes', states: ['draft', 'received'] },
+      { m: 'action_close', l: 'Close Lot (all reconciled)', states: ['received'] }
     ] },
   'M14-valuation': { kind: 'model_list', model: 'fix.tradein.valuation', stateField: 'state',
     cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer', 'override_state', 'state'],
@@ -137,8 +170,17 @@ export const SCREENS = {
       { m: 'action_harvest', l: 'Harvest' },
       { m: 'action_scrap', l: 'Scrap', ask: 'Why the component is scrapped', kwarg: 'reason' }
     ] },
+  /* FR-TRF-021: a graded unit's listing is prepared (channel, price,
+   * merchant) and Resale Ready then stocks it in M15 and lists it; the
+   * channel, price and merchant freeze from that point. */
+  'M14-resale-prep': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state', create: false,
+    cols: ['name', 'device_model_id', 'grade', 'refurb_grade_id', 'resale_channel', 'resale_value', 'resale_listed_on', 'state'],
+    domain: [['state', '=', 'graded']],
+    actions: [{ m: 'action_resale_ready', l: 'Resale Ready (stock and list)' }],
+    empty: 'No graded unit is waiting for resale. A trade-in arrives here once it is graded; prepare its listing with + Prepare a Resale Listing, then press Resale Ready.' },
   'M14-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state', create: false,
-    cols: ['name', 'device_id', 'grade_id', 'tradein_ref', 'inventory_valuation', 'resale_price', 'projected_margin', 'state'] },
+    cols: ['name', 'device_id', 'grade_id', 'tradein_ref', 'inventory_valuation', 'resale_price', 'projected_margin', 'state'],
+    empty: 'No graded unit in stock. A unit is stocked by Resale Ready on Resale Preparation, at what the seller was paid plus its refurbishment cost; it is sold from its store or marketplace order.' },
   'M14-listings': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: false },
   'M14-wty': { kind: 'model_list', model: 'fix.tradein.warranty', stateField: 'state', create: false,
     cols: ['name', 'tradein_id', 'graded_stock_ref', 'months', 'start_date', 'end_date', 'claims_count', 'state'],
@@ -274,7 +316,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Valuation Run Master',
         fields: [
           { name: 'name', label: 'Valuation Run ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (before the offer is accepted)', domain: [['state', 'in', ['draft', 'offered']]] },
           { name: 'method', label: 'Algorithm Method' },
           { name: 'state', label: 'Valuation State', readonly: true }
         ] },
@@ -360,7 +402,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Screening Subject',
         fields: [
           { name: 'name', label: 'Case Reference', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request', domain: [['state', 'not in', ['closed', 'rejected']]] },
           { name: 'imei', required: true, label: 'Primary IMEI' },
           { name: 'state', label: 'Clearance Status', readonly: true }
         ] },
@@ -500,7 +542,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Refurbishment Step Identification',
         fields: [
           { name: 'name', label: 'Work Order ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (in refurbishment)', domain: [['state', '=', 'refurbished']] },
           { name: 'step', label: 'Refurbishment Stage' },
           { name: 'state', label: 'Progress Status', readonly: true }
         ] },
@@ -551,7 +593,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Quality Assurance Docket',
         fields: [
           { name: 'name', label: 'QA Reference', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (in refurbishment)', domain: [['state', '=', 'refurbished']] },
           { name: 'refurbishment_id', label: 'Refurbishment Step' },
           { name: 'qa_state', label: 'Quality Assessment (from the results)', readonly: true }
         ] },
@@ -599,7 +641,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Grading Docket',
         fields: [
           { name: 'name', label: 'Grade Certificate ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' }
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (in refurbishment)', domain: [['state', '=', 'refurbished']] }
         ] },
       { tab: 'pricing', title: 'Grade Classification',
         fields: [
@@ -646,7 +688,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Harvest Case',
         fields: [
           { name: 'name', label: 'Harvest Record ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request' },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (graded parts-only, grade E)', domain: [['state', 'in', ['graded', 'closed']], ['grade', '=', 'e']] },
           { name: 'state', label: 'Harvesting State', readonly: true },
           { name: 'receipt_id', label: 'M15 Goods Receipt', readonly: true }
         ] },
@@ -727,6 +769,137 @@ export const SCREENS = {
         fields: [
           ] }
     ]
+  },
+
+  /* ============ M14 SUB-MODULE CAPTURE (2026-11-13) ==================
+   * Two steps a person performs on an EXISTING trade-in. Each picks the unit
+   * first; the value it captures is a plain field the model still accepts at
+   * that stage, and the gate itself is the list action that follows. */
+  'M14-form-bulk': {
+    kind: 'model_form',
+    model: 'fix.bulk.buyback',
+    title: 'Corporate Bulk Buy-Back Lot',
+    back: 'M14-bulk',
+    status: { field: 'state', labels: { draft: 'Draft', received: 'Received', closed: 'Closed' } },
+    tabs: [
+      { id: 'general', label: '1. Client & Contract', bn: '১. গ্রাহক ও চুক্তি', icon: '🏢', badge: '6' },
+      { id: 'pricing', label: '2. Lot Pricing', bn: '২. লট মূল্য', icon: '৳', badge: '4' },
+      { id: 'lifecycle', label: '3. Reconciliation', bn: '৩. মিলকরণ', icon: '✅', badge: '10' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Corporate Client & Buy-Back Contract',
+        fields: [
+          { name: 'name', label: 'Lot Reference', readonly: true },
+          { name: 'partner_id', required: true, label: 'Corporate Client' },
+          { name: 'contract_ref', label: 'Buy-Back Contract / PO Reference' },
+          { name: 'account_manager_id', label: 'Account Manager' },
+          { name: 'operating_unit_id', label: 'Receiving Operating Unit' },
+          { name: 'company_id', label: 'Company' }
+        ] },
+      { tab: 'pricing', title: 'Lot Pricing Basis',
+        note: 'Per-unit: every unit is valued on the governed price grid like any trade-in. Agreed lot price: the contract fixes a total, and the offers made on the units are shown beside it so a gap is visible.',
+        fields: [
+          { name: 'lot_price_basis', required: true, label: 'Lot Pricing' },
+          { name: 'lot_price', label: 'Agreed Lot Price (lot pricing only)' },
+          { name: 'offered_total', label: 'Offers Made on the Units of the Lot', readonly: true },
+          { name: 'currency_id', label: 'Currency' }
+        ] },
+      { tab: 'lifecycle', title: 'Reconciliation Against the Declared Asset List (BRU-TRF-23)',
+        note: 'Receive Lot & Open Intakes on Corporate Bulk Buy-Back opens one trade-in per declared asset, linked to the registered device when its serial or IMEI matches. The lot closes only when every declared asset has an intake or a documented exception.',
+        fields: [
+          { name: 'state', label: 'Lot State', readonly: true },
+          { name: 'declared_asset_count', label: 'Declared Assets', readonly: true },
+          { name: 'matched_count', label: 'Reconciled to an Intake', readonly: true },
+          { name: 'exception_count', label: 'Documented Exceptions', readonly: true },
+          { name: 'pending_count', label: 'Not Yet Reconciled', readonly: true },
+          { name: 'received_by_id', label: 'Received By', readonly: true },
+          { name: 'received_at', label: 'Received At', readonly: true },
+          { name: 'closed_by_id', label: 'Closed By', readonly: true },
+          { name: 'closed_at', label: 'Closed At', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ],
+    lines: {
+      field: 'asset_ids',
+      title: 'Declared Assets - the asset list of the client',
+      note: 'One row per asset the client declares (serial or IMEI as on their list). The intake is opened by Receive Lot, never typed; an asset that does not arrive, is retained or is declined is reconciled with a documented exception.',
+      fields: [
+        { name: 'asset_tag', label: 'Client Asset Tag' },
+        { name: 'serial_number', required: true, label: 'Serial / IMEI' },
+        { name: 'description', label: 'Make / Model' },
+        { name: 'tradein_id', label: 'Trade-In Intake', readonly: true },
+        { name: 'tradein_state', label: 'Intake State', readonly: true },
+        { name: 'status', label: 'Reconciliation', readonly: true },
+        { name: 'exception_reason', label: 'Documented Exception' }
+      ]
+    }
+  },
+
+  'M14-form-wipe': {
+    kind: 'model_form',
+    model: 'fix.tradein.request',
+    title: 'Destruction Certificate Attachment',
+    newLabel: 'Attach Destruction Certificate',
+    back: 'M14-gate',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the collected unit',
+      note: 'Collected trade-ins that have not passed the destruction gate.',
+      search: 'Search trade-in / customer',
+      choose: 'Attach its certificate',
+      cols: ['name', 'customer_id', 'device_id', 'wipe_certificate_id', 'state'],
+      domain: [['state', '=', 'collected']],
+      empty: 'No collected unit is waiting at the destruction gate. A trade-in reaches the gate when Collect is pressed on Trade-In Intake.'
+    },
+    status: { field: 'state', labels: { collected: 'Collected', wiped: 'Data Wiped' } },
+    sections: [
+      { title: 'Step 2 of 2: The M06 Destruction Certificate (FR-TRF-011)',
+        note: 'Data destruction is performed, certified and verified in M06 Data Services: M14 never issues a certificate (segregation of duties). Attach the verified certificate for THIS unit, save, then press Data Wipe on Destruction Gate: it refuses a certificate that is not verified, whose log changed after verification, or that certifies another media serial.',
+        fields: [
+          { name: 'name', label: 'Trade-In Reference', readonly: true },
+          { name: 'customer_id', label: 'Seller', readonly: true },
+          { name: 'device_id', label: 'Device (media serial checked against the certificate)', readonly: true },
+          { name: 'state', label: 'Trade-In State', readonly: true },
+          { name: 'wipe_certificate_id', required: true, label: 'Verified M06 Destruction Certificate',
+            domain: [['sanitization_status', '=', 'verified']] }
+        ] }
+    ]
+  },
+
+  'M14-form-resale': {
+    kind: 'model_form',
+    model: 'fix.tradein.request',
+    title: 'Resale Listing Preparation',
+    newLabel: 'Prepare a Resale Listing',
+    back: 'M14-resale-prep',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the graded unit to list',
+      note: 'Graded units that are not parts-only (grade E is harvested, never resold).',
+      search: 'Search trade-in / model',
+      choose: 'Prepare its listing',
+      cols: ['name', 'device_model_id', 'grade', 'refurb_grade_id', 'resale_value', 'state'],
+      domain: [['state', '=', 'graded'], ['grade', '!=', 'e']],
+      empty: 'No graded unit is waiting for resale. A trade-in is graded by Grade on Trade-In Intake once its QA and grading certificate are recorded.'
+    },
+    status: { field: 'state', labels: { graded: 'Graded', resale_ready: 'Resale Ready' } },
+    sections: [
+      { title: 'Graded Unit',
+        fields: [
+          { name: 'name', label: 'Trade-In Reference', readonly: true },
+          { name: 'device_model_id', label: 'Device Model', readonly: true },
+          { name: 'grade', label: 'Grade', readonly: true },
+          { name: 'refurb_grade_id', label: 'M37 Grade (sets the stock class)', readonly: true },
+          { name: 'battery_health_pct', label: 'Battery Health (%) - disclosed to the buyer', readonly: true },
+          { name: 'state', label: 'Trade-In State', readonly: true }
+        ] },
+      { title: 'Step 2 of 2: Channel & Price (FR-TRF-021, FR-TRF-022)',
+        note: 'Save, then press Resale Ready on Resale Preparation: it stocks the unit in M15 at what the seller was paid plus its refurbishment cost, lists it on the channel chosen here, and from then on the channel, price and merchant no longer change.',
+        fields: [
+          { name: 'resale_channel', required: true, label: 'Resale Channel' },
+          { name: 'resale_value', required: true, label: 'Listing Price (BDT)' },
+          { name: 'marketplace_seller_id', label: 'Marketplace Merchant Account (marketplace channel)' },
+          { name: 'resale_listed_on', label: 'Listing Date' }
+        ] }
+    ]
   }
 };
 
@@ -750,7 +923,10 @@ export const FORM_MODELS = {
   'M14:Refurbishment Work Order': 'fix.refurbishment',
   'M14:QA & Battery Health Dossier': 'fix.refurb.qa',
   'M14:Grading Certificate': 'fix.tradein.grade',
-  'M14:Harvest to Parts Dossier': 'fix.tradein.harvest'
+  'M14:Harvest to Parts Dossier': 'fix.tradein.harvest',
+  'M14:Destruction Certificate Attachment': 'fix.tradein.request',
+  'M14:Resale Listing Preparation': 'fix.tradein.request',
+  'M14:Corporate Bulk Buy-Back Lot': 'fix.bulk.buyback'
 };
 
 export const FORM_CHIPS = {
@@ -763,6 +939,9 @@ export const FORM_CHIPS = {
   'M14:QA & Battery Health Dossier': 'M14-form-qa',
   'M14:Grading Certificate': 'M14-form-grade',
   'M14:Harvest to Parts Dossier': 'M14-form-harvest',
+  'M14:Destruction Certificate Attachment': 'M14-form-wipe',
+  'M14:Resale Listing Preparation': 'M14-form-resale',
+  'M14:Corporate Bulk Buy-Back Lot': 'M14-form-bulk',
   'M14:__by_model__': {
     'fix.tradein.request': 'M14-form-request',
     'fix.tradein.valuation': 'M14-form-valuation',
@@ -772,14 +951,18 @@ export const FORM_CHIPS = {
     'fix.refurb.qa': 'M14-form-qa',
     'fix.tradein.grade': 'M14-form-grade',
     'fix.tradein.harvest': 'M14-form-harvest',
-    'fix.tradein.warranty': 'M14-form-warranty'
+    'fix.tradein.warranty': 'M14-form-warranty',
+    'fix.bulk.buyback': 'M14-form-bulk'
   },
   'M14:__by_screen__': {
     'M14-intake': 'M14-form-request',
+    'M14-bulk': 'M14-form-bulk',
     'M14-valuation': 'M14-form-valuation',
     'M14-grid': 'M14-form-grid',
     'M14-provenance': 'M14-form-provenance',
+    'M14-gate': 'M14-form-wipe',
     'M14-settlement': 'M14-form-settlement',
+    'M14-resale-prep': 'M14-form-resale',
     'M14-orders': 'M14-form-refurb',
     'M14-qa': 'M14-form-qa',
     'M14-grading': 'M14-form-grade',

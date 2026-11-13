@@ -65,20 +65,32 @@ export const MODULE = {
     'Statutory Environmental Return',
     'Basel Prior Informed Consent',
     'DoE E-Waste Registration',
-    'E-Waste Incentive / Recycler Money'
+    'E-Waste Incentive / Recycler Money',
+    // the destruction gate's steps (FR-ESG-009) and the certificate's first
+    // step (FR-ESG-013): added by the 13 Nov 2026 capture audit
+    'Start Secure Destruction',
+    'Bind M06 Wipe Certificate',
+    'Release to Recycler',
+    'Recycler Certificate from Batch'
   ],
   cross: ['M17 retired assets', 'M14 non-repairable trade-ins', 'M06 customer drop-offs', 'M03 hazardous transit'],
+  /* 13 Nov 2026 capture audit: 3 Data Destruction and 9 ESG offered nothing,
+   * 5 offered a "+ New" certificate the server refuses (a certificate comes
+   * from its processed batch), 10 repeated page 8's return. Now 3 is the
+   * destruction gate's queue (start, bind the M06 certificate, release),
+   * 5 records the certificate from its batch, 10 holds the DoE registration
+   * the returns are filed under; 9 stays computed (BRU-ESG-11: no entry path). */
   freg: { src: 82, sub: [
-    ['1', 'Intake & Channels', 8, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-intake'], reports: ['Collection Volume Trend'], forms: ['E-Waste Collection Dossier', 'E-Waste Incentive / Recycler Money'] }],
+    ['1', 'Intake & Channels', 8, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-intake', 'M18-settlements'], reports: ['Collection Volume Trend'], forms: ['E-Waste Collection Dossier', 'E-Waste Incentive / Recycler Money'] }],
     ['2', 'Triage & Disposition', 10, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'decision', 'data_bearing', 'decided_on'], screens: ['M18-triage'], reports: ['Disposition Mix'], forms: ['Triage & Sanitization Record'] }],
-    ['3', 'Data Destruction', 7, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'data_bearing', 'wipe_required', 'decided_on'], screens: ['M18-triage'], reports: ['Disposition Mix'], forms: [], create: false, domain: [['wipe_required', '=', true]] }],
-    ['4', 'Outbound Recycler', 8, { model: 'fix.ewaste.batch', cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-batches', 'M18-partners', 'M18-manifest'], reports: ['Material Recovery Yield'], forms: ['Recycler Dispatch Batch', 'Authorized Recycler Partner', 'Basel Prior Informed Consent', 'E-Waste Incentive / Recycler Money'] }],
-    ['5', 'Green Certificates', 7, { model: 'fix.ewaste.certificate', cols: ['name', 'certificate_no', 'partner_id', 'weight_kg', 'issued_on'], screens: ['M18-certs'], reports: ['Material Recovery Yield'], forms: ['Green & Destruction Certificate'] }],
+    ['3', 'Data Destruction', 7, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'triage_grade', 'wipe_certificate_id', 'state'], screens: ['M18-intake'], reports: ['Disposition Mix'], forms: ['Start Secure Destruction', 'Bind M06 Wipe Certificate', 'Release to Recycler'], create: 'M18-form-destruction', domain: [['wipe_required', '=', true], ['state', 'in', ['triaged', 'destruction']]] }],
+    ['4', 'Outbound Recycler', 8, { model: 'fix.ewaste.batch', cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-batches', 'M18-partners', 'M18-manifest', 'M18-pic', 'M18-settlements'], reports: ['Material Recovery Yield'], forms: ['Recycler Dispatch Batch', 'Authorized Recycler Partner', 'Basel Prior Informed Consent', 'E-Waste Incentive / Recycler Money'] }],
+    ['5', 'Green Certificates', 7, { model: 'fix.ewaste.certificate', cols: ['name', 'certificate_no', 'partner_id', 'weight_kg', 'issued_on'], screens: ['M18-certs'], reports: ['Material Recovery Yield'], forms: ['Recycler Certificate from Batch', 'Green & Destruction Certificate'], create: 'M18-form-cert-record' }],
     ['6', 'Public Drives & Bins', 7, { model: 'fix.ewaste.event', cols: ['name', 'venue', 'event_date', 'collected_kg', 'state'], screens: ['M18-drives'], reports: ['Collection Volume Trend'], forms: ['Collection Drive Event'] }],
     ['7', 'Hazardous Fraction', 9, { model: 'fix.ewaste.battery', cols: ['name', 'chemistry', 'hazard_class', 'weight_kg', 'state'], screens: ['M18-battery'], reports: ['Material Recovery Yield'], forms: ['Battery & Hazardous Dossier'] }],
     ['8', 'EPR Reporting', 8, { model: 'fix.ewaste.return', cols: ['name', 'authority', 'period', 'recovery_rate_pct', 'state'], screens: ['M18-returns'], reports: ['Statutory Compliance Pack'], forms: ['Statutory Environmental Return', 'DoE E-Waste Registration'] }],
     ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit'], screens: ['M18-esg'], reports: ['ESG Materiality Report', 'Impact & Diversion'], forms: [] }],
-    ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.return', cols: ['name', 'form_type', 'due_date', 'submitted_on', 'is_overdue'], screens: ['M18-epr', 'M18-partners'], reports: ['Statutory Compliance Pack', 'Impact & Diversion'], forms: ['Statutory Environmental Return', 'DoE E-Waste Registration', 'Authorized Recycler Partner'] }]
+    ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.registration', cols: ['name', 'authority', 'role', 'registration_no', 'epr_target_pct', 'valid_to', 'state'], screens: ['M18-registration', 'M18-epr', 'M18-partners', 'M18-pic'], reports: ['Statutory Compliance Pack', 'Impact & Diversion'], forms: ['DoE E-Waste Registration', 'Authorized Recycler Partner', 'Basel Prior Informed Consent'] }]
   ] }
 };
 
@@ -137,7 +149,10 @@ export const SCREENS = {
       { m: 'action_suspend', l: 'Suspend' },
       { m: 'action_renew', l: 'Renew Licence' }
     ] },
-  'M18-certs': { kind: 'model_list', model: 'fix.ewaste.certificate', stateField: 'state',
+  /* a certificate is never typed: the server refuses any create but the
+   * processed batch's Record Certificate (M18-4) - so no "+ New" here */
+  'M18-certs': { kind: 'model_list', model: 'fix.ewaste.certificate', stateField: 'state', create: false,
+    empty: 'No disposal certificate yet. A certificate is recorded from a processed recycler batch (Record a Recycler Certificate); then the recycler’s certificate number, stated weight and scan are entered on it, and a compliance officer issues it.',
     cols: ['name', 'certificate_no', 'partner_id', 'batch_id', 'material_type', 'weight_kg', 'issued_on', 'state'],
     actions: [
       { m: 'action_issue', l: 'Issue & Certify Items' },
@@ -201,7 +216,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Intake Reference & Source',
         fields: [
           { name: 'name', label: 'Collection Record ID', readonly: true },
-          { name: 'customer_id', label: 'Corporate / Retail Source' },
+          { name: 'customer_id', required: true, label: 'Corporate / Retail Source' },
           { name: 'operating_unit_id', label: 'Receiving Hub' },
           { name: 'state', label: 'Collection State', readonly: true }
         ] },
@@ -260,7 +275,8 @@ export const SCREENS = {
       { tab: 'general', title: 'Triage Docket',
         fields: [
           { name: 'name', label: 'Triage Case ID', readonly: true },
-          { name: 'collection_id', required: true, label: 'Origin Collection Item' }
+          /* the server triages a collected item once; anything else is refused */
+          { name: 'collection_id', required: true, label: 'Origin Collection Item', domain: [['state', '=', 'collected']] }
         ] },
       { tab: 'pricing', title: 'Disposition Routing',
         fields: [
@@ -306,7 +322,8 @@ export const SCREENS = {
       { tab: 'general', title: 'Batch Shipment Header',
         fields: [
           { name: 'name', label: 'Consignment Batch No', readonly: true },
-          { name: 'partner_id', required: true, label: 'Authorized Recycler Partner' },
+          /* dispatch re-checks the licence (BRU-ESG-02): only an approved recycler */
+          { name: 'partner_id', required: true, label: 'Authorized Recycler Partner', domain: [['state', '=', 'active']] },
           { name: 'operating_unit_id', label: 'Dispatch Hub' },
           { name: 'state', label: 'Batch Status', readonly: true }
         ] },
@@ -322,9 +339,12 @@ export const SCREENS = {
         fields: [
           { name: 'manifest_id', label: 'Form-1 Manifest', readonly: true },
           { name: 'destination_country_id', label: 'Destination Country' },
-          { name: 'basel_pic_id', label: 'Basel PIC (cross-border)' },
+          { name: 'basel_pic_id', label: 'Basel PIC (cross-border)', domain: [['state', '=', 'consented']] },
           { name: 'recycler_receipt_ref', label: 'Recycler Receipt Ref' },
-          { name: 'processing_evidence_id', label: 'Recycler Processing Evidence' },
+          /* the scan is uploaded here (once the recycler has received the batch) */
+          { name: 'processing_evidence_id', label: 'Recycler Processing Evidence (on file)', readonly: true },
+          { name: 'processing_file', type: 'file', label: 'Upload Processing Evidence' },
+          { name: 'processing_filename', label: 'Evidence File Name' },
           { name: 'received_on', label: 'Received On', readonly: true },
           { name: 'processed_on', label: 'Processed On', readonly: true },
           { name: 'transfer_note_ref', label: 'Waste Transfer Manifest Ref', readonly: true },
@@ -349,6 +369,19 @@ export const SCREENS = {
     model: 'fix.ewaste.certificate',
     title: 'Green & Destruction Certificate',
     back: 'M18-certs',
+    /* never typed from blank (the server refuses it): the recycler's details
+     * are entered on the draft its processed batch recorded */
+    create: false,
+    newLabel: 'Enter a Recycler Certificate',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the draft certificate the recycler sent',
+      note: 'Drafts recorded from processed batches. Enter the recycler’s certificate number, the weight it states and its scan, then a compliance officer issues it from Green Certificates.',
+      search: 'Search certificate, batch or recycler',
+      choose: 'Enter its details',
+      cols: ['name', 'batch_id', 'partner_id', 'material_type', 'state'],
+      domain: [['state', '=', 'draft']],
+      empty: 'No draft certificate. Record one from a processed batch first (Record a Recycler Certificate).'
+    },
     status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued', revoked: 'Revoked' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📜', badge: '4' },
@@ -374,7 +407,9 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'Issuance & Verification Proof',
         fields: [
-          { name: 'evidence_attachment_id', label: 'Recycler Certificate (scan)' },
+          { name: 'evidence_attachment_id', label: 'Recycler Certificate (scan on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Recycler Certificate (scan)' },
+          { name: 'evidence_filename', label: 'Certificate File Name' },
           { name: 'issued_by_id', label: 'Issued By', readonly: true },
           { name: 'revoke_reason', label: 'Revocation Reason' },
           { name: 'issued_on', label: 'Official Issue Date', readonly: true },
@@ -469,7 +504,9 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'UN 3480 / UN 3481 Class 9 Safety Gates',
         fields: [
-          { name: 'inspection_evidence_id', label: 'Inspection Photo / Evidence' },
+          { name: 'inspection_evidence_id', label: 'Inspection Photo (on file)', readonly: true },
+          { name: 'inspection_file', type: 'file', label: 'Upload Inspection Photo (taped terminals)' },
+          { name: 'inspection_filename', label: 'Photo File Name' },
           { name: 'inspected_by_id', label: 'HSE Inspector', readonly: true },
           { name: 'inspected_on', label: 'Inspected On', readonly: true },
           { name: 'terminal_taped', label: 'Terminals Insulated & Taped (Short-Circuit Prevention)', readonly: true },
@@ -523,7 +560,9 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'Department of Environment (DoE) Permit',
         fields: [
-          { name: 'licence_attachment_id', label: 'Licence Evidence (scan)' },
+          { name: 'licence_attachment_id', label: 'Licence Evidence (scan on file)', readonly: true },
+          { name: 'licence_file', type: 'file', label: 'Upload Licence Scan' },
+          { name: 'licence_filename', label: 'Licence File Name' },
           { name: 'certificate_no', required: true, label: 'DoE License Number' },
           { name: 'valid_from', label: 'License Effective Date' },
           { name: 'valid_to', label: 'License Expiry Date' }
@@ -671,7 +710,9 @@ export const SCREENS = {
           { name: 'max_weight_kg', label: 'Consented Quantity (kg)' },
           { name: 'valid_from', label: 'Valid From' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'evidence_attachment_id', label: 'Consent Document (scan)' }
+          { name: 'evidence_attachment_id', label: 'Consent Document (scan on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Consent Document' },
+          { name: 'evidence_filename', label: 'Consent File Name' }
         ] },
       { tab: 'governance', title: 'Four Eyes',
         fields: [
@@ -708,13 +749,144 @@ export const SCREENS = {
           { name: 'valid_to', label: 'Valid To' },
           { name: 'management_plan_ref', label: 'E-Waste Management Plan Ref' },
           { name: 'epr_target_pct', label: 'EPR Collection Target %' },
-          { name: 'evidence_attachment_id', label: 'Registration Certificate (scan)' }
+          { name: 'evidence_attachment_id', label: 'Registration Certificate (scan on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Registration Certificate' },
+          { name: 'evidence_filename', label: 'Certificate File Name' }
         ] },
       { tab: 'governance', title: 'Four Eyes',
         fields: [
           { name: 'state', label: 'Status', readonly: true },
           { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true },
           { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  /* ===== step forms (13 Nov 2026 capture audit): each acts on an existing
+   * record through its workflow method - the fields they show are guarded ===== */
+  'M18-form-destruction': {
+    kind: 'model_form',
+    model: 'fix.ewaste.collection',
+    title: 'Start Secure Destruction',
+    newLabel: 'Start Secure Destruction',
+    back: 'M18-intake',
+    status: { field: 'state', labels: { triaged: 'Triaged', destruction: 'Secure Destruction' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the triaged item to destroy',
+      note: 'Items the assessor graded Recycle Only. No item leaves 1000FiX custody without a verified M06 destruction certificate bound to it (FR-ESG-009).',
+      search: 'Search item or customer',
+      choose: 'Start its destruction',
+      cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'wipe_certificate_id'],
+      domain: [['state', '=', 'triaged'], ['triage_grade', '=', 'recycle']],
+      empty: 'No triaged item is waiting for destruction. Triage a collected item as Recycle Only first.'
+    },
+    saveAction: {
+      method: 'action_secure_destruction', label: 'Start Secure Destruction',
+      done: 'Destruction started: the M06 destruction certificate is raised for verification'
+    },
+    tabs: [{ id: 'general', label: '1. Item & Certificate', bn: '১. আইটেম ও সনদ', icon: '🔒', badge: '6' }],
+    sections: [
+      { tab: 'general', title: 'Item going to secure destruction',
+        note: 'If no M06 certificate is bound yet, one is raised for physical destruction of this item; an M06 verifier verifies it before the item can be released to a recycler.',
+        fields: [
+          { name: 'name', label: 'Collection Record', readonly: true },
+          { name: 'customer_id', label: 'Source', readonly: true },
+          { name: 'material_type', label: 'Category', readonly: true },
+          { name: 'weight_kg', label: 'Weight (kg)', readonly: true },
+          { name: 'data_bearing', label: 'Data Bearing', readonly: true },
+          { name: 'wipe_certificate_id', label: 'M06 Destruction Certificate', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-wipe-bind': {
+    kind: 'model_form',
+    model: 'fix.ewaste.collection',
+    title: 'Bind M06 Wipe Certificate',
+    newLabel: 'Bind an M06 Wipe Certificate',
+    back: 'M18-intake',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the item the certificate covers',
+      note: 'Items not yet past triage that need an M06 certificate. One certificate covers one item, bound to its storage media.',
+      search: 'Search item or customer',
+      choose: 'Bind its certificate',
+      cols: ['name', 'customer_id', 'device_id', 'material_type', 'wipe_certificate_id', 'state'],
+      domain: [['wipe_required', '=', true], ['state', 'in', ['collected', 'triaged']]],
+      empty: 'No item is waiting for an M06 certificate.'
+    },
+    tabs: [{ id: 'general', label: '1. Certificate', bn: '১. সনদ', icon: '🛡️', badge: '4' }],
+    sections: [
+      { tab: 'general', title: 'M06 certificate for this item',
+        note: 'Choose the certificate M06 issued for this item’s media. The release is still refused until M06 has verified it.',
+        fields: [
+          { name: 'name', label: 'Collection Record', readonly: true },
+          { name: 'customer_id', label: 'Source', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'wipe_certificate_id', required: true, label: 'M06 Wipe / Destruction Certificate' }
+        ] }
+    ]
+  },
+
+  'M18-form-release': {
+    kind: 'model_form',
+    model: 'fix.ewaste.collection',
+    title: 'Release to Recycler',
+    newLabel: 'Release a Destroyed Item to the Recycler',
+    back: 'M18-intake',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the destroyed item',
+      note: 'Released only when its M06 certificate is verified; the avoided CO2e is computed from the weight, never typed.',
+      search: 'Search item or customer',
+      choose: 'Release it',
+      cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'wipe_certificate_id'],
+      domain: [['state', '=', 'destruction']],
+      empty: 'No item is in secure destruction. Start one with Start Secure Destruction.'
+    },
+    saveAction: {
+      method: 'action_recycle_estimated', label: 'Release to Recycler',
+      done: 'Released: the item is ready for a recycler batch'
+    },
+    tabs: [{ id: 'general', label: '1. Item', bn: '১. আইটেম', icon: '♻️', badge: '5' }],
+    sections: [
+      { tab: 'general', title: 'Destroyed item',
+        fields: [
+          { name: 'name', label: 'Collection Record', readonly: true },
+          { name: 'customer_id', label: 'Source', readonly: true },
+          { name: 'material_type', label: 'Category', readonly: true },
+          { name: 'weight_kg', label: 'Weight (kg)', readonly: true },
+          { name: 'wipe_certificate_id', label: 'M06 Destruction Certificate', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-cert-record': {
+    kind: 'model_form',
+    model: 'fix.ewaste.batch',
+    title: 'Recycler Certificate from Batch',
+    newLabel: 'Record a Recycler Certificate',
+    back: 'M18-certs',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the processed batch the recycler certified',
+      note: 'A disposal certificate belongs to one processed batch and lists its items (FR-ESG-013).',
+      search: 'Search batch or recycler',
+      choose: 'Record its certificate',
+      cols: ['name', 'partner_id', 'material_type', 'processed_weight_kg', 'processed_on'],
+      domain: [['state', '=', 'processed'], '|', ['certificate_ids', '=', false], ['certificate_ids.state', '=', 'revoked']],
+      empty: 'No processed batch is waiting for its certificate. A batch is processed on Outbound Recycler once the recycler’s processing evidence is attached.'
+    },
+    saveAction: {
+      method: 'action_record_certificate', label: 'Record Certificate',
+      done: 'Draft certificate recorded: enter the recycler’s number, weight and scan with Enter a Recycler Certificate'
+    },
+    tabs: [{ id: 'general', label: '1. Batch', bn: '১. চালান', icon: '📜', badge: '5' }],
+    sections: [
+      { tab: 'general', title: 'Processed batch',
+        fields: [
+          { name: 'name', label: 'Batch', readonly: true },
+          { name: 'partner_id', label: 'Recycler', readonly: true },
+          { name: 'material_type', label: 'Material', readonly: true },
+          { name: 'processed_weight_kg', label: 'Processed (kg)', readonly: true },
+          { name: 'processed_on', label: 'Processed On', readonly: true }
         ] }
     ]
   },
@@ -775,7 +947,11 @@ export const FORM_MODELS = {
   'M18:Statutory Environmental Return': 'fix.ewaste.return',
   'M18:Basel Prior Informed Consent': 'fix.ewaste.basel.pic',
   'M18:DoE E-Waste Registration': 'fix.ewaste.registration',
-  'M18:E-Waste Incentive / Recycler Money': 'fix.ewaste.settlement'
+  'M18:E-Waste Incentive / Recycler Money': 'fix.ewaste.settlement',
+  'M18:Start Secure Destruction': 'fix.ewaste.collection',
+  'M18:Bind M06 Wipe Certificate': 'fix.ewaste.collection',
+  'M18:Release to Recycler': 'fix.ewaste.collection',
+  'M18:Recycler Certificate from Batch': 'fix.ewaste.batch'
 };
 
 export const FORM_CHIPS = {
@@ -790,6 +966,10 @@ export const FORM_CHIPS = {
   'M18:Basel Prior Informed Consent': 'M18-form-pic',
   'M18:DoE E-Waste Registration': 'M18-form-registration',
   'M18:E-Waste Incentive / Recycler Money': 'M18-form-settlement',
+  'M18:Start Secure Destruction': 'M18-form-destruction',
+  'M18:Bind M06 Wipe Certificate': 'M18-form-wipe-bind',
+  'M18:Release to Recycler': 'M18-form-release',
+  'M18:Recycler Certificate from Batch': 'M18-form-cert-record',
   'M18:__by_model__': {
     'fix.ewaste.collection': 'M18-form-collection',
     'fix.ewaste.triage': 'M18-form-triage',

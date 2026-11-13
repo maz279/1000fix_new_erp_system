@@ -37,3 +37,19 @@ access_fix_msp_alert_rule,fix.msp.alert.rule,model_fix_msp_alert_rule,base.group
 access_fix_msp_alert_rule_eng,fix.msp.alert.rule engineer,model_fix_msp_alert_rule,group_msp_engineer,1,1,1,0
 access_fix_msp_backup_job,fix.msp.backup.job,model_fix_msp_backup_job,base.group_user,1,0,0,0
 access_fix_msp_backup_job_eng,fix.msp.backup.job engineer,model_fix_msp_backup_job,group_msp_engineer,1,1,1,0
+access_fix_msp_client_contact,fix.msp.client.contact,model_fix_msp_client_contact,base.group_user,1,0,0,0
+access_fix_msp_client_contact_eng,fix.msp.client.contact engineer,model_fix_msp_client_contact,group_msp_engineer,1,1,1,0
+access_fix_msp_major_incident,fix.msp.major.incident,model_fix_msp_major_incident,base.group_user,1,0,0,0
+access_fix_msp_major_incident_eng,fix.msp.major.incident engineer,model_fix_msp_major_incident,group_msp_engineer,1,1,1,0
+access_fix_msp_service_review,fix.msp.service.review,model_fix_msp_service_review,base.group_user,1,0,0,0
+access_fix_msp_service_review_eng,fix.msp.service.review engineer,model_fix_msp_service_review,group_msp_engineer,1,1,1,0
+access_fix_msp_review_action,fix.msp.review.action,model_fix_msp_review_action,base.group_user,1,0,0,0
+access_fix_msp_review_action_eng,fix.msp.review.action engineer,model_fix_msp_review_action,group_msp_engineer,1,1,1,1
+access_fix_msp_cloud_subscription,fix.msp.cloud.subscription,model_fix_msp_cloud_subscription,base.group_user,1,0,0,0
+access_fix_msp_cloud_subscription_eng,fix.msp.cloud.subscription engineer,model_fix_msp_cloud_subscription,group_msp_engineer,1,1,1,0
+access_fix_msp_dr_plan,fix.msp.dr.plan,model_fix_msp_dr_plan,base.group_user,1,0,0,0
+access_fix_msp_dr_plan_eng,fix.msp.dr.plan engineer,model_fix_msp_dr_plan,group_msp_engineer,1,1,1,0
+access_fix_msp_dr_test,fix.msp.dr.test,model_fix_msp_dr_test,base.group_user,1,0,0,0
+access_fix_msp_dr_test_eng,fix.msp.dr.test engineer,model_fix_msp_dr_test,group_msp_engineer,1,1,1,0
+access_fix_msp_roadmap_item,fix.msp.roadmap.item,model_fix_msp_roadmap_item,base.group_user,1,0,0,0
+access_fix_msp_roadmap_item_eng,fix.msp.roadmap.item engineer,model_fix_msp_roadmap_item,group_msp_engineer,1,1,1,0

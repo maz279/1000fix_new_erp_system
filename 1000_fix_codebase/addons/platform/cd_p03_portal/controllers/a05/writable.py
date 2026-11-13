@@ -12,12 +12,27 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a05
 
 WRITABLE = {
+    "fix.bulk.buyback": frozenset(
+        {
+            "account_manager_id",
+            "asset_ids",
+            "company_id",
+            "contract_ref",
+            "currency_id",
+            "lot_price",
+            "lot_price_basis",
+            "notes",
+            "operating_unit_id",
+            "partner_id",
+        }
+    ),
     "fix.esg.metric": frozenset(),
     "fix.ewaste.basel.pic": frozenset(
         {
             "consent_ref",
             "destination_country_id",
-            "evidence_attachment_id",
+            "evidence_file",
+            "evidence_filename",
             "importing_authority",
             "max_weight_kg",
             "notes",
@@ -35,7 +50,8 @@ WRITABLE = {
             "notes",
             "operating_unit_id",
             "partner_id",
-            "processing_evidence_id",
+            "processing_file",
+            "processing_filename",
             "received_weight_kg",
             "recycler_receipt_ref",
         }
@@ -46,7 +62,8 @@ WRITABLE = {
             "collection_id",
             "company_id",
             "hazard_class",
-            "inspection_evidence_id",
+            "inspection_file",
+            "inspection_filename",
             "notes",
             "operating_unit_id",
             "quarantine_barrel_ref",
@@ -58,7 +75,8 @@ WRITABLE = {
     "fix.ewaste.certificate": frozenset(
         {
             "certificate_no",
-            "evidence_attachment_id",
+            "evidence_file",
+            "evidence_filename",
             "file_ref",
             "material_type",
             "recycler_stated_weight_kg",
@@ -97,7 +115,8 @@ WRITABLE = {
             "certificate_no",
             "certification",
             "company_id",
-            "licence_attachment_id",
+            "licence_file",
+            "licence_filename",
             "name",
             "partner_id",
             "valid_from",
@@ -108,7 +127,8 @@ WRITABLE = {
         {
             "authority",
             "epr_target_pct",
-            "evidence_attachment_id",
+            "evidence_file",
+            "evidence_filename",
             "issuing_office",
             "management_plan_ref",
             "notes",
@@ -201,10 +221,13 @@ WRITABLE = {
     "fix.rental.condition": frozenset(
         {
             "battery_health_pct",
+            "body_condition_rating",
             "case_ok",
+            "charge_cycles",
             "charger_ok",
             "grade",
             "inspector_id",
+            "maintenance_required",
             "notes",
             "photos_ref",
             "ports_ok",
@@ -224,7 +247,9 @@ WRITABLE = {
             "dispute_reason",
             "disputed",
             "dofa_justification",
+            "estimated_repair_hours",
             "evidence_url",
+            "incident_date",
             "inspector_id",
             "operating_unit_id",
             "reservation_id",
@@ -273,11 +298,18 @@ WRITABLE = {
     ),
     "fix.rental.turnaround": frozenset(
         {
+            "battery_health_after_pm",
             "cleaning_done",
+            "connectors_inspected",
             "data_wipe_certificate_id",
+            "firmware_updated",
+            "functional_score_pct",
             "inspection_done",
+            "internal_storage_factory_reset",
+            "memory_card_wiped",
             "notes",
             "regrade",
+            "sensor_cleaned",
             "technician_id",
         }
     ),

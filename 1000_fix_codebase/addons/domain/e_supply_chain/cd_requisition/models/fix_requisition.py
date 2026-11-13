@@ -768,6 +768,26 @@ class FixRequisition(models.Model):
                 raise UserError("A requisition needs a vendor before it can become a PO")
             if req.purchase_order_id:
                 raise UserError("Requisition %s is already converted" % req.description)
+            # FR-PRO-006: a requisition out to tender is converted by the award
+            # of its RFQ; a direct PO as well would buy it twice
+            tender = (
+                self.env["fix.procurement.rfq"]
+                .sudo()
+                .search(
+                    [
+                        ("state", "in", ("draft", "open", "closed")),
+                        "|",
+                        ("requisition_ids", "in", req.ids),
+                        ("requisition_id", "=", req.id),
+                    ],
+                    limit=1,
+                )
+            )
+            if tender:
+                raise UserError(
+                    "Requisition %s is being sourced on RFQ %s: its award raises the PO."
+                    % (req.display_name, tender.name)
+                )
             Order._fix_vendor_gate(
                 req.vendor_id, "Converting requisition %s to a PO" % req.display_name
             )
