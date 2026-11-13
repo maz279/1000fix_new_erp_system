@@ -226,3 +226,24 @@ class TestDatedTrialBalance:
         assert _money(theirs["total_debit"]) == D("7777.00")
         their_bs = compute_balance_sheet(odoo_env, other, WINDOW[1])
         assert _money(_rows(their_bs)["101401"]["balance"]) == D("106777.00")
+
+    def test_an_empty_ledger_reports_zero_not_minus_zero(self, odoo_env):
+        """No income or expense posted: net profit and the unclosed P&L are
+        0.0, not -0.0 (the P&L screen printed "৳ -0", the packs "-0.00")."""
+        import math
+
+        from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import (
+            compute_balance_sheet,
+            compute_pnl,
+        )
+
+        company, accs = _company(odoo_env, "empty")
+        _post(odoo_env, accs, date(2026, 10, 5), "cash", "capital", 1000.0)  # balance sheet only
+        pnl = compute_pnl(odoo_env, company, *WINDOW)
+        assert pnl["lines"] == []
+        assert pnl["net_profit"] == 0.0
+        assert math.copysign(1.0, pnl["net_profit"]) == 1.0
+        assert "%.2f" % pnl["net_profit"] == "0.00"
+        bs = compute_balance_sheet(odoo_env, company, WINDOW[1])
+        assert math.copysign(1.0, bs["unclosed_profit_and_loss"]) == 1.0
+        assert bs["balanced"] is True

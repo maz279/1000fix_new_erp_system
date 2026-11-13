@@ -904,14 +904,16 @@ def _gl():
 
 
 def _ledger_totals(rows, cols):
+    # "+ 0.0" turns -0.0 into 0.0: a balance column that nets to zero summed
+    # to -0.0 and printed "-0.00" on the Total row of the CSV/Excel/PDF
     return {
         "account_name": "Total",
-        **{c: round(sum(r.get(c) or 0.0 for r in rows), 2) for c in cols},
+        **{c: round(sum(r.get(c) or 0.0 for r in rows), 2) + 0.0 for c in cols},
     }
 
 
 def _money(value):
-    return f"{value or 0.0:,.2f}"
+    return f"{round(value or 0.0, 2) + 0.0:,.2f}"
 
 
 def trial_balance(env, date_from=None, date_to=None, **_params):

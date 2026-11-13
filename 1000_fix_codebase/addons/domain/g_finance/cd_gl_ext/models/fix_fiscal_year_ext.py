@@ -60,6 +60,12 @@ def sum_rows(rows: list[dict], key: str) -> float:
     return float(sum((Decimal(str(r[key])) for r in rows), Decimal("0")))
 
 
+def negated(amount: float) -> float:
+    """``-amount`` to 2 places, never ``-0.0``: an empty ledger negates to
+    -0.0, which the screen and the CSV/PDF packs printed as "৳ -0"."""
+    return round(-amount, 2) + 0.0
+
+
 PL_GROUPS = ("income", "expense")
 
 
@@ -193,14 +199,14 @@ def compute_pnl(env, company, date_from, date_to) -> dict:
         "currency": company.currency_id.name,
         "basis": "posted account.move.line",
         "lines": rows,
-        "net_profit": round(-sum_rows(rows, "balance"), 2),
+        "net_profit": negated(sum_rows(rows, "balance")),
     }
 
 
 def compute_balance_sheet(env, company, date_to) -> dict:
     rows = ledger_balances(env, company, None, date_to, False)
     pl_to_date = ledger_balances(env, company, None, date_to, True)
-    unclosed_pl = round(-sum_rows(pl_to_date, "balance"), 2)
+    unclosed_pl = negated(sum_rows(pl_to_date, "balance"))
     return {
         "report": "balance_sheet",
         "company": company.name,

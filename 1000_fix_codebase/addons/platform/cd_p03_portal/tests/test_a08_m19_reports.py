@@ -288,3 +288,18 @@ def test_finance_reader_cannot_run_ic_actions(odoo_env, call):
     )
     assert res["success"] is False
     assert txn.state == "draft"
+
+
+def test_statement_pack_totals_never_print_minus_zero():
+    """A balance column that nets to zero summed to -0.0, so the Total row
+    of the Trial Balance / Balance Sheet CSV, Excel and PDF read "-0.00"."""
+    import math
+
+    rows = [{"balance": 0.1}, {"balance": 0.2}, {"balance": -0.3}]  # sums to 5.6e-17
+    rows += [{"balance": -0.0000001}]  # ...and now to a tiny negative
+    totals = m19._ledger_totals(rows, ["balance"])
+    assert totals["balance"] == 0.0
+    assert math.copysign(1.0, totals["balance"]) == 1.0
+    assert m19._money(-0.0) == "0.00"
+    assert m19._money(-0.001) == "0.00"
+    assert m19._money(-1234.5) == "-1,234.50"
