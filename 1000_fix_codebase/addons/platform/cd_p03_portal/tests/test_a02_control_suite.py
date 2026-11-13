@@ -121,8 +121,20 @@ def test_no_form_offers_a_guarded_field_as_editable(odoo_env, model):
     workspace form, so the screen never offers what the server refuses."""
     if model not in odoo_env or not hasattr(odoo_env[model], "_fix_guarded_fields"):
         pytest.skip("%s carries no workflow-controlled fields" % model)
-    guarded = odoo_env[model].browse()._fix_guarded_fields()
-    offered = guarded & set(WRITABLE.get(model, ()))
+    empty = odoo_env[model].browse()
+    guarded = empty._fix_guarded_fields()
+    # Evidence typed once (a backup job, a runbook execution): the model's own
+    # create accepts these fields on a NEW record, the form offers them only
+    # there, and a saved record locks them. The hook's empty-recordset contract
+    # says which; a saved (here: unsaved new) record must lock them again.
+    typed_once = guarded - set(empty._fix_form_locked_fields())
+    if typed_once:
+        relocked = set(odoo_env[model].new({})._fix_form_locked_fields())
+        assert typed_once <= relocked, "%s unlocks %s on a saved record too" % (
+            model,
+            sorted(typed_once - relocked),
+        )
+    offered = (guarded - typed_once) & set(WRITABLE.get(model, ()))
     assert not offered, "the %s form offers workflow fields as editable: %s" % (
         model,
         sorted(offered),

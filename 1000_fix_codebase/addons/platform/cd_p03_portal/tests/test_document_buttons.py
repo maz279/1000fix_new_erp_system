@@ -196,7 +196,12 @@ def test_an_empty_many2one_picker_shows_its_note():
 def test_the_po_vendor_picker_says_why_it_is_empty(probe):
     vendor = probe["registry"]["po_vendor"]
     assert vendor["required"] is True
-    assert vendor["domain"] == [["fix_supplier_status", "=", "active"]]
+    # a local PO offers only active Bangladesh-registered suppliers; an
+    # overseas one is ordered on an Import Purchase Order (a446a239)
+    assert vendor["domain"] == [
+        ["fix_supplier_status", "=", "active"],
+        ["fix_supplier_residency", "=", "resident"],
+    ]
     assert "Supplier Approver" in vendor["emptyNote"]
 
 

@@ -91,6 +91,7 @@ def violation(bn_part: str) -> str | None:
     if not BANGLA.search(bn_part):
         return None
     s = strip_interpolations(bn_part)
+    s = re.sub(r"</?[A-Za-z][^<>]*>", " ", s)  # HTML markup (<br/>, <span …>) is not text
     s = re.sub(r"\{[a-zA-Z_]\w*\}", " ", s)  # tf() {token} placeholders
     s = re.sub(r"[0-9Xx]{4,}", " ", s)  # digit/placeholder runs
     s = SNAKE_CODE.sub(" ", s)  # code ids BEFORE whitelist (ir.attachment etc.)
