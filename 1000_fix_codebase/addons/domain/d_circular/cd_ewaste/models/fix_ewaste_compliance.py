@@ -208,6 +208,8 @@ class _FixEwasteLicenceRecord(models.AbstractModel):
     valid_from = fields.Date()
     valid_to = fields.Date()
     evidence_attachment_id = fields.Many2one("ir.attachment", ondelete="restrict")
+    evidence_file = fields.Binary(string="Upload Evidence Scan", store=False)
+    evidence_filename = fields.Char(string="Evidence File Name", store=False)
     confirmed_by_id = fields.Many2one("res.users", readonly=True)
     confirmed_on = fields.Date(readonly=True)
     notes = fields.Text()
@@ -229,13 +231,23 @@ class _FixEwasteLicenceRecord(models.AbstractModel):
             and not n.startswith(("message_", "activity_"))
         }
 
+    _UPLOADS = {"evidence_attachment_id": ("evidence_file", "evidence_filename")}
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         for rec in self:
             locked |= rec._fix_frozen_names()
-        return locked
+        return c.lock_uploads(locked, self._UPLOADS)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        staged = c.stage_uploads(vals_list, self._UPLOADS)
+        recs = super().create(vals_list)
+        c.attach_staged(recs, staged)
+        return recs
 
     def write(self, vals):
+        vals = c.lift_uploads(self, vals, self._UPLOADS)
         if self and not self._fix_guard_open():
             for rec in self:
                 changed = c.changed_fields(rec, vals, rec._fix_frozen_names())

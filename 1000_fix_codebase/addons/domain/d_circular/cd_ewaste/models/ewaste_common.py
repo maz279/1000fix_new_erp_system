@@ -148,6 +148,68 @@ def changed_fields(rec, vals, names):
     return {n for n in set(vals) & set(names) if rec._fix_guard_differs(n, vals[n], rec[n])}
 
 
+# ------------------------------------------------------------------ uploads
+# M18 capture audit (13 Nov 2026): every M18 evidence link (licence, PIC,
+# registration, recycler certificate, processing evidence, battery photo) was
+# a picker over EXISTING attachments - nobody could upload the scan, so a
+# recycler was never dispatchable and no certificate could be issued from the
+# workspace. A form now sends the file itself (a non-stored file + file name);
+# it becomes an attachment of the record and fills the link, which then
+# passes the model's own state and freeze rules like any other write.
+# `uploads` maps each link field to its (file field, file-name field).
+
+
+def lift_uploads(records, vals, uploads):
+    """vals with each staged file replaced by its new attachment's id."""
+    staged = {f for pair in uploads.values() for f in pair}
+    if not staged & set(vals):
+        return vals
+    vals = dict(vals)
+    pending = []
+    for link, (file_field, name_field) in uploads.items():
+        data = vals.pop(file_field, None)
+        name = (vals.pop(name_field, None) or "").strip()
+        if data:
+            pending.append((link, data, name))
+    if not pending:
+        return vals
+    if len(records) != 1:
+        raise UserError("Upload a scan on one record at a time.")
+    for link, data, name in pending:
+        label = records._fields[link].string or link
+        attachment = records.env["ir.attachment"].create(
+            {
+                "name": name or "%s - %s" % (records.display_name, label),
+                "datas": data,
+                "res_model": records._name,
+                "res_id": records.id,
+            }
+        )
+        vals[link] = attachment.id
+    return vals
+
+
+def stage_uploads(vals_list, uploads):
+    """Take the files off new records' values: they are attached after create
+    (an attachment needs its record), through write() and its rules."""
+    staged = {f for pair in uploads.values() for f in pair}
+    return [{k: vals.pop(k) for k in list(vals) if k in staged} for vals in vals_list]
+
+
+def attach_staged(records, staged):
+    for rec, files in zip(records, staged, strict=True):
+        if any(files.values()):
+            rec.write(files)
+
+
+def lock_uploads(locked, uploads):
+    """A file input is locked whenever the link it fills is."""
+    for link, pair in uploads.items():
+        if link in locked:
+            locked |= set(pair)
+    return locked
+
+
 def notify(record, summary, note, group_xmlid=None):
     """Post on the record and, when someone holds the group, schedule a to-do
     for the first holder in the record's company. Safe to re-run."""

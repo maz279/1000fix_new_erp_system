@@ -234,6 +234,8 @@ class FixEwasteBatch(models.Model):
     processing_evidence_id = fields.Many2one(
         "ir.attachment", string="Recycler Processing Evidence", ondelete="restrict"
     )
+    processing_file = fields.Binary(string="Upload Processing Evidence", store=False)
+    processing_filename = fields.Char(string="Evidence File Name", store=False)
     processed_weight_kg = fields.Float(readonly=True)
     processed_on = fields.Date(readonly=True)
     processed_by_id = fields.Many2one("res.users", readonly=True)
@@ -285,6 +287,8 @@ class FixEwasteBatch(models.Model):
     def _fix_guarded_fields(self) -> set:
         return set(super()._fix_guarded_fields()) | self._GUARDED
 
+    _UPLOADS = {"processing_evidence_id": ("processing_file", "processing_filename")}
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         for name, states in self._EDIT_IN.items():
@@ -292,7 +296,7 @@ class FixEwasteBatch(models.Model):
                 not self and "draft" not in states
             ):
                 locked.add(name)
-        return locked
+        return c.lock_uploads(locked, self._UPLOADS)
 
     @api.depends("collection_ids.weight_kg", "battery_ids.weight_kg")
     def _compute_weight(self):
@@ -308,6 +312,7 @@ class FixEwasteBatch(models.Model):
     def create(self, vals_list):
         if not self._fix_guard_open():
             c.require_group(self.env, c.G_DISPATCH, "E-Waste Dispatcher", "open a batch")
+        staged = c.stage_uploads(vals_list, self._UPLOADS)
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = _seq(self.env, "fix.ewaste.batch", "EBAT/New")
@@ -318,9 +323,11 @@ class FixEwasteBatch(models.Model):
                 if not self._fix_guard_open():
                     rec._fix_guard_refuse(["state"])
                 rec._guarded().write({"state": target})
+        c.attach_staged(recs, staged)
         return recs
 
     def write(self, vals):
+        vals = c.lift_uploads(self, vals, self._UPLOADS)
         if self and not self._fix_guard_open():
             for rec in self:
                 names = {n for n, states in self._EDIT_IN.items() if rec.state not in states}
@@ -590,6 +597,8 @@ class FixEwasteBattery(models.Model):
     inspection_evidence_id = fields.Many2one(
         "ir.attachment", string="Inspection Photo / Evidence", ondelete="restrict"
     )
+    inspection_file = fields.Binary(string="Upload Inspection Photo", store=False)
+    inspection_filename = fields.Char(string="Photo File Name", store=False)
     inspected_by_id = fields.Many2one("res.users", string="HSE Inspector", readonly=True)
     inspected_on = fields.Datetime(readonly=True)
     state = fields.Selection(
@@ -623,24 +632,29 @@ class FixEwasteBattery(models.Model):
     def _fix_guarded_fields(self) -> set:
         return set(super()._fix_guarded_fields()) | self._GUARDED
 
+    _UPLOADS = {"inspection_evidence_id": ("inspection_file", "inspection_filename")}
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         if self and any(r.inspected_by_id for r in self):
             locked |= self._FROZEN_AFTER_INSPECTION
         if self and any(r.state != "stored" for r in self):
             locked.add("storage_location")
-        return locked
+        return c.lock_uploads(locked, self._UPLOADS)
 
     @api.model_create_multi
     def create(self, vals_list):
+        staged = c.stage_uploads(vals_list, self._UPLOADS)
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = _seq(self.env, "fix.ewaste.battery", "EBAT/New")
         recs = super().create(vals_list)
         recs._check_location_ceiling()
+        c.attach_staged(recs, staged)
         return recs
 
     def write(self, vals):
+        vals = c.lift_uploads(self, vals, self._UPLOADS)
         if self and not self._fix_guard_open():
             for rec in self:
                 names = set(self._FROZEN_AFTER_INSPECTION) if rec.inspected_by_id else set()
@@ -806,6 +820,8 @@ class FixEwastePartner(models.Model):
     licence_attachment_id = fields.Many2one(
         "ir.attachment", string="Licence Evidence", ondelete="restrict"
     )
+    licence_file = fields.Binary(string="Upload Licence Scan", store=False)
+    licence_filename = fields.Char(string="Licence File Name", store=False)
     capability = fields.Text(string="Handled Materials")
     state = fields.Selection(
         [
@@ -847,11 +863,13 @@ class FixEwastePartner(models.Model):
             "expiry_warned_on",
         }
 
+    _UPLOADS = {"licence_attachment_id": ("licence_file", "licence_filename")}
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         if self and any(r.state != "draft" or r.approval_state == "pending" for r in self):
             locked |= self._LICENCE
-        return locked
+        return c.lock_uploads(locked, self._UPLOADS)
 
     def _approval_pinned_fields(self) -> set:
         return set(super()._approval_pinned_fields()) | (self._LICENCE - {"name"})
@@ -871,7 +889,15 @@ class FixEwastePartner(models.Model):
             if rec.state == "active" and not rec.valid_to:
                 raise ValidationError("An active recycler's licence has an expiry date.")
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        staged = c.stage_uploads(vals_list, self._UPLOADS)
+        recs = super().create(vals_list)
+        c.attach_staged(recs, staged)
+        return recs
+
     def write(self, vals):
+        vals = c.lift_uploads(self, vals, self._UPLOADS)
         if self and not self._fix_guard_open():
             for rec in self:
                 if rec.state != "draft":
@@ -1022,6 +1048,8 @@ class FixEwasteCertificate(models.Model):
     evidence_attachment_id = fields.Many2one(
         "ir.attachment", string="Recycler Certificate (scan)", ondelete="restrict"
     )
+    evidence_file = fields.Binary(string="Upload Recycler Certificate", store=False)
+    evidence_filename = fields.Char(string="Certificate File Name", store=False)
     file_ref = fields.Char(string="Document Ref")
     issued_on = fields.Date(readonly=True)
     issued_by_id = fields.Many2one("res.users", readonly=True)
@@ -1062,13 +1090,15 @@ class FixEwasteCertificate(models.Model):
     def _fix_guarded_fields(self) -> set:
         return set(super()._fix_guarded_fields()) | self._GUARDED
 
+    _UPLOADS = {"evidence_attachment_id": ("evidence_file", "evidence_filename")}
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         if self and any(r.state != "draft" for r in self):
             locked |= self._DRAFT_INPUT
         if not self or any(r.state != "issued" for r in self):
             locked.add("revoke_reason")
-        return locked
+        return c.lock_uploads(locked, self._UPLOADS)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1090,6 +1120,7 @@ class FixEwasteCertificate(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        vals = c.lift_uploads(self, vals, self._UPLOADS)
         if self and not self._fix_guard_open():
             for rec in self:
                 names = set(self._DRAFT_INPUT) if rec.state != "draft" else set()
