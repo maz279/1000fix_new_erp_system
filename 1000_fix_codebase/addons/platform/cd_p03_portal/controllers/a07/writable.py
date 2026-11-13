@@ -12,6 +12,31 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a07
 
 WRITABLE = {
+    "fix.asset.alert": frozenset(),
+    "fix.asset.cost.entry": frozenset(
+        {
+            "decision_note",
+            "match_invoice_id",
+            "operating_unit_id",
+        }
+    ),
+    "fix.asset.finance.request": frozenset(
+        {
+            "acquisition_date",
+            "acquisition_line_id",
+            "amount",
+            "category_id",
+            "decision_note",
+            "disposal_kind",
+            "fixed_asset_id",
+            "operating_unit_id",
+        }
+    ),
+    "fix.bridge.exception": frozenset(
+        {
+            "employee_id",
+        }
+    ),
     "fix.calibration": frozenset(
         {
             "calibrated_on",
@@ -74,6 +99,16 @@ WRITABLE = {
             "transfer_reason",
             "transfer_to_partner_id",
             "transfer_type_pending",
+        }
+    ),
+    "fix.device.bulk.line": frozenset(),
+    "fix.device.bulk.load": frozenset(
+        {
+            "branch_id",
+            "estate_id",
+            "notes",
+            "upload_file",
+            "upload_filename",
         }
     ),
     "fix.device.component": frozenset(
@@ -259,30 +294,6 @@ WRITABLE = {
             "verifier_id",
         }
     ),
-    "fix.asset.cost.entry": frozenset(
-        {
-            "decision_note",
-            "match_invoice_id",
-            "operating_unit_id",
-        }
-    ),
-    "fix.asset.finance.request": frozenset(
-        {
-            "acquisition_date",
-            "acquisition_line_id",
-            "amount",
-            "category_id",
-            "decision_note",
-            "disposal_kind",
-            "fixed_asset_id",
-            "operating_unit_id",
-        }
-    ),
-    "fix.bridge.exception": frozenset(
-        {
-            "employee_id",
-        }
-    ),
     "fix.facility.work.order": frozenset(
         {
             "actual_cost",
@@ -404,7 +415,6 @@ WRITABLE = {
     ),
     "fix.iot.telemetry": frozenset(),
     "fix.iot.telemetry.rollup": frozenset(),
-    "fix.asset.alert": frozenset(),
     "fix.lease.modification.item": frozenset(
         {
             "decision_note",

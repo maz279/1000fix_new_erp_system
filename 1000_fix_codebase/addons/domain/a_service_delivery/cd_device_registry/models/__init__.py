@@ -13,3 +13,7 @@ from . import (
 # isort: split
 # A02 audit B1/B4: extend fix.warranty, so they import after it.
 from . import fix_warranty_approval, fix_warranty_expiry
+
+# isort: split
+# M17 capture audit (2026-11-13): bulk estate registration (FR-AST-039).
+from . import fix_device_bulk

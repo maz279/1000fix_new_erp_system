@@ -815,6 +815,8 @@ class FixDevice(models.Model):
         reason=None,
         evidence_document_id=None,
         channel=None,
+        evidence_file=None,
+        evidence_filename=None,
     ):
         """Transfer ownership (T05: portal P01 exposes this in Phase 5).
 
@@ -833,8 +835,17 @@ class FixDevice(models.Model):
         authenticated owner, whose own request is the evidence.
 
         With no arguments it takes the transfer staged on the device (the P03
-        asset form: Transfer To, Type, Reason, Evidence)."""
+        asset form: Transfer To, Type, Reason, Evidence).
+
+        M17 capture audit (2026-11-13): the Ownership & Custody page records a
+        transfer in one step (pick the device, then fill the transfer), so the
+        evidence may also arrive as an uploaded file (``evidence_file``), filed
+        on this device exactly as the asset form's upload is."""
         self.ensure_one()
+        if evidence_file and not evidence_document_id:
+            evidence_document_id = self._attach_transfer_evidence(
+                evidence_file, (evidence_filename or "").strip() or "transfer-evidence"
+            ).id
         staged = not new_owner_id
         new_owner_id = new_owner_id or self.transfer_to_partner_id.id
         transfer_type = transfer_type or self.transfer_type_pending

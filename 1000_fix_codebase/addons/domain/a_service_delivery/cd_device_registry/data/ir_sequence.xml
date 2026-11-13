@@ -29,5 +29,12 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_device_bulk_load" model="ir.sequence">
+            <field name="name">Device Bulk Registration</field>
+            <field name="code">fix.device.bulk.load</field>
+            <field name="prefix">DBULK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>
