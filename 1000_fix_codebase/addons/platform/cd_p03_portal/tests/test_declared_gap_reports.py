@@ -184,6 +184,7 @@ def test_brand_reimbursement_is_built_from_the_claim_ledger(ledger):
         "recovery_pct",
         "avg_days",
         "last_received",
+        "card_in_force",  # the brand rate card in force (M11, 6e1ba619)
     ]
     _labels_cover(pack)
     assert pack["labels"]["invoiced"] == "Invoiced to OEM"

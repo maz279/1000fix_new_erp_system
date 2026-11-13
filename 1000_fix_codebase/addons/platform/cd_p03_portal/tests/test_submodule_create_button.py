@@ -89,7 +89,8 @@ def _row(registry, mid, no):
 
 
 def _tag(row):
-    return "%s/%s '%s' (%s)" % (row["mid"], row["no"], row["title"], row["model"])
+    # A report page (M25/2, the report library) lists no record of its own
+    return "%s/%s '%s' (%s)" % (row["mid"], row["no"], row["title"], row.get("model"))
 
 
 def test_the_scan_finds_every_submodule(registry):
@@ -166,7 +167,7 @@ def test_an_offered_form_is_a_form_of_the_submodules_own_record(registry):
     bad = [
         "%s -> %s is a %s on %s" % (_tag(r), r["create"]["screen"], r["formKind"], r["formModel"])
         for r in offered
-        if r["formKind"] != "model_form" or (r["formModel"] != r["model"] and not r["declared"])
+        if r["formKind"] != "model_form" or (r["formModel"] != r.get("model") and not r["declared"])
     ]
     assert not bad, "\n  ".join(bad)
     unlabelled = [_tag(r) for r in offered if not r["create"].get("label")]
@@ -175,12 +176,14 @@ def test_an_offered_form_is_a_form_of_the_submodules_own_record(registry):
 
 def test_an_offered_form_saves_through_a_served_model(registry):
     """The form saves with /p03/model/write, which serves SURFACES only: a
-    button onto an unserved model would open a form that cannot load."""
+    button onto an unserved model would open a form that cannot load. The
+    model checked is the one the form saves (a declared form may capture a
+    related record, and a report page has no record of its own)."""
     bad = sorted(
         {
-            "%s -> %s not served by /p03/model/*" % (_tag(r), r["model"])
+            "%s -> %s not served by /p03/model/*" % (_tag(r), r["formModel"])
             for r in registry["rows"]
-            if r["create"] and r["create"].get("screen") and r["model"] not in api.SURFACES
+            if r["create"] and r["create"].get("screen") and r["formModel"] not in api.SURFACES
         }
     )
     assert not bad, "\n  ".join(bad)

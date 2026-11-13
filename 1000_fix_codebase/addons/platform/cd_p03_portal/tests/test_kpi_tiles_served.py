@@ -344,7 +344,6 @@ WIRED = {
 # No model in the estate records these; the tiles say so (src: false).
 NO_SOURCE = {
     "M03": {"rider_shifts_open"},  # no rider-shift model
-    "M11": {"brand_reimb_rates"},  # no brand reimbursement-rate ledger
     "M12": {"marketplace_share", "seller_nps"},  # no cross-channel GMV; no seller survey
     "M24": {"search_p95"},  # no search latency log
     "M25": {"load_time_p95"},  # no dashboard timing (retirement register feeds the rest)
