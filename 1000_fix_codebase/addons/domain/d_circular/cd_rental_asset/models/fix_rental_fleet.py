@@ -212,7 +212,7 @@ class FixRentalAsset(models.Model):
     )
     utilization_rate_30d = fields.Float(
         string="Utilisation % (30 days)",
-        compute="_compute_utilisation",
+        compute="_compute_utilisation_30d",
         help="Rented days in the last 30 ÷ 30 — the fleet-health KPI's numerator",
     )
     retired_on = fields.Date(readonly=True, copy=False)
@@ -248,16 +248,28 @@ class FixRentalAsset(models.Model):
         "reservation_ids.date_to",
     )
     def _compute_utilisation(self):
-        from datetime import timedelta
-
-        today = fields.Date.context_today(self)
-        window_start = today - timedelta(days=29)
+        """Stored lifetime totals. The 30-day rate depends on today, so it is
+        computed apart (one compute must not mix stored and non-stored fields:
+        Odoo warns at registry load)."""
         for rec in self:
             live = rec.reservation_ids.filtered(lambda r: r.state != "cancelled")
             rec.rental_days_total = sum(live.mapped("duration_days"))
             rec.cumulative_revenue = sum(
                 (r.rental_charge or 0.0) + (r.late_fee or 0.0) for r in live
             )
+
+    @api.depends(
+        "reservation_ids.state",
+        "reservation_ids.date_from",
+        "reservation_ids.date_to",
+    )
+    def _compute_utilisation_30d(self):
+        from datetime import timedelta
+
+        today = fields.Date.context_today(self)
+        window_start = today - timedelta(days=29)
+        for rec in self:
+            live = rec.reservation_ids.filtered(lambda r: r.state != "cancelled")
             rented = sum(
                 max((min(r.date_to, today) - max(r.date_from, window_start)).days + 1, 0)
                 for r in live
