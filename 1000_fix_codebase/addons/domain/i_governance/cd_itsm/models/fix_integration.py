@@ -106,6 +106,8 @@ SYNC_CLASSES = [
     ("server", "Server authoritative (state, price, stock, assignment)"),
     ("denied", "Not on the sync allow-list"),
 ]
+# What a person may decide on a pending conflict ("pending" is not a decision).
+SYNC_DECISIONS = ("local_wins", "remote_wins", "merged", "dismissed")
 
 
 def _require_integration_admin(env, what):
@@ -2629,6 +2631,18 @@ class FixSyncConflict(models.Model):
     def action_dismiss(self, note=None):
         """Close a row whose target cannot take a value: gone, or off the list."""
         return self._resolve("dismissed", note)
+
+    def action_resolve_decision(self, decision=None, note=None):
+        """The Offline Sync page's capture (M28 capture audit, 2026-11-14): pick a
+        pending conflict, choose the decision, write the note. The same _resolve
+        as the four buttons above, so the group, the BRU-IPF-17 policy, the note
+        rules and the audit row all still decide."""
+        if decision not in SYNC_DECISIONS:
+            raise UserError(
+                "Choose the decision: Local Wins, Remote Wins, Manually Merged or "
+                "Closed, Nothing Applied."
+            )
+        return self._resolve(decision, note)
 
 
 class FixIntegrationLog(models.Model):

@@ -53,17 +53,28 @@ export const MODULE = {
     ]}
   ],
   reports: ['API Usage by Consumer', 'Event Delivery SLO', 'Connector Latency', 'DLQ Analysis', 'Webhook Success Rate'],
-  forms: ['API Consumer', 'Event Subscription', 'Connector Credential'],
+  /* The registry names three forms. The rest are what the sub-module pages
+   * capture (capture audit 2026-11-14): each page offers the record it is
+   * about, and its form panel lists every record it covers. */
+  forms: ['API Consumer', 'Event Subscription', 'Connector Credential',
+    'API Rate Limit', 'API Endpoint', 'Event Topic', 'Event Schema', 'Allowed Host', 'Connector',
+    'Sync Conflict Decision', 'Reconciliation Investigation', 'Reconciliation Suppression'],
   cross: ['M29 credentials security', 'M63 automation triggers', 'M48 telemetry', 'M24 evidence'],
+  /* Pages map to spec s5: 1 = 5.1 gateway traffic (rate limits, FR-IPF-004),
+   * 2 = 5.2 registry/versions/consumers, 3 = 5.3 outbox, topics, schemas,
+   * 4 = 5.3 subscriptions + dead letters, 5 = 5.4 webhooks, 6 = 5.5 connectors
+   * and credentials, 7 = 5.6 offline sync, 8 = 5.7 reconciliation (FR-IPF-052).
+   * Before 2026-11-14 pages 4, 7 and 8 captured nothing, page 8 listed sync
+   * conflicts, and page 1 repeated page 2's "+ New API Endpoint". */
   freg: { src: 70, sub: [
-    ['1', 'Gateway', 10, { model: 'fix.api.endpoint', cols: ['code', 'path', 'method', 'auth_type', 'active'], screens: ['M28-apis', 'M28-quotas'], reports: ['API Usage by Consumer'], forms: [] }],
-    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'name', 'version', 'path', 'active'], screens: ['M28-apis', 'M28-consumers'], reports: ['API Usage by Consumer'], forms: ['API Consumer'] }], // gitleaks:allow (screen ids, not a key)
-    ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'], reports: ['Event Delivery SLO'], forms: [] }],
-    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay'], reports: ['DLQ Analysis', 'Event Delivery SLO'], forms: ['Event Subscription'] }],
-    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries'], reports: ['Webhook Success Rate', 'Event Delivery SLO'], forms: ['Event Subscription'] }],
-    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-health'], reports: ['Connector Latency'], forms: ['Connector Credential'] }],
-    ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'], reports: [], forms: [] }],
-    ['8', 'Reconciliation', 6, { model: 'fix.sync.conflict', cols: ['res_model', 'res_id', 'field_name', 'local_value', 'remote_value'], screens: ['M28-conflicts', 'M28-health'], reports: ['Connector Latency'], forms: [] }]
+    ['1', 'Gateway', 10, { model: 'fix.api.quota', cols: ['consumer_id', 'endpoint_id', 'requests_per_min', 'daily_quota', 'state'], screens: ['M28-quotas', 'M28-apis'], reports: ['API Usage by Consumer'], forms: ['API Rate Limit'], create: 'M28-form-quota' }],
+    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'version', 'path', 'lifecycle', 'sunset_on', 'active'], screens: ['M28-apis', 'M28-consumers'], reports: ['API Usage by Consumer'], forms: ['API Endpoint', 'API Consumer'] }], // gitleaks:allow (screen ids, not a key)
+    ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'], reports: ['Event Delivery SLO'], forms: ['Event Topic', 'Event Schema'] }],
+    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay', 'M28-subscriptions'], reports: ['DLQ Analysis', 'Event Delivery SLO'], forms: ['Event Subscription'], create: 'M28-form-subscription' }],
+    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries', 'M28-allowlist'], reports: ['Webhook Success Rate', 'Event Delivery SLO'], forms: ['Event Subscription', 'Allowed Host'] }],
+    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-credentials', 'M28-health'], reports: ['Connector Latency'], forms: ['Connector', 'Connector Credential'] }],
+    ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'], reports: [], forms: ['Sync Conflict Decision'], create: 'M28-form-conflict-resolve' }],
+    ['8', 'Reconciliation', 6, { model: 'fix.integration.reconciliation.run', cols: ['run_at', 'check_code', 'records_compared', 'divergences_found', 'state', 'resolved_by_id'], screens: ['M28-reconciliation', 'M28-suppressions', 'M28-health'], reports: ['Connector Latency'], forms: ['Reconciliation Investigation', 'Reconciliation Suppression'], create: 'M28-form-recon-investigation' }]
   ] }
 };
 
@@ -233,7 +244,7 @@ export const SCREENS = {
   'M28-form-quota': {
     kind: 'model_form',
     model: 'fix.api.quota',
-    title: 'Quota',
+    title: 'API Rate Limit',
     back: 'M28-quotas',
     status: { field: 'state', labels: { active: 'Active', throttled: 'Throttled' } },
     sections: [
@@ -405,6 +416,83 @@ SCREENS['M28-form-suppression'] = {
   ]
 };
 
+/* Offline Sync (FR-IPF-049, BRU-IPF-17): a conflict is raised by the sync
+ * engine and never typed, so what a person captures here is the DECISION on
+ * one. action_resolve_decision runs the same _resolve as the four row buttons
+ * on Sync Conflicts: Integration Admin only, the field-class policy, the note
+ * rules and the audit row all still decide. */
+SCREENS['M28-form-conflict-resolve'] = {
+  kind: 'model_form',
+  model: 'fix.sync.conflict',
+  title: 'Sync Conflict Decision', newLabel: 'Decide a Sync Conflict', back: 'M28-conflicts',
+  pickRecord: {
+    label: 'Step 1 of 2: choose the conflict you are deciding',
+    note: 'Pending conflicts the offline sync engine raised: a device change that collided with the server record. Field Class says which side may win.',
+    search: 'Search conflict / device / record',
+    choose: 'Decide this conflict',
+    cols: ['name', 'device_ref', 'res_model', 'res_id', 'field_name', 'policy_class', 'detected_at'],
+    domain: [['resolution', '=', 'pending']],
+    empty: 'No conflict is pending. The offline sync engine raises one when a technician, rider or auditor device sends a change over a newer server value.'
+  },
+  saveAction: {
+    method: 'action_resolve_decision', label: 'Record Decision', done: 'Conflict decided and audited',
+    kwargs: { decision: 'resolution', note: 'resolution_note' }
+  },
+  sections: [
+    { title: 'Step 2 of 2: Decision', note: 'Server-class fields (assignment, pricing, stock, state) keep the server value: only Remote Wins is accepted. Client-class fields (notes, evidence, timestamps) may take the device value. A target outside the sync allow-list can only be closed with nothing applied. Manually Merged and Closed, Nothing Applied need a note. Only an Integration Admin can decide, and each decision is audited.',
+      fields: [
+        { name: 'device_ref', readonly: true, label: 'Device / Client', bn: 'ডিভাইস' },
+        { name: 'res_model', readonly: true, label: 'Record Model', bn: 'রেকর্ড মডেল' },
+        { name: 'res_id', readonly: true, label: 'Record ID', bn: 'রেকর্ড আইডি' },
+        { name: 'field_name', readonly: true, label: 'Field', bn: 'ফিল্ড' },
+        { name: 'policy_class', readonly: true, label: 'Field Class', bn: 'ফিল্ডের শ্রেণি' },
+        { name: 'local_value', readonly: true, label: 'Device Value', bn: 'ডিভাইসের মান' },
+        { name: 'remote_value', readonly: true, label: 'Server Value', bn: 'সার্ভারের মান' },
+        { name: 'engine_note', readonly: true, label: 'Engine Note', bn: 'ইঞ্জিনের নোট' },
+        /* inputs carried to action_resolve_decision; the generic write refuses them */
+        { name: 'resolution', required: true, label: 'Decision', bn: 'সিদ্ধান্ত', type: 'selection',
+          choices: [['local_wins', 'Local Wins'], ['remote_wins', 'Remote Wins'],
+            ['merged', 'Manually Merged'], ['dismissed', 'Closed, Nothing Applied']] },
+        { name: 'resolution_note', label: 'Note (required to merge or close)', bn: 'নোট' }
+      ] }
+  ]
+};
+
+/* Reconciliation (FR-IPF-052, BRU-IPF-19): the nightly job writes the runs; a
+ * divergence "is investigated, never absorbed". The investigation is the
+ * human record: pick an open divergence and say what was found and done. */
+SCREENS['M28-form-recon-investigation'] = {
+  kind: 'model_form',
+  model: 'fix.integration.reconciliation.run',
+  title: 'Reconciliation Investigation', newLabel: 'Record a Reconciliation Investigation', back: 'M28-reconciliation',
+  status: { field: 'state', labels: { clean: 'Clean', divergent: 'Divergent', suppressed: 'Divergent, Alert Suppressed', not_run: 'Not Run' } },
+  pickRecord: {
+    label: 'Step 1 of 2: choose the divergence you investigated',
+    note: 'Nightly runs that found a disagreement and have no investigation yet, suppressed ones included: a suppression holds back the alert, not the finding.',
+    search: 'Search check',
+    choose: 'Record the investigation',
+    cols: ['run_at', 'check_code', 'records_compared', 'divergences_found', 'state', 'detail'],
+    domain: [['state', 'in', ['divergent', 'suppressed']], ['resolved_at', '=', false]],
+    empty: 'No open divergence. The nightly reconciliation compares the outbox, dead letters, webhook deliveries and offline sync; a disagreement lands here for investigation.'
+  },
+  saveAction: {
+    method: 'action_resolve', label: 'Record Investigation', done: 'Investigation recorded; tomorrow\'s run checks it again',
+    kwargs: { note: 'resolution_note' }
+  },
+  sections: [
+    { title: 'Step 2 of 2: What Was Found and Done', note: 'Recording an investigation does not clear the finding: if the systems still disagree, the next nightly run says so. Only an Integration Admin can record one, and it is audited with your name.',
+      fields: [
+        { name: 'check_code', readonly: true, label: 'Check', bn: 'যাচাই' },
+        { name: 'run_at', readonly: true, label: 'Run At', bn: 'চালানোর সময়' },
+        { name: 'records_compared', readonly: true, label: 'Records Compared', bn: 'তুলনা করা রেকর্ড' },
+        { name: 'divergences_found', readonly: true, label: 'Divergences Found', bn: 'অমিল' },
+        { name: 'detail', readonly: true, label: 'Detail', bn: 'বিস্তারিত' },
+        /* an input carried to action_resolve; the generic write refuses it */
+        { name: 'resolution_note', required: true, label: 'What was found and done', bn: 'কী পাওয়া গেল ও কী করা হলো' }
+      ] }
+  ]
+};
+
 export const REPORT_ROUTES = {
   'M28:API Usage by Consumer': 'M28-rpt-usage',
   'M28:Event Delivery SLO': 'M28-rpt-slo',
@@ -416,13 +504,31 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M28:API Consumer': 'fix.api.consumer',
   'M28:Event Subscription': 'fix.event.subscription',
-  'M28:Connector Credential': 'fix.connector.credential'
+  'M28:Connector Credential': 'fix.connector.credential',
+  'M28:API Rate Limit': 'fix.api.quota',
+  'M28:API Endpoint': 'fix.api.endpoint',
+  'M28:Event Topic': 'fix.event.topic',
+  'M28:Event Schema': 'fix.event.schema',
+  'M28:Allowed Host': 'fix.integration.allowed.host',
+  'M28:Connector': 'fix.connector',
+  'M28:Sync Conflict Decision': 'fix.sync.conflict',
+  'M28:Reconciliation Investigation': 'fix.integration.reconciliation.run',
+  'M28:Reconciliation Suppression': 'fix.integration.reconciliation.suppression'
 };
 
 export const FORM_CHIPS = {
   'M28:API Consumer': 'M28-form-consumer',
   'M28:Event Subscription': 'M28-form-subscription',
   'M28:Connector Credential': 'M28-form-credential',
+  'M28:API Rate Limit': 'M28-form-quota',
+  'M28:API Endpoint': 'M28-form-endpoint',
+  'M28:Event Topic': 'M28-form-topic',
+  'M28:Event Schema': 'M28-form-schema',
+  'M28:Allowed Host': 'M28-form-allowed-host',
+  'M28:Connector': 'M28-form-connector',
+  'M28:Sync Conflict Decision': 'M28-form-conflict-resolve',
+  'M28:Reconciliation Investigation': 'M28-form-recon-investigation',
+  'M28:Reconciliation Suppression': 'M28-form-suppression',
   'M28:__by_model__': {
     'fix.api.consumer': 'M28-form-consumer',
     'fix.event.subscription': 'M28-form-subscription',

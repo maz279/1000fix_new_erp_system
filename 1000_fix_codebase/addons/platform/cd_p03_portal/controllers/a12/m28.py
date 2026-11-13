@@ -108,6 +108,8 @@ SURFACES = {
             "action_remote_wins",
             "action_merged",
             "action_dismiss",
+            # the Offline Sync page's "Decide a Sync Conflict" (capture audit 2026-11-14)
+            "action_resolve_decision",
         },
     },
     "fix.integration.log": {"order": "created_at desc, id desc", "limit": 500, "actions": set()},

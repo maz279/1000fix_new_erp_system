@@ -1647,11 +1647,19 @@ def test_a12f_every_form_field_is_real_and_writable_or_readonly(c):
     checked = 0
     for block in blocks[1:]:
         model = re.search(r"model: '(fix\.[a-z.]+)'", block).group(1)
+        # a decision form (saveAction, capture audit 2026-11-14) carries its
+        # inputs to a whitelisted workflow method, never to /p03/model/write
+        carried = set()
+        for kwargs in re.findall(r"saveAction: \{.*?kwargs: \{([^}]*)\}", block, re.S):
+            carried |= set(re.findall(r":\s*'([a-z_0-9]+)'", kwargs))
         for line in re.findall(r"\{ name: '[a-z_0-9]+'[^\n]*", block.split("export const")[0]):
             name = re.search(r"name: '([a-z_0-9]+)'", line).group(1)
             assert name in c.env[model]._fields, "%s.%s" % (model, name)
             if "readonly: true" not in line:
-                assert name in m28.WRITABLE[model], "%s.%s not writable" % (model, name)
+                if name in carried:
+                    assert name not in m28.WRITABLE[model], "%s.%s writable too" % (model, name)
+                else:
+                    assert name in m28.WRITABLE[model], "%s.%s not writable" % (model, name)
             checked += 1
     assert checked > 20
 
@@ -1666,7 +1674,9 @@ def test_a12f_every_button_is_whitelisted_and_its_argument_is_asked(c):
     declared = set()
     for conf in m28.SURFACES.values():
         declared |= set(conf["actions"])
-    used = set(re.findall(r"m:\s*'(action_[a-z_]+)'", js))
+    # row buttons (m:) and decision forms' buttons (saveAction method:)
+    used = set(re.findall(r"\bm:\s*'(action_[a-z_]+)'", js))
+    used |= set(re.findall(r"saveAction: \{\s*method:\s*'(action_[a-z_]+)'", js))
     assert used <= declared, sorted(used - declared)
     assert declared <= used, "whitelisted with no button: %s" % sorted(declared - used)
     for model, conf in m28.SURFACES.items():
