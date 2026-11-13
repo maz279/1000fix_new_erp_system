@@ -34,6 +34,18 @@ class TestDocSuiteRendering(TransactionCase):
         )
         self.ou = env["operating.unit"].search([], limit=1)
         self.branch = env["fix.branch"].search([], limit=1)
+        if not self.branch:  # a service order requires one; thin DBs have none
+            entity = env["fix.entity"].create(
+                {"code": "DOCSE", "legal_name": "Doc Suite entity", "company_id": env.company.id}
+            )
+            self.branch = env["fix.branch"].create(
+                {
+                    "name": "Doc Suite Branch",
+                    "code": "DOCSB",
+                    "entity_id": entity.id,
+                    "operating_unit_id": self.ou.id,
+                }
+            )
         self.product = (
             env["product.template"]
             .create(
@@ -43,17 +55,21 @@ class TestDocSuiteRendering(TransactionCase):
             )
             .product_variant_id
         )
+        # A service order requires a device (M17 registry); a thin test
+        # database has no device model, so build the chain it needs.
         dmodel = env["fix.device.model"].search([], limit=1)
-        if dmodel:
-            self.device = env["fix.device"].create(
-                {
-                    "device_model_id": dmodel.id,
-                    "lifecycle_stage": _first_key(env, "fix.device", "lifecycle_stage"),
-                    "state": _first_key(env, "fix.device", "state"),
-                }
+        if not dmodel:
+            brand = env["fix.brand"].create({"name": "Doc Suite Brand", "code": "DOCSB"})
+            dmodel = env["fix.device.model"].create(
+                {"name": "Doc Suite Phone", "brand_id": brand.id}
             )
-        else:
-            self.device = None
+        self.device = env["fix.device"].create(
+            {
+                "device_model_id": dmodel.id,
+                "lifecycle_stage": _first_key(env, "fix.device", "lifecycle_stage"),
+                "state": _first_key(env, "fix.device", "state"),
+            }
+        )
 
     def _render(self, action_xmlid, record):
         action = self.env.ref(action_xmlid)
@@ -356,7 +372,14 @@ class TestDocSuiteRendering(TransactionCase):
 
     def test_31_company_branding_loaded(self):
         company = self.env.ref("base.main_company")
-        self.assertTrue(company.logo, "company logo not configured")
+        # company.logo is related to partner_id.image_1920. bin_size reads the
+        # attachment's recorded size, so this checks that a logo is configured
+        # without needing this process's filestore (pytest does not load the
+        # server's data_dir; a template-cloned DB has none). bin_size does not
+        # pass through the related field, so read the partner's image.
+        self.assertEqual(company._fields["logo"].related, "partner_id.image_1920")
+        logo = company.partner_id.with_context(bin_size=True).image_1920
+        self.assertTrue(logo, "company logo not configured")
         self.assertTrue(company.paperformat_id)
         self.assertEqual(company.paperformat_id.format, "A4")
         self.assertEqual(company.vat, "001821833-0401")
