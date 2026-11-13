@@ -27,3 +27,5 @@ access_fix_training_budget_training,fix.training.budget.training,model_fix_train
 access_fix_training_budget_approver,fix.training.budget.approver,model_fix_training_budget,cd_competency.group_training_budget_approver,1,1,1,0
 access_fix_training_budget_exception_training,fix.training.budget.exception.training,model_fix_training_budget_exception,cd_competency.group_training,1,1,1,0
 access_fix_training_budget_exception_approver,fix.training.budget.exception.approver,model_fix_training_budget_exception,cd_competency.group_training_budget_approver,1,1,0,0
+access_fix_training_session,fix.training.session,model_fix_training_session,base.group_user,1,0,0,0
+access_fix_training_session_role,fix.training.session.role,model_fix_training_session,cd_competency.group_training,1,1,1,0

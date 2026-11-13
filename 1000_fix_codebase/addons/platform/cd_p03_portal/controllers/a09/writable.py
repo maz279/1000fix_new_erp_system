@@ -33,8 +33,11 @@ WRITABLE = {
     "fix.attendance.regularisation": frozenset(),
     "fix.audit.evidence": frozenset(
         {
+            "attachment_note",
+            "brand_id",
             "collected_on",
             "company_id",
+            "employee_id",
             "evidence_file",
             "evidence_type",
             "name",
@@ -145,6 +148,7 @@ WRITABLE = {
             "employee_id",
             "level",
             "name",
+            "notes",
             "score",
         }
     ),
@@ -155,6 +159,7 @@ WRITABLE = {
             "company_id",
             "name",
             "name_bn",
+            "parent_id",
             "repair_tier_floor",
         }
     ),
@@ -559,6 +564,8 @@ WRITABLE = {
         {
             "active",
             "company_id",
+            "competency_ids",
+            "course_ids",
             "min_level",
             "name",
             "target_role",
@@ -615,10 +622,12 @@ WRITABLE = {
         {
             "competency_id",
             "date_from",
+            "date_to",
             "employee_id",
             "hours",
             "mentor_id",
             "name",
+            "notes",
         }
     ),
     "fix.onboarding.plan": frozenset(
@@ -1018,6 +1027,22 @@ WRITABLE = {
             "company_id",
             "course_id",
             "employee_id",
+            "session_id",
+        }
+    ),
+    "fix.training.session": frozenset(
+        {
+            "capacity",
+            "course_id",
+            "date_end",
+            "date_start",
+            "delivery_mode",
+            "external_trainer",
+            "notes",
+            "operating_unit_id",
+            "trainer_id",
+            "vendor_id",
+            "venue",
         }
     ),
     "fix.working.time.rule": frozenset(

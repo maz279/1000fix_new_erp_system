@@ -25,7 +25,14 @@ SURFACES = {
     "fix.training.enrollment": {
         "order": "id desc",
         "limit": 500,
-        "actions": {"action_pass", "action_fail"},
+        "actions": {"action_pass", "action_fail", "action_mark_attended", "action_mark_absent"},
+    },
+    # FR-LMS-020/021/023: the scheduled delivery of a course (M22 capture
+    # audit 2026-11-13: "Schedule & Attendance" had no session to capture).
+    "fix.training.session": {
+        "order": "date_start desc, id desc",
+        "limit": 300,
+        "actions": {"action_schedule", "action_mark_held", "action_cancel"},
     },
     # BRU-LMS-09: the attempt that reaches the limit is escalated; a
     # Training Manager grants the retake.

@@ -7,5 +7,6 @@ from . import (
     fix_competency_ops,
     fix_certification_waiver,
     fix_training_budget,
+    fix_training_session,
     fix_competency_consumers,
 )

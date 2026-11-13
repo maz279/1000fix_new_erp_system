@@ -1,6 +1,8 @@
 /** @odoo-module **/
 /* A09 · People & Workforce — M22 Learning & Certification.
- * Registry-faithful: 4 groups / 11 screens / 5 reports / 4 forms / freg 52. */
+ * Registry-faithful: 4 groups / 11 screens / 5 reports / 4 forms / freg 52.
+ * Capture audit 2026-11-13: every sub-module page captures the records it
+ * covers (device categories, role paths, budget, over-budget, waivers). */
 
 export const MODULE = {
   area: 'A09', code: 'M22', en: 'Learning & Certification', title: 'M22 · Learning & Certification',
@@ -30,6 +32,7 @@ export const MODULE = {
     { en: 'Training', screens: [
       { id: 'M22-catalogue', en: 'Course Catalogue', bn: 'কোর্স তালিকা', t: 'g' },
       { id: 'M22-paths', en: 'Learning Paths', bn: 'শেখার পথ', t: 'g' },
+      { id: 'M22-sessions', en: 'Training Sessions', bn: 'প্রশিক্ষণ সেশন', t: 'g' },
       { id: 'M22-schedule', en: 'Schedule & Attendance', bn: 'সূচি ও উপস্থিতি', t: 'g' },
       { id: 'M22-budget', en: 'Training Budget', bn: 'প্রশিক্ষণ বাজেট', t: 'g' },
       { id: 'M22-budget-exceptions', en: 'Over-Budget Requests', bn: 'বাজেট-অতিরিক্ত অনুরোধ', t: 'g' },
@@ -40,13 +43,13 @@ export const MODULE = {
     ]}
   ],
   reports: ['Certification Coverage by Brand', 'Expiry Forecast', 'Training Effectiveness', 'Skill-Gap Heatmap', 'Audit Evidence Pack'],
-  forms: ['Certification', 'Course', 'Learning Path', 'Assessment'],
+  forms: ['Certification', 'Course', 'Learning Path', 'Assessment', 'Device Category', 'Training Session', 'Training Budget', 'Over-Budget Request'],
   cross: ['M02 Dispatch eligibility', 'M21 Workforce', 'M57 Incentives'],
   freg: { src: 52, sub: [
-    ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices'], reports: ['Skill-Gap Heatmap'], forms: [] }],
+    ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices', 'M22-paths'], reports: ['Skill-Gap Heatmap'], forms: ['Device Category', 'Learning Path'] }],
     ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix'], reports: ['Skill-Gap Heatmap'], forms: ['Assessment'] }],
-    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility'], reports: ['Certification Coverage by Brand', 'Expiry Forecast'], forms: ['Certification'] }],
-    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Course', 'Learning Path'] }],
+    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility', 'M22-waivers'], reports: ['Certification Coverage by Brand', 'Expiry Forecast'], forms: ['Certification'] }],
+    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-sessions', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Course', 'Learning Path', 'Training Session', 'Training Budget', 'Over-Budget Request'] }],
     ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt'], reports: ['Training Effectiveness'], forms: [] }],
     ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso'], reports: ['Audit Evidence Pack'], forms: [] }]
   ] }
@@ -85,9 +88,15 @@ export const SCREENS = {
     actions: [{ m: 'action_enroll', l: 'Enroll Techs', ask: 'Employee ids to enroll, comma-separated', kwarg: 'employees' }] },
   'M22-paths': { kind: 'model_list', model: 'fix.learning.path',
     cols: ['name', 'target_role', 'min_level', 'active'] },
+  'M22-sessions': { kind: 'model_list', model: 'fix.training.session', stateField: 'state',
+    cols: ['name', 'course_id', 'delivery_mode', 'trainer_id', 'venue', 'date_start', 'date_end', 'capacity', 'seats_taken', 'attended_count', 'state'],
+    actions: [{ m: 'action_schedule', l: 'Schedule (publish to the roster)' },
+              { m: 'action_mark_held', l: 'Mark Held (attendance recorded)' },
+              { m: 'action_cancel', l: 'Cancel Session' }] },
   'M22-schedule': { kind: 'model_list', model: 'fix.training.enrollment', stateField: 'state',
-    cols: ['course_id', 'employee_id', 'cost', 'budget_year', 'budget_exception_id', 'completed_on', 'evidence_id', 'state'],
-    actions: [{ m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' }] },
+    cols: ['course_id', 'session_id', 'employee_id', 'attendance', 'cost', 'budget_year', 'budget_exception_id', 'completed_on', 'evidence_id', 'state'],
+    actions: [{ m: 'action_mark_attended', l: 'Mark Attended' }, { m: 'action_mark_absent', l: 'Mark Absent' },
+              { m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' }] },
   'M22-budget': { kind: 'model_list', model: 'fix.training.budget',
     cols: ['name', 'year', 'company_id', 'amount', 'consumed', 'remaining'] },
   'M22-budget-exceptions': { kind: 'model_list', model: 'fix.training.budget.exception', stateField: 'state',
@@ -200,7 +209,7 @@ export const SCREENS = {
     title: 'Learning Path',
     back: 'M22-paths',
     tabs: [
-      { id: 'path', label: 'Career Milestone', bn: 'ক্যারিয়ার পাথ', icon: '🗺️', badge: '2' },
+      { id: 'path', label: 'Role, Competencies & Courses', bn: 'ভূমিকা, দক্ষতা ও কোর্স', icon: '🗺️', badge: '4' },
       { id: 'requirements', label: 'Level & Status', bn: 'স্তর ও অবস্থা', icon: '🎖️', badge: '3' }
     ],
     sections: [
@@ -210,7 +219,9 @@ export const SCREENS = {
         note: 'Progressive learning milestones from Trainee Technician to Master Specialist.',
         fields: [
           { name: 'name', required: true, label: 'Path Title' },
-          { name: 'target_role', label: 'Target Organizational Role' }
+          { name: 'target_role', label: 'Target Role (the role this path qualifies for)' },
+          { name: 'competency_ids', label: 'Required Competencies (FR-LMS-002)' },
+          { name: 'course_ids', label: 'Courses in the Path (FR-LMS-018)' }
         ]
       },
       {
@@ -283,7 +294,8 @@ export const SCREENS = {
         fields: [
           { name: 'code', required: true, label: 'Category Code' },
           { name: 'name', required: true, label: 'Category Name (English)' },
-          { name: 'name_bn', label: 'Category Name (Bengali)' }
+          { name: 'name_bn', label: 'Category Name (Bengali)' },
+          { name: 'parent_id', label: 'Parent Category' }
         ]
       },
       {
@@ -328,6 +340,7 @@ export const SCREENS = {
           { name: 'assessed_on', required: true, label: 'Assessment Date' },
           { name: 'level', required: true, label: 'Assessed Repair Level (L1-L4)' },
           { name: 'score', label: 'Practical Score (0-100)' },
+          { name: 'notes', label: 'Method & Evidence (test, practical, supervisor verification)' },
           { name: 'passed', readonly: true, label: 'Assessment Passed (score vs pass mark)' },
           { name: 'attempt_escalated', readonly: true, label: 'Attempt Limit Reached (escalated)' },
           { name: 'retake_granted_by_id', readonly: true, label: 'Retake Granted By' },
@@ -345,7 +358,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       enrolled: 'Enrolled', passed: 'Passed', failed: 'Failed' } },
     tabs: [
-      { id: 'enrollment', label: 'Course & Trainee', bn: 'কোর্স ও প্রশিক্ষণার্থী', icon: '📚', badge: '3' },
+      { id: 'enrollment', label: 'Course, Session & Trainee', bn: 'কোর্স, সেশন ও প্রশিক্ষণার্থী', icon: '📚', badge: '4' },
       { id: 'completion', label: 'Completion & Certification', bn: 'সমাপ্তি ও সনদ', icon: '🎓', badge: '2' }
     ],
     sections: [
@@ -355,6 +368,7 @@ export const SCREENS = {
         note: 'Assigns a technician to a structured technical training course.',
         fields: [
           { name: 'course_id', required: true, label: 'Training Course' },
+          { name: 'session_id', label: 'Session (date, trainer, venue)' },
           { name: 'employee_id', required: true, label: 'Enrolled Technician' },
           { name: 'company_id', label: 'Company' }
         ]
@@ -364,6 +378,7 @@ export const SCREENS = {
         title: 'Completion Date & Automatic Certification',
         note: 'A pass needs a passed assessment by an independent assessor; it drafts the certificate, which a verifier then grants.',
         fields: [
+          { name: 'attendance', readonly: true, label: 'Attendance (recorded by the trainer)' },
           { name: 'completed_on', readonly: true, label: 'Completion Date' },
           { name: 'state', readonly: true, label: 'Enrollment State' },
           { name: 'assessment_id', readonly: true, label: 'Qualifying Assessment' },
@@ -372,6 +387,50 @@ export const SCREENS = {
           { name: 'budget_year', readonly: true, label: 'Budget Year' },
           { name: 'budget_exception_id', readonly: true, label: 'Over-Budget Approval' },
           { name: 'evidence_id', readonly: true, label: 'Competence Evidence (ISO 9001 cl. 7.2)' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-session': {
+    kind: 'model_form',
+    model: 'fix.training.session',
+    title: 'Training Session',
+    back: 'M22-sessions',
+    status: { field: 'state', labels: {
+      planned: 'Planned', scheduled: 'Scheduled', done: 'Held', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'session', label: 'Course, Trainer & Venue', bn: 'কোর্স, প্রশিক্ষক ও স্থান', icon: '🧑‍🏫', badge: '8' },
+      { id: 'window', label: 'Dates & Seats', bn: 'তারিখ ও আসন', icon: '📅', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'session',
+        title: 'Scheduled Delivery (FR-LMS-020)',
+        note: 'A classroom or practical session names its trainer and venue before it is scheduled; an external one names its provider (FR-LMS-029). Scheduling publishes the window so the trainees\' availability can be taken out of the roster (BRU-LMS-08).',
+        fields: [
+          { name: 'name', readonly: true, label: 'Session Reference' },
+          { name: 'course_id', required: true, label: 'Course' },
+          { name: 'delivery_mode', required: true, label: 'Delivery Mode' },
+          { name: 'trainer_id', label: 'Trainer (employee)' },
+          { name: 'vendor_id', label: 'External Provider' },
+          { name: 'external_trainer', label: 'External Trainer' },
+          { name: 'venue', label: 'Venue' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ]
+      },
+      {
+        tab: 'window',
+        title: 'Window, Capacity & Attendance (FR-LMS-021/023)',
+        note: 'Enrolments name this session on the Schedule & Attendance list; the trainer records each attendance there. A session is marked held only when every attendance is recorded.',
+        fields: [
+          { name: 'date_start', required: true, label: 'Starts' },
+          { name: 'date_end', required: true, label: 'Ends' },
+          { name: 'capacity', label: 'Capacity (0 = no limit)' },
+          { name: 'seats_taken', readonly: true, label: 'Seats Taken' },
+          { name: 'attended_count', readonly: true, label: 'Attended' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'notes', type: 'text', label: 'Session Notes' }
         ]
       }
     ]
@@ -449,7 +508,7 @@ export const SCREENS = {
     back: 'M22-ojt',
     tabs: [
       { id: 'mentoring', label: 'Trainee & Mentor', bn: 'প্রশিক্ষণার্থী ও মেন্টর', icon: '🤝', badge: '4' },
-      { id: 'outcome', label: 'Logged Hours & Outcome', bn: 'প্রশিক্ষণ ঘণ্টা ও ফলাফল', icon: '⏱️', badge: '3' }
+      { id: 'outcome', label: 'Logged Hours & Outcome', bn: 'প্রশিক্ষণ ঘণ্টা ও ফলাফল', icon: '⏱️', badge: '6' }
     ],
     sections: [
       {
@@ -468,8 +527,10 @@ export const SCREENS = {
         title: 'Supervised Hours & Practical Signoff',
         note: 'Logged OJT hours feed the M22 Training Hours per Technician KPI.',
         fields: [
-          { name: 'date_from', required: true, label: 'Session Date' },
+          { name: 'date_from', required: true, label: 'From' },
+          { name: 'date_to', label: 'To' },
           { name: 'hours', required: true, label: 'Supervised Hours' },
+          { name: 'notes', label: 'Tasks Observed & Observations (FR-LMS-027)' },
           { name: 'outcome', readonly: true, label: 'Mentor Assessment Outcome' },
           { name: 'signed_off_by_id', readonly: true, label: 'Signed Off By' },
           { name: 'signed_off_at', readonly: true, label: 'Signed Off At' }
@@ -486,7 +547,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted' } },
     tabs: [
-      { id: 'evidence', label: 'Clause & Evidence Type', bn: 'মানদণ্ড ও প্রমাণের ধরন', icon: '📑', badge: '4' },
+      { id: 'evidence', label: 'Clause & Evidence Type', bn: 'মানদণ্ড ও প্রমাণের ধরন', icon: '📑', badge: '6' },
       { id: 'audit', label: 'Validity & Dossier Summary', bn: 'মেয়াদ ও ডসিয়ার সারসংক্ষেপ', icon: '✅', badge: '4' }
     ],
     sections: [
@@ -498,6 +559,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Evidence Title / Reference' },
           { name: 'evidence_type', required: true, label: 'Evidence Classification' },
           { name: 'standard_ref', label: 'Standard Clause (e.g. ISO 9001:2015 Cl. 7.2)' },
+          { name: 'employee_id', label: 'Audited Technician / Staff' },
+          { name: 'brand_id', label: 'Audited OEM Brand' },
           { name: 'company_id', label: 'Company' }
         ]
       },
@@ -511,6 +574,7 @@ export const SCREENS = {
           { name: 'notes', type: 'text', label: 'Compiled Dossier / Auditor Notes' },
           { name: 'evidence_file', label: 'Audit Evidence Scan (required to submit)' },
           { name: 'reference', label: 'Evidence Reference' },
+          { name: 'attachment_note', label: 'Original Held At (location)' },
           { name: 'state', readonly: true, label: 'Verification State' },
           { name: 'submitted_by_id', readonly: true, label: 'Submitted By' },
           { name: 'accepted_by_id', readonly: true, label: 'Accepted By' }
@@ -532,7 +596,11 @@ export const FORM_MODELS = {
   'M22:Certification': 'fix.certification',
   'M22:Course': 'fix.training.course',
   'M22:Learning Path': 'fix.learning.path',
-  'M22:Assessment': 'fix.competency.assessment'
+  'M22:Assessment': 'fix.competency.assessment',
+  'M22:Device Category': 'fix.device.category',
+  'M22:Training Session': 'fix.training.session',
+  'M22:Training Budget': 'fix.training.budget',
+  'M22:Over-Budget Request': 'fix.training.budget.exception'
 };
 
 export const FORM_CHIPS = {
@@ -540,6 +608,10 @@ export const FORM_CHIPS = {
   'M22:Course': 'M22-form-course',
   'M22:Learning Path': 'M22-form-path',
   'M22:Assessment': 'M22-form-assessment',
+  'M22:Device Category': 'M22-form-device',
+  'M22:Training Session': 'M22-form-session',
+  'M22:Training Budget': 'M22-form-budget',
+  'M22:Over-Budget Request': 'M22-form-budget-exception',
   'M22:__by_model__': {
     'fix.competency': 'M22-form-competency',
     'fix.device.category': 'M22-form-device',
@@ -548,6 +620,7 @@ export const FORM_CHIPS = {
     'fix.learning.path': 'M22-form-path',
     'fix.competency.assessment': 'M22-form-assessment',
     'fix.training.enrollment': 'M22-form-enrollment',
+    'fix.training.session': 'M22-form-session',
     'fix.ojt.record': 'M22-form-ojt',
     'fix.audit.evidence': 'M22-form-evidence',
     'fix.training.budget': 'M22-form-budget',
@@ -562,6 +635,7 @@ export const FORM_CHIPS = {
     'M22-catalogue': 'M22-form-course',
     'M22-paths': 'M22-form-path',
     'M22-schedule': 'M22-form-enrollment',
+    'M22-sessions': 'M22-form-session',
     'M22-ojt': 'M22-form-ojt',
     'M22-iso': 'M22-form-evidence',
     'M22-budget': 'M22-form-budget',

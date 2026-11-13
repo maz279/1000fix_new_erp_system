@@ -8,6 +8,13 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_training_session" model="ir.sequence">
+            <field name="name">Training Session</field>
+            <field name="code">fix.training.session</field>
+            <field name="prefix">TRS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_ojt_record" model="ir.sequence">
             <field name="name">OJT Record</field>
             <field name="code">fix.ojt.record</field>
