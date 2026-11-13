@@ -1,6 +1,10 @@
 # M24 Documents & E-Signature: data-capture button audit
 
-**Date:** 13 Nov 2026 · **Estate:** fix_real on port 8069 · **Status:** committed. On 8069 the JS is visible under `?debug=assets` (verified page by page). It reaches every user, together with the write whitelist that lets the new fields save, at the next restart of 8069/8089.
+**Date:** 13 Nov 2026 · **Estate:** fix_real on port 8069 · **Status:** committed `ded0d398` (unpushed). **Live** since the 19:38 restart of 8089, then 8069 (user approved).
+- Production bundle `18ba1ac` carries the new screens.
+- The server accepts the template's Bengali name and the envelope's signer grid. Probes reached the required-field check, and nothing was saved.
+- The 7-page sweep in normal mode matches §4.
+- The restart also published a peer session's uncommitted M22 edits (`a09/m22.js`, `a09/writable.py`).
 
 ## 1. The question
 
