@@ -31,6 +31,8 @@ SURFACES = {
             "action_return",
             "action_report_lost",
             "action_release_hold",
+            # BRU-LOG-03: the second signature on a high-value dispatch
+            "action_countersign_dispatch",
         },
     },
     "fix.courier.partner": {"order": "name", "limit": 100, "actions": set()},
@@ -54,6 +56,12 @@ SURFACES = {
             "action_reject",
             "action_settle",
         },
+    },
+    # BRU-LOG-05: who may carry restricted items (recorded by a logistics manager)
+    "fix.rider.certification": {
+        "order": "valid_until desc, id desc",
+        "limit": 300,
+        "actions": set(),
     },
     "fix.custody.scan": {
         "order": "scanned_at desc, id desc",

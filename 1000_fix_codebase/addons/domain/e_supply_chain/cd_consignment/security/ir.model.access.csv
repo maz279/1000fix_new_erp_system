@@ -10,3 +10,5 @@ access_fix_courier_partner,fix.courier.partner,model_fix_courier_partner,base.gr
 access_fix_courier_partner_manager,fix.courier.partner manager,model_fix_courier_partner,group_fix_logistics_manager,1,1,1,0
 access_fix_courier_booking,fix.courier.booking,model_fix_courier_booking,base.group_user,1,0,0,0
 access_fix_courier_booking_hub,fix.courier.booking hub,model_fix_courier_booking,group_fix_logistics_hub,1,1,1,0
+access_fix_rider_certification,fix.rider.certification,model_fix_rider_certification,base.group_user,1,0,0,0
+access_fix_rider_certification_manager,fix.rider.certification manager,model_fix_rider_certification,group_fix_logistics_manager,1,1,1,0

@@ -123,6 +123,12 @@ class FixConsignmentExt(models.Model):
                     "Only confirmed consignments can start transit (current: %s)."
                     % consignment.state
                 )
+            # BRU-LOG-05/10: a certification may have lapsed since assignment
+            problem = consignment._restricted_carrier_problem(
+                fields.Date.context_today(consignment)
+            )
+            if problem:
+                raise UserError(problem)
             # in_transit first, so the scans the transition stamps are legal
             consignment._guarded().write({"state": "in_transit"})
             if not consignment.custody_ids:
