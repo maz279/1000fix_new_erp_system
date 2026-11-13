@@ -8,6 +8,17 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_contract_scope_line_company" model="ir.rule">
+        <field name="name">fix.contract.scope.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_contract_scope_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_contract_scope_line_operating_unit" model="ir.rule">
+        <field name="name">fix.contract.scope.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_contract_scope_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_discount_approval_company" model="ir.rule">
         <field name="name">fix.discount.approval: allowed companies</field>
         <field name="model_id" ref="model_fix_discount_approval"/>
@@ -27,17 +38,6 @@
     <record id="rule_fix_quotation_operating_unit" model="ir.rule">
         <field name="name">fix.quotation: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_quotation"/>
-        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
-    </record>
-    <record id="rule_fix_quotation_line_company" model="ir.rule">
-        <field name="name">fix.quotation.line: allowed companies</field>
-        <field name="model_id" ref="model_fix_quotation_line"/>
-        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
-    </record>
-    <record id="rule_fix_quotation_line_operating_unit" model="ir.rule">
-        <field name="name">fix.quotation.line: allowed operating units (internal users)</field>
-        <field name="model_id" ref="model_fix_quotation_line"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -63,14 +63,14 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
-    <record id="rule_fix_contract_scope_line_company" model="ir.rule">
-        <field name="name">fix.contract.scope.line: allowed companies</field>
-        <field name="model_id" ref="model_fix_contract_scope_line"/>
+    <record id="rule_fix_quotation_line_company" model="ir.rule">
+        <field name="name">fix.quotation.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_line"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
-    <record id="rule_fix_contract_scope_line_operating_unit" model="ir.rule">
-        <field name="name">fix.contract.scope.line: allowed operating units (internal users)</field>
-        <field name="model_id" ref="model_fix_contract_scope_line"/>
+    <record id="rule_fix_quotation_line_operating_unit" model="ir.rule">
+        <field name="name">fix.quotation.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_quotation_line"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
