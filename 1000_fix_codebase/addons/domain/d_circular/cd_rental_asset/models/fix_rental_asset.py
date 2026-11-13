@@ -378,6 +378,24 @@ class FixRentalReservation(models.Model):
         help="Straight-line operating-lease income: rental fee ÷ rental days",
     )
 
+    # ---- workspace step inputs (M13 capture audit, 2026-11-13) --------------
+    # Not stored: they carry what the counter or support desk types to the
+    # workflow method that records it (action_reserve, action_report_fault).
+    # The deposit ledger row and the rental's history are the records.
+    deposit_method = fields.Selection(
+        [
+            ("cash", "Cash"),
+            ("bkash", "bKash"),
+            ("nagad", "Nagad"),
+            ("card", "Card / SSLCOMMERZ"),
+            ("bank", "Bank Transfer"),
+        ],
+        string="Deposit Taken By",
+        store=False,
+    )
+    deposit_reference = fields.Char(string="MFS / Bank / Receipt Reference", store=False)
+    fault_report = fields.Text(string="Fault Reported", store=False)
+
     # ------------------------------------------------------------------
     # computes
     # ------------------------------------------------------------------
@@ -764,21 +782,44 @@ class FixRentalReservation(models.Model):
         for rec in self.filtered("rental_asset_id"):
             rec.rental_asset_id._guarded().write({"status": status})
 
-    def action_reserve(self):
+    def action_reserve(self, method=None, reference=None):
         """Draft -> reserved; the deposit is taken and posted.
+
+        `method` is the tender the counter took the deposit in (cash, bKash,
+        Nagad, card, bank) and `reference` its MFS/bank/receipt reference:
+        the tender decides the GL clearing account it is posted to and how
+        M50 refunds it. Without one the deposit is cash, as before.
 
         Availability (the search_count of overlapping open bookings, the
         'already reserved' refusal — blocking, not advisory — the turnaround
         padding and the SKU capacity) is the _check_availability constraint:
         it runs here and on every other path into an open state."""
+        method = method or "cash"
+        tenders = dict(self.env["fix.rental.deposit"]._fields["method"].selection)
+        if method not in tenders:
+            raise UserError(
+                "Unknown deposit tender %r: choose one of %s."
+                % (method, ", ".join(tenders.values()))
+            )
+        reference = (reference or "").strip() or None
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Reserve from draft: %s is %s" % (rec.name, rec.state))
+            if method != "cash" and rec.deposit_collected and not reference:
+                raise UserError(
+                    "Rental %s: a deposit taken by %s needs its transaction reference, so "
+                    "treasury can match and later refund it." % (rec.name, tenders[method])
+                )
             rec._guarded().write({"state": "reserved"})
             if rec.rental_asset_id.status == "available":
                 rec._set_asset_status("reserved")
             self.env["fix.rental.deposit"]._post(
-                rec, "collect", rec.deposit_collected, "Deposit collected on reservation"
+                rec,
+                "collect",
+                rec.deposit_collected,
+                "Deposit collected on reservation",
+                method=method,
+                reference=reference,
             )
             publish(
                 self.env,
@@ -792,6 +833,42 @@ class FixRentalReservation(models.Model):
                     "to": str(rec.date_to),
                     "deposit": float(rec.deposit_collected),
                 },
+            )
+        return True
+
+    def action_report_fault(self, fault=None):
+        """FR-RNT-027 (first step): a customer reports a fault on a unit that
+        is out on rent. The report is written to the rental's history with
+        who took it and when, and a to-do with the swap/support deadline
+        (system parameter cd_rental_asset.swap_sla_hours, default 24) goes to
+        whoever booked the rental. The swap itself is not modelled yet."""
+        text = (fault or "").strip()
+        if not text:
+            raise UserError("Describe the fault the customer reported.")
+        hours = policy.param_int(self.env, "swap_sla_hours", 24)
+        for rec in self:
+            if rec.state not in ("delivered", "active"):
+                raise UserError(
+                    "Rental %s is %s: a fault is reported on a unit that is out on rent."
+                    % (rec.name, rec.state)
+                )
+            due = fields.Datetime.context_timestamp(
+                rec, fields.Datetime.now() + timedelta(hours=hours)
+            ).date()
+            rec.message_post(
+                body="Fault reported on %s by %s: %s"
+                % (
+                    rec.rental_asset_id.name or rec.device_id.display_name or "the unit",
+                    self.env.user.name,
+                    text,
+                )
+            )
+            rec.activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=due,
+                summary="In-rental fault on %s: support or swap within %d h" % (rec.name, hours),
+                note=text,
+                user_id=rec.create_uid.id or self.env.uid,
             )
         return True
 

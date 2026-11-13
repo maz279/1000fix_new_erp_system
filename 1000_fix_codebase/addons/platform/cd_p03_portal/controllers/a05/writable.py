@@ -215,10 +215,13 @@ WRITABLE = {
     "fix.rental.condition": frozenset(
         {
             "battery_health_pct",
+            "body_condition_rating",
             "case_ok",
+            "charge_cycles",
             "charger_ok",
             "grade",
             "inspector_id",
+            "maintenance_required",
             "notes",
             "photos_ref",
             "ports_ok",
@@ -238,7 +241,9 @@ WRITABLE = {
             "dispute_reason",
             "disputed",
             "dofa_justification",
+            "estimated_repair_hours",
             "evidence_url",
+            "incident_date",
             "inspector_id",
             "operating_unit_id",
             "reservation_id",
@@ -287,11 +292,18 @@ WRITABLE = {
     ),
     "fix.rental.turnaround": frozenset(
         {
+            "battery_health_after_pm",
             "cleaning_done",
+            "connectors_inspected",
             "data_wipe_certificate_id",
+            "firmware_updated",
+            "functional_score_pct",
             "inspection_done",
+            "internal_storage_factory_reset",
+            "memory_card_wiped",
             "notes",
             "regrade",
+            "sensor_cleaned",
             "technician_id",
         }
     ),

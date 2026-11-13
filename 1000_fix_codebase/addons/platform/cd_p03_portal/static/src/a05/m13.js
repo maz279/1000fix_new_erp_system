@@ -4,6 +4,11 @@
  * All 7 report packs exposed as chips (including Real-Time Availability & Fleet Health).
  * Zero phantom fields: all fields verified against PostgreSQL fix_dev. */
 
+/* Rentals at a stage that takes a condition report (fix.rental.condition
+ * _STAGE_STATES): pre-delivery while draft/reserved, post-return while
+ * returned/assessed. Any other pick is refused by the server. */
+const RENTAL_AT_INSPECTION = [['state', 'in', ['draft', 'reserved', 'returned', 'damage_assess']]];
+
 export const MODULE = {
   area: 'A05', code: 'M13', en: 'Rental & EaaS', title: 'M13 · Rental & EaaS',
   bn: 'ভাড়া ও ইকুইপমেন্ট', icon: '🎥',
@@ -53,18 +58,32 @@ export const MODULE = {
     'Damage Assessment & Recovery',
     'Fleet Serialized Asset Master',
     'Rental Kit Bundle',
-    'Turnaround & Regrading'
+    'Turnaround & Regrading',
+    /* sub-module step forms (capture audit, 2026-11-13) */
+    'Security Deposit Collection',
+    'Loss Waiver Request',
+    'Rental Return',
+    'In-Rental Fault Report',
+    'Return Collection Booking',
+    'Preventive Maintenance Booking',
+    /* mastered by M37: a fleet unit cannot be registered without one */
+    'Rental SKU (M37)'
   ],
   cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
+  /* Each page offers the capture of ITS function (capture audit 2026-11-13):
+   * 3 prepares the agreement (not a second "+ New Reservation"), 4 takes the
+   * deposit in its real tender, 6 records the return, 7 the in-rental fault,
+   * 8 the turnaround checklist (a turnaround is opened by the return, never
+   * typed: its old "+ New" was refused by the server). 9 is computed. */
   freg: { src: 78, sub: [
-    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle'] }],
+    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Rental SKU (M37)'] }],
     ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations'], reports: ['Real-Time Availability'], forms: ['Reservation Cockpit'] }],
-    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'], reports: [], forms: ['Rental Agreement (e-sign)'] }],
-    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method'], screens: ['M13-deposits'], reports: ['Deposit Reconciliation'], forms: [], create: false }],
+    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'], reports: [], forms: ['Rental Agreement (e-sign)'], create: 'M13-form-agreement' }],
+    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method', 'reference'], screens: ['M13-deposits'], reports: ['Deposit Reconciliation'], forms: ['Security Deposit Collection', 'Loss Waiver Request'], create: 'M13-form-deposit-take' }],
     ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage'], reports: ['Damage & Loss Rate'], forms: ['Condition Report', 'Damage Assessment & Recovery'] }],
-    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Damage Assessment & Recovery'] }],
-    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], reports: ['Late Return Analysis'], forms: [], create: false, domain: [['state', 'in', ['delivered', 'active']]] }],
-    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading'] }],
+    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Rental Return', 'Damage Assessment & Recovery'], create: 'M13-form-return' }],
+    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], reports: ['Late Return Analysis'], forms: ['In-Rental Fault Report', 'Return Collection Booking'], create: 'M13-form-fault', domain: [['state', 'in', ['delivered', 'active']]] }],
+    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading', 'Preventive Maintenance Booking'], create: 'M13-form-turnaround' }],
     ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'], reports: ['Utilisation by Category', 'Rental P&L', 'Fleet Health & Retirement'], forms: [], create: false }]
   ] }
 };
@@ -123,7 +142,10 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Waiver Request' },
       { m: 'action_waive', l: 'Waive (approved)' }
     ] },
-  'M13-turnaround': { kind: 'model_list', model: 'fix.rental.turnaround', stateField: 'state',
+  /* A turnaround is opened by the return (or Send to Maintenance) and is
+   * refused when typed: no "+ New" here; its checklist is the step form. */
+  'M13-turnaround': { kind: 'model_list', model: 'fix.rental.turnaround', stateField: 'state', create: false,
+    empty: 'No unit is in turnaround. A turnaround opens when a rental is returned or a unit is sent to maintenance; record its checklist with Record a Turnaround Checklist.',
     cols: ['name', 'rental_asset_id', 'reservation_id', 'returned_on', 'grade_before', 'regrade', 'state'],
     actions: [
       { m: 'action_ready', l: 'Ready & Re-Grade' },
@@ -228,9 +250,21 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.rental.reservation',
     title: 'Rental Agreement (e-Sign)',
+    /* The agreement IS the booking's terms: it is prepared on a booking made
+     * with + New Reservation, never as a second, empty booking (2026-11-13). */
+    newLabel: 'Prepare a Rental Agreement',
     back: 'M13-agreements',
     status: { field: 'agreement_state', labels: {
       draft: 'Draft', sent: 'Signature Requested', signed: 'Signed', declined: 'Declined' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the booking whose agreement you are preparing',
+      note: 'Bookings whose agreement has not been sent to the customer yet.',
+      search: 'Search booking or customer',
+      choose: 'Prepare its agreement',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to', 'agreement_state', 'state'],
+      domain: [['agreement_state', 'in', ['draft', 'declined']], ['state', 'in', ['draft', 'reserved']]],
+      empty: 'No booking is waiting for its agreement. Book the rental first with + New Reservation on Availability & Reservation.'
+    },
     tabs: [
       { id: 'terms', label: '1. Agreement Terms', bn: '১. চুক্তির শর্তাবলী', icon: '📜', badge: '4' },
       { id: 'esign', label: '2. Digital Execution', bn: '২. ডিজিটাল সম্পাদন', icon: '✍️', badge: '3' },
@@ -241,9 +275,10 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'terms', title: 'Contract Scope & Identification',
+        note: 'Save the terms, then press Send for Customer Signature on Rental Agreements: the customer signs with the code sent to their mobile, and the terms freeze once sent.',
         fields: [
           { name: 'name', label: 'Reservation Reference', readonly: true },
-          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'customer_id', label: 'Customer', readonly: true },
           { name: 'contract_id', label: 'Rental Contract (M08)' },
           { name: 'agreement_state', label: 'Agreement State', readonly: true },
           { name: 'special_terms', type: 'text', label: 'Special Terms & Indemnity' },
@@ -297,7 +332,9 @@ export const SCREENS = {
       { tab: 'header', title: 'Report Identification & Reference',
         fields: [
           { name: 'name', label: 'Report Ref', readonly: true },
-          { name: 'reservation_id', required: true, label: 'Reservation' },
+          /* only rentals at a stage that takes a report: pre-delivery while
+           * draft/reserved, post-return while returned/assessed */
+          { name: 'reservation_id', required: true, label: 'Reservation', domain: RENTAL_AT_INSPECTION },
           { name: 'rental_asset_id', label: 'Fleet Asset' },
           { name: 'report_type', required: true, label: 'Inspection Type (Pre/Post)' }
         ] },
@@ -306,11 +343,14 @@ export const SCREENS = {
           { name: 'charger_ok', label: 'Original Charger Present' },
           { name: 'case_ok', label: 'Protective Bag/Case Present' },
           { name: 'screen_ok', label: 'Display Screen Scratch/Crack Free' },
-          { name: 'ports_ok', label: 'Connectors & Ports Functional' }
+          { name: 'ports_ok', label: 'Connectors & Ports Functional' },
+          { name: 'body_condition_rating', label: 'Body Condition' },
+          { name: 'maintenance_required', label: 'Maintenance Required (the turnaround must fix it)' }
         ] },
       { tab: 'battery', title: 'Battery Diagnostics',
         fields: [
-          { name: 'battery_health_pct', label: 'Battery Health Percentage (%)' }
+          { name: 'battery_health_pct', label: 'Battery Health Percentage (%)' },
+          { name: 'charge_cycles', label: 'Charge Cycles (read at inspection)' }
         ] },
       { tab: 'regrade', title: 'Grade Recommendation & Observations',
         fields: [
@@ -346,14 +386,17 @@ export const SCREENS = {
     sections: [
       { tab: 'incident', title: 'Damage Incident Classification',
         fields: [
-          { name: 'reservation_id', required: true, label: 'Reservation' },
+          /* damage is assessed on a returned unit only */
+          { name: 'reservation_id', required: true, label: 'Reservation', domain: [['state', 'in', ['returned', 'damage_assess']]] },
           { name: 'category', required: true, label: 'Damage Category' },
           { name: 'description', required: true, type: 'text', label: 'Detailed Failure Description' },
+          { name: 'incident_date', label: 'Discovered On' },
           { name: 'inspector_id', label: 'Reporting Inspector' }
         ] },
       { tab: 'estimation', title: 'Estimated Restoration & Parts Cost',
         fields: [
-          { name: 'cost', required: true, label: 'Assessed Damage Cost (BDT)' }
+          { name: 'cost', required: true, label: 'Assessed Damage Cost (BDT)' },
+          { name: 'estimated_repair_hours', label: 'Estimated Repair Hours' }
         ] },
       { tab: 'recovery', title: 'Deposit Settlement & Financial Recovery',
         fields: [
@@ -545,10 +588,21 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.rental.turnaround',
     title: 'Turnaround & Regrading Dossier',
+    /* opened by the return / Send to Maintenance; this records its checklist */
+    newLabel: 'Record a Turnaround Checklist',
     back: 'M13-turnaround',
     status: { field: 'state', labels: {
       pending: 'Pending', cleaning: 'Cleaning', inspection: 'Inspection',
       ready: 'Ready', retired: 'Retired' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the unit in turnaround',
+      note: 'Turnarounds not yet released or retired.',
+      search: 'Search turnaround',
+      choose: 'Record its checklist',
+      cols: ['name', 'rental_asset_id', 'reservation_id', 'returned_on', 'grade_before', 'state'],
+      domain: [['state', 'in', ['pending', 'cleaning', 'inspection']]],
+      empty: 'No unit is in turnaround. A turnaround opens when a rental is returned or a unit is sent to maintenance.'
+    },
     tabs: [
       { id: 'general', label: '1. Turnaround Dossier', bn: '১. টার্নঅ্যারাউন্ড বিবরণ', icon: '🔄', badge: '4' },
       { id: 'intake', label: '2. Return Condition', bn: '২. ফেরত অবস্থা', icon: '📋', badge: '1' },
@@ -570,10 +624,17 @@ export const SCREENS = {
           { name: 'grade_before', label: 'Grade Prior to Inspection', readonly: true }
         ] },
       { tab: 'cleaning', title: 'Sanitization, Data Wipe & Technical Checklist',
-        note: 'A data-bearing unit is released only on a verified M06 wipe certificate bound to its serial.',
+        note: 'A data-bearing unit is released only on a verified M06 wipe certificate bound to its serial. Save the checklist, then press Ready & Re-Grade on Turnaround & Re-Grade.',
         fields: [
           { name: 'cleaning_done', label: 'Full Physical Decontamination Done' },
+          { name: 'sensor_cleaned', label: 'Sensors / Lenses Cleaned' },
+          { name: 'connectors_inspected', label: 'Connectors Inspected' },
+          { name: 'firmware_updated', label: 'Firmware Updated' },
+          { name: 'memory_card_wiped', label: 'Memory Card Wiped' },
+          { name: 'internal_storage_factory_reset', label: 'Internal Storage Factory Reset' },
           { name: 'inspection_done', label: 'Diagnostics & Functionality Checked' },
+          { name: 'functional_score_pct', label: 'Bench Functional Score %' },
+          { name: 'battery_health_after_pm', label: 'Battery Health After PM %' },
           { name: 'technician_id', label: 'Turnaround Technician' },
           { name: 'data_wipe_certificate_id', label: 'Data Wipe Certificate (M06)' },
           { name: 'nist_wipe_hash', label: 'Verified Wipe Hash (from M06)', readonly: true }
@@ -591,6 +652,229 @@ export const SCREENS = {
       { tab: 'vault', title: 'Turnaround Sign-Off Vault',
         note: 'Quality sign-off certificate, sanitized asset photo, and calibration report.',
         fields: [] }
+    ]
+  },
+
+  /* ============ SUB-MODULE STEP FORMS (capture audit, 2026-11-13) ============
+   * Pick-then-act: each acts on an existing record through its workflow
+   * method, which is what records the step (the fields are guarded). */
+
+  /* 4 Deposits & Waivers: the deposit is taken when the booking is confirmed,
+   * in the tender the customer paid with. It used to be booked as cash
+   * whatever was taken, so a bKash deposit was posted to the cash account and
+   * refunded as cash. */
+  'M13-form-deposit-take': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'Security Deposit Collection',
+    newLabel: 'Take a Security Deposit',
+    back: 'M13-deposits',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the booking the customer is paying the deposit for',
+      note: 'Draft bookings. Taking the deposit confirms the booking and holds the unit.',
+      search: 'Search booking or customer',
+      choose: 'Take its deposit',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to', 'deposit_collected'],
+      domain: [['state', '=', 'draft']],
+      empty: 'No draft booking is waiting for its deposit. Book the rental first with + New Reservation on Availability & Reservation.'
+    },
+    saveAction: {
+      method: 'action_reserve', label: 'Take Deposit & Confirm Booking',
+      done: 'Deposit recorded and the booking confirmed',
+      kwargs: { method: 'deposit_method', reference: 'deposit_reference' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: How the Deposit Was Paid (FR-RNT-014)',
+        note: 'The amount is the deposit agreed on the booking; it is held as a liability (never revenue) and posted to the General Ledger account of the tender you choose. A refund goes back the same way. A non-cash deposit needs its transaction reference.',
+        fields: [
+          { name: 'name', label: 'Booking', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_asset_id', label: 'Fleet Unit', readonly: true },
+          { name: 'deposit_collected', label: 'Deposit Agreed (BDT)', readonly: true },
+          /* INPUTS: saveAction carries them to action_reserve */
+          { name: 'deposit_method', required: true, label: 'Deposit Taken By', readonly: true },
+          { name: 'deposit_reference', label: 'bKash / Nagad / Card / Bank Transaction Reference', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 4 Deposits & Waivers: an unrecovered loss is written off only by a routed
+   * M63 approval; this is the request (the approver decides in the inbox). */
+  'M13-form-waiver': {
+    kind: 'model_form',
+    model: 'fix.rental.damage',
+    title: 'Loss Waiver Request',
+    newLabel: 'Request a Loss Waiver',
+    back: 'M13-damage',
+    status: { field: 'approval_state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the damage whose unrecovered loss is to be waived',
+      note: 'Damage lines with a loss the deposit did not cover, not waived and not awaiting a decision.',
+      search: 'Search damage',
+      choose: 'Request its waiver',
+      cols: ['reservation_id', 'category', 'description', 'cost', 'recovered_amount', 'unrecovered_loss_amount', 'approval_state'],
+      domain: [['unrecovered_loss_amount', '>', 0], ['waived', '=', false], ['approval_state', 'not in', ['pending', 'approved']]],
+      empty: 'No damage carries an unrecovered loss to waive.'
+    },
+    saveAction: {
+      method: 'action_request_approval', label: 'Send Waiver Request',
+      done: 'Waiver request sent to the approver\'s inbox',
+      kwargs: { justification: 'dofa_justification' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: Justification (BRU-RNT-22, DOFA)',
+        note: 'The request is routed to the holders of the tier the loss amount requires, never to you or to whoever assessed the damage. Once approved, press Waive (approved) on Damage & Recovery. A loss already invoiced to the customer is walked back by a credit note, not a waiver.',
+        fields: [
+          { name: 'reservation_id', label: 'Rental', readonly: true },
+          { name: 'description', label: 'Damage', readonly: true },
+          { name: 'cost', label: 'Assessed Cost (BDT)', readonly: true },
+          { name: 'recovered_amount', label: 'Recovered from Deposit (BDT)', readonly: true },
+          { name: 'unrecovered_loss_amount', label: 'Loss to Waive (BDT)', readonly: true },
+          { name: 'dofa_tier_required', label: 'Approval Tier', readonly: true },
+          /* INPUT: saveAction carries it to action_request_approval */
+          { name: 'dofa_justification', required: true, type: 'text', label: 'Why the loss should be written off', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 6 Returns & Recovery: the unit comes back. The return stamps the date,
+   * computes any late fee once and opens the unit's turnaround. */
+  'M13-form-return': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'Rental Return',
+    newLabel: 'Record a Rental Return',
+    back: 'M13-reservations',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the rental whose unit has come back',
+      note: 'Rentals that are out with the customer.',
+      search: 'Search rental or customer',
+      choose: 'Record its return',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to', 'overdue_since'],
+      domain: [['state', '=', 'active']],
+      empty: 'No rental is out with a customer.'
+    },
+    saveAction: {
+      method: 'action_return', label: 'Record Return',
+      done: 'Return recorded; the unit is in turnaround'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Confirm the Return (FR-RNT-017/018)',
+        note: 'Today is recorded as the return date. A late return is charged once at the configured rate; an early one is not refunded here. Next: the post-return Condition Report against the outbound one, then any damage on Damage Assessment & Recovery.',
+        fields: [
+          { name: 'name', label: 'Rental', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_asset_id', label: 'Fleet Unit', readonly: true },
+          { name: 'date_to', label: 'Due Back', readonly: true },
+          { name: 'overdue_since', label: 'Overdue Since', readonly: true },
+          { name: 'deposit_collected', label: 'Deposit Agreed (BDT)', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7 In-Rental Support: the customer reports a fault on a unit out on rent. */
+  'M13-form-fault': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'In-Rental Fault Report',
+    newLabel: 'Report a Fault on a Live Rental',
+    back: 'M13-reservations',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the live rental with the faulty unit',
+      note: 'Rentals delivered to or active with the customer.',
+      search: 'Search rental or customer',
+      choose: 'Report its fault',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'],
+      domain: [['state', 'in', ['delivered', 'active']]],
+      empty: 'No rental is out with a customer.'
+    },
+    saveAction: {
+      method: 'action_report_fault', label: 'Record Fault',
+      done: 'Fault recorded and support to-do raised',
+      kwargs: { fault: 'fault_report' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: What Is Wrong (FR-RNT-027)',
+        note: 'The fault is written to the rental\'s history with your name and the time, and a to-do with the support / swap deadline goes to whoever booked the rental. A unit swap is not yet recorded by the system.',
+        fields: [
+          { name: 'name', label: 'Rental', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_asset_id', label: 'Fleet Unit', readonly: true },
+          { name: 'date_to', label: 'Due Back', readonly: true },
+          /* INPUT: saveAction carries it to action_report_fault */
+          { name: 'fault_report', required: true, type: 'text', label: 'Fault as the Customer Described It', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7 In-Rental Support: book the M03 collection of a unit from the customer. */
+  'M13-form-collection': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'Return Collection Booking',
+    newLabel: 'Book a Return Collection (M03)',
+    back: 'M13-reservations',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the rental to collect the unit from',
+      note: 'Live rentals with no collection booked yet.',
+      search: 'Search rental or customer',
+      choose: 'Book its collection',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'operating_unit_id'],
+      domain: [['state', 'in', ['delivered', 'active']], ['return_consignment_id', '=', false]],
+      empty: 'No live rental is waiting for a collection to be booked.'
+    },
+    saveAction: {
+      method: 'action_generate_return_consignment', label: 'Book Collection',
+      done: 'Collection consignment created in M03'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Confirm the Collection (FR-RNT-022)',
+        note: 'An M03 pickup consignment is created for the rental\'s operating unit (or yours); logistics schedules the rider from there.',
+        fields: [
+          { name: 'name', label: 'Rental', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_asset_id', label: 'Fleet Unit', readonly: true },
+          { name: 'date_to', label: 'Due Back', readonly: true },
+          { name: 'operating_unit_id', label: 'Operating Unit', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 8 Turnaround & PM: take an available unit out for preventive maintenance. */
+  'M13-form-pm': {
+    kind: 'model_form',
+    model: 'fix.rental.asset',
+    title: 'Preventive Maintenance Booking',
+    newLabel: 'Send a Unit to Preventive Maintenance',
+    back: 'M13-fleet',
+    status: { field: 'status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the available unit due for maintenance',
+      note: 'Units available in the fleet.',
+      search: 'Search asset code',
+      choose: 'Send it to maintenance',
+      cols: ['name', 'rental_sku_id', 'category', 'condition_grade', 'battery_health_pct', 'operating_unit_id'],
+      domain: [['status', '=', 'available']],
+      empty: 'No unit is available to take out for maintenance.'
+    },
+    saveAction: {
+      method: 'action_send_to_maintenance', label: 'Send to Maintenance',
+      done: 'Unit taken out of availability; turnaround opened'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Confirm (FR-RNT-028, BRU-RNT-21)',
+        note: 'The unit leaves availability and a turnaround opens; it comes back only when that turnaround\'s checklist is complete and it is released.',
+        fields: [
+          { name: 'name', label: 'Asset Code', readonly: true },
+          { name: 'rental_sku_id', label: 'Rental SKU', readonly: true },
+          { name: 'category', label: 'Category', readonly: true },
+          { name: 'condition_grade', label: 'Condition Grade', readonly: true },
+          { name: 'battery_health_pct', label: 'Battery Health %', readonly: true }
+        ] }
     ]
   }
 };
@@ -612,7 +896,14 @@ export const FORM_MODELS = {
   'M13:Damage Assessment & Recovery': 'fix.rental.damage',
   'M13:Fleet Serialized Asset Master': 'fix.rental.asset',
   'M13:Rental Kit Bundle': 'fix.rental.kit',
-  'M13:Turnaround & Regrading': 'fix.rental.turnaround'
+  'M13:Turnaround & Regrading': 'fix.rental.turnaround',
+  'M13:Security Deposit Collection': 'fix.rental.reservation',
+  'M13:Loss Waiver Request': 'fix.rental.damage',
+  'M13:Rental Return': 'fix.rental.reservation',
+  'M13:In-Rental Fault Report': 'fix.rental.reservation',
+  'M13:Return Collection Booking': 'fix.rental.reservation',
+  'M13:Preventive Maintenance Booking': 'fix.rental.asset',
+  'M13:Rental SKU (M37)': 'fix.rental.sku'
 };
 
 export const FORM_CHIPS = {
@@ -623,6 +914,13 @@ export const FORM_CHIPS = {
   'M13:Fleet Serialized Asset Master': 'M13-form-asset',
   'M13:Rental Kit Bundle': 'M13-form-kit',
   'M13:Turnaround & Regrading': 'M13-form-turnaround',
+  'M13:Security Deposit Collection': 'M13-form-deposit-take',
+  'M13:Loss Waiver Request': 'M13-form-waiver',
+  'M13:Rental Return': 'M13-form-return',
+  'M13:In-Rental Fault Report': 'M13-form-fault',
+  'M13:Return Collection Booking': 'M13-form-collection',
+  'M13:Preventive Maintenance Booking': 'M13-form-pm',
+  'M13:Rental SKU (M37)': 'M37-form-rentalsku',
   'M13:__by_model__': {
     'fix.rental.reservation': 'M13-form-reservation',
     'fix.rental.condition': 'M13-form-condition',
