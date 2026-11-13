@@ -445,6 +445,7 @@ WRITABLE = {
             "contract_id",
             "coverage_window",
             "device_count",
+            "holiday_calendar_id",
             "monitoring_scope",
             "name",
             "per_device_monthly",

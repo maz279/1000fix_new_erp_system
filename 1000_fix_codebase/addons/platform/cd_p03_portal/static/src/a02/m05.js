@@ -69,7 +69,8 @@ export const MODULE = {
       { id: 'M05-dr-tests', en: 'DR Tests', bn: 'ডিআর পরীক্ষা', t: 'g' }
     ]}
   ],
-  reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register'],
+  reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register',
+    'Cloud Cost & Optimisation', 'Licence Compliance', 'Security Posture'],
   /* M05 capture audit 2026-11-13: every chip that has a form is listed, so
    * each sub-module page names the forms that capture its records */
   forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window',
@@ -81,7 +82,7 @@ export const MODULE = {
     src: 93,
     sub: [
       ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'], reports: ['Remote Resolution Rate'], forms: ['Remote Session (consent recorded)'] }],
-      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate', 'M05-cloud'], reports: [], forms: ['Managed Estate Device', 'Cloud Subscription'] }],
+      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate', 'M05-cloud'], reports: ['Cloud Cost & Optimisation', 'Licence Compliance'], forms: ['Managed Estate Device', 'Cloud Subscription'] }],
       /* 3 FR-RMS-010/011: an engineer's reading of an asset (an agentless
        * device or a site check) - the health score is computed from it. The
        * page had no button: the metrics were written by the collector only. */
@@ -98,7 +99,7 @@ export const MODULE = {
       ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem', 'M05-contacts', 'M05-major-incidents'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record', 'Client Contact', 'Major Incident'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
       /* 9 FR-RMS-035: the monthly report is generated from its contract,
        * never typed - its figures decide the SLA credit. No button before. */
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register'], forms: ['Monthly Service Report', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
       ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['MSP Contract'] }]
     ]
   }
@@ -310,6 +311,10 @@ export const SCREENS = {
   'M05-rpt-alertconv': { kind: 'table_report', module: 'M05', report: 'alert_conversion', title: 'Alert-to-Ticket Conversion', period: true },
   'M05-rpt-backup': { kind: 'table_report', module: 'M05', report: 'backup_log', title: 'Backup & Restore Test Log', period: true },
   'M05-rpt-credits': { kind: 'table_report', module: 'M05', report: 'sla_credit_register', title: 'SLA Credit Register', period: true },
+  /* FR-RMS-041 / 052 / 044 */
+  'M05-rpt-cloud-cost': { kind: 'table_report', module: 'M05', report: 'cloud_cost', title: 'Cloud Cost & Optimisation', period: false },
+  'M05-rpt-licences': { kind: 'table_report', module: 'M05', report: 'licence_compliance', title: 'Licence Compliance', period: false },
+  'M05-rpt-security': { kind: 'table_report', module: 'M05', report: 'security_posture', title: 'Security Posture', period: false },
 
   /* ============ THE FOUR REGISTRY FORMS as D365 model_forms (v2) ==========
    * The chips previously opened stock Odoo dialogs. */
@@ -603,7 +608,7 @@ export const SCREENS = {
       ] },
     tabs: [
       { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
-      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '8' },
+      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '9' },
       { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '7' }
     ],
     sections: [
@@ -628,6 +633,7 @@ export const SCREENS = {
           { name: 'alert_resolve_hours_major', label: "Major Alert Resolution Target (h)" },
           { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" },
           { name: 'coverage_window', required: true, label: "SLA Coverage Window (the hours the clock runs)" },
+          { name: 'holiday_calendar_id', label: "Holiday Calendar (business-hours clocks stop on its holidays)" },
           { name: 'recording_retention_days', label: "Session Recording Retention (days, 0 = contract life)" }
         ] },
       { tab: 'lifecycle', title: "Service Lifecycle & Offboarding (BRU-RMS-11)",
@@ -1008,7 +1014,10 @@ export const REPORT_ROUTES = {
   "M05:Patch Compliance Report": "M05-rpt-patch",
   "M05:Alert-to-Ticket Conversion": "M05-rpt-alertconv",
   "M05:Backup & Restore Test Log": "M05-rpt-backup",
-  "M05:SLA Credit Register": "M05-rpt-credits"
+  "M05:SLA Credit Register": "M05-rpt-credits",
+  "M05:Cloud Cost & Optimisation": "M05-rpt-cloud-cost",
+  "M05:Licence Compliance": "M05-rpt-licences",
+  "M05:Security Posture": "M05-rpt-security"
 };
 
 /* Data-entry form chips -> the module's in-workspace D365 forms (v2) */

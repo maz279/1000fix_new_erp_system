@@ -265,3 +265,109 @@ def test_an_accepted_roadmap_item_becomes_one_sales_opportunity(m5):
         _as(item, m5.eng).action_create_opportunity()
     with pytest.raises(ValidationError, match="YYYY-Qn"):
         item.write({"target_quarter": "next year"})
+
+
+# --- holidays in the business-hours SLA calendar -----------------------------
+
+
+def test_a_holiday_on_the_contract_calendar_stops_the_clock(m5):
+    from datetime import date, datetime
+
+    from odoo.addons.cd_msp_contract.models.fix_msp_rules_bru import add_business_hours
+
+    # Thursday 12 Nov 2026 17:00 Dhaka + 4 working hours: Sunday 15 Nov 12:00
+    start = datetime(2026, 11, 12, 11, 0)
+    assert add_business_hours(start, 4) == datetime(2026, 11, 15, 6, 0)
+    # with Sunday 15 Nov closed, it is Monday 16 Nov 12:00
+    assert add_business_hours(start, 4, {date(2026, 11, 15)}) == datetime(2026, 11, 16, 6, 0)
+    calendar = (
+        m5.env["fix.working.calendar"]
+        .sudo()
+        .create(
+            {
+                "name": "M05 test calendar",
+                "holiday_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": "Test closure",
+                            "date_from": "2026-11-15",
+                            "date_to": "2026-11-15",
+                        },
+                    )
+                ],
+            }
+        )
+    )
+    m5.msp.write({"coverage_window": "business", "holiday_calendar_id": calendar.id})
+    # the contract's own deadline moves past the closure
+    alert = m5.env["fix.msp.alert"].create(
+        {"msp_contract_id": m5.msp.id, "asset_id": m5.asset.id, "message": "x", "severity": "major"}
+    )
+    alert.env.cr.execute(
+        "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s", (start, alert.id)
+    )
+    alert.invalidate_recordset()
+    m5.msp.write({"alert_resolve_hours_major": 4.0})
+    assert m5.msp._msp_deadline(alert) == datetime(2026, 11, 16, 6, 0)
+    assert date(2026, 11, 15) in m5.msp._msp_holiday_dates()
+
+
+# --- FR-RMS-041 / 052 / 044 reports ------------------------------------------
+
+
+def test_cloud_cost_and_licence_reports_read_the_subscriptions(m5):
+    from odoo.addons.cd_p03_portal.controllers.a02 import m05 as ctl
+
+    today = fields.Date.context_today(m5.env["fix.msp.cloud.subscription"])
+    _as(m5.env["fix.msp.cloud.subscription"], m5.eng).create(
+        {
+            "msp_contract_id": m5.msp.id,
+            "provider": "m365",
+            "name": "AUDIT Business Basic",
+            "seats": 20,
+            "seats_used": 15,
+            "unit_cost": 600.0,
+            "renewal_date": today + timedelta(days=90),
+        }
+    )
+    _as(m5.env["fix.msp.cloud.subscription"], m5.eng).create(
+        {
+            "msp_contract_id": m5.msp.id,
+            "provider": "google",
+            "name": "AUDIT Workspace Starter",
+            "seats": 5,
+            "seats_used": 7,
+            "unit_cost": 700.0,
+            "renewal_date": today + timedelta(days=90),
+        }
+    )
+    cost = {r["plan"]: r for r in ctl.REPORTS["cloud_cost"](m5.env)["rows"] if r.get("plan")}
+    assert cost["AUDIT Business Basic"]["saving"] == 3000.0
+    assert "Release 5" in cost["AUDIT Business Basic"]["advice"]
+    lic = {r["plan"]: r for r in ctl.REPORTS["licence_compliance"](m5.env)["rows"] if r.get("plan")}
+    assert lic["AUDIT Workspace Starter"]["status"].startswith("Non-compliant: 2")
+    assert lic["AUDIT Business Basic"]["status"] == "Compliant (5 spare)"
+
+
+def test_security_posture_counts_gaps_and_failing_backups(m5):
+    from odoo.addons.cd_p03_portal.controllers.a02 import m05 as ctl
+
+    _as(m5.env["fix.msp.backup.job"], m5.eng).create(
+        {
+            "asset_id": m5.asset.id,
+            "plan_ref": "Nightly",
+            "outcome": "failed",
+            "note": "target share unreachable all night",
+        }
+    )
+    m5.env.cr.execute(
+        "UPDATE fix_monitored_asset SET last_seen = now() - interval '30 hours' WHERE id = %s",
+        (m5.asset.id,),
+    )
+    m5.asset.invalidate_recordset()
+    m5.env["fix.monitored.asset"].cron_coverage_gaps()
+    rows = {r["contract"]: r for r in ctl.REPORTS["security_posture"](m5.env)["rows"]}
+    row = rows[m5.msp.name]
+    assert (row["failing_backups"], row["coverage_gaps"]) == (1, 1)

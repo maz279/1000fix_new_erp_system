@@ -40,6 +40,7 @@ EDITABLE = {
     "unattended_access",
     "coverage_window",
     "recording_retention_days",
+    "holiday_calendar_id",
 }
 
 PROBE = """
