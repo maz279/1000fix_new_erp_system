@@ -1807,7 +1807,11 @@
                                                 <h4 style="margin: 0;"><t t-esc='t("Record Attachments (live ir.attachment)")'/></h4>
                                                 <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--ink-500);"><t t-esc='t("Files attached to this service order in the backend.")'/></p>
                                             </div>
-                                            <button class="btn btn-sm btn-primary" t-on-click="() => this.showToast('Select image or PDF to upload…')"><t t-esc='t("⬆ Upload Attachment")'/></button>
+                                            <!-- a real upload (controllers/p03_attachments.py); it only showed a message -->
+                                            <label class="btn btn-sm btn-primary" style="margin: 0; cursor: pointer;" t-att-title='t("PDF, JPG, PNG or DOCX, up to 10 MB")'>
+                                                <t t-esc='t("⬆ Upload Attachment")'/>
+                                                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" style="display: none;" t-on-change="(ev) => this.recordAttachmentUpload(ev)"/>
+                                            </label>
                                         </div>
 
                                         <div class="attachment-grid" t-if="state.recordAttachments.length">
@@ -1823,14 +1827,16 @@
                                                         <span><t t-esc="att.date"/></span>
                                                     </div>
                                                     <div class="att-actions">
+                                                        <a t-if="att.url" class="btn btn-sm btn-ghost" t-att-href="att.url" target="_blank"><t t-esc='t("⬇ Download")'/></a>
                                                         <button class="btn btn-sm btn-ghost" t-on-click="() => this.actionService.doAction({type: 'ir.actions.act_window', res_model: 'fix.service.order', res_id: state.activeRecord.order_id, views: [[false, 'form']]})">Open record ▸</button>
                                                     </div>
                                                 </div>
                                             </t>
-                                            <p t-if="!state.recordAttachments.length" style="color: var(--ink-500); font-size: 12px; grid-column: 1 / -1;">
-                                                <t t-esc='t("No attachments on this order yet — upload via the record form in the back office.")'/>
-                                            </p>
                                         </div>
+                                        <!-- outside the grid: inside it, it could never show (the grid renders only with attachments) -->
+                                        <p t-if="!state.recordAttachments.length" style="color: var(--ink-500); font-size: 12px;">
+                                            <t t-esc='t("No documents on this order yet. Upload one with ⬆ Upload Attachment.")'/>
+                                        </p>
                                     </t>
 
                                     <!-- TAB 4: Audit Trail Tab -->
@@ -3649,6 +3655,50 @@
                                         </span>
                                     </div>
                                     <div t-if="formLineCfg.note" class="d365-note" t-esc="t(formLineCfg.note)"/>
+                                </div>
+
+                                <!-- The documents of a SAVED record (controllers/p03_attachments.py):
+                                     listed as the user, uploaded only with write access to it -->
+                                <div t-if="state.gl.form.recordId &amp;&amp; !state.gl.form.picking &amp;&amp; !state.gl.form.unavailable &amp;&amp; state.gl.form.att"
+                                     class="d365-section d365-attachments-card">
+                                    <div class="d365-sectiontitle" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                        <span>📎 <t t-esc='t("Documents")'/> (<t t-esc="state.gl.form.att.rows.length"/>)</span>
+                                        <label t-if="state.gl.form.att.canUpload" class="btn btn-sm btn-primary" style="margin: 0; cursor: pointer;" t-att-title='t("PDF, JPG, PNG or DOCX, up to 10 MB")'>
+                                            <t t-esc='t("⬆ Upload Document")'/>
+                                            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.docx" style="display: none;" t-on-change="(ev) => this.formAttachmentUpload(ev)"/>
+                                        </label>
+                                    </div>
+                                    <div t-if="state.gl.form.att.loading" class="d365-note"><t t-esc='t("Loading documents…")'/></div>
+                                    <div t-elif="state.gl.form.att.error" class="d365-note"><t t-esc="state.gl.form.att.error"/></div>
+                                    <div t-elif="!state.gl.form.att.rows.length" class="d365-note">
+                                        <t t-if="state.gl.form.att.canUpload" t-esc='t("No documents yet. Upload a scan or photo (PDF, JPG, PNG or DOCX, up to 10 MB).")'/>
+                                        <t t-else="" t-esc='t("No documents yet.")'/>
+                                    </div>
+                                    <table t-else="" class="d365-lines">
+                                        <thead>
+                                            <tr>
+                                                <th><t t-esc='t("Document")'/></th>
+                                                <th><t t-esc='t("Type")'/></th>
+                                                <th><t t-esc='t("Size")'/></th>
+                                                <th><t t-esc='t("Added")'/></th>
+                                                <th><t t-esc='t("By")'/></th>
+                                                <th/>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="state.gl.form.att.rows" t-as="doc" t-key="doc.id">
+                                                <td><t t-esc="doc.name"/></td>
+                                                <td><t t-esc="doc.type"/></td>
+                                                <td><t t-esc="doc.size_kb"/> KB</td>
+                                                <td><t t-esc="doc.date"/></td>
+                                                <td><t t-esc="doc.by"/></td>
+                                                <td><a t-if="doc.url" class="btn btn-sm btn-ghost" t-att-href="doc.url" target="_blank"><t t-esc='t("⬇ Download")'/></a></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <div t-if="state.gl.form.att.namesHidden" class="d365-note">
+                                        <t t-esc='t("Document names are not shown for this record: open them through its audited Z4 step-up access.")'/>
+                                    </div>
                                 </div>
                             </div>
 

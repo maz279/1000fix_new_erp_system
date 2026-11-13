@@ -3,6 +3,7 @@
 # the person-aware Role Center API.
 from . import (
     p03_ar_api,
+    p03_attachments,
     p03_finance_api,
     p03_generic_api,
     p03_gl_api,

@@ -738,7 +738,7 @@ export class P03Workspace extends Component {
         const orderId = this.state.quickDispatchOrder?.id ||
                         (this.state.mapSelectedPin?.pinType === "order" ? this.state.mapSelectedPin.id : null);
         if (!orderId) {
-            this.showToast(t('Please select an active order to assign.'));
+            this.showToast(this.t('Please select an active order to assign.'));
             return;
         }
         try {
@@ -758,7 +758,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Dispatch assignment refused.");
             }
         } catch (err) {
-            this.showToast(t('Dispatch assignment failed — see server log.'));
+            this.showToast(this.t('Dispatch assignment failed — see server log.'));
         }
     }
 
@@ -801,7 +801,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Notification failed — see server log.");
             }
         } catch (e) {
-            this.showToast(t('Notification failed — see server log.'));
+            this.showToast(this.t('Notification failed — see server log.'));
         }
     }
 
@@ -821,7 +821,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Failed to advance order.");
             }
         } catch (e) {
-            this.showToast(t('QC advance failed — see server log.'));
+            this.showToast(this.t('QC advance failed — see server log.'));
         }
     }
 
@@ -841,7 +841,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Failed to flag order for rework.");
             }
         } catch (e) {
-            this.showToast(t('QC rework update failed — see server log.'));
+            this.showToast(this.t('QC rework update failed — see server log.'));
         }
     }
 
@@ -1069,7 +1069,7 @@ export class P03Workspace extends Component {
             return;
         }
         if (mid === "M19" && /intercompany/i.test(formLabel)) {
-            this.showToast(t('Intercompany charges land with the multi-entity phase (FR-FIN-026..031)'));
+            this.showToast(this.t('Intercompany charges land with the multi-entity phase (FR-FIN-026..031)'));
             return;
         }
         const create = P03_MODULE_CREATE[mid];
@@ -2630,6 +2630,8 @@ export class P03Workspace extends Component {
                 gl.form.unavailable = true;
             } else if (res.record) {
                 gl.form.values = { ...res.record };
+                // the documents attached to this record (M06 audit 2026-11-13)
+                this.formAttachmentsLoad();
             } else {
                 // the model's own tick-box defaults, so the form shows what is saved
                 gl.form.values = { ...(res.defaults || {}) };
@@ -3076,6 +3078,108 @@ export class P03Workspace extends Component {
         }
     }
 
+    /* Record documents (controllers/p03_attachments.py). The service-order
+     * view's "Upload Attachment" only showed a message and the forms had no
+     * document panel, so signed receipts and consents could only be attached
+     * in the back office (M06 audit 2026-11-13). Listed as the user; uploaded
+     * only with write access to the record; PDF / JPG / PNG / DOCX, 10 MB. */
+    async formAttachmentsLoad() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !gl.form.recordId) return;
+        const att = { rows: [], loading: true, canUpload: false, namesHidden: false, error: null };
+        gl.form.att = att;
+        try {
+            const res = await this.rpc("/p03/model/attachments", {
+                model: gl.formCfg.model,
+                record_id: gl.form.recordId,
+            });
+            att.rows = (res && res.rows) || [];
+            att.canUpload = !!(res && res.can_upload);
+            att.namesHidden = !!(res && res.names_hidden);
+            att.error = (res && res.error) || null;
+        } catch (e) {
+            // the endpoint is unreachable (e.g. a server not yet restarted on
+            // this build): show no panel rather than an error on every form
+            if (gl.form.att === att) gl.form.att = null;
+            if (this.state.gl === gl) this.render(true);
+            return;
+        }
+        att.loading = false;
+        if (this.state.gl === gl) this.render(true);
+    }
+
+    async recordAttachmentsLoad(orderId) {
+        if (!orderId) return;
+        try {
+            const res = await this.rpc("/p03/model/attachments", {
+                model: "fix.service.order",
+                record_id: orderId,
+            });
+            const rec = this.state.activeRecord;
+            if (!res || res.error || !rec || rec.order_id !== orderId) return;
+            this.state.recordAttachments = (res.rows || []).map((a) => ({
+                id: a.id,
+                title: a.name,
+                type: a.type || "FILE",
+                size: `${a.size_kb} KB`,
+                date: a.date,
+                tag: "Record",
+                icon: ATTACH_ICONS[(a.type || "").toLowerCase()] || "📎",
+                url: a.url,
+            }));
+            this.render(true);
+        } catch (e) {
+            // the order's own payload list stays
+        }
+    }
+
+    /* Read the chosen file, upload it onto model/recordId, then `done()`. */
+    uploadRecordFile(model, recordId, ev, done) {
+        const input = ev.target;
+        const file = input.files && input.files[0];
+        input.value = "";
+        if (!file || !recordId) return;
+        if (file.size > 10 * 1024 * 1024) {
+            this.showToast("⚠ " + this.t("The file is larger than 10 MB."));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const dataUrl = String(e.target.result || "");
+            const data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            let res = null;
+            try {
+                res = await this.rpc("/p03/model/attachment/upload", {
+                    model,
+                    record_id: recordId,
+                    name: file.name,
+                    data,
+                });
+            } catch (err) {
+                res = null;
+            }
+            if (res && res.success) {
+                this.showToast(this.t("Document attached ✓"));
+                if (done) await done();
+            } else {
+                this.showToast("⚠ " + ((res && res.error) || this.t("The upload failed. Try again.")));
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    formAttachmentUpload(ev) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        this.uploadRecordFile(gl.formCfg.model, gl.form.recordId, ev, () => this.formAttachmentsLoad());
+    }
+
+    recordAttachmentUpload(ev) {
+        const rec = this.state.activeRecord;
+        if (!rec || !rec.order_id) return;
+        this.uploadRecordFile("fix.service.order", rec.order_id, ev, () => this.recordAttachmentsLoad(rec.order_id));
+    }
+
     async mlAction(method, label) {
         const gl = this.state.gl;
         const row = gl.mlSelected;
@@ -3223,7 +3327,7 @@ export class P03Workspace extends Component {
                 this.loadGlData();
             }
         } catch (e) {
-            this.showToast(t('Approval failed — the SoD rules are enforced server-side'));
+            this.showToast(this.t('Approval failed — the SoD rules are enforced server-side'));
         }
     }
 
@@ -3294,7 +3398,7 @@ export class P03Workspace extends Component {
             this.showToast(res.message || res.error);
             if (res.success) this._glNewEditor();
         } catch (e) {
-            this.showToast(t('Could not save the draft entry'));
+            this.showToast(this.t('Could not save the draft entry'));
         }
     }
 
@@ -3302,7 +3406,7 @@ export class P03Workspace extends Component {
         const editor = this.state.gl.editor;
         const payload = this._glEditorPayload();
         if (payload.lines.length < 2) {
-            this.showToast(t('A template needs at least two filled lines'));
+            this.showToast(this.t('A template needs at least two filled lines'));
             return;
         }
         try {
@@ -3317,7 +3421,7 @@ export class P03Workspace extends Component {
             this.showToast(res.message || res.error);
             if (res.success) this.loadGlData(); // refresh the templates panel
         } catch (e) {
-            this.showToast(t('Could not save the template'));
+            this.showToast(this.t('Could not save the template'));
         }
     }
 
@@ -3365,7 +3469,7 @@ export class P03Workspace extends Component {
             gl.evidenceText = "";
             if (res.success) this.loadGlData();
         } catch (e) {
-            this.showToast(t('Close action failed'));
+            this.showToast(this.t('Close action failed'));
         }
     }
 
@@ -3382,7 +3486,7 @@ export class P03Workspace extends Component {
             this.showToast(res.message || res.error);
             if (res.success) this.loadGlData();
         } catch (e) {
-            this.showToast(t('Lock failed'));
+            this.showToast(this.t('Lock failed'));
         }
     }
 
@@ -3392,7 +3496,7 @@ export class P03Workspace extends Component {
             this.showToast(res.message || res.error);
             if (res.success) this.loadGlData();
         } catch (e) {
-            this.showToast(t('Template run failed'));
+            this.showToast(this.t('Template run failed'));
         }
     }
 
@@ -3416,7 +3520,7 @@ export class P03Workspace extends Component {
             this.showToast(res.success ? (okMessage || "Done ✓") : (res.error || "Refused"));
             return res;
         } catch (e) {
-            this.showToast(t('The action failed — server-side rules are enforced'));
+            this.showToast(this.t('The action failed — server-side rules are enforced'));
             return { success: false };
         }
     }
@@ -3487,11 +3591,11 @@ export class P03Workspace extends Component {
     async arSaveDraftInvoice() {
         const editor = this.state.gl.arEditor;
         if (!editor.customer_id) {
-            this.showToast(t('Pick a customer first'));
+            this.showToast(this.t('Pick a customer first'));
             return;
         }
         if (!editor.reason.trim()) {
-            this.showToast(t('A reason code is mandatory for manual invoices (FR-ARB-010)'));
+            this.showToast(this.t('A reason code is mandatory for manual invoices (FR-ARB-010)'));
             return;
         }
         const res = await this._arCall("/p03/ar/invoice/create", {
@@ -3607,7 +3711,7 @@ export class P03Workspace extends Component {
     async arReceiptCreate() {
         const form = this.state.gl.receiptForm;
         if (!form.customer_id || !form.amount || !form.payment_method_id) {
-            this.showToast(t('Customer, amount and payment method are required'));
+            this.showToast(this.t('Customer, amount and payment method are required'));
             return;
         }
         const res = await this._arCall("/p03/ar/receipt/create", { ...form }, "Receipt captured (draft)");
@@ -3631,7 +3735,7 @@ export class P03Workspace extends Component {
             this.state.gl.data.exceptions = res.exceptions;
             this.showToast(`${res.proposals.length} proposal(s) scored · ${res.exceptions.length} exception(s)`);
         } catch (e) {
-            this.showToast(t('Auto-match failed'));
+            this.showToast(this.t('Auto-match failed'));
         }
     }
 
@@ -3653,7 +3757,7 @@ export class P03Workspace extends Component {
     async arAllocManual() {
         const pick = this.state.gl.allocPick;
         if (!pick.receipt_id || !pick.invoice_id || !pick.amount) {
-            this.showToast(t('Pick a receipt, an invoice and an amount'));
+            this.showToast(this.t('Pick a receipt, an invoice and an amount'));
             return;
         }
         const res = await this._arCall("/p03/ar/allocation/create", { ...pick }, "Allocated");
@@ -3670,7 +3774,7 @@ export class P03Workspace extends Component {
         const sel = document.getElementById("ar-credit-customer");
         const customerId = sel ? parseInt(sel.value, 10) : null;
         if (!customerId) {
-            this.showToast(t('Pick a customer first'));
+            this.showToast(this.t('Pick a customer first'));
             return;
         }
         return this.arProfileSave(
@@ -3704,7 +3808,7 @@ export class P03Workspace extends Component {
 
     async arDisputeCreate(invoiceId, amount, reason) {
         if (!invoiceId || !amount) {
-            this.showToast(t('Disputed amount is required'));
+            this.showToast(this.t('Disputed amount is required'));
             return;
         }
         const res = await this._arCall("/p03/ar/dispute/create", {
@@ -3746,7 +3850,7 @@ export class P03Workspace extends Component {
     async arCreateNote() {
         const form = this.state.gl.arNoteForm;
         if (!form.amount) {
-            this.showToast(t('Credit amount is required'));
+            this.showToast(this.t('Credit amount is required'));
             return;
         }
         const res = await this._arCall("/p03/ar/credit-note/create", { ...form }, "Credit note created");
@@ -3791,7 +3895,7 @@ export class P03Workspace extends Component {
     async arRunStatement() {
         const gl = this.state.gl;
         if (!gl.stmtCustomer) {
-            this.showToast(t('Pick a customer'));
+            this.showToast(this.t('Pick a customer'));
             return;
         }
         try {
@@ -3802,7 +3906,7 @@ export class P03Workspace extends Component {
             });
             gl.data = { statement: res.statement };
         } catch (e) {
-            this.showToast(t('Statement run failed'));
+            this.showToast(this.t('Statement run failed'));
         }
     }
 
@@ -4634,9 +4738,14 @@ export class P03Workspace extends Component {
                 ip: ""
             }));
             tab.title = `▤ ${o.name}`;
+            // real attachment ids (the order payload numbers them 0..n), so each
+            // document can be downloaded
+            this.recordAttachmentsLoad(o.id);
         } catch (e) {
             console.error("Failed to load order", e);
-            this.showToast(t('Failed to load the order from the backend.'));
+            // `t(...)` was not defined here: a failed load (e.g. no access to the
+            // order's branch) crashed with "Oops!" instead of saying so
+            this.showToast(this.t("Failed to load the order from the backend."));
         }
     }
 
@@ -4966,7 +5075,7 @@ export class P03Workspace extends Component {
 
     holdStage() {
         if (!this.state.activeRecord) return;
-        this.showToast(t('Hold requires a reason dialog — lands with the SLA-hold phase (state stays unchanged).'));
+        this.showToast(this.t('Hold requires a reason dialog — lands with the SLA-hold phase (state stays unchanged).'));
     }
 
     // --- Intake form line items ---
@@ -4984,11 +5093,11 @@ export class P03Workspace extends Component {
     async submitServiceOrder() {
         const fd = this.state.formData;
         if (!fd.customer_name || !fd.customer_phone || !fd.fault_description || !fd.serial) {
-            this.showToast(t('Customer name, phone, serial and fault description are required.'));
+            this.showToast(this.t('Customer name, phone, serial and fault description are required.'));
             this.state.modalStep = 1;
             return;
         }
-        this.showToast(t('Submitting Service Order to backend…'));
+        this.showToast(this.t('Submitting Service Order to backend…'));
         try {
             const res = await this.rpc("/p03/order/create", {
                 customer_name: fd.customer_name,
@@ -5015,7 +5124,7 @@ export class P03Workspace extends Component {
             }
         } catch (err) {
             console.error("Submission failed:", err);
-            this.showToast(t('Submission failed — the order was NOT created.'));
+            this.showToast(this.t('Submission failed — the order was NOT created.'));
         }
     }
 
@@ -5110,7 +5219,7 @@ export class P03Workspace extends Component {
     // --- Job Card & Tax Invoice Modal ---
     openJobCardModal() {
         if (!this.state.activeRecord) {
-            this.showToast(t('Open a service order first — the Job Card prints the live record.'));
+            this.showToast(this.t('Open a service order first — the Job Card prints the live record.'));
             return;
         }
         this.state.jobCardModalOpen = true;
@@ -5129,7 +5238,7 @@ export class P03Workspace extends Component {
     // --- Field Dispatch Modal ---
     openDispatchModal() {
         if (!this.state.activeRecord) {
-            this.showToast(t('Open a service order first.'));
+            this.showToast(this.t('Open a service order first.'));
             return;
         }
         this.state.dispatchModalOpen = true;
@@ -5142,7 +5251,7 @@ export class P03Workspace extends Component {
     async confirmDispatch() {
         const df = this.state.dispatchForm;
         if (!df.technician) {
-            this.showToast(t('Enter the technician to assign (matched against HR records).'));
+            this.showToast(this.t('Enter the technician to assign (matched against HR records).'));
             return;
         }
         try {
@@ -5161,14 +5270,14 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Dispatch refused by the backend.");
             }
         } catch (e) {
-            this.showToast(t('Dispatch failed — see server log.'));
+            this.showToast(this.t('Dispatch failed — see server log.'));
         }
     }
 
     // --- Inventory Reservation Modal ---
     openInventoryModal() {
         if (!this.state.activeRecord) {
-            this.showToast(t('Open a service order first.'));
+            this.showToast(this.t('Open a service order first.'));
             return;
         }
         this.state.inventoryModalOpen = true;
@@ -5181,7 +5290,7 @@ export class P03Workspace extends Component {
     async confirmInventoryReserve() {
         const inv = this.state.inventoryForm;
         if (!inv.partSku) {
-            this.showToast(t('Enter the part SKU (matched against the product catalogue).'));
+            this.showToast(this.t('Enter the part SKU (matched against the product catalogue).'));
             return;
         }
         try {
@@ -5199,7 +5308,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Reservation refused by the backend.");
             }
         } catch (e) {
-            this.showToast(t('Reservation failed — see server log.'));
+            this.showToast(this.t('Reservation failed — see server log.'));
         }
     }
 
@@ -5315,7 +5424,7 @@ export class P03Workspace extends Component {
     exportGridCsv() {
         const rows = this.state.filteredGridRows || [];
         if (!rows.length) {
-            this.showToast(t('No rows in the active grid — nothing to export.'));
+            this.showToast(this.t('No rows in the active grid — nothing to export.'));
             return;
         }
         const cols = (this.state.activeScreen && this.state.activeScreen.gridData)

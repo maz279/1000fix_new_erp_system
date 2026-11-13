@@ -36,6 +36,8 @@ SURFACES = {
             "action_assign_me",
             "action_record_image",
             "action_verify_image",
+            # M06 sub-module capture (2026-11-13): FR-DTS-006 files and GB
+            "action_record_inventory",
             "action_confirm_target_serial",
             "action_request_handover_otp",
             "action_record_destructive_consent",
@@ -367,10 +369,16 @@ def _recovered_inventory(env, **params):
     any internal user, with no step-up and no audit row (spec 13: the ERP
     never shows file names). It now gives counts and sizes only, to the
     data-recovery role; the files themselves open through the case's Z4
-    step-up access, which is audited per read."""
+    step-up access, which is audited per read.
+
+    M06 sub-module capture (2026-11-13): the attachments are the case's own
+    documents (NDA, consent, receipt), not the recovered data, which never
+    enters the ERP. The inventory the lab recorded (files and GB, FR-DTS-006)
+    is shown first; the documents keep their own columns."""
     _require_data_operator(env, "The recovered-data inventory")
-    Case = env["fix.data.recovery.case"].sudo()
+    Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
     Attachment = env["ir.attachment"].sudo()
+    states = dict(type(Case).state.selection)
     cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
     rows = []
     for case in cases:
@@ -381,6 +389,9 @@ def _recovered_inventory(env, **params):
             {
                 "case": case.name,
                 "customer": case.customer_id.name,
+                "stage": states.get(case.state, case.state),
+                "recovered_files": case.recovered_files_count,
+                "recovered_gb": round(case.recovered_volume_gb or 0.0, 2),
                 "files": len(atts),
                 "size_kb": round(sum(atts.mapped("file_size")) / 1024.0, 1),
                 "zone": case.residency_zone,
@@ -388,18 +399,33 @@ def _recovered_inventory(env, **params):
         )
     return {
         "title": "Recovered-Data Inventory (Z4)",
-        "cols": ["case", "customer", "files", "size_kb", "zone"],
+        "cols": [
+            "case",
+            "customer",
+            "stage",
+            "recovered_files",
+            "recovered_gb",
+            "files",
+            "size_kb",
+            "zone",
+        ],
         "labels": {
             "case": "Case",
             "customer": "Customer",
-            "files": "Stored Files",
-            "size_kb": "KB",
+            "stage": "Stage",
+            "recovered_files": "Recovered Files",
+            "recovered_gb": "Recovered GB",
+            "files": "Case Documents",
+            "size_kb": "Documents KB",
             "zone": "Zone",
         },
         "rows": rows,
         "notes": [
-            "Counts and sizes of what each case's attachment register holds. File names "
-            "are never listed here: open them through the case's Z4 step-up access."
+            "Recovered files and GB are what the lab recorded for each case; a case still "
+            "showing 0 has no inventory recorded yet.",
+            "Case documents are the signed papers kept on the case (agreement, consent, "
+            "receipt). File names are never listed here: open them through the case's Z4 "
+            "step-up access.",
         ],
     }
 

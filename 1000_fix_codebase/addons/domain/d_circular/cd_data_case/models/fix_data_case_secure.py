@@ -14,8 +14,16 @@
 #   * retention (B4): a handover starts the retention clock; a daily job
 #     purges a case past its retention ONLY on a verified wipe certificate for
 #     its media (the P0 gate inside action_purge), and otherwise flags it.
+#   * M06 sub-module capture (2026-11-13): the recovered-data inventory
+#     (files and GB, FR-DTS-006) was a pair of plain fields nothing wrote, so
+#     the inventory page could only list zeros; it is recorded by the case's
+#     staff (action_record_inventory) and frozen at handover. The handover
+#     needed a receipt attached to the case, which the workspace could not
+#     upload: the handover now takes the signed receipt file itself.
 #
 # FILE NAME IS LOAD-BEARING: sorts after fix_data_case_ext.
+import base64
+import binascii
 import logging
 import os
 import re
@@ -134,6 +142,10 @@ class FixDataRecoveryCaseSecure(models.Model):
     handover_receipt_attachment_id = fields.Many2one(
         "ir.attachment", string="Signed Handover Receipt", readonly=True, copy=False
     )
+    # The workspace's upload for that receipt: never stored here. The file goes
+    # to action_handover, which files it as an attachment ON the case.
+    handover_receipt_file = fields.Binary(string="Signed Handover Receipt (file)", store=False)
+    handover_receipt_filename = fields.Char(string="Receipt File Name", store=False)
     handover_at = fields.Datetime(string="Handed Over At", readonly=True, copy=False)
     handover_by_id = fields.Many2one(
         "res.users", string="Handed Over By", readonly=True, copy=False
@@ -168,6 +180,9 @@ class FixDataRecoveryCaseSecure(models.Model):
         "handover_by_id",
         "retention_until",
         "retention_flagged_at",
+        # recorded by action_record_inventory only
+        "recovered_files_count",
+        "recovered_volume_gb",
     }
 
     def _fix_guarded_fields(self) -> set:
@@ -546,9 +561,63 @@ class FixDataRecoveryCaseSecure(models.Model):
             "'receipt...') to the case." % self.name
         )
 
-    def action_handover(self, handler=None, verification=None, receipt_attachment_id=None):
+    def _file_handover_receipt(self, data, filename=None):
+        """File the signed receipt the workspace uploaded as an attachment on
+        this case. It is created inside the handover's transaction, so a
+        refused handover leaves no receipt behind."""
+        self.ensure_one()
+        try:
+            raw = base64.b64decode(data, validate=True)
+        except (binascii.Error, ValueError, TypeError):
+            raise UserError("The receipt file could not be read: upload it again.") from None
+        if not raw:
+            raise UserError("The receipt file is empty: upload the signed receipt.")
+        name = (filename or "").strip() or "Signed handover receipt"
+        return self.env["ir.attachment"].create(
+            {"name": name, "raw": raw, "res_model": self._name, "res_id": self.id}
+        )
+
+    def action_record_inventory(self, files_count=None, volume_gb=None):
+        """Record what was recovered (FR-DTS-006): how many files and how much
+        data. Counts and size only - file names and content never enter the
+        ERP. By the case's named staff, while the case is in recovery or
+        recovered; frozen once the data is handed over."""
+        try:
+            files = int(files_count)
+            volume = float(volume_gb)
+        except (TypeError, ValueError):
+            raise UserError(
+                "Give the number of recovered files and the recovered volume in GB."
+            ) from None
+        if files < 0 or volume < 0:
+            raise UserError("The recovered file count and volume cannot be negative.")
+        for rec in self:
+            if rec.state not in ("recovering", "recovered"):
+                raise UserError(
+                    "Case %s: the recovered-data inventory is recorded during recovery or once "
+                    "the data is recovered, before handover (the case is '%s')."
+                    % (rec.name, rec.state)
+                )
+            rec._z4_assert_assigned("Recording the recovered-data inventory")
+            rec._guarded().write({"recovered_files_count": files, "recovered_volume_gb": volume})
+            rec.message_post(
+                body="Recovered-data inventory recorded by %s: %d files, %.2f GB."
+                % (self.env.user.name, files, volume)
+            )
+        return True
+
+    def action_handover(
+        self,
+        handler=None,
+        verification=None,
+        receipt_attachment_id=None,
+        receipt_file=None,
+        receipt_filename=None,
+    ):
         """Hand the recovered data to a VERIFIED recipient, against a signed
-        receipt, on the confirmed target drive (A02 audit M06-P2)."""
+        receipt, on the confirmed target drive (A02 audit M06-P2). The receipt
+        is an attachment on the case, or the signed file itself (``receipt_file``,
+        base64), which is then filed on the case."""
         retention_days = int(
             self.env["ir.config_parameter"].sudo().get_param(RETENTION_DAYS_PARAM)
             or RETENTION_DAYS_DEFAULT
@@ -563,7 +632,10 @@ class FixDataRecoveryCaseSecure(models.Model):
                     "Case %s: confirm the target drive serial before handover." % rec.name
                 )
             method, ref = rec._handover_verify(verification)
-            receipt = rec._handover_receipt(receipt_attachment_id)
+            if receipt_file and not receipt_attachment_id:
+                receipt = rec._file_handover_receipt(receipt_file, receipt_filename)
+            else:
+                receipt = rec._handover_receipt(receipt_attachment_id)
             who = (handler or "").strip() or self.env.user.name
             rec._custody_log(
                 "handover",
