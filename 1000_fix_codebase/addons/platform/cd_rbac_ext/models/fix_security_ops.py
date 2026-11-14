@@ -61,8 +61,241 @@ class FixJmlEvent(models.Model):
     )
     applied_on = fields.Datetime(readonly=True)
     result_note = fields.Char(readonly=True)
+    # M29 capture audit 2026-11-14 (FR-SEC-001/027, AUT-SEC-01): what the person
+    # may access, stated on the event and applied by the second person - every
+    # role through the same SoD gate, and the data scope they will see.
+    extra_role_ids = fields.Many2many(
+        "fix.role",
+        "fix_jml_event_extra_role_rel",
+        "event_id",
+        "role_id",
+        string="Additional Roles",
+        help="Granted with the main role, each through the SoD gate.",
+    )
+    operating_unit_ids = fields.Many2many(
+        "operating.unit",
+        "fix_jml_event_operating_unit_rel",
+        "event_id",
+        "operating_unit_id",
+        string="Allowed Operating Units",
+        help="The branches whose records the person sees. Empty: the employee's own unit.",
+    )
+    default_operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Default Operating Unit",
+        help="Where new records start. Empty: the employee's own unit.",
+    )
+    # the New User form (capture audit 2026-11-14): who, why, how long, and the
+    # per-module permission checklist (fix_module_permission.py)
+    permission_line_ids = fields.One2many(
+        "fix.jml.permission.line", "event_id", string="Module Permissions"
+    )
+    permission_bulk = fields.Selection(
+        selection="_fix_bulk_selection",
+        string="Set every module at once",
+        help="Applies to the whole checklist when you save, never above what the roles "
+        "allow; then adjust single modules below.",
+    )
+    reason = fields.Text(
+        string="Business Justification",
+        help="Why this person needs this access - kept with the event for audit.",
+    )
+    lang = fields.Selection(
+        selection="_fix_lang_selection",
+        string="Interface Language",
+        help="Bengali or English: the language the workspace opens in.",
+    )
+    tz = fields.Selection(selection="_fix_tz_selection", string="Time Zone", default="Asia/Dhaka")
+    valid_until = fields.Date(
+        string="Access Valid Until",
+        help="For a contractor, intern or temporary cover: the login is deactivated "
+        "automatically after this date. Empty: no end date.",
+    )
+    emp_job = fields.Char(string="Job Title", compute="_compute_employee_card")
+    emp_department = fields.Char(string="Department", compute="_compute_employee_card")
+    emp_unit = fields.Char(string="Operating Unit", compute="_compute_employee_card")
+    emp_manager = fields.Char(string="Manager", compute="_compute_employee_card")
+    emp_phone = fields.Char(string="Work Phone", compute="_compute_employee_card")
+    emp_code = fields.Char(string="Employee Code", compute="_compute_employee_card")
+    proposed_login = fields.Char(
+        string="Login",
+        compute="_compute_access_preview",
+        help="The employee's login, or the work email that becomes the login.",
+    )
+    permission_preview = fields.Text(
+        string="Permission Preview",
+        compute="_compute_access_preview",
+        help="What applying this event grants: each role's permission groups, the data "
+        "scope, and any duty conflict between the chosen roles.",
+    )
 
-    _PINNED = ("event_type", "employee_id", "role_id", "effective_on", "company_id")
+    @api.model
+    def _fix_bulk_selection(self):
+        from .fix_module_permission import BULK
+
+        return BULK
+
+    def _fix_apply_bulk(self, choice):
+        """The one-click preset: every checklist row at once, capped to what the
+        roles allow. The preset is an instruction, not a state: it clears."""
+        from .fix_module_permission import RANK
+
+        for rec in self.sudo():
+            if rec.state != "pending":
+                raise UserError("%s is %s: its permissions cannot change." % (rec.name, rec.state))
+            for line in rec.permission_line_ids:
+                allowed = line.allowed_level or "none"
+                if choice == "roles":
+                    level = allowed
+                elif choice == "view":
+                    level = "view" if RANK[allowed] >= RANK["view"] else "none"
+                else:
+                    level = "none"
+                on = level != "none"
+                line.write(
+                    {
+                        "level": level,
+                        "can_approve": choice == "roles" and RANK[allowed] >= RANK["edit"],
+                        "can_print": on,
+                        "can_export": on,
+                        "can_email": on,
+                    }
+                )
+            rec.write({"permission_bulk": False})
+
+    @api.model
+    def _fix_lang_selection(self):
+        return self.env["res.lang"].get_installed()
+
+    @api.model
+    def _fix_tz_selection(self):
+        selection = self.env["res.partner"]._fields["tz"].selection
+        return selection(self.env["res.partner"]) if callable(selection) else list(selection)
+
+    @api.depends("employee_id")
+    def _compute_employee_card(self):
+        for rec in self:
+            emp = rec.employee_id.sudo()
+            rec.emp_job = emp.job_title or emp.job_id.name or ""
+            rec.emp_department = emp.department_id.name or ""
+            unit = emp.operating_unit_id if "operating_unit_id" in emp._fields else False
+            rec.emp_unit = unit.name if unit else ""
+            rec.emp_manager = emp.parent_id.name or ""
+            rec.emp_phone = emp.work_phone or emp.mobile_phone or ""
+            rec.emp_code = (emp.employee_code if "employee_code" in emp._fields else "") or ""
+
+    _PINNED = (
+        "event_type",
+        "employee_id",
+        "role_id",
+        "effective_on",
+        "company_id",
+        "extra_role_ids",
+        "operating_unit_ids",
+        "default_operating_unit_id",
+        "reason",
+        "lang",
+        "tz",
+        "valid_until",
+    )
+
+    def _fix_roles(self):
+        self.ensure_one()
+        return (self.role_id | self.extra_role_ids).sudo()
+
+    @api.depends(
+        "event_type",
+        "employee_id",
+        "user_id",
+        "role_id",
+        "extra_role_ids",
+        "operating_unit_ids",
+        "default_operating_unit_id",
+        "permission_line_ids.level",
+        "permission_line_ids.can_approve",
+        "permission_line_ids.can_print",
+        "permission_line_ids.can_export",
+        "permission_line_ids.can_email",
+    )
+    def _compute_access_preview(self):
+        Sod = self.env["fix.sod.control"].sudo()
+        for rec in self:
+            emp = rec.employee_id.sudo()
+            user = rec.user_id.sudo() or emp.user_id
+            rec.proposed_login = user.login if user else (emp.work_email or "").strip().lower()
+            if rec.event_type == "leaver":
+                rec.permission_preview = (
+                    "Leaver: every permission group and API key is removed and the login is "
+                    "deactivated on the effective date."
+                )
+                continue
+            lines = []
+            if not user and rec.event_type == "joiner":
+                lines.append(
+                    "New login %s is created and invited (single sign-on or a password)."
+                    % (rec.proposed_login or "- the employee has no work email -")
+                )
+            roles = rec._fix_roles()
+            for role in roles:
+                groups = Sod._role_groups(role)
+                lines.append(
+                    "%s %s: %s"
+                    % (
+                        role.code or "",
+                        role.name or "",
+                        ", ".join(sorted(groups.mapped("full_name")))
+                        or "maps to no permission group - cannot be granted",
+                    )
+                )
+            if not roles:
+                lines.append("No role chosen yet.")
+            units = rec.operating_unit_ids or (
+                emp.operating_unit_id if "operating_unit_id" in emp._fields else False
+            )
+            if units:
+                lines.append("Data scope: %s" % ", ".join(units.mapped("name")))
+            checklist = rec.permission_line_ids
+            if checklist:
+                counts = {}
+                for line in checklist:
+                    counts[line.level] = counts.get(line.level, 0) + 1
+                parts = [
+                    "%s %d" % (label, counts[key])
+                    for key, label in (
+                        ("edit", "Edit"),
+                        ("create", "Create"),
+                        ("view", "View"),
+                        ("none", "No access"),
+                    )
+                    if counts.get(key)
+                ]
+                narrowed = checklist.filtered(lambda line: line._fix_narrowed())
+                lines.append(
+                    "Module checklist (%d modules): %s - %d narrowed below the roles"
+                    % (len(checklist), ", ".join(parts), len(narrowed))
+                )
+                denied = checklist.filtered(lambda line: line.level == "none")
+                if denied:
+                    lines.append("Denied: %s" % ", ".join(denied.mapped("module_name")))
+            if len(roles) > 1:
+                pairs = Sod.search(
+                    [
+                        ("active", "=", True),
+                        ("role_a_id", "in", roles.ids),
+                        ("role_b_id", "in", roles.ids),
+                    ]
+                )
+                for control in pairs:
+                    lines.append(
+                        "DUTY CONFLICT %s: %s with %s (%s)"
+                        % (
+                            control.code,
+                            control.role_a_id.code,
+                            control.role_b_id.code,
+                            control.conflict_action,
+                        )
+                    )
+            rec.permission_preview = "\n".join(lines)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"state", "applied_on", "result_note"}
@@ -351,7 +584,14 @@ class FixJmlEvent(models.Model):
         for rec in self:
             if rec.state != "pending":
                 raise UserError("Only a pending JML event can be applied")
-            user = rec.user_id.sudo()
+            user = rec.user_id.sudo() or rec.employee_id.sudo().user_id
+            provisioned = False
+            if not user and rec.event_type == "joiner":
+                # AUT-SEC-01: the joiner creates the Odoo login (M29 capture audit)
+                if not rec.role_id:
+                    raise UserError("Pick a role for a joiner event")
+                user = rec._fix_provision_login()
+                provisioned = True
             if not user:
                 raise UserError("The employee has no linked user, so no access can change")
             if rec.event_type == "leaver":
@@ -377,10 +617,29 @@ class FixJmlEvent(models.Model):
                 if not rec.role_id:
                     raise UserError("Pick a role for a %s event" % rec.event_type)
                 was_inactive = not user.active
-                groups = self._apply_role_grant(
-                    user, rec.role_id, source="fix.jml.event,%d" % rec.id
-                )
-                note = "%s granted (%s)" % (rec.role_id.code, ", ".join(groups.mapped("name")))
+                granted = []
+                for role in rec._fix_roles():
+                    groups = self._apply_role_grant(user, role, source="fix.jml.event,%d" % rec.id)
+                    granted.append("%s (%s)" % (role.code, ", ".join(groups.mapped("name"))))
+                note = "%s granted" % "; ".join(granted)
+                scope = rec._fix_apply_scope(user)
+                if scope:
+                    note += "; " + scope
+                narrowed = rec._fix_apply_module_permissions(user)
+                if narrowed:
+                    note += "; %d module(s) narrowed" % narrowed
+                profile = {}
+                if rec.lang:
+                    profile["lang"] = rec.lang
+                if rec.tz:
+                    profile["tz"] = rec.tz
+                if rec.valid_until:
+                    profile["fix_access_expires_on"] = rec.valid_until
+                    note += "; access ends %s" % rec.valid_until
+                if profile:
+                    user.sudo().write(profile)
+                if provisioned:
+                    note = "login %s provisioned; %s" % (user.login, note)
                 if was_inactive:
                     user.write({"active": True})
                     note += "; login reactivated"
@@ -389,7 +648,7 @@ class FixJmlEvent(models.Model):
                     # already assigned, so groups it shares are kept.
                     previous = (
                         self.env["fix.role.assignment"]._fix_live(user).mapped("role_id")
-                        - rec.role_id
+                        - rec._fix_roles()
                     )
                     for role in previous:
                         self._apply_role_revoke(user, role, "mover %s" % rec.name)
@@ -401,6 +660,148 @@ class FixJmlEvent(models.Model):
             rec._guarded().write(
                 {"state": "applied", "applied_on": fields.Datetime.now(), "result_note": note[:250]}
             )
+
+    def _fix_provision_login(self):
+        """AUT-SEC-01 / FR-SEC-001: create the Odoo login for a joiner whose
+        employee has none. The login is the work email (the estate convention:
+        every linked login equals it); a login that already exists is refused,
+        never duplicated or silently linked. Only base.group_user is set here:
+        the roles are granted next, through the SoD gate. The standard
+        invitation lets the person sign in with single sign-on or set a
+        password. Runs after the apply-authority and second-person checks."""
+        self.ensure_one()
+        emp = self.employee_id.sudo()
+        login = (emp.work_email or "").strip().lower()
+        if not login or "@" not in login:
+            raise UserError(
+                "%s has no work email. Set it on the employee master first: it becomes the "
+                "login." % emp.name
+            )
+        Users = self.env["res.users"].sudo().with_context(active_test=False)
+        clash = Users.search([("login", "=ilike", login)], limit=1)
+        if clash:
+            raise UserError(
+                "The login %s already belongs to %s%s. Link that login on the employee "
+                "master instead of creating a second one."
+                % (login, clash.name, "" if clash.active else " (archived)")
+            )
+        company = emp.company_id or self.company_id
+        vals = {
+            "name": emp.name,
+            "login": login,
+            "email": login,
+            "company_id": company.id,
+            "company_ids": [(6, 0, company.ids)],
+            "group_ids": [(6, 0, [self.env.ref("base.group_user").id])],
+        }
+        # the stock invitation sends synchronously (force_send) inside this
+        # transaction: an unreachable mail server would hang the approver's click.
+        # Create quietly, then QUEUE the same "set your password" invitation.
+        user = Users.with_context(no_reset_password=True).create(vals)
+        emp.write({"user_id": user.id})
+        template = self.env.ref("auth_signup.set_password_email", raise_if_not_found=False)
+        if template and hasattr(user.partner_id, "signup_prepare"):
+            user.partner_id.signup_prepare(signup_type="signup")
+            template.sudo().send_mail(
+                user.id,
+                force_send=False,
+                email_values={"email_to": user.email, "auto_delete": True},
+            )
+        self.sudo().write({"user_id": user.id})
+        self.env["fix.security.audit"].log_event(
+            "joiner_login",
+            "res.users,%d" % user.id,
+            "login %s provisioned for %s by %s"
+            % (login, emp.employee_code or emp.name, self.env.user.name),
+        )
+        return user
+
+    def _fix_apply_module_permissions(self, user):
+        """Store the checklist's narrowing as the user's module permissions. A
+        joiner adds/overwrites the modules it lists; a mover replaces the
+        user's whole set (the old job's restrictions do not carry over)."""
+        self.ensure_one()
+        Perm = self.env["fix.module.permission"].sudo()
+        existing = Perm.search([("user_id", "=", user.id)])
+        if self.event_type == "mover":
+            existing.unlink()
+            existing = Perm.browse()
+        count = 0
+        for line in self.permission_line_ids.sudo():
+            current = existing.filtered(lambda r, c=line.module_code: r.module_code == c)
+            if not line._fix_narrowed():
+                current.unlink()
+                continue
+            vals = {
+                "user_id": user.id,
+                "module_code": line.module_code,
+                "module_name": line.module_name,
+                "area": line.area,
+                "level": line.level,
+                "can_approve": line.can_approve,
+                "can_print": line.can_print,
+                "can_export": line.can_export,
+                "can_email": line.can_email,
+                "event_id": self.id,
+            }
+            if current:
+                current.write(vals)
+            else:
+                Perm.create(vals)
+            count += 1
+        if count:
+            self.env["fix.security.audit"].log_event(
+                "module_permissions",
+                "res.users,%d" % user.id,
+                "%d module permission(s) narrowed by %s" % (count, self.name),
+            )
+        return count
+
+    @api.model
+    def _cron_expire_access(self):
+        """Access Valid Until: deactivate a login the day after its end date,
+        through the same deprovisioning as a leaver (groups, API keys, sessions,
+        audit row). Root and admin are never touched."""
+        today = local_today(self)
+        protected = self.env.ref("base.user_root") | self.env.ref("base.user_admin")
+        users = (
+            self.env["res.users"]
+            .sudo()
+            .search([("fix_access_expires_on", "<", today), ("active", "=", True)])
+            - protected
+        )
+        for user in users:
+            self._deprovision_user(user, "access expired on %s" % user.fix_access_expires_on)
+        return len(users)
+
+    def _fix_apply_scope(self, user):
+        """The data scope stated on the event: the allowed operating units (a
+        joiner adds them, a mover replaces them) and the default unit. With
+        none stated, a new login gets the employee's own unit."""
+        self.ensure_one()
+        if "assigned_operating_unit_ids" not in user._fields:
+            return ""
+        emp = self.employee_id.sudo()
+        own = emp.operating_unit_id if "operating_unit_id" in emp._fields else False
+        units = self.operating_unit_ids
+        default = self.default_operating_unit_id
+        if not units and not default and own and not user.sudo().assigned_operating_unit_ids:
+            units = default = own
+        if not units and not default:
+            return ""
+        vals = {}
+        if units:
+            if self.event_type == "mover":
+                vals["assigned_operating_unit_ids"] = [(6, 0, units.ids)]
+            else:
+                vals["assigned_operating_unit_ids"] = [(4, ou.id) for ou in units]
+        default = default or (units[:1] if units else False)
+        if default:
+            if default not in (user.sudo().assigned_operating_unit_ids | units):
+                vals.setdefault("assigned_operating_unit_ids", []).append((4, default.id))
+            vals["default_operating_unit_id"] = default.id
+        user.sudo().write(vals)
+        return "data scope: %s" % ", ".join((units or default).mapped("name"))
 
     def action_cancel(self):
         self._assert_apply_authority()

@@ -1,12 +1,21 @@
 # res.users guards owned by M29 (A12 R2, A12 finish E24, E25). The SoD gates on
 # group writes live in res_users_sod.py and fix_sod_grant_hooks.py.
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 
 class ResUsers(models.Model):
     _inherit = "res.users"
     _description = "Res Users M29 SoD Gate"
+
+    # New User form "Access Valid Until" (capture audit 2026-11-14): the daily
+    # job deprovisions the login after this date, as a leaver would be.
+    fix_access_expires_on = fields.Date(
+        string="Access Expires On", copy=False, readonly=True, index=True
+    )
+    fix_module_permission_ids = fields.One2many(
+        "fix.module.permission", "user_id", string="Module Permissions (narrowed)", readonly=True
+    )
 
     def _fix_is_portal_with_workspace(self) -> bool:
         """An external (share) identity holding an internal P03 workspace group."""

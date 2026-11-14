@@ -64,6 +64,11 @@ SURFACES = {
         "order": "effective_on desc, id desc",
         "limit": 300,
         "actions": {"action_apply", "action_cancel"},
+        # New User form: the Access Approver who files a joiner picks the
+        # employee by NAME without HR rights; the server offers only active
+        # employees with no login yet (never the browser's filter alone)
+        "picker_names": ("employee_id",),
+        "pickers": {"employee_id": [("user_id", "=", False)]},
     },
     "fix.access.certification": {
         "order": "period desc, id desc",
@@ -111,6 +116,15 @@ SURFACES = {
     },
     "ir.rule": {"order": "model_id, id", "limit": 400, "actions": set()},
     "ir.model.access": {"order": "model_id, id", "limit": 800, "actions": set()},
+    # New User form (capture audit 2026-11-14): who has narrowed access to which
+    # module. Read under the caller's rules: a person sees their own rows,
+    # Access Approvers and administrators see everyone's.
+    "fix.module.permission": {
+        "order": "user_id, module_code",
+        "limit": 2000,
+        "actions": set(),
+        "rules": True,
+    },
 }
 
 # A12 R4: the fields a workspace form may set through /p03/model/write —
@@ -229,7 +243,26 @@ WRITABLE = {
         "active",
     ),
     "res.device.log": (),
-    "fix.jml.event": ("event_type", "employee_id", "user_id", "role_id", "effective_on"),
+    # the access a joiner/mover grants is stated on the event (M29 capture
+    # audit 2026-11-14): extra roles and the data scope; the preview is computed
+    "fix.jml.event": (
+        "event_type",
+        "employee_id",
+        "user_id",
+        "role_id",
+        "effective_on",
+        "extra_role_ids",
+        "operating_unit_ids",
+        "default_operating_unit_id",
+        "reason",
+        "lang",
+        "tz",
+        "valid_until",
+        "permission_line_ids",
+        "permission_bulk",
+    ),
+    # narrowed module permissions are written by an applied event only
+    "fix.module.permission": (),
     # the decision (decision/decided_on) is the reviewer's action only; only an
     # Access Approver or Access Rights admin writes this register at all (E4)
     "fix.access.certification": ("period", "user_id", "role_id", "reviewer_id", "due_on", "note"),

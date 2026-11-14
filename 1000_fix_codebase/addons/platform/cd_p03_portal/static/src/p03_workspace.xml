@@ -3102,6 +3102,9 @@
                                         <button t-if="state.gl.modelCfg.create !== false" class="btn btn-primary btn-sm" t-on-click="() => this.mlNew()" title="Create new record">
                                             <span style="margin-right: 4px; font-weight: 700;">+</span> <t t-esc='t("New")'/>
                                         </button>
+                                        <button t-if="state.gl.modelCfg.create === false &amp;&amp; mlNewViaLabel" class="btn btn-primary btn-sm" t-on-click="() => this.mlNewVia()" t-att-title="mlNewViaLabel">
+                                            <span style="margin-right: 4px; font-weight: 700;">+</span> <t t-esc="mlNewViaLabel"/>
+                                        </button>
                                         <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
                                             <!-- a row action is disabled, with the reason as its
                                                  tooltip, until a row it applies to is selected:
@@ -3634,7 +3637,7 @@
                                                            t-on-input="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)"/>
                                                 </td>
                                                 <td>
-                                                    <button t-if="!formLineCfg.readonlyGrid" class="btn d365-line-remove" title="Remove line"
+                                                    <button t-if="!formLineCfg.readonlyGrid &amp;&amp; !formLineCfg.fixedRows" class="btn d365-line-remove" title="Remove line"
                                                             t-on-click="() => this.formRemoveLine(row_index)">✕</button>
                                                 </td>
                                             </tr>

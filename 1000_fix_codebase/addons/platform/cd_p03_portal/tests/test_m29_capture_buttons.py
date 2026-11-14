@@ -67,6 +67,10 @@ console.log(JSON.stringify({ subs,
   nav: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
   screens: Object.fromEntries(Object.entries(P03_DATA_SCREENS).filter(([id]) => id.startsWith('M29-')).map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, report: c.report || null,
+    newForm: c.newForm || null, newLabel: c.newLabel || null,
+    tabs: (c.tabs || []).map((x) => x.id),
+    lines: c.lines ? { field: c.lines.field, tab: c.lines.tab || null, fixed: !!c.lines.fixedRows,
+      cols: c.lines.fields.map((f) => ({ name: f.name, type: f.type || null, readonly: !!f.readonly })) } : null,
     actions: (c.actions || []).map((a) => ({ m: a.m, kwarg: a.kwarg || null })),
     fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({
       name: f.name, readonly: !!f.readonly, required: !!f.required })) }])),
@@ -76,7 +80,7 @@ console.log(JSON.stringify({ subs,
 # What each page must let a person capture: the page's own "+ New" first,
 # then every other record the page covers, by its form screen.
 CAPTURES = {
-    "1": ["M29-form-jml"],
+    "1": ["M29-form-provision", "M29-form-jml"],
     "2": ["M29-form-role", "M29-form-acl"],
     "3": ["M29-form-rule", "M29-form-fieldrule", "M29-form-isolation-tier"],
     "4": ["M29-form-request", "M29-form-campaign", "M29-form-cert"],
@@ -199,16 +203,47 @@ def test_each_captured_record_is_listed_on_its_page(m29):
 
 
 def test_identity_page_never_offers_a_blank_login(m29):
-    """Logins are provisioned (onboarding -> Keycloak SSO); the page records the
-    joiner / mover / leaver event that grants, moves or removes access."""
+    """A login is provisioned by a joiner event a second person applies (it
+    creates the login, grants the roles through the SoD gate and sets the data
+    scope); never typed into a blank user form."""
     assert m29["screens"]["M29-form-user"]["create"] is False
     sub = _sub(m29, "1")
     assert "M29-jml" in sub["screens"]
-    assert sub["label"] == "Record a Joiner / Mover / Leaver"
+    assert sub["label"] == "Provision a New Login"
     # the User chip stays (estate standard: every module form sits on a page), but
     # it opens an existing user only - never a blank login
     user_chip = next(f for f in sub["forms"] if f["id"] == "M29-form-user")
     assert user_chip["opens"] is False
+
+
+def test_the_users_list_offers_provisioning_not_a_blank_login(m29):
+    """The user's report (14 Nov): the Users screen had no way to enter anyone."""
+    users = m29["screens"]["M29-users"]
+    assert users["create"] is False
+    assert users["newForm"] == "M29-form-provision"
+    form = m29["screens"]["M29-form-provision"]
+    assert form["model"] == "fix.jml.event" and form.get("create") is not False
+    assert form["newLabel"] == "Provision a New Login"
+
+
+def test_provisioning_states_what_the_person_may_access(m29):
+    fields = {f["name"]: f for f in m29["screens"]["M29-form-provision"]["fields"]}
+    assert fields["employee_id"]["required"] and fields["role_id"]["required"]
+    for name in ("extra_role_ids", "operating_unit_ids", "default_operating_unit_id"):
+        assert not fields[name]["readonly"], name
+    for name in ("proposed_login", "permission_preview", "applied_on", "result_note"):
+        assert fields[name]["readonly"], name
+    assert "event_type" not in fields, "a provisioning event is always a joiner"
+    for name in ("reason", "lang", "tz", "valid_until"):
+        assert name in fields, name
+    assert "user_id" not in fields, "the login is created, never picked"
+
+
+def test_engine_offers_the_named_form_on_a_list_that_refuses_new():
+    engine = (SRC / "p03_workspace.js").read_text(encoding="utf-8")
+    view = (SRC / "p03_workspace.xml").read_text(encoding="utf-8")
+    assert "mlNewVia()" in engine and "get mlNewViaLabel()" in engine
+    assert "state.gl.modelCfg.create === false &amp;&amp; mlNewViaLabel" in view
 
 
 def test_monitoring_page_reports_an_incident(m29):
@@ -291,3 +326,34 @@ def test_the_vulnerability_kpi_is_served(m29):
     assert "critical_vulns_overdue" in m29["kpis"]
     text = (HERE.parent / "controllers" / "a12" / "m29.py").read_text(encoding="utf-8")
     assert '"critical_vulns_overdue":' in text
+
+
+def test_the_new_user_form_is_a_six_step_wizard_with_a_permission_checklist(m29):
+    """User feedback (14 Nov): the first form was not professional. Modelled on
+    D365 (review effective access), NetSuite (None / View / Create / Edit
+    levels; print and export as their own switches) and SAP (restrictions
+    narrow what roles grant)."""
+    form = m29["screens"]["M29-form-provision"]
+    assert form["tabs"] == ["person", "roles", "scope", "perms", "validity", "review"]
+    grid = form["lines"]
+    assert grid["field"] == "permission_line_ids" and grid["tab"] == "perms" and grid["fixed"]
+    cols = {c["name"]: c for c in grid["cols"]}
+    assert cols["level"]["type"] == "selection" and not cols["level"]["readonly"]
+    for switch in ("can_approve", "can_print", "can_export", "can_email"):
+        assert cols[switch]["type"] == "boolean" and not cols[switch]["readonly"], switch
+    for shown in ("area", "module_name", "allowed_label"):
+        assert cols[shown]["readonly"], shown
+    writable = set(_controller()["WRITABLE"]["fix.jml.event"])
+    assert "permission_line_ids" in writable
+
+
+def test_narrowed_permissions_are_listed_on_the_identity_page(m29):
+    assert "M29-module-permissions" in _sub(m29, "1")["screens"]
+    assert m29["screens"]["M29-module-permissions"]["create"] is False
+
+
+def test_every_workspace_endpoint_checks_the_module_permission():
+    text = (HERE.parent / "controllers" / "p03_generic_api.py").read_text(encoding="utf-8")
+    for need in ("view", "create", "edit", "approve", "print", "export", "email"):
+        assert '"%s"' % need in text, need
+    assert text.count("_gate(") >= 10, "records, form, write, action, report x3, list x2"

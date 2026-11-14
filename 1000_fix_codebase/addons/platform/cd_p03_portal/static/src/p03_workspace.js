@@ -2307,6 +2307,28 @@ export class P03Workspace extends Component {
         this.mlOpenForm(false);
     }
 
+    /* `newForm` on a list whose records nobody types in directly: its "+"
+     * opens the form that CREATES them through their workflow - M29 Users are
+     * provisioned by a joiner event, so the Users list offers "Provision a New
+     * Login" and never a blank login (capture audit 2026-11-14). */
+    get mlNewViaLabel() {
+        const gl = this.state.gl;
+        const id = gl && gl.modelCfg && gl.modelCfg.newForm;
+        const cfg = id && P03_DATA_SCREENS[id];
+        if (!cfg) return "";
+        return this.t(cfg.newLabel || `New ${cfg.title || id}`);
+    }
+
+    mlNewVia() {
+        const gl = this.state.gl;
+        const id = gl && gl.modelCfg && gl.modelCfg.newForm;
+        const cfg = id && P03_DATA_SCREENS[id];
+        if (!cfg || cfg.kind !== "model_form") return;
+        const moduleTitle = (this.state.activeModule && this.state.activeModule.title) || "";
+        const sc = { en: cfg.title || id, t: "f" };
+        this.openFormScreen(id, { sc, m: { title: moduleTitle } }, { ...cfg, recordId: null });
+    }
+
     /* ================================================================
      * D365 IN-WORKSPACE FORM SCREENS (user directive 2026-10-27).
      *

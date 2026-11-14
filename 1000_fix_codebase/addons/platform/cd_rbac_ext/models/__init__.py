@@ -8,6 +8,7 @@ from . import (
     fix_feature_flag_ext,
     fix_field_rule,
     fix_isolation_tier,
+    fix_module_permission,
     fix_role,
     fix_role_assignment,
     fix_security_ops,

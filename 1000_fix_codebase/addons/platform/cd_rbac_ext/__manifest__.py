@@ -28,7 +28,7 @@ Owns:
   close-out, session timeout), encryption keys (custodian-only, real
   rotation), the hash-chained security audit trail (A12 R5) and incidents.
 """,
-    "version": "19.0.1.4.0",
+    "version": "19.0.1.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Security",

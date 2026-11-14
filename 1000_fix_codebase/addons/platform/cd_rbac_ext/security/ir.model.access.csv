@@ -36,3 +36,7 @@ access_fix_sod_mitigation_system,fix.sod.mitigation.system,model_fix_sod_mitigat
 access_fix_vulnerability,fix.vulnerability,model_fix_vulnerability,base.group_user,1,0,1,0
 access_fix_vulnerability_officer,fix.vulnerability.officer,model_fix_vulnerability,cd_rbac_ext.group_security_officer,1,1,1,0
 access_fix_vulnerability_system,fix.vulnerability.system,model_fix_vulnerability,base.group_system,1,1,1,0
+access_fix_module_permission,fix.module.permission,model_fix_module_permission,base.group_user,1,0,0,0
+access_fix_module_permission_system,fix.module.permission.system,model_fix_module_permission,base.group_system,1,1,1,1
+access_fix_jml_permission_line,fix.jml.permission.line,model_fix_jml_permission_line,base.group_user,1,1,0,0
+access_fix_jml_permission_line_system,fix.jml.permission.line.system,model_fix_jml_permission_line,base.group_system,1,1,1,1

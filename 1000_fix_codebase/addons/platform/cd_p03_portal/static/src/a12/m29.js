@@ -30,7 +30,8 @@ export const MODULE = {
     { en: 'Identity', screens: [
       { id: 'M29-users', en: 'Users', bn: 'ব্যবহারকারী', t: 'g' },
       { id: 'M29-sessions', en: 'Sessions & Device Trust', bn: 'সেশন', t: 'g' },
-      { id: 'M29-jml', en: 'JML Automation', bn: 'জেএমএল', t: 'g' }
+      { id: 'M29-jml', en: 'JML Automation', bn: 'জেএমএল', t: 'g' },
+      { id: 'M29-module-permissions', en: 'Module Permissions', bn: 'মডিউল অনুমতি', t: 'g' }
     ]},
     { en: 'Access', screens: [
       { id: 'M29-roles', en: 'Roles & Permission Sets', bn: 'ভূমিকা', t: 'g' },
@@ -72,7 +73,7 @@ export const MODULE = {
    *     incident (which writes its own audit row), requests break-glass access
    *     and records a vulnerability (spec §10.1 fix.vulnerability). */
   freg: { src: 78, sub: [
-    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-jml', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['JML Event', 'User'], create: 'M29-form-jml', domain: [['share', '=', false]] }],
+    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-jml', 'M29-module-permissions', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['Provision Login', 'JML Event', 'User'], create: 'M29-form-provision', domain: [['share', '=', false]] }],
     ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'], reports: ['Access Review Pack'], forms: ['Role', 'Model Access'] }],
     ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'], reports: [], forms: ['Record Rule', 'Field Rule', 'Isolation Tier'] }],
     ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert-campaigns', 'M29-cert', 'M29-assignments'], reports: ['Access Review Pack'], forms: ['Access Request', 'Certification Campaign', 'Certification Line'] }],
@@ -84,10 +85,16 @@ export const MODULE = {
 
 export const SCREENS = {
   /* ---- Identity ---- */
-  'M29-users': { kind: 'model_list', model: 'res.users', create: false,
+  // logins are never typed blank: "+ Provision a New Login" files the joiner
+  // event that creates the login when a second person applies it
+  'M29-users': { kind: 'model_list', model: 'res.users', create: false, newForm: 'M29-form-provision',
     cols: ['login', 'name', 'fix_role_codes', 'company_id', 'default_operating_unit_id', 'login_date', 'active'] },
   'M29-sessions': { kind: 'model_list', model: 'res.device.log', create: false,
     cols: ['user_id', 'platform', 'browser', 'ip_address', 'country', 'last_activity', 'revoked'] },
+  // who has narrowed access to which module (written by applied events only)
+  'M29-module-permissions': { kind: 'model_list', model: 'fix.module.permission', create: false,
+    empty: 'No narrowed module permissions: every user has exactly what their roles give.',
+    cols: ['user_id', 'area', 'module_name', 'level', 'can_approve', 'can_print', 'can_export', 'can_email', 'event_id', 'set_on'] },
   'M29-jml': { kind: 'model_list', model: 'fix.jml.event', stateField: 'state',
     cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'effective_on', 'applied_on', 'result_note', 'state'],
     actions: [{ m: 'action_apply', l: 'Apply' }, { m: 'action_cancel', l: 'Cancel' }] },
@@ -288,20 +295,135 @@ export const SCREENS = {
     back: 'M29-jml',
     status: { field: 'state', labels: { pending: 'Pending', applied: 'Applied', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination). A mover also revokes the roles previously assigned. A leaver removes ALL groups and API keys and deactivates the user, and cannot be applied before its date. The login is the employee\'s own; type a user only for an employee with no login. A second person applies: not the one affected and not the one who filed it.',
+      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination). A mover also revokes the roles previously assigned. A leaver removes ALL groups and API keys and deactivates the user, and cannot be applied before its date. The login is the employee\'s own; for an employee with no login, a joiner creates it from the work email when it is applied (or use Provision a New Login). Additional roles pass the same SoD gate; the data scope sets the operating units the person sees (a mover replaces it). A second person applies: not the one affected and not the one who filed it.',
         fields: [
           { name: 'event_type', required: true, label: 'Event Type' },
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'user_id', label: 'Portal User' },
           { name: 'role_id', label: 'Role to Apply' },
-          { name: 'effective_on', required: true, label: 'Effective On' }
+          { name: 'extra_role_ids', type: 'many2many', label: 'Additional Roles' },
+          { name: 'operating_unit_ids', type: 'many2many', label: 'Allowed Operating Units' },
+          { name: 'default_operating_unit_id', label: 'Default Operating Unit' },
+          { name: 'effective_on', required: true, label: 'Effective On' },
+          { name: 'valid_until', label: 'Access Valid Until' },
+          { name: 'reason', type: 'text', label: 'Business Justification' }
+        ] },
+      { title: 'What This Grants (read-only)', note: 'Computed when you save: the permission groups of each role, the data scope and any duty conflict between the chosen roles. Nothing is granted yet: a second person (an Access Approver who is neither you nor the person) applies it from JML Automation.',
+        fields: [
+          { name: 'proposed_login', readonly: true, label: 'Login' },
+          { name: 'permission_preview', type: 'text', readonly: true, label: 'Permission Preview' }
         ] },
       { title: 'Application Result (read-only)', note: 'Stamped by the Apply action: when it ran and exactly what it did (groups granted, or the leaver deprovisioning count).',
         fields: [
           { name: 'applied_on', readonly: true, label: 'Applied On' },
           { name: 'result_note', readonly: true, label: 'Result' }
         ] }
-    ]
+    ],
+    lines: {
+      field: 'permission_line_ids',
+      title: 'Module Permissions (joiner / mover)',
+      fixedRows: true,
+      note: 'Fills in from the roles when you save. Narrow a module by lowering its Access Level (No access denies it) or unticking Approve, Print, Export or E-mail. A mover replaces the person\'s previous narrowing.',
+      fields: [
+        { name: 'area', readonly: true, label: 'Business Area' },
+        { name: 'module_name', readonly: true, label: 'Module' },
+        { name: 'allowed_label', readonly: true, label: 'Roles Allow' },
+        { name: 'level', type: 'selection', label: 'Access Level' },
+        { name: 'can_approve', type: 'boolean', label: 'Approve' },
+        { name: 'can_print', type: 'boolean', label: 'Print' },
+        { name: 'can_export', type: 'boolean', label: 'Export' },
+        { name: 'can_email', type: 'boolean', label: 'E-mail' }
+      ]
+    }
+  },
+
+  /* Provision a New Login (M29 capture audit 2026-11-14, FR-SEC-001/027,
+   * AUT-SEC-01). A joiner event for an employee with no login, stating what
+   * the person may access: the roles (each through the SoD gate) and the data
+   * scope. Applying it - by a second person - creates the login from the work
+   * email, links it to the employee, grants the roles, sets the scope, queues
+   * the invitation and writes the audit row. */
+  'M29-form-provision': {
+    kind: 'model_form',
+    model: 'fix.jml.event',
+    title: 'New User',
+    newLabel: 'Provision a New Login',
+    back: 'M29-users',
+    status: { field: 'state', labels: { pending: 'Draft - awaiting a second approver', applied: 'Login Created', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'person', label: '1. Person', bn: '১. ব্যক্তি', icon: '👤', badge: '9' },
+      { id: 'roles', label: '2. Roles', bn: '২. ভূমিকা', icon: '🗝️', badge: '3' },
+      { id: 'scope', label: '3. Data Scope', bn: '৩. ডেটা পরিধি', icon: '🏢', badge: '2' },
+      { id: 'perms', label: '4. Module Permissions', bn: '৪. মডিউল অনুমতি', icon: '☑️', badge: 'Checklist' },
+      { id: 'validity', label: '5. Validity & Security', bn: '৫. মেয়াদ ও নিরাপত্তা', icon: '⏳', badge: '2' },
+      { id: 'review', label: '6. Review & Approval', bn: '৬. পর্যালোচনা ও অনুমোদন', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'person', title: 'Who is joining', note: 'Step 1 of 6. Pick the employee from HR - only people who do not have a login yet are listed. Their HR details below come from the employee master (read-only) and appear when you save the draft.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee', domain: [['user_id', '=', false]] },
+          { name: 'effective_on', required: true, label: 'Start Date' },
+          { name: 'emp_code', readonly: true, label: 'Employee Code' },
+          { name: 'emp_job', readonly: true, label: 'Job Title' },
+          { name: 'emp_department', readonly: true, label: 'Department' },
+          { name: 'emp_unit', readonly: true, label: 'Operating Unit' },
+          { name: 'emp_manager', readonly: true, label: 'Line Manager' },
+          { name: 'emp_phone', readonly: true, label: 'Work Phone' }
+        ] },
+      { tab: 'person', title: 'Login & preferences', note: 'The login is the work email from the employee master (the 1000 FiX convention). If it is empty, set it in HR first. An address that is already a login is refused, never duplicated.',
+        fields: [
+          { name: 'proposed_login', readonly: true, label: 'Login (work email)' },
+          { name: 'lang', label: 'Interface Language' },
+          { name: 'tz', label: 'Time Zone' }
+        ] },
+      { tab: 'roles', title: 'Business roles', note: 'Step 2 of 6. A role is a ready-made bundle of permissions for a job (e.g. Front-Desk Officer, Store Keeper). Choose the main role, and add more only if the job truly needs them. Every role is checked against the segregation-of-duties rules. Save after choosing: the Module Permissions checklist then fills in from these roles.',
+        fields: [
+          { name: 'role_id', required: true, label: 'Main Role' },
+          { name: 'extra_role_ids', type: 'many2many', label: 'Additional Roles' },
+          { name: 'reason', type: 'text', required: true, label: 'Business Justification (why this access is needed)' }
+        ] },
+      { tab: 'scope', title: 'Which branches the person works with', note: 'Step 3 of 6. Records are scoped by operating unit (branch / service centre). Leave empty to use the employee\'s own unit. The default unit is where their new records start.',
+        fields: [
+          { name: 'operating_unit_ids', type: 'many2many', label: 'Allowed Operating Units' },
+          { name: 'default_operating_unit_id', label: 'Default Operating Unit' }
+        ] },
+      { tab: 'perms', title: 'Set every module at once', note: 'Step 4 of 6. Start from a preset, then adjust single modules in the checklist below. The preset applies when you save and never gives more than the roles allow.',
+        fields: [
+          { name: 'permission_bulk', label: 'Quick preset for all modules' }
+        ] },
+      { tab: 'validity', title: 'How long the access lasts', note: 'Step 5 of 6. For a contractor, intern or temporary cover, set an end date: the login is deactivated automatically the day after (groups, API keys and sessions removed, audited). Leave empty for a permanent employee.',
+        fields: [
+          { name: 'valid_until', label: 'Access Valid Until' }
+        ] },
+      { tab: 'validity', title: 'Security', note: 'Sign-in: the person receives the standard invitation e-mail to sign in with 1000 FiX single sign-on (Keycloak) or set a password. Multi-factor authentication and session time-outs are enforced by single sign-on for the roles that require them. A second person must approve: this form never creates a login on its own.',
+        fields: [] },
+      { tab: 'review', title: 'What this grants', note: 'Step 6 of 6. Read this summary before asking for approval: every role\'s permission groups, the branch scope, and any DUTY CONFLICT between the chosen roles (a blocked conflict stops the whole request).',
+        fields: [
+          { name: 'permission_preview', type: 'text', readonly: true, label: 'Access Summary' }
+        ] },
+      { tab: 'review', title: 'Approval', note: 'Save, then an Access Approver who is neither you nor the new user opens JML Automation and presses Apply. Applying creates the login, grants every role, applies the checklist and the scope, sends the invitation and writes the audit record - all at once, or nothing if any check refuses.',
+        fields: [
+          { name: 'applied_on', readonly: true, label: 'Approved & Applied On' },
+          { name: 'result_note', readonly: true, label: 'What Was Done' }
+        ] }
+    ],
+    lines: {
+      field: 'permission_line_ids',
+      tab: 'perms',
+      title: 'Module Permissions - what this person may do in each module',
+      fixedRows: true,
+      note: 'One row per module the chosen roles reach (filled in when you save the roles). Access Level is a ladder - each level includes the ones before it: No access (the module is denied) < View (read only) < Create (view + add new records) < Edit (view + add + change). Approve covers workflow decisions (approve, reject, post, close); Print is PDF; Export is Excel / CSV; E-mail sends reports. "Roles Allow" is the most the roles give: you can narrow any row but never exceed it - for more, add a role. The workspace enforces every choice on each screen, save, approval, print, export and e-mail.',
+      fields: [
+        { name: 'area', readonly: true, label: 'Business Area' },
+        { name: 'module_name', readonly: true, label: 'Module' },
+        { name: 'allowed_label', readonly: true, label: 'Roles Allow' },
+        { name: 'level', type: 'selection', label: 'Access Level' },
+        { name: 'can_approve', type: 'boolean', label: 'Approve' },
+        { name: 'can_print', type: 'boolean', label: 'Print' },
+        { name: 'can_export', type: 'boolean', label: 'Export' },
+        { name: 'can_email', type: 'boolean', label: 'E-mail' }
+      ]
+    }
   },
 
   'M29-form-cert': {
@@ -729,6 +851,7 @@ export const FORM_CHIPS = {
   'M29:Encryption Key': 'M29-form-key',
   'M29:Security Incident': 'M29-form-incident',
   'M29:Model Access': 'M29-form-acl',
+  'M29:Provision Login': 'M29-form-provision',
   'M29:Certification Campaign': 'M29-form-campaign',
   'M29:Isolation Tier': 'M29-form-isolation-tier',
   'M29:SoD Test Run': 'M29-form-sodtest',

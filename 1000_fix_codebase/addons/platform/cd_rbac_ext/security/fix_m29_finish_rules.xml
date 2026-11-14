@@ -32,4 +32,18 @@
         <field name="model_id" ref="model_fix_vulnerability"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- New User form (capture audit 2026-11-14): a person reads their own narrowed
+         module permissions; Access Approvers and administrators read everyone's. -->
+    <record id="rule_fix_module_permission_own" model="ir.rule">
+        <field name="name">Module permission: own</field>
+        <field name="model_id" ref="model_fix_module_permission"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_module_permission_approver" model="ir.rule">
+        <field name="name">Module permission: approvers see all</field>
+        <field name="model_id" ref="model_fix_module_permission"/>
+        <field name="groups" eval="[(4, ref('group_access_approver')), (4, ref('base.group_erp_manager')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
 </odoo>

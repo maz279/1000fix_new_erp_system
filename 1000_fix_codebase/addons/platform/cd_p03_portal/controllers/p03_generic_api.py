@@ -179,14 +179,20 @@ def _company_fence(env, model, surface) -> list:
     return ["|"] * (len(leaves) - 1) + leaves
 
 
-def _picker_source(env, comodel):
+def _picker_source(env, comodel, surface=None, name=None):
     """Where a picker reads. Names are read sudo, since a clerk may pick a partner they
     hold no ACL on. A comodel whose own screens are fenced by record rules is read as the
-    caller instead, or a picker would hand over the rows those screens hide."""
+    caller instead, or a picker would hand over the rows those screens hide - unless the
+    form's surface names the field under `picker_names`: then only names are offered,
+    sudo, filtered by the surface's own server-side `pickers` domain (M29 New User:
+    an Access Approver picks the joiner by name without HR rights to the employee
+    master, and is offered only employees with no login yet)."""
     if comodel == "ir.attachment":
         # never sudo: a file name is the file's content to a reader (payslips,
         # contracts, IDs) - M03 audit 2026-11-13
         return env[comodel]
+    if name and name in ((surface or {}).get("picker_names") or ()):
+        return env[comodel].sudo()
     return env[comodel] if (SURFACES.get(comodel) or {}).get("rules") else env[comodel].sudo()
 
 
@@ -252,6 +258,21 @@ def _read_policy(env, model, names) -> dict:
     if "fix.field.rule" not in env:
         return {}
     return env["fix.field.rule"]._fix_read_policy(model, names)
+
+
+def _gate(env, need, model=None, module=None):
+    """M29 per-module permissions (capture audit 2026-11-14): None when the
+    caller may, else the refusal. A user with no narrowed row for the module is
+    governed by their roles alone; the Odoo access rules apply either way."""
+    if env.su:
+        return None
+    if module is None and model:
+        from ..models.fix_jml_event_permissions import model_module_map
+
+        module = model_module_map().get(model)
+    if not module or "fix.module.permission" not in env:
+        return None
+    return env["fix.module.permission"]._fix_refusal(env.user, module, need)
 
 
 # A08 (finance) + A02 (service operations) + A03 (customer experience) + A11
@@ -377,6 +398,9 @@ class P03GenericApiController(http.Controller):
         conf = SURFACES.get(model)
         if not conf:
             return {"error": "Model not served by the workspace screens"}
+        refused = _gate(env, "view", model=model)
+        if refused:
+            return {"error": refused}
         try:
             # bilingual headers: labels follow the workspace UI language when
             # the module ships a translation (Odoo falls back to English).
@@ -536,7 +560,7 @@ class P03GenericApiController(http.Controller):
             domain = Domain.AND(
                 [Domain(declared), Domain(_picker_domain(env, conf, spec.comodel_name, field))]
             )
-            found = _picker_source(env, spec.comodel_name).name_search(
+            found = _picker_source(env, spec.comodel_name, conf, field).name_search(
                 term or "", domain, limit=min(int(limit or 30), 50)
             )
             return {"rows": [{"id": row[0], "label": row[1]} for row in found]}
@@ -557,6 +581,9 @@ class P03GenericApiController(http.Controller):
         _require_internal(request.env)
         if not report_delivery.pack_function(module, report):
             return {"error": "Report not available on this surface"}
+        refused = _gate(request.env, "view", module=module)
+        if refused:
+            return {"error": refused}
         try:
             pack_params, _doc = report_delivery.split_params(params)
             return report_delivery.run_pack(request.env, module, report, pack_params)
@@ -583,6 +610,9 @@ class P03GenericApiController(http.Controller):
             return self._plain(400, "format must be csv, xlsx or pdf")
         if not report_delivery.pack_function(module, report):
             return self._plain(404, "Report not available on this surface")
+        refused = _gate(request.env, "print" if format == "pdf" else "export", module=module)
+        if refused:
+            return self._plain(403, refused)
         pack_params, doc = report_delivery.split_params(params)
         try:
             art = report_delivery.build(
@@ -622,6 +652,9 @@ class P03GenericApiController(http.Controller):
         document the download buttons give for the same period and filters."""
         _require_internal(request.env)
         env = request.env
+        refused = _gate(env, "email", module=module)
+        if refused:
+            return {"error": refused}
         if format not in report_delivery.MAIL_FORMATS:
             return {"error": "Attachment format must be xlsx or pdf"}
         emails, err = report_delivery.parse_recipients(to)
@@ -797,6 +830,9 @@ class P03GenericApiController(http.Controller):
         _require_internal(request.env)
         if format not in ("xlsx", "pdf", "csv"):
             return request.make_response("format must be xlsx, pdf or csv", status=400)
+        refused = _gate(request.env, "print" if format == "pdf" else "export", model=model)
+        if refused:
+            return request.make_response(refused, status=403)
         scope = self._list_scope(domain, state_field, state_filter, search)
         payload, err = self._model_list_export_payload(model, cols, lang, scope=scope)
         if err:
@@ -858,6 +894,9 @@ class P03GenericApiController(http.Controller):
             )
         if format not in report_delivery.MAIL_FORMATS:
             return {"error": "Attachment format must be xlsx or pdf"}
+        refused = _gate(env, "email", model=model)
+        if refused:
+            return {"error": refused}
         emails, err = report_delivery.parse_recipients(to)
         if err:
             return {"error": err}
@@ -944,6 +983,9 @@ class P03GenericApiController(http.Controller):
         conf = SURFACES.get(model)
         if not conf:
             return {"error": "Model not served by the workspace screens"}
+        refused = _gate(env, "view" if record_id else "create", model=model)
+        if refused:
+            return {"error": refused}
         try:
             env[model].check_access("read")
             rec = None
@@ -1097,7 +1139,7 @@ class P03GenericApiController(http.Controller):
                         Domain(_picker_domain(env, SURFACES.get(model), comodel, name)),
                     ]
                 )
-                options = _picker_source(env, comodel)
+                options = _picker_source(env, comodel, SURFACES.get(model), name)
                 if declared:
                     entry["choice_domain"] = declared
                 # A longer list used to stop silently at the limit: 15,522
@@ -1210,7 +1252,7 @@ class P03GenericApiController(http.Controller):
             domain = Domain.AND(
                 [Domain(declared), Domain(_picker_domain(env, SURFACES.get(model), comodel, field))]
             )
-            found = _picker_source(env, comodel).name_search(
+            found = _picker_source(env, comodel, SURFACES.get(model), field).name_search(
                 name=(q or "").strip(), domain=domain, limit=50
             )
             return {"choices": [{"id": i, "label": label} for i, label in found]}
@@ -1239,6 +1281,9 @@ class P03GenericApiController(http.Controller):
         conf = SURFACES.get(model)
         if not conf:
             return {"error": "Model not served by the workspace screens"}
+        refused = _gate(env, "edit" if record_id else "create", model=model)
+        if refused:
+            return {"error": refused}
         vals = self._coerce_vals(values)
         self._datetimes_to_utc(env, model, vals)
         # What the form may not set (A03 audit: this endpoint wrote
@@ -1451,6 +1496,9 @@ class P03GenericApiController(http.Controller):
         allowed = SURFACES.get(model, {}).get("actions", set())
         if method not in allowed:
             return {"success": False, "error": "Action not available for this surface"}
+        refused = _gate(env, "approve", model=model)
+        if refused:
+            return {"success": False, "error": refused}
         try:
             with env.cr.savepoint():
                 records = env[model].browse([int(i) for i in (ids or [])]).exists()
