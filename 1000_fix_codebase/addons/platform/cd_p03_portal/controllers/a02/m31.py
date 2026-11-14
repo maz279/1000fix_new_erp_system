@@ -18,7 +18,11 @@ SURFACES = {
         "limit": 200,
         # A07 M45: the QC instrument. Retired, missing and out-of-service items are
         # not offered; the fitness gate at QC pass still judges the one named.
-        "pickers": {"equipment_id": [("operational_status", "in", ("available", "issued"))]},
+        "pickers": {
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+            # M31 audit 14 Nov: a bench under maintenance or closed takes no job
+            "bench_id": [("state", "in", ("available", "occupied"))],
+        },
         # A02 audit M31-7 / P31-06: the generic action_transition is NOT
         # offered — it reached qc_failed with no NCR and no rework count. Only
         # the named actions, each carrying its own gates and side-effects.
@@ -27,6 +31,9 @@ SURFACES = {
             "action_diagnostic",
             "action_wait_parts",
             "action_auto_assign_bench",
+            # sub-module 3 "Bench Allocation & Queue": the job to a bench and
+            # a technician, with the hand-over note (FR-WSR-011/015)
+            "action_allocate_bench",
             "action_start_repair",
             "action_submit_qc",
             "action_start_burn_in",
@@ -82,6 +89,23 @@ SURFACES = {
     "fix.workshop.evidence": {
         "order": "id desc",
         "limit": 200,
+        "actions": set(),
+    },
+    # sub-module 7 "Testing & Burn-In" (M31 audit 14 Nov 2026): the protocol
+    # library (FR-WSR-031, workshop managers) and the measured test results
+    # recorded against it (FR-WSR-032); a result is judged by its limits
+    "fix.workshop.test.protocol": {"order": "code", "limit": 200, "actions": set()},
+    "fix.workshop.test.result": {
+        "order": "tested_at desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [
+                ("state", "not in", ("delivered", "unrepairable", "cancelled")),
+                ("qc_passed", "=", False),
+            ],
+            "step_id": [("protocol_id.active", "=", True)],
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+        },
         "actions": set(),
     },
 }

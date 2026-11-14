@@ -48,8 +48,14 @@ export const MODULE = {
   /* 'Workshop Transfer' was the workshop FACILITY master form under another
    * name; a transfer is captured on the Job Routing form (new workshop).
    * 2026-11-12: every sub-module page captures its own data (it was 1 of 9). */
-  forms: ['Receive Device into Workshop', 'Repair Order', 'Workshop Facility', 'Bench Allocation', 'Job Routing',
-    'Bench Diagnosis', 'Part Fitment', 'Test Protocol Result', 'Labour & Cost'],
+  /* 2026-11-14 audit: "Bench Allocation" and "Test Protocol Result" are the
+   * registry's own form names. They had become a bench-master form and a
+   * file upload, so allocating a job to a bench and recording a measured
+   * test result had no capture anywhere. Each now captures what its name
+   * says; the bench master and the evidence upload keep forms of their own. */
+  forms: ['Receive Device into Workshop', 'Repair Order', 'Workshop Facility', 'Bench Master', 'Bench Allocation',
+    'Job Routing', 'Bench Diagnosis', 'Part Fitment', 'Test Protocol', 'Test Protocol Result', 'Test Evidence',
+    'Labour & Cost'],
   cross: ['M01 device release', 'M15 parts consumption', 'M61 knowledge capture', 'M45 test equipment', 'M22 skill routing'],
   freg: {
     src: 76,
@@ -58,14 +64,21 @@ export const MODULE = {
        * service order's hand-over, so the page's button picks the booked-in
        * order and runs that hand-over (FR-WSR-001/004). */
       ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: ['Receive Device into Workshop', 'Repair Order'], create: 'M31-form-receive' }],
-      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'], reports: ['Bench Utilisation by Workshop'], forms: ['Workshop Facility'] }],
-      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'], reports: ['Bench Utilisation by Workshop'], forms: ['Bench Allocation'] }],
+      /* the two masters (FR-WSR-009/010): the button adds a workshop, the
+       * Bench Master chip a bench in it */
+      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'], reports: ['Bench Utilisation by Workshop'], forms: ['Workshop Facility', 'Bench Master'] }],
+      /* FR-WSR-011/015: the button allocates a waiting job to a bench and a
+       * technician, or hands it over; it used to add a new bench */
+      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'], reports: ['Bench Utilisation by Workshop'], forms: ['Bench Allocation'], create: 'M31-form-allocate' }],
       /* routing, diagnosis, rework and costing act on a job already in the
        * workshop: each page picks the job, then captures its own part of it */
       ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: ['Job Routing'], create: 'M31-form-routing' }],
       ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods'], reports: ['Internal Rework Loop Analysis'], forms: ['Bench Diagnosis'], create: 'M31-form-diagnosis', domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
       ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts'], reports: ['Parts Genealogy Trace'], forms: ['Part Fitment'] }],
-      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.job', cols: ['name', 'burn_in_started_at', 'burn_in_passed', 'qc_passed', 'state'], screens: ['M31-testing'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result'], create: 'M31-form-evidence', domain: [['state', 'in', ['burn_in', 'qc_pending', 'qc_failed']]] }],
+      /* FR-WSR-031/032/039: the page lists the recorded test results; the
+       * button records one against a protocol test, judged by its limits.
+       * The protocol library and the evidence upload are its chips. */
+      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.test.result', cols: ['job_id', 'step_id', 'measured_value', 'unit', 'passed', 'tested_by_id', 'tested_at'], screens: ['M31-testing', 'M31-testresults', 'M31-protocols'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result', 'Test Protocol', 'Test Evidence'], create: 'M31-form-testresult' }],
       ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: ['Job Routing'], create: 'M31-form-routing', domain: [['is_rework', '=', true]] }],
       ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost'], create: 'M31-form-labour' }]
     ]
@@ -170,6 +183,11 @@ export const SCREENS = {
       { m: 'action_start_repair', l: 'Back on Bench (Rework)' }
     ] },
   'M31-costing': { kind: 'table_report', module: 'M31', report: 'cost_per_repair', period: false },
+  /* 2026-11-14: the recorded test results and the protocol library */
+  'M31-testresults': { kind: 'model_list', model: 'fix.workshop.test.result', title: 'Test Results',
+    cols: ['job_id', 'protocol_id', 'step_id', 'measured_value', 'unit', 'lower_limit', 'upper_limit', 'passed', 'equipment_id', 'tested_by_id', 'tested_at'] },
+  'M31-protocols': { kind: 'model_list', model: 'fix.workshop.test.protocol', title: 'Test Protocol Library',
+    cols: ['code', 'name', 'device_type', 'repair_level', 'fault_type', 'burn_in_minutes', 'step_count', 'active'] },
   /* M31 sweep audit 2026-11-06 (D17): the genealogy and burn-in packs get
    * their own screens - their tiles previously opened the nearest grids. */
   'M31-rpt-genealogy': { kind: 'table_report', module: 'M31', report: 'parts_genealogy', title: 'Parts Genealogy Trace', period: false },
@@ -296,7 +314,7 @@ export const SCREENS = {
   'M31-form-bench': {
     kind: 'model_form',
     model: 'fix.workshop.bench',
-    title: "Bench Allocation",
+    title: "Bench Master",
     back: 'M31-benches',
     status: { field: 'state', labels: { available: "Available", occupied: "Occupied", maintenance: "Maintenance", offline: "Offline / Closed" } },
     tabs: [
@@ -332,7 +350,7 @@ export const SCREENS = {
   'M31-form-evidence': {
     kind: 'model_form',
     model: 'fix.workshop.evidence',
-    title: "Test Protocol Result",
+    title: "Test Evidence",
     back: 'M31-testing',
     tabs: [
       { id: 'evidence', label: '1. Test Evidence Spec', bn: '১. প্রমাণক তথ্য', icon: '📎', badge: '6' },
@@ -595,6 +613,118 @@ export const SCREENS = {
     ]
   },
 
+  /* 3 Bench Allocation & Queue (FR-WSR-011/015, BRU-WSR-02/06): a waiting
+   * job goes to a bench and a technician through action_allocate_bench. It
+   * refuses a bench of another workshop, under maintenance, closed, full or
+   * below the job's level, and a technician not certified for the job; a job
+   * already on a bench is handed over and its old bench freed. */
+  'M31-form-allocate': {
+    kind: 'model_form',
+    model: 'fix.workshop.job',
+    title: 'Bench Allocation',
+    newLabel: 'Allocate a Job to a Bench',
+    back: 'M31-benches',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the job to allocate or hand over',
+      note: 'Jobs waiting for a bench, and jobs on a bench that move to another bench or technician. A job in repair keeps its technician; only its bench can change.',
+      search: 'Search job / order / serial',
+      choose: 'Allocate this job',
+      cols: ['name', 'order_reference', 'repair_level', 'workshop_id', 'bench_id', 'technician_id', 'priority', 'state'],
+      domain: [['state', 'in', ['draft', 'intake', 'diagnostic', 'waiting_parts', 'in_repair', 'qc_failed']]],
+      empty: 'No repair job is waiting for a bench.'
+    },
+    saveAction: {
+      method: 'action_allocate_bench', label: 'Allocate to Bench',
+      done: 'Job allocated: the bench and technician are set and the note is on the job',
+      kwargs: { bench_id: 'bench_id', technician_id: 'technician_id', note: 'bench_handover_note' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: Bench, Technician & Hand-Over Note',
+        note: "The bench must be in the job's workshop, in service, of the job's level or higher, and have room. Leave the technician empty to keep the job's own, or to take the one stationed at the bench. An L2/L3 job needs a technician certified for it.",
+        fields: [
+          { name: 'name', label: 'Job Reference', readonly: true },
+          { name: 'order_reference', label: 'Service Order', readonly: true },
+          { name: 'device_serial', label: 'Device Serial / IMEI', readonly: true },
+          { name: 'workshop_id', label: 'Workshop', readonly: true },
+          { name: 'repair_level', label: 'Repair Level', readonly: true },
+          { name: 'priority', label: 'Priority', readonly: true },
+          { name: 'state', label: 'Job State', readonly: true },
+          /* readonly for the generic write; INPUTS here: saveAction carries
+           * them to action_allocate_bench, which applies the bench rules */
+          { name: 'bench_id', label: 'Bench', required: true, readonly: true },
+          { name: 'technician_id', label: 'Technician', readonly: true },
+          { name: 'bench_handover_note', label: 'Allocation / Hand-Over Note', type: 'text', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7 Testing & Burn-In (FR-WSR-032/035): one measured result against a
+   * protocol test. The pass is judged by the test's limits, not typed. */
+  'M31-form-testresult': {
+    kind: 'model_form',
+    model: 'fix.workshop.test.result',
+    title: 'Test Protocol Result',
+    newLabel: 'Record a Test Result',
+    back: 'M31-testresults',
+    sections: [
+      { title: 'Job, Protocol Test & Measurement',
+        note: "Choose the job and the protocol test, then enter what the instrument read. Inside the test's limits it passes, outside it fails. For a check with no limits (visual, functional), tick whether it passed. Results are fixed once the job passes QC.",
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'step_id', required: true, label: 'Protocol Test' },
+          { name: 'measured_value', label: 'Measured Value' },
+          { name: 'observed_pass', label: 'Check Passed (test with no limits)' },
+          { name: 'equipment_id', label: 'Instrument Used' },
+          { name: 'notes', label: 'Observations', type: 'text' }
+        ] },
+      { title: 'Limits & Outcome',
+        fields: [
+          { name: 'protocol_id', label: 'Protocol', readonly: true },
+          { name: 'unit', label: 'Unit', readonly: true },
+          { name: 'lower_limit', label: 'Lower Limit', readonly: true },
+          { name: 'upper_limit', label: 'Upper Limit', readonly: true },
+          { name: 'passed', label: 'Passed', readonly: true },
+          { name: 'tested_by_id', label: 'Tested By', readonly: true },
+          { name: 'tested_at', label: 'Tested At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7 the protocol library (FR-WSR-031): a workshop manager defines the
+   * tests, their limits and the burn-in duration for a device category */
+  'M31-form-protocol': {
+    kind: 'model_form',
+    model: 'fix.workshop.test.protocol',
+    title: 'Test Protocol',
+    back: 'M31-protocols',
+    lines: { field: 'step_ids', title: 'Tests in this Protocol',
+      note: 'One line per test. Tick "Against Limits" for a measured test and give its limits and unit; leave it unticked for a visual or functional check.',
+      fields: [
+        { name: 'sequence', label: 'Order' },
+        { name: 'code', label: 'Test Code' },
+        { name: 'name', label: 'Test', required: true },
+        { name: 'unit', label: 'Unit' },
+        { name: 'has_limits', label: 'Against Limits' },
+        { name: 'lower_limit', label: 'Lower Limit' },
+        { name: 'upper_limit', label: 'Upper Limit' }
+      ] },
+    sections: [
+      { title: 'Protocol',
+        note: 'Burn-in may be extended beyond the protocol duration, never shortened below it (BRU-WSR-07). Only a workshop manager maintains the library.',
+        fields: [
+          { name: 'code', required: true, label: 'Protocol Code' },
+          { name: 'name', required: true, label: 'Protocol Name' },
+          { name: 'device_type', label: 'Device Category' },
+          { name: 'repair_level', label: 'Repair Level' },
+          { name: 'fault_type', label: 'Fault Type' },
+          { name: 'burn_in_minutes', label: 'Burn-In Duration (minutes)' },
+          { name: 'pass_criteria', label: 'Pass Criteria', type: 'text' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -619,11 +749,14 @@ export const FORM_CHIPS = {
   'M31:Receive Device into Workshop': 'M31-form-receive',
   'M31:Repair Order': 'M31-form-job',
   'M31:Workshop Facility': 'M31-form-workshop',
-  'M31:Bench Allocation': 'M31-form-bench',
+  'M31:Bench Master': 'M31-form-bench',
+  'M31:Bench Allocation': 'M31-form-allocate',
   'M31:Job Routing': 'M31-form-routing',
   'M31:Bench Diagnosis': 'M31-form-diagnosis',
   'M31:Part Fitment': 'M31-form-part',
-  'M31:Test Protocol Result': 'M31-form-evidence',
+  'M31:Test Protocol Result': 'M31-form-testresult',
+  'M31:Test Protocol': 'M31-form-protocol',
+  'M31:Test Evidence': 'M31-form-evidence',
   'M31:Labour & Cost': 'M31-form-labour',
   'M31:__by_model__': {
     'fix.workshop.job': 'M31-form-job',
@@ -631,6 +764,8 @@ export const FORM_CHIPS = {
     'fix.workshop.evidence': 'M31-form-evidence',
     'fix.workshop': 'M31-form-workshop',
     'fix.workshop.part.line': 'M31-form-part',
+    'fix.workshop.test.result': 'M31-form-testresult',
+    'fix.workshop.test.protocol': 'M31-form-protocol',
   },
   'M31:__by_screen__': {
     'M31-orders': 'M31-form-job',
@@ -640,5 +775,7 @@ export const FORM_CHIPS = {
     'M31-benches': 'M31-form-bench',
     'M31-benchmaster': 'M31-form-workshop',
     'M31-parts': 'M31-form-part',
+    'M31-testresults': 'M31-form-testresult',
+    'M31-protocols': 'M31-form-protocol',
   }
 };

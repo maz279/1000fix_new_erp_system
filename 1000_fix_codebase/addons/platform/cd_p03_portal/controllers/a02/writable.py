@@ -851,5 +851,28 @@ WRITABLE = {
             "source_origin",
         }
     ),
+    "fix.workshop.test.protocol": frozenset(
+        {
+            "active",
+            "burn_in_minutes",
+            "code",
+            "device_type",
+            "fault_type",
+            "name",
+            "pass_criteria",
+            "repair_level",
+            "step_ids",
+        }
+    ),
+    "fix.workshop.test.result": frozenset(
+        {
+            "equipment_id",
+            "job_id",
+            "measured_value",
+            "notes",
+            "observed_pass",
+            "step_id",
+        }
+    ),
     "fix.z4.access.audit": frozenset(),
 }

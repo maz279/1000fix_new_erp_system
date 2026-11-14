@@ -14,3 +14,9 @@ access_fix_workshop_bench_internal_base,fix.workshop.bench.internal.base,model_f
 access_fix_workshop_job_internal_base,fix.workshop.job.internal.base,model_fix_workshop_job,base.group_user,1,0,0,0
 access_fix_workshop_waiver_request_user,fix.workshop.waiver.request.user,model_fix_workshop_waiver_request,cd_workshop.group_fix_workshop_user,1,1,1,0
 access_fix_workshop_waiver_request_mgr,fix.workshop.waiver.request.mgr,model_fix_workshop_waiver_request,cd_workshop.group_fix_workshop_manager,1,1,1,0
+access_fix_workshop_test_protocol_internal,fix.workshop.test.protocol.internal,model_fix_workshop_test_protocol,base.group_user,1,0,0,0
+access_fix_workshop_test_protocol_mgr,fix.workshop.test.protocol.mgr,model_fix_workshop_test_protocol,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_test_step_internal,fix.workshop.test.step.internal,model_fix_workshop_test_step,base.group_user,1,0,0,0
+access_fix_workshop_test_step_mgr,fix.workshop.test.step.mgr,model_fix_workshop_test_step,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_test_result_user,fix.workshop.test.result.user,model_fix_workshop_test_result,cd_workshop.group_fix_workshop_user,1,1,1,0
+access_fix_workshop_test_result_mgr,fix.workshop.test.result.mgr,model_fix_workshop_test_result,cd_workshop.group_fix_workshop_manager,1,1,1,1

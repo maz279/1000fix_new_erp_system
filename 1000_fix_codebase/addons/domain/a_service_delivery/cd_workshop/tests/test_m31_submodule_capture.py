@@ -32,11 +32,12 @@ m31 = a02.m31
 EXPECTED = {
     "1": ("M31-form-receive", "Receive Device into Workshop"),
     "2": ("M31-form-workshop", "Workshop Facility"),
-    "3": ("M31-form-bench", "Bench Allocation"),
+    # 14 Nov audit: 3 created a new BENCH and 7 filed a generic attachment
+    "3": ("M31-form-allocate", "Allocate a Job to a Bench"),
     "4": ("M31-form-routing", "Route, Re-route or Transfer a Job"),
     "5": ("M31-form-diagnosis", "Record Bench Diagnosis"),
     "6": ("M31-form-part", "Part Fitment"),
-    "7": ("M31-form-evidence", "Test Protocol Result"),
+    "7": ("M31-form-testresult", "Record a Test Result"),
     "8": ("M31-form-routing", "Route, Re-route or Transfer a Job"),
     "9": ("M31-form-labour", "Record Labour & Cost"),
 }
