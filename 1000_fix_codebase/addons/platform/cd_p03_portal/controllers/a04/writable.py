@@ -497,6 +497,31 @@ WRITABLE = {
         }
     ),
     "fix.quotation.billing.line": frozenset(),
+    "fix.quotation.counter": frozenset(
+        {
+            "channel",
+            "customer_request",
+            "evidence_ref",
+            "kind",
+            "line_ids",
+            "quotation_id",
+            "requested_value",
+        }
+    ),
+    "fix.quotation.counter.line": frozenset(),
+    "fix.quotation.delivery": frozenset(
+        {
+            "channel",
+            "delivered_at",
+            "delivery_ref",
+            "first_viewed_at",
+            "note",
+            "quotation_id",
+            "recipient",
+            "sent_at",
+            "view_count",
+        }
+    ),
     "fix.quotation.handoff": frozenset(),
     "fix.quotation.template": frozenset(
         {

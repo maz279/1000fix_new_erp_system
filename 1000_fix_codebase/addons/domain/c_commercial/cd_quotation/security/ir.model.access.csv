@@ -39,3 +39,12 @@ access_fix_quotation_template_line,fix.quotation.template.line,model_fix_quotati
 access_fix_quotation_template_line_manager,fix.quotation.template.line manager,model_fix_quotation_template_line,group_quotation_manager,1,1,1,1
 access_fix_quotation_template_billing,fix.quotation.template.billing,model_fix_quotation_template_billing,base.group_user,1,0,0,0
 access_fix_quotation_template_billing_manager,fix.quotation.template.billing manager,model_fix_quotation_template_billing,group_quotation_manager,1,1,1,1
+access_fix_quotation_delivery,fix.quotation.delivery,model_fix_quotation_delivery,base.group_user,1,0,0,0
+access_fix_quotation_delivery_author,fix.quotation.delivery author,model_fix_quotation_delivery,group_quotation_user,1,1,1,0
+access_fix_quotation_delivery_manager,fix.quotation.delivery manager,model_fix_quotation_delivery,group_quotation_manager,1,1,1,1
+access_fix_quotation_counter,fix.quotation.counter,model_fix_quotation_counter,base.group_user,1,0,0,0
+access_fix_quotation_counter_author,fix.quotation.counter author,model_fix_quotation_counter,group_quotation_user,1,1,1,0
+access_fix_quotation_counter_manager,fix.quotation.counter manager,model_fix_quotation_counter,group_quotation_manager,1,1,1,1
+access_fix_quotation_counter_line,fix.quotation.counter.line,model_fix_quotation_counter_line,base.group_user,1,0,0,0
+access_fix_quotation_counter_line_author,fix.quotation.counter.line author,model_fix_quotation_counter_line,group_quotation_user,1,1,1,0
+access_fix_quotation_counter_line_manager,fix.quotation.counter.line manager,model_fix_quotation_counter_line,group_quotation_manager,1,1,1,1

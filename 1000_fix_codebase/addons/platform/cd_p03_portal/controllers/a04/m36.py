@@ -30,6 +30,7 @@ SURFACES = {
             "action_submit",
             "action_recall_approval",
             "action_send",
+            "action_issue_on_channel",
             "action_send_acceptance_otp",
             "action_verify_acceptance_otp",
             "action_record_signed_acceptance",
@@ -48,6 +49,24 @@ SURFACES = {
     "fix.quotation.handoff": {
         "order": "id desc",
         "limit": 300,
+        "actions": set(),
+    },
+    # Capture audit (2026-11-14): the customer side of the loop - every
+    # delivery of an issued version on its channel, and the customer's
+    # counter-offer / partial acceptance with its decision.
+    "fix.quotation.delivery": {
+        "order": "sent_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.quotation.counter": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_decide"},
+    },
+    "fix.quotation.counter.line": {
+        "order": "counter_id, sequence, id",
+        "limit": 500,
         "actions": set(),
     },
     "fix.quotation.template": {
@@ -122,38 +141,86 @@ def _quotes(env):
 
 
 def quote_conversion(env, date_from=None, date_to=None, **params):
-    quotes = _quotes(env)
-    states = [
-        "draft",
-        "approved",
-        "sent",
-        "accepted",
-        "declined",
-        "expired",
-        "cancelled",
-        "superseded",
-    ]
-    rows = []
-    for state in states:
-        mine = quotes.filtered(lambda q, s=state: q.state == s)
-        rows.append(
-            {"state": state, "quotes": len(mine), "value": round(sum(mine.mapped("value")), 2)}
+    """FR-QTE-033/039: conversion by the channel each quotation first reached
+    the customer on (its first recorded delivery). Superseded versions are
+    left out: the version that replaced one carries the decision."""
+    quotes = _quotes(env).filtered(lambda q: q.state in ("sent", "accepted", "declined", "expired"))
+    labels = dict(env["fix.quotation.delivery"]._fields["channel"].selection)
+    buckets = {}
+    for quote in quotes:
+        key = quote.delivery_channel or "none"
+        row = buckets.setdefault(
+            key,
+            {
+                "channel": labels.get(key, "No delivery recorded"),
+                "issued": 0,
+                "viewed": 0,
+                "accepted": 0,
+                "declined": 0,
+                "expired": 0,
+                "open": 0,
+                "value": 0.0,
+            },
         )
-    total = len(quotes)
-    accepted = len(quotes.filtered(lambda q: q.state == "accepted"))
+        row["issued"] += 1
+        row["viewed"] += 1 if quote.first_viewed_at else 0
+        row[
+            {"accepted": "accepted", "declined": "declined", "expired": "expired"}.get(
+                quote.state, "open"
+            )
+        ] += 1
+        row["value"] += quote.value or 0.0
+    rows = []
+    order = [k for k, _l in env["fix.quotation.delivery"]._fields["channel"].selection] + ["none"]
+    for key in order:
+        row = buckets.get(key)
+        if not row:
+            continue
+        decided = row["accepted"] + row["declined"] + row["expired"]
+        row["conversion_pct"] = round(row["accepted"] / decided * 100.0, 1) if decided else 0.0
+        row["value"] = round(row["value"], 2)
+        rows.append(row)
+    accepted = sum(r["accepted"] for r in rows)
+    decided = sum(r["accepted"] + r["declined"] + r["expired"] for r in rows)
     return _pack(
         "Quote Conversion by Channel",
-        ["state", "quotes", "value"],
-        {"state": "State", "quotes": "Quotations", "value": "Value"},
+        [
+            "channel",
+            "issued",
+            "viewed",
+            "accepted",
+            "declined",
+            "expired",
+            "open",
+            "conversion_pct",
+            "value",
+        ],
+        {
+            "channel": "First Delivered By",
+            "issued": "Issued",
+            "viewed": "Viewed",
+            "accepted": "Accepted",
+            "declined": "Declined",
+            "expired": "Expired",
+            "open": "With Customer",
+            "conversion_pct": "Conversion %",
+            "value": "Value (excl. VAT)",
+        },
         rows,
         [
-            "Conversion = accepted / all quotations: %d of %d (%.1f%%)."
-            % (accepted, total, accepted / total * 100.0 if total else 0.0)
+            "Conversion = accepted / decided (accepted, declined or expired): %d of %d "
+            "(%.1f%%). The channel is the first delivery recorded on the quotation."
+            % (accepted, decided, accepted / decided * 100.0 if decided else 0.0)
         ],
-        totals={"state": "Total", "quotes": total, "value": round(sum(quotes.mapped("value")), 2)}
+        totals={
+            "channel": "Total",
+            "issued": sum(r["issued"] for r in rows),
+            "accepted": accepted,
+            "value": round(sum(r["value"] for r in rows), 2),
+        }
         if rows
         else None,
-        empty="No quotations yet.",
+        empty="No quotation has been issued yet.",
     )
 
 

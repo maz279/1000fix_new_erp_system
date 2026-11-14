@@ -30,13 +30,17 @@ export const MODULE = {
       { id: 'M36-billing-lines', en: 'Billing Plan Lines', bn: 'বিলিং লাইন', t: 'g' },
       { id: 'M36-handoffs', en: 'Fulfilment Hand-offs', bn: 'হস্তান্তর লগ', t: 'g' },
       { id: 'M36-templates', en: 'Quotation Templates', bn: 'কোটেশন টেমপ্লেট', t: 'g' },
+      { id: 'M36-doc-templates', en: 'Bilingual Document Templates', bn: 'দ্বিভাষিক নথি টেমপ্লেট', t: 'g' },
       { id: 'M36-contract-scope', en: 'Contracted Scope (from quotations)', bn: 'চুক্তির পরিধি', t: 'g' },
-      { id: 'M36-versions', en: 'Versions & Counter-Offer', bn: 'ভার্সন ও কাউন্টার', t: 'g' },
+      { id: 'M36-versions', en: 'Quotation Versions', bn: 'কোটেশন ভার্সন', t: 'g' },
       { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'r' }
     ]},
     { en: 'Approval Loop', screens: [
       { id: 'M36-loop', en: 'Customer Approval Loop', bn: 'গ্রাহক অনুমোদন', t: 'g' },
+      { id: 'M36-deliveries', en: 'Deliveries & Views', bn: 'ডেলিভারি ও দেখা', t: 'g' },
+      { id: 'M36-counters', en: 'Counter-Offers & Partial Acceptance', bn: 'কাউন্টার অফার ও আংশিক সম্মতি', t: 'g' },
       { id: 'M36-internal', en: 'Internal Approval Routing', bn: 'অভ্যন্তরীণ অনুমোদন', t: 'g' },
+      { id: 'M36-pending', en: 'Drafts Awaiting Approval', bn: 'অনুমোদনের অপেক্ষায় খসড়া', t: 'g' },
       { id: 'M36-declined', en: 'Declined-Repair Handling', bn: 'প্রত্যাখ্যাত মেরামত', t: 'r' }
     ]},
     { en: 'Tenders', screens: [
@@ -48,38 +52,87 @@ export const MODULE = {
     ]}
   ],
   reports: ['Quote Conversion by Channel', 'Approval Cycle Time', 'Decline Reasons Pareto', 'Tender Win/Loss', 'Margin on Approved Quotes'],
-  forms: ['Estimate', 'Quotation (versioned)', 'Tender Bid'],
+  forms: ['Estimate', 'Quotation (versioned)', 'Revise a Quotation', 'Submit for Internal Approval',
+    'Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code', 'Record Signed Acceptance',
+    'Counter-Offer / Partial Acceptance', 'Decide a Counter-Offer', 'Record a Customer Decline',
+    'Tender Bid', 'Bid Bond', 'Variation Order', 'Quotation Template', 'Document Template (bilingual)'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
+  /* Capture audit 2026-11-14 (spec sections 5, 8.2, 10.1): each page's
+   * "+ New" captures the record the page names. Before it only page 2 had
+   * one; 3-8 and 10 captured nothing, 1 and 9 had a chip only. The
+   * quotation lifecycle moves by its workflow methods, so the quotation
+   * pages pick an existing quotation and run the step (never a write). */
   freg: { src: 86, sub: [
-    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'] }],
+    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'], create: 'M36-form-estimate' }],
     ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)'] }],
-    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'], reports: [], forms: [], create: false }],
-    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'], reports: ['Approval Cycle Time'], forms: [] }],
-    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'], reports: ['Approval Cycle Time', 'Quote Conversion by Channel'], forms: [] }],
-    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'], reports: [], forms: [], create: false }],
-    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'], reports: [], forms: [], create: false }],
-    ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'], reports: ['Decline Reasons Pareto'], forms: [], create: false }],
-    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-bonds', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid'] }],
-    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance', 'M36-templates'], reports: [], forms: [] }]
+    /* FR-QTE-012/015, BRU-QTE-02/04: an issued, expired or declined version is
+     * never edited; it is revised into the next version. */
+    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation'], create: 'M36-form-revise' }],
+    /* FR-QTE-025..032: submitted to the value-band approver (never the author);
+     * the review log is written by the decision in the M63 inbox. */
+    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'version', 'reviewer_id', 'decision', 'value_reviewed', 'reviewed_at'], screens: ['M36-internal', 'M36-pending'], reports: ['Approval Cycle Time'], forms: ['Submit for Internal Approval'], create: 'M36-form-submit' }],
+    /* FR-QTE-033/034/039/042: issued on a channel, every delivery recorded,
+     * accepted on the code the customer reads out. */
+    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quotation.delivery', cols: ['quotation_id', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count'], screens: ['M36-loop', 'M36-deliveries'], reports: ['Quote Conversion by Channel'], forms: ['Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code'], create: 'M36-form-issue' }],
+    /* FR-QTE-035/036, BRU-QTE-11, T-03: the customer's counter or line-level
+     * decision is a record, decided by someone other than who took it down;
+     * "revise" derives the next version for approval. */
+    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation.counter', cols: ['name', 'kind', 'channel', 'requested_value', 'state', 'decided_by_id', 'revised_quotation_id'], screens: ['M36-counters', 'M36-loop'], reports: [], forms: ['Counter-Offer / Partial Acceptance', 'Decide a Counter-Offer'] }],
+    /* FR-QTE-037/038: the signed copy or the customer's code; the evidence
+     * pack is sealed by the acceptance. */
+    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'acceptance_method', 'signed_at', 'evidence_hash', 'state'], screens: ['M36-esign', 'M36-loop'], reports: [], forms: ['Record Signed Acceptance', 'Accept by Customer Code'], create: 'M36-form-signed' }],
+    /* FR-QTE-041, BRU-QTE-12/16: a governed reason; the service order gets the
+     * return / collection task with the diagnostic fee owed. */
+    ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason_code', 'decline_reason', 'declined_at'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-loop'], reports: ['Decline Reasons Pareto'], forms: ['Record a Customer Decline'], create: 'M36-form-decline' }],
+    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-compliance', 'M36-bonds', 'M36-variations', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid', 'Bid Bond', 'Variation Order'] }],
+    /* FR-QTE-008/018/019: the quotation templates (terms, lines, options) and
+     * the bilingual document templates the PDFs are generated from (M24). */
+    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.quotation.template', cols: ['sequence', 'name', 'segment', 'quote_type', 'payment_term_id', 'advance_pct', 'validity_days'], screens: ['M36-templates', 'M36-doc-templates'], reports: [], forms: ['Quotation Template', 'Document Template (bilingual)'] }]
   ] }
 };
 
 export const SCREENS = {
   /* ---- registry screens restored (A04 zero-trust audit 2026-10-31): nav ids that dead-ended ---- */
   'M36-versions': { kind: 'model_list', model: 'fix.quotation', create: false,
-    cols: ["name", "customer_id", "state", "currency_id", "create_date", "company_id", "estimate_id"] },
+    cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until', 'create_date'],
+    empty: 'No quotation yet. Revise a Quotation makes the next version of an issued, expired or declined one.' },
   'M36-esign': { kind: 'table_report', module: 'M36', report: 'esign_status', title: 'E-Signature Status', period: true },
-  'M36-loop': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"],
-    empty: 'No quotation review yet. A review is recorded when a quotation is sent for approval or decided by the customer; it is not typed in here.' },
+  /* Capture audit 2026-11-14: the customer loop is the quotations WITH the
+   * customer (it listed the internal review log, the same as page 4). */
+  'M36-loop': { kind: 'model_list', model: 'fix.quotation', create: false, stateField: 'state',
+    domain: [['state', '=', 'sent']],
+    cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'delivery_channel', 'delivery_count', 'first_viewed_at', 'esign_state'],
+    empty: 'No quotation is with a customer. Issue an approved quotation with Issue to the Customer.',
+    actions: [
+      { m: 'action_send_acceptance_otp', l: 'Send Acceptance Code', states: ['sent'] },
+      { m: 'action_revise', l: 'Revise (new version)', states: ['sent'] }
+    ] },
+  /* FR-QTE-019: the bilingual (Bengali / English) document templates the
+   * quotation PDF is generated from; the M24 template form captures them. */
+  'M36-doc-templates': { kind: 'model_list', model: 'fix.document.template',
+    cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual', 'requires_approval'],
+    empty: 'No document template yet.' },
+  'M36-deliveries': { kind: 'model_list', model: 'fix.quotation.delivery',
+    cols: ['quotation_id', 'version', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count', 'recorded_by_id'],
+    empty: 'No delivery recorded yet. Issuing a quotation on a channel records its first delivery; a re-send is recorded here.' },
+  'M36-pending': { kind: 'model_list', model: 'fix.quotation', create: false, stateField: 'state',
+    domain: [['state', '=', 'draft']],
+    cols: ['name', 'version', 'customer_id', 'value', 'margin_pct', 'dofa_tier_required', 'approval_state'],
+    empty: 'No draft quotation. A draft is submitted with Submit for Internal Approval.',
+    actions: [
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] }
+    ] },
+  'M36-counters': { kind: 'model_list', model: 'fix.quotation.counter', stateField: 'state',
+    cols: ['name', 'customer_id', 'kind', 'channel', 'quoted_value', 'requested_value', 'state', 'decided_by_id', 'revised_quotation_id'],
+    empty: 'No counter-offer yet. Record what the customer asked for on a quotation they hold.' },
   'M36-internal': { kind: 'model_list', model: 'fix.quote.review', create: false,
-    cols: ["create_date", "quotation_id", "reviewer_id", "decision", "notes", "reviewed_at"],
+    cols: ['reviewed_at', 'quotation_id', 'version', 'reviewer_id', 'on_behalf_of_id', 'decision', 'value_reviewed', 'notes'],
     empty: 'No quotation review yet. A review is recorded when a quotation is sent for approval or decided by the customer; it is not typed in here.' },
   'M36-declined': { kind: 'table_report', module: 'M36', report: 'decline_pareto', title: 'Decline Pareto', period: true },
   // A04 audit M36-7 (C2-C13 build 2026-11-04): a tender moves only through
   // these. The bid decision and the award are the Tender Committee's; a win
   // is approved from the M63 inbox by a member who did not prepare the bid.
-  'M36-tenders': { kind: 'model_list', model: 'fix.tender', create: false, stateField: 'state',
+  'M36-tenders': { kind: 'model_list', model: 'fix.tender', stateField: 'state',
     cols: ["name", "state", "client_name", "due_date", "compliance_pct", "bid_decision", "approval_state"],
     actions: [
       { m: 'action_decide_bid', l: 'Decide: Bid (Tender Committee)', ask: 'Basis of the bid decision (scores are on the form)', kwarg: 'reason', states: ['draft'] },
@@ -118,7 +171,7 @@ export const SCREENS = {
     ] },
   // A04 audit M36-8: a guarantee is activated with the bank's evidence and
   // released or claimed only by a routed DOFA decision on its amount.
-  'M36-bonds': { kind: 'model_list', model: 'fix.tender.bond', create: false, stateField: 'state',
+  'M36-bonds': { kind: 'model_list', model: 'fix.tender.bond', stateField: 'state',
     cols: ["name", "state", "amount", "tender_id", "bond_type", "bank", "expires_on", "is_expiring_soon", "approval_state"],
     actions: [
       { m: 'action_activate', l: 'Activate (guarantee issued)', states: ['draft'] },
@@ -508,6 +561,250 @@ export const SCREENS = {
     ]
   },
 
+  /* ---- capture audit 2026-11-14: the quotation steps, one pick form each ---- */
+  'M36-form-revise': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Revise a Quotation', newLabel: 'Revise a Quotation (new version)', back: 'M36-versions',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the issued, expired or declined quotation',
+      search: 'Search quotation', choose: 'Revise this version',
+      cols: ['name', 'version', 'customer_id', 'value', 'valid_until', 'state'],
+      domain: [['state', 'in', ['sent', 'expired', 'declined']]],
+      empty: 'No issued, expired or declined quotation. A draft is edited directly on Customer Quotations.'
+    },
+    saveAction: { method: 'action_revise', label: 'Make the Next Version', done: 'Next version made as a draft: edit, submit and issue it from Customer Quotations' },
+    sections: [
+      { title: 'Step 2 of 2: The Version Being Replaced',
+        note: 'BRU-QTE-02/04: an issued version is immutable and an expired one is never extended. The next version starts as a draft at current prices, with this one as its previous version; an issued version is marked superseded.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'value', label: 'Value (excl. VAT)', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-submit': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Submit for Internal Approval', newLabel: 'Submit a Quotation for Approval', back: 'M36-pending',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the draft quotation',
+      search: 'Search quotation', choose: 'Submit this quotation',
+      cols: ['name', 'version', 'customer_id', 'value', 'dofa_tier_required', 'approval_state'],
+      domain: [['state', '=', 'draft'], ['approval_state', 'in', ['none', 'rejected', 'returned']]],
+      empty: 'No draft quotation waits for submission.'
+    },
+    saveAction: { method: 'action_submit', label: 'Submit for Approval', done: 'Submitted: routed by value to an approver other than the author (M63 inbox)', kwargs: { justification: 'dofa_justification' } },
+    sections: [
+      { title: 'Step 2 of 2: Business Justification',
+        note: 'BRU-QTE-06/07/09: routed by value band to someone other than the author; above BDT 25,000 a Branch Manager, above BDT 100,000 the Operations Director. Every line must be priced and the direct cost recorded.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'value', label: 'Value (excl. VAT)', readonly: true },
+          { name: 'margin_pct', label: 'Margin %', readonly: true },
+          { name: 'dofa_tier_required', label: 'Approval Tier Needed', readonly: true },
+          { name: 'dofa_justification', label: 'Business Justification (required above BDT 25,000)', type: 'text', readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-issue': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Issue to the Customer', newLabel: 'Issue a Quotation to the Customer', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the internally approved quotation',
+      search: 'Search quotation', choose: 'Issue this quotation',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'approval_state'],
+      domain: [['state', '=', 'approved']],
+      empty: 'No approved quotation waits to be issued.'
+    },
+    saveAction: { method: 'action_issue_on_channel', label: 'Issue', done: 'Issued: the delivery is recorded and the validity clock runs', kwargs: { channel: 'issue_channel', recipient: 'issue_recipient', delivery_ref: 'issue_ref' } },
+    sections: [
+      { title: 'Step 2 of 2: Channel',
+        note: 'FR-QTE-033: the channel the customer receives it on. The terms issued are exactly the terms approved; past its validity date it cannot be issued (revise it).',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'issue_channel', label: 'Deliver By', required: true, readonly: true },
+          { name: 'issue_recipient', label: 'Delivered To (empty: the customer\'s mobile or email)', readonly: true },
+          { name: 'issue_ref', label: 'Message / Delivery Ref', readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-delivery': {
+    kind: 'model_form', model: 'fix.quotation.delivery',
+    title: 'Quotation Delivery', newLabel: 'Record a Delivery / Re-send', back: 'M36-deliveries',
+    sections: [
+      { title: 'Delivery',
+        note: 'FR-QTE-039: a re-send, a delivery receipt or the customer opening it. What was sent, when, how and to whom is fixed once saved; delivery, first view and views are updated as they happen.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation (with the customer)', required: true, domain: [['state', '=', 'sent']] },
+          { name: 'channel', label: 'Channel', required: true },
+          { name: 'recipient', label: 'Sent To (empty: the customer\'s mobile or email)' },
+          { name: 'delivery_ref', label: 'Message / Delivery Ref' },
+          { name: 'sent_at', label: 'Sent At', required: true },
+          { name: 'delivered_at', label: 'Delivered At' },
+          { name: 'first_viewed_at', label: 'First Viewed At' },
+          { name: 'view_count', label: 'Views' },
+          { name: 'note', label: 'Note' },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-otp': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Accept by Customer Code', newLabel: 'Accept by Customer Code', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the quotation the customer is accepting',
+      search: 'Search quotation', choose: 'Enter the customer\'s code',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'delivery_channel'],
+      domain: [['state', '=', 'sent']],
+      empty: 'No quotation is with a customer.'
+    },
+    saveAction: { method: 'action_verify_acceptance_otp', label: 'Verify and Accept', done: 'Accepted: the evidence pack is sealed and the hand-off has run', kwargs: { otp: 'acceptance_code_entry' } },
+    sections: [
+      { title: 'Step 2 of 2: The Code the Customer Reads Out',
+        note: 'FR-QTE-037/042: first press Send Acceptance Code on Customer Approval Loop; the customer reads the code back (in person or on a recorded call). A wrong code is counted; too many burn it.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'acceptance_code_entry', label: 'Code the Customer Read Out', required: true, readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-signed': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Record Signed Acceptance', newLabel: 'Record a Signed Acceptance', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the quotation the customer signed',
+      search: 'Search quotation', choose: 'Record its signed copy',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'esign_state'],
+      domain: [['state', '=', 'sent']],
+      empty: 'No quotation is with a customer.'
+    },
+    saveAction: { method: 'action_record_signed_acceptance', label: 'Record Acceptance', done: 'Accepted on the signed copy: the evidence pack is sealed', kwargs: { attachment_id: 'signed_attachment_id' } },
+    sections: [
+      { title: 'Step 2 of 2: The Customer\'s Signed Quotation',
+        note: 'FR-QTE-037/038: upload the signed copy (PDF or photo). It is recorded by someone other than the author, within validity, against the exact version approved; its checksum goes into the evidence hash. A provider e-signature arrives on its own signed callback.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'signed_attachment_id', label: 'Signed Quotation (scan or photo)', required: true, readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-decline': {
+    kind: 'model_form', model: 'fix.quotation',
+    title: 'Record a Customer Decline', newLabel: 'Record a Customer Decline', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the quotation the customer declined',
+      search: 'Search quotation', choose: 'Record the decline',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'estimate_id'],
+      domain: [['state', '=', 'sent']],
+      empty: 'No quotation is with a customer.'
+    },
+    saveAction: { method: 'action_decline', label: 'Record Decline', done: 'Declined: the reason is recorded; a repair order gets its return / collection task', kwargs: { code: 'decline_reason_code', reason: 'decline_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: Why the Customer Declined',
+        note: 'BRU-QTE-16: a reason from the governed list. BRU-QTE-12: a declined repair gives the service order a task to return or collect the device, with the diagnostic fee owed.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'estimate_id', label: 'Repair Estimate (M01)', readonly: true },
+          { name: 'decline_reason_code', label: 'Decline Reason (governed)', required: true, readonly: true },
+          { name: 'decline_reason', label: 'What the Customer Said', required: true, readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-counter-offer': {
+    lines: {
+      field: 'line_ids',
+      tab: 'lines',
+      title: 'Line Decisions (partial acceptance)',
+      fixedRows: true,
+      note: 'Filled with the quotation\'s priced lines when a partial acceptance is saved: mark the lines the customer declined. A counter-offer on price has no lines.',
+      fields: [
+        { name: 'quotation_line_id', label: 'Quoted Line', readonly: true },
+        { name: 'quantity', label: 'Qty', readonly: true },
+        { name: 'subtotal', label: 'Amount excl. VAT', readonly: true },
+        { name: 'decision', label: 'Customer\'s Decision' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.quotation.counter',
+    title: 'Counter-Offer / Partial Acceptance', newLabel: 'Record a Counter-Offer / Partial Acceptance', back: 'M36-counters',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'request', label: '1. Customer\'s Request', bn: '১. গ্রাহকের অনুরোধ', icon: '💬', badge: '7' },
+      { id: 'lines', label: '2. Line Decisions', bn: '২. লাইনভিত্তিক সিদ্ধান্ত', icon: '🧾', badge: '4' },
+      { id: 'decision', label: '3. Decision', bn: '৩. সিদ্ধান্ত', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      { tab: 'request', title: 'What the Customer Asked For',
+        note: 'FR-QTE-036: written down as a structured request, not left in a phone call. It is decided by someone other than the person who took it down. For a quotation built from an M01 repair estimate, the change goes to the estimate (Customer Counter on Internal Estimates).',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation (with the customer)', required: true, domain: [['state', '=', 'sent'], ['estimate_id', '=', false]] },
+          { name: 'kind', label: 'Kind', required: true },
+          { name: 'channel', label: 'Received By', required: true },
+          { name: 'customer_request', label: 'What the Customer Asked For', type: 'text', required: true },
+          { name: 'requested_value', label: 'Customer\'s Proposed Price (excl. VAT, optional)' },
+          { name: 'evidence_ref', label: 'Evidence (call recording / message ref)' },
+          { name: 'quoted_value', label: 'Quoted Value (excl. VAT)', readonly: true }
+        ] },
+      { tab: 'decision', title: 'Decision',
+        note: 'Revise makes the next draft version on these terms (declined lines removed, the proposed price as an overall discount); it then takes the value-band approval and is issued and accepted like any version.',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'accepted_value', label: 'Accepted Lines (excl. VAT)', readonly: true },
+          { name: 'recorded_by_id', label: 'Taken Down By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true },
+          { name: 'revised_quotation_id', label: 'Revised Version', readonly: true }
+        ] }
+    ]
+  },
+  'M36-form-counter-decide': {
+    kind: 'model_form', model: 'fix.quotation.counter',
+    title: 'Decide a Counter-Offer', newLabel: 'Decide a Counter-Offer', back: 'M36-counters',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the counter-offer awaiting its decision',
+      search: 'Search counter-offer', choose: 'Decide this counter-offer',
+      cols: ['name', 'customer_id', 'kind', 'quoted_value', 'requested_value', 'recorded_by_id'],
+      domain: [['state', '=', 'requested']],
+      empty: 'No counter-offer awaits a decision.'
+    },
+    saveAction: { method: 'action_decide', label: 'Record Decision', done: 'Decided: a revision is a new draft version on Customer Quotations', kwargs: { decision: 'decision_choice', note: 'decision_note' } },
+    sections: [
+      { title: 'Step 2 of 2: The Decision',
+        note: 'Not by the person who took the counter down. Revise: the next version is drafted on the customer\'s terms and goes through internal approval. Reject: the quotation stands as issued; say why.',
+        fields: [
+          { name: 'name', label: 'Counter-Offer', readonly: true },
+          { name: 'customer_request', label: 'What the Customer Asked For', readonly: true },
+          { name: 'quoted_value', label: 'Quoted Value (excl. VAT)', readonly: true },
+          { name: 'requested_value', label: 'Customer\'s Proposed Price', readonly: true },
+          { name: 'accepted_value', label: 'Accepted Lines (excl. VAT)', readonly: true },
+          { name: 'decision_choice', label: 'Decision', required: true, readonly: true },
+          { name: 'decision_note', label: 'Decision Note (required to reject)', readonly: true }
+        ] }
+    ]
+  },
   'M36-form-tender': {
     lines: {
       field: 'requirement_ids',
@@ -686,7 +983,7 @@ export const SCREENS = {
    * whitelist in a02/writable.py (the generator unions every form on a
    * model); removing it is an A02 change. */
   'M36-form-counter': { kind: 'model_form', model: 'fix.counter.sale',
-    title: 'Counter-Offer', back: 'M36-versions',
+    title: 'Counter Sale (walk-in, M04)', back: 'M36-versions',
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -857,20 +1154,50 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M36:Estimate': 'fix.estimate',
   'M36:Quotation (versioned)': 'fix.quotation',
-  'M36:Tender Bid': 'fix.tender'
+  'M36:Revise a Quotation': 'fix.quotation',
+  'M36:Submit for Internal Approval': 'fix.quotation',
+  'M36:Issue to the Customer': 'fix.quotation',
+  'M36:Quotation Delivery': 'fix.quotation.delivery',
+  'M36:Accept by Customer Code': 'fix.quotation',
+  'M36:Record Signed Acceptance': 'fix.quotation',
+  'M36:Counter-Offer / Partial Acceptance': 'fix.quotation.counter',
+  'M36:Decide a Counter-Offer': 'fix.quotation.counter',
+  'M36:Record a Customer Decline': 'fix.quotation',
+  'M36:Tender Bid': 'fix.tender',
+  'M36:Bid Bond': 'fix.tender.bond',
+  'M36:Variation Order': 'fix.tender.variation',
+  'M36:Quotation Template': 'fix.quotation.template',
+  'M36:Document Template (bilingual)': 'fix.document.template'
 };
 
 export const FORM_CHIPS = {
   'M36:Estimate': 'M36-form-estimate',
   'M36:Quotation (versioned)': 'M36-record',
+  'M36:Revise a Quotation': 'M36-form-revise',
+  'M36:Submit for Internal Approval': 'M36-form-submit',
+  'M36:Issue to the Customer': 'M36-form-issue',
+  'M36:Quotation Delivery': 'M36-form-delivery',
+  'M36:Accept by Customer Code': 'M36-form-otp',
+  'M36:Record Signed Acceptance': 'M36-form-signed',
+  'M36:Counter-Offer / Partial Acceptance': 'M36-form-counter-offer',
+  'M36:Decide a Counter-Offer': 'M36-form-counter-decide',
+  'M36:Record a Customer Decline': 'M36-form-decline',
   'M36:Tender Bid': 'M36-form-tender',
+  'M36:Bid Bond': 'M36-form-bond',
+  'M36:Variation Order': 'M36-form-variation',
+  'M36:Quotation Template': 'M36-form-template',
+  'M36:Document Template (bilingual)': 'M24-form-template',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
     'fix.quotation': 'M36-record',
     'fix.tender': 'M36-form-tender',
     'fix.tender.bond': 'M36-form-bond',
     'fix.quote.review': 'M36-form-review',
-    'fix.tender.variation': 'M36-form-variation'
+    'fix.tender.variation': 'M36-form-variation',
+    'fix.quotation.template': 'M36-form-template',
+    'fix.quotation.delivery': 'M36-form-delivery',
+    'fix.quotation.counter': 'M36-form-counter-offer',
+    'fix.document.template': 'M24-form-template'
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
@@ -878,7 +1205,12 @@ export const FORM_CHIPS = {
     'M36-billing-quotes': 'M36-billing',
     'M36-templates': 'M36-form-template',
     'M36-versions': 'M36-record',
-    'M36-loop': 'M36-form-review',
+    'M36-loop': 'M36-record',
+    'M36-internal': 'M36-form-review',
+    'M36-pending': 'M36-record',
+    'M36-deliveries': 'M36-form-delivery',
+    'M36-counters': 'M36-form-counter-offer',
+    'M36-doc-templates': 'M24-form-template',
     'M36-declined': 'M36-record',
     'M36-tenders': 'M36-form-tender',
     'M36-boq': 'M36-form-boq',
