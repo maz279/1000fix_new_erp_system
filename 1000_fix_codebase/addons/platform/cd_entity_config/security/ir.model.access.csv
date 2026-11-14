@@ -58,3 +58,13 @@ access_fix_dofa_ladder,fix.dofa.ladder,model_fix_dofa_ladder,base.group_user,1,0
 access_fix_dofa_ladder_mgr,fix.dofa.ladder ruling,model_fix_dofa_ladder,cd_entity_config.group_dofa_tier_4,1,1,1,1
 access_fix_dofa_threshold,fix.dofa.threshold,model_fix_dofa_threshold,base.group_user,1,0,0,0
 access_fix_dofa_threshold_mgr,fix.dofa.threshold ruling,model_fix_dofa_threshold,cd_entity_config.group_dofa_tier_4,1,1,1,1
+access_fix_scheduled_job_platform_admin,fix.scheduled.job platform admin,model_fix_scheduled_job,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_scheduled_job_system,fix.scheduled.job system,model_fix_scheduled_job,base.group_system,1,1,1,1
+access_fix_config_parameter_platform_admin,fix.config.parameter platform admin,model_fix_config_parameter,cd_entity_config.group_platform_admin,1,0,0,0
+access_fix_config_parameter_system,fix.config.parameter system,model_fix_config_parameter,base.group_system,1,1,1,1
+access_fix_config_change_platform_admin,fix.config.change platform admin,model_fix_config_change,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_config_change_system,fix.config.change system,model_fix_config_change,base.group_system,1,1,1,0
+access_fix_backup_verification_platform_admin,fix.backup.verification platform admin,model_fix_backup_verification,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_backup_verification_system,fix.backup.verification system,model_fix_backup_verification,base.group_system,1,1,1,0
+access_fix_dr_drill_platform_admin,fix.dr.drill platform admin,model_fix_dr_drill,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_dr_drill_system,fix.dr.drill system,model_fix_dr_drill,base.group_system,1,1,1,0

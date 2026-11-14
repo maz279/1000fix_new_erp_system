@@ -68,6 +68,25 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
+    # M30 capture audit (2026-11-14): the operational registers of spec §10.1.
+    # Each is Platform Admin only by ACL; the models enforce the second person.
+    "fix.scheduled.job": {"order": "name", "limit": 300, "actions": set()},
+    "fix.config.parameter": {"order": "key", "limit": 300, "actions": set()},
+    "fix.config.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_apply", "action_reject", "action_rollback"},
+    },
+    "fix.backup.verification": {
+        "order": "restore_tested_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.dr.drill": {
+        "order": "drill_date desc, id desc",
+        "limit": 100,
+        "actions": {"action_sign_off"},
+    },
 }
 
 # A12 R4: what a workspace form may set through /p03/model/write on each M30
@@ -175,6 +194,58 @@ WRITABLE = {
         "threshold_ids",
     ),
     "fix.dofa.threshold": ("ladder_id", "upper_bound", "tier", "note"),
+    # M30 capture audit (2026-11-14). The run state of a job is read from its
+    # scheduled action; a change's state, previous value and stamps move only
+    # through apply / reject / roll back; a drill's sign-off only through its action.
+    "fix.scheduled.job": (
+        "name",
+        "cron_id",
+        "owning_module",
+        "owner_id",
+        "expected_duration_min",
+        "sla_minutes",
+        "concurrent_safe",
+        "failure_impact",
+        "failure_note",
+        "runbook_ref",
+        "active",
+    ),
+    # Registering a key is a system-administrator decision (model-side check).
+    "fix.config.parameter": (
+        "key",
+        "description",
+        "value_type",
+        "min_value",
+        "max_value",
+        "allowed_values",
+        "default_value",
+        "owning_module",
+        "business_impact",
+        "active",
+    ),
+    "fix.config.change": ("parameter_id", "new_value", "reason", "change_reference"),
+    "fix.backup.verification": (
+        "backup_ref",
+        "backup_type",
+        "source_environment_id",
+        "restored_into_id",
+        "taken_at",
+        "restore_tested_at",
+        "restore_duration_min",
+        "result",
+        "evidence",
+        "note",
+    ),
+    "fix.dr.drill": (
+        "drill_date",
+        "scenario",
+        "scope",
+        "environment_id",
+        "rpo_achieved_min",
+        "rto_achieved_min",
+        "issues_found",
+        "actions",
+    ),
 }
 
 
@@ -396,6 +467,7 @@ def platform_health(env, date_from=None, date_to=None, **params):
             "detail": ", ".join(sorted(set(failures.mapped("failure_reason")))[:3]) or "-",
         },
     ]
+    rows += _registry_signals(env, crons)
     return _pack(
         "Platform Health Console - measured job and load state",
         ["signal", "value", "detail"],
@@ -407,6 +479,73 @@ def platform_health(env, date_from=None, date_to=None, **params):
         ],
         empty="No platform signals.",
     )
+
+
+def _registry_signals(env, crons):
+    """M30 capture audit (2026-11-14): what the job, change and continuity
+    registers measure. Read as the caller; a register the caller cannot read
+    is left out rather than refused, so the console still renders."""
+    rows = []
+
+    def _readable(model):
+        # absent until cd_entity_config is upgraded; unreadable for non-admins
+        return model in env and env[model].has_access("read")
+
+    if _readable("fix.scheduled.job"):
+        jobs = env["fix.scheduled.job"].search([])
+        registered = set(jobs.mapped("cron_id").ids)
+        active = crons.filtered("active")
+        missed = jobs.filtered(lambda j: j.run_state == "missed")
+        rows += [
+            {
+                "signal": "Active jobs with no registration (BRU-ADM-11)",
+                "value": len([c for c in active if c.id not in registered]),
+                "detail": "%d of %d active jobs registered"
+                % (len([c for c in active if c.id in registered]), len(active)),
+            },
+            {
+                "signal": "Registered jobs that missed a run (T-09)",
+                "value": len(missed),
+                "detail": ", ".join(missed.mapped("name")[:3]) or "-",
+            },
+        ]
+    if _readable("fix.config.change"):
+        Change = env["fix.config.change"]
+        rows.append(
+            {
+                "signal": "Configuration changes awaiting a second person",
+                "value": Change.search_count([("state", "=", "proposed")]),
+                "detail": "%d applied, %d rolled back"
+                % (
+                    Change.search_count([("state", "=", "applied")]),
+                    Change.search_count([("state", "=", "rolled_back")]),
+                ),
+            }
+        )
+    if _readable("fix.backup.verification"):
+        Test = env["fix.backup.verification"]
+        passed = Test.search([("result", "=", "pass")], limit=1)
+        age = (datetime.datetime.now() - passed.restore_tested_at).days if passed else None
+        rows.append(
+            {
+                "signal": "Days since the last passed restore test (weekly, NFR-052)",
+                "value": age if age is not None else "never",
+                "detail": passed.name if passed else "no restore test on record",
+            }
+        )
+    if _readable("fix.dr.drill"):
+        Drill = env["fix.dr.drill"]
+        since = datetime.date.today() - datetime.timedelta(days=365)
+        drills = Drill.search([("state", "=", "signed_off"), ("drill_date", ">=", since)])
+        rows.append(
+            {
+                "signal": "DR drills signed off in 12 months (2 required, NFR-051)",
+                "value": len(drills),
+                "detail": "%d met both RPO and RTO"
+                % len(drills.filtered(lambda d: d.rpo_met and d.rto_met)),
+            }
+        )
+    return rows
 
 
 def job_success_rate(env, date_from=None, date_to=None, **params):
@@ -702,4 +841,20 @@ def kpis(env):
         "announcements_live": len(
             announcements.filtered(lambda a: not a.expires_on or a.expires_on >= today)
         ),
+        **_admin_kpis(env),
     }
+
+
+def _admin_kpis(env):
+    """Platform Admin tiles (M30 capture audit): empty for a caller who cannot
+    read the registers, so the other tiles still load."""
+    out = {}
+    if "fix.config.change" in env and env["fix.config.change"].has_access("read"):
+        out["config_changes_pending"] = env["fix.config.change"].search_count(
+            [("state", "=", "proposed")]
+        )
+    if "fix.scheduled.job" in env and env["fix.scheduled.job"].has_access("read"):
+        out["jobs_missed"] = len(
+            env["fix.scheduled.job"].search([]).filtered(lambda j: j.run_state == "missed")
+        )
+    return out

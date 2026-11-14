@@ -8,14 +8,34 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_backup_verification_company" model="ir.rule">
+        <field name="name">fix.backup.verification: allowed companies</field>
+        <field name="model_id" ref="model_fix_backup_verification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_branch_company" model="ir.rule">
         <field name="name">fix.branch: allowed companies</field>
         <field name="model_id" ref="model_fix_branch"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_config_change_company" model="ir.rule">
+        <field name="name">fix.config.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_config_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_config_parameter_company" model="ir.rule">
+        <field name="name">fix.config.parameter: allowed companies</field>
+        <field name="model_id" ref="model_fix_config_parameter"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_dofa_ladder_company" model="ir.rule">
         <field name="name">fix.dofa.ladder: allowed companies</field>
         <field name="model_id" ref="model_fix_dofa_ladder"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_dr_drill_company" model="ir.rule">
+        <field name="name">fix.dr.drill: allowed companies</field>
+        <field name="model_id" ref="model_fix_dr_drill"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_entity_company" model="ir.rule">
@@ -87,6 +107,11 @@
     <record id="rule_fix_platform_release_company" model="ir.rule">
         <field name="name">fix.platform.release: allowed companies</field>
         <field name="model_id" ref="model_fix_platform_release"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_scheduled_job_company" model="ir.rule">
+        <field name="name">fix.scheduled.job: allowed companies</field>
+        <field name="model_id" ref="model_fix_scheduled_job"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_stamp_duty_schedule_company" model="ir.rule">

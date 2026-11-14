@@ -1,27 +1,41 @@
 /** @odoo-module **/
 /* A12 · Platform & Technology — M30 Platform Administration.
- * Registry-faithful: 13 screens (model grids + packs) / 4 reports / 4 forms / freg 64. */
+ * Registry-faithful: 13 screens (model grids + packs) / 4 reports / 4 forms / freg 64.
+ *
+ * Capture audit (2026-11-14): every sub-module page names what it captures.
+ * Before it, four of the six pages offered one capture for several lists
+ * (zones, holidays, environments, releases, ladder bands and notification
+ * configs could not be captured from their page), nine screens sat on no page,
+ * "Backup & DR" listed CUSTOMER backup plans (M06's), and the job and
+ * parameter "registries" were read-only Odoo tables: the spec's job registry,
+ * configuration change record, restore tests and DR drills (§10.1) did not
+ * exist. They are now models in cd_entity_config (fix_platform_ops3.py). */
 
 export const MODULE = {
   area: 'A12', code: 'M30', en: 'Platform Administration', title: 'M30 · Platform Administration',
   bn: 'প্ল্যাটফর্ম প্রশাসন', icon: '🛠️',
-  desc: 'Branch registry and entity structure, configuration parameter and job inventories, feature flag rollout, working calendars and holidays, zones, and platform announcements. The config and job screens are inventories: no config registry, promotion or job registry is built yet.',
+  desc: 'Branch registry and entity structure, the technical parameter registry with two-person configuration changes, the scheduled job registry, feature flag rollout, working calendars and holidays, zones, platform announcements, and restore-test and DR drill evidence. Configuration changes apply to this environment only: promotion through an environment ladder is not built.',
   kpis: [
     { l: 'Rulings Awaiting Countersignature', m: 'dofa_awaiting_countersign' },
     { l: 'Branches Active', m: 'branches_active' },
     { l: 'Branches Total', m: 'branches' },
     { l: 'Flags Enabled', m: 'flags_on' },
     { l: 'Flags Total', m: 'flags_total' },
-    { l: 'Announcements Live', m: 'announcements_live' }
+    { l: 'Announcements Live', m: 'announcements_live' },
+    { l: 'Config Changes Awaiting Apply', m: 'config_changes_pending' },
+    { l: 'Registered Jobs Missed', m: 'jobs_missed' }
   ],
   groups: [
     { en: 'Registry Completion', screens: [
       { id: 'M30-provisioning', en: 'Branch Provisioning (<1d)', bn: 'Branch Provisioning (<1d)', t: 'r' },
-      { id: 'M30-params', en: 'Parameter Registry (Inventory Only)', bn: 'Parameter Registry', t: 'g' },
-      { id: 'M30-jobs', en: 'Scheduled Job Registry (Inventory Only)', bn: 'Scheduled Job Registry', t: 'g' },
+      { id: 'M30-params', en: 'Parameter Registry', bn: 'প্যারামিটার রেজিস্ট্রি', t: 'g' },
+      { id: 'M30-config-changes', en: 'Configuration Changes', bn: 'কনফিগারেশন পরিবর্তন', t: 'g' },
+      { id: 'M30-jobs', en: 'Scheduled Job Registry', bn: 'নির্ধারিত জব রেজিস্ট্রি', t: 'g' },
+      { id: 'M30-crons', en: 'Scheduled Actions (Inventory)', bn: 'নির্ধারিত অ্যাকশন', t: 'g' },
       { id: 'M30-health', en: 'Platform Health Console', bn: 'Platform Health Console', t: 'r' },
       { id: 'M30-env', en: 'Environments', bn: 'Environments', t: 'g' },
-      { id: 'M30-backup', en: 'Backup & DR (Customer Plans)', bn: 'Backup & DR', t: 'g' },
+      { id: 'M30-backup', en: 'Backup Restore Tests', bn: 'ব্যাকআপ রিস্টোর পরীক্ষা', t: 'g' },
+      { id: 'M30-dr-drills', en: 'DR Drills', bn: 'ডিআর মহড়া', t: 'g' },
       { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' }
     ]},
     { en: 'Structure', screens: [
@@ -32,7 +46,7 @@ export const MODULE = {
       { id: 'M30-calendar-holidays', en: 'Calendar Holidays', bn: 'ক্যালেন্ডার ছুটি', t: 'g' }
     ]},
     { en: 'Configuration', screens: [
-      { id: 'M30-config', en: 'Config Parameters (Inventory Only)', bn: 'কনফিগ', t: 'g' },
+      { id: 'M30-config', en: 'Config Parameters (Inventory)', bn: 'কনফিগ', t: 'g' },
       { id: 'M30-flags', en: 'Feature Flags & Kill Switches', bn: 'ফিচার ফ্ল্যাগ', t: 'g' },
       { id: 'M30-drift', en: 'Config Drift Review (Inventory, No Drift Computed)', bn: 'ড্রিফট', t: 'r' }
     ]},
@@ -48,15 +62,18 @@ export const MODULE = {
     ]}
   ],
   reports: ['Branch Registry', 'Feature Flag Rollout', 'Config Parameter Inventory', 'Calendar Coverage', 'DOFA Coverage'],
-  forms: ['Branch', 'Feature Flag', 'Announcement', 'Authority Ladder'],
+  forms: ['Branch', 'Zone', 'Legal Entity', 'Feature Flag', 'Configuration Change', 'Registered Parameter', 'Scheduled Job', 'Environment',
+    'Working Calendar', 'Calendar Holiday', 'Announcement', 'Notification Configuration',
+    'Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
-    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry'], forms: ['Branch'] }],
-    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities', 'M30-env'], reports: [], forms: [] }],
-    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-config', 'M30-params', 'M30-jobs'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory'], forms: ['Feature Flag'] }],
-    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars'], reports: ['Calendar Coverage'], forms: [] }],
-    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'], reports: [], forms: ['Announcement'] }],
-    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-rulings', 'M30-drift', 'M30-release'], reports: ['DOFA Coverage', 'Config Parameter Inventory'], forms: ['Authority Ladder'] }]
+    // Each page names its own capture first, then every other record its lists show.
+    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry', 'Branch Provisioning Time'], forms: ['Branch', 'Zone'], create: 'module' }],
+    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities'], reports: [], forms: ['Legal Entity'], create: 'M30-form-entity' }],
+    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-params', 'M30-config-changes', 'M30-config', 'M30-jobs', 'M30-crons', 'M30-env'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory', 'Job Success Rate'], forms: ['Feature Flag', 'Configuration Change', 'Registered Parameter', 'Scheduled Job', 'Environment'], create: 'M30-form-flag' }],
+    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars', 'M30-calendar-holidays'], reports: ['Calendar Coverage'], forms: ['Working Calendar', 'Calendar Holiday'], create: 'M30-form-calendar' }],
+    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'], reports: [], forms: ['Announcement', 'Notification Configuration'], create: 'M30-form-announcement' }],
+    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-bands', 'M30-dofa-rulings', 'M30-release', 'M30-health', 'M30-backup', 'M30-dr-drills', 'M30-drift'], reports: ['DOFA Coverage', 'Config Parameter Inventory', 'Platform Health'], forms: ['Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill'], create: 'M30-form-dofa-ladder' }]
   ] }
 };
 
@@ -268,8 +285,25 @@ export const SCREENS = {
 
   /* registry completion screens */
   'M30-provisioning': { kind: 'table_report', module: 'M30', report: 'branch_provisioning', title: 'Branch Provisioning (<1d)', period: false },
-  'M30-params': { kind: 'model_list', model: 'ir.config_parameter', create: false, cols: ['key', 'create_date', 'write_date'] },
-  'M30-jobs': { kind: 'model_list', model: 'ir.cron', create: false, cols: ['name', 'active', 'interval_number', 'nextcall'] },
+  // The registry of technical settings the workspace may change, and the changes
+  // themselves. A system administrator registers a key; a Platform Admin
+  // proposes a change citing its approved change record and a SECOND Platform
+  // Admin applies it (BRU-ADM-02). The previous value is kept for roll-back.
+  'M30-params': { kind: 'model_list', model: 'fix.config.parameter',
+    cols: ['key', 'description', 'value_type', 'current_value', 'default_value', 'owning_module', 'active'],
+    note: 'Only a key registered here can be changed from the workspace, and only a system administrator registers one. Credentials never enter it.' },
+  'M30-config-changes': { kind: 'model_list', model: 'fix.config.change', stateField: 'state',
+    cols: ['name', 'key', 'new_value', 'previous_value', 'change_reference', 'proposed_by_id', 'applied_by_id', 'applied_on', 'state'],
+    actions: [
+      { m: 'action_apply', l: 'Apply (second person)' },
+      { m: 'action_reject', l: 'Reject / Withdraw', ask: 'Why is this change rejected or withdrawn?', kwarg: 'reason' },
+      { m: 'action_rollback', l: 'Roll Back', ask: 'Why is this change being rolled back?', kwarg: 'reason' }
+    ] },
+  // BRU-ADM-11: every job registered with an owner, an expected duration and a
+  // failure impact. Its run state is read from the scheduled action itself.
+  'M30-jobs': { kind: 'model_list', model: 'fix.scheduled.job',
+    cols: ['name', 'owning_module', 'owner_id', 'failure_impact', 'expected_duration_min', 'schedule', 'last_run', 'next_run', 'run_state'] },
+  'M30-crons': { kind: 'model_list', model: 'ir.cron', create: false, cols: ['name', 'active', 'interval_number', 'interval_type', 'lastcall', 'nextcall'] },
   'M30-health': { kind: 'table_report', module: 'M30', report: 'platform_health', title: 'Platform Health Console', period: false },
   'M30-env': { kind: 'model_list', model: 'fix.platform.environment', stateField: 'state', cols: ['name', 'kind', 'base_url', 'release_channel', 'data_residency', 'masking_state', 'state'],
     actions: [
@@ -278,7 +312,12 @@ export const SCREENS = {
       { m: 'action_take_offline', l: 'Take Offline', ask: 'Why is this environment going offline?', kwarg: 'reason' },
       { m: 'action_record_masking', l: 'Record Masking Evidence', ask: 'The run, ticket or report that shows personal data is masked', kwarg: 'evidence' }
     ] },
-  'M30-backup': { kind: 'model_list', model: 'fix.data.backup.plan', create: false, cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'rto_hours'] },
+  // Platform continuity evidence (BRU-ADM-17/18). Customer backup plans are M06's.
+  'M30-backup': { kind: 'model_list', model: 'fix.backup.verification',
+    cols: ['name', 'backup_type', 'backup_ref', 'taken_at', 'restore_tested_at', 'restore_duration_min', 'result', 'tested_by_id'] },
+  'M30-dr-drills': { kind: 'model_list', model: 'fix.dr.drill', stateField: 'state',
+    cols: ['name', 'drill_date', 'scenario', 'scope', 'rpo_achieved_min', 'rpo_met', 'rto_achieved_min', 'rto_met', 'signed_off_by_id', 'state'],
+    actions: [{ m: 'action_sign_off', l: 'Sign Off (second person)' }] },
   'M30-release': { kind: 'model_list', model: 'fix.platform.release', stateField: 'state', cols: ['version', 'name', 'environment_id', 'itsm_change_id', 'planned_on', 'released_on', 'released_by_id', 'state'],
     actions: [
       { m: 'action_start_test', l: 'Start Test' },
@@ -351,6 +390,142 @@ export const SCREENS = {
   },
 
 
+  /* ===== capture audit forms (2026-11-14) ===== */
+  'M30-form-param': {
+    kind: 'model_form',
+    model: 'fix.config.parameter',
+    title: 'Registered Parameter',
+    back: 'M30-params',
+    sections: [
+      { title: 'Parameter', note: 'Registering a key lets Platform Admins change it through a two-person change record. Only a system administrator registers or edits a key, and a key that looks like a credential is refused. A business threshold (a discount ceiling, an approval limit) belongs to master data (M64), not here.',
+        fields: [
+          { name: 'key', required: true, label: 'Key' },
+          { name: 'description', required: true, label: 'What It Controls' },
+          { name: 'value_type', required: true, label: 'Type' },
+          { name: 'min_value', label: 'Minimum (0 = none)' },
+          { name: 'max_value', label: 'Maximum (0 = none)' },
+          { name: 'allowed_values', label: 'Allowed Values (text, comma-separated)' },
+          { name: 'default_value', label: 'Default' },
+          { name: 'owning_module', label: 'Owning Module' },
+          { name: 'business_impact', required: true, label: 'Impact If Wrong' },
+          { name: 'current_value', readonly: true, label: 'Current Value' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M30-form-config-change': {
+    kind: 'model_form',
+    model: 'fix.config.change',
+    title: 'Configuration Change',
+    newLabel: 'Propose a Configuration Change',
+    back: 'M30-config-changes',
+    status: { field: 'state', labels: { proposed: 'Proposed', applied: 'Applied', rejected: 'Rejected', rolled_back: 'Rolled Back' } },
+    sections: [
+      { title: 'Change', note: 'The value is checked against the parameter type and range when you save. A second Platform Admin applies it on the Configuration Changes list; it takes effect at once, without a restart, and the previous value is kept so one action rolls it back. Each step is on the audit trail (key and change number, never the value).',
+        fields: [
+          { name: 'parameter_id', required: true, label: 'Parameter' },
+          { name: 'new_value', required: true, label: 'New Value' },
+          { name: 'change_reference', required: true, label: 'Approved Change Record (M66)' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' }
+        ] },
+      { title: 'Record', fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'previous_value', readonly: true, label: 'Previous Value' },
+          { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
+          { name: 'applied_by_id', readonly: true, label: 'Applied By' },
+          { name: 'applied_on', readonly: true, label: 'Applied On' },
+          { name: 'closed_by_id', readonly: true, label: 'Rejected / Rolled Back By' },
+          { name: 'close_reason', readonly: true, label: 'Rejection / Rollback Reason' }
+        ] }
+    ]
+  },
+  'M30-form-job': {
+    kind: 'model_form',
+    model: 'fix.scheduled.job',
+    title: 'Scheduled Job',
+    newLabel: 'Register a Scheduled Job',
+    back: 'M30-jobs',
+    tabs: [
+      { id: 'job', label: '1. Registration', bn: '১. নিবন্ধন', icon: '🗓️' },
+      { id: 'run', label: '2. Run State', bn: '২. চলার অবস্থা', icon: '⏱️' }
+    ],
+    sections: [
+      { tab: 'job', title: 'Registration', note: 'Every scheduled job needs an owner, an expected duration and a failure impact. Registering a job does not change its schedule. A job whose next run is overdue by more than its expected duration shows as Missed Run.',
+        fields: [
+          { name: 'cron_id', required: true, label: 'Scheduled Action' },
+          { name: 'name', label: 'Job Name (blank: the action name)' },
+          { name: 'owning_module', label: 'Owning Module' },
+          { name: 'owner_id', required: true, label: 'Job Owner' },
+          { name: 'expected_duration_min', required: true, label: 'Expected Duration (min)' },
+          { name: 'sla_minutes', label: 'SLA (min)' },
+          { name: 'concurrent_safe', label: 'Concurrent-Safe' },
+          { name: 'failure_impact', required: true, label: 'Failure Impact' },
+          { name: 'failure_note', label: 'What Breaks If It Fails' },
+          { name: 'runbook_ref', label: 'Runbook' },
+          { name: 'active', label: 'Active' }
+        ] },
+      { tab: 'run', title: 'Run State', note: 'Read from the scheduled action itself.',
+        fields: [
+          { name: 'schedule', readonly: true, label: 'Schedule' },
+          { name: 'cron_active', readonly: true, label: 'Action Enabled' },
+          { name: 'last_run', readonly: true, label: 'Last Run' },
+          { name: 'next_run', readonly: true, label: 'Next Run' },
+          { name: 'run_state', readonly: true, label: 'Run State' }
+        ] }
+    ]
+  },
+  'M30-form-backup': {
+    kind: 'model_form',
+    model: 'fix.backup.verification',
+    title: 'Backup Restore Test',
+    newLabel: 'Record a Restore Test',
+    back: 'M30-backup',
+    sections: [
+      { title: 'Restore Test', note: 'Backups are restore-tested weekly; a backup that was never restored counts as no backup. Record the backup, where it was restored and the evidence. Once filed, only the note can change.',
+        fields: [
+          { name: 'backup_ref', required: true, label: 'Backup (snapshot or file)' },
+          { name: 'backup_type', required: true, label: 'Backup Type' },
+          { name: 'source_environment_id', label: 'Backed-Up Environment' },
+          { name: 'restored_into_id', label: 'Restored Into' },
+          { name: 'taken_at', required: true, label: 'Backup Taken' },
+          { name: 'restore_tested_at', required: true, label: 'Restore Tested' },
+          { name: 'restore_duration_min', label: 'Restore Duration (min)' },
+          { name: 'result', required: true, label: 'Result' },
+          { name: 'evidence', required: true, label: 'Evidence (log, ticket, report)' },
+          { name: 'note', type: 'text', label: 'Note' },
+          { name: 'tested_by_id', readonly: true, label: 'Tested By' }
+        ] }
+    ]
+  },
+  'M30-form-drill': {
+    kind: 'model_form',
+    model: 'fix.dr.drill',
+    title: 'DR Drill',
+    newLabel: 'Record a DR Drill',
+    back: 'M30-dr-drills',
+    status: { field: 'state', labels: { recorded: 'Recorded', signed_off: 'Signed Off' } },
+    sections: [
+      { title: 'Drill', note: 'Disaster recovery is exercised twice a year against an RPO of 15 minutes and an RTO of 2 hours. A second Platform Admin signs the result off on the DR Drills list; a drill that missed a target needs its issues recorded first. A signed-off drill is frozen.',
+        fields: [
+          { name: 'drill_date', required: true, label: 'Drill Date' },
+          { name: 'scenario', required: true, label: 'Scenario' },
+          { name: 'scope', required: true, label: 'Scope' },
+          { name: 'environment_id', label: 'DR Environment' },
+          { name: 'rpo_achieved_min', required: true, label: 'RPO Achieved (min)' },
+          { name: 'rto_achieved_min', required: true, label: 'RTO Achieved (min)' },
+          { name: 'issues_found', type: 'text', label: 'Issues Found' },
+          { name: 'actions', type: 'text', label: 'Follow-Up Actions' }
+        ] },
+      { title: 'Result', fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'rpo_met', readonly: true, label: 'RPO Met' },
+          { name: 'rto_met', readonly: true, label: 'RTO Met' },
+          { name: 'signed_off_by_id', readonly: true, label: 'Signed Off By' },
+          { name: 'signed_off_on', readonly: true, label: 'Signed Off On' }
+        ] }
+    ]
+  },
+
   /* ==================================================================
    * Approval authority (DOFA) — the ladders as governed configuration.
    * A ruling is two acts by two people: a Tier 4 holder proposes, the named
@@ -401,7 +576,8 @@ export const SCREENS = {
           { name: 'target_model', label: 'Governs Model', required: true },
           { name: 'basis', label: 'Basis', required: true },
           { name: 'version', readonly: true, label: 'Version' },
-          { name: 'matches_implementation', label: 'Matches Current Code (fact, not a ruling)' }
+          // computed from the code, never stored: shown, not typed
+          { name: 'matches_implementation', readonly: true, label: 'Matches Current Code (fact, not a ruling)' }
         ]
       },
       {
@@ -448,7 +624,8 @@ export const REPORT_ROUTES = {
   'M30:Branch Registry': 'M30-rpt-branches',
   'M30:Feature Flag Rollout': 'M30-rpt-flags',
   'M30:Config Parameter Inventory': 'M30-drift',
-  'M30:Calendar Coverage': 'M30-rpt-calendar'
+  'M30:Calendar Coverage': 'M30-rpt-calendar',
+  'M30:Platform Health': 'M30-health'
 };
 
 export const FORM_MODELS = {
@@ -460,7 +637,21 @@ export const FORM_MODELS = {
   // dialog that blocks the workspace. The registry screen + Config Drift
   // Review own the function (A12 sweep 2026-11-05).
   'M30:Feature Flag': 'fix.feature.flag',
-  'M30:Announcement': 'fix.platform.announcement'
+  'M30:Announcement': 'fix.platform.announcement',
+  'M30:Zone': 'fix.zone',
+  'M30:Legal Entity': 'fix.entity',
+  // the registry of governed keys, not ir.config_parameter itself
+  'M30:Registered Parameter': 'fix.config.parameter',
+  'M30:Configuration Change': 'fix.config.change',
+  'M30:Scheduled Job': 'fix.scheduled.job',
+  'M30:Environment': 'fix.platform.environment',
+  'M30:Working Calendar': 'fix.working.calendar',
+  'M30:Calendar Holiday': 'fix.working.calendar.holiday',
+  'M30:Notification Configuration': 'fix.notification.config',
+  'M30:Ladder Band': 'fix.dofa.threshold',
+  'M30:Release': 'fix.platform.release',
+  'M30:Backup Restore Test': 'fix.backup.verification',
+  'M30:DR Drill': 'fix.dr.drill'
 };
 
 export const FORM_CHIPS = {
@@ -468,6 +659,19 @@ export const FORM_CHIPS = {
   'M30:Branch': 'M30-form-branch',
   'M30:Feature Flag': 'M30-form-flag',
   'M30:Announcement': 'M30-form-announcement',
+  'M30:Zone': 'M30-form-zone',
+  'M30:Legal Entity': 'M30-form-entity',
+  'M30:Registered Parameter': 'M30-form-param',
+  'M30:Configuration Change': 'M30-form-config-change',
+  'M30:Scheduled Job': 'M30-form-job',
+  'M30:Environment': 'M30-form-env',
+  'M30:Working Calendar': 'M30-form-calendar',
+  'M30:Calendar Holiday': 'M30-form-holiday',
+  'M30:Notification Configuration': 'M30-form-notif',
+  'M30:Ladder Band': 'M30-form-dofa-band',
+  'M30:Release': 'M30-form-release',
+  'M30:Backup Restore Test': 'M30-form-backup',
+  'M30:DR Drill': 'M30-form-drill',
   'M30:__by_model__': {
     'fix.platform.environment': 'M30-form-env',
     'fix.platform.release': 'M30-form-release',
@@ -480,7 +684,12 @@ export const FORM_CHIPS = {
     'fix.working.calendar.holiday': 'M30-form-holiday',
     'fix.notification.config': 'M30-form-notif',
     'fix.dofa.ladder': 'M30-form-dofa-ladder',
-    'fix.dofa.threshold': 'M30-form-dofa-band'
+    'fix.dofa.threshold': 'M30-form-dofa-band',
+    'fix.config.parameter': 'M30-form-param',
+    'fix.config.change': 'M30-form-config-change',
+    'fix.scheduled.job': 'M30-form-job',
+    'fix.backup.verification': 'M30-form-backup',
+    'fix.dr.drill': 'M30-form-drill'
   },
   'M30:__by_screen__': {
     'M30-env': 'M30-form-env',
@@ -494,7 +703,12 @@ export const FORM_CHIPS = {
     'M30-calendar-holidays': 'M30-form-holiday',
     'M30-notif': 'M30-form-notif',
     'M30-dofa-ladders': 'M30-form-dofa-ladder',
-    'M30-dofa-bands': 'M30-form-dofa-band'
+    'M30-dofa-bands': 'M30-form-dofa-band',
+    'M30-params': 'M30-form-param',
+    'M30-config-changes': 'M30-form-config-change',
+    'M30-jobs': 'M30-form-job',
+    'M30-backup': 'M30-form-backup',
+    'M30-dr-drills': 'M30-form-drill'
   }
 };
 
