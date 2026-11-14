@@ -27,6 +27,7 @@ export const MODULE = {
       { id: 'M34-record', en: 'Complaint Record', bn: 'অভিযোগ রেকর্ড', t: 'f' },
       { id: 'M34-escalation', en: 'Severity & Escalation', bn: 'তীব্রতা ও এসক্যালেশন', t: 'r' },
       { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'r' },
+      { id: 'M34-taxonomy', en: 'Complaint Categories', bn: 'অভিযোগের শ্রেণি', t: 'g' },
       { id: 'M34-sla-rules', en: 'Complaint SLA Bindings', bn: 'অভিযোগ এসএলএ', t: 'g' }
     ]},
     { en: 'Closed Loop', screens: [
@@ -45,7 +46,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['CSAT by Branch & Technician', 'NPS Trend & Drivers', 'Complaint Category Pareto', 'Closed-Loop Effectiveness', 'Review Sentiment Summary'],
-  forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument', 'Distribution Throttle', 'Complaint SLA Binding', 'Customer Review'],
+  forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument', 'Distribution Throttle', 'Complaint Category', 'Complaint SLA Binding', 'Customer Review'],
   cross: ['M01 Service Orders', 'M20 Credit Notes', 'M23 QMS / NCR'],
   /* M34 capture audit (2026-11-13): each page captures what its functions
    * (FR-CXM-001..042) record. Before it, Survey Design offered "+ New Survey"
@@ -68,10 +69,14 @@ export const MODULE = {
     ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.survey.answer', cols: ['answered_at', 'survey_id', 'question_code', 'question_type', 'value_numeric', 'value_text'], screens: ['M34-survey-answers'], reports: [], forms: ['Survey', 'Survey Instrument'], create: 'M34-form-survey' }],
     ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id', 'due_date'], screens: ['M34-detractor', 'M34-rpt-loop'], reports: ['Closed-Loop Effectiveness'], forms: ['Detractor Follow-up'] }],
     ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'], reports: ['Complaint Category Pareto'], forms: ['Complaint'] }],
-    // FR-030/031: which SLA a complaint of each severity buys, per branch or
-    // unit. Bindings are saved by an administrator (the model's ACL), so they
-    // are a chip; complaints are re-categorised by Reassess on their list.
-    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint.sla.rule', cols: ['sequence', 'severity', 'branch_id', 'operating_unit_id', 'policy_id', 'active'], screens: ['M34-sla-rules', 'M34-complaints', 'M34-escalation', 'M34-rpt-pareto'], reports: ['Complaint Category Pareto'], forms: ['Complaint SLA Binding', 'Complaint'] }],
+    // FR-030/031: the maintained complaint taxonomy (type and sub-type, in
+    // English and Bengali, with the severity a category starts at) and which
+    // SLA a complaint of each severity buys, per branch or unit. Both are the
+    // Customer Service Manager's registers (spec section 13): the Contact
+    // Centre Supervisor group and the administrator save them. Second pass
+    // (2026-11-14): this page had no + button at all; the category was a
+    // fixed six-value list and the bindings were administrator-only.
+    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint.taxonomy', cols: ['code', 'complete_name', 'name_bn', 'category', 'default_severity', 'complaint_count', 'active'], screens: ['M34-taxonomy', 'M34-sla-rules', 'M34-complaints', 'M34-escalation', 'M34-rpt-pareto'], reports: ['Complaint Category Pareto'], forms: ['Complaint Category', 'Complaint SLA Binding', 'Complaint'], create: 'M34-form-complaint-taxonomy' }],
     ['7', 'Compensation & Goodwill', 6, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'state', 'approved_by', 'issued_at'], screens: ['M34-goodwill'], reports: [], forms: ['Goodwill Credit'], domain: [['reason_code', '=', 'goodwill']] }],
     // FR-039..042: the analytics are calculated; the one record a person
     // enters here is a review or testimonial (FR-040).
@@ -131,22 +136,35 @@ export const SCREENS = {
     // way to reach them was typing the state on the form (FR-CXM-022/024).
     actions: [
       { m: 'action_mark_contacted', l: 'Record Contact', ask: 'What was discussed with the customer', kwarg: 'note' },
-      { m: 'action_close_recovered', l: 'Mark Recovered' },
+      // Second pass (2026-11-14): both closes need a recorded contact, and a
+      // recovery closes only on what the customer said (BRU-CXM-03/04).
+      { m: 'action_close_recovered', l: 'Mark Recovered', ask: 'What the customer said to confirm they are satisfied', kwarg: 'confirmation' },
       { m: 'action_close_unrecovered', l: 'Close (Not Recovered)', ask: 'Why the customer could not be recovered', kwarg: 'reason' },
       { m: 'action_raise_complaint', l: 'Raise / Link Complaint' }
     ] },
   'M34-journey': { kind: 'table_report', module: 'M34', report: 'journey_measurement', title: 'Journey Measurement', period: false },
   'M34-voc': { kind: 'table_report', module: 'M34', report: 'voc_analytics', title: 'VoC Analytics', period: false },
   'M34-reviews': { kind: 'model_list', model: 'fix.cx.review', stateField: 'state',
-    cols: ['name', 'source', 'customer_id', 'rating', 'state', 'reviewed_at'] },
+    cols: ['name', 'source', 'customer_id', 'rating', 'state', 'publication_consent', 'reviewed_at'],
+    note: 'A review is published to the website only after the customer\'s consent is recorded (Record Consent, then Publish).',
+    // Second pass (2026-11-14): the state was typed on the form, so a review
+    // could be "Published" with no consent (BRU-CXM-13). FR-CXM-040 also
+    // asks for moderation and a reply.
+    actions: [
+      { m: 'action_record_consent', l: 'Record Consent', ask: 'How the customer agreed to publication (call, SMS reply, signed form)', kwarg: 'evidence' },
+      { m: 'action_publish', l: 'Publish' },
+      { m: 'action_flag', l: 'Hold Back', ask: 'Why the review is held back', kwarg: 'reason' },
+      { m: 'action_reply', l: 'Reply', ask: 'Our reply to the customer', kwarg: 'reply' },
+      { m: 'action_withdraw_consent', l: 'Withdraw Consent', ask: 'What the customer asked for', kwarg: 'reason' }
+    ] },
 
   /* FR-CXM-030/031: the complaint SLA binding (severity x branch / unit ->
-   * SLA policy). Only an administrator saves one (model ACL), so the list
-   * offers no + New; the page carries the form as a chip. */
-  'M34-sla-rules': { kind: 'model_list', model: 'fix.complaint.sla.rule', create: false,
+   * SLA policy). Saved by the Contact Centre Supervisor group or the
+   * administrator (second pass, 2026-11-14: it was administrator-only). */
+  'M34-sla-rules': { kind: 'model_list', model: 'fix.complaint.sla.rule', create: true,
     cols: ['sequence', 'severity', 'branch_id', 'operating_unit_id', 'policy_id', 'active'],
     note: 'The most specific binding wins: branch, then operating unit, then the estate default for the severity. A complaint with no binding uses the M01 default SLA.',
-    empty: 'No bindings: every complaint uses the default SLA. An administrator adds one with Complaint SLA Binding.' },
+    empty: 'No bindings: every complaint uses the default SLA. A contact-centre supervisor adds one with Complaint SLA Binding.' },
   'M34-form-sla-rule': {
     kind: 'model_form',
     model: 'fix.complaint.sla.rule',
@@ -155,7 +173,7 @@ export const SCREENS = {
     sections: [
       {
         title: 'Which SLA a Complaint Buys',
-        note: 'Leave branch and unit empty for the estate default of that severity. Saving needs the administrator role.',
+        note: 'Leave branch and unit empty for the estate default of that severity. Saving needs the Contact Centre Supervisor or administrator role.',
         fields: [
           { name: 'severity', required: true, label: 'Complaint Severity' },
           { name: 'policy_id', required: true, label: 'SLA Policy' },
@@ -163,6 +181,42 @@ export const SCREENS = {
           { name: 'operating_unit_id', label: 'Operating Unit (optional)' },
           { name: 'sequence', label: 'Priority Order' },
           { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+  /* FR-CXM-030: the maintained complaint taxonomy (spec 10.1). */
+  'M34-taxonomy': { kind: 'model_list', model: 'fix.complaint.taxonomy', create: true,
+    cols: ['code', 'complete_name', 'name_bn', 'category', 'default_severity', 'complaint_count', 'active'],
+    note: 'The categories a complaint is filed under, in English and Bengali. A sub-category carries its parent\'s ISO category; a complaint filed under a category starts at no less than its default severity.',
+    empty: 'No complaint categories yet: complaints use the six fixed ISO categories until a supervisor adds them.' },
+  'M34-form-complaint-taxonomy': {
+    lines: { field: 'child_ids', title: 'Sub-categories', readonlyGrid: true,
+      note: 'A sub-category is added with its own Complaint Category form, naming this one as its parent.',
+      fields: [
+        { name: 'code', label: 'Code', readonly: true },
+        { name: 'name', label: 'Category (English)', readonly: true },
+        { name: 'name_bn', label: 'Category (Bengali)', readonly: true },
+        { name: 'default_severity', label: 'Starts At', readonly: true }
+      ] },
+    kind: 'model_form',
+    model: 'fix.complaint.taxonomy',
+    title: 'Complaint Category',
+    back: 'M34-taxonomy',
+    sections: [
+      {
+        title: 'Complaint Category',
+        note: 'Saved by a contact-centre supervisor or administrator. A sub-category takes its parent\'s ISO category.',
+        fields: [
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'name', required: true, label: 'Category (English)' },
+          { name: 'name_bn', required: true, label: 'Category (Bengali)' },
+          { name: 'parent_id', label: 'Parent Category (blank for a top-level one)' },
+          { name: 'category', label: 'ISO Category (a sub-category uses its parent\'s)' },
+          { name: 'default_severity', label: 'Starts At Severity (optional)' },
+          { name: 'description', label: 'When to Use It', type: 'text' },
+          { name: 'active', label: 'Active' },
+          { name: 'complaint_count', readonly: true, label: 'Complaints Filed' }
         ]
       }
     ]
@@ -267,8 +321,9 @@ export const SCREENS = {
         { name: 'customer_id', required: true, label: 'Aggrieved Customer Party' },
         { name: 'service_order_id', label: 'Linked Service Order Ref' },
         { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
+        { name: 'taxonomy_id', label: 'Complaint Category (maintained list; sets the ISO category)' },
         { name: 'category', required: true, label: 'ISO 10002 Complaint Category' },
-        { name: 'severity', required: true, label: 'Severity Level (Minor / Major / Critical)' },
+        { name: 'severity', required: true, label: 'Severity Level (a category may raise it at intake)' },
         { name: 'state', readonly: true, label: 'Complaint Workflow State' },
         { name: 'owner_id', readonly: true, label: 'Complaint Owner (Assess / Take Ownership / Assign)' },
         { name: 'assessed_at', readonly: true, label: 'Assessed At' },
@@ -414,9 +469,12 @@ export const SCREENS = {
       {
         tab: 'audit',
         title: 'Status & Completion',
-        note: 'The status moves only by the list actions: Record Contact, Mark Recovered, Close (Not Recovered).',
+        note: 'The status moves only by the list actions: Record Contact, then Mark Recovered (with what the customer said) or Close (Not Recovered).',
         fields: [
           { name: 'state', readonly: true, label: 'Recovery Status' },
+          { name: 'contacted_at', readonly: true, label: 'First Contact At' },
+          { name: 'customer_confirmation', readonly: true, label: 'Customer\'s Confirmation', type: 'text' },
+          { name: 'customer_confirmed_at', readonly: true, label: 'Customer Confirmed At' },
           { name: 'closed_at', readonly: true, label: 'Closed At' }
         ]
       }
@@ -460,7 +518,7 @@ export const SCREENS = {
     model: 'fix.cx.review',
     title: 'Customer Review',
     back: 'M34-reviews',
-    status: { field: 'state', labels: { new: 'New', published: 'Published', flagged: 'Flagged for review' } },
+    status: { field: 'state', labels: { new: 'New', published: 'Published', flagged: 'Held back' } },
     tabs: [
       { id: 'general', label: 'Review Origin', bn: 'রিভিউ উৎস', icon: '🌐' },
       { id: 'content', label: 'Review Content', bn: 'রিভিউ বিবরণ', icon: '💬' },
@@ -489,9 +547,15 @@ export const SCREENS = {
       },
       {
         tab: 'audit',
-        title: 'Moderation State',
+        title: 'Consent, Moderation & Reply',
+        note: 'These move by the list actions: Record Consent, Publish, Hold Back, Reply, Withdraw Consent. A review is never published without the customer\'s consent.',
         fields: [
-          { name: 'state', label: 'Publishing State' }
+          { name: 'state', readonly: true, label: 'Publishing State' },
+          { name: 'publication_consent', readonly: true, label: 'Customer Consented' },
+          { name: 'consent_evidence', readonly: true, label: 'How They Consented', type: 'text' },
+          { name: 'moderated_by_id', readonly: true, label: 'Moderated By' },
+          { name: 'moderation_note', readonly: true, label: 'Why Held Back', type: 'text' },
+          { name: 'reply_text', readonly: true, label: 'Our Reply', type: 'text' }
         ]
       }
     ]
@@ -592,6 +656,7 @@ export const FORM_MODELS = {
   'M34:Goodwill Credit': 'fix.credit.note',
   'M34:Detractor Follow-up': 'fix.cx.followup',
   'M34:Distribution Throttle': 'fix.cx.throttle',
+  'M34:Complaint Category': 'fix.complaint.taxonomy',
   'M34:Complaint SLA Binding': 'fix.complaint.sla.rule',
   'M34:Customer Review': 'fix.cx.review'
 };
@@ -603,6 +668,7 @@ export const FORM_CHIPS = {
   'M34:Goodwill Credit': 'M34-form-goodwill',
   'M34:Detractor Follow-up': 'M34-form-followup',
   'M34:Distribution Throttle': 'M34-form-throttle',
+  'M34:Complaint Category': 'M34-form-complaint-taxonomy',
   'M34:Complaint SLA Binding': 'M34-form-sla-rule',
   'M34:Customer Review': 'M34-form-review',
   'M34:__by_model__': {
@@ -613,7 +679,8 @@ export const FORM_CHIPS = {
     'fix.cx.followup': 'M34-form-followup',
     'fix.cx.throttle': 'M34-form-throttle',
     'fix.cx.review': 'M34-form-review',
-    'fix.complaint.sla.rule': 'M34-form-sla-rule'
+    'fix.complaint.sla.rule': 'M34-form-sla-rule',
+    'fix.complaint.taxonomy': 'M34-form-complaint-taxonomy'
   },
   'M34:__by_screen__': {
     'M34-survey-templates': 'M34-form-survey-template',
@@ -623,7 +690,8 @@ export const FORM_CHIPS = {
     'M34-detractor': 'M34-form-followup',
     'M34-throttle': 'M34-form-throttle',
     'M34-reviews': 'M34-form-review',
-    'M34-sla-rules': 'M34-form-sla-rule'
+    'M34-sla-rules': 'M34-form-sla-rule',
+    'M34-taxonomy': 'M34-form-complaint-taxonomy'
   }
 };
 

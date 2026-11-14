@@ -10,3 +10,7 @@ access_fix_survey_question,fix.survey.question,model_fix_survey_question,base.gr
 access_fix_survey_answer,fix.survey.answer,model_fix_survey_answer,base.group_user,1,1,1,0
 access_fix_complaint_sla_rule_user,fix.complaint.sla.rule.user,model_fix_complaint_sla_rule,base.group_user,1,0,0,0
 access_fix_complaint_sla_rule_admin,fix.complaint.sla.rule.admin,model_fix_complaint_sla_rule,base.group_system,1,1,1,1
+access_fix_complaint_sla_rule_sup,fix.complaint.sla.rule.supervisor,model_fix_complaint_sla_rule,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_complaint_taxonomy_user,fix.complaint.taxonomy.user,model_fix_complaint_taxonomy,base.group_user,1,0,0,0
+access_fix_complaint_taxonomy_sup,fix.complaint.taxonomy.supervisor,model_fix_complaint_taxonomy,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_complaint_taxonomy_admin,fix.complaint.taxonomy.admin,model_fix_complaint_taxonomy,base.group_system,1,1,1,1

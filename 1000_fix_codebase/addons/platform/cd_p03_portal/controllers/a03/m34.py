@@ -66,7 +66,15 @@ SURFACES = {
     "fix.cx.review": {
         "order": "reviewed_at desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # M34 second pass (2026-11-14): publication moves by these acts, and
+        # Publish refuses a review with no recorded consent (BRU-CXM-13).
+        "actions": {
+            "action_record_consent",
+            "action_publish",
+            "action_flag",
+            "action_reply",
+            "action_withdraw_consent",
+        },
     },
     # NOTE (A03 audit 2026-10-31): the misplaced M42 "fix.supplier.scorecard"
     # surface was removed — supplier performance is owned by M42 (A06); serving
@@ -93,11 +101,19 @@ SURFACES = {
     },
     # M34 capture audit (2026-11-13): the complaint SLA binding (severity x
     # branch / unit -> SLA policy) had no screen, so "Categorisation & SLA"
-    # could only offer a new complaint. Saving stays administrator-only
-    # (the model ACL); the workspace adds no permission of its own.
+    # could only offer a new complaint. Saved by the Contact Centre
+    # Supervisor group or the administrator (the model ACL, second pass
+    # 2026-11-14); the workspace adds no permission of its own.
     "fix.complaint.sla.rule": {
         "order": "sequence, id",
         "limit": 200,
+        "actions": set(),
+    },
+    # M34 second pass (2026-11-14): the maintained complaint taxonomy
+    # (FR-CXM-030). Same writers as the SLA binding.
+    "fix.complaint.taxonomy": {
+        "order": "category, complete_name, id",
+        "limit": 300,
         "actions": set(),
     },
 }
@@ -300,9 +316,13 @@ def nps_trend(env, date_from=None, date_to=None, **params):
 
 def complaint_pareto(env, date_from=None, date_to=None, **params):
     complaints = env["fix.complaint"].sudo().search([])
+    # By the maintained category where the complaint names one (FR-CXM-030),
+    # else by its ISO category.
+    iso = dict(env["fix.complaint"]._fields["category"].selection)
     counts = {}
     for c in complaints:
-        counts[c.category] = counts.get(c.category, 0) + 1
+        key = c.taxonomy_id.complete_name or iso.get(c.category, c.category)
+        counts[key] = counts.get(key, 0) + 1
     total = len(complaints)
     rows = []
     cumulative = 0
@@ -326,7 +346,11 @@ def complaint_pareto(env, date_from=None, date_to=None, **params):
             "cumulative_pct": "Cumulative %",
         },
         rows,
-        ["Cumulative % follows the Pareto order (largest category first)."],
+        [
+            "Cumulative % follows the Pareto order (largest category first).",
+            "A complaint filed under a maintained category counts there; others count "
+            "under their ISO category.",
+        ],
         totals={
             "category": "Total",
             "complaints": total,

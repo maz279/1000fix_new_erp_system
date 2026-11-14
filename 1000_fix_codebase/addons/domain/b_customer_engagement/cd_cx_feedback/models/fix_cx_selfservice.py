@@ -48,14 +48,57 @@ class FixCxFollowup(models.Model):
     )
     notes = fields.Text()
     closed_at = fields.Datetime(readonly=True)
+    contacted_at = fields.Datetime(readonly=True, string="First Contact At")
+    customer_confirmed_at = fields.Datetime(
+        readonly=True,
+        string="Customer Confirmed At",
+        help="BRU-CXM-04: when the customer acknowledged the recovery.",
+    )
+    customer_confirmation = fields.Text(
+        readonly=True,
+        string="Customer's Confirmation",
+        help="What the customer said when confirming they are satisfied.",
+    )
 
     def _compute_name(self):
         for rec in self:
             rec.name = "Follow-up · %s" % (rec.survey_id.service_order_id.name or rec.survey_id.id)
 
-    def action_close_recovered(self):
+    # M34 capture audit, second pass (14 Nov 2026): "Mark Recovered" closed a
+    # loop with no word from the customer, and "Close (Not Recovered)" closed
+    # one nobody had contacted. BRU-CXM-03 (a loop case cannot be dismissed
+    # without contact) and BRU-CXM-04 (it closes only on confirmed customer
+    # acknowledgement, never on internal action alone) are hard blocks.
+    def _require_contacted(self, act):
         for rec in self:
-            rec.write({"state": "recovered", "closed_at": fields.Datetime.now()})
+            if rec.state in ("recovered", "closed"):
+                raise UserError("This follow-up is already closed.")
+            if rec.state != "contacted":
+                raise UserError(
+                    "%s needs a recorded contact with the customer first (Record Contact): "
+                    "a detractor follow-up cannot be closed without contact." % act
+                )
+
+    def action_close_recovered(self, confirmation=None):
+        """FR-CXM-024: close on the customer's own acknowledgement."""
+        confirmation = (confirmation or "").strip()
+        if not confirmation:
+            raise UserError(
+                "Write what the customer said to confirm they are satisfied: a loop "
+                "closes on the customer's acknowledgement, not on internal action."
+            )
+        self._require_contacted("Mark Recovered")
+        now = fields.Datetime.now()
+        for rec in self:
+            rec.write(
+                {
+                    "state": "recovered",
+                    "closed_at": now,
+                    "customer_confirmed_at": now,
+                    "customer_confirmation": confirmation,
+                    "notes": rec._note_line("Recovered, customer confirmed", confirmation),
+                }
+            )
         return True
 
     # M34 capture audit (2026-11-13): 'contacted' and 'closed' had no
@@ -74,7 +117,13 @@ class FixCxFollowup(models.Model):
         for rec in self:
             if rec.state != "open":
                 raise UserError("Only an open follow-up can record a first contact.")
-            rec.write({"state": "contacted", "notes": rec._note_line("Contacted", note)})
+            rec.write(
+                {
+                    "state": "contacted",
+                    "contacted_at": fields.Datetime.now(),
+                    "notes": rec._note_line("Contacted", note),
+                }
+            )
         return True
 
     def action_close_unrecovered(self, reason=None):
@@ -82,9 +131,8 @@ class FixCxFollowup(models.Model):
         reason = (reason or "").strip()
         if not reason:
             raise UserError("Say why the customer could not be recovered.")
+        self._require_contacted("Close (Not Recovered)")
         for rec in self:
-            if rec.state in ("recovered", "closed"):
-                raise UserError("This follow-up is already closed.")
             rec.write(
                 {
                     "state": "closed",
@@ -259,3 +307,120 @@ class FixCxReview(models.Model):
         default="new",
     )
     reviewed_at = fields.Date(default=fields.Date.context_today, required=True)
+
+    # M34 capture audit, second pass (14 Nov 2026): the review form let anyone
+    # type "Published", and nothing recorded the customer's consent.
+    # BRU-CXM-13 (hard block): a review is published only with the customer's
+    # explicit consent. FR-CXM-040 also asks for moderation and a reply.
+    publication_consent = fields.Boolean(
+        readonly=True, string="Customer Consented to Publication", copy=False
+    )
+    consent_evidence = fields.Text(
+        readonly=True,
+        copy=False,
+        help="How and when the customer agreed (call, SMS reply, signed form).",
+    )
+    consent_recorded_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    consent_recorded_at = fields.Datetime(readonly=True, copy=False)
+    moderated_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    moderated_at = fields.Datetime(readonly=True, copy=False)
+    moderation_note = fields.Text(readonly=True, copy=False)
+    reply_text = fields.Text(readonly=True, copy=False, string="Our Reply")
+    replied_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    replied_at = fields.Datetime(readonly=True, copy=False)
+
+    @api.constrains("state", "publication_consent", "consent_evidence")
+    def _check_consent(self):
+        for rec in self:
+            if rec.state == "published" and not rec.publication_consent:
+                raise UserError(
+                    "Review '%s' cannot be published: the customer has not consented "
+                    "(Record Consent first)." % rec.name
+                )
+            if rec.publication_consent and not (rec.consent_evidence or "").strip():
+                raise UserError("Consent to publish needs a record of how the customer agreed.")
+
+    @api.constrains("rating")
+    def _check_rating(self):
+        for rec in self:
+            if not 1 <= (rec.rating or 0) <= 5:
+                raise UserError("A review rating is 1 to 5 stars.")
+
+    def action_record_consent(self, evidence=None):
+        evidence = (evidence or "").strip()
+        if not evidence:
+            raise UserError("Say how the customer agreed to publication (call, SMS reply, form).")
+        self.write(
+            {
+                "publication_consent": True,
+                "consent_evidence": evidence,
+                "consent_recorded_by_id": self.env.uid,
+                "consent_recorded_at": fields.Datetime.now(),
+            }
+        )
+        return True
+
+    def action_publish(self):
+        for rec in self:
+            if not rec.publication_consent:
+                raise UserError(
+                    "Review '%s' has no recorded customer consent: Record Consent first." % rec.name
+                )
+            if rec.state == "published":
+                continue
+            rec.write(
+                {
+                    "state": "published",
+                    "moderated_by_id": self.env.uid,
+                    "moderated_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_flag(self, reason=None):
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Say why the review is held back (abusive, fake, names staff...).")
+        self.write(
+            {
+                "state": "flagged",
+                "moderated_by_id": self.env.uid,
+                "moderated_at": fields.Datetime.now(),
+                "moderation_note": reason,
+            }
+        )
+        return True
+
+    def action_withdraw_consent(self, reason=None):
+        """The customer withdrew consent: the review comes off the website."""
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Record what the customer asked for.")
+        for rec in self:
+            rec.write(
+                {
+                    "state": "new" if rec.state == "published" else rec.state,
+                    "publication_consent": False,
+                    "consent_evidence": "%s\n[withdrawn %s by %s] %s"
+                    % (
+                        rec.consent_evidence or "",
+                        fields.Datetime.to_string(fields.Datetime.now()),
+                        self.env.user.name,
+                        reason,
+                    ),
+                }
+            )
+        return True
+
+    def action_reply(self, reply=None):
+        reply = (reply or "").strip()
+        if not reply:
+            raise UserError("Write the reply.")
+        self.write(
+            {
+                "reply_text": reply,
+                "replied_by_id": self.env.uid,
+                "replied_at": fields.Datetime.now(),
+            }
+        )
+        return True

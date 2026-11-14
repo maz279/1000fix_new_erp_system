@@ -501,6 +501,7 @@ WRITABLE = {
             "root_cause_5why",
             "service_order_id",
             "severity",
+            "taxonomy_id",
         }
     ),
     "fix.complaint.sla.rule": frozenset(
@@ -511,6 +512,18 @@ WRITABLE = {
             "policy_id",
             "sequence",
             "severity",
+        }
+    ),
+    "fix.complaint.taxonomy": frozenset(
+        {
+            "active",
+            "category",
+            "code",
+            "default_severity",
+            "description",
+            "name",
+            "name_bn",
+            "parent_id",
         }
     ),
     "fix.consent": frozenset(
@@ -598,7 +611,6 @@ WRITABLE = {
             "reviewed_at",
             "service_order_id",
             "source",
-            "state",
             "text",
         }
     ),

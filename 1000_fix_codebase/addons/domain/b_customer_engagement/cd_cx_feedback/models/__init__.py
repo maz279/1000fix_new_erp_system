@@ -11,3 +11,6 @@ from . import fix_complaint_lifecycle
 from . import fix_complaint_intake
 from . import fix_complaint_concession
 from . import fix_complaint_party_merge
+
+# M34 second pass: the maintained complaint taxonomy (extends fix.complaint).
+from . import fix_complaint_taxonomy

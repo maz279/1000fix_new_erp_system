@@ -12,6 +12,13 @@
 # "+ New Complaint"; the complaint SLA binding had no screen at all. VoC
 # Analytics captured nothing although reviews (FR-CXM-040) are entered there.
 #
+# Second pass (2026-11-14): Categorisation & SLA still showed no + button
+# (the bindings were administrator-only and the category was a fixed list,
+# although FR-CXM-030 asks for a maintained taxonomy the Customer Service
+# Manager owns). A loop closed as "Recovered" with no word from the customer
+# and "Not Recovered" with no contact (BRU-CXM-03/04), and a review could be
+# typed "Published" with no consent (BRU-CXM-13).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M02 guard's fixture).
 from __future__ import annotations
@@ -75,7 +82,7 @@ CAPTURE = {
     "3": "form",  # per-parameter answers, recorded on that response
     "4": "form",  # detractor follow-up (auto-raised; by hand for a call-back)
     "5": "form",  # complaint
-    "6": "form",  # complaint SLA binding (admin) chip; complaints reassessed on their list
+    "6": "form",  # complaint category (maintained taxonomy) + SLA binding
     "7": "form",  # goodwill credit note
     "8": "form",  # review / testimonial (FR-CXM-040); the analytics are calculated
 }
@@ -195,25 +202,47 @@ def test_detractor_states_move_by_actions(m34):
     } <= actions
 
 
-def test_sla_page_reaches_the_binding(m34):
+def test_categorisation_page_captures_a_complaint_category(m34):
+    """FR-CXM-030: the page's + button captures a node of the maintained
+    taxonomy; the SLA binding is its second capture (chip and list)."""
     sub = _sub(m34, "6")
-    assert sub["model"] == "fix.complaint.sla.rule"
-    assert "M34-sla-rules" in sub["screens"]
+    assert sub["model"] == "fix.complaint.taxonomy"
+    assert sub["create"] == "M34-form-complaint-taxonomy"
+    assert {"M34-taxonomy", "M34-sla-rules"} <= set(sub["screens"])
     chips = {f["f"]: f for f in sub["forms"]}
-    assert chips["Complaint SLA Binding"]["model"] == "fix.complaint.sla.rule"
-    assert chips["Complaint SLA Binding"]["opens"]
-    # administrator-only create (model ACL): no "+ New" a user's save would hit
-    assert sub["create"] is None
-    assert m34["screens"]["M34-sla-rules"]["create"] is False
+    for chip, model in (
+        ("Complaint Category", "fix.complaint.taxonomy"),
+        ("Complaint SLA Binding", "fix.complaint.sla.rule"),
+    ):
+        assert chips[chip]["model"] == model and chips[chip]["opens"], chip
+    assert m34["screens"]["M34-sla-rules"]["create"] is True
+    assert m34["screens"]["M34-taxonomy"]["create"] is True
+    assert "M34-taxonomy" in m34["nav"]
+    form = {f["name"]: f for f in m34["screens"]["M34-form-complaint-taxonomy"]["fields"]}
+    assert {"code", "name", "name_bn", "parent_id", "category", "default_severity"} <= set(form)
+    assert form["complaint_count"]["readonly"]
 
 
-def test_sla_binding_is_admin_create_only():
+def test_complaint_intake_names_the_maintained_category(m34):
+    field = _field(m34, "M34-record", "taxonomy_id")
+    assert not field["readonly"]
+
+
+@pytest.mark.parametrize("model", ["fix_complaint_sla_rule", "fix_complaint_taxonomy"])
+def test_csm_registers_are_written_by_supervisors_only(model):
+    """Spec section 13: the Customer Service Manager's registers. Every
+    internal user reads them; the supervisor group and the administrator
+    write them."""
     acl = (
         HERE.parents[2] / "domain/b_customer_engagement/cd_cx_feedback/security/ir.model.access.csv"
     ).read_text(encoding="utf-8")
-    rows = [r.split(",") for r in acl.splitlines() if "model_fix_complaint_sla_rule" in r]
+    rows = [r.split(",") for r in acl.splitlines() if ",model_%s," % model in r]
     creators = {r[3] for r in rows if r[6] == "1"}
-    assert creators == {"base.group_system"}, creators
+    writers = {r[3] for r in rows if r[5] == "1"}
+    readers = {r[3] for r in rows if r[4] == "1"}
+    expected = {"base.group_system", "cd_contact_centre.group_cc_supervisor"}
+    assert creators == expected and writers == expected, (creators, writers)
+    assert "base.group_user" in readers
 
 
 def test_voc_page_captures_a_review(m34):
@@ -222,8 +251,37 @@ def test_voc_page_captures_a_review(m34):
     assert "M34-reviews" in sub["screens"]
 
 
+def test_review_publishes_by_actions_not_a_typed_state(m34):
+    """BRU-CXM-13: the publishing state moves by Record Consent / Publish;
+    a typed "Published" skipped the customer's consent."""
+    for name in ("state", "publication_consent", "consent_evidence", "reply_text"):
+        assert _field(m34, "M34-form-review", name)["readonly"], name
+    actions = set(m34["screens"]["M34-reviews"]["actions"])
+    assert {
+        "action_record_consent",
+        "action_publish",
+        "action_flag",
+        "action_reply",
+        "action_withdraw_consent",
+    } <= actions
+
+
+def test_recovery_asks_for_the_customers_confirmation():
+    """BRU-CXM-04: Mark Recovered asks what the customer said."""
+    js = (SRC / "a03" / "m34.js").read_text(encoding="utf-8")
+    line = next(ln for ln in js.splitlines() if "m: 'action_close_recovered'" in ln)
+    assert "kwarg: 'confirmation'" in line and "ask:" in line
+
+
 def test_server_serves_and_whitelists_what_the_pages_use():
     m34py = (HERE.parent / "controllers" / "a03" / "m34.py").read_text(encoding="utf-8")
     assert '"fix.complaint.sla.rule": {' in m34py
-    for action in ("action_mark_contacted", "action_close_unrecovered"):
+    assert '"fix.complaint.taxonomy": {' in m34py
+    for action in (
+        "action_mark_contacted",
+        "action_close_unrecovered",
+        "action_record_consent",
+        "action_publish",
+        "action_withdraw_consent",
+    ):
         assert '"%s"' % action in m34py, action
