@@ -1058,7 +1058,8 @@ def test_a12f_e16_closed_record_frozen(c, p03):
         inc.with_user(c.off2).write({"root_cause": "rewritten after closure"})
     with pytest.raises(UserError):
         inc.with_user(c.off2).action_set_severity("low")
-    assert audit_count(c, "incident", "fix.security.incident,%d" % inc.id) == 2  # contain + close
+    # filing + contain + close (M29 capture audit: a report writes its own row)
+    assert audit_count(c, "incident", "fix.security.incident,%d" % inc.id) == 3
 
 
 # ================================================================ E17 campaign
@@ -1302,8 +1303,9 @@ def test_a12f_e20_each_action_writes_a_row(c, act):
         assert audit_count(c, act, "fix.jml.event,%d" % ev.id) == 1
     elif act == "contain":
         inc = incident(c, containment=FILL)
+        before = audit_count(c, "incident", "fix.security.incident,%d" % inc.id)
         inc.with_user(c.off1).action_contain()
-        assert audit_count(c, "incident", "fix.security.incident,%d" % inc.id) == 1
+        assert audit_count(c, "incident", "fix.security.incident,%d" % inc.id) == before + 1
     else:
         s = c.env["fix.privileged.session"].with_user(c.p).create({"reason": "x"})
         s.with_user(c.appr).action_approve()

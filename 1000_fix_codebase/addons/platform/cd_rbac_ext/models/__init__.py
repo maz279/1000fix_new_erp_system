@@ -18,6 +18,7 @@ from . import (
     fix_sod_control_groups,
     fix_sod_grant_hooks,
     fix_sod_mitigation,
+    fix_vulnerability,
     res_users_ext,
     res_users_sod,
     residency_mixin,

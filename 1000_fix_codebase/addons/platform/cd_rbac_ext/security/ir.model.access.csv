@@ -33,3 +33,6 @@ access_fix_security_incident_officer,fix.security.incident.officer,model_fix_sec
 access_fix_security_incident_system,fix.security.incident.system,model_fix_security_incident,base.group_system,1,1,1,0
 access_fix_sod_mitigation,fix.sod.mitigation,model_fix_sod_mitigation,base.group_user,1,1,1,0
 access_fix_sod_mitigation_system,fix.sod.mitigation.system,model_fix_sod_mitigation,base.group_system,1,1,1,1
+access_fix_vulnerability,fix.vulnerability,model_fix_vulnerability,base.group_user,1,0,1,0
+access_fix_vulnerability_officer,fix.vulnerability.officer,model_fix_vulnerability,cd_rbac_ext.group_security_officer,1,1,1,0
+access_fix_vulnerability_system,fix.vulnerability.system,model_fix_vulnerability,base.group_system,1,1,1,0

@@ -1432,6 +1432,17 @@ class FixSecurityIncident(models.Model):
         # the stamp is the server's: a typed "set by" is not who set it
         records = super().create(vals_list)
         records.sudo()._guarded().write({"severity_set_by_id": self.env.uid})
+        # spec security.incident_raised: a report is itself a security event, and
+        # the M29 "Monitoring & Audit" page it is captured from lists the trail
+        # (capture audit 2026-11-14). Every internal user reads the trail, so the
+        # reference, severity and category only - never the title or narrative.
+        audit = self.env["fix.security.audit"]
+        for rec in records:
+            audit.log_event(
+                "incident",
+                "fix.security.incident,%d" % rec.id,
+                "incident reported: %s (%s, %s)" % (rec.name, rec.severity, rec.category),
+            )
         return records
 
     def write(self, vals):

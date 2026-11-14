@@ -100,6 +100,15 @@ SURFACES = {
         # E16: a reporter sees their own reports; breach text is for the officer
         "rules": True,
     },
+    # M29 capture audit 2026-11-14 (spec §10.1, BRU-SEC-21): the vulnerability
+    # register. A reporter and the remediation owner read their own findings, a
+    # Security Officer all of them - so the list reads under the caller's rules.
+    "fix.vulnerability": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_remediate", "action_verify", "action_reopen", "action_accept_risk"},
+        "rules": True,
+    },
     "ir.rule": {"order": "model_id, id", "limit": 400, "actions": set()},
     "ir.model.access": {"order": "model_id, id", "limit": 800, "actions": set()},
 }
@@ -251,6 +260,18 @@ WRITABLE = {
         "containment",
         "root_cause",
         "breach_assessment",
+    ),
+    # the lifecycle (state, remediation, verification, acceptance) is action-only;
+    # severity is re-rated by a Security Officer only (the model refuses others)
+    "fix.vulnerability": (
+        "title",
+        "source",
+        "identifier",
+        "component",
+        "severity",
+        "discovered_on",
+        "owner_id",
+        "detail",
     ),
     "ir.rule": (
         "name",
@@ -564,8 +585,59 @@ def sod_violations(env, date_from=None, date_to=None, **params):
     )
 
 
+def vulnerability_register(env, date_from=None, date_to=None, **params):
+    """Spec §14 "Vulnerability register": open findings by severity and age, the
+    remediation due date, and the critical-open-past-due count (target zero,
+    AC-23). Read as the caller: a reporter sees their own findings."""
+    vulns = _caller_search(
+        env, "fix.vulnerability", [], order="state, sla_due, id desc", limit=1000
+    )
+    labels = dict(env["fix.vulnerability"]._fields["state"].selection)
+    rows = [
+        {
+            "name": v.name,
+            "severity": v.severity,
+            "source": v.source,
+            "component": v.component,
+            "discovered": v.discovered_on,
+            "due": v.sla_due,
+            "age": v.age_days,
+            "overdue": "Yes" if v.is_overdue else "",
+            "state": labels.get(v.state, v.state),
+        }
+        for v in vulns
+    ]
+    open_ = vulns.filtered(lambda v: v.state == "open")
+    critical_late = open_.filtered(lambda v: v.severity == "critical" and v.is_overdue)
+    return _pack(
+        "Vulnerability Register - %d open, %d critical past due (target 0)"
+        % (len(open_), len(critical_late)),
+        ["name", "severity", "source", "component", "discovered", "due", "age", "overdue", "state"],
+        {
+            "name": "Reference",
+            "severity": "Severity",
+            "source": "Source",
+            "component": "Component",
+            "discovered": "Discovered",
+            "due": "Remediation Due",
+            "age": "Age (days)",
+            "overdue": "Past Due",
+            "state": "Status",
+        },
+        rows,
+        [
+            "Remediation due = discovered + the window for the severity: critical 7 days "
+            "(BRU-SEC-21); high 30, medium 90 and low 180 days are working defaults the owner "
+            "can change in the system settings. A critical finding open past its due date is "
+            "escalated by the daily job. Closure needs a second person's verification."
+        ],
+        empty="No vulnerabilities recorded.",
+    )
+
+
 REPORTS = {
     "access_review": access_review,
+    "vulnerability_register": vulnerability_register,
     "sod_violations": sod_violations,
     "privileged_sessions": privileged_sessions,
     "sensitive_access": sensitive_access,
@@ -588,6 +660,7 @@ def kpis(env):
     requests = env["fix.access.request"].search([])
     sessions = env["fix.privileged.session"].search([])
     tests = env["fix.sod.test"].search([])
+    vulns = env["fix.vulnerability"].search([("state", "=", "open"), ("severity", "=", "critical")])
     return {
         "users_active": users_active,
         "roles_active": _count("fix.role", [("active", "=", True)]),
@@ -595,4 +668,5 @@ def kpis(env):
         "sessions_open": len(sessions.filtered(lambda s: s.state == "open")),
         "sod_failures": len(tests.filtered(lambda t: t.result == "fail")),
         "sod_tests": len(tests),
+        "critical_vulns_overdue": len(vulns.filtered("is_overdue")),
     }

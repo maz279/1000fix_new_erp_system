@@ -20,7 +20,8 @@ export const MODULE = {
     { l: 'Requests Open', m: 'requests_open' },
     { l: 'Sessions Open', m: 'sessions_open' },
     { l: 'SoD Failures', m: 'sod_failures' },
-    { l: 'SoD Tests', m: 'sod_tests' }
+    { l: 'SoD Tests', m: 'sod_tests' },
+    { l: 'Critical Vulns Past Due', m: 'critical_vulns_overdue' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -51,23 +52,33 @@ export const MODULE = {
       { id: 'M29-audit', en: 'Immutable Audit Trail', bn: 'অডিট ট্রেইল', t: 'g' },
       { id: 'M29-privileged', en: 'Privileged Access', bn: 'বিশেষ সুবিধাভোগী', t: 'g' },
       { id: 'M29-incidents', en: 'Security Incidents', bn: 'নিরাপত্তা ঘটনা', t: 'g' },
+      { id: 'M29-vulnerabilities', en: 'Vulnerability Register', bn: 'দুর্বলতা নিবন্ধন', t: 'g' },
       { id: 'M29-sod', en: 'SoD Controls', bn: 'SoD নিয়ন্ত্রণ', t: 'g' },
       { id: 'M29-sodtests', en: 'SoD Test Runs', bn: 'SoD পরীক্ষা', t: 'g' },
       { id: 'M29-sod-exceptions', en: 'SoD Exceptions', bn: 'SoD ব্যতিক্রম', t: 'g' },
       { id: 'M29-rpt-sod-violations', en: 'SoD Violations', bn: 'SoD লঙ্ঘন', t: 'r' }
     ]}
   ],
-  reports: ['Access Review Pack', 'Privileged Session Log', 'Sensitive-Data Access', 'SoD Test Results', 'Authentication Trends'],
+  reports: ['Access Review Pack', 'Privileged Session Log', 'Sensitive-Data Access', 'SoD Test Results', 'Authentication Trends', 'SoD Violations', 'Vulnerability Register'],
   forms: ['User', 'Role', 'Record Rule', 'Access Request'],
   cross: ['M28 credentials', 'M60 controls', 'M24 retention', 'M33 party master'],
+  /* Capture audit 2026-11-14: every sub-module page captures the records it
+   * covers. Before, Identity & MFA and Monitoring & Audit had no capture at all,
+   * SoD Testing and Data Protection offered no form beyond their "+ New", and
+   * Certification Campaigns, Role Assignments and SoD Exceptions sat on no page.
+   *   1 Identity: logins come from onboarding (employee.joined -> Keycloak SSO),
+   *     so the page captures the identity-lifecycle event, not a blank login.
+   *   7 Monitoring: the audit trail is system-written; the page reports an
+   *     incident (which writes its own audit row), requests break-glass access
+   *     and records a vulnerability (spec §10.1 fix.vulnerability). */
   freg: { src: 78, sub: [
-    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['User'], domain: [['share', '=', false]] }],
-    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'], reports: ['Access Review Pack'], forms: ['Role'] }],
-    ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'], reports: [], forms: ['Record Rule'] }],
-    ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert', 'M29-jml'], reports: ['Access Review Pack'], forms: ['Access Request'] }],
-    ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod'], reports: ['SoD Test Results'], forms: [] }],
-    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'], reports: ['Sensitive-Data Access'], forms: [] }],
-    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-privileged', 'M29-incidents'], reports: ['Privileged Session Log', 'Sensitive-Data Access'], forms: [] }]
+    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-jml', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['JML Event', 'User'], create: 'M29-form-jml', domain: [['share', '=', false]] }],
+    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'], reports: ['Access Review Pack'], forms: ['Role', 'Model Access'] }],
+    ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'], reports: [], forms: ['Record Rule', 'Field Rule', 'Isolation Tier'] }],
+    ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert-campaigns', 'M29-cert', 'M29-assignments'], reports: ['Access Review Pack'], forms: ['Access Request', 'Certification Campaign', 'Certification Line'] }],
+    ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod', 'M29-sod-exceptions'], reports: ['SoD Test Results', 'SoD Violations'], forms: ['SoD Test Run', 'SoD Control', 'SoD Exception'] }],
+    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'], reports: ['Sensitive-Data Access'], forms: ['Sensitive Field', 'Encryption Key'] }],
+    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-incidents', 'M29-privileged', 'M29-vulnerabilities'], reports: ['Privileged Session Log', 'Sensitive-Data Access', 'Vulnerability Register'], forms: ['Security Incident', 'Privileged Session', 'Vulnerability'], create: 'M29-form-incident' }]
   ] }
 };
 
@@ -137,6 +148,15 @@ export const SCREENS = {
               { m: 'action_set_severity', l: 'Propose Severity', ask: 'New severity: low, medium, high or critical', kwarg: 'severity' },
               { m: 'action_confirm_severity', l: 'Confirm Severity' },
               { m: 'action_reject_severity', l: 'Refuse Severity Change' }] },
+  // Capture audit 2026-11-14 (spec §10.1, BRU-SEC-21, AC-23): scan and pen-test
+  // findings tracked to a second person's verified closure. A reporter and the
+  // remediation owner see their own findings; a Security Officer sees all.
+  'M29-vulnerabilities': { kind: 'model_list', model: 'fix.vulnerability', stateField: 'state',
+    cols: ['name', 'title', 'severity', 'source', 'component', 'owner_id', 'discovered_on', 'sla_due', 'is_overdue', 'state'],
+    actions: [{ m: 'action_remediate', l: 'Mark Remediated', ask: 'What was done to remediate it?', kwarg: 'note', states: ['open'] },
+              { m: 'action_verify', l: 'Verify Closed', states: ['remediated'] },
+              { m: 'action_reopen', l: 'Send Back', ask: 'Why did the remediation not hold?', kwarg: 'note', states: ['remediated'] },
+              { m: 'action_accept_risk', l: 'Accept Risk', ask: 'Reason and mitigating control for accepting this risk (runs for the configured period, 90 days by default)', kwarg: 'reason', states: ['open'] }] },
   'M29-sod': { kind: 'model_list', model: 'fix.sod.control',
     cols: ['code', 'name', 'control_type', 'pair_label', 'measurable', 'conflict_action', 'active'] },
   // A08 S4 / FR-SEC-024: the only way past a blocked duty conflict is a time-boxed
@@ -155,6 +175,7 @@ export const SCREENS = {
   'M29-rpt-sod': { kind: 'table_report', module: 'M29', report: 'sod_results', title: 'SoD Test Results', period: false },
   'M29-rpt-sod-violations': { kind: 'table_report', module: 'M29', report: 'sod_violations', title: 'SoD Violations', period: false },
   'M29-rpt-auth': { kind: 'table_report', module: 'M29', report: 'auth_trends', title: 'Authentication Trends', period: false },
+  'M29-rpt-vulns': { kind: 'table_report', module: 'M29', report: 'vulnerability_register', title: 'Vulnerability Register', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   /* The User master (M29 wiring pass 2026-11-05): comprehensive, 7 tabs.
@@ -169,6 +190,10 @@ export const SCREENS = {
     model: 'res.users',
     title: 'User',
     back: 'M29-users',
+    // a login is provisioned by onboarding (employee.joined -> Keycloak SSO), never
+    // typed here: a blank create skipped the joiner path, its SoD gate and its audit
+    create: false,
+    pick: 'Logins come from onboarding (Keycloak SSO). Open a user from the list, or record a Joiner / Mover / Leaver event.',
     status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
     tabs: [
       { id: 'general', label: '1. General & Photo', bn: '১. সাধারণ তথ্য ও ছবি', icon: '👤', badge: '9' },
@@ -259,6 +284,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.jml.event',
     title: 'JML Event',
+    newLabel: 'Record a Joiner / Mover / Leaver',
     back: 'M29-jml',
     status: { field: 'state', labels: { pending: 'Pending', applied: 'Applied', cancelled: 'Cancelled' } },
     sections: [
@@ -344,6 +370,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.security.incident',
     title: 'Security Incident',
+    newLabel: 'Report a Security Incident',
     back: 'M29-incidents',
     status: { field: 'state', labels: { open: 'Open', contained: 'Contained', closed: 'Closed' } },
     tabs: [
@@ -549,6 +576,41 @@ export const SCREENS = {
     ]
   },
 
+  'M29-form-vulnerability': {
+    kind: 'model_form',
+    model: 'fix.vulnerability',
+    title: 'Vulnerability',
+    back: 'M29-vulnerabilities',
+    status: { field: 'state', labels: { open: 'Open', remediated: 'Remediated', verified: 'Verified Closed', accepted: 'Risk Accepted' } },
+    sections: [
+      { title: 'Finding', note: 'A scan, penetration-test or reported weakness. The remediation due date follows the severity: a critical finding is due in 7 days and is escalated if still open after that (BRU-SEC-21). After filing, only a Security Officer re-rates the severity (audited), and nothing about the finding changes once it leaves Open. You and the remediation owner see this record; Security Officers see all.',
+        fields: [
+          { name: 'title', required: true, label: 'Title' },
+          { name: 'severity', required: true, label: 'Severity' },
+          { name: 'source', required: true, label: 'Source' },
+          { name: 'identifier', label: 'Identifier (CVE / rule / finding ref)' },
+          { name: 'component', required: true, label: 'Affected Component' },
+          { name: 'discovered_on', required: true, label: 'Discovered On' },
+          { name: 'owner_id', label: 'Remediation Owner' },
+          { name: 'detail', type: 'text', label: 'Description' }
+        ] },
+      { title: 'Remediation & Closure (read-only)', note: 'Stamped by the actions: the owner or an officer marks it remediated with a note; a Security Officer who did not remediate it verifies the closure or sends it back. A risk acceptance is an officer decision with a reason, by someone who neither reported nor owns it, and it lapses on its end date.',
+        fields: [
+          { name: 'sla_due', readonly: true, label: 'Remediation Due' },
+          { name: 'reported_by_id', readonly: true, label: 'Reported By' },
+          { name: 'remediation_note', readonly: true, label: 'Remediation Note' },
+          { name: 'remediated_by_id', readonly: true, label: 'Remediated By' },
+          { name: 'remediated_on', readonly: true, label: 'Remediated On' },
+          { name: 'verified_by_id', readonly: true, label: 'Verified By' },
+          { name: 'verified_on', readonly: true, label: 'Verified On' },
+          { name: 'acceptance_reason', readonly: true, label: 'Risk Acceptance Reason' },
+          { name: 'accepted_by_id', readonly: true, label: 'Risk Accepted By' },
+          { name: 'accepted_until', readonly: true, label: 'Accepted Until' },
+          { name: 'escalated_on', readonly: true, label: 'Escalated On' }
+        ] }
+    ]
+  },
+
   'M29-form-sodexception': {
     kind: 'model_form',
     model: 'fix.sod.mitigation',
@@ -643,7 +705,9 @@ export const REPORT_ROUTES = {
   'M29:Privileged Session Log': 'M29-rpt-sessions',
   'M29:Sensitive-Data Access': 'M29-rpt-sensitive',
   'M29:SoD Test Results': 'M29-rpt-sod',
-  'M29:Authentication Trends': 'M29-rpt-auth'
+  'M29:Authentication Trends': 'M29-rpt-auth',
+  'M29:SoD Violations': 'M29-rpt-sod-violations',
+  'M29:Vulnerability Register': 'M29-rpt-vulns'
 };
 
 export const FORM_MODELS = {
@@ -665,6 +729,13 @@ export const FORM_CHIPS = {
   'M29:Encryption Key': 'M29-form-key',
   'M29:Security Incident': 'M29-form-incident',
   'M29:Model Access': 'M29-form-acl',
+  'M29:Certification Campaign': 'M29-form-campaign',
+  'M29:Isolation Tier': 'M29-form-isolation-tier',
+  'M29:SoD Test Run': 'M29-form-sodtest',
+  'M29:SoD Exception': 'M29-form-sodexception',
+  'M29:Sensitive Field': 'M29-form-sensitive',
+  'M29:Privileged Session': 'M29-form-session',
+  'M29:Vulnerability': 'M29-form-vulnerability',
   'M29:__by_model__': {
     'fix.isolation.tier': 'M29-form-isolation-tier',
     'res.users': 'M29-form-user',
@@ -682,7 +753,8 @@ export const FORM_CHIPS = {
     'fix.privileged.session': 'M29-form-session',
     'fix.sod.test': 'M29-form-sodtest',
     'fix.sod.control': 'M29-form-sodcontrol',
-    'fix.sod.mitigation': 'M29-form-sodexception'
+    'fix.sod.mitigation': 'M29-form-sodexception',
+    'fix.vulnerability': 'M29-form-vulnerability'
   },
   'M29:__by_screen__': {
     'M29-isolation-tier': 'M29-form-isolation-tier',
@@ -701,7 +773,8 @@ export const FORM_CHIPS = {
     'M29-privileged': 'M29-form-session',
     'M29-sod-exceptions': 'M29-form-sodexception',
     'M29-sodtests': 'M29-form-sodtest',
-    'M29-sod': 'M29-form-sodcontrol'
+    'M29-sod': 'M29-form-sodcontrol',
+    'M29-vulnerabilities': 'M29-form-vulnerability'
   }
 };
 

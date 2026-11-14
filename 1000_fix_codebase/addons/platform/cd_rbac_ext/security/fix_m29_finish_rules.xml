@@ -13,4 +13,23 @@
         <field name="groups" eval="[(4, ref('group_security_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
+    <!-- M29 capture audit 2026-11-14: a vulnerability is an unfixed weakness. Its
+         reporter and its remediation owner read it; a Security Officer reads all. -->
+    <record id="rule_fix_vulnerability_reporter" model="ir.rule">
+        <field name="name">Vulnerability: reporter and owner</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('create_uid', '=', user.id), ('reported_by_id', '=', user.id), ('owner_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_vulnerability_officer" model="ir.rule">
+        <field name="name">Vulnerability: Security Officer sees all</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="groups" eval="[(4, ref('group_security_officer')), (4, ref('base.group_system'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_vulnerability_company" model="ir.rule">
+        <field name="name">fix.vulnerability: allowed companies</field>
+        <field name="model_id" ref="model_fix_vulnerability"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>
