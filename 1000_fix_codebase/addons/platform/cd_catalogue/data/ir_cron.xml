@@ -32,5 +32,17 @@
             <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:20:00')"/>
             <field name="active" eval="True"/>
         </record>
+        <!-- M37 capture audit (2026-11-14): an approved SRT baseline dated in
+             the future moves the item's standard time on its effective date. -->
+        <record id="ir_cron_m37_apply_srt_baselines" model="ir.cron">
+            <field name="name">M37: apply approved SRT baselines that have come into effect</field>
+            <field name="model_id" ref="model_fix_srt_baseline"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due_baselines()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:25:00')"/>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

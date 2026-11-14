@@ -12,3 +12,9 @@ access_fix_brand,fix.brand,model_fix_brand,base.group_user,1,1,1,0
 access_fix_device_model,fix.device.model,model_fix_device_model,base.group_user,1,1,1,0
 access_fix_rbom_line,fix.rbom.line,model_fix_rbom_line,base.group_user,1,0,0,0
 access_fix_rbom_line_officer,fix.rbom.line officer,model_fix_rbom_line,group_catalogue_officer,1,1,1,1
+access_fix_srt_baseline,fix.srt.baseline,model_fix_srt_baseline,base.group_user,1,0,0,0
+access_fix_srt_baseline_officer,fix.srt.baseline officer,model_fix_srt_baseline,group_catalogue_officer,1,1,1,1
+access_fix_part_crossref,fix.part.crossref,model_fix_part_crossref,base.group_user,1,0,0,0
+access_fix_part_crossref_officer,fix.part.crossref officer,model_fix_part_crossref,group_catalogue_officer,1,1,1,1
+access_fix_catalogue_publication,fix.catalogue.publication,model_fix_catalogue_publication,base.group_user,1,0,0,0
+access_fix_catalogue_publication_publisher,fix.catalogue.publication publisher,model_fix_catalogue_publication,group_catalogue_publisher,1,1,1,0

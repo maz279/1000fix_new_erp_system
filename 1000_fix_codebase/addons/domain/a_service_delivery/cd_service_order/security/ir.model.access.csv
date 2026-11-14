@@ -14,3 +14,4 @@ access_fix_sla_item,fix.sla.item,model_fix_sla_item,base.group_user,1,1,1,1
 access_fix_sla_kpi_instance,fix.sla.kpi.instance,model_fix_sla_kpi_instance,base.group_user,1,1,1,0
 access_fix_so_approval,fix.so.approval,model_fix_so_approval,base.group_user,1,1,1,0
 access_fix_so_part_exemption,fix.so.part.exemption,model_fix_so_part_exemption,base.group_user,1,1,1,0
+access_fix_fault_brand_map,fix.fault.brand.map,model_fix_fault_brand_map,base.group_user,1,1,1,1

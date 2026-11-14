@@ -3,6 +3,7 @@ from . import (
     catalogue_roles,
     fix_brand,
     fix_catalogue_item,
+    fix_catalogue_spec_records,
     fix_device_model,
     fix_rbom,
     fix_refurb_grade,

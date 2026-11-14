@@ -15,10 +15,13 @@ Owns:
 - fix.refurb.grade (refurbishment grades for M14)
 - fix.brand (brand master — 17+ brand partners)
 - fix.device.model (device model master referenced by M17)
+- fix.srt.baseline (governed standard-repair-time register, BRU-CAT-11)
+- fix.part.crossref (part cross-references and approved alternates)
+- fix.catalogue.publication (versioned channel projections)
 
 AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Catalogue",

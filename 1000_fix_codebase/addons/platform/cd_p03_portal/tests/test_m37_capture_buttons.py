@@ -10,6 +10,12 @@
 # and Brands had no chip; rental SKUs and refurb grades sat on no page, and
 # the refurb-grade list offered a + New no role may save.
 #
+# Second pass (2026-11-14): Typed Taxonomy and Product Hierarchy still had
+# only a chip; Tax & Rev-Rec opened M51's tariff master because the item had
+# no tax, HS or revenue class; Lifecycle captured nothing although FR-CAT-044
+# publishes channel projections; SRT baselines, part cross-references and
+# brand claim codes had no record at all.
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M02 guard's fixture).
 from __future__ import annotations
@@ -60,6 +66,7 @@ console.log(JSON.stringify({ subs,
   nav: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
   screens: Object.fromEntries(Object.entries(S).filter(([id]) => id.startsWith('M37-') || id === 'M51-form-treatment').map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, back: c.back || null, empty: !!c.empty,
+    pick: !!c.pickRecord, lines: (c.lines && c.lines.field) || null,
     domain: c.domain || [],
     fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({ name: f.name, value: f.value, readonly: !!f.readonly })) }])),
   by_screen: P03_FORM_CHIPS['M37:__by_screen__'] }));
@@ -70,18 +77,18 @@ console.log(JSON.stringify({ subs,
 # in-workspace form. 'workflow': existing records move by list actions only.
 CAPTURE = {
     "1": "form",  # catalogue item (module button)
-    "2": "form",  # category node (product-manager role) - chip
+    "2": "form",  # category node (product-manager role)
     "3": "form",  # service definition
     "4": "form",  # rBOM line
     "5": "form",  # repair operation = labour-only item with its SRT
     "6": "form",  # service kit
-    "7": "form",  # category node - chip
+    "7": "form",  # variant attribute + its values; category chip
     "8": "form",  # brand (+ its device models)
     "9": "form",  # fault code
     "10": "form",  # spare part item
     "11": "form",  # contract template, protection plan, rental SKU
-    "12": "form",  # tariff code -> VAT treatment (M51's form) - chip
-    "13": "workflow",  # submit / publish / restrict / discontinue / revise
+    "12": "form",  # the item's VAT / SD / HS / revenue class (pick the item)
+    "13": "form",  # a versioned channel publication; lifecycle by list actions
 }
 
 
@@ -224,13 +231,120 @@ def test_kits_brands_and_templates_have_chips(m37):
 def test_category_pages_reach_the_category_form(m37, no):
     chip = next(f for f in _sub(m37, no)["forms"] if f["f"] == "Catalogue Category")
     assert chip["model"] == "product.category" and chip["opens"]
-    # product.category is created by product managers only: a chip, no + New
-    assert _sub(m37, no)["create"] is None
 
 
-def test_tax_page_opens_m51_vat_treatment(m37):
-    chip = next(f for f in _sub(m37, "12")["forms"] if f["f"] == "VAT Treatment")
+# --- second pass (2026-11-14): every page has a + New of its own -------------
+OWN_NEW = {
+    "2": ("M37-form-category", "product.category"),
+    "4": ("M37-form-rbom", "fix.rbom.line"),
+    "7": ("M37-form-attribute", "product.attribute"),
+    "12": ("M37-form-taxclass", "fix.catalogue.item"),
+    "13": ("M37-form-publication", "fix.catalogue.publication"),
+}
+
+
+@pytest.mark.parametrize("no", sorted(CAPTURE, key=int))
+def test_every_page_has_a_new_button(m37, no):
+    assert _sub(m37, no)["create"], "page %s offers only chips" % no
+
+
+@pytest.mark.parametrize("no", sorted(OWN_NEW, key=int))
+def test_second_pass_pages_capture_their_own_record(m37, no):
+    form, model = OWN_NEW[no]
+    assert _sub(m37, no)["create"] == form
+    assert m37["screens"][form]["model"] == model
+
+
+def test_tax_page_classifies_the_item_and_keeps_m51_chip(m37):
+    sub = _sub(m37, "12")
+    assert "M37-taxclass" in sub["screens"]
+    chip = next(f for f in sub["forms"] if f["f"] == "VAT Treatment")
     assert chip["id"] == "M51-form-treatment" and chip["model"] == "fix.vat.treatment"
+    names = {f["name"] for f in m37["screens"]["M37-form-taxclass"]["fields"]}
+    assert {"hs_code", "vat_class", "sd_applicable", "revenue_recognition"} <= names
+    assert m37["screens"]["M37-form-taxclass"]["pick"], "the form must first pick the item"
+
+
+@pytest.mark.parametrize(
+    "no,chip,screen",
+    [
+        ("4", "SRT Baseline", "M37-srt-baselines"),
+        ("5", "SRT Baseline", "M37-srt-baselines"),
+        ("10", "Part Cross-Reference", "M37-part-xref"),
+        ("13", "Channel Publication", "M37-publications"),
+    ],
+)
+def test_spec_records_are_on_their_pages(m37, no, chip, screen):
+    sub = _sub(m37, no)
+    assert screen in sub["screens"]
+    f = next(f for f in sub["forms"] if f["f"] == chip)
+    assert f["opens"] and f["kind"] == "model_form"
+
+
+def test_srt_list_moves_baselines_by_actions(m37):
+    lst = next(x for x in _sub(m37, "4")["lists"] if x["id"] == "M37-srt-baselines")
+    assert {"action_propose", "action_approve", "action_reject"} <= set(lst["actions"])
+
+
+def test_item_forms_carry_the_classification(m37):
+    for form in ("M37-item", "M37-form-service", "M37-form-protection"):
+        names = {f["name"] for f in m37["screens"][form]["fields"]}
+        assert {"hs_code", "vat_class", "revenue_recognition"} <= names, form
+    item = {f["name"] for f in m37["screens"]["M37-item"]["fields"]}
+    assert {"repair_level", "provenance_grade", "hazard_class", "hazard_handling"} <= item
+
+
+def test_fault_form_maps_brand_claim_codes(m37):
+    assert m37["screens"]["M37-form-fault"]["lines"] == "brand_code_ids"
+
+
+def test_new_forms_are_whitelisted():
+    from importlib import util
+
+    for area, model, needed in (
+        (
+            "a04",
+            "fix.catalogue.item",
+            {
+                "hs_code",
+                "vat_class",
+                "sd_applicable",
+                "revenue_recognition",
+                "repair_level",
+                "provenance_grade",
+                "hazard_class",
+                "hazard_handling",
+            },
+        ),
+        ("a04", "fix.srt.baseline", {"item_id", "minutes", "repair_level", "reason"}),
+        (
+            "a04",
+            "fix.part.crossref",
+            {"part_item_id", "alt_item_id", "relation_type", "quality_note"},
+        ),
+        ("a04", "fix.catalogue.publication", {"channel", "note"}),
+        ("a04", "product.attribute", {"name", "value_ids"}),
+        ("a02", "fix.fault.code", {"brand_code_ids"}),
+    ):
+        spec = util.spec_from_file_location(
+            "_w_" + area, HERE.parent / "controllers" / area / "writable.py"
+        )
+        mod = util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        assert needed <= set(mod.WRITABLE[model]), (area, model)
+
+
+def test_publication_snapshot_fields_are_not_writable():
+    from importlib import util
+
+    spec = util.spec_from_file_location(
+        "_a04w2", HERE.parent / "controllers" / "a04" / "writable.py"
+    )
+    mod = util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert not {"version", "item_count", "content_hash", "published_at"} & set(
+        mod.WRITABLE["fix.catalogue.publication"]
+    )
 
 
 def test_refurb_grades_offer_no_new_nobody_may_save():

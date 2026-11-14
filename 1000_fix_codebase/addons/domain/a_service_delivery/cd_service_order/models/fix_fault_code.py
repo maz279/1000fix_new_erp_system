@@ -48,6 +48,10 @@ class FixFaultCode(models.Model):
     )
     description = fields.Text()
     active = fields.Boolean(default=True)
+    # M37 capture audit (2026-11-14), FR-CAT-042: a brand files a warranty
+    # claim under ITS own fault code, so the taxonomy maps each code to the
+    # brand's. The Fault Code form captures these as its lines.
+    brand_code_ids = fields.One2many("fix.fault.brand.map", "fault_id", string="Brand Claim Codes")
 
     # Odoo 19 constraint (same pattern as fix.sla.policy)
     _code_unique = models.Constraint("UNIQUE (code)", "Fault code must be unique")
@@ -56,3 +60,23 @@ class FixFaultCode(models.Model):
     def _onchange_code(self):
         if self.code:
             self.code = self.code.strip().upper()
+
+
+class FixFaultBrandMap(models.Model):
+    """FR-CAT-042: the brand's own claim code for one of our fault codes."""
+
+    _name = "fix.fault.brand.map"
+    _description = "Fault Code - Brand Claim Code"
+    _order = "fault_id, brand_id"
+    _rec_name = "brand_code"
+
+    fault_id = fields.Many2one(
+        "fix.fault.code", string="Fault Code", required=True, index=True, ondelete="cascade"
+    )
+    brand_id = fields.Many2one("fix.brand", string="Brand", required=True, ondelete="restrict")
+    brand_code = fields.Char(string="Brand Claim Code", required=True)
+    brand_description = fields.Char(string="Brand Wording")
+
+    _one_code_per_brand = models.Constraint(
+        "UNIQUE (fault_id, brand_id)", "A fault code maps to one claim code per brand."
+    )

@@ -2,6 +2,7 @@
 # The catalogue kernel: every downstream module (M01, M11, M12, M13, M14, M15)
 # consumes this rather than re-inventing product concepts.
 import logging
+import re
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -46,6 +47,69 @@ FROZEN_WHEN_DECIDED = frozenset(
         "is_out_of_scope",
         "is_warranty_eligible",
         "requires_brand_authorisation",
+        # BRU-CAT-11: the standard repair time of a decided item is never
+        # edited in place; an approved SRT baseline (fix.srt.baseline) moves it.
+        "standard_labour_time",
+    }
+)
+# M37 capture audit (2026-11-14): the classification FR-CAT-027/034/035/043
+# ask every item to carry. Before it the item had no tax class, HS code,
+# revenue pattern, repair level, provenance grade or hazard class, so the
+# Tax & Rev-Rec page could only open M51's tariff master and BRU-CAT-02/06/15
+# were enforced nowhere. Keys of the VAT class are M51's treatment keys
+# (tax_logic.VALID_TREATMENTS), so the class reads straight into the
+# determination without a mapping.
+VAT_CLASSES = [
+    ("standard_15", "Standard VAT"),
+    ("reduced", "Reduced rate"),
+    ("zero_rated", "Zero-rated"),
+    ("exempt", "Exempt"),
+    ("truncated", "Truncated base"),
+]
+REVENUE_PATTERNS = [
+    ("on_completion", "On completion / handover of the service"),
+    ("on_delivery", "On delivery of the goods"),
+    ("ratably", "Ratably over the term (plans, contracts, rentals)"),
+    ("on_usage", "On usage / consumption"),
+    ("milestone", "On milestones"),
+]
+# The same keys as M11's brand reimbursement rate (cd_rate_card), so a
+# labour item and the rate the brand pays for it speak of one level.
+REPAIR_LEVELS = [
+    ("l1", "Level 1 - Modular / Quick Fix"),
+    ("l2", "Level 2 - Component / Soldering"),
+    ("l3", "Level 3 - Chip-Level / Advanced Depot"),
+]
+PROVENANCE_GRADES = [
+    ("genuine", "Genuine (brand-supplied)"),
+    ("oem", "OEM (original manufacturer, unbranded)"),
+    ("aftermarket", "Aftermarket / compatible"),
+    ("refurbished", "Refurbished / reclaimed"),
+]
+HAZARD_CLASSES = [
+    ("none", "Not hazardous"),
+    ("lithium_battery", "Lithium battery"),
+    ("refrigerant", "Refrigerant / pressurised gas"),
+    ("chemical", "Chemical / adhesive / solvent"),
+    ("other_restricted", "Other restricted item"),
+]
+# 4 to 10 digits, optionally dotted in groups (8517.13.00, 85171300).
+HS_CODE_RE = re.compile(r"^\d{4}(\.?\d{2}){0,3}$")
+# Item types a repair operation is: its level and SRT are mandatory before
+# it may become Active (BRU-CAT-06).
+OPERATION_TYPES = ("labour",)
+# A Draft item takes these freely. On a decided item (Active, Restricted…)
+# a BLANK may be completed - all 16,178 items on fix_real were migrated
+# Active with none of them - but a value once set changes only by Revise
+# and re-approval, as the rest of the approved classification does.
+CLASSIFICATION_ONCE_SET = frozenset(
+    {
+        "hs_code",
+        "vat_class",
+        "revenue_recognition",
+        "repair_level",
+        "provenance_grade",
+        "hazard_class",
     }
 )
 LIFECYCLE_FIELDS = frozenset(
@@ -261,6 +325,61 @@ class FixCatalogueItem(models.Model):
         help="Measured workshop time for the SRT calibration-variance report.",
     )
 
+    # ---- classification (M37 capture audit 2026-11-14) ----------------------
+    # FR-CAT-043 / BRU-CAT-02: no item becomes Active without its VAT class
+    # and revenue pattern. The HS code is what M51's tariff master is keyed
+    # on (fix.vat.treatment.code).
+    hs_code = fields.Char(
+        string="HS / Tariff Code",
+        tracking=True,
+        help="Bangladesh customs H.S. code (digits, optionally dotted, e.g. 8517.13.00). "
+        "M51 looks the item's VAT treatment up by this code.",
+    )
+    vat_class = fields.Selection(
+        VAT_CLASSES,
+        string="VAT Class",
+        tracking=True,
+        help="Mandatory before the item may be approved (BRU-CAT-02).",
+    )
+    sd_applicable = fields.Boolean(
+        string="Supplementary Duty Applies",
+        tracking=True,
+        help="Whether supplementary duty is levied on this item.",
+    )
+    revenue_recognition = fields.Selection(
+        REVENUE_PATTERNS,
+        string="Revenue Recognition",
+        tracking=True,
+        help="When revenue from the item is recognised. Mandatory before approval (BRU-CAT-02).",
+    )
+    # FR-CAT-027 / BRU-CAT-06: a repair operation is Active only with a level
+    # and a standard repair time.
+    repair_level = fields.Selection(
+        REPAIR_LEVELS,
+        string="Repair Level",
+        tracking=True,
+        help="Mandatory for a Labour Only item (repair operation) before approval.",
+    )
+    # FR-CAT-034 / FR-CAT-035 / BRU-CAT-15
+    provenance_grade = fields.Selection(
+        PROVENANCE_GRADES,
+        string="Provenance Grade",
+        tracking=True,
+        help="Genuine / OEM / aftermarket: shown on every customer-facing document.",
+    )
+    hazard_class = fields.Selection(
+        HAZARD_CLASSES,
+        string="Hazard Class",
+        tracking=True,
+        help="Batteries, refrigerants and other restricted items carry handling, transport "
+        "and disposal constraints that downstream modules cannot override.",
+    )
+    hazard_handling = fields.Text(
+        string="Handling, Transport & Disposal Constraints",
+        tracking=True,
+        help="Mandatory for a hazardous item (BRU-CAT-15).",
+    )
+
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _product_tmpl_unique = models.Constraint(
@@ -279,6 +398,30 @@ class FixCatalogueItem(models.Model):
                     "Bangla-first catalogue compliance is mandatory."
                 )
 
+    @api.constrains("hs_code")
+    def _check_hs_code(self):
+        for rec in self.filtered("hs_code"):
+            if not HS_CODE_RE.match(rec.hs_code.strip()):
+                raise ValidationError(
+                    "HS code '%s' is not a customs tariff code: 4 to 10 digits, optionally "
+                    "grouped with dots (e.g. 8517.13.00)." % rec.hs_code
+                )
+
+    @api.constrains("hazard_class", "hazard_handling")
+    def _check_hazard_handling(self):
+        """BRU-CAT-15: a hazardous item carries its handling constraints."""
+        for rec in self:
+            if (
+                rec.hazard_class
+                and rec.hazard_class != "none"
+                and not (rec.hazard_handling or "").strip()
+            ):
+                raise ValidationError(
+                    "%s is classed %s: state its handling, transport and disposal "
+                    "constraints (BRU-CAT-15)."
+                    % (rec.display_name, dict(HAZARD_CLASSES)[rec.hazard_class])
+                )
+
     # ---- guard -----------------------------------------------------------
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | set(LIFECYCLE_FIELDS)
@@ -287,7 +430,40 @@ class FixCatalogueItem(models.Model):
         locked = super()._fix_form_locked_fields()
         if any(rec.state != "draft" for rec in self):
             locked |= FROZEN_WHEN_DECIDED
+            # a set classification is part of what was approved; a blank one
+            # (a migrated item) stays open to be completed
+            locked |= {name for name in CLASSIFICATION_ONCE_SET if any(rec[name] for rec in self)}
+            if any(rec.vat_class for rec in self):
+                locked.add("sd_applicable")
         return locked
+
+    def _check_classification_once_set(self, vals):
+        """Completing a blank classification on a decided item is allowed;
+        changing a set one is a revision (back to Draft, approved again)."""
+        names = CLASSIFICATION_ONCE_SET & set(vals)
+        sd = "sd_applicable" in vals
+        if not (names or sd):
+            return
+        for rec in self.filtered(lambda r: r.state != "draft"):
+            moved = [n for n in names if rec[n] and rec._fix_guard_differs(n, vals[n], rec[n])]
+            if (
+                sd
+                and rec.vat_class
+                and rec._fix_guard_differs(
+                    "sd_applicable", vals["sd_applicable"], rec.sd_applicable
+                )
+            ):
+                moved.append("sd_applicable")
+            if moved:
+                raise UserError(
+                    "%s is %s and its %s is already set: that is part of what was approved. "
+                    "Revise the item (back to Draft) and have the change approved."
+                    % (
+                        rec.display_name,
+                        dict(ITEM_STATES)[rec.state],
+                        ", ".join(self._fields[n].string for n in sorted(moved)),
+                    )
+                )
 
     # ---- sellability (BRU-CAT-14, A04 audit M37-2) --------------------------
     def _sale_gate_on(self) -> bool:
@@ -377,6 +553,7 @@ class FixCatalogueItem(models.Model):
                             ", ".join(self._fields[n].string for n in moved),
                         )
                     )
+            self._check_classification_once_set(vals)
             if "name_bn" in vals and not self.env.su:
                 # The Bengali name lives on the product template, which a
                 # Catalogue Officer may not write; the role was checked above.
@@ -479,6 +656,24 @@ class FixCatalogueItem(models.Model):
             problems.append("an English name")
         if not self.category_id:
             problems.append("a product category (its place in the hierarchy, BRU-CAT-02)")
+        # M37 capture audit (2026-11-14): BRU-CAT-02 also names the tax class
+        # and the revenue-recognition class; BRU-CAT-06 the level and SRT of
+        # a repair operation; BRU-CAT-15 the constraints of a hazardous item.
+        if not self.vat_class:
+            problems.append("a VAT class (BRU-CAT-02)")
+        if not self.revenue_recognition:
+            problems.append("a revenue-recognition class (BRU-CAT-02)")
+        if self.item_type in OPERATION_TYPES:
+            if not self.repair_level:
+                problems.append("a repair level (BRU-CAT-06)")
+            if not (self.standard_labour_time or 0.0) > 0.0:
+                problems.append("a standard repair time (BRU-CAT-06)")
+        if (
+            self.hazard_class
+            and self.hazard_class != "none"
+            and not (self.hazard_handling or "").strip()
+        ):
+            problems.append("its hazard handling constraints (BRU-CAT-15)")
         Item = self.sudo().with_context(active_test=False)
         code = (self.product_tmpl_id.default_code or "").strip()
         if code:

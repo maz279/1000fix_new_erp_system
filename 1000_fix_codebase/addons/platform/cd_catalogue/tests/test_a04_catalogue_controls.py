@@ -65,7 +65,16 @@ def _item(env, user, item_type="service", name_bn="পরীক্ষা সে�
             "name_bn": name_bn or False,
         }
     )
-    vals = {"product_tmpl_id": tmpl.id, "item_type": item_type}
+    # BRU-CAT-02 (M37 capture audit 2026-11-14): an item is submitted only
+    # with its VAT class and revenue-recognition class.
+    vals = {
+        "product_tmpl_id": tmpl.id,
+        "item_type": item_type,
+        "vat_class": "standard_15",
+        "revenue_recognition": "on_completion",
+    }
+    if item_type == "labour":
+        vals.update({"repair_level": "l1", "standard_labour_time": 1.0})
     if category:
         vals["category_id"] = _category(env).id
     return env["fix.catalogue.item"].with_user(user).create(vals)

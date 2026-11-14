@@ -60,6 +60,23 @@ SURFACES = {
         "actions": set(),
     },
     "fix.refurb.grade": {"order": "id desc", "limit": 400, "actions": set()},
+    # M37 capture audit (2026-11-14): the records the spec owns that the
+    # estate lacked. A baseline is proposed by an officer and approved or
+    # rejected by a publisher who did not propose it (BRU-CAT-11).
+    "fix.srt.baseline": {
+        "order": "item_id, effective_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_propose", "action_approve", "action_reject"},
+    },
+    "fix.part.crossref": {"order": "part_item_id, relation_type", "limit": 300, "actions": set()},
+    "fix.catalogue.publication": {
+        "order": "published_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    # FR-CAT-005/006: Odoo's own attribute master is the variant axis; its
+    # values are the form's lines. Product managers save it (Odoo ACL).
+    "product.attribute": {"order": "sequence, name", "limit": 300, "actions": set()},
     "fix.brand": {
         "order": "id desc",
         "limit": 400,

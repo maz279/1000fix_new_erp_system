@@ -300,6 +300,7 @@ WRITABLE = {
     "fix.fault.code": frozenset(
         {
             "active",
+            "brand_code_ids",
             "category",
             "code",
             "default_severity",

@@ -19,6 +19,28 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_catalogue_publication_company" model="ir.rule">
+        <field name="name">fix.catalogue.publication: allowed companies</field>
+        <field name="model_id" ref="model_fix_catalogue_publication"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_catalogue_publication_operating_unit" model="ir.rule">
+        <field name="name">fix.catalogue.publication: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_catalogue_publication"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_part_crossref_company" model="ir.rule">
+        <field name="name">fix.part.crossref: allowed companies</field>
+        <field name="model_id" ref="model_fix_part_crossref"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_part_crossref_operating_unit" model="ir.rule">
+        <field name="name">fix.part.crossref: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_part_crossref"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_rental_sku_company" model="ir.rule">
         <field name="name">fix.rental.sku: allowed companies</field>
         <field name="model_id" ref="model_fix_rental_sku"/>
@@ -38,6 +60,17 @@
     <record id="rule_fix_service_kit_operating_unit" model="ir.rule">
         <field name="name">fix.service.kit: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_service_kit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_srt_baseline_company" model="ir.rule">
+        <field name="name">fix.srt.baseline: allowed companies</field>
+        <field name="model_id" ref="model_fix_srt_baseline"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_srt_baseline_operating_unit" model="ir.rule">
+        <field name="name">fix.srt.baseline: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_srt_baseline"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

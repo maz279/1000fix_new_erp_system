@@ -46,6 +46,9 @@ WRITABLE = {
             "category_id",
             "company_id",
             "description_bn",
+            "hazard_class",
+            "hazard_handling",
+            "hs_code",
             "is_out_of_scope",
             "is_warranty_eligible",
             "item_type",
@@ -54,9 +57,21 @@ WRITABLE = {
             "product_tmpl_id",
             "proposed_end_of_support",
             "proposed_successor_id",
+            "provenance_grade",
+            "repair_level",
             "requires_brand_authorisation",
+            "revenue_recognition",
+            "sd_applicable",
             "srt_observed_minutes",
             "standard_labour_time",
+            "vat_class",
+        }
+    ),
+    "fix.catalogue.publication": frozenset(
+        {
+            "channel",
+            "company_id",
+            "note",
         }
     ),
     "fix.claim.appeal": frozenset(
@@ -308,6 +323,18 @@ WRITABLE = {
             "partner_id",
             "tin_number",
             "trade_license_no",
+        }
+    ),
+    "fix.part.crossref": frozenset(
+        {
+            "active",
+            "alt_item_id",
+            "company_id",
+            "device_model_ids",
+            "direction",
+            "part_item_id",
+            "quality_note",
+            "relation_type",
         }
     ),
     "fix.partner": frozenset(
@@ -661,6 +688,20 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.srt.baseline": frozenset(
+        {
+            "company_id",
+            "device_model_id",
+            "effective_from",
+            "item_id",
+            "minutes",
+            "observed_avg_minutes",
+            "reason",
+            "repair_level",
+            "sample_size",
+            "source",
+        }
+    ),
     "fix.stamp.duty.schedule": frozenset(
         {
             "active",
@@ -882,6 +923,15 @@ WRITABLE = {
             "note",
             "to_partner_id",
             "warranty_id",
+        }
+    ),
+    "product.attribute": frozenset(
+        {
+            "create_variant",
+            "display_type",
+            "name",
+            "sequence",
+            "value_ids",
         }
     ),
     "product.category": frozenset(
