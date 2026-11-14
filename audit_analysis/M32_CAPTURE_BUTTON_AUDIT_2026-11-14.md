@@ -138,4 +138,17 @@ Defects found on the way:
 
 ## Deploy
 
-<!-- DEPLOY -->
+- **Committed** `f928d285` on `fix/a03-live-data-and-pending-work`, with all hooks green. **Not pushed.**
+  - It was built in a worktree (`1000 fix/m32cap-wt`) at `4a4842b9`, as `558062b4`. The branch had meanwhile moved to `109d6868` with the M29/M34 commits, so the change was cherry-picked there. The only shared file was the generated `writable.py`; it merged cleanly and regenerating it changed nothing.
+  - The M32, M34, M29, estate and A03 static guards all pass on the combined tree. The branch moved with `update-ref`, guarded on `109d6868`. The shared checkout's ten M32 paths were then synced, so it is clean at the branch tip.
+- **Drift check** on fix_real with the combined tree: the only gaps were the three new tables and the three `fix_conversation` handoff columns. The peers' M29/M34 schema was already applied.
+- **No full pg_dump.** Dumps of these databases have crashed the shared Postgres before, and this upgrade only adds tables and columns.
+- **Upgrade:** `-u cd_contact_centre` on fix_real, from the shared checkout (= `f928d285`). Exit 0, no errors. The drift check afterwards: **0**.
+- **Restart:** 8069 at 14:47 (PID 55080, launcher `launch_8069.ps1` in this session's scratchpad). It serves fix_real from the shared checkout, as the previous launcher did, with 155 modules loaded and no errors. No watchdog was running.
+- **Live check on 8069 (read-only, nothing saved on fix_real):**
+  - all nine pages show the "+" button and chips in the table above;
+  - the three new forms open;
+  - all six M32 lists return every declared column;
+  - the M32 KPIs serve.
+- **fix_real holds no M32 business data yet:** 0 intents, conversations, guard rails, answers or candidates, and 3 model providers. What it needs now is configuration. The Customer Service Manager should register entity definitions and set the authority rules and handoff priorities. Name a second Contact Centre Supervisor, because today there is one.
+- The private clone `fix_test_m32` is kept (drop on request).
