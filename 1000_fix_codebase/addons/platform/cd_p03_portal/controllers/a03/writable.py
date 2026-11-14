@@ -449,6 +449,16 @@ WRITABLE = {
             "severity",
         }
     ),
+    "fix.complaint.sla.rule": frozenset(
+        {
+            "active",
+            "branch_id",
+            "operating_unit_id",
+            "policy_id",
+            "sequence",
+            "severity",
+        }
+    ),
     "fix.consent": frozenset(
         {
             "channel",
@@ -523,7 +533,6 @@ WRITABLE = {
             "notes",
             "owner_id",
             "reason",
-            "state",
             "survey_id",
         }
     ),
@@ -975,11 +984,8 @@ WRITABLE = {
         {
             "answer_ids",
             "comment",
-            "customer_id",
-            "operating_unit_id",
             "rating",
-            "service_order_id",
-            "state",
+            "template_id",
         }
     ),
     "fix.survey.answer": frozenset(),
@@ -993,10 +999,7 @@ WRITABLE = {
             "name",
             "name_bn",
             "purpose",
-            "question_count",
             "question_ids",
-            "response_count",
-            "state",
             "version",
         }
     ),

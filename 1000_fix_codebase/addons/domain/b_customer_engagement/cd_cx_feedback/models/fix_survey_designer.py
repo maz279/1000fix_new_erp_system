@@ -331,6 +331,34 @@ class FixSurveyAnswer(models.Model):
         "One answer per question per response.",
     )
 
+    @api.constrains("survey_id", "question_id", "value_numeric", "value_text")
+    def _check_answer_fits_question(self):
+        """An answer belongs to its survey's instrument and fits its scale.
+
+        record_answers() always checked this; an answer written through the
+        survey's own answer grid (M34 capture audit 2026-11-13: staff record a
+        phone or counter response) did not, so a punctuality score of 9 on a
+        1-5 scale, or a question from another instrument, would have joined
+        the trend line unnoticed.
+        """
+        for rec in self:
+            instrument = rec.survey_id.template_id
+            if not instrument:
+                raise ValidationError(
+                    "Choose the survey's instrument before recording answers: "
+                    "an answer is only comparable against the questions it was "
+                    "asked from."
+                )
+            if rec.question_id.template_id != instrument:
+                raise ValidationError(
+                    "Question '%s' is not on this survey's instrument (%s)."
+                    % (rec.question_id.code, instrument.display_name)
+                )
+            if rec.question_type in NUMERIC_TYPES:
+                rec.question_id.validate_answer(rec.value_numeric)
+            elif rec.value_text:
+                rec.question_id.validate_answer(rec.value_text)
+
 
 class FixSurveyWithTemplate(models.Model):
     """Attach the template, the answers and the detractor loop to fix.survey."""
@@ -478,16 +506,55 @@ class FixSurveyWithTemplate(models.Model):
             )
         return True
 
-    def write(self, vals):
-        """A rating written directly still closes the loop.
+    def _check_new_answer_scores(self, commands):
+        """A numeric answer row must carry its score.
 
-        Most responses arrive through record_answers(), but the legacy
-        single-rating path writes `rating` straight onto the survey. Hooking
-        write() means the recovery task is raised either way — otherwise half
-        the detractors would still be invisible, which is the bug this is
-        fixing.
+        value_numeric defaults to 0, and 0 is a valid NPS answer (the
+        strongest detractor). A grid row that names an NPS question but no
+        score would otherwise be stored as "0 out of 10" and raise a recovery
+        call for a customer who never said it.
         """
+        Question = self.env["fix.survey.question"]
+        for command in commands or []:
+            if not isinstance(command, list | tuple) or len(command) < 3:
+                continue
+            if command[0] != 0 or not isinstance(command[2], dict):
+                continue
+            row = command[2]
+            question = Question.browse(row.get("question_id") or 0).exists()
+            scored = question and question.question_type in NUMERIC_TYPES
+            if scored and row.get("value_numeric") in (None, False, ""):
+                raise ValidationError(
+                    "Question '%s' is scored: enter the customer's score, "
+                    "or leave the question out if it was not asked." % question.code
+                )
+
+    def write(self, vals):
+        """A rating or an answer written directly still closes the loop.
+
+        Most responses arrive through record_answers(), but a response taken
+        by phone or at the counter is written straight onto the survey (the
+        workspace's Record a Survey Response). Hooking write() means the
+        survey becomes Responded and the recovery task is raised either way —
+        otherwise half the detractors would still be invisible, and a
+        recorded rating left the survey 'sent', outside every CSAT and NPS
+        figure (those count responded surveys only).
+        """
+        if "answer_ids" in vals:
+            self._check_new_answer_scores(vals["answer_ids"])
         result = super().write(vals)
-        if "rating" in vals:
+        if "rating" in vals or "answer_ids" in vals:
+            answered = self.filtered(
+                lambda s: s.state in ("pending", "sent") and (s.rating or s.answer_ids)
+            )
+            if answered:
+                super(FixSurveyWithTemplate, answered).write({"state": "responded"})
+                # BRU-CXM-15 provenance: who keyed it, since it did not come
+                # from the customer's own channel.
+                for survey in answered:
+                    survey.message_post(
+                        body="Response recorded by %s (rating %s, %d answer(s))."
+                        % (self.env.user.name, survey.rating or "none", len(survey.answer_ids))
+                    )
             self._spawn_detractor_followup()
         return result

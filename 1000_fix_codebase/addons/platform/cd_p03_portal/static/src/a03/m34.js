@@ -18,7 +18,7 @@ export const MODULE = {
   ],
   groups: [
     { en: 'Surveys', screens: [
-      { id: 'M34-design', en: 'Survey Designer', bn: 'সার্ভে ডিজাইনার', t: 'r' },
+      { id: 'M34-design', en: 'Survey Designer', bn: 'সার্ভে ডিজাইনার', t: 'g' },
       { id: 'M34-responses', en: 'Responses & Ratings', bn: 'প্রতিক্রিয়া', t: 'g' },
       { id: 'M34-throttle', en: 'Distribution & Throttling', bn: 'বিতরণ ও থ্রটলিং', t: 'g' }
     ]},
@@ -26,7 +26,8 @@ export const MODULE = {
       { id: 'M34-complaints', en: 'Complaints', bn: 'অভিযোগ', t: 'g' },
       { id: 'M34-record', en: 'Complaint Record', bn: 'অভিযোগ রেকর্ড', t: 'f' },
       { id: 'M34-escalation', en: 'Severity & Escalation', bn: 'তীব্রতা ও এসক্যালেশন', t: 'r' },
-      { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'r' }
+      { id: 'M34-goodwill', en: 'Goodwill Authority', bn: 'সদিচ্ছা কর্তৃত্ব', t: 'r' },
+      { id: 'M34-sla-rules', en: 'Complaint SLA Bindings', bn: 'অভিযোগ এসএলএ', t: 'g' }
     ]},
     { en: 'Closed Loop', screens: [
       { id: 'M34-detractor', en: 'Detractor Recovery', bn: 'ডিট্রাক্টর রিকভারি', t: 'g' },
@@ -44,26 +45,57 @@ export const MODULE = {
     ]}
   ],
   reports: ['CSAT by Branch & Technician', 'NPS Trend & Drivers', 'Complaint Category Pareto', 'Closed-Loop Effectiveness', 'Review Sentiment Summary'],
-  forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument'],
+  forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument', 'Distribution Throttle', 'Complaint SLA Binding', 'Customer Review'],
   cross: ['M01 Service Orders', 'M20 Credit Notes', 'M23 QMS / NCR'],
+  /* M34 capture audit (2026-11-13): each page captures what its functions
+   * (FR-CXM-001..042) record. Before it, Survey Design offered "+ New Survey"
+   * (a response row the order-closed event raises), Multi-Parameter Ratings
+   * offered "+ New Customer Review" (an external Google/Facebook review),
+   * Categorisation & SLA offered "+ New Complaint", and the instrument
+   * designer, its answers, the throttle rules and the complaint SLA bindings
+   * sat on no page. */
   freg: { src: 69, sub: [
-    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-design', 'M34-responses'], reports: [], forms: ['Survey Instrument', 'Survey'] }],
-    ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'], reports: ['CSAT by Branch & Technician', 'NPS Trend & Drivers'], forms: ['Survey'] }],
-    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.cx.review', cols: ['name', 'state', 'customer_id', 'source', 'service_order_id', 'rating'], screens: ['M34-reviews'], reports: ['Review Sentiment Summary'], forms: [] }],
-    ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id'], screens: ['M34-detractor', 'M34-rpt-loop'], reports: ['Closed-Loop Effectiveness'], forms: ['Detractor Follow-up'] }],
+    // FR-001..010: the instrument (questions, branching, bilingual text) and
+    // the per-customer frequency cap. Surveys themselves are SENT by the
+    // service_order.closed consumer, never typed.
+    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey.template', cols: ['name', 'code', 'version', 'purpose', 'state', 'question_count', 'response_count'], screens: ['M34-survey-templates', 'M34-design', 'M34-throttle'], reports: [], forms: ['Survey Instrument', 'Distribution Throttle'] }],
+    // FR-011..019: a response taken by phone or at the counter is recorded on
+    // the survey the closed order raised (there is no customer response link
+    // yet), which also raises the detractor follow-up.
+    ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'ces_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'], reports: ['CSAT by Branch & Technician', 'NPS Trend & Drivers'], forms: ['Survey'], create: 'M34-form-survey' }],
+    // FR-014/015: overall, timeliness, professionalism and behaviour are the
+    // instrument's questions; each answer is a row. Captured on the response.
+    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.survey.answer', cols: ['answered_at', 'survey_id', 'question_code', 'question_type', 'value_numeric', 'value_text'], screens: ['M34-survey-answers'], reports: [], forms: ['Survey', 'Survey Instrument'], create: 'M34-form-survey' }],
+    ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id', 'due_date'], screens: ['M34-detractor', 'M34-rpt-loop'], reports: ['Closed-Loop Effectiveness'], forms: ['Detractor Follow-up'] }],
     ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'], reports: ['Complaint Category Pareto'], forms: ['Complaint'] }],
-    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-escalation', 'M34-rpt-pareto'], reports: ['Complaint Category Pareto'], forms: ['Complaint'] }],
+    // FR-030/031: which SLA a complaint of each severity buys, per branch or
+    // unit. Bindings are saved by an administrator (the model's ACL), so they
+    // are a chip; complaints are re-categorised by Reassess on their list.
+    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint.sla.rule', cols: ['sequence', 'severity', 'branch_id', 'operating_unit_id', 'policy_id', 'active'], screens: ['M34-sla-rules', 'M34-complaints', 'M34-escalation', 'M34-rpt-pareto'], reports: ['Complaint Category Pareto'], forms: ['Complaint SLA Binding', 'Complaint'] }],
     ['7', 'Compensation & Goodwill', 6, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'state', 'approved_by', 'issued_at'], screens: ['M34-goodwill'], reports: [], forms: ['Goodwill Credit'], domain: [['reason_code', '=', 'goodwill']] }],
-    ['8', 'VoC Analytics', 9, { model: 'fix.survey', cols: ['service_order_id', 'customer_id', 'rating', 'nps_score', 'ces_score'], screens: ['M34-voc', 'M34-journey', 'M34-rpt-sentiment', 'M34-responses'], reports: ['Review Sentiment Summary', 'NPS Trend & Drivers'], forms: [], create: false, domain: [['state', '=', 'responded']] }]
+    // FR-039..042: the analytics are calculated; the one record a person
+    // enters here is a review or testimonial (FR-040).
+    ['8', 'VoC Analytics', 9, { model: 'fix.survey', cols: ['service_order_id', 'customer_id', 'rating', 'nps_score', 'ces_score'], screens: ['M34-voc', 'M34-journey', 'M34-byybranch', 'M34-reviews', 'M34-rpt-sentiment', 'M34-responses'], reports: ['Review Sentiment Summary', 'NPS Trend & Drivers'], forms: ['Customer Review'], create: 'M34-form-review', domain: [['state', '=', 'responded']] }]
   ] }
 };
 
 export const SCREENS = {
-  'M34-design': { kind: 'table_report', module: 'M34', report: 'survey_blueprint', title: 'Survey Designer', period: false },
+  /* M34 capture audit (2026-11-13): this was a fixed three-row report that
+   * said "a question designer is not built (no model for custom questions)"
+   * while fix.survey.template / fix.survey.question existed. The designer is
+   * the question bank of every instrument; questions are edited on their
+   * instrument (Survey Instrument form), which freezes once published. */
+  'M34-design': { kind: 'model_list', model: 'fix.survey.question', create: false,
+    cols: ['template_id', 'sequence', 'code', 'text', 'text_bn', 'question_type', 'required', 'ask_if_question_id'],
+    note: 'Every question of every instrument. A question is added or changed on its instrument (+ New Survey Instrument, or New Version of a published one).',
+    empty: 'No questions yet: create a Survey Instrument and add its questions.' },
   'M34-responses': { kind: 'model_list', model: 'fix.survey', stateField: 'state',
-    cols: ['service_order_id', 'customer_id', 'operating_unit_id', 'rating', 'nps_score', 'state', 'comment'] },
+    cols: ['service_order_id', 'customer_id', 'operating_unit_id', 'template_id', 'rating', 'nps_score', 'ces_score', 'state', 'comment'],
+    note: 'A survey is raised when a service order closes and is sent within the customer\'s monthly cap. A response taken by phone or at the counter is recorded with Record a Survey Response.',
+    empty: 'No surveys yet: one is raised for each service order when it closes.' },
   'M34-throttle': { kind: 'model_list', model: 'fix.cx.throttle', stateField: 'suppressed',
-    cols: ['partner_id', 'channel', 'max_per_month', 'sent_this_month', 'last_sent_at', 'suppressed', 'reason'] },
+    cols: ['partner_id', 'channel', 'max_per_month', 'sent_this_month', 'last_sent_at', 'suppressed', 'reason'],
+    note: 'A counter row appears when the first survey goes to a customer on a channel (default cap 1 a month). Add a rule to raise or lower one customer\'s cap, or to suppress all CX outreach to them.' },
   'M34-complaints': { kind: 'model_list', model: 'fix.complaint', stateField: 'state',
     cols: ['name', 'customer_id', 'category', 'severity', 'state', 'operating_unit_id', 'service_order_id'],
     // The lifecycle moves only through these actions; the state field is
@@ -94,14 +126,47 @@ export const SCREENS = {
   'M34-goodwill': { kind: 'table_report', module: 'M34', report: 'goodwill_authority', title: 'Goodwill Authority', period: false },
   'M34-detractor': { kind: 'model_list', model: 'fix.cx.followup', stateField: 'state',
     cols: ['survey_id', 'customer_id', 'reason', 'owner_id', 'due_date', 'state'],
+    note: 'A detractor or low rating raises its follow-up automatically. Add one by hand only for a customer who asked for a call back.',
+    // M34 capture audit: 'contacted' and 'closed' had no action, so the only
+    // way to reach them was typing the state on the form (FR-CXM-022/024).
     actions: [
+      { m: 'action_mark_contacted', l: 'Record Contact', ask: 'What was discussed with the customer', kwarg: 'note' },
       { m: 'action_close_recovered', l: 'Mark Recovered' },
+      { m: 'action_close_unrecovered', l: 'Close (Not Recovered)', ask: 'Why the customer could not be recovered', kwarg: 'reason' },
       { m: 'action_raise_complaint', l: 'Raise / Link Complaint' }
     ] },
   'M34-journey': { kind: 'table_report', module: 'M34', report: 'journey_measurement', title: 'Journey Measurement', period: false },
   'M34-voc': { kind: 'table_report', module: 'M34', report: 'voc_analytics', title: 'VoC Analytics', period: false },
   'M34-reviews': { kind: 'model_list', model: 'fix.cx.review', stateField: 'state',
     cols: ['name', 'source', 'customer_id', 'rating', 'state', 'reviewed_at'] },
+
+  /* FR-CXM-030/031: the complaint SLA binding (severity x branch / unit ->
+   * SLA policy). Only an administrator saves one (model ACL), so the list
+   * offers no + New; the page carries the form as a chip. */
+  'M34-sla-rules': { kind: 'model_list', model: 'fix.complaint.sla.rule', create: false,
+    cols: ['sequence', 'severity', 'branch_id', 'operating_unit_id', 'policy_id', 'active'],
+    note: 'The most specific binding wins: branch, then operating unit, then the estate default for the severity. A complaint with no binding uses the M01 default SLA.',
+    empty: 'No bindings: every complaint uses the default SLA. An administrator adds one with Complaint SLA Binding.' },
+  'M34-form-sla-rule': {
+    kind: 'model_form',
+    model: 'fix.complaint.sla.rule',
+    title: 'Complaint SLA Binding',
+    back: 'M34-sla-rules',
+    sections: [
+      {
+        title: 'Which SLA a Complaint Buys',
+        note: 'Leave branch and unit empty for the estate default of that severity. Saving needs the administrator role.',
+        fields: [
+          { name: 'severity', required: true, label: 'Complaint Severity' },
+          { name: 'policy_id', required: true, label: 'SLA Policy' },
+          { name: 'branch_id', label: 'Branch (optional)' },
+          { name: 'operating_unit_id', label: 'Operating Unit (optional)' },
+          { name: 'sequence', label: 'Priority Order' },
+          { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
   'M34-byybranch': { kind: 'table_report', module: 'M34', report: 'experience_by_branch', title: 'Experience by Branch/Tech', period: false },
 
   /* Report chips -> their own computed pack */
@@ -112,56 +177,70 @@ export const SCREENS = {
   'M34-rpt-sentiment': { kind: 'table_report', module: 'M34', report: 'review_sentiment', title: 'Review Sentiment Summary', period: false },
 
   /* ============ D365 IN-WORKSPACE MULTI-TAB FORMS ============ */
+  /* M34 capture audit (2026-11-13): this was a blank "+ New Survey" with an
+   * editable state, so a survey could be typed for an order that already had
+   * one (one per order) or marked "Sent" with nothing sent; and its answer
+   * grid keyed a related code instead of the question, so no answer could be
+   * saved. A survey is raised by the closed order; what a person records is
+   * the customer's response to it. Recording a rating or an answer moves the
+   * survey to Responded and raises the detractor follow-up (server side). */
   'M34-form-survey': {
     lines: {
       field: 'answer_ids',
-      title: 'Answers Given',
-      note: 'One row per answer rather than a JSON blob, so that "average punctuality by branch this quarter" is a query and not a parsing job. A question whose branch condition was not met is absent rather than blank: "not asked" and "asked and declined" mean different things.',
+      title: 'Answers by Parameter',
+      note: 'One row per question of the instrument (timeliness, professionalism, behaviour, NPS, effort...). Each answer is range-checked against its question, which must belong to this survey\'s instrument. Leave out a question the customer was not asked.',
       fields: [
-        { name: 'sequence', label: 'Order' },
-        { name: 'question_code', label: 'Question', required: true },
-        { name: 'question_type', label: 'Type' },
+        { name: 'question_id', label: 'Question', required: true },
         { name: 'value_numeric', label: 'Score' },
-        { name: 'value_text', label: 'Answer' },
-        { name: 'answered_at', label: 'Answered At' }
+        { name: 'value_text', label: 'Answer (text / yes-no / choice)' },
+        { name: 'question_type', label: 'Type', readonly: true },
+        { name: 'answered_at', label: 'Answered At', readonly: true }
       ]
     },
     kind: 'model_form',
     model: 'fix.survey',
-    title: 'Survey',
+    title: 'Survey Response',
+    newLabel: 'Record a Survey Response',
     back: 'M34-responses',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the survey the customer answered',
+      note: 'Surveys raised by closed service orders and not yet answered.',
+      search: 'Search service order or customer',
+      choose: 'Record this response',
+      cols: ['service_order_id', 'customer_id', 'operating_unit_id', 'state', 'dispatch_channel'],
+      domain: [['state', 'in', ['pending', 'sent']]],
+      empty: 'No survey is waiting for an answer: a survey is raised when a service order closes.'
+    },
     status: { field: 'state', labels: { pending: 'Pending', sent: 'Sent', responded: 'Responded', expired: 'Expired' } },
     tabs: [
-      { id: 'general', label: 'Survey Details', bn: 'জরিপ বিবরণ', icon: '📝' },
-      { id: 'response', label: 'VoC Rating & NPS', bn: 'রেটিং ও এনপিএস', icon: '⭐' },
-      { id: 'audit', label: 'Metadata & Origin', bn: 'মেটাডাটা ও উৎস', icon: '📋' }
+      { id: 'response', label: 'Customer Response', bn: 'গ্রাহকের উত্তর', icon: '⭐' },
+      { id: 'general', label: 'Survey Details', bn: 'জরিপ বিবরণ', icon: '📝' }
     ],
     sections: [
       {
+        tab: 'response',
+        title: 'Step 2 of 2: What the Customer Said',
+        note: 'A rating of 3 or below, or an NPS answer of 6 or below, raises a detractor follow-up at once. The response is logged on the survey with who recorded it.',
+        fields: [
+          { name: 'template_id', label: 'Instrument (needed for the answers below)' },
+          { name: 'rating', label: 'Overall Rating (1 to 5)' },
+          { name: 'comment', label: 'Customer\'s Words', type: 'text' },
+          { name: 'nps_score', readonly: true, label: 'NPS Contribution (computed)' },
+          { name: 'ces_score', readonly: true, label: 'Effort Score (from the CES answer)' }
+        ]
+      },
+      {
         tab: 'general',
         title: 'Survey Details',
-        note: 'The fixed CX instrument on a service order. Send it, then record the response here.',
+        note: 'Raised from the closed service order; one survey per order.',
         fields: [
-          { name: 'service_order_id', required: true, label: 'Service Order' },
-          { name: 'customer_id', label: 'Customer' },
-          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'State' }
-        ]
-      },
-      {
-        tab: 'response',
-        title: 'Customer Response & VoC',
-        note: 'Ratings 1 to 5 are recorded; the NPS score is computed automatically by the model.',
-        fields: [
-          { name: 'rating', label: 'Overall Rating (1 to 5)' },
-          { name: 'nps_score', readonly: true, label: 'NPS Score (computed)' },
-          { name: 'comment', label: 'Customer Feedback', type: 'text' }
-        ]
-      },
-      {
-        tab: 'audit',
-        title: 'Source & Metadata',
-        fields: [
+          { name: 'service_order_id', readonly: true, label: 'Service Order' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'operating_unit_id', readonly: true, label: 'Operating Unit' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'dispatch_channel', readonly: true, label: 'Sent By' },
+          { name: 'dispatch_suppressed_reason', readonly: true, label: 'Not Sent Because', type: 'text' },
+          { name: 'followup_id', readonly: true, label: 'Detractor Follow-up' },
           { name: 'source_event_id', readonly: true, label: 'Source Event ID' }
         ]
       }
@@ -335,8 +414,9 @@ export const SCREENS = {
       {
         tab: 'audit',
         title: 'Status & Completion',
+        note: 'The status moves only by the list actions: Record Contact, Mark Recovered, Close (Not Recovered).',
         fields: [
-          { name: 'state', required: true, label: 'Recovery Status' },
+          { name: 'state', readonly: true, label: 'Recovery Status' },
           { name: 'closed_at', readonly: true, label: 'Closed At' }
         ]
       }
@@ -472,7 +552,9 @@ export const SCREENS = {
         { name: 'code', label: 'Code', required: true },
         { name: 'version', label: 'Version', required: true },
         { name: 'purpose', label: 'Purpose', required: true },
-        { name: 'state', label: 'State', required: true },
+        // Publish / Retire on the list: a typed "Published" skipped the
+        // Bengali-text check and the freeze (M34 capture audit).
+        { name: 'state', label: 'State', readonly: true },
         { name: 'active', label: 'Active' }
         ]
       },
@@ -483,15 +565,16 @@ export const SCREENS = {
         fields: [
         { name: 'intro_text', label: 'Introduction (English)' },
         { name: 'intro_text_bn', label: 'Introduction (Bengali)' },
-        { name: 'question_count', label: 'Questions' },
-        { name: 'response_count', label: 'Responses' }
+        { name: 'question_count', label: 'Questions', readonly: true },
+        { name: 'response_count', label: 'Responses', readonly: true }
         ]
       }
     ]
   },
   'M34-survey-answers': { kind: 'model_list', model: 'fix.survey.answer', create: false,
     cols: ['answered_at', 'survey_id', 'question_code', 'question_type', 'value_numeric', 'value_text'],
-    note: 'A row per answer, so \'average punctuality by branch\' is a query and not a parsing job.' },
+    note: 'A row per answer, so \'average punctuality by branch\' is a query and not a parsing job. Answers are recorded on the survey response.',
+    empty: 'No answers yet: they are recorded with Record a Survey Response, against the survey\'s instrument.' },
 };
 
 export const REPORT_ROUTES = {
@@ -507,7 +590,10 @@ export const FORM_MODELS = {
   'M34:Survey': 'fix.survey',
   'M34:Complaint': 'fix.complaint',
   'M34:Goodwill Credit': 'fix.credit.note',
-  'M34:Detractor Follow-up': 'fix.cx.followup'
+  'M34:Detractor Follow-up': 'fix.cx.followup',
+  'M34:Distribution Throttle': 'fix.cx.throttle',
+  'M34:Complaint SLA Binding': 'fix.complaint.sla.rule',
+  'M34:Customer Review': 'fix.cx.review'
 };
 
 export const FORM_CHIPS = {
@@ -516,6 +602,9 @@ export const FORM_CHIPS = {
   'M34:Complaint': 'M34-record',
   'M34:Goodwill Credit': 'M34-form-goodwill',
   'M34:Detractor Follow-up': 'M34-form-followup',
+  'M34:Distribution Throttle': 'M34-form-throttle',
+  'M34:Complaint SLA Binding': 'M34-form-sla-rule',
+  'M34:Customer Review': 'M34-form-review',
   'M34:__by_model__': {
     'fix.survey.template': 'M34-form-survey-template',
     'fix.survey': 'M34-form-survey',
@@ -523,7 +612,8 @@ export const FORM_CHIPS = {
     'fix.credit.note': 'M34-form-goodwill',
     'fix.cx.followup': 'M34-form-followup',
     'fix.cx.throttle': 'M34-form-throttle',
-    'fix.cx.review': 'M34-form-review'
+    'fix.cx.review': 'M34-form-review',
+    'fix.complaint.sla.rule': 'M34-form-sla-rule'
   },
   'M34:__by_screen__': {
     'M34-survey-templates': 'M34-form-survey-template',
@@ -532,7 +622,8 @@ export const FORM_CHIPS = {
     'M34-record': 'M34-record',
     'M34-detractor': 'M34-form-followup',
     'M34-throttle': 'M34-form-throttle',
-    'M34-reviews': 'M34-form-review'
+    'M34-reviews': 'M34-form-review',
+    'M34-sla-rules': 'M34-form-sla-rule'
   }
 };
 

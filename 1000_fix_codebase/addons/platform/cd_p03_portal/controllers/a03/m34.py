@@ -49,7 +49,14 @@ SURFACES = {
     "fix.cx.followup": {
         "order": "due_date, id",
         "limit": 300,
-        "actions": {"action_close_recovered", "action_raise_complaint"},
+        # M34 capture audit (2026-11-13): contact and an unrecovered close are
+        # recorded acts, not a typed state.
+        "actions": {
+            "action_mark_contacted",
+            "action_close_recovered",
+            "action_close_unrecovered",
+            "action_raise_complaint",
+        },
     },
     "fix.cx.throttle": {
         "order": "partner_id",
@@ -82,6 +89,15 @@ SURFACES = {
     "fix.survey.answer": {
         "order": "survey_id, sequence, id",
         "limit": 300,
+        "actions": set(),
+    },
+    # M34 capture audit (2026-11-13): the complaint SLA binding (severity x
+    # branch / unit -> SLA policy) had no screen, so "Categorisation & SLA"
+    # could only offer a new complaint. Saving stays administrator-only
+    # (the model ACL); the workspace adds no permission of its own.
+    "fix.complaint.sla.rule": {
+        "order": "sequence, id",
+        "limit": 200,
         "actions": set(),
     },
 }
@@ -141,8 +157,9 @@ def survey_blueprint(env, date_from=None, date_to=None, **params):
         {"question": "Question", "type": "Type", "scale": "Scale", "field": "Stored Field"},
         rows,
         [
-            "The CX survey is a fixed three-question instrument stored on fix.survey; "
-            "a drag-drop question designer is not built (no model for custom questions)."
+            "These are the fields every survey response carries. The questions "
+            "themselves (punctuality, behaviour, effort...) are designed as Survey "
+            "Instruments, published, and answered per question on the response."
         ],
     )
 

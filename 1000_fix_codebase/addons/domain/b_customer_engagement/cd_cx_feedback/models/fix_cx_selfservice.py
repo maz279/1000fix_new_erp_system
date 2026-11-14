@@ -2,6 +2,7 @@
 # throttling and review capture. All three are real records the closed-loop
 # and VoC reports read; nothing is fabricated.
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 # The default per-customer monthly CX contact cap, matching the
 # max_per_month field default. One post-service survey a month is the
@@ -55,6 +56,42 @@ class FixCxFollowup(models.Model):
     def action_close_recovered(self):
         for rec in self:
             rec.write({"state": "recovered", "closed_at": fields.Datetime.now()})
+        return True
+
+    # M34 capture audit (2026-11-13): 'contacted' and 'closed' had no
+    # transition, so the workspace offered the state as a typed field.
+    def _note_line(self, label, text):
+        self.ensure_one()
+        stamp = fields.Datetime.to_string(fields.Datetime.now())
+        line = "[%s] %s by %s: %s" % (stamp, label, self.env.user.name, text)
+        return "%s\n%s" % (self.notes, line) if self.notes else line
+
+    def action_mark_contacted(self, note=None):
+        """FR-CXM-022: first contact with the detractor is a recorded fact."""
+        note = (note or "").strip()
+        if not note:
+            raise UserError("Say what was discussed with the customer.")
+        for rec in self:
+            if rec.state != "open":
+                raise UserError("Only an open follow-up can record a first contact.")
+            rec.write({"state": "contacted", "notes": rec._note_line("Contacted", note)})
+        return True
+
+    def action_close_unrecovered(self, reason=None):
+        """Close a follow-up the customer could not be won back on, with why."""
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Say why the customer could not be recovered.")
+        for rec in self:
+            if rec.state in ("recovered", "closed"):
+                raise UserError("This follow-up is already closed.")
+            rec.write(
+                {
+                    "state": "closed",
+                    "closed_at": fields.Datetime.now(),
+                    "notes": rec._note_line("Closed, not recovered", reason),
+                }
+            )
         return True
 
 
