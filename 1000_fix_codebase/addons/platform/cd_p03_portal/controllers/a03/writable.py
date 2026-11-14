@@ -78,6 +78,17 @@ WRITABLE = {
         }
     ),
     "fix.account.stakeholder": frozenset(),
+    "fix.assistant.action.authority": frozenset(
+        {
+            "action_type",
+            "active",
+            "approval_limit_bdt",
+            "assistant_may_perform",
+            "note",
+            "requires_confirmation",
+            "requires_identity",
+        }
+    ),
     "fix.assistant.ask": frozenset(),
     "fix.assistant.dataset": frozenset(
         {
@@ -102,6 +113,21 @@ WRITABLE = {
             "version",
         }
     ),
+    "fix.assistant.entity": frozenset(
+        {
+            "active",
+            "code",
+            "counter_examples",
+            "entity_type",
+            "examples",
+            "name",
+            "name_bn",
+            "note",
+            "pattern",
+            "sequence",
+            "validation",
+        }
+    ),
     "fix.assistant.guardrail": frozenset(
         {
             "action",
@@ -109,6 +135,15 @@ WRITABLE = {
             "name",
             "note",
             "rule",
+        }
+    ),
+    "fix.assistant.handoff.trigger": frozenset(
+        {
+            "active",
+            "note",
+            "notify_supervisor",
+            "priority",
+            "signal",
         }
     ),
     "fix.assistant.intent": frozenset(
@@ -128,16 +163,7 @@ WRITABLE = {
     "fix.assistant.intent.candidate": frozenset(
         {
             "covered_by_intent",
-            "distinct_conversations",
-            "first_seen",
-            "frequency",
-            "language",
-            "last_seen",
-            "mined_at",
-            "phrase",
             "review_note",
-            "sample_utterances",
-            "state",
         }
     ),
     "fix.assistant.llm.provider": frozenset(

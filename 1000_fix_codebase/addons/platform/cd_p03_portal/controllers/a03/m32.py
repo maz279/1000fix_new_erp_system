@@ -67,6 +67,24 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_accept", "action_reject"},
     },
+    # --- M32 capture audit (14 Nov 2026): the registers the Customer Service
+    # Manager owns (spec 10.1 / 13). Read by every user, written by a
+    # Contact Centre Supervisor (ACL); the hard rules live on the models.
+    "fix.assistant.entity": {
+        "order": "sequence, code",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.assistant.action.authority": {
+        "order": "action_type",
+        "limit": 50,
+        "actions": set(),
+    },
+    "fix.assistant.handoff.trigger": {
+        "order": "category, signal",
+        "limit": 50,
+        "actions": set(),
+    },
 }
 
 RESOLVED = ("resolved_ai", "resolved_agent")
@@ -172,25 +190,46 @@ def intent_coverage_fcr(env, date_from=None, date_to=None, **params):
 
 
 def handoff_reasons(env, date_from=None, date_to=None, **params):
+    """Handoffs by trigger category and reason (spec 14: emotional,
+    operational, technical). The category is stamped at the handoff from the
+    trigger table; rows that predate it are classified from their reason."""
+    Trigger = env.get("fix.assistant.handoff.trigger")
     convs = _convs(env).filtered(lambda c: c.handoff_reason or c.state == "with_agent")
-    by_reason = {}
+    by_key = {}
     for c in convs:
         reason = c.handoff_reason or "unspecified"
-        by_reason[reason] = by_reason.get(reason, 0) + 1
-    rows = [
-        {"reason": r, "conversations": n}
-        for r, n in sorted(by_reason.items(), key=lambda kv: -kv[1])
-    ]
+        category = getattr(c, "handoff_category", False)
+        if not category and Trigger is not None:
+            category = Trigger.resolve(reason)["category"]
+        key = (category or "unclassified", reason)
+        row = by_key.setdefault(
+            key,
+            {"category": key[0], "reason": reason, "conversations": 0, "urgent": 0},
+        )
+        row["conversations"] += 1
+        if getattr(c, "handoff_priority", "") == "urgent":
+            row["urgent"] += 1
+    rows = sorted(by_key.values(), key=lambda r: (r["category"], -r["conversations"]))
     return _pack(
         "Handoff Reasons",
-        ["reason", "conversations"],
-        {"reason": "Handoff Reason", "conversations": "Conversations"},
+        ["category", "reason", "conversations", "urgent"],
+        {
+            "category": "Trigger Category",
+            "reason": "Handoff Reason",
+            "conversations": "Conversations",
+            "urgent": "Urgent",
+        },
         rows,
         [
-            "Reasons are recorded by the assistant at the moment of handoff; "
-            "'unspecified' means the row predates the reason capture."
+            "Reasons are recorded by the assistant at the moment of handoff; the "
+            "category and priority come from the handoff triggers. 'unspecified' means "
+            "the row predates the reason capture."
         ],
-        totals={"reason": "Total", "conversations": sum(r["conversations"] for r in rows)}
+        totals={
+            "category": "Total",
+            "conversations": sum(r["conversations"] for r in rows),
+            "urgent": sum(r["urgent"] for r in rows),
+        }
         if rows
         else None,
         empty="No handoffs recorded — the assistant has not escalated yet.",
@@ -198,27 +237,57 @@ def handoff_reasons(env, date_from=None, date_to=None, **params):
 
 
 def guardrail_status(env, date_from=None, date_to=None, **params):
-    rules = env["fix.assistant.guardrail"].sudo().search([])
+    """Each rule with how often it fired, counted from the grounded-answer log
+    (fix.assistant.ask records every guardrail verdict with the rule's name)."""
+    rules = env["fix.assistant.guardrail"].sudo().with_context(active_test=False).search([])
+    Ask = env.get("fix.assistant.ask")
+    blocked_asks = (
+        Ask.sudo().search([("guardrail_verdict", "=", "blocked")]) if Ask is not None else []
+    )
+    flagged_asks = (
+        Ask.sudo().search([("guardrail_reason", "ilike", "Flagged by guardrail")])
+        if Ask is not None
+        else []
+    )
     rows = []
     for rule in rules:
+        prefix = "Guardrail '%s'" % rule.name
+        blocked = sum(1 for a in blocked_asks if (a.guardrail_reason or "").startswith(prefix))
+        flags = sum(1 for a in flagged_asks if rule.name in (a.guardrail_reason or ""))
         rows.append(
             {
                 "name": rule.name,
                 "rule": rule.rule,
                 "action": rule.action,
                 "active": "✓" if rule.active else "✗",
+                "blocked": blocked,
+                "flagged": flags,
             }
         )
     return _pack(
         "Guard-Rail Intervention Log",
-        ["name", "rule", "action", "active"],
-        {"name": "Guard Rail", "rule": "Condition", "action": "Action", "active": "Active"},
+        ["name", "rule", "action", "active", "blocked", "flagged"],
+        {
+            "name": "Guard Rail",
+            "rule": "Condition",
+            "action": "Action",
+            "active": "Active",
+            "blocked": "Blocked / Handed Off",
+            "flagged": "Flagged",
+        },
         rows,
         [
-            "The estate has NO per-utterance intervention log — this is the enforced "
-            "rule register. Block/flag counts are only possible once the intervention "
-            "log model exists (declared gap, never simulated)."
+            "Counts come from the grounded-answer log, which records the verdict and "
+            "the rule that fired on every assistant answer. These are input guard rails; "
+            "the output filter (FR-CAI-032) is not a configurable rule yet."
         ],
+        totals={
+            "name": "Total",
+            "blocked": sum(r["blocked"] for r in rows),
+            "flagged": sum(r["flagged"] for r in rows),
+        }
+        if rows
+        else None,
         empty="No guard-rail rules configured yet.",
     )
 
@@ -281,23 +350,49 @@ def assistant_csat(env, date_from=None, date_to=None, **params):
     )
 
 
+_BUILTIN_ENTITIES = {
+    "Order / invoice reference": re.compile(r"\b(?:SO|INV|AR)[/-]?\d{3,}\b", re.IGNORECASE),
+    "Phone number": re.compile(r"(?:\+?880|0)1\d{9}\b"),
+    "Amount (BDT)": re.compile(r"(?:৳|BDT|Tk\.?)\s?\d[\d,]*", re.IGNORECASE),
+}
+
+
 def entity_catalog(env, date_from=None, date_to=None, **params):
-    """Lexical entity extraction over the transcripts — measured, labelled as
-    lexical (regex), not an NLU model."""
+    """Entity extraction over the customer turns, with the definitions the
+    Customer Service Manager registered (fix.assistant.entity). With none
+    registered, the three built-in patterns run and the pack says so."""
     turns = env["fix.conversation.turn"].sudo().search([("speaker", "=", "customer")])
-    patterns = {
-        "Order / invoice reference": re.compile(r"\b(?:SO|INV|AR)[/-]?\d{3,}\b", re.IGNORECASE),
-        "Phone number": re.compile(r"(?:\+?880|0)1\d{9}\b"),
-        "Amount (BDT)": re.compile(r"(?:৳|BDT|Tk\.?)\s?\d[\d,]*", re.IGNORECASE),
-    }
+    Entity = env.get("fix.assistant.entity")
+    definitions = Entity.sudo().search([]) if Entity is not None else []
     rows = []
-    for label, rx in patterns.items():
-        hits = 0
-        for turn in turns:
-            if turn.text and rx.search(turn.text):
-                hits += 1
-        rows.append(
-            {"entity": label, "turns_with_match": hits, "basis": "regex over customer turns"}
+    if definitions:
+        for definition in definitions:
+            hits = sum(1 for turn in turns if turn.text and definition.extract(turn.text))
+            rows.append(
+                {
+                    "entity": definition.name,
+                    "turns_with_match": hits,
+                    "basis": "%s · %s" % (definition.code, definition.validation),
+                }
+            )
+        basis_note = (
+            "Extraction uses the %d registered entity definitions: each pattern is "
+            "proved against its examples when saved, Bengali digits count as digits, "
+            "and its validation (e.g. the IMEI check digit) must pass." % len(definitions)
+        )
+    else:
+        for label, rx in _BUILTIN_ENTITIES.items():
+            hits = 0
+            for turn in turns:
+                text = turn.text or ""
+                if Entity is not None:
+                    text = Entity._normalise(text)
+                if text and rx.search(text):
+                    hits += 1
+            rows.append({"entity": label, "turns_with_match": hits, "basis": "built-in pattern"})
+        basis_note = (
+            "No entity definition is registered yet, so the three built-in patterns ran. "
+            "Register definitions on this page to extract IMEI, serials, dates and the rest."
         )
     rows.append(
         {
@@ -307,14 +402,14 @@ def entity_catalog(env, date_from=None, date_to=None, **params):
         }
     )
     return _pack(
-        "Entity Extraction — lexical matches in the transcripts",
+        "Entity Extraction — matches in the transcripts",
         ["entity", "turns_with_match", "basis"],
         {"entity": "Entity", "turns_with_match": "Turns With a Match", "basis": "Basis"},
         rows,
         [
-            "Extraction is deterministic pattern matching over the recorded text — "
-            "order references, BD phone numbers and BDT amounts. A trained entity "
-            "model is not claimed."
+            basis_note,
+            "Extraction is deterministic pattern matching over the recorded text; a "
+            "trained entity model is not claimed.",
         ],
     )
 
@@ -329,18 +424,31 @@ def handoff_packages(env, date_from=None, date_to=None, **params):
                 "customer": c.customer_id.name or c.contact_identity or "Anonymous",
                 "intent": c.intent or "—",
                 "reason": c.handoff_reason or "—",
+                "category": getattr(c, "handoff_category", False) or "—",
+                "priority": getattr(c, "handoff_priority", False) or "—",
                 "turns": len(c.turn_ids),
                 "started": c.started_at.strftime("%Y-%m-%d %H:%M") if c.started_at else "—",
             }
         )
     return _pack(
         "Handoff Packages — full context transferred to the agent",
-        ["conversation", "customer", "intent", "reason", "turns", "started"],
+        [
+            "conversation",
+            "customer",
+            "intent",
+            "reason",
+            "category",
+            "priority",
+            "turns",
+            "started",
+        ],
         {
             "conversation": "Conversation",
             "customer": "Customer",
             "intent": "Intent",
             "reason": "Reason",
+            "category": "Trigger Category",
+            "priority": "Queue Priority",
             "turns": "Transcript Turns",
             "started": "Started",
         },

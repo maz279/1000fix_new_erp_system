@@ -32,3 +32,8 @@ from . import fix_m01_notifications
 # A11 audit P2: approver notifications for M63 approval events (extends
 # fix.notif.delivery).
 from . import fix_approval_notify
+
+# M32 capture audit: entity definitions, the action authority matrix and the
+# handoff triggers. Extends fix.conversation and fix.assistant.intent (after
+# fix_assistant_llm), so it imports last.
+from . import fix_assistant_registers

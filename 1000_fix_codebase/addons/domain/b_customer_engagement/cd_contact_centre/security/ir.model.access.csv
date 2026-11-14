@@ -13,7 +13,8 @@ access_fix_cc_qa_supervisor,fix.cc.qa.evaluation supervisor,model_fix_cc_qa_eval
 access_fix_cc_wfm,fix.cc.wfm.shift,model_fix_cc_wfm_shift,base.group_user,1,1,1,1
 access_fix_assistant_dialogue,fix.assistant.dialogue,model_fix_assistant_dialogue,base.group_user,1,1,1,1
 access_fix_assistant_rag,fix.assistant.rag.source,model_fix_assistant_rag_source,base.group_user,1,1,1,1
-access_fix_assistant_guardrail,fix.assistant.guardrail,model_fix_assistant_guardrail,base.group_user,1,1,1,1
+access_fix_assistant_guardrail,fix.assistant.guardrail,model_fix_assistant_guardrail,base.group_user,1,0,0,0
+access_fix_assistant_guardrail_sup,fix.assistant.guardrail supervisor,model_fix_assistant_guardrail,cd_contact_centre.group_cc_supervisor,1,1,1,1
 access_fix_assistant_dataset,fix.assistant.dataset,model_fix_assistant_dataset,base.group_user,1,1,1,0
 access_fix_assistant_dataset_mgr,fix.assistant.dataset manager,model_fix_assistant_dataset,cd_entity_config.group_dofa_tier_3,1,1,1,1
 access_fix_notif_provider,fix.notif.provider,model_fix_notif_provider,base.group_user,1,1,1,0
@@ -42,3 +43,13 @@ access_fix_assistant_intent_candidate_mgr,fix.assistant.intent.candidate manager
 access_fix_assistant_llm_provider,fix.assistant.llm.provider,model_fix_assistant_llm_provider,base.group_user,1,0,0,0
 access_fix_assistant_llm_provider_mgr,fix.assistant.llm.provider manager,model_fix_assistant_llm_provider,cd_entity_config.group_dofa_tier_3,1,1,1,1
 access_fix_assistant_ask,fix.assistant.ask,model_fix_assistant_ask,base.group_user,1,1,1,0
+access_fix_assistant_entity,fix.assistant.entity,model_fix_assistant_entity,base.group_user,1,0,0,0
+access_fix_assistant_entity_sup,fix.assistant.entity supervisor,model_fix_assistant_entity,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_action_authority,fix.assistant.action.authority,model_fix_assistant_action_authority,base.group_user,1,0,0,0
+access_fix_assistant_action_authority_sup,fix.assistant.action.authority supervisor,model_fix_assistant_action_authority,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_handoff_trigger,fix.assistant.handoff.trigger,model_fix_assistant_handoff_trigger,base.group_user,1,0,0,0
+access_fix_assistant_handoff_trigger_sup,fix.assistant.handoff.trigger supervisor,model_fix_assistant_handoff_trigger,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_guardrail_sys,fix.assistant.guardrail system,model_fix_assistant_guardrail,base.group_system,1,1,1,1
+access_fix_assistant_entity_sys,fix.assistant.entity system,model_fix_assistant_entity,base.group_system,1,1,1,1
+access_fix_assistant_action_authority_sys,fix.assistant.action.authority system,model_fix_assistant_action_authority,base.group_system,1,1,1,1
+access_fix_assistant_handoff_trigger_sys,fix.assistant.handoff.trigger system,model_fix_assistant_handoff_trigger,base.group_system,1,1,1,1

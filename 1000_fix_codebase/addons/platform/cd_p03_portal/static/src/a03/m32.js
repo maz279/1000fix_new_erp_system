@@ -3,6 +3,14 @@
  * Rebuilt 2026-10-31: Full Microsoft Dynamics 365 multi-tab form architecture
  * across all 4 in-workspace forms with zero Bengali/English mixing, three-tier
  * confidence gating, automated PII scrubbing, and dialectical phonetic search.
+ *
+ * Capture audit 2026-11-14: five of the nine sub-module pages (Entity
+ * Extraction, Authenticated Actions, Handoff Decision, Agent Assistance,
+ * Analytics) captured nothing. Each page now captures what its sub-module
+ * names: entity definitions, the action authority matrix, the handoff
+ * triggers (registers the spec gives the Customer Service Manager, built in
+ * cd_contact_centre/models/fix_assistant_registers.py), the review and send
+ * of AI answers, and the review of mined candidate intents.
  */
 
 export const MODULE = {
@@ -24,8 +32,13 @@ export const MODULE = {
     ]},
     { en: 'Understanding', bn: 'বোঝা', screens: [
       { id: 'M32-intents', en: 'Intent Library', bn: 'ইনটেন্ট লাইব্রেরি', t: 'g' },
+      { id: 'M32-entity-defs', en: 'Entity Definitions', bn: 'সত্তা সংজ্ঞা', t: 'g' },
       { id: 'M32-entities', en: 'Entity Extraction', bn: 'সত্তা নিষ্কাশন', t: 'r' },
       { id: 'M32-dialogue', en: 'Dialogue Flows', bn: 'ডায়ালগ ফ্লো', t: 'g' }
+    ]},
+    { en: 'Actions & Handoff', bn: 'কাজ ও হ্যান্ডঅফ', screens: [
+      { id: 'M32-authority', en: 'Action Authority Matrix', bn: 'কাজের কর্তৃত্ব', t: 'g' },
+      { id: 'M32-handoff-triggers', en: 'Handoff Triggers', bn: 'হ্যান্ডঅফ ট্রিগার', t: 'g' }
     ]},
     { en: 'Grounding & Safety', bn: 'গ্রাউন্ডিং ও সুরক্ষা', screens: [
       { id: 'M32-rag', en: 'RAG Knowledge Sources', bn: 'আরএজি জ্ঞান ভাণ্ডার', t: 'g' },
@@ -40,7 +53,14 @@ export const MODULE = {
       { id: 'M32-form-intent', en: 'Intent', bn: 'ইনটেন্ট ফর্ম', t: 'f' },
       { id: 'M32-form-dialogue', en: 'Dialogue Flow', bn: 'ডায়ালগ ফ্লো ফর্ম', t: 'f' },
       { id: 'M32-form-guardrail', en: 'Guard-Rail Rule', bn: 'গার্ডরেইল ফর্ম', t: 'f' },
-      { id: 'M32-form-rag', en: 'RAG Knowledge Source', bn: 'আরএজি ফর্ম', t: 'f' }
+      { id: 'M32-form-rag', en: 'RAG Knowledge Source', bn: 'আরএজি ফর্ম', t: 'f' },
+      { id: 'M32-form-entity', en: 'Entity Definition', bn: 'সত্তা সংজ্ঞা ফর্ম', t: 'f' },
+      { id: 'M32-form-authority', en: 'Action Authority Rule', bn: 'কর্তৃত্ব নিয়ম ফর্ম', t: 'f' },
+      { id: 'M32-form-handoff-trigger', en: 'Handoff Trigger', bn: 'হ্যান্ডঅফ ট্রিগার ফর্ম', t: 'f' },
+      { id: 'M32-form-review-answer', en: 'Review an AI Answer', bn: 'এআই উত্তর পর্যালোচনা', t: 'f' },
+      { id: 'M32-form-send-answer', en: 'Send a Reviewed Answer', bn: 'পর্যালোচিত উত্তর পাঠান', t: 'f' },
+      { id: 'M32-form-candidate-accept', en: 'Accept a Candidate Intent', bn: 'প্রস্তাবিত ইনটেন্ট গ্রহণ', t: 'f' },
+      { id: 'M32-form-candidate-reject', en: 'Reject a Candidate Intent', bn: 'প্রস্তাবিত ইনটেন্ট বাতিল', t: 'f' }
     ]},
     { en: 'Assistant Reports', bn: 'রিপোর্ট', screens: [
       { id: 'M32-rpt-coverage', en: 'Intent Coverage & FCR', bn: 'ইনটেন্ট কভারেজ ও এফসিআর', t: 'r' },
@@ -63,20 +83,35 @@ export const MODULE = {
     ]}
   ],
   reports: ['Intent Coverage & FCR', 'Handoff Reasons', 'Guard-Rail Intervention Log', 'Bengali vs English Performance', 'Assistant CSAT'],
-  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'NLU Release Bundle'],
+  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'NLU Release Bundle',
+    'Entity Definition', 'Action Authority Rule', 'Handoff Trigger', 'Review an AI Answer', 'Send a Reviewed Answer',
+    'Accept a Candidate Intent', 'Reject a Candidate Intent'],
   cross: ['M27 Contact Centre', 'M33 Party Master', 'M01 Service Orders Central Hub', 'M61 Knowledge Base'],
   freg: {
     src: 62,
     sub: [
-      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-rpt-coverage'], reports: ['Intent Coverage & FCR'], forms: ['Intent', 'NLU Release Bundle'] }],
-      ['2', 'Entity Extraction', 7, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'question', 'language', 'grounded'], screens: ['M32-entities', 'M32-asks'], reports: [], forms: [] }],
+      /* 1 Intent Recognition (FR-CAI-001..008): the intent library is the
+       * module's own record; a corpus reaches production as a release bundle. */
+      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-chat', 'M32-datasets', 'M32-rpt-coverage'], reports: ['Intent Coverage & FCR'], forms: ['Intent', 'NLU Release Bundle'] }],
+      /* 2 Entity Extraction (FR-CAI-003, spec 10.1 fix.entity.definition):
+       * what the assistant extracts, proved against examples when saved. */
+      ['2', 'Entity Extraction', 7, { model: 'fix.assistant.entity', cols: ['code', 'name', 'entity_type', 'validation', 'pattern', 'active'], screens: ['M32-entity-defs', 'M32-entities'], reports: [], forms: ['Entity Definition'], create: 'M32-form-entity' }],
       ['3', 'Dialogue Management', 8, { model: 'fix.assistant.dialogue', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M32-dialogue'], reports: [], forms: ['Dialogue Flow'] }],
-      ['4', 'RAG Grounding', 7, { model: 'fix.assistant.rag.source', cols: ['name', 'active', 'source_type', 'reference', 'chunk_count', 'last_indexed_at'], screens: ['M32-rag'], reports: [], forms: ['RAG Knowledge Source', 'Model Provider'] }],
-      ['5', 'Authenticated Actions', 6, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M32-sessions'], reports: [], forms: [] }],
+      ['4', 'RAG Grounding', 7, { model: 'fix.assistant.rag.source', cols: ['name', 'active', 'source_type', 'reference', 'chunk_count', 'last_indexed_at'], screens: ['M32-rag', 'M32-llm-providers'], reports: [], forms: ['RAG Knowledge Source', 'Model Provider'] }],
+      /* 5 Authenticated Actions (FR-CAI-021..030): the authority matrix the
+       * Customer Service Manager owns. The assistant's own actions are
+       * system-written; this is what it is allowed to do. */
+      ['5', 'Authenticated Actions', 6, { model: 'fix.assistant.action.authority', cols: ['action_type', 'assistant_may_perform', 'requires_identity', 'requires_confirmation', 'approval_limit_bdt', 'never_delegable', 'active'], screens: ['M32-authority', 'M32-sessions'], reports: [], forms: ['Action Authority Rule'], create: 'M32-form-authority' }],
       ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'active', 'rule', 'action', 'note'], screens: ['M32-guardrails', 'M32-rpt-guardlog'], reports: ['Guard-Rail Intervention Log'], forms: ['Guard-Rail Rule'] }],
-      ['7', 'Handoff Decision', 5, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'handoff_reason', 'state'], screens: ['M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: [], domain: [['state', 'in', ['with_agent', 'resolved_agent']]] }],
-      ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human'], screens: ['M32-assist', 'M32-asks'], reports: [], forms: [], domain: [['consumer', '=', 'm27_agent_assist']] }],
-      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'], reports: ['Bengali vs English Performance', 'Assistant CSAT', 'Intent Coverage & FCR'], forms: [] }]
+      /* 7 Handoff Decision (FR-CAI-036/037): the triggers, each independently
+       * tunable; handoffs themselves are written by the assistant. */
+      ['7', 'Handoff Decision', 5, { model: 'fix.assistant.handoff.trigger', cols: ['signal', 'category', 'priority', 'notify_supervisor', 'mandatory', 'active'], screens: ['M32-handoff-triggers', 'M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: ['Handoff Trigger'], create: 'M32-form-handoff-trigger' }],
+      /* 8 Agent Assistance (FR-CAI-038): an AI answer is never auto-sent - a
+       * person other than the asker reviews it, then it is sent. */
+      ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human', 'human_reviewed_by', 'sent_at'], screens: ['M32-assist', 'M32-asks'], reports: [], forms: ['Review an AI Answer', 'Send a Reviewed Answer'], create: 'M32-form-review-answer', domain: [['consumer', '=', 'm27_agent_assist']] }],
+      /* 9 Analytics (spec 14, AUT-CAI-08/10): the improvement loop - phrases
+       * the assistant could not place are mined and reviewed here. */
+      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-intent-candidates', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'], reports: ['Bengali vs English Performance', 'Assistant CSAT', 'Intent Coverage & FCR'], forms: ['Accept a Candidate Intent', 'Reject a Candidate Intent'], create: 'M32-form-candidate-accept' }]
     ]
   }
 };
@@ -438,26 +473,240 @@ export const SCREENS = {
         title: 'What The Traffic Shows',
         note: 'Mined from PII-scrubbed turns by frequency analysis. This is n-gram counting, not a language model, and it is labelled that way so nobody over-trusts it.',
         fields: [
-        { name: 'phrase', label: 'Phrase', required: true },
-        { name: 'language', label: 'Language', required: true },
-        { name: 'frequency', label: 'Occurrences', required: true },
-        { name: 'distinct_conversations', label: 'Distinct Conversations', required: true },
-        { name: 'first_seen', label: 'First Seen' },
-        { name: 'last_seen', label: 'Last Seen' },
-        { name: 'sample_utterances', label: 'Scrubbed Samples' },
-        { name: 'mined_at', label: 'Mined At' }
+        { name: 'phrase', label: 'Phrase', readonly: true },
+        { name: 'language', label: 'Language', readonly: true },
+        { name: 'frequency', label: 'Occurrences', readonly: true },
+        { name: 'distinct_conversations', label: 'Distinct Conversations', readonly: true },
+        { name: 'first_seen', label: 'First Seen', readonly: true },
+        { name: 'last_seen', label: 'Last Seen', readonly: true },
+        { name: 'sample_utterances', label: 'Scrubbed Samples', readonly: true },
+        { name: 'mined_at', label: 'Mined At', readonly: true }
         ]
       },
       {
         tab: 'review',
         title: 'Human Decision',
-        note: 'Accepting does NOT create the intent: an intent needs authored Bengali utterances and a grounding function, and T08 forbids machine-translated utterances.',
+        note: 'Accepting does NOT create the intent: an intent needs authored Bengali utterances and a grounding function, and T08 forbids machine-translated utterances. The decision is made with Accept or Reject, never by typing the state.',
         fields: [
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State', readonly: true },
         { name: 'covered_by_intent', label: 'Already Covered By' },
         { name: 'review_note', label: 'Reviewer Note' }
         ]
       }
+    ]
+  },
+
+  /* ==================================================================
+   * CAPTURE AUDIT 2026-11-14 - the registers and decisions each page names
+   * ================================================================== */
+  'M32-entity-defs': { kind: 'model_list', model: 'fix.assistant.entity', create: true,
+    cols: ['sequence', 'code', 'name', 'entity_type', 'validation', 'pattern', 'active'],
+    note: 'What the assistant extracts from a message. A pattern is proved against its examples when saved; Bengali digits count as digits.' },
+  'M32-form-entity': {
+    kind: 'model_form', model: 'fix.assistant.entity',
+    title: 'Entity Definition', back: 'M32-entity-defs',
+    newLabel: 'Define an Extractable Entity',
+    tabs: [
+      { id: 'entity', label: '1. Entity', bn: '১. সত্তা', icon: '🏷️' },
+      { id: 'rule', label: '2. Extraction Rule', bn: '২. নিষ্কাশন নিয়ম', icon: '🔎' },
+      { id: 'proof', label: '3. Examples & Proof', bn: '৩. উদাহরণ ও প্রমাণ', icon: '✅' }
+    ],
+    sections: [
+      { tab: 'entity', title: 'What Is Extracted', fields: [
+        { name: 'code', label: 'Code', required: true },
+        { name: 'name', label: 'Name', required: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'entity_type', label: 'Entity Type', required: true },
+        { name: 'sequence', label: 'Order' },
+        { name: 'active', label: 'Active' }
+      ]},
+      { tab: 'rule', title: 'Pattern And Validation',
+        note: 'A regular expression, matched case-insensitively after Bengali digits (০-৯) are read as 0-9. A pattern that repeats a repeating group, e.g. (\\d+)+, is refused: it runs on every customer message. The validation must also pass, e.g. the IMEI check digit.',
+        fields: [
+        { name: 'pattern', label: 'Pattern (Regular Expression)', required: true },
+        { name: 'validation', label: 'Validation', required: true }
+      ]},
+      { tab: 'proof', title: 'Examples The Rule Must Pass',
+        note: 'Saved only when every example extracts and no counter-example does.',
+        fields: [
+        { name: 'examples', label: 'Examples (one message per line)', type: 'text', required: true },
+        { name: 'counter_examples', label: 'Counter-Examples (one per line)', type: 'text' },
+        { name: 'example_check', label: 'Examples Proved', readonly: true },
+        { name: 'note', label: 'Note' }
+      ]}
+    ]
+  },
+
+  'M32-authority': { kind: 'model_list', model: 'fix.assistant.action.authority', create: true,
+    cols: ['action_type', 'assistant_may_perform', 'requires_identity', 'requires_confirmation', 'approval_limit_bdt', 'never_delegable', 'active'],
+    note: 'What the assistant may do on its own. Checked before it answers: an action it may not take, or a customer not yet verified, goes to a person. Cancellations, refunds and goodwill credit can never be delegated.' },
+  'M32-form-authority': {
+    kind: 'model_form', model: 'fix.assistant.action.authority',
+    title: 'Action Authority Rule', back: 'M32-authority',
+    newLabel: 'Set an Action Authority Rule',
+    tabs: [
+      { id: 'action', label: '1. Action', bn: '১. কাজ', icon: '⚙️' },
+      { id: 'safeguards', label: '2. Safeguards', bn: '২. সুরক্ষা', icon: '🛡️' }
+    ],
+    sections: [
+      { tab: 'action', title: 'The Action And Who Performs It',
+        note: 'Off: the assistant explains the limit and hands the customer to a person (AUT-CAI-07). Contract cancellation, refund and goodwill credit cannot be switched on (BRU-CAI-04).',
+        fields: [
+        { name: 'action_type', label: 'Action', required: true },
+        { name: 'assistant_may_perform', label: 'Assistant May Perform' },
+        { name: 'approval_limit_bdt', label: 'Approval Limit (BDT, repair approval)' },
+        { name: 'never_delegable', label: 'Always a Person (BRU-CAI-04)', readonly: true },
+        { name: 'commitment', label: 'Creates a Commitment', readonly: true },
+        { name: 'active', label: 'Active' }
+      ]},
+      { tab: 'safeguards', title: 'Before The Assistant Acts',
+        note: 'An action the assistant may perform always needs a verified customer (BRU-CAI-03), and a commitment always needs the customer\'s explicit yes (BRU-CAI-05). The record refuses to be saved otherwise.',
+        fields: [
+        { name: 'requires_identity', label: 'Identity Verification First' },
+        { name: 'requires_confirmation', label: 'Explicit Confirmation First' },
+        { name: 'note', label: 'Why / Owner Note' }
+      ]}
+    ]
+  },
+
+  'M32-handoff-triggers': { kind: 'model_list', model: 'fix.assistant.handoff.trigger', create: true,
+    cols: ['signal', 'category', 'priority', 'notify_supervisor', 'mandatory', 'active'],
+    note: 'How each kind of handoff is treated: the queue priority it gets and whether supervisors are alerted. Without a row, the spec default applies. Distress and an explicit request for a human cannot be weakened.' },
+  'M32-form-handoff-trigger': {
+    kind: 'model_form', model: 'fix.assistant.handoff.trigger',
+    title: 'Handoff Trigger', back: 'M32-handoff-triggers',
+    newLabel: 'Tune a Handoff Trigger',
+    sections: [
+      { title: 'Signal And Response',
+        note: 'The category (emotional, operational, technical) follows from the signal. Distress escalates as Urgent and always alerts the supervisors (BRU-CAI-06, AUT-CAI-04); an explicit request for a human is at least High and can never be switched off (BRU-CAI-07).',
+        fields: [
+        { name: 'signal', label: 'Signal', required: true },
+        { name: 'category', label: 'Category', readonly: true },
+        { name: 'priority', label: 'Queue Priority', required: true },
+        { name: 'notify_supervisor', label: 'Alert the Supervisors' },
+        { name: 'mandatory', label: 'Cannot Be Weakened', readonly: true },
+        { name: 'active', label: 'Active' },
+        { name: 'note', label: 'Why / Owner Note' }
+      ]}
+    ]
+  },
+
+  /* Agent Assistance: an AI answer reaches a customer only after a person
+   * other than the asker reviews it (FR-CAI-038, A03 audit M32 G12). */
+  'M32-form-review-answer': {
+    kind: 'model_form', model: 'fix.assistant.ask',
+    title: 'Review an AI Answer', back: 'M32-asks',
+    newLabel: 'Review an AI Answer',
+    status: { field: 'engine', labels: { rule_grounder: 'Rule-grounded', llm: 'Generated', refused: 'Refused' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the AI answer to review',
+      note: 'Answers that need a person before they reach the customer and nobody has reviewed yet. You cannot review an answer you asked for.',
+      search: 'Search question / intent',
+      choose: 'Review this answer',
+      cols: ['asked_at', 'consumer', 'intent', 'question', 'engine', 'asked_by'],
+      domain: [['requires_human', '=', true], ['human_reviewed_by', '=', false], ['engine', '!=', 'refused']],
+      empty: 'No AI answer is waiting for review.'
+    },
+    saveAction: { method: 'action_mark_reviewed', label: 'Mark Reviewed', done: 'Reviewed: the answer can now be sent', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: Check The Answer Against Its Basis',
+        note: 'Check the answer against its citations. Mark it reviewed only if every statement is grounded; otherwise leave it and reply yourself.',
+        fields: [
+        { name: 'question', label: 'Question', readonly: true },
+        { name: 'answer_bn', label: 'Answer (Bengali)', readonly: true },
+        { name: 'answer_en', label: 'Answer (English)', readonly: true },
+        { name: 'citations', label: 'Citations', readonly: true },
+        { name: 'engine', label: 'Engine', readonly: true },
+        { name: 'guardrail_reason', label: 'Guardrail Note', readonly: true },
+        { name: 'asked_by', label: 'Asked By', readonly: true },
+        { name: 'conversation_id', label: 'Conversation', readonly: true }
+      ]}
+    ]
+  },
+  'M32-form-send-answer': {
+    kind: 'model_form', model: 'fix.assistant.ask',
+    title: 'Send a Reviewed Answer', back: 'M32-asks',
+    newLabel: 'Send a Reviewed Answer',
+    status: { field: 'engine', labels: { rule_grounder: 'Rule-grounded', llm: 'Generated', refused: 'Refused' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the answer to send',
+      note: 'Grounded answers on an open conversation, not yet sent, that need no review or have been reviewed by someone other than the asker.',
+      search: 'Search question / intent',
+      choose: 'Send this answer',
+      cols: ['asked_at', 'intent', 'question', 'engine', 'human_reviewed_by', 'conversation_id'],
+      domain: [['grounded', '=', true], ['sent_at', '=', false], ['conversation_id', '!=', false],
+        '|', ['requires_human', '=', false], ['human_reviewed_by', '!=', false]],
+      empty: 'No reviewed answer is waiting to be sent.'
+    },
+    saveAction: { method: 'action_send_to_customer', label: 'Send to Customer', done: 'Sent: the answer is on the conversation transcript', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: Confirm What The Customer Receives',
+        note: 'The answer in the conversation\'s language is added to the transcript. A closed conversation, a refused or ungrounded answer, or one still awaiting review is refused by the server.',
+        fields: [
+        { name: 'question', label: 'Question', readonly: true },
+        { name: 'language', label: 'Language', readonly: true },
+        { name: 'answer_bn', label: 'Answer (Bengali)', readonly: true },
+        { name: 'answer_en', label: 'Answer (English)', readonly: true },
+        { name: 'human_reviewed_by', label: 'Reviewed By', readonly: true },
+        { name: 'conversation_id', label: 'Conversation', readonly: true }
+      ]}
+    ]
+  },
+
+  /* Analytics: the improvement loop. Accept or reject what was mined; the
+   * intent itself is then authored by a native speaker (T08). */
+  'M32-form-candidate-accept': {
+    kind: 'model_form', model: 'fix.assistant.intent.candidate',
+    title: 'Accept a Candidate Intent', back: 'M32-intent-candidates',
+    newLabel: 'Review a Candidate Intent',
+    status: { field: 'state', labels: { proposed: 'Proposed', accepted: 'Accepted', rejected: 'Rejected', duplicate: 'Already covered' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the mined phrase to accept',
+      note: 'Phrases customers used that the intent library does not cover, by frequency. Proposals only: mined by counting, not by a language model.',
+      search: 'Search phrase',
+      choose: 'Review this phrase',
+      cols: ['phrase', 'language', 'frequency', 'distinct_conversations', 'last_seen'],
+      domain: [['state', '=', 'proposed']],
+      empty: 'No candidate intent is waiting for review.'
+    },
+    saveAction: { method: 'action_accept', label: 'Accept for Authoring', done: 'Accepted: the intent is now to be authored by a native speaker', kwargs: { note: 'review_note' } },
+    sections: [
+      { title: 'Step 2 of 2: Accept For Authoring',
+        note: 'Accepting does not create the intent. It records that the library needs one, and a native speaker then authors its Bengali utterances and grounding (T08).',
+        fields: [
+        { name: 'phrase', label: 'Phrase', readonly: true },
+        { name: 'language', label: 'Language', readonly: true },
+        { name: 'frequency', label: 'Occurrences', readonly: true },
+        { name: 'distinct_conversations', label: 'Distinct Conversations', readonly: true },
+        { name: 'sample_utterances', label: 'Scrubbed Samples', readonly: true },
+        { name: 'review_note', label: 'Reviewer Note' }
+      ]}
+    ]
+  },
+  'M32-form-candidate-reject': {
+    kind: 'model_form', model: 'fix.assistant.intent.candidate',
+    title: 'Reject a Candidate Intent', back: 'M32-intent-candidates',
+    newLabel: 'Reject a Candidate Intent',
+    status: { field: 'state', labels: { proposed: 'Proposed', accepted: 'Accepted', rejected: 'Rejected', duplicate: 'Already covered' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the mined phrase to reject',
+      note: 'Phrases customers used that the intent library does not cover, by frequency.',
+      search: 'Search phrase',
+      choose: 'Reject this phrase',
+      cols: ['phrase', 'language', 'frequency', 'distinct_conversations', 'last_seen'],
+      domain: [['state', '=', 'proposed']],
+      empty: 'No candidate intent is waiting for review.'
+    },
+    saveAction: { method: 'action_reject', label: 'Reject', done: 'Rejected', kwargs: { note: 'review_note' } },
+    sections: [
+      { title: 'Step 2 of 2: Say Why It Is Rejected',
+        fields: [
+        { name: 'phrase', label: 'Phrase', readonly: true },
+        { name: 'language', label: 'Language', readonly: true },
+        { name: 'frequency', label: 'Occurrences', readonly: true },
+        { name: 'sample_utterances', label: 'Scrubbed Samples', readonly: true },
+        { name: 'review_note', label: 'Reason', required: true }
+      ]}
     ]
   },
 };
@@ -471,6 +720,13 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_CHIPS = {
+  'M32:Entity Definition': 'M32-form-entity',
+  'M32:Action Authority Rule': 'M32-form-authority',
+  'M32:Handoff Trigger': 'M32-form-handoff-trigger',
+  'M32:Review an AI Answer': 'M32-form-review-answer',
+  'M32:Send a Reviewed Answer': 'M32-form-send-answer',
+  'M32:Accept a Candidate Intent': 'M32-form-candidate-accept',
+  'M32:Reject a Candidate Intent': 'M32-form-candidate-reject',
   'M32:Model Provider': 'M32-form-llm-provider',
   'M32:Grounded Answer': 'M32-form-ask',
   'M32:Candidate Intent': 'M32-form-intent-candidate',
@@ -480,6 +736,9 @@ export const FORM_CHIPS = {
   'M32:Guard-Rail Rule': 'M32-form-guardrail',
   'M32:RAG Knowledge Source': 'M32-form-rag',
   'M32:__by_model__': {
+    'fix.assistant.entity': 'M32-form-entity',
+    'fix.assistant.action.authority': 'M32-form-authority',
+    'fix.assistant.handoff.trigger': 'M32-form-handoff-trigger',
     'fix.assistant.llm.provider': 'M32-form-llm-provider',
     'fix.assistant.ask': 'M32-form-ask',
     'fix.assistant.intent.candidate': 'M32-form-intent-candidate',
@@ -490,6 +749,9 @@ export const FORM_CHIPS = {
     'fix.assistant.rag.source': 'M32-form-rag'
   },
   'M32:__by_screen__': {
+    'M32-entity-defs': 'M32-form-entity',
+    'M32-authority': 'M32-form-authority',
+    'M32-handoff-triggers': 'M32-form-handoff-trigger',
     'M32-llm-providers': 'M32-form-llm-provider',
     'M32-asks': 'M32-form-ask',
     'M32-intent-candidates': 'M32-form-intent-candidate',
@@ -503,6 +765,13 @@ export const FORM_CHIPS = {
 };
 
 export const FORM_MODELS = {
+  'M32:Entity Definition': 'fix.assistant.entity',
+  'M32:Action Authority Rule': 'fix.assistant.action.authority',
+  'M32:Handoff Trigger': 'fix.assistant.handoff.trigger',
+  'M32:Review an AI Answer': 'fix.assistant.ask',
+  'M32:Send a Reviewed Answer': 'fix.assistant.ask',
+  'M32:Accept a Candidate Intent': 'fix.assistant.intent.candidate',
+  'M32:Reject a Candidate Intent': 'fix.assistant.intent.candidate',
   'M32:Candidate Intent': 'fix.assistant.intent.candidate',
   'M32:NLU Release Bundle': 'fix.assistant.dataset',
   'M32:Grounded Answer': 'fix.assistant.ask',
