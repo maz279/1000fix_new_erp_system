@@ -82,6 +82,17 @@ The item, service and protection forms now show the classification fields (the e
 - Regression of the suites that create or submit catalogue items: cd_catalogue, cd_service_order, cd_rate_card, cd_rental_asset M13 controls, cd_mdm_core behaviour: pass. Two cd_contract_core A04 checks fail **on HEAD too**: M36's flat forms and the "half of A04 forms have a vault" ratio (46/100 on HEAD; every form added here has a vault).
 - **UI on the private server:** all 13 pages show a "+" capture; page 12 picked an item, saved HS 8473.30.00 / Standard VAT / On delivery, and the set values then render read-only; page 13 refused the portal channel ("nothing … Active and Published") and published POS v1 (4 items, 100 %, hash), after which Channel renders read-only. Through `/p03/model/write`: SRT baseline, cross-reference (refused without quality note, then saved), attribute with two values, fault brand code all saved; typed `item_count` and `state` refused; the proposer approving their own baseline refused (SoD).
 
+### Full regression on the final commit
+
+The whole `cd_p03_portal` suite plus the two cd_contract_core A04 suites ran from the shared checkout at 7cce4dc3 against a fresh fix_test clone with the modules upgraded: **4,060 passed, 4 failed, 257 skipped, 0 errors**. Each failure was re-checked on the pre-change commit 6601a728 and fails the same way there:
+
+| Test | Cause | Same on 6601a728 |
+|---|---|---|
+| test_submodule_create_button::test_no_submodule_page_offers_another_records_button | M30/1 Branch Master declares `create: 'module'` (m30.js line 71, not touched here) | yes |
+| test_a04_register_reconciliation::test_f2_no_flat_forms_remain | eight untabbed M36 forms | yes, same list |
+| test_a04_zero_trust_certification::test_no_form_is_flat | the same M36 forms | yes, same list |
+| test_a04_register_reconciliation::test_f5_document_vaults_exist_on_the_major_forms | under half of A04 forms have a document tab | yes: 46/100 before, 51/105 after (every M37 form added here has one) |
+
 ## 6. Deploy (user-approved, 14 Nov)
 
 - Commit 0ba4a6d0 on `fix/a03-live-data-and-pending-work` (worktree commit, branch moved with `update-ref` from 6601a728; hooks green). Unpushed.
