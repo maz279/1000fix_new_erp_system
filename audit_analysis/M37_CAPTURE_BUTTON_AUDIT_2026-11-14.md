@@ -1,6 +1,6 @@
 # M37 Product & Service Catalogue: data-capture audit, second pass
 
-**Date:** 14 Nov 2026 · **Estate:** fix_real on port 8069 · **First pass:** `M37_CAPTURE_BUTTON_AUDIT_2026-11-13.md` (live since 13 Nov)
+**Date:** 14 Nov 2026 · **Estate:** fix_real on port 8069 · **Status:** live since the user-approved 22:42 restart, commit 0ba4a6d0 (unpushed) · **First pass:** `M37_CAPTURE_BUTTON_AUDIT_2026-11-13.md` (live since 13 Nov)
 
 ## 1. The question
 
@@ -82,7 +82,17 @@ The item, service and protection forms now show the classification fields (the e
 - Regression of the suites that create or submit catalogue items: cd_catalogue, cd_service_order, cd_rate_card, cd_rental_asset M13 controls, cd_mdm_core behaviour: pass. Two cd_contract_core A04 checks fail **on HEAD too**: M36's flat forms and the "half of A04 forms have a vault" ratio (46/100 on HEAD; every form added here has a vault).
 - **UI on the private server:** all 13 pages show a "+" capture; page 12 picked an item, saved HS 8473.30.00 / Standard VAT / On delivery, and the set values then render read-only; page 13 refused the portal channel ("nothing … Active and Published") and published POS v1 (4 items, 100 %, hash), after which Channel renders read-only. Through `/p03/model/write`: SRT baseline, cross-reference (refused without quality note, then saved), attribute with two values, fault brand code all saved; typed `item_count` and `state` refused; the proposer approving their own baseline refused (SoD).
 
-## 6. Owner decisions and remaining gaps
+## 6. Deploy (user-approved, 14 Nov)
+
+- Commit 0ba4a6d0 on `fix/a03-live-data-and-pending-work` (worktree commit, branch moved with `update-ref` from 6601a728; hooks green). Unpushed.
+- Backup: `_migration/backups/fix_real_pre_m37_second_pass_2026-11-14.dump` (48.7 MB).
+- Pre-restart drift check of every model file against fix_real: no missing column (only abstract mixins and attachment binaries).
+- `-u cd_catalogue,cd_service_order,cd_p03_portal` on fix_real: 155 modules, no error.
+- 8069 relaunched from the shared checkout (new PID at 22:42), `/web/login` 200.
+- Read-only probe as a non-admin user (rolled back): new fields and the five models are readable; every new surface is served with its whitelist; a non-admin SRT create is refused (AccessError); the SRT cron is active; 16,178 items are offered by the page-12 pick.
+- The production bundle `5acc34c` contains the new screens (`M37-form-publication`, `M37-form-taxclass`, `M37-srt-baselines`, `M37-part-xref`, `brand_code_ids`).
+
+## 7. Owner decisions and remaining gaps
 
 | Item | Status |
 |---|---|
