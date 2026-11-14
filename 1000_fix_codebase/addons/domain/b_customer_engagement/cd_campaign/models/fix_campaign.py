@@ -755,8 +755,18 @@ class FixCampaign(models.Model):
                         "Every consented audience member is on the BTRC Do-Not-Disturb "
                         "registry - nothing to send (REQ-35.1)."
                     )
+                # FR-MKT-014 / BRU-MKT-14: the holdout is kept out of the
+                # campaign entirely - no message, no journey - and recorded,
+                # so the incremental effect can be measured against it.
+                holdout = rec._holdout_of(recipients)
+                recipients -= holdout
+                if not recipients:
+                    raise UserError(
+                        "The holdout leaves nobody to send to: lower it or widen the audience."
+                    )
                 vals.update(
                     {
+                        "holdout_partner_ids": [(6, 0, holdout.ids)],
                         "recipient_ids": [(6, 0, recipients.ids)],
                         "excluded_no_consent_count": audience_size - len(consented),
                         "pdpa_consent_verified": True,

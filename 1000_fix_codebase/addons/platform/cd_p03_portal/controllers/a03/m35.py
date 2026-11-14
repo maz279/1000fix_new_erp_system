@@ -27,6 +27,8 @@ SURFACES = {
             "action_pause",
             "action_resume",
             "action_complete",
+            # capture audit 2026-11-14: post-suppression reach (BRU-MKT-03)
+            "action_estimate_audience",
         },
     },
     "fix.campaign.response": {
@@ -71,7 +73,20 @@ SURFACES = {
     "fix.campaign.experiment": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        # capture audit 2026-11-14: the state and winner move only through these
+        "actions": {"action_start", "action_conclude"},
+    },
+    # capture audit 2026-11-14: spend booked outside the estate (BRU-MKT-11)
+    # and the versioned attribution model (BRU-MKT-12).
+    "fix.campaign.spend": {
+        "order": "spend_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_void"},
+    },
+    "fix.attribution.model": {
+        "order": "code, version desc",
+        "limit": 200,
+        "actions": {"action_activate"},
     },
     # --- added by the A03 gap-closure build -------------------
     # Each of these is bound by a workspace screen below; an
@@ -174,17 +189,54 @@ def campaign_funnel(env, date_from=None, date_to=None, **params):
     )
 
 
+def _model_in_force(env):
+    """The attribution model in force, or None when none has been put in force."""
+    Model = env.get("fix.attribution.model")
+    return Model.sudo()._current() if Model is not None else None
+
+
 def attribution_roi(env, date_from=None, date_to=None, **params):
+    """Spend against responses, plus what the touch ledger credits to each
+    campaign under the attribution model that applies to it: the one pinned
+    when it completed, else the one in force (BRU-MKT-12)."""
+    Touch = env.get("fix.campaign.touch")
+    current = _model_in_force(env)
+    credited = {}
+
+    def credit(model):
+        method = model.method if model else "position"
+        lookback = model.lookback_days if model else 90
+        if (method, lookback) not in credited:
+            result = (
+                Touch.attribute(model=method, lookback_days=lookback)
+                if Touch is not None
+                else {"rows": []}
+            )
+            credited[(method, lookback)] = {r["campaign_id"]: r for r in result["rows"]}
+        return credited[(method, lookback)]
+
     rows = []
     for c in _campaigns(env):
         responses = _responses(env).filtered(lambda r, cid=c.id: r.campaign_id.id == cid)
         converted = len(responses.filtered(lambda r: r.conversion_status == "converted"))
+        pinned = c.attribution_model_id if "attribution_model_id" in c._fields else None
+        model = pinned or current
+        hit = credit(model).get(c.id, {})
+        conversions = hit.get("attributed_conversions", 0.0)
+        complete = bool(conversions) and not hit.get("conversions_without_value")
+        revenue = round(hit.get("attributed_revenue", 0.0), 2) if complete else None
+        spend = round(c.actual_spend, 2)
         rows.append(
             {
                 "campaign": c.name,
+                "model": model.display_label if model else "Position-based (no model in force)",
                 "budget": round(c.budget, 2),
+                "actual_spend": spend,
                 "responses": len(responses),
                 "converted": converted,
+                "attributed_conversions": round(conversions, 2),
+                "attributed_revenue": revenue,
+                "roi": round(revenue / spend, 2) if revenue is not None and spend else None,
                 "cost_per_response": round(c.cost_per_response, 2),
                 "cost_per_conversion": round(c.budget / converted, 2) if converted else 0.0,
             }
@@ -193,31 +245,49 @@ def attribution_roi(env, date_from=None, date_to=None, **params):
     totals = {
         "campaign": "Total",
         "budget": round(sum(r["budget"] for r in rows), 2),
+        "actual_spend": round(sum(r["actual_spend"] for r in rows), 2),
         "responses": sum(r["responses"] for r in rows),
         "converted": sum(r["converted"] for r in rows),
+        "attributed_conversions": round(sum(r["attributed_conversions"] for r in rows), 2),
     }
     return _pack(
-        "Attribution & ROI — spend against responses and conversions",
+        "Attribution & ROI — spend against what each campaign is credited with",
         [
             "campaign",
+            "model",
             "budget",
+            "actual_spend",
             "responses",
             "converted",
+            "attributed_conversions",
+            "attributed_revenue",
+            "roi",
             "cost_per_response",
             "cost_per_conversion",
         ],
         {
             "campaign": "Campaign",
+            "model": "Attribution Model",
             "budget": "Budget",
+            "actual_spend": "Recorded Spend",
             "responses": "Responses",
             "converted": "Converted",
+            "attributed_conversions": "Credited Conversions",
+            "attributed_revenue": "Credited Revenue",
+            "roi": "Return on Spend",
             "cost_per_response": "Cost per Response",
             "cost_per_conversion": "Cost per Conversion",
         },
         rows,
         [
-            "Attributed REVENUE is a declared gap: the response record carries no order "
-            "value, so revenue-per-campaign is not estimated here. Cost metrics are real."
+            "Credit is shared across the campaigns that reached a customer before they "
+            "converted, by the attribution model shown. A completed campaign keeps the "
+            "model that was in force when it closed; a later model does not restate it.",
+            "Credited revenue and return on spend are shown only where every credited "
+            "conversion has a value on file. Otherwise they read as a dash: a share of an "
+            "unknown total is still unknown.",
+            "Recorded spend is message cost, offer discounts given and the spend recorded "
+            "against the campaign (media, print, agency).",
         ],
         totals=totals if rows else None,
         empty="No campaigns yet.",
@@ -260,33 +330,83 @@ def seasonal_performance(env, date_from=None, date_to=None, **params):
 
 
 def co_marketing_partner(env, date_from=None, date_to=None, **params):
-    corporate = _campaigns(env).filtered(lambda c: c.target_audience_type == "corporate_amc")
+    """Campaigns run with channel partners (the partners named on the campaign)
+    and the market development fund each partner has put against them."""
+    Campaign = env["fix.campaign"]
+    if "partner_ids" not in Campaign._fields:
+        return _pack(
+            "Co-Marketing Partner Report",
+            ["campaign"],
+            {"campaign": "Campaign"},
+            [],
+            ["The partner programme is not installed, so no campaign can name a partner."],
+            empty="No co-marketing campaigns.",
+        )
+    Rebate = env.get("fix.partner.rebate")
     rows = []
-    for c in corporate:
+    for c in _campaigns(env).filtered("partner_ids"):
         responses = _responses(env).filtered(lambda r, cid=c.id: r.campaign_id.id == cid)
+        funds = (
+            Rebate.sudo().search(
+                [
+                    ("kind", "=", "mdf"),
+                    ("campaign_id", "=", c.id),
+                    ("state", "in", ("accrued", "approved", "paid")),
+                ]
+            )
+            if Rebate is not None
+            else []
+        )
+        partner_fund = round(sum(f.amount for f in funds), 2)
         rows.append(
             {
                 "campaign": c.name,
+                "partners": ", ".join(c.partner_ids.mapped("name")),
                 "channel": c.channel,
+                "budget": round(c.budget, 2),
+                "partner_fund": partner_fund,
+                "company_share": round(max((c.budget or 0.0) - partner_fund, 0.0), 2),
                 "responses": len(responses),
                 "converted": len(responses.filtered(lambda r: r.conversion_status == "converted")),
             }
         )
+    totals = {
+        "campaign": "Total",
+        "budget": round(sum(r["budget"] for r in rows), 2),
+        "partner_fund": round(sum(r["partner_fund"] for r in rows), 2),
+        "responses": sum(r["responses"] for r in rows),
+        "converted": sum(r["converted"] for r in rows),
+    }
     return _pack(
         "Co-Marketing Partner Report",
-        ["campaign", "channel", "responses", "converted"],
+        [
+            "campaign",
+            "partners",
+            "channel",
+            "budget",
+            "partner_fund",
+            "company_share",
+            "responses",
+            "converted",
+        ],
         {
-            "campaign": "Corporate Campaign",
+            "campaign": "Campaign",
+            "partners": "Co-Marketing Partners",
             "channel": "Channel",
+            "budget": "Budget",
+            "partner_fund": "Partner Fund (accrued, approved or paid)",
+            "company_share": "Company Share of Budget",
             "responses": "Responses",
             "converted": "Converted",
         },
         rows,
         [
-            "Only corporate-AMC campaigns are shown. A dedicated co-marketing partner "
-            "model (partner share, co-branded budget) does not exist — declared gap."
+            "Only campaigns that name a channel partner are shown. The partner fund is "
+            "the market development fund the partners have accrued against the campaign; "
+            "draft and cancelled funds are not counted."
         ],
-        empty="No corporate co-marketing campaigns yet.",
+        totals=totals if rows else None,
+        empty="No campaign names a co-marketing partner yet.",
     )
 
 
@@ -331,6 +451,11 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
                 "budget": round(c.budget, 2),
                 "consent_verified": "✓" if c.pdpa_consent_verified else "✗",
                 "excluded_no_consent": c.excluded_no_consent_count,
+                "estimated_reach": (
+                    "%d (%s)" % (c.estimated_reach, c.estimated_at)
+                    if getattr(c, "estimated_at", False)
+                    else "not estimated"
+                ),
                 "dnd_scrub": (
                     "%s (%d excluded)" % (c.dnd_scrubbed_at, c.dnd_excluded_count)
                     if c.dnd_scrubbed_at
@@ -350,6 +475,7 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
             "budget",
             "consent_verified",
             "excluded_no_consent",
+            "estimated_reach",
             "dnd_scrub",
             "approval",
             "creatives_waiting",
@@ -362,6 +488,7 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
             "budget": "Budget",
             "consent_verified": "PDPA Consent Verified",
             "excluded_no_consent": "Excluded (no consent)",
+            "estimated_reach": "Estimated Reach (after suppression)",
             "dnd_scrub": "BTRC DND Scrub",
             "approval": "Budget Approval",
             "creatives_waiting": "Creatives Not Approved",
@@ -372,7 +499,10 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
             "A campaign cannot run until PDPA consent is verified; the excluded count is "
             "the audience deliberately dropped for missing consent. SMS, e-mail and "
             "portal campaigns also need a DND scrub within 24 hours of launch, and every "
-            "creative must be approved."
+            "creative must be approved.",
+            "Estimated reach is how many people the campaign would actually reach once "
+            "consent, the Do-Not-Disturb registry and the holdout are applied; requesting "
+            "budget approval refreshes it.",
         ],
         empty="No campaigns awaiting approval.",
     )

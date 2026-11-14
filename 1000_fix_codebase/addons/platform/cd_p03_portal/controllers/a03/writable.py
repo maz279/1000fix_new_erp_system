@@ -188,6 +188,15 @@ WRITABLE = {
             "source_type",
         }
     ),
+    "fix.attribution.model": frozenset(
+        {
+            "code",
+            "lookback_days",
+            "method",
+            "name",
+            "rationale",
+        }
+    ),
     "fix.bd.address": frozenset(
         {
             "address_tag",
@@ -209,17 +218,21 @@ WRITABLE = {
     ),
     "fix.campaign": frozenset(
         {
-            "audience_domain",
             "btrc_sender_mask",
             "budget",
             "budget_memo_ref",
             "channel",
             "company_id",
             "end_date",
+            "exclude_segment_ids",
+            "holdout_key",
+            "holdout_pct",
             "name",
             "name_bn",
             "operating_unit_id",
+            "partner_ids",
             "response_ids",
+            "segment_ids",
             "sms_opt_out_text",
             "start_date",
             "target_audience_type",
@@ -231,6 +244,9 @@ WRITABLE = {
     "fix.campaign.ad": frozenset(
         {
             "active",
+            "active_from",
+            "active_to",
+            "advertiser_partner_id",
             "campaign_id",
             "name",
             "placement",
@@ -250,9 +266,10 @@ WRITABLE = {
             "campaign_id",
             "metric",
             "name",
-            "result_note",
-            "state",
+            "variable",
+            "variant_a_label",
             "variant_a_pct",
+            "variant_b_label",
         }
     ),
     "fix.campaign.journey": frozenset(
@@ -292,6 +309,17 @@ WRITABLE = {
         }
     ),
     "fix.campaign.response": frozenset(),
+    "fix.campaign.spend": frozenset(
+        {
+            "amount",
+            "campaign_id",
+            "category",
+            "name",
+            "reference",
+            "spend_date",
+            "vendor_partner_id",
+        }
+    ),
     "fix.campaign.touch": frozenset(),
     "fix.campaign.trigger": frozenset(
         {

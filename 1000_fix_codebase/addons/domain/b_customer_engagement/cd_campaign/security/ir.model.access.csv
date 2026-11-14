@@ -11,4 +11,7 @@ access_fix_dnd_registry,fix.dnd.registry,model_fix_dnd_registry,base.group_user,
 access_fix_dnd_registry_mgr,fix.dnd.registry manager,model_fix_dnd_registry,cd_entity_config.group_dofa_tier_2,1,1,1,1
 access_fix_campaign_journey_step,fix.campaign.journey.step,model_fix_campaign_journey_step,base.group_user,1,1,1,1
 access_fix_campaign_journey_member,fix.campaign.journey.member,model_fix_campaign_journey_member,base.group_user,1,1,1,0
-access_fix_campaign_touch,fix.campaign.touch,model_fix_campaign_touch,base.group_user,1,1,1,0
+access_fix_campaign_touch,fix.campaign.touch,model_fix_campaign_touch,base.group_user,1,0,0,0
+access_fix_campaign_spend,fix.campaign.spend,model_fix_campaign_spend,base.group_user,1,1,1,0
+access_fix_attribution_model,fix.attribution.model,model_fix_attribution_model,base.group_user,1,0,0,0
+access_fix_attribution_model_mgr,fix.attribution.model manager,model_fix_attribution_model,cd_campaign.group_marketing_manager,1,1,1,1
