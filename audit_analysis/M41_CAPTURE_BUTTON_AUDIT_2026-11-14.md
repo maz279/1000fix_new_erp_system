@@ -117,3 +117,19 @@ The pick-style forms (Scan a Pick, Short Pick, Confirm Move, Complete Task, Clai
   - labour time standards (FR-WMS-040).
 - The spec's inspection-execution entity (sample size, evidence per line) is covered only by the M15 receipt's inspection gate. M23 owns the plan.
 - Who holds the Warehouse Supervisor grant on fix_real decides who can create profiles, equipment and devices (spec §13: R17 with a supervisor grant).
+
+## 5. Deploy to fix_real (user-approved, 14 Nov 2026 23:45 machine time)
+
+- Commit `1015b9e8` landed on `fix/a03-live-data-and-pending-work` by `git update-ref` from the old tip `54dd2ae3`. It is unpushed.
+- Backup: `_migration/backups/fix_real_pre_m41_capture_2026-11-14.dump` (48.8 MB).
+- Upgrade: `-u cd_inventory,cd_p03_portal` on fix_real.
+  - 155 modules loaded with 0 errors.
+  - cd_inventory is at 19.0.1.3.0.
+  - The tables `fix_wms_move/device/operative/equipment` and the task columns `move_id` and `equipment_required` exist.
+- Restart: 8069 was relaunched with its own launcher at 23:47. `/web/login` returns 200.
+- The production bundle `web.assets_web` `801fe70` contains the new screens (`M41-form-scan-pick`, `M41-devices`, `action_claim`).
+- Read-only probe:
+  - It ran as fix_real's one non-admin Warehouse Supervisor and was rolled back.
+  - It covered all 22 models the M41 screens use, with 0 errors.
+- fix_real holds 261 warehouses and 0 zones, bins, slots or tasks. The bin master is still to be authored (§16.4), so the new pages open on empty lists.
+- Supervisor and operator grants have 1 holder each. They decide who can create operative profiles, equipment and RF devices.
