@@ -2709,15 +2709,171 @@ export class P03Workspace extends Component {
         return same(gl.form.values[meta.name]);
     }
 
-    /* A many2many input is a multi-select: the save posts every selected id. */
-    formSetMany(name, ev) {
-        const ids = [...ev.target.selectedOptions].map((o) => Number(o.value));
-        this.formSet(name, ids);
+    /* ---- many2many: chips on the form, a search-and-tick dialog to choose.
+     * The native <select multiple> it replaces was squeezed to one input's
+     * height (two rows visible), needed Ctrl+click and dropped every earlier
+     * pick on a plain click (M42 Approved Product Categories, 14 Nov 2026).
+     * The value is kept as [{id, label}]; the save posts it as the whole
+     * selection, which the server replaces with (6, 0, ids). ---- */
+    formManyItems(name) {
+        const raw = this.formFieldValue(name);
+        const meta = this.formFieldsMeta[name] || {};
+        return (Array.isArray(raw) ? raw : []).map((v) => {
+            if (v && typeof v === "object") return { id: v.id, label: v.label };
+            const hit = (meta.choices || []).find((c) => c.id === v);
+            return { id: v, label: hit ? hit.label : String(v) };
+        });
     }
 
-    formManySelected(name, id) {
-        const raw = this.formFieldValue(name);
-        return Array.isArray(raw) && raw.some((v) => (v && typeof v === "object" ? v.id : v) === id);
+    formManyRemove(name, id) {
+        this.formSet(name, this.formManyItems(name).filter((v) => v.id !== id));
+        this.render(true);
+    }
+
+    formManyOpen(name) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        const meta = this.formFieldsMeta[name] || {};
+        gl.form.manyPick = {
+            name,
+            label: meta.label || name,
+            term: "",
+            picked: this.formManyItems(name),
+            // a list over the choice limit is searched on the server
+            remote: !!meta.truncated,
+            rows: null,
+            loading: false,
+        };
+        this.render(true);
+        setTimeout(() => {
+            const box = document.getElementById("d365_many_search");
+            if (box) box.focus();
+        }, 30);
+    }
+
+    get formManyPick() {
+        const gl = this.state.gl;
+        return (gl && gl.form && gl.form.manyPick) || null;
+    }
+
+    /* The rows the dialog lists: the field's choices (or the server's
+     * answer for a long list) narrowed by every word typed, ticked ones first
+     * when nothing is typed, so what is chosen is seen at a glance. */
+    get formManyRows() {
+        const pick = this.formManyPick;
+        if (!pick) return [];
+        const meta = this.formFieldsMeta[pick.name] || {};
+        const words = (pick.term || "").toLowerCase().split(/\s+/).filter(Boolean);
+        const base = pick.remote && pick.rows ? pick.rows : meta.choices || [];
+        const seen = new Set(base.map((c) => c.id));
+        // a ticked value beyond the loaded list is still listed (and untickable)
+        const extra = pick.picked.filter((p) => !seen.has(p.id));
+        const all = [...extra, ...base];
+        const rows = words.length
+            ? all.filter((c) => words.every((w) => String(c.label || "").toLowerCase().includes(w)))
+            : all;
+        if (words.length) return rows;
+        const ticked = new Set(pick.picked.map((p) => p.id));
+        return [...rows.filter((r) => ticked.has(r.id)), ...rows.filter((r) => !ticked.has(r.id))];
+    }
+
+    formManyTotal() {
+        const pick = this.formManyPick;
+        if (!pick) return 0;
+        return ((this.formFieldsMeta[pick.name] || {}).choices || []).length;
+    }
+
+    formManyIsPicked(id) {
+        const pick = this.formManyPick;
+        return !!pick && pick.picked.some((p) => p.id === id);
+    }
+
+    formManyToggle(row) {
+        const pick = this.formManyPick;
+        if (!pick) return;
+        pick.picked = this.formManyIsPicked(row.id)
+            ? pick.picked.filter((p) => p.id !== row.id)
+            : [...pick.picked, { id: row.id, label: row.label }];
+        this.render(true);
+    }
+
+    formManyTickShown() {
+        const pick = this.formManyPick;
+        if (!pick) return;
+        const have = new Set(pick.picked.map((p) => p.id));
+        const add = this.formManyRows.filter((r) => !have.has(r.id)).map((r) => ({ id: r.id, label: r.label }));
+        pick.picked = [...pick.picked, ...add];
+        this.render(true);
+    }
+
+    formManyClearAll() {
+        const pick = this.formManyPick;
+        if (!pick) return;
+        pick.picked = [];
+        this.render(true);
+    }
+
+    formManySearch(term) {
+        const gl = this.state.gl;
+        const pick = this.formManyPick;
+        if (!pick) return;
+        pick.term = term;
+        if (!pick.remote) {
+            this.render(true);
+            return;
+        }
+        pick.loading = true;
+        this.render(true);
+        clearTimeout(this._manyTimer);
+        this._manyTimer = setTimeout(async () => {
+            const meta = this.formFieldsMeta[pick.name] || {};
+            const res = await this.rpc("/p03/model/choices", {
+                model: gl.formCfg.model,
+                field: pick.name,
+                q: term,
+                domain: meta.choice_domain || [],
+            });
+            if (this.formManyPick !== pick || pick.term !== term) return;
+            pick.loading = false;
+            pick.rows = res && !res.error ? res.choices : [];
+            pick.error = (res && res.error) || null;
+            this.render(true);
+        }, 250);
+    }
+
+    formManyKey(ev) {
+        if (ev.key === "Escape") {
+            ev.preventDefault();
+            this.formManyCancel();
+        } else if (ev.key === "Enter" && ev.target && ev.target.id === "d365_many_search") {
+            // Enter on a search that leaves exactly one row ticks it
+            ev.preventDefault();
+            const rows = this.formManyRows;
+            if (rows.length === 1) this.formManyToggle(rows[0]);
+        }
+    }
+
+    formManyApply() {
+        const pick = this.formManyPick;
+        if (!pick) return;
+        this.formSet(pick.name, pick.picked.map((p) => ({ id: p.id, label: p.label })));
+        this._formManyClose(pick.name);
+    }
+
+    formManyCancel() {
+        const pick = this.formManyPick;
+        if (pick) this._formManyClose(pick.name);
+    }
+
+    _formManyClose(name) {
+        const gl = this.state.gl;
+        if (gl && gl.form) gl.form.manyPick = null;
+        this.render(true);
+        // focus returns to the button that opened the dialog
+        setTimeout(() => {
+            const btn = document.getElementById("d365_many_btn_" + name);
+            if (btn) btn.focus();
+        }, 30);
     }
 
     /* ---- many2one search box, for a comodel too long for a select ---- */

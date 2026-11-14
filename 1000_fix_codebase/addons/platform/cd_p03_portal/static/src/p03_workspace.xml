@@ -3420,7 +3420,7 @@
                                             <t t-foreach="section.fields" t-as="field" t-key="field.name">
                                                 <t t-set="fm" t-value="formFieldsMeta[field.name] || field"/>
                                                 <t t-set="fldId" t-value="'d365_fld_' + field.name + '_' + (state.gl.form.recordId || 'new')"/>
-                                                <div t-att-class="'d365-field' + ((fm.type === 'text' || fm.type === 'binary' || fm.type === 'image' || fm.type === 'file') ? ' d365-field-wide' : '')">
+                                                <div t-att-class="'d365-field' + ((fm.type === 'text' || fm.type === 'binary' || fm.type === 'image' || fm.type === 'file' || (fm.type === 'many2many' &amp;&amp; !fm.readonly)) ? ' d365-field-wide' : '')">
                                                     <label class="d365-label" t-att-for="fldId">
                                                         <t t-esc="t(fm.label || field.name)"/>
                                                         <span t-if="fm.required" class="d365-req">*</span>
@@ -3479,14 +3479,29 @@
                                                             <t t-esc="t(field.emptyNote || 'Nothing to choose yet: no record qualifies for this field.')"/>
                                                         </div>
                                                     </t>
-                                                    <!-- many2many: every selected row is saved -->
-                                                    <select t-elif="fm.type === 'many2many'" class="d365-input" multiple="multiple" size="5"
-                                                            t-att-id="fldId" t-att-name="field.name"
-                                                            t-on-change="(ev) => this.formSetMany(field.name, ev)">
-                                                        <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.id">
-                                                            <option t-att-value="opt.id" t-att-selected="formManySelected(field.name, opt.id)" t-esc="opt.label"/>
-                                                        </t>
-                                                    </select>
+                                                    <!-- many2many: chosen values as chips; "Select…" opens a
+                                                         search-and-tick dialog (it replaced a two-row
+                                                         <select multiple> that needed Ctrl+click, 14 Nov 2026) -->
+                                                    <div t-elif="fm.type === 'many2many'" class="d365-many" t-att-id="fldId"
+                                                         role="group" t-att-aria-label="t(fm.label || field.name)">
+                                                        <div class="d365-many-chips">
+                                                            <t t-foreach="formManyItems(field.name)" t-as="chip" t-key="chip.id">
+                                                                <span class="d365-chip">
+                                                                    <span class="d365-chip-text" t-esc="chip.label" t-att-title="chip.label"/>
+                                                                    <button type="button" class="d365-chip-x"
+                                                                            t-att-aria-label="t('Remove') + ' ' + chip.label"
+                                                                            t-on-click="() => this.formManyRemove(field.name, chip.id)">✕</button>
+                                                                </span>
+                                                            </t>
+                                                            <span t-if="!formManyItems(field.name).length" class="d365-many-empty"><t t-esc='t("None selected")'/></span>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm d365-many-btn"
+                                                                t-att-id="'d365_many_btn_' + field.name"
+                                                                aria-haspopup="dialog"
+                                                                t-on-click="() => this.formManyOpen(field.name)">
+                                                            🔍 <t t-esc="formManyItems(field.name).length ? t('Change…') : t('Select…')"/>
+                                                        </button>
+                                                    </div>
                                                     <!-- boolean -->
                                                     <label t-elif="fm.type === 'boolean'" class="d365-check">
                                                         <input type="checkbox"
@@ -3583,6 +3598,66 @@
                                     </div>
                                 </t>
 
+                                </div>
+
+                                <!-- many2many picker: search, tick, apply (Cancel keeps the old selection) -->
+                                <div t-if="formManyPick" class="modal-scrim d365-many-scrim"
+                                     t-on-click.self="() => this.formManyCancel()"
+                                     t-on-keydown="(ev) => this.formManyKey(ev)">
+                                    <div class="modal-dialog d365-many-dialog" role="dialog" aria-modal="true" aria-labelledby="d365_many_title">
+                                        <div class="modal-head">
+                                            <h3 id="d365_many_title"><t t-esc="t(formManyPick.label)"/></h3>
+                                            <button type="button" class="btn btn-sm d365-many-close" t-att-aria-label="t('Close')"
+                                                    t-on-click="() => this.formManyCancel()">✕</button>
+                                        </div>
+                                        <div class="modal-body d365-many-body">
+                                            <input id="d365_many_search" type="search" class="d365-input d365-many-search" autocomplete="off"
+                                                   t-att-aria-label="t('Search') + ' ' + t(formManyPick.label)"
+                                                   t-att-placeholder="t('Type to search…')"
+                                                   t-att-value="formManyPick.term"
+                                                   t-on-input="(ev) => this.formManySearch(ev.target.value)"/>
+                                            <div class="d365-many-tools">
+                                                <span class="d365-many-count" aria-live="polite">
+                                                    <b t-esc="formManyPick.picked.length"/> <t t-esc='t("selected")'/>
+                                                    <t t-if="!formManyPick.remote"> · <t t-esc="formManyRows.length"/> / <t t-esc="formManyTotal()"/> <t t-esc='t("shown")'/></t>
+                                                </span>
+                                                <span class="d365-many-actions">
+                                                    <button type="button" class="btn btn-sm" t-att-disabled="!formManyRows.length"
+                                                            t-on-click="() => this.formManyTickShown()"><t t-esc='t("Select all shown")'/></button>
+                                                    <button type="button" class="btn btn-sm" t-att-disabled="!formManyPick.picked.length"
+                                                            t-on-click="() => this.formManyClearAll()"><t t-esc='t("Clear all")'/></button>
+                                                </span>
+                                            </div>
+                                            <div t-if="formManyPick.picked.length" class="d365-many-chips d365-many-picked">
+                                                <t t-foreach="formManyPick.picked" t-as="chip" t-key="chip.id">
+                                                    <span class="d365-chip">
+                                                        <span class="d365-chip-text" t-esc="chip.label" t-att-title="chip.label"/>
+                                                        <button type="button" class="d365-chip-x"
+                                                                t-att-aria-label="t('Remove') + ' ' + chip.label"
+                                                                t-on-click="() => this.formManyToggle(chip)">✕</button>
+                                                    </span>
+                                                </t>
+                                            </div>
+                                            <div class="d365-many-list" role="group" t-att-aria-label="t(formManyPick.label)">
+                                                <label t-foreach="formManyRows" t-as="row" t-key="row.id"
+                                                       t-att-class="'d365-many-row' + (formManyIsPicked(row.id) ? ' is-picked' : '')">
+                                                    <input type="checkbox" t-att-checked="formManyIsPicked(row.id)"
+                                                           t-on-change="() => this.formManyToggle(row)"/>
+                                                    <span t-esc="row.label"/>
+                                                </label>
+                                                <div t-if="formManyPick.loading" class="d365-lookup-empty"><t t-esc='t("Searching…")'/></div>
+                                                <div t-elif="formManyPick.error" class="d365-lookup-empty" t-esc="formManyPick.error"/>
+                                                <div t-elif="formManyPick.remote &amp;&amp; !formManyPick.rows" class="d365-lookup-empty"><t t-esc='t("Type to search the full list")'/></div>
+                                                <div t-elif="!formManyRows.length" class="d365-lookup-empty"><t t-esc='t("No match")'/></div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn" t-on-click="() => this.formManyCancel()"><t t-esc='t("Cancel")'/></button>
+                                            <button type="button" class="btn btn-primary" t-on-click="() => this.formManyApply()">
+                                                <t t-esc='t("Apply")'/> (<t t-esc="formManyPick.picked.length"/>)
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- ============ child grid (declared one2many) ============
