@@ -791,6 +791,11 @@ class FixWmsWave(models.Model):
                 )
             slot._check_pickable()
             picked = min(line.qty or 0.0, slot.qty or 0.0)
+            # FR-WMS-024: the operative found less in the bin than the ledger
+            # says (action_scan_short_pick); the count-back settles the bin
+            found = (self.env.context.get("fix_found_qty") or {}).get(line.id)
+            if found is not None:
+                picked = min(picked, max(found, 0.0))
             if line.lot_id and picked > EPS:
                 line.lot_id._fix_move("staged")
             reserved = line.reserved_qty or 0.0
@@ -1137,16 +1142,7 @@ class FixWmsWaveLine(models.Model):
             part = line.part_id
             item_code = _scan_item(part, item_code)
             wave = line.wave_id
-            if wave.state not in ("released", "picking"):
-                raise UserError("Wave %s is not released." % wave.name)
-            if not is_supervisor(self.env):
-                others = Task.search(
-                    [("wave_line_id", "=", line.id), ("state", "in", ("open", "assigned"))]
-                ).filtered(lambda t: t.assignee_id and t.assignee_id.user_id != self.env.user)
-                if others:
-                    raise UserError(
-                        "This pick is assigned to %s (BRU-WMS-14)." % others[0].assignee_id.name
-                    )
+            line._fix_check_pick_holder(Task)
             evidence = {"scanned_bin": bin_code, "scanned_item": item_code}
             if part.is_serialized:
                 if not (serial or "").strip() or abs((line.qty or 0.0) - 1.0) > EPS:
@@ -1165,6 +1161,54 @@ class FixWmsWaveLine(models.Model):
             # the evidence first: the pick moves the serial it names
             line._guarded().write(evidence)
             wave._pick_lines(line)
+        return True
+
+    def _fix_check_pick_holder(self, Task=None):
+        """The line's wave is released, and no other operative holds its pick
+        task (BRU-WMS-14)."""
+        self.ensure_one()
+        Task = Task if Task is not None else self.env["fix.wms.task"].sudo()
+        if self.wave_id.state not in ("released", "picking"):
+            raise UserError("Wave %s is not released." % self.wave_id.name)
+        if is_supervisor(self.env):
+            return
+        others = Task.search(
+            [("wave_line_id", "=", self.id), ("state", "in", ("open", "assigned"))]
+        ).filtered(lambda t: t.assignee_id and t.assignee_id.user_id != self.env.user)
+        if others:
+            raise UserError(
+                "This pick is assigned to %s (BRU-WMS-14)." % others[0].assignee_id.name
+            )
+
+    def action_scan_short_pick(self, bin_code=None, item_code=None, found_qty=None, serial=None):
+        """FR-WMS-024 / BRU-WMS-07: the bin holds less than the line asks for.
+        The operative scans the bin, says how many are really there (and scans
+        the item when there is any); that many are picked, the line is short,
+        and the bin gets an immediate count-back. The ledger is never
+        corrected here: the count-back goes to M15 for approval."""
+        Task = self.env["fix.wms.task"].sudo()
+        for line in self:
+            if line.state != "pending":
+                raise UserError("Wave line %s is already %s." % (line.id, line.state))
+            try:
+                found = float(found_qty)
+            except (TypeError, ValueError):
+                raise UserError("Give the quantity actually found in the bin.") from None
+            if found < 0 or found + EPS >= (line.qty or 0.0):
+                raise UserError(
+                    "A short pick finds fewer than the %s the line asks for; %s is not short "
+                    "(scan a normal pick instead)." % (line.qty, found)
+                )
+            if found > EPS:
+                line.with_context(fix_found_qty={line.id: found}).action_scan_pick(
+                    bin_code, item_code, serial
+                )
+                continue
+            # nothing there: the bin is scanned, there is no item to scan
+            scanned = _scan_bin(line.bin_id, bin_code)
+            line._fix_check_pick_holder(Task)
+            line._guarded().write({"scanned_bin": scanned})
+            line.wave_id.with_context(fix_found_qty={line.id: 0.0})._pick_lines(line)
         return True
 
     def _refuse_unless_draft(self, waves):

@@ -22,7 +22,7 @@ SURFACES = {
     "fix.wms.slot": {
         "order": "bin_id, part_id",
         "limit": 400,
-        "actions": {"action_block", "action_unblock"},
+        "actions": {"action_block", "action_unblock", "action_raise_replenishment"},
     },
     "fix.wms.dock": {
         "order": "slot_start desc, id desc",
@@ -47,7 +47,11 @@ SURFACES = {
             "action_cancel",
         },
     },
-    "fix.wms.wave.line": {"order": "wave_id, id", "limit": 400, "actions": {"action_scan_pick"}},
+    "fix.wms.wave.line": {
+        "order": "wave_id, id",
+        "limit": 400,
+        "actions": {"action_scan_pick", "action_scan_short_pick"},
+    },
     "fix.wms.carton": {
         "order": "create_date desc, id desc",
         "limit": 300,
@@ -61,7 +65,7 @@ SURFACES = {
     "fix.wms.task": {
         "order": "create_date desc, id desc",
         "limit": 400,
-        "actions": {"action_assign", "action_done", "action_cancel"},
+        "actions": {"action_claim", "action_assign", "action_done", "action_cancel"},
     },
     "fix.wms.floor.count": {
         "order": "counted_on desc, id desc",
@@ -87,6 +91,19 @@ SURFACES = {
         },
     },
     "fix.warehouse": {"order": "id desc", "limit": 400, "actions": set()},
+    # capture audit 2026-11-14: internal moves, RF devices, operatives, equipment
+    "fix.wms.move": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_cancel"},
+    },
+    "fix.wms.device": {
+        "order": "warehouse_id, device_code",
+        "limit": 200,
+        "actions": {"action_deactivate", "action_reactivate"},
+    },
+    "fix.wms.operative": {"order": "warehouse_id, employee_id", "limit": 300, "actions": set()},
+    "fix.wms.equipment": {"order": "warehouse_id, code", "limit": 300, "actions": set()},
 }
 
 

@@ -57,3 +57,14 @@ access_fix_wms_packing_station_operator,fix.wms.packing.station operator,model_f
 access_fix_stock_count_snapshot_controller,fix.stock.count.snapshot controller,model_fix_stock_count_snapshot,cd_wms_structure.group_inventory_controller,1,0,0,0
 access_fix_stock_consumption_technician,fix.stock.consumption technician,model_fix_stock_consumption,cd_wms_structure.group_van_technician,1,1,1,0
 access_fix_stock_van_recon_technician,fix.stock.van.recon technician,model_fix_stock_van_recon,cd_wms_structure.group_van_technician,1,1,1,0
+access_fix_wms_move_user,fix.wms.move user,model_fix_wms_move,base.group_user,1,0,0,0
+access_fix_wms_move_operator,fix.wms.move operator,model_fix_wms_move,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_operative_user,fix.wms.operative user,model_fix_wms_operative,base.group_user,1,0,0,0
+access_fix_wms_operative_supervisor,fix.wms.operative supervisor,model_fix_wms_operative,cd_wms_structure.group_warehouse_supervisor,1,1,1,0
+access_fix_wms_operative_admin,fix.wms.operative admin,model_fix_wms_operative,base.group_system,1,1,1,0
+access_fix_wms_equipment_user,fix.wms.equipment user,model_fix_wms_equipment,base.group_user,1,0,0,0
+access_fix_wms_equipment_supervisor,fix.wms.equipment supervisor,model_fix_wms_equipment,cd_wms_structure.group_warehouse_supervisor,1,1,1,0
+access_fix_wms_equipment_admin,fix.wms.equipment admin,model_fix_wms_equipment,base.group_system,1,1,1,0
+access_fix_wms_device_user,fix.wms.device user,model_fix_wms_device,base.group_user,1,0,0,0
+access_fix_wms_device_supervisor,fix.wms.device supervisor,model_fix_wms_device,cd_wms_structure.group_warehouse_supervisor,1,1,1,0
+access_fix_wms_device_admin,fix.wms.device admin,model_fix_wms_device,base.group_system,1,1,1,0

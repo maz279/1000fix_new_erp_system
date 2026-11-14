@@ -747,6 +747,15 @@ WRITABLE = {
             "weight_kg",
         }
     ),
+    "fix.wms.device": frozenset(
+        {
+            "app_version",
+            "device_code",
+            "model_name",
+            "operative_id",
+            "warehouse_id",
+        }
+    ),
     "fix.wms.dock": frozenset(
         {
             "carrier",
@@ -760,6 +769,16 @@ WRITABLE = {
             "wave_id",
         }
     ),
+    "fix.wms.equipment": frozenset(
+        {
+            "active",
+            "capacity_kg",
+            "code",
+            "equipment_type",
+            "name",
+            "warehouse_id",
+        }
+    ),
     "fix.wms.floor.count": frozenset(
         {
             "bin_id",
@@ -767,6 +786,28 @@ WRITABLE = {
             "counted_qty",
             "part_id",
             "reason_code",
+        }
+    ),
+    "fix.wms.move": frozenset(
+        {
+            "assignee_id",
+            "from_bin_id",
+            "move_type",
+            "note",
+            "part_id",
+            "qty",
+            "reason_code",
+            "to_bin_id",
+        }
+    ),
+    "fix.wms.operative": frozenset(
+        {
+            "active",
+            "employee_id",
+            "equipment_ids",
+            "shift",
+            "warehouse_id",
+            "zone_ids",
         }
     ),
     "fix.wms.packing.station": frozenset(
@@ -791,6 +832,8 @@ WRITABLE = {
     "fix.wms.slot": frozenset(
         {
             "bin_id",
+            "max_qty",
+            "min_qty",
             "part_id",
             "slot_type",
             "velocity",
@@ -807,6 +850,7 @@ WRITABLE = {
         {
             "assignee_id",
             "bin_id",
+            "equipment_required",
             "floor_count_id",
             "part_id",
             "putaway_id",

@@ -173,4 +173,24 @@
         <field name="model_id" ref="model_fix_wms_wave"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_wms_move_company" model="ir.rule">
+        <field name="name">fix.wms.move: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_move"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_operative_company" model="ir.rule">
+        <field name="name">fix.wms.operative: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_operative"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_equipment_company" model="ir.rule">
+        <field name="name">fix.wms.equipment: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_equipment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_device_company" model="ir.rule">
+        <field name="name">fix.wms.device: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_device"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>
