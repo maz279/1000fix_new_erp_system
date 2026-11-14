@@ -952,7 +952,14 @@
                                 
                                 <label class="fld">
                                     <span>Branch (live master)</span>
-                                    <select t-on-change="(ev) => this.applyGridFilter('branch', ev.target.value)" t-att-aria-label='t("Filter by branch")'>
+                                    <button t-if="pickNameRows(branchOptions, 'All branches').length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                            t-att-id="'grid_pick_branch'"
+                                            t-on-click="() => this.pickOneOpen('Filter by branch', pickNameRows(branchOptions, 'All branches'), state.gridFilter.branch || 'All branches', (id) => { this.applyGridFilter('branch', id || 'All branches'); }, 'grid_pick_branch')">
+                                        <span t-if="pickLabel(pickNameRows(branchOptions, 'All branches'), state.gridFilter.branch || 'All branches')" class="d365-one-text" t-esc="pickLabel(pickNameRows(branchOptions, 'All branches'), state.gridFilter.branch || 'All branches')"/>
+                                        <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('All branches')"/>
+                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                    </button>
+                                    <select t-else="" t-on-change="(ev) => this.applyGridFilter('branch', ev.target.value)" t-att-aria-label='t("Filter by branch")'>
                                         <option value="All branches"><t t-esc='t("All branches")'/></option>
                                         <t t-foreach="branchOptions" t-as="b" t-key="b">
                                             <option t-att-value="b"><t t-esc="b"/></option>
@@ -1323,7 +1330,14 @@
                                 <p class="pg-sub">Walk-in Queue · WIP Ageing · Cash &amp; NBR Mushak 6.3 Register · Ready for Collection Shelf</p>
                             </div>
                             <div class="pg-actions">
-                                <select style="padding: 4px 8px; border: 1px solid var(--stroke); border-radius: var(--r-ctl); font-size: 12px;"
+                                <button t-if="pickConsoleBranchRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                        t-att-id="'console_pick_branch'"
+                                        t-on-click="() => this.pickOneOpen('Branch', pickConsoleBranchRows, state.selectedBranchId || '', (id) => { this.filterBranchConsole(id); }, 'console_pick_branch')">
+                                    <span t-if="pickLabel(pickConsoleBranchRows, state.selectedBranchId || '')" class="d365-one-text" t-esc="pickLabel(pickConsoleBranchRows, state.selectedBranchId || '')"/>
+                                    <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('All 50 Branches')"/>
+                                    <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                </button>
+                                <select t-else="" style="padding: 4px 8px; border: 1px solid var(--stroke); border-radius: var(--r-ctl); font-size: 12px;"
                                         t-on-change="(ev) => this.filterBranchConsole(ev.target.value)">
                                     <option value=""><t t-esc='t("All 50 Branches")'/></option>
                                     <t t-if="state.dispatchMapData &amp;&amp; state.dispatchMapData.branches">
@@ -2069,7 +2083,14 @@
                                             <tr t-foreach="state.gl.editor.lines" t-as="line" t-key="line_index">
                                                 <td style="color: var(--ink-300);"><t t-esc="line_index + 1"/></td>
                                                 <td>
-                                                    <select t-att-aria-label='t("Account")' t-on-change="(ev) => this.glEditorSet(line, 'account_id', ev.target.value)" style="min-width: 220px;">
+                                                    <button t-if="pickAccountRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                            t-att-id="'gl_pick_acc_' + line_index"
+                                                            t-on-click="() => this.pickOneOpen('Account', pickAccountRows, line.account_id, (id) => { this.glEditorSet(line, 'account_id', id); }, 'gl_pick_acc_' + line_index)">
+                                                        <span t-if="pickLabel(pickAccountRows, line.account_id)" class="d365-one-text" t-esc="pickLabel(pickAccountRows, line.account_id)"/>
+                                                        <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— select account —')"/>
+                                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                    </button>
+                                                    <select t-else="" t-att-aria-label='t("Account")' t-on-change="(ev) => this.glEditorSet(line, 'account_id', ev.target.value)" style="min-width: 220px;">
                                                         <option value=""><t t-esc='t("— select account —")'/></option>
                                                         <option t-foreach="state.gl.data.accounts" t-as="acc" t-key="acc.id" t-att-value="acc.id"><t t-esc="acc.code"/> — <t t-esc="acc.name"/></option>
                                                     </select>
@@ -2078,13 +2099,27 @@
                                                 <td><input type="number" step="0.01" min="0" style="width: 100px; text-align: right;" t-att-value="line.debit" t-on-input="(ev) => this.glEditorSet(line, 'debit', ev.target.value)"/></td>
                                                 <td><input type="number" step="0.01" min="0" style="width: 100px; text-align: right;" t-att-value="line.credit" t-on-input="(ev) => this.glEditorSet(line, 'credit', ev.target.value)"/></td>
                                                 <td>
-                                                    <select t-att-aria-label='t("Partner (AR/AP)")' t-on-change="(ev) => this.glEditorSet(line, 'partner_id', ev.target.value)" style="min-width: 150px;">
+                                                    <button t-if="pickPartnerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                            t-att-id="'gl_pick_partner_' + line_index"
+                                                            t-on-click="() => this.pickOneOpen('Partner (AR/AP)', pickPartnerRows, line.partner_id, (id) => { this.glEditorSet(line, 'partner_id', id); }, 'gl_pick_partner_' + line_index)">
+                                                        <span t-if="pickLabel(pickPartnerRows, line.partner_id)" class="d365-one-text" t-esc="pickLabel(pickPartnerRows, line.partner_id)"/>
+                                                        <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— partner (AR/AP lines) —')"/>
+                                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                    </button>
+                                                    <select t-else="" t-att-aria-label='t("Partner (AR/AP)")' t-on-change="(ev) => this.glEditorSet(line, 'partner_id', ev.target.value)" style="min-width: 150px;">
                                                         <option value=""><t t-esc='t("— partner (AR/AP lines) —")'/></option>
                                                         <option t-foreach="state.gl.data.partners || []" t-as="pt" t-key="pt.id" t-att-value="pt.id"><t t-esc="pt.name"/></option>
                                                     </select>
                                                 </td>
                                                 <td>
-                                                    <select t-att-aria-label='t("Branch")' t-on-change="(ev) => this.glEditorSet(line, 'branch_id', ev.target.value)" style="min-width: 110px;">
+                                                    <button t-if="pickBranchRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                            t-att-id="'gl_pick_branch_' + line_index"
+                                                            t-on-click="() => this.pickOneOpen('Branch', pickBranchRows, line.branch_id, (id) => { this.glEditorSet(line, 'branch_id', id); }, 'gl_pick_branch_' + line_index)">
+                                                        <span t-if="pickLabel(pickBranchRows, line.branch_id)" class="d365-one-text" t-esc="pickLabel(pickBranchRows, line.branch_id)"/>
+                                                        <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— branch —')"/>
+                                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                    </button>
+                                                    <select t-else="" t-att-aria-label='t("Branch")' t-on-change="(ev) => this.glEditorSet(line, 'branch_id', ev.target.value)" style="min-width: 110px;">
                                                         <option value=""><t t-esc='t("— branch —")'/></option>
                                                         <option t-foreach="state.gl.data.branches" t-as="br" t-key="br.id" t-att-value="br.id"><t t-esc="br.name"/></option>
                                                     </select>
@@ -2495,7 +2530,14 @@
                                 <p style="font-size: 12px; color: var(--ink-500);"><t t-esc='t("Reason code mandatory · saved as DRAFT · Issue draws the gapless number, writes Mushak 6.3 and posts the GL — all server-side enforced.")'/></p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0;">
                                     <div class="fld"><label><t t-esc='t("Customer")'/></label>
-                                        <select t-on-change="(ev) => this.arEditorSet('customer_id', ev.target.value)">
+                                        <button t-if="pickCustomerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                t-att-id="'ar_pick_inv_customer'"
+                                                t-on-click="() => this.pickOneOpen('Customer', pickCustomerRows, state.gl.arEditor.customer_id, (id) => { this.arEditorSet('customer_id', id); }, 'ar_pick_inv_customer')">
+                                            <span t-if="pickLabel(pickCustomerRows, state.gl.arEditor.customer_id)" class="d365-one-text" t-esc="pickLabel(pickCustomerRows, state.gl.arEditor.customer_id)"/>
+                                            <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                        </button>
+                                        <select t-else="" t-on-change="(ev) => this.arEditorSet('customer_id', ev.target.value)">
                                             <option value=""><t t-esc='t("— pick —")'/></option>
                                             <option t-foreach="state.gl.customers" t-as="c" t-key="c.id" t-att-value="c.id"><t t-esc="c.name"/></option>
                                         </select>
@@ -2645,21 +2687,42 @@
                                 <div t-if="state.gl.receiptForm" class="fx-card" style="margin: 12px 0;">
                                     <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
                                         <div class="fld"><label><t t-esc='t("Customer")'/></label>
-                                            <select t-on-change="(ev) => this.arReceiptFormSet('customer_id', ev.target.value)">
+                                            <button t-if="pickCustomerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'ar_pick_rcpt_customer'"
+                                                    t-on-click="() => this.pickOneOpen('Customer', pickCustomerRows, state.gl.receiptForm.customer_id, (id) => { this.arReceiptFormSet('customer_id', id); }, 'ar_pick_rcpt_customer')">
+                                                <span t-if="pickLabel(pickCustomerRows, state.gl.receiptForm.customer_id)" class="d365-one-text" t-esc="pickLabel(pickCustomerRows, state.gl.receiptForm.customer_id)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" t-on-change="(ev) => this.arReceiptFormSet('customer_id', ev.target.value)">
                                                 <option value=""><t t-esc='t("— pick —")'/></option>
                                                 <option t-foreach="state.gl.customers" t-as="c" t-key="c.id" t-att-value="c.id"><t t-esc="c.name"/></option>
                                             </select>
                                         </div>
                                         <div class="fld"><label><t t-esc='t("Amount (BDT)")'/></label><input type="number" step="0.01" t-on-input="(ev) => this.arReceiptFormSet('amount', ev.target.value)"/></div>
                                         <div class="fld"><label><t t-esc='t("Payment Method")'/></label>
-                                            <select t-on-change="(ev) => this.arReceiptFormSet('payment_method_id', ev.target.value)">
+                                            <button t-if="pickPaymentMethodRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'ar_pick_rcpt_method'"
+                                                    t-on-click="() => this.pickOneOpen('Payment Method', pickPaymentMethodRows, state.gl.receiptForm.payment_method_id, (id) => { this.arReceiptFormSet('payment_method_id', id); }, 'ar_pick_rcpt_method')">
+                                                <span t-if="pickLabel(pickPaymentMethodRows, state.gl.receiptForm.payment_method_id)" class="d365-one-text" t-esc="pickLabel(pickPaymentMethodRows, state.gl.receiptForm.payment_method_id)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" t-on-change="(ev) => this.arReceiptFormSet('payment_method_id', ev.target.value)">
                                                 <option value=""><t t-esc='t("— pick —")'/></option>
                                                 <option t-foreach="state.gl.data.payment_methods || []" t-as="pm" t-key="pm.id" t-att-value="pm.id"><t t-esc="pm.name"/></option>
                                             </select>
                                         </div>
                                         <div class="fld"><label><t t-esc='t("Reference (TrxID/cheque)")'/></label><input type="text" t-on-input="(ev) => this.arReceiptFormSet('reference', ev.target.value)"/></div>
                                         <div class="fld"><label><t t-esc='t("Branch")'/></label>
-                                            <select t-on-change="(ev) => this.arReceiptFormSet('branch_id', ev.target.value)">
+                                            <button t-if="pickBranchRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'ar_pick_rcpt_branch'"
+                                                    t-on-click="() => this.pickOneOpen('Branch', pickBranchRows, state.gl.receiptForm.branch_id, (id) => { this.arReceiptFormSet('branch_id', id); }, 'ar_pick_rcpt_branch')">
+                                                <span t-if="pickLabel(pickBranchRows, state.gl.receiptForm.branch_id)" class="d365-one-text" t-esc="pickLabel(pickBranchRows, state.gl.receiptForm.branch_id)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" t-on-change="(ev) => this.arReceiptFormSet('branch_id', ev.target.value)">
                                                 <option value=""><t t-esc='t("— pick —")'/></option>
                                                 <option t-foreach="state.gl.data.branches || []" t-as="b" t-key="b.id" t-att-value="b.id"><t t-esc="b.name"/></option>
                                             </select>
@@ -2740,13 +2803,27 @@
                                 <h4 style="margin: 14px 0 6px;"><t t-esc='t("Manual allocation")'/></h4>
                                 <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
                                     <div class="fld"><label><t t-esc='t("Unapplied receipt")'/></label>
-                                        <select t-on-change="(ev) => this.arAllocSet('receipt_id', ev.target.value)">
+                                        <button t-if="pickUnappliedRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                t-att-id="'ar_pick_alloc_receipt'"
+                                                t-on-click="() => this.pickOneOpen('Unapplied receipt', pickUnappliedRows, state.gl.allocPick.receipt_id, (id) => { this.arAllocSet('receipt_id', id); }, 'ar_pick_alloc_receipt')">
+                                            <span t-if="pickLabel(pickUnappliedRows, state.gl.allocPick.receipt_id)" class="d365-one-text" t-esc="pickLabel(pickUnappliedRows, state.gl.allocPick.receipt_id)"/>
+                                            <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                        </button>
+                                        <select t-else="" t-on-change="(ev) => this.arAllocSet('receipt_id', ev.target.value)">
                                             <option value=""><t t-esc='t("— pick —")'/></option>
                                             <option t-foreach="state.gl.data.unapplied" t-as="r" t-key="r.id" t-att-value="r.id"><t t-esc="r.name"/> · <t t-esc="r.customer"/></option>
                                         </select>
                                     </div>
                                     <div class="fld"><label><t t-esc='t("Open invoice")'/></label>
-                                        <select t-on-change="(ev) => this.arAllocSet('invoice_id', ev.target.value)">
+                                        <button t-if="pickOpenInvoiceRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                t-att-id="'ar_pick_alloc_invoice'"
+                                                t-on-click="() => this.pickOneOpen('Open invoice', pickOpenInvoiceRows, state.gl.allocPick.invoice_id, (id) => { this.arAllocSet('invoice_id', id); }, 'ar_pick_alloc_invoice')">
+                                            <span t-if="pickLabel(pickOpenInvoiceRows, state.gl.allocPick.invoice_id)" class="d365-one-text" t-esc="pickLabel(pickOpenInvoiceRows, state.gl.allocPick.invoice_id)"/>
+                                            <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                        </button>
+                                        <select t-else="" t-on-change="(ev) => this.arAllocSet('invoice_id', ev.target.value)">
                                             <option value=""><t t-esc='t("— pick —")'/></option>
                                             <option t-foreach="state.gl.data.open_invoices" t-as="i" t-key="i.id" t-att-value="i.id"><t t-esc="i.name"/> · <t t-esc="i.customer"/></option>
                                         </select>
@@ -2793,7 +2870,14 @@
                                     <h4><t t-esc='t("New profile")'/></h4>
                                     <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
                                         <div class="fld"><label><t t-esc='t("Customer")'/></label>
-                                            <select id="ar-credit-customer">
+                                            <button t-if="pickCustomerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'ar_pick_credit_customer'"
+                                                    t-on-click="() => this.pickOneOpen('Customer', pickCustomerRows, state.gl.creditCustomer, (id) => { state.gl.creditCustomer = id; }, 'ar_pick_credit_customer')">
+                                                <span t-if="pickLabel(pickCustomerRows, state.gl.creditCustomer)" class="d365-one-text" t-esc="pickLabel(pickCustomerRows, state.gl.creditCustomer)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" id="ar-credit-customer">
                                                 <option value=""><t t-esc='t("— pick —")'/></option>
                                                 <option t-foreach="state.gl.customers" t-as="c" t-key="c.id" t-att-value="c.id"><t t-esc="c.name"/></option>
                                             </select>
@@ -2986,7 +3070,14 @@
                                     <h3><t t-esc='t("Customer Statement")'/></h3>
                                     <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
                                         <div class="fld"><label><t t-esc='t("Customer")'/></label>
-                                            <select t-on-change="(ev) => this.arStmtCustomerSet(ev.target.value)">
+                                            <button t-if="pickCustomerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'ar_pick_stmt_customer'"
+                                                    t-on-click="() => this.pickOneOpen('Customer', pickCustomerRows, state.gl.stmtCustomer, (id) => { this.arStmtCustomerSet(id); }, 'ar_pick_stmt_customer')">
+                                                <span t-if="pickLabel(pickCustomerRows, state.gl.stmtCustomer)" class="d365-one-text" t-esc="pickLabel(pickCustomerRows, state.gl.stmtCustomer)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" t-on-change="(ev) => this.arStmtCustomerSet(ev.target.value)">
                                                 <option value=""><t t-esc='t("— pick —")'/></option>
                                                 <option t-foreach="state.gl.customers" t-as="c" t-key="c.id" t-att-value="c.id"><t t-esc="c.name"/></option>
                                             </select>
@@ -3028,7 +3119,14 @@
                                         <input type="date" t-att-value="state.gl.stmtTo" t-on-change="(ev) => { state.gl.stmtTo = ev.target.value; }"/></label>
                                     <t t-foreach="state.gl.data.filters || []" t-as="flt" t-key="flt.key">
                                         <label class="fld"><span><t t-esc="t(flt.label || flt.key)"/></span>
-                                            <select t-att-value="state.gl.reportFilters[flt.key] || flt.options[0]"
+                                            <button t-if="pickNameRows(flt.options).length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-att-id="'rpt_pick_' + flt.key"
+                                                    t-on-click="() => this.pickOneOpen(flt.label || flt.key, pickNameRows(flt.options), state.gl.reportFilters[flt.key] || flt.options[0], (id) => { state.gl.reportFilters[flt.key] = id; }, 'rpt_pick_' + flt.key)">
+                                                <span t-if="pickLabel(pickNameRows(flt.options), state.gl.reportFilters[flt.key] || flt.options[0])" class="d365-one-text" t-esc="pickLabel(pickNameRows(flt.options), state.gl.reportFilters[flt.key] || flt.options[0])"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="''"/>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                            <select t-else="" t-att-value="state.gl.reportFilters[flt.key] || flt.options[0]"
                                                     t-on-change="(ev) => { state.gl.reportFilters[flt.key] = ev.target.value; }">
                                                 <t t-foreach="flt.options" t-as="opt" t-key="opt_index">
                                                     <option t-att-selected="(state.gl.reportFilters[flt.key] || flt.options[0]) === opt ? 'selected' : undefined"><t t-esc="opt"/></option>
@@ -3433,6 +3531,20 @@
                                                         <t t-else="">—</t>
                                                     </div>
                                                     <div t-elif="fm.readonly" class="d365-ro" t-att-id="fldId" t-esc="formDisplay(field.name)"/>
+                                                    <!-- P03 picker standard: a long or server-searched single choice is a
+                                                         lookup box that opens the search popup (short lists stay dropdowns) -->
+                                                    <div t-elif="formUsesPicker(fm)" class="d365-one">
+                                                        <button type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                                t-att-id="fldId" t-att-name="field.name"
+                                                                t-on-click="() => this.formOneOpen(field.name)">
+                                                            <span t-if="formOneLabel(field.name)" class="d365-one-text" t-esc="formOneLabel(field.name)"/>
+                                                            <span t-else="" class="d365-one-text d365-one-empty"><t t-esc='t("Search and select…")'/></span>
+                                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                        </button>
+                                                        <button t-if="formOneLabel(field.name) &amp;&amp; !fm.required" type="button" class="d365-chip-x d365-one-clear"
+                                                                t-att-aria-label="t('Clear') + ' ' + t(fm.label || field.name)"
+                                                                t-on-click="() => this.formOneClear(field.name)">✕</button>
+                                                    </div>
                                                     <!-- selection -->
                                                     <select t-elif="fm.type === 'selection'" class="d365-input"
                                                             t-att-id="fldId" t-att-name="field.name"
@@ -3442,28 +3554,8 @@
                                                             <option t-att-value="opt.key" t-att-selected="formSelectValue(field.name) == opt.key" t-esc="t(opt.label)"/>
                                                         </t>
                                                     </select>
-                                                    <!-- many2one on a long comodel: search as you type -->
-                                                    <div t-elif="fm.type === 'many2one' &amp;&amp; fm.remote" class="d365-lookup"
-                                                         t-on-focusout="(ev) => this.formLookupClose(field.name, ev)">
-                                                        <input type="search" class="d365-input" autocomplete="off" role="combobox"
-                                                               t-att-id="fldId" t-att-name="field.name"
-                                                               t-att-aria-expanded="formLookupOpen(field.name) ? 'true' : 'false'"
-                                                               t-att-placeholder="t('Type to search…')"
-                                                               t-att-value="formLookupText(field.name)"
-                                                               t-on-input="(ev) => this.formLookupInput(field.name, ev.target.value)"/>
-                                                        <div t-if="formLookupOpen(field.name)" class="d365-lookup-list" role="listbox">
-                                                            <button t-foreach="formLookupRows(field.name)" t-as="opt" t-key="opt.id" type="button"
-                                                                    class="d365-lookup-option" role="option"
-                                                                    t-on-click="() => this.formLookupPick(field.name, opt)" t-esc="opt.label"/>
-                                                            <div t-if="!formLookupRows(field.name).length" class="d365-lookup-empty"><t t-esc='t("No match yet: keep typing")'/></div>
-                                                        </div>
-                                                    </div>
                                                     <!-- many2one -->
                                                     <t t-elif="fm.type === 'many2one'">
-                                                        <input t-if="fm.truncated" type="search" class="d365-input d365-choice-search"
-                                                               t-att-aria-label="t('Search') + ' ' + t(fm.label || field.name)"
-                                                               t-att-placeholder="t('Type to search all records')"
-                                                               t-on-input="(ev) => this.formChoiceSearch(fm, ev.target.value)"/>
                                                         <select class="d365-input"
                                                                 t-att-id="fldId" t-att-name="field.name"
                                                                 t-on-change="(ev) => this.formSet(field.name, ev.target.value)">
@@ -3600,66 +3692,6 @@
 
                                 </div>
 
-                                <!-- many2many picker: search, tick, apply (Cancel keeps the old selection) -->
-                                <div t-if="formManyPick" class="modal-scrim d365-many-scrim"
-                                     t-on-click.self="() => this.formManyCancel()"
-                                     t-on-keydown="(ev) => this.formManyKey(ev)">
-                                    <div class="modal-dialog d365-many-dialog" role="dialog" aria-modal="true" aria-labelledby="d365_many_title">
-                                        <div class="modal-head">
-                                            <h3 id="d365_many_title"><t t-esc="t(formManyPick.label)"/></h3>
-                                            <button type="button" class="btn btn-sm d365-many-close" t-att-aria-label="t('Close')"
-                                                    t-on-click="() => this.formManyCancel()">✕</button>
-                                        </div>
-                                        <div class="modal-body d365-many-body">
-                                            <input id="d365_many_search" type="search" class="d365-input d365-many-search" autocomplete="off"
-                                                   t-att-aria-label="t('Search') + ' ' + t(formManyPick.label)"
-                                                   t-att-placeholder="t('Type to search…')"
-                                                   t-att-value="formManyPick.term"
-                                                   t-on-input="(ev) => this.formManySearch(ev.target.value)"/>
-                                            <div class="d365-many-tools">
-                                                <span class="d365-many-count" aria-live="polite">
-                                                    <b t-esc="formManyPick.picked.length"/> <t t-esc='t("selected")'/>
-                                                    <t t-if="!formManyPick.remote"> · <t t-esc="formManyRows.length"/> / <t t-esc="formManyTotal()"/> <t t-esc='t("shown")'/></t>
-                                                </span>
-                                                <span class="d365-many-actions">
-                                                    <button type="button" class="btn btn-sm" t-att-disabled="!formManyRows.length"
-                                                            t-on-click="() => this.formManyTickShown()"><t t-esc='t("Select all shown")'/></button>
-                                                    <button type="button" class="btn btn-sm" t-att-disabled="!formManyPick.picked.length"
-                                                            t-on-click="() => this.formManyClearAll()"><t t-esc='t("Clear all")'/></button>
-                                                </span>
-                                            </div>
-                                            <div t-if="formManyPick.picked.length" class="d365-many-chips d365-many-picked">
-                                                <t t-foreach="formManyPick.picked" t-as="chip" t-key="chip.id">
-                                                    <span class="d365-chip">
-                                                        <span class="d365-chip-text" t-esc="chip.label" t-att-title="chip.label"/>
-                                                        <button type="button" class="d365-chip-x"
-                                                                t-att-aria-label="t('Remove') + ' ' + chip.label"
-                                                                t-on-click="() => this.formManyToggle(chip)">✕</button>
-                                                    </span>
-                                                </t>
-                                            </div>
-                                            <div class="d365-many-list" role="group" t-att-aria-label="t(formManyPick.label)">
-                                                <label t-foreach="formManyRows" t-as="row" t-key="row.id"
-                                                       t-att-class="'d365-many-row' + (formManyIsPicked(row.id) ? ' is-picked' : '')">
-                                                    <input type="checkbox" t-att-checked="formManyIsPicked(row.id)"
-                                                           t-on-change="() => this.formManyToggle(row)"/>
-                                                    <span t-esc="row.label"/>
-                                                </label>
-                                                <div t-if="formManyPick.loading" class="d365-lookup-empty"><t t-esc='t("Searching…")'/></div>
-                                                <div t-elif="formManyPick.error" class="d365-lookup-empty" t-esc="formManyPick.error"/>
-                                                <div t-elif="formManyPick.remote &amp;&amp; !formManyPick.rows" class="d365-lookup-empty"><t t-esc='t("Type to search the full list")'/></div>
-                                                <div t-elif="!formManyRows.length" class="d365-lookup-empty"><t t-esc='t("No match")'/></div>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn" t-on-click="() => this.formManyCancel()"><t t-esc='t("Cancel")'/></button>
-                                            <button type="button" class="btn btn-primary" t-on-click="() => this.formManyApply()">
-                                                <t t-esc='t("Apply")'/> (<t t-esc="formManyPick.picked.length"/>)
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <!-- ============ child grid (declared one2many) ============
                                      Allocation targets / recurring-journal lines: the
                                      model refuses a header without lines, so the header
@@ -3682,11 +3714,16 @@
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
                                                     <span t-if="lf.readonly || formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>
+                                                    <div t-elif="formLineUsesPicker(lf)" class="d365-one d365-one-sm">
+                                                        <button type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                                t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                                t-on-click="() => this.formLineOneOpen(row_index, lf.name)">
+                                                            <span t-if="formLineOneLabel(row_index, lf.name)" class="d365-one-text" t-esc="formLineOneLabel(row_index, lf.name)"/>
+                                                            <span t-else="" class="d365-one-text d365-one-empty"><t t-esc='t("Search and select…")'/></span>
+                                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                        </button>
+                                                    </div>
                                                     <t t-elif="lf.type === 'selection' || lf.type === 'many2one'">
-                                                        <input t-if="lf.truncated" type="search" class="d365-input d365-choice-search"
-                                                               t-att-aria-label="t('Search') + ' ' + t(lf.label)"
-                                                               t-att-placeholder="t('Type to search all records')"
-                                                               t-on-input="(ev) => this.formChoiceSearch(lf, ev.target.value, true)"/>
                                                         <select class="d365-input"
                                                                 t-att-id="lineId" t-att-aria-label="t(lf.label)"
                                                                 t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
@@ -4358,7 +4395,14 @@
                                 </label>
                                 <label class="fld">
                                     <span><t t-esc='t("Service Center (live branch master) *")'/></span>
-                                    <select t-model="state.formData.branch_name">
+                                    <button t-if="pickNameRows(branchOptions).length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                            t-att-id="'so_pick_branch'"
+                                            t-on-click="() => this.pickOneOpen('Service Center', pickNameRows(branchOptions), state.formData.branch_name, (id) => { state.formData.branch_name = id; }, 'so_pick_branch')">
+                                        <span t-if="pickLabel(pickNameRows(branchOptions), state.formData.branch_name)" class="d365-one-text" t-esc="pickLabel(pickNameRows(branchOptions), state.formData.branch_name)"/>
+                                        <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— select branch —')"/>
+                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                    </button>
+                                    <select t-else="" t-model="state.formData.branch_name">
                                         <option value=""><t t-esc='t("— select branch —")'/></option>
                                         <t t-foreach="branchOptions" t-as="b" t-key="b">
                                             <option t-att-value="b"><t t-esc="b"/></option>
@@ -4747,7 +4791,14 @@
 
                         <div class="fld" style="margin-bottom: 12px;">
                             <span><t t-esc='t("ASSIGNED TECHNICIAN (live HR master)")'/></span>
-                            <select t-model="state.dispatchForm.technician">
+                            <button t-if="pickNameRows(technicianOptions).length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                    t-att-id="'dispatch_pick_tech'"
+                                    t-on-click="() => this.pickOneOpen('Assigned Technician', pickNameRows(technicianOptions), state.dispatchForm.technician, (id) => { state.dispatchForm.technician = id; }, 'dispatch_pick_tech')">
+                                <span t-if="pickLabel(pickNameRows(technicianOptions), state.dispatchForm.technician)" class="d365-one-text" t-esc="pickLabel(pickNameRows(technicianOptions), state.dispatchForm.technician)"/>
+                                <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— select technician —')"/>
+                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                            </button>
+                            <select t-else="" t-model="state.dispatchForm.technician">
                                 <option value=""><t t-esc='t("— select technician —")'/></option>
                                 <t t-foreach="technicianOptions" t-as="t" t-key="t">
                                     <option t-att-value="t"><t t-esc="t"/></option>
@@ -4921,6 +4972,84 @@
             <span><t t-esc="state.toastMessage"/></span>
         </div>
 
+        <!-- ============ P03 picker standard (14-15 Nov 2026) ============
+             ONE search-and-select popup for every long or server-searched
+             choice of M01-M67: form fields, child-grid cells, the finance
+             editors and the branch / technician masters. Single mode picks
+             on one click; multi mode ticks, keeps ticks across searches and
+             applies on Apply. Cancel / Esc / a click outside change nothing.
+             Guard: tests/test_many2many_picker.py -->
+        <div t-if="picker" class="modal-scrim d365-many-scrim"
+             t-on-click.self="() => this.pickerCancel()"
+             t-on-keydown="(ev) => this.pickerKey(ev)">
+            <div class="modal-dialog d365-many-dialog" role="dialog" aria-modal="true" aria-labelledby="d365_many_title">
+                <div class="modal-head">
+                    <h3 id="d365_many_title"><t t-esc="picker.title"/></h3>
+                    <button type="button" class="btn btn-sm d365-many-close" t-att-aria-label="t('Close')"
+                            t-on-click="() => this.pickerCancel()">✕</button>
+                </div>
+                <div class="modal-body d365-many-body">
+                    <input id="d365_many_search" type="search" class="d365-input d365-many-search" autocomplete="off"
+                           t-att-aria-label="t('Search') + ' ' + picker.title"
+                           t-att-placeholder="t('Type to search…')"
+                           t-att-value="picker.term"
+                           t-on-input="(ev) => this.pickerSearch(ev.target.value)"/>
+                    <div class="d365-many-tools">
+                        <span class="d365-many-count" aria-live="polite">
+                            <t t-if="picker.multi"><b t-esc="picker.picked.length"/> <t t-esc='t("selected")'/></t>
+                            <t t-if="picker.multi &amp;&amp; !picker.remote"> · </t>
+                            <t t-if="!picker.remote"><t t-esc="pickerRows.length"/> / <t t-esc="pickerTotal()"/> <t t-esc='t("shown")'/></t>
+                            <t t-if="picker.remote &amp;&amp; !picker.multi"><t t-esc='t("Type to narrow the full list")'/></t>
+                        </span>
+                        <span t-if="picker.multi" class="d365-many-actions">
+                            <button type="button" class="btn btn-sm" t-att-disabled="!pickerRows.length"
+                                    t-on-click="() => this.pickerTickShown()"><t t-esc='t("Select all shown")'/></button>
+                            <button type="button" class="btn btn-sm" t-att-disabled="!picker.picked.length"
+                                    t-on-click="() => this.pickerClearAll()"><t t-esc='t("Clear all")'/></button>
+                        </span>
+                    </div>
+                    <div t-if="picker.multi &amp;&amp; picker.picked.length" class="d365-many-chips d365-many-picked">
+                        <t t-foreach="picker.picked" t-as="chip" t-key="chip.id">
+                            <span class="d365-chip">
+                                <span class="d365-chip-text" t-esc="chip.label" t-att-title="chip.label"/>
+                                <button type="button" class="d365-chip-x"
+                                        t-att-aria-label="t('Remove') + ' ' + chip.label"
+                                        t-on-click="() => this.pickerToggle(chip)">✕</button>
+                            </span>
+                        </t>
+                    </div>
+                    <div class="d365-many-list" role="group" t-att-aria-label="picker.title">
+                        <t t-if="picker.multi">
+                            <label t-foreach="pickerRows" t-as="row" t-key="row.id"
+                                   t-att-class="'d365-many-row' + (pickerIsPicked(row.id) ? ' is-picked' : '')">
+                                <input type="checkbox" t-att-checked="pickerIsPicked(row.id)"
+                                       t-on-change="() => this.pickerToggle(row)"/>
+                                <span t-esc="row.label"/>
+                            </label>
+                        </t>
+                        <t t-else="">
+                            <button t-foreach="pickerRows" t-as="row" t-key="row.id" type="button"
+                                    t-att-class="'d365-many-row d365-one-row' + (pickerIsPicked(row.id) ? ' is-picked' : '')"
+                                    t-att-aria-pressed="pickerIsPicked(row.id) ? 'true' : 'false'"
+                                    t-on-click="() => this.pickerToggle(row)">
+                                <span class="d365-one-mark" aria-hidden="true"><t t-if="pickerIsPicked(row.id)">✓</t></span>
+                                <span t-esc="row.label"/>
+                            </button>
+                        </t>
+                        <div t-if="picker.loading" class="d365-lookup-empty"><t t-esc='t("Searching…")'/></div>
+                        <div t-elif="picker.error" class="d365-lookup-empty" t-esc="picker.error"/>
+                        <div t-elif="!pickerRows.length" class="d365-lookup-empty"><t t-esc='t("No match")'/></div>
+                        <div t-elif="picker.remote &amp;&amp; !picker.term &amp;&amp; picker.multi" class="d365-lookup-empty"><t t-esc='t("Type to search the full list")'/></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" t-on-click="() => this.pickerCancel()"><t t-esc='t("Cancel")'/></button>
+                    <button t-if="picker.multi" type="button" class="btn btn-primary" t-on-click="() => this.pickerApply()">
+                        <t t-esc='t("Apply")'/> (<t t-esc="picker.picked.length"/>)
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </t>
 

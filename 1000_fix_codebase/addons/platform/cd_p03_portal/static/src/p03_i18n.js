@@ -943,6 +943,13 @@ export const P03_BN = {
   "Searching…": "খোঁজা হচ্ছে…",
   "Type to search the full list": "পুরো তালিকায় খুঁজতে লিখুন",
   "No match": "কোনো মিল নেই",
+  // P03 picker standard: single-value lookup boxes (15 Nov 2026)
+  "Search and select…": "খুঁজে বাছাই করুন…",
+  "Type to narrow the full list": "পুরো তালিকা সংকুচিত করতে লিখুন",
+  "Search failed — try again": "খোঁজা ব্যর্থ — আবার চেষ্টা করুন",
+  "Service Center": "সার্ভিস সেন্টার",
+  "Assigned Technician": "নিযুক্ত টেকনিশিয়ান",
+  "Partner (AR/AP)": "পার্টনার (AR/AP)",
   "Workflow Status": "ওয়ার্কফ্লো স্ট্যাটাস",
   "WORKFLOW STATUS": "ওয়ার্কফ্লো স্ট্যাটাস",
   "Priority": "অগ্রাধিকার",

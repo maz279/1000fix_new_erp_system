@@ -194,6 +194,9 @@ const STATE_LABELS = {
     completed: "Completed", failed: "Failed",
 };
 
+/* P03 picker standard: a choice list longer than this opens the search popup */
+const PICK_POPUP_MIN = 10;
+
 const ATTACH_ICONS = { pdf: "📋", jpg: "📷", jpeg: "📷", png: "🔬", webp: "📷" };
 
 export class P03Workspace extends Component {
@@ -228,6 +231,8 @@ export class P03Workspace extends Component {
         };
 
         this.state = useState({
+            // the P03 picker standard's one popup (pickerOpen)
+            picker: null,
             viewMode: "home", // 'home' | 'workspace' | 'freg' | 'screen' | 'record' | 'console' | 'form' | 'dispatch_console' | 'branch_console' | 'workshop_console'
             activeTab: "home",
             openTabs: [
@@ -1292,6 +1297,7 @@ export class P03Workspace extends Component {
             arNoteForm: null,        // credit-note quick create (per invoice)
             receiptForm: null,       // receipt quick create
             allocPick: { receipt_id: null, invoice_id: null, amount: null }, // manual allocation
+            creditCustomer: null,    // credit-profile customer (P03 picker standard)
             matchProposals: null,    // auto-match console
             customers: [],           // picker for statements/editor
             stmtCustomer: null,      // statement customer
@@ -2709,12 +2715,281 @@ export class P03Workspace extends Component {
         return same(gl.form.values[meta.name]);
     }
 
-    /* ---- many2many: chips on the form, a search-and-tick dialog to choose.
-     * The native <select multiple> it replaces was squeezed to one input's
-     * height (two rows visible), needed Ctrl+click and dropped every earlier
-     * pick on a plain click (M42 Approved Product Categories, 14 Nov 2026).
-     * The value is kept as [{id, label}]; the save posts it as the whole
-     * selection, which the server replaces with (6, 0, ids). ---- */
+    /* ================= P03 picker standard (14-15 Nov 2026) =================
+     * ONE search-and-select popup for every long or server-searched choice in
+     * the workspace, M01-M67. The rule (pickNeedsPopup): a list longer than
+     * PICK_POPUP_MIN options, or one the server must search, is a lookup box
+     * that opens the popup; a short list stays a quick dropdown.
+     * It began as the many2many picker (M42 Approved Product Categories: a
+     * two-row select-multiple that needed Ctrl+click); the owner approved it
+     * and asked for it as the estate standard. Single mode picks on one click;
+     * multi mode ticks, keeps the ticks across searches, and applies on Apply.
+     * ===================================================================== */
+
+    pickNeedsPopup(choices, remote) {
+        return !!remote || (choices || []).length > PICK_POPUP_MIN;
+    }
+
+    /* the template's view of the rule (dropdowns outside the form engine) */
+    get pickPopupMin() {
+        return PICK_POPUP_MIN;
+    }
+
+    /* opts: {title, multi, rows: [{id,label}], remote: {model, field, domain,
+     * parent_model?, parent_field?, open?}, picked: [{id,label}], onApply,
+     * returnFocus: element id} */
+    pickerOpen(opts) {
+        const pick = {
+            title: opts.title || "",
+            multi: !!opts.multi,
+            base: opts.rows || [],
+            remote: opts.remote || null,
+            rows: null,
+            term: "",
+            picked: (opts.picked || []).map((p) => ({ id: p.id, label: p.label })),
+            onApply: opts.onApply,
+            returnFocus: opts.returnFocus || null,
+            loading: false,
+            error: null,
+        };
+        this.state.picker = pick;
+        // a server-searched list with nothing loaded opens on its first page
+        if (pick.remote && (pick.remote.open || !pick.base.length)) this.pickerSearch("");
+        this.render(true);
+        setTimeout(() => {
+            const box = document.getElementById("d365_many_search");
+            if (box) box.focus();
+        }, 30);
+    }
+
+    get picker() {
+        return this.state.picker || null;
+    }
+
+    /* The rows the popup lists: the choices (or the server's answer) narrowed
+     * by every word typed; with nothing typed, the chosen ones come first. */
+    get pickerRows() {
+        const pick = this.picker;
+        if (!pick) return [];
+        const words = (pick.term || "").toLowerCase().split(/\s+/).filter(Boolean);
+        const base = pick.remote && pick.rows ? pick.rows : pick.base || [];
+        const seen = new Set(base.map((c) => c.id));
+        // a chosen value beyond the loaded list is still listed (and removable)
+        const extra = pick.picked.filter((p) => !seen.has(p.id));
+        const all = [...extra, ...base];
+        const rows = words.length
+            ? all.filter((c) => words.every((w) => String(c.label || "").toLowerCase().includes(w)))
+            : all;
+        if (words.length) return rows;
+        const ticked = new Set(pick.picked.map((p) => p.id));
+        return [...rows.filter((r) => ticked.has(r.id)), ...rows.filter((r) => !ticked.has(r.id))];
+    }
+
+    pickerTotal() {
+        const pick = this.picker;
+        return pick ? (pick.base || []).length : 0;
+    }
+
+    pickerIsPicked(id) {
+        const pick = this.picker;
+        return !!pick && pick.picked.some((p) => p.id === id);
+    }
+
+    pickerToggle(row) {
+        const pick = this.picker;
+        if (!pick) return;
+        if (!pick.multi) {
+            // single mode: one click picks and closes
+            pick.picked = [{ id: row.id, label: row.label }];
+            this.pickerApply();
+            return;
+        }
+        pick.picked = this.pickerIsPicked(row.id)
+            ? pick.picked.filter((p) => p.id !== row.id)
+            : [...pick.picked, { id: row.id, label: row.label }];
+        this.render(true);
+    }
+
+    pickerTickShown() {
+        const pick = this.picker;
+        if (!pick || !pick.multi) return;
+        const have = new Set(pick.picked.map((p) => p.id));
+        const add = this.pickerRows.filter((r) => !have.has(r.id)).map((r) => ({ id: r.id, label: r.label }));
+        pick.picked = [...pick.picked, ...add];
+        this.render(true);
+    }
+
+    pickerClearAll() {
+        const pick = this.picker;
+        if (!pick) return;
+        pick.picked = [];
+        this.render(true);
+    }
+
+    pickerSearch(term) {
+        const pick = this.picker;
+        if (!pick) return;
+        pick.term = term;
+        if (!pick.remote) {
+            this.render(true);
+            return;
+        }
+        pick.loading = true;
+        this.render(true);
+        clearTimeout(this._pickerTimer);
+        this._pickerTimer = setTimeout(async () => {
+            const params = { ...pick.remote };
+            delete params.open;
+            let res;
+            try {
+                res = await this.rpc("/p03/model/choices", { ...params, q: term });
+            } catch {
+                res = { error: this.t("Search failed — try again") };
+            }
+            if (this.picker !== pick || pick.term !== term) return;
+            pick.loading = false;
+            pick.rows = res && !res.error ? res.choices : [];
+            pick.error = (res && res.error) || null;
+            this.render(true);
+        }, term ? 250 : 0);
+    }
+
+    pickerKey(ev) {
+        if (ev.key === "Escape") {
+            ev.preventDefault();
+            this.pickerCancel();
+        } else if (ev.key === "Enter" && ev.target && ev.target.id === "d365_many_search") {
+            // Enter on a search that leaves exactly one row picks / ticks it
+            ev.preventDefault();
+            const rows = this.pickerRows;
+            if (rows.length === 1) this.pickerToggle(rows[0]);
+        }
+    }
+
+    pickerApply() {
+        const pick = this.picker;
+        if (!pick) return;
+        const picked = pick.picked.map((p) => ({ id: p.id, label: p.label }));
+        this._pickerClose();
+        if (pick.onApply) pick.onApply(picked);
+        this.render(true);
+    }
+
+    pickerCancel() {
+        if (this.picker) this._pickerClose();
+    }
+
+    _pickerClose() {
+        const pick = this.picker;
+        this.state.picker = null;
+        this.render(true);
+        // focus returns to the box that opened the popup
+        const back = pick && pick.returnFocus;
+        if (back) {
+            setTimeout(() => {
+                const btn = document.getElementById(back);
+                if (btn) btn.focus();
+            }, 30);
+        }
+    }
+
+    /* A picker for a plain list (the finance editors, branch and technician
+     * masters): rows [{id,label}], the current id, and what a pick sets. */
+    pickOneOpen(title, rows, currentId, onPick, returnFocus) {
+        const hit = (rows || []).find((r) => String(r.id) === String(currentId));
+        this.pickerOpen({
+            // translated here: t() inside a template handler has no component
+            title: this.t(title),
+            rows,
+            picked: hit ? [hit] : [],
+            // the id goes over as the <select> sent it: a string (String is
+            // not a template global, so the template cannot convert it)
+            onApply: (p) => onPick(p.length ? String(p[0].id) : ""),
+            returnFocus,
+        });
+    }
+
+    pickLabel(rows, id) {
+        if (id === "" || id === null || id === undefined || id === false) return "";
+        const hit = (rows || []).find((r) => String(r.id) === String(id));
+        return hit ? hit.label : "";
+    }
+
+    /* ---- the form engine's pickers (every model_form of M01-M67) ---- */
+    _formRemote(name, line) {
+        const gl = this.state.gl;
+        const meta = line ? this.formLineMeta(name) : this.formFieldsMeta[name] || {};
+        const params = { field: name, domain: meta.choice_domain || [] };
+        if (line) {
+            params.model = (gl.data && gl.data.lines && gl.data.lines.model) || false;
+            params.parent_model = gl.formCfg.model;
+            params.parent_field = gl.formCfg.lines.field;
+        } else {
+            params.model = gl.formCfg.model;
+        }
+        // a header many2one beyond the limit arrives with no list: open on page one
+        if (meta.remote) params.open = true;
+        return params;
+    }
+
+    _pickRows(meta) {
+        return meta.type === "selection"
+            ? (meta.choices || []).map((c) => ({ id: c.key, label: this.t(c.label) }))
+            : meta.choices || [];
+    }
+
+    _rememberChoice(meta, row) {
+        if (row && !(meta.choices || []).some((c) => c.id === row.id)) {
+            meta.choices = [row, ...(meta.choices || [])];
+        }
+    }
+
+    /* many2one / selection: a lookup box when the list is long or remote */
+    formUsesPicker(fm) {
+        if (fm.type === "many2one") return this.pickNeedsPopup(fm.choices, fm.remote || fm.truncated);
+        if (fm.type === "selection") return this.pickNeedsPopup(fm.choices, false);
+        return false;
+    }
+
+    formOneLabel(name) {
+        const meta = this.formFieldsMeta[name] || {};
+        const raw = this.formFieldValue(name);
+        if (raw === "" || raw === false || raw === null || raw === undefined) return "";
+        if (typeof raw === "object") return raw.label || "";
+        const hit = this._pickRows(meta).find((c) => c.id === raw);
+        return hit ? hit.label : String(raw);
+    }
+
+    formOneOpen(name) {
+        const meta = this.formFieldsMeta[name] || {};
+        const raw = this.formFieldValue(name);
+        const id = raw && typeof raw === "object" ? raw.id : raw;
+        const has = !(id === "" || id === false || id === null || id === undefined);
+        const remote = meta.type === "many2one" && (meta.remote || meta.truncated);
+        this.pickerOpen({
+            title: this.t(meta.label || name),
+            rows: this._pickRows(meta),
+            remote: remote ? this._formRemote(name) : null,
+            picked: has ? [{ id, label: this.formOneLabel(name) }] : [],
+            onApply: (p) => {
+                const row = p[0];
+                if (meta.type === "many2one") this._rememberChoice(meta, row);
+                this.formSet(name, row ? row.id : meta.type === "selection" ? "" : false);
+            },
+            // the lookup box carries the field's id (its label points at it)
+            returnFocus: "d365_fld_" + name + "_" + (this.state.gl.form.recordId || "new"),
+        });
+    }
+
+    formOneClear(name) {
+        const meta = this.formFieldsMeta[name] || {};
+        this.formSet(name, meta.type === "selection" ? "" : false);
+        this.render(true);
+    }
+
+    /* many2many: chips on the form, the popup in multi mode. The value is
+     * kept as [{id, label}]; the save posts it as the whole selection, which
+     * the server replaces with (6, 0, ids). */
     formManyItems(name) {
         const raw = this.formFieldValue(name);
         const meta = this.formFieldsMeta[name] || {};
@@ -2731,149 +3006,100 @@ export class P03Workspace extends Component {
     }
 
     formManyOpen(name) {
-        const gl = this.state.gl;
-        if (!gl || gl.kind !== "model_form") return;
         const meta = this.formFieldsMeta[name] || {};
-        gl.form.manyPick = {
-            name,
-            label: meta.label || name,
-            term: "",
-            picked: this.formManyItems(name),
+        this.pickerOpen({
+            title: this.t(meta.label || name),
+            multi: true,
+            rows: meta.choices || [],
             // a list over the choice limit is searched on the server
-            remote: !!meta.truncated,
-            rows: null,
-            loading: false,
-        };
-        this.render(true);
-        setTimeout(() => {
-            const box = document.getElementById("d365_many_search");
-            if (box) box.focus();
-        }, 30);
+            remote: meta.truncated ? this._formRemote(name) : null,
+            picked: this.formManyItems(name),
+            onApply: (p) => this.formSet(name, p),
+            returnFocus: "d365_many_btn_" + name,
+        });
     }
 
-    get formManyPick() {
+    /* child grid cells follow the same rule */
+    formLineUsesPicker(lf) {
+        if (lf.type === "many2one") return this.pickNeedsPopup(lf.choices, lf.truncated);
+        if (lf.type === "selection") return this.pickNeedsPopup(lf.choices, false);
+        return false;
+    }
+
+    formLineOneLabel(rowIndex, name) {
+        const raw = this.formLineValue(rowIndex, name);
+        if (raw === "" || raw === false || raw === null || raw === undefined) return "";
+        if (typeof raw === "object") return raw.label || "";
+        const hit = this._pickRows(this.formLineMeta(name)).find((c) => c.id === raw);
+        return hit ? hit.label : String(raw);
+    }
+
+    formLineOneOpen(rowIndex, name) {
+        const meta = this.formLineMeta(name);
+        const raw = this.formLineValue(rowIndex, name);
+        const id = raw && typeof raw === "object" ? raw.id : raw;
+        const has = !(id === "" || id === false || id === null || id === undefined);
+        this.pickerOpen({
+            title: this.t(meta.label || name),
+            rows: this._pickRows(meta),
+            remote: meta.type === "many2one" && meta.truncated ? this._formRemote(name, true) : null,
+            picked: has ? [{ id, label: this.formLineOneLabel(rowIndex, name) }] : [],
+            onApply: (p) => {
+                const row = p[0];
+                if (meta.type === "many2one") this._rememberChoice(meta, row);
+                this.formLineSet(rowIndex, name, row ? row.id : "");
+                this.render(true);
+            },
+            returnFocus: "d365_line_" + rowIndex + "_" + name,
+        });
+    }
+
+    /* ---- the finance editors and master pickers outside the form engine ---- */
+    get pickAccountRows() {
         const gl = this.state.gl;
-        return (gl && gl.form && gl.form.manyPick) || null;
+        return ((gl && gl.data && gl.data.accounts) || []).map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` }));
     }
 
-    /* The rows the dialog lists: the field's choices (or the server's
-     * answer for a long list) narrowed by every word typed, ticked ones first
-     * when nothing is typed, so what is chosen is seen at a glance. */
-    get formManyRows() {
-        const pick = this.formManyPick;
-        if (!pick) return [];
-        const meta = this.formFieldsMeta[pick.name] || {};
-        const words = (pick.term || "").toLowerCase().split(/\s+/).filter(Boolean);
-        const base = pick.remote && pick.rows ? pick.rows : meta.choices || [];
-        const seen = new Set(base.map((c) => c.id));
-        // a ticked value beyond the loaded list is still listed (and untickable)
-        const extra = pick.picked.filter((p) => !seen.has(p.id));
-        const all = [...extra, ...base];
-        const rows = words.length
-            ? all.filter((c) => words.every((w) => String(c.label || "").toLowerCase().includes(w)))
-            : all;
-        if (words.length) return rows;
-        const ticked = new Set(pick.picked.map((p) => p.id));
-        return [...rows.filter((r) => ticked.has(r.id)), ...rows.filter((r) => !ticked.has(r.id))];
-    }
-
-    formManyTotal() {
-        const pick = this.formManyPick;
-        if (!pick) return 0;
-        return ((this.formFieldsMeta[pick.name] || {}).choices || []).length;
-    }
-
-    formManyIsPicked(id) {
-        const pick = this.formManyPick;
-        return !!pick && pick.picked.some((p) => p.id === id);
-    }
-
-    formManyToggle(row) {
-        const pick = this.formManyPick;
-        if (!pick) return;
-        pick.picked = this.formManyIsPicked(row.id)
-            ? pick.picked.filter((p) => p.id !== row.id)
-            : [...pick.picked, { id: row.id, label: row.label }];
-        this.render(true);
-    }
-
-    formManyTickShown() {
-        const pick = this.formManyPick;
-        if (!pick) return;
-        const have = new Set(pick.picked.map((p) => p.id));
-        const add = this.formManyRows.filter((r) => !have.has(r.id)).map((r) => ({ id: r.id, label: r.label }));
-        pick.picked = [...pick.picked, ...add];
-        this.render(true);
-    }
-
-    formManyClearAll() {
-        const pick = this.formManyPick;
-        if (!pick) return;
-        pick.picked = [];
-        this.render(true);
-    }
-
-    formManySearch(term) {
+    get pickPartnerRows() {
         const gl = this.state.gl;
-        const pick = this.formManyPick;
-        if (!pick) return;
-        pick.term = term;
-        if (!pick.remote) {
-            this.render(true);
-            return;
-        }
-        pick.loading = true;
-        this.render(true);
-        clearTimeout(this._manyTimer);
-        this._manyTimer = setTimeout(async () => {
-            const meta = this.formFieldsMeta[pick.name] || {};
-            const res = await this.rpc("/p03/model/choices", {
-                model: gl.formCfg.model,
-                field: pick.name,
-                q: term,
-                domain: meta.choice_domain || [],
-            });
-            if (this.formManyPick !== pick || pick.term !== term) return;
-            pick.loading = false;
-            pick.rows = res && !res.error ? res.choices : [];
-            pick.error = (res && res.error) || null;
-            this.render(true);
-        }, 250);
+        return ((gl && gl.data && gl.data.partners) || []).map((p) => ({ id: p.id, label: p.name }));
     }
 
-    formManyKey(ev) {
-        if (ev.key === "Escape") {
-            ev.preventDefault();
-            this.formManyCancel();
-        } else if (ev.key === "Enter" && ev.target && ev.target.id === "d365_many_search") {
-            // Enter on a search that leaves exactly one row ticks it
-            ev.preventDefault();
-            const rows = this.formManyRows;
-            if (rows.length === 1) this.formManyToggle(rows[0]);
-        }
-    }
-
-    formManyApply() {
-        const pick = this.formManyPick;
-        if (!pick) return;
-        this.formSet(pick.name, pick.picked.map((p) => ({ id: p.id, label: p.label })));
-        this._formManyClose(pick.name);
-    }
-
-    formManyCancel() {
-        const pick = this.formManyPick;
-        if (pick) this._formManyClose(pick.name);
-    }
-
-    _formManyClose(name) {
+    get pickBranchRows() {
         const gl = this.state.gl;
-        if (gl && gl.form) gl.form.manyPick = null;
-        this.render(true);
-        // focus returns to the button that opened the dialog
-        setTimeout(() => {
-            const btn = document.getElementById("d365_many_btn_" + name);
-            if (btn) btn.focus();
-        }, 30);
+        return ((gl && gl.data && gl.data.branches) || []).map((b) => ({ id: b.id, label: b.name }));
+    }
+
+    get pickCustomerRows() {
+        const gl = this.state.gl;
+        return ((gl && gl.customers) || []).map((c) => ({ id: c.id, label: c.name }));
+    }
+
+    get pickPaymentMethodRows() {
+        const gl = this.state.gl;
+        return ((gl && gl.data && gl.data.payment_methods) || []).map((p) => ({ id: p.id, label: p.name }));
+    }
+
+    get pickUnappliedRows() {
+        const gl = this.state.gl;
+        return ((gl && gl.data && gl.data.unapplied) || []).map((r) => ({ id: r.id, label: `${r.name} · ${r.customer}` }));
+    }
+
+    get pickOpenInvoiceRows() {
+        const gl = this.state.gl;
+        return ((gl && gl.data && gl.data.open_invoices) || []).map((r) => ({ id: r.id, label: `${r.name} · ${r.customer}` }));
+    }
+
+    /* the branch / technician masters arrive as plain names */
+    pickNameRows(names, allLabel) {
+        const rows = (names || []).map((n) => ({ id: n, label: n }));
+        return allLabel ? [{ id: allLabel, label: this.t(allLabel) }, ...rows] : rows;
+    }
+
+    get pickConsoleBranchRows() {
+        const data = this.state.dispatchMapData;
+        const rows = ((data && data.branches) || []).map((b) => ({ id: b.id, label: b.name }));
+        return [{ id: "", label: this.t("All 50 Branches") }, ...rows];
     }
 
     /* ---- many2one search box, for a comodel too long for a select ---- */
@@ -3948,9 +4174,11 @@ export class P03Workspace extends Component {
     /* ---------------- credit control ---------------- */
 
     arProfileNew() {
-        // reads the picker's value through state, never via document globals
+        // the customer comes from the picker's state (P03 picker standard);
+        // a short list is still a dropdown, read by its id
         const sel = document.getElementById("ar-credit-customer");
-        const customerId = sel ? parseInt(sel.value, 10) : null;
+        const picked = this.state.gl.creditCustomer;
+        const customerId = picked ? parseInt(picked, 10) : sel ? parseInt(sel.value, 10) : null;
         if (!customerId) {
             this.showToast(this.t('Pick a customer first'));
             return;

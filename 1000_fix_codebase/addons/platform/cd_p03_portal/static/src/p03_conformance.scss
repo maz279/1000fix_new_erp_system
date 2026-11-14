@@ -2585,49 +2585,6 @@ body:has(.p03-workspace-root) .o_action_manager {
   .d365-lookup-option:hover,
   .d365-lookup-option:focus-visible { background: var(--surface-2, #f3f4f6); outline: 2px solid var(--primary, #0e7a6e); outline-offset: -2px; }
   .d365-lookup-empty { padding: 8px 10px; color: var(--ink-400, #6b7280); }
-  /* many2many: chips + a search-and-tick dialog (replaced <select multiple>) */
-  .d365-many {
-    display: flex; align-items: flex-start; gap: 10px;
-    min-height: 44px; padding: 6px 8px;
-    border: 1px solid var(--line, #d1d5db); border-radius: 6px;
-    background: var(--surface, #ffffff);
-  }
-  .d365-many-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; align-items: center; min-height: 30px; }
-  .d365-many-empty { font-size: 13px; color: var(--ink-400, #6b7280); }
-  .d365-chip {
-    display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
-    padding: 3px 4px 3px 10px; font-size: 12.5px; line-height: 1.3;
-    border-radius: 14px; background: var(--brand-150, #ebf8f6);
-    border: 1px solid var(--brand-90, #9fd9d1); color: var(--ink, #1f2937);
-  }
-  .d365-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .d365-chip-x {
-    flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
-    background: transparent; color: var(--ink-500, #6b7280); font-size: 11px; cursor: pointer;
-  }
-  .d365-chip-x:hover { background: rgba(180, 35, 24, 0.12); color: #b42318; }
-  .d365-chip-x:focus-visible,
-  .d365-many-btn:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: 1px; }
-  .d365-many-btn { flex: none; min-height: 32px; white-space: nowrap; }
-  .modal-scrim .modal-dialog.d365-many-dialog { max-width: 560px; height: 640px; max-height: 90vh; }
-  .d365-many-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-  .d365-many-search { height: 40px; font-size: 14px; flex: none; }
-  .d365-many-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-500, #6b7280); }
-  .d365-many-actions { display: flex; gap: 6px; }
-  .d365-many-picked { flex: none; max-height: 96px; overflow-y: auto; }
-  .d365-many-list {
-    flex: 1; min-height: 120px; overflow-y: auto;
-    border: 1px solid var(--line, #e5e7eb); border-radius: 6px;
-  }
-  .d365-many-row {
-    display: flex; align-items: center; gap: 10px; min-height: 44px;
-    padding: 6px 12px; margin: 0; font-size: 13px; cursor: pointer;
-    border-bottom: 1px solid var(--line, #f1f5f9);
-  }
-  .d365-many-row:hover { background: var(--surface-2, #f3f4f6); }
-  .d365-many-row.is-picked { background: var(--brand-150, #ebf8f6); font-weight: 600; }
-  .d365-many-row input { width: 18px; height: 18px; flex: none; }
-  .d365-many-row input:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: 2px; }
   .d365-input[disabled] { background: var(--surface-2, #f9fafb); color: var(--ink-300, #9ca3af); }
   .d365-textarea { height: auto; padding: 8px 10px; resize: vertical; }
   .d365-ro {
@@ -2671,6 +2628,85 @@ body:has(.p03-workspace-root) .o_action_manager {
   }
   .d365-line-total.ok { color: var(--brand-60, #0e7a6e); }
 }
+
+/* ============ P03 picker standard (14-15 Nov 2026) ============
+ * The search-and-select popup and the lookup boxes of every long choice in
+ * M01-M67. Top level, not under .d365-form: the popup sits at the workspace
+ * root and the finance editors' boxes are outside any form. */
+.d365-one-btn, .d365-many-search {
+  font-size: 13px; color: var(--ink, #1f2937); background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #d1d5db); border-radius: 6px; box-sizing: border-box;
+}
+.d365-many-search { width: 100%; padding: 0 10px; }
+.d365-many-search:focus { outline: none; border-color: var(--brand-60, #0e7a6e); box-shadow: 0 0 0 2px var(--brand-10, #e6f4f1); }
+.d365-many-list .d365-lookup-empty { padding: 8px 10px; color: var(--ink-400, #6b7280); }
+/* many2many: chips + a search-and-tick dialog (replaced <select multiple>) */
+.d365-many {
+  display: flex; align-items: flex-start; gap: 10px;
+  min-height: 44px; padding: 6px 8px;
+  border: 1px solid var(--line, #d1d5db); border-radius: 6px;
+  background: var(--surface, #ffffff);
+}
+.d365-many-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; align-items: center; min-height: 30px; }
+.d365-many-empty { font-size: 13px; color: var(--ink-400, #6b7280); }
+.d365-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  padding: 3px 4px 3px 10px; font-size: 12.5px; line-height: 1.3;
+  border-radius: 14px; background: var(--brand-150, #ebf8f6);
+  border: 1px solid var(--brand-90, #9fd9d1); color: var(--ink, #1f2937);
+}
+.d365-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d365-chip-x {
+  flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-500, #6b7280); font-size: 11px; cursor: pointer;
+}
+.d365-chip-x:hover { background: rgba(180, 35, 24, 0.12); color: #b42318; }
+.d365-chip-x:focus-visible,
+.d365-many-btn:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: 1px; }
+.d365-many-btn { flex: none; min-height: 32px; white-space: nowrap; }
+.modal-scrim .modal-dialog.d365-many-dialog { max-width: 560px; height: 640px; max-height: 90vh; }
+.d365-many-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.d365-many-search { height: 40px; font-size: 14px; flex: none; }
+.d365-many-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-500, #6b7280); }
+.d365-many-actions { display: flex; gap: 6px; }
+.d365-many-picked { flex: none; max-height: 96px; overflow-y: auto; }
+.d365-many-list {
+  flex: 1; min-height: 120px; overflow-y: auto;
+  border: 1px solid var(--line, #e5e7eb); border-radius: 6px;
+}
+.d365-many-row {
+  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  padding: 6px 12px; margin: 0; font-size: 13px; cursor: pointer;
+  border-bottom: 1px solid var(--line, #f1f5f9);
+}
+.d365-many-row:hover { background: var(--surface-2, #f3f4f6); }
+.d365-many-row.is-picked { background: var(--brand-150, #ebf8f6); font-weight: 600; }
+.d365-many-row input { width: 18px; height: 18px; flex: none; }
+.d365-many-row input:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: 2px; }
+/* P03 picker standard: the popup sits over every screen and modal */
+.modal-scrim.d365-many-scrim { z-index: 2100; }
+/* single-value lookup box (many2one / long selection / masters) */
+.d365-one { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.d365-one-btn {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 160px;
+  min-height: 32px; height: auto; padding: 4px 10px; text-align: left; cursor: pointer;
+}
+.d365-one-btn:hover { border-color: var(--brand-60, #0e7a6e); }
+.d365-one-btn:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: 1px; }
+.d365-one-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d365-one-empty { color: var(--ink-400, #6b7280); }
+.d365-one-icon { flex: none; font-size: 12px; opacity: 0.75; }
+.d365-one-clear { flex: none; }
+.d365-one-sm .d365-one-btn { min-height: 28px; min-width: 140px; font-size: 12.5px; }
+/* a long label (a 90-character product name) truncates, it never widens the grid */
+.d365-one-btn { max-width: 100%; }
+.d365-one-sm { max-width: 340px; }
+.d365-one-row {
+  width: 100%; border: 0; border-bottom: 1px solid var(--line, #f1f5f9);
+  background: transparent; text-align: left; color: inherit;
+}
+.d365-one-row:focus-visible { outline: 2px solid var(--primary, #0e7a6e); outline-offset: -2px; }
+.d365-one-mark { flex: none; width: 18px; color: var(--brand-60, #0e7a6e); font-weight: 700; }
 
 /* Dynamics 365 Image & Avatar Upload Field */
 .d365-image-field {
