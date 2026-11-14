@@ -1,0 +1,19 @@
+--- a/1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_role_group_map.xml	2026-11-13 02:51:48.677849500 +0800
++++ b/1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_role_group_map.xml	2026-11-13 02:51:49.041656500 +0800
+@@ -92,13 +92,13 @@
+             <field name="group_ids" eval="[(6, 0, [g for g in [ref('group_ws_service_orders'), ref('cd_service_order.group_so_supervisor', raise_if_not_found=False), ref('cd_field_service.group_fix_field_service_manager', raise_if_not_found=False)] if g])]"/>
+         </record>
+         <record id="role_r10" model="fix.role">
+-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('group_ws_service_orders'), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
++            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_field_service.group_fix_field_service_user', raise_if_not_found=False), ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('group_ws_service_orders'), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
+         </record>
+         <record id="role_r11" model="fix.role">
+-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
++            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_field_service.group_fix_field_service_user', raise_if_not_found=False), ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
+         </record>
+         <record id="role_r12" model="fix.role">
+-            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_service_order.group_so_qc_inspector', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
++            <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_field_service.group_fix_field_service_user', raise_if_not_found=False), ref('cd_workshop.group_fix_workshop_user', raise_if_not_found=False), ref('cd_service_order.group_so_qc_inspector', raise_if_not_found=False), ref('cd_wms_structure.group_van_technician', raise_if_not_found=False), ref('cd_quotation.group_quotation_user', raise_if_not_found=False)] if g])]"/>
+         </record>
+         <record id="role_r13" model="fix.role">
+             <field name="group_ids" eval="[(6, 0, [g for g in [ref('cd_itsm.group_itsm_agent', raise_if_not_found=False)] if g])]"/>
