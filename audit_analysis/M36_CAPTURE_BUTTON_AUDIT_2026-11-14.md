@@ -118,3 +118,14 @@ Other changes:
 5. **Who records and decides.** Every new capture needs the Quotation Author role (`cd_quotation.group_quotation_user`).
    - fix_real has 220 Quotation Authors and 47 Commercial Managers, so counter-offers can be taken down by one person and decided by another.
    - fix_real has **1 Bid Coordinator and 1 Tender Committee member**. A tender award must be approved by a committee member who did not prepare the bid, so a second member must be named before any tender can be won in the system.
+
+## 5. Deployed to fix_real (14 Nov 2026, approved by the user)
+
+- Committed `9c0c90a3` on `fix/a03-live-data-and-pending-work` (fast-forward from `f6fc66cc`; **not pushed**). Peers' uncommitted M33 files in the shared checkout were left as they were.
+- Backup: `_migration/backups/fix_real_pre_m36_capture_2026-11-14.dump` (48.6 MB, 1,563 tables).
+- `-u cd_quotation,cd_p03_portal` on fix_real: 0 errors. The 3 new tables exist; cd_quotation is at 19.0.1.1.0.
+- Drift check before the restart: no stored field in the shared checkout's changed model files lacks a column.
+- 8069 restarted at 17:59 machine time. One listener; `/web/login` answers 200; 0 errors in the log since.
+- **Server probe on fix_real**, as a real non-admin Quotation Author, read-only and rolled back: every M36 list, form, pick list, report and sub-module grid. **64 calls, 0 errors.**
+- The production bundle `e69602d` served by 8069 contains the new screens (`action_issue_on_channel`, the counter-offer forms, the bilingual template list).
+- Not checked by clicking on fix_real: signing in there needs a real account. The clicks were done on the private copy (section 3).
