@@ -35,7 +35,7 @@ Credit profile: the model of record is cd_billing_engine's fix.credit.profile
 (M20, FR-ARB-030/031) — M33 surfaces it (spec §3.3: M33 holds the value,
 M20 enforces at order time); this module adds no competing model.
 """,
-    "version": "19.0.1.4.0",
+    "version": "19.0.1.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Party",

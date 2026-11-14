@@ -17,7 +17,9 @@ SURFACES = {
     "res.partner": {
         "order": "write_date desc, id desc",
         "limit": 200,
-        "actions": {"action_reactivate_party"},
+        # M33 capture audit 2026-11-14: status changes carry a reason and the
+        # quality score is taken for the party in front of the steward.
+        "actions": {"action_reactivate_party", "action_set_party_status", "action_score_quality"},
         # 2026-11-09: the party REGISTER is the customer master — internal
         # parties (login-backed users, employee-linked staff) never mix in.
         # Flows to the grid AND the branded export via model_records.
@@ -113,6 +115,14 @@ SURFACES = {
         "actions": {"action_toggle_hold"},
     },
     "fix.dedup.rule": {"order": "id desc", "limit": 400, "actions": set()},
+    # PDPA record of processing (FR-CPM-044, BRU-CPM-15): append-only; the
+    # Data Protection Officer records an activity, consent capture and
+    # withdrawal record their own (M33 capture audit 2026-11-14).
+    "fix.processing.record": {
+        "order": "occurred_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
     # --- added by the A03 gap-closure build -------------------
     # Each of these is bound by a workspace screen below; an
     # unservable surface is what test_a03_registry_coverage exists

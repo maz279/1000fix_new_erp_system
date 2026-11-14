@@ -36,6 +36,27 @@ class FixBdAddressExt(models.Model):
         string="Longitude",
         digits=(10, 7),
     )
+    is_default = fields.Boolean(
+        string="Default for this Purpose",
+        help="FR-CPM-014: the party's nominated address for this tag (one per tag)",
+    )
+
+    @api.constrains("party_id", "address_tag", "is_default")
+    def _check_one_default_per_tag(self):
+        for address in self.filtered(lambda a: a.is_default and a.party_id):
+            clash = self.search_count(
+                [
+                    ("id", "!=", address.id),
+                    ("party_id", "=", address.party_id.id),
+                    ("address_tag", "=", address.address_tag),
+                    ("is_default", "=", True),
+                ]
+            )
+            if clash:
+                raise ValidationError(
+                    "%s already has a default %s address. Clear that one first."
+                    % (address.party_id.display_name, address.address_tag or "untagged")
+                )
 
     @api.constrains("latitude", "longitude")
     def _check_coordinates(self):

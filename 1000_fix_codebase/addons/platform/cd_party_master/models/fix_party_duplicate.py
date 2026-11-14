@@ -23,6 +23,28 @@ class FixPartyDuplicate(models.Model):
         # The steward decision is the actions' to record (A03 audit M33-6).
         return super()._fix_guarded_fields() | {"state", "reviewed_by"}
 
+    def _fix_form_locked_fields(self) -> set:
+        # measured by the dedup rules (create below), never typed; the pair is
+        # what was measured, so it is fixed once the candidate exists
+        locked = super()._fix_form_locked_fields() | {"score", "factors"}
+        return locked | {"party_a", "party_b"} if self else locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            changed = [
+                name
+                for name in ("score", "factors", "party_a", "party_b")
+                if name in vals
+                and any(rec._fix_guard_differs(name, vals[name], rec[name]) for rec in self)
+            ]
+            if changed:
+                raise ValidationError(
+                    "The pair, its match score and the factors are measured by the "
+                    "dedup rules and cannot be typed or changed (T-03). Raise a new "
+                    "candidate for another pair."
+                )
+        return super().write(vals)
+
     party_a = fields.Many2one(
         "res.partner", string="Party A", required=True, ondelete="cascade", index=True
     )
@@ -54,6 +76,42 @@ class FixPartyDuplicate(models.Model):
     company_id = fields.Many2one(
         "res.company", string="Company", required=True, default=lambda self: self.env.company
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A pair a PERSON raises is scored by the dedup rules, never typed.
+
+        M33 capture audit 2026-11-14: "+ New Duplicate Candidate" took a typed
+        score and typed factors, so a steward queue sorted by score could be
+        steered by whoever raised the pair (T-03: the score must be
+        explainable). The detection job and the import write as the system
+        and keep the score their rule measured."""
+        if not self.env.su:
+            Job = self.env["fix.dedup.job"]
+            Partner = self.env["res.partner"]
+            for vals in vals_list:
+                a = Partner.browse(vals.get("party_a"))
+                b = Partner.browse(vals.get("party_b"))
+                if not (a and b) or a == b:
+                    continue  # required / distinct constraints answer this
+                if self.sudo().search_count(
+                    [
+                        ("state", "in", _OPEN_STATES),
+                        "|",
+                        "&",
+                        ("party_a", "=", a.id),
+                        ("party_b", "=", b.id),
+                        "&",
+                        ("party_a", "=", b.id),
+                        ("party_b", "=", a.id),
+                    ]
+                ):
+                    raise ValidationError(
+                        "%s and %s are already in the stewardship queue as an open "
+                        "candidate." % (a.display_name, b.display_name)
+                    )
+                vals.update(Job._score_raised_pair(a, b))
+        return super().create(vals_list)
 
     @api.constrains("party_a", "party_b")
     def _check_distinct(self):

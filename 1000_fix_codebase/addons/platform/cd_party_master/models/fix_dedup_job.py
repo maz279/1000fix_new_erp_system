@@ -305,6 +305,47 @@ class FixDedupJob(models.Model):
         return round(score, 1) if score >= floor else None
 
     @api.model
+    def _score_raised_pair(self, left, right):
+        """Score a pair a person raised against every active party rule: the
+        best rule's score, with every rule's verdict as the explanation.
+
+        A pair no rule matches scores 0 and says so; the steward can still
+        review it, but the queue does not rank it above measured pairs."""
+        Partner = self.env["res.partner"]
+        rules = self.env["fix.dedup.rule"].sudo().search([("active", "=", True)])
+        verdicts, best = [], 0.0
+        for rule in rules:
+            if rule.model_id.model != "res.partner":
+                continue
+            names = [f.strip() for f in (rule.match_fields or "").split(",") if f.strip()]
+            usable = [f for f in names if f in Partner._fields]
+            if not usable:
+                continue
+            score = self._similarity(left.sudo(), right.sudo(), usable, rule)
+            verdicts.append(
+                {
+                    "rule": rule.name,
+                    "rule_id": rule.id,
+                    "scope": rule.scope,
+                    "match_fields": ",".join(usable),
+                    "score": score,
+                }
+            )
+            best = max(best, score or 0.0)
+        return {
+            "score": best,
+            "factors": json.dumps(
+                {
+                    "source": "raised_by_user",
+                    "raised_by": self.env.user.name,
+                    "rules": verdicts,
+                    "matched": any(v["score"] is not None for v in verdicts),
+                },
+                ensure_ascii=False,
+            ),
+        }
+
+    @api.model
     def _record_candidate(self, Duplicate, left, right, rule, score):
         """Create the candidate unless this pair is already known.
 

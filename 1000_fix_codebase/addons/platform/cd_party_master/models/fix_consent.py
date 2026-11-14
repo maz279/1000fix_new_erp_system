@@ -183,6 +183,8 @@ class FixConsent(models.Model):
             )
             consent._guarded().write({"superseded_by_id": withdrawal.id, "state": "superseded"})
             self._emit_consent_event("consent.withdrawn", withdrawal)
+            # AUT-CPM-06: the withdrawal is recorded in the processing record
+            self.env["fix.processing.record"]._record_from_consent(withdrawal, "consent_withdrawal")
         return True
 
     @api.model_create_multi
@@ -191,6 +193,7 @@ class FixConsent(models.Model):
         for rec in records:
             if rec.state == "granted":
                 self._emit_consent_event("consent.captured", rec)
+                self.env["fix.processing.record"]._record_from_consent(rec, "consent_capture")
         return records
 
     def _emit_consent_event(self, event_type: str, rec) -> None:

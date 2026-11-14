@@ -18,6 +18,9 @@ _logger = logging.getLogger(__name__)
 # it (A03 audit M33-3), so the status always has an approval behind it.
 _RESTRICTIVE_STATUSES = {"dormant", "blocked", "credit_hold", "blacklisted"}
 
+# Who may take the terminal step (blacklist) and who reactivates.
+_STATUS_AUTHORITY_GROUP = "cd_entity_config.group_dofa_tier_2"
+
 # BRU-CPM-02: these classes transact only after the two-step registration.
 REGISTERED_CLASSES = ("dealer", "corporate", "government")
 
@@ -209,12 +212,87 @@ class ResPartner(models.Model):
                     raise ValidationError(
                         "A blacklisted party cannot be reactivated below CEO authority (BRU-CPM-13)"
                     )
+                # M33 capture audit 2026-11-14: blacklisting is terminal
+                # (nobody below the CEO can undo it), yet any clerk with
+                # Contact write could do it with one edit. Restricting stays
+                # a plain edit; the terminal step needs DOFA Tier 2.
+                if (
+                    new_status == "blacklisted"
+                    and not self.env.su
+                    and not self.env.user.has_group(_STATUS_AUTHORITY_GROUP)
+                ):
+                    raise UserError(
+                        "Blacklisting is terminal (only the CEO can reinstate, BRU-CPM-13), "
+                        "so it needs DOFA Tier 2 (Branch / Operations Manager) authority."
+                    )
                 if partner.party_status == "merged" and new_status != "merged":
                     raise ValidationError(
                         "A merged tombstone is restored only by reversing its "
                         "merge (fix.party.merge.action_reverse)"
                     )
         return super().write(vals)
+
+    def action_set_party_status(self, status=None, reason=None):
+        """Restrict a party: Dormant, Blocked, Credit Hold or Blacklisted,
+        always with a written reason (FR-CPM-005: "with reasons, effective
+        dates and controlled reactivation"). The workspace's "Change Party
+        Status" form calls this; a plain status edit carried no reason.
+
+        Activation is not here: that is the registration approval or
+        action_reactivate_party."""
+        if status not in _RESTRICTIVE_STATUSES:
+            raise ValidationError(
+                "Choose Dormant, Blocked, Credit Hold or Blacklisted. A party is made "
+                "active only by its registration approval or 'Reactivate a Party'."
+            )
+        if not (reason or "").strip():
+            raise ValidationError("Changing a party's status needs a written reason.")
+        labels = dict(self._fields["party_status"].selection)
+        for partner in self:
+            if partner.party_status in ("merged", "blacklisted"):
+                raise ValidationError(
+                    "Party %s is %s; its status cannot be changed here."
+                    % (partner.display_name, labels.get(partner.party_status))
+                )
+            if partner.party_status == status:
+                raise ValidationError(
+                    "Party %s is already %s." % (partner.display_name, labels.get(status))
+                )
+            prior = partner.party_status
+            # the write applies the status rules (blacklisting needs Tier 2)
+            partner.write(
+                {
+                    "party_status": status,
+                    "status_reason": reason.strip(),
+                    "status_since": fields.Date.context_today(partner),
+                }
+            )
+            partner.message_post(
+                body="Party status changed from '%s' to '%s' by %s. Reason: %s"
+                % (labels.get(prior), labels.get(status), self.env.user.name, reason.strip())
+            )
+        return True
+
+    def action_score_quality(self):
+        """Score these parties now (FR-CPM-032).
+
+        The quality register held a row only for parties the batch scorer had
+        reached; a steward could not score the party in front of them."""
+        Quality = self.env["fix.party.quality"]
+        for partner in self:
+            values = Quality._score_partner(partner)
+            existing = Quality.search([("partner_id", "=", partner.id)], limit=1)
+            if existing:
+                existing.write(values)
+            else:
+                Quality.create(
+                    {
+                        "partner_id": partner.id,
+                        "company_id": (partner.company_id or self.env.company).id,
+                        **values,
+                    }
+                )
+        return True
 
     def action_reactivate_party(self, reason=None):
         """Return a draft, dormant, blocked or credit-held party to 'active'.

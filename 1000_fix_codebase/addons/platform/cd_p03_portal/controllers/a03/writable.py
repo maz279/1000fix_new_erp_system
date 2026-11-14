@@ -205,6 +205,7 @@ WRITABLE = {
             "division",
             "division_bn",
             "house",
+            "is_default",
             "landmark",
             "latitude",
             "longitude",
@@ -641,6 +642,7 @@ WRITABLE = {
     ),
     "fix.dedup.rule": frozenset(
         {
+            "action",
             "active",
             "company_id",
             "match_fields",
@@ -882,7 +884,6 @@ WRITABLE = {
             "decision",
             "party_a",
             "party_b",
-            "score",
         }
     ),
     "fix.party.hierarchy": frozenset(
@@ -928,6 +929,19 @@ WRITABLE = {
             "name",
             "revenue_stream",
             "stages_json",
+        }
+    ),
+    "fix.processing.record": frozenset(
+        {
+            "categories",
+            "consent_id",
+            "lawful_basis",
+            "note",
+            "occurred_at",
+            "party_id",
+            "purpose",
+            "recipients",
+            "retention_months",
         }
     ),
     "fix.qbr": frozenset(
@@ -1071,7 +1085,7 @@ WRITABLE = {
     ),
     "fix.transparency.notice": frozenset(
         {
-            "active",
+            "purpose_set",
             "text_bn",
             "text_en",
             "version",
@@ -1089,7 +1103,6 @@ WRITABLE = {
             "company_registry",
             "company_type",
             "country_id",
-            "credit_limit",
             "customer_rank",
             "email",
             "is_company",

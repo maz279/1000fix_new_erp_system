@@ -32,7 +32,9 @@ export const MODULE = {
       { id: 'M33-form-party', en: 'Party Master Record', bn: 'পার্টি রেকর্ড ফর্ম', t: 'f' },
       { id: 'M33-party', en: 'Party Record (roles)', bn: 'পার্টি রোল', t: 'g' },
       { id: 'M33-360', en: 'Customer 360', bn: 'কাস্টমার ৩৬০', t: 'r' },
-      { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' }
+      { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' },
+      { id: 'M33-addresses', en: 'Party Addresses (BD + GPS)', bn: 'পার্টির ঠিকানা', t: 'g' },
+      { id: 'M33-form-classify', en: 'Classify a Party', bn: 'পার্টি শ্রেণিবিন্যাস', t: 'f' }
     ]},
     { en: 'Identity & Verification', screens: [
       { id: 'M33-identity', en: 'Identity Documents (NID/BIN)', bn: 'পরিচয়পত্র', t: 'g' },
@@ -42,16 +44,21 @@ export const MODULE = {
     { en: 'Data Quality', screens: [
       { id: 'M33-dedupe', en: 'Duplicate Detection', bn: 'সদৃশ শনাক্তকরণ', t: 'g' },
       { id: 'M33-merge', en: 'Supervised Merge', bn: 'মার্জ তত্ত্বাবধান', t: 'g' },
-      { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'g' }
+      { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'g' },
+      { id: 'M33-form-score', en: 'Score a Party', bn: 'পার্টির গুণগত স্কোর', t: 'f' }
     ]},
     { en: 'Consent & Rights', screens: [
       { id: 'M33-consent', en: 'Consent Register', bn: 'সম্মতি রেজিস্টার', t: 'g' },
-      { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'g' }
+      { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'g' },
+      { id: 'M33-processing', en: 'Record of Processing', bn: 'প্রক্রিয়াকরণ রেকর্ড', t: 'g' },
+      { id: 'M33-form-withdraw', en: 'Withdraw a Consent', bn: 'সম্মতি প্রত্যাহার', t: 'f' }
     ]},
     { en: 'Segments & Credit', screens: [
       { id: 'M33-segments', en: 'Segments', bn: 'সেগমেন্ট', t: 'g' },
       { id: 'M33-credit', en: 'Credit Profiles & Holds', bn: 'ক্রেডিট প্রোফাইল', t: 'g' },
-      { id: 'M33-status', en: 'Party Status Lifecycle', bn: 'পার্টি স্ট্যাটাস', t: 'g' }
+      { id: 'M33-status', en: 'Party Status Lifecycle', bn: 'পার্টি স্ট্যাটাস', t: 'g' },
+      { id: 'M33-form-party-status', en: 'Change Party Status', bn: 'পার্টি স্ট্যাটাস পরিবর্তন', t: 'f' },
+      { id: 'M33-form-reactivate', en: 'Reactivate a Party', bn: 'পার্টি পুনরায় সক্রিয়', t: 'f' }
     ]},
     { en: 'Duplicate Detection Jobs (S8)', bn: 'ডুপ্লিকেট সনাক্তকরণ জব', screens: [
       { id: 'M33-dedup-jobs', en: 'Detection Jobs', bn: 'সনাক্তকরণ জব', t: 'g' },
@@ -63,23 +70,40 @@ export const MODULE = {
     ]}
   ],
   reports: ['Customer Growth by District', 'Data Quality Scorecard', 'Duplicate Merge Audit', 'Consent Coverage Report', 'Credit Exposure by Segment', 'Corporate Hierarchy Map'],
-  forms: ['Party Master', 'Party (multi-role)', 'Address with GPS', 'Identity Document', 'Credit Profile', 'Merge Request', 'Duplicate Detection Job'],
+  forms: ['Party Master', 'Party (multi-role)', 'Address with GPS', 'Identity Document', 'Credit Profile', 'Merge Request', 'Duplicate Detection Job',
+    'Classify a Party', 'Account Hierarchy Link', 'Dedup Rule', 'Score a Party', 'Survivorship Rule',
+    'Consent Record', 'Withdraw a Consent', 'Data-Subject Request', 'Transparency Notice', 'Processing Record',
+    'Change Party Status', 'Reactivate a Party'],
   cross: ['Every module reads party', 'M07 CRM accounts', 'M20 credit control', 'P01 self-service profile', 'M29 record isolation'],
   freg: {
     src: 100,
     sub: [
-      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Party Master', 'Party (multi-role)'] }],
-      ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party'], reports: [], forms: ['Party (multi-role)'] }],
-      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'], reports: ['Corporate Hierarchy Map'], forms: [] }],
-      ['4', 'Addresses (BD structure + GPS)', 7, { model: 'res.partner', cols: ['name', 'street', 'city', 'country_id', 'phone'], screens: ['M33-directory'], reports: ['Customer Growth by District'], forms: ['Address with GPS', 'Party Master'] }],
+      /* M33 capture audit 2026-11-14. Before: page 1 offered only a role,
+       * 2 Classification captured a role (the class is the party's own
+       * field), 4 Addresses listed and captured PARTIES (0 addresses on
+       * fix_real), 8 Quality and 12 Status had no capture, and 9 had no way
+       * to raise a data-subject request, publish a notice or record
+       * processing (FR-CPM-044 had no register). */
+      /* 1 FR-CPM-001/002: the ONE party record first, its roles beside it */
+      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Party Master', 'Party (multi-role)'], create: 'M33-form-party' }],
+      /* 2 FR-CPM-003: Individual / Dealer / Corporate / Government is the party's
+       * class; seller, brand partner, vendor are roles */
+      ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Classify a Party', 'Party (multi-role)'], create: 'M33-form-classify' }],
+      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'], reports: ['Corporate Hierarchy Map'], forms: ['Account Hierarchy Link'] }],
+      /* 4 FR-CPM-014..016: the party's tagged Bangladesh addresses with GPS */
+      ['4', 'Addresses (BD structure + GPS)', 7, { model: 'fix.bd.address', cols: ['party_id', 'address_tag', 'is_default', 'district', 'upazila', 'postcode', 'latitude', 'longitude'], domain: [['party_id', '!=', false]], screens: ['M33-addresses', 'M33-directory'], reports: ['Customer Growth by District'], forms: ['Address with GPS', 'Party Master'], create: 'M33-form-address' }],
       ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-otp'], reports: [], forms: ['Identity Document'] }],
       ['6', 'Registration Approval', 6, { model: 'fix.registration.approval', cols: ['partner_id', 'party_class', 'lm_state', 'admin_state', 'requested_at', 'lm_decided_by'], screens: ['M33-approval'], reports: [], forms: [] }],
-      ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'], reports: ['Duplicate Merge Audit'], forms: ['Merge Request', 'Duplicate Detection Job'] }],
-      ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'], reports: ['Data Quality Scorecard'], forms: [] }],
-      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-rpt-consentcov'], reports: ['Consent Coverage Report'], forms: [] }],
+      ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'], reports: ['Duplicate Merge Audit'], forms: ['Merge Request', 'Duplicate Detection Job', 'Dedup Rule'] }],
+      /* 8 FR-CPM-031/032: score the party in front of you; the per-attribute
+       * survivorship rules are M64's golden rules (spec 12.1) */
+      ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'], reports: ['Data Quality Scorecard'], forms: ['Score a Party', 'Survivorship Rule'], create: 'M33-form-score' }],
+      /* 9 FR-CPM-035..044 */
+      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-processing', 'M33-rpt-consentcov'], reports: ['Consent Coverage Report'], forms: ['Consent Record', 'Withdraw a Consent', 'Data-Subject Request', 'Transparency Notice', 'Processing Record'] }],
       ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'], reports: ['Credit Exposure by Segment'], forms: [] }],
       ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'], reports: ['Credit Exposure by Segment'], forms: ['Credit Profile'] }],
-      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'], reports: ['Customer Growth by District'], forms: [], create: false }],
+      /* 12 FR-CPM-005: restricting a party is a reasoned decision, reactivation a Tier 2 one */
+      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'party_status', 'status_reason', 'status_since'], screens: ['M33-status', 'M33-rpt-growth'], reports: ['Customer Growth by District'], forms: ['Change Party Status', 'Reactivate a Party'], create: 'M33-form-party-status' }],
       ['13', 'Real-Customer Cut-over', 5, { model: 'fix.party.import.batch', cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count'], screens: ['M33-import-batches', 'M33-import-lines'], reports: [], forms: [] }]
     ]
   }
@@ -100,15 +124,19 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: "Notice Version & Status",
-        note: "A PDPA transparency notice version. Consent records point at the notice version they were granted under, so a notice is versioned, never edited in place.",
+        note: "A PDPA transparency notice version. Consent records point at the notice version they were granted under, so once a consent is captured against it the wording is fixed: publish a new version instead (the server refuses the edit).",
         fields: [
           { name: 'version', required: true, label: "Version Code" },
-          { name: 'active', label: "Active Status" }
+          { name: 'purpose_set', required: true, label: "Purposes Covered (e.g. marketing, research)" },
+          { name: 'published_at', readonly: true, label: "Published At" },
+          { name: 'retired_at', readonly: true, label: "Retired At" },
+          { name: 'active', readonly: true, label: "Current (published, not retired)" }
         ] },
       { tab: 'content', title: "Bilingual Statutory Disclosures",
+        note: "State the data categories, purposes, risks, retention periods, third-party transfers and how to withdraw (FR-CPM-037).",
         fields: [
-          { name: 'text_en', label: "Disclosure Text (English)", type: 'text' },
-          { name: 'text_bn', label: "Disclosure Text (Bengali)", type: 'text' }
+          { name: 'text_en', required: true, label: "Disclosure Text (English)", type: 'text' },
+          { name: 'text_bn', required: true, label: "Disclosure Text (Bengali)", type: 'text' }
         ] },
       { tab: 'compliance', title: "PDPA Governance & Revision Policy",
         note: "Under the Personal Data Protection Act (PDPA), any material change to personal data collection requires issuing a new notice version. Existing consent records remain anchored to their capture version.",
@@ -298,8 +326,10 @@ export const SCREENS = {
           { name: 'category_id', label: 'Customer Segment & Category Tags' },
           { name: 'bank_ids', label: 'Associated Bank Accounts' },
         ]},
-      { tab: 'credit', title: 'Commercial Credit Exposure & Payment Terms', fields: [
-        { name: 'credit_limit', label: 'Approved Credit Limit (BDT)' },
+      { tab: 'credit', title: 'Commercial Credit Exposure & Payment Terms',
+        note: 'The approved credit limit and holds are kept on the party\'s Credit Profile (Credit Profiles & Holds), where M20 enforces them. They are shown here, not edited.',
+        fields: [
+        { name: 'credit_limit', label: 'Credit Limit on the Contact (BDT)', readonly: true },
         { name: 'property_payment_term_id', label: 'Default Commercial Payment Terms' },
         { name: 'credit', label: 'Total Current Receivables (BDT)', readonly: true },
         { name: 'days_sales_outstanding', label: 'Days Sales Outstanding (DSO)', readonly: true },
@@ -321,9 +351,11 @@ export const SCREENS = {
           { name: 'identity_document_ids', label: 'Verified KYC Identity Documents', readonly: true },
           { name: 'approval_ids', label: 'Registration Approval History', readonly: true },
         ]},
-      { tab: 'audit', title: 'Party Lifecycle Governance & System Timestamps', fields: [
-        { name: 'party_status', label: 'Party Lifecycle Governance Status' },
-        { name: 'status_reason', label: 'Status Reason / Audit Justification' },
+      { tab: 'audit', title: 'Party Lifecycle Governance & System Timestamps',
+        note: 'The status changes through Change Party Status (with a reason) or Reactivate a Party (DOFA Tier 2), on the Party Status Lifecycle page.',
+        fields: [
+        { name: 'party_status', label: 'Party Lifecycle Governance Status', readonly: true },
+        { name: 'status_reason', label: 'Status Reason / Audit Justification', readonly: true },
         { name: 'status_since', label: 'Status Effective Date', readonly: true },
         { name: 'create_date', label: 'Initial Registration Timestamp', readonly: true },
         { name: 'write_date', label: 'Last System Modification Timestamp', readonly: true },
@@ -358,7 +390,7 @@ export const SCREENS = {
     ] },
 
   'M33-form-address': { kind: 'model_form', model: 'fix.bd.address',
-    title: 'Address with GPS', back: 'M33-directory',
+    title: 'Address with GPS', back: 'M33-addresses',
     tabs: [
       { id: 'owner', label: '1. Owner & Purpose', bn: '১. স্বত্বাধিকারী ও উদ্দেশ্য', icon: '👤', badge: '3' },
       { id: 'geo', label: '2. Administrative Hierarchy', bn: '২. প্রশাসনিক স্তর (বিভাগ/জেলা)', icon: '🗺️', badge: '8' },
@@ -366,9 +398,12 @@ export const SCREENS = {
       { id: 'gps', label: '4. GPS & Geolocation', bn: '৪. জিপিএস ও অবস্থান', icon: '📍', badge: '3' }
     ],
     sections: [
-      { tab: 'owner', title: 'Owner & Purpose', fields: [
-        { name: 'party_id', label: 'Party' },
-        { name: 'address_tag', label: 'Address Tag / Label' },
+      { tab: 'owner', title: 'Owner & Purpose',
+        note: 'One party may hold any number of tagged addresses; one per tag is its default (FR-CPM-014).',
+        fields: [
+        { name: 'party_id', label: 'Party', required: true },
+        { name: 'address_tag', label: 'Address Tag / Label', required: true },
+        { name: 'is_default', label: 'Default Address for this Tag' },
         { name: 'landmark', label: 'Prominent Landmark' },
       ]},
       { tab: 'geo', title: 'Bangladesh Administrative Structure (BN-007 §4)', fields: [
@@ -502,8 +537,8 @@ export const SCREENS = {
         { name: 'state', readonly: true, label: 'Consent State' },
       ]},
       { tab: 'evidence', title: 'Evidence & Transparency Notice Link', fields: [
-        { name: 'notice_version_id', label: 'Transparency Notice Version' },
-        { name: 'proof', label: 'Proof Reference / OTP Token' },
+        { name: 'notice_version_id', required: true, label: 'Transparency Notice Version Presented' },
+        { name: 'proof', required: true, label: 'Proof Reference (signed form ID / OTP session)' },
         { name: 'source', label: 'Capture Channel / Portal' },
         { name: 'date_granted', readonly: true, label: 'Date Granted' },
         { name: 'date_withdrawn', readonly: true, label: 'Date Withdrawn' },
@@ -651,13 +686,15 @@ export const SCREENS = {
       { id: 'governance', label: '4. Supervised Merge Rules', bn: '৪. তত্ত্বাবধানে মার্জ নিয়ম', icon: '🛡️', badge: '1' }
     ],
     sections: [
-      { tab: 'candidate', title: 'Candidate Pair', fields: [
+      { tab: 'candidate', title: 'Candidate Pair',
+        note: 'Name the two parties you believe are the same person. On save the active dedup rules score the pair; the score and its factors are measured, never typed (T-03).',
+        fields: [
         { name: 'party_a', required: true, label: 'Party A' },
         { name: 'party_b', required: true, label: 'Party B' },
-        { name: 'score', label: 'Composite Match Score (0–100)' },
+        { name: 'score', readonly: true, label: 'Composite Match Score (0–100)' },
       ]},
-      { tab: 'factors', title: 'Matching Weight Factors (JSON)', fields: [
-        { name: 'factors', label: 'Factors (JSON)', placeholder: '{"phone": "exact", "name": "fuzzy"}' },
+      { tab: 'factors', title: 'Why The Rules Scored It So', fields: [
+        { name: 'factors', readonly: true, label: 'Rule Verdicts' },
       ]},
       { tab: 'stewardship', title: 'Data Steward Triage & Resolution', fields: [
         { name: 'state', readonly: true, label: 'Triage State' },
@@ -668,6 +705,191 @@ export const SCREENS = {
         note: 'Confirming a duplicate candidate merely opens a supervised merge request. Automated algorithmic merges are prohibited to eliminate accidental entity corruption.',
         fields: [] }
     ] },
+
+  /* ==================================================================
+   * M33 CAPTURE AUDIT 2026-11-14 — each sub-module page captures the
+   * record it names (spec section 5, FR-CPM-003/005/014/032/038/044).
+   * ================================================================== */
+  'M33-addresses': { kind: 'model_list', model: 'fix.bd.address', create: true,
+    cols: ['party_id', 'address_tag', 'is_default', 'district', 'upazila', 'postcode', 'latitude', 'longitude'],
+    domain: [['party_id', '!=', false]],
+    empty: 'No party address is recorded yet. Use "+ New" to add one with its GPS point.' },
+
+  /* 2 Classification (FR-CPM-003). Dealer, corporate and government
+   * parties open their two-step registration approval on save. */
+  'M33-form-classify': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Classify a Party', back: 'M33-directory',
+    newLabel: 'Classify a Party',
+    status: { field: 'party_status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the party to classify',
+      note: 'Any party that is not merged or blacklisted.',
+      search: 'Search name / phone',
+      choose: 'Classify this party',
+      cols: ['name', 'party_class', 'party_status', 'phone', 'email'],
+      domain: [['party_status', 'not in', ['merged', 'blacklisted']]],
+      empty: 'No party can be classified.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: Set The Party Class',
+        note: 'Dealer, Corporate and Government parties transact only after the client line manager and a 1000FiX administrator approve: saving opens that registration approval. A class cannot change while an approval is still open. Seller, brand partner and vendor are roles: add them with "Party (multi-role)".',
+        fields: [
+        { name: 'name', label: 'Party', readonly: true },
+        { name: 'party_class', label: 'Party Class', required: true },
+        { name: 'is_company', label: 'Is a Company (legal entity)' },
+        { name: 'party_status', label: 'Current Status', readonly: true }
+      ]}
+    ]
+  },
+
+  /* 8 Golden Record & Quality (FR-CPM-032): score the party in front of
+   * the steward now, rather than wait for the batch scorer. */
+  'M33-form-score': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Score a Party', back: 'M33-quality',
+    newLabel: 'Score a Party',
+    status: { field: 'party_status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the party to score',
+      note: 'Completeness, validity and recency are measured from the record itself.',
+      search: 'Search name / phone',
+      choose: 'Score this party',
+      cols: ['name', 'party_class', 'party_status', 'phone', 'email'],
+      domain: [['party_status', '!=', 'merged']],
+      empty: 'No party to score.'
+    },
+    saveAction: { method: 'action_score_quality', label: 'Score Now', done: 'Scored: the result is on Quality Scoring', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: What The Score Reads',
+        note: 'Completeness counts name, Bengali name, phone, email, language and at least one role (50%); validity checks the email, an 11-digit mobile and an identity document (30%); recency falls after a year without an update (20%).',
+        fields: [
+        { name: 'name', label: 'Party', readonly: true },
+        { name: 'name_bn', label: 'Bengali Name', readonly: true },
+        { name: 'phone', label: 'Phone', readonly: true },
+        { name: 'email', label: 'Email', readonly: true },
+        { name: 'preferred_language', label: 'Preferred Language', readonly: true },
+        { name: 'write_date', label: 'Last Updated', readonly: true }
+      ]}
+    ]
+  },
+
+  /* 9 Consent & DSR (FR-CPM-038): withdrawal at the counter or the contact
+   * centre appends a withdrawal record; the grant is never rewritten. */
+  'M33-form-withdraw': {
+    kind: 'model_form', model: 'fix.consent',
+    title: 'Withdraw a Consent', back: 'M33-consent',
+    newLabel: 'Withdraw a Consent',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the consent the party withdraws',
+      note: 'Granted consents only. The withdrawal takes effect at once on every channel.',
+      search: 'Search party',
+      choose: 'Withdraw this consent',
+      cols: ['partner_id', 'purpose', 'channel', 'date_granted', 'notice_version_id', 'source'],
+      domain: [['state', '=', 'granted']],
+      empty: 'No granted consent to withdraw.'
+    },
+    saveAction: { method: 'action_withdraw', label: 'Withdraw Consent', done: 'Withdrawn: suppression is effective on every channel', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: Confirm The Withdrawal',
+        note: 'A new withdrawal record supersedes the grant and both are kept (append-only, T-09). The withdrawal is entered in the record of processing.',
+        fields: [
+        { name: 'partner_id', label: 'Party', readonly: true },
+        { name: 'purpose', label: 'Purpose', readonly: true },
+        { name: 'channel', label: 'Channel', readonly: true },
+        { name: 'date_granted', label: 'Granted At', readonly: true },
+        { name: 'notice_version_id', label: 'Notice Version', readonly: true },
+        { name: 'proof', label: 'Proof Reference', readonly: true }
+      ]}
+    ]
+  },
+
+  /* 9 Consent & DSR (FR-CPM-044, BRU-CPM-15): the record of processing. */
+  'M33-processing': { kind: 'model_list', model: 'fix.processing.record', create: true,
+    cols: ['occurred_at', 'party_id', 'purpose', 'lawful_basis', 'categories', 'recipients', 'retention_months', 'source'],
+    empty: 'No processing is recorded yet. Consent captures and withdrawals record themselves; the Data Protection Officer records any other activity.' },
+  'M33-form-processing': {
+    kind: 'model_form', model: 'fix.processing.record',
+    title: 'Processing Record', back: 'M33-processing',
+    tabs: [
+      { id: 'what', label: '1. Processing Activity', bn: '১. প্রক্রিয়াকরণ', icon: '🗂️', badge: '5' },
+      { id: 'basis', label: '2. Lawful Basis & Retention', bn: '২. আইনি ভিত্তি ও সংরক্ষণ', icon: '⚖️', badge: '4' }
+    ],
+    sections: [
+      { tab: 'what', title: 'What Was Processed',
+        note: 'Recorded by the Data Protection Officer. The record is evidence: it cannot be edited, and it is kept at least five years even if the party is erased (BRU-CPM-15).',
+        fields: [
+        { name: 'party_id', label: 'Party', required: true },
+        { name: 'purpose', label: 'Purpose', required: true },
+        { name: 'categories', label: 'Data Categories (e.g. name, mobile, service address)', required: true },
+        { name: 'recipients', label: 'Recipients / Transfers (empty = stays inside 1000FiX)' },
+        { name: 'occurred_at', label: 'Occurred At', required: true }
+      ]},
+      { tab: 'basis', title: 'Why It Was Lawful',
+        note: 'Processing on consent must name the consent relied on (BRU-CPM-07). Legitimate interest is not an enumerated basis under the PDPA 2026.',
+        fields: [
+        { name: 'lawful_basis', label: 'Lawful Basis', required: true },
+        { name: 'consent_id', label: 'Consent Relied On (for the consent basis)' },
+        { name: 'retention_months', label: 'Retention (months)', required: true },
+        { name: 'note', label: 'Note', type: 'text' }
+      ]}
+    ]
+  },
+
+  /* 12 Status Lifecycle (FR-CPM-005, BRU-CPM-13). */
+  'M33-form-party-status': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Change Party Status', back: 'M33-status',
+    newLabel: 'Change Party Status',
+    status: { field: 'party_status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the party',
+      note: 'Merged and blacklisted parties are final and are not listed.',
+      search: 'Search name / phone',
+      choose: 'Change this party\'s status',
+      cols: ['name', 'party_class', 'party_status', 'status_reason', 'status_since'],
+      domain: [['party_status', 'not in', ['merged', 'blacklisted']]],
+      empty: 'No party whose status can change.'
+    },
+    saveAction: { method: 'action_set_party_status', label: 'Change Status', done: 'Status changed and logged on the party', kwargs: { status: 'party_status', reason: 'status_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: New Status And Why',
+        note: 'Dormant, Blocked, Credit Hold or Blacklisted, always with a reason. Blacklisting is terminal (only the CEO reinstates, BRU-CPM-13) and needs DOFA Tier 2. Making a party active is "Reactivate a Party" or its registration approval.',
+        fields: [
+        { name: 'name', label: 'Party', readonly: true },
+        { name: 'party_status', label: 'New Status', required: true,
+          choices: [['dormant', 'Dormant'], ['blocked', 'Blocked'], ['credit_hold', 'Credit Hold'], ['blacklisted', 'Blacklisted (terminal)']] },
+        { name: 'status_reason', label: 'Reason', required: true },
+        { name: 'status_since', label: 'Current Status Since', readonly: true }
+      ]}
+    ]
+  },
+  'M33-form-reactivate': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Reactivate a Party', back: 'M33-status',
+    newLabel: 'Reactivate a Party',
+    status: { field: 'party_status' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the party to reactivate',
+      note: 'Draft, dormant, blocked and credit-held parties. A dealer, corporate or government party awaiting registration is activated by its approval instead.',
+      search: 'Search name / phone',
+      choose: 'Reactivate this party',
+      cols: ['name', 'party_class', 'party_status', 'status_reason', 'status_since'],
+      domain: [['party_status', 'in', ['draft', 'dormant', 'blocked', 'credit_hold']]],
+      empty: 'No party is waiting to be reactivated.'
+    },
+    saveAction: { method: 'action_reactivate_party', label: 'Reactivate', done: 'Reactivated and logged on the party', kwargs: { reason: 'status_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: Why It Is Reactivated',
+        note: 'DOFA Tier 2 (Branch / Operations Manager) only, with a written reason.',
+        fields: [
+        { name: 'name', label: 'Party', readonly: true },
+        { name: 'party_status', label: 'Current Status', readonly: true },
+        { name: 'status_reason', label: 'Reason for Reactivation', required: true }
+      ]}
+    ]
+  },
 
   /* ===== triage coverage screens ===== */
   'M33-dedup-rule': { kind: 'model_list', model: 'fix.dedup.rule',
@@ -698,8 +920,9 @@ export const SCREENS = {
       { tab: 'threshold', title: "Field Match Normalization & Thresholds",
         note: "Defines normalized field weights (phone, NID, legal name) and minimum similarity threshold before raising duplicate candidate alerts.",
         fields: [
-          { name: 'match_fields', required: true, label: "Match Fields (JSON)" },
-          { name: 'threshold', label: "Fuzzy Match Threshold Score" }
+          { name: 'match_fields', required: true, label: "Match Fields (comma-separated, e.g. phone,name)" },
+          { name: 'threshold', label: "Fuzzy Threshold (maximum edit distance)" },
+          { name: 'action', required: true, label: "On a Match (block the save, or flag for the steward)" }
         ] }
     ]
   },
@@ -837,6 +1060,19 @@ export const FORM_CHIPS = {
   'M33:Identity Document': 'M33-form-identity',
   'M33:Credit Profile': 'M33-form-credit',
   'M33:Merge Request': 'M33-form-merge',
+  'M33:Classify a Party': 'M33-form-classify',
+  'M33:Account Hierarchy Link': 'M33-form-hierarchy',
+  'M33:Dedup Rule': 'M33-form-dedup-rule',
+  'M33:Score a Party': 'M33-form-score',
+  // per-attribute survivorship (FR-CPM-031) is M64's golden-rule register (spec 12.1)
+  'M33:Survivorship Rule': 'M64-form-goldenrule',
+  'M33:Consent Record': 'M33-form-consent',
+  'M33:Withdraw a Consent': 'M33-form-withdraw',
+  'M33:Data-Subject Request': 'M33-form-dsr',
+  'M33:Transparency Notice': 'M33-form-transparency',
+  'M33:Processing Record': 'M33-form-processing',
+  'M33:Change Party Status': 'M33-form-party-status',
+  'M33:Reactivate a Party': 'M33-form-reactivate',
   'M33:__by_model__': {
     'fix.dedup.job': 'M33-form-dedup-job',
     'fix.transparency.notice': 'M33-form-transparency',
@@ -853,7 +1089,8 @@ export const FORM_CHIPS = {
     'fix.segment': 'M33-form-segment',
     'fix.party.hierarchy': 'M33-form-hierarchy',
     'fix.registration.approval': 'M33-form-approval',
-    'fix.party.duplicate': 'M33-form-duplicate'
+    'fix.party.duplicate': 'M33-form-duplicate',
+    'fix.processing.record': 'M33-form-processing'
   },
   'M33:__by_screen__': {
     'M33-dedup-jobs': 'M33-form-dedup-job',
@@ -871,7 +1108,9 @@ export const FORM_CHIPS = {
     'M33-segments': 'M33-form-segment',
     'M33-credit': 'M33-form-credit',
     'M33-dedup-rule': 'M33-form-dedup-rule',
-    'M33-transparency-notice': 'M33-form-transparency'
+    'M33-transparency-notice': 'M33-form-transparency',
+    'M33-addresses': 'M33-form-address',
+    'M33-processing': 'M33-form-processing'
   }
 };
 
@@ -883,7 +1122,8 @@ export const FORM_MODELS = {
   'M33:Address with GPS': 'fix.bd.address',
   'M33:Identity Document': 'fix.identity.document',
   'M33:Credit Profile': 'fix.credit.profile',
-  'M33:Merge Request': 'fix.party.merge'
+  'M33:Merge Request': 'fix.party.merge',
+  'M33:Processing Record': 'fix.processing.record'
 };
 
 /* the module's "+ New" surface: the party itself is the anchor record. */

@@ -60,6 +60,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_processing_record_company" model="ir.rule">
+        <field name="name">fix.processing.record: allowed companies</field>
+        <field name="model_id" ref="model_fix_processing_record"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_registration_approval_company" model="ir.rule">
         <field name="name">fix.registration.approval: allowed companies</field>
         <field name="model_id" ref="model_fix_registration_approval"/>
