@@ -115,7 +115,19 @@ never saved anything typed there. It is now shown read-only.
 - **Branch provisioning as one action** (FR-ADM-003) and the full branch lifecycle (relocate/merge, FR-ADM-010) are not built. The branch moves only through Go Live / Suspend / two-person closure.
 - **People:** a configuration change, a drill sign-off and environment masking each need a second Platform Admin. On fix_real the Platform Admin role has **two** holders, `admin` and one named user, so every second-person step depends on `admin`. Name a second real Platform Admin.
 
-## Deploy
+## Deploy (14 Nov 2026, user-approved)
 
-Not yet live. It needs `-u cd_entity_config` on fix_real plus a restart of 8069, because the models are new.
-Until then, the JS fragment on disk references models that do not exist on fix_real. The controller tolerates this, so KPI tiles and the health console still render, but the new lists return an error.
+- **Committed** `def9c525` on `fix/a03-live-data-and-pending-work`, with all hooks green. It was committed in a sparse worktree and the branch moved with `update-ref`, because the M29 session was busy in the shared checkout. **Not pushed.**
+- **Regression** on the private `fix_test_m30` clone: cd_entity_config, the A12 M30/M65 suites, DOFA coverage, the A12 write whitelist and the estate page guard. About 864 tests: 0 failed, 2 skipped.
+- **Drift check** on fix_real before the upgrade: the only gap was the five new tables.
+- **No full pg_dump.** Dumps of these databases have crashed the shared Postgres before, and this upgrade only adds tables. The same upgrade had already run clean on the fix_test clone.
+- **Upgrade:** `-u cd_entity_config` on fix_real reloaded 155 modules in 153 s, with no errors. Version is now 19.0.1.1.0; the 5 tables, ACLs and 3 sequences are present.
+- **Restart:** 8069 restarted at 10:37 (PID 36404). It has no supervisor, so it was relaunched with `launch_8069.ps1`. The login page answered 200 in about 4 s, and the log shows "155 modules loaded" with no errors.
+- **Live check on 8069 (read-only, nothing saved on fix_real):**
+  - All 6 pages show their "+" button and list every capture under "Forms Capturing It".
+  - All 14 lists probed return every declared column.
+  - The KPIs serve `config_changes_pending` = 0 and `jobs_missed` = 0.
+  - The health console shows its new rows: **211 active scheduled jobs, none registered**, no restore test on record ("never"), and 0 DR drills.
+  - The only console errors are Odoo's service-worker registration failing, which is unrelated to M30.
+
+What fix_real needs now is data, not code. The 211 jobs need registering (owners and failure impact), and a first restore test and a first DR drill need recording. A second named Platform Admin is needed for every second-person step.
