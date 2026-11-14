@@ -52,3 +52,6 @@ Thumbs.db
 nul
 Marketing_1/
 Marketing_2/
+
+# throwaway probe scripts and server logs
+/scratch/
