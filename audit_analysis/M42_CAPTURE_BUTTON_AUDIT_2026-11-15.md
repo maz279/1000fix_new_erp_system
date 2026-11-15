@@ -104,3 +104,15 @@ Other changes:
 - **Configurable scorecard weights (FR-SRM2-028):** the weights are still fixed at 35/30/20/15.
 - Category strategy (FR-SRM2-034, P2), rebate tracking (FR-SRM2-025, P2), P05 self-registration and supplier-facing scorecards.
 - **The price gate checks only lines whose agreed price is in the PO's currency.** A foreign-currency agreed price is not converted.
+
+## 6. Deploy (user-approved, 16 Nov 2026)
+
+Steps:
+1. Backup: `all_working_folder/1000fix-2/_migration/backups/fix_real_pre_m42_capture_2026-11-16.dump` (48.8 MB).
+2. Checked commit 66d84835 out in the shared checkout.
+3. Ran `-u cd_vendor_portal,cd_p03_portal` on fix_real: 155 modules, no errors, no missing tables. cd_vendor_portal is now 19.0.1.3.0. The 6 new tables and the agreement-expiry cron are present.
+4. Restarted 8069: stopped PID 34800, and its launcher loop relaunched it as PID 46880 in 5 s. `/web/login` returns 200, and the registry loaded clean.
+
+Checks:
+- **Read-only probe as the non-admin Supplier Steward** (every M42 surface, the 5 report packs and the KPIs, rolled back): 23 calls, 0 errors.
+- **Served bundle `61b8f46`** contains the new screens: the segment review, agreement and price-change forms and lists.
