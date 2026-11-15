@@ -3,6 +3,8 @@
 # reviews, risk and compliance screening.
 import datetime
 
+from odoo import fields
+
 # A06 workflow audit (2026-11-03) M42-9/M42-10: the supplier surface had no
 # action at all (status was changed by typing it). Every lifecycle step is an
 # action here; the forms no longer offer status, state or scores.
@@ -68,6 +70,29 @@ SURFACES = {
         "order": "screened_on desc, id desc",
         "limit": 300,
         "actions": {"action_clear", "action_flag", "action_clear_hit"},
+    },
+    # capture audit 2026-11-15: the records pages 1, 2, 3 and 5 capture
+    "fix.supplier.contact": {"order": "supplier_id, role, name", "limit": 400},
+    "fix.supplier.segment.review": {
+        "order": "create_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_propose", "action_approve", "action_reject"},
+    },
+    "fix.qualification.questionnaire": {"order": "name, version desc", "limit": 200},
+    "fix.supplier.agreement": {
+        "order": "term_to desc, id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_terminate"},
+    },
+    "fix.supplier.price.list": {
+        "order": "supplier_id, product_id, valid_from desc, id desc",
+        "limit": 500,
+        "actions": {"action_approve", "action_withdraw"},
+    },
+    "fix.supplier.price.change": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_approve", "action_reject"},
     },
 }
 
@@ -259,27 +284,50 @@ def contract_coverage(env, date_from=None, date_to=None, **params):
     docs = _of_my_suppliers(
         env, "fix.supplier.document", [("doc_type", "=", "contract"), ("is_valid", "=", True)]
     )
-    covered = set(docs.mapped("supplier_id").ids)
+    # capture audit 2026-11-15: an agreement put in force (FR-SRM2-021) is the
+    # contract; a verified signed-contract document still counts
+    today = fields.Date.context_today(env["fix.supplier.agreement"])  # Dhaka date
+    agreements = _of_my_suppliers(
+        env,
+        "fix.supplier.agreement",
+        [("state", "=", "active"), ("term_to", ">=", today)],
+        "term_to asc, id asc",
+    )
+    ends = {}
+    for agreement in agreements:
+        ends[agreement.supplier_id.id] = max(
+            ends.get(agreement.supplier_id.id) or agreement.term_to, agreement.term_to
+        )
+    covered = set(docs.mapped("supplier_id").ids) | set(ends)
     rows = []
     for supplier in active:
+        end = ends.get(supplier.id)
         rows.append(
             {
                 "supplier": supplier.name,
                 "segment": dict(supplier._fields["segment"].selection).get(supplier.segment),
                 "contract": "yes" if supplier.id in covered else "no",
+                "ends": str(end) if end else "",
                 "status": dict(supplier._fields["status"].selection).get(supplier.status),
             }
         )
     rows.sort(key=lambda r: (r["contract"] == "yes", r["supplier"]))
     gaps = len([r for r in rows if r["contract"] == "no"])
     return _pack(
-        "Contract Coverage — active suppliers with a valid contract document",
-        ["supplier", "segment", "contract", "status"],
-        {"supplier": "Supplier", "segment": "Segment", "contract": "Contract", "status": "Status"},
+        "Contract Coverage — active suppliers under an agreement in force",
+        ["supplier", "segment", "contract", "ends", "status"],
+        {
+            "supplier": "Supplier",
+            "segment": "Segment",
+            "contract": "Contract",
+            "ends": "Agreement Ends",
+            "status": "Status",
+        },
         rows,
         [
-            "Coverage %d/%d active suppliers; %d gap(s). A contract counts only when "
-            "the document is valid today." % (len(covered), len(active), gaps)
+            "Coverage %d/%d active suppliers; %d gap(s). A supplier is covered by an "
+            "agreement in force today or by a verified signed contract that is valid today."
+            % (len(active) - gaps, len(active), gaps)
         ],
         empty="No active suppliers yet.",
     )

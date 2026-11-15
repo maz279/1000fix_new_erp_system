@@ -423,6 +423,19 @@ WRITABLE = {
         }
     ),
     "fix.purchase.receipt.line": frozenset(),
+    "fix.qualification.questionnaire": frozenset(
+        {
+            "active",
+            "category_id",
+            "name",
+            "pass_threshold",
+            "questions",
+            "required_doc_types",
+            "risk_tier",
+            "spend_category",
+            "version",
+        }
+    ),
     "fix.reorder.rule": frozenset(
         {
             "branch_id",
@@ -608,11 +621,13 @@ WRITABLE = {
             "approved_category_ids",
             "buyer_id",
             "category",
+            "classification",
             "name",
             "notes",
             "onboarded_on",
             "partner_id",
             "residency",
+            "risk_tier",
             "segment",
         }
     ),
@@ -620,6 +635,32 @@ WRITABLE = {
         {
             "qualification_id",
             "supplier_id",
+        }
+    ),
+    "fix.supplier.agreement": frozenset(
+        {
+            "agreement_type",
+            "committed_value",
+            "committed_volume",
+            "currency_id",
+            "file",
+            "file_filename",
+            "loss_liability",
+            "notice_days",
+            "parts_scope",
+            "penalties",
+            "rebate_terms",
+            "reconciliation_frequency",
+            "reference",
+            "renewal_mode",
+            "return_rights",
+            "service_levels",
+            "settlement_cadence",
+            "settlement_trigger",
+            "supplier_id",
+            "term_from",
+            "term_to",
+            "valuation_basis",
         }
     ),
     "fix.supplier.bank.change": frozenset(
@@ -644,6 +685,17 @@ WRITABLE = {
             "supplier_id",
         }
     ),
+    "fix.supplier.contact": frozenset(
+        {
+            "active",
+            "email",
+            "name",
+            "partner_id",
+            "phone",
+            "role",
+            "supplier_id",
+        }
+    ),
     "fix.supplier.document": frozenset(
         {
             "doc_type",
@@ -663,10 +715,31 @@ WRITABLE = {
             "supplier_id",
         }
     ),
+    "fix.supplier.price.change": frozenset(
+        {
+            "effective_from",
+            "justification",
+            "price_list_id",
+            "proposed_price",
+        }
+    ),
+    "fix.supplier.price.list": frozenset(
+        {
+            "agreement_id",
+            "lead_time_days",
+            "moq",
+            "price",
+            "product_id",
+            "valid_from",
+            "valid_to",
+            "volume_breaks",
+        }
+    ),
     "fix.supplier.qualification": frozenset(
         {
             "auditor_id",
             "notes",
+            "questionnaire_id",
             "score",
             "stage",
             "submitted_on",
@@ -708,6 +781,16 @@ WRITABLE = {
             "screened_on",
             "screening_type",
             "supplier_id",
+        }
+    ),
+    "fix.supplier.segment.review": frozenset(
+        {
+            "annual_spend",
+            "criticality",
+            "reason",
+            "risk_tier",
+            "supplier_id",
+            "to_segment",
         }
     ),
     "fix.warehouse": frozenset(
