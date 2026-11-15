@@ -55,6 +55,47 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_run"},
     },
+    # capture audit 2026-11-16: the spec §10.1 records each page captures
+    "fix.demand.adjustment": {
+        "order": "period desc, id desc",
+        "limit": 300,
+        "actions": {"action_apply", "action_revoke"},
+    },
+    "fix.demand.driver": {
+        "order": "period_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.demand.service.target": {
+        "order": "abc_class, effective_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_activate"},
+    },
+    "fix.demand.lead.time": {
+        "order": "product_id, vendor_id",
+        "limit": 300,
+        "actions": {"action_measure"},
+    },
+    "fix.demand.npi": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_reject"},
+    },
+    "fix.demand.eol": {
+        "order": "run_down_start desc, id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_approve_cfo", "action_reject"},
+    },
+    "fix.demand.van.par": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_compute", "action_approve", "action_reject"},
+    },
+    "fix.demand.network.policy": {
+        "order": "part_id, id desc",
+        "limit": 300,
+        "actions": {"action_approve"},
+    },
 }
 
 

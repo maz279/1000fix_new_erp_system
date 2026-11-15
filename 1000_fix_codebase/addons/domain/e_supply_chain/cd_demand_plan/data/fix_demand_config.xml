@@ -50,5 +50,10 @@
             <field name="key">cd_demand_plan.enforce_budget</field>
             <field name="value">0</field>
         </record>
+        <!-- BRU-DPL-14: a last-time buy above this value (BDT) also needs the CFO -->
+        <record id="cfg_ltb_cfo_threshold" model="ir.config_parameter">
+            <field name="key">cd_demand_plan.ltb_cfo_threshold</field>
+            <field name="value">500000</field>
+        </record>
     </data>
 </odoo>

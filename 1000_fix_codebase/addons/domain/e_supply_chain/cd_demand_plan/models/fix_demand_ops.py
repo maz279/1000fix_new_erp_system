@@ -114,6 +114,7 @@ FORECAST_INPUTS = {
     "has_override",
     "override_qty",
     "override_rationale",
+    "override_driver_id",
     "company_id",
 }
 FORECAST_HISTORY_KEYS = {"product_id", "part_id", "location_id", "period", "window_months"}
@@ -361,6 +362,11 @@ class FixDemandForecast(models.Model):
             buckets = consumed_by_month(
                 rec.env, rec.company_id, rec.part_id, rec.location_id, first, window
             )
+            # T-01: applied outlier / censored-demand adjustments are an overlay
+            # on the M15 series (marked * in the history), never an edit of it
+            buckets, adjusted = self.env["fix.demand.adjustment"]._overlay(
+                rec.company_id, rec.part_id, rec.location_id, first, buckets
+            )
             with_data = sum(1 for b in buckets if b > 0)
             if with_data < min_months:
                 raise UserError(
@@ -377,7 +383,13 @@ class FixDemandForecast(models.Model):
                     )
                 )
             detail = ", ".join(
-                "%s: %g" % (period_of(add_months(first, i)), b) for i, b in enumerate(buckets)
+                "%s: %g%s"
+                % (
+                    period_of(add_months(first, i)),
+                    b,
+                    "*" if period_of(add_months(first, i)) in adjusted else "",
+                )
+                for i, b in enumerate(buckets)
             )
             rec._guarded().write(
                 {

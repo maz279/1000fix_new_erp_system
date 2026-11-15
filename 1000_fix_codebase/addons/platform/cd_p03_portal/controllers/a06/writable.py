@@ -12,17 +12,83 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a06
 
 WRITABLE = {
+    "fix.demand.adjustment": frozenset(
+        {
+            "adjusted_qty",
+            "adjustment_type",
+            "demand_stream",
+            "location_id",
+            "part_id",
+            "period",
+            "product_id",
+            "reason",
+        }
+    ),
+    "fix.demand.driver": frozenset(
+        {
+            "basis",
+            "driver_type",
+            "expected_impact_pct",
+            "location_id",
+            "period_from",
+            "period_to",
+            "product_id",
+            "source_ref",
+        }
+    ),
+    "fix.demand.eol": frozenset(
+        {
+            "last_buy_date",
+            "last_time_buy_qty",
+            "part_id",
+            "projected_remaining_demand",
+            "rationale",
+            "run_down_start",
+            "successor_part_id",
+        }
+    ),
     "fix.demand.forecast": frozenset(
         {
             "has_override",
             "location_id",
             "notes",
+            "override_driver_id",
             "override_qty",
             "override_rationale",
             "part_id",
             "period",
             "product_id",
             "window_months",
+        }
+    ),
+    "fix.demand.lead.time": frozenset(
+        {
+            "notes",
+            "product_id",
+            "quoted_days",
+            "vendor_id",
+            "window_days",
+        }
+    ),
+    "fix.demand.network.policy": frozenset(
+        {
+            "central_stock",
+            "location_ids",
+            "part_id",
+            "rationale",
+            "van_stock",
+        }
+    ),
+    "fix.demand.npi": frozenset(
+        {
+            "analogy_part_id",
+            "confidence",
+            "installed_base_ref",
+            "location_ids",
+            "part_id",
+            "product_id",
+            "rationale",
+            "recommended_initial_qty",
         }
     ),
     "fix.demand.plan": frozenset(
@@ -90,6 +156,28 @@ WRITABLE = {
             "criticality",
             "part_id",
             "product_id",
+        }
+    ),
+    "fix.demand.service.target": frozenset(
+        {
+            "abc_class",
+            "criticality",
+            "effective_from",
+            "location_type",
+            "rationale",
+            "target_pct",
+        }
+    ),
+    "fix.demand.van.par": frozenset(
+        {
+            "deviation_reason",
+            "history_days",
+            "max_qty",
+            "min_qty",
+            "part_id",
+            "replenish_days",
+            "service_level_pct",
+            "van_location_id",
         }
     ),
     "fix.import.advance": frozenset(

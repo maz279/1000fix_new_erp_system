@@ -8,9 +8,39 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_demand_adjustment_company" model="ir.rule">
+        <field name="name">fix.demand.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_adjustment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_driver_company" model="ir.rule">
+        <field name="name">fix.demand.driver: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_driver"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_eol_company" model="ir.rule">
+        <field name="name">fix.demand.eol: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_eol"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_demand_forecast_company" model="ir.rule">
         <field name="name">fix.demand.forecast: allowed companies</field>
         <field name="model_id" ref="model_fix_demand_forecast"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_lead_time_company" model="ir.rule">
+        <field name="name">fix.demand.lead.time: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_lead_time"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_network_policy_company" model="ir.rule">
+        <field name="name">fix.demand.network.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_network_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_npi_company" model="ir.rule">
+        <field name="name">fix.demand.npi: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_npi"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_demand_plan_company" model="ir.rule">
@@ -47,6 +77,16 @@
     <record id="rule_fix_demand_segment_company" model="ir.rule">
         <field name="name">fix.demand.segment: allowed companies</field>
         <field name="model_id" ref="model_fix_demand_segment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_service_target_company" model="ir.rule">
+        <field name="name">fix.demand.service.target: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_service_target"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_demand_van_par_company" model="ir.rule">
+        <field name="name">fix.demand.van.par: allowed companies</field>
+        <field name="model_id" ref="model_fix_demand_van_par"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
