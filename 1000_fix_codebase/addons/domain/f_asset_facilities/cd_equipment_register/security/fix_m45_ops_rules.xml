@@ -112,4 +112,52 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <!-- M45 capture audit 2026-11-16: the new registers are fenced the same way -->
+    <record id="rule_fix_equipment_category_company" model="ir.rule">
+        <field name="name">fix.equipment.category: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_category"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_branch_equipment_profile_company" model="ir.rule">
+        <field name="name">fix.branch.equipment.profile: allowed companies</field>
+        <field name="model_id" ref="model_fix_branch_equipment_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_pm_plan_company" model="ir.rule">
+        <field name="name">fix.equipment.pm.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_pm_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_loss_company" model="ir.rule">
+        <field name="name">fix.equipment.loss: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_loss"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_loss_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.loss: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_loss"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_audit_company" model="ir.rule">
+        <field name="name">fix.equipment.audit: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_audit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_audit_line_company" model="ir.rule">
+        <field name="name">fix.equipment.audit.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_audit_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_retirement_company" model="ir.rule">
+        <field name="name">fix.equipment.retirement: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_retirement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_retirement_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.retirement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_retirement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

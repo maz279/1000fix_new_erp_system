@@ -32,6 +32,16 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.branch.equipment.profile": frozenset(
+        {
+            "active",
+            "branch_id",
+            "category_id",
+            "critical",
+            "effective_from",
+            "minimum_quantity",
+        }
+    ),
     "fix.bridge.exception": frozenset(
         {
             "employee_id",
@@ -39,6 +49,7 @@ WRITABLE = {
     ),
     "fix.calibration": frozenset(
         {
+            "accreditation_ref",
             "calibrated_on",
             "certificate_file",
             "certificate_filename",
@@ -49,8 +60,10 @@ WRITABLE = {
             "notes",
             "performed_by",
             "provider_accredited",
+            "provider_id",
             "reading_ids",
             "result",
+            "standard_equipment_id",
             "standard_ref",
             "supersedes_id",
             "trace_no",
@@ -213,13 +226,47 @@ WRITABLE = {
     ),
     "fix.equipment": frozenset(
         {
+            "acquired_on",
             "acquisition_cost",
+            "acquisition_ref",
+            "asset_tag",
             "branch_id",
-            "category",
+            "category_id",
             "code",
+            "criticality",
             "custodian_id",
+            "expected_life_months",
+            "home_location",
+            "manufacturer",
+            "model_name",
             "name",
             "retirement_reason",
+            "serial_no",
+            "supplier_id",
+            "warranty_until",
+        }
+    ),
+    "fix.equipment.audit": frozenset(
+        {
+            "branch_id",
+            "counter_id",
+            "line_ids",
+            "scheduled_for",
+            "scope",
+        }
+    ),
+    "fix.equipment.audit.line": frozenset(),
+    "fix.equipment.category": frozenset(
+        {
+            "active",
+            "classification",
+            "code",
+            "critical",
+            "data_bearing",
+            "default_calibration_months",
+            "name",
+            "requires_calibration",
+            "requires_verification",
         }
     ),
     "fix.equipment.issue": frozenset(
@@ -247,6 +294,19 @@ WRITABLE = {
             "return_condition",
         }
     ),
+    "fix.equipment.loss": frozenset(
+        {
+            "circumstances",
+            "equipment_id",
+            "evidence_file",
+            "evidence_filename",
+            "kind",
+            "occurred_on",
+            "police_report_ref",
+            "recharge_amount",
+            "recharge_employee_id",
+        }
+    ),
     "fix.equipment.oos": frozenset(
         {
             "equipment_id",
@@ -256,11 +316,40 @@ WRITABLE = {
     "fix.equipment.pm": frozenset(
         {
             "cost",
+            "description",
+            "downtime_hours",
             "equipment_id",
+            "external_provider_id",
             "notes",
             "pm_type",
+            "repair_route",
             "scheduled_on",
+            "symptom",
             "technician_id",
+        }
+    ),
+    "fix.equipment.pm.plan": frozenset(
+        {
+            "active",
+            "category_id",
+            "equipment_id",
+            "interval_unit",
+            "interval_value",
+            "start_on",
+            "task",
+            "trigger_type",
+        }
+    ),
+    "fix.equipment.retirement": frozenset(
+        {
+            "basis",
+            "disposal_ref",
+            "disposal_route",
+            "equipment_id",
+            "erasure_certificate_ref",
+            "justification",
+            "replacement_note",
+            "replacement_required",
         }
     ),
     "fix.equipment.transfer": frozenset(

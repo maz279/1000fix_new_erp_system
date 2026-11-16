@@ -33,5 +33,17 @@
             <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:10:00')"/>
             <field name="active" eval="True"/>
         </record>
+        <!-- M45 capture audit 2026-11-16 (FR-EAM-032, AUT-EAM-11): every active PM
+             plan raises its due jobs once; the spine turns each into a work order -->
+        <record id="ir_cron_m45_pm_plans" model="ir.cron">
+            <field name="name">M45: raise due preventive maintenance jobs</field>
+            <field name="model_id" ref="model_fix_equipment_pm_plan"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_pm_plans()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:00:00')"/>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

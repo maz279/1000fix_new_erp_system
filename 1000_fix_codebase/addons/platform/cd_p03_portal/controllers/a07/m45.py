@@ -13,7 +13,13 @@ SURFACES = {
     "fix.equipment": {
         "order": "code",
         "limit": 400,
-        "actions": {"action_assert_usable", "action_request_approval", "action_recall_approval"},
+        "actions": {
+            "action_assert_usable",
+            "action_request_approval",
+            "action_recall_approval",
+            # capture audit 2026-11-16: FR-EAM-029
+            "action_recall_calibration",
+        },
     },
     # A07 P2 (2026-11-04): the usage decision is taken by a Quality Manager
     # other than the recorder (SOD-07)
@@ -21,6 +27,8 @@ SURFACES = {
         "order": "calibrated_on desc, id desc",
         "limit": 400,
         "actions": {"action_accept_calibration", "action_reject_calibration"},
+        # BRU-EAM-04: only a registered calibration standard is offered
+        "pickers": {"standard_equipment_id": [("classification", "=", "calibration_standard")]},
     },
     # the readings grid on the calibration form: no screen of its own and nothing
     # written here; the picker skips profiles that read no measurement points
@@ -75,6 +83,35 @@ SURFACES = {
         "actions": {"action_done"},
     },
     "fix.equipment.usage": {"order": "used_on desc, id desc", "limit": 400, "actions": set()},
+    # capture audit 2026-11-16: the spec records the pages could not capture
+    "fix.equipment.category": {"order": "classification, code", "limit": 200, "actions": set()},
+    "fix.branch.equipment.profile": {
+        "order": "branch_id, category_id",
+        "limit": 400,
+        "actions": set(),
+    },
+    "fix.equipment.pm.plan": {
+        "order": "name desc",
+        "limit": 300,
+        "actions": {"action_raise_due_jobs"},
+    },
+    "fix.equipment.loss": {
+        "order": "occurred_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_recover", "action_send_to_repair", "action_request_writeoff"},
+    },
+    "fix.equipment.audit": {
+        "order": "scheduled_for desc, id desc",
+        "limit": 300,
+        "actions": {"action_start", "action_complete"},
+    },
+    # the found-items grid of a count: no screen of its own
+    "fix.equipment.audit.line": {"order": "audit_id, id", "limit": 500, "actions": set()},
+    "fix.equipment.retirement": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request", "action_dispose"},
+    },
 }
 
 
@@ -123,7 +160,7 @@ def classification(env, date_from=None, date_to=None, **params):
     buckets = {}
     for equipment in _equipment(env):
         key = (
-            equipment.category or "Uncategorised",
+            equipment.category_id.name or equipment.category or "Unclassified",
             equipment.custodian_id.name if equipment.custodian_id else "No custodian",
         )
         row = buckets.setdefault(
@@ -176,7 +213,7 @@ def calibration_schedule(env, date_from=None, date_to=None, **params):
             {
                 "code": equipment.code,
                 "name": equipment.name,
-                "category": equipment.category or "—",
+                "category": equipment.category_id.name or equipment.category or "—",
                 "last_calibration": str(equipment.last_calibration)
                 if equipment.last_calibration
                 else "—",
@@ -341,6 +378,9 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
             status = "rejected at usage decision"
         elif state == "pending":
             status = "awaiting usage decision"
+        elif state == "not_required":
+            # capture audit 2026-11-16: outside calibration control (FR-EAM-003)
+            status = "not measurement-critical"
         elif equipment.next_calibration <= horizon:
             status = "due within 30 days"
         else:
@@ -349,7 +389,7 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
             {
                 "code": equipment.code,
                 "name": equipment.name,
-                "category": equipment.category or "—",
+                "category": equipment.category_id.name or equipment.category or "—",
                 "next_calibration": str(equipment.next_calibration)
                 if equipment.next_calibration
                 else "—",
@@ -426,44 +466,108 @@ def utilisation(env, date_from=None, date_to=None, **params):
 
 
 def loss_writeoff(env, date_from=None, date_to=None, **params):
+    """Every recorded loss: an item missing at a count, and (capture audit
+    2026-11-16) every loss, theft or damage report with its accountability."""
     verifications = _scoped(env, "fix.equipment.verification", [("state", "=", "missing")])
+    losses = _scoped(env, "fix.equipment.loss")
+    status = dict(env["fix.equipment"]._fields["operational_status"].selection)
     rows = []
     for record in verifications:
         rows.append(
             {
                 "code": record.equipment_id.code,
                 "name": record.equipment_id.name,
-                "campaign": record.campaign_ref,
-                "verified_on": str(record.verified_on),
-                "location": record.location or "—",
-                "verifier": record.verifier_id.name if record.verifier_id else "—",
-                "status": dict(record.equipment_id._fields["operational_status"].selection).get(
-                    record.equipment_id.operational_status
-                ),
+                "source": "Count %s" % record.campaign_ref,
+                "on": str(record.verified_on),
+                "custodian": record.verifier_id.name if record.verifier_id else "—",
+                "value": record.equipment_id.acquisition_cost or 0.0,
+                "decision": "missing at count",
+                "status": status.get(record.equipment_id.operational_status),
             }
         )
-    rows.sort(key=lambda r: r["verified_on"], reverse=True)
+    states = dict(env["fix.equipment.loss"]._fields["state"].selection)
+    kinds = dict(env["fix.equipment.loss"]._fields["kind"].selection)
+    for loss in losses:
+        rows.append(
+            {
+                "code": loss.equipment_id.code,
+                "name": loss.equipment_id.name,
+                "source": "%s %s" % (kinds.get(loss.kind), loss.name),
+                "on": str(loss.occurred_on),
+                "custodian": loss.custodian_at_loss_id.name or "—",
+                "value": loss.value_impact or 0.0,
+                "decision": states.get(loss.state),
+                "status": status.get(loss.equipment_id.operational_status),
+            }
+        )
+    rows.sort(key=lambda r: r["on"], reverse=True)
     return _pack(
-        "Tool Loss & Write-Off — equipment missing at verification",
-        ["code", "name", "campaign", "verified_on", "location", "verifier", "status"],
+        "Tool Loss & Write-Off — missing at counts and reported losses",
+        ["code", "name", "source", "on", "custodian", "value", "decision", "status"],
         {
             "code": "Code",
             "name": "Equipment",
-            "campaign": "Campaign",
-            "verified_on": "Verified",
-            "location": "Last Location",
-            "verifier": "Verifier",
+            "source": "Recorded By",
+            "on": "Date",
+            "custodian": "Custodian / Verifier",
+            "value": "Value (BDT)",
+            "decision": "Decision",
             "status": "Operational",
         },
         rows,
         [
-            "A missing verification is the recorded loss: the item is Lost / Missing "
-            "(unusable, not issued, not transferred) until a store keeper's count finds "
-            "it. A write-off is requested on the equipment and approved within the "
-            "authority matrix; Operational shows Retired once it is approved."
+            "A count that does not find an item, and a lost or stolen report, make the item "
+            "Lost / Missing until it is recovered or written off. A write-off is approved "
+            "within the authority matrix and never by the person who reported the loss "
+            "(BRU-EAM-12); Operational shows Retired once it is approved.",
+            "A damaged item is out of service and goes to repair or write-off; it never "
+            "returns straight to available (BRU-EAM-10).",
         ],
-        totals={"code": "Total"},
-        empty="No equipment was missing at verification.",
+        totals={"code": "Total", "value": round(sum(r["value"] for r in rows), 2)},
+        empty="No equipment was missing at a count and no loss was reported.",
+    )
+
+
+def register_completeness(env, date_from=None, date_to=None, **params):
+    """FR-EAM-009/037, BRU-EAM-20: what each branch holds against its profile."""
+    rows = []
+    for line in _scoped(env, "fix.branch.equipment.profile", [("active", "=", True)]):
+        rows.append(
+            {
+                "branch": line.branch_id.name,
+                "category": line.category_id.name,
+                "minimum": line.minimum_quantity,
+                "held": line.held_count,
+                "fit": line.fit_count,
+                "shortfall": line.shortfall,
+                "exception": line.capability_exception,
+            }
+        )
+    rows.sort(key=lambda r: (not r["exception"], -r["shortfall"], r["branch"] or ""))
+    required = sum(r["minimum"] for r in rows)
+    met = sum(min(r["held"], r["minimum"]) for r in rows)
+    return _pack(
+        "Register Completeness — branch holdings against the profile",
+        ["branch", "category", "minimum", "held", "fit", "shortfall", "exception"],
+        {
+            "branch": "Branch",
+            "category": "Equipment Class",
+            "minimum": "Minimum",
+            "held": "Held",
+            "fit": "Fit & Available",
+            "shortfall": "Shortfall",
+            "exception": "Capability Exception",
+        },
+        rows,
+        [
+            "Completeness %s: held (capped at the minimum) over the minimum the profiles ask "
+            "for." % ("%.0f%%" % (100.0 * met / required) if required else "not measurable"),
+            "A capability exception is a critical class with no fit, available item at the "
+            "branch (BRU-EAM-20). Lost, missing and retired items are not held.",
+        ],
+        totals={"branch": "Total", "minimum": required, "held": sum(r["held"] for r in rows)},
+        empty="No branch equipment profile is defined yet: the Quality Manager sets one per "
+        "branch and class.",
     )
 
 
@@ -479,6 +583,7 @@ def cost_of_ownership(env, date_from=None, date_to=None, **params):
                 "name": equipment.name,
                 "pm_jobs": len(equipment_pm),
                 "pm_cost": round(sum(equipment_pm.mapped("cost")), 2),
+                "downtime": round(sum(equipment_pm.mapped("downtime_hours")), 1),
                 "calibrations": len(
                     calibrations.filtered(lambda c, eid=equipment.id: c.equipment_id.id == eid)
                 ),
@@ -488,12 +593,13 @@ def cost_of_ownership(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: -r["pm_cost"])
     return _pack(
         "Cost of Ownership — recorded PM cost and calibration count",
-        ["code", "name", "pm_jobs", "pm_cost", "calibrations", "status"],
+        ["code", "name", "pm_jobs", "pm_cost", "downtime", "calibrations", "status"],
         {
             "code": "Code",
             "name": "Equipment",
             "pm_jobs": "PM Jobs",
             "pm_cost": "PM Cost",
+            "downtime": "Downtime (h)",
             "calibrations": "Calibrations",
             "status": "Status",
         },
@@ -520,6 +626,7 @@ REPORTS = {
     "calibration_compliance": calibration_compliance,
     "utilisation": utilisation,
     "loss_writeoff": loss_writeoff,
+    "register_completeness": register_completeness,
     "cost_of_ownership": cost_of_ownership,
 }
 
@@ -532,7 +639,9 @@ def kpis(env):
         "calibration_overdue": len(equipment.filtered(lambda e: e.calibration_overdue)),
         # A07 audit (2026-11-03) M45-1: failed and never-calibrated instruments
         # are not current either (retired items are no longer in use)
-        "calibration_not_current": len(in_use.filtered(lambda e: e.calibration_state != "current")),
+        "calibration_not_current": len(
+            in_use.filtered(lambda e: e.calibration_state not in ("current", "not_required"))
+        ),
         # a retired item is out of use for good, not waiting to return to service
         "oos_open": len(
             _scoped(
@@ -548,4 +657,10 @@ def kpis(env):
         "missing": len(equipment.filtered(lambda e: e.operational_status == "missing")),
         "impact_open": len(_scoped(env, "fix.calibration.impact", [("state", "=", "open")])),
         "custody_overdue": len(_scoped(env, "fix.equipment.issue", [("is_overdue", "=", True)])),
+        # capture audit 2026-11-16
+        "loss_open": len(
+            _scoped(
+                env, "fix.equipment.loss", [("state", "in", ("reported", "writeoff_requested"))]
+            )
+        ),
     }

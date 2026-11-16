@@ -433,7 +433,7 @@ class FixEquipmentIssue(models.Model):
                     old._guarded().write({"operational_status": old._m45_released_status()})
         return res
 
-    def action_return(self, condition=None):
+    def action_return(self, condition=None, detail=None):
         """Close the issue with the item's condition (BRU-EAM-10): a
         serviceable item goes back to available, a damaged one out of
         service. `condition` may be passed, or set on the issue first.
@@ -455,6 +455,10 @@ class FixEquipmentIssue(models.Model):
             vals = {"state": "returned", "returned_on": fields.Date.context_today(self)}
             if cond:
                 vals["return_condition"] = cond
+            # M45 capture audit (2026-11-16): the Return form carries the damage
+            # detail with the condition (FR-EAM-014)
+            if (detail or "").strip():
+                vals["condition_in"] = detail.strip()
             rec._guarded().write(vals)
             equipment = rec.equipment_id
             detail = (rec.condition_in or "").strip() or "no detail recorded"
@@ -952,9 +956,13 @@ class FixEquipmentOutOfService(models.Model):
             if equipment.sudo().operational_status == "retired":
                 raise UserError("%s is retired and cannot return to service" % equipment.name)
             inspection = rec.hold_type == "inspection"
-            recal = None if inspection else rec._m45_recalibration()
+            # M45 capture audit (2026-11-16), spec §8.1: an item is re-calibrated
+            # before it returns "where measurement-critical"; a tool outside
+            # calibration control returns on its repair / condition check.
+            needs_recal = not inspection and equipment.sudo().measurement_critical
+            recal = rec._m45_recalibration() if needs_recal else None
             if not self.env.su:
-                if inspection:
+                if inspection or not needs_recal:
                     m45_require_role(
                         self.env,
                         (ROLE_CUSTODIAN, ROLE_QM),
@@ -974,13 +982,17 @@ class FixEquipmentOutOfService(models.Model):
                             "%s passed its condition check but stays out of service: %s"
                             % (equipment.name, problem)
                         )
-                elif not recal:
+                elif needs_recal and not recal:
                     raise UserError(
                         "%s cannot return to service without a passing calibration "
                         "recorded after it went out of service (on or after %s)."
                         % (equipment.name, rec.started_on)
                     )
-                elif recal.decision_state != "accepted" and recal.create_uid == self.env.user:
+                elif (
+                    recal
+                    and recal.decision_state != "accepted"
+                    and recal.create_uid == self.env.user
+                ):
                     raise UserError(
                         "Segregation of duties: you recorded the re-calibration of %s, so "
                         "another Quality Manager accepts it and returns the item to service."
