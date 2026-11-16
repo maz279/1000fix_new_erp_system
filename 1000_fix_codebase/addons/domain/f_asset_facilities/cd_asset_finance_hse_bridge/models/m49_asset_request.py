@@ -380,6 +380,10 @@ class FixAssetFinanceRequest(models.Model):
         for v in vehicles.sudo():
             if (v.net_car_value or 0.0) <= max(self._m49_min(), 0.0) or v.fixed_asset_id:
                 continue
+            # M46 capture audit (FR-FLT-003): a leased, hired or employee-owned
+            # vehicle is not the company's asset; only an owned one capitalises.
+            if (getattr(v, "fix_ownership_basis", None) or "owned") != "owned":
+                continue
             vals = self._m49_vehicle_vals(v)
             vals.update(
                 {
@@ -699,7 +703,8 @@ class FleetVehicleM49(_BridgeFixedAssetLink, models.Model):
             leaving = self.filtered(lambda v: v.active and not v.write_off_date)
         result = super().write(vals)
         Req = self.env["fix.asset.finance.request"].sudo()
-        if "net_car_value" in vals:
+        # an owned basis reached later capitalises then (M46 FR-FLT-003)
+        if "net_car_value" in vals or "fix_ownership_basis" in vals:
             run_hook(self.env, "m49_capitalise_vehicle", Req._m49_capitalise_vehicle, self)
         if leaving:
             how = "licence plate cancelled" if vals.get("write_off_date") else "archived"

@@ -57,6 +57,8 @@ SURFACES = {
         "order": "scheduled_on desc, id desc",
         "limit": 300,
         "actions": {"action_done"},
+        # the garage that did the work (FR-FLT-027)
+        "pickers": {"provider_id": [("is_company", "=", True)]},
     },
     # A07 P0 recipe M46-9: a held fill is reviewed by someone other than
     # its recorder.
@@ -84,6 +86,31 @@ SURFACES = {
         },
         # An insurer is not every partner of 15,000.
         "pickers": {"insurer_id": [("is_insurer", "=", True)]},
+    },
+    # Capture audit 2026-11-17: the four registers the sub-module pages had
+    # no record for (models/fix_vehicle_capture.py in cd_vehicle_ext).
+    "fix.vehicle.document.renewal": {
+        "order": "initiated_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_complete", "action_cancel"},
+        # the renewed certificate is one already recorded with its scan
+        "pickers": {"new_document_id": [("has_evidence", "=", True)]},
+    },
+    "fix.vehicle.defect": {
+        "order": "raised_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_clear"},
+    },
+    "fix.telematics.device": {
+        "order": "name",
+        "limit": 300,
+        "actions": {"action_remove", "action_retire"},
+        "pickers": {"provider_id": [("is_company", "=", True)]},
+    },
+    "fix.vehicle.penalty": {
+        "order": "issued_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_recover", "action_absorb"},
     },
 }
 
@@ -274,12 +301,27 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
     pms = _scoped(env, "fix.vehicle.pm", vehicles, [("state", "=", "done")]).filtered(
         lambda p: _in_period(p.done_on or p.scheduled_on, date_from, date_to)
     )
+    # FR-FLT-014: a completed renewal's government fee, agent fee and penalty
+    # are running cost, on the day it completed (capture audit 2026-11-17)
+    renewals = _scoped(
+        env, "fix.vehicle.document.renewal", vehicles, [("state", "=", "completed")]
+    ).filtered(lambda r: _in_period(r.completed_on, date_from, date_to))
     rows = []
     for vehicle in vehicles:
         f2f = _fill_to_fill(fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid))
         pm_cost = round(
             sum(pms.filtered(lambda p, vid=vehicle.id: p.vehicle_id.id == vid).mapped("cost")), 2
         )
+        doc_cost = round(
+            sum(
+                renewals.filtered(lambda r, vid=vehicle.id: r.vehicle_id.id == vid).mapped(
+                    "total_cost"
+                )
+            ),
+            2,
+        )
+        pm_cost_only = pm_cost
+        pm_cost = round(pm_cost + doc_cost, 2)  # the running cost beside fuel
         km = f2f["km"]
         rows.append(
             {
@@ -289,7 +331,8 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
                 "km": km,
                 "fuel_cost": f2f["spend"],
                 "fuel_in_range": f2f["fuel_in_range"],
-                "pm_cost": pm_cost,
+                "pm_cost": pm_cost_only,
+                "document_cost": doc_cost,
                 "total_cost": round(f2f["spend"] + pm_cost, 2),
                 "cost_per_km": round((f2f["fuel_in_range"] + pm_cost) / km, 2) if km else None,
                 "basis": f2f["basis"],
@@ -298,10 +341,10 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: (r["cost_per_km"] is None, -(r["cost_per_km"] or 0)))
     measured = [r for r in rows if r["km"]]
     return _pack(
-        "Cost per Kilometre — fuel + PM over the measured distance",
+        "Cost per Kilometre — fuel, PM and document renewals over the measured distance",
         [
             "vehicle", "plate", "fills", "km", "fuel_cost", "fuel_in_range",
-            "pm_cost", "total_cost", "cost_per_km", "basis",
+            "pm_cost", "document_cost", "total_cost", "cost_per_km", "basis",
         ],
         {
             "vehicle": "Vehicle",
@@ -311,6 +354,7 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             "fuel_cost": "Fuel Spend",
             "fuel_in_range": "Fuel in Range",
             "pm_cost": "PM Cost",
+            "document_cost": "Document Renewals",
             "total_cost": "Total Spend",
             "cost_per_km": "Cost / km",
             "basis": "Basis",
@@ -319,19 +363,21 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
         [
             _period_note(date_from, date_to),
             "Measured km = last − first fuel odometer in the period. Cost / km = "
-            "(fuel of the fills after the first + PM cost) / measured km: the first "
-            "fill's fuel was burnt before the range began. PM cost counts completed "
-            "services only.",
+            "(fuel of the fills after the first + PM cost + document renewals) / measured "
+            "km: the first fill's fuel was burnt before the range began. PM cost counts "
+            "completed services only; document renewals count the government fee, agent "
+            "fee and penalty of renewals completed in the period.",
             "Provisional (no figure) where the period has fewer than two fills or the "
             "odometer goes backwards. A fill held by a fuel exception rule is left out "
             "until the Logistics Manager reviews it, and the row is provisional. "
-            "Depreciation, insurance, document fees and downtime are not included.",
+            "Depreciation, insurance premium and downtime are not included.",
         ],
         totals={
             "vehicle": "Total",
             "km": sum(r["km"] for r in measured),
             "fuel_cost": round(sum(r["fuel_cost"] for r in rows), 2),
             "pm_cost": round(sum(r["pm_cost"] for r in rows), 2),
+            "document_cost": round(sum(r["document_cost"] for r in rows), 2),
             "total_cost": round(sum(r["total_cost"] for r in rows), 2),
         },
         empty="No vehicles registered yet.",

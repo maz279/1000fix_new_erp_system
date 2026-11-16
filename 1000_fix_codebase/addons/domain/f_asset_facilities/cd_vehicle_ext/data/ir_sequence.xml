@@ -50,5 +50,26 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_vehicle_document_renewal" model="ir.sequence">
+            <field name="name">Vehicle Document Renewal</field>
+            <field name="code">fix.vehicle.document.renewal</field>
+            <field name="prefix">VREN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_defect" model="ir.sequence">
+            <field name="name">Vehicle Defect</field>
+            <field name="code">fix.vehicle.defect</field>
+            <field name="prefix">VDEF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_vehicle_penalty" model="ir.sequence">
+            <field name="name">Vehicle Traffic Penalty</field>
+            <field name="code">fix.vehicle.penalty</field>
+            <field name="prefix">VPEN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

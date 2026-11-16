@@ -1,6 +1,8 @@
 /** @odoo-module **/
 /* A07 · Assets & Facilities — M46 Fleet & Vehicles (v2 rebuild).
  * Registry-faithful: 4 groups / 12 screens / 5 reports / 5 forms / freg 62.
+ * Capture audit 2026-11-17: every sub-module page captures each record it
+ * lists; renewals, defects, telematics devices and traffic fines added.
  * The fleet.vehicle extension and dispatch assignments existed; drivers,
  * documents, off-road, checks, PM, fuel, telemetry and accidents are new. */
 
@@ -26,12 +28,15 @@ export const MODULE = {
     ]},
     { en: 'Statutory', screens: [
       { id: 'M46-docs', en: 'Documents & Expiry', bn: 'নথি ও মেয়াদ', t: 'g' },
+      { id: 'M46-doc-renewals', en: 'Document Renewals', bn: 'নথি নবায়ন', t: 'g' },
       { id: 'M46-renewal', en: 'Off-Road Records', bn: 'অফ-রোড রেকর্ড', t: 'g' }
     ]},
     { en: 'Operations', screens: [
       { id: 'M46-preuse', en: 'Daily Pre-Use Checks', bn: 'দৈনিক চেক', t: 'g' },
+      { id: 'M46-defects', en: 'Defects', bn: 'ত্রুটি', t: 'g' },
       { id: 'M46-pm', en: 'PM by Odometer', bn: 'ওডোমিটার পিএম', t: 'g' },
       { id: 'M46-fuel', en: 'Fuel & Efficiency', bn: 'জ্বালানি ও দক্ষতা', t: 'g' },
+      { id: 'M46-devices', en: 'Telematics Devices', bn: 'টেলিমেট্রিক্স ডিভাইস', t: 'g' },
       { id: 'M46-telematics', en: 'Telematics Health', bn: 'টেলিমেট্রিক্স', t: 'g' }
     ]},
     { en: 'Alerts', screens: [
@@ -39,23 +44,28 @@ export const MODULE = {
     ]},
     { en: 'Safety & Cost', screens: [
       { id: 'M46-accidents', en: 'Accidents & Insurance', bn: 'দুর্ঘটনা ও বীমা', t: 'g' },
+      { id: 'M46-penalties', en: 'Traffic Fines & Penalties', bn: 'ট্রাফিক জরিমানা', t: 'g' },
       { id: 'M46-insurers', en: 'Insurers', bn: 'বিমাকারী', t: 'r' },
       { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'r' },
       { id: 'M46-cost', en: 'Cost per Kilometre', bn: 'প্রতি কিমি খরচ', t: 'r' }
     ]}
   ],
   reports: ['Fleet Availability', 'Fuel Efficiency Trend', 'Maintenance Cost per Vehicle', 'Statutory Compliance Register', 'Incident Summary'],
-  forms: ['Vehicle', 'Driver', 'Fuel Transaction', 'Accident Report', 'PM Service'],
+  forms: ['Vehicle', 'Driver', 'Fuel Transaction', 'Accident Report', 'PM Service',
+    /* capture audit 2026-11-17: every record a page lists has its capture */
+    'Vehicle Model', 'Vehicle Make', 'Vehicle Document', 'Document Renewal', 'Off-Road Record',
+    'Vehicle Booking', 'Pre-Use Check', 'Vehicle Defect', 'Telematics Device', 'Telemetry Snapshot',
+    'Traffic Penalty'],
   cross: ['M03 rider fleet', 'M02 field vans', 'M52 fuel expenses', 'M47 site vehicles'],
   freg: { src: 62, sub: [
-    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles'], reports: ['Fleet Availability', 'Maintenance Cost per Vehicle'], forms: ['Vehicle'] }],
-    ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-renewal'], reports: ['Statutory Compliance Register'], forms: [] }],
-    ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour'], reports: [], forms: ['Driver'] }],
-    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'], reports: ['Fleet Availability'], forms: [] }],
-    ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-pm'], reports: ['Maintenance Cost per Vehicle'], forms: ['PM Service'] }],
+    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles', 'M46-models', 'M46-brands'], reports: ['Fleet Availability', 'Maintenance Cost per Vehicle'], forms: ['Vehicle', 'Vehicle Model', 'Vehicle Make'] }],
+    ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-doc-renewals', 'M46-renewal'], reports: ['Statutory Compliance Register'], forms: ['Vehicle Document', 'Document Renewal', 'Off-Road Record'] }],
+    ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour', 'M46-penalties'], reports: [], forms: ['Driver', 'Traffic Penalty'] }],
+    ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'], reports: ['Fleet Availability'], forms: ['Vehicle Booking'] }],
+    ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-defects', 'M46-pm'], reports: ['Maintenance Cost per Vehicle'], forms: ['Pre-Use Check', 'Vehicle Defect', 'PM Service'] }],
     ['6', 'Fuel & Odometer', 8, { model: 'fix.vehicle.fuel', cols: ['vehicle_id', 'filled_on', 'litres', 'odometer', 'amount'], screens: ['M46-fuel', 'M46-cost'], reports: ['Fuel Efficiency Trend'], forms: ['Fuel Transaction'] }],
-    ['7', 'Telematics', 5, { model: 'fix.vehicle.telemetry', cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'state'], screens: ['M46-telematics'], reports: [], forms: [] }],
-    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents'], reports: ['Incident Summary'], forms: ['Accident Report'] }]
+    ['7', 'Telematics', 5, { model: 'fix.telematics.device', cols: ['name', 'vehicle_id', 'sim_number', 'health_state', 'last_report_at', 'state'], screens: ['M46-devices', 'M46-telematics'], reports: [], forms: ['Telematics Device', 'Telemetry Snapshot'] }],
+    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents', 'M46-insurers', 'M46-penalties'], reports: ['Incident Summary'], forms: ['Accident Report', 'Traffic Penalty'] }]
   ] }
 };
 
@@ -115,6 +125,24 @@ export const SCREENS = {
      * accident or service record needs a passed pre-use check recorded after
      * the off-road start, a document record needs the renewal with its scan. */
     actions: [{ m: 'action_return', l: 'Return to Service' }] },
+  /* FR-FLT-013/014: a renewal from initiation to the new certificate, with
+   * its fees. Complete needs the renewed document recorded with its scan; a
+   * renewal that paid a penalty is completed by someone other than the person
+   * responsible for it. */
+  'M46-doc-renewals': { kind: 'model_list', model: 'fix.vehicle.document.renewal', stateField: 'state',
+    note: 'A renewal is opened when a document is due (60/30/15/7/1-day alerts). Mark it submitted when the papers are with BRTA or the insurer; complete it once the new certificate is recorded in Documents & Expiry with its scan. The government fee, agent fee and any late penalty count in Cost per Kilometre.',
+    cols: ['name', 'vehicle_id', 'doc_type', 'document_id', 'expires_on', 'responsible_employee_id', 'initiated_on', 'submitted_on', 'total_cost', 'new_document_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Mark Submitted' },
+      { m: 'action_complete', l: 'Complete Renewal' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the renewal cancelled?', kwarg: 'reason' }
+    ] },
+  /* FR-FLT-025 / BRU-FLT-04: anyone reports a defect; a safety-critical one
+   * takes the vehicle off-road at once, a deferrable one waits for service. */
+  'M46-defects': { kind: 'model_list', model: 'fix.vehicle.defect', stateField: 'state',
+    note: 'Report a defect seen during the day or on the pre-use check. A safety-critical defect takes the vehicle off the road at once; a deferrable one is repaired at the next service. A Fleet Officer other than the reporter clears it, and a safety-critical one only after a passed pre-use check.',
+    cols: ['name', 'vehicle_id', 'raised_on', 'raised_by_id', 'category', 'safety_critical', 'description', 'offroad_id', 'state', 'cleared_by_id'],
+    actions: [{ m: 'action_clear', l: 'Clear Defect', ask: 'What was repaired?', kwarg: 'note' }] },
   'M46-preuse': { kind: 'model_list', model: 'fix.vehicle.check',
     cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'odometer', 'passed', 'defects'] },
   'M46-pm': { kind: 'model_list', model: 'fix.vehicle.pm', stateField: 'state',
@@ -133,8 +161,25 @@ export const SCREENS = {
         { label: 'What shows it (receipt, service record)?', kwarg: 'reason' }
       ] }
     ] },
+  /* FR-FLT-035/036: the tracker is an asset with a SIM, a plan and a fitment. */
+  'M46-devices': { kind: 'model_list', model: 'fix.telematics.device', stateField: 'state',
+    note: 'One device per vehicle. A device moves to another vehicle only by Remove from Vehicle (with the reason) and fitting it again; the history is kept on the device. Health is read from its latest snapshot: silent beyond the configured interval means the vehicle is position-unknown to dispatch.',
+    cols: ['name', 'vehicle_id', 'fitted_on', 'sim_number', 'data_plan_ref', 'firmware', 'provider_id', 'health_state', 'last_report_at', 'state'],
+    actions: [
+      { m: 'action_remove', l: 'Remove from Vehicle', ask: 'Why is the device removed?', kwarg: 'reason' },
+      { m: 'action_retire', l: 'Retire Device', ask: 'Why is the device retired?', kwarg: 'reason' }
+    ] },
   'M46-telematics': { kind: 'model_list', model: 'fix.vehicle.telemetry', stateField: 'state',
-    cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'odometer', 'fuel_level_pct', 'state'] },
+    cols: ['name', 'vehicle_id', 'device_id', 'device_ref', 'last_ping', 'odometer', 'fuel_level_pct', 'state'] },
+  /* FR-FLT-043 / BRU-FLT-16: a fine is the vehicle's and the driver's on duty;
+   * a Logistics Manager who did not record it decides recover or absorb. */
+  'M46-penalties': { kind: 'model_list', model: 'fix.vehicle.penalty', stateField: 'state',
+    note: 'A traffic fine is recorded against the vehicle and the driver on duty (if none is named: the driver booked that day, else the assigned driver). A Fleet Logistics Manager who did not record it decides to recover it from the driver or absorb it, with the reason. A fine is never a disciplinary input (BRU-FLT-17).',
+    cols: ['name', 'vehicle_id', 'driver_id', 'issued_on', 'offence', 'amount', 'paid_on', 'recovery_decision', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_recover', l: 'Recover from Driver', ask: 'Reason for recovering the fine', kwarg: 'reason' },
+      { m: 'action_absorb', l: 'Absorb', ask: 'Reason for absorbing the fine', kwarg: 'reason' }
+    ] },
   'M46-accidents': { kind: 'model_list', model: 'fix.vehicle.accident', stateField: 'state',
     cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'claim_ref', 'insurer_id', 'settlement_amount', 'approval_state', 'state'],
     /* M46-10: the claim carries the insurer's reference; a settlement above
@@ -169,7 +214,8 @@ export const SCREENS = {
     back: 'M46-vehicles',
     tabs: [
       { id: 'register', label: '1. Register', bn: '১. রেজিস্টার', icon: '🚐', badge: '10' },
-      { id: 'value', label: '2. Value & Retirement', bn: '২. মূল্য ও অবসর', icon: '💰', badge: '8' }
+      { id: 'value', label: '2. Value & Retirement', bn: '২. মূল্য ও অবসর', icon: '💰', badge: '8' },
+      { id: 'ownership', label: '3. Ownership', bn: '৩. মালিকানা', icon: '📄', badge: '4' }
     ],
     sections: [
       { tab: 'register', title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet); a plate is registered to one active vehicle. The fitness and insurance dates are read from the statutory document register (record a renewal as a document with its scan); dispatch is decided from the register. The licence class required follows the model (bike = motorcycle, car/van = light); raise it for a medium or heavy vehicle.',
@@ -195,6 +241,13 @@ export const SCREENS = {
           { name: 'fix_retire_reason', label: 'Retirement Reason', readonly: true },
           { name: 'fix_retired_on', label: 'Retired On', readonly: true },
           { name: 'fix_retired_by_id', label: 'Retired By', readonly: true }
+        ] },
+      { tab: 'ownership', title: 'Ownership Basis', note: 'FR-FLT-003. Only an owned vehicle is capitalised in M49 from its purchase value. A leased, hired or employee-owned vehicle names its contract and the contract end; the basis is set by a Fleet Logistics Manager.',
+        fields: [
+          { name: 'fix_ownership_basis', required: true, label: 'Ownership Basis' },
+          { name: 'fix_contract_ref', label: 'Lease / Hire / Reimbursement Contract' },
+          { name: 'fix_contract_end', label: 'Contract End' },
+          { name: 'fix_end_of_term', label: 'End-of-Term Obligation' }
         ] }
     ]
   },
@@ -358,8 +411,12 @@ export const SCREENS = {
     title: 'PM Service',
     back: 'M46-pm',
     status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
+    tabs: [
+      { id: 'schedule', label: '1. Schedule', bn: '১. সময়সূচি', icon: '🗓', badge: '12' },
+      { id: 'execution', label: '2. Execution', bn: '২. সম্পাদন', icon: '🔧', badge: '8' }
+    ],
     sections: [
-      { title: 'Service', note: 'A service is due on its due date or its due odometer, whichever comes first; the daily job flags it overdue. Mark Done (Fleet Officer) needs the odometer at service and a cost of zero or more; a completed PM is locked.',
+      { tab: 'schedule', title: 'Service', note: 'A service is due on its due date or its due odometer, whichever comes first; the daily job flags it overdue. Mark Done (Fleet Officer) needs the odometer at service and a cost of zero or more; a completed PM is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'pm_type', required: true, label: 'Type' },
@@ -373,6 +430,17 @@ export const SCREENS = {
           { name: 'done_on', label: 'Done On', readonly: true },
           { name: 'done_by_id', label: 'Completed By', readonly: true },
           { name: 'notes', label: 'Notes' }
+        ] },
+      { tab: 'execution', title: 'Service Execution', note: 'FR-FLT-027: who did the work, what was done and the invoice M52 pays against (a garage named needs its invoice reference). A next due date or odometer opens the next service when this one is marked done, so the schedule continues.',
+        fields: [
+          { name: 'provider_id', label: 'Garage / Workshop' },
+          { name: 'work_performed', type: 'text', label: 'Work Performed' },
+          { name: 'parts_used', label: 'Parts Used' },
+          { name: 'invoice_ref', label: 'Invoice Ref' },
+          { name: 'downtime_hours', label: 'Downtime (hours)' },
+          { name: 'next_due_date', label: 'Next Service Due (date)' },
+          { name: 'next_due_odometer', label: 'Next Service Due (km)' },
+          { name: 'next_pm_id', label: 'Next Service', readonly: true }
         ] }
     ]
   },
@@ -458,13 +526,143 @@ export const SCREENS = {
       { title: 'Telemetry', note: 'A snapshot of what the device reported, recorded by a Fleet Officer; no live feed is claimed. The state is derived from the last ping: online within the silence interval (cd_vehicle_ext.telematics_silence_minutes), stale after it (the vehicle is position-unknown, and an inspection of the device is raised), offline with no ping. Enter the last ping in your own local time. A saved snapshot is not edited.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
-          { name: 'device_ref', label: 'Telematics Device' },
+          { name: 'device_id', label: 'Registered Device' },
+          { name: 'device_ref', label: 'Device Ref (if not registered)' },
           { name: 'last_ping', label: 'Last Ping' },
           { name: 'odometer', label: 'Odometer (km)' },
           { name: 'fuel_level_pct', label: 'Fuel Level %' },
           { name: 'state', label: 'State', readonly: true }
         ] }
     ]
+  },
+/* ============ capture audit 2026-11-17 ============ */
+  'M46-form-renewal': {
+  kind: 'model_form',
+  model: 'fix.vehicle.document.renewal',
+  title: 'Document Renewal',
+  back: 'M46-doc-renewals',
+  status: { field: 'state', labels: {
+    initiated: 'Initiated', submitted: 'Submitted', completed: 'Completed', cancelled: 'Cancelled' } },
+  tabs: [
+    { id: 'renewal', label: '1. Renewal', bn: '১. নবায়ন', icon: '📑', badge: '9' },
+    { id: 'fees', label: '2. Fees & Completion', bn: '২. ফি ও সমাপ্তি', icon: '💳', badge: '11' }
+  ],
+  sections: [
+    { tab: 'renewal', title: 'Renewal', note: 'Opened by a Fleet Officer for a document that is due or lapsed; one renewal in progress per document. Initiated, then submitted (papers with BRTA or the insurer), then completed once the new certificate is recorded in Documents & Expiry with its scan and chosen as the Renewed Document.',
+      fields: [
+        { name: 'document_id', required: true, label: 'Document Being Renewed' },
+        { name: 'vehicle_id', label: 'Vehicle', readonly: true },
+        { name: 'doc_type', label: 'Document Type', readonly: true },
+        { name: 'expires_on', label: 'Expires On', readonly: true },
+        { name: 'responsible_employee_id', required: true, label: 'Responsible Person' },
+        { name: 'issuing_authority', label: 'Issuing Authority (e.g. BRTA circle)' },
+        { name: 'initiated_on', required: true, label: 'Initiated On' },
+        { name: 'submitted_on', label: 'Submitted On', readonly: true },
+        { name: 'state', label: 'State', readonly: true }
+      ] },
+    { tab: 'fees', title: 'Fees & Completion', note: 'FR-FLT-014: the government fee, agent fee and any late penalty count in Cost per Kilometre. A penalty needs its reason, and a renewal that paid one is completed by someone other than the person responsible for it.',
+      fields: [
+        { name: 'government_fee', label: 'Government Fee' },
+        { name: 'agent_fee', label: 'Agent Fee' },
+        { name: 'penalty', label: 'Late Penalty' },
+        { name: 'penalty_reason', label: 'Why a Penalty Was Paid' },
+        { name: 'total_cost', label: 'Total Cost', readonly: true },
+        { name: 'receipt_file', label: 'Fee Receipt (scan)', type: 'file' },
+        { name: 'receipt_filename', label: 'Fee Receipt File Name' },
+        { name: 'new_document_id', label: 'Renewed Document (recorded with its scan)' },
+        { name: 'completed_by_id', label: 'Completed By', readonly: true },
+        { name: 'completed_on', label: 'Completed On', readonly: true },
+        { name: 'cancel_reason', label: 'Cancellation Reason', readonly: true }
+      ] }
+  ]
+  },
+
+  'M46-form-defect': {
+  kind: 'model_form',
+  model: 'fix.vehicle.defect',
+  title: 'Vehicle Defect',
+  back: 'M46-defects',
+  status: { field: 'state', labels: { open: 'Open', cleared: 'Cleared' } },
+  sections: [
+    { title: 'Defect', note: 'Anyone may report a defect. Tick Safety-Critical for brakes, steering, tyres, lights or anything that makes the vehicle unsafe: it goes off the road at once (BRU-FLT-04). A saved defect is not downgraded. A Fleet Officer other than the reporter clears it; a safety-critical one needs a passed pre-use check after the repair.',
+      fields: [
+        { name: 'vehicle_id', required: true, label: 'Vehicle' },
+        { name: 'raised_on', required: true, label: 'Raised On' },
+        { name: 'category', required: true, label: 'Category' },
+        { name: 'safety_critical', label: 'Safety-Critical' },
+        { name: 'description', required: true, type: 'text', label: 'What Is Wrong' },
+        { name: 'evidence_file', label: 'Photo / Evidence', type: 'file' },
+        { name: 'evidence_filename', label: 'Evidence File Name' },
+        { name: 'raised_by_id', label: 'Raised By', readonly: true },
+        { name: 'offroad_id', label: 'Off-Road Record', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'cleared_by_id', label: 'Cleared By', readonly: true },
+        { name: 'cleared_on', label: 'Cleared On', readonly: true },
+        { name: 'clear_note', label: 'Repair Note', readonly: true },
+        { name: 'clear_check_id', label: 'Re-Check', readonly: true }
+      ] }
+  ]
+  },
+
+  'M46-form-device': {
+  kind: 'model_form',
+  model: 'fix.telematics.device',
+  title: 'Telematics Device',
+  back: 'M46-devices',
+  status: { field: 'state', labels: { stock: 'Not Fitted', fitted: 'Fitted', retired: 'Retired' } },
+  sections: [
+    { title: 'Device', note: 'Registered by a Fleet Officer. A vehicle carries one device; to move a device, use Remove from Vehicle on the list (with the reason) and fit it to the new vehicle here. Telemetry snapshots of a fitted vehicle are linked to its device.',
+      fields: [
+        { name: 'name', required: true, label: 'Device Identifier (IMEI / serial)' },
+        { name: 'provider_id', label: 'Provider' },
+        { name: 'sim_number', label: 'SIM Number' },
+        { name: 'data_plan_ref', label: 'Data Plan' },
+        { name: 'firmware', label: 'Firmware' },
+        { name: 'vehicle_id', label: 'Fitted To' },
+        { name: 'fitted_on', label: 'Fitted On' },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'health_state', label: 'Health', readonly: true },
+        { name: 'last_report_at', label: 'Last Report', readonly: true },
+        { name: 'removed_on', label: 'Last Removed On', readonly: true }
+      ] }
+  ]
+  },
+
+  'M46-form-penalty': {
+  kind: 'model_form',
+  model: 'fix.vehicle.penalty',
+  title: 'Traffic Penalty',
+  back: 'M46-penalties',
+  status: { field: 'state', labels: { recorded: 'Recorded', decided: 'Decided' } },
+  tabs: [
+    { id: 'fine', label: '1. Fine', bn: '১. জরিমানা', icon: '🚓', badge: '11' },
+    { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '⚖', badge: '6' }
+  ],
+  sections: [
+    { tab: 'fine', title: 'Fine', note: 'Recorded by a Fleet Officer against the vehicle and the driver on duty. Leave the driver empty to use the driver booked on the vehicle that day, else its assigned driver.',
+      fields: [
+        { name: 'vehicle_id', required: true, label: 'Vehicle' },
+        { name: 'driver_id', label: 'Driver on Duty' },
+        { name: 'issued_on', required: true, label: 'Issued On' },
+        { name: 'authority', label: 'Issuing Authority' },
+        { name: 'case_ref', label: 'Case / Slip No' },
+        { name: 'offence', required: true, label: 'Offence' },
+        { name: 'amount', required: true, label: 'Amount' },
+        { name: 'evidence_file', label: 'Fine Slip (scan)', type: 'file' },
+        { name: 'evidence_filename', label: 'Fine Slip File Name' },
+        { name: 'paid_on', label: 'Paid On' },
+        { name: 'payment_ref', label: 'Payment Ref' }
+      ] },
+    { tab: 'decision', title: 'Recover or Absorb', note: 'Decided on the list by a Fleet Logistics Manager who did not record the fine (BRU-FLT-16).',
+      fields: [
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+        { name: 'recovery_decision', label: 'Decision', readonly: true },
+        { name: 'decision_reason', label: 'Decision Reason', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true },
+        { name: 'decided_on', label: 'Decided On', readonly: true }
+      ] }
+  ]
   }
 };
 
@@ -490,6 +688,17 @@ export const FORM_CHIPS = {
   'M46:Fuel Transaction': 'M46-form-fuel',
   'M46:Accident Report': 'M46-form-accident',
   'M46:PM Service': 'M46-form-pm',
+  'M46:Vehicle Model': 'M46-form-model',
+  'M46:Vehicle Make': 'M46-form-brand',
+  'M46:Vehicle Document': 'M46-form-document',
+  'M46:Document Renewal': 'M46-form-renewal',
+  'M46:Off-Road Record': 'M46-form-offroad',
+  'M46:Vehicle Booking': 'M46-form-assignment',
+  'M46:Pre-Use Check': 'M46-form-check',
+  'M46:Vehicle Defect': 'M46-form-defect',
+  'M46:Telematics Device': 'M46-form-device',
+  'M46:Telemetry Snapshot': 'M46-form-telemetry',
+  'M46:Traffic Penalty': 'M46-form-penalty',
   'M46:__by_model__': {
     'fleet.vehicle': 'M46-form-vehicle',
     'fix.driver': 'M46-form-driver',
@@ -502,7 +711,11 @@ export const FORM_CHIPS = {
     'fix.vehicle.telemetry': 'M46-form-telemetry',
     'fix.vehicle.assignment': 'M46-form-assignment',
     'fleet.vehicle.model': 'M46-form-model',
-    'fleet.vehicle.model.brand': 'M46-form-brand'
+    'fleet.vehicle.model.brand': 'M46-form-brand',
+    'fix.vehicle.document.renewal': 'M46-form-renewal',
+    'fix.vehicle.defect': 'M46-form-defect',
+    'fix.telematics.device': 'M46-form-device',
+    'fix.vehicle.penalty': 'M46-form-penalty'
   },
   'M46:__by_screen__': {
     'M46-vehicles': 'M46-form-vehicle',
@@ -516,7 +729,11 @@ export const FORM_CHIPS = {
     'M46-pm': 'M46-form-pm',
     'M46-fuel': 'M46-form-fuel',
     'M46-telematics': 'M46-form-telemetry',
-    'M46-accidents': 'M46-form-accident'
+    'M46-accidents': 'M46-form-accident',
+    'M46-doc-renewals': 'M46-form-renewal',
+    'M46-defects': 'M46-form-defect',
+    'M46-devices': 'M46-form-device',
+    'M46-penalties': 'M46-form-penalty'
   }
 };
 

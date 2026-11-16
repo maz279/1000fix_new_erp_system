@@ -580,6 +580,17 @@ WRITABLE = {
             "utility_type",
         }
     ),
+    "fix.telematics.device": frozenset(
+        {
+            "data_plan_ref",
+            "firmware",
+            "fitted_on",
+            "name",
+            "provider_id",
+            "sim_number",
+            "vehicle_id",
+        }
+    ),
     "fix.vehicle.accident": frozenset(
         {
             "claim_ref",
@@ -619,6 +630,17 @@ WRITABLE = {
             "vehicle_id",
         }
     ),
+    "fix.vehicle.defect": frozenset(
+        {
+            "category",
+            "description",
+            "evidence_file",
+            "evidence_filename",
+            "raised_on",
+            "safety_critical",
+            "vehicle_id",
+        }
+    ),
     "fix.vehicle.document": frozenset(
         {
             "doc_type",
@@ -628,6 +650,21 @@ WRITABLE = {
             "valid_from",
             "valid_to",
             "vehicle_id",
+        }
+    ),
+    "fix.vehicle.document.renewal": frozenset(
+        {
+            "agent_fee",
+            "document_id",
+            "government_fee",
+            "initiated_on",
+            "issuing_authority",
+            "new_document_id",
+            "penalty",
+            "penalty_reason",
+            "receipt_file",
+            "receipt_filename",
+            "responsible_employee_id",
         }
     ),
     "fix.vehicle.fuel": frozenset(
@@ -652,20 +689,43 @@ WRITABLE = {
             "vehicle_id",
         }
     ),
+    "fix.vehicle.penalty": frozenset(
+        {
+            "amount",
+            "authority",
+            "case_ref",
+            "driver_id",
+            "evidence_file",
+            "evidence_filename",
+            "issued_on",
+            "offence",
+            "paid_on",
+            "payment_ref",
+            "vehicle_id",
+        }
+    ),
     "fix.vehicle.pm": frozenset(
         {
             "cost",
+            "downtime_hours",
             "due_date",
             "due_odometer",
+            "invoice_ref",
+            "next_due_date",
+            "next_due_odometer",
             "notes",
             "odometer",
+            "parts_used",
             "pm_type",
+            "provider_id",
             "scheduled_on",
             "vehicle_id",
+            "work_performed",
         }
     ),
     "fix.vehicle.telemetry": frozenset(
         {
+            "device_id",
             "device_ref",
             "fuel_level_pct",
             "last_ping",
@@ -677,8 +737,12 @@ WRITABLE = {
         {
             "acquisition_date",
             "branch_id",
+            "fix_contract_end",
+            "fix_contract_ref",
             "fix_driver_id",
+            "fix_end_of_term",
             "fix_licence_class_required",
+            "fix_ownership_basis",
             "fix_tank_capacity_l",
             "license_plate",
             "model_id",

@@ -31,8 +31,13 @@ CD-M46-01 (P08-M08):
   vehicle, failed checks and accidents take the vehicle off-road, fuel hard
   rules refused at entry, insurer and evidence before a claim closes, and
   the domain events the bridge consumes
+- Capture audit (2026-11-17): document renewals with their fees (FR-FLT-013/
+  014), defects classified safety-critical or deferrable (FR-FLT-025), service
+  execution and the next service (FR-FLT-026/027), the telematics device
+  register (FR-FLT-035), traffic fines with a recover-or-absorb decision
+  (FR-FLT-043, BRU-FLT-16) and the vehicle's ownership basis (FR-FLT-003)
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Fleet",

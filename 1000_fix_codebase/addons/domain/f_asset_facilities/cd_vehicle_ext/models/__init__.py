@@ -1,2 +1,3 @@
-# cd_vehicle_ext models.
-from . import fix_vehicle, fix_vehicle_ops
+# cd_vehicle_ext models. Load order matters (each file extends the previous):
+# ruff: noqa: I001
+from . import fix_vehicle, fix_vehicle_ops, fix_vehicle_capture

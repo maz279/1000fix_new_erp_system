@@ -17,3 +17,10 @@ access_fix_vehicle_telemetry_officer,fix.vehicle.telemetry fleet officer,model_f
 access_fix_vehicle_accident,fix.vehicle.accident,model_fix_vehicle_accident,base.group_user,1,1,1,0
 access_fleet_vehicle_model_officer,fleet.vehicle.model fleet officer,fleet.model_fleet_vehicle_model,fleet.fleet_group_user,1,1,1,0
 access_fleet_vehicle_model_brand_officer,fleet.vehicle.model.brand fleet officer,fleet.model_fleet_vehicle_model_brand,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_document_renewal,fix.vehicle.document.renewal,model_fix_vehicle_document_renewal,base.group_user,1,0,0,0
+access_fix_vehicle_document_renewal_officer,fix.vehicle.document.renewal fleet officer,model_fix_vehicle_document_renewal,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_defect,fix.vehicle.defect,model_fix_vehicle_defect,base.group_user,1,1,1,0
+access_fix_telematics_device,fix.telematics.device,model_fix_telematics_device,base.group_user,1,0,0,0
+access_fix_telematics_device_officer,fix.telematics.device fleet officer,model_fix_telematics_device,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_penalty,fix.vehicle.penalty,model_fix_vehicle_penalty,base.group_user,1,0,0,0
+access_fix_vehicle_penalty_officer,fix.vehicle.penalty fleet officer,model_fix_vehicle_penalty,fleet.fleet_group_user,1,1,1,0
