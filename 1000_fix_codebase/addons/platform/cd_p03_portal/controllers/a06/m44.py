@@ -78,7 +78,7 @@ SURFACES = {
     "fix.import.landed": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_post_estimate", "action_finalise"},
+        "actions": {"action_pull_costs", "action_post_estimate", "action_finalise"},
     },
     "fix.import.tariff": {
         "order": "hs_code, date_from desc",
@@ -119,6 +119,23 @@ SURFACES = {
         "order": "cover_to desc, id desc",
         "limit": 300,
         "actions": {"action_verify", "action_cancel"},
+    },
+    # capture audit 2026-11-16: cost documents (BRU-ITC-16), LC discrepancies
+    # (FR-ITC-016) and customs queries (FR-ITC-028)
+    "fix.import.cost": {
+        "order": "incurred_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_reconcile", "action_reject"},
+    },
+    "fix.import.lc.discrepancy": {
+        "order": "raised_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_accept", "action_refuse"},
+    },
+    "fix.import.customs.query": {
+        "order": "raised_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_answer", "action_resolve"},
     },
 }
 

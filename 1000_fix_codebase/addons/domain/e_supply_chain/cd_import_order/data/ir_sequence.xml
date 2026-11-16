@@ -78,5 +78,26 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_import_cost" model="ir.sequence">
+            <field name="name">Import Cost Document</field>
+            <field name="code">fix.import.cost</field>
+            <field name="prefix">ICOST/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_import_lc_discrepancy" model="ir.sequence">
+            <field name="name">LC Discrepancy</field>
+            <field name="code">fix.import.lc.discrepancy</field>
+            <field name="prefix">ILCD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_import_customs_query" model="ir.sequence">
+            <field name="name">Customs Query</field>
+            <field name="code">fix.import.customs.query</field>
+            <field name="prefix">ICQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

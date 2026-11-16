@@ -198,4 +198,37 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_import_cost_company" model="ir.rule">
+        <field name="name">fix.import.cost: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_cost"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_cost_operating_unit" model="ir.rule">
+        <field name="name">fix.import.cost: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_cost"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_discrepancy_company" model="ir.rule">
+        <field name="name">fix.import.lc.discrepancy: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_lc_discrepancy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_lc_discrepancy_operating_unit" model="ir.rule">
+        <field name="name">fix.import.lc.discrepancy: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_lc_discrepancy"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_import_customs_query_company" model="ir.rule">
+        <field name="name">fix.import.customs.query: allowed companies</field>
+        <field name="model_id" ref="model_fix_import_customs_query"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_import_customs_query_operating_unit" model="ir.rule">
+        <field name="name">fix.import.customs.query: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_import_customs_query"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

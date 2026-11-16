@@ -193,14 +193,18 @@ WRITABLE = {
     "fix.import.arrival": frozenset(
         {
             "bl_no",
+            "booking_ref",
+            "carrier",
             "cnf_agent_id",
             "demurrage_cause",
             "demurrage_note",
             "eta",
             "etd",
+            "forwarder_id",
             "free_days",
             "order_id",
             "port",
+            "port_of_loading",
             "release_ref",
             "vessel",
         }
@@ -225,6 +229,36 @@ WRITABLE = {
             "licence_no",
             "name",
             "supplier_id",
+        }
+    ),
+    "fix.import.cost": frozenset(
+        {
+            "amount",
+            "billed_by_id",
+            "category",
+            "cnf_agent_id",
+            "currency_id",
+            "document",
+            "document_name",
+            "document_ref",
+            "expected_amount",
+            "incurred_on",
+            "lc_id",
+            "order_id",
+            "rate",
+            "rate_source",
+            "variance_cause",
+            "variance_note",
+        }
+    ),
+    "fix.import.customs.query": frozenset(
+        {
+            "boe_id",
+            "description",
+            "examination_result",
+            "query_ref",
+            "query_type",
+            "raised_on",
         }
     ),
     "fix.import.hs": frozenset(
@@ -287,6 +321,17 @@ WRITABLE = {
             "new_amount",
             "new_expiry",
             "reason",
+        }
+    ),
+    "fix.import.lc.discrepancy": frozenset(
+        {
+            "delay_days",
+            "description",
+            "discrepancy_fee",
+            "lc_id",
+            "presentation_ref",
+            "raised_by_bank",
+            "raised_on",
         }
     ),
     "fix.import.lc.payment": frozenset(

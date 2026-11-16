@@ -524,9 +524,9 @@ class FixImportOrder(models.Model):
     # ---- close --------------------------------------------------------------
     def action_close(self):
         """BRU-ITC-18: a fully received, finally costed order is closed by an
-        Import Approver, with nothing left open against it. Cost documents
-        (agent, port, bank invoices) are not reconciled here yet: BRU-ITC-16
-        has no document model."""
+        Import Approver, with nothing left open against it. Unreconciled cost
+        documents (agent, port, bank bills) are refused by the
+        fix_import_capture override (BRU-ITC-16)."""
         require_group(self.env, APPROVER, "Closing an import order")
         for rec in self:
             su = rec.sudo()

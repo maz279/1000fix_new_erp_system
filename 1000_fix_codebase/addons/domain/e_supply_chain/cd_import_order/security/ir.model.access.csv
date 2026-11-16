@@ -58,3 +58,13 @@ access_fix_import_advance_officer,fix.import.advance.officer,model_fix_import_ad
 access_fix_import_advance_approver,fix.import.advance.approver,model_fix_import_advance,group_fix_import_approver,1,1,0,0
 access_fix_import_proforma_line,fix.import.proforma.line,model_fix_import_proforma_line,base.group_user,1,0,0,0
 access_fix_import_proforma_line_officer,fix.import.proforma.line.officer,model_fix_import_proforma_line,group_fix_import_officer,1,1,1,1
+access_fix_import_cost,fix.import.cost,model_fix_import_cost,base.group_user,1,0,0,0
+access_fix_import_cost_officer,fix.import.cost.officer,model_fix_import_cost,group_fix_import_officer,1,1,1,0
+access_fix_import_cost_approver,fix.import.cost.approver,model_fix_import_cost,group_fix_import_approver,1,1,0,0
+access_fix_import_cost_finance,fix.import.cost.finance,model_fix_import_cost,account.group_account_user,1,1,1,0
+access_fix_import_lc_discrepancy,fix.import.lc.discrepancy,model_fix_import_lc_discrepancy,base.group_user,1,0,0,0
+access_fix_import_lc_discrepancy_officer,fix.import.lc.discrepancy.officer,model_fix_import_lc_discrepancy,group_fix_import_officer,1,1,1,0
+access_fix_import_lc_discrepancy_approver,fix.import.lc.discrepancy.approver,model_fix_import_lc_discrepancy,group_fix_import_approver,1,1,0,0
+access_fix_import_customs_query,fix.import.customs.query,model_fix_import_customs_query,base.group_user,1,0,0,0
+access_fix_import_customs_query_officer,fix.import.customs.query.officer,model_fix_import_customs_query,group_fix_import_officer,1,1,1,0
+access_fix_import_customs_query_approver,fix.import.customs.query.approver,model_fix_import_customs_query,group_fix_import_approver,1,1,0,0

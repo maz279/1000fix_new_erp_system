@@ -2,7 +2,13 @@
 /* A06 · Supply Chain — M44 Import, Trade Compliance & Landed Cost (v2 rebuild).
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 64.
  * The import order existed; proforma/LC/LCA, HS, IRC, shipping documents,
- * arrivals, bills of entry with the duty cascade and landed-cost sheets are new. */
+ * arrivals, bills of entry with the duty cascade and landed-cost sheets are new.
+ * Capture audit (2026-11-16): every sub-module page captures each record it
+ * covers. Eight working lists (amendments, payments, advances, tariff,
+ * restrictions, permits, C&F agents, insurance) sat on no page; pages 4, 5
+ * and 8 offered no chip; the cost documents (FR-ITC-018/030/031, BRU-ITC-16),
+ * LC discrepancies (FR-ITC-016) and customs queries (FR-ITC-028) did not
+ * exist; the shipment named no freight forwarder (FR-ITC-021). */
 
 export const MODULE = {
   area: 'A06', code: 'M44', en: 'Import & Trade Compliance', title: 'M44 · Import & Trade Compliance',
@@ -23,6 +29,7 @@ export const MODULE = {
       { id: 'M44-lc', en: 'Letters of Credit', bn: 'এলসি', t: 'g' },
       { id: 'M44-lc-amend', en: 'LC Amendments', bn: 'এলসি সংশোধন', t: 'g' },
       { id: 'M44-lc-pay', en: 'LC Payments', bn: 'এলসি পেমেন্ট', t: 'g' },
+      { id: 'M44-discrepancy', en: 'LC Discrepancies', bn: 'এলসি অসঙ্গতি', t: 'g' },
       { id: 'M44-advance', en: 'Advance Payments', bn: 'অগ্রিম পেমেন্ট', t: 'g' },
       { id: 'M44-incoterms', en: 'Incoterms & FX', bn: 'ইনকোটার্ম ও এফএক্স', t: 'r' }
     ]},
@@ -40,12 +47,14 @@ export const MODULE = {
       { id: 'M44-agent', en: 'C&F Agents', bn: 'সিএন্ডএফ এজেন্ট', t: 'g' },
       { id: 'M44-arrival', en: 'Arrival & Port Handling', bn: 'আগমন ও বন্দর', t: 'g' },
       { id: 'M44-boe', en: 'Bill of Entry (ASYCUDA)', bn: 'বিল অব এন্ট্রি', t: 'g' },
+      { id: 'M44-queries', en: 'Customs Queries & Examination', bn: 'কাস্টমস প্রশ্ন ও পরীক্ষা', t: 'g' },
       { id: 'M44-duty', en: 'Duty Cascade (CD/RD/SD/VAT/AT/AIT)', bn: 'শুল্ক ক্যাসকেড', t: 'r' },
       { id: 'M44-boe-match', en: 'Bill of Entry to Remittance', bn: 'বিল অব এন্ট্রি ও রেমিট্যান্স', t: 'r' },
       { id: 'M44-doc-pack', en: 'Document Checklist (ASYCUDA/BSW Pack)', bn: 'নথি চেকলিস্ট', t: 'r' }
     ]},
     { en: 'Costing', screens: [
       { id: 'M44-landed', en: 'Landed Cost Allocation', bn: 'ল্যান্ডেড কস্ট', t: 'g' },
+      { id: 'M44-costs', en: 'Import Cost Documents', bn: 'আমদানি খরচের নথি', t: 'g' },
       { id: 'M44-cf', en: 'C&F Management', bn: 'সিএন্ডএফ ম্যানেজমেন্ট', t: 'r' }
     ]}
   ],
@@ -53,14 +62,14 @@ export const MODULE = {
   forms: ['Import Order', 'LC Application', 'HS Ruling Request', 'Bill of Entry'],
   cross: ['M16 import POs', 'M50 trade finance', 'M51 import VAT/duty', 'M15 landed cost'],
   freg: { src: 64, sub: [
-    ['1', 'Import Order Lifecycle', 9, { model: 'fix.import.order', cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'state'], screens: ['M44-orders', 'M44-proforma'], reports: ['Cycle-Time Analysis'], forms: ['Import Order'] }],
-    ['2', 'LC & Payments', 10, { model: 'fix.import.lc', cols: ['lc_no', 'order_id', 'bank', 'amount', 'state'], screens: ['M44-lc', 'M44-incoterms'], reports: ['FX Exposure', 'Bill of Entry to Remittance'], forms: ['LC Application'] }],
-    ['3', 'HS Classification', 7, { model: 'fix.import.hs', cols: ['product_id', 'hs_code', 'description', 'cd_pct', 'state'], screens: ['M44-hs'], reports: [], forms: ['HS Ruling Request'] }],
-    ['4', 'Eligibility & IRC', 5, { model: 'fix.import.irc', cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'], screens: ['M44-irc', 'M44-lca'], reports: ['Document Checklist'], forms: [] }],
-    ['5', 'Shipping & Insurance', 8, { model: 'fix.import.shipdoc', cols: ['name', 'order_id', 'doc_type', 'ref', 'state'], screens: ['M44-docs'], reports: ['Document Checklist'], forms: [] }],
-    ['6', 'Port & Customs', 9, { model: 'fix.import.arrival', cols: ['name', 'order_id', 'vessel', 'arrival_date', 'demurrage_days'], screens: ['M44-arrival', 'M44-boe', 'M44-cf'], reports: ['Demurrage Avoidance'], forms: ['Bill of Entry'] }],
-    ['7', 'Duty Computation', 8, { model: 'fix.import.boe', cols: ['boe_no', 'order_id', 'cd_amount', 'vat_amount', 'total_tax'], screens: ['M44-duty', 'M44-boe'], reports: ['Duty & Tax Cascade'], forms: ['Bill of Entry'] }],
-    ['8', 'Landed Cost', 8, { model: 'fix.import.landed', cols: ['name', 'order_id', 'freight', 'duty', 'total_landed'], screens: ['M44-landed'], reports: ['Landed Cost by Shipment'], forms: [] }]
+    ['1', 'Import Order Lifecycle', 9, { model: 'fix.import.order', cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'state'], screens: ['M44-orders', 'M44-proforma'], reports: ['Cycle-Time Analysis'], forms: ['Import Order', 'Proforma Invoice'] }],
+    ['2', 'LC & Payments', 10, { model: 'fix.import.lc', cols: ['lc_no', 'order_id', 'bank', 'amount', 'state'], screens: ['M44-lc', 'M44-lca', 'M44-lc-amend', 'M44-discrepancy', 'M44-lc-pay', 'M44-advance', 'M44-costs', 'M44-incoterms'], reports: ['FX Exposure', 'Bill of Entry to Remittance'], forms: ['LC Application', 'LCA', 'LC Amendment', 'LC Discrepancy', 'LC Payment', 'Advance Payment', 'Import Cost Document'] }],
+    ['3', 'HS Classification', 7, { model: 'fix.import.hs', cols: ['product_id', 'hs_code', 'description', 'cd_pct', 'state'], screens: ['M44-hs', 'M44-tariff'], reports: [], forms: ['HS Ruling Request', 'Tariff Rate'] }],
+    ['4', 'Eligibility & IRC', 5, { model: 'fix.import.irc', cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'], screens: ['M44-irc', 'M44-restriction', 'M44-permit', 'M44-lca'], reports: ['Document Checklist'], forms: ['IRC Register', 'Import Restriction', 'Import Permit', 'LCA'] }],
+    ['5', 'Shipping & Insurance', 8, { model: 'fix.import.shipdoc', cols: ['name', 'order_id', 'doc_type', 'ref', 'state'], screens: ['M44-docs', 'M44-arrival', 'M44-insurance'], reports: ['Document Checklist'], forms: ['Shipping Document', 'Shipment Booking & Arrival', 'Cargo Insurance'] }],
+    ['6', 'Port & Customs', 9, { model: 'fix.import.arrival', cols: ['name', 'order_id', 'vessel', 'arrival_date', 'demurrage_days'], screens: ['M44-arrival', 'M44-boe', 'M44-queries', 'M44-agent', 'M44-costs', 'M44-cf'], reports: ['Demurrage Avoidance'], forms: ['Shipment Booking & Arrival', 'Bill of Entry', 'Customs Query', 'C&F Agent', 'Import Cost Document'] }],
+    ['7', 'Duty Computation', 8, { model: 'fix.import.boe', cols: ['boe_no', 'order_id', 'cd_amount', 'vat_amount', 'total_tax'], screens: ['M44-duty', 'M44-boe', 'M44-tariff'], reports: ['Duty & Tax Cascade'], forms: ['Bill of Entry', 'Tariff Rate'] }],
+    ['8', 'Landed Cost', 8, { model: 'fix.import.landed', cols: ['name', 'order_id', 'freight', 'duty', 'total_landed'], screens: ['M44-landed', 'M44-costs'], reports: ['Landed Cost by Shipment'], forms: ['Landed Cost Sheet', 'Import Cost Document'] }]
   ] }
 };
 
@@ -146,7 +155,7 @@ export const SCREENS = {
       { m: 'action_verify', l: 'Verify' }
     ] },
   'M44-arrival': { kind: 'model_list', model: 'fix.import.arrival', stateField: 'state',
-    cols: ['name', 'order_id', 'vessel', 'eta', 'arrival_date', 'demurrage_days', 'demurrage_cause', 'release_ref', 'state'],
+    cols: ['name', 'order_id', 'forwarder_id', 'vessel', 'eta', 'arrival_date', 'demurrage_days', 'demurrage_cause', 'release_ref', 'state'],
     actions: [
       { m: 'action_arrive', l: 'Mark Arrived', ask: 'Actual arrival date, YYYY-MM-DD (empty = today)', kwarg: 'arrival_date' },
       { m: 'action_clear', l: 'Clear' }
@@ -166,6 +175,7 @@ export const SCREENS = {
   'M44-landed': { kind: 'model_list', model: 'fix.import.landed', stateField: 'state',
     cols: ['name', 'order_id', 'sheet_type', 'freight', 'insurance', 'duty', 'clearing_charges', 'bank_charges', 'total_landed', 'state'],
     actions: [
+      { m: 'action_pull_costs', l: 'Fill from Cost Documents', states: ['draft'] },
       { m: 'action_post_estimate', l: 'Post Estimate' },
       { m: 'action_finalise', l: 'Finalise Sheet' }
     ] },
@@ -513,19 +523,30 @@ export const SCREENS = {
   'M44-form-arrival': {
     kind: 'model_form',
     model: 'fix.import.arrival',
-    title: 'Shipment Arrival',
+    title: 'Shipment Booking & Arrival',
     back: 'M44-arrival',
     status: { field: 'state', labels: {
       in_transit: 'In Transit', arrived: 'Arrived', cleared: 'Cleared' } },
+    tabs: [
+      { id: 'booking', label: '1. Booking', bn: '১. বুকিং', icon: '🚢', badge: '10' },
+      { id: 'port', label: '2. Arrival & Clearance', bn: '২. আগমন ও খালাস', icon: '⚓', badge: '6' }
+    ],
     sections: [
-      { title: 'Arrival', note: 'Free time runs from the actual arrival; demurrage is computed to release, and a shipment past its free time raises a to-do and needs a cause before it clears. Clearance needs a paid Bill of Entry and the customs release order number.',
+      { tab: 'booking', title: 'Freight booking', note: 'Book the shipment with a freight forwarder active in M42 (BRU-ITC-12) while it is in transit; the booking is fixed once the shipment arrives.',
         fields: [
           { name: 'order_id', required: true, label: 'Import Order' },
+          { name: 'forwarder_id', label: 'Freight Forwarder (M42)', domain: [['status', '=', 'active']], emptyNote: 'No supplier is active in M42 yet. A forwarder is instructed only once a Supplier Approver activates it in M42 Supplier Management (BRU-ITC-12).' },
+          { name: 'carrier', label: 'Carrier / Shipping Line' },
+          { name: 'booking_ref', label: 'Booking Ref' },
+          { name: 'port_of_loading', label: 'Port of Loading' },
           { name: 'vessel', label: 'Vessel / Flight' },
           { name: 'bl_no', label: 'B/L No' },
-          { name: 'port', label: 'Port' },
+          { name: 'port', label: 'Port of Discharge' },
           { name: 'etd', label: 'ETD' },
-          { name: 'eta', label: 'ETA' },
+          { name: 'eta', label: 'ETA' }
+        ] },
+      { tab: 'port', title: 'Arrival & clearance', note: 'Free time runs from the actual arrival; demurrage is computed to release, and a shipment past its free time raises a to-do and needs a cause before it clears. Clearance needs a paid Bill of Entry and the customs release order number.',
+        fields: [
           { name: 'free_days', label: 'Free Days' },
           { name: 'cnf_agent_id', label: 'C&F Agent', domain: [['state', '=', 'approved']] },
           { name: 'release_ref', label: 'Customs Release Order No' },
@@ -727,8 +748,111 @@ export const SCREENS = {
           { name: 'cover_to', required: true, label: 'Cover To' }
         ] }
     ]
-  }
+  },
 
+  /* ---- capture audit 2026-11-16: cost documents, LC discrepancies, customs queries ---- */
+  'M44-costs': { kind: 'model_list', model: 'fix.import.cost', stateField: 'state',
+    cols: ['name', 'order_id', 'category', 'billed_by_id', 'document_ref', 'incurred_on', 'amount', 'currency_id', 'amount_bdt', 'variance', 'state'],
+    actions: [
+      { m: 'action_reconcile', l: 'Reconcile', states: ['draft'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the cost document is rejected', kwarg: 'reason', states: ['draft'] }
+    ] },
+  'M44-discrepancy': { kind: 'model_list', model: 'fix.import.lc.discrepancy', stateField: 'state',
+    cols: ['name', 'lc_id', 'raised_by_bank', 'raised_on', 'discrepancy_fee', 'delay_days', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_accept', l: 'Accept (Waive)', ask: 'Why the discrepancy is accepted', kwarg: 'reason', states: ['open'] },
+      { m: 'action_refuse', l: 'Refuse', ask: 'Why the discrepancy is refused', kwarg: 'reason', states: ['open'] }
+    ] },
+  'M44-queries': { kind: 'model_list', model: 'fix.import.customs.query', stateField: 'state',
+    cols: ['name', 'boe_id', 'query_type', 'raised_on', 'examination_result', 'responded_on', 'resolved_on', 'state'],
+    actions: [
+      { m: 'action_answer', l: 'Record Response', ask: 'The response given to customs', kwarg: 'response', states: ['open'] },
+      { m: 'action_resolve', l: 'Resolve', ask: 'What customs decided', kwarg: 'outcome', states: ['answered'] }
+    ] },
+
+  'M44-form-cost': {
+    kind: 'model_form',
+    model: 'fix.import.cost',
+    title: 'Import Cost Document',
+    back: 'M44-costs',
+    status: { field: 'state', labels: { draft: 'Recorded', reconciled: 'Reconciled', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'doc', label: '1. Document', bn: '১. নথি', icon: '🧾', badge: '9' },
+      { id: 'amount', label: '2. Amount & Reconciliation', bn: '২. পরিমাণ ও মিলকরণ', icon: '💱', badge: '12' }
+    ],
+    sections: [
+      { tab: 'doc', title: 'Cost document', note: 'One bill or bank advice of the consignment: forwarder, C&F agent, port, bank, inland transport or insurer. Attach its copy. Reconciled by an Import Approver who did not record it; reconciled documents are what Fill from Cost Documents puts on the landed-cost sheet, and the final sheet must agree with them (BRU-ITC-16). VAT, AT and AIT are never cost documents: they come from the Bill of Entry and are recoverable.',
+        fields: [
+          { name: 'order_id', required: true, label: 'Import Order', domain: [['state', '!=', 'closed']] },
+          { name: 'category', required: true, label: 'Cost Category' },
+          { name: 'billed_by_id', required: true, label: 'Billed By' },
+          { name: 'cnf_agent_id', label: 'C&F Agent (for an agency fee)' },
+          { name: 'lc_id', label: 'Letter of Credit (for a bank charge)' },
+          { name: 'document_ref', required: true, label: 'Bill / Advice No' },
+          { name: 'incurred_on', required: true, label: 'Document Date' },
+          { name: 'document', type: 'binary', filename: 'document_name', accept: '.pdf,.jpg,.jpeg,.png', label: 'Bill / Advice (copy)' },
+          { name: 'document_name', label: 'File Name' }
+        ] },
+      { tab: 'amount', title: 'Amount & reconciliation', note: 'A foreign-currency document carries its rate to BDT and the rate source (BRU-ITC-14). Enter the agreed tariff or quotation to reconcile against: a variance beyond the tolerance (cd_import_order.cost_variance_tolerance_pct, default 0%) needs its cause before reconciliation.',
+        fields: [
+          { name: 'currency_id', required: true, label: 'Currency' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'rate', label: 'Rate (BDT per unit)' },
+          { name: 'rate_source', label: 'Rate Source' },
+          { name: 'expected_amount', label: 'Agreed / Quoted Amount' },
+          { name: 'variance_cause', label: 'Variance Cause' },
+          { name: 'variance_note', label: 'Variance Note' },
+          { name: 'amount_bdt', readonly: true, label: 'Amount (BDT)' },
+          { name: 'variance', readonly: true, label: 'Variance' },
+          { name: 'landed_bucket', readonly: true, label: 'Capitalised Into' },
+          { name: 'reconciled_by_id', readonly: true, label: 'Reconciled By' },
+          { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' }
+        ] }
+    ]
+  },
+
+  'M44-form-discrepancy': {
+    kind: 'model_form',
+    model: 'fix.import.lc.discrepancy',
+    title: 'LC Discrepancy',
+    back: 'M44-discrepancy',
+    status: { field: 'state', labels: { open: 'Open', accepted: 'Accepted (waived)', refused: 'Refused' } },
+    sections: [
+      { title: 'Discrepancy', note: 'Raised by the negotiating bank on documents presented under an opened LC. No payment is recorded under the LC until an Import Approver who did not record it accepts or refuses it (FR-ITC-016). Record the discrepancy fee, once billed, as an LC and bank charge cost document.',
+        fields: [
+          { name: 'lc_id', required: true, label: 'Letter of Credit', domain: [['state', 'in', ['opened', 'amended']]] },
+          { name: 'raised_by_bank', required: true, label: 'Raised By (Bank)' },
+          { name: 'presentation_ref', label: 'Presentation / Bank Ref' },
+          { name: 'raised_on', required: true, label: 'Raised On' },
+          { name: 'description', type: 'text', required: true, label: 'Discrepancy' },
+          { name: 'discrepancy_fee', label: 'Discrepancy Fee (LC currency)' },
+          { name: 'delay_days', label: 'Delay (days)' },
+          { name: 'decided_by_id', readonly: true, label: 'Decided By' },
+          { name: 'decision_reason', readonly: true, label: 'Decision Reason' }
+        ] }
+    ]
+  },
+
+  'M44-form-query': {
+    kind: 'model_form',
+    model: 'fix.import.customs.query',
+    title: 'Customs Query',
+    back: 'M44-queries',
+    status: { field: 'state', labels: { open: 'Open', answered: 'Answered', resolved: 'Resolved' } },
+    sections: [
+      { title: 'Query / examination', note: 'A classification, valuation or document query, or a physical examination, raised by customs on a lodged Bill of Entry. The Bill of Entry is not assessed while a query is unresolved (FR-ITC-028). Record the response and then the customs decision with the actions on the list.',
+        fields: [
+          { name: 'boe_id', required: true, label: 'Bill of Entry', domain: [['state', '=', 'draft']] },
+          { name: 'query_type', required: true, label: 'Query Type' },
+          { name: 'query_ref', label: 'Customs Query Ref' },
+          { name: 'raised_on', required: true, label: 'Raised On' },
+          { name: 'description', type: 'text', required: true, label: 'Query' },
+          { name: 'examination_result', label: 'Examination Result' },
+          { name: 'response', readonly: true, label: 'Response' },
+          { name: 'outcome', readonly: true, label: 'Customs Decision' }
+        ] }
+    ]
+  }
 };
 
 export const REPORT_ROUTES = {
@@ -750,6 +874,23 @@ export const FORM_MODELS = {
 
 export const FORM_CHIPS = {
   'M44:Import Order': 'M44-form-order',
+  'M44:Proforma Invoice': 'M44-form-proforma',
+  'M44:LCA': 'M44-form-lca',
+  'M44:LC Amendment': 'M44-form-lc-amend',
+  'M44:LC Discrepancy': 'M44-form-discrepancy',
+  'M44:LC Payment': 'M44-form-lc-pay',
+  'M44:Advance Payment': 'M44-form-advance',
+  'M44:Tariff Rate': 'M44-form-tariff',
+  'M44:IRC Register': 'M44-form-irc',
+  'M44:Import Restriction': 'M44-form-restriction',
+  'M44:Import Permit': 'M44-form-permit',
+  'M44:Shipping Document': 'M44-form-shipdoc',
+  'M44:Shipment Booking & Arrival': 'M44-form-arrival',
+  'M44:Cargo Insurance': 'M44-form-insurance',
+  'M44:Customs Query': 'M44-form-query',
+  'M44:C&F Agent': 'M44-form-agent',
+  'M44:Landed Cost Sheet': 'M44-form-landed',
+  'M44:Import Cost Document': 'M44-form-cost',
   'M44:LC Application': 'M44-form-lc',
   'M44:HS Ruling Request': 'M44-form-hs',
   'M44:Bill of Entry': 'M44-form-boe',
@@ -771,7 +912,10 @@ export const FORM_CHIPS = {
     'fix.import.permit': 'M44-form-permit',
     'fix.import.cnf.agent': 'M44-form-agent',
     'fix.import.insurance': 'M44-form-insurance',
-    'fix.import.advance': 'M44-form-advance'
+    'fix.import.advance': 'M44-form-advance',
+    'fix.import.cost': 'M44-form-cost',
+    'fix.import.lc.discrepancy': 'M44-form-discrepancy',
+    'fix.import.customs.query': 'M44-form-query'
   },
   'M44:__by_screen__': {
     'M44-orders': 'M44-form-order',
@@ -791,7 +935,10 @@ export const FORM_CHIPS = {
     'M44-permit': 'M44-form-permit',
     'M44-agent': 'M44-form-agent',
     'M44-insurance': 'M44-form-insurance',
-    'M44-advance': 'M44-form-advance'
+    'M44-advance': 'M44-form-advance',
+    'M44-costs': 'M44-form-cost',
+    'M44-discrepancy': 'M44-form-discrepancy',
+    'M44-queries': 'M44-form-query'
   }
 };
 
