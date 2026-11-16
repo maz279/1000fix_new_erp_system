@@ -94,14 +94,17 @@ Also:
   Every new decision is two-person (renewal with a penalty, defect clearance, fine decision), so a second officer or manager is needed before those can complete.
 - **Test environment:** the `fix_test` template's 53,624-event outbox backlog makes the relay tests fail on every clone. Draining it (or relaying it once in the template) is a test-estate task.
 
-## 5. State
+## 5. State — deployed 17 Nov 2026 (user-approved "Yes, deploy it")
 
-Committed on its own branch, `fix/m46-capture-buttons` (from 48184ca8), with all commit hooks run. **Not merged into `fix/a03-live-data-and-pending-work`, not pushed, not deployed to fix_real.** A deploy attempt (`-u` on fix_real after a verified backup, `_migration/backups/fix_real_pre_m46_capture_2026-11-17.dump`, 49 MB) was refused by the session's safety check: it needs the owner's explicit go-ahead.
-
-The branch is kept apart on purpose. The running 8069 serves the shared checkout. Landing new `fleet.vehicle` columns there before `-u` on fix_real would break vehicle reads on the next restart. So merge and deploy go together:
-1. back up fix_real;
-2. run `-u cd_vehicle_ext,cd_asset_finance_hse_bridge,cd_p03_portal`;
-3. restart 8069 once;
-4. probe the served models.
-
-`controllers/a07/writable.py` is also changed by the uncommitted M45 work in `m45cap-wt`. Whichever lands second regenerates it with `form_fields.py --a07`. The file is generated from the forms, so the union is reproduced exactly.
+- Commits 14a1e3bf (fix), b67fe42a and 4a80b3fa (report) were made on `fix/m46-capture-buttons`. All commit hooks passed.
+- `fix/a03-live-data-and-pending-work` was fast-forwarded to them with a compare-and-swap `update-ref` from 48184ca8, and the shared checkout's files were synced. **Not pushed.**
+- fix_real:
+  - Backup: `all_working_folder/1000fix-2/_migration/backups/fix_real_pre_m46_deploy_2026-11-17.dump` (49 MB). An earlier one, `fix_real_pre_m46_capture_2026-11-17.dump`, also exists.
+  - Ran `-u cd_vehicle_ext,cd_asset_finance_hse_bridge,cd_p03_portal`: exit 0, no errors. cd_vehicle_ext is now 19.0.0.4.0; the 4 new tables and the ownership column exist.
+- 8069 was restarted once: the supervisor loop relaunched it in about 2 s (PID 49012). Registry: 155 modules, 0 errors, 0 "Failed to load registry".
+- Verified on the deployed code:
+  - all four new models exist and are served (`p03_generic_api.SURFACES`);
+  - the ownership and service-execution fields exist;
+  - the served bundle `web.assets_web` 88d58bb (HTTP 200) contains the four new forms, the new lists and the chips.
+- **fix_dev (8090) was not upgraded.** It runs from the same checkout. Like the earlier capture deploys, it needs `-u` before its next restart, or its vehicle screens will miss the new columns.
+- The 14 relay-test failures are pre-existing on `fix_test` (see §3) and are a test-estate task.
