@@ -38,6 +38,7 @@ SURFACES = {
             "action_reject",
             "action_reset_draft",
             "action_confirm_tds_category",
+            "action_open_match_case",
         },
     },
     "fix.expense.claim": {
@@ -93,6 +94,36 @@ SURFACES = {
         "order": "batch_id desc, row_no",
         "limit": 500,
         "actions": set(),
+    },
+    # M52 capture audit (2026-11-17): the records each sub-module page captures.
+    "fix.ap.match.tolerance": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+    "fix.ap.match.exception": {"order": "id desc", "limit": 300, "actions": {"action_resolve"}},
+    "fix.ap.dispute": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_resolve", "action_withdraw"},
+    },
+    "fix.ap.vendor.statement": {
+        "order": "statement_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_compare", "action_sign_off"},
+    },
+    "fix.ap.ageing.snapshot": {"order": "as_of desc, id desc", "limit": 200, "actions": set()},
+    "fix.ap.ageing.snapshot.line": {"order": "id desc", "limit": 1000, "actions": set()},
+    "fix.ap.grni.accrual": {
+        "order": "period_end desc, id desc",
+        "limit": 100,
+        "actions": {"action_compute", "action_confirm"},
+    },
+    "fix.expense.card": {"order": "id desc", "limit": 300, "actions": set()},
+    "fix.expense.card.transaction": {
+        "order": "txn_date desc, id desc",
+        "limit": 500,
+        "actions": {"action_explain", "action_approve", "action_dispute", "action_reopen"},
     },
     # A08 M52-7: a line's receipt is attached on the line's own form. Read as the
     # caller: a plain user sees the lines of their own claims only.
@@ -181,56 +212,20 @@ def kpis(env):
     return out
 
 
-BUCKETS = [
-    ("current", "Not Due"),
-    ("d1_30", "1-30"),
-    ("d31_60", "31-60"),
-    ("d61_90", "61-90"),
-    ("d90", "90+"),
-]
-
-
-def _bucket(days):
-    if days <= 0:
-        return "current"
-    if days <= 30:
-        return "d1_30"
-    if days <= 60:
-        return "d31_60"
-    if days <= 90:
-        return "d61_90"
-    return "d90"
-
-
 def ap_ageing(env, date_from=None, date_to=None, **params):
     """AP ageing by vendor: approved, unpaid bills by days past due at the
-    as-of date (period end), less approved notes not yet netted."""
+    as-of date (period end), less approved notes not yet netted. The same
+    computation a kept ageing snapshot freezes."""
+    from odoo.addons.cd_ap_ext.models.fix_ap_capture import BUCKETS, ageing_by_vendor
+
     as_of = fields.Date.to_date(date_to) if date_to else _today(env)
-    bills = env["fix.vendor.invoice"].search(
-        [
-            *_companies(env),
-            ("approval_state", "=", "approved"),
-            ("payment_state", "!=", "paid"),
-            ("invoice_date", "<=", as_of),
-        ]
-    )
-    notes = env["fix.vendor.note"].search(
-        [*_companies(env), ("state", "=", "approved"), ("note_date", "<=", as_of)]
-    )
-    by_vendor = defaultdict(lambda: dict.fromkeys([k for k, _ in BUCKETS], 0.0))
-    for bill in bills:
-        days = (as_of - (bill.due_date or bill.invoice_date)).days
-        by_vendor[bill.vendor_id.commercial_partner_id.display_name][_bucket(days)] += (
-            bill.total_payable
-        )
-    for note in notes:
-        by_vendor[note.vendor_id.commercial_partner_id.display_name]["current"] += note.signed_total
-    takeon_note = _add_payable_takeon(env, by_vendor, as_of)
-    rows, totals = [], dict.fromkeys([k for k, _ in BUCKETS], 0.0)
+    by_vendor, takeon_note = ageing_by_vendor(env, env.companies, as_of)
+    keys = [k for k, _ in BUCKETS]
+    rows, totals = [], dict.fromkeys(keys, 0.0)
     for vendor in sorted(by_vendor):
         vals = by_vendor[vendor]
-        row = {"vendor": vendor, **{k: _num(v) for k, v in vals.items()}}
-        row["total"] = _num(sum(vals.values()))
+        row = {"vendor": vendor, **{k: _num(vals[k]) for k in keys}}
+        row["total"] = _num(sum(vals[k] for k in keys))
         rows.append(row)
         for k in totals:
             totals[k] += vals[k]
@@ -239,7 +234,7 @@ def ap_ageing(env, date_from=None, date_to=None, **params):
     totals["vendor"] = "Total"
     return {
         "title": "AP Ageing as of %s" % as_of,
-        "cols": ["vendor", *[k for k, _ in BUCKETS], "total"],
+        "cols": ["vendor", *keys, "total"],
         "labels": {"vendor": "Vendor", **dict(BUCKETS), "total": "Total Open"},
         "rows": rows,
         "totals": totals,
@@ -249,117 +244,34 @@ def ap_ageing(env, date_from=None, date_to=None, **params):
     }
 
 
-def _add_payable_takeon(env, by_vendor, as_of):
-    """Each vendor's legacy take-on still open on the payable control (journal
-    MIG on cd_gl_ext.ledger_takeon.payable_account_code; fix_real 200101) as
-    its own line, "<vendor> · Opening balance (take-on <date>)", aged from
-    the take-on date. Returns the note the report prints."""
-    if not env["account.move.line"].has_access("read"):
-        return (
-            "Opening balances taken on from the legacy system are GL lines, visible to "
-            "finance roles only: they are not in this table for your role."
-        )
-    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import (
-        OPENING_LABEL,
-        open_takeon_balances,
-        takeon_control_account,
-    )
-
-    Partner = env["res.partner"].sudo()
-    configured = False
-    for company in env.companies:
-        control = takeon_control_account(env, company, "payable")
-        if not control:
-            continue
-        configured = True
-        for partner_id, opening in open_takeon_balances(env, company, control, as_of).items():
-            owed = -opening["residual"]  # credit-normal: a payable is a credit residual
-            if abs(owed) <= 0.005:
-                continue
-            name = Partner.browse(partner_id).display_name if partner_id else "(no vendor)"
-            key = "%s · %s" % (name, OPENING_LABEL % opening["date"])
-            by_vendor[key][_bucket((as_of - opening["date"]).days)] += owed
-    if not configured:
-        return (
-            "No payable control is configured (cd_gl_ext.ledger_takeon.payable_account_code): "
-            "legacy opening balances are not shown."
-        )
-    return (
-        "Opening balances taken on from the legacy system (journal MIG on the payable "
-        "control) are each vendor's own line, at what is still open, aged from the take-on "
-        "date."
-    )
-
-
-def _receipt_dates(env, po_line_ids):
-    """Last goods.received event per PO line (the receipt date), from the
-    event outbox — metadata only, read as superuser."""
-    if not po_line_ids or "fix.event.outbox" not in env:
-        return {}
-    events = (
-        env["fix.event.outbox"]
-        .sudo()
-        .search(
-            [
-                ("event_type", "=", "goods.received"),
-                ("aggregate", "=", "fix.purchase.order.line"),
-                ("aggregate_id", "in", list(po_line_ids)),
-            ],
-            order="id",
-        )
-    )
-    return {e.aggregate_id: e.create_date.date() for e in events}
-
-
 def grni_accruals(env, date_from=None, date_to=None, **params):
     """Goods received not invoiced: per PO line, received quantity less the
     quantity on live vendor bills for that PO and product, at the PO price.
-    Source: fix.purchase.order(.line).qty_received (cd_requisition GRN intake)."""
+    Source: the goods-received quantities on purchase orders (cd_requisition)."""
     if "fix.purchase.order.line" not in env:
         return {"cols": [], "rows": [], "empty": "No receipt source (cd_requisition) installed."}
+    from odoo.addons.cd_ap_ext.models.fix_ap_capture import grni_rows
+
     as_of = fields.Date.to_date(date_to) if date_to else _today(env)
-    po_lines = env["fix.purchase.order.line"].search(
-        [("qty_received", ">", 0), ("order_id.state", "!=", "cancelled")]
-    )
-    bills = env["fix.vendor.invoice"].search(
-        [
-            ("requisition_id", "in", po_lines.order_id.ids),
-            ("approval_state", "!=", "rejected"),
-        ]
-    )
-    invoiced = defaultdict(float)
-    for bill in bills:
-        for line in bill.line_ids:
-            invoiced[(bill.requisition_id.id, line.product_id.id)] += line.quantity
-    received_on = _receipt_dates(env, po_lines.ids)
     rows, total = [], 0.0
-    for pol in po_lines:
-        order = pol.order_id
-        key = (order.id, pol.product_id.id)
-        # bills reference the PO and product: consume the invoiced quantity
-        # across the PO's lines of that product in order
-        consumed = min(invoiced.get(key, 0.0), pol.qty_received)
-        invoiced[key] = invoiced.get(key, 0.0) - consumed
-        open_qty = pol.qty_received - consumed
-        if open_qty <= 0.0001:
-            continue
-        accrual = open_qty * pol.unit_price
-        recd = received_on.get(pol.id)
+    for r in grni_rows(env, as_of):
+        pol = r["po_line"]
+        recd = r["received_on"]
         rows.append(
             {
-                "po": order.name or "",
-                "vendor": order.vendor_id.display_name,
+                "po": pol.order_id.name or "",
+                "vendor": pol.order_id.vendor_id.display_name,
                 "product": pol.product_id.display_name,
-                "received": _num(pol.qty_received),
-                "invoiced": _num(pol.qty_received - open_qty),
-                "open_qty": _num(open_qty),
-                "unit_price": _num(pol.unit_price),
-                "accrual": _num(accrual),
+                "received": _num(r["received"]),
+                "invoiced": _num(r["invoiced"]),
+                "open_qty": _num(r["open_qty"]),
+                "unit_price": _num(r["unit_price"]),
+                "accrual": _num(r["accrual"]),
                 "received_on": str(recd) if recd else "",
-                "age_days": (as_of - recd).days if recd else "",
+                "age_days": r["age_days"] if r["age_days"] is not None else "",
             }
         )
-        total += accrual
+        total += r["accrual"]
     return {
         "title": "GRNI accruals as of %s" % as_of,
         "cols": [

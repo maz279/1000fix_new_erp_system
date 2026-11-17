@@ -26,10 +26,15 @@ export const MODULE = {
     { en: 'Vendor Payables', screens: [
       { id: 'M52-bills', en: 'Vendor Bills', bn: 'বিক্রেতার বিল', t: 'g' },
       { id: 'M52-match', en: 'Match Exceptions', bn: 'মিল ব্যতিক্রম', t: 'g' },
+      { id: 'M52-match-cases', en: 'Match Exception Cases', bn: 'মিল ব্যতিক্রমের কেস', t: 'g' },
+      { id: 'M52-tolerances', en: 'Match Tolerances', bn: 'মিলের সহনসীমা', t: 'g' },
       { id: 'M52-approval', en: 'Approval Workflow', bn: 'অনুমোদন', t: 'g' },
       { id: 'M52-matrix', en: 'Approval Matrix', bn: 'অনুমোদন ম্যাট্রিক্স', t: 'g' },
       { id: 'M52-matrix-change', en: 'Matrix Change Requests', bn: 'ম্যাট্রিক্স পরিবর্তনের অনুরোধ', t: 'g' },
-      { id: 'M52-taxprofile', en: 'Vendor Tax Profile', bn: 'বিক্রেতার কর প্রোফাইল', t: 'g' }
+      { id: 'M52-taxprofile', en: 'Vendor Tax Profile', bn: 'বিক্রেতার কর প্রোফাইল', t: 'g' },
+      { id: 'M52-disputes', en: 'Vendor Disputes', bn: 'বিক্রেতার বিরোধ', t: 'g' },
+      { id: 'M52-vstatements', en: 'Vendor Statement Reconciliation', bn: 'বিক্রেতার বিবরণী মিলকরণ', t: 'g' },
+      { id: 'M52-ageing-snapshots', en: 'Ageing Snapshots', bn: 'বয়স বিশ্লেষণের স্থির চিত্র', t: 'g' }
     ]},
     { en: 'Payments', screens: [
       { id: 'M52-bank-queue', en: 'Bank Accounts to Confirm', bn: 'নিশ্চিতকরণের অপেক্ষায় ব্যাংক হিসাব', t: 'g' },
@@ -43,11 +48,14 @@ export const MODULE = {
       { id: 'M52-claim-lines', en: 'Claim Lines & Receipts', bn: 'দাবির লাইন ও রসিদ', t: 'g' },
       { id: 'M52-advances', en: 'Advances & Floats', bn: 'অগ্রিম', t: 'g' },
       { id: 'M52-perdiem', en: 'Per-Diem & Mileage', bn: 'ভাতা ও মাইলেজ', t: 'g' },
-      { id: 'M52-policy', en: 'Expense Policy', bn: 'নীতি', t: 'g' }
+      { id: 'M52-policy', en: 'Expense Policy', bn: 'নীতি', t: 'g' },
+      { id: 'M52-cards', en: 'Corporate & Fuel Cards', bn: 'কর্পোরেট ও জ্বালানি কার্ড', t: 'g' },
+      { id: 'M52-card-lines', en: 'Card Statement Lines', bn: 'কার্ড বিবরণীর লাইন', t: 'g' }
     ]},
     { en: 'Analysis', screens: [
       { id: 'M52-aging', en: 'AP Ageing', bn: 'প্রদেয় বয়স', t: 'r' },
       { id: 'M52-grni', en: 'GRNI Accruals', bn: 'জিআরএনআই', t: 'r' },
+      { id: 'M52-grni-accruals', en: 'GRNI Period-End Accruals', bn: 'জিআরএনআই মেয়াদান্ত উপচিতি', t: 'g' },
       { id: 'M52-expcat', en: 'Expense by Category', bn: 'খাত অনুযায়ী ব্যয়', t: 'r' },
       { id: 'M52-dupes', en: 'Duplicate Prevention Log', bn: 'দ্বৈত বিল প্রতিরোধ', t: 'r' }
     ]},
@@ -62,18 +70,28 @@ export const MODULE = {
     ]}
   ],
   reports: ['AP Ageing', 'TDS Deduction Register', 'Payment Run Summary', 'Expense by Category', 'GRNI Reconciliation', 'Duplicate Prevention Log'],
-  forms: ['Vendor Bill', 'Expense Claim', 'Employee Advance', 'Debit Note', 'Vendor Tax Profile'],
+  forms: ['Vendor Bill', 'Expense Claim', 'Employee Advance', 'Debit Note', 'Vendor Tax Profile',
+    /* M52 capture audit 2026-11-17 */
+    'Match Exception Case', 'Match Tolerance', 'Matrix Change Request', 'Vendor Dispute',
+    'Vendor Statement Reconciliation', 'Ageing Snapshot', 'Legacy AP Register Take-on', 'Payment Run',
+    'Payee Bank Change', 'Expense Policy Limit', 'Per-Diem / Mileage Rate', 'Expense Category',
+    'Expense Grade', 'Card', 'Card Statement Line', 'GRNI Accrual'],
   cross: ['Procurement & Sourcing', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 82, sub: [
     ['1', 'Invoice Capture', 10, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'invoice_date', 'due_date', 'total_payable'], screens: ['M52-bills', 'M52-dupes'], reports: ['Duplicate Prevention Log'], forms: ['Vendor Bill'] }],
-    ['2', 'Matching', 11, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'bill_type', 'total_payable', 'match_state'], screens: ['M52-match'], reports: ['GRNI Reconciliation'], forms: [], create: false, domain: [['match_state', 'in', ['unmatched', 'blocked']]] }],
-    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix', 'M52-matrix-change'], reports: [], forms: [], create: false, domain: [['approval_state', '!=', 'draft']] }],
-    ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes'], reports: ['AP Ageing'], forms: ['Debit Note'], create: false, domain: [['payment_state', '!=', 'paid']] }],
-    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs', 'M52-bank-queue', 'M52-bank-changes'], reports: ['Payment Run Summary'], forms: [] }],
-    ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'], reports: ['TDS Deduction Register'], forms: ['Vendor Tax Profile'] }],
-    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-claim-lines', 'M52-policy', 'M52-perdiem', 'M52-expcat'], reports: ['Expense by Category'], forms: ['Expense Claim'] }],
-    ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances'], reports: [], forms: ['Employee Advance'] }],
-    ['9', 'GRNI', 5, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M52-grni'], reports: ['GRNI Reconciliation'], forms: [] }]
+    /* M52 capture audit 2026-11-17: every page captures the records it covers.
+     * Matching works blocked bills as exception cases under approved
+     * tolerances; Approval proposes matrix changes; the Payable Ledger keeps
+     * disputes, vendor statement reconciliations and ageing snapshots; GRNI
+     * keeps the period-end accrual; cards sit with advances. */
+    ['2', 'Matching', 11, { model: 'fix.ap.match.exception', cols: ['name', 'invoice_id', 'vendor_id', 'exception_type', 'responsible_party', 'owner_id', 'due_date', 'state'], screens: ['M52-match', 'M52-match-cases', 'M52-tolerances'], reports: ['GRNI Reconciliation'], forms: ['Match Exception Case', 'Match Tolerance'], create: 'M52-form-matchcase' }],
+    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix', 'M52-matrix-change'], reports: [], forms: ['Matrix Change Request'], create: 'M52-form-matrix-change', domain: [['approval_state', '!=', 'draft']] }],
+    ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes', 'M52-disputes', 'M52-vstatements', 'M52-ageing-snapshots', 'M52-ap-takeon', 'M52-ap-takeon-lines'], reports: ['AP Ageing'], forms: ['Debit Note', 'Vendor Dispute', 'Vendor Statement Reconciliation', 'Ageing Snapshot', 'Legacy AP Register Take-on'], create: 'M52-form-note', domain: [['payment_state', '!=', 'paid']] }],
+    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs', 'M52-bank-queue', 'M52-bank-changes'], reports: ['Payment Run Summary'], forms: ['Payment Run', 'Payee Bank Change'] }],
+    ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'], reports: ['TDS Deduction Register'], forms: ['Vendor Tax Profile'], create: 'M52-form-taxprofile' }],
+    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-claim-lines', 'M52-policy', 'M52-perdiem', 'M52-expense-category', 'M52-expense-grade', 'M52-expcat'], reports: ['Expense by Category'], forms: ['Expense Claim', 'Expense Policy Limit', 'Per-Diem / Mileage Rate', 'Expense Category', 'Expense Grade'] }],
+    ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances', 'M52-cards', 'M52-card-lines'], reports: [], forms: ['Employee Advance', 'Supplier Advance', 'Card', 'Card Statement Line'] }],
+    ['9', 'GRNI', 5, { model: 'fix.ap.grni.accrual', cols: ['name', 'period_end', 'grni_total', 'clearing_balance', 'unrecorded_estimate', 'state'], screens: ['M52-grni-accruals', 'M52-grni'], reports: ['GRNI Reconciliation'], forms: ['GRNI Accrual'], create: 'M52-form-grni' }]
   ] }
 };
 
@@ -84,8 +102,9 @@ export const SCREENS = {
     stateField: 'approval_state',
     actions: [{m:'action_submit_approval',l:'Submit for Approval'},{m:'action_confirm_tds_category',l:'Confirm Defaulted TDS Category'},{m:'action_request_payment',l:'Request Payment'}] },
   'M52-match': { kind: 'model_list', model: 'fix.vendor.invoice', create: false,
-    cols: ['vendor_id','invoice_ref','invoice_date','total_payable','match_state','match_detail'],
-    stateField: 'match_state', domain: [['match_state','in',['unmatched','blocked']]] },
+    cols: ['vendor_id','invoice_ref','invoice_date','total_payable','match_state','match_detail','open_match_case_id'],
+    stateField: 'match_state', domain: [['match_state','in',['unmatched','blocked']]],
+    actions: [{m:'action_open_match_case',l:'Open Exception Case'}] },
   'M52-approval': { kind: 'model_list', model: 'fix.vendor.invoice', create: false,
     cols: ['vendor_id','invoice_ref','invoice_date','gross_amount','approval_level','approval_levels_required','submitted_by','approval_state'],
     stateField: 'approval_state', domain: [['approval_state','!=','draft']],
@@ -307,8 +326,13 @@ export const SCREENS = {
     title: 'Payee Bank Change',
     back: 'M52-bank-queue',
     status: { field: 'state', labels: { draft: 'Draft', proposed: 'Proposed', confirmed: 'Confirmed', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'account', label: 'Account', bn: 'হিসাব', icon: '🏦' },
+      { id: 'callback', label: 'Call-Back Evidence', bn: 'কল-ব্যাক প্রমাণ', icon: '📞' },
+      { id: 'decision', label: 'Decision', bn: 'সিদ্ধান্ত', icon: '✅' }
+    ],
     sections: [
-      { title: 'Account', note: 'An account is not payable until a second person confirms it. Unconfirmed accounts queue here by themselves; complete the call-back on the row, or raise a new or changed account with + New. An M42 supplier’s account changes through the supplier bank-detail change request instead.',
+      { tab: 'account', title: 'Account', note: 'An account is not payable until a second person confirms it. Unconfirmed accounts queue here by themselves; complete the call-back on the row, or raise a new or changed account with + New. An M42 supplier’s account changes through the supplier bank-detail change request instead.',
         fields: [
           { name: 'partner_id', required: true, label: 'Payee' },
           { name: 'partner_bank_id', label: 'Account To Confirm / Change (empty: a new account)' },
@@ -317,7 +341,7 @@ export const SCREENS = {
           { name: 'routing_number', label: 'BEFTN Routing Number' },
           { name: 'acc_holder_name', label: 'Account Holder' }
         ] },
-      { title: 'Call-Back Evidence', note: 'Who was called, on which independently known number, when, and what they confirmed. Required to propose. The confirming accounting manager is someone other than the proposer, the caller and the last person to change the account.',
+      { tab: 'callback', title: 'Call-Back Evidence', note: 'Who was called, on which independently known number, when, and what they confirmed. Required to propose. The confirming accounting manager is someone other than the proposer, the caller and the last person to change the account.',
         fields: [
           { name: 'verification_ref', type: 'text', required: true, label: 'Call-Back Verification' },
           { name: 'verified_by_id', label: 'Call-Back Made By' },
@@ -325,7 +349,7 @@ export const SCREENS = {
           { name: 'evidence_filename', label: 'Evidence File Name' },
           { name: 'evidence_names', readonly: true, label: 'Evidence Attached' }
         ] },
-      { title: 'Decision',
+      { tab: 'decision', title: 'Decision',
         fields: [
           { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
           { name: 'proposed_at', readonly: true, label: 'Proposed On' },
@@ -591,6 +615,276 @@ export const SCREENS = {
     ]
   },
 
+  /* ============ M52 capture audit (2026-11-17) ============ */
+  'M52-match-cases': { kind: 'model_list', model: 'fix.ap.match.exception',
+    cols: ['name','invoice_id','vendor_id','purchase_order_id','exception_type','responsible_party','owner_id','due_date','age_days','bill_match_state','resolution_code','state'],
+    stateField: 'state',
+    empty: 'No match exception case. A case is opened for every blocked purchase-order bill (Open Exception Case on Match Exceptions, or the daily check).',
+    actions: [{m:'action_resolve',l:'Resolve (cause fixed)',states:['open']}] },
+  'M52-tolerances': { kind: 'model_list', model: 'fix.ap.match.tolerance',
+    cols: ['name','category_id','amount_from','qty_pct','price_pct','price_abs','effective_from','requested_by_id','approved_by_id','state'],
+    stateField: 'state',
+    empty: 'No match tolerance: purchase-order bills match exactly (quantity) and to 0.01 (price).',
+    actions: [{m:'action_submit',l:'Submit',states:['draft']},{m:'action_approve',l:'Approve (second person)',states:['submitted']},{m:'action_reject',l:'Reject',states:['submitted']}] },
+  'M52-disputes': { kind: 'model_list', model: 'fix.ap.dispute',
+    cols: ['name','invoice_id','vendor_id','disputed_amount','reason_code','owner_id','raised_by_id','outcome','note_id','state'],
+    stateField: 'state',
+    actions: [{m:'action_resolve',l:'Resolve (second person)',states:['open']},{m:'action_withdraw',l:'Withdraw',states:['open']}] },
+  'M52-vstatements': { kind: 'model_list', model: 'fix.ap.vendor.statement',
+    cols: ['name','partner_id','statement_date','statement_balance','ledger_balance','difference','open_bill_count','prepared_by_id','signed_by_id','state'],
+    stateField: 'state',
+    actions: [{m:'action_compare',l:'Compare with Ledger',states:['draft','compared']},{m:'action_sign_off',l:'Sign Off (second person)',states:['compared']}] },
+  'M52-ageing-snapshots': { kind: 'model_list', model: 'fix.ap.ageing.snapshot',
+    cols: ['name','as_of','note','current','d1_30','d31_60','d61_90','d90','total','vendor_count','taken_by_id','taken_at'],
+    empty: 'No ageing snapshot kept yet. Take one at each period close: it is never changed afterwards.' },
+  'M52-grni-accruals': { kind: 'model_list', model: 'fix.ap.grni.accrual',
+    cols: ['name','period_end','line_count','grni_total','clearing_balance','unrecorded_estimate','computed_by_id','confirmed_by_id','state'],
+    stateField: 'state',
+    actions: [{m:'action_compute',l:'Compute from Receipts',states:['draft','computed']},{m:'action_confirm',l:'Confirm (second person)',states:['computed']}] },
+  'M52-cards': { kind: 'model_list', model: 'fix.expense.card',
+    cols: ['name','card_type','issuer','last_digits','holder_id','monthly_limit','valid_to','unexplained_count','active'] },
+  'M52-card-lines': { kind: 'model_list', model: 'fix.expense.card.transaction',
+    cols: ['card_id','holder_id','txn_date','merchant','amount','statement_ref','category_id','cost_centre','approved_by_id','state'],
+    stateField: 'state',
+    actions: [{m:'action_explain',l:'Explained (receipt + coding)',states:['unexplained','explained']},{m:'action_approve',l:'Approve (finance)',states:['explained']},{m:'action_dispute',l:'Dispute with Issuer',states:['unexplained','explained']},{m:'action_reopen',l:'Reopen',states:['explained','disputed']}] },
+
+  'M52-form-matchcase': {
+    kind: 'model_form', model: 'fix.ap.match.exception',
+    title: 'Match Exception Case', back: 'M52-match-cases',
+    status: { field: 'state', labels: { open: 'Open', resolved: 'Resolved' } },
+    tabs: [
+      { id: 'case', label: 'Case', bn: 'কেস', icon: '🧾' },
+      { id: 'work', label: 'Work & Resolution', bn: 'কাজ ও সমাধান', icon: '🛠️' }
+    ],
+    sections: [
+      { tab: 'case', title: 'Blocked Bill', note: 'A blocked purchase-order bill stays recorded as a liability; only its payment is stopped. The case names who must fix the cause (the buyer for a price, the receiver for a receipt, the vendor for the bill) and by when.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Case' },
+          { name: 'invoice_id', required: true, label: 'Bill' },
+          { name: 'vendor_id', readonly: true, label: 'Vendor' },
+          { name: 'purchase_order_id', readonly: true, label: 'Purchase Order' },
+          { name: 'bill_match_state', readonly: true, label: 'Bill Match Now' },
+          { name: 'variance_detail', readonly: true, type: 'text', label: 'Variance When Opened' },
+          { name: 'exception_type', required: true, label: 'Exception Type' },
+          { name: 'responsible_party', required: true, label: 'Responsible Party' },
+          { name: 'owner_id', required: true, label: 'Owner' },
+          { name: 'due_date', required: true, label: 'Resolve By' }
+        ] },
+      { tab: 'work', title: 'Work & Resolution', note: 'The case closes only when its cause is fixed: the receipt is posted, the PO corrected, the bill corrected or credited, or the bill rejected. The match itself is never overridden.',
+        fields: [
+          { name: 'action_note', type: 'text', label: 'Actions Taken' },
+          { name: 'resolution_code', label: 'Resolution' },
+          { name: 'resolution_note', type: 'text', label: 'Resolution Note' },
+          { name: 'age_days', readonly: true, label: 'Age (days)' },
+          { name: 'resolved_by_id', readonly: true, label: 'Resolved By' },
+          { name: 'resolved_at', readonly: true, label: 'Resolved On' }
+        ] }
+    ]
+  },
+  'M52-form-tolerance': {
+    kind: 'model_form', model: 'fix.ap.match.tolerance',
+    title: 'Match Tolerance', back: 'M52-tolerances',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Approval', active: 'Active', superseded: 'Superseded', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'scope', label: 'Scope & Limits', bn: 'পরিধি ও সীমা', icon: '📏' },
+      { id: 'decision', label: 'Decision', bn: 'সিদ্ধান্ত', icon: '✅' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Where It Applies and How Far', note: 'The most specific active row applies: the product\u2019s own category (or a parent) beats all categories, then the highest value band the bill reaches. With both a percentage and an amount on price, the smaller allowance applies. Approved by an Accounting Administrator other than the requester; a change is a new row that replaces this one.',
+        fields: [
+          { name: 'category_id', label: 'Product Category (empty: all)' },
+          { name: 'amount_from', label: 'Bills From (gross)' },
+          { name: 'qty_pct', label: 'Quantity Over Receipt (%)' },
+          { name: 'price_pct', label: 'Unit Price Over PO (%)' },
+          { name: 'price_abs', label: 'Unit Price Over PO (amount per unit)' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' }
+        ] },
+      { tab: 'decision', title: 'Decision',
+        fields: [
+          { name: 'supersedes_id', readonly: true, label: 'Replaces' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'requested_at', readonly: true, label: 'Requested On' },
+          { name: 'approved_by_id', readonly: true, label: 'Decided By' },
+          { name: 'approved_at', readonly: true, label: 'Decided On' }
+        ] }
+    ]
+  },
+  'M52-form-dispute': {
+    kind: 'model_form', model: 'fix.ap.dispute',
+    title: 'Vendor Dispute', back: 'M52-disputes',
+    status: { field: 'state', labels: { open: 'Open: Payment Held', resolved: 'Resolved', withdrawn: 'Withdrawn' } },
+    tabs: [
+      { id: 'dispute', label: 'Dispute', bn: 'বিরোধ', icon: '⚖️' },
+      { id: 'outcome', label: 'Outcome', bn: 'ফলাফল', icon: '✅' }
+    ],
+    sections: [
+      { tab: 'dispute', title: 'What Is Disputed', note: 'While the dispute is open the bill is held from payment runs and payment requests. Payment status is per bill, so the whole bill waits for the dispute to close.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Dispute' },
+          { name: 'invoice_id', required: true, label: 'Bill' },
+          { name: 'vendor_id', readonly: true, label: 'Vendor' },
+          { name: 'bill_payable', readonly: true, label: 'Bill Payable' },
+          { name: 'disputed_amount', required: true, label: 'Disputed Amount' },
+          { name: 'reason_code', required: true, label: 'Reason' },
+          { name: 'description', type: 'text', required: true, label: 'Description' },
+          { name: 'vendor_ref', label: 'Vendor\u2019s Reference' },
+          { name: 'owner_id', required: true, label: 'Owner' }
+        ] },
+      { tab: 'outcome', title: 'Outcome', note: 'Resolved by someone other than the person who raised it. An upheld dispute is settled by the vendor\u2019s credit note on the same bill, approved.',
+        fields: [
+          { name: 'outcome', label: 'Outcome' },
+          { name: 'note_id', label: 'Vendor Credit Note' },
+          { name: 'resolution_note', type: 'text', label: 'How It Was Settled' },
+          { name: 'raised_by_id', readonly: true, label: 'Raised By' },
+          { name: 'raised_at', readonly: true, label: 'Raised On' },
+          { name: 'resolved_by_id', readonly: true, label: 'Closed By' },
+          { name: 'resolved_at', readonly: true, label: 'Closed On' }
+        ] }
+    ]
+  },
+  'M52-form-vstatement': {
+    kind: 'model_form', model: 'fix.ap.vendor.statement',
+    title: 'Vendor Statement Reconciliation', back: 'M52-vstatements',
+    status: { field: 'state', labels: { draft: 'Draft', compared: 'Compared', signed: 'Signed Off' } },
+    sections: [
+      { title: 'Vendor\u2019s Statement', note: 'Enter the balance the vendor\u2019s statement says we owe and attach it, then Compare with Ledger: our balance is the approved, unpaid bills to that date, net of notes not yet netted, plus any legacy opening balance. A difference is explained item by item; another person signs off.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reconciliation' },
+          { name: 'partner_id', required: true, label: 'Vendor' },
+          { name: 'statement_date', required: true, label: 'Statement Date' },
+          { name: 'statement_balance', required: true, label: 'Balance on the Vendor\u2019s Statement' },
+          { name: 'statement_file', type: 'binary', filename: 'statement_filename', accept: '.pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png', label: 'Upload Statement' },
+          { name: 'statement_filename', label: 'File Name' }
+        ] },
+      { title: 'Comparison',
+        fields: [
+          { name: 'ledger_balance', readonly: true, label: 'Our Ledger Balance' },
+          { name: 'open_bill_count', readonly: true, label: 'Open Bills on Our Ledger' },
+          { name: 'difference', readonly: true, label: 'Difference' },
+          { name: 'reconciling_items', type: 'text', label: 'Reconciling Items' },
+          { name: 'prepared_by_id', readonly: true, label: 'Compared By' },
+          { name: 'signed_by_id', readonly: true, label: 'Signed Off By' }
+        ] }
+    ]
+  },
+  'M52-form-snapshot': {
+    kind: 'model_form', model: 'fix.ap.ageing.snapshot',
+    title: 'Ageing Snapshot', back: 'M52-ageing-snapshots',
+    sections: [
+      { title: 'Payables Ageing Kept at a Date', note: 'Saving takes the snapshot: the AP Ageing as of the date, vendor by vendor, frozen. It is never edited or deleted, so the period-close figure can always be shown again.',
+        fields: [
+          { name: 'as_of', required: true, label: 'As Of' },
+          { name: 'note', label: 'Purpose (e.g. the close it belongs to)' },
+          { name: 'name', readonly: true, label: 'Snapshot' },
+          { name: 'total', readonly: true, label: 'Total Open' },
+          { name: 'vendor_count', readonly: true, label: 'Vendors' },
+          { name: 'taken_by_id', readonly: true, label: 'Taken By' },
+          { name: 'taken_at', readonly: true, label: 'Taken On' },
+          { name: 'basis', readonly: true, label: 'Opening Balances' }
+        ] }
+    ],
+    lines: {
+      field: 'line_ids', title: 'Vendors', readonlyGrid: true,
+      fields: [
+        { name: 'label', readonly: true, label: 'Vendor' },
+        { name: 'current', readonly: true, label: 'Not Due' },
+        { name: 'd1_30', readonly: true, label: '1-30' },
+        { name: 'd31_60', readonly: true, label: '31-60' },
+        { name: 'd61_90', readonly: true, label: '61-90' },
+        { name: 'd90', readonly: true, label: '90+' },
+        { name: 'total', readonly: true, label: 'Total' }
+      ]
+    }
+  },
+  'M52-form-grni': {
+    kind: 'model_form', model: 'fix.ap.grni.accrual',
+    title: 'GRNI Accrual', back: 'M52-grni-accruals',
+    status: { field: 'state', labels: { draft: 'Draft', computed: 'Computed', confirmed: 'Confirmed' } },
+    tabs: [
+      { id: 'period', label: 'Period & Figures', bn: 'মেয়াদ ও অঙ্ক', icon: '📅' },
+      { id: 'unrecorded', label: 'Unrecorded Liability', bn: 'অনিবন্ধিত দায়', icon: '📝' }
+    ],
+    sections: [
+      { tab: 'period', title: 'Received Not Invoiced at the Period End', note: 'Save, then Compute from Receipts: every goods receipt not yet billed, at the purchase-order price, kept line by line, beside the balance of the GRNI clearing account. An Accounting Administrator other than the person who computed it confirms it; confirmed, it is kept as it was.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Accrual' },
+          { name: 'period_end', required: true, label: 'Period End' },
+          { name: 'line_count', readonly: true, label: 'Receipt Lines' },
+          { name: 'grni_total', readonly: true, label: 'Received Not Invoiced' },
+          { name: 'clearing_balance', readonly: true, label: 'GRNI Clearing Account Balance' },
+          { name: 'clearing_note', readonly: true, label: 'Clearing Account' },
+          { name: 'computed_by_id', readonly: true, label: 'Computed By' },
+          { name: 'confirmed_by_id', readonly: true, label: 'Confirmed By' }
+        ] },
+      { tab: 'unrecorded', title: 'Estimated Unrecorded Liability', note: 'Costs received with no bill and no purchase order (utilities, rent, couriers...). Give the basis of any estimate.',
+        fields: [
+          { name: 'unrecorded_estimate', label: 'Estimate' },
+          { name: 'unrecorded_basis', type: 'text', label: 'Basis of the Estimate' }
+        ] }
+    ],
+    lines: {
+      field: 'line_ids', title: 'Receipts not yet billed', readonlyGrid: true,
+      fields: [
+        { name: 'order_ref', readonly: true, label: 'PO' },
+        { name: 'vendor_id', readonly: true, label: 'Vendor' },
+        { name: 'product_id', readonly: true, label: 'Product' },
+        { name: 'open_qty', readonly: true, label: 'Not Invoiced' },
+        { name: 'unit_price', readonly: true, label: 'PO Price' },
+        { name: 'accrual', readonly: true, label: 'Accrual' },
+        { name: 'received_on', readonly: true, label: 'Last Receipt' }
+      ]
+    }
+  },
+  'M52-form-card': {
+    kind: 'model_form', model: 'fix.expense.card',
+    title: 'Corporate / Fuel Card', back: 'M52-cards',
+    sections: [
+      { title: 'Card', note: 'Only the last four digits are kept. Spend on the card is explained line by line from the issuer\u2019s statement (Card Statement Lines); it is never also claimed for reimbursement.',
+        fields: [
+          { name: 'card_type', required: true, label: 'Card Type' },
+          { name: 'issuer', required: true, label: 'Issuer (bank / fuel company)' },
+          { name: 'last_digits', required: true, label: 'Last 4 Digits' },
+          { name: 'holder_id', required: true, label: 'Cardholder' },
+          { name: 'monthly_limit', label: 'Monthly Limit' },
+          { name: 'valid_to', label: 'Expires' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'active', label: 'Active' },
+          { name: 'unexplained_count', readonly: true, label: 'Unexplained Lines' }
+        ] }
+    ]
+  },
+  'M52-form-cardline': {
+    kind: 'model_form', model: 'fix.expense.card.transaction',
+    title: 'Card Statement Line', back: 'M52-card-lines',
+    status: { field: 'state', labels: { unexplained: 'Unexplained', explained: 'Explained', approved: 'Approved', disputed: 'Disputed with Issuer' } },
+    tabs: [
+      { id: 'line', label: 'Statement Line', bn: 'বিবরণীর লাইন', icon: '💳' },
+      { id: 'explain', label: 'Explanation', bn: 'ব্যাখ্যা', icon: '🧾' }
+    ],
+    sections: [
+      { tab: 'line', title: 'As the Issuer Printed It', note: 'Recorded once per statement reference and never changed.',
+        fields: [
+          { name: 'card_id', required: true, label: 'Card' },
+          { name: 'holder_id', readonly: true, label: 'Cardholder' },
+          { name: 'txn_date', required: true, label: 'Transaction Date' },
+          { name: 'merchant', required: true, label: 'Merchant' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'statement_ref', required: true, label: 'Statement Reference' }
+        ] },
+      { tab: 'explain', title: 'Explanation', note: 'The category, the cost centre or job, and the receipt. Finance approves, never the cardholder.',
+        fields: [
+          { name: 'category_id', label: 'Expense Category' },
+          { name: 'cost_centre', label: 'Cost Centre / Job' },
+          { name: 'purpose', label: 'Purpose' },
+          { name: 'receipt_file', type: 'binary', filename: 'receipt_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Upload Receipt' },
+          { name: 'receipt_filename', label: 'Receipt File Name' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_at', readonly: true, label: 'Approved On' }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -605,6 +899,22 @@ export const REPORT_ROUTES = {
 
 /* data-entry form chips -> real model forms */
 export const FORM_MODELS = {
+  'M52:Match Exception Case': 'fix.ap.match.exception',
+  'M52:Match Tolerance': 'fix.ap.match.tolerance',
+  'M52:Matrix Change Request': 'fix.ap.approval.rule.change',
+  'M52:Vendor Dispute': 'fix.ap.dispute',
+  'M52:Vendor Statement Reconciliation': 'fix.ap.vendor.statement',
+  'M52:Ageing Snapshot': 'fix.ap.ageing.snapshot',
+  'M52:Legacy AP Register Take-on': 'fix.ap.takeon.batch',
+  'M52:Payment Run': 'fix.payment.run',
+  'M52:Payee Bank Change': 'fix.payee.bank.change',
+  'M52:Expense Policy Limit': 'fix.expense.policy',
+  'M52:Per-Diem / Mileage Rate': 'fix.expense.rate',
+  'M52:Expense Category': 'fix.expense.category',
+  'M52:Expense Grade': 'fix.expense.grade',
+  'M52:Card': 'fix.expense.card',
+  'M52:Card Statement Line': 'fix.expense.card.transaction',
+  'M52:GRNI Accrual': 'fix.ap.grni.accrual',
   'M52:Vendor Bill': 'fix.vendor.invoice',
   'M52:Expense Claim': 'fix.expense.claim',
   'M52:Employee Advance': 'fix.employee.advance',
@@ -622,6 +932,21 @@ export const FORM_CHIPS = {
   'M52:Employee Advance': 'M52-form-advance',
   'M52:Debit Note': 'M52-form-note',
   'M52:Vendor Tax Profile': 'M52-form-taxprofile',
+  'M52:Match Exception Case': 'M52-form-matchcase',
+  'M52:Match Tolerance': 'M52-form-tolerance',
+  'M52:Vendor Dispute': 'M52-form-dispute',
+  'M52:Vendor Statement Reconciliation': 'M52-form-vstatement',
+  'M52:Ageing Snapshot': 'M52-form-snapshot',
+  'M52:Legacy AP Register Take-on': 'M52-form-ap-takeon',
+  'M52:Expense Policy Limit': 'M52-form-policy',
+  'M52:Per-Diem / Mileage Rate': 'M52-form-rate',
+  'M52:Expense Category': 'M52-form-expense-category',
+  'M52:Expense Grade': 'M52-form-expense-grade',
+  'M52:Card': 'M52-form-card',
+  'M52:Card Statement Line': 'M52-form-cardline',
+  'M52:GRNI Accrual': 'M52-form-grni',
+  /* M16 owns the supplier advance; M52 pays it and takes it back on the bill */
+  'M52:Supplier Advance': 'M16-form-advance',
   'M52:__by_model__': {
     'fix.expense.category': 'M52-form-expense-category',
     'fix.expense.grade': 'M52-form-expense-grade',
@@ -637,7 +962,15 @@ export const FORM_CHIPS = {
     'fix.vendor.tax.profile': 'M52-form-taxprofile',
     'fix.expense.rate': 'M52-form-rate',
     'fix.expense.policy': 'M52-form-policy',
-    'fix.ap.takeon.batch': 'M52-form-ap-takeon'
+    'fix.ap.takeon.batch': 'M52-form-ap-takeon',
+    'fix.ap.match.exception': 'M52-form-matchcase',
+    'fix.ap.match.tolerance': 'M52-form-tolerance',
+    'fix.ap.dispute': 'M52-form-dispute',
+    'fix.ap.vendor.statement': 'M52-form-vstatement',
+    'fix.ap.ageing.snapshot': 'M52-form-snapshot',
+    'fix.ap.grni.accrual': 'M52-form-grni',
+    'fix.expense.card': 'M52-form-card',
+    'fix.expense.card.transaction': 'M52-form-cardline'
   },
   'M52:__by_screen__': {
     'M52-expense-category': 'M52-form-expense-category',
@@ -655,7 +988,15 @@ export const FORM_CHIPS = {
     'M52-taxprofile': 'M52-form-taxprofile',
     'M52-perdiem': 'M52-form-rate',
     'M52-policy': 'M52-form-policy',
-    'M52-ap-takeon': 'M52-form-ap-takeon'
+    'M52-ap-takeon': 'M52-form-ap-takeon',
+    'M52-match-cases': 'M52-form-matchcase',
+    'M52-tolerances': 'M52-form-tolerance',
+    'M52-disputes': 'M52-form-dispute',
+    'M52-vstatements': 'M52-form-vstatement',
+    'M52-ageing-snapshots': 'M52-form-snapshot',
+    'M52-grni-accruals': 'M52-form-grni',
+    'M52-cards': 'M52-form-card',
+    'M52-card-lines': 'M52-form-cardline'
   }
 };
 

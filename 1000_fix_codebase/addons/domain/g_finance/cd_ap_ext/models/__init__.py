@@ -1,4 +1,6 @@
 # cd_ap_ext models.
+# ruff: noqa: I001 - fix_ap_capture extends the bill and the payment run, so it
+# is imported after them (an _inherit before its _name fails to load).
 from . import (
     ap_gl,
     fix_ap_controls,
@@ -12,4 +14,5 @@ from . import (
     fix_ap_tax_ext,
     fix_ap_tax_profile,
     fix_withholding_certificate_ext,
+    fix_ap_capture,
 )

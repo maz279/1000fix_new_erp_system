@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M52 capture audit (2026-11-17): references for the new AP records, and the
+     daily job that opens a case for every blocked purchase-order bill and
+     closes the cases whose cause was fixed. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_ap_match_exception" model="ir.sequence">
+            <field name="name">AP Match Exception Case</field>
+            <field name="code">fix.ap.match.exception</field>
+            <field name="prefix">MEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ap_dispute" model="ir.sequence">
+            <field name="name">AP Vendor Dispute</field>
+            <field name="code">fix.ap.dispute</field>
+            <field name="prefix">APD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ap_vendor_statement" model="ir.sequence">
+            <field name="name">AP Vendor Statement Reconciliation</field>
+            <field name="code">fix.ap.vendor.statement</field>
+            <field name="prefix">VSR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ap_grni_accrual" model="ir.sequence">
+            <field name="name">AP GRNI Accrual</field>
+            <field name="code">fix.ap.grni.accrual</field>
+            <field name="prefix">GRNI/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_ap_match_exceptions" model="ir.cron">
+            <field name="name">M52: open and close match exception cases</field>
+            <field name="model_id" ref="model_fix_ap_match_exception"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_match_exceptions()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

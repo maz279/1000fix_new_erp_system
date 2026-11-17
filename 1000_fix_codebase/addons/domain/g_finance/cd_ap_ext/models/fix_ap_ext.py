@@ -97,6 +97,16 @@ def _q(value):
 PAYABLE_MATCH_STATES = ("matched", "not_required")
 
 
+def tolerance_allowance(basis, price_pct, price_abs):
+    """FR-APE-005: how far above `basis` a unit price may go (the smaller limit wins)."""
+    limits = []
+    if price_pct:
+        limits.append(Decimal(str(basis or 0)) * Decimal(str(price_pct)) / Decimal(100))
+    if price_abs:
+        limits.append(Decimal(str(price_abs)))
+    return min(limits) if limits else Decimal(0)
+
+
 def _po_price_basis(po_lines):
     """(approved prices, the unit price a bill may reach) for one product's PO
     lines: the price the PO approval covered, the live price before approval."""
@@ -380,14 +390,20 @@ class FixVendorInvoice(models.Model):
             for po_line in po.line_ids:
                 po_lines.setdefault(po_line.product_id.id, []).append(po_line)
             gone_before_billing = inv._fix_returns_before_billing(po)
-            invoiced, label, order = {}, {}, []
+            invoiced, label, order, product = {}, {}, [], {}
             for line in inv.line_ids:
                 pid = line.product_id.id
                 if pid not in invoiced:
                     invoiced[pid] = 0.0
                     label[pid] = line.description
                     order.append(pid)
+                    product[pid] = line.product_id
                 invoiced[pid] += line.quantity or 0.0
+            # FR-APE-005 (M52 capture audit 2026-11-17): the approved tolerance
+            # row for the product's category and the bill's value band; no
+            # row = exact quantity and 0.01 on price, as before
+            Tolerance = self.env["fix.ap.match.tolerance"]
+            used = Tolerance.browse()
             problems = []
             for pid in order:
                 if pid not in po_lines:
@@ -409,9 +425,14 @@ class FixVendorInvoice(models.Model):
                 # inspection rejected (never part of the accepted quantity)
                 from_stock, from_quarantine = gone_before_billing.get(pid, (0.0, 0.0))
                 gone = from_stock + max(from_quarantine - rejected, 0.0)
-                qty_ok = Decimal(str(round(accepted - gone - prior, 6))) >= Decimal(
-                    str(invoiced[pid])
-                )
+                qty_pct, price_pct, price_abs, tol = Tolerance._fix_for(inv, product[pid])
+                available = Decimal(str(round(accepted - gone - prior, 6)))
+                billed = Decimal(str(invoiced[pid]))
+                qty_ok = available >= billed
+                if not qty_ok and qty_pct and available > 0:
+                    qty_ok = available * (1 + Decimal(str(qty_pct)) / 100) >= billed
+                    if qty_ok:
+                        used |= tol
                 if not qty_ok:
                     if gone:
                         text = (
@@ -437,9 +458,12 @@ class FixVendorInvoice(models.Model):
                     problems.append(text)
                 approved, basis = _po_price_basis(pols)
                 lines = inv.line_ids.filtered(lambda ln, p=pid: ln.product_id.id == p)
-                ceiling = Decimal(str(basis or 0)) + TOLERANCE
+                exact = Decimal(str(basis or 0)) + TOLERANCE
+                ceiling = exact + tolerance_allowance(basis, price_pct, price_abs)
                 if any(Decimal(str(ln.unit_price)) > ceiling for ln in lines):
                     problems.append("%s: price above PO" % label[pid])
+                elif any(Decimal(str(ln.unit_price)) > exact for ln in lines):
+                    used |= tol
                 elif not approved and qty_ok:
                     problems.append("%s: PO price not approved" % label[pid])
             if problems:
@@ -448,6 +472,10 @@ class FixVendorInvoice(models.Model):
             else:
                 inv.match_state = "matched"
                 inv.match_detail = "PO / receipt / invoice reconciled"
+                if used:
+                    inv.match_detail += " within the approved tolerance (%s)" % ", ".join(
+                        used.mapped("name")
+                    )
 
     def _fix_returns_before_billing(self, po):
         """G5 (owner decision 12 Nov 2026): {product id: (qty returned from

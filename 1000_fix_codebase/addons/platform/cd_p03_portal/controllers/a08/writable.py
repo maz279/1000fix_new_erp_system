@@ -49,6 +49,13 @@ WRITABLE = {
             "source_account_id",
         }
     ),
+    "fix.ap.ageing.snapshot": frozenset(
+        {
+            "as_of",
+            "note",
+        }
+    ),
+    "fix.ap.ageing.snapshot.line": frozenset(),
     "fix.ap.approval.rule": frozenset(),
     "fix.ap.approval.rule.change": frozenset(
         {
@@ -59,6 +66,49 @@ WRITABLE = {
             "name",
             "reason",
             "rule_id",
+        }
+    ),
+    "fix.ap.dispute": frozenset(
+        {
+            "description",
+            "disputed_amount",
+            "invoice_id",
+            "note_id",
+            "outcome",
+            "owner_id",
+            "reason_code",
+            "resolution_note",
+            "vendor_ref",
+        }
+    ),
+    "fix.ap.grni.accrual": frozenset(
+        {
+            "period_end",
+            "unrecorded_basis",
+            "unrecorded_estimate",
+        }
+    ),
+    "fix.ap.match.exception": frozenset(
+        {
+            "action_note",
+            "due_date",
+            "exception_type",
+            "invoice_id",
+            "owner_id",
+            "resolution_code",
+            "resolution_note",
+            "responsible_party",
+        }
+    ),
+    "fix.ap.match.tolerance": frozenset(
+        {
+            "amount_from",
+            "category_id",
+            "effective_from",
+            "price_abs",
+            "price_pct",
+            "qty_pct",
+            "reason",
         }
     ),
     "fix.ap.takeon.batch": frozenset(
@@ -73,6 +123,16 @@ WRITABLE = {
         }
     ),
     "fix.ap.takeon.line": frozenset(),
+    "fix.ap.vendor.statement": frozenset(
+        {
+            "partner_id",
+            "reconciling_items",
+            "statement_balance",
+            "statement_date",
+            "statement_file",
+            "statement_filename",
+        }
+    ),
     "fix.ar.consolidated.bill": frozenset(
         {
             "bill_ref",
@@ -685,6 +745,32 @@ WRITABLE = {
             "recovery_method",
             "request_date",
             "settle_by",
+        }
+    ),
+    "fix.expense.card": frozenset(
+        {
+            "active",
+            "card_type",
+            "holder_id",
+            "issuer",
+            "last_digits",
+            "monthly_limit",
+            "operating_unit_id",
+            "valid_to",
+        }
+    ),
+    "fix.expense.card.transaction": frozenset(
+        {
+            "amount",
+            "card_id",
+            "category_id",
+            "cost_centre",
+            "merchant",
+            "purpose",
+            "receipt_file",
+            "receipt_filename",
+            "statement_ref",
+            "txn_date",
         }
     ),
     "fix.expense.category": frozenset(
