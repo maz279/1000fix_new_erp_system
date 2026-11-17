@@ -104,4 +104,16 @@ Security and data:
 
 ## 5. State
 
-- Built and tested in worktree `m54cap-wt` on branch `fix/m54-capture-buttons`, from the working branch tip 94bf9e99. _Commit and deploy state below._
+- Built and tested in worktree `m54cap-wt` on branch `fix/m54-capture-buttons`, from the working branch tip 94bf9e99.
+- Fix commit 675f071c is on the working branch `fix/a03-live-data-and-pending-work`, moved by compare-and-swap from 94bf9e99. **Not pushed.**
+- **Deployed on fix_real (8069) and fix_dev (8090) on 17 Nov 2026**, on the user's approval. It went out inside the M49 session's combined deploy (the user chose to include M54 there rather than run two restarts), so this session did not upgrade or restart anything itself:
+  1. Backups `fix_real_pre_m49_gaps_2026-11-17.dump` and `fix_dev_pre_m49_gaps_2026-11-17.dump`.
+  2. `-u cd_fixed_asset_ext,cd_fpa,cd_p03_portal` on each database; cd_fpa is 19.0.0.4.0 on both, and no cd_ module lags its code.
+  3. Restarts: 8069 PID 52108 became 78988 (13:42 UTC), 8090 PID 45588 became 66868 (13:46 UTC).
+- Verified by this session on 8069 after the restart:
+  - the new process logged 155 modules loaded and no ERROR line; login answers 200;
+  - the four models, their 12 access rows, the three sequences (ACR/, BTG/, VEX/) and both daily jobs exist in fix_real;
+  - the served bundle 02b1916 (the same on 8090) carries all seven new M54 forms;
+  - the M49 session read all four new models through `/p03/model/records` on both servers (0 rows each).
+- Between the upgrade and the restart, the old 8069 process ran the two new M54 jobs once at 12:53 UTC and logged them as failed (it did not yet know the new models). The restarted process runs them normally.
+- fix_real holds no budget version, cost centre, rate or target yet, so the lists are empty and the monthly job raises nothing until a budget is approved.
