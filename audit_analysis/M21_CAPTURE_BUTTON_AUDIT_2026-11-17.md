@@ -118,11 +118,17 @@ The live tests found three things the static checks could not:
 | **An employment privacy-notice version** | fix_real's two notices are M33's customer notices. The DPO must publish the employment notice (Bengali and English) before HR can record acknowledgements. |
 | **Leave Type** ("Record Coverage" group) | It is M55's record (spec §3.2). It stays where it is; the M55 audit owns its placement. |
 
-## 6. Deployment
+## 6. Deployment (18 Nov 2026, user: "Land and deploy")
 
-Not deployed. Deploying needs:
-
-1. `-u cd_hr_core,cd_p03_portal` on fix_real.
-2. One restart of 8069, because new controller surfaces only load at process start.
-
-Both wait for the user's go-ahead and coordination with the peer sessions deploying on 8069.
+- **Landed:** c7f2d59b on `fix/a03-live-data-and-pending-work`, on top of c67680a0, via a compare-and-swap ref update. The shared checkout was synced. `a09/writable.py` was regenerated after the rebase with no drift. Checks on the rebased tree: 755 static checks pass, including the M55, M58 and M01 page guards.
+- **Backup:** `fix_real_pre_m21_capture_2026-11-18.dump` (50.3 MB) in `_migration/backups`.
+- **fix_real upgraded:** `-u cd_hr_core,cd_p03_portal` exited 0 with no errors. cd_hr_core is now 19.0.0.5.0, and the `fix_hr_notice_ack` and `fix_hr_exit_interview` tables exist.
+- **Version gap:** before the restart, the "Candidate biodata form enhancement" session upgraded cd_talent 19.0.0.5.0 on fix_real, and the M57 session upgraded cd_performance.
+- **Restart:** one shared 8069 restart, done by the M57 session after all upgrades. PID 82916 became 49668 at 04:28. Login answers 200 and the log has no errors.
+- **Live check:**
+  - The served asset bundle (attachment 10311) carries the new M21 screens and forms.
+  - A read-only run on fix_real with the deployed code served all five lists. It found 21 active departments, 61 job profiles and 0 acknowledgements or interviews.
+  - All 8 M21 reports run.
+  - The KPIs report Privacy Notice Pending = 504: no employee has acknowledged a notice yet.
+- **fix_dev:** the M57 session added cd_hr_core to its fix_dev upgrade, so 8090 is not left with missing database columns.
+- **Next steps for the business:** publish the employment privacy notice, then record each employee's acknowledgement on the ESS / MSS page. Set codes, families and bands on the 61 job profiles.
