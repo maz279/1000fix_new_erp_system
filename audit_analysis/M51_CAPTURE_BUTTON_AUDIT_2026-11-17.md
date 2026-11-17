@@ -108,5 +108,15 @@ Found only by running: a refused `create` inside `pytest.raises` without a savep
 
 - Landed on the working branch `fix/a03-live-data-and-pending-work`: fix c3820c11 and report 3d6f64f9, rebased onto c5feece6 (after M54, M53, M52 and the M49 gaps) and fast-forwarded by compare-and-swap. **Not pushed.**
 - After the rebase the clone was upgraded with every module changed since 94bf9e99 (exit 0, 0 errors) and the guards and regression re-run: **1,611 passed, 4 failed**: the same 4 A09 salary-TDS relay tests that fail on HEAD.
-- **Not deployed.** fix_real (8069) and fix_dev (8090) are unchanged by this work. Deploying needs a backup, `-u cd_tax_engine_bd,cd_billing_engine,cd_p03_portal`, a version-gap check over the installed cd_ modules, and one restart, coordinated with the other sessions deploying today.
+- **Deployed on fix_real (8069) on 17 Nov 2026**, in one combined run with M55 by the M55 session, on the user's approval:
+  1. Backup `fix_real_pre_m55_capture_2026-11-17.dump` (49.9 MB).
+  2. `-u cd_attendance,cd_tax_engine_bd,cd_billing_engine,cd_p03_portal` exited 0 with no ERROR lines; the version-gap check over 83 cd_ modules was clean.
+  3. 8069 restarted once: PID 78988 became 28840 (supervisor 23964); 155 modules loaded; login answers 200.
+- Verified by this session afterwards (read-only):
+  - 8069 is PID 28840 serving `-d fix_real`; cd_tax_engine_bd is 19.0.1.1.0;
+  - the three new tables exist with 12 access rows and 6 isolation rules, all empty: **no marketplace VAT model is declared**, as D-03 requires;
+  - `nid_cash_threshold` = 50,000, active, statutory default (no company): counter receipts keep the same limit;
+  - the NBR notice deadline job is active;
+  - the served workspace bundle 03f2536 carries the three new forms, the new lists and the new "+ New" of pages 3, 5 and 8. The pages were not opened in a browser on 8069 (no session there).
+- **fix_dev (8090) is not upgraded.**
 - The NID threshold row (BDT 50,000) and the new models arrive with that upgrade; nothing else changes for the counter.
