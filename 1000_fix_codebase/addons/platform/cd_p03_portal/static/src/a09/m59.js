@@ -1,6 +1,9 @@
 /** @odoo-module **/
 /* A09 · People & Workforce — M59 Health, Safety & Wellbeing.
- * Registry-faithful: 4 groups / 11 screens / 5 reports / 4 forms / freg 60. */
+ * Registry-faithful: 5 groups / 28 screens / 5 reports / 25 forms / freg 60.
+ * Capture audit 2026-11-18: every sub-module page captures each record it
+ * covers (safe work procedure, permit, witness statement, work refusal,
+ * customer site hazard and emergency plan were built for it). */
 
 export const MODULE = {
   area: 'A09', code: 'M59', en: 'Health, Safety & Wellbeing', title: 'M59 · Health, Safety & Wellbeing',
@@ -21,7 +24,9 @@ export const MODULE = {
     ]},
     { en: 'Risk', screens: [
       { id: 'M59-hazards', en: 'Hazard Register', bn: 'ঝুঁকি রেজিস্টার', t: 'g' },
-      { id: 'M59-jsa', en: 'JSA & Safe Procedures', bn: 'কাজের নিরাপত্তা বিশ্লেষণ', t: 'g' },
+      { id: 'M59-jsa', en: 'Job Safety Analyses (JSA)', bn: 'কাজের নিরাপত্তা বিশ্লেষণ', t: 'g' },
+      { id: 'M59-procedures', en: 'Safe Work Procedures', bn: 'নিরাপদ কাজের পদ্ধতি', t: 'g' },
+      { id: 'M59-permits', en: 'Permits to Work', bn: 'কাজের অনুমতিপত্র', t: 'g' },
       { id: 'M59-ppe', en: 'PPE Issue Register', bn: 'পিপিই বিতরণ', t: 'g' },
       { id: 'M59-ppe-stock', en: 'PPE Stock Register', bn: 'পিপিই', t: 'g' }
     ]},
@@ -31,15 +36,19 @@ export const MODULE = {
       { id: 'M59-capa', en: 'CAPA Actions', bn: 'সংশোধনী পদক্ষেপ', t: 'g' },
       { id: 'M59-root-causes', en: 'Root Causes', bn: 'মূল কারণ', t: 'g' },
       { id: 'M59-investigation-team', en: 'Investigation Team', bn: 'তদন্ত দল', t: 'g' },
+      { id: 'M59-witness-statements', en: 'Witness Statements', bn: 'সাক্ষীর বিবৃতি', t: 'g' },
       { id: 'M59-statutory', en: 'Statutory Notification Clock', bn: 'আইনি ঘড়ি', t: 'r' }
     ]},
     { en: 'Field Safety', screens: [
       { id: 'M59-loneworker', en: 'Lone-Worker & Emergency', bn: 'একাকী কর্মী', t: 'g' },
       { id: 'M59-road', en: 'Road & Vehicle Safety', bn: 'সড়ক নিরাপত্তা', t: 'g' },
+      { id: 'M59-work-refusals', en: 'Right to Stop Work', bn: 'অনিরাপদ কাজ প্রত্যাখ্যান', t: 'g' },
+      { id: 'M59-site-hazards', en: 'Customer Site Hazards', bn: 'গ্রাহক স্থানের ঝুঁকি', t: 'g' },
       { id: 'M59-battery', en: 'Battery / Electrical / Chemical', bn: 'ব্যাটারি ঝুঁকি', t: 'g' }
     ]},
     { en: 'Programme', screens: [
       { id: 'M59-drills', en: 'Drills & Training', bn: 'মহড়া', t: 'g' },
+      { id: 'M59-emergency-plans', en: 'Site Emergency Plans', bn: 'জরুরি পরিকল্পনা', t: 'g' },
       { id: 'M59-committee', en: 'Safety Committee', bn: 'নিরাপত্তা কমিটি', t: 'g' },
       { id: 'M59-committee-members', en: 'Committee Members', bn: 'কমিটির সদস্য', t: 'g' },
       { id: 'M59-committee-meetings', en: 'Committee Meetings', bn: 'কমিটির সভা', t: 'g' },
@@ -49,17 +58,22 @@ export const MODULE = {
     ]}
   ],
   reports: ['Incident Statistics', 'Leading Indicators', 'Statutory Compliance', 'PPE Compliance', 'Drill Calendar Coverage'],
-  forms: ['Incident Report', 'Anonymous Safety Report', 'JSA', 'PPE Issue', 'Return-to-Work'],
+  forms: ['Hazard', 'Safety Inspection', 'JSA', 'Safe Work Procedure', 'Permit to Work',
+    'Incident Report', 'Anonymous Safety Report', 'Investigation Team Member', 'Witness Statement',
+    'Root Cause', 'CAPA Action', 'PPE Item', 'PPE Issue', 'Road Check', 'Lone-Worker Check-In',
+    'Work Refusal', 'Customer Site Hazard', 'Hazardous Substance', 'Driving Licence',
+    'Emergency Drill', 'Emergency Plan', 'Safety Committee', 'Committee Member',
+    'Occupational Health Record', 'Return-to-Work'],
   cross: ['M47 Facility safety', 'M21 Workforce', 'M46 Fleet', 'M02 Field Safety'],
   freg: { src: 60, sub: [
-    ['1', 'Hazard Register & Risk', 9, { model: 'fix.hse.hazard', cols: ['name', 'hazard_type', 'risk_score', 'residual_risk', 'state'], screens: ['M59-hazards', 'M59-safety-inspection'], reports: ['Leading Indicators'], forms: [] }],
-    ['2', 'Procedures & Permits', 7, { model: 'fix.hse.jsa', cols: ['name', 'job_type', 'ppe_required', 'approved_on', 'state'], screens: ['M59-jsa'], reports: [], forms: ['JSA'] }],
-    ['3', 'Incident Management', 13, { model: 'fix.hse.incident', cols: ['name', 'incident_type', 'severity', 'branch_id', 'state'], screens: ['M59-report', 'M59-investigate'], reports: ['Incident Statistics'], forms: ['Incident Report', 'Anonymous Safety Report'] }],
+    ['1', 'Hazard Register & Risk', 9, { model: 'fix.hse.hazard', cols: ['name', 'hazard_type', 'risk_score', 'residual_risk', 'state'], screens: ['M59-hazards', 'M59-safety-inspection'], reports: ['Leading Indicators'], forms: ['Hazard', 'Safety Inspection'] }],
+    ['2', 'Procedures & Permits', 7, { model: 'fix.hse.jsa', cols: ['name', 'job_type', 'ppe_required', 'approved_on', 'state'], screens: ['M59-jsa', 'M59-procedures', 'M59-permits'], reports: [], forms: ['JSA', 'Safe Work Procedure', 'Permit to Work'] }],
+    ['3', 'Incident Management', 13, { model: 'fix.hse.incident', cols: ['name', 'incident_type', 'severity', 'branch_id', 'state'], screens: ['M59-report', 'M59-investigate', 'M59-investigation-team', 'M59-witness-statements', 'M59-root-causes', 'M59-capa'], reports: ['Incident Statistics'], forms: ['Incident Report', 'Anonymous Safety Report', 'Investigation Team Member', 'Witness Statement', 'Root Cause', 'CAPA Action'] }],
     ['4', 'Statutory Notification', 5, { model: 'fix.statutory.accident.register', cols: ['register_entry_no', 'employee_id', 'accident_date', 'notice_form_type', 'dife_notified'], screens: ['M59-statutory', 'M59-statutory-accident-register'], reports: ['Statutory Compliance'], forms: [] }],
-    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe-stock', 'M59-ppe'], reports: ['PPE Compliance'], forms: ['PPE Issue'] }],
-    ['6', 'Field & Road Safety', 8, { model: 'fix.hse.roadcheck', cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'passed'], screens: ['M59-road', 'M59-loneworker', 'M59-battery'], reports: ['Leading Indicators'], forms: [] }],
-    ['7', 'Training & Drills', 6, { model: 'fix.hse.drill', cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'state'], screens: ['M59-drills', 'M59-committee'], reports: ['Drill Calendar Coverage'], forms: [] }],
-    ['8', 'Health & Wellbeing', 7, { model: 'fix.hse.health', cols: ['name', 'employee_id', 'record_type', 'valid_until', 'fitness'], screens: ['M59-wellbeing'], reports: [], forms: ['Return-to-Work'] }]
+    ['5', 'PPE', 5, { model: 'fix.ppe.register', cols: ['name', 'item_type', 'stock_quantity', 'min_required_quantity', 'state'], screens: ['M59-ppe-stock', 'M59-ppe'], reports: ['PPE Compliance'], forms: ['PPE Item', 'PPE Issue'] }],
+    ['6', 'Field & Road Safety', 8, { model: 'fix.hse.roadcheck', cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'passed'], screens: ['M59-road', 'M59-loneworker', 'M59-work-refusals', 'M59-site-hazards', 'M59-battery'], reports: ['Leading Indicators'], forms: ['Road Check', 'Driving Licence', 'Lone-Worker Check-In', 'Work Refusal', 'Customer Site Hazard', 'Hazardous Substance'] }],
+    ['7', 'Training & Drills', 6, { model: 'fix.hse.drill', cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'state'], screens: ['M59-drills', 'M59-emergency-plans', 'M59-committee', 'M59-committee-members', 'M59-committee-meetings'], reports: ['Drill Calendar Coverage'], forms: ['Emergency Drill', 'Emergency Plan', 'Safety Committee', 'Committee Member'] }],
+    ['8', 'Health & Wellbeing', 7, { model: 'fix.hse.health', cols: ['name', 'employee_id', 'record_type', 'valid_until', 'fitness'], screens: ['M59-wellbeing', 'M59-fitness', 'M59-safety-followups'], reports: [], forms: ['Occupational Health Record', 'Return-to-Work'] }]
   ] }
 };
 
@@ -174,6 +188,53 @@ export const SCREENS = {
     actions: [
       { m: 'action_publish_fitness', l: 'Publish Fitness Status' },
       { m: 'action_close', l: 'Close Record' }
+    ] },
+
+  /* Capture audit 2026-11-18: the registers the pages had no record for. */
+  'M59-procedures': { kind: 'model_list', model: 'fix.hse.procedure', stateField: 'state',
+    cols: ['code', 'name', 'category', 'job_type', 'version', 'effective_from', 'approved_by_id', 'review_due_on', 'state'],
+    /* FR-HSE-006: prepared and submitted by one HSE Officer, approved by another; a change is a new version. */
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval' },
+      { m: 'action_approve', l: 'Approve (another HSE Officer)' },
+      { m: 'action_reject', l: 'Return for Changes', ask: 'What must change before it is approved?', kwarg: 'reason' },
+      { m: 'action_revise', l: 'New Version' },
+      { m: 'action_retire', l: 'Retire' }
+    ] },
+  'M59-permits': { kind: 'model_list', model: 'fix.hse.permit', stateField: 'state',
+    cols: ['name', 'permit_type', 'location', 'performer_id', 'valid_from', 'valid_to', 'requested_by_id', 'authorised_by_id', 'state'],
+    /* FR-HSE-007: authorised by an HSE Officer who neither requested it nor does the work. */
+    actions: [
+      { m: 'action_request', l: 'Request Authorisation' },
+      { m: 'action_authorise', l: 'Authorise (another HSE Officer)', ask: 'Authorisation conditions (optional)', kwarg: 'note' },
+      { m: 'action_close', l: 'Close Permit', ask: 'How was the work area left (isolations removed, area safe)?', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the permit cancelled?', kwarg: 'reason' }
+    ] },
+  /* T-09: a statement is kept as given; a correction is a further statement. */
+  'M59-witness-statements': { kind: 'model_list', model: 'fix.hse.witness.statement',
+    cols: ['name', 'incident_id', 'witness_employee_id', 'witness_name', 'taken_by_id', 'taken_on'] },
+  /* BRU-HSE-10: recorded as given, reviewed by an HSE Officer who neither refused nor recorded it; never a penalty. */
+  'M59-work-refusals': { kind: 'model_list', model: 'fix.hse.work.refusal', stateField: 'state',
+    cols: ['name', 'employee_id', 'ground', 'field_order_id', 'location', 'recorded_at', 'reviewed_by_id', 'outcome', 'state'],
+    actions: [
+      { m: 'action_uphold', l: 'Uphold (work was unsafe)', ask: 'What did the review find, and what stays stopped?', kwarg: 'note' },
+      { m: 'action_made_safe', l: 'Made Safe and Resumed', ask: 'What was done to make it safe?', kwarg: 'note' },
+      { m: 'action_not_substantiated', l: 'Not Substantiated (no penalty)', ask: 'What did the review find?', kwarg: 'note' }
+    ] },
+  /* FR-HSE-025 / AUT-HSE-17: a live hazard shows on every field order for that customer. */
+  'M59-site-hazards': { kind: 'model_list', model: 'fix.hse.location.hazard', stateField: 'state',
+    cols: ['name', 'partner_id', 'hazard_type', 'description', 'reported_by_id', 'reported_on', 'confirmed_by_id', 'state'],
+    actions: [
+      { m: 'action_confirm', l: 'Confirm (HSE)' },
+      { m: 'action_retire', l: 'Retire', ask: 'Why does the hazard no longer apply?', kwarg: 'reason' }
+    ] },
+  /* FR-HSE-035: one plan in force per site, put in force by another HSE Officer. */
+  'M59-emergency-plans': { kind: 'model_list', model: 'fix.hse.emergency.plan', stateField: 'state',
+    cols: ['name', 'branch_id', 'version', 'assembly_point', 'fire_extinguishers', 'extinguisher_service_due', 'approved_by_id', 'next_review_date', 'review_due', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Put in Force (another HSE Officer)' },
+      { m: 'action_review', l: 'Record Review' },
+      { m: 'action_revise', l: 'New Version' }
     ] },
 
   /* Report chips -> their own computed pack */
@@ -860,6 +921,334 @@ export const SCREENS = {
         ]
       }
     ]
+  },
+
+  /* ============ Capture audit 2026-11-18: forms for the new registers ============ */
+  'M59-form-procedure': {
+    kind: 'model_form',
+    model: 'fix.hse.procedure',
+    title: 'Safe Work Procedure',
+    back: 'M59-procedures',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved (in force)',
+      superseded: 'Superseded', retired: 'Retired' } },
+    tabs: [
+      { id: 'scope', label: 'Procedure & Scope', bn: 'পদ্ধতি ও পরিধি', icon: '📘', badge: '6' },
+      { id: 'steps', label: 'Steps & Document', bn: 'ধাপ ও নথি', icon: '📝', badge: '4' },
+      { id: 'approval', label: 'Version & Approval', bn: 'সংস্করণ ও অনুমোদন', icon: '✅', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'scope',
+        title: 'Safe Work Procedure (FR-HSE-006)',
+        note: 'Published to every employee once approved. A draft is changed freely; after submission the content is fixed and a change is a new version.',
+        fields: [
+          { name: 'code', required: true, label: 'Procedure Code (e.g. SWP-ELEC-01)' },
+          { name: 'name', required: true, label: 'Title' },
+          { name: 'category', required: true, label: 'Category' },
+          { name: 'job_type', label: 'Task Type (as on the JSA)' },
+          { name: 'effective_from', label: 'Effective From' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'steps',
+        title: 'What the Procedure Requires',
+        note: 'Scope and steps are required before it is submitted. Link the hazards it controls.',
+        fields: [
+          { name: 'scope', type: 'text', label: 'Scope (where, who, which equipment)' },
+          { name: 'content', type: 'text', label: 'Procedure Steps' },
+          { name: 'hazard_ids', label: 'Hazards Controlled' },
+          { name: 'document', type: 'binary', filename: 'document_name', accept: '.pdf,.doc,.docx,.jpg,.jpeg,.png', label: 'Procedure Document' },
+          { name: 'document_name', label: 'Document File Name' }
+        ]
+      },
+      {
+        tab: 'approval',
+        title: 'Approved by Another HSE Officer',
+        note: 'Use Submit, Approve, Return, New Version and Retire on the list; nothing here is typed.',
+        fields: [
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'prepared_by_id', label: 'Prepared By', readonly: true },
+          { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'review_due_on', label: 'Review Due', readonly: true },
+          { name: 'rejection_reason', label: 'Returned Because', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-permit': {
+    kind: 'model_form',
+    model: 'fix.hse.permit',
+    title: 'Permit to Work',
+    back: 'M59-permits',
+    status: { field: 'state', labels: {
+      draft: 'Draft', requested: 'Requested', authorised: 'Authorised', closed: 'Closed',
+      expired: 'Expired (not closed)', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'work', label: 'Work & Window', bn: 'কাজ ও সময়সীমা', icon: '🔥', badge: '9' },
+      { id: 'controls', label: 'Precautions & Isolation', bn: 'সতর্কতা ও বিচ্ছিন্নকরণ', icon: '🛡️', badge: '4' },
+      { id: 'decision', label: 'Authorisation & Closure', bn: 'অনুমোদন ও সমাপ্তি', icon: '✅', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'work',
+        title: 'High-Risk Activity (FR-HSE-007)',
+        note: 'Requested by the person doing the work (or HSE for them). The window is bounded (12 hours by default); the terms are fixed once requested.',
+        fields: [
+          { name: 'name', label: 'Permit No', readonly: true },
+          { name: 'permit_type', required: true, label: 'Permit Type' },
+          { name: 'activity', type: 'text', required: true, label: 'Activity' },
+          { name: 'location', required: true, label: 'Location' },
+          { name: 'branch_id', label: 'Branch' },
+          { name: 'field_order_id', label: 'Field Order (if on a job)' },
+          { name: 'performer_id', required: true, label: 'Work Done By' },
+          { name: 'valid_from', required: true, label: 'Valid From' },
+          { name: 'valid_to', required: true, label: 'Valid Until' }
+        ]
+      },
+      {
+        tab: 'controls',
+        title: 'Controls in Place Before Work Starts',
+        note: 'Precautions are required to request the permit; an electrical permit names its isolation points.',
+        fields: [
+          { name: 'precautions', type: 'text', label: 'Precautions in Place' },
+          { name: 'isolation_points', type: 'text', label: 'Isolation Points (electrical)' },
+          { name: 'procedure_id', label: 'Safe Work Procedure (in force)', domain: [['state', '=', 'approved']] },
+          { name: 'jsa_id', label: 'Job Safety Analysis (approved)', domain: [['state', '=', 'approved']] }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Authorised by Another HSE Officer, Closed with the Area Safe',
+        note: 'Use Request, Authorise, Close and Cancel on the list. An authorised permit past its window expires by itself and HSE is told.',
+        fields: [
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'authorised_by_id', label: 'Authorised By', readonly: true },
+          { name: 'authorised_on', label: 'Authorised On', readonly: true },
+          { name: 'authorisation_note', type: 'text', label: 'Authorisation Conditions', readonly: true },
+          { name: 'closed_by_id', label: 'Closed By', readonly: true },
+          { name: 'closure_note', type: 'text', label: 'Closure', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-witness': {
+    kind: 'model_form',
+    model: 'fix.hse.witness.statement',
+    title: 'Witness Statement',
+    back: 'M59-witness-statements',
+    tabs: [
+      { id: 'witness', label: 'Witness', bn: 'সাক্ষী', icon: '👤', badge: '4' },
+      { id: 'statement', label: 'Statement (verbatim)', bn: 'বিবৃতি', icon: '🗒️', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'witness',
+        title: 'Who Saw It (FR-HSE-012)',
+        note: 'Taken by HSE while the incident is open. Name an employee or, for anyone else, their name and contact.',
+        fields: [
+          { name: 'incident_id', required: true, label: 'Incident' },
+          { name: 'witness_employee_id', label: 'Witness (employee)' },
+          { name: 'witness_name', label: 'Witness (not an employee)' },
+          { name: 'witness_contact', label: 'Witness Contact' }
+        ]
+      },
+      {
+        tab: 'statement',
+        title: 'The Account as Given (T-09)',
+        note: 'Kept exactly as given: once saved it is never edited or deleted. A correction is a further statement.',
+        fields: [
+          { name: 'statement', type: 'text', required: true, label: 'Statement' },
+          { name: 'statement_file', type: 'binary', filename: 'statement_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Signed Statement (scan)' },
+          { name: 'statement_filename', label: 'Scan File Name' },
+          { name: 'taken_by_id', label: 'Taken By', readonly: true },
+          { name: 'taken_on', label: 'Taken On', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-work-refusal': {
+    kind: 'model_form',
+    model: 'fix.hse.work.refusal',
+    title: 'Work Refusal (Right to Stop Work)',
+    back: 'M59-work-refusals',
+    status: { field: 'state', labels: { recorded: 'Recorded', reviewed: 'Reviewed' } },
+    tabs: [
+      { id: 'refusal', label: 'Refusal', bn: 'প্রত্যাখ্যান', icon: '✋', badge: '6' },
+      { id: 'review', label: 'Review (no penalty)', bn: 'পর্যালোচনা', icon: '🔎', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'refusal',
+        title: 'Work Declined as Unsafe (FR-HSE-026, BRU-HSE-10)',
+        note: 'Any technician may decline work they judge unsafe. You record your own refusal; HSE can record one for you. It is kept as given, HSE and your line manager are told, and it never carries a penalty.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Refused By' },
+          { name: 'ground', required: true, label: 'Ground' },
+          { name: 'detail', type: 'text', required: true, label: 'What Made It Unsafe' },
+          { name: 'field_order_id', label: 'Field Order' },
+          { name: 'job_description', label: 'Work Declined' },
+          { name: 'location', label: 'Location' }
+        ]
+      },
+      {
+        tab: 'review',
+        title: 'Reviewed by an HSE Officer Who Neither Refused Nor Recorded It',
+        note: 'Use Uphold, Made Safe or Not Substantiated on the list. The register is read for patterns, never for penalty.',
+        fields: [
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'recorded_at', label: 'Recorded At', readonly: true },
+          { name: 'reviewed_by_id', label: 'Reviewed By', readonly: true },
+          { name: 'outcome', label: 'Outcome', readonly: true },
+          { name: 'review_note', type: 'text', label: 'Review', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-site-hazard': {
+    kind: 'model_form',
+    model: 'fix.hse.location.hazard',
+    title: 'Customer Site Hazard',
+    back: 'M59-site-hazards',
+    status: { field: 'state', labels: { reported: 'Reported', confirmed: 'Confirmed (live)', retired: 'Retired' } },
+    tabs: [
+      { id: 'hazard', label: 'Hazard at the Premises', bn: 'স্থানের ঝুঁকি', icon: '🏠', badge: '6' },
+      { id: 'decision', label: 'Confirmation', bn: 'নিশ্চিতকরণ', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'hazard',
+        title: 'What the Next Technician Must Know (FR-HSE-025)',
+        note: 'Any employee reports a hazard met at a customer site. While reported or confirmed, it shows on every field order for that customer.',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Customer' },
+          { name: 'address', type: 'text', label: 'Premises Address (blank = the customer address)' },
+          { name: 'hazard_type', required: true, label: 'Hazard Type' },
+          { name: 'description', type: 'text', required: true, label: 'Hazard Found' },
+          { name: 'field_order_id', label: 'Found on Field Order' },
+          { name: 'precautions', type: 'text', label: 'Precautions for the Next Visit' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Confirmed by HSE with the Precautions',
+        note: 'Use Confirm and Retire on the list.',
+        fields: [
+          { name: 'reported_by_id', label: 'Reported By', readonly: true },
+          { name: 'reported_on', label: 'Reported On', readonly: true },
+          { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true },
+          { name: 'confirmed_on', label: 'Confirmed On', readonly: true },
+          { name: 'retire_reason', label: 'Retired Because', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-emergency-plan': {
+    kind: 'model_form',
+    model: 'fix.hse.emergency.plan',
+    title: 'Site Emergency Plan',
+    back: 'M59-emergency-plans',
+    status: { field: 'state', labels: { draft: 'Draft', in_force: 'In Force', superseded: 'Superseded' } },
+    tabs: [
+      { id: 'site', label: 'Site & Evacuation', bn: 'স্থান ও সরিয়ে নেওয়া', icon: '🚪', badge: '7' },
+      { id: 'people', label: 'Wardens & Equipment', bn: 'দায়িত্বপ্রাপ্ত ও সরঞ্জাম', icon: '🧯', badge: '6' },
+      { id: 'review', label: 'In Force & Review', bn: 'কার্যকর ও পর্যালোচনা', icon: '📅', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'site',
+        title: 'Site Emergency Arrangements (FR-HSE-035)',
+        note: 'One plan in force per site. Prepared by HSE, put in force by another HSE Officer; a change after that is a new version.',
+        fields: [
+          { name: 'name', required: true, label: 'Plan Name' },
+          { name: 'branch_id', required: true, label: 'Site / Branch' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'evacuation_procedure', type: 'text', label: 'Evacuation Procedure' },
+          { name: 'assembly_point', label: 'Assembly Point' },
+          { name: 'emergency_contacts', type: 'text', label: 'Emergency Contacts (fire service, hospital)' },
+          { name: 'plan_document', type: 'binary', filename: 'plan_document_name', accept: '.pdf,.jpg,.jpeg,.png', label: 'Plan Document / Evacuation Map' },
+          { name: 'plan_document_name', label: 'Plan File Name' }
+        ]
+      },
+      {
+        tab: 'people',
+        title: 'Wardens, First-Aiders and Fire Equipment',
+        note: 'At least one warden, one first-aider, the extinguisher count and the first-aid boxes are needed to put it in force.',
+        fields: [
+          { name: 'warden_ids', label: 'Fire Wardens' },
+          { name: 'first_aider_ids', label: 'First-Aiders' },
+          { name: 'fire_extinguishers', label: 'Fire Extinguishers' },
+          { name: 'extinguisher_service_due', label: 'Extinguisher Service Due' },
+          { name: 'first_aid_boxes', label: 'First-Aid Boxes' },
+          { name: 'fire_alarm_tested_on', label: 'Fire Alarm Last Tested' }
+        ]
+      },
+      {
+        tab: 'review',
+        title: 'Put in Force and Reviewed',
+        note: 'Use Put in Force, Record Review and New Version on the list. A plan past its review or extinguisher service date is flagged to HSE.',
+        fields: [
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'prepared_by_id', label: 'Prepared By', readonly: true },
+          { name: 'approved_by_id', label: 'Put in Force By', readonly: true },
+          { name: 'approved_on', label: 'In Force Since', readonly: true },
+          { name: 'last_reviewed_on', label: 'Last Reviewed', readonly: true },
+          { name: 'next_review_date', label: 'Next Review', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* The Return-to-Work chip opened the generic health form as a periodic
+   * medical; it now starts a return-to-work record. Occupational Health only. */
+  'M59-form-rtw': {
+    kind: 'model_form',
+    model: 'fix.hse.health',
+    title: 'Return-to-Work Assessment',
+    back: 'M59-wellbeing',
+    status: { field: 'state', labels: { open: 'Open', closed: 'Closed' } },
+    tabs: [
+      { id: 'case', label: 'Return-to-Work Case', bn: 'কাজে ফেরা', icon: '🩹', badge: '4' },
+      { id: 'fitness', label: 'Fitness & Restrictions', bn: 'শারীরিক সক্ষমতা', icon: '📋', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'case',
+        title: 'Return to Work after Injury or Illness (FR-HSE-038)',
+        note: 'Occupational Health only. The medical detail stays here; Publish Fitness Status shares the functional restriction alone.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'record_type', required: true, label: 'Record Type', value: 'return_to_work' },
+          { name: 'record_date', required: true, label: 'Assessment Date' },
+          { name: 'valid_until', label: 'Review / Restriction Until' }
+        ]
+      },
+      {
+        tab: 'fitness',
+        title: 'Fitness Decision',
+        note: 'Fit with restrictions needs the functional restriction to publish (no diagnosis).',
+        fields: [
+          { name: 'clinician', label: 'Assessing Medical Officer' },
+          { name: 'fitness', required: true, label: 'Fitness Decision' },
+          { name: 'restrictions', label: 'Medical Restrictions (clinical, Occupational Health only)' },
+          { name: 'work_restriction', label: 'Work Restriction to Publish (functional, no diagnosis)' },
+          { name: 'fitness_status_id', label: 'Published Fitness Status', readonly: true }
+        ]
+      }
+    ]
   }
 };
 
@@ -872,19 +1261,61 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_MODELS = {
+  'M59:Hazard': 'fix.hse.hazard',
+  'M59:Safety Inspection': 'fix.safety.inspection',
+  'M59:JSA': 'fix.hse.jsa',
+  'M59:Safe Work Procedure': 'fix.hse.procedure',
+  'M59:Permit to Work': 'fix.hse.permit',
   'M59:Incident Report': 'fix.hse.incident',
   'M59:Anonymous Safety Report': 'fix.hse.incident',
-  'M59:JSA': 'fix.hse.jsa',
+  'M59:Investigation Team Member': 'fix.hse.investigation.member',
+  'M59:Witness Statement': 'fix.hse.witness.statement',
+  'M59:Root Cause': 'fix.hse.root.cause',
+  'M59:CAPA Action': 'fix.hse.capa',
+  'M59:PPE Item': 'fix.ppe.register',
   'M59:PPE Issue': 'fix.ppe.issue',
+  'M59:Road Check': 'fix.hse.roadcheck',
+  'M59:Driving Licence': 'fix.driver',
+  'M59:Lone-Worker Check-In': 'fix.hse.loneworker',
+  'M59:Work Refusal': 'fix.hse.work.refusal',
+  'M59:Customer Site Hazard': 'fix.hse.location.hazard',
+  'M59:Hazardous Substance': 'fix.hazardous.substance.register',
+  'M59:Emergency Drill': 'fix.hse.drill',
+  'M59:Emergency Plan': 'fix.hse.emergency.plan',
+  'M59:Safety Committee': 'fix.safety.committee',
+  'M59:Committee Member': 'fix.safety.committee.member',
+  'M59:Occupational Health Record': 'fix.hse.health',
   'M59:Return-to-Work': 'fix.hse.health'
 };
 
 export const FORM_CHIPS = {
+  'M59:Hazard': 'M59-form-hazard',
+  'M59:Safety Inspection': 'M59-form-inspection',
+  'M59:JSA': 'M59-form-jsa',
+  'M59:Safe Work Procedure': 'M59-form-procedure',
+  'M59:Permit to Work': 'M59-form-permit',
   'M59:Incident Report': 'M59-form-incident',
   'M59:Anonymous Safety Report': 'M59-form-anonymous',
-  'M59:JSA': 'M59-form-jsa',
+  'M59:Investigation Team Member': 'M59-form-investigation-member',
+  'M59:Witness Statement': 'M59-form-witness',
+  'M59:Root Cause': 'M59-form-root-cause',
+  'M59:CAPA Action': 'M59-form-capa',
+  'M59:PPE Item': 'M59-form-ppe',
   'M59:PPE Issue': 'M59-form-ppe-issue',
-  'M59:Return-to-Work': 'M59-form-health',
+  'M59:Road Check': 'M59-form-roadcheck',
+  /* FR-HSE-019: the driving licence is M46's driver record (the road check
+   * reads it); an HSE Officer or a Fleet Officer records it there. */
+  'M59:Driving Licence': 'M46-form-driver',
+  'M59:Lone-Worker Check-In': 'M59-form-loneworker',
+  'M59:Work Refusal': 'M59-form-work-refusal',
+  'M59:Customer Site Hazard': 'M59-form-site-hazard',
+  'M59:Hazardous Substance': 'M59-form-substance',
+  'M59:Emergency Drill': 'M59-form-drill',
+  'M59:Emergency Plan': 'M59-form-emergency-plan',
+  'M59:Safety Committee': 'M59-form-committee',
+  'M59:Committee Member': 'M59-form-committee-member',
+  'M59:Occupational Health Record': 'M59-form-health',
+  'M59:Return-to-Work': 'M59-form-rtw',
   'M59:__by_model__': {
     'fix.safety.inspection': 'M59-form-inspection',
     'fix.statutory.accident.register': 'M59-form-statutory-register',
@@ -902,7 +1333,13 @@ export const FORM_CHIPS = {
     'fix.hse.root.cause': 'M59-form-root-cause',
     'fix.hse.investigation.member': 'M59-form-investigation-member',
     'fix.ppe.issue': 'M59-form-ppe-issue',
-    'fix.safety.committee.member': 'M59-form-committee-member'
+    'fix.safety.committee.member': 'M59-form-committee-member',
+    'fix.hse.procedure': 'M59-form-procedure',
+    'fix.hse.permit': 'M59-form-permit',
+    'fix.hse.witness.statement': 'M59-form-witness',
+    'fix.hse.work.refusal': 'M59-form-work-refusal',
+    'fix.hse.location.hazard': 'M59-form-site-hazard',
+    'fix.hse.emergency.plan': 'M59-form-emergency-plan'
   },
   'M59:__by_screen__': {
     'M59-safety-inspection': 'M59-form-inspection',
@@ -922,7 +1359,13 @@ export const FORM_CHIPS = {
     'M59-root-causes': 'M59-form-root-cause',
     'M59-investigation-team': 'M59-form-investigation-member',
     'M59-ppe': 'M59-form-ppe-issue',
-    'M59-committee-members': 'M59-form-committee-member'
+    'M59-committee-members': 'M59-form-committee-member',
+    'M59-procedures': 'M59-form-procedure',
+    'M59-permits': 'M59-form-permit',
+    'M59-witness-statements': 'M59-form-witness',
+    'M59-work-refusals': 'M59-form-work-refusal',
+    'M59-site-hazards': 'M59-form-site-hazard',
+    'M59-emergency-plans': 'M59-form-emergency-plan'
   }
 };
 

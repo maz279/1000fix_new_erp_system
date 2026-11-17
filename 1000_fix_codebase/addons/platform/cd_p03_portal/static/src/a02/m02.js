@@ -391,6 +391,8 @@ export const SCREENS = {
         title: 'Lone-Worker Safety Check-In & Field Evidence Pack',
         note: 'Completion needs the customer sign-off (verified OTP or signature), a post-work photo and the work summary. The signature and photos come from the technician app.',
         fields: [
+          /* M59 FR-HSE-025 / AUT-HSE-17: live hazards reported at this customer's premises */
+          { name: 'hse_site_hazard_note', label: 'Customer Site Hazards (M59)', readonly: true, type: 'text' },
           { name: 'lone_worker_checkin_at', label: 'Last Safety Heartbeat At', readonly: true },
           { name: 'work_summary', label: 'On-Site Work Summary', type: 'text' },
           { name: 'customer_otp_verified', label: 'Customer OTP Verified', readonly: true },

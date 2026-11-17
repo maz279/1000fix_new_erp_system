@@ -7,4 +7,5 @@ from . import (
     fix_hse_investigation,
     fix_hse_fitness,
     fix_hse_followup,
+    fix_hse_capture,
 )

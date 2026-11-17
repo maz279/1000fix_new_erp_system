@@ -101,6 +101,44 @@ SURFACES = {
         "actions": {"action_publish_fitness", "action_close"},
     },
     "fix.safety.inspection": {"order": "id desc", "limit": 400, "actions": {"action_complete"}},
+    # Capture audit 2026-11-18: the six registers the sub-module pages lacked.
+    # Approvals, reviews and closures are actions; their stamps are never typed.
+    "fix.hse.procedure": {
+        "order": "code, version desc, id desc",
+        "limit": 300,
+        "actions": {
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_revise",
+            "action_retire",
+        },
+    },
+    "fix.hse.permit": {
+        "order": "valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_request", "action_authorise", "action_close", "action_cancel"},
+    },
+    "fix.hse.witness.statement": {
+        "order": "incident_id, taken_on, id",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.hse.work.refusal": {
+        "order": "recorded_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_uphold", "action_made_safe", "action_not_substantiated"},
+    },
+    "fix.hse.location.hazard": {
+        "order": "reported_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_retire"},
+    },
+    "fix.hse.emergency.plan": {
+        "order": "branch_id, version desc, id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_review", "action_revise"},
+    },
 }
 
 

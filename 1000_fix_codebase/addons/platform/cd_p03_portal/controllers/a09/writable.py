@@ -539,6 +539,24 @@ WRITABLE = {
             "scheduled_on",
         }
     ),
+    "fix.hse.emergency.plan": frozenset(
+        {
+            "assembly_point",
+            "branch_id",
+            "emergency_contacts",
+            "evacuation_procedure",
+            "extinguisher_service_due",
+            "fire_alarm_tested_on",
+            "fire_extinguishers",
+            "first_aid_boxes",
+            "first_aider_ids",
+            "name",
+            "operating_unit_id",
+            "plan_document",
+            "plan_document_name",
+            "warden_ids",
+        }
+    ),
     "fix.hse.fitness.status": frozenset(),
     "fix.hse.hazard": frozenset(
         {
@@ -595,6 +613,16 @@ WRITABLE = {
             "steps",
         }
     ),
+    "fix.hse.location.hazard": frozenset(
+        {
+            "address",
+            "description",
+            "field_order_id",
+            "hazard_type",
+            "partner_id",
+            "precautions",
+        }
+    ),
     "fix.hse.loneworker": frozenset(
         {
             "buddy_id",
@@ -605,6 +633,37 @@ WRITABLE = {
             "location",
             "notes",
             "operating_unit_id",
+        }
+    ),
+    "fix.hse.permit": frozenset(
+        {
+            "activity",
+            "branch_id",
+            "field_order_id",
+            "isolation_points",
+            "jsa_id",
+            "location",
+            "performer_id",
+            "permit_type",
+            "precautions",
+            "procedure_id",
+            "valid_from",
+            "valid_to",
+        }
+    ),
+    "fix.hse.procedure": frozenset(
+        {
+            "category",
+            "code",
+            "company_id",
+            "content",
+            "document",
+            "document_name",
+            "effective_from",
+            "hazard_ids",
+            "job_type",
+            "name",
+            "scope",
         }
     ),
     "fix.hse.roadcheck": frozenset(
@@ -626,6 +685,27 @@ WRITABLE = {
         }
     ),
     "fix.hse.safety.followup": frozenset(),
+    "fix.hse.witness.statement": frozenset(
+        {
+            "incident_id",
+            "statement",
+            "statement_file",
+            "statement_filename",
+            "witness_contact",
+            "witness_employee_id",
+            "witness_name",
+        }
+    ),
+    "fix.hse.work.refusal": frozenset(
+        {
+            "detail",
+            "employee_id",
+            "field_order_id",
+            "ground",
+            "job_description",
+            "location",
+        }
+    ),
     "fix.incentive.adjustment": frozenset(
         {
             "adjustment_type",

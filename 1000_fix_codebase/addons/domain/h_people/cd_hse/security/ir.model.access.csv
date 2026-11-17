@@ -36,3 +36,15 @@ access_fix_hse_capa_user,fix.hse.capa.owner,model_fix_hse_capa,base.group_user,1
 access_fix_hse_capa_role,fix.hse.capa.role,model_fix_hse_capa,cd_hse.group_hse_officer,1,1,1,0
 access_fix_hse_fitness_status_user,fix.hse.fitness.status.reader,model_fix_hse_fitness_status,base.group_user,1,0,0,0
 access_fix_hse_safety_followup_role,fix.hse.safety.followup.role,model_fix_hse_safety_followup,cd_hse.group_hse_officer,1,1,0,0
+access_fix_hse_procedure_user,fix.hse.procedure.reader,model_fix_hse_procedure,base.group_user,1,0,0,0
+access_fix_hse_procedure_role,fix.hse.procedure.role,model_fix_hse_procedure,cd_hse.group_hse_officer,1,1,1,1
+access_fix_hse_permit_user,fix.hse.permit.user,model_fix_hse_permit,base.group_user,1,1,1,0
+access_fix_hse_permit_role,fix.hse.permit.role,model_fix_hse_permit,cd_hse.group_hse_officer,1,1,1,1
+access_fix_hse_witness_statement_role,fix.hse.witness.statement.role,model_fix_hse_witness_statement,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_work_refusal_user,fix.hse.work.refusal.user,model_fix_hse_work_refusal,base.group_user,1,1,1,0
+access_fix_hse_work_refusal_role,fix.hse.work.refusal.role,model_fix_hse_work_refusal,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_location_hazard_user,fix.hse.location.hazard.user,model_fix_hse_location_hazard,base.group_user,1,1,1,0
+access_fix_hse_location_hazard_role,fix.hse.location.hazard.role,model_fix_hse_location_hazard,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_emergency_plan_user,fix.hse.emergency.plan.reader,model_fix_hse_emergency_plan,base.group_user,1,0,0,0
+access_fix_hse_emergency_plan_role,fix.hse.emergency.plan.role,model_fix_hse_emergency_plan,cd_hse.group_hse_officer,1,1,1,1
+access_fix_driver_hse,fix.driver.hse,cd_vehicle_ext.model_fix_driver,cd_hse.group_hse_officer,1,1,1,0
