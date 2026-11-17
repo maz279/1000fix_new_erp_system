@@ -37,6 +37,11 @@ REVALUATION_FLOOR = "cd_fixed_asset_ext.revaluation_dofa_no_approval_max"
 # GL control accounts disagree by more than the tolerance. 0 switches it off.
 CLOSE_GATE = "cd_fixed_asset_ext.close_gate_register_gl"
 CLOSE_GATE_TOLERANCE = "cd_fixed_asset_ext.close_gate_tolerance"
+# BRU-FXA-24 (capture audit 2026-11-17): a capital project whose budget is at
+# or above the threshold has a post-implementation review due within the
+# period after completion. Both are config keys (CFO policy).
+PIR_THRESHOLD = "cd_fixed_asset_ext.capital_project_review_threshold"
+PIR_DAYS = "cd_fixed_asset_ext.capital_project_review_days"
 DEFAULTS = {
     CAPEX_FLOOR: 0.0,
     CAPEX_TIER2: 50000.0,
@@ -47,6 +52,8 @@ DEFAULTS = {
     REVALUATION_FLOOR: 0.0,
     CLOSE_GATE: 1.0,
     CLOSE_GATE_TOLERANCE: 1.0,
+    PIR_THRESHOLD: 5000000.0,
+    PIR_DAYS: 180.0,
 }
 
 

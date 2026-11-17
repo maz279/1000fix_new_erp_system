@@ -34,6 +34,13 @@ class FixAssetCategory(models.Model):
     salvage_percent = fields.Float(
         string="Default Residual Value %", default=0.0, tracking=True, digits=(5, 2)
     )
+    componentisation_required = fields.Boolean(
+        string="Componentisation Required",
+        tracking=True,
+        help="FR-FXA-014: an asset of this category is capitalised as components, each "
+        "with its own useful life. A CWIP project of the category cannot be capitalised "
+        "until its components are recorded.",
+    )
     tax_rate_code = fields.Char(
         string="Tax Depreciation Class",
         tracking=True,

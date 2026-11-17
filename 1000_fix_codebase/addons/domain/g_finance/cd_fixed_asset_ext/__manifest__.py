@@ -21,10 +21,15 @@ CD-M49-01 (P08-M08, rebuilt for A08) — fixed assets on the seam M19 built:
 - fix.asset.verification.campaign — physical verification by tag scan
 - fix.lease — IFRS 16 branch leases: liability at the IBR, ROU asset,
   effective-interest schedule, monthly postings
+- capture audit 2026-11-17 (fix_asset_capture): capital projects with their
+  post-implementation review, CWIP components capitalised as separate
+  assets, approved life / residual changes and depreciation suspension,
+  impairment assessments recorded whether or not impairment results, and
+  verification variance investigations approved by a non-counter
 - THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes depreciation
   EVENTS (depreciation.accrued, now published only for POSTED charges)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Accounting/Fixed Assets",

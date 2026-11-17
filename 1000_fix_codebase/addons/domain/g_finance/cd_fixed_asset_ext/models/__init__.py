@@ -11,3 +11,7 @@ from . import (
     fix_fixed_asset,
     fix_lease,
 )
+
+# the capture-audit records (2026-11-17) extend the register, CWIP, the
+# depreciation run and the capex request: loaded after them
+from . import fix_asset_capture

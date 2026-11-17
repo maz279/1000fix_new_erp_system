@@ -19,6 +19,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_asset_depreciation_change_company" model="ir.rule">
+        <field name="name">fix.asset.depreciation.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_depreciation_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_depreciation_change_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.depreciation.change: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_depreciation_change"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_asset_depreciation_line_company" model="ir.rule">
         <field name="name">fix.asset.depreciation.line: allowed companies</field>
         <field name="model_id" ref="model_fix_asset_depreciation_line"/>
@@ -49,6 +60,17 @@
     <record id="rule_fix_asset_disposal_operating_unit" model="ir.rule">
         <field name="name">fix.asset.disposal: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_asset_disposal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_impairment_assessment_company" model="ir.rule">
+        <field name="name">fix.asset.impairment.assessment: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_impairment_assessment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_impairment_assessment_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.impairment.assessment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_impairment_assessment"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -107,6 +129,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_asset_verification_variance_company" model="ir.rule">
+        <field name="name">fix.asset.verification.variance: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_verification_variance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_verification_variance_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.verification.variance: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_verification_variance"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_capex_budget_company" model="ir.rule">
         <field name="name">fix.capex.budget: allowed companies</field>
         <field name="model_id" ref="model_fix_capex_budget"/>
@@ -126,6 +159,28 @@
     <record id="rule_fix_capex_request_operating_unit" model="ir.rule">
         <field name="name">fix.capex.request: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_capex_request"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_capital_project_company" model="ir.rule">
+        <field name="name">fix.capital.project: allowed companies</field>
+        <field name="model_id" ref="model_fix_capital_project"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_capital_project_operating_unit" model="ir.rule">
+        <field name="name">fix.capital.project: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_capital_project"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cwip_component_company" model="ir.rule">
+        <field name="name">fix.cwip.component: allowed companies</field>
+        <field name="model_id" ref="model_fix_cwip_component"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cwip_component_operating_unit" model="ir.rule">
+        <field name="name">fix.cwip.component: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cwip_component"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

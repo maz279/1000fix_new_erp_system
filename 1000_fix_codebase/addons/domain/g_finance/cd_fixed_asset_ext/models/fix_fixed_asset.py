@@ -969,6 +969,12 @@ class FixCwipEntry(models.Model):
                         balance,
                     )
                 )
+            # FR-FXA-014/016: one asset, or one per recorded component (each
+            # with its own category, life and residual), the cost allocated
+            # by the components' approved shares
+            parts = rec._capitalisation_parts(cat, life, residual or 0.0)
+            for part in parts:
+                require_accounts(part["category"], ["asset_account_id"], "CWIP capitalisation")
             today = fields.Date.context_today(rec)
             move = post_entry(
                 rec.env,
@@ -976,33 +982,58 @@ class FixCwipEntry(models.Model):
                 cat.journal_id,
                 today,
                 "CWIP capitalisation: %s" % rec.name,
-                [
-                    (cat.asset_account_id, rec.amount, 0.0, rec.name),
-                    (cat.cwip_account_id, 0.0, rec.amount, rec.name),
-                ],
+                [(p["category"].asset_account_id, p["gross"], 0.0, p["name"]) for p in parts]
+                + [(cat.cwip_account_id, 0.0, rec.amount, rec.name)],
                 rec.operating_unit_id,
             )
-            asset = (
-                self.env["fix.fixed.asset"]
-                ._guarded()
-                .create(
-                    {
-                        "company_id": rec.company_id.id,
-                        "operating_unit_id": rec.operating_unit_id.id,
-                        "name": rec.name,
-                        "category_id": cat.id,
-                        "gross": rec.amount,
-                        "salvage": residual or 0.0,
-                        "life_months": life,
-                        "purchase_date": today,
-                        "capex_request_id": request.id,
-                        "cwip_id": rec.id,
-                    }
+            created = self.env["fix.fixed.asset"]
+            for part in parts:
+                created |= (
+                    self.env["fix.fixed.asset"]
+                    ._guarded()
+                    .create(
+                        dict(
+                            {
+                                "company_id": rec.company_id.id,
+                                "operating_unit_id": rec.operating_unit_id.id,
+                                "name": part["name"],
+                                "category_id": part["category"].id,
+                                "gross": part["gross"],
+                                "salvage": part["salvage"],
+                                "life_months": part["life"],
+                                "purchase_date": today,
+                                "capex_request_id": request.id,
+                                "cwip_id": rec.id,
+                            },
+                            **part.get("asset_vals", {}),
+                        )
+                    )
                 )
+            rec._guarded().write(
+                {"state": "capitalised", "asset_id": created[:1].id, "move_id": move.id}
             )
-            rec._guarded().write({"state": "capitalised", "asset_id": asset.id, "move_id": move.id})
             if request.state in ("approved", "cwip"):
                 request.sudo()._guarded().write({"state": "capitalised"})
-            asset._fix_activate_from_source(move)
-            assets |= asset.with_env(self.env)
+            for asset in created:
+                asset._fix_activate_from_source(move)
+            rec._after_capitalise(created)
+            assets |= created.with_env(self.env)
         return assets
+
+    def _capitalisation_parts(self, category, life, residual):
+        """What the project capitalises into: one asset carrying the whole
+        cost. cd_fixed_asset_ext's components (fix_asset_capture) split it."""
+        self.ensure_one()
+        return [
+            {
+                "name": self.name,
+                "category": category,
+                "gross": self.amount,
+                "salvage": residual,
+                "life": life,
+            }
+        ]
+
+    def _after_capitalise(self, assets):
+        """Hook: the assets the project was capitalised into."""
+        return None

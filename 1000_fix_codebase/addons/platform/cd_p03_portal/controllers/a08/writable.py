@@ -128,6 +128,7 @@ WRITABLE = {
             "active",
             "asset_account_id",
             "code",
+            "componentisation_required",
             "cwip_account_id",
             "expense_account_id",
             "gain_account_id",
@@ -139,6 +140,15 @@ WRITABLE = {
             "salvage_percent",
             "tax_rate_code",
             "useful_life_months",
+        }
+    ),
+    "fix.asset.depreciation.change": frozenset(
+        {
+            "asset_id",
+            "kind",
+            "new_life_months",
+            "new_salvage",
+            "reason",
         }
     ),
     "fix.asset.depreciation.run": frozenset(
@@ -161,6 +171,25 @@ WRITABLE = {
             "proceeds",
             "proceeds_account_id",
             "reason",
+        }
+    ),
+    "fix.asset.impairment.assessment": frozenset(
+        {
+            "assessment_date",
+            "asset_id",
+            "basis",
+            "conclusion",
+            "ind_damage",
+            "ind_environment",
+            "ind_idle",
+            "ind_market",
+            "ind_other",
+            "ind_performance",
+            "indicator_note",
+            "operating_unit_id",
+            "recoverable_amount",
+            "scope",
+            "trigger",
         }
     ),
     "fix.asset.revaluation": frozenset(
@@ -188,10 +217,20 @@ WRITABLE = {
         {
             "date",
             "name",
+            "operating_unit_id",
             "responsible_id",
         }
     ),
     "fix.asset.verification.line": frozenset(),
+    "fix.asset.verification.variance": frozenset(
+        {
+            "explanation",
+            "incident_ref",
+            "investigator_id",
+            "line_id",
+            "proposed_action",
+        }
+    ),
     "fix.bank.facility": frozenset(
         {
             "expiry_date",
@@ -319,8 +358,25 @@ WRITABLE = {
             "justification",
             "life_months",
             "operating_unit_id",
+            "project_id",
             "request_date",
             "title",
+        }
+    ),
+    "fix.capital.project": frozenset(
+        {
+            "benefit_assessment",
+            "business_case",
+            "kind",
+            "name",
+            "operating_unit_id",
+            "owner_id",
+            "review_conclusion",
+            "review_file",
+            "review_filename",
+            "start_date",
+            "target_completion",
+            "total_budget",
         }
     ),
     "fix.cash.deposit": frozenset(
@@ -504,6 +560,17 @@ WRITABLE = {
             "invoice_id",
             "operating_unit_id",
             "reason_code",
+        }
+    ),
+    "fix.cwip.component": frozenset(
+        {
+            "category_id",
+            "cwip_id",
+            "life_months",
+            "name",
+            "salvage_percent",
+            "sequence",
+            "share_percent",
         }
     ),
     "fix.cwip.entry": frozenset(

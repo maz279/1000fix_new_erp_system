@@ -86,6 +86,43 @@ SURFACES = {
         "limit": 500,
         "actions": {"action_post"},
     },
+    # Capture audit 2026-11-17: the records the sub-module pages had no
+    # capture for (cd_fixed_asset_ext models/fix_asset_capture.py). Every
+    # decision is a manager's who did not raise the document.
+    "fix.capital.project": {
+        "order": "start_date desc, id desc",
+        "limit": 200,
+        "actions": {
+            "action_approve",
+            "action_complete",
+            "action_record_review",
+            "action_cancel",
+        },
+    },
+    "fix.cwip.component": {
+        "order": "cwip_id desc, sequence, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"cwip_id": [("state", "=", "open")]},
+    },
+    "fix.asset.depreciation.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject", "action_cancel"},
+        "pickers": {"asset_id": [("state", "=", "active")]},
+    },
+    "fix.asset.impairment.assessment": {
+        "order": "assessment_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_confirm", "action_cancel"},
+        "pickers": {"asset_id": [("state", "=", "active")]},
+    },
+    "fix.asset.verification.variance": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_propose", "action_approve", "action_reject"},
+        "pickers": {"line_id": [("result", "in", ["missing", "misplaced", "unregistered"])]},
+    },
 }
 
 
