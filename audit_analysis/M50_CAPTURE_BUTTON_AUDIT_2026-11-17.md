@@ -125,4 +125,8 @@ Four defects were found only by the live run and fixed before the evidence above
 - Between the upgrade and the restart, the old process ran the two new daily jobs once and logged a `KeyError` (it did not yet know the new models). The restarted process runs them normally.
 - fix_real holds **no** rows in the new records yet, and no mandate for any of its 38 bank accounts: recording who signs on each account is a data take-on for the finance team.
 - Before matching rules of those kinds can be approved, the owner sets `cd_cash_position.account_code.interest_income` and `.tax_on_interest`.
-- **fix_dev (8090) was not upgraded.**
+- **fix_dev (8090) upgraded the same day**, on the user's request:
+  - Backup `fix_dev_pre_m50_capture_2026-11-17.dump` (38.8 MB, reads back).
+  - Before the upgrade, cd_cash_position was fix_dev's only version gap across its 80 installed cd_ modules. `-u cd_cash_position,cd_p03_portal` exited 0.
+  - 8090 restarted straight after: PID 35160 became 45588 (supervisor 37700) in 11 s, with no log errors. The old process logged the same two harmless cron `KeyError`s in the 40 s before the restart.
+  - The same records and actions are served, and the bundle is a86519c, the same as fix_real.
