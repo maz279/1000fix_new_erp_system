@@ -118,5 +118,5 @@ Found only by running: a refused `create` inside `pytest.raises` without a savep
   - `nid_cash_threshold` = 50,000, active, statutory default (no company): counter receipts keep the same limit;
   - the NBR notice deadline job is active;
   - the served workspace bundle 03f2536 carries the three new forms, the new lists and the new "+ New" of pages 3, 5 and 8. The pages were not opened in a browser on 8069 (no session there).
-- **fix_dev (8090) is not upgraded.**
+- **fix_dev (8090) upgraded the same day**, in the M55 session's combined run on the user's request (backup, `-u cd_attendance,cd_tax_engine_bd,cd_billing_engine,cd_p03_portal`, one 8090 restart; the new process is 28660 under supervisor 37700). Verified by this session, read-only: cd_tax_engine_bd 19.0.1.1.0; the three new tables with 12 access rows and 6 isolation rules, all empty; `nid_cash_threshold` = 50,000; the notice deadline job active; no ERROR in the 8090 log since the restart; 8090 serves bundle 03f2536, the same as fix_real, with the new forms and page buttons.
 - The NID threshold row (BDT 50,000) and the new models arrive with that upgrade; nothing else changes for the counter.
