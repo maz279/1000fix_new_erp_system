@@ -20,7 +20,7 @@ master slice (cd_employee_core):
 - joiner/mover/leaver events (AS-08) verified to drive M29 provisioning at
   full scale (P08-M01-T06)
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources",
@@ -46,6 +46,8 @@ master slice (cd_employee_core):
         "security/fix_a09_privacy_rules.xml",
         # A09 round 2: the identity read log and the s.27(3A) case
         "security/fix_a09_m21_r2_rules.xml",
+        # M21 capture audit: notice acknowledgement and exit interview
+        "security/fix_a09_m21_capture_rules.xml",
         # M55 leave controls (A09 P0-b/P1/P2); owned by the leave work package
         "security/leave/ir.model.access.csv",
         "data/fix_a09_leave_data.xml",

@@ -36,3 +36,7 @@ access_fix_hr_disciplinary_case_executive,fix.hr.disciplinary.case.executive,mod
 access_fix_hr_identity_access_log_manager,fix.hr.identity.access.log.manager,model_fix_hr_identity_access_log,hr.group_hr_manager,1,0,0,0
 access_fix_hr_abandonment_officer,fix.hr.abandonment.officer,model_fix_hr_abandonment,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_hr_abandonment_executive,fix.hr.abandonment.executive,model_fix_hr_abandonment,cd_hr_core.group_hr_executive,1,1,0,0
+access_fix_hr_notice_ack_officer,fix.hr.notice.ack.officer,model_fix_hr_notice_ack,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_notice_ack_dpo,fix.hr.notice.ack.dpo,model_fix_hr_notice_ack,cd_party_master.group_party_dpo,1,0,0,0
+access_fix_hr_exit_interview_officer,fix.hr.exit.interview.officer,model_fix_hr_exit_interview,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_exit_interview_mgr,fix.hr.exit.interview.manager,model_fix_hr_exit_interview,hr.group_hr_manager,1,1,1,1

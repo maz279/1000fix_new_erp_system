@@ -13,7 +13,8 @@ export const MODULE = {
     { l: 'Technicians', m: 'technicians' },
     { l: 'Open Positions', m: 'open_positions' },
     { l: 'Probation Ending (30d)', m: 'probation_ending_30d' },
-    { l: 'Service Books', m: 'service_books_complete' }
+    { l: 'Service Books', m: 'service_books_complete' },
+    { l: 'Privacy Notice Pending', m: 'privacy_notice_pending' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -24,6 +25,8 @@ export const MODULE = {
       { id: 'M21-employee', en: 'Employee Record', bn: 'কর্মী নথি', t: 'f' },
       { id: 'M21-orgchart', en: 'Org Chart', bn: 'সংগঠন চার্ট', t: 'r' },
       { id: 'M21-positions', en: 'Positions & Jobs', bn: 'পদ', t: 'g' },
+      { id: 'M21-departments', en: 'Departments', bn: 'বিভাগ', t: 'g' },
+      { id: 'M21-jobs', en: 'Job Profiles', bn: 'চাকরির প্রোফাইল', t: 'g' },
       { id: 'M21-education', en: 'Academic Qualifications', bn: 'শিক্ষাগত যোগ্যতা', t: 'g' },
       { id: 'M21-experience', en: 'Work Experience', bn: 'কর্মঅভিজ্ঞতা', t: 'g' }
     ]},
@@ -31,6 +34,7 @@ export const MODULE = {
       { id: 'M21-hire', en: 'Hire / Onboard', bn: 'নিয়োগ', t: 'g' },
       { id: 'M21-transfer', en: 'Transfer / Promote', bn: 'স্থানান্তর ও পদোন্নতি', t: 'g' },
       { id: 'M21-exit', en: 'Exit & Settlement', bn: 'প্রস্থান', t: 'g' },
+      { id: 'M21-exit-interviews', en: 'Exit Interviews', bn: 'প্রস্থান সাক্ষাৎকার', t: 'g' },
       { id: 'M21-master-change', en: 'Master Changes', bn: 'তথ্য পরিবর্তন', t: 'g' },
       { id: 'M21-disciplinary', en: 'Disciplinary', bn: 'শৃঙ্খলা', t: 'g' },
       { id: 'M21-abandonment', en: 'Absence Without Leave (s.27(3A))', bn: 'বিনা ছুটিতে অনুপস্থিতি', t: 'g' },
@@ -43,7 +47,9 @@ export const MODULE = {
       { id: 'M21-nominees', en: 'Dependants & Nominees', bn: 'মনোনীত ব্যক্তি', t: 'g' }
     ]},
     { en: 'Self-Service', screens: [
-      { id: 'M21-ess', en: 'ESS / MSS', bn: 'স্ব-সেবা', t: 'r' }
+      { id: 'M21-ess', en: 'ESS / MSS', bn: 'স্ব-সেবা', t: 'r' },
+      { id: 'M21-notice-acks', en: 'Privacy Notice Acknowledgements', bn: 'গোপনীয়তা বিজ্ঞপ্তির স্বীকৃতি', t: 'g' },
+      { id: 'M21-rights', en: 'Employee Rights Requests', bn: 'কর্মীর অধিকার অনুরোধ', t: 'g' }
     ]},
     /* A09 round 2: the identity read log (HR Manager) and the read-only
      * clean-up findings the business decides from. */
@@ -53,17 +59,25 @@ export const MODULE = {
     ]}
   ],
   reports: ['Headcount & Movement', 'Attrition Analysis', 'Probation Conversion', 'Establishment Register', 'Org Distribution', 'Form 6(a) Register', 'Identity Read Log', 'Data Clean-up Findings'],
-  forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance'],
+  forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance',
+    'Education', 'Experience', 'Employment Contract', 'Organisation Position', 'Department', 'Job Profile',
+    'Master Change Request', 'Disciplinary Case', 'Statutory Document', 'Service Book Entry',
+    'Dependant / Nominee', 'Privacy Notice Acknowledgement', 'Rights Request', 'Absence Without Leave',
+    'Exit Interview'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
-    ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-employee', 'M21-education', 'M21-experience'], reports: ['Identity Read Log', 'Data Clean-up Findings'], forms: ['Employee'] }],
-    ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'], reports: ['Probation Conversion'], forms: [] }],
-    ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-orgchart'], reports: ['Org Distribution', 'Establishment Register'], forms: [] }],
-    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement', 'M21-master-change', 'M21-disciplinary'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion'] }],
-    ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook', 'M21-documents'], reports: ['Form 6(a) Register'], forms: [] }],
-    ['6', 'Dependants & Nominees', 5, { model: 'fix.hr.dependant', cols: ['employee_id', 'name', 'relation', 'is_nominee', 'nominee_pct'], screens: ['M21-nominees'], reports: [], forms: [] }],
-    ['7', 'ESS / MSS', 9, { model: 'hr.employee', cols: ['name', 'employee_code', 'employment_type', 'joining_date', 'confirmation_date'], screens: ['M21-ess'], reports: ['Probation Conversion'], forms: [], create: false }],
-    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit', 'M21-abandonment'], reports: ['Attrition Analysis'], forms: ['Exit Clearance'] }]
+    ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-employee', 'M21-education', 'M21-experience'], reports: ['Identity Read Log', 'Data Clean-up Findings'], forms: ['Employee', 'Education', 'Experience'] }],
+    ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'], reports: ['Probation Conversion'], forms: ['Employment Contract'] }],
+    ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-departments', 'M21-jobs', 'M21-orgchart'], reports: ['Org Distribution', 'Establishment Register'], forms: ['Organisation Position', 'Department', 'Job Profile'] }],
+    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement', 'M21-master-change', 'M21-disciplinary'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion', 'Master Change Request', 'Disciplinary Case'] }],
+    ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook', 'M21-documents'], reports: ['Form 6(a) Register'], forms: ['Statutory Document', 'Service Book Entry'] }],
+    ['6', 'Dependants & Nominees', 5, { model: 'fix.hr.dependant', cols: ['employee_id', 'name', 'relation', 'is_nominee', 'nominee_pct'], screens: ['M21-nominees'], reports: [], forms: ['Dependant / Nominee'] }],
+    /* M21 capture audit 2026-11-17: the page listed employees and captured
+     * nothing. It now carries what self-service raises: the privacy-notice
+     * acknowledgement (FR-HCM-044), the employee's rights request (FR-HCM-045,
+     * M33's record) and the controlled master change (FR-HCM-042). */
+    ['7', 'ESS / MSS', 9, { model: 'fix.hr.notice.ack', cols: ['employee_id', 'notice_id', 'acknowledged_on', 'method', 'state'], screens: ['M21-notice-acks', 'M21-rights', 'M21-master-change', 'M21-ess'], reports: ['Probation Conversion'], forms: ['Privacy Notice Acknowledgement', 'Rights Request', 'Master Change Request'] }],
+    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit', 'M21-exit-interviews', 'M21-abandonment'], reports: ['Attrition Analysis'], forms: ['Exit Clearance', 'Exit Interview', 'Absence Without Leave'] }]
   ] }
 };
 
@@ -85,7 +99,7 @@ export const SCREENS = {
     ] },
   'M21-orgchart': { kind: 'table_report', module: 'M21', report: 'org_distribution', title: 'Org Distribution', period: true },
   'M21-positions': { kind: 'model_list', model: 'fix.org.position',
-    cols: ['name', 'parent_id', 'grade', 'headcount', 'filled_count', 'vacant_count', 'operating_unit_id', 'company_id'] },
+    cols: ['name', 'job_id', 'department_id', 'parent_id', 'grade', 'headcount', 'filled_count', 'vacant_count', 'frozen', 'operating_unit_id', 'company_id'] },
   'M21-hire': { kind: 'model_list', model: 'fix.employment.contract', stateField: 'state',
     cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'date_end', 'basic_monthly', 'legal_signoff_state', 'approval_state', 'state'],
     /* The legal sign-off is decided in Legal Counsel's approval inbox (M63);
@@ -1133,8 +1147,10 @@ export const SCREENS = {
         fields: [
           { name: 'company_id', required: true, label: "Company" },
           { name: 'name', required: true, label: "Position Title" },
+          { name: 'job_id', label: "Job Profile" },
           { name: 'grade', label: "Corporate Grade / Band" },
-          { name: 'headcount', label: "Sanctioned Headcount (no dual occupancy beyond it)" }
+          { name: 'headcount', label: "Sanctioned Headcount (no dual occupancy beyond it)" },
+          { name: 'frozen', label: "Frozen (empty seats are not vacancies)" }
         ]
       },
       {
@@ -1143,6 +1159,7 @@ export const SCREENS = {
         note: "Direct reporting position and branch operating unit.",
         fields: [
           { name: 'parent_id', label: "Reports To Position" },
+          { name: 'department_id', label: "Department" },
           { name: 'operating_unit_id', label: "Operating Unit" }
         ]
       }
@@ -1463,6 +1480,229 @@ export const SCREENS = {
   },
 };
 
+/* ============ M21 sub-module capture audit (2026-11-17) ================
+ * Lists and forms for the records each page covers: the departments and
+ * job profiles every employee already belongs to (FR-HCM-020/022), the
+ * employment privacy-notice acknowledgement (FR-HCM-044, BRU-HCM-12), the
+ * employee's rights requests (FR-HCM-045, M33's record), the exit interview
+ * (FR-HCM-038), and a Promotion chip that starts a promotion, not a transfer. */
+Object.assign(SCREENS, {
+  'M21-departments': { kind: 'model_list', model: 'hr.department',
+    empty: 'No department is defined.',
+    cols: ['complete_name', 'fix_code', 'name_bn', 'parent_id', 'manager_id', 'total_employee', 'fix_cost_centre', 'company_id'] },
+  'M21-form-department': {
+    kind: 'model_form',
+    model: 'hr.department',
+    title: 'Department',
+    back: 'M21-departments',
+    tabs: [
+      { id: 'unit', label: 'Department', bn: 'বিভাগ', icon: '🏢', badge: '4' },
+      { id: 'structure', label: 'Structure & Cost', bn: 'কাঠামো ও ব্যয়', icon: '🗂️', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'unit',
+        title: 'Department Identity',
+        note: 'A unit of the organisation structure; employees, positions and job profiles name their department.',
+        fields: [
+          { name: 'name', required: true, label: 'Department Name' },
+          { name: 'name_bn', label: 'Department Name (Bengali)' },
+          { name: 'fix_code', label: 'Department Code' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'structure',
+        title: 'Reporting Structure & Cost Centre',
+        note: 'The parent department places it in the structure; the head is the department manager.',
+        fields: [
+          { name: 'parent_id', label: 'Parent Department' },
+          { name: 'manager_id', label: 'Head of Department' },
+          { name: 'fix_cost_centre', label: 'Cost Centre' },
+          { name: 'total_employee', label: 'Employees', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M21-jobs': { kind: 'model_list', model: 'hr.job',
+    empty: 'No job profile is defined.',
+    cols: ['name', 'fix_code', 'name_bn', 'fix_job_family', 'fix_job_band', 'department_id', 'no_of_employee', 'company_id'] },
+  'M21-form-job': {
+    kind: 'model_form',
+    model: 'hr.job',
+    title: 'Job Profile',
+    back: 'M21-jobs',
+    tabs: [
+      { id: 'profile', label: 'Job Profile', bn: 'চাকরির প্রোফাইল', icon: '🧰', badge: '4' },
+      { id: 'architecture', label: 'Family & Band', bn: 'পরিবার ও ব্যান্ড', icon: '📐', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'profile',
+        title: 'Job Profile',
+        note: 'A job in the job architecture catalogue: positions name it, and an employee holds it.',
+        fields: [
+          { name: 'name', required: true, label: 'Job Title' },
+          { name: 'name_bn', label: 'Job Title (Bengali)' },
+          { name: 'fix_code', label: 'Job Code' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'architecture',
+        title: 'Job Family, Band & Department',
+        note: 'The job family and band place the job in the architecture; the employee keeps their own band on the employee record.',
+        fields: [
+          { name: 'fix_job_family', label: 'Job Family' },
+          { name: 'fix_job_band', label: 'Grade / Band' },
+          { name: 'department_id', label: 'Department' },
+          { name: 'no_of_employee', label: 'Current Holders', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M21-notice-acks': { kind: 'model_list', model: 'fix.hr.notice.ack', stateField: 'state',
+    empty: 'No employee has acknowledged the employment privacy notice yet. Each employee must acknowledge the notice in force before their data is processed beyond the statutory minimum.',
+    cols: ['name', 'employee_id', 'notice_id', 'acknowledged_on', 'method', 'recorded_by_id', 'state', 'withdrawn_on'],
+    actions: [
+      { m: 'action_withdraw', l: 'Record Consent Withdrawal', states: ['acknowledged'], ask: 'What did the employee withdraw?', kwarg: 'reason' }
+    ] },
+  'M21-form-notice-ack': {
+    kind: 'model_form',
+    model: 'fix.hr.notice.ack',
+    title: 'Privacy Notice Acknowledgement',
+    back: 'M21-notice-acks',
+    status: { field: 'state', labels: { acknowledged: 'Acknowledged', withdrawn: 'Consent Withdrawn' } },
+    tabs: [
+      { id: 'ack', label: 'Acknowledgement', bn: 'স্বীকৃতি', icon: '🛡️', badge: '5' },
+      { id: 'record', label: 'Record & Withdrawal', bn: 'রেকর্ড ও প্রত্যাহার', icon: '🧾', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'ack',
+        title: 'Employment Privacy Notice',
+        note: 'Record which published notice version the employee was shown and acknowledged, and how. A signed paper copy is attached as evidence. Once recorded it is not edited: a new notice version needs a new acknowledgement.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'notice_id', required: true, label: 'Notice Version (published)' },
+          { name: 'acknowledged_on', required: true, label: 'Acknowledged On' },
+          { name: 'method', required: true, label: 'How It Was Acknowledged' },
+          { name: 'evidence_file', label: 'Signed Copy / Evidence', type: 'file' }
+        ]
+      },
+      {
+        tab: 'record',
+        title: 'Who Recorded It & Any Withdrawal',
+        note: 'A withdrawal of consent-based processing is recorded from the list; statutory employment processing continues.',
+        fields: [
+          { name: 'purposes', label: 'Purposes Covered', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'withdrawn_on', label: 'Withdrawn On', readonly: true },
+          { name: 'withdrawal_reason', label: 'What Was Withdrawn', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* M33 owns the rights request; this is the same record, scoped to
+   * employees (their work contact is the party). */
+  'M21-rights': { kind: 'model_list', model: 'fix.rights.request', stateField: 'state',
+    domain: [['partner_id.employee_ids', '!=', false]],
+    empty: 'No employee has made a data access, rectification or erasure request.',
+    cols: ['partner_id', 'request_type', 'received_at', 'statutory_due', 'handler_id', 'notified_at', 'state'] },
+  'M21-form-rights': {
+    kind: 'model_form',
+    model: 'fix.rights.request',
+    title: 'Employee Rights Request',
+    back: 'M21-rights',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'request', label: 'Request', bn: 'অনুরোধ', icon: '📝', badge: '4' },
+      { id: 'decision', label: 'Decision & Clock', bn: 'সিদ্ধান্ত ও সময়সীমা', icon: '⏱️', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'request',
+        title: 'Employee Data-Subject Request',
+        note: 'Pick the employee by name: an employee is a party through their work contact. Rectification is actioned and notified within 30 days; erasure is subject to the 10-year statutory retention of employment records.',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Employee (party)' },
+          { name: 'request_type', required: true, label: 'Request Type' },
+          { name: 'handler_id', label: 'Handler (receives the 30-day reminder)' },
+          { name: 'received_at', label: 'Received', readonly: true }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Decision, Notification & Statutory Clock',
+        note: 'Identity verification and fulfilment are the Data Protection Officer\'s actions on the Data-Subject Requests screen.',
+        fields: [
+          { name: 'decision', label: 'Decision Summary' },
+          { name: 'notified_at', label: 'Employee Notified At' },
+          { name: 'statutory_due', label: 'Statutory Due (30 days)', readonly: true },
+          { name: 'evidence_ref', label: 'Evidence Reference', readonly: true },
+          { name: 'fulfilled_at', label: 'Fulfilled At', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M21-exit-interviews': { kind: 'model_list', model: 'fix.hr.exit.interview', stateField: 'state',
+    empty: 'No exit interview is recorded.',
+    cols: ['name', 'employee_id', 'exit_type', 'interview_date', 'interviewer_id', 'primary_reason', 'would_rejoin', 'state'],
+    actions: [
+      { m: 'action_record', l: 'Record Interview (locks the answers)', states: ['draft'] }
+    ] },
+  'M21-form-exit-interview': {
+    kind: 'model_form',
+    model: 'fix.hr.exit.interview',
+    title: 'Exit Interview',
+    back: 'M21-exit-interviews',
+    status: { field: 'state', labels: { draft: 'Draft', recorded: 'Recorded' } },
+    tabs: [
+      { id: 'interview', label: 'Interview & Reason', bn: 'সাক্ষাৎকার ও কারণ', icon: '🗣️', badge: '7' },
+      { id: 'ratings', label: 'Ratings & Comments', bn: 'মূল্যায়ন ও মন্তব্য', icon: '⭐', badge: '8' }
+    ],
+    sections: [
+      {
+        tab: 'interview',
+        title: 'Exit and Reason for Leaving',
+        note: 'One interview per exit. The main reason feeds the attrition analysis by reason. The leaver cannot be the interviewer.',
+        fields: [
+          { name: 'exit_id', required: true, label: 'Exit' },
+          { name: 'employee_id', label: 'Leaver', readonly: true },
+          { name: 'exit_type', label: 'Exit Type', readonly: true },
+          { name: 'interview_date', required: true, label: 'Interview Date' },
+          { name: 'interviewer_id', required: true, label: 'Interviewer' },
+          { name: 'primary_reason', required: true, label: 'Main Reason for Leaving' },
+          { name: 'secondary_reason', label: 'Second Reason' }
+        ]
+      },
+      {
+        tab: 'ratings',
+        title: 'Leaver\'s Ratings and Comments',
+        note: 'Ratings from 1 (very poor) to 5 (very good). Recording the interview locks the answers.',
+        fields: [
+          { name: 'rating_manager', label: 'Line Manager' },
+          { name: 'rating_pay', label: 'Pay & Benefits' },
+          { name: 'rating_workload', label: 'Workload & Hours' },
+          { name: 'rating_growth', label: 'Growth & Training' },
+          { name: 'rating_environment', label: 'Work Environment & Safety' },
+          { name: 'would_rejoin', label: 'Would Rejoin 1000FiX' },
+          { name: 'would_recommend', label: 'Would Recommend 1000FiX as an Employer' },
+          { name: 'comments', label: 'Leaver\'s Comments' }
+        ]
+      }
+    ]
+  }
+});
+
+/* The Promotion chip opened the transfer dossier with "Transfer" selected:
+ * it now starts a promotion (the same record and controls). */
+SCREENS['M21-form-promotion'] = { ...SCREENS['M21-form-transfer'], title: 'Promotion Dossier', presets: { movement_type: 'promotion' } };
+
 export const REPORT_ROUTES = {
   'M21:Headcount & Movement': 'M21-rpt-headcount',
   'M21:Attrition Analysis': 'M21-rpt-attrition',
@@ -1480,17 +1720,42 @@ export const FORM_MODELS = {
   'M21:Promotion': 'fix.hr.transfer',
   'M21:Exit Clearance': 'fix.hr.exit',
   'M21:Education': 'fix.hr.education',
-  'M21:Experience': 'fix.hr.experience'
+  'M21:Experience': 'fix.hr.experience',
+  'M21:Employment Contract': 'fix.employment.contract',
+  'M21:Organisation Position': 'fix.org.position',
+  'M21:Department': 'hr.department',
+  'M21:Job Profile': 'hr.job',
+  'M21:Master Change Request': 'fix.hr.master.change',
+  'M21:Disciplinary Case': 'fix.hr.disciplinary.case',
+  'M21:Statutory Document': 'fix.hr.document',
+  'M21:Service Book Entry': 'fix.hr.document',
+  'M21:Dependant / Nominee': 'fix.hr.dependant',
+  'M21:Privacy Notice Acknowledgement': 'fix.hr.notice.ack',
+  'M21:Rights Request': 'fix.rights.request',
+  'M21:Absence Without Leave': 'fix.hr.abandonment',
+  'M21:Exit Interview': 'fix.hr.exit.interview'
 };
 
 export const FORM_CHIPS = {
   'M21:Organisation Position': 'M21-form-position',
   'M21:Employee': 'M21-employee',
   'M21:Transfer': 'M21-form-transfer',
-  'M21:Promotion': 'M21-form-transfer',
+  'M21:Promotion': 'M21-form-promotion',
   'M21:Exit Clearance': 'M21-form-exit',
   'M21:Education': 'M21-form-education',
   'M21:Experience': 'M21-form-experience',
+  'M21:Employment Contract': 'M21-form-contract',
+  'M21:Department': 'M21-form-department',
+  'M21:Job Profile': 'M21-form-job',
+  'M21:Master Change Request': 'M21-form-master-change',
+  'M21:Disciplinary Case': 'M21-form-disciplinary',
+  'M21:Statutory Document': 'M21-form-document',
+  'M21:Service Book Entry': 'M21-form-servicebook',
+  'M21:Dependant / Nominee': 'M21-form-dependant',
+  'M21:Privacy Notice Acknowledgement': 'M21-form-notice-ack',
+  'M21:Rights Request': 'M21-form-rights',
+  'M21:Absence Without Leave': 'M21-form-abandonment',
+  'M21:Exit Interview': 'M21-form-exit-interview',
   'M21:__by_model__': {
     'fix.leave.type': 'M21-form-leave-type',
     'fix.org.position': 'M21-form-position',
@@ -1504,7 +1769,12 @@ export const FORM_CHIPS = {
     'fix.hr.experience': 'M21-form-experience',
     'fix.hr.master.change': 'M21-form-master-change',
     'fix.hr.disciplinary.case': 'M21-form-disciplinary',
-    'fix.hr.abandonment': 'M21-form-abandonment'
+    'fix.hr.abandonment': 'M21-form-abandonment',
+    'hr.department': 'M21-form-department',
+    'hr.job': 'M21-form-job',
+    'fix.hr.notice.ack': 'M21-form-notice-ack',
+    'fix.rights.request': 'M21-form-rights',
+    'fix.hr.exit.interview': 'M21-form-exit-interview'
   },
   'M21:__by_screen__': {
     'M21-leave-type': 'M21-form-leave-type',
@@ -1521,7 +1791,12 @@ export const FORM_CHIPS = {
     'M21-experience': 'M21-form-experience',
     'M21-master-change': 'M21-form-master-change',
     'M21-disciplinary': 'M21-form-disciplinary',
-    'M21-abandonment': 'M21-form-abandonment'
+    'M21-abandonment': 'M21-form-abandonment',
+    'M21-departments': 'M21-form-department',
+    'M21-jobs': 'M21-form-job',
+    'M21-notice-acks': 'M21-form-notice-ack',
+    'M21-rights': 'M21-form-rights',
+    'M21-exit-interviews': 'M21-form-exit-interview'
   }
 };
 

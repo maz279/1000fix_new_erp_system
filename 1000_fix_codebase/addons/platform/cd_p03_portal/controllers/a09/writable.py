@@ -370,6 +370,23 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.hr.exit.interview": frozenset(
+        {
+            "comments",
+            "exit_id",
+            "interview_date",
+            "interviewer_id",
+            "primary_reason",
+            "rating_environment",
+            "rating_growth",
+            "rating_manager",
+            "rating_pay",
+            "rating_workload",
+            "secondary_reason",
+            "would_recommend",
+            "would_rejoin",
+        }
+    ),
     "fix.hr.experience": frozenset(
         {
             "company_name",
@@ -409,6 +426,15 @@ WRITABLE = {
             "proposed_routing_number",
             "proposed_tin_number",
             "reason",
+        }
+    ),
+    "fix.hr.notice.ack": frozenset(
+        {
+            "acknowledged_on",
+            "employee_id",
+            "evidence_file",
+            "method",
+            "notice_id",
         }
     ),
     "fix.hr.oncall": frozenset(
@@ -819,8 +845,11 @@ WRITABLE = {
     "fix.org.position": frozenset(
         {
             "company_id",
+            "department_id",
+            "frozen",
             "grade",
             "headcount",
+            "job_id",
             "name",
             "operating_unit_id",
             "parent_id",
@@ -1336,6 +1365,17 @@ WRITABLE = {
             "worker_status",
         }
     ),
+    "hr.department": frozenset(
+        {
+            "company_id",
+            "fix_code",
+            "fix_cost_centre",
+            "manager_id",
+            "name",
+            "name_bn",
+            "parent_id",
+        }
+    ),
     "hr.employee": frozenset(
         {
             "bank_account_number",
@@ -1465,6 +1505,17 @@ WRITABLE = {
             "work_email",
             "work_restrictions",
             "workplace_category",
+        }
+    ),
+    "hr.job": frozenset(
+        {
+            "company_id",
+            "department_id",
+            "fix_code",
+            "fix_job_band",
+            "fix_job_family",
+            "name",
+            "name_bn",
         }
     ),
 }

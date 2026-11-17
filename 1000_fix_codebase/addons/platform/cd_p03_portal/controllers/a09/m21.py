@@ -146,6 +146,31 @@ SURFACES = {
             "action_cancel",
         },
     },
+    # M21 capture audit 2026-11-17: the departments and job profiles every
+    # employee belongs to were on no screen (FR-HCM-020/022).
+    "hr.department": {
+        # (complete_name is computed, not stored: it cannot order a search)
+        "order": "name",
+        "limit": 300,
+        "actions": set(),
+    },
+    "hr.job": {
+        "order": "name",
+        "limit": 500,
+        "actions": set(),
+    },
+    # the employment privacy-notice acknowledgement (FR-HCM-044, BRU-HCM-12)
+    "fix.hr.notice.ack": {
+        "order": "acknowledged_on desc, id desc",
+        "limit": 600,
+        "actions": {"action_withdraw"},
+    },
+    # the structured exit interview (FR-HCM-038)
+    "fix.hr.exit.interview": {
+        "order": "interview_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_record"},
+    },
 }
 
 
@@ -345,6 +370,40 @@ def attrition_analysis(env, date_from=None, date_to=None, **params):
         for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["count"])
     ]
     total = sum(r["exits"] for r in rows)
+    notes = [
+        "Leavers are confirmed exits whose last working day fell in the period. The rate "
+        "is over the average of the opening (%d) and closing (%d) headcount." % (opening, closing)
+    ]
+    # the reason for leaving, from the recorded exit interviews (FR-HCM-038)
+    # (exit interviews are restricted to HR: a caller who cannot read them
+    # gets the rate without the reasons)
+    can_read = env["fix.hr.exit.interview"].has_access("read")
+    interviews = (
+        env["fix.hr.exit.interview"].search(
+            [("exit_id", "in", exits.ids), ("state", "=", "recorded")]
+        )
+        if can_read
+        else env["fix.hr.exit.interview"]
+    )
+    if exits and can_read:
+        reasons = dict(
+            env["fix.hr.exit.interview"]._fields["primary_reason"]._description_selection(env)
+        )
+        tally = {}
+        for interview in interviews:
+            tally[interview.primary_reason] = tally.get(interview.primary_reason, 0) + 1
+        notes.append(
+            "Main reason for leaving, from %d recorded exit interview(s) of %d leaver(s): %s."
+            % (
+                len(interviews),
+                len(exits),
+                "; ".join(
+                    "%s %d" % (reasons.get(k, k), n)
+                    for k, n in sorted(tally.items(), key=lambda kv: -kv[1])
+                )
+                or "none recorded",
+            )
+        )
     return _pack(
         "Attrition Analysis — %s to %s" % (start, end),
         ["exit_type", "exits", "branches", "share"],
@@ -355,11 +414,7 @@ def attrition_analysis(env, date_from=None, date_to=None, **params):
             "share": "% of Average Headcount",
         },
         rows,
-        [
-            "Leavers are confirmed exits whose last working day fell in the period. The rate "
-            "is over the average of the opening (%d) and closing (%d) headcount."
-            % (opening, closing)
-        ],
+        notes,
         totals={
             "exit_type": "Total",
             "exits": total,
@@ -443,6 +498,7 @@ def establishment_register(env, date_from=None, date_to=None, **params):
     for position in positions:
         heads = len(employees.filtered(lambda e, p=position.id: e.position_id.id == p))
         sanctioned = position.headcount or 0
+        empty = max(sanctioned - heads, 0)
         rows.append(
             {
                 "position": position.name,
@@ -450,7 +506,9 @@ def establishment_register(env, date_from=None, date_to=None, **params):
                 "parent": position.parent_id.name if position.parent_id else "—",
                 "sanctioned": sanctioned,
                 "filled": heads,
-                "vacant": max(sanctioned - heads, 0),
+                # a frozen position's empty seats are not vacancies (FR-HCM-023)
+                "vacant": 0 if position.frozen else empty,
+                "frozen": empty if position.frozen else 0,
                 "over": max(heads - sanctioned, 0),
             }
         )
@@ -458,7 +516,8 @@ def establishment_register(env, date_from=None, date_to=None, **params):
     over = [r for r in rows if r["over"]]
     notes = [
         "Sanctioned is the position's headcount (BRU-HCM-10: no holder beyond it); "
-        "filled counts the employees currently holding it."
+        "filled counts the employees currently holding it. The empty seats of a frozen "
+        "position are shown as frozen, not vacant."
     ]
     if over:
         notes.append(
@@ -467,7 +526,7 @@ def establishment_register(env, date_from=None, date_to=None, **params):
         )
     return _pack(
         "Establishment Register — positions and holders",
-        ["position", "grade", "parent", "sanctioned", "filled", "vacant", "over"],
+        ["position", "grade", "parent", "sanctioned", "filled", "vacant", "frozen", "over"],
         {
             "position": "Position",
             "grade": "Grade",
@@ -475,6 +534,7 @@ def establishment_register(env, date_from=None, date_to=None, **params):
             "sanctioned": "Sanctioned",
             "filled": "Filled",
             "vacant": "Vacant",
+            "frozen": "Frozen Seats",
             "over": "Over Establishment",
         },
         rows,
@@ -484,6 +544,7 @@ def establishment_register(env, date_from=None, date_to=None, **params):
             "sanctioned": sum(r["sanctioned"] for r in rows),
             "filled": sum(r["filled"] for r in rows),
             "vacant": sum(r["vacant"] for r in rows),
+            "frozen": sum(r["frozen"] for r in rows),
             "over": sum(r["over"] for r in rows),
         },
         empty="No positions defined.",
@@ -674,14 +735,23 @@ def kpis(env):
     holders = {}
     for emp in employees.filtered("position_id"):
         holders[emp.position_id.id] = holders.get(emp.position_id.id, 0) + 1
-    return {
+    out = {
         "headcount": headcount,
         # leavers YTD over the average headcount (as the Attrition report)
         "attrition_ytd": round(len(exits) / average * 100.0, 1) if average else 0.0,
         "technicians": _technicians(env, employees),
         # vacant seats summed per position: over-filled positions no longer
         # cancel out another position's vacancies
-        "open_positions": sum(max((p.headcount or 0) - holders.get(p.id, 0), 0) for p in positions),
+        # (a frozen position's empty seats are not vacancies, FR-HCM-023)
+        "open_positions": sum(
+            max((p.headcount or 0) - holders.get(p.id, 0), 0) for p in positions if not p.frozen
+        ),
         "probation_ending_30d": probation_due,
         "service_books_complete": len(documents.mapped("employee_id") & employees),
     }
+    # BRU-HCM-12: employees on the books with no live acknowledgement of the
+    # employment privacy notice in force. Withheld (not zero) from a caller
+    # who cannot read the acknowledgements.
+    if env["fix.hr.notice.ack"].has_access("read"):
+        out["privacy_notice_pending"] = len(employees - employees.fix_privacy_notice_acknowledged())
+    return out

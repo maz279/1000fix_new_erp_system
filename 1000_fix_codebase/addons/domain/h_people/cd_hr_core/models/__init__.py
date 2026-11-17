@@ -11,3 +11,7 @@ from . import fix_hr_contract_controls, fix_hr_movement_controls, fix_hr_discipl
 from . import fix_hr_exit_controls, fix_hr_document_controls, fix_hr_identity_residency
 from . import fix_hr_master_controls, fix_hr_exit_lifecycles, fix_hr_cleanup_report
 from . import fix_hr_cost_centre
+
+# M21 capture audit 2026-11-17: job architecture, privacy-notice acknowledgement,
+# exit interview (extends hr.employee, fix.org.position and fix.hr.exit: last)
+from . import fix_hr_capture
