@@ -98,3 +98,13 @@ Lint: `ruff check` and `ruff format` clean on every changed Python file.
 - **Policy settings** (system parameters, defaults in brackets): internal consideration window `cd_talent.internal_consideration_days` (7; 0 switches it off), the pre-boarding checklist `cd_talent.preboarding_documents` (nid, photo, academic, experience, bank).
 - **Referral reward payment.** The approved reward is recorded on the referral; M56 has no one-off earnings input that reads it yet, so payroll pays it from the approved list.
 - **Not built (spec P2 or another module's):** talent pool (FR-TAO-009), candidate comparison (FR-TAO-017), provisioning requests as commands to M29/M17 (FR-TAO-028: onboarding tasks with the IT, stores and facilities functions carry them today), learning-path assignment in M22 (FR-TAO-030).
+
+## 5. Landing and deploy (18 Nov 2026, user-approved "Land and deploy")
+
+- **Re-test on the combined tree** (rebased over M55 b5699893; `controllers/a09/writable.py` regenerated with both modules' fields): 1,258 tests, 0 failed, 0 errors, 0 skipped.
+- **Landed** fix 261cc780 on `fix/a03-live-data-and-pending-work`: a compare-and-set fast-forward from 88625d2b, then the shared checkout synced with `read-tree -m -u`. Not pushed.
+- **Backup**: `fix_real_pre_m58_capture_2026-11-18.dump` (50.0 MB, 51,498 entries) in `_migration/backups`.
+- **fix_real**: `-u cd_talent,cd_p03_portal` exit 0, 0 errors. `cd_talent` is now 19.0.0.4.0 and the 7 new models exist. The version-gap check over 83 installed `cd_` modules found 0 gaps.
+- **8069** restarted once: PID 28840 became 63524. Registry loaded with 155 modules and 0 errors; `/web/login` returns 200. The backend bundle `0ba1043` (attachment 10306) carries every new M58 form and report, and 8069 serves it.
+- The peer sessions M55, M21, M56, M57 and M01 held their restarts and landings during the deploy.
+- **fix_dev / 8090 was not upgraded.** It lags `cd_talent` 19.0.0.4.0. A restart of 8090 from the shared checkout needs `-u cd_talent,cd_p03_portal` on fix_dev first.
