@@ -278,7 +278,30 @@ WRITABLE = {
         }
     ),
     "fix.device.history": frozenset(),
-    "fix.diagnostic.node": frozenset(),
+    "fix.diagnostic.node": frozenset(
+        {
+            "active",
+            "children_ids",
+            "code",
+            "fault_code",
+            "name",
+            "parent_id",
+            "recommended_action",
+        }
+    ),
+    "fix.escalation.event": frozenset(),
+    "fix.escalation.rule": frozenset(
+        {
+            "active",
+            "group_id",
+            "kpi_code",
+            "note",
+            "policy_id",
+            "requires_ack",
+            "sequence",
+            "threshold_pct",
+        }
+    ),
     "fix.estimate": frozenset(
         {
             "company_id",
@@ -693,7 +716,20 @@ WRITABLE = {
         }
     ),
     "fix.sla.kpi.instance": frozenset(),
-    "fix.sla.policy": frozenset(),
+    "fix.sla.policy": frozenset(
+        {
+            "active",
+            "calendar_id",
+            "code",
+            "escalation_template_id",
+            "item_ids",
+            "name",
+            "priority",
+            "resolution_hours",
+            "response_hours",
+            "service_type",
+        }
+    ),
     "fix.storage.location": frozenset(
         {
             "active",

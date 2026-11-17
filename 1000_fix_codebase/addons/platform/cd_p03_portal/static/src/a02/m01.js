@@ -46,6 +46,7 @@ export const MODULE = {
       { id: 'M01-entitle', en: 'Entitlement Evaluation', bn: 'সুবিধা ও ওয়ারেন্টি যাচাই', t: 'g' },
       { id: 'M01-sla', en: 'SLA Policies & Clocks', bn: 'এসএলএ পলিসি ও কাউন্টডাউন', t: 'g' },
       { id: 'M01-esc', en: 'Escalation Rules', bn: 'এসকেলেশন রুলস', t: 'g' },
+      { id: 'M01-esc-raised', en: 'Escalations Raised', bn: 'উত্থাপিত এসকেলেশন', t: 'g' },
       { id: 'M01-sla-rep', en: 'SLA Compliance Report', bn: 'এসএলএ সম্মতি রিপোর্ট', t: 'r' }
     ]},
     { en: 'Quality & Release', screens: [
@@ -67,7 +68,13 @@ export const MODULE = {
   ],
   forms: [
     'New Service Order (12 channels, 34 fields)', 'Diagnostic Estimate Request', 'Hold / Release Reason', 'QC Checklist Inspection'
-  , 'SLA Item'],
+  , 'SLA Item',
+    /* M01 capture audit 2026-11-17: what pages 3/4/5/7/8/11 capture. The
+     * cross-module ones open the OWNER's form (M09 warranty register, M37
+     * fault taxonomy, M02 work order, M31 workshop book-in): M01 reads and
+     * applies those records, it does not master them (spec §3.2/§3.3). */
+    'SLA Policy', 'Escalation Rule', 'Diagnostic Tree Node', 'Hand Off to Field Dispatch', 'Issue Repair Warranty',
+    'Warranty Register Entry', 'Fault Code', 'Technician Work Order', 'Receive Device into Workshop'],
   cross: [
     'M02 Field Dispatch Handoff', 'M31 Workshop Routing', 'M09 Brand Warranty Check', 'M20 Mushak 6.3 Invoicing', 'M17 Device History'
   ],
@@ -81,18 +88,24 @@ export const MODULE = {
        * `create: false`: the page works on EXISTING orders (a slice of the
        * order book), so it offers no "+ New Service Order" - a new order is
        * not a hold, a dispatch hand-off, a delivered job or a WIP analysis.
-       * `domain` stays the LAST key (the mapping guard parses it there). */
+       * `domain` stays the LAST key (the mapping guard parses it there).
+       * M01 capture audit 2026-11-17: six pages captured nothing relevant
+       * (3 entitlement, 4 fault taxonomy, 5 diagnostic trees, 7 dispatch
+       * hand-off, 11 repair warranty) and page 8 could add an SLA item but
+       * not the policy or an escalation rule. Each now names what it
+       * captures; 7 and 11 still work on existing orders - their button
+       * picks the order first and runs the hand-off / issuance on it. */
       ['1', 'Omni-Channel Intake (12 channels)', 14, { model: 'fix.service.order', cols: ['name', 'service_type', 'customer_id', 'device_id', 'create_date'], screens: ['M01-intake', 'M01-channels', 'M01-hotline'], reports: ['Daily Intake by Channel'], forms: ['New Service Order (12 channels, 34 fields)'] }],
       ['2', 'Lifecycle State Machine & Stepper', 9, { model: 'fix.service.order', cols: ['name', 'state', 'order_category', 'priority', 'technician_id'], screens: ['M01-all', 'M01-order', 'M01-types'], reports: ['Order Cycle-Time (TAT) Distribution'], forms: ['New Service Order (12 channels, 34 fields)'] }],
-      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'], reports: ['SLA Compliance & Escalations'], forms: [] }],
-      ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'], reports: ['Rework & Repeat-Fault Analysis'], forms: [] }],
-      ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'], reports: [], forms: [] }],
+      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'], reports: ['SLA Compliance & Escalations'], forms: ['Warranty Register Entry'], create: 'M09-form-warranty' }],
+      ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'], reports: ['Rework & Repeat-Fault Analysis'], forms: ['Fault Code'], create: 'M37-form-fault' }],
+      ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'], reports: [], forms: ['Diagnostic Tree Node'], create: 'M01-form-diag-node' }],
       ['6', 'Estimate & Customer Approval Loop', 12, { model: 'fix.estimate', cols: ['order_id', 'version', 'grand_total', 'state', 'approved_at'], screens: ['M01-estimates', 'M01-thresholds'], reports: ['Estimate Conversion Funnel'], forms: ['Diagnostic Estimate Request'] }],
-      ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all'], reports: [], forms: [], create: false, domain: [['service_type', '=', 'onsite']] }],
-      ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-sla-rep', 'M01-sla-items'], reports: ['SLA Compliance & Escalations'], forms: ['SLA Item'] }],
+      ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all'], reports: [], forms: ['Hand Off to Field Dispatch', 'Receive Device into Workshop', 'Technician Work Order'], create: 'M01-form-dispatch', domain: [['service_type', '=', 'onsite']] }],
+      ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-esc-raised', 'M01-sla-rep', 'M01-sla-items'], reports: ['SLA Compliance & Escalations'], forms: ['SLA Policy', 'SLA Item', 'Escalation Rule'], create: 'M01-form-sla-policy' }],
       ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], reports: [], forms: ['Hold / Release Reason'], create: 'M01-form-hold', domain: [['is_deferred_block', '=', true]] }],
       ['10', 'QC Checkpoints & Rework Detection', 11, { model: 'fix.qc.checklist', cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'], screens: ['M01-qc', 'M01-rework'], reports: ['Rework & Repeat-Fault Analysis'], forms: ['QC Checklist Inspection'] }],
-      ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], reports: ['Uncollected Device Register'], forms: [], create: false, domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
+      ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], reports: ['Uncollected Device Register'], forms: ['Issue Repair Warranty'], create: 'M01-form-rwty', domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
       ['12', 'Operations Boards & WIP Analysis', 11, { model: 'fix.service.order', cols: ['name', 'state', 'branch_id', 'priority', 'create_date'], screens: ['M01-board', 'M01-wip'], reports: ['WIP Ageing by Branch', 'Order Cycle-Time (TAT) Distribution'], forms: [], create: false, domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']]] }],
       /* 13 has no record of its own: an event is counted, not opened. It
        * pointed at the device-history list (Service Reports, which is
@@ -262,9 +275,16 @@ export const SCREENS = {
   'M01-holds': { kind: 'so_list', scope: 'holds', actions: SO_ACTIONS,
     create: { screen: 'M01-form-hold', label: 'Place Order on Hold' } },
   'M01-rework': { kind: 'so_list', scope: 'rework', actions: SO_ACTIONS },
-  'M01-templates': { kind: 'model_list', model: 'fix.diagnostic.node', create: false,
+  /* M01 capture audit 2026-11-17: FR-SRM-021 "maintain diagnostic decision
+   * trees" - the list had create: false and no form existed anywhere, so a
+   * tree could only be seeded. A node and its answers are captured on one form. */
+  'M01-templates': { kind: 'model_list', model: 'fix.diagnostic.node',
+    create: { screen: 'M01-form-diag-node', label: 'New Diagnostic Tree Node' },
     cols: ['code', 'name', 'parent_id', 'is_terminal', 'fault_code', 'recommended_action'] },
-  'M01-fault': { kind: 'model_list', model: 'fix.fault.code', create: false,
+  /* the taxonomy is DEFINED in M37 (spec §3.3): a new code is captured on
+   * M37's Fault Code form, which also carries the brands' claim codes */
+  'M01-fault': { kind: 'model_list', model: 'fix.fault.code',
+    create: { screen: 'M37-form-fault', label: 'New Fault Code' },
     cols: ['code', 'name', 'category', 'default_severity', 'active'] },
   'M01-estimates': { kind: 'model_list', model: 'fix.estimate',
     cols: ['order_id', 'version', 'parts_total', 'labour_total', 'grand_total', 'state', 'customer_approval_ref', 'manager_approval_uid'],
@@ -294,10 +314,25 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_void', l: 'Void', ask: 'Reason for voiding', kwarg: 'reason' }
     ] },
-  'M01-sla': { kind: 'model_list', model: 'fix.sla.policy', create: false,
-    cols: ['code', 'service_type', 'priority', 'response_hours', 'resolution_hours', 'active'] },
-  'M01-esc': { kind: 'model_list', model: 'fix.sla.policy', create: false,
-    cols: ['code', 'service_type', 'priority', 'resolution_hours', 'escalation_template_id', 'active'] },
+  /* M01 capture audit 2026-11-17: no form for an SLA POLICY existed anywhere
+   * (FR-SRM-047), and "Escalation Rules" listed the policies themselves: no
+   * escalation rule record existed (FR-SRM-049, spec entity
+   * fix.escalation.rule). */
+  'M01-sla': { kind: 'model_list', model: 'fix.sla.policy',
+    create: { screen: 'M01-form-sla-policy', label: 'New SLA Policy' },
+    cols: ['code', 'name', 'service_type', 'priority', 'response_hours', 'resolution_hours', 'item_count', 'active'] },
+  'M01-esc': { kind: 'model_list', model: 'fix.escalation.rule',
+    create: { screen: 'M01-form-esc-rule', label: 'New Escalation Rule' },
+    cols: ['policy_id', 'kpi_code', 'threshold_pct', 'group_id', 'requires_ack', 'active'],
+    empty: 'No escalation rule yet. A rule escalates an SLA clock to a role when it has used a share of its target: the matrix is 50, 75, 90 and 100 percent (FR-SRM-049).' },
+  /* raised by the SLA cron (every 15 minutes), never typed in */
+  'M01-esc-raised': { kind: 'model_list', model: 'fix.escalation.event', create: false,
+    cols: ['fired_at', 'record_ref', 'kpi_code', 'threshold_pct', 'elapsed_pct', 'group_id', 'state', 'acknowledged_by', 'acknowledged_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_acknowledge', l: 'Acknowledge', ask: 'What are you doing about it? (optional)', kwarg: 'note' }
+    ],
+    empty: 'No escalation has been raised. The SLA clock raises one when a running clock reaches a level of its policy Escalation Rules; the people of that role in the branch get a to-do and one of them acknowledges it here.' },
   'M01-sla-rep': { kind: 'table_report', module: 'M01', report: 'sla_compliance', period: false },
   'M01-qc': { kind: 'model_list', model: 'fix.qc.checklist',
     cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'],
@@ -447,6 +482,172 @@ export const SCREENS = {
         { name: 'state', label: 'Current State', readonly: true },
         { name: 'sla_resolution_deadline', label: 'SLA Resolution Deadline', readonly: true },
       ]}
+    ] },
+
+  /* ============ M01 capture audit 2026-11-17: the captures pages 5/7/8/11 lacked ============ */
+  'M01-form-diag-node': { kind: 'model_form', model: 'fix.diagnostic.node',
+    title: 'Diagnostic Tree Node', back: 'M01-templates',
+    status: { field: 'active', labels: { true: 'Active', false: 'Retired' } },
+    /* the answers ARE the tree below this node: a question with no answers
+     * is a terminal, which must name its fault code (the model refuses a
+     * terminal without one and a question with one) */
+    lines: { field: 'children_ids', title: 'Answers / Next Steps',
+      note: 'Each answer is a node of its own. An answer with no further steps ends the path and must carry the fault code it diagnoses; leave the fault code empty on this node when it has answers.',
+      fields: [
+        { name: 'code', label: 'Node Code', required: true },
+        { name: 'name', label: 'Answer / Next Question', required: true },
+        { name: 'fault_code', label: 'Fault Code (end of path)' },
+        { name: 'recommended_action', label: 'Recommended Action' },
+      ] },
+    tabs: [
+      { id: 'node', label: '1. Question', bn: '১. প্রশ্ন', icon: '❓', badge: '5' },
+      { id: 'outcome', label: '2. Diagnosis', bn: '২. রোগনির্ণয়', icon: '🩺', badge: '3' }
+    ],
+    sections: [
+      { tab: 'node', title: 'Where this node sits in the tree',
+        note: 'A root node (no parent) starts a tree for one symptom. Technicians walk it on the mobile app or bench; the work order keeps the node they ended on.',
+        fields: [
+          { name: 'code', label: 'Node Code', required: true },
+          { name: 'name', label: 'Question / Symptom', required: true },
+          { name: 'parent_id', label: 'Parent Node' },
+          { name: 'is_terminal', label: 'Ends A Path', readonly: true },
+          { name: 'active', label: 'Active' },
+        ]},
+      { tab: 'outcome', title: 'Diagnosis at the end of a path', fields: [
+        { name: 'fault_code', label: 'Fault Code (terminal nodes only)' },
+        { name: 'recommended_action', label: 'Recommended Action', type: 'text' },
+        { name: 'company_id', label: 'Company', readonly: true },
+      ]}
+    ] },
+
+  'M01-form-sla-policy': { kind: 'model_form', model: 'fix.sla.policy',
+    title: 'SLA Policy', back: 'M01-sla',
+    status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
+    lines: { field: 'item_ids', title: 'SLA Items (one per measured KPI)',
+      note: 'Each item is one measured promise of this policy, e.g. first_response in 1 hour and resolution in 8. A KPI is measured once per policy.',
+      fields: [
+        { name: 'name', label: 'Item', required: true },
+        { name: 'kpi_code', label: 'KPI Code', required: true },
+        { name: 'target_hours', label: 'Target (business hours)', required: true },
+        { name: 'warn_at_pct', label: 'Warn At %' },
+        { name: 'pausable', label: 'Pausable' },
+      ] },
+    tabs: [
+      { id: 'scope', label: '1. Scope & Targets', bn: '১. পরিধি ও লক্ষ্য', icon: '🎯', badge: '7' },
+      { id: 'clock', label: '2. Calendar & Escalation', bn: '২. ক্যালেন্ডার ও এসকেলেশন', icon: '🕒', badge: '3' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Which orders this policy covers and what it promises',
+        note: 'Targets are in BUSINESS hours of the policy calendar. The response target cannot exceed the resolution target.',
+        fields: [
+          { name: 'code', label: 'SLA Code', required: true },
+          { name: 'name', label: 'SLA Policy', required: true },
+          { name: 'service_type', label: 'Service Type', required: true },
+          { name: 'priority', label: 'Priority', required: true },
+          { name: 'response_hours', label: 'Response Target (hours)', required: true },
+          { name: 'resolution_hours', label: 'Resolution Target (hours)', required: true },
+          { name: 'active', label: 'Active' },
+        ]},
+      { tab: 'clock', title: 'Business hours and escalation',
+        note: 'The escalation matrix (who is told at 50, 75, 90 and 100 percent of the target) is captured under Escalation Rules for this policy.',
+        fields: [
+          { name: 'calendar_id', label: 'Default Business Hours' },
+          { name: 'escalation_template_id', label: 'Breach Notice Template' },
+          { name: 'item_count', label: 'SLA Items', readonly: true },
+        ]}
+    ] },
+
+  'M01-form-esc-rule': { kind: 'model_form', model: 'fix.escalation.rule',
+    title: 'Escalation Rule', back: 'M01-esc',
+    status: { field: 'active', labels: { true: 'Active', false: 'Inactive' } },
+    tabs: [
+      { id: 'level', label: '1. Level & Role', bn: '১. স্তর ও ভূমিকা', icon: '📈', badge: '5' },
+      { id: 'ack', label: '2. Acknowledgement', bn: '২. স্বীকৃতি', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'level', title: 'When the clock escalates, and to whom',
+        note: 'A level is the share of the SLA target the clock has used, in business time (100 = at breach). The holders of the role in the order branch each get a to-do. Rules are kept by Service Supervisors.',
+        fields: [
+          { name: 'policy_id', label: 'SLA Policy', required: true },
+          { name: 'kpi_code', label: 'KPI Code (empty = every clock of the policy)' },
+          { name: 'threshold_pct', label: 'Escalate At % Of Target', required: true },
+          { name: 'group_id', label: 'Escalate To (Role)', required: true },
+          { name: 'sequence', label: 'Order' },
+        ]},
+      { tab: 'ack', title: 'What the escalation owner must do', fields: [
+        { name: 'requires_ack', label: 'Acknowledgement Required' },
+        { name: 'note', label: 'Instruction To The Escalation Owner', type: 'text' },
+        { name: 'active', label: 'Active' },
+      ]}
+    ] },
+
+  /* FR-SRM-031: the hand-off is the order's own action (it derives zone,
+   * address and priority from the order and refuses a second live field
+   * order) - typing a field order by hand skipped all of that */
+  'M01-form-dispatch': { kind: 'model_form', model: 'fix.service.order',
+    title: 'Hand Off to Field Dispatch', back: 'M01-all',
+    newLabel: 'Hand Off to Field Dispatch',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the on-site order to hand to field dispatch',
+      note: 'On-site orders that are booked in and have no field order yet. The field order is created in draft; the dispatcher assigns the technician in M02.',
+      search: 'Search order / customer / serial',
+      choose: 'Hand off this order',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'priority', 'state'],
+      domain: [['service_type', '=', 'onsite'], ['state', 'in', ['intake', 'diagnostic', 'approved', 'in_repair']], ['field_order_ids', '=', false]],
+      empty: 'No on-site order is waiting for field dispatch. A new on-site job starts with + New Service Order (intake channel On-site).'
+    },
+    saveAction: {
+      method: 'action_create_field_order', label: 'Create Field Order',
+      done: 'Handed off: a draft field order is in the M02 dispatch queue',
+      kwargs: {}
+    },
+    sections: [
+      { title: 'Step 2 of 2: check the order, then create its field order',
+        note: 'The field order takes its zone from the branch, the address from the customer and its priority from the order. A branch with no dispatch zone is refused.',
+        fields: [
+          { name: 'name', label: 'Order Reference', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'branch_id', label: 'Service Center / Branch', readonly: true },
+          { name: 'priority', label: 'Priority', readonly: true },
+          { name: 'technician_id', label: 'Preferred / Assigned Technician', readonly: true },
+          { name: 'state', label: 'Current State', readonly: true },
+        ]}
+    ] },
+
+  /* FR-SRM-045: the repair warranty is issued by the order's own action
+   * (once, after delivery, recorded on the device history) */
+  'M01-form-rwty': { kind: 'model_form', model: 'fix.service.order',
+    title: 'Issue Repair Warranty', back: 'M01-rwty',
+    newLabel: 'Issue Repair Warranty',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the delivered order to warrant',
+      note: 'Delivered or closed orders whose repair warranty has not been issued yet.',
+      search: 'Search order / customer / serial',
+      choose: 'Warrant this repair',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'service_warranty_days', 'state'],
+      domain: [['state', 'in', ['delivered', 'closed']], ['service_warranty_until', '=', false]],
+      empty: 'No delivered order is waiting for its repair warranty.'
+    },
+    saveAction: {
+      method: 'action_issue_repair_warranty', label: 'Issue Repair Warranty',
+      done: 'Repair warranty issued and recorded on the device history',
+      kwargs: {}
+    },
+    sections: [
+      { title: 'Step 2 of 2: confirm the warranty',
+        note: 'The warranty runs from the resolution date for the days set on the order. It is issued once; a return inside it opens a linked rework order (Open Comeback).',
+        fields: [
+          { name: 'name', label: 'Order Reference', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'service_warranty_days', label: 'Repair Warranty (Days)', readonly: true },
+          { name: 'service_warranty_until', label: 'Valid Until', readonly: true },
+          { name: 'service_warranty_issued_by', label: 'Issued By', readonly: true },
+          { name: 'state', label: 'Current State', readonly: true },
+        ]}
     ] },
 
   'M01-form-estimate': { kind: 'model_form', model: 'fix.estimate',
@@ -688,6 +889,16 @@ export const FORM_CHIPS = {
   'M01:Diagnostic Estimate Request': 'M01-form-estimate',
   'M01:Hold / Release Reason': 'M01-form-hold',
   'M01:QC Checklist Inspection': 'M01-form-qc',
+  'M01:SLA Policy': 'M01-form-sla-policy',
+  'M01:Escalation Rule': 'M01-form-esc-rule',
+  'M01:Diagnostic Tree Node': 'M01-form-diag-node',
+  'M01:Hand Off to Field Dispatch': 'M01-form-dispatch',
+  'M01:Issue Repair Warranty': 'M01-form-rwty',
+  /* owned elsewhere: the owner's form (spec §3.2/§3.3) */
+  'M01:Warranty Register Entry': 'M09-form-warranty',
+  'M01:Fault Code': 'M37-form-fault',
+  'M01:Technician Work Order': 'M02-form-workorder',
+  'M01:Receive Device into Workshop': 'M31-form-receive',
   /* the row of a HOLD list is the hold: it opens the Hold / Release form for
    * that order (the sub-module page; M01-holds itself opens the order record) */
   'M01:__by_screen__': {
@@ -698,7 +909,11 @@ export const FORM_CHIPS = {
     'fix.sla.kpi.instance': 'M01-form-sla-instance',
     'fix.service.order': 'M01-form-order',
     'fix.estimate': 'M01-form-estimate',
-    'fix.qc.checklist': 'M01-form-qc'
+    'fix.qc.checklist': 'M01-form-qc',
+    'fix.sla.policy': 'M01-form-sla-policy',
+    'fix.escalation.rule': 'M01-form-esc-rule',
+    'fix.diagnostic.node': 'M01-form-diag-node',
+    'fix.fault.code': 'M37-form-fault'
   }
 };
 
@@ -711,7 +926,16 @@ export const FORM_MODELS = {
   'M01:New Service Order': 'fix.service.order',
   'M01:Diagnostic Estimate Request': 'fix.estimate',
   'M01:Hold / Release Reason': 'fix.service.order',
-  'M01:QC Checklist Inspection': 'fix.qc.checklist'
+  'M01:QC Checklist Inspection': 'fix.qc.checklist',
+  'M01:SLA Policy': 'fix.sla.policy',
+  'M01:Escalation Rule': 'fix.escalation.rule',
+  'M01:Diagnostic Tree Node': 'fix.diagnostic.node',
+  'M01:Hand Off to Field Dispatch': 'fix.service.order',
+  'M01:Issue Repair Warranty': 'fix.service.order',
+  'M01:Warranty Register Entry': 'fix.warranty',
+  'M01:Fault Code': 'fix.fault.code',
+  'M01:Technician Work Order': 'fix.work.order',
+  'M01:Receive Device into Workshop': 'fix.service.order'
 };
 
 /* the module's "+ New" surface: opens the canonical Dynamics 365 Service Order Record form */

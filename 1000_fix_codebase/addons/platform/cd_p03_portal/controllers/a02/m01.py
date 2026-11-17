@@ -180,6 +180,19 @@ SURFACES = {
         "limit": 300,
         "actions": {"cancel", "pause", "resume", "succeed"},
     },
+    # M01 capture audit (2026-11-17): the escalation matrix (FR-SRM-049).
+    # Rules are kept by Service Supervisors (ACL); the raised escalations are
+    # written by the SLA cron and move only by Acknowledge.
+    "fix.escalation.rule": {
+        "order": "policy_id, threshold_pct, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.escalation.event": {
+        "order": "fired_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_acknowledge"},
+    },
 }
 
 # open orders = the AS-06 states where the job is still live work

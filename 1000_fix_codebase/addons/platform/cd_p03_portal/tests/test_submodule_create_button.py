@@ -127,12 +127,13 @@ def test_a_submodule_on_the_modules_own_record_keeps_the_module_button(registry)
     assert _row(registry, "M01", "1")["create"] == {"module": True}
 
 
-def test_a_submodule_whose_lists_refuse_new_offers_no_button(registry):
-    """M01-fault is `create: false`: fault codes are not made in M01, so the
-    page must not offer to make anything - least of all a service order."""
+def test_a_submodule_whose_record_another_module_defines_offers_that_form(registry):
+    """Fault codes are DEFINED in M37 (M01 spec §3.3) and applied in M01. The
+    page offered nothing; it now names M37's Fault Code form (M01 capture
+    audit 2026-11-17) - and still never a service order."""
     row = _row(registry, "M01", "4")
     assert row["model"] == "fix.fault.code"
-    assert row["create"] is None
+    assert row["create"] == {"screen": "M37-form-fault", "label": "Fault Code"}
 
 
 # --- the rule, for every sub-module of every module --------------------------

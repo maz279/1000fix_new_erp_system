@@ -161,7 +161,8 @@ const run = async (index, recId, rpcRows) => {
 };
 const scenarios = {
   fault: await run(3, 7, [{ id: 7, code: 'AUD-01', active: true }]),
-  fault_gone: await run(3, 7, []),
+  warranty: await run(2, 7, [{ id: 7, warranty_type: 'brand', status: 'active' }]),
+  warranty_gone: await run(2, 7, []),
   sla_policy: await run(7, 61, [{ id: 61, code: 'M01-DEFAULT' }]),
   intake_order: await run(0, 12, []),
   held_order: await run(8, 12, []),
@@ -229,16 +230,21 @@ MODULE = {"module": True}
 EXPECTED_BUTTON = {
     "1": MODULE,  # intake IS where an order is made
     "2": MODULE,
-    "3": None,  # warranties are registered against the device, not here
-    "4": None,  # fault codes: M01-fault refuses "+ New"
-    "5": None,  # diagnostic tree: M01-templates refuses "+ New"
+    # M01 capture audit 2026-11-17: entitlement is evaluated against the
+    # warranty register, whose record M09 owns - its form, as M02 opens M15's
+    "3": {"screen": "M09-form-warranty", "label": "Warranty Register Entry"},
+    # the taxonomy is defined in M37 (spec §3.3): M37's form
+    "4": {"screen": "M37-form-fault", "label": "Fault Code"},
+    "5": {"screen": "M01-form-diag-node", "label": "Diagnostic Tree Node"},
     "6": {"screen": "M01-form-estimate", "label": "Diagnostic Estimate Request"},
-    "7": None,  # hands an EXISTING on-site order to dispatch
-    "8": None,  # SLA policies are not made in M01; its items are, on their own list
+    # picks an EXISTING on-site order and runs its hand-off
+    "7": {"screen": "M01-form-dispatch", "label": "Hand Off to Field Dispatch", "verbatim": True},
+    "8": {"screen": "M01-form-sla-policy", "label": "SLA Policy"},
     # the hold form first asks which order, then runs action_defer_order
     "9": {"screen": "M01-form-hold", "label": "Place Order on Hold", "verbatim": True},
     "10": {"screen": "M01-form-qc", "label": "QC Checklist Inspection"},
-    "11": None,  # ready / delivered / closed orders
+    # picks a delivered order and issues its repair warranty
+    "11": {"screen": "M01-form-rwty", "label": "Issue Repair Warranty", "verbatim": True},
     "12": None,  # the WIP board and its analysis
     "13": None,  # events are counted, not created: the page is fed by a report
 }
@@ -258,7 +264,11 @@ def test_a_page_that_works_on_existing_orders_says_so(m01):
         sub = _sub(m01, no)
         assert sub["map"]["model"] == "fix.service.order"
         assert sub["map"].get("domain"), "sub-module %s is no longer a slice" % no
-        assert sub["map"].get("create") is False, "sub-module %s" % no
+    assert _sub(m01, "12")["map"].get("create") is False
+    # 7 and 11 act on an existing order: their form picks it first
+    for no, form in (("7", "M01-form-dispatch"), ("11", "M01-form-rwty")):
+        assert _sub(m01, no)["map"]["create"] == form
+        assert m01["screens"][form]["pickRecord"], form
     holds = _sub(m01, "9")
     assert holds["map"]["domain"] == [["is_deferred_block", "=", True]]
     assert holds["map"]["create"] == "M01-form-hold"
@@ -273,7 +283,8 @@ def test_every_m01_report_and_form_is_on_a_submodule(m01):
     SLA KPI Instance is no longer one of them: a clock is not typed in."""
     on_pages_r = {r for s in m01["subs"] for r in s["map"].get("reports", [])}
     on_pages_f = {f for s in m01["subs"] for f in s["map"].get("forms", [])}
-    assert len(m01["reports"]) == 8 and len(m01["forms"]) == 5
+    # M01 capture audit 2026-11-17: + 5 own forms and 4 owners' forms
+    assert len(m01["reports"]) == 8 and len(m01["forms"]) == 14
     assert "SLA KPI Instance" not in m01["forms"]
     assert set(m01["reports"]) == on_pages_r
     assert set(m01["forms"]) == on_pages_f
@@ -365,39 +376,44 @@ def test_no_new_button_opens_an_existing_only_form(m01):
 
 def test_a_record_without_a_form_opens_with_its_row(m01):
     """The pane renders the ROW. It is read by id, with the columns of the
-    sub-module's own list, and handed to the pane with that list as context."""
-    calls = m01["scenarios"]["fault"]
-    assert calls[0] == ["openScreen", "M01-fault"]
+    sub-module's own list, and handed to the pane with that list as context.
+    A warranty row on the entitlement page keeps its list's actions there."""
+    calls = m01["scenarios"]["warranty"]
+    assert calls[0] == ["openScreen", "M01-entitle"]
     route, model, cols, domain = calls[1][1:]
-    assert (route, model, domain) == ("/p03/model/records", "fix.fault.code", [["id", "=", 7]])
-    assert cols == ["code", "name", "category", "default_severity", "active"]
+    assert (route, model, domain) == ("/p03/model/records", "fix.warranty", [["id", "=", 7]])
+    assert cols == [
+        "device_id",
+        "warranty_type",
+        "status",
+        "start_date",
+        "end_date",
+        "verification_state",
+    ]
     assert calls[2] == [
         "openRecordTab",
         7,
-        "M01-fault",
-        {"id": 7, "code": "AUD-01", "active": True},
+        "M01-entitle",
+        {"id": 7, "warranty_type": "brand", "status": "active"},
     ]
     assert len(calls) == 3
 
 
-def test_the_record_is_read_with_the_columns_of_its_own_list(m01):
-    """SLA policies: the page's first screen is M01-sla and its columns differ
-    from the page's grid - the pane labels come from the screen, so must the row."""
-    calls = m01["scenarios"]["sla_policy"]
-    assert calls[0] == ["openScreen", "M01-sla"]
-    assert calls[1][3] == [
-        "code",
-        "service_type",
-        "priority",
-        "response_hours",
-        "resolution_hours",
-        "active",
+def test_a_fault_code_and_an_sla_policy_open_their_forms(m01):
+    """M01 capture audit 2026-11-17: both had no form reachable from M01, so a
+    click only showed the row. The fault code opens its owner's (M37) form."""
+    assert m01["scenarios"]["fault"] == [
+        ["openScreen", "M01-fault"],
+        ["openModuleFormForModel", "M37-form-fault", 7],
     ]
-    assert calls[2][:3] == ["openRecordTab", 61, "M01-sla"]
+    assert m01["scenarios"]["sla_policy"] == [
+        ["openScreen", "M01-sla"],
+        ["openModuleFormForModel", "M01-form-sla-policy", 61],
+    ]
 
 
 def test_a_record_that_cannot_be_read_says_so(m01):
-    calls = m01["scenarios"]["fault_gone"]
+    calls = m01["scenarios"]["warranty_gone"]
     assert [c[0] for c in calls] == ["openScreen", "rpc", "toast"]
     assert not any(c[0] == "openRecordTab" for c in calls)
 
@@ -758,7 +774,9 @@ def test_the_sla_clock_is_not_offered_as_a_data_entry_form(m01):
     assert "SLA KPI Instance" not in m01["forms"]
     assert "M01:SLA KPI Instance" not in m01["chips"]
     assert not any(e["id"] == "M01-form-sla-instance" for e in m01["nav"])
-    assert _sub(m01, "3")["map"]["forms"] == []
+    # page 3 captures the warranty its entitlement reads (M01 capture audit
+    # 2026-11-17), never a clock
+    assert _sub(m01, "3")["map"]["forms"] == ["Warranty Register Entry"]
     # a clock row still opens its read-only record form
     assert m01["chips"]["M01:__by_model__"]["fix.sla.kpi.instance"] == "M01-form-sla-instance"
 

@@ -33,3 +33,8 @@ from . import fix_service_order_parts_gate
 # G12: the billed-part-not-fitted exemption (routed M63 approval); extends
 # fix.service.order and the D-11 gate above, so it imports after them.
 from . import fix_so_part_exemption
+
+# M01 capture audit (2026-11-17): the SLA escalation matrix; extends
+# fix.sla.policy and fix.sla.kpi.instance (and its breach cron) and calls
+# fix.service.order._fix_branch_users, so it imports after all of them.
+from . import fix_sla_escalation
