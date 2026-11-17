@@ -23,7 +23,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.3.0",
+    "version": "19.0.2.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -77,6 +77,8 @@ CD-M20-01: the M20 accounts-receivable core.
         # Quote-to-cash P1 (12 Nov 2026): the one customer payment-method
         # list and the Bangladesh payment-term templates.
         "data/fix_payment_method_data.xml",
+        # Commercial document standard (17 Nov 2026): the shared walk-in party.
+        "data/fix_walk_in_partner.xml",
         "views/fix_payment_method_views.xml",
     ],
     "installable": True,

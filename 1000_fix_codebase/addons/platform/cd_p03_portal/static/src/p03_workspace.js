@@ -1409,13 +1409,15 @@ export class P03Workspace extends Component {
                     state: gl.arState === "all" ? null : gl.arState,
                 });
             } else if (gl.kind === "ar_editor") {
-                const [customers, invoices] = await Promise.all([
+                const [customers, invoices, meta] = await Promise.all([
                     this.rpc("/p03/ar/customers", {}),
                     this.rpc("/p03/ar/invoices", { state: "draft" }),
+                    this.rpc("/p03/doc/meta", {}),
                 ]);
                 gl.customers = customers.rows;
+                gl.docMeta = meta;
                 gl.data = { drafts: invoices.rows };
-                if (!gl.arEditor) this._arNewEditor();
+                if (!gl.arEditor || !gl.arEditor.header) this._arNewEditor();
             } else if (gl.kind === "ar_events") {
                 gl.data = await this.rpc("/p03/ar/events", {});
             } else if (gl.kind === "ar_consolidated") {
@@ -2813,8 +2815,9 @@ export class P03Workspace extends Component {
         const pick = this.picker;
         if (!pick) return;
         if (!pick.multi) {
-            // single mode: one click picks and closes
-            pick.picked = [{ id: row.id, label: row.label }];
+            // single mode: one click picks and closes (the row's extra data -
+            // an item's code, unit and price - travels to onApply)
+            pick.picked = [{ ...row, id: row.id, label: row.label }];
             this.pickerApply();
             return;
         }
@@ -2854,9 +2857,13 @@ export class P03Workspace extends Component {
         this._pickerTimer = setTimeout(async () => {
             const params = { ...pick.remote };
             delete params.open;
+            // a picker may search its own route (the document editors' item
+            // and customer searches); the generic one is the model's choices
+            const route = params.route || "/p03/model/choices";
+            delete params.route;
             let res;
             try {
-                res = await this.rpc("/p03/model/choices", { ...params, q: term });
+                res = await this.rpc(route, { ...params, q: term });
             } catch {
                 res = { error: this.t("Search failed — try again") };
             }
@@ -2883,7 +2890,8 @@ export class P03Workspace extends Component {
     pickerApply() {
         const pick = this.picker;
         if (!pick) return;
-        const picked = pick.picked.map((p) => ({ id: p.id, label: p.label }));
+        // the row's extra data (an item's code, unit, price) travels with it
+        const picked = pick.picked.map((p) => ({ ...p, id: p.id, label: p.label }));
         this._pickerClose();
         if (pick.onApply) pick.onApply(picked);
         this.render(true);
@@ -3853,6 +3861,11 @@ export class P03Workspace extends Component {
      * into the RPC log. */
     _mlActionResult(res) {
         const r = (res && res.result) || {};
+        // a print action (commercial document standard) answers its PDF's URL
+        if (r.print_url) {
+            window.open(r.print_url, "_blank", "noopener");
+            return;
+        }
         // shown once and stored nowhere: it must not vanish with a toast
         if (r.secret) this.state.gl.secretDialog = { note: r.note || "", secret: r.secret };
         else if (r.reporter) this.showToast(this.t("Reporter") + ": " + r.reporter);
@@ -4153,62 +4166,284 @@ export class P03Workspace extends Component {
 
     /* ---------------- manual invoice editor (FR-ARB-010) ---------------- */
 
+    /* ---- M20 invoice editor: the commercial document standard (17 Nov 2026) ----
+     * SL / type / item code (part number or charge code, picked in the search
+     * popup) / description / serial / qty / unit / unit price / disc % /
+     * amount / VAT / total; the footer is the server's M51 preview. */
+    _arBlankLine(type) {
+        return {
+            line_type: type || "part",
+            product_id: null,
+            code: "",
+            item_label: "",
+            description: "",
+            serial: "",
+            quantity: 1,
+            uom: "",
+            uom_id: null,
+            unit_price: 0,
+            discount_pct: 0,
+            on_hand: null,
+        };
+    }
+
     _arNewEditor() {
         this.state.gl.arEditor = {
             customer_id: null,
+            customer_label: "",
+            walk_in: false,
             date: new Date().toISOString().slice(0, 10),
             reason: "",
-            lines: [{ description: "", taxable: 0, vat: 0 }],
+            tab: "customer",
+            header: {
+                customer_category: "individual",
+                bill_to_name: "",
+                bill_to_phone: "",
+                bill_to_address: "",
+                customer_bin: "",
+                customer_po_ref: "",
+                customer_po_date: "",
+                service_item: "",
+                challan_ref: "",
+                delivery_address: "",
+                vehicle_no: "",
+                remarks: "",
+                payment_method_id: "",
+            },
+            overall_discount: 0,
+            lines: [this._arBlankLine("part")],
+            preview: null,
         };
+    }
+
+    get arDocMeta() {
+        const gl = this.state.gl;
+        return (gl && gl.docMeta) || { line_types: [], categories: [], uoms: [], payment_methods: [] };
+    }
+
+    get arLineTypeRows() {
+        return this.arDocMeta.line_types.map((lt) => ({ id: lt.key, label: this.t(lt.label), kind: lt.kind }));
+    }
+
+    arLineKind(line) {
+        const hit = this.arDocMeta.line_types.find((lt) => lt.key === line.line_type);
+        return hit ? hit.kind : "charge";
     }
 
     arEditorSet(field, value) {
         this.state.gl.arEditor[field] = value;
+        if (field === "overall_discount" || field === "date") this._arPreviewSoon();
     }
 
-    arEditorAddLine() {
-        this.state.gl.arEditor.lines.push({ description: "", taxable: 0, vat: 0 });
+    arEditorTab(tab) {
+        this.state.gl.arEditor.tab = tab;
+    }
+
+    arHeaderSet(field, value) {
+        this.state.gl.arEditor.header[field] = value;
+    }
+
+    arLineSet(index, field, value) {
+        const line = this.state.gl.arEditor.lines[index];
+        if (!line) return;
+        if (field === "line_type") {
+            const before = this.arLineKind(line);
+            line.line_type = value;
+            // a stock line takes an inventory item, a charge line a charge code
+            if (before !== this.arLineKind(line)) {
+                line.product_id = null;
+                line.code = "";
+                line.item_label = "";
+                line.uom = "";
+                line.uom_id = null;
+                line.on_hand = null;
+            }
+        } else {
+            line[field] = value;
+        }
+        this._arPreviewSoon();
+    }
+
+    arEditorAddLine(type) {
+        this.state.gl.arEditor.lines.push(this._arBlankLine(type || "part"));
+        this._arPreviewSoon();
     }
 
     arEditorRemoveLine(index) {
         this.state.gl.arEditor.lines.splice(index, 1);
-        if (this.state.gl.arEditor.lines.length < 1) this.arEditorAddLine();
+        if (this.state.gl.arEditor.lines.length < 1) this.state.gl.arEditor.lines.push(this._arBlankLine("part"));
+        this._arPreviewSoon();
+    }
+
+    arPickCustomer() {
+        const editor = this.state.gl.arEditor;
+        this.pickerOpen({
+            title: this.t("Customer — search by name, phone, BIN or code"),
+            rows: [],
+            remote: { route: "/p03/doc/customers", open: true },
+            picked: editor.customer_id ? [{ id: editor.customer_id, label: editor.customer_label }] : [],
+            onApply: async (p) => {
+                const row = p[0];
+                if (!row) return;
+                editor.customer_id = row.id;
+                editor.customer_label = row.label;
+                const res = await this.rpc("/p03/doc/customer", { customer_id: row.id });
+                const c = res && res.customer;
+                if (c) {
+                    editor.walk_in = !!c.walk_in;
+                    const h = editor.header;
+                    h.customer_category = c.category || h.customer_category;
+                    h.bill_to_name = c.walk_in ? "" : c.name;
+                    h.bill_to_phone = c.phone || "";
+                    h.bill_to_address = c.address || "";
+                    h.customer_bin = c.bin || "";
+                }
+                this.render(true);
+            },
+            returnFocus: "ar_pick_inv_customer",
+        });
+    }
+
+    arPickItem(index) {
+        const line = this.state.gl.arEditor.lines[index];
+        if (!line) return;
+        const stock = this.arLineKind(line) === "stock";
+        this.pickerOpen({
+            title: stock
+                ? this.t("Part number — search the inventory by part no., name or barcode")
+                : this.t("Service / charge code — search by code or name"),
+            rows: [],
+            remote: { route: "/p03/doc/items", line_type: line.line_type, open: true },
+            picked: line.product_id ? [{ id: line.product_id, label: line.item_label }] : [],
+            onApply: (p) => {
+                const row = p[0];
+                if (!row) return;
+                line.product_id = row.id;
+                line.code = row.code || "";
+                line.item_label = row.label;
+                line.on_hand = row.on_hand;
+                if (!line.description) line.description = row.name || "";
+                line.uom = row.uom || "";
+                line.uom_id = row.uom_id || null;
+                if (!(parseFloat(line.unit_price) > 0) && row.price) line.unit_price = row.price;
+                this._arPreviewSoon();
+                this.render(true);
+            },
+            returnFocus: "ar_line_item_" + index,
+        });
+    }
+
+    _arPreviewSoon() {
+        clearTimeout(this._arPreviewTimer);
+        this._arPreviewTimer = setTimeout(() => this._arPreview(), 300);
+    }
+
+    async _arPreview() {
+        const editor = this.state.gl && this.state.gl.arEditor;
+        if (!editor) return;
+        let res;
+        try {
+            res = await this.rpc("/p03/doc/preview", {
+                lines: editor.lines.map((l) => ({
+                    product_id: l.product_id,
+                    quantity: l.quantity,
+                    unit_price: l.unit_price,
+                    discount_pct: l.discount_pct,
+                    description: l.description,
+                })),
+                overall_discount: editor.overall_discount,
+                invoice_date: editor.date,
+            });
+        } catch {
+            res = null;
+        }
+        if (this.state.gl.arEditor !== editor) return;
+        editor.preview = res;
+        this.render(true);
+    }
+
+    arLinePreview(index) {
+        const editor = this.state.gl && this.state.gl.arEditor;
+        const rows = (editor && editor.preview && editor.preview.lines) || [];
+        return rows[index] || { gross: 0, discount: 0, taxable: 0, vat_rate: 0, vat: 0, total: 0, error: "" };
     }
 
     get arEditorTotals() {
         const editor = this.state.gl && this.state.gl.arEditor;
-        if (!editor) return { taxable: 0, vat: 0, total: 0 };
-        const taxable = editor.lines.reduce((s, l) => s + (parseFloat(l.taxable) || 0), 0);
-        const vat = editor.lines.reduce((s, l) => s + (parseFloat(l.vat) || 0), 0);
-        return { taxable, vat, total: taxable + vat };
+        const t = editor && editor.preview && editor.preview.totals;
+        return t || { items: 0, quantity: 0, gross: 0, discount: 0, taxable: 0, vat: 0, total: 0 };
     }
 
-    /* Owl templates expose no JS globals — line totals are computed here,
-       never with parseFloat inside the template. */
+    get arEditorWords() {
+        const editor = this.state.gl && this.state.gl.arEditor;
+        return (editor && editor.preview && editor.preview.words) || "";
+    }
+
+    /* kept for the old template callers */
     arLineTotal(line) {
         return (parseFloat(line.taxable) || 0) + (parseFloat(line.vat) || 0);
     }
 
+    _arEditorProblems() {
+        const editor = this.state.gl.arEditor;
+        const h = editor.header;
+        const problems = [];
+        if (!editor.customer_id) problems.push(this.t("Pick a customer (or Walk-in Customer)."));
+        if (!editor.reason.trim()) problems.push(this.t("A reason code is mandatory for manual invoices (FR-ARB-010)."));
+        if (h.customer_category === "walk_in" && !h.bill_to_name.trim()) problems.push(this.t("Walk-in: enter the customer's name."));
+        if (h.customer_category === "walk_in" && !h.bill_to_phone.trim()) problems.push(this.t("Walk-in: enter the customer's phone."));
+        if (["corporate", "dealer", "government"].includes(h.customer_category) && !h.customer_bin.trim()) {
+            problems.push(this.t("Corporate, dealer and government invoices state the buyer's BIN."));
+        }
+        const priced = editor.lines.filter((l) => l.product_id || parseFloat(l.unit_price) > 0);
+        if (!priced.length) problems.push(this.t("Add at least one priced line."));
+        editor.lines.forEach((l, i) => {
+            if (!(l.product_id || parseFloat(l.unit_price) > 0)) return;
+            if (this.arLineKind(l) === "stock" && !l.product_id) {
+                problems.push(this.t("Line") + " " + (i + 1) + ": " + this.t("pick the part number of the inventory item."));
+            }
+            if (!l.product_id && !String(l.description || "").trim()) {
+                problems.push(this.t("Line") + " " + (i + 1) + ": " + this.t("describe the charge."));
+            }
+        });
+        return problems;
+    }
+
     async arSaveDraftInvoice() {
         const editor = this.state.gl.arEditor;
-        if (!editor.customer_id) {
-            this.showToast(this.t('Pick a customer first'));
-            return;
-        }
-        if (!editor.reason.trim()) {
-            this.showToast(this.t('A reason code is mandatory for manual invoices (FR-ARB-010)'));
+        const problems = this._arEditorProblems();
+        if (problems.length) {
+            this.showToast(problems[0]);
             return;
         }
         const res = await this._arCall("/p03/ar/invoice/create", {
             customer_id: editor.customer_id,
             invoice_date: editor.date,
             reason: editor.reason,
-            lines: editor.lines.filter((l) => (parseFloat(l.taxable) || 0) > 0),
+            header: editor.header,
+            overall_discount: editor.overall_discount,
+            lines: editor.lines.map((l) => ({
+                line_type: l.line_type,
+                product_id: l.product_id,
+                description: l.description,
+                serial: l.serial,
+                quantity: l.quantity,
+                uom_id: l.uom_id,
+                unit_price: l.unit_price,
+                discount_pct: l.discount_pct,
+            })),
         }, "Draft saved — review, then Issue");
         if (res.success) {
             this._arNewEditor();
             this.loadGlData();
         }
+    }
+
+    /* variant "receipt": the 80 mm thermal receipt; else the A4 document */
+    async docPrint(model, recordId, variant) {
+        const res = await this.rpc("/p03/doc/print_url", { model, record_id: recordId, variant: variant || "a4" });
+        if (res && res.url) window.open(res.url, "_blank", "noopener");
+        else this.showToast(this.t("Nothing to print"));
     }
 
     async arIssueDraft(invoiceId) {

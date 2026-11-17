@@ -38,6 +38,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from odoo import models
+from odoo.addons.cd_catalogue.models.fix_commercial_line import STOCK_LINE_TYPES
 from odoo.addons.cd_inventory.models.fix_stock_consumption import JOB_MODELS
 from odoo.exceptions import UserError
 
@@ -61,7 +62,7 @@ class FixServiceOrderPartsGate(models.Model):
             return {}
         billed = defaultdict(float)
         for line in estimate.sudo().line_ids:
-            if line.line_type != "part" or (line.quantity or 0.0) <= _EPS:
+            if line.line_type not in STOCK_LINE_TYPES or (line.quantity or 0.0) <= _EPS:
                 continue
             part = self._fix_stock_part_for(line.product_id)
             if part:

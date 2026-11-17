@@ -38,6 +38,22 @@ SURFACES = {
             "action_cancel",
             "action_revise",
             "action_convert",
+            "action_create_proforma",
+            "action_fix_print",
+            "action_fix_print_receipt",
+        },
+    },
+    # Commercial document standard (17 Nov 2026): the customer's local proforma.
+    "fix.sales.proforma": {
+        "order": "date desc, id desc",
+        "limit": 300,
+        "actions": {
+            "action_issue",
+            "action_convert_to_invoice",
+            "action_cancel",
+            "action_reset_draft",
+            "action_fix_print",
+            "action_fix_print_receipt",
         },
     },
     # P2 (12-13 Nov 2026): the billing plan, the hand-off log and contract scope.

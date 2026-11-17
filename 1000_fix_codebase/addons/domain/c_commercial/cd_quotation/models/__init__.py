@@ -1,5 +1,6 @@
 # cd_quotation models.
 from . import (
+    fix_commercial_documents,
     fix_quotation,
     fix_quote_ops,
     fix_quote_scope,

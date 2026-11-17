@@ -26,7 +26,7 @@ Document output layer per the 2026-11-10 capability report (Downloads/Report_Out
 Excludes: the workspace modal fix (cd_p03_portal) and statement export wiring, which
 live in their owning modules.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Portal",
@@ -44,8 +44,10 @@ live in their owning modules.
     "data": [
         "report/report_paperformat_layout.xml",
         "data/res_company_brand.xml",
+        "report/report_commercial_layout.xml",
         "report/report_documents_sales.xml",
         "report/report_documents_finance.xml",
+        "report/report_receipt_80mm.xml",
         "report/report_documents_purchase.xml",
         "data/ir_mail_templates.xml",
     ],

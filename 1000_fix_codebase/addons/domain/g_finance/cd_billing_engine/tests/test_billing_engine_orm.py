@@ -169,9 +169,13 @@ class TestAutoInvoice:
         assert invoice.name and invoice.name != "New"
         assert mushak.invoice_ref == invoice.name
         assert _money(mushak.total_payable) == D("6785.00")
-        assert mushak.treatment_summary == (
-            "SVC: standard_15 @ 15%\nPART-LCD: standard_15 @ 15%\nSVC: standard_15 @ 15%"
+        # Commercial document standard (17 Nov 2026): a labour line carries its
+        # charge code (generic CHG-LABOUR when none was picked), not "SVC"
+        codes = lines.mapped("item_code")
+        assert (
+            codes[1] == "PART-LCD" and codes[0].startswith("CHG-") and codes[2].startswith("CHG-")
         )
+        assert mushak.treatment_summary == "\n".join("%s: standard_15 @ 15%%" % c for c in codes)
         (event,) = _events(env, "invoice.created", invoice.id)
         assert (event["mushak_no"], event["vat_amount"], event["total_payable"]) == (
             expected_no,

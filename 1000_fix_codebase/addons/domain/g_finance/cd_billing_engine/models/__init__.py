@@ -4,6 +4,7 @@ from . import (
     fix_a04_claim_consumer,
     fix_ar_engine,
     fix_ar_impairment,
+    fix_ar_invoice_document,
     fix_billing_engine,
     fix_contract_billing_walker,
     fix_finance_approval,

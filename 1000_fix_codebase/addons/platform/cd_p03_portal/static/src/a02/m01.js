@@ -657,15 +657,18 @@ export const SCREENS = {
      * the model refuses to send an estimate that has none. This form showed
      * the totals and no lines, so an estimate raised in M01 could never be
      * sent (2026-11-12). Same grid as M36's estimate form. */
-    lines: { field: 'line_ids', title: 'Estimate Lines (Parts, Labour, Diagnostic Fee)',
-      note: 'A line left without a type is a Part and without a quantity is 1. Each line is quoted at or above its list price; a lower price is a discount, which the DOFA tiers approve.',
+    lines: { field: 'line_ids', title: 'Estimate Lines (parts from inventory, service / labour / transport charges)',
+      note: 'SL numbers the lines. A Spare Part, Accessory or Finished Product line takes an inventory item by its part number; a Service, Labour, Support, Diagnostic, Call-out, Transport, Installation or Fee line takes a charge code (left empty: the generic code of its type). A line left without a type is a Part and without a quantity is 1. Each line is quoted at or above its list price; a lower price is a discount, which the DOFA tiers approve.',
       /* no `defaults`: a starter row carrying values is SENT on save, and a
        * row with no description is refused - a header could not be saved alone */
       fields: [
         { name: 'line_type', label: 'Type', required: true },
-        { name: 'product_id', label: 'Product' },
+        { name: 'product_id', label: 'Item / Part No. (search)' },
+        { name: 'item_code', label: 'Item Code', readonly: true },
         { name: 'description', label: 'Description', required: true },
+        { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty', required: true },
+        { name: 'uom_id', label: 'Unit' },
         { name: 'unit_price', label: 'Unit Price', required: true },
         { name: 'line_total', label: 'Total', readonly: true },
       ] },

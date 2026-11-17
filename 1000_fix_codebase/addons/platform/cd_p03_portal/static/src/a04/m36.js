@@ -26,6 +26,7 @@ export const MODULE = {
     { en: 'Quotations', screens: [
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
       { id: 'M36-record', en: 'Quotation Record', bn: 'কোটেশন রেকর্ড', t: 'f' },
+      { id: 'M36-proformas', en: 'Proforma Invoices (Local)', bn: 'প্রফর্মা ইনভয়েস (স্থানীয়)', t: 'g' },
       { id: 'M36-billing-quotes', en: 'Billing Plan & Advances', bn: 'বিলিং পরিকল্পনা ও অগ্রিম', t: 'g' },
       { id: 'M36-billing-lines', en: 'Billing Plan Lines', bn: 'বিলিং লাইন', t: 'g' },
       { id: 'M36-handoffs', en: 'Fulfilment Hand-offs', bn: 'হস্তান্তর লগ', t: 'g' },
@@ -55,7 +56,8 @@ export const MODULE = {
   forms: ['Estimate', 'Quotation (versioned)', 'Revise a Quotation', 'Submit for Internal Approval',
     'Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code', 'Record Signed Acceptance',
     'Counter-Offer / Partial Acceptance', 'Decide a Counter-Offer', 'Record a Customer Decline',
-    'Tender Bid', 'Bid Bond', 'Variation Order', 'Quotation Template', 'Document Template (bilingual)'],
+    'Tender Bid', 'Bid Bond', 'Variation Order', 'Quotation Template', 'Document Template (bilingual)',
+    'Proforma Invoice (Local)'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   /* Capture audit 2026-11-14 (spec sections 5, 8.2, 10.1): each page's
    * "+ New" captures the record the page names. Before it only page 2 had
@@ -64,7 +66,7 @@ export const MODULE = {
    * pages pick an existing quotation and run the step (never a write). */
   freg: { src: 86, sub: [
     ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'], create: 'M36-form-estimate' }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Proforma Invoice (Local)'] }],
     /* FR-QTE-012/015, BRU-QTE-02/04: an issued, expired or declined version is
      * never edited; it is revised into the next version. */
     ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation'], create: 'M36-form-revise' }],
@@ -197,7 +199,10 @@ export const SCREENS = {
       { m: 'action_quote', l: 'Quote to Customer', states: ['approved'] },
       { m: 'action_negotiate', l: 'Customer Counter (negotiating)', states: ['approved'] },
       { m: 'action_accept', l: 'Record Acceptance (within validity)', states: ['approved'] },
-      { m: 'action_decline', l: 'Record Decline', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['approved'] }
+      { m: 'action_decline', l: 'Record Decline', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['approved'] },
+      { m: 'action_create_proforma', l: 'Raise Proforma Invoice', states: ['sent', 'approved'] },
+      { m: 'action_fix_print', l: '🖨 Print Estimate (PDF)' },
+      { m: 'action_fix_print_receipt', l: '🧾 Estimate Slip (80 mm)' }
     ] },
   'M36-buildup': { kind: 'model_list', create: false, model: 'fix.estimate.line',
     cols: ['estimate_id', 'description', 'quantity', 'unit_price', 'line_total'] },
@@ -220,8 +225,108 @@ export const SCREENS = {
       { m: 'action_decline', l: 'Record Decline (reason code on the form)', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['sent'] },
       { m: 'action_revise', l: 'Revise (new version)', states: ['sent', 'expired', 'declined'] },
       { m: 'action_convert', l: 'Convert (retry hand-off)', states: ['accepted'] },
-      { m: 'action_cancel', l: 'Cancel Quotation', ask: 'Why is it withdrawn?', kwarg: 'reason', states: ['draft', 'approved', 'sent'] }
+      { m: 'action_cancel', l: 'Cancel Quotation', ask: 'Why is it withdrawn?', kwarg: 'reason', states: ['draft', 'approved', 'sent'] },
+      { m: 'action_create_proforma', l: 'Raise Proforma Invoice', states: ['approved', 'sent', 'accepted'] },
+      { m: 'action_fix_print', l: '🖨 Print Quotation (PDF)' },
+      { m: 'action_fix_print_receipt', l: '🧾 Quotation Slip (80 mm)' }
     ] },
+  // Commercial document standard (17 Nov 2026): the customer's LOCAL
+  // proforma invoice - from a quotation, an estimate or typed - with the same
+  // line standard as every document; issued with its PI number, then
+  // converted into the draft tax invoice (Mushak 6.3 at issue).
+  'M36-proformas': { kind: 'model_list', model: 'fix.sales.proforma', stateField: 'state',
+    cols: ['name', 'date', 'customer_id', 'customer_category', 'quotation_id', 'taxable_amount', 'vat_amount', 'amount_total', 'advance_amount', 'valid_until', 'invoice_id', 'state'],
+    empty: 'No proforma invoice yet. + New here, or Raise Proforma Invoice from a quotation or an estimate.',
+    actions: [
+      { m: 'action_issue', l: 'Issue to Customer (PI number)', states: ['draft'] },
+      { m: 'action_convert_to_invoice', l: 'Convert to Tax Invoice (draft)', states: ['issued'] },
+      { m: 'action_cancel', l: 'Cancel Proforma', ask: 'Why is the proforma cancelled?', kwarg: 'reason', states: ['draft', 'issued'] },
+      { m: 'action_reset_draft', l: 'Back to Draft', states: ['cancelled'] },
+      { m: 'action_fix_print', l: '🖨 Print Proforma (PDF)' },
+      { m: 'action_fix_print_receipt', l: '🧾 Proforma Receipt (80 mm)' }
+    ] },
+  'M36-form-proforma': {
+    kind: 'model_form',
+    model: 'fix.sales.proforma',
+    title: 'Proforma Invoice (Local Customer)',
+    back: 'M36-proformas',
+    status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued to Customer', converted: 'Converted to Invoice', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'customer', label: '1. Customer & Bill-to', bn: '১. গ্রাহক ও বিল-টু', icon: '👤', badge: '9' },
+      { id: 'lines', label: '2. Items & Charges', bn: '২. পণ্য ও চার্জ', icon: '🧾', badge: '6' },
+      { id: 'terms', label: '3. Terms & Delivery', bn: '৩. শর্ত ও ডেলিভারি', icon: '🤝', badge: '9' },
+      { id: 'links', label: '4. Source & Invoice', bn: '৪. উৎস ও ইনভয়েস', icon: '🔗', badge: '5' },
+      { id: 'docs', label: '5. Documents', bn: '৫. নথিপত্র', icon: '📁', badge: '0' }
+    ],
+    sections: [
+      { tab: 'customer', title: 'Customer', note: 'The category decides what the proforma must state: a walk-in customer\'s name and phone, the buyer\'s BIN for corporate, dealer and government customers.',
+        fields: [
+          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'customer_category', label: 'Customer Category' },
+          { name: 'date', required: true, label: 'Proforma Date' },
+          { name: 'valid_until', label: 'Valid Until' },
+          { name: 'bill_to_name', label: 'Bill-to Name (walk-in: the person)' },
+          { name: 'bill_to_phone', label: 'Bill-to Phone' },
+          { name: 'bill_to_address', type: 'text', label: 'Bill-to Address' },
+          { name: 'customer_bin', label: 'Buyer BIN / e-TIN' },
+          { name: 'salesperson_id', label: 'Sales Person' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ] },
+      { tab: 'lines', title: 'Totals from the lines', note: 'Taxable value = the lines less their discounts and the overall discount; VAT is M51\'s determination, exactly as the tax invoice will state it.',
+        fields: [
+          { name: 'overall_discount', label: 'Overall Discount (BDT)' },
+          { name: 'gross_total', readonly: true, label: 'Amount before Discount' },
+          { name: 'discount_total', readonly: true, label: 'Total Discount' },
+          { name: 'taxable_amount', readonly: true, label: 'Taxable Value' },
+          { name: 'vat_amount', readonly: true, label: 'VAT' },
+          { name: 'amount_total', readonly: true, label: 'Grand Total' }
+        ] },
+      { tab: 'terms', title: 'Payment, delivery and warranty',
+        fields: [
+          { name: 'advance_pct', label: 'Advance Required (%)' },
+          { name: 'advance_amount', readonly: true, label: 'Advance Required (BDT)' },
+          { name: 'payment_term_id', label: 'Payment Terms' },
+          { name: 'payment_method_ids', label: 'Payment Methods Accepted' },
+          { name: 'customer_po_ref', label: 'Customer PO / Ref No.' },
+          { name: 'customer_po_date', label: 'Customer PO Date' },
+          { name: 'service_item', label: 'Service Item (device, model, serial)' },
+          { name: 'delivery_address', type: 'text', label: 'Delivery / Service Address' },
+          { name: 'delivery_terms', type: 'text', label: 'Delivery Terms' },
+          { name: 'warranty_terms', type: 'text', label: 'Warranty Terms' },
+          { name: 'terms', type: 'text', label: 'Terms & Conditions' },
+          { name: 'remarks', type: 'text', label: 'Remarks' }
+        ] },
+      { tab: 'links', title: 'Where it came from and what it became', note: 'Read from the lifecycle.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Proforma No.' },
+          { name: 'quotation_id', label: 'From Quotation' },
+          { name: 'estimate_id', label: 'From Estimate' },
+          { name: 'invoice_id', readonly: true, label: 'Tax Invoice' },
+          { name: 'issued_by_id', readonly: true, label: 'Issued By' },
+          { name: 'issued_at', readonly: true, label: 'Issued At' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The customer PO, the signed proforma and the advance proof attach to this record.', fields: [] }
+    ],
+    lines: {
+      field: 'line_ids',
+      tab: 'lines',
+      title: 'Items & Charges (SL / code / description / qty / unit / price / discount)',
+      note: 'Spare Part, Accessory and Finished Product lines take an inventory item by its part number; Service, Labour, Support, Diagnostic, Call-out, Transport, Installation and Fee lines take a charge code (left empty: the generic code of its type). Empty price: the item\'s list price.',
+      fields: [
+        { name: 'line_type', label: 'Type', required: true },
+        { name: 'product_id', label: 'Item / Part No. or Charge Code (search)' },
+        { name: 'item_code', label: 'Item Code', readonly: true },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'serial_ref', label: 'Serial / IMEI' },
+        { name: 'quantity', label: 'Qty', required: true },
+        { name: 'uom_id', label: 'Unit' },
+        { name: 'unit_price', label: 'Unit Price', required: true },
+        { name: 'discount_pct', label: 'Disc %' },
+        { name: 'discount_amount', label: 'Discount', readonly: true },
+        { name: 'subtotal', label: 'Amount excl. VAT', readonly: true }
+      ]
+    }
+  },
   // P2 (12-13 Nov 2026): the billing plan, the advance and what acceptance created.
   'M36-billing-quotes': { kind: 'model_list', model: 'fix.quotation', create: false, stateField: 'state',
     cols: ['name', 'customer_id', 'segment', 'quote_type', 'amount_total', 'advance_amount', 'advance_received', 'advance_outstanding', 'state'],
@@ -328,21 +433,21 @@ export const SCREENS = {
 
       title: 'Estimate Lines',
 
-      note: 'Parts and labour quoted to the customer; the diagnostic fee is excluded from contract delivery cost.',
+      note: 'Parts from inventory (by part number) and service, labour, support, transport or other charges (by charge code); the diagnostic fee is excluded from contract delivery cost.',
 
       fields: [
 
         { name: 'line_type', label: 'Type', required: true },
 
-        { name: 'product_id', label: 'Product' },
-
+        { name: 'product_id', label: 'Item / Part No. (search)' },
+        { name: 'item_code', label: 'Item Code', readonly: true },
         { name: 'description', label: 'Description', required: true },
-
+        { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty', required: true },
-
+        { name: 'uom_id', label: 'Unit' },
         { name: 'unit_price', label: 'Unit Price', required: true },
 
-        { name: 'line_total', label: 'Total' }
+        { name: 'line_total', label: 'Total', readonly: true }
 
       ]
 
@@ -428,11 +533,15 @@ export const SCREENS = {
         { name: 'sequence', label: 'Seq' },
         { name: 'display_type', label: 'Section / Note' },
         { name: 'line_type', label: 'Type' },
-        { name: 'product_id', label: 'Item / Service' },
+        { name: 'product_id', label: 'Item / Part No. or Charge Code (search)' },
+        { name: 'item_code', label: 'Item Code', readonly: true },
         { name: 'description', label: 'Description', required: true },
+        { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty' },
+        { name: 'uom_id', label: 'Unit' },
         { name: 'unit_price', label: 'Unit Price' },
         { name: 'discount_pct', label: 'Disc %' },
+        { name: 'discount_amount', label: 'Discount', readonly: true },
         { name: 'subtotal', label: 'Amount excl. VAT', readonly: true },
         { name: 'list_price', label: 'List / Rate', readonly: true },
         { name: 'cost_unit', label: 'Unit Cost' },
@@ -1167,7 +1276,8 @@ export const FORM_MODELS = {
   'M36:Bid Bond': 'fix.tender.bond',
   'M36:Variation Order': 'fix.tender.variation',
   'M36:Quotation Template': 'fix.quotation.template',
-  'M36:Document Template (bilingual)': 'fix.document.template'
+  'M36:Document Template (bilingual)': 'fix.document.template',
+  'M36:Proforma Invoice (Local)': 'fix.sales.proforma'
 };
 
 export const FORM_CHIPS = {
@@ -1187,6 +1297,7 @@ export const FORM_CHIPS = {
   'M36:Variation Order': 'M36-form-variation',
   'M36:Quotation Template': 'M36-form-template',
   'M36:Document Template (bilingual)': 'M24-form-template',
+  'M36:Proforma Invoice (Local)': 'M36-form-proforma',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
     'fix.quotation': 'M36-record',
@@ -1197,11 +1308,13 @@ export const FORM_CHIPS = {
     'fix.quotation.template': 'M36-form-template',
     'fix.quotation.delivery': 'M36-form-delivery',
     'fix.quotation.counter': 'M36-form-counter-offer',
-    'fix.document.template': 'M24-form-template'
+    'fix.document.template': 'M24-form-template',
+    'fix.sales.proforma': 'M36-form-proforma'
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
     'M36-quotes': 'M36-record',
+    'M36-proformas': 'M36-form-proforma',
     'M36-billing-quotes': 'M36-billing',
     'M36-templates': 'M36-form-template',
     'M36-versions': 'M36-record',

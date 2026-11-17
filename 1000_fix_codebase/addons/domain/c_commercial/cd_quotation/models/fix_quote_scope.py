@@ -20,25 +20,14 @@ import hashlib
 import json
 
 from odoo import api, fields, models
+from odoo.addons.cd_catalogue.models.fix_commercial_line import LINE_TYPES
 from odoo.exceptions import UserError, ValidationError
 
 from .fix_quotation import SPEC_DISCOUNT_LADDER
 
-LINE_TYPES = [
-    ("part", "Part / Material"),
-    ("goods", "Goods (sale & delivery)"),
-    ("labour", "Labour"),
-    ("service", "Fixed-Price Service"),
-    ("diagnostic", "Diagnostic / Inspection"),
-    ("callout", "Call-out / Travel / Transport"),
-    ("installation", "Installation / Commissioning"),
-    ("recurring", "AMC / Recurring Service"),
-    ("subscription", "Subscription Plan"),
-    ("rental", "Rental"),
-    ("subcontract", "Third-Party / Subcontract"),
-    ("warranty_ext", "Warranty Extension"),
-    ("fee", "Fee"),
-]
+# LINE_TYPES is the commercial line standard (cd_catalogue, 17 Nov 2026): the
+# same stock / charge line types on the estimate, quotation, proforma and
+# invoice. The quotation template imports it from here.
 
 PRICE_SOURCES = [
     ("rate_card", "M11 rate card"),
@@ -56,6 +45,7 @@ FROM_ESTIMATE = "fix_quote_from_estimate"
 class FixQuotationLine(models.Model):
     _name = "fix.quotation.line"
     _description = "Quotation Line"
+    _inherit = ["fix.commercial.line.mixin"]
     _order = "quotation_id, sequence, id"
 
     quotation_id = fields.Many2one("fix.quotation", required=True, ondelete="cascade", index=True)
@@ -70,7 +60,7 @@ class FixQuotationLine(models.Model):
         help="A section heading or a note: no price, not in the total.",
     )
     line_type = fields.Selection(LINE_TYPES, string="Type", default="service")
-    product_id = fields.Many2one("product.product", string="Item / Service")
+    product_id = fields.Many2one("product.product", string="Item / Charge Code")
     description = fields.Char(required=True)
     quantity = fields.Float(default=1.0, digits="Product Unit of Measure")
     unit_price = fields.Monetary(currency_field="currency_id")
@@ -80,6 +70,13 @@ class FixQuotationLine(models.Model):
         currency_field="currency_id",
         compute="_compute_amounts",
         store=True,
+    )
+    discount_amount = fields.Monetary(
+        string="Discount (BDT)",
+        currency_field="currency_id",
+        compute="_compute_amounts",
+        store=True,
+        help="Quantity x unit price less the amount: the line discount in money.",
     )
     list_price = fields.Monetary(
         string="List / Rate Price",
@@ -103,11 +100,12 @@ class FixQuotationLine(models.Model):
     def _compute_amounts(self):
         for line in self:
             if line.display_type:
-                line.subtotal = line.list_subtotal = 0.0
+                line.subtotal = line.list_subtotal = line.discount_amount = 0.0
                 continue
             qty = line.quantity or 0.0
             price = line.unit_price or 0.0
             line.subtotal = round(qty * price * (1.0 - (line.discount_pct or 0.0) / 100.0), 2)
+            line.discount_amount = round(qty * price, 2) - line.subtotal
             # A price above the list is not a negative discount on another line.
             line.list_subtotal = round(qty * max(line.list_price or 0.0, price), 2)
 
@@ -135,6 +133,14 @@ class FixQuotationLine(models.Model):
             card = Card._resolve(product.default_code)
             if card:
                 return card.unit_price, "rate_card"
+        # a charge code with no standard rate (the generic CHG-* codes) has
+        # no list price: the price is the one typed on the line
+        if (
+            "fix_charge_code_id" in product._fields
+            and product.sudo().fix_charge_code_id
+            and not (product.lst_price or 0.0)
+        ):
+            return None, "manual"
         return product.lst_price, "list"
 
     def _priced_vals(self, vals, product):
@@ -181,6 +187,7 @@ class FixQuotationLine(models.Model):
         Quote = self.env["fix.quotation"]
         self._assert_editable(Quote.browse({v.get("quotation_id") for v in vals_list} - {None}))
         Product = self.env["product.product"]
+        vals_list = [self._fix_commercial_prepare(dict(v)) for v in vals_list]
         for vals in vals_list:
             vals.pop("list_price", None)
             vals.pop("price_source", None)
@@ -189,7 +196,7 @@ class FixQuotationLine(models.Model):
                 continue
             product = Product.browse(vals.get("product_id")).exists()
             if product and not vals.get("description"):
-                vals["description"] = product.display_name
+                vals["description"] = product.name
             self._priced_vals(vals, product)
         lines = super().create(vals_list)
         lines._check_sellable()
@@ -442,8 +449,10 @@ class FixQuotationScope(models.Model):
                     "description": src.description,
                     "quantity": src.quantity,
                     "unit_price": src.unit_price,
+                    "uom_id": src.uom_id.id or False,
+                    "serial_ref": src.serial_ref or False,
                 }
-                for i, src in enumerate(est.line_ids.sorted(lambda r: r.id))
+                for i, src in enumerate(est.line_ids.sorted(lambda r: (r.sequence, r.id)))
             ]
         )
         vals = {}

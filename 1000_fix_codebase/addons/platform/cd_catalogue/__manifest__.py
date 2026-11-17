@@ -18,10 +18,12 @@ Owns:
 - fix.srt.baseline (governed standard-repair-time register, BRU-CAT-11)
 - fix.part.crossref (part cross-references and approved alternates)
 - fix.catalogue.publication (versioned channel projections)
+- fix.charge.code (non-stock service & charge codes) and the commercial
+  document line standard (fix.commercial.line.mixin)
 
 AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
 """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Catalogue",
@@ -34,6 +36,7 @@ AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
         "data/fix_refurb_grades.xml",
         "data/fix_brand_data.xml",
         "data/ir_cron.xml",
+        "data/fix_charge_code_data.xml",
         "views/fix_catalogue_views.xml",
         "views/fix_catalogue_workspace_views.xml",
     ],

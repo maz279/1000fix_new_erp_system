@@ -107,16 +107,101 @@ def _invoice_row(inv):
         "gl_note": inv.gl_note or "",
         "gl_posted": bool(inv.posted_move_id),
         "paid_date": str(inv.paid_date) if inv.paid_date else "",
-        "due_date": str(inv.invoice_date + timedelta(days=inv._payment_terms_days()))
-        if inv.invoice_date
-        else "",
-        "terms_days": inv._payment_terms_days(),
-        "days_past_due": max(
-            (datetime.date.today() - inv.invoice_date).days - inv._payment_terms_days(), 0
-        )
+        "category": inv.customer_category or "",
+        "category_label": inv._fix_category_label() if hasattr(inv, "_fix_category_label") else "",
+        "due_date": str(_due(inv)) if inv.invoice_date else "",
+        "terms_days": (_due(inv) - inv.invoice_date).days if inv.invoice_date else 0,
+        "days_past_due": max((datetime.date.today() - _due(inv)).days, 0)
         if inv.invoice_date
         else 0,
     }
+
+
+def _due(inv):
+    """The invoice's due date: on the day for walk-in and cash customers
+    (commercial document standard), else by the customer's payment terms."""
+    if "date_due" in inv._fields and inv.date_due:
+        return inv.date_due
+    return inv.invoice_date + timedelta(days=inv._payment_terms_days())
+
+
+def _invoice_header(inv):
+    """The document header and footer the invoice record tab shows."""
+    party = inv._fix_doc_party() if hasattr(inv, "_fix_doc_party") else {}
+    return {
+        "bill_to": party,
+        "po_ref": inv.customer_po_ref or "",
+        "po_date": str(inv.customer_po_date) if inv.customer_po_date else "",
+        "salesperson": inv.salesperson_id.name or "",
+        "service_item": inv.service_item or "",
+        "challan": inv.challan_ref or "",
+        "delivery_address": inv.delivery_address or "",
+        "vehicle": inv.vehicle_no or "",
+        "remarks": inv.remarks or "",
+        "reason": inv.manual_reason or "",
+        "date_due": str(inv.date_due) if inv.date_due else "",
+        "items": inv.item_count,
+        "quantity": inv.total_quantity,
+        "gross": inv.gross_total,
+        "discount": inv.discount_total,
+        "words": inv.amount_in_words_en if "amount_in_words_en" in inv._fields else "",
+        "print_url": "/report/pdf/cd_doc_suite.report_invoice/%s" % inv.id,
+    }
+
+
+def _float(value):
+    try:
+        return round(float(value or 0.0), 6)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _editor_line(line):
+    """An editor line -> fix.ar.invoice.line values (the commercial line
+    standard). The old editor sent {description, taxable, vat}: kept."""
+    if "unit_price" not in line and "taxable" in line:
+        return {
+            "description": line.get("description") or "Service",
+            "taxable_amount": round(_float(line.get("taxable")), 2),
+            "vat_amount": round(_float(line.get("vat")), 2),
+            "line_total": round(_float(line.get("taxable")) + _float(line.get("vat")), 2),
+        }
+    vals = {
+        "line_type": line.get("line_type") or "service",
+        "description": (line.get("description") or "").strip(),
+        "quantity": _float(line.get("quantity")),
+        "unit_price": _float(line.get("unit_price")),
+        "discount_pct": _float(line.get("discount_pct")),
+    }
+    if line.get("product_id"):
+        vals["product_id"] = int(line["product_id"])
+    if line.get("uom_id"):
+        vals["uom_id"] = int(line["uom_id"])
+    if (line.get("serial") or "").strip():
+        vals["serial_ref"] = line["serial"].strip()
+    return vals
+
+
+def _editor_line_is_blank(line):
+    if "unit_price" not in line:
+        return _float(line.get("taxable")) <= 0
+    return not line.get("product_id") and _float(line.get("unit_price")) <= 0
+
+
+# Header fields the invoice editor may set (the document header standard).
+EDITOR_HEADER = (
+    "customer_category",
+    "bill_to_name",
+    "bill_to_phone",
+    "bill_to_address",
+    "customer_bin",
+    "customer_po_ref",
+    "service_item",
+    "challan_ref",
+    "delivery_address",
+    "vehicle_no",
+    "remarks",
+)
 
 
 # The controlled lists the single-value prompts offer (M20-10, M20-11).
@@ -167,14 +252,25 @@ class P03ArApiController(http.Controller):
             return {"invoice": None}
         return {
             "invoice": _invoice_row(inv),
+            "header": _invoice_header(inv),
             "lines": [
                 {
+                    "sl": index,
+                    "line_type": line.line_type or "",
+                    "type_label": dict(line._fields["line_type"].selection).get(line.line_type, ""),
+                    "code": line.item_code or "",
                     "description": line.description or "",
+                    "serial": line.serial_ref or "",
+                    "quantity": line.quantity,
+                    "uom": line.uom_id.name or "",
+                    "unit_price": line.unit_price,
+                    "discount": line.discount_amount,
                     "taxable": line.taxable_amount,
+                    "vat_rate": line.vat_rate,
                     "vat": line.vat_amount,
                     "total": line.line_total,
                 }
-                for line in inv.line_ids
+                for index, line in enumerate(inv.line_ids.sorted(lambda r: (r.sequence, r.id)), 1)
             ],
             "allocations": [
                 {
@@ -541,33 +637,54 @@ class P03ArApiController(http.Controller):
     # =====================================================================
 
     @http.route("/p03/ar/invoice/create", type="jsonrpc", auth="user")
-    def ar_invoice_create(self, customer_id=None, invoice_date=None, lines=None, reason=None, **kw):
+    def ar_invoice_create(
+        self,
+        customer_id=None,
+        invoice_date=None,
+        lines=None,
+        reason=None,
+        header=None,
+        overall_discount=0.0,
+        **kw,
+    ):
         _require_internal(request.env)
         env = request.env
+        header = header or {}
         try:
             with env.cr.savepoint():
+                vals = {
+                    "customer_id": int(customer_id),
+                    "operating_unit_id": (
+                        getattr(env.user, "default_operating_unit_id", False)
+                        or env["operating.unit"].search(
+                            [("company_id", "=", env.company.id)], limit=1
+                        )
+                    ).id,
+                    "invoice_date": datetime.date.fromisoformat(str(invoice_date)[:10])
+                    if invoice_date
+                    else datetime.date.today(),
+                }
+                for key in EDITOR_HEADER:
+                    value = header.get(key)
+                    if isinstance(value, str):
+                        value = value.strip()
+                    if value:
+                        vals[key] = value
+                if header.get("customer_po_date"):
+                    vals["customer_po_date"] = datetime.date.fromisoformat(
+                        str(header["customer_po_date"])[:10]
+                    )
+                if header.get("payment_method_id"):
+                    vals["payment_method_id"] = int(header["payment_method_id"])
                 invoice = env["fix.ar.invoice"].create_manual_invoice(
-                    {
-                        "customer_id": int(customer_id),
-                        "operating_unit_id": env["operating.unit"]
-                        .search([("company_id", "=", env.company.id)], limit=1)
-                        .id,
-                        "invoice_date": datetime.date.fromisoformat(str(invoice_date)[:10])
-                        if invoice_date
-                        else datetime.date.today(),
-                    },
+                    vals,
                     [
-                        {
-                            "description": line.get("description") or "Service",
-                            "taxable_amount": round(float(line.get("taxable") or 0.0), 2),
-                            "vat_amount": round(float(line.get("vat") or 0.0), 2),
-                            "line_total": round(
-                                float(line.get("taxable") or 0.0) + float(line.get("vat") or 0.0), 2
-                            ),
-                        }
+                        _editor_line(line)
                         for line in (lines or [])
+                        if not _editor_line_is_blank(line)
                     ],
                     reason_code=reason or "",
+                    overall_discount=_float(overall_discount),
                 )
                 return {"success": True, "invoice_id": invoice.id, "state": invoice.state}
         except UserError as exc:

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The shared walk-in party (17 Nov 2026). A walk-in customer is not registered
+  as a party: the document points at this one party and states the person's
+  own name and phone in its bill-to fields (printed and written to the
+  Mushak 6.3 buyer block). The counter sale's "Walk-in customer" text is the
+  same idea for a sale with no party at all.
+-->
+<odoo noupdate="1">
+    <record id="partner_walk_in" model="res.partner">
+        <field name="name">Walk-in Customer</field>
+        <field name="name_bn">ওয়াক-ইন গ্রাহক</field>
+        <field name="is_company" eval="False"/>
+        <field name="party_class">individual</field>
+        <field name="party_status">active</field>
+        <field name="status_reason">Shared walk-in party: the document carries the customer's own name and phone.</field>
+        <field name="comment">Do not merge, rename or block: every walk-in invoice, estimate and quotation without a registered customer points here.</field>
+    </record>
+</odoo>

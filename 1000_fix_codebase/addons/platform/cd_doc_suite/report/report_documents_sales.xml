@@ -99,82 +99,20 @@
     <template id="report_quotation_document">
                 <t t-set="doc" t-value="doc.with_context(lang=doc.document_lang or doc.customer_id.lang or 'en_US')"/>
                 <t t-call="web.external_layout">
-                    <div class="page cds-doc">
-
-                        <div class="cds-title-band">
-                            <h1>QUOTATION <span class="cds-chip" t-esc="{'draft':'DRAFT','approved':'APPROVED','sent':'SENT','accepted':'ACCEPTED','declined':'DECLINED','expired':'EXPIRED','cancelled':'CANCELLED','superseded':'SUPERSEDED'}.get(doc.state, doc.state)"/></h1>
-                            <div class="cds-title-sub">
-                                Quotation No. <b t-esc="doc.name"/> ·
-                                Version <b t-esc="doc.version or 1"/> ·
-                                Date <b t-field="doc.create_date" t-options='{"widget": "date"}'/>
-                                <t t-if="doc.valid_until"> · Valid until <b t-field="doc.valid_until"/></t>
-                            </div>
-                        </div>
-
-                        <table class="cds-parties">
-                            <tr>
-                                <td>
-                                    <div class="cds-party-label">Quoted To</div>
-                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
-                                    <div t-field="doc.customer_id"
-                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
-                                </td>
-                                <td>
-                                    <div class="cds-party-label">Details</div>
-                                    <table class="cds-meta">
-                                        <tr><td class="cds-meta-label">Type</td><td t-esc="{'service':'Service','contract':'Contract','subscription':'Subscription','project':'Goods &amp; Works'}.get(doc.quote_type, doc.quote_type or '')"/></tr>
-                                        <tr t-if="doc.contract_family"><td class="cds-meta-label">Family</td><td t-esc="{'amc':'AMC','ramc':'R-AMC','managed':'Managed Services','rental':'Rental','marketplace':'Marketplace'}.get(doc.contract_family, doc.contract_family)"/></tr>
-                                        <tr t-if="doc.contract_months"><td class="cds-meta-label">Duration</td><td t-esc="str(doc.contract_months) + ' months'"/></tr>
-                                        <tr t-if="doc.contract_start"><td class="cds-meta-label">Starts</td><td><span t-field="doc.contract_start"/></td></tr>
-                                        <tr t-if="doc.operating_unit_id"><td class="cds-meta-label">Unit</td><td t-esc="doc.operating_unit_id.name"/></tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
+                    <div class="page cds-doc" style="position: relative;">
+                        <!-- Commercial document standard (17 Nov 2026): shared head, lines and totals -->
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_head"/>
 
                         <!-- Quote-to-cash P1 (12 Nov 2026): the quotation lists what it quotes. -->
                         <t t-set="firm_lines" t-value="doc.line_ids.filtered(lambda l: not l.is_optional)"/>
                         <t t-set="option_lines" t-value="doc.line_ids.filtered(lambda l: l.is_optional and not l.display_type)"/>
-                        <table class="cds-table" t-if="firm_lines">
-                            <thead>
-                                <tr>
-                                    <th style="width: 6%;">#</th>
-                                    <th>Description</th>
-                                    <th class="cds-num" style="width: 9%;">Qty</th>
-                                    <th class="cds-num" style="width: 15%;">Unit Price</th>
-                                    <th class="cds-num" style="width: 8%;">Disc %</th>
-                                    <th class="cds-num" style="width: 18%;">Amount (excl. VAT)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-set="line_no" t-value="0"/>
-                                <t t-foreach="firm_lines" t-as="line">
-                                    <tr t-if="line.display_type == 'line_section'">
-                                        <td colspan="6" style="font-weight:bold;background:#f2f2f2;" t-esc="line.description"/>
-                                    </tr>
-                                    <tr t-elif="line.display_type == 'line_note'">
-                                        <td colspan="6" style="font-style:italic;color:#555;" t-esc="line.description"/>
-                                    </tr>
-                                    <tr t-else="">
-                                        <t t-set="line_no" t-value="line_no + 1"/>
-                                        <td class="cds-ctr" t-esc="line_no"/>
-                                        <td>
-                                            <t t-esc="line.description"/>
-                                            <div style="font-size:8pt;color:#555;" t-esc="dict(line._fields['line_type'].selection).get(line.line_type, '')"/>
-                                        </td>
-                                        <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
-                                        <td class="cds-num"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                        <td class="cds-num" t-esc="line.discount_pct and ('%g' % line.discount_pct) or ''"/>
-                                        <td class="cds-num"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                    </tr>
-                                </t>
-                            </tbody>
-                        </table>
+                        <t t-if="firm_lines" t-call="cd_doc_suite.commercial_lines"/>
 
                         <table class="cds-table" t-if="not firm_lines">
                             <thead>
                                 <tr>
-                                    <th style="width: 8%;">#</th>
+                                    <th style="width: 8%;">SL</th>
                                     <th>Description</th>
                                     <th class="cds-num" style="width: 22%;">Amount (excl. VAT)</th>
                                 </tr>
@@ -194,34 +132,25 @@
                         <table class="cds-table" t-if="option_lines" style="margin-top:6px;">
                             <thead>
                                 <tr>
-                                    <th colspan="2">Optional items (not included in the total)</th>
+                                    <th class="cds-ctr" style="width: 4%;">SL</th>
+                                    <th style="width: 12%;">Item Code</th>
+                                    <th>Optional items (not included in the total)</th>
                                     <th class="cds-num" style="width: 9%;">Qty</th>
                                     <th class="cds-num" style="width: 18%;">Amount (excl. VAT)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr t-foreach="option_lines" t-as="line">
-                                    <td colspan="2" t-esc="line.description"/>
+                                    <td class="cds-ctr" t-esc="line_index + 1"/>
+                                    <td t-esc="line.item_code or ''"/>
+                                    <td t-esc="line.description"/>
                                     <td class="cds-num" t-esc="'%g' % (line.quantity or 0)"/>
                                     <td class="cds-num"><span t-field="line.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
                                 </tr>
                             </tbody>
                         </table>
 
-                        <table class="cds-totals">
-                            <tr t-if="doc.discount_amount"><td class="cds-tot-label">Lines Total</td><td class="cds-tot-value"><span t-field="doc.lines_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.discount_amount"><td class="cds-tot-label">Less: Discount</td><td class="cds-tot-value"><span t-field="doc.discount_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <!-- P0 quote-to-cash review (12 Nov 2026): VAT was added to a value that
-                                 already included it, and the customer's TDS printed as a charge. -->
-                            <tr><td class="cds-tot-label">Amount (excl. VAT)</td><td class="cds-tot-value"><span t-field="doc.value" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.vat_amount"><td class="cds-tot-label">VAT <t t-esc="'(' + str(doc.vat_rate or 0) + '%)'"/></td><td class="cds-tot-value"><span t-field="doc.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr class="cds-grand"><td class="cds-tot-label">Total Payable (incl. VAT)</td><td class="cds-tot-value"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                        </table>
-
-                        <div class="cds-words" t-if="doc.amount_in_words_en">
-                            <span class="cds-words-label">In Words:</span>
-                            <span t-esc="doc.amount_in_words_en"/>
-                        </div>
+                        <t t-call="cd_doc_suite.commercial_footer"/>
 
                         <div class="cds-notes">
                             <b>Terms &amp; Conditions</b>
@@ -269,105 +198,10 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
                 <t t-call="web.external_layout">
-                    <div class="page cds-doc">
-
-                        <div class="cds-title-band">
-                            <h1>REPAIR ESTIMATE <span class="cds-chip" t-esc="{'draft':'DRAFT','sent':'SENT','approved':'APPROVED','rejected':'REJECTED','expired':'EXPIRED'}.get(doc.state, doc.state)"/></h1>
-                            <div class="cds-title-sub">
-                                Estimate Ref. <b t-esc="doc.order_id.name or ('EST-%s' % doc.id)"/> ·
-                                Version <b t-esc="doc.version or 1"/>
-                                <t t-if="doc.expiry_date"> · Valid until <b t-field="doc.expiry_date"/></t>
-                                <t t-if="doc.tender_ref"> · Tender <b t-esc="doc.tender_ref"/></t>
-                            </div>
-                        </div>
-
-                        <table class="cds-parties">
-                            <tr>
-                                <td>
-                                    <div class="cds-party-label">Prepared For</div>
-                                    <t t-if="doc.order_id.customer_id">
-                                        <div class="cds-party-name" t-esc="doc.order_id.customer_id.name"/>
-                                        <div t-field="doc.order_id.customer_id"
-                                             t-options='{"widget": "contact", "fields": ["address", "phone", "email"], "no_marker": true}'/>
-                                    </t>
-                                    <t t-else="">
-                                        <div class="cds-party-name">Walk-in customer</div>
-                                    </t>
-                                </td>
-                                <td>
-                                    <div class="cds-party-label">Service Order</div>
-                                    <table class="cds-meta">
-                                        <tr t-if="doc.order_id"><td class="cds-meta-label">Order</td><td t-esc="doc.order_id.name"/></tr>
-                                        <tr t-if="doc.order_id.device_id"><td class="cds-meta-label">Device</td><td t-esc="doc.order_id.device_id.display_name"/></tr>
-                                        <tr t-if="doc.order_id and doc.order_id.device_serial"><td class="cds-meta-label">Serial</td><td t-esc="doc.order_id.device_serial"/></tr>
-                                        <tr t-if="doc.valid_days"><td class="cds-meta-label">Validity</td><td t-esc="'%s days' % doc.valid_days"/></tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <table class="cds-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 6%;">SL</th>
-                                    <th>Description</th>
-                                    <th class="cds-ctr" style="width: 12%;">Type</th>
-                                    <th class="cds-num" style="width: 8%;">Qty</th>
-                                    <th class="cds-num" style="width: 16%;">Unit Price</th>
-                                    <th class="cds-num" style="width: 18%;">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-set="sl" t-value="1"/>
-                                <tr t-foreach="doc.line_ids" t-as="line">
-                                    <td class="cds-ctr" t-esc="line_index + 1"/>
-                                    <td><t t-esc="line.description or (line.product_id.name or '')"/></td>
-                                    <td class="cds-ctr" t-esc="{'part':'Part','labour':'Labour','diagnostic':'Diagnostic'}.get(line.line_type, line.line_type or '')"/>
-                                    <td class="cds-num" t-esc="str(line.quantity or 0)"/>
-                                    <td class="cds-num"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                    <td class="cds-num"><span t-field="line.line_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                </tr>
-                                <tr t-if="not doc.line_ids">
-                                    <td colspan="6" style="text-align:center;color:#777;">No estimate lines recorded.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <table class="cds-totals">
-                            <tr t-if="doc.parts_total"><td class="cds-tot-label">Parts</td><td class="cds-tot-value"><span t-field="doc.parts_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.labour_total"><td class="cds-tot-label">Labour</td><td class="cds-tot-value"><span t-field="doc.labour_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.diagnostic_total"><td class="cds-tot-label">Diagnostics</td><td class="cds-tot-value"><span t-field="doc.diagnostic_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.discount"><td class="cds-tot-label">Discount <t t-if="doc.discount_pct" t-esc="'(' + str(doc.discount_pct or 0) + '%)'"/></td><td class="cds-tot-value">- <span t-field="doc.discount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.vat_amount"><td class="cds-tot-label">VAT <t t-esc="'(' + str(doc.vat_rate or 0) + '%)'"/></td><td class="cds-tot-value"><span t-field="doc.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr class="cds-grand"><td class="cds-tot-label">Grand Total</td><td class="cds-tot-value"><span t-field="doc.grand_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                        </table>
-
-                        <div class="cds-words" t-if="doc.amount_in_words_en">
-                            <span class="cds-words-label">In Words:</span>
-                            <span t-esc="doc.amount_in_words_en"/>
-                        </div>
-
-                        <div class="cds-notes" t-if="doc.diagnostic_notes">
-                            <b>Diagnostic Notes</b><br/>
-                            <span t-field="doc.diagnostic_notes"/>
-                        </div>
-
-                        <div class="cds-notes">
-                            <b>Notes</b>
-                            <ul style="margin: 4px 0 0 16px; padding: 0;">
-                                <li t-if="doc.expiry_date">Estimate valid until <b t-field="doc.expiry_date"/>. Repair starts after written approval.</li>
-                                <li>Additional faults discovered during repair will be quoted separately before work proceeds.</li>
-                                <li>Repaired parts carry the standard 1000FiX service warranty; physical/liquid damage is excluded.</li>
-                            </ul>
-                        </div>
-
-                        <table class="cds-sign">
-                            <tr>
-                                <td class="cds-sign-pad">Customer Approval<br/>Signature &amp; Date</td>
-                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Service Manager</td>
-                            </tr>
-                        </table>
-
+                    <!-- Commercial document standard (17 Nov 2026) -->
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
                     </div>
                 </t>
             </t>
@@ -522,9 +356,10 @@
                         </table>
 
                         <table class="cds-table">
-                            <thead><tr><th>Item Handed Over</th><th class="cds-ctr" style="width: 14%;">Qty</th></tr></thead>
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Item Handed Over</th><th class="cds-ctr" style="width: 14%;">Qty</th></tr></thead>
                             <tbody>
                                 <tr>
+                                    <td class="cds-ctr">1</td>
                                     <td>
                                         <b t-esc="doc.device_id.display_name or 'Device'"/>
                                         <t t-if="doc.device_serial"><br/>Serial / IMEI: <b t-esc="doc.device_serial"/></t>

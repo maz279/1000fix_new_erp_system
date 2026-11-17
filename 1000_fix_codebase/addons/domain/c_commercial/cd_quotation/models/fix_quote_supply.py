@@ -61,9 +61,12 @@ FULFILMENT = [
 ]
 TYPE_FULFILMENT = {
     "part": "delivery",
+    "accessory": "delivery",
     "goods": "delivery",
     "labour": "service_order",
     "service": "service_order",
+    "support": "service_order",
+    "transport": "service_order",
     "diagnostic": "service_order",
     "callout": "service_order",
     "installation": "service_order",

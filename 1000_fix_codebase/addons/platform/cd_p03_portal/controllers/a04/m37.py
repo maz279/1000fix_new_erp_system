@@ -11,6 +11,12 @@ from odoo.http import request
 from ..p03_service_order_api import _require_internal
 
 SURFACES = {
+    # Commercial document standard (17 Nov 2026): non-stock charge codes.
+    "fix.charge.code": {
+        "order": "charge_type, code",
+        "limit": 300,
+        "actions": set(),
+    },
     # A04 audit (2026-11-04) M37-1/M37-9: the item lifecycle and the brand
     # authorisation run from the workspace; approval is decided from the
     # publisher's M63 inbox, never here.

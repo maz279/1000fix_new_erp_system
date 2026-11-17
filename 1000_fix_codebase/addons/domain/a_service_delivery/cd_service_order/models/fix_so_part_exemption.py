@@ -33,6 +33,7 @@
 from __future__ import annotations
 
 from odoo import api, fields, models
+from odoo.addons.cd_catalogue.models.fix_commercial_line import STOCK_LINE_TYPES
 from odoo.exceptions import UserError
 
 _EPS = 1e-6
@@ -229,7 +230,7 @@ class FixSoPartExemption(models.Model):
             raise UserError(
                 "The exemption is for a part line of order %s's approved estimate." % order.name
             )
-        if line.line_type != "part":
+        if line.line_type not in STOCK_LINE_TYPES:
             raise UserError(
                 "%s is a %s line: only a billed part can be exempted as not fitted."
                 % (line.description, line.line_type)

@@ -73,6 +73,11 @@ SURFACES = {
         "order": "id desc",
         "limit": 200,
         "actions": {
+            # commercial document standard (17 Nov 2026): estimate -> proforma,
+            # and its A4 / 80 mm receipt print
+            "action_create_proforma",
+            "action_fix_print",
+            "action_fix_print_receipt",
             "action_send",
             "action_approve",
             # A02 audit B1: the BRU-SRM-08 manager key is requested here and

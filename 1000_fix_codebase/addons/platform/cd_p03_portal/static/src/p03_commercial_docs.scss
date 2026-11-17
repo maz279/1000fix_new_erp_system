@@ -1,0 +1,182 @@
+// Commercial document standard (17 Nov 2026): the invoice editor and the
+// invoice record tab — SL column, item code, numeric columns, totals box.
+// Plain CSS values only (libsass in this estate rejects min()/max()).
+
+.d365-lines .d365-line-sl,
+.cdoc-lines .cdoc-sl {
+    width: 36px;
+    text-align: center;
+    color: var(--ink-500, #5b6770);
+    font-variant-numeric: tabular-nums;
+}
+
+.cdoc-editor {
+    .cdoc-titlebar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+    .cdoc-cat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 200px;
+        label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        select {
+            min-height: 36px;
+        }
+    }
+    .cdoc-panel {
+        border: 1px solid var(--border-color, #dde3e6);
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    .cdoc-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px 12px;
+        .fld {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .fld input,
+        .fld textarea,
+        .fld select {
+            width: 100%;
+        }
+        .cdoc-span2 {
+            grid-column: span 2;
+        }
+    }
+    .cdoc-edit {
+        input {
+            width: 100%;
+            min-height: 32px;
+        }
+        .cdoc-desc {
+            min-width: 180px;
+        }
+        .cdoc-serial {
+            min-width: 110px;
+        }
+        .cdoc-qty,
+        .cdoc-pct {
+            width: 70px;
+            text-align: right;
+        }
+        .cdoc-price {
+            width: 100px;
+            text-align: right;
+        }
+        .cdoc-type {
+            min-width: 150px;
+        }
+        .cdoc-kind {
+            margin-top: 3px;
+            font-size: 10px;
+        }
+        td {
+            vertical-align: top;
+        }
+    }
+    .cdoc-addbar,
+    .cdoc-savebar {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    .cdoc-savebar {
+        justify-content: flex-end;
+        margin-top: 12px;
+    }
+}
+
+.cdoc-num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.cdoc-small {
+    font-size: 11px;
+    color: var(--ink-500, #5b6770);
+}
+
+.cdoc-err {
+    font-size: 11px;
+    color: var(--status-error, #b42318);
+}
+
+.cdoc-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brand-60, #0e7a6e);
+    font-weight: 700;
+}
+
+.cdoc-headgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 8px 0 12px;
+}
+
+.cdoc-totals-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.cdoc-words {
+    flex: 1;
+    min-width: 240px;
+    font-size: 13px;
+}
+
+.cdoc-totals {
+    min-width: 320px;
+    border-collapse: collapse;
+    td {
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--border-color, #e6ebee);
+    }
+    td:last-child {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    .cdoc-grand td {
+        font-weight: 700;
+        font-size: 15px;
+        border-top: 2px solid var(--brand-60, #0e7a6e);
+        border-bottom: 3px double var(--brand-60, #0e7a6e);
+    }
+    input {
+        width: 120px;
+        text-align: right;
+    }
+}
+
+@media (max-width: 900px) {
+    .cdoc-editor .cdoc-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .cdoc-headgrid {
+        grid-template-columns: 1fr;
+    }
+}

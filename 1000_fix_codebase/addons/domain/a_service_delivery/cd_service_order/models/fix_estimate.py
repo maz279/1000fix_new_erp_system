@@ -3,6 +3,10 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_catalogue.models.fix_commercial_line import (
+    LINE_TYPES,
+    STOCK_LINE_TYPES,
+)
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
@@ -43,7 +47,12 @@ class FixEstimate(models.Model):
 
     _name = "fix.estimate"
     _description = "Repair Estimate"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
+    _inherit = [
+        "mail.thread",
+        "mail.activity.mixin",
+        "fix.dofa.mixin",
+        "fix.commercial.document.mixin",
+    ]
 
     # A11 audit P2 (A02 area): the discount DOFA used to be decided by
     # whoever pressed Approve while holding the tier — no request, no named
@@ -254,6 +263,18 @@ class FixEstimate(models.Model):
         compute="_compute_totals",
         store=True,
     )
+    # Commercial line standard (17 Nov 2026): call-out, transport, AMC,
+    # subcontract, warranty extension and fee lines are charges too; they
+    # were no line type at all. Stock lines (part / accessory / finished goods)
+    # sum into parts; labour, service, support and installation into labour.
+    other_total = fields.Monetary(
+        string="Other Charges Total",
+        currency_field="currency_id",
+        compute="_compute_totals",
+        store=True,
+        help="Call-out, transport / delivery, AMC, rental, subcontract, warranty extension "
+        "and other fees.",
+    )
     discount = fields.Monetary(string="Discount", currency_field="currency_id", default=0.0)
     vat_rate = fields.Float(
         string="VAT Rate (%)",
@@ -330,12 +351,13 @@ class FixEstimate(models.Model):
     @api.depends("line_ids.line_total", "line_ids.line_type", "discount", "vat_rate")
     def _compute_totals(self):
         for est in self:
-            totals = {"part": 0.0, "labour": 0.0, "diagnostic": 0.0}
+            totals = {"part": 0.0, "labour": 0.0, "diagnostic": 0.0, "other": 0.0}
             for line in est.line_ids:
-                totals[line.line_type] += line.line_total
+                totals[_ESTIMATE_BUCKET.get(line.line_type, "other")] += line.line_total
             est.parts_total = totals["part"]
             est.labour_total = totals["labour"]
             est.diagnostic_total = totals["diagnostic"]
+            est.other_total = totals["other"]
             chargeable = est._chargeable_total()
             subtotal = chargeable - est.discount
             est.vat_amount = subtotal * (est.vat_rate / 100.0)
@@ -344,10 +366,28 @@ class FixEstimate(models.Model):
             est.discount_pct = round(pct, 2)
             est.dofa_tier_required = est._dofa_tier_for_amount(pct) if pct > 0.0 else "tier_0"
 
-    def _chargeable_total(self) -> float:
-        """Parts + labour + diagnostic: the VAT-exclusive amount before discount."""
+    # --- commercial document standard (17 Nov 2026) -------------------------
+    @api.depends("order_id.customer_id")
+    def _compute_customer_category(self):
+        return super()._compute_customer_category()
+
+    def _fix_doc_partner(self):
+        """The customer: the service order's (a CRM-led estimate names the
+        lead's partner in cd_crm_ext)."""
         self.ensure_one()
-        return self.parts_total + self.labour_total + self.diagnostic_total
+        partner = self.order_id.customer_id if self.order_id else self.env["res.partner"]
+        if not partner and "lead_id" in self._fields and self.lead_id:
+            partner = self.lead_id.partner_id
+        return partner
+
+    def _fix_doc_lines(self):
+        return self.line_ids.sorted(lambda r: (r.sequence, r.id))
+
+    def _chargeable_total(self) -> float:
+        """Parts + labour + diagnostic + other charges: the VAT-exclusive
+        amount before discount."""
+        self.ensure_one()
+        return self.parts_total + self.labour_total + self.diagnostic_total + self.other_total
 
     @api.constrains("discount", "line_ids")
     def _check_discount(self):
@@ -869,15 +909,16 @@ class FixApprovalMatrixEstimateDiscount(models.Model):
 class FixEstimateLine(models.Model):
     _name = "fix.estimate.line"
     _description = "Estimate Line"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.commercial.line.mixin"]
+    _order = "estimate_id, sequence, id"
 
     estimate_id = fields.Many2one("fix.estimate", required=True, ondelete="cascade")
-    line_type = fields.Selection(
-        [("part", "Part"), ("labour", "Labour"), ("diagnostic", "Diagnostic")],
-        required=True,
-        default="part",
-    )
-    product_id = fields.Many2one("product.product", string="Product")
+    sequence = fields.Integer(default=10)
+    # The commercial line standard: stock lines (part, accessory, finished
+    # goods) and charge lines (service, labour, support, diagnostic, call-out,
+    # transport, installation, ...). Was part / labour / diagnostic only.
+    line_type = fields.Selection(LINE_TYPES, string="Type", required=True, default="part")
+    product_id = fields.Many2one("product.product", string="Item / Charge Code")
     description = fields.Char(required=True)
     quantity = fields.Float(default=1.0, digits="Product Unit of Measure")
     # AS-10: Monetary
@@ -953,6 +994,11 @@ class FixEstimateLine(models.Model):
     def create(self, vals_list):
         ids = {v.get("estimate_id") for v in vals_list if v.get("estimate_id")}
         self._fix_assert_estimate_open(self.env["fix.estimate"].browse(list(ids)))
+        vals_list = [self._fix_commercial_prepare(dict(v)) for v in vals_list]
+        for vals in vals_list:
+            if not vals.get("description") and vals.get("product_id"):
+                product = self.env["product.product"].browse(vals["product_id"])
+                vals["description"] = product.name
         lines = super().create(vals_list)
         lines._fix_check_not_negative()
         lines._fix_check_price_floor()
@@ -979,6 +1025,19 @@ class FixEstimateLine(models.Model):
         result = super().unlink()
         estimates.exists()._check_discount()
         return result
+
+
+# Which estimate total a line type sums into.
+_ESTIMATE_BUCKET = dict.fromkeys(STOCK_LINE_TYPES, "part")
+_ESTIMATE_BUCKET.update(
+    {
+        "labour": "labour",
+        "service": "labour",
+        "support": "labour",
+        "installation": "labour",
+        "diagnostic": "diagnostic",
+    }
+)
 
 
 def _param_on(env, key, default="1"):

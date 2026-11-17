@@ -48,3 +48,11 @@ access_fix_quotation_counter_manager,fix.quotation.counter manager,model_fix_quo
 access_fix_quotation_counter_line,fix.quotation.counter.line,model_fix_quotation_counter_line,base.group_user,1,0,0,0
 access_fix_quotation_counter_line_author,fix.quotation.counter.line author,model_fix_quotation_counter_line,group_quotation_user,1,1,1,0
 access_fix_quotation_counter_line_manager,fix.quotation.counter.line manager,model_fix_quotation_counter_line,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma,fix.sales.proforma,model_fix_sales_proforma,base.group_user,1,0,0,0
+access_fix_sales_proforma_author,fix.sales.proforma author,model_fix_sales_proforma,group_quotation_user,1,1,1,1
+access_fix_sales_proforma_manager,fix.sales.proforma manager,model_fix_sales_proforma,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma_account,fix.sales.proforma billing,model_fix_sales_proforma,account.group_account_invoice,1,1,1,0
+access_fix_sales_proforma_line,fix.sales.proforma.line,model_fix_sales_proforma_line,base.group_user,1,0,0,0
+access_fix_sales_proforma_line_author,fix.sales.proforma.line author,model_fix_sales_proforma_line,group_quotation_user,1,1,1,1
+access_fix_sales_proforma_line_manager,fix.sales.proforma.line manager,model_fix_sales_proforma_line,group_quotation_manager,1,1,1,1
+access_fix_sales_proforma_line_account,fix.sales.proforma.line billing,model_fix_sales_proforma_line,account.group_account_invoice,1,1,1,1

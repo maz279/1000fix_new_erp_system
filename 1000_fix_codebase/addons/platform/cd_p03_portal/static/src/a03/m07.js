@@ -759,14 +759,17 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Estimate Lines',
-      note: 'Parts, labour and diagnostic lines quoted to the customer.',
+      note: 'Parts from inventory (by part number) and service, labour, support, transport or other charges (by charge code) quoted to the customer.',
       fields: [
         { name: 'line_type', label: 'Type', required: true },
-        { name: 'product_id', label: 'Product' },
+        { name: 'product_id', label: 'Item / Part No. (search)' },
+        { name: 'item_code', label: 'Item Code', readonly: true },
         { name: 'description', label: 'Description', required: true },
+        { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty', required: true },
+        { name: 'uom_id', label: 'Unit' },
         { name: 'unit_price', label: 'Unit Price', required: true },
-        { name: 'line_total', label: 'Total' }
+        { name: 'line_total', label: 'Total', readonly: true }
       ]
     },
     kind: 'model_form', model: 'fix.estimate',

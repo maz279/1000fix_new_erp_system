@@ -31,6 +31,7 @@ export const MODULE = {
     ]},
     { en: 'Service Definitions', screens: [
       { id: 'M37-services', en: 'Service Definitions', bn: 'সেবা সংজ্ঞা', t: 'g' },
+      { id: 'M37-charge-codes', en: 'Service & Charge Codes (non-stock)', bn: 'সেবা ও চার্জ কোড', t: 'g' },
       { id: 'M37-operations', en: 'Repair Operations', bn: 'মেরামত অপারেশন', t: 'g' },
       { id: 'M37-rbom', en: 'Repair BOM (rBOM)', bn: 'রিপেয়ার BOM', t: 'g' },
       { id: 'M37-srt', en: 'Standard Repair Time (SRT)', bn: 'স্ট্যান্ডার্ড রিপেয়ার টাইম', t: 'r' },
@@ -59,7 +60,8 @@ export const MODULE = {
   reports: ['Catalogue Coverage by Brand', 'rBOM Completeness', 'SRT Calibration Variance', 'Item Margin Analysis', 'Deprecated Items Register', 'Bilingual Content Gaps'],
   forms: ['Catalogue Item (9 types)', 'Service Definition', 'rBOM Line', 'Fault Code', 'Protection Product Template',
     'Service Kit', 'Brand & Authorisation', 'Catalogue Category', 'Contract Template', 'Rental SKU', 'VAT Treatment',
-    'SRT Baseline', 'Part Cross-Reference', 'Tax & Revenue Classification', 'Channel Publication', 'Product Attribute'],
+    'SRT Baseline', 'Part Cross-Reference', 'Tax & Revenue Classification', 'Channel Publication', 'Product Attribute',
+    'Service / Charge Code'],
   cross: ['M11 Pricing', 'M36 Quotations', 'M15 Inventory', 'M16 Procurement'],
   /* M37 capture audit (2026-11-13): each page captures what its functions
    * (FR-CAT-001..046) record. Before it, Typed Taxonomy, Product Hierarchy,
@@ -80,7 +82,7 @@ export const MODULE = {
     // needs the product-manager role (product.category ACL), which the
     // server checks - the role decides the save, not whether the page offers it.
     ['2', 'Typed Taxonomy', 6, { model: 'product.category', cols: ['complete_name', 'parent_id', 'product_count'], screens: ['M37-taxonomy'], reports: ['Catalogue Coverage by Brand'], forms: ['Catalogue Category'], create: 'M37-form-category' }],
-    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'state', 'active'], screens: ['M37-services'], reports: ['Item Margin Analysis'], forms: ['Service Definition'], create: 'M37-form-service', domain: [['item_type', 'in', ['service', 'inspection']]] }],
+    ['3', 'Service Definition', 11, { model: 'fix.catalogue.item', cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'state', 'active'], screens: ['M37-services', 'M37-charge-codes'], reports: ['Item Margin Analysis'], forms: ['Service Definition', 'Service / Charge Code'], create: 'M37-form-service', domain: [['item_type', 'in', ['service', 'inspection']]] }],
     // FR-CAT-022/023/024: the rBOM lines and the governed SRT baselines
     // (BRU-CAT-11: an Active item's standard time moves only by an approved one).
     ['4', 'rBOM & SRT', 12, { model: 'fix.rbom.line', cols: ['item_id', 'component_item_id', 'sequence', 'quantity', 'note'], screens: ['M37-rbom', 'M37-srt-baselines', 'M37-srt'], reports: ['rBOM Completeness', 'SRT Calibration Variance'], forms: ['rBOM Line', 'SRT Baseline'] }],
@@ -120,6 +122,38 @@ export const SCREENS = {
   // M37 capture audit: this list had no filter, so "Service Definitions"
   // showed all 16,178 items (every one a part, accessory or finished good on
   // fix_real) and refused + New although its form worked.
+  // Commercial document standard (17 Nov 2026): every document line has a
+  // code. Inventory items carry their part number; service, labour,
+  // support, transport and other charges carry a charge code - a non-stock
+  // item that never touches inventory.
+  'M37-charge-codes': { kind: 'model_list', model: 'fix.charge.code',
+    cols: ['code', 'name', 'name_bn', 'charge_type', 'uom_id', 'default_rate', 'is_generic', 'active'],
+    empty: 'No charge code yet: + New Charge Code. The generic codes (CHG-SERVICE, CHG-LABOUR, ...) are installed with the catalogue.' },
+  'M37-form-charge': {
+    kind: 'model_form',
+    model: 'fix.charge.code',
+    title: 'Service / Charge Code',
+    back: 'M37-charge-codes',
+    tabs: [
+      { id: 'code', label: '1. Charge Code', bn: '১. চার্জ কোড', icon: '🏷️', badge: '9' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথিপত্র', icon: '📁', badge: '0' }
+    ],
+    sections: [
+      { tab: 'code', title: 'Charge code', note: 'A code for a non-stock charge printed on estimates, quotations, proformas and invoices: e.g. SVC-AC-GAS-15 "AC gas refill 1.5 ton", LAB-CHIP-HR "Chip-level labour (per hour)", TRN-DHK "Transport inside Dhaka". It creates a service item that never touches inventory; the M11 rate card may price it by its code.',
+        fields: [
+          { name: 'code', required: true, label: 'Code (no spaces)' },
+          { name: 'name', required: true, label: 'Charge Name (English)' },
+          { name: 'name_bn', label: 'Charge Name (Bengali)' },
+          { name: 'charge_type', required: true, label: 'Charge Type' },
+          { name: 'uom_id', label: 'Charged Per (unit)' },
+          { name: 'default_rate', label: 'Standard Rate excl. VAT (BDT)' },
+          { name: 'description', type: 'text', label: 'What the charge covers' },
+          { name: 'active', label: 'Active' },
+          { name: 'product_id', readonly: true, label: 'Non-stock Item' }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'Rate approvals, price lists and the scope sheet of the charge attach to this record.', fields: [] }
+    ]
+  },
   'M37-services': { kind: 'model_list', model: 'fix.catalogue.item',
     cols: ['product_tmpl_id', 'name_bn', 'item_type', 'standard_labour_time', 'brand_id', 'state', 'active'],
     domain: [['item_type', 'in', ['service', 'inspection']]],
@@ -1017,7 +1051,8 @@ export const FORM_MODELS = {
   'M37:Part Cross-Reference': 'fix.part.crossref',
   'M37:Tax & Revenue Classification': 'fix.catalogue.item',
   'M37:Channel Publication': 'fix.catalogue.publication',
-  'M37:Product Attribute': 'product.attribute'
+  'M37:Product Attribute': 'product.attribute',
+  'M37:Service / Charge Code': 'fix.charge.code'
 };
 
 export const FORM_CHIPS = {
@@ -1039,6 +1074,7 @@ export const FORM_CHIPS = {
   'M37:Tax & Revenue Classification': 'M37-form-taxclass',
   'M37:Channel Publication': 'M37-form-publication',
   'M37:Product Attribute': 'M37-form-attribute',
+  'M37:Service / Charge Code': 'M37-form-charge',
   'M37:__by_model__': {
     'fix.brand': 'M37-form-brand',
     'fix.refurb.grade': 'M37-form-refurb-grade',
@@ -1052,7 +1088,8 @@ export const FORM_CHIPS = {
     'fix.srt.baseline': 'M37-form-srt',
     'fix.part.crossref': 'M37-form-xref',
     'fix.catalogue.publication': 'M37-form-publication',
-    'product.attribute': 'M37-form-attribute'
+    'product.attribute': 'M37-form-attribute',
+    'fix.charge.code': 'M37-form-charge'
   },
   'M37:__by_screen__': {
     'M37-brand': 'M37-form-brand',
@@ -1072,7 +1109,8 @@ export const FORM_CHIPS = {
     'M37-part-xref': 'M37-form-xref',
     'M37-taxclass': 'M37-form-taxclass',
     'M37-publications': 'M37-form-publication',
-    'M37-attributes': 'M37-form-attribute'
+    'M37-attributes': 'M37-form-attribute',
+    'M37-charge-codes': 'M37-form-charge'
   }
 };
 

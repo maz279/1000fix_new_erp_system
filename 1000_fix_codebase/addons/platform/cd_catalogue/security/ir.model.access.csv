@@ -18,3 +18,5 @@ access_fix_part_crossref,fix.part.crossref,model_fix_part_crossref,base.group_us
 access_fix_part_crossref_officer,fix.part.crossref officer,model_fix_part_crossref,group_catalogue_officer,1,1,1,1
 access_fix_catalogue_publication,fix.catalogue.publication,model_fix_catalogue_publication,base.group_user,1,0,0,0
 access_fix_catalogue_publication_publisher,fix.catalogue.publication publisher,model_fix_catalogue_publication,group_catalogue_publisher,1,1,1,0
+access_fix_charge_code,fix.charge.code,model_fix_charge_code,base.group_user,1,0,0,0
+access_fix_charge_code_officer,fix.charge.code officer,model_fix_charge_code,group_catalogue_officer,1,1,1,0

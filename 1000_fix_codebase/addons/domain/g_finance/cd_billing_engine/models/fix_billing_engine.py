@@ -32,6 +32,7 @@ from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
+from odoo.addons.cd_catalogue.models.fix_commercial_line import LINE_TYPES
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -333,6 +334,11 @@ class FixArInvoice(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self.INVOICE_GUARDED
+
+    def _fix_mushak_buyer(self):
+        """(name, BIN) of the buyer as the Mushak 6.3 states them."""
+        self.ensure_one()
+        return self.customer_id.name, self.customer_id.vat or ""
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -736,23 +742,65 @@ class FixArInvoice(models.Model):
         return requests
 
     @api.model
-    def create_manual_invoice(self, vals, lines, reason_code):
+    def create_manual_invoice(self, vals, lines, reason_code, overall_discount=0.0, source=None):
         """FR-ARB-010: the manual exception path. A reason code is mandatory
         and the invoice starts as draft — issue (Mushak + number + GL) is a
         separate deliberate step, by a second person (BRU-ARB-02). VAT on the
-        lines is M51's determination: a typed VAT that differs is refused."""
+        lines is M51's determination: a typed VAT that differs is refused.
+
+        Lines are priced by quantity x unit price less their discount %; an
+        overall_discount (BDT) is spread over the lines pro rata before VAT,
+        so the VAT base on the Mushak 6.3 is the discounted value.
+
+        source: the customer document the invoice comes from (a proforma);
+        the one-invoice-per-source key then guards it against a second
+        conversion."""
         if not (reason_code or "").strip():
             raise UserError("Manual invoices need a reason code (FR-ARB-010)")
         vals = dict(vals)
         for key in ("source_model", "source_id", "line_ids"):
             vals.pop(key, None)
-        vals.update({"source_model": "manual", "source_id": 0, "manual_reason": reason_code})
+        if source:
+            source.ensure_one()
+            vals.update(
+                {"source_model": source._name, "source_id": source.id, "manual_reason": reason_code}
+            )
+        else:
+            vals.update({"source_model": "manual", "source_id": 0, "manual_reason": reason_code})
+        lines = [dict(line) for line in lines]
+        overall = Decimal(str(overall_discount or 0.0))
+        if overall < 0:
+            raise UserError("An overall discount cannot be negative.")
+        if overall > 0:
+            nets = []
+            for line in lines:
+                if "unit_price" in line:
+                    gross = Decimal(str(line.get("quantity", 1.0) or 0.0)) * Decimal(
+                        str(line.get("unit_price") or 0.0)
+                    )
+                    pct = Decimal(str(line.get("discount_pct") or 0.0))
+                    net = gross - (gross * pct / 100).quantize(TWO_PLACES, ROUND_HALF_UP)
+                else:
+                    net = Decimal(str(line.get("taxable_amount") or 0.0))
+                nets.append(net.quantize(TWO_PLACES, ROUND_HALF_UP))
+            if overall > sum(nets, Decimal("0")):
+                raise UserError(
+                    "The overall discount (BDT %s) exceeds the lines (BDT %s)."
+                    % (overall, sum(nets, Decimal("0")))
+                )
+            for line, share in zip(lines, allocate_discount(nets, overall), strict=True):
+                if "unit_price" not in line:
+                    line["unit_price"] = line.pop("taxable_amount", 0.0)
+                    line.setdefault("quantity", 1.0)
+                line["_extra_discount"] = float(share)
         invoice = self.create(vals)
-        # keep the one-invoice-per-source guard meaningful for manual rows;
-        # flushed immediately so a following manual create cannot race the key
-        invoice.source_id = -invoice.id
+        if not source:
+            # keep the one-invoice-per-source guard meaningful for manual rows;
+            # flushed immediately so a following manual create cannot race the key
+            invoice.source_id = -invoice.id
         self.env.flush_all()
-        for line in lines:
+        for seq, line in enumerate(lines, start=1):
+            line.setdefault("sequence", seq * 10)
             self.env["fix.ar.invoice.line"].create(dict(line, invoice_id=invoice.id))
         return invoice
 
@@ -986,8 +1034,8 @@ class FixArInvoice(models.Model):
                     "invoice_date": inv.invoice_date,
                     "supplier_name": company.name,
                     "supplier_bin": self._company_bin(company),
-                    "customer_name": inv.customer_id.name,
-                    "customer_bin": inv.customer_id.vat or "",
+                    "customer_name": inv._fix_mushak_buyer()[0],
+                    "customer_bin": inv._fix_mushak_buyer()[1],
                     "taxable_amount": inv.taxable_amount,
                     "vat_amount": inv.vat_amount,
                     "total_payable": inv.total_payable,
@@ -1014,8 +1062,8 @@ class FixArInvoice(models.Model):
                     "invoice_date": str(inv.invoice_date),
                     "supplier_name": company.name,
                     "supplier_bin": self._company_bin(company),
-                    "customer_name": inv.customer_id.name,
-                    "customer_bin": inv.customer_id.vat or "",
+                    "customer_name": inv._fix_mushak_buyer()[0],
+                    "customer_bin": inv._fix_mushak_buyer()[1],
                     "taxable_amount": inv.taxable_amount,
                     "vat_amount": inv.vat_amount,
                     "total_payable": inv.total_payable,
@@ -1222,14 +1270,25 @@ class FixArInvoice(models.Model):
         # order. Pair by POSITION: keying by product code collapsed two
         # estimate lines sharing a code (e.g. two "SVC" labour lines) onto
         # the last line's amounts and mis-stated the invoice.
-        for (line, *_billed), det in zip(billed_lines, determination.lines, strict=True):
+        for seq, ((line, qty, price, line_discount), det) in enumerate(
+            zip(billed_lines, determination.lines, strict=True), start=1
+        ):
             self.env["fix.ar.invoice.line"].sudo().create(
                 {
                     "invoice_id": invoice.id,
+                    "sequence": seq * 10,
+                    "line_type": line.line_type,
                     "product_id": line.product_id.id,
-                    "description": line.description or line.product_id.display_name,
+                    "description": line.description or line.product_id.name,
+                    "uom_id": line.uom_id.id or False,
+                    "serial_ref": line.serial_ref or False,
+                    "quantity": float(qty),
+                    "unit_price": float(price),
+                    "gross_amount": float((qty * price).quantize(TWO_PLACES, ROUND_HALF_UP)),
+                    "discount_amount": float(line_discount),
                     "taxable_amount": float(det.taxable_amount),
                     "vat_amount": float(det.vat_amount),
+                    "vat_rate": float(det.rate),
                     "line_total": float(det.line_total),
                 }
             )
@@ -1251,8 +1310,8 @@ class FixArInvoice(models.Model):
                 "invoice_date": invoice.invoice_date,
                 "supplier_name": company.name,
                 "supplier_bin": self._company_bin(company),
-                "customer_name": invoice.customer_id.name,
-                "customer_bin": invoice.customer_id.vat or "",
+                "customer_name": invoice._fix_mushak_buyer()[0],
+                "customer_bin": invoice._fix_mushak_buyer()[1],
                 "taxable_amount": invoice.taxable_amount,
                 "vat_amount": invoice.vat_amount,
                 "total_payable": invoice.total_payable,
@@ -1284,8 +1343,8 @@ class FixArInvoice(models.Model):
                 "invoice_date": str(invoice.invoice_date),
                 "supplier_name": company.name,
                 "supplier_bin": self._company_bin(company),
-                "customer_name": invoice.customer_id.name,
-                "customer_bin": invoice.customer_id.vat or "",
+                "customer_name": invoice._fix_mushak_buyer()[0],
+                "customer_bin": invoice._fix_mushak_buyer()[1],
                 "taxable_amount": invoice.taxable_amount,
                 "vat_amount": invoice.vat_amount,
                 "total_payable": invoice.total_payable,
@@ -1454,15 +1513,38 @@ class FixArInvoice(models.Model):
 class FixArInvoiceLine(models.Model):
     """One invoice line. VAT is M51's determination of the taxable value and
     the line's treatment (BRU-ARB-03/04): a typed VAT that differs is refused.
-    Lines of an issued invoice never change."""
+    Lines of an issued invoice never change.
+
+    Commercial line standard (17 Nov 2026): a line is SL / type / item code /
+    description / qty / unit / unit price / discount / taxable / VAT / total.
+    The taxable value is quantity x unit price less the discount; a caller
+    that passes only a taxable value (the system contracts) gets quantity 1
+    at that price, so every line prints the same columns."""
 
     _name = "fix.ar.invoice.line"
     _description = "AR Invoice Line"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.commercial.line.mixin"]
+    _order = "invoice_id, sequence, id"
 
     invoice_id = fields.Many2one("fix.ar.invoice", required=True, ondelete="cascade")
-    product_id = fields.Many2one("product.product", string="Product")
+    sequence = fields.Integer(default=10)
+    line_type = fields.Selection(LINE_TYPES, string="Type", default="service")
+    product_id = fields.Many2one("product.product", string="Item / Charge Code")
     description = fields.Char()
+    quantity = fields.Float(default=1.0, digits="Product Unit of Measure")
+    unit_price = fields.Monetary(string="Unit Price (excl. VAT)", currency_field="currency_id")
+    discount_pct = fields.Float(string="Discount (%)")
+    gross_amount = fields.Monetary(
+        string="Amount before Discount",
+        currency_field="currency_id",
+        help="Quantity x unit price.",
+    )
+    discount_amount = fields.Monetary(
+        string="Discount",
+        currency_field="currency_id",
+        help="The line discount plus its share of any overall (header) discount, in money.",
+    )
+    vat_rate = fields.Float(string="VAT Rate (%)", readonly=True, digits=(5, 2))
     currency_id = fields.Many2one(related="invoice_id.currency_id")
     vat_treatment_id = fields.Many2one(
         "fix.vat.treatment",
@@ -1474,17 +1556,38 @@ class FixArInvoiceLine(models.Model):
     vat_amount = fields.Monetary(string="VAT", currency_field="currency_id")
     line_total = fields.Monetary(string="Line Total", currency_field="currency_id")
 
-    TAX_INPUTS = ("taxable_amount", "vat_amount", "line_total", "vat_treatment_id", "product_id")
+    TAX_INPUTS = (
+        "taxable_amount",
+        "vat_amount",
+        "line_total",
+        "vat_treatment_id",
+        "product_id",
+        "quantity",
+        "unit_price",
+        "discount_pct",
+        "discount_amount",
+    )
 
     @api.model
-    def _fix_determined(self, invoice, taxable, product, treatment):
-        """M51's determined line for (taxable, product, treatment)."""
+    def _fix_determined(
+        self, invoice, taxable, product, treatment, qty=None, unit_price=None, discount=None
+    ):
+        """M51's determined line for (taxable, product, treatment), or - when
+        a quantity and unit price are given - for qty x price less discount."""
         try:
-            amount = Decimal(str(taxable or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
+            if unit_price is not None:
+                q = Decimal(str(qty if qty is not None else 1.0))
+                price = Decimal(str(unit_price or 0.0))
+                disc = Decimal(str(discount or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
+            else:
+                q = Decimal("1")
+                price = Decimal(str(taxable or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
+                disc = Decimal("0")
             line = tax_logic.TaxLine(
                 product_code=(product.default_code if product else "") or "SVC",
-                qty=Decimal("1"),
-                unit_price=amount,
+                qty=q,
+                unit_price=price,
+                discount=disc,
                 treatment=treatment.treatment_type if treatment else "",
                 rate_override=(
                     Decimal(str(treatment.rate))
@@ -1504,6 +1607,7 @@ class FixArInvoiceLine(models.Model):
         """Fill vals' VAT and total from M51; refuse a typed VAT that differs."""
         Invoice = self.env["fix.ar.invoice"]
         invoice = Invoice.browse(vals["invoice_id"]) if vals.get("invoice_id") else line.invoice_id
+        self._fix_price_inputs(vals, line)
         taxable = vals.get("taxable_amount", line.taxable_amount if line else 0.0)
         product = (
             self.env["product.product"].browse(vals["product_id"])
@@ -1523,7 +1627,22 @@ class FixArInvoiceLine(models.Model):
                 else self.env["fix.vat.treatment"]
             )
         )
-        det = self._fix_determined(invoice, taxable, product, treatment)
+        det = self._fix_determined(
+            invoice,
+            taxable,
+            product,
+            treatment,
+            qty=vals["quantity"],
+            unit_price=vals["unit_price"],
+            discount=vals["discount_amount"],
+        )
+        typed_taxable = vals.pop("_typed_taxable", None)
+        if typed_taxable is not None and abs(typed_taxable - float(det.taxable_amount)) > 0.005:
+            raise UserError(
+                "Line '%s': the taxable value is quantity x unit price less the discount "
+                "(BDT %.2f), not the BDT %.2f entered."
+                % (vals.get("description") or "", float(det.taxable_amount), typed_taxable)
+            )
         vat = float(det.vat_amount)
         if "vat_amount" in vals and abs((vals.get("vat_amount") or 0.0) - vat) > 0.005:
             raise UserError(
@@ -1538,7 +1657,69 @@ class FixArInvoiceLine(models.Model):
                 )
             )
         vals["vat_amount"] = vat
+        vals["taxable_amount"] = float(det.taxable_amount)
         vals["line_total"] = float(det.taxable_amount) + vat
+        vals["vat_rate"] = float(det.rate)
+        return vals
+
+    @api.model
+    def _fix_price_inputs(self, vals, line=None):
+        """Settle quantity, unit price and discount in vals.
+
+        * A line priced by quantity and unit price: discount = the line's
+          discount % of quantity x price, plus any money discount the caller
+          allocated (an overall discount's share) as _extra_discount, or a
+          money discount_amount given on its own.
+        * A caller that gives only a taxable value (the system contracts,
+          storefront, disposal): quantity 1 at that value, no discount."""
+        priced_keys = {"quantity", "unit_price", "discount_pct", "discount_amount"}
+        typed_taxable = vals.get("taxable_amount")
+        if not (priced_keys & set(vals)) and (
+            "taxable_amount" in vals or not line or not line.unit_price
+        ):
+            amount = float(typed_taxable if typed_taxable is not None else 0.0)
+            vals.pop("_extra_discount", None)
+            vals.update(
+                {
+                    "quantity": 1.0,
+                    "unit_price": amount,
+                    "discount_pct": 0.0,
+                    "discount_amount": 0.0,
+                    "gross_amount": amount,
+                }
+            )
+            return vals
+        qty = float(vals.get("quantity", line.quantity if line else 1.0) or 0.0)
+        price = float(vals.get("unit_price", line.unit_price if line else 0.0) or 0.0)
+        pct = float(vals.get("discount_pct", line.discount_pct if line else 0.0) or 0.0)
+        if qty < 0 or price < 0:
+            raise UserError("An invoice line cannot have a negative quantity or price.")
+        if not 0.0 <= pct <= 100.0:
+            raise UserError("A line discount is between 0 and 100%.")
+        gross = round(qty * price, 2)
+        extra = float(vals.pop("_extra_discount", 0.0) or 0.0)
+        if "discount_amount" in vals and "discount_pct" not in vals:
+            disc = float(vals.get("discount_amount") or 0.0)
+        elif line and not ({"quantity", "unit_price", "discount_pct"} & set(vals)):
+            disc = line.discount_amount or 0.0
+        else:
+            disc = round(gross * pct / 100.0, 2) + extra
+        if disc < 0 or disc > gross + 0.005:
+            raise UserError(
+                "The discount on '%s' (BDT %.2f) cannot exceed the line amount (BDT %.2f)."
+                % (vals.get("description") or (line.description if line else ""), disc, gross)
+            )
+        if typed_taxable is not None:
+            vals["_typed_taxable"] = float(typed_taxable)
+        vals.update(
+            {
+                "quantity": qty,
+                "unit_price": price,
+                "discount_pct": pct,
+                "discount_amount": round(disc, 2),
+                "gross_amount": gross,
+            }
+        )
         return vals
 
     @api.model
@@ -1557,12 +1738,33 @@ class FixArInvoiceLine(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        vals_list = [self._fix_commercial_prepare(dict(v)) for v in vals_list]
+        Product = self.env["product.product"]
+        for vals in vals_list:
+            if not vals.get("description") and vals.get("product_id"):
+                vals["description"] = Product.browse(vals["product_id"]).name
         if not self.env.su:
             Invoice = self.env["fix.ar.invoice"]
             for vals in vals_list:
                 invoice = Invoice.browse(vals.get("invoice_id"))
                 self._fix_assert_draft(invoice)
                 self._fix_apply_determination(vals)
+        else:
+            for vals in vals_list:
+                # a system path that prices by quantity x unit price (no
+                # amounts of its own) is determined like a user's line
+                if "unit_price" in vals and "taxable_amount" not in vals:
+                    self._fix_apply_determination(vals)
+                    continue
+                # system paths set the determined amounts themselves; the
+                # priced columns still follow them
+                if "unit_price" not in vals and "taxable_amount" in vals:
+                    amount = float(vals.get("taxable_amount") or 0.0)
+                    vals.setdefault("quantity", 1.0)
+                    vals["unit_price"] = amount
+                    vals.setdefault("gross_amount", amount)
+                vals.pop("_extra_discount", None)
+                vals.pop("_typed_taxable", None)
         return super().create(vals_list)
 
     def write(self, vals):

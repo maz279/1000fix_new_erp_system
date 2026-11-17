@@ -225,10 +225,12 @@ def test_d11_unstocked_lines_are_exempt(d11):
         {"name": "D11 cleaning", "list_price": 200.0, "type": "service"}
     )
     loose = w.env["product.product"].create({"name": "D11 screw kit", "list_price": 50.0})
+    # Commercial document standard (17 Nov 2026): a service product is billed
+    # on a charge line - a part line refuses a non-stock item.
     o = _delivered(
         w,
         [
-            _part_line(w, product=service),
+            dict(_part_line(w, product=service), line_type="service"),
             _part_line(w, product=loose),
             {"line_type": "part", "description": "thermal paste", "quantity": 1, "unit_price": 30},
             LABOUR,

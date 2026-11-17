@@ -206,15 +206,65 @@
                                             <button class="btn btn-sm btn-primary" t-if="state.recView.data.invoice.state === 'issued' &amp;&amp; Math.abs(state.recView.data.invoice.residual || 0) &lt; 0.005" t-on-click="() => this.recAction(() => this.arRegisterPaid(state.recView.data.invoice.id))"><t t-esc='t("Register Paid")'/></button>
                                             <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arOpenNoteForm(state.recView.data.invoice.id)"><t t-esc='t("+ Credit note")'/></button>
                                             <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arCreateLink(state.recView.data.invoice.id)"><t t-esc='t("Payment link")'/></button>
+                                            <button class="btn btn-sm" t-on-click="() => this.docPrint('fix.ar.invoice', state.recView.data.invoice.id)">🖨 <t t-esc='t("Print PDF")'/></button>
+                                            <button class="btn btn-sm" t-on-click="() => this.docPrint('fix.ar.invoice', state.recView.data.invoice.id, 'receipt')">🧾 <t t-esc='t("Receipt 80 mm")'/></button>
+                                        </div>
+                                    </div>
+                                    <div t-if="state.recView.data.header" class="cdoc-headgrid">
+                                        <div>
+                                            <div class="cdoc-label"><t t-esc='t("Bill To")'/> <span t-if="state.recView.data.header.bill_to.category" class="chip"><t t-esc="state.recView.data.header.bill_to.category"/></span></div>
+                                            <div><b><t t-esc="state.recView.data.header.bill_to.name"/></b></div>
+                                            <div t-if="state.recView.data.header.bill_to.address" class="cdoc-small"><t t-esc="state.recView.data.header.bill_to.address"/></div>
+                                            <div class="cdoc-small"><t t-if="state.recView.data.header.bill_to.phone"><t t-esc='t("Phone")'/> <t t-esc="state.recView.data.header.bill_to.phone"/></t> <t t-if="state.recView.data.header.bill_to.bin"> · BIN <t t-esc="state.recView.data.header.bill_to.bin"/></t></div>
+                                        </div>
+                                        <div class="cdoc-small">
+                                            <div><t t-esc='t("Invoice date")'/> <b><t t-esc="state.recView.data.invoice.date"/></b> · <t t-esc='t("Due")'/> <b><t t-esc="state.recView.data.header.date_due || '—'"/></b></div>
+                                            <div t-if="state.recView.data.header.po_ref"><t t-esc='t("Customer PO / Ref")'/> <b><t t-esc="state.recView.data.header.po_ref"/></b> <t t-esc="state.recView.data.header.po_date"/></div>
+                                            <div t-if="state.recView.data.header.service_item"><t t-esc='t("Service item")'/> <b><t t-esc="state.recView.data.header.service_item"/></b></div>
+                                            <div t-if="state.recView.data.header.challan"><t t-esc='t("Challan")'/> <b><t t-esc="state.recView.data.header.challan"/></b></div>
+                                            <div t-if="state.recView.data.header.salesperson"><t t-esc='t("Sales person")'/> <b><t t-esc="state.recView.data.header.salesperson"/></b></div>
+                                            <div t-if="state.recView.data.header.reason"><t t-esc='t("Reason")'/> <t t-esc="state.recView.data.header.reason"/></div>
                                         </div>
                                     </div>
                                     <div class="tbl-wrap">
-                                        <table class="fx-table">
-                                            <thead><tr><th><t t-esc='t("Line")'/></th><th style="text-align: right;"><t t-esc='t("Taxable")'/></th><th style="text-align: right;"><t t-esc='t("VAT")'/></th><th style="text-align: right;"><t t-esc='t("Total")'/></th></tr></thead>
+                                        <table class="fx-table cdoc-lines">
+                                            <thead><tr>
+                                                <th class="cdoc-sl"><t t-esc='t("SL")'/></th>
+                                                <th><t t-esc='t("Item Code")'/></th>
+                                                <th><t t-esc='t("Description")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("Qty")'/></th>
+                                                <th><t t-esc='t("Unit")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("Unit Price")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("Discount")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("Taxable")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("VAT")'/></th>
+                                                <th class="cdoc-num"><t t-esc='t("Total")'/></th>
+                                            </tr></thead>
                                             <tbody>
-                                                <tr t-foreach="state.recView.data.lines" t-as="line" t-key="line_index"><td><t t-esc="line.description"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.taxable)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.vat)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.total)"/></td></tr>
-                                                <tr><td><b><t t-esc='t("Totals")'/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.taxable)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.vat)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.total)"/></b></td></tr>
+                                                <tr t-foreach="state.recView.data.lines" t-as="line" t-key="line_index">
+                                                    <td class="cdoc-sl"><t t-esc="line.sl || (line_index + 1)"/></td>
+                                                    <td><b><t t-esc="line.code || '—'"/></b><div class="cdoc-small"><t t-esc="line.type_label || ''"/></div></td>
+                                                    <td><t t-esc="line.description"/><div t-if="line.serial" class="cdoc-small">S/N <t t-esc="line.serial"/></div></td>
+                                                    <td class="cdoc-num"><t t-esc="line.quantity"/></td>
+                                                    <td><t t-esc="line.uom || ''"/></td>
+                                                    <td class="cdoc-num"><t t-esc="fmtBDT(line.unit_price)"/></td>
+                                                    <td class="cdoc-num"><t t-esc="line.discount ? fmtBDT(line.discount) : '—'"/></td>
+                                                    <td class="cdoc-num"><t t-esc="fmtBDT(line.taxable)"/></td>
+                                                    <td class="cdoc-num"><t t-esc="fmtBDT(line.vat)"/><div class="cdoc-small" t-if="line.vat_rate"><t t-esc="line.vat_rate"/>%</div></td>
+                                                    <td class="cdoc-num"><b><t t-esc="fmtBDT(line.total)"/></b></td>
+                                                </tr>
                                             </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="cdoc-totals-wrap">
+                                        <div class="cdoc-words" t-if="state.recView.data.header &amp;&amp; state.recView.data.header.words"><b><t t-esc='t("In words:")'/></b> <t t-esc="state.recView.data.header.words"/></div>
+                                        <table class="cdoc-totals">
+                                            <tr t-if="state.recView.data.header"><td><t t-esc='t("Items")'/> / <t t-esc='t("Qty")'/></td><td><t t-esc="state.recView.data.header.items"/> / <t t-esc="state.recView.data.header.quantity"/></td></tr>
+                                            <tr t-if="state.recView.data.header"><td><t t-esc='t("Subtotal (before discount)")'/></td><td><t t-esc="fmtBDT(state.recView.data.header.gross)"/></td></tr>
+                                            <tr t-if="state.recView.data.header"><td><t t-esc='t("Less: discount")'/></td><td><t t-esc="fmtBDT(state.recView.data.header.discount)"/></td></tr>
+                                            <tr><td><t t-esc='t("Taxable value")'/></td><td><t t-esc="fmtBDT(state.recView.data.invoice.taxable)"/></td></tr>
+                                            <tr><td><t t-esc='t("VAT")'/></td><td><t t-esc="fmtBDT(state.recView.data.invoice.vat)"/></td></tr>
+                                            <tr class="cdoc-grand"><td><t t-esc='t("Grand Total")'/></td><td><t t-esc="fmtBDT(state.recView.data.invoice.total)"/></td></tr>
                                         </table>
                                     </div>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
@@ -2523,60 +2573,178 @@
                             </aside>
                         </div>
 
-                        <!-- ============ M20 · MANUAL INVOICE EDITOR (FR-ARB-010) ============ -->
-                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'ar_editor' &amp;&amp; state.gl.data" class="gl-layout">
-                            <div class="gl-main fx-card">
-                                <h3><t t-esc='t("Invoice Workbench — Mushak 6.3 (manual entry is the exception path, FR-ARB-010)")'/></h3>
-                                <p style="font-size: 12px; color: var(--ink-500);"><t t-esc='t("Reason code mandatory · saved as DRAFT · Issue draws the gapless number, writes Mushak 6.3 and posts the GL — all server-side enforced.")'/></p>
-                                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0;">
-                                    <div class="fld"><label><t t-esc='t("Customer")'/></label>
-                                        <button t-if="pickCustomerRows.length &gt; pickPopupMin" type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
-                                                t-att-id="'ar_pick_inv_customer'"
-                                                t-on-click="() => this.pickOneOpen('Customer', pickCustomerRows, state.gl.arEditor.customer_id, (id) => { this.arEditorSet('customer_id', id); }, 'ar_pick_inv_customer')">
-                                            <span t-if="pickLabel(pickCustomerRows, state.gl.arEditor.customer_id)" class="d365-one-text" t-esc="pickLabel(pickCustomerRows, state.gl.arEditor.customer_id)"/>
-                                            <span t-else="" class="d365-one-text d365-one-empty" t-esc="t('— pick —')"/>
-                                            <span class="d365-one-icon" aria-hidden="true">🔍</span>
-                                        </button>
-                                        <select t-else="" t-on-change="(ev) => this.arEditorSet('customer_id', ev.target.value)">
-                                            <option value=""><t t-esc='t("— pick —")'/></option>
-                                            <option t-foreach="state.gl.customers" t-as="c" t-key="c.id" t-att-value="c.id"><t t-esc="c.name"/></option>
+                        <!-- ============ M20 · INVOICE EDITOR (FR-ARB-010) — commercial document standard (17 Nov 2026):
+                             SL / type / item code (part number or charge code) / description / serial / qty / unit /
+                             unit price / disc % / amount / VAT / total, a server-computed footer and amount in words ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'ar_editor' &amp;&amp; state.gl.data &amp;&amp; state.gl.arEditor &amp;&amp; state.gl.arEditor.header" class="gl-layout">
+                            <div class="gl-main fx-card cdoc-editor">
+                                <div class="cdoc-titlebar">
+                                    <div>
+                                        <h3 style="margin: 0;"><t t-esc='t("New Sales / Service Invoice")'/></h3>
+                                        <p class="cdoc-small" style="margin: 2px 0 0;"><t t-esc='t("Parts, components and finished products come from inventory by part number; service, labour, support, transport and other charges use a charge code. Saved as DRAFT: Issue draws the gapless number, writes the Mushak 6.3 and posts the GL.")'/></p>
+                                    </div>
+                                    <div class="cdoc-cat">
+                                        <label for="ar_inv_category"><t t-esc='t("Customer category")'/></label>
+                                        <select id="ar_inv_category" t-on-change="(ev) => this.arHeaderSet('customer_category', ev.target.value)">
+                                            <option t-foreach="arDocMeta.categories" t-as="cat" t-key="cat.key" t-att-value="cat.key" t-att-selected="state.gl.arEditor.header.customer_category === cat.key"><t t-esc="t(cat.label)"/></option>
                                         </select>
                                     </div>
-                                    <div class="fld"><label><t t-esc='t("Invoice date")'/></label><input type="date" t-att-value="state.gl.arEditor.date" t-on-input="(ev) => this.arEditorSet('date', ev.target.value)"/></div>
-                                    <div class="fld" style="flex: 1; min-width: 220px;"><label><t t-esc='t("Reason code (mandatory)")'/></label><input type="text" t-att-placeholder='t("e.g. SLA rebate exception — approved by FM")' t-att-value="state.gl.arEditor.reason" t-on-input="(ev) => this.arEditorSet('reason', ev.target.value)"/></div>
                                 </div>
+
+                                <div class="d365-formtabs" role="tablist" aria-label="Form Tabs">
+                                    <button type="button" role="tab" id="tab_ar_customer" aria-controls="tabpanel_ar_doc"
+                                            t-att-class="'d365-formtab-btn' + (state.gl.arEditor.tab === 'customer' ? ' active' : '')"
+                                            t-att-aria-selected="state.gl.arEditor.tab === 'customer' ? 'true' : 'false'"
+                                            t-att-tabindex="state.gl.arEditor.tab === 'customer' ? 0 : -1"
+                                            t-on-click="() => this.arEditorTab('customer')">
+                                        <span class="d365-tab-icon">👤</span><span class="d365-tab-label"><t t-esc='t("1. Customer &amp; Bill-to")'/></span>
+                                    </button>
+                                    <button type="button" role="tab" id="tab_ar_refs" aria-controls="tabpanel_ar_doc"
+                                            t-att-class="'d365-formtab-btn' + (state.gl.arEditor.tab === 'refs' ? ' active' : '')"
+                                            t-att-aria-selected="state.gl.arEditor.tab === 'refs' ? 'true' : 'false'"
+                                            t-att-tabindex="state.gl.arEditor.tab === 'refs' ? 0 : -1"
+                                            t-on-click="() => this.arEditorTab('refs')">
+                                        <span class="d365-tab-icon">🚚</span><span class="d365-tab-label"><t t-esc='t("2. References &amp; Delivery")'/></span>
+                                    </button>
+                                </div>
+
+                                <div id="tabpanel_ar_doc" role="tabpanel" class="cdoc-panel">
+                                    <div t-if="state.gl.arEditor.tab === 'customer'" class="cdoc-grid">
+                                        <div class="fld cdoc-span2"><label for="ar_pick_inv_customer"><t t-esc='t("Customer")'/> <span class="d365-req">*</span></label>
+                                            <button type="button" id="ar_pick_inv_customer" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-on-click="() => this.arPickCustomer()">
+                                                <span t-if="state.gl.arEditor.customer_label" class="d365-one-text" t-esc="state.gl.arEditor.customer_label"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty"><t t-esc='t("Search customer or pick Walk-in Customer…")'/></span>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                        </div>
+                                        <div class="fld"><label for="ar_inv_date"><t t-esc='t("Invoice date")'/></label><input id="ar_inv_date" type="date" t-att-value="state.gl.arEditor.date" t-on-input="(ev) => this.arEditorSet('date', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_name"><t t-esc='t("Bill-to name")'/><span t-if="state.gl.arEditor.header.customer_category === 'walk_in'" class="d365-req">*</span></label><input id="ar_inv_name" type="text" t-att-value="state.gl.arEditor.header.bill_to_name" t-on-input="(ev) => this.arHeaderSet('bill_to_name', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_phone"><t t-esc='t("Phone")'/><span t-if="state.gl.arEditor.header.customer_category === 'walk_in'" class="d365-req">*</span></label><input id="ar_inv_phone" type="tel" t-att-value="state.gl.arEditor.header.bill_to_phone" t-on-input="(ev) => this.arHeaderSet('bill_to_phone', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_bin"><t t-esc='t("Buyer BIN / e-TIN")'/><span t-if="['corporate', 'dealer', 'government'].includes(state.gl.arEditor.header.customer_category)" class="d365-req">*</span></label><input id="ar_inv_bin" type="text" t-att-value="state.gl.arEditor.header.customer_bin" t-on-input="(ev) => this.arHeaderSet('customer_bin', ev.target.value)"/></div>
+                                        <div class="fld cdoc-span2"><label for="ar_inv_addr"><t t-esc='t("Bill-to address")'/></label><textarea id="ar_inv_addr" rows="2" t-att-value="state.gl.arEditor.header.bill_to_address" t-on-input="(ev) => this.arHeaderSet('bill_to_address', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_pay"><t t-esc='t("Payment method")'/></label>
+                                            <button type="button" id="ar_inv_pay" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                    t-on-click="() => this.pickOneOpen('Payment method', arDocMeta.payment_methods, state.gl.arEditor.header.payment_method_id, (id) => this.arHeaderSet('payment_method_id', id), 'ar_inv_pay')">
+                                                <span t-if="pickLabel(arDocMeta.payment_methods, state.gl.arEditor.header.payment_method_id)" class="d365-one-text" t-esc="pickLabel(arDocMeta.payment_methods, state.gl.arEditor.header.payment_method_id)"/>
+                                                <span t-else="" class="d365-one-text d365-one-empty"><t t-esc='t("— by terms —")'/></span>
+                                                <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                            </button>
+                                        </div>
+                                        <div class="fld cdoc-span2"><label for="ar_inv_reason"><t t-esc='t("Reason code")'/> <span class="d365-req">*</span></label><input id="ar_inv_reason" type="text" t-att-placeholder='t("e.g. Counter sale of parts with installation — approved by branch manager")' t-att-value="state.gl.arEditor.reason" t-on-input="(ev) => this.arEditorSet('reason', ev.target.value)"/></div>
+                                    </div>
+                                    <div t-if="state.gl.arEditor.tab === 'refs'" class="cdoc-grid">
+                                        <div class="fld"><label for="ar_inv_po"><t t-esc='t("Customer PO / Ref No.")'/></label><input id="ar_inv_po" type="text" t-att-value="state.gl.arEditor.header.customer_po_ref" t-on-input="(ev) => this.arHeaderSet('customer_po_ref', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_podate"><t t-esc='t("PO date")'/></label><input id="ar_inv_podate" type="date" t-att-value="state.gl.arEditor.header.customer_po_date" t-on-input="(ev) => this.arHeaderSet('customer_po_date', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_challan"><t t-esc='t("Delivery challan No.")'/></label><input id="ar_inv_challan" type="text" t-att-value="state.gl.arEditor.header.challan_ref" t-on-input="(ev) => this.arHeaderSet('challan_ref', ev.target.value)"/></div>
+                                        <div class="fld cdoc-span2"><label for="ar_inv_item"><t t-esc='t("Service item (device, model, serial)")'/></label><input id="ar_inv_item" type="text" t-att-value="state.gl.arEditor.header.service_item" t-on-input="(ev) => this.arHeaderSet('service_item', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_vehicle"><t t-esc='t("Vehicle No. (Mushak 6.3)")'/></label><input id="ar_inv_vehicle" type="text" t-att-value="state.gl.arEditor.header.vehicle_no" t-on-input="(ev) => this.arHeaderSet('vehicle_no', ev.target.value)"/></div>
+                                        <div class="fld cdoc-span2"><label for="ar_inv_deliv"><t t-esc='t("Delivery / service address")'/></label><textarea id="ar_inv_deliv" rows="2" t-att-value="state.gl.arEditor.header.delivery_address" t-on-input="(ev) => this.arHeaderSet('delivery_address', ev.target.value)"/></div>
+                                        <div class="fld"><label for="ar_inv_remarks"><t t-esc='t("Remarks")'/></label><textarea id="ar_inv_remarks" rows="2" t-att-value="state.gl.arEditor.header.remarks" t-on-input="(ev) => this.arHeaderSet('remarks', ev.target.value)"/></div>
+                                    </div>
+                                </div>
+
                                 <div class="tbl-wrap">
-                                    <table class="fx-table">
-                                        <thead><tr><th><t t-esc='t("Description")'/></th><th style="text-align: right;"><t t-esc='t("Taxable")'/></th><th style="text-align: right;"><t t-esc='t("VAT (15%)")'/></th><th style="text-align: right;"><t t-esc='t("Line total")'/></th><th></th></tr></thead>
+                                    <table class="fx-table cdoc-lines cdoc-edit">
+                                        <thead><tr>
+                                            <th class="cdoc-sl" scope="col"><t t-esc='t("SL")'/></th>
+                                            <th scope="col"><t t-esc='t("Type")'/></th>
+                                            <th scope="col"><t t-esc='t("Item Code / Part No.")'/></th>
+                                            <th scope="col"><t t-esc='t("Description")'/></th>
+                                            <th scope="col"><t t-esc='t("Serial / IMEI")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("Qty")'/></th>
+                                            <th scope="col"><t t-esc='t("Unit")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("Unit Price")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("Disc %")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("Amount")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("VAT")'/></th>
+                                            <th class="cdoc-num" scope="col"><t t-esc='t("Total")'/></th>
+                                            <th scope="col"></th>
+                                        </tr></thead>
                                         <tbody>
                                             <tr t-foreach="state.gl.arEditor.lines" t-as="line" t-key="line_index">
-                                                <td><input type="text" style="width: 100%;" t-att-value="line.description" t-on-input="(ev) => this.state.gl.arEditor.lines[line_index].description = ev.target.value"/></td>
-                                                <td><input type="number" step="0.01" style="width: 110px; text-align: right;" t-att-value="line.taxable" t-on-input="(ev) => this.state.gl.arEditor.lines[line_index].taxable = ev.target.value"/></td>
-                                                <td><input type="number" step="0.01" style="width: 110px; text-align: right;" t-att-value="line.vat" t-on-input="(ev) => this.state.gl.arEditor.lines[line_index].vat = ev.target.value"/></td>
-                                                <td style="text-align: right;"><b><t t-esc="fmtBDT(arLineTotal(line))"/></b></td>
-                                                <td><button class="btn btn-sm" t-on-click="() => this.arEditorRemoveLine(line_index)">✕</button></td>
+                                                <td class="cdoc-sl"><t t-esc="line_index + 1"/></td>
+                                                <td>
+                                                    <button type="button" class="d365-input d365-one-btn cdoc-type" aria-haspopup="dialog"
+                                                            t-att-id="'ar_line_type_' + line_index"
+                                                            t-on-click="() => this.pickOneOpen('Line type', arLineTypeRows, line.line_type, (v) => this.arLineSet(line_index, 'line_type', v), 'ar_line_type_' + line_index)">
+                                                        <span class="d365-one-text" t-esc="pickLabel(arLineTypeRows, line.line_type)"/>
+                                                    </button>
+                                                    <span t-att-class="'chip cdoc-kind ' + (arLineKind(line) === 'stock' ? 'ok' : '')"><t t-esc="arLineKind(line) === 'stock' ? t('inventory') : t('charge')"/></span>
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="d365-input d365-one-btn" aria-haspopup="dialog"
+                                                            t-att-id="'ar_line_item_' + line_index"
+                                                            t-on-click="() => this.arPickItem(line_index)">
+                                                        <span t-if="line.code" class="d365-one-text"><b t-esc="line.code"/></span>
+                                                        <span t-else="" class="d365-one-text d365-one-empty"><t t-esc="arLineKind(line) === 'stock' ? t('Search part no…') : t('Charge code (or generic)…')"/></span>
+                                                        <span class="d365-one-icon" aria-hidden="true">🔍</span>
+                                                    </button>
+                                                    <div t-if="line.on_hand !== null &amp;&amp; line.on_hand !== undefined" class="cdoc-small"><t t-esc='t("On hand")'/> <t t-esc="line.on_hand"/></div>
+                                                </td>
+                                                <td><input type="text" class="cdoc-desc" t-att-aria-label='t("Description")' t-att-value="line.description" t-on-input="(ev) => this.arLineSet(line_index, 'description', ev.target.value)"/>
+                                                    <div t-if="arLinePreview(line_index).error" class="cdoc-err" t-esc="arLinePreview(line_index).error"/></td>
+                                                <td><input type="text" class="cdoc-serial" t-att-aria-label='t("Serial / IMEI")' t-att-value="line.serial" t-on-input="(ev) => this.arLineSet(line_index, 'serial', ev.target.value)"/></td>
+                                                <td><input type="number" step="any" min="0" class="cdoc-qty" t-att-aria-label='t("Quantity")' t-att-value="line.quantity" t-on-input="(ev) => this.arLineSet(line_index, 'quantity', ev.target.value)"/></td>
+                                                <td class="cdoc-small"><t t-esc="line.uom || t('Unit')"/></td>
+                                                <td><input type="number" step="0.01" min="0" class="cdoc-price" t-att-aria-label='t("Unit price")' t-att-value="line.unit_price" t-on-input="(ev) => this.arLineSet(line_index, 'unit_price', ev.target.value)"/></td>
+                                                <td><input type="number" step="0.01" min="0" max="100" class="cdoc-pct" t-att-aria-label='t("Discount percent")' t-att-value="line.discount_pct" t-on-input="(ev) => this.arLineSet(line_index, 'discount_pct', ev.target.value)"/></td>
+                                                <td class="cdoc-num"><t t-esc="fmtBDT(arLinePreview(line_index).taxable)"/><div t-if="arLinePreview(line_index).discount" class="cdoc-small">− <t t-esc="fmtBDT(arLinePreview(line_index).discount)"/></div></td>
+                                                <td class="cdoc-num"><t t-esc="fmtBDT(arLinePreview(line_index).vat)"/><div class="cdoc-small" t-if="arLinePreview(line_index).vat_rate"><t t-esc="arLinePreview(line_index).vat_rate"/>%</div></td>
+                                                <td class="cdoc-num"><b><t t-esc="fmtBDT(arLinePreview(line_index).total)"/></b></td>
+                                                <td><button class="btn btn-sm" t-att-aria-label='t("Remove line")' t-on-click="() => this.arEditorRemoveLine(line_index)">✕</button></td>
                                             </tr>
                                         </tbody>
                                     </table>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
-                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine()"><t t-esc='t("+ Add line")'/></button>
-                                    <div style="display: flex; gap: 10px; align-items: center;">
-                                        <span><t t-esc='t("Taxable")'/> <b><t t-esc="fmtBDT(arEditorTotals.taxable)"/></b> <t t-esc='t("· VAT")'/> <b><t t-esc="fmtBDT(arEditorTotals.vat)"/></b> <t t-esc='t("· Total")'/> <b><t t-esc="fmtBDT(arEditorTotals.total)"/></b></span>
-                                        <button class="btn btn-primary" t-on-click="() => this.arSaveDraftInvoice()"><t t-esc='t("Save as Draft")'/></button>
-                                    </div>
+
+                                <div class="cdoc-addbar">
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('part')"><t t-esc='t("+ Part / Component")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('goods')"><t t-esc='t("+ Finished Product")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('service')"><t t-esc='t("+ Service Charge")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('labour')"><t t-esc='t("+ Labour")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('support')"><t t-esc='t("+ Support")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('transport')"><t t-esc='t("+ Transport")'/></button>
+                                    <button class="btn btn-sm" t-on-click="() => this.arEditorAddLine('fee')"><t t-esc='t("+ Other charge")'/></button>
                                 </div>
+
+                                <div class="cdoc-totals-wrap">
+                                    <div class="cdoc-words">
+                                        <div t-if="arEditorWords"><b><t t-esc='t("In words:")'/></b> <t t-esc="arEditorWords"/></div>
+                                        <div t-if="state.gl.arEditor.preview &amp;&amp; state.gl.arEditor.preview.errors &amp;&amp; state.gl.arEditor.preview.errors.length" class="cdoc-err"><t t-esc="state.gl.arEditor.preview.errors[0]"/></div>
+                                    </div>
+                                    <table class="cdoc-totals">
+                                        <tr><td><t t-esc='t("Items")'/> / <t t-esc='t("Total qty")'/></td><td><t t-esc="arEditorTotals.items"/> / <t t-esc="arEditorTotals.quantity"/></td></tr>
+                                        <tr><td><t t-esc='t("Subtotal (before discount)")'/></td><td><t t-esc="fmtBDT(arEditorTotals.gross)"/></td></tr>
+                                        <tr><td><label for="ar_inv_overall"><t t-esc='t("Overall discount (BDT)")'/></label></td><td><input id="ar_inv_overall" type="number" step="0.01" min="0" class="cdoc-price" t-att-value="state.gl.arEditor.overall_discount" t-on-input="(ev) => this.arEditorSet('overall_discount', ev.target.value)"/></td></tr>
+                                        <tr><td><t t-esc='t("Less: total discount")'/></td><td><t t-esc="fmtBDT(arEditorTotals.discount)"/></td></tr>
+                                        <tr><td><t t-esc='t("Taxable value")'/></td><td><t t-esc="fmtBDT(arEditorTotals.taxable)"/></td></tr>
+                                        <tr><td><t t-esc='t("VAT")'/></td><td><t t-esc="fmtBDT(arEditorTotals.vat)"/></td></tr>
+                                        <tr class="cdoc-grand"><td><t t-esc='t("Grand Total")'/></td><td><t t-esc="fmtBDT(arEditorTotals.total)"/></td></tr>
+                                    </table>
+                                </div>
+                                <div class="cdoc-savebar">
+                                    <button class="btn" t-on-click="() => this._arNewEditor()"><t t-esc='t("Clear")'/></button>
+                                    <button class="btn btn-primary" t-on-click="() => this.arSaveDraftInvoice()"><t t-esc='t("Save as Draft")'/></button>
+                                </div>
+
                                 <div t-if="state.gl.data.drafts.length" style="margin-top: 18px;">
                                     <h4><t t-esc='t("Drafts awaiting issue")'/></h4>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
-                                            <thead><tr><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Date")'/></th><th style="text-align: right;"><t t-esc='t("Total")'/></th><th><t t-esc='t("Reason")'/></th><th></th></tr></thead>
+                                            <thead><tr><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Category")'/></th><th><t t-esc='t("Date")'/></th><th style="text-align: right;"><t t-esc='t("Total")'/></th><th><t t-esc='t("Source")'/></th><th></th></tr></thead>
                                             <tbody>
                                                 <tr t-foreach="state.gl.data.drafts" t-as="d" t-key="d.id">
-                                                    <td><t t-esc="d.customer"/></td><td><t t-esc="d.date"/></td>
+                                                    <td><a href="#" t-on-click.prevent="() => this.arOpenInvoice(d.id)"><t t-esc="d.customer"/></a></td>
+                                                    <td><t t-esc="d.category_label || ''"/></td>
+                                                    <td><t t-esc="d.date"/></td>
                                                     <td style="text-align: right;"><b><t t-esc="fmtBDT(d.total)"/></b></td>
                                                     <td style="font-size: 12px;"><t t-esc="d.source"/></td>
-                                                    <td><button class="btn btn-sm btn-primary" t-on-click="() => this.arIssueDraft(d.id)"><t t-esc='t("Issue")'/></button></td>
+                                                    <td style="white-space: nowrap;">
+                                                        <button class="btn btn-sm" t-att-title='t("Print A4")' t-on-click="() => this.docPrint('fix.ar.invoice', d.id)">🖨</button>
+                                                        <button class="btn btn-sm" t-att-title='t("Receipt 80 mm")' t-on-click="() => this.docPrint('fix.ar.invoice', d.id, 'receipt')">🧾</button>
+                                                        <button class="btn btn-sm btn-primary" t-on-click="() => this.arIssueDraft(d.id)"><t t-esc='t("Issue")'/></button>
+                                                    </td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -2584,6 +2752,13 @@
                                 </div>
                             </div>
                             <aside class="gl-factbox">
+                                <h4><t t-esc='t("What each customer must state")'/></h4>
+                                <div class="fb-sec" style="font-size: 12px;">
+                                    <p><b><t t-esc='t("Walk-in")'/></b> — <t t-esc='t("pick Walk-in Customer, then the person&apos;s name and phone; due on the invoice date.")'/></p>
+                                    <p><b><t t-esc='t("Cash")'/></b> — <t t-esc='t("a registered customer paying now: due on the invoice date.")'/></p>
+                                    <p><b><t t-esc='t("Individual")'/></b> — <t t-esc='t("billed by the customer&apos;s payment terms.")'/></p>
+                                    <p><b><t t-esc='t("Corporate / Dealer / Government")'/></b> — <t t-esc='t("buyer BIN printed on the Mushak 6.3; PO reference recommended.")'/></p>
+                                </div>
                                 <h4><t t-esc='t("Exception discipline")'/></h4>
                                 <div class="fb-sec"><p style="font-size: 12px;">Manual invoices are the exception, never the norm: the target is &gt;97% auto-generation within 1h of closure (FR-ARB-002). Every manual row carries its reason into the audit trail.</p></div>
                             </aside>
@@ -3703,6 +3878,8 @@
                                     <table class="d365-lines">
                                         <thead>
                                             <tr>
+                                                <!-- Estate standard (17 Nov 2026): every line grid numbers its rows -->
+                                                <th class="d365-line-sl" scope="col"><t t-esc='t("SL")'/></th>
                                                 <t t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <th><t t-esc="t(lf.label)"/><span t-if="lf.required" class="d365-req">*</span></th>
                                                 </t>
@@ -3711,6 +3888,7 @@
                                         </thead>
                                         <tbody>
                                             <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
+                                                <td class="d365-line-sl" t-esc="row_index + 1"/>
                                                 <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
                                                     <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
                                                     <span t-if="lf.readonly || formLineCfg.readonlyGrid" t-esc="formLineDisplay(row_index, lf.name)"/>

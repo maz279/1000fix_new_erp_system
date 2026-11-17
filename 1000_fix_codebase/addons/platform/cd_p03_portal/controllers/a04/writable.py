@@ -74,6 +74,18 @@ WRITABLE = {
             "note",
         }
     ),
+    "fix.charge.code": frozenset(
+        {
+            "active",
+            "charge_type",
+            "code",
+            "default_rate",
+            "description",
+            "name",
+            "name_bn",
+            "uom_id",
+        }
+    ),
     "fix.claim.appeal": frozenset(
         {
             "claim_id",
@@ -616,6 +628,35 @@ WRITABLE = {
             "requires_inspection_return",
             "security_deposit",
             "weekly_rate",
+        }
+    ),
+    "fix.sales.proforma": frozenset(
+        {
+            "advance_pct",
+            "bill_to_address",
+            "bill_to_name",
+            "bill_to_phone",
+            "customer_bin",
+            "customer_category",
+            "customer_id",
+            "customer_po_date",
+            "customer_po_ref",
+            "date",
+            "delivery_address",
+            "delivery_terms",
+            "estimate_id",
+            "line_ids",
+            "operating_unit_id",
+            "overall_discount",
+            "payment_method_ids",
+            "payment_term_id",
+            "quotation_id",
+            "remarks",
+            "salesperson_id",
+            "service_item",
+            "terms",
+            "valid_until",
+            "warranty_terms",
         }
     ),
     "fix.seller.certification": frozenset(
