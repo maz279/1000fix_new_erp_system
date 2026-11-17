@@ -120,8 +120,19 @@ Three defects were found only by the live run and fixed before the evidence abov
 
 ## 5. State
 
-- Built and tested in worktree `m52cap-wt` on branch `fix/m52-capture-buttons`, from 94bf9e99 (the working branch tip at the start). **Not committed, not deployed.**
-- Peer sessions M51, M53 and M54 are working on the same area and also change the shared A08 files (`controllers/a08/writable.py`). Landing this change needs a rebase onto whatever they have committed, then the guards re-run.
-- Deploying to fix_real (8069) needs `-u cd_ap_ext,cd_p03_portal` and one restart, after a backup and the usual version-gap check. It should be coordinated with the peer sessions' deploys.
-- The private clone `fix_test_m52` (and its filestore copy) is kept for the re-test after the rebase.
+- Fix commit **56e4457f** is on the working branch `fix/a03-live-data-and-pending-work`. It was rebased onto the peers' commits:
+  - 675f071c (M54) and bf2e7108 (M53), which touch no M52 file;
+  - 28dc82f3 (M53 docs).
+  It was landed by compare-and-swap `update-ref`, and the shared checkout was synced for exactly these paths. **Not pushed.**
+  - On the combined tree, the regenerated `writable.py` was byte-identical to the merged file.
+  - The M52 guard, the M53 and M54 guards, the estate page guard, the M52 registry test and the M52 live tests pass: **736/736.**
+- **Not yet deployed.** Done so far:
+  - Backup `fix_real_pre_m52_capture_2026-11-17.dump` (49.8 MB, 50,822 entries read back) is in `all_working_folder/1000fix-2/_migration/backups`.
+  - The upgrade `-u cd_ap_ext,cd_p03_portal` on fix_real was refused by the session's safety check, because it needs the owner's explicit go-ahead. Nothing on fix_real was changed: cd_ap_ext is still 19.0.1.0.0 there.
+- To deploy, run from the shared checkout `1000_fix_codebase`, with PYTHONPATH set to the checkout and `vendor/odoo`, and TZ=UTC:
+  `python vendor/odoo/odoo-bin -c infra/odoo-conf/local.resolved.conf -d fix_real -u cd_ap_ext,cd_p03_portal --stop-after-init --no-http`
+  Then restart 8069 once.
+  - The single 8069 / 8090 restart is held by the M49 session, which also owns the `cd_fixed_asset_ext` version gap from its unmerged `fix/m49-gaps`. M53's deploy waits on the same restart.
+  - Restarting from the shared checkout before M49 lands would run older asset code against fix_real's newer schema.
+- Cleanup done: worktree `m52cap-wt` removed (branch `fix/m52-capture-buttons` kept), clone `fix_test_m52` and its filestore dropped, launch entry removed.
 - Owner decisions: see §4 (consignment settlement, retention, emergency payments, posting accounts for the unrecorded liability, card programme).
