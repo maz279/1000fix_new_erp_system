@@ -104,9 +104,15 @@ Also:
   - automatic renewal task at 60 days (AUT-FAC-01): a renewal needs a named responsible person, and nothing names one. The alerts still fire at 90/60/30/15/7 days.
 - **Owner gaps on fix_real:** no M47 data at all. Every new decision is two-person (renewal with a penalty, lease event decisions, the risk exception); the roles exist to do that (Facility Manager 4, Branch Operations Lead 42, Operations Director 3, DOFA Tier 4 3).
 
-## 5. State — built and verified, not yet deployed
+## 5. State — deployed 17 Nov 2026 (user-approved "deploy at 8069 and commit")
 
-- Committed on branch `fix/m47-capture-buttons` (worktree `1000 fix/m47cap-wt`); all commit hooks passed. **Not on the shared branch, not pushed, not deployed.**
-- To deploy on fix_real (needs the operator's approval): back up fix_real; run `-u cd_facility,cd_asset_workorder_spine,cd_p03_portal`; fast-forward `fix/a03-live-data-and-pending-work` and sync the shared checkout; restart 8069 once (the supervisor relaunches it). fix_real already runs the peer's M45 upgrade (`cd_equipment_register` 19.0.0.2.0), so no other module's columns are missing.
-- fix_dev (8090) runs from the same checkout and needs the same `-u` before its next restart.
-- The private test DB `fix_test_m47` and its filestore copy are kept until the deploy is decided, then dropped.
+- Coordinated with the M48 session, which was deploying at the same time: M47 waited for its upgrade and restart to finish, then rebased onto `20dc185f` + `b6e16ae8`. The only conflict was the event registry (both added entries; resolved to 541). `writable.py` merged and regenerates byte-identically. Re-tested on the combined code: 765 tests (M47 guard and live, M48 guard, estate pages, A07 write whitelist and form engine, sub-module mapping, KPI tiles), 0 failures.
+- Commits `a86e8d81` (fix), `dbccaad7`, `21c55e8b` (report) landed on `fix/a03-live-data-and-pending-work` with a compare-and-swap `update-ref` from `b6e16ae8`; the shared checkout's files were synced and it is clean. **Not pushed.**
+- fix_real:
+  - Backup: `all_working_folder/1000fix-2/_migration/backups/fix_real_pre_m47_capture_2026-11-17.dump` (49 MB).
+  - Ran `-u cd_facility,cd_asset_workorder_spine,cd_p03_portal`: exit 0, no errors. cd_facility 19.0.0.2.0, cd_asset_workorder_spine 19.0.0.3.1; the 6 new tables, the work-order evidence columns and the `site.power_test_overdue` consumer exist.
+  - Before the restart, every installed `cd_` module's code version matched fix_real (83 modules, no gap), so the restart loaded no un-upgraded code.
+- 8069 was restarted once: PID 23080 → 7484 (supervisor). Registry 155 modules, 0 errors; `/web/login` 200.
+- Verified on the live code: all six new models are served by the workspace API; the served bundle `web.assets_web` `510590e` contains the six new forms and the Infrastructure Availability report.
+- **fix_dev (8090) was not upgraded.** It runs from the same checkout and needs the same `-u` before its next restart.
+- Cleaned up: the private test DB `fix_test_m47`, its filestore copy and the worktree. The branch `fix/m47-capture-buttons` is kept.
