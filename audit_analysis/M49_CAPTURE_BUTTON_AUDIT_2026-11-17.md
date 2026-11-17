@@ -126,5 +126,9 @@ Two defects were found only by the live run and fixed before the evidence above:
   4. Before the restart, all 83 installed cd_ modules matched their code. 8069 was restarted once: PID 7484 became 30868 (supervisor 23964) after 10 s. The log shows 155 modules loaded and no errors.
 - Verified on the live server: all 5 new lists, plus capex, CWIP and the asset register, are served. Bundle 5a23f3f carries the 5 new screens and their forms.
 - fix_real holds **no** fixed assets, CWIP entries, capex requests or projects, so every M49 list starts empty. That is a data take-on question for the owner, not a defect.
-- fix_dev (8090) is **not** upgraded. It needs `-u cd_fixed_asset_ext,cd_p03_portal` before its next restart.
+- **fix_dev (8090) upgraded the same day**, on the user's request:
+  - Backup `fix_dev_pre_m49_capture_2026-11-17.dump` (40.6 MB).
+  - Before the upgrade, the asset module was fix_dev's only version gap across its 80 installed cd_ modules. `-u` exited 0.
+  - 8090 restarted: PID 24872 became 35160 (supervisor 37700) in 10 s, with no log errors.
+  - The same 8 lists are served, and the bundle is 5a23f3f, the same as fix_real.
 - Someone must set two figures in the config keys: the review threshold (`cd_fixed_asset_ext.capital_project_review_threshold`, default 5,000,000) and the review period (`cd_fixed_asset_ext.capital_project_review_days`, default 180). They are the CFO's to set.
