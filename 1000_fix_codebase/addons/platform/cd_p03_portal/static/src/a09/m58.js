@@ -1,6 +1,7 @@
 /** @odoo-module **/
 /* A09 · People & Workforce — M58 Talent Acquisition.
- * Registry-faithful: 4 groups / 10 screens / 5 reports / 4 forms / freg 50. */
+ * Registry-faithful: 4 groups / 10 screens / 5 reports / 4 forms / freg 50,
+ * extended by the capture audit of 2026-11-17. */
 
 export const MODULE = {
   area: 'A09', code: 'M58', en: 'Talent Acquisition', title: 'M58 · Talent Acquisition',
@@ -21,11 +22,15 @@ export const MODULE = {
     { en: 'Requisitions', screens: [
       { id: 'M58-reqs', en: 'Requisitions', bn: 'নিয়োগ অনুরোধ', t: 'g' },
       { id: 'M58-approval', en: 'Approval vs Budget', bn: 'বাজেট অনুমোদন', t: 'g' },
-      { id: 'M58-budget', en: 'Headcount Budget', bn: 'জনবল বাজেট', t: 'g' }
+      { id: 'M58-budget', en: 'Headcount Budget', bn: 'জনবল বাজেট', t: 'g' },
+      { id: 'M58-job-profiles', en: 'Job Profiles', bn: 'পদের বিবরণ', t: 'g' }
     ]},
     { en: 'Sourcing', screens: [
       { id: 'M58-postings', en: 'Job Postings', bn: 'চাকরির বিজ্ঞপ্তি', t: 'g' },
-      { id: 'M58-candidates', en: 'Candidate Pipeline', bn: 'প্রার্থী', t: 'g' }
+      { id: 'M58-candidates', en: 'Candidate Pipeline', bn: 'প্রার্থী', t: 'g' },
+      { id: 'M58-referrals', en: 'Employee Referrals', bn: 'কর্মী রেফারেল', t: 'g' },
+      { id: 'M58-channels', en: 'Channels & Agencies', bn: 'নিয়োগ চ্যানেল', t: 'g' },
+      { id: 'M58-costs', en: 'Recruitment Costs', bn: 'নিয়োগ ব্যয়', t: 'g' }
     ]},
     { en: 'Selection', screens: [
       { id: 'M58-interviews', en: 'Structured Interviews', bn: 'সাক্ষাৎকার', t: 'g' },
@@ -36,21 +41,30 @@ export const MODULE = {
     ]},
     { en: 'Onboarding', screens: [
       { id: 'M58-preboard', en: 'Pre-Boarding', bn: 'প্রি-বোর্ডিং', t: 'g' },
+      { id: 'M58-preboard-docs', en: 'Pre-Boarding Documents', bn: 'যোগদান-পূর্ব কাগজপত্র', t: 'g' },
       { id: 'M58-onboarding-tasks', en: 'Onboarding Tasks', bn: 'অনবোর্ডিং কাজ', t: 'g' },
+      { id: 'M58-inductions', en: 'Induction Sessions', bn: 'ইন্ডাকশন সেশন', t: 'g' },
+      { id: 'M58-templates', en: 'Onboarding Templates', bn: 'অনবোর্ডিং টেমপ্লেট', t: 'g' },
+      { id: 'M58-template-lines', en: 'Template Tasks', bn: 'টেমপ্লেটের কাজ', t: 'g' },
       { id: 'M58-first90', en: 'First-90-Days', bn: 'প্রথম ৯০ দিন', t: 'g' }
     ]}
   ],
-  reports: ['Funnel & Conversion', 'Time-to-Fill by Role', 'Source Effectiveness', 'First-90 Retention', 'Practical Assessment Results'],
-  forms: ['Requisition', 'Candidate', 'Interview Evaluation', 'Offer'],
+  reports: ['Funnel & Conversion', 'Time-to-Fill by Role', 'Source Effectiveness', 'First-90 Retention', 'Practical Assessment Results', 'Cost per Hire', 'Day-One Readiness'],
+  forms: ['Requisition', 'Candidate', 'Interview Round', 'Offer', 'Headcount Budget', 'Job Profile', 'Job Posting', 'Referral', 'Recruitment Channel', 'Recruitment Cost', 'Practical Assessment', 'Background Check', 'Pre-Boarding Document', 'Onboarding Task', 'Induction Session', 'Onboarding Template', 'Template Task', 'First-90 Review'],
   cross: ['M21 Workforce', 'M22 Competency', 'M54 Budgeting'],
+  /* Capture audit 2026-11-17: each page captures the records it covers. The
+   * budget and job profiles sat on no page; "Job Postings" listed
+   * requisitions; assessments, checks, evaluations and onboarding tasks had
+   * no capture on their page; pre-boarding offered a hand-made plan (the
+   * hire makes it) and had no documents; onboarding captured only reviews. */
   freg: { src: 50, sub: [
-    ['1', 'Workforce Planning & Requisition', 9, { model: 'fix.job.requisition', cols: ['name', 'department_id', 'position_id', 'openings', 'state'], screens: ['M58-reqs', 'M58-approval'], reports: ['Time-to-Fill by Role'], forms: ['Requisition'] }],
-    ['2', 'Sourcing', 7, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'operating_unit_id', 'state'], screens: ['M58-postings', 'M58-candidates'], reports: ['Source Effectiveness', 'Funnel & Conversion'], forms: ['Candidate'] }],
+    ['1', 'Workforce Planning & Requisition', 9, { model: 'fix.job.requisition', cols: ['name', 'department_id', 'position_id', 'openings', 'state'], screens: ['M58-reqs', 'M58-approval', 'M58-budget', 'M58-job-profiles'], reports: ['Time-to-Fill by Role'], forms: ['Requisition', 'Headcount Budget', 'Job Profile'] }],
+    ['2', 'Sourcing', 7, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'operating_unit_id', 'state'], screens: ['M58-postings', 'M58-candidates', 'M58-referrals', 'M58-channels', 'M58-costs'], reports: ['Source Effectiveness', 'Funnel & Conversion', 'Cost per Hire'], forms: ['Candidate', 'Job Posting', 'Referral', 'Recruitment Channel', 'Recruitment Cost'] }],
     ['3', 'Screening', 6, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'state', 'create_date'], screens: ['M58-candidates'], reports: ['Funnel & Conversion'], forms: [], create: false, domain: [['state', 'in', ['applied', 'screening']]] }],
-    ['4', 'Interviews & Assessments', 11, { model: 'fix.talent.interview', cols: ['name', 'candidate_id', 'scheduled_on', 'score', 'recommendation'], screens: ['M58-interviews', 'M58-practical', 'M58-talent-assessment'], reports: ['Practical Assessment Results'], forms: ['Interview Evaluation'] }],
-    ['5', 'Checks & Offers', 7, { model: 'fix.talent.offer', cols: ['name', 'candidate_id', 'position_id', 'joining_date', 'state'], screens: ['M58-checks', 'M58-offers'], reports: ['Funnel & Conversion'], forms: ['Offer'] }],
-    ['6', 'Pre-Boarding', 4, { model: 'fix.onboarding.plan', cols: ['name', 'candidate_id', 'joined_date', 'contract_signed', 'state'], screens: ['M58-preboard'], reports: [], forms: [] }],
-    ['7', 'Onboarding Orchestration', 6, { model: 'fix.talent.first90', cols: ['name', 'employee_id', 'milestone', 'check_date', 'on_track'], screens: ['M58-first90'], reports: ['First-90 Retention'], forms: [] }]
+    ['4', 'Interviews & Assessments', 11, { model: 'fix.talent.interview', cols: ['name', 'candidate_id', 'scheduled_on', 'score', 'recommendation'], screens: ['M58-interviews', 'M58-evaluations', 'M58-practical', 'M58-talent-assessment'], reports: ['Practical Assessment Results'], forms: ['Interview Round', 'Practical Assessment'] }],
+    ['5', 'Checks & Offers', 7, { model: 'fix.talent.offer', cols: ['name', 'candidate_id', 'position_id', 'joining_date', 'state'], screens: ['M58-checks', 'M58-offers'], reports: ['Funnel & Conversion'], forms: ['Offer', 'Background Check'] }],
+    ['6', 'Pre-Boarding', 4, { model: 'fix.preboarding.document', cols: ['name', 'plan_id', 'document_type', 'mandatory', 'state'], screens: ['M58-preboard-docs', 'M58-preboard'], reports: [], forms: ['Pre-Boarding Document'] }],
+    ['7', 'Onboarding Orchestration', 6, { model: 'fix.onboarding.task', cols: ['name', 'plan_id', 'function', 'owner_id', 'due_date', 'state'], screens: ['M58-onboarding-tasks', 'M58-inductions', 'M58-first90', 'M58-templates', 'M58-template-lines'], reports: ['Day-One Readiness', 'First-90 Retention'], forms: ['Onboarding Task', 'Induction Session', 'First-90 Review', 'Onboarding Template', 'Template Task'] }]
   ] }
 };
 
@@ -79,8 +93,27 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Approval' },
       { m: 'action_close', l: 'Close Budget' }
     ] },
-  'M58-postings': { kind: 'model_list', model: 'fix.job.requisition', stateField: 'state',
-    cols: ['name', 'department_id', 'openings', 'state'] },
+  /* Capture audit 2026-11-17: "Job Postings" listed requisitions. A posting
+   * is published only for an open, approved requisition (BRU-TAO-02), and an
+   * external one only after the internal window (FR-TAO-006). */
+  'M58-postings': { kind: 'model_list', model: 'fix.job.posting', stateField: 'state',
+    cols: ['name', 'title', 'requisition_id', 'audience', 'channel_id', 'published_on', 'internal_only_until', 'closes_on', 'candidate_count', 'state'],
+    actions: [
+      { m: 'action_publish', l: 'Publish' },
+      { m: 'action_close', l: 'Close Posting' }
+    ] },
+  'M58-job-profiles': { kind: 'model_list', model: 'fix.job.profile',
+    cols: ['name', 'position_id', 'min_experience_years', 'band_id', 'active'] },
+  'M58-referrals': { kind: 'model_list', model: 'fix.talent.referral', stateField: 'reward_state',
+    cols: ['name', 'candidate_id', 'referring_employee_id', 'requisition_id', 'candidate_state', 'reward_amount', 'reward_state', 'decided_by_id'],
+    actions: [
+      { m: 'action_approve_reward', l: 'Approve Reward (HR Manager)' },
+      { m: 'action_decline_reward', l: 'No Reward', ask: 'Why is no reward due?', kwarg: 'reason' }
+    ] },
+  'M58-channels': { kind: 'model_list', model: 'fix.recruitment.channel',
+    cols: ['name', 'channel_type', 'partner_id', 'cost_model', 'fee', 'contract_ref', 'active'] },
+  'M58-costs': { kind: 'model_list', model: 'fix.recruitment.cost',
+    cols: ['name', 'requisition_id', 'channel_id', 'cost_type', 'amount', 'incurred_on', 'invoice_ref'] },
   'M58-candidates': { kind: 'model_list', model: 'fix.candidate', stateField: 'state',
     cols: ['name', 'email', 'phone', 'requisition_id', 'employee_id', 'operating_unit_id', 'state'],
     actions: [
@@ -101,6 +134,9 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel' }
     ] },
   'M58-evaluations': { kind: 'model_list', model: 'fix.talent.evaluation', stateField: 'state',
+    /* opened by naming the panelist on the interview round, never typed */
+    create: false,
+    empty: 'No evaluation for you yet. An evaluation opens when you are named on an interview panel; you then score and submit it here.',
     cols: ['candidate_name', 'round_no', 'scheduled_on', 'panelist_id', 'score', 'recommendation', 'submitted_on', 'state'],
     actions: [{ m: 'action_submit', l: 'Submit My Evaluation' }] },
   'M58-practical': { kind: 'table_report', module: 'M58', report: 'practical_results', title: 'Practical Assessment Results', period: true },
@@ -125,7 +161,10 @@ export const SCREENS = {
       { m: 'action_decline', l: 'Record Decline' }
     ] },
   'M58-preboard': { kind: 'model_list', model: 'fix.onboarding.plan',
-    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'nid_verified', 'contract_signed', 'bank_details_captured', 'safety_kit_issued', 'open_mandatory_tasks', 'state'],
+    /* the hire opens the plan from the accepted offer; it is never typed */
+    create: false,
+    empty: 'No onboarding plan yet. A plan opens when an accepted offer completes the hire.',
+    cols: ['name', 'candidate_id', 'requisition_id', 'employee_id', 'joined_date', 'mentor_id', 'documents_required', 'documents_verified', 'nid_verified', 'contract_signed', 'bank_details_captured', 'safety_kit_issued', 'open_mandatory_tasks', 'state'],
     /* Round 2 (M24, BLA s.5): the appointment letter is generated at hire and
      * acknowledged by the employee (in person, or their signed copy attested
      * by a verifier who did not upload it); every mandatory task is done. */
@@ -135,8 +174,27 @@ export const SCREENS = {
       { m: 'action_attest_signed_appointment', l: 'Attest Signed Appointment Letter' },
       { m: 'action_complete', l: 'Complete (Provision Identity)' }
     ] },
+  /* Capture audit 2026-11-17: verified by someone other than the uploader
+   * (FR-TAO-024); onboarding completes only when every mandatory one is. */
+  'M58-preboard-docs': { kind: 'model_list', model: 'fix.preboarding.document', stateField: 'state',
+    cols: ['name', 'plan_id', 'candidate_id', 'document_type', 'mandatory', 'submitted_on', 'uploaded_by_id', 'verified_by_id', 'verified_on', 'state'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (Background Verifier)' },
+      { m: 'action_reject', l: 'Reject', ask: 'What is wrong with the document?', kwarg: 'reason' }
+    ] },
+  'M58-inductions': { kind: 'model_list', model: 'fix.onboarding.induction', stateField: 'state',
+    cols: ['name', 'plan_id', 'employee_id', 'session_type', 'scheduled_at', 'conductor_id', 'venue', 'recorded_by_id', 'state'],
+    actions: [
+      { m: 'action_mark_attended', l: 'Record Attended (conductor)' },
+      { m: 'action_mark_missed', l: 'Record Missed (conductor)', ask: 'Why was the session missed?', kwarg: 'reason' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the session cancelled?', kwarg: 'reason' }
+    ] },
+  'M58-templates': { kind: 'model_list', model: 'fix.onboarding.template',
+    cols: ['name', 'company_id', 'is_default', 'active'] },
+  'M58-template-lines': { kind: 'model_list', model: 'fix.onboarding.template.line',
+    cols: ['template_id', 'sequence', 'name', 'function', 'owner_user_id', 'due_offset_days', 'mandatory', 'evidence_required', 'field_role_only'] },
   'M58-onboarding-tasks': { kind: 'model_list', model: 'fix.onboarding.task', stateField: 'state',
-    cols: ['name', 'plan_id', 'function', 'owner_id', 'due_date', 'mandatory', 'overdue', 'completed_by_id', 'state'],
+    cols: ['name', 'plan_id', 'function', 'owner_id', 'due_date', 'depends_on_id', 'mandatory', 'overdue', 'completed_by_id', 'state'],
     actions: [
       { m: 'action_done', l: 'Mark Done (owner)' },
       { m: 'action_cancel', l: 'Cancel (optional task)', ask: 'Why is the task cancelled?', kwarg: 'reason' }
@@ -150,6 +208,8 @@ export const SCREENS = {
   'M58-rpt-source': { kind: 'table_report', module: 'M58', report: 'source_effectiveness', title: 'Source Effectiveness', period: true },
   'M58-rpt-retention': { kind: 'table_report', module: 'M58', report: 'first90_retention', title: 'First-90 Retention', period: true },
   'M58-rpt-practical': { kind: 'table_report', module: 'M58', report: 'practical_results', title: 'Practical Assessment Results', period: true },
+  'M58-rpt-cost': { kind: 'table_report', module: 'M58', report: 'cost_per_hire', title: 'Cost per Hire', period: true },
+  'M58-rpt-readiness': { kind: 'table_report', module: 'M58', report: 'day_one_readiness', title: 'Day-One Readiness', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M58-form-req': {
@@ -160,7 +220,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', open: 'Open', hired: 'Filled', closed: 'Closed' } },
     tabs: [
-      { id: 'scope', label: 'Requisition Scope', bn: 'নিয়োগের চাহিদা', icon: '📋', badge: '5' },
+      { id: 'scope', label: 'Requisition Scope', bn: 'নিয়োগের চাহিদা', icon: '📋', badge: '10' },
       { id: 'workflow', label: 'Status & Approval', bn: 'অবস্থা ও অনুমোদন', icon: '⚙️', badge: '1' }
     ],
     sections: [
@@ -177,6 +237,7 @@ export const SCREENS = {
           { name: 'is_field_role', label: 'Field / In-Home Role (PCC & Assessment)' },
           { name: 'assessment_pass_mark', label: 'Practical Assessment Pass Mark (%)' },
           { name: 'hiring_manager_id', label: 'Hiring Manager' },
+          { name: 'job_profile_id', label: 'Job Profile (FR-TAO-004)' },
           { name: 'onboarding_template_id', label: 'Onboarding Template' }
         ]
       },
@@ -229,6 +290,8 @@ export const SCREENS = {
           { name: 'phone', label: 'Contact Mobile Phone' },
           { name: 'operating_unit_id', label: 'Target Operating Unit' },
           { name: 'source', label: 'Source / Channel' },
+          { name: 'posting_id', label: 'Applied Through Posting' },
+          { name: 'channel_id', label: 'Channel / Agency' },
           { name: 'date_of_birth', label: 'Date of Birth (verified)' },
           { name: 'nid_number', label: 'NID Number (10 / 13 / 17 digits)' },
           { name: 'consent_given', label: 'Consent to Processing & Retention' },
@@ -253,7 +316,7 @@ export const SCREENS = {
   'M58-form-interview': {
     kind: 'model_form',
     model: 'fix.talent.interview',
-    title: 'Interview Evaluation',
+    title: 'Interview Round',
     back: 'M58-interviews',
     status: { field: 'state', labels: {
       scheduled: 'Scheduled', done: 'Completed', cancelled: 'Cancelled' } },
@@ -300,7 +363,7 @@ export const SCREENS = {
       draft: 'Draft', issued: 'Issued', accepted: 'Accepted', declined: 'Declined',
       expired: 'Expired' } },
     tabs: [
-      { id: 'package', label: 'Compensation Package', bn: 'বেতন প্যাকেজ', icon: '💵', badge: '4' },
+      { id: 'package', label: 'Compensation Package', bn: 'বেতন প্যাকেজ', icon: '💵', badge: '11' },
       { id: 'terms', label: 'Timeline & Acceptance', bn: 'শর্তাবলী ও সম্মতি', icon: '📝', badge: '4' }
     ],
     sections: [
@@ -315,6 +378,9 @@ export const SCREENS = {
           { name: 'gross_salary', label: 'Gross Monthly Salary (BDT)' },
           { name: 'basic_salary', label: 'Basic Monthly Salary (BDT)' },
           { name: 'contract_type', label: 'Contract Type' },
+          { name: 'probation_class', label: 'Probation Class (BLA s.4(8))' },
+          { name: 'probation_months', label: 'Probation (months)' },
+          { name: 'benefits', type: 'text', label: 'Benefits' },
           { name: 'band_id', label: 'M57 Pay Band', readonly: true },
           { name: 'in_band', label: 'Within Band', readonly: true }
         ]
@@ -343,6 +409,7 @@ export const SCREENS = {
     model: 'fix.onboarding.plan',
     title: 'Onboarding Plan',
     back: 'M58-preboard',
+    create: false, pick: 'An onboarding plan opens when an accepted offer completes the hire: open one from Pre-Boarding.',
     status: { field: 'state', labels: {
       draft: 'Draft', in_progress: 'In Progress', completed: 'Completed' } },
     tabs: [
@@ -361,7 +428,8 @@ export const SCREENS = {
           { name: 'employee_id', label: 'Created Employee Record', readonly: true },
           { name: 'position_id', label: 'Establishment Position' },
           { name: 'department_id', label: 'Department' },
-          { name: 'joined_date', label: 'Date of Joining' }
+          { name: 'joined_date', label: 'Date of Joining' },
+          { name: 'mentor_id', label: 'Mentor / Buddy (FR-TAO-031)' }
         ]
       },
       {
@@ -370,6 +438,8 @@ export const SCREENS = {
         note: 'Mandatory statutory onboarding verifications.',
         fields: [
           { name: 'nid_verified', label: 'National ID (NID) Verified', readonly: true },
+          { name: 'documents_required', label: 'Mandatory Pre-Boarding Documents', readonly: true },
+          { name: 'documents_verified', label: 'Of Which Verified', readonly: true },
           { name: 'appointment_letter_id', label: 'Generated Appointment Letter (M24)', readonly: true },
           { name: 'signed_contract_file', type: 'binary', label: 'Employee-Signed Appointment Letter' },
           { name: 'appointment_ack_method', label: 'Acknowledged By', readonly: true },
@@ -427,6 +497,8 @@ export const SCREENS = {
           { name: 'score', label: 'Practical Score (0-100)' },
           { name: 'pass_mark', label: 'Approved Pass Mark (%)', readonly: true },
           { name: 'passed', label: 'Passed Bench Assessment', readonly: true },
+          { name: 'tasks_performed', type: 'text', label: 'Tasks Performed (FR-TAO-016)' },
+          { name: 'evidence_file', type: 'binary', label: 'Assessment Evidence (photos, job card)' },
           { name: 'notes', type: 'text', label: 'Assessor Observations' }
         ]
       }
@@ -453,6 +525,7 @@ export const SCREENS = {
           { name: 'candidate_id', required: true, label: 'Candidate' },
           { name: 'check_type', required: true, label: 'Verification Type' },
           { name: 'requested_on', required: true, label: 'Requested Date' },
+          { name: 'reference_contact', label: 'Referee / Issuing Authority Contact' },
           { name: 'company_id', label: 'Company' }
         ]
       },
@@ -477,6 +550,7 @@ export const SCREENS = {
     model: 'fix.talent.evaluation',
     title: 'My Panel Evaluation',
     back: 'M58-evaluations',
+    create: false, pick: 'An evaluation opens when you are named on an interview panel: open yours from My Panel Evaluations.',
     status: { field: 'state', labels: { draft: 'Not Submitted', submitted: 'Submitted' } },
     tabs: [
       { id: 'round', label: 'Interview Round', bn: 'সাক্ষাৎকার', icon: '🗓️', badge: '4' },
@@ -560,13 +634,14 @@ export const SCREENS = {
       {
         tab: 'task',
         title: 'Task (FR-TAO-027)',
-        note: 'Generated from the onboarding template at hire; a mandatory task is never cancelled.',
+        note: 'Generated from the onboarding template at hire; a task added here is optional. A mandatory task is never cancelled.',
         fields: [
-          { name: 'plan_id', label: 'Onboarding Plan', readonly: true },
+          { name: 'plan_id', required: true, label: 'Onboarding Plan' },
           { name: 'name', required: true, label: 'Task' },
           { name: 'function', label: 'Function' },
           { name: 'owner_id', required: true, label: 'Owner' },
           { name: 'due_date', required: true, label: 'Due Date' },
+          { name: 'depends_on_id', label: 'Depends On (done first)' },
           { name: 'mandatory', label: 'Mandatory', readonly: true }
         ]
       },
@@ -601,6 +676,7 @@ export const SCREENS = {
         note: 'Structured post-onboarding milestone review.',
         fields: [
           { name: 'employee_id', required: true, label: 'New Hire Employee' },
+          { name: 'plan_id', label: 'Onboarding Plan' },
           { name: 'milestone', required: true, label: 'Checkpoint Milestone (30d / 60d / 90d)' },
           { name: 'check_date', required: true, label: 'Review Date' },
           { name: 'reviewer_id', label: 'Reviewing Supervisor' }
@@ -617,6 +693,264 @@ export const SCREENS = {
         ]
       }
     ]
+  },
+
+  /* ============ CAPTURE AUDIT 2026-11-17: records the pages cover ============ */
+  'M58-form-job-profile': {
+    kind: 'model_form',
+    model: 'fix.job.profile',
+    title: 'Job Profile',
+    back: 'M58-job-profiles',
+    tabs: [
+      { id: 'role', label: 'Role', bn: 'পদ', icon: '📋', badge: '5' },
+      { id: 'requirements', label: 'Requirements', bn: 'যোগ্যতা', icon: '🎓', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'role',
+        title: 'Role Definition (FR-TAO-004)',
+        note: 'Named on a requisition; the position itself stays in M21.',
+        fields: [
+          { name: 'name', required: true, label: 'Profile Name' },
+          { name: 'position_id', label: 'Position (M21)' },
+          { name: 'band_id', label: 'Pay Band (M57)' },
+          { name: 'responsibilities', type: 'text', required: true, label: 'Responsibilities' },
+          { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'requirements',
+        title: 'Competencies, Qualifications and Experience',
+        note: 'Competencies come from the M22 framework.',
+        fields: [
+          { name: 'competency_ids', label: 'Required Competencies (M22)' },
+          { name: 'qualifications', type: 'text', label: 'Qualifications' },
+          { name: 'min_experience_years', label: 'Minimum Experience (years)' }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-posting': {
+    kind: 'model_form',
+    model: 'fix.job.posting',
+    title: 'Job Posting',
+    back: 'M58-postings',
+    status: { field: 'state', labels: { draft: 'Draft', published: 'Published', closed: 'Closed' } },
+    tabs: [
+      { id: 'opening', label: 'Opening', bn: 'বিজ্ঞপ্তি', icon: '📣', badge: '6' },
+      { id: 'publication', label: 'Publication', bn: 'প্রকাশ', icon: '📅', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'opening',
+        title: 'What Is Posted (FR-TAO-005)',
+        note: 'Published only for an open, approved requisition (BRU-TAO-02). External postings name their channel.',
+        fields: [
+          { name: 'title', required: true, label: 'Posting Title' },
+          { name: 'requisition_id', required: true, label: 'Requisition' },
+          { name: 'audience', required: true, label: 'Audience' },
+          { name: 'channel_id', label: 'Channel (external)' },
+          { name: 'closes_on', label: 'Applications Close' },
+          { name: 'description', type: 'text', label: 'Posting Text' }
+        ]
+      },
+      {
+        tab: 'publication',
+        title: 'Internal Consideration First (FR-TAO-006)',
+        note: 'An internal posting holds external posting of the opening for the configured window.',
+        fields: [
+          { name: 'published_on', label: 'Published On', readonly: true },
+          { name: 'internal_only_until', label: 'Internal Only Until', readonly: true },
+          { name: 'candidate_count', label: 'Applicants', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-referral': {
+    kind: 'model_form',
+    model: 'fix.talent.referral',
+    title: 'Employee Referral',
+    back: 'M58-referrals',
+    status: { field: 'reward_state', labels: { open: 'Open', approved: 'Reward Approved', declined: 'No Reward' } },
+    tabs: [
+      { id: 'referral', label: 'Referral', bn: 'রেফারেল', icon: '🤝', badge: '3' },
+      { id: 'reward', label: 'Reward', bn: 'পুরস্কার', icon: '🎁', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'referral',
+        title: 'Who Referred Whom (FR-TAO-007)',
+        note: 'One referral per candidate; nobody refers themself.',
+        fields: [
+          { name: 'candidate_id', required: true, label: 'Candidate' },
+          { name: 'referring_employee_id', required: true, label: 'Referred By' },
+          { name: 'relationship', label: 'Relationship to Candidate' }
+        ]
+      },
+      {
+        tab: 'reward',
+        title: 'Reward Decision (AUT-TAO-17)',
+        note: 'Approved after the hire by an HR manager who neither recorded nor made the referral; paid through payroll.',
+        fields: [
+          { name: 'reward_amount', label: 'Referral Reward' },
+          { name: 'candidate_state', label: 'Candidate Outcome', readonly: true },
+          { name: 'reward_state', label: 'Reward', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-channel': {
+    kind: 'model_form',
+    model: 'fix.recruitment.channel',
+    title: 'Recruitment Channel',
+    back: 'M58-channels',
+    sections: [
+      {
+        title: 'Channel or Agency (FR-TAO-008)',
+        note: 'A charging channel records its agreed fee; an agency names the agency.',
+        fields: [
+          { name: 'name', required: true, label: 'Channel Name' },
+          { name: 'channel_type', required: true, label: 'Type' },
+          { name: 'partner_id', label: 'Agency / Provider' },
+          { name: 'cost_model', required: true, label: 'Cost Model' },
+          { name: 'fee', label: 'Agreed Fee' },
+          { name: 'contract_ref', label: 'Contract Reference' },
+          { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-cost': {
+    kind: 'model_form',
+    model: 'fix.recruitment.cost',
+    title: 'Recruitment Cost',
+    back: 'M58-costs',
+    sections: [
+      {
+        title: 'Cost Incurred for a Requisition (FR-TAO-034)',
+        note: 'Only on an approved requisition (BRU-TAO-02). Feeds Cost per Hire; Finance pays the bill in M20.',
+        fields: [
+          { name: 'requisition_id', required: true, label: 'Requisition' },
+          { name: 'cost_type', required: true, label: 'Cost Type' },
+          { name: 'channel_id', label: 'Channel / Agency' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'incurred_on', required: true, label: 'Incurred On' },
+          { name: 'invoice_ref', label: 'Invoice / Bill Reference' },
+          { name: 'notes', type: 'text', label: 'Notes' }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-document': {
+    kind: 'model_form',
+    model: 'fix.preboarding.document',
+    title: 'Pre-Boarding Document',
+    back: 'M58-preboard-docs',
+    status: { field: 'state', labels: { requested: 'Requested', submitted: 'Submitted', verified: 'Verified', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'document', label: 'Document', bn: 'কাগজপত্র', icon: '📄', badge: '5' },
+      { id: 'verification', label: 'Verification', bn: 'যাচাই', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'document',
+        title: 'Collected Document (FR-TAO-023)',
+        note: 'The hire issues the checklist; Recruitment uploads what the new hire hands in.',
+        fields: [
+          { name: 'plan_id', required: true, label: 'Onboarding Plan' },
+          { name: 'document_type', required: true, label: 'Document Type' },
+          { name: 'document_file', type: 'binary', label: 'Document' },
+          { name: 'mandatory', label: 'Mandatory', readonly: true },
+          { name: 'notes', type: 'text', label: 'Notes' }
+        ]
+      },
+      {
+        tab: 'verification',
+        title: 'Verification (FR-TAO-024, T-08)',
+        note: 'A Background Verifier who did not upload it verifies or rejects it; its fingerprint is kept.',
+        fields: [
+          { name: 'submitted_on', label: 'Submitted On', readonly: true },
+          { name: 'uploaded_by_id', label: 'Uploaded By', readonly: true },
+          { name: 'file_sha256', label: 'SHA-256', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true },
+          { name: 'verified_on', label: 'Verified On', readonly: true },
+          { name: 'rejection_reason', label: 'Rejected Because', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-induction': {
+    kind: 'model_form',
+    model: 'fix.onboarding.induction',
+    title: 'Induction Session',
+    back: 'M58-inductions',
+    status: { field: 'state', labels: { scheduled: 'Scheduled', attended: 'Attended', missed: 'Missed', cancelled: 'Cancelled' } },
+    sections: [
+      {
+        title: 'Induction (FR-TAO-029)',
+        note: 'The conductor records attendance after the session starts; an unrecorded session holds the onboarding open.',
+        fields: [
+          { name: 'plan_id', required: true, label: 'Onboarding Plan' },
+          { name: 'session_type', required: true, label: 'Session' },
+          { name: 'scheduled_at', required: true, label: 'Scheduled At' },
+          { name: 'conductor_id', required: true, label: 'Conducted By' },
+          { name: 'venue', label: 'Venue' },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'outcome_note', label: 'Outcome Note', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-template': {
+    kind: 'model_form',
+    model: 'fix.onboarding.template',
+    title: 'Onboarding Template',
+    back: 'M58-templates',
+    sections: [
+      {
+        title: 'Task Set by Role (FR-TAO-027)',
+        note: 'Named on a requisition; the default template applies when none is named. Its tasks are listed under Template Tasks.',
+        fields: [
+          { name: 'name', required: true, label: 'Template Name' },
+          { name: 'is_default', label: 'Default Template' },
+          { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+
+  'M58-form-template-line': {
+    kind: 'model_form',
+    model: 'fix.onboarding.template.line',
+    title: 'Template Task',
+    back: 'M58-template-lines',
+    sections: [
+      {
+        title: 'Task Generated at Hire (FR-TAO-027)',
+        note: 'Owner, due date (days from joining) and whether evidence is needed.',
+        fields: [
+          { name: 'template_id', required: true, label: 'Template' },
+          { name: 'sequence', label: 'Order' },
+          { name: 'name', required: true, label: 'Task' },
+          { name: 'function', required: true, label: 'Function' },
+          { name: 'owner_user_id', label: 'Owner' },
+          { name: 'due_offset_days', label: 'Due (days from joining)' },
+          { name: 'mandatory', label: 'Mandatory' },
+          { name: 'evidence_required', label: 'Evidence File Required' },
+          { name: 'field_role_only', label: 'Field Roles Only' }
+        ]
+      }
+    ]
   }
 };
 
@@ -625,21 +959,51 @@ export const REPORT_ROUTES = {
   'M58:Time-to-Fill by Role': 'M58-rpt-ttf',
   'M58:Source Effectiveness': 'M58-rpt-source',
   'M58:First-90 Retention': 'M58-rpt-retention',
-  'M58:Practical Assessment Results': 'M58-rpt-practical'
+  'M58:Practical Assessment Results': 'M58-rpt-practical',
+  'M58:Cost per Hire': 'M58-rpt-cost',
+  'M58:Day-One Readiness': 'M58-rpt-readiness'
 };
 
 export const FORM_MODELS = {
   'M58:Requisition': 'fix.job.requisition',
   'M58:Candidate': 'fix.candidate',
-  'M58:Interview Evaluation': 'fix.talent.interview',
-  'M58:Offer': 'fix.talent.offer'
+  'M58:Interview Round': 'fix.talent.interview',
+  'M58:Offer': 'fix.talent.offer',
+  'M58:Headcount Budget': 'fix.headcount.budget',
+  'M58:Job Profile': 'fix.job.profile',
+  'M58:Job Posting': 'fix.job.posting',
+  'M58:Referral': 'fix.talent.referral',
+  'M58:Recruitment Channel': 'fix.recruitment.channel',
+  'M58:Recruitment Cost': 'fix.recruitment.cost',
+  'M58:Practical Assessment': 'fix.talent.assessment',
+  'M58:Background Check': 'fix.talent.check',
+  'M58:Pre-Boarding Document': 'fix.preboarding.document',
+  'M58:Onboarding Task': 'fix.onboarding.task',
+  'M58:Induction Session': 'fix.onboarding.induction',
+  'M58:Onboarding Template': 'fix.onboarding.template',
+  'M58:Template Task': 'fix.onboarding.template.line',
+  'M58:First-90 Review': 'fix.talent.first90'
 };
 
 export const FORM_CHIPS = {
   'M58:Requisition': 'M58-form-req',
   'M58:Candidate': 'M58-form-candidate',
-  'M58:Interview Evaluation': 'M58-form-interview',
+  'M58:Interview Round': 'M58-form-interview',
   'M58:Offer': 'M58-form-offer',
+  'M58:Headcount Budget': 'M58-form-budget',
+  'M58:Job Profile': 'M58-form-job-profile',
+  'M58:Job Posting': 'M58-form-posting',
+  'M58:Referral': 'M58-form-referral',
+  'M58:Recruitment Channel': 'M58-form-channel',
+  'M58:Recruitment Cost': 'M58-form-cost',
+  'M58:Practical Assessment': 'M58-form-assessment',
+  'M58:Background Check': 'M58-form-check',
+  'M58:Pre-Boarding Document': 'M58-form-document',
+  'M58:Onboarding Task': 'M58-form-task',
+  'M58:Induction Session': 'M58-form-induction',
+  'M58:Onboarding Template': 'M58-form-template',
+  'M58:Template Task': 'M58-form-template-line',
+  'M58:First-90 Review': 'M58-form-first90',
   'M58:__by_model__': {
     'fix.job.requisition': 'M58-form-req',
     'fix.candidate': 'M58-form-candidate',
@@ -651,13 +1015,22 @@ export const FORM_CHIPS = {
     'fix.talent.first90': 'M58-form-first90',
     'fix.talent.evaluation': 'M58-form-evaluation',
     'fix.headcount.budget': 'M58-form-budget',
-    'fix.onboarding.task': 'M58-form-task'
+    'fix.onboarding.task': 'M58-form-task',
+    'fix.job.profile': 'M58-form-job-profile',
+    'fix.job.posting': 'M58-form-posting',
+    'fix.talent.referral': 'M58-form-referral',
+    'fix.recruitment.channel': 'M58-form-channel',
+    'fix.recruitment.cost': 'M58-form-cost',
+    'fix.preboarding.document': 'M58-form-document',
+    'fix.onboarding.induction': 'M58-form-induction',
+    'fix.onboarding.template': 'M58-form-template',
+    'fix.onboarding.template.line': 'M58-form-template-line'
   },
   'M58:__by_screen__': {
     'M58-talent-assessment': 'M58-form-assessment',
     'M58-reqs': 'M58-form-req',
     'M58-approval': 'M58-form-req',
-    'M58-postings': 'M58-form-req',
+    'M58-postings': 'M58-form-posting',
     'M58-candidates': 'M58-form-candidate',
     'M58-interviews': 'M58-form-interview',
     'M58-checks': 'M58-form-check',
@@ -666,7 +1039,15 @@ export const FORM_CHIPS = {
     'M58-first90': 'M58-form-first90',
     'M58-evaluations': 'M58-form-evaluation',
     'M58-budget': 'M58-form-budget',
-    'M58-onboarding-tasks': 'M58-form-task'
+    'M58-onboarding-tasks': 'M58-form-task',
+    'M58-job-profiles': 'M58-form-job-profile',
+    'M58-referrals': 'M58-form-referral',
+    'M58-channels': 'M58-form-channel',
+    'M58-costs': 'M58-form-cost',
+    'M58-preboard-docs': 'M58-form-document',
+    'M58-inductions': 'M58-form-induction',
+    'M58-templates': 'M58-form-template',
+    'M58-template-lines': 'M58-form-template-line'
   }
 };
 

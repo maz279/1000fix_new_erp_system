@@ -605,6 +605,14 @@ def _finish_tasks(x, plan):
         task.with_user(owner).action_done()
 
 
+def _verify_documents(x, plan):
+    """FR-TAO-023/024 (capture audit 2026-11-17): the recruiter uploads each
+    checklist document, a verifier who did not upload it verifies it."""
+    for doc in plan.sudo().document_ids.filtered(lambda d: d.state != "verified"):
+        _rpc_write(x.env, x.recruiter, doc, {"document_file": EVIDENCE})
+        doc.with_user(x.verifier).action_verify()
+
+
 def test_onboarding_completes_only_on_evidence(x, call):
     plan = _hired_plan(x)
     with pytest.raises(UserError, match="changes only through its workflow"):
@@ -622,6 +630,9 @@ def test_onboarding_completes_only_on_evidence(x, call):
     with pytest.raises(UserError, match="employee code"):
         plan.with_user(x.recruiter).action_complete()
     emp.write({"employee_code": "E-A09-%d" % next(_SEQ)})
+    with pytest.raises(UserError, match="pre-boarding document"):
+        plan.with_user(x.recruiter).action_complete()
+    _verify_documents(x, plan)
     plan.with_user(x.recruiter).action_complete()
     assert plan.state == "completed" and plan.completed_by_id == x.recruiter
     joined = _events(x.env, "employee.joined", "hr.employee", emp.id)

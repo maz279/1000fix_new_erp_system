@@ -84,6 +84,7 @@ WRITABLE = {
     "fix.biometric.punch.event": frozenset(),
     "fix.candidate": frozenset(
         {
+            "channel_id",
             "consent_given",
             "date_of_birth",
             "email",
@@ -91,6 +92,7 @@ WRITABLE = {
             "nid_number",
             "operating_unit_id",
             "phone",
+            "posting_id",
             "requisition_id",
             "source",
         }
@@ -557,6 +559,28 @@ WRITABLE = {
             "scheme_id",
         }
     ),
+    "fix.job.posting": frozenset(
+        {
+            "audience",
+            "channel_id",
+            "closes_on",
+            "description",
+            "requisition_id",
+            "title",
+        }
+    ),
+    "fix.job.profile": frozenset(
+        {
+            "active",
+            "band_id",
+            "competency_ids",
+            "min_experience_years",
+            "name",
+            "position_id",
+            "qualifications",
+            "responsibilities",
+        }
+    ),
     "fix.job.requisition": frozenset(
         {
             "assessment_pass_mark",
@@ -564,6 +588,7 @@ WRITABLE = {
             "department_id",
             "hiring_manager_id",
             "is_field_role",
+            "job_profile_id",
             "name",
             "onboarding_template_id",
             "openings",
@@ -650,12 +675,22 @@ WRITABLE = {
             "notes",
         }
     ),
+    "fix.onboarding.induction": frozenset(
+        {
+            "conductor_id",
+            "plan_id",
+            "scheduled_at",
+            "session_type",
+            "venue",
+        }
+    ),
     "fix.onboarding.plan": frozenset(
         {
             "candidate_id",
             "department_id",
             "it_assets_allocated",
             "joined_date",
+            "mentor_id",
             "name",
             "position_id",
             "signed_contract_file",
@@ -663,12 +698,34 @@ WRITABLE = {
     ),
     "fix.onboarding.task": frozenset(
         {
+            "depends_on_id",
             "due_date",
             "evidence_file",
             "evidence_note",
             "function",
             "name",
             "owner_id",
+            "plan_id",
+        }
+    ),
+    "fix.onboarding.template": frozenset(
+        {
+            "active",
+            "is_default",
+            "name",
+        }
+    ),
+    "fix.onboarding.template.line": frozenset(
+        {
+            "due_offset_days",
+            "evidence_required",
+            "field_role_only",
+            "function",
+            "mandatory",
+            "name",
+            "owner_user_id",
+            "sequence",
+            "template_id",
         }
     ),
     "fix.oncall.callout": frozenset(
@@ -855,6 +912,36 @@ WRITABLE = {
             "stock_quantity",
         }
     ),
+    "fix.preboarding.document": frozenset(
+        {
+            "document_file",
+            "document_type",
+            "notes",
+            "plan_id",
+        }
+    ),
+    "fix.recruitment.channel": frozenset(
+        {
+            "active",
+            "channel_type",
+            "contract_ref",
+            "cost_model",
+            "fee",
+            "name",
+            "partner_id",
+        }
+    ),
+    "fix.recruitment.cost": frozenset(
+        {
+            "amount",
+            "channel_id",
+            "cost_type",
+            "incurred_on",
+            "invoice_ref",
+            "notes",
+            "requisition_id",
+        }
+    ),
     "fix.roster.change.request": frozenset(
         {
             "kind",
@@ -969,9 +1056,11 @@ WRITABLE = {
             "assessor_id",
             "candidate_id",
             "competency_id",
+            "evidence_file",
             "level",
             "notes",
             "score",
+            "tasks_performed",
         }
     ),
     "fix.talent.check": frozenset(
@@ -981,6 +1070,7 @@ WRITABLE = {
             "company_id",
             "evidence_file",
             "notes",
+            "reference_contact",
             "requested_on",
         }
     ),
@@ -998,6 +1088,7 @@ WRITABLE = {
             "milestone",
             "notes",
             "on_track",
+            "plan_id",
             "rating",
             "reviewer_id",
         }
@@ -1017,12 +1108,23 @@ WRITABLE = {
             "acceptance_file",
             "acceptance_ref",
             "basic_salary",
+            "benefits",
             "candidate_id",
             "contract_type",
             "gross_salary",
             "joining_date",
             "position_id",
+            "probation_class",
+            "probation_months",
             "valid_until",
+        }
+    ),
+    "fix.talent.referral": frozenset(
+        {
+            "candidate_id",
+            "referring_employee_id",
+            "relationship",
+            "reward_amount",
         }
     ),
     "fix.timesheet.line": frozenset(

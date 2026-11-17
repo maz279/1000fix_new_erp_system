@@ -8,4 +8,5 @@ from . import (
     fix_talent_evaluation,
     fix_talent_budget,
     fix_onboarding_task,
+    fix_talent_capture,
 )

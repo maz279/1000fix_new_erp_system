@@ -36,5 +36,33 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_job_posting" model="ir.sequence">
+            <field name="name">Job Posting</field>
+            <field name="code">fix.job.posting</field>
+            <field name="prefix">JPOST/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_recruitment_cost" model="ir.sequence">
+            <field name="name">Recruitment Cost</field>
+            <field name="code">fix.recruitment.cost</field>
+            <field name="prefix">RCOST/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_talent_referral" model="ir.sequence">
+            <field name="name">Employee Referral</field>
+            <field name="code">fix.talent.referral</field>
+            <field name="prefix">REF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_onboarding_induction" model="ir.sequence">
+            <field name="name">Induction Session</field>
+            <field name="code">fix.onboarding.induction</field>
+            <field name="prefix">IND/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

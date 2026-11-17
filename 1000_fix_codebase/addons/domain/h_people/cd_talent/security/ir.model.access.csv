@@ -31,3 +31,14 @@ access_fix_onboarding_template_role,fix.onboarding.template.role,model_fix_onboa
 access_fix_onboarding_template_line_role,fix.onboarding.template.line.role,model_fix_onboarding_template_line,cd_talent.group_talent,1,1,1,1
 access_fix_onboarding_task_user,fix.onboarding.task.owner,model_fix_onboarding_task,base.group_user,1,1,0,0
 access_fix_onboarding_task_role,fix.onboarding.task.role,model_fix_onboarding_task,cd_talent.group_talent,1,1,1,0
+access_fix_job_profile_role,fix.job.profile.role,model_fix_job_profile,cd_talent.group_talent,1,1,1,0
+access_fix_job_profile_hm,fix.job.profile.hiring.manager,model_fix_job_profile,cd_talent.group_hiring_manager,1,0,0,0
+access_fix_job_posting_role,fix.job.posting.role,model_fix_job_posting,cd_talent.group_talent,1,1,1,0
+access_fix_job_posting_hm,fix.job.posting.hiring.manager,model_fix_job_posting,cd_talent.group_hiring_manager,1,0,0,0
+access_fix_recruitment_channel_role,fix.recruitment.channel.role,model_fix_recruitment_channel,cd_talent.group_talent,1,1,1,0
+access_fix_recruitment_cost_role,fix.recruitment.cost.role,model_fix_recruitment_cost,cd_talent.group_talent,1,1,1,0
+access_fix_talent_referral_role,fix.talent.referral.role,model_fix_talent_referral,cd_talent.group_talent,1,1,1,0
+access_fix_preboarding_document_role,fix.preboarding.document.role,model_fix_preboarding_document,cd_talent.group_talent,1,1,1,0
+access_fix_preboarding_document_verifier,fix.preboarding.document.verifier,model_fix_preboarding_document,cd_talent.group_background_verifier,1,1,0,0
+access_fix_onboarding_induction_user,fix.onboarding.induction.conductor,model_fix_onboarding_induction,base.group_user,1,1,0,0
+access_fix_onboarding_induction_role,fix.onboarding.induction.role,model_fix_onboarding_induction,cd_talent.group_talent,1,1,1,0

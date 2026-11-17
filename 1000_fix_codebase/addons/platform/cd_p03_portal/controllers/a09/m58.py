@@ -6,6 +6,8 @@
 # "Issue Offer" were the maker's own buttons. Approvals are now requested here
 # and decided from the M63 inbox by someone else; the apply methods
 # (action_approve, action_clear, action_issue) are not offered on the screens.
+from odoo import fields
+
 SURFACES = {
     "fix.job.requisition": {
         "order": "id desc",
@@ -83,6 +85,36 @@ SURFACES = {
         "order": "due_date, id",
         "limit": 500,
         "actions": {"action_done", "action_cancel"},
+    },
+    # Capture audit 2026-11-17: the records the M58 pages cover.
+    "fix.job.profile": {"order": "name", "limit": 300, "actions": set()},
+    "fix.job.posting": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_publish", "action_close"},
+    },
+    "fix.talent.referral": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve_reward", "action_decline_reward"},
+    },
+    "fix.recruitment.channel": {"order": "name", "limit": 200, "actions": set()},
+    "fix.recruitment.cost": {"order": "incurred_on desc, id desc", "limit": 400, "actions": set()},
+    "fix.preboarding.document": {
+        "order": "plan_id, id",
+        "limit": 500,
+        "actions": {"action_verify", "action_reject"},
+    },
+    "fix.onboarding.induction": {
+        "order": "scheduled_at, id",
+        "limit": 400,
+        "actions": {"action_mark_attended", "action_mark_missed", "action_cancel"},
+    },
+    "fix.onboarding.template": {"order": "name", "limit": 100, "actions": set()},
+    "fix.onboarding.template.line": {
+        "order": "template_id, sequence, id",
+        "limit": 400,
+        "actions": set(),
     },
 }
 
@@ -280,7 +312,92 @@ def practical_results(env, date_from=None, date_to=None, **params):
     )
 
 
+def cost_per_hire(env, date_from=None, date_to=None, **params):
+    """Recruitment cost per hire, by requisition (FR-TAO-034)."""
+    costs = env["fix.recruitment.cost"].search([])
+    hired = env["fix.candidate"].search([("state", "=", "hired")])
+    by_req = {}
+    for cost in costs:
+        row = by_req.setdefault(cost.requisition_id.id, {"req": cost.requisition_id, "cost": 0.0})
+        row["cost"] += cost.amount or 0.0
+    rows = []
+    for row in by_req.values():
+        hires = len(hired.filtered(lambda c, r=row["req"].id: c.requisition_id.id == r))
+        rows.append(
+            {
+                "requisition": row["req"].name,
+                "cost": round(row["cost"], 2),
+                "hires": hires,
+                "cost_per_hire": round(row["cost"] / hires, 2) if hires else "No hire yet",
+            }
+        )
+    rows.sort(key=lambda r: -r["cost"])
+    total = round(sum(r["cost"] for r in rows), 2)
+    total_hires = sum(r["hires"] for r in rows)
+    return _pack(
+        "Cost per Hire",
+        ["requisition", "cost", "hires", "cost_per_hire"],
+        {
+            "requisition": "Requisition",
+            "cost": "Recruitment Cost",
+            "hires": "Hires",
+            "cost_per_hire": "Cost per Hire",
+        },
+        rows,
+        [
+            "Costs are those recorded against each requisition (advertising, agency fees, "
+            "checks, travel); a requisition with no hire yet shows its cost without a rate."
+        ],
+        totals={
+            "requisition": "Total",
+            "cost": total,
+            "hires": total_hires,
+            "cost_per_hire": round(total / total_hires, 2) if total_hires else "",
+        },
+        empty="No recruitment cost recorded.",
+    )
+
+
+def day_one_readiness(env, date_from=None, date_to=None, **params):
+    """Onboarding plans not yet complete, with what is still missing (FR-TAO-033)."""
+    plans = env["fix.onboarding.plan"].search([("state", "in", ("draft", "in_progress"))])
+    today = fields.Date.context_today(env.user)
+    rows = []
+    for plan in plans:
+        problems = plan.sudo()._fix_completion_problems()
+        rows.append(
+            {
+                "plan": plan.name,
+                "joining": str(plan.joined_date),
+                "days_to_start": (plan.joined_date - today).days if plan.joined_date else "",
+                "outstanding": len(problems),
+                "missing": "; ".join(problems) or "Ready",
+            }
+        )
+    rows.sort(key=lambda r: r["days_to_start"] if r["days_to_start"] != "" else 9999)
+    ready = len([r for r in rows if not r["outstanding"]])
+    return _pack(
+        "Day-One Readiness - %d of %d ready" % (ready, len(rows)),
+        ["plan", "joining", "days_to_start", "outstanding", "missing"],
+        {
+            "plan": "Onboarding Plan",
+            "joining": "Joining Date",
+            "days_to_start": "Days to Start",
+            "outstanding": "Items Outstanding",
+            "missing": "What Is Missing",
+        },
+        rows,
+        [
+            "Every open onboarding plan, nearest start date first. What is missing is the "
+            "same list that stops the onboarding from completing."
+        ],
+        empty="No onboarding plan is open.",
+    )
+
+
 REPORTS = {
+    "cost_per_hire": cost_per_hire,
+    "day_one_readiness": day_one_readiness,
     "funnel_conversion": funnel_conversion,
     "time_to_fill": time_to_fill,
     "source_effectiveness": source_effectiveness,

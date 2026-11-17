@@ -19,6 +19,22 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_job_posting_company" model="ir.rule">
+        <field name="name">fix.job.posting: allowed companies</field>
+        <field name="model_id" ref="model_fix_job_posting"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_job_posting_operating_unit" model="ir.rule">
+        <field name="name">fix.job.posting: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_job_posting"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_job_profile_company" model="ir.rule">
+        <field name="name">fix.job.profile: allowed companies</field>
+        <field name="model_id" ref="model_fix_job_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_job_requisition_company" model="ir.rule">
         <field name="name">fix.job.requisition: allowed companies</field>
         <field name="model_id" ref="model_fix_job_requisition"/>
@@ -27,6 +43,17 @@
     <record id="rule_fix_job_requisition_operating_unit" model="ir.rule">
         <field name="name">fix.job.requisition: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_job_requisition"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_onboarding_induction_company" model="ir.rule">
+        <field name="name">fix.onboarding.induction: allowed companies</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_onboarding_induction_operating_unit" model="ir.rule">
+        <field name="name">fix.onboarding.induction: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -45,6 +72,33 @@
         <field name="name">fix.onboarding.template: allowed companies</field>
         <field name="model_id" ref="model_fix_onboarding_template"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_preboarding_document_company" model="ir.rule">
+        <field name="name">fix.preboarding.document: allowed companies</field>
+        <field name="model_id" ref="model_fix_preboarding_document"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_preboarding_document_operating_unit" model="ir.rule">
+        <field name="name">fix.preboarding.document: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_preboarding_document"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_recruitment_channel_company" model="ir.rule">
+        <field name="name">fix.recruitment.channel: allowed companies</field>
+        <field name="model_id" ref="model_fix_recruitment_channel"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_recruitment_cost_company" model="ir.rule">
+        <field name="name">fix.recruitment.cost: allowed companies</field>
+        <field name="model_id" ref="model_fix_recruitment_cost"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_recruitment_cost_operating_unit" model="ir.rule">
+        <field name="name">fix.recruitment.cost: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_recruitment_cost"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_talent_assessment_company" model="ir.rule">
         <field name="name">fix.talent.assessment: allowed companies</field>
@@ -70,5 +124,16 @@
         <field name="name">fix.talent.offer: allowed companies</field>
         <field name="model_id" ref="model_fix_talent_offer"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_referral_company" model="ir.rule">
+        <field name="name">fix.talent.referral: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_referral"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_referral_operating_unit" model="ir.rule">
+        <field name="name">fix.talent.referral: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_talent_referral"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
 </odoo>

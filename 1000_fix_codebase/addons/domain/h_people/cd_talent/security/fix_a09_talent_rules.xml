@@ -100,4 +100,34 @@
         <field name="model_id" ref="model_fix_headcount_budget"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- M58 capture audit (2026-11-17): induction sessions are read by their
+         conductor, the new hire, the hiring manager and the talent roles, and
+         recorded only by their conductor (or Recruitment). -->
+    <record id="rule_onboarding_induction_read" model="ir.rule">
+        <field name="name">fix.onboarding.induction: conductor, new hire, hiring manager or a talent role (read)</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
+        <field name="domain_force">['|', '|', '|', ('conductor_id', '=', user.id), ('plan_id.employee_id.user_id', '=', user.id), ('plan_id.requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_onboarding_induction_write" model="ir.rule">
+        <field name="name">fix.onboarding.induction: conductor or a talent role (write)</field>
+        <field name="model_id" ref="model_fix_onboarding_induction"/>
+        <field name="domain_force">['|', ('conductor_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <!-- a hiring manager reads the postings of their own requisitions only -->
+    <record id="rule_job_posting_scope" model="ir.rule">
+        <field name="name">fix.job.posting: own requisitions' postings unless a talent role</field>
+        <field name="model_id" ref="model_fix_job_posting"/>
+        <field name="domain_force">['|', ('requisition_id.hiring_manager_id', '=', user.id), (1 if user.fix_talent_reads_all() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
 </odoo>

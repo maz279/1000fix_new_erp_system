@@ -36,6 +36,7 @@ from odoo.addons.cd_talent.tests.test_a09_talent_controls import (
     _requisition,
     _rpc_write,
     _user,
+    _verify_documents,
     make_x,
 )
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -426,6 +427,7 @@ def test_onboarding_completes_once_letter_and_mandatory_tasks_are_done(x):
             "employee_code": "E-A09-R2-%d" % next(_SEQ),
         }
     )
+    _verify_documents(x, plan)
     plan.with_user(x.recruiter).action_complete()
     assert plan.state == "completed"
     # the M21 dossier now sees the verified, acknowledged letter
