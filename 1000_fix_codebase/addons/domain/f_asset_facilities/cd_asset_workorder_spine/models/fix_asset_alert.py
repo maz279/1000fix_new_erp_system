@@ -18,6 +18,7 @@ FLEET = "fleet.fleet_group_user"
 LOGISTICS = "cd_vehicle_ext.group_logistics_manager"
 FACILITY = "cd_facility.group_facility_manager"
 BRANCH_LEAD = "cd_facility.group_branch_operations_lead"
+OPS_DIRECTOR = "cd_facility.group_operations_director"
 QUALITY = "cd_equipment_register.group_quality_manager"
 CUSTODIAN = "cd_equipment_register.group_equipment_custodian"
 WARRANTY = "cd_device_registry.group_warranty_officer"
@@ -49,6 +50,11 @@ ROUTES = {
     "site.utility_anomaly": ("M47", FACILITY, "A utility bill is held as an anomaly"),
     "lease.critical_date_due": ("M47", FACILITY, "A lease critical date is due"),
     "lease.renewal_decision_required": ("M47", FACILITY, "A lease renewal decision is needed"),
+    "site.power_test_overdue": (
+        "M47",
+        OPS_DIRECTOR,
+        "A generator or UPS test was missed (BRU-FAC-10)",
+    ),
     "iot.rule_alert_raised": ("M48", IOT_OPERATOR, "A sensor rule raised an alert"),
     "telemetry.stream_suspended": ("M48", IOT_ADMIN, "A telemetry stream was suspended"),
     "telemetry.consent_revoked": ("M48", CONSENT, "Telemetry consent was revoked"),

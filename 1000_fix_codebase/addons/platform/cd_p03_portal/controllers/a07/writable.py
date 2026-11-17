@@ -388,6 +388,8 @@ WRITABLE = {
             "actual_cost",
             "assigned_to",
             "assigned_type",
+            "completion_evidence_file",
+            "completion_evidence_filename",
             "completion_notes",
             "description",
             "equipment_id",
@@ -397,6 +399,8 @@ WRITABLE = {
             "invoice_ref",
             "name",
             "permit_precautions",
+            "request_photo",
+            "request_photo_filename",
             "scheduled_date",
             "site_id",
             "vendor_id",
@@ -604,7 +608,11 @@ WRITABLE = {
     "fix.site.asset": frozenset(
         {
             "asset_type",
+            "capacity",
+            "expected_life_months",
             "installed_on",
+            "make",
+            "model_name",
             "name",
             "notes",
             "serial_no",
@@ -658,19 +666,63 @@ WRITABLE = {
             "start_date",
         }
     ),
+    "fix.site.lease.event": frozenset(
+        {
+            "amount",
+            "description",
+            "due_on",
+            "event_type",
+            "lease_id",
+            "responsible_id",
+        }
+    ),
     "fix.site.lease.extract": frozenset(),
     "fix.site.lease.schedule": frozenset(),
     "fix.site.licence": frozenset(
         {
+            "authority",
             "evidence_file",
             "evidence_filename",
+            "fee",
             "issued_on",
             "licence_type",
             "name",
             "number",
+            "responsible_id",
             "site_id",
             "state",
             "valid_to",
+        }
+    ),
+    "fix.site.licence.renewal": frozenset(
+        {
+            "authority",
+            "challan_ref",
+            "documents_assembled",
+            "government_fee",
+            "initiated_on",
+            "inspection_on",
+            "inspection_required",
+            "licence_id",
+            "new_licence_id",
+            "other_cost",
+            "penalty",
+            "penalty_reason",
+            "receipt_file",
+            "receipt_filename",
+            "responsible_id",
+        }
+    ),
+    "fix.site.outage": frozenset(
+        {
+            "asset_id",
+            "branch_stopped",
+            "cause",
+            "service",
+            "site_id",
+            "started_at",
+            "work_order_id",
+            "workaround",
         }
     ),
     "fix.site.pm": frozenset(
@@ -683,6 +735,21 @@ WRITABLE = {
             "scheduled_on",
             "service_type",
             "site_id",
+        }
+    ),
+    "fix.site.power.test": frozenset(
+        {
+            "asset_id",
+            "battery_condition",
+            "duration_min",
+            "finding",
+            "fuel_level_pct",
+            "load_pct",
+            "notes",
+            "result",
+            "run_hours",
+            "test_type",
+            "tested_on",
         }
     ),
     "fix.site.project": frozenset(
@@ -713,8 +780,21 @@ WRITABLE = {
             "site_id",
         }
     ),
+    "fix.site.type.profile": frozenset(
+        {
+            "active",
+            "notes",
+            "req_environment",
+            "req_fire",
+            "req_generator",
+            "req_health",
+            "req_signage",
+            "site_type",
+        }
+    ),
     "fix.site.utility": frozenset(
         {
+            "account_id",
             "amount",
             "name",
             "notes",
@@ -722,6 +802,20 @@ WRITABLE = {
             "site_id",
             "unit",
             "usage",
+            "utility_type",
+        }
+    ),
+    "fix.site.utility.account": frozenset(
+        {
+            "account_no",
+            "active_from",
+            "billing_cycle",
+            "connection_capacity",
+            "meter_no",
+            "notes",
+            "provider_id",
+            "site_id",
+            "tariff",
             "utility_type",
         }
     ),

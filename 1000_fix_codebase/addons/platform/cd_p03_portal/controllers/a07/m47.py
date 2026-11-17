@@ -145,6 +145,60 @@ SURFACES = {
             "action_revise_budget",
         },
     },
+    # M47 capture audit (2026-11-17): the registers a page could not capture.
+    "fix.site.type.profile": {
+        "order": "site_type",
+        "limit": 50,
+        "actions": set(),
+    },
+    "fix.site.lease.event": {
+        "order": "state, due_on, id",
+        "limit": 300,
+        "rules": True,
+        "actions": {
+            "action_decide_exercise",
+            "action_decide_decline",
+            "action_mark_met",
+            "action_cancel",
+        },
+        "pickers": {
+            "lease_id": [("state", "=", "active")],
+            "responsible_id": [("share", "=", False)],
+        },
+    },
+    "fix.site.licence.renewal": {
+        "order": "initiated_on desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": {"action_submit", "action_complete", "action_cancel"},
+        "pickers": {
+            "licence_id": [("state", "!=", "suspended")],
+            "new_licence_id": [("state", "=", "valid")],
+            "responsible_id": [("share", "=", False)],
+        },
+    },
+    "fix.site.utility.account": {
+        "order": "site_id, utility_type, name",
+        "limit": 400,
+        "rules": True,
+        "actions": {"action_close"},
+    },
+    "fix.site.outage": {
+        "order": "started_at desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": {"action_end"},
+        "pickers": {"asset_id": [("state", "!=", "retired")]},
+    },
+    "fix.site.power.test": {
+        "order": "tested_on desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": set(),
+        "pickers": {
+            "asset_id": [("asset_type", "in", ("generator", "ups")), ("state", "!=", "retired")]
+        },
+    },
     # A07 P1 work-order spine (cd_asset_workorder_spine): the queue of maintenance
     # demands that wait for a missing fact before they route.
     "fix.maintenance.demand": {
@@ -251,11 +305,16 @@ def _today(env):
 
 
 # BRU-FAC-01: every operational site holds a current trade licence, and a fire
-# licence "where required by site type". No site-type requirement is recorded
-# anywhere, so fire (and every other type) is a gap only where a licence of
-# that type exists at the site and none of them is current. The rule is not
-# guessed per site type.
+# licence "where required by site type". The site-type profile (M47 capture
+# audit 2026-11-17) records what each type requires; a type with no profile
+# requires the trade licence only, and any other type is a gap only where a
+# licence of that type exists at the site and none of them is current.
 _REQUIRED_LICENCE_TYPES = ("trade",)
+
+
+def _required_licence_types(env, site):
+    types = env["fix.site.type.profile"].sudo()._m47_required_types(site.site_type)
+    return tuple(types) if types is not None else _REQUIRED_LICENCE_TYPES
 
 
 def _licence_basis(licence, today):
@@ -281,7 +340,8 @@ def _licence_gaps(env, sites, licences, today):
     gaps = []
     for site in sites.filtered(lambda s: s.state == "active"):
         held = licences.filtered(lambda ln, sid=site.id: ln.site_id.id == sid)
-        for ltype in sorted(set(_REQUIRED_LICENCE_TYPES) | set(held.mapped("licence_type"))):
+        required = set(_required_licence_types(env, site))
+        for ltype in sorted(required | set(held.mapped("licence_type"))):
             rows = held.filtered(lambda ln, t=ltype: ln.licence_type == t)
             if any(rows.mapped("is_valid")):
                 continue
@@ -332,6 +392,21 @@ def critical_dates(env, date_from=None, date_to=None, **params):
                     "days_left": (lease.end_date - today).days,
                 }
             )
+    # the lease's other dated obligations (FR-FAC-009): open ones inside the
+    # horizon, and any open one already past its date
+    labels = dict(env["fix.site.lease.event"]._fields["event_type"]._description_selection(env))
+    for event in _read(env, "fix.site.lease.event", [("state", "=", "open")]):
+        if event.due_on <= horizon:
+            rows.append(
+                {
+                    "date": str(event.due_on),
+                    "kind": "Lease %s (%s)"
+                    % (labels.get(event.event_type, event.event_type).lower(), event.lease_id.name),
+                    "site": event.site_id.name,
+                    "reference": event.name,
+                    "days_left": (event.due_on - today).days,
+                }
+            )
     sites = _sites(env)
     licences = _read(env, "fix.site.licence")
     # current licences expiring inside 90 days ...
@@ -375,7 +450,8 @@ def critical_dates(env, date_from=None, date_to=None, **params):
     # undated gaps (missing or open-ended licences) first, then by date
     rows.sort(key=lambda r: (r["date"] != "—", r["date"]))
     return _pack(
-        "Critical-Date Control — leases (180d), licences (90d) and safety checks (30d)",
+        "Critical-Date Control — leases and their events (180d), licences (90d) and "
+        "safety checks (30d)",
         ["date", "kind", "site", "reference", "days_left"],
         {
             "date": "Date",
@@ -453,6 +529,7 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
     utilities = _read(env, "fix.site.utility")
     pms = _read(env, "fix.site.pm")
     orders = _read(env, "fix.facility.work.order")
+    renewals = _read(env, "fix.site.licence.renewal", [("state", "=", "completed")])
     rows = []
     leases = _read(env, "fix.site.lease", [("state", "=", "active")])
     for site in _sites(env):
@@ -467,6 +544,9 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
         )
         pm = sum(_pm_spend(p) for p in pms.filtered(lambda p, sid=site.id: p.site_id.id == sid))
         wo = sum(_wo_spend(o) for o in orders.filtered(lambda o, sid=site.id: o.site_id.id == sid))
+        compliance = sum(
+            renewals.filtered(lambda r, sid=site.id: r.site_id.id == sid).mapped("total_cost")
+        )
         rows.append(
             {
                 "site": site.name,
@@ -474,29 +554,33 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
                 "utilities": round(utility, 2),
                 "pm": round(pm, 2),
                 "work_orders": round(wo, 2),
-                "total": round(rent + utility + pm + wo, 2),
+                "compliance": round(compliance, 2),
+                "total": round(rent + utility + pm + wo + compliance, 2),
             }
         )
     rows.sort(key=lambda r: -r["total"])
     return _pack(
-        "Cost per Site / per Job — rent, utilities, PM and work orders",
-        ["site", "rent", "utilities", "pm", "work_orders", "total"],
+        "Cost per Site / per Job — rent, utilities, PM, work orders and licence renewals",
+        ["site", "rent", "utilities", "pm", "work_orders", "compliance", "total"],
         {
             "site": "Site",
             "rent": "Monthly Rent",
             "utilities": "Utilities",
             "pm": "Building PM",
             "work_orders": "Work Orders",
+            "compliance": "Licence Renewals",
             "total": "Total",
         },
         rows,
         [
+            "Licence renewals are the fees, agent and inspection costs and penalties of "
+            "completed renewals (FR-FAC-021).",
             "Monthly rent is this month's scheduled rent of the site's active leases "
             "(escalated on each anniversary); the site record's figure is used only where "
             "no lease is recorded. Utilities, PM and work orders are the recorded records "
             "(no period filter applied here). Building PM counts jobs done without a work "
             "order; a job done under a work order is counted once, at that order's actual "
-            "cost. Work orders count the actual cost of completed and verified work."
+            "cost. Work orders count the actual cost of completed and verified work.",
         ],
         totals={
             "site": "Total",
@@ -504,6 +588,7 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
             "utilities": round(sum(r["utilities"] for r in rows), 2),
             "pm": round(sum(r["pm"] for r in rows), 2),
             "work_orders": round(sum(r["work_orders"] for r in rows), 2),
+            "compliance": round(sum(r["compliance"] for r in rows), 2),
             "total": round(sum(r["total"] for r in rows), 2),
         },
         empty="No sites registered yet.",
@@ -610,8 +695,9 @@ def licence_compliance(env, date_from=None, date_to=None, **params):
             "Valid today = state Valid AND an end date is recorded AND it has not passed. "
             "A licence with no end date is not treated as valid (AC-21).",
             "%d licence gap(s) at operational sites: every operational site needs a current "
-            "trade licence; fire and other types are a gap where the site holds that type "
-            "and none is current (no site-type requirement is recorded)." % len(gaps),
+            "trade licence and every licence its site-type profile requires (Site Register, "
+            "Site Type Profiles); any other type is a gap where the site holds that type and "
+            "none is current." % len(gaps),
         ],
         empty="No licences recorded.",
     )
@@ -716,7 +802,91 @@ def work_order_performance(env, date_from=None, date_to=None, **params):
     )
 
 
+_AVAILABILITY_DAYS = 90
+
+
+def infrastructure_availability(env, date_from=None, date_to=None, **params):
+    """FR-FAC-027 / §14 Infrastructure availability: building-service outages
+    per site over the last 90 days, with the branch operating hours lost."""
+    now = fields.Datetime.now()
+    since = now - datetime.timedelta(days=_AVAILABILITY_DAYS)
+    outages = _read(
+        env,
+        "fix.site.outage",
+        ["|", ("state", "=", "open"), ("ended_at", ">=", since)],
+    )
+    tests = _read(env, "fix.site.power.test", [("tested_on", ">=", since.date())])
+    labels = dict(env["fix.site.outage"]._fields["service"]._description_selection(env))
+    rows = []
+    for site in _sites(env).filtered(lambda s: s.state != "closed"):
+        mine = outages.filtered(lambda o, sid=site.id: o.site_id.id == sid)
+        ongoing = mine.filtered(lambda o: o.state == "open")
+        down = sum(mine.mapped("duration_hours")) + sum(
+            (now - o.started_at).total_seconds() / 3600.0 for o in ongoing
+        )
+        lost = sum(mine.mapped("operating_hours_lost")) + sum(
+            (now - o.started_at).total_seconds() / 3600.0
+            for o in ongoing.filtered("branch_stopped")
+        )
+        causes = {}
+        for o in mine:
+            causes[o.service] = causes.get(o.service, 0) + 1
+        top = max(causes, key=causes.get) if causes else None
+        failed = tests.filtered(lambda t, sid=site.id: t.site_id.id == sid and t.result == "fail")
+        rows.append(
+            {
+                "site": site.name,
+                "outages": len(mine),
+                "ongoing": len(ongoing),
+                "hours_down": round(down, 2),
+                "hours_lost": round(lost, 2),
+                "top_service": labels.get(top, "—") if top else "—",
+                "power_tests_failed": len(failed),
+            }
+        )
+    rows.sort(key=lambda r: (-r["hours_lost"], -r["hours_down"]))
+    return _pack(
+        "Infrastructure Availability — building-service outages, last %d days" % _AVAILABILITY_DAYS,
+        [
+            "site",
+            "outages",
+            "ongoing",
+            "hours_down",
+            "hours_lost",
+            "top_service",
+            "power_tests_failed",
+        ],
+        {
+            "site": "Site",
+            "outages": "Outages",
+            "ongoing": "Ongoing Now",
+            "hours_down": "Hours Down",
+            "hours_lost": "Branch Operating Hours Lost",
+            "top_service": "Most Frequent",
+            "power_tests_failed": "Generator / UPS Tests Failed",
+        },
+        rows,
+        [
+            "An outage counts when it is ongoing or ended inside the window; an ongoing "
+            "one counts up to now. Operating hours lost are the hours of outages that "
+            "stopped the branch (the counter or workshop could not operate).",
+            "Availability is measured on whether the branch kept working, not on whether a "
+            "service visit happened (spec §4).",
+        ],
+        totals={
+            "site": "Total",
+            "outages": sum(r["outages"] for r in rows),
+            "ongoing": sum(r["ongoing"] for r in rows),
+            "hours_down": round(sum(r["hours_down"] for r in rows), 2),
+            "hours_lost": round(sum(r["hours_lost"] for r in rows), 2),
+            "power_tests_failed": sum(r["power_tests_failed"] for r in rows),
+        },
+        empty="No sites registered yet.",
+    )
+
+
 REPORTS = {
+    "infrastructure_availability": infrastructure_availability,
     "critical_dates": critical_dates,
     "branch_assets": branch_assets,
     "cost_per_site": cost_per_site,

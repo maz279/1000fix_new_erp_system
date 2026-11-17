@@ -97,7 +97,13 @@ WO_OPEN_STATES = ("draft", "scheduled", "in_progress")
 # Once the work is complete its cost and evidence are the record of what was
 # done and spent: they are frozen (a reopen unfreezes them).
 WO_COST_FROZEN_STATES = ("completed", "verified", "cancelled")
-WO_FROZEN_FIELDS = ("estimated_cost", "actual_cost", "completion_notes")
+WO_FROZEN_FIELDS = (
+    "estimated_cost",
+    "actual_cost",
+    "completion_notes",
+    "completion_evidence_file",
+    "completion_evidence_filename",
+)
 WO_PERMIT_STAMPS = ("permit_approved_by_id", "permit_approved_at", "permit_valid_to")
 WO_PERMIT_PINNED = ("high_risk", "hazard_type", "permit_precautions")
 # A work order is raised where the site operates or must be repaired back into
@@ -825,6 +831,17 @@ class FixFacilityWorkOrder(models.Model):
         help="What was done and the evidence reference (photos, report, vendor sheet). "
         "Required to complete; frozen once completed.",
     )
+    # M47 capture audit (2026-11-17), FR-FAC-031/034: a request carries its
+    # photograph, and completion its evidence file, beside the evidence text.
+    request_photo = fields.Binary(string="Photo of the Problem", attachment=True, copy=False)
+    request_photo_filename = fields.Char(string="Photo File Name", copy=False)
+    completion_evidence_file = fields.Binary(
+        string="Completion Evidence File",
+        attachment=True,
+        copy=False,
+        help="Photo, service report or vendor job sheet. Frozen once completed.",
+    )
+    completion_evidence_filename = fields.Char(string="Evidence File Name", copy=False)
     completed_by_id = fields.Many2one("res.users", string="Completed By", readonly=True, copy=False)
     completed_at = fields.Datetime(string="Completed At", readonly=True, copy=False)
     verified_by_id = fields.Many2one("res.users", string="Verified By", readonly=True, copy=False)

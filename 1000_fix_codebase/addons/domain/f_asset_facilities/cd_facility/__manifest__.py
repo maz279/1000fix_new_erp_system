@@ -5,7 +5,7 @@
     "description": """
 CD-M47-01 (P10) — Facility & Branch Infrastructure.
 """,
-    "version": "19.0.0.1.1",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",

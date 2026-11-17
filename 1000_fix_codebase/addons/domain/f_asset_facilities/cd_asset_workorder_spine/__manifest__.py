@@ -39,7 +39,7 @@ A07 P1 bridge (2026-11-04).
   branch) on every open M01 order of the device, and its clearance is
   recorded on the hold. No order state is changed.
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.3.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",

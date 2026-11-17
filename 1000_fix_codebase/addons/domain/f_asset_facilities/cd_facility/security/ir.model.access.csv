@@ -29,3 +29,13 @@ access_fix_site_risk_exception,fix.site.risk.exception,model_fix_site_risk_excep
 access_fix_site_risk_exception_bol,fix.site.risk.exception branch operations lead,model_fix_site_risk_exception,group_branch_operations_lead,1,1,0,0
 access_fix_site_lease_schedule,fix.site.lease.schedule,model_fix_site_lease_schedule,base.group_user,1,0,0,0
 access_fix_site_lease_extract,fix.site.lease.extract,model_fix_site_lease_extract,base.group_user,1,0,0,0
+access_fix_site_type_profile,fix.site.type.profile,model_fix_site_type_profile,base.group_user,1,0,0,0
+access_fix_site_type_profile_bol,fix.site.type.profile branch operations lead,model_fix_site_type_profile,group_branch_operations_lead,1,1,1,0
+access_fix_site_lease_event,fix.site.lease.event,model_fix_site_lease_event,base.group_user,1,0,0,0
+access_fix_site_lease_event_fm,fix.site.lease.event facility manager,model_fix_site_lease_event,group_facility_manager,1,1,1,0
+access_fix_site_licence_renewal,fix.site.licence.renewal,model_fix_site_licence_renewal,base.group_user,1,0,0,0
+access_fix_site_licence_renewal_fm,fix.site.licence.renewal facility manager,model_fix_site_licence_renewal,group_facility_manager,1,1,1,0
+access_fix_site_utility_account,fix.site.utility.account,model_fix_site_utility_account,base.group_user,1,0,0,0
+access_fix_site_utility_account_fm,fix.site.utility.account facility manager,model_fix_site_utility_account,group_facility_manager,1,1,1,0
+access_fix_site_outage,fix.site.outage,model_fix_site_outage,base.group_user,1,1,1,0
+access_fix_site_power_test,fix.site.power.test,model_fix_site_power_test,base.group_user,1,1,1,0

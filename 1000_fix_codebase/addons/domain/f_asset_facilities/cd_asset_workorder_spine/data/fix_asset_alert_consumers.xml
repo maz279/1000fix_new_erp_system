@@ -130,6 +130,16 @@
             <field name="module">cd_asset_workorder_spine</field>
         </record>
 
+        <!-- M47 capture audit (2026-11-17), BRU-FAC-10: a missed generator / UPS test
+             escalates to the Operations Director. -->
+        <record id="consumer_alert_site_power_test_overdue" model="fix.event.consumer">
+            <field name="name">Asset alert: site.power_test_overdue reaches the role that must act</field>
+            <field name="event_type">site.power_test_overdue</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
         <record id="consumer_alert_lease_renewal_decision_required" model="fix.event.consumer">
             <field name="name">Asset alert: lease.renewal_decision_required reaches the role that must act</field>
             <field name="event_type">lease.renewal_decision_required</field>
