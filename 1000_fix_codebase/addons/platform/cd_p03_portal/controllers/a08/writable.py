@@ -1081,6 +1081,20 @@ WRITABLE = {
         }
     ),
     "fix.legacy.ledger.line": frozenset(),
+    "fix.marketplace.tax.model": frozenset(
+        {
+            "adviser_reference_input",
+            "company_id",
+            "date_from",
+            "date_to",
+            "external_opinion_ref",
+            "model",
+            "opinion_file",
+            "opinion_filename",
+            "rate",
+            "source_note",
+        }
+    ),
     "fix.mushak.correction": frozenset(
         {
             "correction_type",
@@ -1321,6 +1335,30 @@ WRITABLE = {
             "vat_return_id",
         }
     ),
+    "fix.tax.notice": frozenset(
+        {
+            "assessed_amount",
+            "authority",
+            "closure_note",
+            "disputed_amount",
+            "notice_file",
+            "notice_filename",
+            "notice_ref",
+            "notice_type",
+            "outcome",
+            "owner_id",
+            "period_from",
+            "period_to",
+            "received_on",
+            "response_due",
+            "response_file",
+            "response_filename",
+            "response_on",
+            "response_ref",
+            "subject",
+            "tax_kind",
+        }
+    ),
     "fix.tax.parameter": frozenset(
         {
             "adviser_reference_input",
@@ -1393,6 +1431,21 @@ WRITABLE = {
     "fix.vat.return": frozenset(
         {
             "period",
+        }
+    ),
+    "fix.vat.return.amendment": frozenset(
+        {
+            "ack_file",
+            "ack_filename",
+            "amended_input_vat",
+            "amended_output_vat",
+            "challan_id",
+            "evidence_file",
+            "evidence_filename",
+            "notice_id",
+            "reason",
+            "reason_type",
+            "return_id",
         }
     ),
     "fix.vat.treatment": frozenset(

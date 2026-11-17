@@ -8,6 +8,17 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_marketplace_tax_model_company" model="ir.rule">
+        <field name="name">fix.marketplace.tax.model: allowed companies</field>
+        <field name="model_id" ref="model_fix_marketplace_tax_model"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_marketplace_tax_model_operating_unit" model="ir.rule">
+        <field name="name">fix.marketplace.tax.model: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_marketplace_tax_model"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_mushak_correction_company" model="ir.rule">
         <field name="name">fix.mushak.correction: allowed companies</field>
         <field name="model_id" ref="model_fix_mushak_correction"/>
@@ -64,6 +75,17 @@
         <field name="model_id" ref="model_fix_tax_audit_pack_seal"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_tax_notice_company" model="ir.rule">
+        <field name="name">fix.tax.notice: allowed companies</field>
+        <field name="model_id" ref="model_fix_tax_notice"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_notice_operating_unit" model="ir.rule">
+        <field name="name">fix.tax.notice: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tax_notice"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_tax_parameter_operating_unit" model="ir.rule">
         <field name="name">fix.tax.parameter: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_tax_parameter"/>
@@ -95,6 +117,17 @@
     <record id="rule_fix_vat_return_operating_unit" model="ir.rule">
         <field name="name">fix.vat.return: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_vat_return"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vat_return_amendment_company" model="ir.rule">
+        <field name="name">fix.vat.return.amendment: allowed companies</field>
+        <field name="model_id" ref="model_fix_vat_return_amendment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vat_return_amendment_operating_unit" model="ir.rule">
+        <field name="name">fix.vat.return.amendment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vat_return_amendment"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -88,6 +88,22 @@ SURFACES = {
     },
     "fix.statutory.due.rule": {"order": "obligation", "limit": 100, "actions": set(MASTER_ACTIONS)},
     "fix.statutory.filing": {"order": "filed_on desc", "limit": 200, "actions": set()},
+    # M51 sub-module capture audit (2026-11-17)
+    "fix.marketplace.tax.model": {
+        "order": "company_id, date_from desc, id desc",
+        "limit": 50,
+        "actions": set(MASTER_ACTIONS),
+    },
+    "fix.vat.return.amendment": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_submit", "action_approve", "action_reject", "action_mark_filed"},
+    },
+    "fix.tax.notice": {
+        "order": "response_due, id desc",
+        "limit": 200,
+        "actions": {"action_generate_pack", "action_record_response", "action_close"},
+    },
 }
 
 
@@ -97,6 +113,7 @@ SIGNOFF_MASTERS = (
     ("fix.tax.parameter", "Statutory Parameter"),
     ("fix.vat.treatment", "VAT Treatment"),
     ("fix.statutory.due.rule", "Calendar Rule"),
+    ("fix.marketplace.tax.model", "Marketplace VAT Model"),
 )
 
 
@@ -162,6 +179,12 @@ def kpis(env):
         out["vat_returns_count"] = env["fix.vat.return"].search_count(_companies(env))
     except Exception:
         out["mushak_records"] = out["vat_returns_count"] = None
+    try:
+        out["open_notices"] = env["fix.tax.notice"].search_count(
+            [("state", "!=", "closed"), *_companies(env)]
+        )
+    except Exception:
+        out["open_notices"] = None
     return out
 
 

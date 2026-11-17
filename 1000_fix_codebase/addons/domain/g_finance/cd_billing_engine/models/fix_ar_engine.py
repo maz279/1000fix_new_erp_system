@@ -124,7 +124,8 @@ DEFAULT_LINK_HOURS = 48.0
 _HOLD_TOKEN = object()
 
 NID_CASH_THRESHOLD_PARAM = "cd_billing_engine.nid_cash_threshold"
-NID_CASH_THRESHOLD_DEFAULT = 50000  # BDT — the rule is M51's (FR-ARB-026)
+# Legacy override, read only where no M51 row is in force: the threshold is
+# M51 master data (fix.tax.parameter nid_cash_threshold, seeded at BDT 50,000).
 # G9 (owner decision 12 Nov 2026): the receipt methods the high-value cash rule
 # covers. Cash on delivery is cash a courier collects at the door: the same
 # rule, the same threshold.
@@ -614,12 +615,33 @@ class FixArReceipt(models.Model):
                 )
         return super().create(vals_list)
 
-    def _nid_threshold(self) -> int:
-        raw = self.env["ir.config_parameter"].sudo().get_param(NID_CASH_THRESHOLD_PARAM)
-        try:
-            return int(raw) if raw else NID_CASH_THRESHOLD_DEFAULT
-        except ValueError:
-            return NID_CASH_THRESHOLD_DEFAULT
+    def _nid_threshold(self):
+        """FR-TAX-044 / BRU-TAX-18: the high-value cash threshold is M51
+        statutory master data (fix.tax.parameter "nid_cash_threshold"),
+        effective-dated and signed off by the adviser and the CFO; M20 only
+        applies it (M51 capture audit 2026-11-17). The legacy system parameter
+        is read only where no M51 row is in force; with neither, the receipt is
+        refused rather than defaulted (BRU-TAX-01/03)."""
+        Param = self.env["fix.tax.parameter"]
+        company = (self[:1].company_id if self else False) or self.env.company
+        day = (self[:1].receipt_date if self else False) or fields.Date.context_today(self)
+        row = Param._company_first(
+            [("key", "=", "nid_cash_threshold"), *Param._window_domain(day)], company
+        )
+        if row:
+            row._fix_signoff_check()
+            value = row.value
+        else:
+            raw = self.env["ir.config_parameter"].sudo().get_param(NID_CASH_THRESHOLD_PARAM)
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                raise UserError(
+                    "No high-value cash NID threshold is in force for %s on %s: maintain it "
+                    "under M51 Statutory Parameters (High-value cash receipt)."
+                    % (company.name, day)
+                ) from None
+        return int(value) if float(value).is_integer() else value
 
     def action_confirm(self):
         # a Billing clerk captures the draft; an Accountant confirms the posting

@@ -14,6 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from odoo.addons.cd_p03_portal.controllers import a08
 from odoo.addons.cd_p03_portal.controllers.a08 import m51
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.addons.cd_tax_engine_bd.tests.test_a08_m51_controls import (
@@ -128,7 +129,9 @@ def test_every_m51_list_column_and_action_is_real(c, js):  # noqa: F811
         assert not bad, "%s drops columns %s" % (name, bad)
         for action in conf.get("actions", []):
             assert hasattr(model, action["m"]), "%s: %s" % (name, action["m"])
-            assert action["m"] in m51.SURFACES[conf["model"]]["actions"], action["m"]
+            # served by the merged A08 registry: M51 also lists M20's VDS
+            # certificates received (capture audit 2026-11-17)
+            assert action["m"] in a08.SURFACES[conf["model"]]["actions"], action["m"]
         assert name in nav, "%s is on no menu" % name
 
 

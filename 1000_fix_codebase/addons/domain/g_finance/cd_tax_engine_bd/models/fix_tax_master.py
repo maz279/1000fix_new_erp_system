@@ -31,6 +31,9 @@ PARAMETER_KEYS = [
     ("mushak610_threshold", "Mushak 6.10 high-value invoice threshold (BDT)"),
     ("input_credit_window_periods", "Input VAT claim window (tax periods after the invoice)"),
     ("rtgs_min_amount", "BD-RTGS minimum transfer (BDT)"),
+    # FR-TAX-044 / BRU-TAX-18: the high-value cash NID rule is M51's; M20 and
+    # the counter read it (fix.ar.receipt._nid_threshold).
+    ("nid_cash_threshold", "High-value cash receipt: customer NID above (BDT)"),
 ]
 
 OBLIGATIONS = [

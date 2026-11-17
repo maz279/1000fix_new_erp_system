@@ -54,3 +54,15 @@ access_fix_tax_audit_pack_seal_account_manager,fix.tax.audit.pack.seal.account.m
 access_fix_mushak_correction_account_readonly,fix.mushak.correction.account.readonly,model_fix_mushak_correction,account.group_account_readonly,1,0,0,0
 access_fix_mushak_correction_account_user,fix.mushak.correction.account.user,model_fix_mushak_correction,account.group_account_user,1,1,1,0
 access_fix_mushak_correction_account_manager,fix.mushak.correction.account.manager,model_fix_mushak_correction,account.group_account_manager,1,1,1,0
+access_fix_marketplace_tax_model_account_readonly,fix.marketplace.tax.model.account.readonly,model_fix_marketplace_tax_model,account.group_account_readonly,1,0,0,0
+access_fix_marketplace_tax_model_account_user,fix.marketplace.tax.model.account.user,model_fix_marketplace_tax_model,account.group_account_user,1,0,0,0
+access_fix_marketplace_tax_model_account_manager,fix.marketplace.tax.model.account.manager,model_fix_marketplace_tax_model,account.group_account_manager,1,1,1,0
+access_fix_marketplace_tax_model_cfo,fix.marketplace.tax.model.cfo,model_fix_marketplace_tax_model,cd_tax_engine_bd.group_tax_filing_approver,1,1,0,0
+access_fix_vat_return_amendment_account_readonly,fix.vat.return.amendment.account.readonly,model_fix_vat_return_amendment,account.group_account_readonly,1,0,0,0
+access_fix_vat_return_amendment_account_user,fix.vat.return.amendment.account.user,model_fix_vat_return_amendment,account.group_account_user,1,1,1,0
+access_fix_vat_return_amendment_account_manager,fix.vat.return.amendment.account.manager,model_fix_vat_return_amendment,account.group_account_manager,1,1,1,0
+access_fix_vat_return_amendment_cfo,fix.vat.return.amendment.cfo,model_fix_vat_return_amendment,cd_tax_engine_bd.group_tax_filing_approver,1,1,0,0
+access_fix_tax_notice_account_readonly,fix.tax.notice.account.readonly,model_fix_tax_notice,account.group_account_readonly,1,0,0,0
+access_fix_tax_notice_account_user,fix.tax.notice.account.user,model_fix_tax_notice,account.group_account_user,1,1,1,0
+access_fix_tax_notice_account_manager,fix.tax.notice.account.manager,model_fix_tax_notice,account.group_account_manager,1,1,1,0
+access_fix_tax_notice_cfo,fix.tax.notice.cfo,model_fix_tax_notice,cd_tax_engine_bd.group_tax_filing_approver,1,1,0,0

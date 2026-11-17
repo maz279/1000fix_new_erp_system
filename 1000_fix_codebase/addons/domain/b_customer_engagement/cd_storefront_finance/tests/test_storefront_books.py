@@ -624,7 +624,20 @@ def test_cash_on_delivery_waits_for_the_cod_clearing_account(sf):
 # BDT 50,000, FR-ARB-026) covers cash a courier collects. The bridge carries
 # the NID recorded on the order, else the customer's verified NID; without
 # one the receipt is not booked and the order waits, saying why.
-NID_PARAM = "cd_billing_engine.nid_cash_threshold"
+
+
+def _nid_threshold(env, value):
+    """The high-value cash threshold is M51 master data (fix.tax.parameter
+    nid_cash_threshold, M51 capture audit 2026-11-17): a company row overrides
+    the statutory default for this test's company."""
+    env["fix.tax.parameter"].sudo().create(
+        {
+            "company_id": env.company.id,
+            "key": "nid_cash_threshold",
+            "value": value,
+            "date_from": "2020-01-01",
+        }
+    )
 
 
 def _courier(w):
@@ -636,7 +649,7 @@ def test_g9_high_value_courier_cod_waits_for_the_customer_nid(sf):
     w = sf
     env = w.env
     clearing = _cod_clearing(w)
-    w.params.set_param(NID_PARAM, "2000")  # the 2,500 order is high-value here
+    _nid_threshold(env, 2000)  # the 2,500 order is high-value here
     order, _rider = _courier_delivered(w, courier=_courier(w))
     inv = order.ar_invoice_id
     assert order.state == "delivered"  # the delivery itself is not blocked
@@ -677,7 +690,7 @@ def test_g9_the_customers_verified_nid_is_carried(sf, monkeypatch):
     w = sf
     env = w.env
     _cod_clearing(w)
-    w.params.set_param(NID_PARAM, "2000")
+    _nid_threshold(env, 2000)
     doc = env["fix.identity.document"].create(
         {"partner_id": w.customer.id, "document_type": "nid_10", "document_number": "1234567890"}
     )
