@@ -1,3 +1,5 @@
+# ruff: noqa: I001 - load order matters: fix_treasury_capture extends models
+# defined in fix_cash_position and gateway_settlement, so it imports last.
 from . import (
     bank_master,
     bank_reconciliation,
@@ -14,4 +16,5 @@ from . import (
     fix_payroll_treasury,
     gateway_settlement,
     imprest,
+    fix_treasury_capture,
 )

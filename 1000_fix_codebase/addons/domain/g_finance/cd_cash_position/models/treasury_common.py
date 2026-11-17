@@ -37,6 +37,10 @@ ACCOUNT_ROLES = {
     # G10 (owner decision 12 Nov 2026): what a third-party courier deducts
     # from the COD cash it remits (delivery fees, COD charge, other charges).
     "courier_charges": "Courier delivery / COD charges deducted from remittances",
+    # M50 capture audit (2026-11-17): what the approved bank matching rules
+    # book for bank-originated entries (FR-TRE-010).
+    "interest_income": "Interest received on bank balances",
+    "tax_on_interest": "Tax deducted at source on bank interest (AIT receivable)",
 }
 
 GROUP_ACCOUNTANT = "account.group_account_user"

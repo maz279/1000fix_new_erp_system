@@ -65,5 +65,27 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- M50 capture audit (2026-11-17) -->
+        <record id="seq_fix_settlement_exception" model="ir.sequence">
+            <field name="name">Settlement Exception Case</field>
+            <field name="code">fix.settlement.exception</field>
+            <field name="prefix">SXC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_cash_forecast_version" model="ir.sequence">
+            <field name="name">Cash Forecast Version</field>
+            <field name="code">fix.cash.forecast.version</field>
+            <field name="prefix">CFV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_fx_conversion" model="ir.sequence">
+            <field name="name">FX Conversion</field>
+            <field name="code">fix.fx.conversion</field>
+            <field name="prefix">FXC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

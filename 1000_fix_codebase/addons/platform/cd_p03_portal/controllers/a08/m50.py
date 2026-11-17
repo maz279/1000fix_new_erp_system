@@ -43,7 +43,12 @@ SURFACES = {
     "fix.bank.statement.line": {
         "order": "date desc, id desc",
         "limit": 200,
-        "actions": {"auto_match", "action_confirm_manual_match", "action_post_bank_charge"},
+        "actions": {
+            "auto_match",
+            "action_confirm_manual_match",
+            "action_post_bank_charge",
+            "action_apply_rules",
+        },
     },
     "fix.cash.position": {
         "order": "as_of desc, id desc",
@@ -111,7 +116,11 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_import_report", "action_match", "action_post"},
     },
-    "fix.gateway.settlement.line": {"order": "batch_id desc, id", "limit": 300, "actions": set()},
+    "fix.gateway.settlement.line": {
+        "order": "batch_id desc, id",
+        "limit": 300,
+        "actions": {"action_open_case"},
+    },
     "fix.bank.facility": {
         "order": "name",
         "limit": 100,
@@ -134,6 +143,63 @@ SURFACES = {
         "actions": {"action_approve", "action_test"},
     },
     "fix.cash.forecast.item": {"order": "direction, name", "limit": 200, "actions": set()},
+    # M50 capture audit (2026-11-17): the five records the pages could not
+    # capture. Every decision is an action with its own maker-checker.
+    "fix.bank.mandate": {
+        "order": "journal_id, state, valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_approve", "action_reject", "action_revoke"},
+        "pickers": {
+            "journal_id": [("type", "=", "bank")],
+            "supersedes_id": [("state", "=", "active")],
+        },
+    },
+    "fix.bank.matching.rule": {
+        "order": "sequence, id",
+        "limit": 200,
+        "actions": {
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_retire",
+            "action_new_version",
+            "action_test",
+        },
+        "pickers": {"journal_id": [("type", "=", "bank")]},
+    },
+    "fix.settlement.exception": {
+        "order": "state, opened_on, id",
+        "limit": 200,
+        "actions": {
+            "action_raise_with_provider",
+            "action_propose",
+            "action_approve",
+            "action_return",
+        },
+        "pickers": {
+            "line_id": [("match_state", "!=", "matched")],
+            "owner_id": [("share", "=", False)],
+        },
+    },
+    "fix.cash.forecast.version": {
+        "order": "generated_at desc, id desc",
+        "limit": 100,
+        "actions": {"action_measure"},
+    },
+    "fix.cash.forecast.version.line": {
+        "order": "version_id desc, horizon",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.fx.conversion": {
+        "order": "deal_date desc, id desc",
+        "limit": 100,
+        "actions": {"action_submit", "action_approve", "action_cancel"},
+        "pickers": {
+            "from_journal_id": [("type", "=", "bank")],
+            "to_journal_id": [("type", "=", "bank")],
+        },
+    },
 }
 
 

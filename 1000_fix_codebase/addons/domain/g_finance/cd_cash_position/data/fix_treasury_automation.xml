@@ -56,5 +56,26 @@
             <field name="active" eval="True"/>
         </record>
 
+        <!-- M50 capture audit (2026-11-17) -->
+        <record id="ir_cron_settlement_exception_overdue" model="ir.cron">
+            <field name="name">M50: settlement exceptions over 7 days (BRU-TRE-10)</field>
+            <field name="model_id" ref="model_fix_settlement_exception"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="ir_cron_forecast_accuracy" model="ir.cron">
+            <field name="name">M50: measure saved cash forecast versions against actuals</field>
+            <field name="model_id" ref="model_fix_cash_forecast_version"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_measure()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
     </data>
 </odoo>

@@ -19,6 +19,16 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_bank_mandate_company" model="ir.rule">
+        <field name="name">fix.bank.mandate: allowed companies</field>
+        <field name="model_id" ref="model_fix_bank_mandate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bank_matching_rule_company" model="ir.rule">
+        <field name="name">fix.bank.matching.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_bank_matching_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_bank_reconciliation_company" model="ir.rule">
         <field name="name">fix.bank.reconciliation: allowed companies</field>
         <field name="model_id" ref="model_fix_bank_reconciliation"/>
@@ -84,6 +94,16 @@
         <field name="model_id" ref="model_fix_cash_forecast_item"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_forecast_version_company" model="ir.rule">
+        <field name="name">fix.cash.forecast.version: allowed companies</field>
+        <field name="model_id" ref="model_fix_cash_forecast_version"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_forecast_version_line_company" model="ir.rule">
+        <field name="name">fix.cash.forecast.version.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_cash_forecast_version_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_cheque_company" model="ir.rule">
         <field name="name">fix.cheque: allowed companies</field>
@@ -173,6 +193,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_fx_conversion_company" model="ir.rule">
+        <field name="name">fix.fx.conversion: allowed companies</field>
+        <field name="model_id" ref="model_fix_fx_conversion"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_fx_conversion_operating_unit" model="ir.rule">
+        <field name="name">fix.fx.conversion: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_fx_conversion"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_gateway_settlement_company" model="ir.rule">
         <field name="name">fix.gateway.settlement: allowed companies</field>
         <field name="model_id" ref="model_fix_gateway_settlement"/>
@@ -247,6 +278,17 @@
     <record id="rule_fix_payment_execution_operating_unit" model="ir.rule">
         <field name="name">fix.payment.execution: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_payment_execution"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_settlement_exception_company" model="ir.rule">
+        <field name="name">fix.settlement.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_settlement_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_settlement_exception_operating_unit" model="ir.rule">
+        <field name="name">fix.settlement.exception: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_settlement_exception"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

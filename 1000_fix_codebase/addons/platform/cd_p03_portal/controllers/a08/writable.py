@@ -21,7 +21,6 @@ WRITABLE = {
             "currency_id",
             "fix_branch_name",
             "fix_routing_number",
-            "fix_signatories",
             "fix_treasury_role",
             "name",
             "type",
@@ -250,6 +249,33 @@ WRITABLE = {
             "tenor_months",
         }
     ),
+    "fix.bank.mandate": frozenset(
+        {
+            "authority_ref",
+            "joint_with_ids",
+            "journal_id",
+            "limit_amount",
+            "signatory_id",
+            "signing_class",
+            "supersedes_id",
+            "unlimited",
+            "valid_from",
+            "valid_to",
+        }
+    ),
+    "fix.bank.matching.rule": frozenset(
+        {
+            "amount_max",
+            "amount_min",
+            "classification",
+            "direction",
+            "effective_from",
+            "journal_id",
+            "keywords",
+            "name",
+            "sequence",
+        }
+    ),
     "fix.bank.reconciliation": frozenset(
         {
             "difference_note",
@@ -403,6 +429,13 @@ WRITABLE = {
             "start_date",
         }
     ),
+    "fix.cash.forecast.version": frozenset(
+        {
+            "assumptions",
+            "scenario",
+        }
+    ),
+    "fix.cash.forecast.version.line": frozenset(),
     "fix.cash.position": frozenset(),
     "fix.chart.account": frozenset(
         {
@@ -708,6 +741,17 @@ WRITABLE = {
             "seam_id",
         }
     ),
+    "fix.fx.conversion": frozenset(
+        {
+            "amount_from",
+            "amount_to",
+            "bank_deal_ref",
+            "deal_date",
+            "from_journal_id",
+            "operating_unit_id",
+            "to_journal_id",
+        }
+    ),
     "fix.fx.revaluation": frozenset(
         {
             "gain_account_id",
@@ -1011,6 +1055,13 @@ WRITABLE = {
             "dispute_id",
             "reason",
             "seller_partner_id",
+        }
+    ),
+    "fix.settlement.exception": frozenset(
+        {
+            "line_id",
+            "owner_id",
+            "provider_case_ref",
         }
     ),
     "fix.statutory.due.rule": frozenset(
