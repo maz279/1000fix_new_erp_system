@@ -102,7 +102,26 @@ Security and data:
 
 ## 5. State
 
-- Built and tested in worktree `m57cap-wt` on branch `fix/m57-capture-buttons`; fix commit a0040dae, rebased onto the working branch tip a520b717. Pre-commit hooks green (ruff, ruff-format, pylint-odoo, secrets, vendor-clean).
-- **Not yet on the working branch `fix/a03-live-data-and-pending-work`, not pushed, not deployed.** Landing and the fix_real deploy wait for the user's go-ahead.
-- Deploy, when approved: back up fix_real, `-u cd_performance,cd_p03_portal`, one 8069 restart (coordinate with the parallel module sessions: M55/M56/M58 deploy on the same server). fix_dev/8090 the same.
-- Private clone `fix_test_m57` (with its filestore copy) kept for the post-landing re-test; drop it afterwards.
+**Deployed on fix_real (8069) and fix_dev (8090), 18 Nov 2026 ~20:28 UTC, on the user's "land and deploy".** Not pushed.
+
+- **Landed** on `fix/a03-live-data-and-pending-work`: fix 3c4baf80, report 2019e83e, by compare-and-swap with the shared checkout synced.
+  - Before landing it was rebased twice: over M58 biodata/M01 (c67680a0), then over M21 (c7f2d59b).
+  - `controllers/a09/writable.py` was regenerated with `form_fields.py --a09` after each rebase, and came out byte-identical.
+  - Guards on the rebased tree: M57 37/37, M21 32/32, M58 51/51, M01 27/27, estate pages 605/605.
+- **Backups:** `1000 fix/backups/fix_real_pre_m57_capture_2026-11-18.dump` (header checked: dbname fix_real) and `fix_dev_pre_m57_capture_2026-11-18.dump`.
+- **Upgrades**, both exit 0 with no ERROR/CRITICAL:
+  - fix_real: `-u cd_performance,cd_p03_portal`, run after the M21 session's fix_real `-u cd_hr_core,cd_p03_portal` had exited.
+  - fix_dev: `-u cd_performance,cd_p03_portal,cd_hr_core,cd_talent`, which also brought the M21 and M58 modules level on fix_dev.
+  - The version gap against the shared checkout was 0 on both databases just before the restart.
+- **One restart of each server**, coordinated with the M21 and M58 sessions:
+  - 8069: PID 82916 -> 49668. 8090: PID 3304 -> 26328.
+  - Both answer `/web/login` 200, with no ERROR/CRITICAL since the restart.
+  - The M21 session verified its screens on the same restart.
+- **Post-deploy check on both databases**, run with `odoo-bin shell`:
+  - all six new models are in the registry and in `p03_generic_api.SURFACES`;
+  - `_cron_chase_overdue()` runs (rolled back);
+  - workspace bundle `e846a36` carries all six M57 forms and the KPI definitions screen;
+  - 8069 serves that bundle with a 200.
+- **Chase cron first-run failure (not a defect):** the upgrade created the cron, and the *old* server process fired it at once with `KeyError: 'fix.performance.review.cycle'`. That process's registry did not know the model yet. It happened once on each database before the restart. The next run, due 19 Nov, runs on the restarted process.
+- **Known cosmetic warning:** two fields on `fix.performance.review.cycle` (`review_count`, `review_ids`) share the label "Reviews". It is harmless and left for a later pass.
+- **Commercial-document change landed after the restart:** the change (29e907b8) landed at 20:30 UTC, after this restart. The servers therefore run 2019e83e, which matches both databases. The commercial-document session owns its own upgrade and restart.
