@@ -117,8 +117,8 @@ Two defects were found only by the live run and fixed before the evidence above:
   1. Backups `fix_real_pre_m53_capture_2026-11-17.dump` (48 MB, 50,616 entries read back) and `fix_dev_pre_m53_capture_2026-11-17.dump` (40 MB, 50,429 entries) in `_migration/backups`.
   2. `-u cd_subscription,cd_settlement_ext,cd_p03_portal` from the shared checkout at bf2e7108: fix_real 12:57 UTC, fix_dev 12:58 UTC. Both exited 0 with no errors. cd_subscription is now 19.0.1.3.0 and cd_settlement_ext 19.0.0.4.0 on both databases.
   3. The five new tables and the obligation's SSP columns exist on fix_real (empty).
-  4. **The 8069 / 8090 restart is held by the M49 session** until its own user approves its deploy. Until then, the running processes serve the old controllers. M53's new lists answer "not served" until the restart, and nothing else changes.
-- Version-gap check after the upgrade:
-  - The only remaining gap on both databases is `cd_fixed_asset_ext`: the database is at 19.0.1.2.0, while the shared checkout is at 19.0.1.1.0.
-  - That gap comes from the M49 session's unmerged `fix/m49-gaps` (it upgraded fix_real at 12:52 UTC). It is that session's to land before it restarts.
-- Clean-up done: the mutation clone `fix_test_m53mut` (and its filestore), the private server and its launch.json entry. The test clone `fix_test_m53` is kept until the live check after the restart.
+  4. **8069 restarted at 13:42 UTC** by the M49 session (one combined restart for M49, M52, M53 and M54, after its `-u cd_p03_portal` from the shared checkout at 4e851753): PID 52108 became 78988 (supervisor 23964), `/web/login` 200, 155 modules loaded, 0 errors in the log since. Before it, fix_real had 0 of 83 `cd_` modules behind the code.
+  5. **Live on fix_real**: the running bundle (`web.assets_web.min.js`, attachment 10304) carries the four new M53 forms and the Payout Holds list; the served code is the shared checkout, whose M53 controller serves the four new records.
+  6. **8090 (fix_dev) is not restarted yet.** fix_dev has M53 upgraded, but M52's `cd_ap_ext` is still 19.0.1.0.0 there against 19.0.1.1.0 code, so restarting 8090 before `-u cd_ap_ext` on fix_dev would break M52's AP screens on it. That upgrade belongs to the M52 session and its user; 8090 keeps serving the old code until then.
+- The `cd_fixed_asset_ext` gap seen after the upgrade (database 19.0.1.2.0, checkout 19.0.1.1.0) closed when the M49 session landed f9c56604 on the branch before the restart.
+- Clean-up done: both private clones (`fix_test_m53`, `fix_test_m53mut`) and their filestores, the private server and its launch.json entry, and the build worktree. Branch `fix/m53-capture-buttons` is kept.
