@@ -65,5 +65,27 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- M48 capture audit (2026-11-17): the new registers. -->
+        <record id="seq_fix_iot_monitoring_scope" model="ir.sequence">
+            <field name="name">IoT Monitoring Scope</field>
+            <field name="code">fix.iot.monitoring.scope</field>
+            <field name="prefix">IMSC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_file_batch" model="ir.sequence">
+            <field name="name">IoT File Batch</field>
+            <field name="code">fix.iot.file.batch</field>
+            <field name="prefix">IFBT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_maintenance_window" model="ir.sequence">
+            <field name="name">IoT Maintenance Window</field>
+            <field name="code">fix.iot.maintenance.window</field>
+            <field name="prefix">IMWN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

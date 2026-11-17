@@ -53,4 +53,36 @@
         <field name="model_id" ref="model_fix_iot_telemetry_rollup"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- M48 capture audit (2026-11-17): the new registers carry a company
+         (their own, or their parent's) and are fenced like the rest. -->
+    <record id="rule_fix_iot_signal_company" model="ir.rule">
+        <field name="name">fix.iot.signal: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_signal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_monitoring_scope_company" model="ir.rule">
+        <field name="name">fix.iot.monitoring.scope: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_monitoring_scope"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_health_company" model="ir.rule">
+        <field name="name">fix.iot.health: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_health"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_file_batch_company" model="ir.rule">
+        <field name="name">fix.iot.file.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_file_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_maintenance_window_company" model="ir.rule">
+        <field name="name">fix.iot.maintenance.window: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_maintenance_window"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_action_part_company" model="ir.rule">
+        <field name="name">fix.iot.action.part: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_action_part"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

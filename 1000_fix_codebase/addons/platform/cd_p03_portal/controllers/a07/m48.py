@@ -10,7 +10,14 @@ SURFACES = {
     "fix.iot.stream": {
         "order": "device_id, metric",
         "limit": 300,
-        "actions": {"action_activate", "action_suspend", "action_set_consent_policy"},
+        "actions": {
+            "action_activate",
+            "action_suspend",
+            "action_set_consent_policy",
+            # M48 capture audit (2026-11-17) FR-IOT-008.
+            "action_decommission",
+        },
+        "pickers": {"signal_id": [("active", "=", True)]},
     },
     "fix.iot.adapter": {
         "order": "name",
@@ -61,7 +68,41 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_revoke", "action_verify", "action_record_treatment"},
     },
-    "fix.iot.device": {"order": "id desc", "limit": 400, "actions": set()},
+    # M48 capture audit (2026-11-17): a device is decommissioned, never deleted
+    # (FR-IOT-008), and reports through a registered gateway (FR-IOT-002).
+    "fix.iot.device": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_decommission"},
+        "pickers": {
+            "gateway_id": [("device_type", "=", "gateway"), ("decommissioned", "=", False)]
+        },
+    },
+    # FR-IOT-004 signal definitions; FR-IOT-007 criticality assessments and the
+    # health index they drive (FR-IOT-037/038, AUT-IOT-11).
+    "fix.iot.signal": {"order": "code", "limit": 300, "actions": set()},
+    "fix.iot.monitoring.scope": {
+        "order": "review_due, id desc",
+        "limit": 300,
+        "actions": {"action_score_now"},
+    },
+    "fix.iot.health": {"order": "computed_at desc, id desc", "limit": 400, "actions": set()},
+    # FR-IOT-012: a file export goes through the live ingest gates.
+    "fix.iot.file.batch": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_process"},
+        "pickers": {"adapter_id": [("state", "=", "enabled")]},
+    },
+    # FR-IOT-032 / BRU-IOT-16: bounded suppression with an approver.
+    "fix.iot.maintenance.window": {
+        "order": "date_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_request", "action_approve", "action_cancel"},
+        "pickers": {"device_id": [("decommissioned", "=", False)]},
+    },
+    # FR-IOT-042: the parts grid of a prescriptive action.
+    "fix.iot.action.part": {"order": "id", "limit": 400, "actions": set()},
     # A07 P1 (2026-11-04) M48-11 / probe 57: the Downsampling Policy form had
     # no surface, so it could not save. Activation is requested here and
     # decided by the CTO through a retention change.

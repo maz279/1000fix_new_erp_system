@@ -53,5 +53,16 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- M48 capture audit (2026-11-17) AUT-IOT-11: nightly asset health index
+             for every device on the asset of an active monitoring scope. -->
+        <record id="ir_cron_iot_health" model="ir.cron">
+            <field name="name">M48: score asset health for monitored assets</field>
+            <field name="model_id" ref="model_fix_iot_monitoring_scope"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_health()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

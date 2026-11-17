@@ -409,12 +409,16 @@ WRITABLE = {
             "name",
             "notes",
             "outcome_evidence_ref",
+            "part_ids",
             "prediction_id",
             "priority",
+            "recommended_action",
             "scheduled_on",
+            "skill_code",
             "technician_id",
         }
     ),
+    "fix.iot.action.part": frozenset(),
     "fix.iot.adapter": frozenset(
         {
             "auth_mode",
@@ -447,12 +451,17 @@ WRITABLE = {
     "fix.iot.device": frozenset(
         {
             "company_id",
+            "connectivity",
             "device_id",
             "device_type",
             "equipment_id",
+            "firmware",
+            "gateway_id",
+            "installed_on",
             "name",
             "operating_unit_id",
             "partner_id",
+            "serial_no",
             "site_id",
         }
     ),
@@ -466,7 +475,37 @@ WRITABLE = {
             "target_interval_sec",
         }
     ),
+    "fix.iot.file.batch": frozenset(
+        {
+            "adapter_id",
+            "batch_file",
+            "batch_filename",
+            "source_ref",
+        }
+    ),
     "fix.iot.gap": frozenset(),
+    "fix.iot.health": frozenset(),
+    "fix.iot.maintenance.window": frozenset(
+        {
+            "date_from",
+            "date_to",
+            "device_id",
+            "reason",
+            "site_id",
+        }
+    ),
+    "fix.iot.monitoring.scope": frozenset(
+        {
+            "assessed_on",
+            "criticality",
+            "equipment_id",
+            "failure_consequence",
+            "review_due",
+            "selection_rationale",
+            "signal_ids",
+            "site_id",
+        }
+    ),
     "fix.iot.retention.change": frozenset(
         {
             "change_type",
@@ -490,6 +529,21 @@ WRITABLE = {
             "threshold",
         }
     ),
+    "fix.iot.signal": frozenset(
+        {
+            "active",
+            "canonical_unit",
+            "code",
+            "criticality_class",
+            "data_type",
+            "expected_max",
+            "expected_min",
+            "has_range",
+            "name",
+            "retention_class",
+            "sampling_interval_sec",
+        }
+    ),
     "fix.iot.stream": frozenset(
         {
             "adapter_id",
@@ -499,6 +553,8 @@ WRITABLE = {
             "name",
             "retention_days",
             "sample_interval_sec",
+            "signal_id",
+            "source_address",
             "unit",
         }
     ),

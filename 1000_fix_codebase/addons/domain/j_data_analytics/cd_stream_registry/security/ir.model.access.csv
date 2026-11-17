@@ -25,3 +25,13 @@ access_fix_iot_consent,fix.iot.consent,model_fix_iot_consent,base.group_user,1,1
 access_fix_iot_retention_change,fix.iot.retention.change,model_fix_iot_retention_change,base.group_user,1,1,1,0
 access_fix_iot_gap,fix.iot.gap,model_fix_iot_gap,base.group_user,1,0,0,0
 access_fix_iot_telemetry_rollup,fix.iot.telemetry.rollup,model_fix_iot_telemetry_rollup,base.group_user,1,0,0,0
+access_fix_iot_signal,fix.iot.signal,model_fix_iot_signal,base.group_user,1,0,0,0
+access_fix_iot_signal_admin,fix.iot.signal admin,model_fix_iot_signal,group_iot_admin,1,1,1,0
+access_fix_iot_monitoring_scope,fix.iot.monitoring.scope,model_fix_iot_monitoring_scope,base.group_user,1,0,0,0
+access_fix_iot_monitoring_scope_admin,fix.iot.monitoring.scope admin,model_fix_iot_monitoring_scope,group_iot_admin,1,1,1,0
+access_fix_iot_health,fix.iot.health,model_fix_iot_health,base.group_user,1,0,0,0
+access_fix_iot_file_batch,fix.iot.file.batch,model_fix_iot_file_batch,base.group_user,1,0,0,0
+access_fix_iot_file_batch_admin,fix.iot.file.batch admin,model_fix_iot_file_batch,group_iot_admin,1,1,1,1
+access_fix_iot_maintenance_window,fix.iot.maintenance.window,model_fix_iot_maintenance_window,base.group_user,1,0,0,0
+access_fix_iot_maintenance_window_operator,fix.iot.maintenance.window operator,model_fix_iot_maintenance_window,group_iot_operator,1,1,1,0
+access_fix_iot_action_part,fix.iot.action.part,model_fix_iot_action_part,base.group_user,1,1,1,1

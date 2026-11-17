@@ -59,7 +59,9 @@ SURFACES = {
     "fix.predictive.maintenance": {
         "order": "write_date desc, id desc",
         "limit": 100,
-        "actions": {"action_create_preventive_wo"},
+        # M48 capture audit (2026-11-17) FR-IOT-044: the outcome of a prediction
+        # no intervention acted on.
+        "actions": {"action_create_preventive_wo", "action_record_outcome"},
         # E6/X03: the prediction list is read AS THE CALLER — OU record rules
         # apply, so operating unit B's predictions never leak onto unit A's
         # screen through this endpoint (the sudo read kept only the company
