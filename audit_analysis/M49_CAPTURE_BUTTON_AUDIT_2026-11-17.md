@@ -180,3 +180,23 @@ Two of the §4 items were capture gaps that needed no owner decision. Both are b
 | Regression on the same clone, no server attached (scope as §3) | **2,960 tests: 1 failure, 34 skipped.** The failure is `test_a08_m50_registry::test_report_and_form_chips_route_to_real_targets`, "form chip 'Cheque' unmapped". It is in M50's own registry at the base commit 94bf9e99 (`FORM_MODELS` has no `M50:Cheque`), and this change touches no M50 file. Hand-off to M50. |
 | UI walk on a private clone (port 8079, `?debug=assets`) | Page 3 shows the Asset Component chip and list, and page 8 the Insurance Policy chip and list. A policy was saved from the page 8 chip's tabbed form: INS/2026/0001, Draft, confirmed in the database. The Asset Component form opens with its picker. No console errors. Clone dropped afterwards. |
 | `generate-isolation-rules.py`, `form_fields.py --a08`, pinned ruff 0.8.4 | Only the M49 entries changed (the generator's drift in four other modules was reverted). Format and lint are clean. |
+
+### Deployed (17 Nov 2026, user: "Yes, deploy both")
+
+Other sessions landed M54, M53 and M52 on the shared branch while this deploy was running, and none of them was upgraded on fix_dev (nor M53/M54 on fix_real). A restart would have loaded their code without its upgrade. The user chose to include them, and the M52, M53 and M54 sessions held their own restarts until this one was done (coordinated by message).
+
+- **Backups** (all in `_migration/backups`):
+  - `fix_real_pre_m49_gaps_2026-11-17.dump`;
+  - `fix_dev_pre_m49_gaps_2026-11-17.dump`;
+  - `fix_dev_pre_m49gaps_m52_2026-11-17.dump`;
+  - the M52 and M53 sessions took their own.
+- **Upgrades:**
+  - `-u cd_fixed_asset_ext,cd_fpa,cd_p03_portal` on fix_real and fix_dev, exit 0;
+  - M53 (`cd_subscription`, `cd_settlement_ext`) and M52 (`cd_ap_ext`) upgraded by their own sessions;
+  - `-u cd_p03_portal` re-run on fix_real from the landed code, and `-u cd_ap_ext,cd_p03_portal` on fix_dev, so the bundle carries all of it.
+- **Landing.** The fix landed as f9c56604, fast-forwarded by compare-and-swap onto 6abf3bbb. It is not pushed.
+- **Before each restart, 0 modules were behind the code:** 0 of 83 on fix_real and 0 of 80 on fix_dev.
+- **Restarts:** 8069 went from PID 52108 to 78988 at 13:42 UTC, and 8090 from 45588 to 66868 at 13:46 UTC. 155 and 151 modules loaded, with no errors from either new process.
+- **Verified on both servers:**
+  - `fix.asset.component` and `fix.asset.insurance` are served, along with the earlier M49 records and M54's four;
+  - bundle 02b1916 carries the Asset Components and Insurance Cover screens and their forms.
