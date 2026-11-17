@@ -100,5 +100,11 @@ Security and data:
   - the served workspace bundle `03f2536` carries the four new forms, and pages 2, 7 and 9 point at overtime request, roster publication and timesheet line.
   - M51 side: its three new models, the `nid_cash_threshold` parameter (50,000) and its notice cron are present.
 - fix_real holds no callout, forecast or timesheet rows yet (0/0/0), and no attendance or roster transactions, so the new lists start empty.
-- **fix_dev (8090) is not updated**: both cd_attendance and cd_tax_engine_bd lag there.
+- **fix_dev (8090) updated on 18 Nov 2026** (user: "Update fix_dev too"), with the same combined M55 + M51 upgrade:
+  1. Backup `fix_dev_pre_m55_capture_2026-11-17.dump` (45.4 MB, 51,016 archive entries).
+  2. Upgrade exit 0, no ERROR lines; gap check: 80 installed cd_ modules, 0 differ.
+  3. 8090 restarted at tip 76241745: PID 66868 became 28660 (supervisor 37700), login 200, no errors since.
+  - The rebuilt workspace bundle is identical in size to fix_real's and carries the four M55 forms and the page 2/7/9 mappings.
+  - The M51 objects and the NID threshold (50,000) are present.
+  - The restart was done before the M58 session landed its cd_talent change, so 8090 matches 76241745 exactly; fix_dev will lag M58 until it is upgraded there.
 - The private clone `fix_test_m55` and the launch entry `odoo-m55-test` (port 8099) are kept for follow-up work.
