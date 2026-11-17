@@ -90,7 +90,15 @@ Security and data:
 
 ## 5. State
 
-- Built and tested in worktree `m55cap-wt` on branch `fix/m55-capture-buttons`, from c5feece6. **Not committed, not deployed.**
-- The working branch has since moved to 42d00bb2 (M51 capture work). None of its files overlap this change, so it lands on top without conflicts.
-- To deploy: commit onto `fix/a03-live-data-and-pending-work`, back up fix_real, run `-u cd_attendance,cd_p03_portal` on fix_real (and fix_dev if wanted), then restart 8069 (and 8090). The new dependencies (cd_competency, cd_ppm, cd_msp_contract) are already installed on both databases. Check for peer sessions mid-deploy before restarting.
-- Private clone `fix_test_m55` and the launch entry `odoo-m55-test` (port 8099) are kept until the deploy is verified.
+- Fix commit **b5699893** on the working branch `fix/a03-live-data-and-pending-work`. Built in worktree `m55cap-wt`, rebased onto 42d00bb2 (M51 capture work, no overlapping files), guard, estate and A09 whitelist re-run after the rebase (645 tests, 0 failures), then landed by compare-and-swap. The shared checkout was synced and is clean. **Not pushed.**
+- **Deployed on fix_real (8069) on 17 Nov 2026, together with M51** (the user chose the combined deploy, because a restart loads every committed module and M51's held change alters the cash-receipt NID check):
+  1. Backup `_migration/backups/fix_real_pre_m55_capture_2026-11-17.dump` (49.9 MB, 51,203 archive entries).
+  2. `-u cd_attendance,cd_tax_engine_bd,cd_billing_engine,cd_p03_portal`: exit 0, no ERROR lines. Version-gap check afterwards: 83 installed cd_ modules, 0 differ from the code.
+  3. The M51, M21 and M58 sessions confirmed they were holding their own 8069 work. 8069 restarted: PID 78988 became 28840 (same supervisor 23964); 155 modules loaded, no ERROR since, login answers 200.
+- Verified on fix_real:
+  - the three M55 models exist with 8 access rows, 8 record rules and both sequences (CALL/, CAP/);
+  - the served workspace bundle `03f2536` carries the four new forms, and pages 2, 7 and 9 point at overtime request, roster publication and timesheet line.
+  - M51 side: its three new models, the `nid_cash_threshold` parameter (50,000) and its notice cron are present.
+- fix_real holds no callout, forecast or timesheet rows yet (0/0/0), and no attendance or roster transactions, so the new lists start empty.
+- **fix_dev (8090) is not updated**: both cd_attendance and cd_tax_engine_bd lag there.
+- The private clone `fix_test_m55` and the launch entry `odoo-m55-test` (port 8099) are kept for follow-up work.
