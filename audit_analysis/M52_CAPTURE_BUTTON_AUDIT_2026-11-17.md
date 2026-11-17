@@ -131,7 +131,11 @@ Three defects were found only by the live run and fixed before the evidence abov
   2. `-u cd_ap_ext,cd_p03_portal` from the shared checkout at 6abf3bbb exited 0, with no errors in the log.
   3. cd_ap_ext is now 19.0.1.1.0. All 10 new tables exist (empty), and the daily match-exception job is registered and active.
   4. Version-gap check over the 83 installed cd_ modules: the only gap is `cd_fixed_asset_ext` (code 19.0.1.1.0, database 19.0.1.2.0), which comes from the M49 session's unmerged `fix/m49-gaps`.
-- **The 8069 / 8090 restart is held by the M49 session.** The M53 session was told this deploy is in, so the one restart serves M52 as well. Until it happens, the running process serves the old M52 screens, and the new lists answer "not served".
-- fix_dev (8090) was not upgraded for M52.
+- **Live on 8069.** The M49 session (titled "M46 module workspace audit") did the single restart at 13:42 UTC: PID 52108 became 78988. The new process started from code that contains 56e4457f. It loaded 155 modules on fix_real in 6 s, with no errors and no missing-table warnings. That session reported 0 of 83 cd_ modules behind the code.
+- **fix_dev (8090) upgraded too, on the user's approval:**
+  - backup `fix_dev_pre_m52_capture_2026-11-17.dump` (41 MB, 50,635 entries read back);
+  - `-u cd_ap_ext,cd_p03_portal` from the shared checkout at 4e851753, 13:43–13:44 UTC, exit 0, no errors;
+  - cd_ap_ext is 19.0.1.1.0 and all 10 tables exist.
+  The M49 session owns the 8090 restart. It was told the upgrade is in; it had also planned its own (harmless) re-run of the same upgrade.
 - Cleanup done: worktree `m52cap-wt` removed (branch `fix/m52-capture-buttons` kept), clone `fix_test_m52` and its filestore dropped, launch entry removed.
 - Owner decisions: see §4 (consignment settlement, retention, emergency payments, posting accounts for the unrecorded liability, card programme).
