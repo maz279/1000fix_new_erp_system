@@ -21,6 +21,7 @@ from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
     as_,
     bank_confirm,
     c,  # noqa: F401 - fixture
+    declare_marketplace_agent,
     inbox_approve,
     lines,
     paid_invoice,
@@ -458,6 +459,7 @@ def test_m53_15_an_order_earns_one_row_with_its_order_and_scheme(c):  # noqa: F8
         c.env["fix.commission.ledger"].search_count([("marketplace_order_id", "=", order.id)]) == 1
     )
     # and finance can accrue it (a row with no order link could not)
+    declare_marketplace_agent(c.env, c.company)
     row.with_user(c.acct).action_post_to_gl()
     assert row.state == "accrued" and row.gl_move_id
 
@@ -651,6 +653,7 @@ def test_m53_4_link_source_checks_payee_and_amount_then_it_accrues(c, p03):  # n
     )
     assert res["success"], res
     assert row.marketplace_order_id == order
+    declare_marketplace_agent(c.env, c.company)
     row.with_user(c.acct).action_post_to_gl()
     assert row.state == "accrued" and row.scheme_id and row.tds_amount > 0
 
@@ -1061,6 +1064,7 @@ def test_m53_12_seller_with_no_scheme_is_refused_at_accrual(c):  # noqa: F811
             "company_id": c.company.id,
         }
     )
+    declare_marketplace_agent(c.env, c.company)
     row.with_user(c.acct).action_post_to_gl()
     assert row.state == "accrued" and row.commission_rate == 0.08 and row.scheme_id
     # no PSR on file: the non-filer uplift applies (10% x 1.5 on 4,000)

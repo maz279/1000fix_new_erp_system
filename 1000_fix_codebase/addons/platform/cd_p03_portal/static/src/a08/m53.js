@@ -21,6 +21,8 @@ export const MODULE = {
   groups: [
     { en: 'Revenue', screens: [
       { id: 'M53-obligations', en: 'Performance Obligations', bn: 'পারফরম্যান্স বাধ্যবাধকতা', t: 'g' },
+      { id: 'M53-ssp', en: 'Stand-alone Selling Prices', bn: 'স্বতন্ত্র বিক্রয়মূল্য', t: 'g' },
+      { id: 'M53-presentation', en: 'Principal / Agent Positions (D-03)', bn: 'প্রধান / প্রতিনিধি অবস্থান', t: 'g' },
       { id: 'M53-schedules', en: 'Revenue Schedules', bn: 'রাজস্ব সূচি', t: 'g' },
       { id: 'M53-schedules-held', en: 'Held Revenue Schedules (needs a decision)', bn: 'আটকে রাখা রাজস্ব সূচি', t: 'g' },
       { id: 'M53-contract', en: 'Contract Assets & Liabilities', bn: 'চুক্তি সম্পদ ও দায়', t: 'r' },
@@ -29,7 +31,9 @@ export const MODULE = {
       { id: 'M53-warranty-policy', en: 'Warranty Provision Policy', bn: 'ওয়ারেন্টি সঞ্চিতি নীতি', t: 'g' }
     ]},
     { en: 'Contracts', screens: [
-      { id: 'M53-subscriptions', en: 'AMC & Subscription Contracts', bn: 'AMC ও সাবস্ক্রিপশন চুক্তি', t: 'g' }
+      { id: 'M53-subscriptions', en: 'AMC & Subscription Contracts', bn: 'AMC ও সাবস্ক্রিপশন চুক্তি', t: 'g' },
+      { id: 'M53-modifications', en: 'Contract Modifications', bn: 'চুক্তি পরিবর্তন', t: 'g' },
+      { id: 'M53-modification-lines', en: 'Re-scheduled Obligations (versions)', bn: 'পুনঃনির্ধারিত বাধ্যবাধকতা', t: 'g' }
     ]},
     { en: 'Commission', screens: [
       { id: 'M53-ledger', en: 'Commission Ledger', bn: 'কমিশন লেজার', t: 'g' },
@@ -40,22 +44,28 @@ export const MODULE = {
       { id: 'M53-payouts', en: 'Payout Runs', bn: 'পেআউট রান', t: 'g' },
       { id: 'M53-sellers', en: 'Seller Statements', bn: 'বিক্রেতা বিবৃতি', t: 'g' },
       { id: 'M53-partners', en: 'Partner / Referral Payouts', bn: 'পার্টনার পেআউট', t: 'g' },
+      { id: 'M53-holds', en: 'Payout Holds & Settlement Disputes', bn: 'পেআউট স্থগিত ও বিরোধ', t: 'g' },
       { id: 'M53-escrow', en: 'Escrow & Clawbacks', bn: 'এসক্রো ও ফেরত আদায়', t: 'g' },
       { id: 'M53-recon', en: 'Payout Reconciliation', bn: 'পেআউট সমন্বয়', t: 'g' }
     ]}
   ],
   reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream', 'Contract Assets & Liabilities', 'Commission Accrual', 'Payout Reconciliation', 'Clawback Register'],
-  forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract', 'Payout Reconciliation'],
+  forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract', 'Payout Reconciliation',
+    'Stand-alone Selling Price', 'Contract Modification', 'Principal / Agent Position', 'Payout Hold', 'Warranty Provision', 'Warranty Policy'],
   cross: ['Subscriptions & Recurring', 'Marketplace & Sellers', 'Partner & Channel'],
+  /* Capture audit 2026-11-17: each page captures the record it is about.
+   * 2 (SSP) offered a new obligation, 4 (Modifications) a new subscription,
+   * 5 (Principal vs Agent) and 8 (Partner Payouts) captured nothing, and
+   * 7 offered a typed seller statement the model can never issue. */
   freg: { src: 74, sub: [
-    ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations'], reports: ['Rev-Rec by Stream'], forms: ['Performance Obligation'] }],
-    ['2', 'Allocation & SSP', 8, { model: 'fix.performance.obligation', cols: ['subscription_id', 'name', 'standalone_price', 'allocated_amount', 'state'], screens: ['M53-obligations', 'M53-contract'], reports: ['Contract Assets & Liabilities'], forms: ['Performance Obligation'] }],
-    ['3', 'Schedules & Triggers', 12, { model: 'fix.revenue.schedule', cols: ['description', 'total_amount', 'recognized_amount', 'deferred_balance', 'state'], screens: ['M53-schedules', 'M53-bridge'], reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream'], forms: ['Revenue Schedule'] }],
-    ['4', 'Modifications & Reversals', 8, { model: 'fix.subscription', cols: ['name', 'customer_id', 'contract_value', 'last_refund_amount', 'state'], screens: ['M53-subscriptions'], reports: [], forms: ['Subscription Contract'] }],
-    ['5', 'Principal vs Agent', 5, { model: 'fix.commission.ledger', cols: ['name', 'seller_partner_id', 'gross_amount', 'commission_amount', 'state'], screens: ['M53-ledger'], reports: ['Commission Accrual'], forms: [], create: false, domain: [['source_type', '=', 'marketplace']] }],
-    ['6', 'Commission Ledger', 8, { model: 'fix.commission.ledger', cols: ['seller_partner_id', 'commission_amount', 'tds_amount', 'net_payable', 'state'], screens: ['M53-ledger', 'M53-schemes'], reports: ['Commission Accrual'], forms: ['Commission Scheme'] }],
-    ['7', 'Seller Settlement', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'net_payable', 'state'], screens: ['M53-sellers', 'M53-payouts', 'M53-recon'], reports: ['Payout Reconciliation'], forms: ['Payout Run', 'Payout Reconciliation'] }],
-    ['8', 'Partner Payouts', 7, { model: 'fix.referral', cols: ['name', 'partner_id', 'referred_partner_id', 'commission_amount', 'state'], screens: ['M53-partners'], reports: ['Commission Accrual'], forms: [], domain: [['state', 'in', ['converted', 'commissioned']]] }],
+    ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations', 'M53-warranty', 'M53-warranty-policy'], reports: ['Rev-Rec by Stream'], forms: ['Performance Obligation', 'Warranty Provision', 'Warranty Policy'] }],
+    ['2', 'Allocation & SSP', 8, { model: 'fix.ssp', cols: ['name', 'method', 'value', 'tolerance_pct', 'state'], screens: ['M53-ssp', 'M53-obligations', 'M53-contract'], reports: ['Contract Assets & Liabilities'], forms: ['Stand-alone Selling Price', 'Performance Obligation'] }],
+    ['3', 'Schedules & Triggers', 12, { model: 'fix.revenue.schedule', cols: ['description', 'total_amount', 'recognized_amount', 'deferred_balance', 'state'], screens: ['M53-schedules', 'M53-schedules-held', 'M53-bridge'], reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream'], forms: ['Revenue Schedule'] }],
+    ['4', 'Modifications & Reversals', 8, { model: 'fix.contract.modification', cols: ['name', 'subscription_id', 'nature', 'treatment', 'new_contract_value', 'state'], screens: ['M53-modifications', 'M53-modification-lines', 'M53-subscriptions'], reports: [], forms: ['Contract Modification', 'Subscription Contract'] }],
+    ['5', 'Principal vs Agent', 5, { model: 'fix.revenue.presentation', cols: ['name', 'arrangement', 'position', 'decision_ref', 'state'], screens: ['M53-presentation', 'M53-ledger'], reports: ['Commission Accrual'], forms: ['Principal / Agent Position'] }],
+    ['6', 'Commission Ledger', 8, { model: 'fix.commission.ledger', cols: ['seller_partner_id', 'commission_amount', 'tds_amount', 'net_payable', 'state'], screens: ['M53-ledger', 'M53-ledger-unsourced', 'M53-schemes'], reports: ['Commission Accrual'], create: 'M53-form-scheme', forms: ['Commission Scheme'] }],
+    ['7', 'Seller Settlement', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'net_payable', 'state'], screens: ['M53-sellers', 'M53-payouts', 'M53-holds', 'M53-recon'], reports: ['Payout Reconciliation'], create: 'M53-form-payoutrun', forms: ['Payout Run', 'Payout Hold', 'Payout Reconciliation'] }],
+    ['8', 'Partner Payouts', 7, { model: 'fix.referral', cols: ['name', 'partner_id', 'referred_partner_id', 'commission_amount', 'state'], screens: ['M53-partners', 'M53-payouts', 'M53-holds'], reports: ['Commission Accrual'], create: 'M53-form-payoutrun', forms: ['Payout Run', 'Payout Hold'], domain: [['state', 'in', ['converted', 'commissioned']]] }],
     ['9', 'Escrow & Clawbacks', 6, { model: 'fix.settlement.adjustment', cols: ['adjustment_type', 'seller_partner_id', 'amount', 'remaining_amount', 'state'], screens: ['M53-escrow'], reports: ['Clawback Register'], forms: ['Clawback'] }]
   ] }
 };
@@ -64,7 +74,7 @@ export const MODULE = {
 export const SCREENS = {
   // Revenue (IFRS 15)
   'M53-obligations': { kind: 'model_list', model: 'fix.performance.obligation',
-    cols: ['subscription_id','name','obligation_type','satisfaction','standalone_price','allocated_amount','recognized_amount','state'],
+    cols: ['subscription_id','name','obligation_type','satisfaction','standalone_price','ssp_basis','allocated_amount','recognized_amount','state'],
     stateField: 'state',
     actions: [{m:'action_create_schedule',l:'Create Revenue Schedule'},{m:'action_recognize',l:'Recognise to Today'}] },
   'M53-schedules': { kind: 'model_list', model: 'fix.revenue.schedule',
@@ -123,7 +133,7 @@ export const SCREENS = {
       {m:'action_drop_unpaid',l:'Drop Unpaid Payees (Accounting Administrator)',ask:'Why these payees leave the run',kwarg:'reason'},
       {m:'action_open_reconciliation',l:'Reconcile to Bank'},
       {m:'action_cancel',l:'Cancel'}] },
-  'M53-sellers': { kind: 'model_list', model: 'fix.seller.statement',
+  'M53-sellers': { empty: 'A statement is issued when its payout run is paid; it is never typed.', kind: 'model_list', model: 'fix.seller.statement', create: false,
     cols: ['name','seller_partner_id','period','gross_gmv','commission_amount','tds_withheld','clawback_amount','net_payable','withholding_cert_ref','tds_challan_id','state'],
     stateField: 'state',
     actions: [{m:'action_issue_statement',l:'Issue Statement'},{m:'action_settle_statement',l:'Mark Settled'},
@@ -145,7 +155,136 @@ export const SCREENS = {
     stateField: 'state', actions: [{m:'action_run_reconciliation',l:'Run Reconciliation'},
       {m:'action_investigate',l:'Investigate Break',ask:'What is being checked',kwarg:'note'},
       {m:'action_resolve_break',l:'Resolve Break (Accounting Administrator)',ask:'What explains the break',kwarg:'note'}] },
+  /* ===== capture audit 2026-11-17: the records pages 2, 4, 5, 7 and 8 lacked ===== */
+  'M53-ssp': { kind: 'model_list', model: 'fix.ssp',
+    empty: 'No stand-alone selling price yet. An SSP is approved by a second person and then frozen; a new price supersedes it from its date.',
+    cols: ['name','obligation_type','plan','method','value','tolerance_pct','effective_from','effective_to','state'],
+    stateField: 'state',
+    actions: [{m:'action_submit',l:'Submit for Approval'},
+      {m:'action_approve',l:'Approve (Accounting Administrator, not the submitter)'},
+      {m:'action_reject',l:'Reject',ask:'Why the price is rejected',kwarg:'reason'}] },
+  'M53-modifications': { kind: 'model_list', model: 'fix.contract.modification',
+    empty: 'No contract modification yet. A change to a scheduled contract is requested here and applied when a second person approves it.',
+    cols: ['name','subscription_id','modification_date','nature','treatment','new_contract_value','catchup_amount','state'],
+    stateField: 'state',
+    actions: [{m:'action_submit',l:'Submit for Approval'},
+      {m:'action_approve',l:'Approve and Apply (Accounting Administrator, not the requester)'},
+      {m:'action_reject',l:'Reject',ask:'Why the modification is rejected',kwarg:'reason'}] },
+  /* what each approved modification did to each obligation: the previous
+   * schedule version is kept, the new one recognises the remainder */
+  'M53-modification-lines': { kind: 'model_list', model: 'fix.contract.modification.line', create: false,
+    empty: 'Nothing re-scheduled yet.',
+    cols: ['modification_id','obligation_id','previous_schedule_id','recognised_before','new_allocation','catchup_amount','remaining_amount','new_schedule_id'] },
+  'M53-presentation': { kind: 'model_list', model: 'fix.revenue.presentation',
+    empty: 'No principal / agent position is declared: marketplace commission does not accrue until D-03 is declared here (BRU-REV-09).',
+    cols: ['name','arrangement','position','decision_ref','opinion_ref','effective_from','effective_to','state'],
+    stateField: 'state',
+    actions: [{m:'action_submit',l:'Submit for Approval'},
+      {m:'action_approve',l:'Approve (Accounting Administrator, not the requester)'},
+      {m:'action_reject',l:'Reject',ask:'Why the position is rejected',kwarg:'reason'}] },
+  'M53-holds': { kind: 'model_list', model: 'fix.payout.hold',
+    empty: 'No payout hold. A hold names its reason and raiser, and is released only by an Accounting Administrator who did not raise it.',
+    cols: ['name','partner_id','reason','scope','held_amount','raised_by_id','state','outcome'],
+    stateField: 'state',
+    actions: [{m:'action_raise',l:'Raise Hold'},
+      {m:'action_release',l:'Release (cause resolved)',kw:{outcome:'resolved'},asks:[{label:'Why the hold is released',kwarg:'reason'}]},
+      {m:'action_release',l:'Close Dispute: Upheld',kw:{outcome:'upheld'},asks:[{label:'How the dispute was settled (the adjustment raised)',kwarg:'reason'}]},
+      {m:'action_release',l:'Close Dispute: Partly Upheld',kw:{outcome:'partly_upheld'},asks:[{label:'What was upheld and how it was settled',kwarg:'reason'}]},
+      {m:'action_release',l:'Close Dispute: Rejected',kw:{outcome:'rejected'},asks:[{label:'Why the dispute is rejected',kwarg:'reason'}]}] },
 
+  'M53-form-ssp': {
+    kind: 'model_form',
+    model: 'fix.ssp',
+    title: 'Stand-alone Selling Price',
+    back: 'M53-ssp',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Approval', active: 'Active', superseded: 'Superseded', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Price', note: 'The price this obligation type sells for on its own (FR-REV-006). A contract with more than one obligation is allocated only if each typed SSP lies within this band (AUT-REV-03). Approved by an Accounting Administrator who did not submit it; a change is a new SSP from a later date.',
+        fields: [
+          { name: 'obligation_type', required: true, label: 'Obligation Type' },
+          { name: 'plan', label: 'Plan (empty = every plan)' },
+          { name: 'method', required: true, label: 'Method' },
+          { name: 'value', label: 'Stand-alone Selling Price (not for residual)' },
+          { name: 'tolerance_pct', required: true, label: 'Tolerance Band (%)' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'basis_ref', required: true, label: 'Basis / Evidence' },
+          { name: 'effective_to', readonly: true, label: 'Effective To (set when superseded)' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+  'M53-form-modification': {
+    kind: 'model_form',
+    model: 'fix.contract.modification',
+    title: 'Contract Modification',
+    back: 'M53-modifications',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Approval', applied: 'Approved and Applied', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Change', note: 'A change to a contract whose obligations are scheduled (FR-REV-008). On approval each obligation is recognised up to the effective date, its schedule is closed and kept, and a new schedule version recognises the re-allocated remainder (BRU-REV-04). A cumulative catch-up becomes a manual schedule for the CFO; added goods or services are a separate contract.',
+        fields: [
+          { name: 'subscription_id', required: true, label: 'Contract' },
+          { name: 'modification_date', required: true, label: 'Effective Date' },
+          { name: 'nature', required: true, label: 'Nature' },
+          { name: 'treatment', required: true, label: 'Treatment' },
+          { name: 'new_contract_value', label: 'New Transaction Price' },
+          { name: 'new_end_date', label: 'New Contract End (term change)' },
+          { name: 'separate_subscription_id', label: 'Separate Contract (added scope)' },
+          { name: 'reason', required: true, type: 'text', label: 'Reason' },
+          { name: 'evidence_ref', required: true, label: 'Evidence (addendum / signed change)' },
+          { name: 'current_price', readonly: true, label: 'Current Transaction Price' },
+          { name: 'catchup_amount', readonly: true, label: 'Cumulative Catch-up' },
+          { name: 'catchup_schedule_id', readonly: true, label: 'Catch-up Schedule (CFO)' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+  'M53-form-presentation': {
+    kind: 'model_form',
+    model: 'fix.revenue.presentation',
+    title: 'Principal / Agent Position',
+    back: 'M53-presentation',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Approval', active: 'In Force', superseded: 'Superseded', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Position', note: 'Declared once per arrangement, for accounting and tax together, from the D-03 decision and an external opinion (BRU-REV-08/09). Marketplace commission accrues only under a declared AGENT position in force on its date. Approved by an Accounting Administrator who did not request it, then frozen.',
+        fields: [
+          { name: 'arrangement', required: true, label: 'Arrangement' },
+          { name: 'position', required: true, label: 'Position' },
+          { name: 'decision_ref', required: true, label: 'D-03 Decision Record' },
+          { name: 'opinion_ref', required: true, label: 'External Opinion' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'note', type: 'text', label: 'Basis (control indicators)' },
+          { name: 'effective_to', readonly: true, label: 'Effective To (set when superseded)' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
+  'M53-form-hold': {
+    kind: 'model_form',
+    model: 'fix.payout.hold',
+    title: 'Payout Hold',
+    back: 'M53-holds',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Holding', released: 'Released' } },
+    sections: [
+      { title: 'Hold', note: 'A hold names its reason and its raiser (BRU-REV-16). A settlement dispute names the disputed lines and holds only them (BRU-REV-17); other reasons hold the named lines or, with none named, the whole payee. Save, then Raise Hold; an Accounting Administrator who did not raise it releases it.',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Payee' },
+          { name: 'reason', required: true, label: 'Reason' },
+          { name: 'commission_ids', label: 'Lines Held (empty = the whole payee)' },
+          { name: 'statement_id', label: 'Disputed Statement' },
+          { name: 'note', required: true, type: 'text', label: 'Details' },
+          { name: 'scope', readonly: true, label: 'Scope' },
+          { name: 'held_amount', readonly: true, label: 'Amount Held (net)' },
+          { name: 'raised_by_id', readonly: true, label: 'Raised By' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'outcome', readonly: true, label: 'Outcome' },
+          { name: 'release_reason', readonly: true, label: 'Release Reason' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  },
 
   /* ===== A08 master-data forms (D365 in-workspace) ===== */
   'M53-form-obligation': {
@@ -268,20 +407,21 @@ export const SCREENS = {
     model: 'fix.seller.statement',
     title: "Seller Statement",
     back: 'M53-sellers',
+    create: false, pick: 'A statement is issued by its payout run when the money has moved: open one from Seller Statements.',
     status: { field: 'state', labels: { draft: "Draft", issued: "Issued", settled: "Settled" } },
     sections: [
       { title: "Statement",
-        note: "A period statement for one seller. GMV, commission, TDS and the net payable are computed; the withholding certificate reference is required by statute.",
+        note: "A period statement for one payee, issued by its payout run once the money has moved: every figure comes from the paid commissions, and an issued statement never changes (BRU-REV-21). The withholding certificate follows the TDS challan.",
         fields: [
-          { name: 'seller_partner_id', required: true, label: "Seller" },
+          { name: 'seller_partner_id', readonly: true, label: "Seller" },
           { name: 'name', readonly: true, label: "Statement" },
-          { name: 'period', required: true, label: "Period (YYYY-MM)" },
+          { name: 'period', readonly: true, label: "Period (YYYY-MM)" },
           { name: 'date_issued', readonly: true, label: "Issued On" },
-          { name: 'gross_gmv', required: true, label: "Gross GMV" },
-          { name: 'commission_amount', required: true, label: "Commission" },
-          { name: 'tds_withheld', required: true, label: "TDS Withheld" },
-          { name: 'platform_fee', label: "Platform Fee" },
-          { name: 'clawback_amount', label: "Clawback" },
+          { name: 'gross_gmv', readonly: true, label: "Gross GMV" },
+          { name: 'commission_amount', readonly: true, label: "Commission" },
+          { name: 'tds_withheld', readonly: true, label: "TDS Withheld" },
+          { name: 'platform_fee', readonly: true, label: "Platform Fee" },
+          { name: 'clawback_amount', readonly: true, label: "Clawback" },
           { name: 'net_payable', readonly: true, label: "Net Payable (computed)" },
           { name: 'withholding_cert_ref', readonly: true, label: "Withholding Certificate (on the TDS challan)" },
           { name: 'tds_challan_id', readonly: true, label: "TDS Challan" },
@@ -319,6 +459,12 @@ export const FORM_MODELS = {
   'M53:Payout Reconciliation': 'fix.payout.reconciliation',
   'M53:Performance Obligation': 'fix.performance.obligation',
   'M53:Subscription Contract': 'fix.subscription',
+  'M53:Stand-alone Selling Price': 'fix.ssp',
+  'M53:Contract Modification': 'fix.contract.modification',
+  'M53:Principal / Agent Position': 'fix.revenue.presentation',
+  'M53:Payout Hold': 'fix.payout.hold',
+  'M53:Warranty Provision': 'fix.warranty.provision',
+  'M53:Warranty Policy': 'fix.warranty.provision.policy',
 };
 
 /* ============ D365 IN-WORKSPACE FORM SCREENS (M53 re-audit v2) ======== */
@@ -485,6 +631,10 @@ export const FORM_CHIPS = {
   'M53:Clawback': 'M53-form-clawback',
   'M53:Commission Scheme': 'M53-form-scheme',
   'M53:Payout Reconciliation': 'M53-form-recon',
+  'M53:Stand-alone Selling Price': 'M53-form-ssp',
+  'M53:Contract Modification': 'M53-form-modification',
+  'M53:Principal / Agent Position': 'M53-form-presentation',
+  'M53:Payout Hold': 'M53-form-hold',
   'M53:__by_model__': {
     'fix.referral': 'M53-form-referral',
     'fix.payout.reconciliation': 'M53-form-recon',
@@ -497,7 +647,11 @@ export const FORM_CHIPS = {
     'fix.revenue.schedule': 'M53-form-schedule',
     'fix.payout.run': 'M53-form-payoutrun',
     'fix.settlement.adjustment': 'M53-form-clawback',
-    'fix.commission.scheme': 'M53-form-scheme'
+    'fix.commission.scheme': 'M53-form-scheme',
+    'fix.ssp': 'M53-form-ssp',
+    'fix.contract.modification': 'M53-form-modification',
+    'fix.revenue.presentation': 'M53-form-presentation',
+    'fix.payout.hold': 'M53-form-hold'
   },
   'M53:__by_screen__': {
     'M53-obligations': 'M53-form-obligation',
@@ -512,7 +666,11 @@ export const FORM_CHIPS = {
     'M53-schemes': 'M53-form-scheme',
     'M53-partners': 'M53-form-referral',
     'M53-recon': 'M53-form-recon',
-    'M53-schedules-held': 'M53-form-schedule'
+    'M53-schedules-held': 'M53-form-schedule',
+    'M53-ssp': 'M53-form-ssp',
+    'M53-modifications': 'M53-form-modification',
+    'M53-presentation': 'M53-form-presentation',
+    'M53-holds': 'M53-form-hold'
   }
 };
 

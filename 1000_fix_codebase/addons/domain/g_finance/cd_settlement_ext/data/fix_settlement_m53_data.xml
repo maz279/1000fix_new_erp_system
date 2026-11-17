@@ -16,6 +16,14 @@
             <field name="company_id" eval="False"/>
         </record>
 
+        <record id="seq_fix_payout_hold" model="ir.sequence">
+            <field name="name">Payout Hold</field>
+            <field name="code">fix.payout.hold</field>
+            <field name="prefix">PHD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
         <record id="scheme_partner_commission_tds_default" model="fix.commission.scheme">
             <field name="name">Partner / referral commission — TDS 10% (default, verify with tax adviser)</field>
             <field name="company_id" ref="base.main_company"/>

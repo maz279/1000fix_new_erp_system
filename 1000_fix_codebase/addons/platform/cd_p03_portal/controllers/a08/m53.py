@@ -122,6 +122,28 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_run_reconciliation", "action_investigate", "action_resolve_break"},
     },
+    # --- capture audit 2026-11-17: the records pages 2, 4, 5, 7 and 8 lacked ---
+    "fix.ssp": {
+        "order": "obligation_type, effective_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+    "fix.contract.modification": {
+        "order": "modification_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+    "fix.contract.modification.line": {"order": "id desc", "limit": 200, "actions": set()},
+    "fix.revenue.presentation": {
+        "order": "arrangement, effective_from desc, id desc",
+        "limit": 50,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+    "fix.payout.hold": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_raise", "action_release"},
+    },
 }
 
 

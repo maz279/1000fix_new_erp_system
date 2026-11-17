@@ -566,6 +566,20 @@ WRITABLE = {
             "parent_entity_id",
         }
     ),
+    "fix.contract.modification": frozenset(
+        {
+            "evidence_ref",
+            "modification_date",
+            "nature",
+            "new_contract_value",
+            "new_end_date",
+            "reason",
+            "separate_subscription_id",
+            "subscription_id",
+            "treatment",
+        }
+    ),
+    "fix.contract.modification.line": frozenset(),
     "fix.cost.allocation": frozenset(
         {
             "date_from",
@@ -1011,6 +1025,15 @@ WRITABLE = {
             "rail",
         }
     ),
+    "fix.payout.hold": frozenset(
+        {
+            "commission_ids",
+            "note",
+            "partner_id",
+            "reason",
+            "statement_id",
+        }
+    ),
     "fix.payout.reconciliation": frozenset(
         {
             "payout_run_id",
@@ -1066,6 +1089,16 @@ WRITABLE = {
             "referred_partner_id",
         }
     ),
+    "fix.revenue.presentation": frozenset(
+        {
+            "arrangement",
+            "decision_ref",
+            "effective_from",
+            "note",
+            "opinion_ref",
+            "position",
+        }
+    ),
     "fix.revenue.schedule": frozenset(
         {
             "contract_id",
@@ -1079,17 +1112,7 @@ WRITABLE = {
             "total_amount",
         }
     ),
-    "fix.seller.statement": frozenset(
-        {
-            "clawback_amount",
-            "commission_amount",
-            "gross_gmv",
-            "period",
-            "platform_fee",
-            "seller_partner_id",
-            "tds_withheld",
-        }
-    ),
+    "fix.seller.statement": frozenset(),
     "fix.settlement.adjustment": frozenset(
         {
             "adjustment_type",
@@ -1105,6 +1128,17 @@ WRITABLE = {
             "line_id",
             "owner_id",
             "provider_case_ref",
+        }
+    ),
+    "fix.ssp": frozenset(
+        {
+            "basis_ref",
+            "effective_from",
+            "method",
+            "obligation_type",
+            "plan",
+            "tolerance_pct",
+            "value",
         }
     ),
     "fix.statutory.due.rule": frozenset(

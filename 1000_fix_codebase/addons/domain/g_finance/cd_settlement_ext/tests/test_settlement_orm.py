@@ -9,6 +9,9 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
+    declare_marketplace_agent,
+)
 from odoo.exceptions import UserError
 
 pytestmark = [pytest.mark.financial]
@@ -98,6 +101,7 @@ def book(odoo_env):
     4,000.00 @5% (TDS 190.00). Net payable 8,550.00 + 2,250.45 + 3,610.00."""
     env = odoo_env
     _settlement_chart(env, env.company)
+    declare_marketplace_agent(env, env.company)
     # the paying company's own (originating) account
     _bank_account(env, env.company.partner_id, COMPANY_ROUTING, COMPANY_ACCOUNT)
     seller_a = _seller(env, "Bengal Gadget House")
@@ -170,6 +174,7 @@ class TestCommissionLedger:
         the same type). The accrual is now refused, naming the account."""
         env = odoo_env
         company = env["res.company"].create({"name": "1000FiX Marketplace Ltd"})
+        declare_marketplace_agent(env, company)
         env["account.journal"].create(
             {"name": "Misc", "code": "MSC", "type": "general", "company_id": company.id}
         )
@@ -209,6 +214,7 @@ class TestCommissionLedger:
     def test_accrual_without_a_general_journal_is_refused(self, odoo_env):
         env = odoo_env
         company = env["res.company"].create({"name": "1000FiX No-Journal Ltd"})
+        declare_marketplace_agent(env, company)
         _settlement_chart(env, company)
         seller = _seller(env, "Khulna Mobiles")
         c = _commission(env, seller, 1000.0, 0.10, company_id=company.id)

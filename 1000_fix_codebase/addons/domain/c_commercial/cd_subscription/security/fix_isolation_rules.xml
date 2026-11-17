@@ -8,6 +8,22 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_contract_modification_company" model="ir.rule">
+        <field name="name">fix.contract.modification: allowed companies</field>
+        <field name="model_id" ref="model_fix_contract_modification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_contract_modification_operating_unit" model="ir.rule">
+        <field name="name">fix.contract.modification: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_contract_modification"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_contract_modification_line_company" model="ir.rule">
+        <field name="name">fix.contract.modification.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_contract_modification_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_performance_obligation_operating_unit" model="ir.rule">
         <field name="name">fix.performance.obligation: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_performance_obligation"/>
@@ -30,6 +46,11 @@
         <field name="model_id" ref="model_fix_revenue_schedule"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ssp_company" model="ir.rule">
+        <field name="name">fix.ssp: allowed companies</field>
+        <field name="model_id" ref="model_fix_ssp"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_subscription_company" model="ir.rule">
         <field name="name">fix.subscription: allowed companies</field>

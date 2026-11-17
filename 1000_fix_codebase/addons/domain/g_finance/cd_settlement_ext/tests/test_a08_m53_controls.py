@@ -134,6 +134,29 @@ def c(odoo_env):
     return x
 
 
+def declare_marketplace_agent(env, company):
+    """Arrangement (superuser): D-03 declared for the company, the marketplace
+    as AGENT (BRU-REV-09). Without a declared position a marketplace
+    commission does not accrue (M53 capture audit 2026-11-17)."""
+    position = (
+        env["fix.revenue.presentation"]
+        .sudo()
+        .create(
+            {
+                "company_id": company.id,
+                "arrangement": "marketplace",
+                "position": "agent",
+                "decision_ref": "D-03 test decision",
+                "opinion_ref": "External opinion (test)",
+                "effective_from": date(2020, 1, 1),
+            }
+        )
+    )
+    position.action_submit()
+    position.action_approve()
+    return position
+
+
 def _confirmed_bank(x, partner, routing, account):
     """A payee account confirmed under M52's dual control (B2): proposed by an
     accountant with the call-back recorded, confirmed by another manager."""

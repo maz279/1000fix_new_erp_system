@@ -11,6 +11,9 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
+    declare_marketplace_agent,
+)
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
@@ -55,6 +58,7 @@ def co(odoo_env):
     env["account.journal"].create(
         {"name": "Misc", "code": "MSC", "type": "general", "company_id": company.id}
     )
+    declare_marketplace_agent(env, company)
     accounts = {}
     for code, (name, kind, _role) in CHART.items():
         accounts[code] = (
@@ -123,10 +127,18 @@ def _confirm_bank(partner, routing):
 
 
 def _inbox_approve(env, record, user):
-    task = env["fix.workflow.task"].sudo().search(
-        [("res_model", "=", record._name), ("res_id", "=", record.id),
-         ("state", "=", "pending"), ("assigned_user_id", "=", user.id)],
-        limit=1,
+    task = (
+        env["fix.workflow.task"]
+        .sudo()
+        .search(
+            [
+                ("res_model", "=", record._name),
+                ("res_id", "=", record.id),
+                ("state", "=", "pending"),
+                ("assigned_user_id", "=", user.id),
+            ],
+            limit=1,
+        )
     )
     assert task, "no M63 task for %s" % user.login
     task.with_user(user).action_approve()
