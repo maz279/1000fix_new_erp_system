@@ -109,6 +109,25 @@ SURFACES = {
         "actions": {"action_confirm", "action_withdraw"},
     },
     "fix.leave.accrual": {"order": "employee_id, year_start desc", "limit": 500, "actions": set()},
+    # Capture audit 2026-11-17. FR-WFM-044: a callout is verified by someone
+    # other than the person on call and the recorder.
+    "fix.oncall.callout": {
+        "order": "called_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_inbox_approve", "action_reject", "action_cancel"},
+    },
+    # FR-WFM-048/049: measured from the roster, published with a gap alert
+    "fix.capacity.forecast": {
+        "order": "date_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_measure", "action_publish"},
+    },
+    # FR-WFM-050: time allocated from verified attendance, line-manager approved
+    "fix.timesheet.line": {
+        "order": "date desc, id desc",
+        "limit": 400,
+        "actions": {"action_submit", "action_inbox_approve", "action_reject", "action_cancel"},
+    },
 }
 
 

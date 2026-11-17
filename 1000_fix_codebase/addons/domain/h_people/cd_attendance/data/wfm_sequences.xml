@@ -8,5 +8,19 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_oncall_callout" model="ir.sequence">
+            <field name="name">On-Call Callout</field>
+            <field name="code">fix.oncall.callout</field>
+            <field name="prefix">CALL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_capacity_forecast" model="ir.sequence">
+            <field name="name">Capacity Forecast</field>
+            <field name="code">fix.capacity.forecast</field>
+            <field name="prefix">CAP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

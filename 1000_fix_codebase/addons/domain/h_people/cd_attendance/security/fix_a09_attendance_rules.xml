@@ -100,4 +100,19 @@
         <field name="model_id" ref="model_fix_working_time_rule"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- M55 capture audit 2026-11-17: callouts (FR-WFM-044) and timesheet
+         lines (FR-WFM-050) are the employee's time: own and direct reports,
+         HR, payroll and the attendance roles -->
+    <record id="rule_oncall_callout_own" model="ir.rule">
+        <field name="name">fix.oncall.callout: own and direct reports unless an attendance role</field>
+        <field name="model_id" ref="model_fix_oncall_callout"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_timesheet_line_own" model="ir.rule">
+        <field name="name">fix.timesheet.line: own and direct reports unless an attendance role</field>
+        <field name="model_id" ref="model_fix_timesheet_line"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_attendance() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
 </odoo>

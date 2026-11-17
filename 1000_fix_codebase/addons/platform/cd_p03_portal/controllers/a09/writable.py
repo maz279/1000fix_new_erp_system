@@ -95,6 +95,18 @@ WRITABLE = {
             "source",
         }
     ),
+    "fix.capacity.forecast": frozenset(
+        {
+            "branch_id",
+            "company_id",
+            "competency_id",
+            "date_from",
+            "date_to",
+            "demand_basis",
+            "demand_hours",
+            "operating_unit_id",
+        }
+    ),
     "fix.certification": frozenset(
         {
             "assessment_id",
@@ -587,13 +599,21 @@ WRITABLE = {
     ),
     "fix.leave.type": frozenset(
         {
+            "amendment_ref",
+            "carry_forward_limit",
             "code",
             "company_id",
             "encashable",
             "entitlement_days",
+            "excludes_holidays",
+            "is_statutory",
+            "labour_act_section",
+            "legal_citation",
+            "maternity",
             "name",
             "name_bn",
             "operating_unit_id",
+            "requires_certificate",
         }
     ),
     "fix.mfs.disbursement": frozenset(
@@ -649,6 +669,17 @@ WRITABLE = {
             "function",
             "name",
             "owner_id",
+        }
+    ),
+    "fix.oncall.callout": frozenset(
+        {
+            "arrived_at",
+            "called_at",
+            "caller",
+            "description",
+            "finished_at",
+            "oncall_id",
+            "work_order_id",
         }
     ),
     "fix.org.position": frozenset(
@@ -992,6 +1023,19 @@ WRITABLE = {
             "joining_date",
             "position_id",
             "valid_until",
+        }
+    ),
+    "fix.timesheet.line": frozenset(
+        {
+            "contract_id",
+            "cost_centre",
+            "date",
+            "description",
+            "employee_id",
+            "hours",
+            "operating_unit_id",
+            "project_id",
+            "work_order_id",
         }
     ),
     "fix.training.budget": frozenset(

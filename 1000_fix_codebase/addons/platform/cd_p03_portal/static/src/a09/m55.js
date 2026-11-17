@@ -3,7 +3,11 @@
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 74 (A09 P0-b adds
  * overtime requests, regularisation decisions, night-work consent, accrual, balances; A09 r2
  * adds the webhook log, biometric consent, roster publication and change control, the
- * working-time rule versions and the forward adjustments to payroll). */
+ * working-time rule versions and the forward adjustments to payroll).
+ * Capture audit 2026-11-17: every sub-module page offers its own record
+ * (pages 2, 7 and 9 offered page 1's or page 5's), every list sits on a page,
+ * and on-call callouts, capacity forecasts, timesheet lines and the leave
+ * type catalogue are captured. */
 
 export const MODULE = {
   area: 'A09', code: 'M55', en: 'Time, Attendance & Scheduling', title: 'M55 · Time, Attendance & Scheduling',
@@ -38,10 +42,12 @@ export const MODULE = {
       { id: 'M55-adjustments', en: 'Forward Adjustments (to Payroll)', bn: 'পরবর্তী সমন্বয়', t: 'g' },
       { id: 'M55-ot', en: 'Overtime Requests', bn: 'অতিরিক্ত সময়ের আবেদন', t: 'g' },
       { id: 'M55-night', en: 'Night-Work Consent (s.109)', bn: 'রাত্রিকালীন কাজের সম্মতি', t: 'g' },
-      { id: 'M55-holidays', en: 'Holidays (moon-dependent)', bn: 'ছুটির দিনপঞ্জি', t: 'g' }
+      { id: 'M55-holidays', en: 'Holidays (moon-dependent)', bn: 'ছুটির দিনপঞ্জি', t: 'g' },
+      { id: 'M55-timesheets', en: 'Timesheets', bn: 'টাইমশিট', t: 'g' }
     ]},
     { en: 'Leave', screens: [
       { id: 'M55-leave', en: 'Leave Requests', bn: 'ছুটির আবেদন', t: 'g' },
+      { id: 'M55-leave-types', en: 'Leave Types', bn: 'ছুটির ধরন', t: 'g' },
       { id: 'M55-balances', en: 'Balances', bn: 'ব্যালান্স', t: 'r' },
       { id: 'M55-accrual', en: 'Annual Leave Accrual (s.117)', bn: 'অর্জিত ছুটি', t: 'g' },
       { id: 'M55-calendar', en: 'Calendar', bn: 'ক্যালেন্ডার', t: 'g' }
@@ -52,22 +58,24 @@ export const MODULE = {
       { id: 'M55-publications', en: 'Roster Publication Approval', bn: 'রোস্টার প্রকাশ', t: 'g' },
       { id: 'M55-roster-changes', en: 'Roster Change Requests', bn: 'রোস্টার পরিবর্তন', t: 'g' },
       { id: 'M55-oncall', en: 'On-Call / Standby', bn: 'অন-কল', t: 'g' },
-      { id: 'M55-availability', en: 'Availability → Dispatch', bn: 'প্রাপ্যতা', t: 'r' }
+      { id: 'M55-callouts', en: 'On-Call Callouts', bn: 'অন-কল কলআউট', t: 'g' },
+      { id: 'M55-availability', en: 'Availability → Dispatch', bn: 'প্রাপ্যতা', t: 'r' },
+      { id: 'M55-capacity', en: 'Capacity Forecast', bn: 'সক্ষমতা পূর্বাভাস', t: 'g' }
     ]}
   ],
   reports: ['Attendance Summary', 'Overtime Analysis', 'Leave Utilisation', 'Leave Balances', 'Roster vs Actual', 'Coverage Gaps'],
-  forms: ['Leave Request', 'Roster', 'Shift Pattern', 'Exception Regularisation', 'Overtime Request', 'Night-Work Consent', 'Biometric Consent', 'Roster Publication', 'Roster Change Request', 'Working-Time Rule'],
+  forms: ['Leave Request', 'Leave Type', 'Roster', 'Shift Pattern', 'Exception Regularisation', 'Biometric Device', 'Overtime Request', 'Night-Work Consent', 'Biometric Consent', 'Roster Publication', 'Roster Change Request', 'Working-Time Rule', 'Holiday', 'On-Call / Standby', 'On-Call Callout', 'Capacity Forecast', 'Timesheet Line'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M57 Incentives', 'M02 Dispatch'],
   freg: { src: 74, sub: [
-    ['1', 'Capture (4 modes)', 12, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'source', 'approval_state'], screens: ['M55-daily', 'M55-devices', 'M55-geofence'], reports: ['Attendance Summary'], forms: ['Exception Regularisation', 'Biometric Consent'] }],
-    ['2', 'Working Time & OT', 9, { model: 'fix.attendance.record', cols: ['employee_id', 'week_start', 'worked_hours', 'overtime_hours', 'compliance_status'], screens: ['M55-rules'], reports: ['Overtime Analysis'], forms: ['Overtime Request', 'Night-Work Consent', 'Working-Time Rule'] }],
-    ['3', 'Leave', 10, { model: 'fix.leave.request', cols: ['employee_id', 'leave_type_id', 'date_from', 'date_to', 'state'], screens: ['M55-leave', 'M55-balances', 'M55-calendar'], reports: ['Leave Utilisation', 'Leave Balances'], forms: ['Leave Request'] }],
-    ['4', 'Holidays', 5, { model: 'fix.hr.holiday', cols: ['name', 'date', 'holiday_type', 'tentative'], screens: ['M55-holidays'], reports: [], forms: [] }],
-    ['5', 'Shifts & Rosters', 13, { model: 'fix.roster.slot', cols: ['employee_id', 'date', 'shift_id', 'branch_id', 'on_leave'], screens: ['M55-shifts', 'M55-rosters'], reports: ['Roster vs Actual'], forms: ['Roster', 'Shift Pattern', 'Roster Change Request'] }],
-    ['6', 'On-Call', 6, { model: 'fix.hr.oncall', cols: ['name', 'employee_id', 'date_from', 'date_to', 'state'], screens: ['M55-oncall'], reports: ['Coverage Gaps'], forms: [] }],
-    ['7', 'Availability Publication', 7, { model: 'fix.roster.slot', cols: ['date', 'branch_id', 'employee_id', 'shift_id'], screens: ['M55-availability', 'M55-rosters'], reports: ['Roster vs Actual', 'Coverage Gaps'], forms: ['Roster Publication', 'Roster Change Request'], domain: [['on_leave', '=', false]] }],
-    ['8', 'Verification & Lock', 6, { model: 'fix.attendance.lock', cols: ['name', 'period_start', 'period_end', 'state'], screens: ['M55-attendance-lock', 'M55-exc'], reports: ['Attendance Summary'], forms: ['Exception Regularisation'] }],
-    ['9', 'Timesheets', 6, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'worked_hours', 'overtime_hours'], screens: ['M55-daily'], reports: ['Attendance Summary', 'Overtime Analysis'], forms: ['Exception Regularisation'] }]
+    ['1', 'Capture (4 modes)', 12, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'source', 'approval_state'], screens: ['M55-daily', 'M55-devices', 'M55-geofence', 'M55-bio-consent', 'M55-hook-events'], reports: ['Attendance Summary'], forms: ['Exception Regularisation', 'Biometric Device', 'Biometric Consent'] }],
+    ['2', 'Working Time & OT', 9, { model: 'fix.overtime.request', cols: ['employee_id', 'date', 'hours', 'retrospective', 'state'], screens: ['M55-ot', 'M55-rules', 'M55-night', 'M55-wt-rules'], reports: ['Overtime Analysis'], forms: ['Overtime Request', 'Night-Work Consent', 'Working-Time Rule'] }],
+    ['3', 'Leave', 10, { model: 'fix.leave.request', cols: ['employee_id', 'leave_type_id', 'date_from', 'date_to', 'state'], screens: ['M55-leave', 'M55-balances', 'M55-calendar', 'M55-accrual', 'M55-leave-types'], reports: ['Leave Utilisation', 'Leave Balances'], forms: ['Leave Request', 'Leave Type'] }],
+    ['4', 'Holidays', 5, { model: 'fix.hr.holiday', cols: ['name', 'date', 'holiday_type', 'tentative'], screens: ['M55-holidays'], reports: [], forms: ['Holiday'] }],
+    ['5', 'Shifts & Rosters', 13, { model: 'fix.roster.slot', cols: ['employee_id', 'date', 'shift_id', 'branch_id', 'on_leave'], screens: ['M55-shifts', 'M55-rosters', 'M55-roster-changes'], reports: ['Roster vs Actual'], forms: ['Roster', 'Shift Pattern', 'Roster Change Request'] }],
+    ['6', 'On-Call', 6, { model: 'fix.hr.oncall', cols: ['name', 'employee_id', 'date_from', 'date_to', 'state'], screens: ['M55-oncall', 'M55-callouts'], reports: ['Coverage Gaps'], forms: ['On-Call / Standby', 'On-Call Callout'] }],
+    ['7', 'Availability Publication', 7, { model: 'fix.roster.publication', cols: ['name', 'date_from', 'date_to', 'branch_id', 'state'], screens: ['M55-availability', 'M55-publications', 'M55-capacity', 'M55-roster-changes'], reports: ['Roster vs Actual', 'Coverage Gaps'], forms: ['Roster Publication', 'Capacity Forecast', 'Roster Change Request'] }],
+    ['8', 'Verification & Lock', 6, { model: 'fix.attendance.lock', cols: ['name', 'period_start', 'period_end', 'state'], screens: ['M55-attendance-lock', 'M55-exc', 'M55-regs', 'M55-adjustments'], reports: ['Attendance Summary'], forms: ['Exception Regularisation'] }],
+    ['9', 'Timesheets', 6, { model: 'fix.timesheet.line', cols: ['employee_id', 'date', 'hours', 'project_id', 'state'], screens: ['M55-timesheets', 'M55-daily'], reports: ['Attendance Summary', 'Overtime Analysis'], forms: ['Timesheet Line', 'Exception Regularisation'] }]
   ] }
 };
 
@@ -182,6 +190,39 @@ export const SCREENS = {
       { m: 'action_reject_allowance', l: 'Reject Allowance', ask: 'Reason for rejecting', kwarg: 'reason' }
     ] },
   'M55-availability': { kind: 'table_report', module: 'M55', report: 'roster_vs_actual', title: 'Availability → Dispatch', period: true },
+
+  /* Capture audit 2026-11-17: callouts (FR-WFM-044), capacity forecasts
+   * (FR-WFM-048/049), timesheet lines (FR-WFM-050) and the leave catalogue
+   * (FR-WFM-026). */
+  'M55-callouts': { kind: 'model_list', model: 'fix.oncall.callout', stateField: 'state',
+    cols: ['name', 'oncall_id', 'employee_id', 'called_at', 'finished_at', 'hours', 'work_order_id', 'state', 'verified_by_id'],
+    note: 'A callout is recorded inside a started on-call window by the person on call or a supervisor, and verified by the line manager or an attendance officer. The person on call and the recorder never verify it.',
+    actions: [
+      { m: 'action_submit', l: 'Submit for Verification' },
+      { m: 'action_inbox_approve', l: 'Verify' },
+      { m: 'action_reject', l: 'Reject', ask: 'Reason for rejecting', kwarg: 'reason' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M55-capacity': { kind: 'model_list', model: 'fix.capacity.forecast', stateField: 'state',
+    cols: ['name', 'branch_id', 'competency_id', 'date_from', 'date_to', 'demand_hours', 'available_hours', 'gap_hours', 'gap_flag', 'state'],
+    note: 'Available hours are measured from the roster of the branch (approved leave days out; with a skill, only people holding a valid certification of it). Publishing freezes the figures, replaces the previous forecast of the same scope and alerts the attendance supervisors when demand exceeds capacity.',
+    actions: [
+      { m: 'action_measure', l: 'Measure from Roster' },
+      { m: 'action_publish', l: 'Publish' }
+    ] },
+  'M55-timesheets': { kind: 'model_list', model: 'fix.timesheet.line', stateField: 'state',
+    cols: ['employee_id', 'date', 'hours', 'project_id', 'contract_id', 'work_order_id', 'cost_centre', 'state', 'decided_by_id'],
+    note: 'Time is allocated from verified attendance: the lines of a day never add up to more than the hours attended. Your line manager (an attendance officer when there is none) approves them; you never approve your own.',
+    actions: [
+      { m: 'action_submit', l: 'Submit' },
+      { m: 'action_inbox_approve', l: 'Approve' },
+      { m: 'action_reject', l: 'Reject', ask: 'Reason for rejecting', kwarg: 'reason' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M55-leave-types': { kind: 'model_list', model: 'fix.leave.type',
+    cols: ['code', 'name', 'name_bn', 'entitlement_days', 'carry_forward_limit', 'encashable', 'requires_certificate', 'labour_act_section', 'verified_on'],
+    note: 'One type per code. A changed statutory section or citation is no longer verified: an HR Officer verifies it again.',
+    actions: [{ m: 'action_verify_citation', l: 'Verify Citation' }] },
 
   /* Report chips -> their own computed pack */
   'M55-rpt-summary': { kind: 'table_report', module: 'M55', report: 'attendance_summary', title: 'Attendance Summary', period: true },
@@ -793,6 +834,210 @@ export const SCREENS = {
     ]
   },
 
+  'M55-form-callout': {
+    kind: 'model_form',
+    model: 'fix.oncall.callout',
+    title: 'On-Call Callout',
+    back: 'M55-callouts',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Awaiting Verification', verified: 'Verified', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'call', label: 'Callout', bn: 'কলআউট', icon: '📟', badge: '7' },
+      { id: 'decision', label: 'Hours & Verification', bn: 'ঘণ্টা ও যাচাই', icon: '✅', badge: '8' }
+    ],
+    sections: [
+      {
+        tab: 'call',
+        title: 'Called Out During an On-Call Window (FR-WFM-044)',
+        note: 'Pick the on-call (or standby) the call came in on: it must have been started, and the call must fall inside its window. The person on call records it, or a supervisor does.',
+        fields: [
+          { name: 'oncall_id', required: true, label: 'On-Call / Standby' },
+          { name: 'called_at', required: true, label: 'Called At' },
+          { name: 'arrived_at', label: 'Arrived On Site At' },
+          { name: 'finished_at', required: true, label: 'Finished At' },
+          { name: 'caller', label: 'Raised By (caller or channel)' },
+          { name: 'work_order_id', label: 'Work Order' },
+          { name: 'description', required: true, type: 'text', label: 'What Was Done' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Verified by Someone Other Than the Person On Call',
+        note: 'Submit routes the callout to the line manager (an attendance officer when there is none). Verified callouts are final.',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'employee_id', label: 'Called Out', readonly: true },
+          { name: 'hours', label: 'Callout Hours', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'submitted_at', label: 'Submitted At', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true },
+          { name: 'verified_at', label: 'Verified At', readonly: true },
+          { name: 'rejection_reason', label: 'Reason for Rejection', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M55-form-capacity': {
+    kind: 'model_form',
+    model: 'fix.capacity.forecast',
+    title: 'Capacity Forecast',
+    back: 'M55-capacity',
+    status: { field: 'state', labels: { draft: 'Draft', published: 'Published', superseded: 'Superseded' } },
+    tabs: [
+      { id: 'scope', label: 'Scope & Demand', bn: 'পরিধি ও চাহিদা', icon: '🎯', badge: '8' },
+      { id: 'measure', label: 'Measured Capacity', bn: 'পরিমাপিত সক্ষমতা', icon: '📊', badge: '8' },
+      { id: 'publication', label: 'Publication', bn: 'প্রকাশ', icon: '📣', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'scope',
+        title: 'Branch, Skill and Period (FR-WFM-048)',
+        note: 'Leave the skill empty to count everyone rostered at the branch. A forecast covers at most 93 days. State where the demand figure comes from.',
+        fields: [
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'competency_id', label: 'Skill (Competency)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'date_from', required: true, label: 'Period From' },
+          { name: 'date_to', required: true, label: 'Period To' },
+          { name: 'demand_hours', required: true, label: 'Forecast Demand (hours)' },
+          { name: 'demand_basis', required: true, type: 'text', label: 'Demand Basis' }
+        ]
+      },
+      {
+        tab: 'measure',
+        title: 'Measured From the Roster (never typed)',
+        note: 'Measure from Roster reads the roster of the period; approved leave days are taken out. A positive gap is demand the roster cannot meet (FR-WFM-049).',
+        fields: [
+          { name: 'rostered_hours', label: 'Rostered Hours', readonly: true },
+          { name: 'leave_hours', label: 'On Approved Leave (hours)', readonly: true },
+          { name: 'available_hours', label: 'Available Hours', readonly: true },
+          { name: 'people_count', label: 'People Rostered', readonly: true },
+          { name: 'gap_hours', label: 'Gap (demand minus available)', readonly: true },
+          { name: 'gap_pct', label: 'Gap %', readonly: true },
+          { name: 'gap_flag', label: 'Demand Exceeds Capacity', readonly: true },
+          { name: 'measured_at', label: 'Measured At', readonly: true }
+        ]
+      },
+      {
+        tab: 'publication',
+        title: 'Published to Dispatch and Campaign Planning',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'published_by_id', label: 'Published By', readonly: true },
+          { name: 'published_at', label: 'Published At', readonly: true },
+          { name: 'superseded_by_id', label: 'Superseded By', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M55-form-timesheet': {
+    kind: 'model_form',
+    model: 'fix.timesheet.line',
+    title: 'Timesheet Line',
+    back: 'M55-timesheets',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'time', label: 'Time Worked', bn: 'কাজের সময়', icon: '⏱️', badge: '5' },
+      { id: 'allocation', label: 'Allocated To', bn: 'বরাদ্দ', icon: '📁', badge: '5' },
+      { id: 'decision', label: 'Decision', bn: 'সিদ্ধান্ত', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'time',
+        title: 'Hours From the Day Attended (FR-WFM-050)',
+        note: 'The lines of one day never add up to more than the verified attendance of that day.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'date', required: true, label: 'Date' },
+          { name: 'hours', required: true, label: 'Hours' },
+          { name: 'description', required: true, type: 'text', label: 'Work Done' },
+          { name: 'attended_hours', label: 'Attended That Day', readonly: true }
+        ]
+      },
+      {
+        tab: 'allocation',
+        title: 'Project, Contract, Work Order or Cost Centre',
+        note: 'Give at least one. With none of the first three, an empty cost centre is filled with the employee cost centre.',
+        fields: [
+          { name: 'project_id', label: 'Project (M67)' },
+          { name: 'contract_id', label: 'Managed-Service Contract (M05)' },
+          { name: 'work_order_id', label: 'Work Order' },
+          { name: 'cost_centre', label: 'Cost Centre' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Approved by the Line Manager',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'submitted_at', label: 'Submitted At', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_at', label: 'Decided At', readonly: true },
+          { name: 'rejection_reason', label: 'Reason for Rejection', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M55-form-leave-type': {
+    kind: 'model_form',
+    model: 'fix.leave.type',
+    title: 'Leave Type',
+    back: 'M55-leave-types',
+    tabs: [
+      { id: 'definition', label: 'Leave Definition', bn: 'ছুটির সংজ্ঞা', icon: '🌴', badge: '5' },
+      { id: 'entitlement', label: 'Entitlement & Rules', bn: 'প্রাপ্যতা ও নিয়ম', icon: '⚖️', badge: '6' },
+      { id: 'statute', label: 'Statutory Citation', bn: 'আইনি উৎস', icon: '📜', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'definition',
+        title: 'Leave Type (FR-WFM-026)',
+        note: 'Annual, casual, sick, maternity, festival, compensatory, unpaid and special leave each have their own type. One type per code.',
+        fields: [
+          { name: 'name', required: true, label: 'Leave Name (English)' },
+          { name: 'name_bn', label: 'Leave Name (Bengali)' },
+          { name: 'code', required: true, label: 'Leave Code' },
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ]
+      },
+      {
+        tab: 'entitlement',
+        title: 'Entitlement, Carry-Forward and Certification',
+        note: 'BLA s.117: annual leave carries forward up to the limit and is encashable. Sick leave needs a medical certificate (s.116). Maternity runs in continuous weeks, so holidays inside it are charged.',
+        fields: [
+          { name: 'entitlement_days', required: true, label: 'Annual Entitlement (days)' },
+          { name: 'carry_forward_limit', label: 'Carry-Forward Limit (days)' },
+          { name: 'encashable', label: 'Encashable' },
+          { name: 'maternity', label: 'Maternity Leave' },
+          { name: 'excludes_holidays', label: 'Holidays Not Charged' },
+          { name: 'requires_certificate', label: 'Medical Certificate Required' }
+        ]
+      },
+      {
+        tab: 'statute',
+        title: 'Governing Section, Verified by HR',
+        note: 'Verify Citation on the list records who checked the section and citation. Changing either clears the verification.',
+        fields: [
+          { name: 'is_statutory', label: 'Statutory Entitlement' },
+          { name: 'labour_act_section', label: 'Labour Act Section' },
+          { name: 'legal_citation', type: 'text', label: 'Legal Citation' },
+          { name: 'amendment_ref', label: 'Amendment Reference' },
+          { name: 'verified_on', label: 'Citation Verified On', readonly: true },
+          { name: 'verified_by_id', label: 'Citation Verified By', readonly: true }
+        ]
+      }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
   'M55-attendance-lock': { kind: 'model_list', model: 'fix.attendance.lock', stateField: 'state',
     cols: ['name', 'state', 'company_id', 'operating_unit_id', 'period_start', 'period_end'],
@@ -823,7 +1068,14 @@ export const FORM_MODELS = {
   'M55:Biometric Consent': 'fix.biometric.consent',
   'M55:Roster Publication': 'fix.roster.publication',
   'M55:Roster Change Request': 'fix.roster.change.request',
-  'M55:Working-Time Rule': 'fix.working.time.rule'
+  'M55:Working-Time Rule': 'fix.working.time.rule',
+  'M55:Leave Type': 'fix.leave.type',
+  'M55:Biometric Device': 'fix.biometric.device',
+  'M55:Holiday': 'fix.hr.holiday',
+  'M55:On-Call / Standby': 'fix.hr.oncall',
+  'M55:On-Call Callout': 'fix.oncall.callout',
+  'M55:Capacity Forecast': 'fix.capacity.forecast',
+  'M55:Timesheet Line': 'fix.timesheet.line'
 };
 
 export const FORM_CHIPS = {
@@ -838,6 +1090,12 @@ export const FORM_CHIPS = {
   'M55:Roster Publication': 'M55-form-publication',
   'M55:Roster Change Request': 'M55-form-roster-change',
   'M55:Working-Time Rule': 'M55-form-wt-rule',
+  'M55:Leave Type': 'M55-form-leave-type',
+  'M55:Holiday': 'M55-form-holiday',
+  'M55:On-Call / Standby': 'M55-form-oncall',
+  'M55:On-Call Callout': 'M55-form-callout',
+  'M55:Capacity Forecast': 'M55-form-capacity',
+  'M55:Timesheet Line': 'M55-form-timesheet',
   'M55:__by_model__': {
     'fix.attendance.lock': 'M55-form-attendance-lock',
     'fix.biometric.device': 'M55-form-bio',
@@ -852,7 +1110,10 @@ export const FORM_CHIPS = {
     'fix.biometric.consent': 'M55-form-bio-consent',
     'fix.roster.publication': 'M55-form-publication',
     'fix.roster.change.request': 'M55-form-roster-change',
-    'fix.working.time.rule': 'M55-form-wt-rule'
+    'fix.working.time.rule': 'M55-form-wt-rule',
+    'fix.oncall.callout': 'M55-form-callout',
+    'fix.capacity.forecast': 'M55-form-capacity',
+    'fix.timesheet.line': 'M55-form-timesheet'
   },
   'M55:__by_screen__': {
     'M55-attendance-lock': 'M55-form-attendance-lock',
@@ -871,7 +1132,11 @@ export const FORM_CHIPS = {
     'M55-bio-consent': 'M55-form-bio-consent',
     'M55-publications': 'M55-form-publication',
     'M55-roster-changes': 'M55-form-roster-change',
-    'M55-wt-rules': 'M55-form-wt-rule'
+    'M55-wt-rules': 'M55-form-wt-rule',
+    'M55-callouts': 'M55-form-callout',
+    'M55-capacity': 'M55-form-capacity',
+    'M55-timesheets': 'M55-form-timesheet',
+    'M55-leave-types': 'M55-form-leave-type'
   }
 };
 
