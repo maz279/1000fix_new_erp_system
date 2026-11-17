@@ -1,6 +1,7 @@
 /** @odoo-module **/
 /* A09 · People & Workforce — M56 Payroll & Statutory.
- * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 82. */
+ * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 82.
+ * Capture audit 2026-11-17: every sub-module page captures what it covers. */
 
 export const MODULE = {
   area: 'A09', code: 'M56', en: 'Payroll & Statutory', title: 'M56 · Payroll & Statutory',
@@ -24,7 +25,9 @@ export const MODULE = {
         { id: 'M56-variance', en: 'Variance Review', bn: 'বেতন পার্থক্য পর্যালোচনা', t: 'g' },
         { id: 'M56-recoveries', en: 'Overpayment Recoveries', bn: 'অতিরিক্ত প্রদান আদায়', t: 'g' },
         { id: 'M56-recovery-lines', en: 'Recovery Deductions', bn: 'আদায় কর্তন', t: 'g' },
-        { id: 'M56-bank-checks', en: 'Bank-Change Confirmations', bn: 'ব্যাংক পরিবর্তন নিশ্চিতকরণ', t: 'g' }
+        { id: 'M56-bank-checks', en: 'Bank-Change Confirmations', bn: 'ব্যাংক পরিবর্তন নিশ্চিতকরণ', t: 'g' },
+        { id: 'M56-advances', en: 'Salary Advances', bn: 'বেতন অগ্রিম', t: 'g' },
+        { id: 'M56-advance-recoveries', en: 'Advance Recovery Schedules', bn: 'অগ্রিম আদায় সূচি', t: 'g' }
       ]
     },
     {
@@ -35,7 +38,10 @@ export const MODULE = {
         { id: 'M56-bonus', en: 'Festival Bonus', bn: 'উৎসব বোনাস', t: 'g' },
         { id: 'M56-bonus-lines', en: 'Festival Bonus Lines', bn: 'উৎসব বোনাস লাইন', t: 'g' },
         { id: 'M56-packs', en: 'Statutory Packs', bn: 'বিধিবদ্ধ হার প্যাক', t: 'g' },
-        { id: 'M56-gratuity-accrual', en: 'Gratuity Provision', bn: 'গ্র্যাচুইটি সঞ্চিতি', t: 'g' }
+        { id: 'M56-gratuity-accrual', en: 'Gratuity Provision', bn: 'গ্র্যাচুইটি সঞ্চিতি', t: 'g' },
+        { id: 'M56-declarations', en: 'Investment Declarations', bn: 'বিনিয়োগ ঘোষণা', t: 'g' },
+        { id: 'M56-pf-members', en: 'Provident Fund Members', bn: 'ভবিষ্য তহবিল সদস্য', t: 'g' },
+        { id: 'M56-gratuity-openings', en: 'Gratuity Opening Provisions', bn: 'গ্র্যাচুইটি প্রারম্ভিক সঞ্চিতি', t: 'g' }
       ]
     },
     {
@@ -61,20 +67,25 @@ export const MODULE = {
     }
   ],
   reports: ['Salary Register', 'Payroll Cost Allocation', 'Tax Deduction Summary', 'PF & Gratuity Provisions', 'Payroll Variance', 'Gratuity Provision'],
-  forms: ['Salary Structure', 'Payroll Run', 'Bonus Run', 'Final Settlement'],
+  forms: ['Salary Structure', 'Payroll Run', 'Bonus Run', 'Final Settlement',
+    'Investment Declaration', 'Statutory Pack', 'PF Membership', 'Gratuity Opening Provision',
+    'WPPF Allocation', 'Salary Advance', 'Advance Recovery Schedule', 'Off-Cycle Payment',
+    'Overpayment Recovery', 'BEFTN Bank Return', 'MFS Provider Return', 'Withholding Return',
+    'Tax Certificate', 'Nominee Account'],
   cross: ['M21 Workforce', 'M55 Attendance', 'M19 General Ledger', 'M51 TDS', 'M50 Treasury'],
   freg: {
     src: 82, sub: [
-      ['1', 'Gross-to-Net Engine', 14, { model: 'fix.payslip', cols: ['period_id', 'employee_id', 'gross', 'tax_withheld', 'net'], screens: ['M56-payslips', 'M56-structures'], reports: ['Salary Register'], forms: ['Salary Structure'] }],
-      ['2', 'BD Income Tax', 12, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'taxpayer_category', 'annual_taxable_other', 'tax_withheld'], screens: ['M56-tax'], reports: ['Tax Deduction Summary'], forms: [] }],
-      ['3', 'Provident Fund', 7, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'basic', 'pf_employee', 'pf_employer'], screens: ['M56-pf'], reports: ['PF & Gratuity Provisions'], forms: [] }],
-      ['4', 'Gratuity', 7, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'completed_years', 'basic', 'gratuity_amount'], screens: ['M56-gratuity'], reports: ['PF & Gratuity Provisions', 'Gratuity Provision'], forms: [] }],
-      ['5', 'Bonus & Encashment', 7, { model: 'fix.payroll.bonus.run', cols: ['name', 'festival', 'bonus_date', 'total_amount', 'state'], screens: ['M56-bonus', 'M56-wppf'], reports: [], forms: ['Bonus Run'] }],
-      ['6', 'Loans & Advances', 6, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-offcycle'], reports: [], forms: [], domain: [['payment_type', '=', 'advance']] }],
-      ['7', 'Runs & Off-Cycle', 9, { model: 'fix.payroll.period', cols: ['name', 'period_start', 'period_end', 'calculator_id', 'state'], screens: ['M56-runs', 'M56-offcycle'], reports: ['Salary Register', 'Payroll Variance', 'Payroll Cost Allocation'], forms: ['Payroll Run'] }],
-      ['8', 'BEFTN & Payslips', 8, { model: 'fix.beftn.batch', cols: ['period_id', 'settlement_date', 'employee_count', 'total_amount', 'state'], screens: ['M56-beftn', 'M56-payslips'], reports: ['Salary Register'], forms: [] }],
-      ['9', 'Returns & Certificates', 7, { model: 'fix.payroll.return', cols: ['name', 'period', 'total_tax', 'challan_number', 'state'], screens: ['M56-returns', 'M56-certificates'], reports: ['Tax Deduction Summary'], forms: [] }],
-      ['10', 'Final Settlement', 5, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-settlement'], reports: [], forms: ['Final Settlement'], domain: [['payment_type', '=', 'settlement']] }]
+      /* M56 capture audit (2026-11-17): each page captures the records it covers */
+      ['1', 'Gross-to-Net Engine', 14, { model: 'fix.payslip', cols: ['period_id', 'employee_id', 'gross', 'tax_withheld', 'net'], screens: ['M56-payslips', 'M56-structures'], reports: ['Salary Register'], forms: ['Salary Structure'], create: 'M56-form-structure' }],
+      ['2', 'BD Income Tax', 12, { model: 'fix.investment.declaration', cols: ['employee_id', 'fiscal_year', 'instrument', 'declared_amount', 'eligible_amount', 'state'], screens: ['M56-tax', 'M56-declarations', 'M56-packs'], reports: ['Tax Deduction Summary'], forms: ['Investment Declaration', 'Statutory Pack'] }],
+      ['3', 'Provident Fund', 7, { model: 'fix.pf.member', cols: ['employee_id', 'joined_fund_on', 'employee_rate', 'employer_rate', 'state'], screens: ['M56-pf', 'M56-pf-members'], reports: ['PF & Gratuity Provisions'], forms: ['PF Membership'] }],
+      ['4', 'Gratuity', 7, { model: 'fix.payroll.gratuity.opening', cols: ['employee_id', 'as_of', 'opening_liability', 'legacy_reference', 'state'], screens: ['M56-gratuity', 'M56-gratuity-accrual', 'M56-gratuity-openings'], reports: ['PF & Gratuity Provisions', 'Gratuity Provision'], forms: ['Gratuity Opening Provision'] }],
+      ['5', 'Bonus & Encashment', 7, { model: 'fix.payroll.bonus.run', cols: ['name', 'festival', 'bonus_date', 'total_amount', 'state'], screens: ['M56-bonus', 'M56-bonus-lines', 'M56-wppf', 'M56-wppf-beneficiaries'], reports: [], forms: ['Bonus Run', 'WPPF Allocation'] }],
+      ['6', 'Loans & Advances', 6, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-advances', 'M56-advance-recoveries'], reports: [], forms: ['Salary Advance', 'Advance Recovery Schedule'], domain: [['payment_type', '=', 'advance']] }],
+      ['7', 'Runs & Off-Cycle', 9, { model: 'fix.payroll.period', cols: ['name', 'period_start', 'period_end', 'calculator_id', 'state'], screens: ['M56-runs', 'M56-offcycle', 'M56-variance', 'M56-recoveries', 'M56-recovery-lines'], reports: ['Salary Register', 'Payroll Variance', 'Payroll Cost Allocation'], forms: ['Payroll Run', 'Off-Cycle Payment', 'Overpayment Recovery'] }],
+      ['8', 'BEFTN & Payslips', 8, { model: 'fix.beftn.batch', cols: ['period_id', 'settlement_date', 'employee_count', 'total_amount', 'state'], screens: ['M56-beftn', 'M56-payslips', 'M56-my-payslips', 'M56-bank-checks', 'M56-bank-returns', 'M56-bank-return-lines', 'M56-mfs', 'M56-mfs-returns', 'M56-mfs-return-lines'], reports: ['Salary Register'], forms: ['BEFTN Bank Return', 'MFS Provider Return'], create: 'M56-form-bank-return' }],
+      ['9', 'Returns & Certificates', 7, { model: 'fix.payroll.return', cols: ['name', 'period', 'total_tax', 'challan_number', 'state'], screens: ['M56-returns', 'M56-certificates'], reports: ['Tax Deduction Summary'], forms: ['Withholding Return', 'Tax Certificate'] }],
+      ['10', 'Final Settlement', 5, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-settlement', 'M56-nominee-accounts'], reports: [], forms: ['Final Settlement', 'Nominee Account'], domain: [['payment_type', '=', 'settlement']] }]
     ]
   }
 };
@@ -128,6 +139,7 @@ export const SCREENS = {
   },
   'M56-settlement': {
     kind: 'model_list', model: 'fix.payroll.offcycle', stateField: 'state',
+    domain: [['payment_type', '=', 'settlement']],
     cols: ['name', 'employee_id', 'payment_date', 'amount', 'reason', 'approval_state', 'state'],
     actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }]
   },
@@ -177,6 +189,7 @@ export const SCREENS = {
   /* BRU-PAY-04: routed; deducted after tax from the next runs, capped monthly */
   'M56-recoveries': {
     kind: 'model_list', model: 'fix.payroll.recovery', stateField: 'state',
+    domain: [['recovery_type', '=', 'overpayment']],
     cols: ['name', 'employee_id', 'correction_slip_id', 'amount', 'recovered_amount', 'remaining_amount', 'approval_state', 'state'],
     actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_cancel', l: 'Cancel' }]
   },
@@ -203,6 +216,39 @@ export const SCREENS = {
   'M56-gratuity-accrual': {
     kind: 'model_list', create: false, model: 'fix.payroll.gratuity.accrual',
     cols: ['month', 'employee_id', 'completed_years', 'basic', 'liability', 'previous_liability', 'accrual', 'move_id']
+  },
+
+  /* ---- M56 capture audit (2026-11-17) ---- */
+  /* FR-PAY-031/032: an advance is released only with its approved recovery schedule */
+  'M56-advances': {
+    kind: 'model_list', model: 'fix.payroll.offcycle', stateField: 'state',
+    domain: [['payment_type', '=', 'advance']],
+    cols: ['name', 'employee_id', 'payment_date', 'amount', 'advance_outstanding', 'approval_state', 'state'],
+    actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }, { m: 'action_cancel', l: 'Cancel' }]
+  },
+  'M56-advance-recoveries': {
+    kind: 'model_list', model: 'fix.payroll.recovery', stateField: 'state',
+    domain: [['recovery_type', '=', 'advance']],
+    cols: ['name', 'employee_id', 'advance_id', 'amount', 'instalment', 'recovered_amount', 'remaining_amount', 'approval_state', 'state'],
+    actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_cancel', l: 'Cancel' }]
+  },
+  /* FR-PAY-013/014, BRU-PAY-10: validated by a second payroll user, never the recorder */
+  'M56-declarations': {
+    kind: 'model_list', model: 'fix.investment.declaration', stateField: 'state',
+    cols: ['name', 'employee_id', 'fiscal_year', 'instrument', 'declared_amount', 'eligible_amount', 'validated_by_id', 'state'],
+    actions: [{ m: 'action_validate', l: 'Validate (second payroll user)', ask: 'Eligible amount (blank = as declared)', kwarg: 'eligible_amount' }, { m: 'action_reject', l: 'Reject', ask: 'Why is the declaration rejected?', kwarg: 'reason' }, { m: 'action_cancel', l: 'Cancel' }]
+  },
+  /* FR-PAY-020: approved by a Payroll Manager who did not record it */
+  'M56-pf-members': {
+    kind: 'model_list', model: 'fix.pf.member', stateField: 'state',
+    cols: ['name', 'employee_id', 'joined_fund_on', 'employee_rate', 'employer_rate', 'opening_employee_balance', 'opening_employer_balance', 'approved_by_id', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve Membership (Payroll Manager)' }, { m: 'action_leave', l: 'Leave the Fund', ask: 'Why does the employee leave the fund?', kwarg: 'reason' }, { m: 'action_cancel', l: 'Cancel' }]
+  },
+  /* FR-PAY-022, Q-05: the provision the books already carry, taken on before the first accrual */
+  'M56-gratuity-openings': {
+    kind: 'model_list', model: 'fix.payroll.gratuity.opening', stateField: 'state',
+    cols: ['name', 'employee_id', 'as_of', 'opening_liability', 'legacy_reference', 'approved_by_id', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve (second Payroll Manager)' }, { m: 'action_cancel', l: 'Cancel' }]
   },
 
   'M56-my-payslips': { kind: 'table_report', module: 'M56', report: 'my_payslips', title: 'My Payslips' },
@@ -411,6 +457,257 @@ export const SCREENS = {
     ]
   },
 
+
+  'M56-form-advance': {
+    kind: 'model_form',
+    model: 'fix.payroll.offcycle',
+    title: 'Salary Advance',
+    back: 'M56-advances',
+    presets: { payment_type: 'advance' },
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', paid: 'Paid', posted: 'Posted', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'claim', label: 'Advance', bn: 'অগ্রিম', icon: '💳', badge: '5' },
+      { id: 'execution', label: 'Approval & Recovery', bn: 'অনুমোদন ও আদায়', icon: '🏦', badge: '8' }
+    ],
+    sections: [
+      {
+        tab: 'claim',
+        title: 'The advance paid ahead of salary',
+        note: 'Released to the bank only once its approved recovery schedule covers the whole amount.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'payment_type', required: true, label: 'Payment Type' },
+          { name: 'payment_date', required: true, label: 'Payment Date' },
+          { name: 'amount', required: true, label: 'Advance Amount (BDT)' },
+          { name: 'reason', label: 'Purpose of the Advance' }
+        ]
+      },
+      {
+        tab: 'execution',
+        title: 'Approval, release and what is still owed',
+        note: 'Approved by a Payroll Manager other than the preparer; recovered from the monthly runs by its schedule.',
+        fields: [
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'bank_account_no', readonly: true, label: 'Payee Account (from the employee master)' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'net_amount', readonly: true, label: 'Net Paid (BDT)' },
+          { name: 'advance_outstanding', readonly: true, label: 'Still Owed on the Advance (BDT)' }
+        ]
+      }
+    ]
+  },
+
+  'M56-form-settlement': {
+    kind: 'model_form',
+    model: 'fix.payroll.offcycle',
+    title: 'Final Settlement Payment',
+    back: 'M56-settlement',
+    presets: { payment_type: 'settlement' },
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', paid: 'Paid', posted: 'Posted', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'claim', label: 'Settlement Payment', bn: 'নিষ্পত্তি প্রদান', icon: '🤝', badge: '5' },
+      { id: 'execution', label: 'Approval & Payee', bn: 'অনুমোদন ও প্রাপক', icon: '🏦', badge: '10' }
+    ],
+    sections: [
+      {
+        tab: 'claim',
+        title: 'A part of a final settlement',
+        note: 'A settled exit (M21) raises its own payment; a part typed here is approved and paid the same way.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'payment_type', required: true, label: 'Payment Type' },
+          { name: 'payment_date', required: true, label: 'Payment Date' },
+          { name: 'amount', required: true, label: 'Amount (BDT)' },
+          { name: 'reason', label: 'What this part settles' }
+        ]
+      },
+      {
+        tab: 'execution',
+        title: 'Approval and payee',
+        note: 'Approved by a Payroll Manager other than the preparer; amount and payee freeze at approval.',
+        fields: [
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'bank_account_no', readonly: true, label: 'Payee Account (from the employee master)' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'net_amount', readonly: true, label: 'Net Paid (BDT)' },
+          { name: 'exit_id', readonly: true, label: 'Exit Settlement (I1)' },
+          { name: 'nominee_name', readonly: true, label: 'Nominee Payee (BLA s.19)' },
+          { name: 'nominee_share_pct', readonly: true, label: 'Nominee Share %' }
+        ]
+      }
+    ]
+  },
+
+  'M56-form-advance-recovery': {
+    kind: 'model_form',
+    model: 'fix.payroll.recovery',
+    title: 'Advance Recovery Schedule',
+    back: 'M56-advance-recoveries',
+    presets: { recovery_type: 'advance' },
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'what', label: 'Schedule', bn: 'সূচি', icon: '↩️', badge: '5' },
+      { id: 'progress', label: 'Recovery & Approval', bn: 'আদায় ও অনুমোদন', icon: '📊', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'what',
+        title: 'How the advance comes back',
+        note: 'Deducted after tax from each monthly run, at most the instalment and the company monthly cap, until repaid.',
+        fields: [
+          { name: 'recovery_type', required: true, label: 'Recovers' },
+          { name: 'advance_id', required: true, label: 'Salary Advance' },
+          { name: 'amount', label: 'Amount Owed (blank = the whole advance)' },
+          { name: 'instalment', label: 'Monthly Instalment (BDT; 0 = whole balance)' },
+          { name: 'reason', required: true, label: 'Repayment Terms' }
+        ]
+      },
+      {
+        tab: 'progress',
+        title: 'Recovered so far',
+        note: 'Approved by a Payroll Manager other than the preparer from the M63 inbox.',
+        fields: [
+          { name: 'employee_id', readonly: true, label: 'Employee' },
+          { name: 'recovered_amount', readonly: true, label: 'Recovered So Far' },
+          { name: 'remaining_amount', readonly: true, label: 'Still Owed' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'state', readonly: true, label: 'State' }
+        ]
+      }
+    ]
+  },
+
+  'M56-form-declaration': {
+    kind: 'model_form',
+    model: 'fix.investment.declaration',
+    title: 'Investment Declaration (tax rebate)',
+    back: 'M56-declarations',
+    status: { field: 'state', labels: { draft: 'Declared', validated: 'Validated', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'what', label: 'Declaration', bn: 'ঘোষণা', icon: '📑', badge: '6' },
+      { id: 'check', label: 'Validation', bn: 'যাচাই', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'what',
+        title: 'The investment and its evidence',
+        note: 'Recorded by payroll with the certificate, receipt or statement; only validated amounts reduce the tax.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'fiscal_year', required: true, label: 'Income Year (e.g. 2026-27)' },
+          { name: 'instrument', required: true, label: 'Investment Type' },
+          { name: 'declared_amount', required: true, label: 'Amount Invested (BDT)' },
+          { name: 'evidence_file', label: 'Evidence (certificate / receipt)', type: 'file' },
+          { name: 'note', label: 'Certificate / Policy Number' }
+        ]
+      },
+      {
+        tab: 'check',
+        title: 'Validated by a second payroll user',
+        note: 'Never by the person who recorded it, never by the employee; the eligible amount may be lower than declared.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'eligible_amount', readonly: true, label: 'Eligible Amount (BDT)' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'recorded_by_id', readonly: true, label: 'Recorded By' },
+          { name: 'validated_by_id', readonly: true, label: 'Validated By' },
+          { name: 'rejection_reason', readonly: true, label: 'Rejection Reason' }
+        ]
+      }
+    ]
+  },
+
+  'M56-form-pf-member': {
+    kind: 'model_form',
+    model: 'fix.pf.member',
+    title: 'Provident Fund Membership',
+    back: 'M56-pf-members',
+    status: { field: 'state', labels: { draft: 'Recorded', active: 'Member', left: 'Left the Fund', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'member', label: 'Membership & Rates', bn: 'সদস্যপদ ও হার', icon: '🏦', badge: '4' },
+      { id: 'opening', label: 'Opening Balances', bn: 'প্রারম্ভিক জের', icon: '📒', badge: '4' },
+      { id: 'status', label: 'Approval', bn: 'অনুমোদন', icon: '✅', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'member',
+        title: 'Who contributes, and at what rates',
+        note: 'Once the company keeps this register, only approved members contribute, each at their own rates.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'joined_fund_on', required: true, label: 'Joined the Fund On' },
+          { name: 'employee_rate', required: true, label: 'Employee Contribution (% of basic)' },
+          { name: 'employer_rate', required: true, label: 'Employer Contribution (% of basic)' }
+        ]
+      },
+      {
+        tab: 'opening',
+        title: 'Balances taken on from the fund records',
+        note: 'The member balance at take-on, with the fund statement as evidence.',
+        fields: [
+          { name: 'opening_as_of', label: 'Opening Balance As Of' },
+          { name: 'opening_employee_balance', label: 'Opening Employee Balance (BDT)' },
+          { name: 'opening_employer_balance', label: 'Opening Employer Balance (BDT)' },
+          { name: 'evidence_file', label: 'Evidence (nomination / fund statement)', type: 'file' }
+        ]
+      },
+      {
+        tab: 'status',
+        title: 'Approved by a Payroll Manager who did not record it',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'recorded_by_id', readonly: true, label: 'Recorded By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'left_on', readonly: true, label: 'Left the Fund On' }
+        ]
+      }
+    ]
+  },
+
+  'M56-form-gratuity-opening': {
+    kind: 'model_form',
+    model: 'fix.payroll.gratuity.opening',
+    title: 'Gratuity Opening Provision',
+    back: 'M56-gratuity-openings',
+    status: { field: 'state', labels: { draft: 'Recorded', approved: 'Approved', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'what', label: 'Opening Provision', bn: 'প্রারম্ভিক সঞ্চিতি', icon: '📒', badge: '6' },
+      { id: 'status', label: 'Approval', bn: 'অনুমোদন', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'what',
+        title: 'The provision the legacy books carry',
+        note: 'The first monthly accrual moves from this figure, so the history is not posted again as one month of expense.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'as_of', required: true, label: 'As Of (month end)' },
+          { name: 'opening_liability', required: true, label: 'Provision Carried (BDT)' },
+          { name: 'legacy_reference', required: true, label: 'Legacy Ledger / Schedule Reference' },
+          { name: 'evidence_file', label: 'Provision Schedule', type: 'file' },
+          { name: 'note', label: 'Notes' }
+        ]
+      },
+      {
+        tab: 'status',
+        title: 'Approved by a second Payroll Manager',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'recorded_by_id', readonly: true, label: 'Recorded By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' }
+        ]
+      }
+    ]
+  },
 
   'M56-form-payslip': {
     kind: 'model_form',
@@ -938,14 +1235,42 @@ export const FORM_MODELS = {
   'M56:Salary Structure': 'fix.payroll.structure',
   'M56:Payroll Run': 'fix.payroll.period',
   'M56:Bonus Run': 'fix.payroll.bonus.run',
-  'M56:Final Settlement': 'fix.payroll.offcycle'
+  'M56:Final Settlement': 'fix.payroll.offcycle',
+  'M56:Investment Declaration': 'fix.investment.declaration',
+  'M56:Statutory Pack': 'fix.statutory.pack',
+  'M56:PF Membership': 'fix.pf.member',
+  'M56:Gratuity Opening Provision': 'fix.payroll.gratuity.opening',
+  'M56:WPPF Allocation': 'fix.wppf.allocation',
+  'M56:Salary Advance': 'fix.payroll.offcycle',
+  'M56:Advance Recovery Schedule': 'fix.payroll.recovery',
+  'M56:Off-Cycle Payment': 'fix.payroll.offcycle',
+  'M56:Overpayment Recovery': 'fix.payroll.recovery',
+  'M56:BEFTN Bank Return': 'fix.beftn.return',
+  'M56:MFS Provider Return': 'fix.mfs.return',
+  'M56:Withholding Return': 'fix.payroll.return',
+  'M56:Tax Certificate': 'fix.payroll.certificate',
+  'M56:Nominee Account': 'fix.payroll.nominee.account'
 };
 
 export const FORM_CHIPS = {
   'M56:Salary Structure': 'M56-form-structure',
   'M56:Payroll Run': 'M56-form-run',
   'M56:Bonus Run': 'M56-form-bonus',
-  'M56:Final Settlement': 'M56-form-offcycle',
+  'M56:Final Settlement': 'M56-form-settlement',
+  'M56:Investment Declaration': 'M56-form-declaration',
+  'M56:Statutory Pack': 'M56-form-pack',
+  'M56:PF Membership': 'M56-form-pf-member',
+  'M56:Gratuity Opening Provision': 'M56-form-gratuity-opening',
+  'M56:WPPF Allocation': 'M56-form-wppf',
+  'M56:Salary Advance': 'M56-form-advance',
+  'M56:Advance Recovery Schedule': 'M56-form-advance-recovery',
+  'M56:Off-Cycle Payment': 'M56-form-offcycle',
+  'M56:Overpayment Recovery': 'M56-form-recovery',
+  'M56:BEFTN Bank Return': 'M56-form-bank-return',
+  'M56:MFS Provider Return': 'M56-form-mfs-return',
+  'M56:Withholding Return': 'M56-form-return',
+  'M56:Tax Certificate': 'M56-form-certificate',
+  'M56:Nominee Account': 'M56-form-nominee-account',
   'M56:__by_model__': {
     'fix.payroll.structure': 'M56-form-structure',
     'fix.payroll.period': 'M56-form-run',
@@ -962,7 +1287,10 @@ export const FORM_CHIPS = {
     'fix.wppf.beneficiary': 'M56-form-wppf-beneficiary',
     'fix.payroll.nominee.account': 'M56-form-nominee-account',
     'fix.payroll.recovery': 'M56-form-recovery',
-    'fix.mfs.return': 'M56-form-mfs-return'
+    'fix.mfs.return': 'M56-form-mfs-return',
+    'fix.investment.declaration': 'M56-form-declaration',
+    'fix.pf.member': 'M56-form-pf-member',
+    'fix.payroll.gratuity.opening': 'M56-form-gratuity-opening'
   },
   'M56:__by_screen__': {
     'M56-structures': 'M56-form-structure',
@@ -970,7 +1298,7 @@ export const FORM_CHIPS = {
     'M56-payslips': 'M56-form-payslip',
     'M56-beftn': 'M56-form-beftn',
     'M56-bonus': 'M56-form-bonus',
-    'M56-settlement': 'M56-form-offcycle',
+    'M56-settlement': 'M56-form-settlement',
     'M56-offcycle': 'M56-form-offcycle',
     'M56-certificates': 'M56-form-certificate',
     'M56-returns': 'M56-form-return',
@@ -981,7 +1309,12 @@ export const FORM_CHIPS = {
     'M56-wppf-beneficiaries': 'M56-form-wppf-beneficiary',
     'M56-nominee-accounts': 'M56-form-nominee-account',
     'M56-recoveries': 'M56-form-recovery',
-    'M56-mfs-returns': 'M56-form-mfs-return'
+    'M56-mfs-returns': 'M56-form-mfs-return',
+    'M56-advances': 'M56-form-advance',
+    'M56-advance-recoveries': 'M56-form-advance-recovery',
+    'M56-declarations': 'M56-form-declaration',
+    'M56-pf-members': 'M56-form-pf-member',
+    'M56-gratuity-openings': 'M56-form-gratuity-opening'
   }
 };
 

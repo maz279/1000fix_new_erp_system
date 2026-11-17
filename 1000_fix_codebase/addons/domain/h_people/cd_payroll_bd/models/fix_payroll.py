@@ -970,9 +970,17 @@ class FixPayrollPeriod(models.Model):
                 "taxpayer_category": master.taxpayer_category or "general",
                 "minimum_tax_location": master.minimum_tax_location or "dhaka_chattogram",
                 "has_disabled_child": bool(master.has_disabled_child),
-                # BRU-PAY-10: a rebate only on a validated declaration, and
-                # there is no declaration model
-                "investment_allowance": 0.0,
+                # BRU-PAY-10: a rebate only on a validated declaration: the
+                # fiscal year's eligible amounts a second payroll user
+                # validated against evidence (M56 capture audit 2026-11-17)
+                "investment_allowance": self.env["fix.investment.declaration"]._allowance_for(
+                    emp, company, rec.period_start
+                ),
+                # FR-PAY-020: the member's own rates once the company keeps a
+                # provident fund register; unchanged until it does
+                **self.env["fix.pf.member"]._slip_rates(
+                    emp, company, rec.period_start, rec.period_end
+                ),
                 "bank_account_no": bank_acc,
                 "routing_no": routing,
                 "bank_name": bank_n,

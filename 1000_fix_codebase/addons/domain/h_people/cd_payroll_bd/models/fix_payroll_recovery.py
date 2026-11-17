@@ -11,6 +11,16 @@
 #     the slip it rode) and the next calculation takes it again;
 #   * the deduction is after tax (a net overpayment comes back net) and is
 #     booked to the company's overpayment-recovery account.
+#
+# M56 capture audit (2026-11-17), FR-PAY-031/032/033: a SALARY ADVANCE paid as
+# an off-cycle payment was never recovered - nothing deducted it and nothing
+# recorded what the employee owed. The same record now also carries an advance
+# recovery schedule: it names the advance, the amount owed and the monthly
+# instalment; it is routed like an overpayment; the advance is released to the
+# bank only once its approved schedule covers it; and each monthly run deducts
+# the instalment (after tax, within the monthly cap) until it is repaid. An
+# advance is recovered only through the monthly run, never from a bonus or
+# another off-cycle payment.
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -41,8 +51,30 @@ class FixPayrollRecovery(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     operating_unit_id = fields.Many2one("operating.unit")
+    recovery_type = fields.Selection(
+        [("overpayment", "Salary Overpayment"), ("advance", "Salary Advance")],
+        string="Recovers",
+        required=True,
+        default="overpayment",
+        index=True,
+    )
+    # an overpayment names the paid payslip it corrects (enforced below)
     correction_slip_id = fields.Many2one(
-        "fix.payslip", string="Overpaid Payslip", required=True, index=True, ondelete="restrict"
+        "fix.payslip", string="Overpaid Payslip", index=True, ondelete="restrict"
+    )
+    # an advance names the off-cycle advance it recovers
+    advance_id = fields.Many2one(
+        "fix.payroll.offcycle",
+        string="Salary Advance",
+        index=True,
+        ondelete="restrict",
+        domain=[("payment_type", "=", "advance")],
+    )
+    instalment = fields.Monetary(
+        currency_field="currency_id",
+        string="Monthly Instalment",
+        help="Deducted from each monthly run until repaid; 0 = the whole balance, "
+        "within the company's monthly cap.",
     )
     employee_id = fields.Many2one("hr.employee", required=True, index=True)
     currency_id = fields.Many2one(
@@ -85,6 +117,7 @@ class FixPayrollRecovery(models.Model):
         locked = super()._payroll_state_locked_fields()
         if self.state != "draft" or self.approval_state == "pending":
             locked |= {"correction_slip_id", "employee_id", "amount", "reason", "company_id"}
+            locked |= {"recovery_type", "advance_id", "instalment"}
             locked |= {"currency_id", "operating_unit_id"}
         return locked
 
@@ -96,10 +129,27 @@ class FixPayrollRecovery(models.Model):
             rec.remaining_amount = round(max((rec.amount or 0.0) - done, 0.0), 2)
             rec.fully_recovered = bool(rec.amount) and rec.remaining_amount <= 0.0
 
-    @api.constrains("amount", "correction_slip_id", "employee_id", "company_id")
+    @api.constrains(
+        "amount",
+        "correction_slip_id",
+        "employee_id",
+        "company_id",
+        "recovery_type",
+        "advance_id",
+        "instalment",
+    )
     def _check_recovery(self):
         for rec in self:
+            if rec.instalment < 0:
+                raise ValidationError("A monthly instalment is not negative.")
+            if rec.recovery_type == "advance":
+                rec._check_advance_schedule()
+                continue
             slip = rec.correction_slip_id.sudo()
+            if not slip:
+                raise ValidationError("An overpayment recovery names the paid payslip it corrects.")
+            if rec.advance_id:
+                raise ValidationError("An overpayment recovery names no advance.")
             if rec.amount <= 0:
                 raise ValidationError("An overpayment recovery is a positive amount.")
             if slip.period_id.state not in PAID_PERIOD_STATES:
@@ -115,11 +165,49 @@ class FixPayrollRecovery(models.Model):
                     "A recovery of %.2f exceeds the %.2f the payslip paid." % (rec.amount, slip.net)
                 )
 
+    def _check_advance_schedule(self):
+        """An advance schedule recovers one off-cycle salary advance of the same
+        employee and company, never more than was advanced, once."""
+        self.ensure_one()
+        adv = self.advance_id.sudo()
+        if not adv or adv.payment_type != "advance":
+            raise ValidationError("An advance recovery names the salary advance it recovers.")
+        if self.correction_slip_id:
+            raise ValidationError("An advance recovery names no payslip.")
+        if adv.state == "cancelled":
+            raise ValidationError("Advance %s is cancelled: nothing to recover." % adv.name)
+        if adv.employee_id != self.employee_id or adv.company_id != self.company_id:
+            raise ValidationError(
+                "An advance is recovered from the employee and company it was paid to."
+            )
+        if self.amount <= 0:
+            raise ValidationError("An advance recovery is a positive amount.")
+        if self.amount > adv.amount + 1e-6:
+            raise ValidationError(
+                "A recovery of %.2f exceeds the %.2f advanced." % (self.amount, adv.amount)
+            )
+        if self.instalment > self.amount + 1e-6:
+            raise ValidationError("The monthly instalment cannot exceed the amount owed.")
+        others = self.sudo().search(
+            [("advance_id", "=", adv.id), ("state", "!=", "cancelled"), ("id", "!=", self.id)]
+        )
+        if others:
+            raise ValidationError(
+                "Advance %s already has recovery schedule %s." % (adv.name, others[0].name)
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         if not (self.env.su or self.env.user.has_group(PAYROLL_OFFICER)):
             raise AccessError("Only payroll raises an overpayment recovery.")
         for vals in vals_list:
+            if vals.get("advance_id"):
+                adv = self.env["fix.payroll.offcycle"].sudo().browse(vals["advance_id"])
+                vals.setdefault("recovery_type", "advance")
+                vals.setdefault("employee_id", adv.employee_id.id)
+                vals.setdefault("company_id", adv.company_id.id)
+                if not vals.get("amount"):
+                    vals["amount"] = adv.amount
             if vals.get("correction_slip_id"):
                 slip = self.env["fix.payslip"].sudo().browse(vals["correction_slip_id"])
                 vals.setdefault("employee_id", slip.employee_id.id)
@@ -138,6 +226,19 @@ class FixPayrollRecovery(models.Model):
 
     def _digest(self):
         self.ensure_one()
+        if self.recovery_type == "advance":
+            return digest_rows(
+                [
+                    (
+                        "advance",
+                        str(self.id),
+                        str(self.advance_id.id),
+                        str(self.employee_id.id),
+                        "%.2f" % self.amount,
+                        "%.2f" % (self.instalment or 0.0),
+                    )
+                ]
+            )
         return digest_rows(
             [
                 (
@@ -154,7 +255,11 @@ class FixPayrollRecovery(models.Model):
             if rec.state != "draft":
                 raise UserError("Only a draft recovery is sent for approval.")
             if not (rec.reason or "").strip():
-                raise UserError("State what was overpaid and why.")
+                raise UserError(
+                    "State the advance's repayment terms."
+                    if rec.recovery_type == "advance"
+                    else "State what was overpaid and why."
+                )
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
@@ -188,29 +293,38 @@ class FixPayrollRecovery(models.Model):
 
     # ---- what a calculation deducts ------------------------------------------
     @api.model
-    def _due(self, employee, company, month, available, extra_domain=()):
+    def _due(self, employee, company, month, available, extra_domain=(), include_advance=False):
         """[(recovery, amount)] a payment of `available` net to `employee` in
         `month` (YYYY-MM) deducts: approved, unchanged recoveries still owing,
         oldest first. The company's monthly cap holds per recovery across
         EVERY payment of the month (run, off-cycle, bonus); together never
-        more than the payment's net."""
+        more than the payment's net. An advance schedule is due only on the
+        monthly run (`include_advance`), once its advance was paid, and at
+        most its own instalment a month."""
+        kinds = ["overpayment", "advance"] if include_advance else ["overpayment"]
         recs = self.sudo().search(
             [
                 ("employee_id", "=", employee.id),
                 ("company_id", "=", company.id),
                 ("state", "=", "approved"),
                 ("fully_recovered", "=", False),
+                ("recovery_type", "in", kinds),
+                "|",
+                ("recovery_type", "=", "overpayment"),
+                ("advance_id.state", "in", ("paid", "posted")),
                 *extra_domain,
             ],
             order="id",
         )
-        cap = company.payroll_recovery_monthly_cap or 0.0
+        company_cap = company.payroll_recovery_monthly_cap or 0.0
         available = max(available or 0.0, 0.0)
         out = []
         for rec in recs:
             if rec.approved_digest != rec._digest():
                 continue  # changed after approval (tampered row): never deducted
             take = rec.remaining_amount
+            caps = [c for c in (company_cap, rec.instalment or 0.0) if c > 0]
+            cap = min(caps) if caps else 0.0
             if cap > 0:
                 this_month = sum(
                     rec.line_ids.filtered(lambda ln: ln.month == month).mapped("amount")
@@ -231,7 +345,12 @@ class FixPayrollRecovery(models.Model):
             slip.company_id,
             slip.period_id.period_start.strftime("%Y-%m"),
             slip.net,
-            [("correction_slip_id.period_id", "!=", slip.period_id.id)],
+            [
+                "|",
+                ("correction_slip_id", "=", False),
+                ("correction_slip_id.period_id", "!=", slip.period_id.id),
+            ],
+            include_advance=True,
         )
 
     @api.model

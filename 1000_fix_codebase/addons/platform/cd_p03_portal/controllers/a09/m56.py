@@ -157,6 +157,25 @@ SURFACES = {
         "limit": 500,
         "actions": set(),
     },
+    # ---- M56 capture audit (2026-11-17) ------------------------------------------
+    # FR-PAY-013/014, BRU-PAY-10: validated by a second payroll user
+    "fix.investment.declaration": {
+        "order": "fy_start desc, employee_id, id desc",
+        "limit": 500,
+        "actions": {"action_validate", "action_reject", "action_cancel"},
+    },
+    # FR-PAY-020: approved by a Payroll Manager who did not record it
+    "fix.pf.member": {
+        "order": "joined_fund_on desc, id desc",
+        "limit": 500,
+        "actions": {"action_approve", "action_leave", "action_cancel"},
+    },
+    # FR-PAY-022 / Q-05: the provision the legacy books carry
+    "fix.payroll.gratuity.opening": {
+        "order": "as_of desc, id desc",
+        "limit": 500,
+        "actions": {"action_approve", "action_cancel"},
+    },
 }
 
 

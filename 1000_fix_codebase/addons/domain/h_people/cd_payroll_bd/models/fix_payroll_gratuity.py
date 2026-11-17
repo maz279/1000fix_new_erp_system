@@ -97,7 +97,15 @@ class FixPayrollGratuityAccrual(models.Model):
             previous = Accrual.search(
                 [("employee_id", "=", emp.id), ("month", "<", month)], order="month desc", limit=1
             )
-            prev = previous.liability if previous else 0.0
+            # the first accrual moves from the provision the books already
+            # carry (an approved opening provision), not from nothing
+            prev = (
+                previous.liability
+                if previous
+                else self.env["fix.payroll.gratuity.opening"]._opening_for(
+                    emp, company, as_of.replace(day=1)
+                )
+            )
             pack = self.env["fix.statutory.pack"]._pack_for(company, as_of)
             vals_list.append(
                 {

@@ -39,3 +39,6 @@ access_fix_mfs_return_officer,fix.mfs.return.officer,model_fix_mfs_return,group_
 access_fix_mfs_return_release,fix.mfs.return.release,model_fix_mfs_return,group_payroll_release,1,1,1,0
 access_fix_mfs_return_line_officer,fix.mfs.return.line.officer,model_fix_mfs_return_line,group_payroll_officer,1,0,0,0
 access_fix_mfs_return_line_release,fix.mfs.return.line.release,model_fix_mfs_return_line,group_payroll_release,1,0,0,0
+access_fix_investment_declaration_officer,fix.investment.declaration.officer,model_fix_investment_declaration,group_payroll_officer,1,1,1,0
+access_fix_pf_member_officer,fix.pf.member.officer,model_fix_pf_member,group_payroll_officer,1,1,1,0
+access_fix_payroll_gratuity_opening_officer,fix.payroll.gratuity.opening.officer,model_fix_payroll_gratuity_opening,group_payroll_officer,1,1,1,0

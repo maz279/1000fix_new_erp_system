@@ -559,6 +559,16 @@ WRITABLE = {
             "scheme_id",
         }
     ),
+    "fix.investment.declaration": frozenset(
+        {
+            "declared_amount",
+            "employee_id",
+            "evidence_file",
+            "fiscal_year",
+            "instrument",
+            "note",
+        }
+    ),
     "fix.job.posting": frozenset(
         {
             "audience",
@@ -780,6 +790,16 @@ WRITABLE = {
         }
     ),
     "fix.payroll.gratuity.accrual": frozenset(),
+    "fix.payroll.gratuity.opening": frozenset(
+        {
+            "as_of",
+            "employee_id",
+            "evidence_file",
+            "legacy_reference",
+            "note",
+            "opening_liability",
+        }
+    ),
     "fix.payroll.nominee.account": frozenset(
         {
             "bank_account_no",
@@ -813,9 +833,12 @@ WRITABLE = {
     ),
     "fix.payroll.recovery": frozenset(
         {
+            "advance_id",
             "amount",
             "correction_slip_id",
+            "instalment",
             "reason",
+            "recovery_type",
         }
     ),
     "fix.payroll.recovery.line": frozenset(),
@@ -890,6 +913,18 @@ WRITABLE = {
             "operating_unit_id",
             "period",
             "salvage_target",
+        }
+    ),
+    "fix.pf.member": frozenset(
+        {
+            "employee_id",
+            "employee_rate",
+            "employer_rate",
+            "evidence_file",
+            "joined_fund_on",
+            "opening_as_of",
+            "opening_employee_balance",
+            "opening_employer_balance",
         }
     ),
     "fix.ppe.issue": frozenset(
