@@ -76,6 +76,65 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_activate", "action_archive"},
     },
+    # Capture audit 2026-11-18: the registers the M60 pages could not capture.
+    # Each record's decisions move only through its actions (the model
+    # guards them); the list serves exactly those actions.
+    "fix.risk.assessment": {"order": "assessed_on desc, id desc", "limit": 400, "actions": set()},
+    "fix.risk.treatment": {
+        "order": "due_on, id",
+        "limit": 400,
+        "actions": {"action_start", "action_complete", "action_cancel"},
+    },
+    "fix.risk.event": {"order": "occurred_on desc, id desc", "limit": 400, "actions": set()},
+    "fix.compliance.obligation.occurrence": {
+        "order": "due_on, id",
+        "limit": 400,
+        "actions": {
+            "action_discharge",
+            "action_verify",
+            "action_record_breach",
+            "action_not_applicable",
+        },
+    },
+    "fix.grc.regulatory.change": {
+        "order": "effective_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_assess", "action_close"},
+    },
+    "fix.grc.policy.attestation": {
+        "order": "acknowledged_at desc, id desc",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.grc.policy.exception": {
+        "order": "valid_to desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject"},
+    },
+    "fix.grc.ip.asset": {"order": "renews_on, name", "limit": 300, "actions": set()},
+    "fix.grc.processing.activity": {
+        "order": "name",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.grc.data.transfer": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_suspend"},
+    },
+    # BRU-GRC-20: a restricted register — the ACL admits the Compliance
+    # Officer and Legal Counsel only, and the list applies the record rules.
+    "fix.grc.data.breach": {
+        "order": "detected_on desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": {"action_contain", "action_close"},
+    },
+    "fix.grc.privacy.impact": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject"},
+    },
 }
 
 
@@ -235,41 +294,70 @@ def licence_expiry(env, date_from=None, date_to=None, **params):
 
 
 def attestation_status(env, date_from=None, date_to=None, **params):
-    """Policy attestation status: policies requiring attestation and their state."""
+    """Policy attestation status: acknowledgements of the current version of
+    each approved policy, against the employees of its company."""
     policies = env["fix.grc.policy"].search([])
+    Attestation = env["fix.grc.policy.attestation"].sudo()
+    Employee = env["hr.employee"].sudo()
     rows = []
     for policy in policies:
+        required = policy.attestation_required and policy.state == "approved"
+        population = Employee.search_count([("company_id", "=", policy.company_id.id)])
+        acknowledged = Attestation.search_count(
+            [("policy_id", "=", policy.id), ("version", "=", policy.version)]
+        )
         rows.append(
             {
                 "code": policy.code,
                 "policy": policy.name[:60],
-                "type": dict(policy._fields["policy_type"].selection).get(policy.policy_type),
                 "version": policy.version,
                 "approved_on": str(policy.approved_on or "—"),
                 "review_due": str(policy.review_due or "—"),
                 "attestation": "Required" if policy.attestation_required else "Not required",
+                "acknowledged": acknowledged if required else "—",
+                "outstanding": max(population - acknowledged, 0) if required else "—",
+                "rate": (
+                    "%.0f%%" % (100.0 * acknowledged / population)
+                    if required and population
+                    else "—"
+                ),
                 "state": dict(policy._fields["state"].selection).get(policy.state, policy.state),
             }
         )
     rows.sort(key=lambda r: r["code"])
-    required = len([r for r in rows if r["attestation"] == "Required"])
+    required = len([r for r in rows if r["acknowledged"] != "—"])
     return _pack(
-        "Attestation Status — %d policy(ies) requiring attestation" % required,
-        ["code", "policy", "type", "version", "approved_on", "review_due", "attestation", "state"],
+        "Attestation Status — %d approved policy(ies) requiring attestation" % required,
+        [
+            "code",
+            "policy",
+            "version",
+            "approved_on",
+            "review_due",
+            "attestation",
+            "acknowledged",
+            "outstanding",
+            "rate",
+            "state",
+        ],
         {
             "code": "Code",
             "policy": "Policy",
-            "type": "Type",
             "version": "Version",
             "approved_on": "Approved",
             "review_due": "Review Due",
             "attestation": "Attestation",
+            "acknowledged": "Acknowledged",
+            "outstanding": "Outstanding",
+            "rate": "Rate",
             "state": "State",
         },
         rows,
         [
-            "The model records whether attestation is required; per-employee attestation "
-            "sign-offs are not stored, so no compliance percentage is claimed."
+            "Acknowledged counts the employees who acknowledged the current version of an "
+            "approved policy; a new version starts again from zero.",
+            "The population is every employee of the policy's company, so Outstanding is who "
+            "has not yet acknowledged it. Draft and retired policies are not attested.",
         ],
         empty="No policies recorded.",
     )

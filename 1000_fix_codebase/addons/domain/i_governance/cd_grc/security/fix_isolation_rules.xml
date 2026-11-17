@@ -41,6 +41,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_compliance_obligation_occurrence_company" model="ir.rule">
+        <field name="name">fix.compliance.obligation.occurrence: allowed companies</field>
+        <field name="model_id" ref="model_fix_compliance_obligation_occurrence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_control_company" model="ir.rule">
         <field name="name">fix.control: allowed companies</field>
         <field name="model_id" ref="model_fix_control"/>
@@ -60,6 +65,21 @@
     <record id="rule_fix_grc_control_test_company" model="ir.rule">
         <field name="name">fix.grc.control.test: allowed companies</field>
         <field name="model_id" ref="model_fix_grc_control_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_data_breach_company" model="ir.rule">
+        <field name="name">fix.grc.data.breach: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_data_breach"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_data_transfer_company" model="ir.rule">
+        <field name="name">fix.grc.data.transfer: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_data_transfer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_ip_asset_company" model="ir.rule">
+        <field name="name">fix.grc.ip.asset: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_ip_asset"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_grc_legal_company" model="ir.rule">
@@ -82,6 +102,31 @@
         <field name="model_id" ref="model_fix_grc_policy"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_grc_policy_attestation_company" model="ir.rule">
+        <field name="name">fix.grc.policy.attestation: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_policy_attestation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_policy_exception_company" model="ir.rule">
+        <field name="name">fix.grc.policy.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_policy_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_privacy_impact_company" model="ir.rule">
+        <field name="name">fix.grc.privacy.impact: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_privacy_impact"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_processing_activity_company" model="ir.rule">
+        <field name="name">fix.grc.processing.activity: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_processing_activity"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_regulatory_change_company" model="ir.rule">
+        <field name="name">fix.grc.regulatory.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_regulatory_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_grc_sod_rule_company" model="ir.rule">
         <field name="name">fix.grc.sod.rule: allowed companies</field>
         <field name="model_id" ref="model_fix_grc_sod_rule"/>
@@ -97,6 +142,16 @@
         <field name="model_id" ref="model_fix_risk_appetite"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_risk_assessment_company" model="ir.rule">
+        <field name="name">fix.risk.assessment: allowed companies</field>
+        <field name="model_id" ref="model_fix_risk_assessment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_risk_event_company" model="ir.rule">
+        <field name="name">fix.risk.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_risk_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_risk_register_company" model="ir.rule">
         <field name="name">fix.risk.register: allowed companies</field>
         <field name="model_id" ref="model_fix_risk_register"/>
@@ -107,5 +162,10 @@
         <field name="model_id" ref="model_fix_risk_register"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_risk_treatment_company" model="ir.rule">
+        <field name="name">fix.risk.treatment: allowed companies</field>
+        <field name="model_id" ref="model_fix_risk_treatment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

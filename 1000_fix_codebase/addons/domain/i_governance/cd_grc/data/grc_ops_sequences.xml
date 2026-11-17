@@ -29,5 +29,33 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_grc_policy_exception" model="ir.sequence">
+            <field name="name">Policy Exception</field>
+            <field name="code">fix.grc.policy.exception</field>
+            <field name="prefix">PEX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_grc_data_transfer" model="ir.sequence">
+            <field name="name">Cross-Border Transfer</field>
+            <field name="code">fix.grc.data.transfer</field>
+            <field name="prefix">XBT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_grc_data_breach" model="ir.sequence">
+            <field name="name">Data Breach</field>
+            <field name="code">fix.grc.data.breach</field>
+            <field name="prefix">BRCH/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_grc_privacy_impact" model="ir.sequence">
+            <field name="name">Privacy Impact Assessment</field>
+            <field name="code">fix.grc.privacy.impact</field>
+            <field name="prefix">PIA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

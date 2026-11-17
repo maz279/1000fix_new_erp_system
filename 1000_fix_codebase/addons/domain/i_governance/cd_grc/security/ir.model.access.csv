@@ -16,3 +16,27 @@ access_fix_grc_legal,fix.grc.legal,model_fix_grc_legal,group_grc_legal,1,1,1,0
 access_fix_grc_pdpa,fix.grc.pdpa,model_fix_grc_pdpa,base.group_user,1,1,1,0
 access_fix_grc_whistle_intake,fix.grc.whistle (intake files a report),model_fix_grc_whistle,group_grc_whistle_intake,1,1,1,0
 access_fix_grc_whistle_investigator,fix.grc.whistle (investigator works the assigned reports),model_fix_grc_whistle,group_grc_whistle_investigator,1,1,0,0
+access_fix_risk_assessment,fix.risk.assessment (read the history),model_fix_risk_assessment,base.group_user,1,0,0,0
+access_fix_risk_assessment_owner,fix.risk.assessment (a Risk Owner assesses),model_fix_risk_assessment,group_grc_risk_owner,1,1,1,0
+access_fix_risk_assessment_officer,fix.risk.assessment (a Compliance Officer assesses),model_fix_risk_assessment,group_grc_officer,1,1,1,0
+access_fix_risk_treatment,fix.risk.treatment (the action owner works it),model_fix_risk_treatment,base.group_user,1,1,0,0
+access_fix_risk_treatment_owner,fix.risk.treatment (a Risk Owner decides it),model_fix_risk_treatment,group_grc_risk_owner,1,1,1,0
+access_fix_risk_treatment_officer,fix.risk.treatment (a Compliance Officer decides it),model_fix_risk_treatment,group_grc_officer,1,1,1,0
+access_fix_risk_event,fix.risk.event (anyone reports a realised event),model_fix_risk_event,base.group_user,1,1,1,0
+access_fix_obligation_occurrence,fix.compliance.obligation.occurrence (the owner discharges),model_fix_compliance_obligation_occurrence,base.group_user,1,1,0,0
+access_fix_obligation_occurrence_officer,fix.compliance.obligation.occurrence (officer schedules),model_fix_compliance_obligation_occurrence,group_grc_officer,1,1,1,0
+access_fix_grc_regulatory_change,fix.grc.regulatory.change (read),model_fix_grc_regulatory_change,base.group_user,1,0,0,0
+access_fix_grc_regulatory_change_officer,fix.grc.regulatory.change (officer logs and assesses),model_fix_grc_regulatory_change,group_grc_officer,1,1,1,0
+access_fix_grc_policy_attestation,fix.grc.policy.attestation (an employee acknowledges),model_fix_grc_policy_attestation,base.group_user,1,0,1,0
+access_fix_grc_policy_exception,fix.grc.policy.exception (an employee requests),model_fix_grc_policy_exception,base.group_user,1,1,1,0
+access_fix_grc_ip_asset,fix.grc.ip.asset (read),model_fix_grc_ip_asset,base.group_user,1,0,0,0
+access_fix_grc_ip_asset_legal,fix.grc.ip.asset (Legal Counsel keeps it),model_fix_grc_ip_asset,group_grc_legal,1,1,1,0
+access_fix_grc_ip_asset_officer,fix.grc.ip.asset (Compliance Officer keeps it),model_fix_grc_ip_asset,group_grc_officer,1,1,1,0
+access_fix_grc_processing_activity,fix.grc.processing.activity (read the register),model_fix_grc_processing_activity,base.group_user,1,0,0,0
+access_fix_grc_processing_activity_officer,fix.grc.processing.activity (officer keeps it),model_fix_grc_processing_activity,group_grc_officer,1,1,1,0
+access_fix_grc_data_transfer,fix.grc.data.transfer (read the register),model_fix_grc_data_transfer,base.group_user,1,0,0,0
+access_fix_grc_data_transfer_officer,fix.grc.data.transfer (officer keeps it),model_fix_grc_data_transfer,group_grc_officer,1,1,1,0
+access_fix_grc_data_breach_officer,fix.grc.data.breach (T5: Compliance Officer),model_fix_grc_data_breach,group_grc_officer,1,1,1,0
+access_fix_grc_data_breach_legal,fix.grc.data.breach (T5: Legal Counsel),model_fix_grc_data_breach,group_grc_legal,1,1,1,0
+access_fix_grc_privacy_impact,fix.grc.privacy.impact (read),model_fix_grc_privacy_impact,base.group_user,1,0,0,0
+access_fix_grc_privacy_impact_officer,fix.grc.privacy.impact (officer authors and approves),model_fix_grc_privacy_impact,group_grc_officer,1,1,1,0

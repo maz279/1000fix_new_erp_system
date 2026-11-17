@@ -38,12 +38,26 @@ WRITABLE = {
         {
             "clause_reference",
             "company_id",
+            "consequence",
             "evidence_doc_id",
             "framework_id",
+            "lead_days",
             "mandatory",
             "name",
             "next_review_date",
             "notes",
+            "owner_id",
+            "recurrence",
+            "source_type",
+        }
+    ),
+    "fix.compliance.obligation.occurrence": frozenset(
+        {
+            "due_on",
+            "evidence_attachment_id",
+            "evidence_ref",
+            "obligation_id",
+            "period",
         }
     ),
     "fix.control": frozenset(
@@ -52,7 +66,11 @@ WRITABLE = {
             "control_code",
             "control_type",
             "frequency",
+            "is_key",
             "name",
+            "nature",
+            "objective",
+            "obligation_ids",
             "owner_id",
             "risk_id",
         }
@@ -103,13 +121,55 @@ WRITABLE = {
             "tester_id",
         }
     ),
+    "fix.grc.data.breach": frozenset(
+        {
+            "activity_id",
+            "assessment",
+            "company_id",
+            "containment",
+            "data_categories",
+            "description",
+            "detected_on",
+            "notification_decision",
+            "notified_parties",
+            "subjects_affected",
+        }
+    ),
+    "fix.grc.data.transfer": frozenset(
+        {
+            "activity_id",
+            "basis",
+            "destination_country_id",
+            "effective_from",
+            "recipient",
+            "safeguards",
+            "volume_class",
+        }
+    ),
+    "fix.grc.ip.asset": frozenset(
+        {
+            "company_id",
+            "identifier",
+            "infringement_note",
+            "ip_type",
+            "jurisdiction",
+            "name",
+            "owner_id",
+            "registered_on",
+            "renews_on",
+        }
+    ),
     "fix.grc.legal": frozenset(
         {
             "counsel",
             "counterparty",
             "exposure",
+            "hold_note",
             "matter_type",
+            "next_action",
+            "next_action_on",
             "opened_on",
+            "provision",
         }
     ),
     "fix.grc.licence": frozenset(
@@ -127,7 +187,7 @@ WRITABLE = {
         {
             "company_id",
             "handled_by_id",
-            "name",
+            "notes",
             "received_on",
             "request_type",
             "subject_name",
@@ -137,6 +197,7 @@ WRITABLE = {
         {
             "attestation_required",
             "code",
+            "document_id",
             "name",
             "owner_id",
             "policy_type",
@@ -144,14 +205,68 @@ WRITABLE = {
             "version",
         }
     ),
+    "fix.grc.policy.attestation": frozenset(
+        {
+            "method",
+            "paper_employee_id",
+            "policy_id",
+        }
+    ),
+    "fix.grc.policy.exception": frozenset(
+        {
+            "compensating_control",
+            "control_id",
+            "justification",
+            "policy_id",
+            "valid_from",
+            "valid_to",
+        }
+    ),
+    "fix.grc.privacy.impact": frozenset(
+        {
+            "activity_id",
+            "mitigations",
+            "residual_risk",
+            "risk_summary",
+        }
+    ),
+    "fix.grc.processing.activity": frozenset(
+        {
+            "company_id",
+            "data_categories",
+            "high_risk",
+            "lawful_basis",
+            "name",
+            "owner_id",
+            "purpose",
+            "recipients",
+            "retention_months",
+            "safeguards",
+            "subject_categories",
+            "systems",
+        }
+    ),
+    "fix.grc.regulatory.change": frozenset(
+        {
+            "control_ids",
+            "description",
+            "effective_on",
+            "name",
+            "obligation_ids",
+            "published_on",
+            "source",
+        }
+    ),
     "fix.grc.sod.rule": frozenset(
         {
             "compensating_control",
             "conflict_area",
+            "enforced_by_id",
             "name",
             "role_a",
             "role_b",
             "severity",
+            "test_method",
         }
     ),
     "fix.grc.whistle": frozenset(
@@ -346,6 +461,29 @@ WRITABLE = {
             "note",
         }
     ),
+    "fix.risk.assessment": frozenset(
+        {
+            "impact",
+            "likelihood",
+            "next_review_date",
+            "rationale",
+            "residual_impact",
+            "residual_likelihood",
+            "risk_id",
+        }
+    ),
+    "fix.risk.event": frozenset(
+        {
+            "description",
+            "event_type",
+            "loss_amount",
+            "name",
+            "occurred_on",
+            "risk_id",
+            "source_module",
+            "source_ref",
+        }
+    ),
     "fix.risk.register": frozenset(
         {
             "category",
@@ -357,6 +495,18 @@ WRITABLE = {
             "residual_impact",
             "residual_likelihood",
             "review_date",
+        }
+    ),
+    "fix.risk.treatment": frozenset(
+        {
+            "due_on",
+            "name",
+            "owner_id",
+            "rationale",
+            "risk_id",
+            "strategy",
+            "target_residual_score",
+            "transfer_instrument",
         }
     ),
 }
