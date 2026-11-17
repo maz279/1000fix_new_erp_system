@@ -256,7 +256,8 @@ def test_a_record_made_on_a_filtered_page_lands_on_that_page(estate):
     page it was made on. Only plain `field = value` clauses on fields the form
     lets the user type are carried."""
     sub = next(s for s in estate["M63"]["subs"] if s["no"] == "5")
-    assert sub["create"]["screen"] == "M63-form-automation"
+    # the workflow-definition form, opened as "Scheduled Workflow" (M63 capture audit)
+    assert sub["create"]["screen"] == "M63-form-scheduled"
     assert sub["create"]["presets"] == {"engine": "airflow"}
     carried = [
         (m, s["no"])

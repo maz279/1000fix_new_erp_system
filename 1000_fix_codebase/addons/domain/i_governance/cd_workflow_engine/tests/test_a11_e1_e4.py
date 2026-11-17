@@ -42,6 +42,10 @@ M63_MODELS = (
     "fix.approval.history",
     "fix.approval.substitution",
     "fix.business.rule",
+    # M63 capture audit (2026-11-18)
+    "fix.rule.simulation",
+    "fix.automation.register",
+    "fix.workflow.intervention",
 )
 
 
@@ -364,9 +368,15 @@ class TestE1RuleBookLocked:
             inst.with_user(c.doa).write({"state": "completed"})
         with pytest.raises(UserError):
             c.env["fix.workflow.instance"].with_user(c.doa).create({"state": "completed"})
-        own = c.env["fix.workflow.instance"].with_user(c.doa).create({"res_model": "x"})
-        own.with_user(c.doa).action_complete()
+        own = c.env["fix.workflow.instance"].create({"res_model": "x"})
+        # Since the M63 capture audit an operator's completion is a recorded
+        # intervention: it needs a reason, and nobody completes an instance
+        # they started themself.
+        with pytest.raises(UserError, match="State why"):
+            own.with_user(c.doa).action_complete()
+        own.with_user(c.doa).action_complete(reason="Engine lost the callback; done by hand.")
         assert own.state == "completed" and own.finished_at
+        assert own.intervention_ids.operator_id == c.doa
 
     def test_m63_writable_whitelists_match_the_forms(self, c):
         from odoo.addons.cd_p03_portal.controllers import form_fields

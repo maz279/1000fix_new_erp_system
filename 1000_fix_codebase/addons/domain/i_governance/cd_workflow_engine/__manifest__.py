@@ -12,7 +12,7 @@ CD-M63-01/02/04: process automation.
 - Notifying automations PUBLISH EVENTS consumed by the W1 notification
   dispatcher (closes the M63 -> M27 violation — no direct calls)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Operations/Automation",

@@ -18,14 +18,29 @@
         <field name="model_id" ref="model_fix_approval_substitution"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_automation_register_company" model="ir.rule">
+        <field name="name">fix.automation.register: allowed companies</field>
+        <field name="model_id" ref="model_fix_automation_register"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_business_rule_company" model="ir.rule">
         <field name="name">fix.business.rule: allowed companies</field>
         <field name="model_id" ref="model_fix_business_rule"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_rule_simulation_company" model="ir.rule">
+        <field name="name">fix.rule.simulation: allowed companies</field>
+        <field name="model_id" ref="model_fix_rule_simulation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_workflow_instance_company" model="ir.rule">
         <field name="name">fix.workflow.instance: allowed companies</field>
         <field name="model_id" ref="model_fix_workflow_instance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workflow_intervention_company" model="ir.rule">
+        <field name="name">fix.workflow.intervention: allowed companies</field>
+        <field name="model_id" ref="model_fix_workflow_intervention"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_workflow_task_company" model="ir.rule">

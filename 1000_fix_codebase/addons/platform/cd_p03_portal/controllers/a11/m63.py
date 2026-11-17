@@ -14,7 +14,10 @@ WRITABLE = {
     "fix.automation": frozenset(
         {"code", "trigger", "engine", "engine_ref", "failure_policy", "action", "active"}
     ),
-    "fix.workflow.instance": frozenset({"automation_id", "res_model", "res_id"}),
+    # An instance is started by its automation's engine and changed only by a
+    # recorded manual intervention (M63 capture audit 2026-11-18): its form
+    # shows it, it is never typed.
+    "fix.workflow.instance": frozenset(),
     "fix.workflow.task": frozenset(),
     "fix.approval.matrix": frozenset(
         {
@@ -54,6 +57,22 @@ WRITABLE = {
             "active",
         }
     ),
+    # M63 capture audit (2026-11-18): the run's results are set by the run.
+    "fix.rule.simulation": frozenset({"matrix_id", "date_from", "date_to"}),
+    "fix.automation.register": frozenset(
+        {
+            "name",
+            "process_area",
+            "owning_module",
+            "volume_per_month",
+            "automated",
+            "automation_id",
+            "stp_rate",
+            "notes",
+            "active",
+        }
+    ),
+    "fix.workflow.intervention": frozenset({"instance_id", "action", "reason"}),
 }
 
 SURFACES = {
@@ -66,7 +85,8 @@ SURFACES = {
     "fix.workflow.instance": {
         "order": "started_at desc, id desc",
         "limit": 400,
-        "actions": {"action_complete", "action_fail", "action_escalate"},
+        # Each one is a recorded manual intervention with a reason.
+        "actions": {"action_complete", "action_fail", "action_escalate", "action_terminate"},
         "writable": WRITABLE["fix.workflow.instance"],
     },
     "fix.workflow.task": {
@@ -112,6 +132,27 @@ SURFACES = {
         "actions": {"action_new_version"},
         "writable": WRITABLE["fix.business.rule"],
     },
+    # M63 capture audit (2026-11-18): rule simulation, the routine-work
+    # register and manual interventions. Simulations and interventions are
+    # evidence: created, never changed.
+    "fix.rule.simulation": {
+        "order": "run_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        "writable": WRITABLE["fix.rule.simulation"],
+    },
+    "fix.automation.register": {
+        "order": "process_area, name",
+        "limit": 500,
+        "actions": {"action_mark_reviewed"},
+        "writable": WRITABLE["fix.automation.register"],
+    },
+    "fix.workflow.intervention": {
+        "order": "at desc, id desc",
+        "limit": 500,
+        "actions": set(),
+        "writable": WRITABLE["fix.workflow.intervention"],
+    },
 }
 
 
@@ -128,54 +169,64 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def automation_rate(env, date_from=None, date_to=None, **params):
-    """Automation rate by process area: automated definitions vs manual tasks."""
-    automations = env["fix.automation"].search([])
-    tasks = env["fix.workflow.task"].search([])
-    rules = env["fix.business.rule"].search([])
+    """Automation rate by process area, over the routine-work register.
+
+    The register is the denominator of the 85% target (spec AUT-BPA-21,
+    AC-25): every recurring task with its monthly volume, and the share an
+    automation completes straight through. It replaced a count of AUT rows
+    against hand-entered tasks, which measured nothing a person does."""
+    entries = env["fix.automation.register"].search([])
     groups = {}
-    for rule in rules:
-        key = rule.domain_area or "Unassigned"
-        groups.setdefault(key, {"automations": 0, "manual": 0})
-    for automation in automations:
-        key = automation.code.split("-")[0] if "-" in automation.code else "Core"
-        groups.setdefault(key, {"automations": 0, "manual": 0})
-        groups[key]["automations"] += 1
-    for task in tasks:
-        if task.task_type == "data_entry":
-            key = "Manual entry"
-            groups.setdefault(key, {"automations": 0, "manual": 0})
-            groups[key]["manual"] += 1
-    rows = []
-    for key, v in sorted(groups.items()):
-        total = v["automations"] + v["manual"]
-        rows.append(
-            {
-                "area": key,
-                "automations": v["automations"],
-                "manual": v["manual"],
-                "rate": round(v["automations"] / total * 100.0, 1) if total else 0.0,
-            }
+    for entry in entries:
+        g = groups.setdefault(
+            entry.process_area or "Unassigned",
+            {"tasks": 0, "automated_tasks": 0, "volume": 0, "automated": 0.0},
         )
+        g["tasks"] += 1
+        g["automated_tasks"] += 1 if entry.automated else 0
+        g["volume"] += entry.volume_per_month
+        g["automated"] += entry.automated_volume
+    rows = [
+        {
+            "area": key,
+            "tasks": v["tasks"],
+            "automated_tasks": v["automated_tasks"],
+            "volume": v["volume"],
+            "automated": round(v["automated"], 1),
+            "rate": round(v["automated"] / v["volume"] * 100.0, 1) if v["volume"] else 0.0,
+        }
+        for key, v in sorted(groups.items())
+    ]
+    rate, automated, total = env["fix.automation.register"]._automation_rate()
     return _pack(
-        "Automation Rate by Process",
-        ["area", "automations", "manual", "rate"],
+        "Automation Rate by Process — %s%% of routine work (target 85%%)" % rate,
+        ["area", "tasks", "automated_tasks", "volume", "automated", "rate"],
         {
             "area": "Process Area",
-            "automations": "Automated",
-            "manual": "Manual Steps",
+            "tasks": "Routine Tasks",
+            "automated_tasks": "Automated Tasks",
+            "volume": "Volume / Month",
+            "automated": "Automated Volume",
             "rate": "Automation Rate %",
         },
         rows,
         [
-            "Automated counts register rows in the AUT; manual counts recorded data-entry "
-            "tasks. Areas with no automation show 0%, not a blank."
+            "Each routine task counts by its monthly volume. An automated task counts the "
+            "share its automation completes with no human step; a task counts as automated "
+            "only when it names the automation that does it.",
+            "Without registered routine work the 85% target has no denominator and cannot "
+            "be measured, only claimed.",
         ],
         totals={
             "area": "Total",
-            "automations": sum(r["automations"] for r in rows),
-            "manual": sum(r["manual"] for r in rows),
+            "tasks": len(entries),
+            "automated_tasks": len(entries.filtered("automated")),
+            "volume": total,
+            "automated": round(automated, 1),
+            "rate": rate,
         },
-        empty="No automation register rows or tasks recorded.",
+        empty="No routine work is registered yet: add each recurring task on the "
+        "Audit & Performance page.",
     )
 
 
@@ -461,7 +512,6 @@ def kpis(env):
         lambda i: i.escalated and i.started_at and i.started_at.date() >= month_start
     )
     running = instances.filtered(lambda i: i.state == "running")
-    completed = instances.filtered(lambda i: i.state == "completed")
     total_hours = sum((t.decided_at - t.created_at).total_seconds() / 3600.0 for t in decided)
     approvals = env["fix.approval.request"].approval_kpis()
     a02 = a02_control_figures(env)
@@ -470,7 +520,13 @@ def kpis(env):
         "a02_cert_self_verified": a02["wipe_cert_self_verified"],
         "a02_delivery_otp_pct": a02["delivery_otp_verified_pct"],
         "a02_completion_evidence_pct": a02["field_completion_evidence_pct"],
-        "automation_rate": round(len(completed) / len(instances) * 100.0, 1) if instances else 0.0,
+        # Over the routine-work register (M63 capture audit 2026-11-18): the
+        # share of completed instances measured nothing a person does.
+        "automation_rate": env["fix.automation.register"]._automation_rate()[0],
+        "rules_unsimulated": len(env["fix.approval.matrix"]._rules_in_force_never_simulated()),
+        "interventions_mtd": env["fix.workflow.intervention"].search_count(
+            [("at", ">=", datetime.datetime.combine(month_start, datetime.time.min))]
+        ),
         "open_workflows": len(running),
         "avg_approval_time": round(total_hours / len(decided), 1) if decided else 0.0,
         "rule_repository": len(rules),

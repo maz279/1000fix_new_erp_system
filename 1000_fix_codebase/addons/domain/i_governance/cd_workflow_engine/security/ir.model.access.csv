@@ -11,3 +11,10 @@ access_fix_business_rule_doa_admin,fix.business.rule doa admin,model_fix_busines
 access_fix_approval_substitution,fix.approval.substitution,model_fix_approval_substitution,base.group_user,1,1,1,0
 access_fix_approval_request,fix.approval.request,model_fix_approval_request,base.group_user,1,0,0,0
 access_fix_approval_history,fix.approval.history,model_fix_approval_history,base.group_user,1,0,0,0
+access_fix_rule_simulation,fix.rule.simulation,model_fix_rule_simulation,base.group_user,1,0,0,0
+access_fix_rule_simulation_doa_admin,fix.rule.simulation doa admin,model_fix_rule_simulation,group_doa_administrator,1,0,1,0
+access_fix_automation_register,fix.automation.register,model_fix_automation_register,base.group_user,1,0,0,0
+access_fix_automation_register_doa_admin,fix.automation.register doa admin,model_fix_automation_register,group_doa_administrator,1,1,1,0
+access_fix_workflow_intervention,fix.workflow.intervention,model_fix_workflow_intervention,base.group_user,1,0,0,0
+access_fix_workflow_intervention_doa_admin,fix.workflow.intervention doa admin,model_fix_workflow_intervention,group_doa_administrator,1,0,1,0
+access_fix_workflow_intervention_platform_admin,fix.workflow.intervention platform admin,model_fix_workflow_intervention,cd_entity_config.group_platform_admin,1,0,1,0
