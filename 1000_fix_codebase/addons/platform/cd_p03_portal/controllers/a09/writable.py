@@ -203,6 +203,16 @@ WRITABLE = {
             "range_min",
         }
     ),
+    "fix.compensation.cycle": frozenset(
+        {
+            "budget",
+            "date_from",
+            "date_to",
+            "guideline_pct",
+            "guidelines",
+            "name",
+        }
+    ),
     "fix.compensation.proposal": frozenset(),
     "fix.competency": frozenset(
         {
@@ -616,6 +626,17 @@ WRITABLE = {
         }
     ),
     "fix.hse.safety.followup": frozenset(),
+    "fix.incentive.adjustment": frozenset(
+        {
+            "adjustment_type",
+            "amount",
+            "employee_id",
+            "evidence_ref",
+            "period",
+            "reason",
+            "service_order_id",
+        }
+    ),
     "fix.incentive.clawback": frozenset(),
     "fix.incentive.dispute": frozenset(),
     "fix.incentive.line": frozenset(),
@@ -698,6 +719,18 @@ WRITABLE = {
             "operating_unit_id",
             "over_budget_reason",
             "position_id",
+        }
+    ),
+    "fix.kpi.definition": frozenset(
+        {
+            "code",
+            "date_from",
+            "formula",
+            "measure",
+            "name",
+            "role_profile",
+            "target",
+            "threshold",
         }
     ),
     "fix.learning.path": frozenset(
@@ -965,6 +998,26 @@ WRITABLE = {
     ),
     "fix.payroll.variance": frozenset(),
     "fix.payslip": frozenset(),
+    "fix.performance.calibration.session": frozenset(
+        {
+            "company_id",
+            "cycle_id",
+            "line_ids",
+            "minutes",
+            "participant_ids",
+            "period",
+            "scope",
+            "session_date",
+        }
+    ),
+    "fix.performance.feedback": frozenset(
+        {
+            "due_date",
+            "relationship",
+            "respondent_id",
+            "review_id",
+        }
+    ),
     "fix.performance.goal": frozenset(
         {
             "actual_value",
@@ -1001,6 +1054,20 @@ WRITABLE = {
             "employee_id",
             "period",
             "reviewer_id",
+        }
+    ),
+    "fix.performance.review.cycle": frozenset(
+        {
+            "calibration_deadline",
+            "company_id",
+            "cycle_type",
+            "department_id",
+            "employee_ids",
+            "manager_deadline",
+            "name",
+            "period",
+            "probation_until",
+            "self_deadline",
         }
     ),
     "fix.performance.scorecard": frozenset(

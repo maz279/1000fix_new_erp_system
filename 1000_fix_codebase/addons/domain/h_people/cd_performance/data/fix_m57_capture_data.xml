@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M57 capture audit (2026-11-17): sequences for the new registers and the
+     AUT-PIC-11 daily chase of overdue review stages. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_perf_feedback" model="ir.sequence">
+            <field name="name">Multi-Source Feedback</field>
+            <field name="code">fix.performance.feedback</field>
+            <field name="prefix">FBK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_perf_calibration" model="ir.sequence">
+            <field name="name">Calibration Session</field>
+            <field name="code">fix.performance.calibration</field>
+            <field name="prefix">CAL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_incentive_adjustment" model="ir.sequence">
+            <field name="name">Incentive Adjustment</field>
+            <field name="code">fix.incentive.adjustment</field>
+            <field name="prefix">IAD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+    <record id="cron_fix_review_cycle_chase" model="ir.cron">
+        <field name="name">M57: chase overdue review stages (AUT-PIC-11)</field>
+        <field name="model_id" ref="model_fix_performance_review_cycle"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_chase_overdue()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

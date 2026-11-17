@@ -66,6 +66,20 @@
     <record id="rule_compensation_proposal_own" model="ir.rule">
         <field name="name">fix.compensation.proposal: the proposer and the deciders</field>
         <field name="model_id" ref="model_fix_compensation_proposal"/>
-        <field name="domain_force">['|', ('proposed_by_id', '=', user.id), (1 if (user.fix_reads_all_performance() or user.has_group('cd_performance.group_compensation')) else 0, '=', 1)]</field>
+        <field name="domain_force">['|', ('proposed_by_id', '=', user.id), (1 if (user.fix_reads_all_performance() or user.has_group('cd_performance.group_compensation') or user.has_group('cd_performance.group_scheme_cfo')) else 0, '=', 1)]</field>
+    </record>
+    <!-- M57 capture audit (2026-11-17). Feedback: the respondent and the
+         reviewed employee's line manager, never the employee it is about
+         (T-10). Adjustments: the employee's own pay data. Cycles and
+         calibration sessions are HR / calibrator only (ACL). -->
+    <record id="rule_performance_feedback_respondent" model="ir.rule">
+        <field name="name">fix.performance.feedback: the respondent and the line manager unless HR</field>
+        <field name="model_id" ref="model_fix_performance_feedback"/>
+        <field name="domain_force">['|', '|', ('respondent_id.user_id', '=', user.id), ('review_id.reviewer_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_incentive_adjustment_own" model="ir.rule">
+        <field name="name">fix.incentive.adjustment: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_incentive_adjustment"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
     </record>
 </odoo>

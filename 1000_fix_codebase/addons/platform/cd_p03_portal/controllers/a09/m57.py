@@ -87,6 +87,44 @@ SURFACES = {
     },
     "fix.compensation.band": {"order": "grade", "limit": 100, "actions": set()},
     "fix.succession.plan": {"order": "position_name", "limit": 100, "actions": set()},
+    # Capture audit 2026-11-17: the records the sub-module pages lacked.
+    # FR-PIC-006 / BRU-PIC-04: versioned KPI definitions, approved by an HR
+    # Manager who neither prepared nor submitted them.
+    "fix.kpi.definition": {
+        "order": "role_profile, code, date_from desc, version_no desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject", "action_retire"},
+    },
+    # FR-PIC-016/017: HR opens a cycle, which raises the reviews.
+    "fix.performance.review.cycle": {
+        "order": "self_deadline desc, id desc",
+        "limit": 100,
+        "actions": {"action_open", "action_close"},
+    },
+    # FR-PIC-020: only the respondent answers (narrow methods: no write ACL).
+    "fix.performance.feedback": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_submit_feedback", "action_decline"},
+    },
+    # FR-PIC-021 / BRU-PIC-13.
+    "fix.performance.calibration.session": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_start", "action_conclude"},
+    },
+    # FR-PIC-033/034 / BRU-PIC-10/11: decided from the approval inbox (M63).
+    "fix.incentive.adjustment": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+    },
+    # FR-PIC-038 / BRU-PIC-17.
+    "fix.compensation.cycle": {
+        "order": "date_from desc, id desc",
+        "limit": 100,
+        "actions": {"action_open", "action_close"},
+    },
 }
 
 

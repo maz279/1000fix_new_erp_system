@@ -25,10 +25,14 @@ CD-M57-01 (P08-M04):
   window; clawbacks of reworked or credited orders; compensation proposals
   (manager -> calibration -> Compensation Manager) applied as a new
   contract version inside the band
+- M57 capture audit (2026-11-17): versioned KPI definitions read by the
+  scorecard; review cycles with deadlines; multi-source feedback;
+  calibration sessions; routed incentive adjustments applied as visible
+  lines; compensation cycles whose over-budget proposals go to the CFO
 - emits scorecard.published / incentive.granted / incentive.approved /
   recognition.awarded (P08-M04-T09)
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Performance",
@@ -47,6 +51,7 @@ CD-M57-01 (P08-M04):
         "security/fix_a09_privacy_rules.xml",
         "data/perf_ops_sequences.xml",
         "data/fix_a09_m57_r2_data.xml",
+        "data/fix_m57_capture_data.xml",
         "views/fix_performance_views.xml",
     ],
     "installable": True,

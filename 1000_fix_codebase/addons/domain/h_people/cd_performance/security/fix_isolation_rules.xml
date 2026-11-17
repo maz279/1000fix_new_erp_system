@@ -19,6 +19,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_compensation_cycle_company" model="ir.rule">
+        <field name="name">fix.compensation.cycle: allowed companies</field>
+        <field name="model_id" ref="model_fix_compensation_cycle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_compensation_cycle_operating_unit" model="ir.rule">
+        <field name="name">fix.compensation.cycle: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_compensation_cycle"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_compensation_proposal_company" model="ir.rule">
         <field name="name">fix.compensation.proposal: allowed companies</field>
         <field name="model_id" ref="model_fix_compensation_proposal"/>
@@ -27,6 +38,17 @@
     <record id="rule_fix_compensation_proposal_operating_unit" model="ir.rule">
         <field name="name">fix.compensation.proposal: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_compensation_proposal"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_adjustment_company" model="ir.rule">
+        <field name="name">fix.incentive.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_incentive_adjustment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_incentive_adjustment_operating_unit" model="ir.rule">
+        <field name="name">fix.incentive.adjustment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_incentive_adjustment"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -96,6 +118,44 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_kpi_definition_company" model="ir.rule">
+        <field name="name">fix.kpi.definition: allowed companies</field>
+        <field name="model_id" ref="model_fix_kpi_definition"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_kpi_definition_operating_unit" model="ir.rule">
+        <field name="name">fix.kpi.definition: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_kpi_definition"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_calibration_line_company" model="ir.rule">
+        <field name="name">fix.performance.calibration.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_calibration_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_calibration_session_company" model="ir.rule">
+        <field name="name">fix.performance.calibration.session: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_calibration_session"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_calibration_session_operating_unit" model="ir.rule">
+        <field name="name">fix.performance.calibration.session: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_performance_calibration_session"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_feedback_company" model="ir.rule">
+        <field name="name">fix.performance.feedback: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_feedback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_feedback_operating_unit" model="ir.rule">
+        <field name="name">fix.performance.feedback: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_performance_feedback"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_performance_goal_company" model="ir.rule">
         <field name="name">fix.performance.goal: allowed companies</field>
         <field name="model_id" ref="model_fix_performance_goal"/>
@@ -115,6 +175,17 @@
         <field name="name">fix.performance.review: allowed companies</field>
         <field name="model_id" ref="model_fix_performance_review"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_review_cycle_company" model="ir.rule">
+        <field name="name">fix.performance.review.cycle: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_review_cycle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_review_cycle_operating_unit" model="ir.rule">
+        <field name="name">fix.performance.review.cycle: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_performance_review_cycle"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_performance_scorecard_company" model="ir.rule">
         <field name="name">fix.performance.scorecard: allowed companies</field>
