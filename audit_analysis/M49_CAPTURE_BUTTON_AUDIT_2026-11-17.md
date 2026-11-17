@@ -118,11 +118,13 @@ Two defects were found only by the live run and fixed before the evidence above:
 
 ## 5. State
 
-- Built and tested in worktree `m49cap-wt` and committed on branch `fix/m49-capture-buttons`, from 3efdab37. Not pushed.
-- **Not deployed.** Putting it live on fix_real (8069) needs three steps:
-  1. a backup;
-  2. `-u cd_fixed_asset_ext,cd_p03_portal` on fix_real;
-  3. a fast-forward of the working branch and one restart of 8069.
-
-  The restart needs the user's approval. fix_dev (8090) then needs the same `-u` before its next restart.
-- After deploying, someone must set two figures in the config keys: the review threshold (`cd_fixed_asset_ext.capital_project_review_threshold`, default 5,000,000) and the review period (`cd_fixed_asset_ext.capital_project_review_days`, default 180). They are the CFO's to set.
+- Built and tested in worktree `m49cap-wt`. Fix commit 7b681233 is on the working branch `fix/a03-live-data-and-pending-work`, fast-forwarded from 23cc93ac (the M47/M48 tip). **Not pushed.**
+- **Deployed on fix_real (8069) on 17 Nov 2026**, on the user's approval:
+  1. Backup `fix_real_pre_m49_capture_2026-11-17.dump` (49.4 MB, reads back with pg_restore).
+  2. `-u cd_fixed_asset_ext,cd_p03_portal` on fix_real exited 0. cd_fixed_asset_ext is now 19.0.1.1.0, and all 5 new models are registered.
+  3. Working branch moved by compare-and-swap; the shared checkout was refreshed and is clean.
+  4. Before the restart, all 83 installed cd_ modules matched their code. 8069 was restarted once: PID 7484 became 30868 (supervisor 23964) after 10 s. The log shows 155 modules loaded and no errors.
+- Verified on the live server: all 5 new lists, plus capex, CWIP and the asset register, are served. Bundle 5a23f3f carries the 5 new screens and their forms.
+- fix_real holds **no** fixed assets, CWIP entries, capex requests or projects, so every M49 list starts empty. That is a data take-on question for the owner, not a defect.
+- fix_dev (8090) is **not** upgraded. It needs `-u cd_fixed_asset_ext,cd_p03_portal` before its next restart.
+- Someone must set two figures in the config keys: the review threshold (`cd_fixed_asset_ext.capital_project_review_threshold`, default 5,000,000) and the review period (`cd_fixed_asset_ext.capital_project_review_days`, default 180). They are the CFO's to set.
