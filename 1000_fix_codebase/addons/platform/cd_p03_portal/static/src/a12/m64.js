@@ -1,5 +1,6 @@
 /** @odoo-module **/
-/* A12 · M64 Master Data Management. 3 groups / 6 screens / 4 reports / 3 forms / freg 52. */
+/* A12 · M64 Master Data Management. 6 groups / 7 sub-module pages.
+   Capture audit 2026-11-18: every page captures the records it covers. */
 
 export const MODULE = {
   area: 'A12', code: 'M64', en: 'Master Data Management', title: 'M64 · Master Data Management',
@@ -14,7 +15,9 @@ export const MODULE = {
     { l: 'Active DQ Rules', m: 'dq_rules' },
     { l: 'Measured Violations', m: 'dq_violations_measured' },
     { l: 'Published Lists', m: 'code_lists' },
-    { l: 'Code Entries', m: 'code_entries' }
+    { l: 'Code Entries', m: 'code_entries' },
+    { l: 'Open Remediations', m: 'remediations_open' },
+    { l: 'Active Parameters', m: 'parameters_active' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -22,7 +25,8 @@ export const MODULE = {
       { id: 'M64-mdm-stewardship', en: "Mdm Stewardship", bn: "Mdm Stewardship", t: 'g' },
       { id: 'M64-mdm-change-request', en: "Mdm Change Request", bn: "Mdm Change Request", t: 'g' },
       { id: 'M64-mdm-match-rule', en: "Mdm Match Rule", bn: "Mdm Match Rule", t: 'g' },
-      { id: 'M64-governed', en: 'Governed Attributes', bn: 'নিয়ন্ত্রিত বৈশিষ্ট্য', t: 'g' }
+      { id: 'M64-governed', en: 'Governed Attributes', bn: 'নিয়ন্ত্রিত বৈশিষ্ট্য', t: 'g' },
+      { id: 'M64-hierarchies', en: 'Governed Hierarchies', bn: 'নিয়ন্ত্রিত শ্রেণিবিন্যাস', t: 'g' }
     ]},
     { en: 'Registry Completion', screens: [
       { id: 'M64-dedupe', en: 'Duplicate Detection', bn: 'Duplicate Detection', t: 'g' },
@@ -32,27 +36,38 @@ export const MODULE = {
     ]},
     { en: 'Stewardship', screens: [
       { id: 'M64-stewardship', en: 'Stewardship Workflow', bn: 'স্টুয়ার্ড', t: 'g' },
-      { id: 'M64-domains', en: 'Domain Register', bn: 'মাস্টার মডেল', t: 'r' }
+      { id: 'M64-domains', en: 'Domain Register', bn: 'মাস্টার মডেল', t: 'r' },
+      { id: 'M64-bulk', en: 'Bulk Change Sets', bn: 'একাধিক রেকর্ড পরিবর্তন', t: 'g' }
     ]},
     { en: 'Data Quality', screens: [
       { id: 'M64-rules', en: 'DQ Rule Engine', bn: 'ডিকিউ নিয়ম', t: 'g' },
-      { id: 'M64-scoring', en: 'Quality Scoring & Gating', bn: 'কভারেজ', t: 'r' }
+      { id: 'M64-scoring', en: 'Quality Scoring & Gating', bn: 'কভারেজ', t: 'r' },
+      { id: 'M64-remediation', en: 'Remediation Worklist', bn: 'সংশোধন তালিকা', t: 'g' }
     ]},
     { en: 'Code Lists', screens: [
       { id: 'M64-codelists', en: 'Code Lists', bn: 'কোড তালিকা', t: 'g' },
       { id: 'M64-entries', en: 'List Entries', bn: 'এন্ট্রি', t: 'g' }
+    ]},
+    { en: 'Business Parameters', screens: [
+      { id: 'M64-parameters', en: 'Business Parameter Register', bn: 'ব্যবসায়িক প্যারামিটার', t: 'g' },
+      { id: 'M64-param-changes', en: 'Parameter Changes', bn: 'প্যারামিটার পরিবর্তন', t: 'g' }
     ]}
   ],
-  reports: ['Steward Request Backlog', 'DQ Rule Register', 'Code List Usage', 'Golden Record Coverage'],
-  forms: ['Change Request', 'Steward Request', 'DQ Rule', 'Code List Entry'],
+  reports: ['Steward Request Backlog', 'DQ Rule Register', 'Code List Usage', 'Golden Record Coverage',
+    'Business Parameter Register'],
+  forms: ['Change Request', 'Steward Request', 'DQ Rule', 'Code List Entry', 'Data Domain', 'DQ Remediation',
+    'Cross-Reference', 'Match Rule', 'Governed Attribute', 'Governed Hierarchy', 'Bulk Change Set',
+    'Business Parameter', 'Parameter Change'],
   cross: ['M30 branch master', 'M33 golden party', 'M25 DQ dashboards'],
   freg: { src: 52, sub: [
-    ['1', 'Stewardship', 10, { model: 'fix.mdm.steward', cols: ['name', 'request_type', 'res_model', 'steward_id', 'state'], screens: ['M64-stewardship', 'M64-mdm-stewardship', 'M64-domains'], reports: ['Steward Request Backlog'], forms: ['Steward Request'] }],
-    ['2', 'Data Quality', 12, { model: 'fix.mdm.dq.rule', cols: ['code', 'name', 'res_model', 'rule_type', 'severity'], screens: ['M64-rules', 'M64-scoring'], reports: ['DQ Rule Register', 'Golden Record Coverage'], forms: ['DQ Rule'] }],
-    ['3', 'Code Lists', 9, { model: 'fix.mdm.code.list', cols: ['code', 'name', 'domain_area', 'state'], screens: ['M64-codelists', 'M64-entries', 'M64-xref'], reports: ['Code List Usage'], forms: ['Code List Entry'] }],
-    ['4', 'Golden Records', 8, { model: 'fix.mdm.golden.rule', cols: ['model_name', 'field_name', 'strategy', 'sequence', 'active'], screens: ['M64-mdm-golden-rule', 'M64-mdm-match-rule', 'M64-governed'], reports: ['Golden Record Coverage'], forms: [] }],
-    ['5', 'Workflows', 7, { model: 'fix.mdm.change.request', cols: ['reference', 'title', 'model_name', 'priority', 'state'], screens: ['M64-mdm-change-request', 'M64-impact'], reports: ['Steward Request Backlog'], forms: ['Change Request'] }],
-    ['6', 'Audit', 6, { model: 'fix.mdm.duplicate', cols: ['name', 'res_model', 'decision', 'decided_by_id', 'decided_on'], screens: ['M64-lineage', 'M64-dedupe'], reports: [], forms: [] }]
+    ['1', 'Stewardship', 10, { model: 'fix.mdm.steward', cols: ['name', 'request_type', 'res_model', 'steward_id', 'state'], screens: ['M64-stewardship', 'M64-mdm-stewardship', 'M64-domains'], reports: ['Steward Request Backlog'], forms: ['Steward Request', 'Data Domain'] }],
+    ['2', 'Data Quality', 12, { model: 'fix.mdm.dq.rule', cols: ['code', 'name', 'res_model', 'rule_type', 'severity'], screens: ['M64-rules', 'M64-remediation', 'M64-scoring'], reports: ['DQ Rule Register', 'Golden Record Coverage'], forms: ['DQ Rule', 'DQ Remediation'] }],
+    ['3', 'Code Lists', 9, { model: 'fix.mdm.code.list', cols: ['code', 'name', 'domain_area', 'state'], screens: ['M64-codelists', 'M64-entries', 'M64-xref'], reports: ['Code List Usage'], forms: ['Code List Entry', 'Cross-Reference'] }],
+    ['4', 'Golden Records', 8, { model: 'fix.mdm.golden.rule', cols: ['model_name', 'field_name', 'strategy', 'sequence', 'active'], screens: ['M64-mdm-golden-rule', 'M64-mdm-match-rule', 'M64-governed', 'M64-hierarchies'], reports: ['Golden Record Coverage'], forms: ['Match Rule', 'Governed Attribute', 'Governed Hierarchy'] }],
+    ['5', 'Workflows', 7, { model: 'fix.mdm.change.request', cols: ['reference', 'title', 'model_name', 'priority', 'state'], screens: ['M64-mdm-change-request', 'M64-bulk', 'M64-impact'], reports: ['Steward Request Backlog'], forms: ['Change Request', 'Bulk Change Set'] }],
+    ['6', 'Audit', 6, { model: 'fix.mdm.duplicate', cols: ['name', 'res_model', 'decision', 'decided_by_id', 'decided_on'], screens: ['M64-lineage', 'M64-dedupe'], reports: [], forms: [] }],
+    /* FR-MDM-033: the thresholds M63 executes (spec §5.5); no page held them until 2026-11-18 */
+    ['7', 'Business Parameters', 5, { model: 'fix.mdm.business.parameter', cols: ['key', 'name', 'domain', 'current_value', 'owner_id', 'state'], screens: ['M64-parameters', 'M64-param-changes'], reports: ['Business Parameter Register'], forms: ['Business Parameter', 'Parameter Change'] }]
   ] }
 };
 
@@ -109,8 +124,9 @@ export const SCREENS = {
               { m: 'action_apply', l: 'Apply Approved Change' }] },
   'M64-domains': { kind: 'table_report', module: 'M64', report: 'golden_coverage', title: 'Master Models (governed)', period: false },
   'M64-rules': { kind: 'model_list', model: 'fix.mdm.dq.rule',
-    cols: ['code', 'name', 'res_model', 'field_name', 'rule_type', 'severity', 'last_status', 'last_violation_count', 'active'],
-    actions: [{ m: 'action_evaluate', l: 'Run Evaluator' }] },
+    cols: ['code', 'name', 'res_model', 'field_name', 'rule_type', 'severity', 'last_status', 'last_violation_count', 'open_remediation_count', 'active'],
+    actions: [{ m: 'action_evaluate', l: 'Run Evaluator' },
+              { m: 'action_raise_worklist', l: 'Raise Remediation Worklist' }] },
   'M64-scoring': { kind: 'table_report', module: 'M64', report: 'golden_coverage', title: 'Golden Coverage', period: false },
   'M64-codelists': { kind: 'model_list', model: 'fix.mdm.code.list', stateField: 'state',
     cols: ['code', 'name', 'domain_area', 'version', 'effective_from', 'effective_to', 'state'],
@@ -258,6 +274,170 @@ export const SCREENS = {
   },
 
 
+  /* ===== capture audit 2026-11-18: the records no page could capture ===== */
+  'M64-remediation': { kind: 'model_list', model: 'fix.mdm.dq.remediation', stateField: 'state',
+    cols: ['name', 'res_model', 'record_name', 'severity', 'priority', 'assigned_to_id', 'due_by', 'state'],
+    actions: [{ m: 'action_start', l: 'Start Work' },
+              { m: 'action_resolve', l: 'Resolve (record now passes)', ask: 'What was corrected?', kwarg: 'note' },
+              { m: 'action_waive', l: 'Waive (exception)', ask: 'Why is this record exempt from the rule?', kwarg: 'note' }] },
+  'M64-form-remediation': {
+    kind: 'model_form',
+    model: 'fix.mdm.dq.remediation',
+    title: 'DQ Remediation',
+    title_bn: 'ডেটা মান সংশোধন',
+    back: 'M64-remediation',
+    status: { field: 'state', labels: { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', waived: 'Waived' } },
+    sections: [
+      { title: 'Failing Record', note: 'One record that fails a data-quality rule, for a steward to put right. Raise Remediation Worklist on the DQ Rules list raises one per failing record; a steward can also raise one here. Resolve closes it only when the record now passes the rule; a waiver needs a reason and a steward who neither wrote the rule nor raised the item.',
+        fields: [
+          { name: 'rule_id', required: true, label: 'DQ Rule', bn: 'ডিকিউ নিয়ম' },
+          { name: 'res_id', required: true, label: 'Record ID (database id)', bn: 'রেকর্ড আইডি' },
+          { name: 'record_name', readonly: true, label: 'Record', bn: 'রেকর্ড' },
+          { name: 'priority', required: true, label: 'Priority', bn: 'অগ্রাধিকার' },
+          { name: 'business_impact', type: 'text', label: 'Business Impact', bn: 'ব্যবসায়িক প্রভাব' },
+          { name: 'assigned_to_id', label: 'Assigned Steward', bn: 'দায়িত্বপ্রাপ্ত স্টুয়ার্ড' },
+          { name: 'due_by', label: 'Due By', bn: 'শেষ তারিখ' },
+          { name: 'resolution', type: 'text', readonly: true, label: 'Resolution', bn: 'সমাধান' }
+        ] }
+    ]
+  },
+
+  'M64-hierarchies': { kind: 'model_list', model: 'fix.mdm.hierarchy', stateField: 'state',
+    cols: ['code', 'name', 'hierarchy_type', 'version', 'max_depth', 'node_count', 'owner_id', 'effective_from', 'state'],
+    actions: [{ m: 'action_publish', l: 'Publish (second steward)' }, { m: 'action_new_version', l: 'New Version' }] },
+  'M64-form-hierarchy': {
+    kind: 'model_form',
+    model: 'fix.mdm.hierarchy',
+    title: 'Governed Hierarchy',
+    title_bn: 'নিয়ন্ত্রিত শ্রেণিবিন্যাস',
+    back: 'M64-hierarchies',
+    status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
+    lines: {
+      field: 'node_ids',
+      title: 'Nodes',
+      note: 'One row per node. A top-level node leaves Parent Code blank; every other node names its parent by code. The save is refused for a parent that is not in the tree (an orphan), a node that is its own ancestor (a cycle) or a node deeper than the Deepest Level.',
+      fields: [
+        { name: 'code', required: true, label: 'Code' },
+        { name: 'label', required: true, label: 'Label (English)' },
+        { name: 'label_bn', label: 'Label (Bengali)' },
+        { name: 'parent_code', label: 'Parent Code' },
+        { name: 'sequence', label: 'Order' },
+        { name: 'level', readonly: true, label: 'Level' }
+      ]
+    },
+    sections: [
+      { title: 'Hierarchy', note: 'A governed classification, roll-up or segmentation tree. A draft is built here; a second steward publishes it and the version it replaces retires. A published tree is frozen: New Version on the list makes the draft for the next change.',
+        fields: [
+          { name: 'code', required: true, label: 'Hierarchy Code', bn: 'কোড' },
+          { name: 'name', required: true, label: 'Name', bn: 'নাম' },
+          { name: 'name_bn', label: 'Name (Bengali)', bn: 'নাম (বাংলা)' },
+          { name: 'hierarchy_type', required: true, label: 'Type', bn: 'ধরন' },
+          { name: 'max_depth', required: true, label: 'Deepest Level', bn: 'সর্বোচ্চ স্তর' },
+          { name: 'owner_id', label: 'Business Owner', bn: 'ব্যবসায়িক মালিক' },
+          { name: 'effective_from', label: 'Effective From', bn: 'কার্যকর শুরু' },
+          { name: 'version', readonly: true, label: 'Version', bn: 'সংস্করণ' }
+        ] }
+    ]
+  },
+
+  'M64-bulk': { kind: 'model_list', model: 'fix.mdm.change.batch', stateField: 'state',
+    cols: ['name', 'title', 'model_name', 'line_count', 'submitted_by_id', 'reviewed_by_id', 'approval_state', 'state'],
+    actions: [{ m: 'action_submit', l: 'Submit Set' },
+              { m: 'action_request_approval', l: 'Route to Steward', ask: 'Why should these records change together?', kwarg: 'justification' },
+              { m: 'action_recall_approval', l: 'Recall' },
+              { m: 'action_cancel', l: 'Cancel Set' },
+              { m: 'action_apply', l: 'Apply Set (all or nothing)' }] },
+  'M64-form-bulk': {
+    kind: 'model_form',
+    model: 'fix.mdm.change.batch',
+    title: 'Bulk Change Set',
+    title_bn: 'একাধিক রেকর্ড পরিবর্তন',
+    back: 'M64-bulk',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Submitted', approved: 'Approved', applied: 'Applied', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    lines: {
+      field: 'line_ids',
+      title: 'Records in the Set',
+      note: 'One row per record of the target model. Only attributes on the Governed Attributes register can change, and each row is checked like a single change request.',
+      fields: [
+        { name: 'record_id', required: true, label: 'Record ID' },
+        { name: 'proposed_changes', required: true, label: 'Proposed Changes (one field=value per line, or a JSON object)' },
+        { name: 'target_name', readonly: true, label: 'Record' },
+        { name: 'current_values', readonly: true, label: 'Values at Submit' }
+      ]
+    },
+    sections: [
+      { title: 'Bulk Change', note: 'A mass update reviewed and approved as one set. Submit checks every row, records the values it will replace and freezes the set; a steward other than you approves it from the M63 inbox; Apply writes every row or none, and refuses a record that changed since submit.',
+        fields: [
+          { name: 'title', required: true, label: 'Title', bn: 'শিরোনাম' },
+          { name: 'model_name', required: true, label: 'Target Model', bn: 'লক্ষ্য মডেল' },
+          { name: 'justification', required: true, type: 'text', label: 'Justification', bn: 'যৌক্তিকতা' },
+          { name: 'preview', type: 'text', readonly: true, label: 'Preview (measured at submit)', bn: 'পূর্বদর্শন' }
+        ] }
+    ]
+  },
+
+  'M64-parameters': { kind: 'model_list', model: 'fix.mdm.business.parameter', stateField: 'state',
+    cols: ['key', 'name', 'domain', 'value_type', 'current_value', 'unit', 'owner_id', 'activated_on', 'state'],
+    actions: [{ m: 'action_activate', l: 'Activate (owner or second steward)' }, { m: 'action_retire', l: 'Retire' }] },
+  'M64-form-parameter': {
+    kind: 'model_form',
+    model: 'fix.mdm.business.parameter',
+    title: 'Business Parameter',
+    title_bn: 'ব্যবসায়িক প্যারামিটার',
+    back: 'M64-parameters',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    sections: [
+      { title: 'Parameter', note: 'A threshold, ceiling, period or rate the business runs on. M64 stores it; the M63 rules named under Read By execute it. Its owner, or a steward other than the one who drafted it, activates it; from then on it changes only through a Parameter Change.',
+        fields: [
+          { name: 'key', required: true, label: 'Key (e.g. pricing.discount_ceiling)', bn: 'কী' },
+          { name: 'name', required: true, label: 'Parameter', bn: 'প্যারামিটার' },
+          { name: 'name_bn', label: 'Parameter (Bengali)', bn: 'প্যারামিটার (বাংলা)' },
+          { name: 'domain', required: true, label: 'Business Area', bn: 'ব্যবসায়িক ক্ষেত্র' },
+          { name: 'owner_id', required: true, label: 'Business Owner (decides changes)', bn: 'ব্যবসায়িক মালিক' },
+          { name: 'scope_level', required: true, label: 'Applies To', bn: 'প্রযোজ্য' },
+          { name: 'consumer_note', type: 'text', label: 'Read By (M63 rules and modules)', bn: 'যারা ব্যবহার করে' },
+          { name: 'description', type: 'text', label: 'Description', bn: 'বিবরণ' }
+        ] },
+      { title: 'Value', note: 'The value is typed while the parameter is a draft and checked against its type and bounds. Value in Force is what applies today, after any published change.',
+        fields: [
+          { name: 'value_type', required: true, label: 'Value Type', bn: 'মানের ধরন' },
+          { name: 'initial_value', label: 'Value', bn: 'মান' },
+          { name: 'unit', label: 'Unit', bn: 'একক' },
+          { name: 'min_value', label: 'Lowest Allowed', bn: 'সর্বনিম্ন' },
+          { name: 'max_value', label: 'Highest Allowed', bn: 'সর্বোচ্চ' },
+          { name: 'current_value', readonly: true, label: 'Value in Force', bn: 'বর্তমান মান' },
+          { name: 'activated_on', readonly: true, label: 'Active Since', bn: 'সক্রিয় থেকে' }
+        ] }
+    ]
+  },
+
+  'M64-param-changes': { kind: 'model_list', model: 'fix.mdm.parameter.change', stateField: 'state',
+    cols: ['name', 'parameter_id', 'previous_value', 'proposed_value', 'effective_from', 'submitted_by_id', 'decided_by_id', 'approval_state', 'state'],
+    actions: [{ m: 'action_submit', l: 'Submit' },
+              { m: 'action_request_approval', l: 'Route to Owner', ask: 'Why should the value change?', kwarg: 'justification' },
+              { m: 'action_recall_approval', l: 'Recall' },
+              { m: 'action_cancel', l: 'Cancel' }] },
+  'M64-form-param-change': {
+    kind: 'model_form',
+    model: 'fix.mdm.parameter.change',
+    title: 'Parameter Change',
+    title_bn: 'প্যারামিটার পরিবর্তন',
+    back: 'M64-param-changes',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Owner', published: 'Published', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Change', note: 'A new value for an active parameter, effective from a date that is not in the past. Submit checks it against the type and bounds and records the value it replaces; Route sends it to the owner, or to a steward when the owner proposed it. The approval publishes it, and documents dated before the effective date keep the old value.',
+        fields: [
+          { name: 'parameter_id', required: true, label: 'Parameter', bn: 'প্যারামিটার' },
+          { name: 'owner_id', readonly: true, label: 'Business Owner', bn: 'ব্যবসায়িক মালিক' },
+          { name: 'proposed_value', required: true, label: 'New Value', bn: 'নতুন মান' },
+          { name: 'effective_from', required: true, label: 'Effective From', bn: 'কার্যকর শুরু' },
+          { name: 'reason', required: true, type: 'text', label: 'Reason', bn: 'কারণ' },
+          { name: 'previous_value', readonly: true, label: 'Value Before', bn: 'আগের মান' },
+          { name: 'decision_note', type: 'text', readonly: true, label: 'Decision Note', bn: 'সিদ্ধান্তের নোট' }
+        ] }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
   'M64-mdm-golden-rule': { kind: 'model_list', model: 'fix.mdm.golden.rule',
     cols: ['active', 'sequence', 'model_name', 'field_name', 'strategy'] },
@@ -301,15 +481,18 @@ export const SCREENS = {
   'M64-form-mdm-stewardship': {
     kind: 'model_form',
     model: 'fix.mdm.stewardship',
-    title: "Mdm Stewardship",
+    title: "Data Domain",
     back: 'M64-mdm-stewardship',
     sections: [
-      { title: "Mdm Stewardship", note: "The measured quality scores and audit stamps are computed daily, and by the Audit Data Quality action, and blend the DQ rules' measured results - they are never typed here. A Platform Admin appoints the lead steward, who must hold the steward role, and the business owner.",
+      { title: "Mdm Stewardship", note: "The measured quality scores and audit stamps are computed daily, and by the Audit Data Quality action, and blend the DQ rules' measured results - they are never typed here. A Platform Admin appoints the lead steward and the deputy, who both hold the steward role and are different people, the business owner and the technical custodian.",
         fields: [
           { name: 'name', required: true, label: "Stewardship Domain Title" },
           { name: 'domain', required: true, label: "Data Domain" },
           { name: 'lead_steward_id', required: true, label: "Lead Data Steward" },
+          { name: 'criticality', required: true, label: "Criticality", bn: 'গুরুত্ব' },
+          { name: 'deputy_steward_id', label: "Deputy Steward (takes the work on absence)", bn: 'উপ-স্টুয়ার্ড' },
           { name: 'owner_id', label: "Business Owner", bn: 'ব্যবসায়িক মালিক' },
+          { name: 'technical_custodian_id', label: "Technical Custodian", bn: 'প্রযুক্তিগত তত্ত্বাবধায়ক' },
           { name: 'operating_unit_id', label: "Operating Unit" }
         ] }
     ]
@@ -349,14 +532,24 @@ export const REPORT_ROUTES = {
   'M64:Steward Request Backlog': 'M64-rpt-backlog',
   'M64:DQ Rule Register': 'M64-rpt-dq',
   'M64:Code List Usage': 'M64-rpt-lists',
-  'M64:Golden Record Coverage': 'M64-scoring'
+  'M64:Golden Record Coverage': 'M64-scoring',
+  'M64:Business Parameter Register': 'M64-parameters'
 };
 
 export const FORM_MODELS = {
   'M64:Change Request': 'fix.mdm.change.request',
   'M64:Steward Request': 'fix.mdm.steward',
   'M64:DQ Rule': 'fix.mdm.dq.rule',
-  'M64:Code List Entry': 'fix.mdm.code.entry'
+  'M64:Code List Entry': 'fix.mdm.code.entry',
+  'M64:Data Domain': 'fix.mdm.stewardship',
+  'M64:DQ Remediation': 'fix.mdm.dq.remediation',
+  'M64:Cross-Reference': 'fix.mdm.xref',
+  'M64:Match Rule': 'fix.mdm.match.rule',
+  'M64:Governed Attribute': 'fix.mdm.governed.attribute',
+  'M64:Governed Hierarchy': 'fix.mdm.hierarchy',
+  'M64:Bulk Change Set': 'fix.mdm.change.batch',
+  'M64:Business Parameter': 'fix.mdm.business.parameter',
+  'M64:Parameter Change': 'fix.mdm.parameter.change'
 };
 
 export const FORM_CHIPS = {
@@ -364,6 +557,15 @@ export const FORM_CHIPS = {
   'M64:Steward Request': 'M64-form-steward',
   'M64:DQ Rule': 'M64-form-dq',
   'M64:Code List Entry': 'M64-form-entry',
+  'M64:Data Domain': 'M64-form-mdm-stewardship',
+  'M64:DQ Remediation': 'M64-form-remediation',
+  'M64:Cross-Reference': 'M64-form-xref',
+  'M64:Match Rule': 'M64-form-matchrule',
+  'M64:Governed Attribute': 'M64-form-governed',
+  'M64:Governed Hierarchy': 'M64-form-hierarchy',
+  'M64:Bulk Change Set': 'M64-form-bulk',
+  'M64:Business Parameter': 'M64-form-parameter',
+  'M64:Parameter Change': 'M64-form-param-change',
   'M64:__by_model__': {
     'fix.mdm.governed.attribute': 'M64-form-governed',
     'fix.mdm.match.rule': 'M64-form-matchrule',
@@ -375,7 +577,12 @@ export const FORM_CHIPS = {
     'fix.mdm.steward': 'M64-form-steward',
     'fix.mdm.dq.rule': 'M64-form-dq',
     'fix.mdm.code.entry': 'M64-form-entry',
-    'fix.mdm.code.list': 'M64-form-list'
+    'fix.mdm.code.list': 'M64-form-list',
+    'fix.mdm.dq.remediation': 'M64-form-remediation',
+    'fix.mdm.hierarchy': 'M64-form-hierarchy',
+    'fix.mdm.change.batch': 'M64-form-bulk',
+    'fix.mdm.business.parameter': 'M64-form-parameter',
+    'fix.mdm.parameter.change': 'M64-form-param-change'
   },
   'M64:__by_screen__': {
     'M64-governed': 'M64-form-governed',
@@ -388,7 +595,12 @@ export const FORM_CHIPS = {
     'M64-stewardship': 'M64-form-steward',
     'M64-rules': 'M64-form-dq',
     'M64-entries': 'M64-form-entry',
-    'M64-codelists': 'M64-form-list'
+    'M64-codelists': 'M64-form-list',
+    'M64-remediation': 'M64-form-remediation',
+    'M64-hierarchies': 'M64-form-hierarchy',
+    'M64-bulk': 'M64-form-bulk',
+    'M64-parameters': 'M64-form-parameter',
+    'M64-param-changes': 'M64-form-param-change'
   }
 };
 

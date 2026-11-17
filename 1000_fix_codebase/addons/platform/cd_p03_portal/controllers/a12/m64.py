@@ -22,7 +22,11 @@ SURFACES = {
             "action_apply",
         },
     },
-    "fix.mdm.dq.rule": {"order": "code", "limit": 300, "actions": {"action_evaluate"}},
+    "fix.mdm.dq.rule": {
+        "order": "code",
+        "limit": 300,
+        "actions": {"action_evaluate", "action_raise_worklist"},
+    },
     "fix.mdm.code.list": {
         "order": "code",
         "limit": 200,
@@ -64,6 +68,45 @@ SURFACES = {
         "order": "model_name, category, field_name",
         "limit": 300,
         "actions": set(),
+    },
+    # M64 capture audit (2026-11-18): the records the pages could not capture.
+    "fix.mdm.dq.remediation": {
+        "order": "state_rank, priority_rank desc, due_by, id",
+        "limit": 400,
+        "actions": {"action_start", "action_resolve", "action_waive"},
+    },
+    "fix.mdm.business.parameter": {
+        "order": "domain, key",
+        "limit": 400,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.mdm.parameter.change": {
+        "order": "id desc",
+        "limit": 400,
+        # action_approve runs from the owner's M63 inbox, not a button.
+        "actions": {
+            "action_submit",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+        },
+    },
+    "fix.mdm.hierarchy": {
+        "order": "code, version desc",
+        "limit": 300,
+        "actions": {"action_publish", "action_new_version"},
+    },
+    "fix.mdm.change.batch": {
+        "order": "id desc",
+        "limit": 300,
+        # action_approve runs from the steward's M63 inbox, not a button.
+        "actions": {
+            "action_submit",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+            "action_apply",
+        },
     },
 }
 
@@ -126,7 +169,16 @@ WRITABLE = {
         "description",
         "active",
     ),
-    "fix.mdm.stewardship": ("name", "domain", "lead_steward_id", "owner_id", "operating_unit_id"),
+    "fix.mdm.stewardship": (
+        "name",
+        "domain",
+        "criticality",
+        "lead_steward_id",
+        "deputy_steward_id",
+        "owner_id",
+        "technical_custodian_id",
+        "operating_unit_id",
+    ),
     "fix.mdm.change.request": (
         "title",
         "description",
@@ -155,6 +207,41 @@ WRITABLE = {
         "note",
         "active",
     ),
+    "fix.mdm.dq.remediation": (
+        "rule_id",
+        "res_id",
+        "priority",
+        "business_impact",
+        "assigned_to_id",
+        "due_by",
+    ),
+    "fix.mdm.business.parameter": (
+        "key",
+        "name",
+        "name_bn",
+        "domain",
+        "value_type",
+        "unit",
+        "min_value",
+        "max_value",
+        "scope_level",
+        "owner_id",
+        "initial_value",
+        "consumer_note",
+        "description",
+    ),
+    "fix.mdm.parameter.change": ("parameter_id", "proposed_value", "effective_from", "reason"),
+    "fix.mdm.hierarchy": (
+        "code",
+        "name",
+        "name_bn",
+        "hierarchy_type",
+        "max_depth",
+        "owner_id",
+        "effective_from",
+        "node_ids",
+    ),
+    "fix.mdm.change.batch": ("title", "justification", "model_name", "line_ids"),
 }
 
 
@@ -520,4 +607,11 @@ def kpis(env):
         "dq_rules_never_run": len(rules.filtered(lambda r: not r.last_status)),
         "code_lists": len(lists),
         "code_entries": len(entries),
+        # M64 capture audit: the steward worklist and the parameter registry
+        "remediations_open": env["fix.mdm.dq.remediation"].search_count(
+            [("state", "in", ("open", "in_progress"))]
+        ),
+        "parameters_active": env["fix.mdm.business.parameter"].search_count(
+            [("state", "=", "active")]
+        ),
     }

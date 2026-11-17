@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 STEWARD_GROUP = "cd_entity_config.group_mdm_domain_steward"
 PLATFORM_ADMIN_GROUP = "cd_entity_config.group_platform_admin"
-_APPOINTMENT_FIELDS = frozenset({"lead_steward_id", "owner_id"})
+_APPOINTMENT_FIELDS = frozenset(
+    {"lead_steward_id", "owner_id", "deputy_steward_id", "technical_custodian_id"}
+)
 
 _BD_MOBILE = re.compile(r"^(?:\+?880|0)1[3-9]\d{8}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -136,6 +138,27 @@ class FixMdmStewardship(models.Model):
         tracking=True,
         help="Accountable for the domain's data (BRU-MDM-03). A business appointment.",
     )
+    # M64 capture audit (2026-11-18), FR-MDM-001/004: the register named one
+    # steward; the spec's domain has a deputy who takes the work on absence,
+    # a technical custodian, and a criticality that sets how hard it is gated.
+    deputy_steward_id = fields.Many2one(
+        "res.users",
+        string="Deputy Steward",
+        tracking=True,
+        help="Takes the domain's steward work while the lead is away (FR-MDM-004).",
+    )
+    technical_custodian_id = fields.Many2one(
+        "res.users",
+        string="Technical Custodian",
+        tracking=True,
+        help="Runs the domain's storage and integrations; decides no business content.",
+    )
+    criticality = fields.Selection(
+        [("low", "Low"), ("medium", "Medium"), ("high", "High"), ("critical", "Critical")],
+        default="medium",
+        required=True,
+        tracking=True,
+    )
 
     # Data Quality Dimensions (DAMA-DMBOK compliant). MEASURED by
     # action_audit_data_quality over the governed records; 0 until audited
@@ -244,6 +267,22 @@ class FixMdmStewardship(models.Model):
                 raise ValidationError(
                     "%s cannot lead a data domain: the role needs the 'MDM Domain Steward' "
                     "group." % rec.lead_steward_id.name
+                )
+
+    @api.constrains("deputy_steward_id", "lead_steward_id")
+    def _check_deputy(self):
+        for rec in self:
+            deputy = rec.deputy_steward_id
+            if not deputy:
+                continue
+            if deputy == rec.lead_steward_id:
+                raise ValidationError(
+                    "%s cannot deputise for themself: name a different steward." % deputy.name
+                )
+            if self.env.uid != SUPERUSER_ID and not deputy.has_group(STEWARD_GROUP):
+                raise ValidationError(
+                    "%s cannot deputise on a data domain: the role needs the 'MDM Domain "
+                    "Steward' group." % deputy.name
                 )
 
     @api.depends("completeness_score", "uniqueness_score", "validity_score")

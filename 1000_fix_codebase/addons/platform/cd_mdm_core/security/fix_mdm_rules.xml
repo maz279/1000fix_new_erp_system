@@ -23,4 +23,92 @@
         <field name="perm_write" eval="True"/>
         <field name="perm_unlink" eval="True"/>
     </record>
+
+    <!-- M64 capture audit (2026-11-18): the same own-or-steward edit rule for the
+         new proposals, and company isolation for every new register. -->
+    <record id="rule_fix_mdm_parameter_change_owner" model="ir.rule">
+        <field name="name">fix.mdm.parameter.change: a user edits their own parameter changes</field>
+        <field name="model_id" ref="model_fix_mdm_parameter_change"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_parameter_change_steward" model="ir.rule">
+        <field name="name">fix.mdm.parameter.change: a steward works every parameter changes</field>
+        <field name="model_id" ref="model_fix_mdm_parameter_change"/>
+        <field name="groups" eval="[(4, ref('cd_entity_config.group_mdm_domain_steward'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_change_batch_owner" model="ir.rule">
+        <field name="name">fix.mdm.change.batch: a user edits their own bulk change sets</field>
+        <field name="model_id" ref="model_fix_mdm_change_batch"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_change_batch_steward" model="ir.rule">
+        <field name="name">fix.mdm.change.batch: a steward works every bulk change sets</field>
+        <field name="model_id" ref="model_fix_mdm_change_batch"/>
+        <field name="groups" eval="[(4, ref('cd_entity_config.group_mdm_domain_steward'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_change_batch_line_owner" model="ir.rule">
+        <field name="name">fix.mdm.change.batch.line: a user edits their own bulk change records</field>
+        <field name="model_id" ref="model_fix_mdm_change_batch_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('batch_id.create_uid', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_change_batch_line_steward" model="ir.rule">
+        <field name="name">fix.mdm.change.batch.line: a steward works every bulk change records</field>
+        <field name="model_id" ref="model_fix_mdm_change_batch_line"/>
+        <field name="groups" eval="[(4, ref('cd_entity_config.group_mdm_domain_steward'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <record id="rule_fix_mdm_dq_remediation_company" model="ir.rule">
+        <field name="name">fix.mdm.dq.remediation: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdm_dq_remediation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdm_business_parameter_company" model="ir.rule">
+        <field name="name">fix.mdm.business.parameter: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdm_business_parameter"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdm_parameter_change_company" model="ir.rule">
+        <field name="name">fix.mdm.parameter.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdm_parameter_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdm_hierarchy_company" model="ir.rule">
+        <field name="name">fix.mdm.hierarchy: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdm_hierarchy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdm_change_batch_company" model="ir.rule">
+        <field name="name">fix.mdm.change.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdm_change_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

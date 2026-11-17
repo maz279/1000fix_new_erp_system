@@ -392,7 +392,8 @@ def test_a12f_e3_steward_form_takes_lines_too(w):
 def test_a12f_e3_form_labels_name_the_format():
     source = JS.read_text(encoding="utf-8")
     labels = re.findall(r"name: 'proposed_changes'[^\n]*label: [\"']([^\"']*)", source)
-    assert len(labels) == 2
+    # change request, steward request and (M64 capture audit) the bulk set's rows
+    assert len(labels) == 3
     assert all("field=value" in label and "JSON" in label for label in labels)
 
 
@@ -1454,7 +1455,15 @@ def test_a12f_list_columns_and_form_fields_exist_on_the_models(w):
     for block in re.finditer(
         r"kind: 'model_form',\s*model: '(fix\.mdm\.[a-z.]+)'(.*?)\n  \},", source, re.S
     ):
-        model, names = block.group(1), re.findall(r"name: '(\w+)'", block.group(2))
+        model, body = block.group(1), block.group(2)
+        # a `lines:` child grid names the one2many's own fields (M64 capture audit)
+        grid = re.search(r"lines: \{\s*field: '(\w+)'(.*?)\n    \},", body, re.S)
+        if grid:
+            body = body.replace(grid.group(0), "")
+            comodel = w.env[w.env[model]._fields[grid.group(1)].comodel_name]
+            cells = re.findall(r"name: '(\w+)'", grid.group(2))
+            assert not set(cells) - set(comodel._fields), (comodel._name, cells)
+        names = re.findall(r"name: '(\w+)'", body)
         missing = set(names) - set(w.env[model]._fields)
         assert not missing, (model, missing)
         assert len(names) <= 15, "%s needs tabs" % model

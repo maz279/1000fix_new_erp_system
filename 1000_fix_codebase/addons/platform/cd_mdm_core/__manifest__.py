@@ -16,7 +16,7 @@ Owns:
 Wired to M33 (party) and M37 (catalogue) as the governance layer over both.
 The rest of M64 (full workflow, data quality dashboards) stays in W2.
 """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/MDM",
