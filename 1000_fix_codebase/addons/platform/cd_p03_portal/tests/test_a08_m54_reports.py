@@ -286,6 +286,31 @@ def test_job_costing_uses_scans_invoices_and_loaded_rate(world):
     assert row["gaps"] == "complete"
 
 
+def test_job_costing_applies_the_approved_planned_rate(world):
+    """M54 capture audit (FR-FPA-012, BRU-FPA-16): once a planned technician
+    -hour rate is approved, every work-order hour costs that rate; the
+    branch's own rate wins over the all-branch rate. Arranged as superuser
+    (the approval path is tested in cd_fpa test_m54_capture_live)."""
+    Rate = world.env["fix.activity.rate"]
+    start = fields.Date.context_today(world.env.user) - timedelta(days=30)
+    for branch, value in ((False, 999.0), (world.order.branch_id.id, 1234.0)):
+        rate = Rate.create(
+            {
+                "activity_type": "technician_hour",
+                "branch_id": branch,
+                "planned_rate": value,
+                "effective_from": start,
+                "basis": "Pay + PF + van + tools",
+            }
+        )
+        rate.action_submit()
+        rate.action_approve()
+    (row,) = _run(world, "job_costing")["rows"]
+    assert row["labour_cost"] == pytest.approx(2.0 * 1234.0)
+    assert row["rate_basis"] == "approved planned rate"
+    assert row["gaps"] == "complete"
+
+
 def test_job_costing_reports_missing_labour_hours_honestly(world):
     world.order.work_order_ids.unlink()
     (row,) = _run(world, "job_costing")["rows"]

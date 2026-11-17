@@ -294,11 +294,17 @@ class FixFpaEngine(models.AbstractModel):
         """Per service order received in the window: revenue (issued AR
         invoices net of VAT and credits), parts at cost (inventory
         consumption scans; the work-order part list only when no scan
-        exists), labour hours x the technician's loaded rate."""
+        exists), labour hours x the APPROVED planned technician-hour rate in
+        force for the order's branch on the day the work finished
+        (FR-FPA-012, BRU-FPA-16: the same hour costs the same on every job);
+        the technician's actual loaded rate for the window only where no
+        planned rate has been approved."""
         orders = self.service_orders(date_from, date_to)
         if not orders:
             return []
         rates, _overhead = self.technician_rates(date_from, date_to)
+        planned_rate = self.planned_rate_book("technician_hour")
+        tz = ZoneInfo(self.env.context.get("tz") or self.env.user.tz or "UTC")
         names = {o.name: o.id for o in orders}
 
         revenue = defaultdict(float)
@@ -328,6 +334,7 @@ class FixFpaEngine(models.AbstractModel):
         hours = defaultdict(float)
         labour = defaultdict(float)
         unrated = defaultdict(bool)
+        basis = defaultdict(set)
         if self._has("fix.work.order"):
             work_orders = self.env["fix.work.order"].search([("order_id", "in", orders.ids)])
             for wo in work_orders:
@@ -337,7 +344,15 @@ class FixFpaEngine(models.AbstractModel):
                 if wo.duration_hours:
                     hours[oid] += wo.duration_hours
                     emp = (wo.technician_id or wo.order_id.technician_id).id
-                    rate = (rates.get(emp) or {}).get("rate")
+                    done = wo.end_time or wo.order_id.create_date
+                    day = done.replace(tzinfo=UTC).astimezone(tz).date() if done else None
+                    rate = planned_rate(wo.order_id.branch_id.id, day)
+                    if rate is not None:
+                        basis[oid].add("planned")
+                    else:
+                        rate = (rates.get(emp) or {}).get("rate")
+                        if rate is not None:
+                            basis[oid].add("actual")
                     if rate is None:
                         unrated[oid] = True
                     else:
@@ -382,6 +397,11 @@ class FixFpaEngine(models.AbstractModel):
                     "margin": rev - cost,
                     "margin_pct": pct(rev - cost, rev),
                     "complete": bool(hours.get(oid)) and not unrated.get(oid),
+                    "rate_basis": {
+                        frozenset({"planned"}): "approved planned rate",
+                        frozenset({"actual"}): "actual loaded rate",
+                        frozenset({"planned", "actual"}): "planned and actual rates",
+                    }.get(frozenset(basis.get(oid, ())), ""),
                     "gaps": gaps,
                 }
             )

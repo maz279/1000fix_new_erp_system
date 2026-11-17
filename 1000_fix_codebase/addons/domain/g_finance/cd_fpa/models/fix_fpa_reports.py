@@ -49,6 +49,7 @@ class FixFpaEngineReports(models.AbstractModel):
             "labour_cost",
             "margin",
             "margin_pct",
+            "rate_basis",
             "gaps",
         ]
         labels = {
@@ -63,6 +64,7 @@ class FixFpaEngineReports(models.AbstractModel):
             "labour_cost": "Labour Cost",
             "margin": "Job Margin",
             "margin_pct": "Margin %",
+            "rate_basis": "Labour Rate Used",
             "gaps": "Costing Gaps",
         }
         rows = []
@@ -81,7 +83,9 @@ class FixFpaEngineReports(models.AbstractModel):
             "Service orders received in the window (draft and cancelled excluded).",
             "Revenue = issued AR invoices for the order, net of VAT and credit notes.",
             "Parts = inventory consumption scans at valuation cost; labour = work-order "
-            "hours × the technician's loaded rate for the same window.",
+            "hours × the approved planned technician-hour rate for the branch on the day "
+            "the work finished (Planned Activity Rates), or the technician's actual loaded "
+            "rate for the same window where no planned rate is approved.",
             f"Costing complete (labour hours recorded and rated) on {complete} of {len(jobs)} jobs.",
         ]
         if len(rows) > MAX_JOB_ROWS:

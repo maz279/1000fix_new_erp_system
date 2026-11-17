@@ -43,6 +43,24 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_assemble", "action_issue"},
     },
+    # M54 capture audit (2026-11-17): the four records the pages could not
+    # capture. Decisions are taken by someone other than the maker (models).
+    "fix.cost.centre": {"order": "code", "limit": 400, "actions": set()},
+    "fix.activity.rate": {
+        "order": "effective_from desc, id desc",
+        "limit": 200,
+        "actions": {"action_measure", "action_submit", "action_approve", "action_reject"},
+    },
+    "fix.budget.target": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_issue", "action_withdraw"},
+    },
+    "fix.variance.explanation": {
+        "order": "due_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_remeasure", "action_submit", "action_accept", "action_return"},
+    },
 }
 
 

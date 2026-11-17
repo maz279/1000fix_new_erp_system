@@ -26,6 +26,20 @@ WRITABLE = {
             "type",
         }
     ),
+    "fix.activity.rate": frozenset(
+        {
+            "activity_type",
+            "basis",
+            "branch_id",
+            "currency_id",
+            "effective_from",
+            "effective_to",
+            "measure_from",
+            "measure_to",
+            "operating_unit_id",
+            "planned_rate",
+        }
+    ),
     "fix.allocation.rule": frozenset(
         {
             "journal_id",
@@ -337,6 +351,19 @@ WRITABLE = {
         }
     ),
     "fix.budget.line": frozenset(),
+    "fix.budget.target": frozenset(
+        {
+            "branch_id",
+            "business_line_id",
+            "cost_centre_id",
+            "note",
+            "operating_unit_id",
+            "scope_type",
+            "target_amount",
+            "target_type",
+            "version_id",
+        }
+    ),
     "fix.budget.version": frozenset(
         {
             "base_date_from",
@@ -546,6 +573,22 @@ WRITABLE = {
             "name",
             "operating_unit_id",
             "pool_id",
+        }
+    ),
+    "fix.cost.centre": frozenset(
+        {
+            "active",
+            "branch_id",
+            "centre_type",
+            "code",
+            "date_from",
+            "date_to",
+            "name",
+            "name_bn",
+            "note",
+            "operating_unit_id",
+            "owner_id",
+            "parent_id",
         }
     ),
     "fix.cost.element": frozenset(
@@ -1178,6 +1221,22 @@ WRITABLE = {
             "markup_percent",
             "rule_id",
             "study_ref",
+        }
+    ),
+    "fix.variance.explanation": frozenset(
+        {
+            "action_committed",
+            "branch_id",
+            "budget_line_id",
+            "business_line_id",
+            "cost_centre_id",
+            "date_from",
+            "date_to",
+            "explanation",
+            "operating_unit_id",
+            "owner_id",
+            "root_cause",
+            "scope_type",
         }
     ),
     "fix.vat.return": frozenset(

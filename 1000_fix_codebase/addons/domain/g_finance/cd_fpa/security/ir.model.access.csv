@@ -35,3 +35,15 @@ access_fix_cost_pool_share_manager,fix.cost.pool.share.manager,model_fix_cost_po
 access_fix_cost_element_readonly,fix.cost.element.readonly,model_fix_cost_element,account.group_account_readonly,1,0,0,0
 access_fix_cost_element_user,fix.cost.element.user,model_fix_cost_element,account.group_account_user,1,0,0,0
 access_fix_cost_element_manager,fix.cost.element.manager,model_fix_cost_element,account.group_account_manager,1,1,1,1
+access_fix_cost_centre_readonly,fix.cost.centre.readonly,model_fix_cost_centre,account.group_account_readonly,1,0,0,0
+access_fix_cost_centre_user,fix.cost.centre.user,model_fix_cost_centre,account.group_account_user,1,0,0,0
+access_fix_cost_centre_manager,fix.cost.centre.manager,model_fix_cost_centre,account.group_account_manager,1,1,1,0
+access_fix_activity_rate_readonly,fix.activity.rate.readonly,model_fix_activity_rate,account.group_account_readonly,1,0,0,0
+access_fix_activity_rate_user,fix.activity.rate.user,model_fix_activity_rate,account.group_account_user,1,1,1,1
+access_fix_activity_rate_manager,fix.activity.rate.manager,model_fix_activity_rate,account.group_account_manager,1,1,1,1
+access_fix_budget_target_readonly,fix.budget.target.readonly,model_fix_budget_target,account.group_account_readonly,1,0,0,0
+access_fix_budget_target_user,fix.budget.target.user,model_fix_budget_target,account.group_account_user,1,0,0,0
+access_fix_budget_target_manager,fix.budget.target.manager,model_fix_budget_target,account.group_account_manager,1,1,1,1
+access_fix_variance_explanation_readonly,fix.variance.explanation.readonly,model_fix_variance_explanation,account.group_account_readonly,1,0,0,0
+access_fix_variance_explanation_user,fix.variance.explanation.user,model_fix_variance_explanation,account.group_account_user,1,1,1,0
+access_fix_variance_explanation_manager,fix.variance.explanation.manager,model_fix_variance_explanation,account.group_account_manager,1,1,1,0

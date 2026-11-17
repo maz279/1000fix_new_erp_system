@@ -8,6 +8,17 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_activity_rate_company" model="ir.rule">
+        <field name="name">fix.activity.rate: allowed companies</field>
+        <field name="model_id" ref="model_fix_activity_rate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_activity_rate_operating_unit" model="ir.rule">
+        <field name="name">fix.activity.rate: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_activity_rate"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_board_pack_company" model="ir.rule">
         <field name="name">fix.board.pack: allowed companies</field>
         <field name="model_id" ref="model_fix_board_pack"/>
@@ -49,6 +60,17 @@
     <record id="rule_fix_budget_line_operating_unit" model="ir.rule">
         <field name="name">fix.budget.line: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_budget_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_budget_target_company" model="ir.rule">
+        <field name="name">fix.budget.target: allowed companies</field>
+        <field name="model_id" ref="model_fix_budget_target"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_budget_target_operating_unit" model="ir.rule">
+        <field name="name">fix.budget.target: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_budget_target"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -96,6 +118,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_cost_centre_company" model="ir.rule">
+        <field name="name">fix.cost.centre: allowed companies</field>
+        <field name="model_id" ref="model_fix_cost_centre"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cost_centre_operating_unit" model="ir.rule">
+        <field name="name">fix.cost.centre: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cost_centre"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_cost_element_company" model="ir.rule">
         <field name="name">fix.cost.element: allowed companies</field>
         <field name="model_id" ref="model_fix_cost_element"/>
@@ -137,6 +170,17 @@
     <record id="rule_fix_fpa_driver_operating_unit" model="ir.rule">
         <field name="name">fix.fpa.driver: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_fpa_driver"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_variance_explanation_company" model="ir.rule">
+        <field name="name">fix.variance.explanation: allowed companies</field>
+        <field name="model_id" ref="model_fix_variance_explanation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_variance_explanation_operating_unit" model="ir.rule">
+        <field name="name">fix.variance.explanation: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_variance_explanation"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
