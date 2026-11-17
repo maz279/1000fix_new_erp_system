@@ -126,13 +126,12 @@ Three defects were found only by the live run and fixed before the evidence abov
   It was landed by compare-and-swap `update-ref`, and the shared checkout was synced for exactly these paths. **Not pushed.**
   - On the combined tree, the regenerated `writable.py` was byte-identical to the merged file.
   - The M52 guard, the M53 and M54 guards, the estate page guard, the M52 registry test and the M52 live tests pass: **736/736.**
-- **Not yet deployed.** Done so far:
-  - Backup `fix_real_pre_m52_capture_2026-11-17.dump` (49.8 MB, 50,822 entries read back) is in `all_working_folder/1000fix-2/_migration/backups`.
-  - The upgrade `-u cd_ap_ext,cd_p03_portal` on fix_real was refused by the session's safety check, because it needs the owner's explicit go-ahead. Nothing on fix_real was changed: cd_ap_ext is still 19.0.1.0.0 there.
-- To deploy, run from the shared checkout `1000_fix_codebase`, with PYTHONPATH set to the checkout and `vendor/odoo`, and TZ=UTC:
-  `python vendor/odoo/odoo-bin -c infra/odoo-conf/local.resolved.conf -d fix_real -u cd_ap_ext,cd_p03_portal --stop-after-init --no-http`
-  Then restart 8069 once.
-  - The single 8069 / 8090 restart is held by the M49 session, which also owns the `cd_fixed_asset_ext` version gap from its unmerged `fix/m49-gaps`. M53's deploy waits on the same restart.
-  - Restarting from the shared checkout before M49 lands would run older asset code against fix_real's newer schema.
+- **Upgraded on fix_real on 17 Nov 2026 at 13:38 UTC, on the user's approval.**
+  1. Backup `fix_real_pre_m52_capture_2026-11-17.dump` (49.8 MB, 50,822 entries read back) in `all_working_folder/1000fix-2/_migration/backups`.
+  2. `-u cd_ap_ext,cd_p03_portal` from the shared checkout at 6abf3bbb exited 0, with no errors in the log.
+  3. cd_ap_ext is now 19.0.1.1.0. All 10 new tables exist (empty), and the daily match-exception job is registered and active.
+  4. Version-gap check over the 83 installed cd_ modules: the only gap is `cd_fixed_asset_ext` (code 19.0.1.1.0, database 19.0.1.2.0), which comes from the M49 session's unmerged `fix/m49-gaps`.
+- **The 8069 / 8090 restart is held by the M49 session.** The M53 session was told this deploy is in, so the one restart serves M52 as well. Until it happens, the running process serves the old M52 screens, and the new lists answer "not served".
+- fix_dev (8090) was not upgraded for M52.
 - Cleanup done: worktree `m52cap-wt` removed (branch `fix/m52-capture-buttons` kept), clone `fix_test_m52` and its filestore dropped, launch entry removed.
 - Owner decisions: see §4 (consignment settlement, retention, emergency payments, posting accounts for the unrecorded liability, card programme).
