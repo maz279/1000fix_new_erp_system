@@ -26,10 +26,15 @@ CD-M49-01 (P08-M08, rebuilt for A08) — fixed assets on the seam M19 built:
   assets, approved life / residual changes and depreciation suspension,
   impairment assessments recorded whether or not impairment results, and
   verification variance investigations approved by a non-counter
+- capture gaps (fix_asset_gaps): components of an asset brought into
+  service through the M19 seam (one asset per component, reclassified by
+  category), and insurance policies covering named assets or an asset
+  class, reviewed against the register value with any gap reported to
+  the CFO and linked from a write-off claim
 - THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes depreciation
   EVENTS (depreciation.accrued, now published only for POSTED charges)
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Accounting/Fixed Assets",

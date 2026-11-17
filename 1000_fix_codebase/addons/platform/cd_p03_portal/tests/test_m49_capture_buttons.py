@@ -20,6 +20,14 @@
 #   * no capital project or post-implementation review (FR-FXA-006/007,
 #     BRU-FXA-24 H).
 #
+# Gaps closed after the audit (models/fix_asset_gaps.py):
+#   * an asset brought into service through the M19 seam (not a CWIP
+#     project) could not be componentised (FR-FXA-014): page 3 now captures
+#     Asset Components;
+#   * no insurance cover against the register value (capability 20,
+#     BRU-FXA-25, AUT-FXA-20): page 8 now captures Insurance Policies, and a
+#     write-off names the policy its claim is made under.
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments.
 from __future__ import annotations
@@ -133,6 +141,19 @@ def _surfaces():
     return out
 
 
+def _surfaces_pickers():
+    """{model: {field: [domain leaves as tuples]}} from SURFACES' pickers."""
+    out = {}
+    value = _assigned(CONTROLLER, "SURFACES")
+    for key, conf in zip(value.keys, value.values, strict=True):
+        for k, v in zip(conf.keys, conf.values, strict=True):
+            if ast.literal_eval(k) == "pickers":
+                out[ast.literal_eval(key)] = {
+                    f: [tuple(leaf) for leaf in dom] for f, dom in ast.literal_eval(v).items()
+                }
+    return out
+
+
 def _writable():
     out = {}
     value = _assigned(WRITABLE_FILE, "WRITABLE")
@@ -170,12 +191,12 @@ def _model_methods():
 CAPTURES = {
     "1": ["M49-form-capex", "M49-form-budget", "M49-form-project"],
     "2": ["M49-form-asset", "M49-form-category", "M49-form-lease"],
-    "3": ["M49-form-cwip", "M49-form-component"],
+    "3": ["M49-form-cwip", "M49-form-component", "M49-form-asset-component"],
     "4": ["M49-form-deprun", "M49-form-depchange"],
     "5": ["M49-form-revaluation", "M49-form-impairment-test"],
     "6": ["M49-form-transfer"],
     "7": ["M49-form-verify", "M49-form-variance"],
-    "8": ["M49-form-disposal"],
+    "8": ["M49-form-disposal", "M49-form-insurance"],
 }
 
 RECORDS = {
@@ -195,6 +216,8 @@ NEW_MODELS = (
     "fix.asset.depreciation.change",
     "fix.asset.impairment.assessment",
     "fix.asset.verification.variance",
+    "fix.asset.component",
+    "fix.asset.insurance",
 )
 
 # What a form must never let a person type: the state, every decision stamp
@@ -247,7 +270,34 @@ NEVER_TYPED = {
         "transfer_id",
         "disposal_id",
     },
-    "fix.fixed.asset": {"depreciation_suspended", "cwip_component_id", "state"},
+    "fix.fixed.asset": {
+        "depreciation_suspended",
+        "cwip_component_id",
+        "state",
+        "component_of_id",
+        "asset_component_share_total",
+        "insured_under",
+    },
+    "fix.asset.component": {"asset_id", "reclass_move_id", "company_id", "parent_state"},
+    "fix.asset.insurance": {
+        "state",
+        "reference",
+        "approved_by_id",
+        "approved_on",
+        "covered_count",
+        "register_value",
+        "coverage_gap",
+        "coverage_gap_percent",
+        "coverage_status",
+        "last_reviewed_on",
+        "reviewed_by_id",
+        "reviewed_register_value",
+        "reviewed_sum_insured",
+        "reviewed_gap",
+        "gap_reported",
+        "review_due_date",
+        "review_overdue",
+    },
 }
 
 
@@ -394,11 +444,21 @@ def test_new_models_are_secured():
         rows = [r.split(",") for r in acl.splitlines() if (",%s," % xmlid) in r]
         assert rows, model
         # documents are never deleted; a component line is removed only while
-        # its CWIP project is open (the model refuses otherwise)
-        if model != "fix.cwip.component":
+        # its CWIP project is open / its asset not in service (the model
+        # refuses otherwise)
+        if model not in ("fix.cwip.component", "fix.asset.component"):
             assert all(r[-1].strip() == "0" for r in rows), "%s: nobody deletes" % model
         ro = [r for r in rows if r[3] == "account.group_account_readonly"]
-        assert ro and ro[0][4:8] == ["1", "0", "0", "0"], model
+        if model == "fix.asset.insurance":
+            # spec section 13: sums insured are for R03, R26 and R27 only (the
+            # accounting manager and accountant groups)
+            assert not ro, "the read-only group must not read sums insured"
+            assert {r[3] for r in rows} == {
+                "account.group_account_user",
+                "account.group_account_manager",
+            }
+        else:
+            assert ro and ro[0][4:8] == ["1", "0", "0", "0"], model
         assert 'ref="%s"' % xmlid in rules, "%s has no company rule" % model
 
 
@@ -406,3 +466,23 @@ def test_the_new_file_loads_after_the_models_it_extends():
     init = (ASSETS / "models" / "__init__.py").read_text(encoding="utf-8")
     assert init.index("fix_fixed_asset") < init.index("fix_asset_capture")
     assert init.index("fix_capex,") < init.index("fix_asset_capture")
+    assert init.index("fix_asset_capture") < init.index("fix_asset_gaps")
+    assert init.index("fix_asset_lifecycle") < init.index("fix_asset_gaps")
+
+
+def test_a_write_off_names_the_policy_it_claims_under(m49):
+    names = {f["name"] for f in m49["screens"]["M49-form-disposal"]["fields"]}
+    assert "insurance_id" in names and "insurance_id" in _writable()["fix.asset.disposal"]
+    domain = _surfaces_pickers()["fix.asset.disposal"]["insurance_id"]
+    assert ("state", "in", ["active", "expired", "replaced"]) in domain
+
+
+def test_the_register_shows_components_and_cover(m49):
+    fields = {f["name"]: f for f in m49["screens"]["M49-form-asset"]["fields"]}
+    for name in ("component_of_id", "asset_component_share_total", "insured_under"):
+        assert name in fields and fields[name]["readonly"], name
+
+
+def test_only_unsplit_registered_assets_are_offered_for_components():
+    domain = _surfaces_pickers()["fix.asset.component"]["parent_asset_id"]
+    assert ("state", "=", "draft") in domain and ("cwip_id", "=", False) in domain

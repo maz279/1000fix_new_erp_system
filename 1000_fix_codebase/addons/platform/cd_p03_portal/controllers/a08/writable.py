@@ -215,6 +215,17 @@ WRITABLE = {
             "useful_life_months",
         }
     ),
+    "fix.asset.component": frozenset(
+        {
+            "category_id",
+            "life_months",
+            "name",
+            "parent_asset_id",
+            "salvage_percent",
+            "sequence",
+            "share_percent",
+        }
+    ),
     "fix.asset.depreciation.change": frozenset(
         {
             "asset_id",
@@ -239,6 +250,7 @@ WRITABLE = {
             "ewaste_route",
             "incident_ref",
             "insurance_claim_ref",
+            "insurance_id",
             "kind",
             "partner_id",
             "proceeds",
@@ -263,6 +275,25 @@ WRITABLE = {
             "recoverable_amount",
             "scope",
             "trigger",
+        }
+    ),
+    "fix.asset.insurance": frozenset(
+        {
+            "asset_ids",
+            "category_ids",
+            "cover_type",
+            "insurer_id",
+            "name",
+            "operating_unit_id",
+            "period_from",
+            "period_to",
+            "policy_file",
+            "policy_filename",
+            "premium",
+            "replaces_id",
+            "review_note",
+            "scope",
+            "sum_insured",
         }
     ),
     "fix.asset.revaluation": frozenset(

@@ -27,6 +27,7 @@ export const MODULE = {
       { id: 'M49-register', en: 'Asset Register', bn: 'সম্পদ রেজিস্টার', t: 'g' },
       { id: 'M49-cwip', en: 'CWIP Tracking', bn: 'সিডব্লিউআইপি', t: 'g' },
       { id: 'M49-components', en: 'CWIP Components', bn: 'সিডব্লিউআইপি উপাদান', t: 'g' },
+      { id: 'M49-asset-components', en: 'Asset Components', bn: 'সম্পদের উপাদান', t: 'g' },
       { id: 'M49-transfer', en: 'Transfers & Custodians', bn: 'স্থানান্তর', t: 'g' },
       { id: 'M49-categories', en: 'Asset Categories', bn: 'সম্পদের শ্রেণি', t: 'g' }
     ]},
@@ -44,6 +45,7 @@ export const MODULE = {
       { id: 'M49-impairment-tests', en: 'Impairment Assessments', bn: 'অবনমন মূল্যায়ন', t: 'g' },
       { id: 'M49-disposal', en: 'Disposal & Write-Off', bn: 'নিষ্পত্তি', t: 'g' },
       { id: 'M49-disposal-gl', en: 'Disposal Gains/Losses', bn: 'নিষ্পত্তির লাভ/ক্ষতি', t: 'r' },
+      { id: 'M49-insurance', en: 'Insurance Cover', bn: 'বিমা কভারেজ', t: 'g' },
       { id: 'M49-verify', en: 'Physical Verification', bn: 'শারীরিক যাচাই', t: 'g' },
       { id: 'M49-verify-results', en: 'Verification Results', bn: 'যাচাইয়ের ফলাফল', t: 'g' },
       { id: 'M49-variances', en: 'Verification Variances', bn: 'যাচাইয়ের গরমিল', t: 'g' }
@@ -57,17 +59,18 @@ export const MODULE = {
   reports: ['Fixed Asset Movement Schedule', 'Depreciation (Dual Book)', 'NBV by Category', 'Capex vs Budget', 'Disposal Gains/Losses', 'IFRS 16 Lease Summary'],
   forms: ['Capex Request', 'Asset Capitalisation', 'Transfer', 'Disposal', 'Revaluation / Impairment', 'Lease Contract',
     'Capex Budget', 'Capital Project', 'Asset Category', 'CWIP Entry', 'CWIP Component', 'Depreciation Run',
-    'Depreciation Change', 'Impairment Assessment', 'Verification Campaign', 'Verification Variance'],
+    'Depreciation Change', 'Impairment Assessment', 'Verification Campaign', 'Verification Variance',
+    'Asset Component', 'Insurance Policy'],
   cross: ['Financial Accounting & GL', 'Enterprise Assets & Test Equipment', 'Fleet & Vehicles'],
   freg: { src: 66, sub: [
     ['1', 'Capex & Approval', 9, { model: 'fix.capex.request', cols: ['name', 'title', 'request_date', 'amount', 'state'], screens: ['M49-requests', 'M49-budget', 'M49-projects', 'M49-capex-budget'], reports: ['Capex vs Budget'], forms: ['Capex Request', 'Capex Budget', 'Capital Project'] }],
     ['2', 'Register & Capitalisation', 11, { model: 'fix.fixed.asset', cols: ['code', 'name', 'category_id', 'gross', 'state'], screens: ['M49-register', 'M49-categories', 'M49-nbv', 'M49-leases', 'M49-lease-schedule'], reports: ['NBV by Category', 'IFRS 16 Lease Summary', 'Fixed Asset Movement Schedule'], forms: ['Asset Capitalisation', 'Asset Category', 'Lease Contract'] }],
-    ['3', 'Componentisation', 5, { model: 'fix.cwip.entry', cols: ['name', 'category_id', 'life_months', 'amount', 'asset_id'], screens: ['M49-cwip', 'M49-components'], reports: [], forms: ['CWIP Entry', 'CWIP Component'] }],
+    ['3', 'Componentisation', 5, { model: 'fix.cwip.entry', cols: ['name', 'category_id', 'life_months', 'amount', 'asset_id'], screens: ['M49-cwip', 'M49-components', 'M49-asset-components'], reports: [], forms: ['CWIP Entry', 'CWIP Component', 'Asset Component'] }],
     ['4', 'Dual-Book Depreciation', 12, { model: 'fix.asset.depreciation.run', cols: ['name', 'book', 'period_start', 'total_amount', 'state'], screens: ['M49-dep', 'M49-dep-changes', 'M49-dualbook', 'M49-schedules', 'M49-taxrates', 'M49-gl-recon'], reports: ['Depreciation (Dual Book)', 'Fixed Asset Movement Schedule'], forms: ['Depreciation Run', 'Depreciation Change'] }],
     ['5', 'Revaluation & Impairment', 7, { model: 'fix.asset.revaluation', cols: ['asset_id', 'kind', 'date', 'new_value', 'state'], screens: ['M49-impairment', 'M49-impairment-tests'], reports: [], forms: ['Revaluation / Impairment', 'Impairment Assessment'] }],
     ['6', 'Transfers & Custody', 6, { model: 'fix.asset.transfer', cols: ['asset_id', 'date', 'from_operating_unit_id', 'operating_unit_id', 'state'], screens: ['M49-transfer'], reports: [], forms: ['Transfer'] }],
     ['7', 'Verification & Tagging', 7, { model: 'fix.asset.verification.campaign', cols: ['name', 'date', 'operating_unit_id', 'responsible_id', 'state'], screens: ['M49-verify', 'M49-verify-results', 'M49-variances'], reports: [], forms: ['Verification Campaign', 'Verification Variance'] }],
-    ['8', 'Disposal', 9, { model: 'fix.asset.disposal', cols: ['asset_id', 'kind', 'date', 'gain_loss', 'state'], screens: ['M49-disposal', 'M49-disposal-gl'], reports: ['Disposal Gains/Losses'], forms: ['Disposal'] }]
+    ['8', 'Disposal', 9, { model: 'fix.asset.disposal', cols: ['asset_id', 'kind', 'date', 'gain_loss', 'state'], screens: ['M49-disposal', 'M49-disposal-gl', 'M49-insurance'], reports: ['Disposal Gains/Losses'], forms: ['Disposal', 'Insurance Policy'] }]
   ] }
 };
 
@@ -147,6 +150,13 @@ export const SCREENS = {
     cols: ['name','campaign_id','asset_id','variance_type','scanned_tag','proposed_action','proposed_by_id','approved_by_id','transfer_id','disposal_id','state'],
     stateField: 'state', actions: [{m:'action_propose',l:'Propose Correction'},{m:'action_approve',l:'Approve and Apply'},
       {m:'action_reject',l:'Reject',ask:'Reason for the rejection',kwarg:'reason'}] },
+  // the two gaps left by the capture audit (models/fix_asset_gaps.py)
+  'M49-asset-components': { kind: 'model_list', model: 'fix.asset.component',
+    cols: ['parent_asset_id','sequence','name','category_id','share_percent','life_months','salvage_percent','asset_id','reclass_move_id','parent_state'] },
+  'M49-insurance': { kind: 'model_list', model: 'fix.asset.insurance',
+    cols: ['reference','name','insurer_id','cover_type','scope','period_from','period_to','covered_count','sum_insured','register_value','coverage_gap','coverage_status','last_reviewed_on','review_overdue','state'],
+    stateField: 'state', actions: [{m:'action_activate',l:'Put in Force'},{m:'action_record_review',l:'Record Coverage Review'},
+      {m:'action_expire',l:'Mark Expired'},{m:'action_cancel',l:'Cancel'}] },
   'M49-gl-recon': { kind: 'table_report', module: 'M49', report: 'register_gl_reconciliation', title: 'Register to GL Reconciliation', period: false },
 
 
@@ -305,6 +315,8 @@ export const FORM_MODELS = {
   'M49:Depreciation Change': 'fix.asset.depreciation.change',
   'M49:Impairment Assessment': 'fix.asset.impairment.assessment',
   'M49:Verification Variance': 'fix.asset.verification.variance',
+  'M49:Asset Component': 'fix.asset.component',
+  'M49:Insurance Policy': 'fix.asset.insurance',
 };
 
 /* ============ D365 IN-WORKSPACE FORM SCREENS (M49 re-audit v2) ========
@@ -344,8 +356,12 @@ Object.assign(SCREENS, {
     back: 'M49-register',
     status: { field: 'state', labels: {
       draft: 'Draft', active: 'Active', disposed: 'Disposed' } },
+    tabs: [
+      { id: 'asset', label: 'Asset', bn: 'সম্পদ' },
+      { id: 'value', label: 'Cost & Depreciation', bn: 'ব্যয় ও অবচয়' }
+    ],
     sections: [
-      { title: 'Capitalised Asset', note: 'Gross, salvage, life and acquisition date drive the straight-line schedule; the draft becomes active once depreciation starts. Category and code must be unique per company.',
+      { tab: 'asset', title: 'Capitalised Asset', note: 'Category and code must be unique per company. An asset registered from its M19 seam is put into service from that seam; split it into Asset Components first when its parts have different lives.',
         fields: [
           { name: 'name', required: true, label: 'Asset Name' },
           { name: 'code', label: 'Asset Code' },
@@ -353,13 +369,19 @@ Object.assign(SCREENS, {
           { name: 'custodian_id', label: 'Custodian (initial; then by transfer)' },
           { name: 'operating_unit_id', label: 'Branch (initial; then by transfer)' },
           { name: 'seam_id', label: 'M19 Capitalisation Seam' },
+          { name: 'insured_under', readonly: true, label: 'Insured Under' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] },
+      { tab: 'value', title: 'Cost and Depreciation', note: 'Gross, salvage, life and acquisition date drive the straight-line schedule; the draft becomes active once depreciation starts.',
+        fields: [
           { name: 'gross', required: true, label: 'Gross' },
           { name: 'salvage', label: 'Salvage Value' },
           { name: 'life_months', required: true, label: 'Useful Life (Months)' },
           { name: 'purchase_date', required: true, label: 'Acquisition Date' },
           { name: 'depreciation_start', label: 'Depreciation Start' },
           { name: 'depreciation_suspended', readonly: true, label: 'Depreciation Suspended' },
-          { name: 'state', readonly: true, label: 'State' }
+          { name: 'asset_component_share_total', readonly: true, label: 'Components (% of Cost)' },
+          { name: 'component_of_id', readonly: true, label: 'Split From' }
         ] }
     ]
   },
@@ -391,8 +413,13 @@ Object.assign(SCREENS, {
     back: 'M49-disposal',
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Submitted', approved: 'Approved', posted: 'Posted', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'disposal', label: 'Disposal', bn: 'নিষ্পত্তি' },
+      { id: 'writeoff', label: 'Write-Off & Claim', bn: 'অবলোপন ও দাবি' },
+      { id: 'tax', label: 'Tax & E-Waste', bn: 'কর ও ই-বর্জ্য' }
+    ],
     sections: [
-      { title: 'Disposal', note: 'Sale, scrap or write-off, approved by the authority its amount needs; a sale is invoiced through AR. Posting derecognises the asset and books the gain or loss.',
+      { tab: 'disposal', title: 'Disposal', note: 'Sale, scrap or write-off, approved by the authority its amount needs; a sale is invoiced through AR. Posting derecognises the asset and books the gain or loss.',
         fields: [
           { name: 'asset_id', required: true, label: 'Asset' },
           { name: 'kind', required: true, label: 'Disposal Kind' },
@@ -400,15 +427,22 @@ Object.assign(SCREENS, {
           { name: 'partner_id', label: 'Buyer' },
           { name: 'proceeds', label: 'Proceeds' },
           { name: 'proceeds_account_id', label: 'Proceeds Clearing Account' },
-          { name: 'incident_ref', label: 'Incident Reference (write-off)' },
-          { name: 'insurance_claim_ref', label: 'Insurance Claim' },
-          { name: 'ewaste_route', label: 'Physical Disposal Through M18 (E-Waste)' },
           { name: 'reason', type: 'text', label: 'Reason' },
-          { name: 'ewaste_collection_ref', readonly: true, label: 'M18 Collection' },
-          { name: 'tax_wdv', readonly: true, label: 'Tax WDV at Disposal' },
-          { name: 'tax_balancing', readonly: true, label: 'Balancing Charge (+) / Allowance (-)' },
           { name: 'approval_state', readonly: true, label: 'Approval' },
           { name: 'state', readonly: true, label: 'State' }
+        ] },
+      { tab: 'writeoff', title: 'Loss, Theft or Destruction', note: 'BRU-FXA-19: a write-off needs the incident reference. The insurance policy the claim is made under must cover the asset and the loss date (FR-FXA-034).',
+        fields: [
+          { name: 'incident_ref', label: 'Incident Reference (write-off)' },
+          { name: 'insurance_id', label: 'Insurance Policy (claim made under)' },
+          { name: 'insurance_claim_ref', label: 'Insurance Claim' }
+        ] },
+      { tab: 'tax', title: 'Tax Book and Physical Disposal',
+        fields: [
+          { name: 'ewaste_route', label: 'Physical Disposal Through M18 (E-Waste)' },
+          { name: 'ewaste_collection_ref', readonly: true, label: 'M18 Collection' },
+          { name: 'tax_wdv', readonly: true, label: 'Tax WDV at Disposal' },
+          { name: 'tax_balancing', readonly: true, label: 'Balancing Charge (+) / Allowance (-)' }
         ] }
     ]
   },
@@ -483,6 +517,90 @@ Object.assign(SCREENS, {
           { name: 'rou_amount', readonly: true, label: 'Right-of-Use Asset' },
           { name: 'liability_balance', readonly: true, label: 'Liability Balance' },
           { name: 'state', readonly: true, label: 'State' }
+        ] }
+    ]
+  }
+});
+
+/* ============ CAPTURE GAPS (models/fix_asset_gaps.py): components of an asset
+ * brought into service through the M19 seam, and insurance cover against the
+ * register value (sums insured: accountants and accounting managers only). */
+Object.assign(SCREENS, {
+  'M49-form-asset-component': {
+    kind: 'model_form',
+    model: 'fix.asset.component',
+    title: 'Asset Component',
+    back: 'M49-asset-components',
+    sections: [
+      { title: 'Component', note: 'FR-FXA-014 (IAS 16.43): a registered asset whose parts have different lives is split before it is put into service. On Put into Service its cost is allocated by the shares (which must total 100%) and each component becomes its own asset; a component in another category is reclassified to that category\'s asset account. Empty category or life: the asset\'s category and its default life. A CWIP project is componentised on the project instead.',
+        fields: [
+          { name: 'parent_asset_id', required: true, label: 'Asset (registered, not in service)' },
+          { name: 'name', required: true, label: 'Component' },
+          { name: 'sequence', label: 'Order' },
+          { name: 'category_id', label: 'Asset Category' },
+          { name: 'share_percent', required: true, label: 'Share of Cost %' },
+          { name: 'life_months', label: 'Useful Life (Months)' },
+          { name: 'salvage_percent', label: 'Residual % of its Cost' },
+          { name: 'asset_id', readonly: true, label: 'Resulting Asset' },
+          { name: 'reclass_move_id', readonly: true, label: 'Reclassification Entry' },
+          { name: 'parent_state', readonly: true, label: 'Asset State' }
+        ] }
+    ]
+  },
+
+  'M49-form-insurance': {
+    kind: 'model_form',
+    model: 'fix.asset.insurance',
+    title: 'Insurance Policy',
+    back: 'M49-insurance',
+    status: { field: 'state', labels: {
+      draft: 'Draft', active: 'In Force', expired: 'Expired', replaced: 'Renewed / Replaced', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'policy', label: 'Policy', bn: 'পলিসি' },
+      { id: 'cover', label: 'Covered Assets', bn: 'আওতাভুক্ত সম্পদ' },
+      { id: 'review', label: 'Coverage Review', bn: 'কভারেজ পর্যালোচনা' }
+    ],
+    sections: [
+      { tab: 'policy', title: 'Policy', note: 'Capability 20: the policy and its sum insured, put in force by an accounting manager who did not record it. Once in force the cover is fixed; an endorsement or renewal is recorded as a new policy that renews this one, which closes it.',
+        fields: [
+          { name: 'name', required: true, label: 'Policy Number' },
+          { name: 'insurer_id', required: true, label: 'Insurer' },
+          { name: 'cover_type', required: true, label: 'Cover' },
+          { name: 'sum_insured', required: true, label: 'Sum Insured' },
+          { name: 'premium', label: 'Annual Premium' },
+          { name: 'period_from', required: true, label: 'Cover From' },
+          { name: 'period_to', required: true, label: 'Cover To' },
+          { name: 'replaces_id', label: 'Renews / Endorses' },
+          { name: 'policy_file', type: 'binary', filename: 'policy_filename', accept: '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx', label: 'Upload Policy Schedule' },
+          { name: 'policy_filename', label: 'Policy File Name' },
+          { name: 'policy_doc_names', readonly: true, label: 'Policy Documents' },
+          { name: 'reference', readonly: true, label: 'Reference' },
+          { name: 'approved_by_id', readonly: true, label: 'Put in Force By' },
+          { name: 'state', readonly: true, label: 'State' }
+        ] },
+      { tab: 'cover', title: 'What the Policy Covers', note: 'Named assets, or an asset class (optionally at one branch). The register value is the net book value of the covered assets in service, read live.',
+        fields: [
+          { name: 'scope', required: true, label: 'Covers' },
+          { name: 'asset_ids', label: 'Named Assets' },
+          { name: 'category_ids', label: 'Asset Classes' },
+          { name: 'operating_unit_id', label: 'Branch (class cover at one location)' },
+          { name: 'covered_count', readonly: true, label: 'Assets Covered' },
+          { name: 'register_value', readonly: true, label: 'Register Value (NBV)' },
+          { name: 'coverage_gap', readonly: true, label: 'Coverage Gap (+ under-insured)' },
+          { name: 'coverage_gap_percent', readonly: true, label: 'Gap % of Register Value' },
+          { name: 'coverage_status', readonly: true, label: 'Coverage' }
+        ] },
+      { tab: 'review', title: 'Coverage Review', note: 'BRU-FXA-25: the cover is reviewed against the register value at least annually. A gap beyond the tolerance, under- or over-insured, needs a review note and is reported to the CFO as a to-do.',
+        fields: [
+          { name: 'review_note', type: 'text', label: 'Review Note (cause and action)' },
+          { name: 'review_due_date', readonly: true, label: 'Review Due' },
+          { name: 'review_overdue', readonly: true, label: 'Review Overdue' },
+          { name: 'last_reviewed_on', readonly: true, label: 'Last Reviewed' },
+          { name: 'reviewed_by_id', readonly: true, label: 'Reviewed By' },
+          { name: 'reviewed_register_value', readonly: true, label: 'Register Value at Review' },
+          { name: 'reviewed_sum_insured', readonly: true, label: 'Sum Insured at Review' },
+          { name: 'reviewed_gap', readonly: true, label: 'Gap at Review' },
+          { name: 'gap_reported', readonly: true, label: 'Gap Reported to CFO' }
         ] }
     ]
   }
@@ -691,6 +809,8 @@ export const FORM_CHIPS = {
   'M49:Depreciation Change': 'M49-form-depchange',
   'M49:Impairment Assessment': 'M49-form-impairment-test',
   'M49:Verification Variance': 'M49-form-variance',
+  'M49:Asset Component': 'M49-form-asset-component',
+  'M49:Insurance Policy': 'M49-form-insurance',
   'M49:__by_model__': {
     'fix.capex.budget': 'M49-form-budget',
     'fix.cwip.entry': 'M49-form-cwip',
@@ -707,7 +827,9 @@ export const FORM_CHIPS = {
     'fix.cwip.component': 'M49-form-component',
     'fix.asset.depreciation.change': 'M49-form-depchange',
     'fix.asset.impairment.assessment': 'M49-form-impairment-test',
-    'fix.asset.verification.variance': 'M49-form-variance'
+    'fix.asset.verification.variance': 'M49-form-variance',
+    'fix.asset.component': 'M49-form-asset-component',
+    'fix.asset.insurance': 'M49-form-insurance'
   },
   'M49:__by_screen__': {
     'M49-budget': 'M49-form-budget',
@@ -725,7 +847,9 @@ export const FORM_CHIPS = {
     'M49-components': 'M49-form-component',
     'M49-dep-changes': 'M49-form-depchange',
     'M49-impairment-tests': 'M49-form-impairment-test',
-    'M49-variances': 'M49-form-variance'
+    'M49-variances': 'M49-form-variance',
+    'M49-asset-components': 'M49-form-asset-component',
+    'M49-insurance': 'M49-form-insurance'
   }
 };
 

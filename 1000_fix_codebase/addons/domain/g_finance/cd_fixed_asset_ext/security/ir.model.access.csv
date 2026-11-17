@@ -59,3 +59,8 @@ access_fix_asset_impairment_assessment_manager,fix.asset.impairment.assessment m
 access_fix_asset_verification_variance_readonly,fix.asset.verification.variance readonly,model_fix_asset_verification_variance,account.group_account_readonly,1,0,0,0
 access_fix_asset_verification_variance_user,fix.asset.verification.variance user,model_fix_asset_verification_variance,account.group_account_user,1,1,1,0
 access_fix_asset_verification_variance_manager,fix.asset.verification.variance manager,model_fix_asset_verification_variance,account.group_account_manager,1,1,1,0
+access_fix_asset_component_readonly,fix.asset.component readonly,model_fix_asset_component,account.group_account_readonly,1,0,0,0
+access_fix_asset_component_user,fix.asset.component user,model_fix_asset_component,account.group_account_user,1,1,1,1
+access_fix_asset_component_manager,fix.asset.component manager,model_fix_asset_component,account.group_account_manager,1,1,1,1
+access_fix_asset_insurance_user,fix.asset.insurance user,model_fix_asset_insurance,account.group_account_user,1,1,1,0
+access_fix_asset_insurance_manager,fix.asset.insurance manager,model_fix_asset_insurance,account.group_account_manager,1,1,1,0

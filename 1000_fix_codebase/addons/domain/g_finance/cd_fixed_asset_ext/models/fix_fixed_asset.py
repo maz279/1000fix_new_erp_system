@@ -491,8 +491,14 @@ class FixFixedAsset(models.Model):
                         rec.gross,
                     )
                 )
-            seam.action_mark_consumed()
-            rec._fix_activate_from_source(line.move_id)
+            rec._activate_from_seam(seam, line.move_id)
+
+    def _activate_from_seam(self, seam, move):
+        """Put the asset in service from its checked, unconsumed M19 seam.
+        cd_fixed_asset_ext's components (fix_asset_capture) split it."""
+        self.ensure_one()
+        seam.action_mark_consumed()
+        self._fix_activate_from_source(move)
 
     def action_accrue_month(self):
         """Depreciate the selected asset(s) for the CURRENT month on the

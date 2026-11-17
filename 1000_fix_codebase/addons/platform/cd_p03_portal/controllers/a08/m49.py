@@ -65,6 +65,7 @@ SURFACES = {
         "order": "date desc, id desc",
         "limit": 200,
         "actions": {"action_submit", "action_recall_approval", "action_post", "action_cancel"},
+        "pickers": {"insurance_id": [("state", "in", ["active", "expired", "replaced"])]},
     },
     "fix.asset.verification.campaign": {
         "order": "date desc, id desc",
@@ -122,6 +123,19 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_propose", "action_approve", "action_reject"},
         "pickers": {"line_id": [("result", "in", ["missing", "misplaced", "unregistered"])]},
+    },
+    # the two gaps left by the capture audit (models/fix_asset_gaps.py)
+    "fix.asset.component": {
+        "order": "parent_asset_id desc, sequence, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"parent_asset_id": [("state", "=", "draft"), ("cwip_id", "=", False)]},
+    },
+    "fix.asset.insurance": {
+        "order": "period_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_record_review", "action_expire", "action_cancel"},
+        "pickers": {"asset_ids": [("state", "in", ["draft", "active"])]},
     },
 }
 

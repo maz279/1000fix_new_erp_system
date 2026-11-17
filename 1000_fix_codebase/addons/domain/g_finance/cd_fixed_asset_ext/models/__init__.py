@@ -15,3 +15,7 @@ from . import (
 # the capture-audit records (2026-11-17) extend the register, CWIP, the
 # depreciation run and the capex request: loaded after them
 from . import fix_asset_capture
+
+# the two gaps left by that audit: components of a seam asset and insurance
+# cover; they extend the register and the disposal: loaded after the above
+from . import fix_asset_gaps

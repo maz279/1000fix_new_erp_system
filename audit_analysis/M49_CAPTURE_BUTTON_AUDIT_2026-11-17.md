@@ -111,8 +111,7 @@ Two defects were found only by the live run and fixed before the evidence above:
 - **Stock-to-asset conversion** (FR-FXA-018 P0, BRU-FXA-20/21). This is an M15 inventory movement at M15's value; it needs the M15 hand-off design. Not built.
 - **Asset tag printing** (FR-FXA-019): barcode and QR labels for the branch printers. This is a report or print job, not a capture. The tag itself already exists (the asset code), and scanning works through Record Scanned Tag.
 - **Capitalisation threshold and manual-creation reason code** (FR-FXA-010/013): these need the CFO's threshold and reason list (Q-06 family). A manual asset is still only put into service from its M19 seam, CWIP or lease (BRU-FXA-01).
-- **Insurance coverage register** (`fix.asset.insurance`, BRU-FXA-25 class S): the research tags it ADV. A write-off already carries the insurance claim.
-- **Componentising an asset acquired through the M19 seam** (not CWIP): a component split is captured on the CWIP project only.
+- ~~**Insurance coverage register**~~ and ~~**componentising an asset acquired through the M19 seam**~~: both built afterwards, on the user's request. See §6.
 - **Depreciation method change** (reducing balance in the accounting book): the book is straight-line only. The change document covers life and residual.
 - **Capital project cash view (M50) and the CWIP ageing escalation** (FR-FXA-004/017) are reports and automations, not captures.
 
@@ -132,3 +131,52 @@ Two defects were found only by the live run and fixed before the evidence above:
   - 8090 restarted: PID 24872 became 35160 (supervisor 37700) in 10 s, with no log errors.
   - The same 8 lists are served, and the bundle is 5a23f3f, the same as fix_real.
 - Someone must set two figures in the config keys: the review threshold (`cd_fixed_asset_ext.capital_project_review_threshold`, default 5,000,000) and the review period (`cd_fixed_asset_ext.capital_project_review_days`, default 180). They are the CFO's to set.
+
+## 6. Gaps closed afterwards (same day, user: "Build the two gaps")
+
+Two of the §4 items were capture gaps that needed no owner decision. Both are built in `cd_fixed_asset_ext` 19.0.1.2.0, new file `models/fix_asset_gaps.py`.
+
+### Page 3: components of an asset that comes in through the M19 seam (FR-FXA-014, IAS 16.43)
+
+- **New record `fix.asset.component`**, recorded against a registered asset that is not yet in service:
+  - its fields are the component, category, share of cost, life and residual %;
+  - the shares may not exceed 100%;
+  - a component can be edited or removed only while the asset is not in service;
+  - an asset that came from a CWIP project is componentised on the project instead.
+- **Going into service.** `action_activate` now hands over to `_activate_from_seam`, a new hook in `fix_fixed_asset.py`. For an asset with components:
+  - the shares must total 100%;
+  - the cost is split by share, the last component taking the rounding remainder;
+  - the asset record carries the first component, and each other component becomes a new asset with **Split From** pointing back to it;
+  - a component in a category with its own asset account is reclassified in one posted entry (Dr its account, Cr the seam's account);
+  - the seam is consumed once.
+- **Required componentisation.** A category flagged "componentisation required" now refuses a seam activation that has no components, as CWIP capitalisation already did.
+
+### Page 8: insurance cover (capability 20, BRU-FXA-25, AUT-FXA-20, FR-FXA-034)
+
+- **New record `fix.asset.insurance`** (INS/ reference):
+  - policy number, insurer, cover type, sum insured, premium, period and policy schedule upload;
+  - it covers named assets or an asset class, optionally at one branch;
+  - register value, gap and gap % are read live from the net book value of the covered assets in service.
+- **Putting a policy in force** takes an accounting manager who did not record it. From then on the cover is fixed: an endorsement or renewal is a new policy that renews this one, and the old policy closes.
+- **Coverage review** (by an accountant):
+  - stamps the register value, sum insured and gap;
+  - a gap beyond the tolerance (5%, either way) needs a note, and is reported to the CFO as a to-do for each accounting administrator of the company;
+  - the review falls due 365 days after the last one;
+  - both figures are config keys: `cd_fixed_asset_ext.insurance_gap_tolerance_percent` and `insurance_review_days`.
+- **Claim linkage.** A disposal now names the policy its claim is made under (`insurance_id`). The policy must cover the asset and the loss date.
+- **Access.** Sums insured are restricted to R03/R26/R27 (spec §13): the accountant and accounting manager groups only. The read-only group has no access.
+- **Workspace.**
+  - Two new lists: Asset Components (page 3) and Insurance Cover (page 8). Their chips and forms are on the same pages; the policy form has three tabs.
+  - The asset form gains Split From, Components (% of Cost) and Insured Under.
+  - The asset and disposal forms went past 15 fields and are now tabbed (AGENTS.md rule; the guard caught it).
+
+### Evidence
+
+| Check | Result |
+|---|---|
+| Guard `test_m49_capture_buttons.py`, extended to 47 checks | **Base 94bf9e99: 9 of 47 fail** (pages 3 and 8 lack the captures, the models are not served or secured, no claim link). After: **47/47.** The A08 registry test `test_a08_m49.py` passes 11/11. |
+| Live tests `test_m49_gaps_live.py`, run as non-admin finance users on the private clone `fix_test_m49`, through the P03 write and action endpoints | **4/4.** |
+| Mutation check: 11 rules removed in turn (components ignored, no reclassification, components editable in service, 100% not enforced, recorder puts the policy in force, gap not reported, no note required, cover editable in force, renewal leaves the old policy in force, claim on an uncovering policy, claim outside the period) | **11 of 11 mutations turned the tests red.** |
+| Regression on the same clone, no server attached (scope as §3) | **2,960 tests: 1 failure, 34 skipped.** The failure is `test_a08_m50_registry::test_report_and_form_chips_route_to_real_targets`, "form chip 'Cheque' unmapped". It is in M50's own registry at the base commit 94bf9e99 (`FORM_MODELS` has no `M50:Cheque`), and this change touches no M50 file. Hand-off to M50. |
+| UI walk on a private clone (port 8079, `?debug=assets`) | Page 3 shows the Asset Component chip and list, and page 8 the Insurance Policy chip and list. A policy was saved from the page 8 chip's tabbed form: INS/2026/0001, Draft, confirmed in the database. The Asset Component form opens with its picker. No console errors. Clone dropped afterwards. |
+| `generate-isolation-rules.py`, `form_fields.py --a08`, pinned ruff 0.8.4 | Only the M49 entries changed (the generator's drift in four other modules was reverted). Format and lint are clean. |

@@ -42,6 +42,11 @@ CLOSE_GATE_TOLERANCE = "cd_fixed_asset_ext.close_gate_tolerance"
 # period after completion. Both are config keys (CFO policy).
 PIR_THRESHOLD = "cd_fixed_asset_ext.capital_project_review_threshold"
 PIR_DAYS = "cd_fixed_asset_ext.capital_project_review_days"
+# BRU-FXA-25 / AUT-FXA-20: insurance cover is reviewed against the register
+# value at least every N days; a gap above the tolerance (either way: under-
+# or over-insured) is reported to the CFO. Spec section 16 target: < 5%.
+INSURANCE_GAP_TOLERANCE = "cd_fixed_asset_ext.insurance_gap_tolerance_percent"
+INSURANCE_REVIEW_DAYS = "cd_fixed_asset_ext.insurance_review_days"
 DEFAULTS = {
     CAPEX_FLOOR: 0.0,
     CAPEX_TIER2: 50000.0,
@@ -54,6 +59,8 @@ DEFAULTS = {
     CLOSE_GATE_TOLERANCE: 1.0,
     PIR_THRESHOLD: 5000000.0,
     PIR_DAYS: 180.0,
+    INSURANCE_GAP_TOLERANCE: 5.0,
+    INSURANCE_REVIEW_DAYS: 365.0,
 }
 
 

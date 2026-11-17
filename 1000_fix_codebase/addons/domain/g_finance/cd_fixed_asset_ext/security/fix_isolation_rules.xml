@@ -19,6 +19,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_asset_component_company" model="ir.rule">
+        <field name="name">fix.asset.component: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_component"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_component_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.component: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_component"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_asset_depreciation_change_company" model="ir.rule">
         <field name="name">fix.asset.depreciation.change: allowed companies</field>
         <field name="model_id" ref="model_fix_asset_depreciation_change"/>
@@ -71,6 +82,17 @@
     <record id="rule_fix_asset_impairment_assessment_operating_unit" model="ir.rule">
         <field name="name">fix.asset.impairment.assessment: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_asset_impairment_assessment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_insurance_company" model="ir.rule">
+        <field name="name">fix.asset.insurance: allowed companies</field>
+        <field name="model_id" ref="model_fix_asset_insurance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_asset_insurance_operating_unit" model="ir.rule">
+        <field name="name">fix.asset.insurance: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_asset_insurance"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
