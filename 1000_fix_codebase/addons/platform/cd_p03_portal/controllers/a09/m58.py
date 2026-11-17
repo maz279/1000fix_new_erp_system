@@ -100,6 +100,28 @@ SURFACES = {
     },
     "fix.recruitment.channel": {"order": "name", "limit": 200, "actions": set()},
     "fix.recruitment.cost": {"order": "incurred_on desc, id desc", "limit": 400, "actions": set()},
+    # candidate biodata standard (18 Nov 2026): the evidence a candidate gives,
+    # decided by a Background Verifier who did not key or upload it
+    "fix.candidate.document": {
+        "order": "candidate_id desc, id",
+        "limit": 500,
+        "actions": {"action_verify", "action_flag_discrepancy"},
+    },
+    "fix.candidate.education": {
+        "order": "candidate_id desc, id",
+        "limit": 500,
+        "actions": {"action_verify", "action_flag_discrepancy"},
+    },
+    "fix.candidate.experience": {
+        "order": "candidate_id desc, id",
+        "limit": 500,
+        "actions": {"action_verify", "action_flag_discrepancy"},
+    },
+    "fix.candidate.training": {
+        "order": "candidate_id desc, id",
+        "limit": 500,
+        "actions": {"action_verify", "action_flag_discrepancy"},
+    },
     "fix.preboarding.document": {
         "order": "plan_id, id",
         "limit": 500,

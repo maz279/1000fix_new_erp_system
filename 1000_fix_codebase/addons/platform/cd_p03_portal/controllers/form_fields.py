@@ -2,7 +2,8 @@
 #
 # Read from the fragment files themselves (static/src/<area>/m*.js): for
 # every `kind: 'model_form'` screen, the header fields not declared
-# `readonly: true`, plus the one2many its `lines:` grid edits. This is the
+# `readonly: true`, plus the one2many its `lines:` grid edits and every
+# one2many of its `grids:` list. This is the
 # single source for the per-surface write whitelists (controllers/<area>/
 # writable.py: R3 of the A03 audit, A2 of the A02 audit, B1 of the A09 audit) and for the tests
 # that keep them in step. Not imported by the server; run it to regenerate:
@@ -40,6 +41,22 @@ def _cut_block(body, key):
     return body, ""
 
 
+def _cut_list(body, key):
+    """Remove `key: [ ... ]` (balanced brackets); return (rest, block)."""
+    m = re.search(r"\b%s:\s*\[" % key, body)
+    if not m:
+        return body, ""
+    depth = 0
+    for j in range(m.end() - 1, len(body)):
+        if body[j] == "[":
+            depth += 1
+        elif body[j] == "]":
+            depth -= 1
+            if depth == 0:
+                return body[: m.start()] + body[j + 1 :], body[m.start() : j + 1]
+    return body, ""
+
+
 def forms(root=STATIC):
     """Yield (area, screen_id, model, editable_fields) for every model form."""
     for js in sorted(root.glob("*/m*.js")):
@@ -51,6 +68,8 @@ def forms(root=STATIC):
             if "kind: 'model_form'" not in body:
                 continue
             header, lines = _cut_block(body, "lines")
+            # `grids`: several one2many grids on one form, each edited by it
+            header, grids = _cut_list(header, "grids")
             header, _status = _cut_block(header, "status")
             model = MODEL.search(header)
             if not model:
@@ -64,6 +83,7 @@ def forms(root=STATIC):
             # readonlyGrid: the grid only shows the children, so the form edits nothing there
             if grid and "readonlyGrid: true" not in lines:
                 editable.add(grid.group(1))
+            editable.update(re.findall(r"\bfield:\s*'([a-z0-9_]+)'", grids))
             yield js.parent.name, sid, model.group(1), editable
 
 

@@ -136,4 +136,92 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_candidate_document_company" model="ir.rule">
+        <field name="name">fix.candidate.document: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_document"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_document_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.document: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_document"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_education_company" model="ir.rule">
+        <field name="name">fix.candidate.education: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_education"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_education_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.education: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_education"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_experience_company" model="ir.rule">
+        <field name="name">fix.candidate.experience: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_experience"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_experience_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.experience: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_experience"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_training_company" model="ir.rule">
+        <field name="name">fix.candidate.training: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_training"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_training_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.training: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_training"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_language_company" model="ir.rule">
+        <field name="name">fix.candidate.language: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_language"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_language_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.language: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_language"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_skill_company" model="ir.rule">
+        <field name="name">fix.candidate.skill: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_skill"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_skill_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.skill: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_skill"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_reference_company" model="ir.rule">
+        <field name="name">fix.candidate.reference: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_reference"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_reference_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.reference: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_reference"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_family_company" model="ir.rule">
+        <field name="name">fix.candidate.family: allowed companies</field>
+        <field name="model_id" ref="model_fix_candidate_family"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_candidate_family_operating_unit" model="ir.rule">
+        <field name="name">fix.candidate.family: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_candidate_family"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

@@ -168,6 +168,7 @@ def _candidate(x, req, **vals):
         "phone": "0171%07d" % n,
         "requisition_id": req.id if req else False,
         "consent_given": True,
+        "declaration_accepted": True,
         "date_of_birth": "1998-03-01",
     }
     base.update(vals)

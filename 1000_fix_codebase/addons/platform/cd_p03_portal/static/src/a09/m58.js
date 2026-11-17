@@ -1,7 +1,8 @@
 /** @odoo-module **/
 /* A09 · People & Workforce — M58 Talent Acquisition.
  * Registry-faithful: 4 groups / 10 screens / 5 reports / 4 forms / freg 50,
- * extended by the capture audit of 2026-11-17. */
+ * extended by the capture audit of 2026-11-17 and the candidate biodata
+ * standard of 2026-11-18 (Candidate Evidence group, multi-grid biodata form). */
 
 export const MODULE = {
   area: 'A09', code: 'M58', en: 'Talent Acquisition', title: 'M58 · Talent Acquisition',
@@ -39,6 +40,12 @@ export const MODULE = {
       { id: 'M58-checks', en: 'Reference & Background', bn: 'রেফারেন্স', t: 'g' },
       { id: 'M58-offers', en: 'Offers', bn: 'প্রস্তাব', t: 'g' }
     ]},
+    { en: 'Candidate Evidence', screens: [
+      { id: 'M58-cand-documents', en: 'Candidate Documents', bn: 'প্রার্থীর কাগজপত্র', t: 'g' },
+      { id: 'M58-cand-education', en: 'Academic Qualifications', bn: 'শিক্ষাগত যোগ্যতা যাচাই', t: 'g' },
+      { id: 'M58-cand-experience', en: 'Employment History', bn: 'কর্ম অভিজ্ঞতা যাচাই', t: 'g' },
+      { id: 'M58-cand-training', en: 'Training & Certificates', bn: 'প্রশিক্ষণ সনদ যাচাই', t: 'g' }
+    ]},
     { en: 'Onboarding', screens: [
       { id: 'M58-preboard', en: 'Pre-Boarding', bn: 'প্রি-বোর্ডিং', t: 'g' },
       { id: 'M58-preboard-docs', en: 'Pre-Boarding Documents', bn: 'যোগদান-পূর্ব কাগজপত্র', t: 'g' },
@@ -60,7 +67,7 @@ export const MODULE = {
   freg: { src: 50, sub: [
     ['1', 'Workforce Planning & Requisition', 9, { model: 'fix.job.requisition', cols: ['name', 'department_id', 'position_id', 'openings', 'state'], screens: ['M58-reqs', 'M58-approval', 'M58-budget', 'M58-job-profiles'], reports: ['Time-to-Fill by Role'], forms: ['Requisition', 'Headcount Budget', 'Job Profile'] }],
     ['2', 'Sourcing', 7, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'operating_unit_id', 'state'], screens: ['M58-postings', 'M58-candidates', 'M58-referrals', 'M58-channels', 'M58-costs'], reports: ['Source Effectiveness', 'Funnel & Conversion', 'Cost per Hire'], forms: ['Candidate', 'Job Posting', 'Referral', 'Recruitment Channel', 'Recruitment Cost'] }],
-    ['3', 'Screening', 6, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'state', 'create_date'], screens: ['M58-candidates'], reports: ['Funnel & Conversion'], forms: [], create: false, domain: [['state', 'in', ['applied', 'screening']]] }],
+    ['3', 'Screening', 6, { model: 'fix.candidate', cols: ['name', 'requisition_id', 'state', 'create_date'], screens: ['M58-candidates', 'M58-cand-documents', 'M58-cand-education', 'M58-cand-experience', 'M58-cand-training'], reports: ['Funnel & Conversion'], forms: [], create: false, domain: [['state', 'in', ['applied', 'screening']]] }],
     ['4', 'Interviews & Assessments', 11, { model: 'fix.talent.interview', cols: ['name', 'candidate_id', 'scheduled_on', 'score', 'recommendation'], screens: ['M58-interviews', 'M58-evaluations', 'M58-practical', 'M58-talent-assessment'], reports: ['Practical Assessment Results'], forms: ['Interview Round', 'Practical Assessment'] }],
     ['5', 'Checks & Offers', 7, { model: 'fix.talent.offer', cols: ['name', 'candidate_id', 'position_id', 'joining_date', 'state'], screens: ['M58-checks', 'M58-offers'], reports: ['Funnel & Conversion'], forms: ['Offer', 'Background Check'] }],
     ['6', 'Pre-Boarding', 4, { model: 'fix.preboarding.document', cols: ['name', 'plan_id', 'document_type', 'mandatory', 'state'], screens: ['M58-preboard-docs', 'M58-preboard'], reports: [], forms: ['Pre-Boarding Document'] }],
@@ -122,6 +129,41 @@ export const SCREENS = {
       { m: 'action_offer', l: 'Move to Offer Stage' },
       { m: 'action_reject', l: 'Reject', ask: 'Outcome communicated to the candidate', kwarg: 'reason' },
       { m: 'action_hire', l: 'Hire (accepted offer)' }
+    ] },
+  /* Candidate biodata standard (18 Nov 2026): the evidence a candidate gives
+   * on the Candidate Biodata form, decided by a Background Verifier who did
+   * not key or upload it. Rows are added on the candidate form, never here. */
+  'M58-cand-documents': { kind: 'model_list', model: 'fix.candidate.document', stateField: 'verification_state',
+    create: false,
+    empty: 'No candidate document yet. Documents are added on the Candidate Biodata form (Documents & Attachments tab).',
+    cols: ['candidate_id', 'document_type', 'description', 'reference', 'candidate_state', 'uploaded_by_id', 'verification_state', 'verified_by_id', 'verified_on', 'verification_note'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (Background Verifier)' },
+      { m: 'action_flag_discrepancy', l: 'Flag Discrepancy', ask: 'What does the document not support?', kwarg: 'reason' }
+    ] },
+  'M58-cand-education': { kind: 'model_list', model: 'fix.candidate.education', stateField: 'verification_state',
+    create: false,
+    empty: 'No qualification yet. Qualifications are added on the Candidate Biodata form (Education tab).',
+    cols: ['candidate_id', 'level', 'exam_title', 'institute', 'board', 'passing_year', 'result_type', 'result', 'roll_number', 'registration_number', 'verification_state', 'verified_by_id'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (Background Verifier)' },
+      { m: 'action_flag_discrepancy', l: 'Flag Discrepancy', ask: 'What does the board / university record show?', kwarg: 'reason' }
+    ] },
+  'M58-cand-experience': { kind: 'model_list', model: 'fix.candidate.experience', stateField: 'verification_state',
+    create: false,
+    empty: 'No employment yet. Employment is added on the Candidate Biodata form (Employment History tab).',
+    cols: ['candidate_id', 'employer', 'designation', 'start_date', 'end_date', 'duration_years', 'supervisor_name', 'supervisor_phone', 'may_contact', 'verification_state', 'verified_by_id'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (Background Verifier)' },
+      { m: 'action_flag_discrepancy', l: 'Flag Discrepancy', ask: 'What did the employer or letter show?', kwarg: 'reason' }
+    ] },
+  'M58-cand-training': { kind: 'model_list', model: 'fix.candidate.training', stateField: 'verification_state',
+    create: false,
+    empty: 'No training yet. Training and certificates are added on the Candidate Biodata form.',
+    cols: ['candidate_id', 'kind', 'title', 'institute', 'end_date', 'certificate_no', 'expiry_date', 'verification_state', 'verified_by_id'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (Background Verifier)' },
+      { m: 'action_flag_discrepancy', l: 'Flag Discrepancy', ask: 'What does the issuer record show?', kwarg: 'reason' }
     ] },
   /* Round 2 (BRU-TAO-07): each panelist evaluates on their own; the round's
    * score and recommendation appear only once every panelist submitted. */
@@ -267,6 +309,13 @@ export const SCREENS = {
     ]
   },
 
+  /* Candidate biodata standard (18 Nov 2026). The form held twelve fields:
+   * no education, training, work history, languages, referees, family or
+   * documents could be recorded. Each register is now an add-more-lines grid
+   * with a scan or photo per row; header fields are grouped by the stage at
+   * which they may be asked (sensitive joining particulars only from the
+   * offer stage, PDPO 2025 data minimisation). Evidence rows are verified on
+   * the Candidate Evidence lists by a verifier who did not key them. */
   'M58-form-candidate': {
     kind: 'model_form',
     model: 'fix.candidate',
@@ -276,38 +325,327 @@ export const SCREENS = {
       applied: 'Applied', screening: 'Screening', interview: 'Interview',
       offered: 'Offered', hired: 'Hired', rejected: 'Rejected' } },
     tabs: [
-      { id: 'biodata', label: 'Candidate Profile', bn: 'প্রার্থীর তথ্য', icon: '👤', badge: '4' },
-      { id: 'pipeline', label: 'Recruitment Stage', bn: 'নিয়োগ পর্যায়', icon: '📊', badge: '2' }
+      { id: 'biodata', label: 'Personal & Contact', bn: 'ব্যক্তিগত তথ্য ও যোগাযোগ', icon: '👤', badge: '24' },
+      { id: 'application', label: 'Application & Screening', bn: 'আবেদন ও বাছাই', icon: '📋', badge: '30' },
+      { id: 'education', label: 'Education', bn: 'শিক্ষাগত যোগ্যতা', icon: '🎓', badge: '+' },
+      { id: 'training', label: 'Training & Certifications', bn: 'প্রশিক্ষণ ও সনদ', icon: '📜', badge: '+' },
+      { id: 'experience', label: 'Employment History', bn: 'কর্ম অভিজ্ঞতা', icon: '💼', badge: '+' },
+      { id: 'skills', label: 'Skills, Languages & Referees', bn: 'দক্ষতা, ভাষা ও রেফারেন্স', icon: '🗣️', badge: '+' },
+      { id: 'documents', label: 'Documents & Attachments', bn: 'কাগজপত্র ও সংযুক্তি', icon: '📎', badge: '+' },
+      { id: 'joining', label: 'Joining Particulars & Family', bn: 'যোগদান তথ্য ও পরিবার', icon: '🏠', badge: '6' },
+      { id: 'consent', label: 'Consent & Declaration', bn: 'সম্মতি ও ঘোষণা', icon: '✅', badge: '6' },
+      { id: 'pipeline', label: 'Recruitment Stage', bn: 'নিয়োগ পর্যায়', icon: '📊', badge: '3' }
     ],
     sections: [
       {
         tab: 'biodata',
-        title: 'Personal Biodata & Contact',
-        note: 'Candidate contact details and target recruitment branch.',
+        title: 'Identity',
+        note: 'Father’s and mother’s names, NID or birth registration are asked from a shortlisted candidate; they become the Form 7 service book entries at hire.',
         fields: [
-          { name: 'name', required: true, label: 'Candidate Full Name' },
-          { name: 'email', label: 'Contact Email' },
-          { name: 'phone', label: 'Contact Mobile Phone' },
-          { name: 'operating_unit_id', label: 'Target Operating Unit' },
+          { name: 'name', required: true, label: 'Full Name (English, as on NID / certificate)' },
+          { name: 'name_bn', label: 'Full Name (Bangla)' },
+          { name: 'photo', type: 'image', label: 'Photograph' },
+          { name: 'date_of_birth', label: 'Date of Birth (verified)' },
+          { name: 'nationality_id', label: 'Nationality' },
+          { name: 'nid_number', label: 'NID Number (10 / 13 / 17 digits)' },
+          { name: 'birth_reg_number', label: 'Birth Registration No. (if no NID)' },
+          { name: 'passport_number', label: 'Passport No.' },
+          { name: 'father_name', label: 'Father’s Name' },
+          { name: 'mother_name', label: 'Mother’s Name' }
+        ]
+      },
+      {
+        tab: 'biodata',
+        title: 'Contact',
+        note: 'Many technicians have no email: the mobile number is the main contact.',
+        fields: [
+          { name: 'phone', label: 'Mobile Phone' },
+          { name: 'alt_phone', label: 'Alternative Mobile' },
+          { name: 'email', label: 'Email' }
+        ]
+      },
+      {
+        tab: 'biodata',
+        title: 'Present Address',
+        note: 'Used to route the application to the nearest branch.',
+        fields: [
+          { name: 'present_address', label: 'House / Road / Village' },
+          { name: 'present_upazila', label: 'Upazila / Thana' },
+          { name: 'present_district', label: 'District' },
+          { name: 'present_division', label: 'Division' },
+          { name: 'present_post_code', label: 'Post Code' }
+        ]
+      },
+      {
+        tab: 'biodata',
+        title: 'Permanent Address',
+        note: 'The statutory permanent (home) address. Tick the box to copy the present address.',
+        fields: [
+          { name: 'permanent_same_as_present', label: 'Same as Present Address' },
+          { name: 'permanent_address', label: 'Village / Road / Post Office' },
+          { name: 'permanent_upazila', label: 'Upazila / Thana' },
+          { name: 'permanent_district', label: 'District' },
+          { name: 'permanent_division', label: 'Division' },
+          { name: 'permanent_post_code', label: 'Post Code' }
+        ]
+      },
+      {
+        tab: 'application',
+        title: 'Application',
+        note: 'The requisition, branch and channel the application came through, and the CV.',
+        fields: [
+          { name: 'requisition_id', label: 'Job Requisition' },
+          { name: 'operating_unit_id', label: 'Target Branch / Operating Unit' },
           { name: 'source', label: 'Source / Channel' },
           { name: 'posting_id', label: 'Applied Through Posting' },
           { name: 'channel_id', label: 'Channel / Agency' },
-          { name: 'date_of_birth', label: 'Date of Birth (verified)' },
-          { name: 'nid_number', label: 'NID Number (10 / 13 / 17 digits)' },
+          { name: 'applied_on', label: 'Applied On' },
+          { name: 'current_employer', label: 'Current / Last Employer' },
+          { name: 'current_designation', label: 'Current / Last Designation' },
+          { name: 'highest_education_level', label: 'Highest Qualification (from Education)', readonly: true },
+          { name: 'total_experience_years', label: 'Total Experience in Years (from History)', readonly: true },
+          { name: 'cv_file', type: 'binary', label: 'CV / Resume' },
+          { name: 'cv_filename', label: 'CV File Name' },
+          { name: 'career_summary', type: 'text', label: 'Career Objective / Summary' },
+          { name: 'key_skills', type: 'text', label: 'Key Skills (summary)' }
+        ]
+      },
+      {
+        tab: 'application',
+        title: 'Screening',
+        note: 'Salary fields are visible to Recruitment only. Licence and motorcycle matter for field technicians.',
+        fields: [
+          { name: 'current_salary', label: 'Current Gross Salary (BDT / month)' },
+          { name: 'expected_salary', label: 'Expected Gross Salary (BDT / month)' },
+          { name: 'notice_period_days', label: 'Notice Period (days)' },
+          { name: 'earliest_joining_date', label: 'Earliest Joining Date' },
+          { name: 'preferred_locations', label: 'Preferred Work Locations' },
+          { name: 'willing_to_relocate', label: 'Willing to Relocate' },
+          { name: 'willing_to_travel', label: 'Willing to Travel / Field Work' },
+          { name: 'shift_work_ok', label: 'Can Work Shifts / Nights' },
+          { name: 'owns_motorcycle', label: 'Owns a Motorcycle / Bicycle' },
+          { name: 'driving_licence_held', label: 'Holds a Driving Licence' },
+          { name: 'driving_licence_no', label: 'Driving Licence No.' },
+          { name: 'driving_licence_class', label: 'Driving Licence Class' },
+          { name: 'driving_licence_expiry', label: 'Driving Licence Expiry' }
+        ]
+      },
+      {
+        tab: 'application',
+        title: 'Disclosures',
+        note: 'Conflict of interest, previous history with 1000 FiX and the criminal-record declaration (restricted to Recruitment).',
+        fields: [
+          { name: 'previously_applied', label: 'Applied to 1000 FiX Before' },
+          { name: 'previously_employed', label: 'Worked at 1000 FiX Before' },
+          { name: 'previous_employee_code', label: 'Previous Employee ID' },
+          { name: 'relative_in_company', label: 'Relative Works at 1000 FiX' },
+          { name: 'relative_details', label: 'Relative’s Name, Relation and Branch' },
+          { name: 'criminal_record', label: 'Criminal Record Declaration' },
+          { name: 'criminal_record_details', type: 'text', label: 'Conviction Details' },
+          { name: 'accommodation_needs', type: 'text', label: 'Accommodation Needs (voluntary)' }
+        ]
+      },
+      {
+        tab: 'documents',
+        title: 'Evidence Status',
+        note: 'Each certificate, letter and document is verified on the Candidate Evidence lists by a Background Verifier who did not key or upload it. A discrepancy blocks the offer stage and the hire.',
+        fields: [
+          { name: 'evidence_pending', label: 'Awaiting Verification', readonly: true },
+          { name: 'evidence_discrepancies', label: 'Discrepancies', readonly: true }
+        ]
+      },
+      {
+        tab: 'joining',
+        title: 'Joining Particulars (offer stage onward)',
+        note: 'Sensitive personal data is asked only once the candidate reaches the offer stage; before that these inputs stay locked (data minimisation). They become the employee master at hire.',
+        fields: [
+          { name: 'sex', label: 'Gender' },
+          { name: 'marital_status', label: 'Marital Status' },
+          { name: 'spouse_name', label: 'Spouse’s Name' },
+          { name: 'religion', label: 'Religion' },
+          { name: 'blood_group', label: 'Blood Group' },
+          { name: 'identification_mark', label: 'Identification Mark (Form 7)' }
+        ]
+      },
+      {
+        tab: 'consent',
+        title: 'Consent & Declaration',
+        note: 'Consent to process this application, a separate consent to keep the record in the talent pool, and the candidate’s declaration that everything given is true. The hire needs the declaration.',
+        fields: [
           { name: 'consent_given', label: 'Consent to Processing & Retention' },
           { name: 'consent_date', label: 'Consent Recorded On', readonly: true },
+          { name: 'talent_pool_consent', label: 'Consent to Keep in Talent Pool' },
+          { name: 'declaration_accepted', label: 'Declaration of Truth Accepted' },
+          { name: 'declaration_on', label: 'Declaration Recorded On', readonly: true },
           { name: 'retention_until', label: 'Retain Until', readonly: true }
         ]
       },
       {
         tab: 'pipeline',
-        title: 'Hiring Funnel & Requisition Mapping',
-        note: 'Pipeline progression from application to hire and linked M21 employee master.',
+        title: 'Hiring Funnel',
+        note: 'Pipeline progression from application to hire and the linked M21 employee master.',
         fields: [
-          { name: 'requisition_id', label: 'Linked Job Requisition' },
           { name: 'employee_id', label: 'Created M21 Employee Record', readonly: true },
           { name: 'state', label: 'Recruitment Stage', readonly: true },
           { name: 'rejection_reason', type: 'text', label: 'Outcome Communicated', readonly: true }
+        ]
+      }
+    ],
+    grids: [
+      {
+        field: 'education_ids', tab: 'education', title: 'Academic Qualifications',
+        addLabel: '+ Add qualification',
+        empty: 'No qualification yet. Add SSC / Dakhil onward, one line per exam or degree.',
+        note: 'One line per exam or degree, highest last or first. Attach the certificate and the transcript / mark sheet of each line. Result: GPA out of 5 (SSC / HSC), CGPA out of 4 (university), or the division / class of older results.',
+        fields: [
+          { name: 'level', label: 'Level' },
+          { name: 'exam_title', label: 'Exam / Degree' },
+          { name: 'major', label: 'Group / Major' },
+          { name: 'board', label: 'Board' },
+          { name: 'institute', label: 'Institute' },
+          { name: 'passing_year', label: 'Year' },
+          { name: 'result_type', label: 'Result Type' },
+          { name: 'result', label: 'Result' },
+          { name: 'duration_years', label: 'Duration (yrs)' },
+          { name: 'roll_number', label: 'Roll No.' },
+          { name: 'registration_number', label: 'Reg. No.' },
+          { name: 'achievement', label: 'Achievement' },
+          { name: 'certificate_file', label: 'Certificate' },
+          { name: 'certificate_filename', label: 'Certificate File Name' },
+          { name: 'transcript_file', label: 'Transcript' },
+          { name: 'transcript_filename', label: 'Transcript File Name' },
+          { name: 'verification_state', label: 'Verification', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true }
+        ]
+      },
+      {
+        field: 'training_ids', tab: 'training', title: 'Training, Certifications & Licences',
+        addLabel: '+ Add training / certificate',
+        empty: 'No training or certificate yet.',
+        note: 'Training courses, NTVQF / BNQF skills certificates, OEM brand accreditations and professional licences, each with its certificate.',
+        fields: [
+          { name: 'kind', label: 'Type' },
+          { name: 'title', label: 'Title' },
+          { name: 'topic', label: 'Topics' },
+          { name: 'institute', label: 'Institute / Issuer' },
+          { name: 'country_id', label: 'Country' },
+          { name: 'location', label: 'Location' },
+          { name: 'start_date', label: 'From' },
+          { name: 'end_date', label: 'To / Issued' },
+          { name: 'duration', label: 'Duration' },
+          { name: 'level', label: 'NTVQF Level' },
+          { name: 'certificate_no', label: 'Certificate No.' },
+          { name: 'expiry_date', label: 'Valid Until' },
+          { name: 'certificate_file', label: 'Certificate' },
+          { name: 'certificate_filename', label: 'Certificate File Name' },
+          { name: 'verification_state', label: 'Verification', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true }
+        ]
+      },
+      {
+        field: 'experience_ids', tab: 'experience', title: 'Employment History',
+        addLabel: '+ Add employment',
+        empty: 'No employment yet (a fresh graduate may leave this empty).',
+        note: 'Most recent first. Tick Currently Working and leave To empty for the present job. Attach the experience or release letter; the referee check reads the supervisor contact.',
+        fields: [
+          { name: 'employer', label: 'Employer' },
+          { name: 'business_type', label: 'Business Type' },
+          { name: 'employer_address', label: 'Employer Address' },
+          { name: 'designation', label: 'Designation' },
+          { name: 'department', label: 'Department' },
+          { name: 'start_date', label: 'From' },
+          { name: 'end_date', label: 'To' },
+          { name: 'currently_working', label: 'Current' },
+          { name: 'duration_years', label: 'Years', readonly: true },
+          { name: 'responsibilities', type: 'text', label: 'Responsibilities' },
+          { name: 'last_salary', label: 'Last Gross Salary' },
+          { name: 'reason_for_leaving', label: 'Reason for Leaving' },
+          { name: 'supervisor_name', label: 'Supervisor' },
+          { name: 'supervisor_phone', label: 'Supervisor Phone' },
+          { name: 'may_contact', label: 'May Contact' },
+          { name: 'experience_letter_file', label: 'Experience / Release Letter' },
+          { name: 'experience_letter_filename', label: 'Letter File Name' },
+          { name: 'verification_state', label: 'Verification', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true }
+        ]
+      },
+      {
+        field: 'skill_ids', tab: 'skills', title: 'Skills',
+        addLabel: '+ Add skill',
+        empty: 'No skill yet.',
+        note: 'Technical skills by device category (e.g. chip-level mobile repair, BGA rework, inverter AC) and the brands handled.',
+        fields: [
+          { name: 'category', label: 'Category' },
+          { name: 'skill', label: 'Skill' },
+          { name: 'level', label: 'Level' },
+          { name: 'years', label: 'Years' },
+          { name: 'brands', label: 'Brands / Products' }
+        ]
+      },
+      {
+        field: 'language_ids', tab: 'skills', title: 'Languages',
+        addLabel: '+ Add language',
+        empty: 'No language yet.',
+        fields: [
+          { name: 'language', label: 'Language' },
+          { name: 'other_language', label: 'Other Language' },
+          { name: 'reading', label: 'Reading' },
+          { name: 'writing', label: 'Writing' },
+          { name: 'speaking', label: 'Speaking' }
+        ]
+      },
+      {
+        field: 'reference_ids', tab: 'skills', title: 'Referees',
+        addLabel: '+ Add referee',
+        empty: 'No referee yet. Two non-relative referees are usual.',
+        note: 'Professional or academic referees, not relatives. The reference check itself is recorded on Reference & Background.',
+        fields: [
+          { name: 'name', label: 'Name' },
+          { name: 'designation', label: 'Designation' },
+          { name: 'organisation', label: 'Organisation' },
+          { name: 'relation', label: 'Relation' },
+          { name: 'phone', label: 'Phone' },
+          { name: 'email', label: 'Email' },
+          { name: 'address', label: 'Address' },
+          { name: 'years_known', label: 'Years Known' },
+          { name: 'consent_to_contact', label: 'May Contact' }
+        ]
+      },
+      {
+        field: 'document_ids', tab: 'documents', title: 'Documents & Attachments',
+        addLabel: '+ Add document',
+        empty: 'No document yet. Add the CV, photograph, NID, certificates, transcripts, testimonials, release letters, PCC and others, one line each.',
+        note: 'One line per document, with its scan or photo (PDF, JPG, PNG or DOCX, up to 10 MB). Bank, nominee, e-TIN and medical documents are asked from the offer stage. Verified documents carry into the employee dossier and the pre-boarding checklist at hire.',
+        fields: [
+          { name: 'document_type', label: 'Document Type' },
+          { name: 'description', label: 'Description' },
+          { name: 'issued_by', label: 'Issued By' },
+          { name: 'reference', label: 'Document No.' },
+          { name: 'issued_on', label: 'Issued On' },
+          { name: 'expiry_date', label: 'Valid Until' },
+          { name: 'original_seen', label: 'Original Seen' },
+          { name: 'document_file', label: 'File' },
+          { name: 'document_filename', label: 'File Name' },
+          { name: 'verification_state', label: 'Verification', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true }
+        ]
+      },
+      {
+        field: 'family_ids', tab: 'joining', title: 'Family, Emergency Contacts & Nominees',
+        addLabel: '+ Add family member',
+        empty: 'Asked from the offer stage: family members, at least one emergency contact, and the statutory nominees (shares up to 100%).',
+        note: 'Nominees receive the death benefit, provident fund and gratuity under the Labour Act; a minor nominee needs a guardian.',
+        fields: [
+          { name: 'name', label: 'Name' },
+          { name: 'relation', label: 'Relation' },
+          { name: 'date_of_birth', label: 'Date of Birth' },
+          { name: 'occupation', label: 'Occupation' },
+          { name: 'phone', label: 'Phone' },
+          { name: 'address', label: 'Address' },
+          { name: 'is_emergency_contact', label: 'Emergency Contact' },
+          { name: 'is_nominee', label: 'Nominee' },
+          { name: 'nominee_pct', label: 'Share %' },
+          { name: 'guardian_name', label: 'Guardian (minor)' }
         ]
       }
     ]

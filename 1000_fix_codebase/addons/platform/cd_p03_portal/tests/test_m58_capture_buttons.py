@@ -59,7 +59,10 @@ console.log(JSON.stringify({ subs,
     kind: c.kind, model: c.model || null, create: c.create, pick: c.pick || null, cols: c.cols || [],
     report: c.report || null, empty: c.empty || null,
     actions: (c.actions || []).map((a) => a.m),
-    fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({ name: f.name, readonly: !!f.readonly })) }])),
+    fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({ name: f.name, readonly: !!f.readonly })),
+    tabs: (c.tabs || []).map((t) => t.id),
+    grids: (c.grids || []).map((g) => ({ field: g.field, tab: g.tab || null,
+      fields: (g.fields || []).map((f) => ({ name: f.name, readonly: !!f.readonly })) })) }])),
   by_screen: P03_FORM_CHIPS['M58:__by_screen__'] }));
 """
 
@@ -320,3 +323,70 @@ def test_access_rows_keep_decisions_with_their_roles():
     ]
     # a conductor records an induction, never creates one
     assert rows["model_fix_onboarding_induction"]["base.group_user"] == ["1", "1", "0", "0"]
+
+
+# Candidate biodata standard (18 Nov 2026): the form held twelve fields and no
+# education, training, employment, referee, family or document could be kept.
+BIODATA_GRIDS = {
+    "education_ids": {
+        "level",
+        "exam_title",
+        "institute",
+        "result",
+        "certificate_file",
+        "transcript_file",
+    },
+    "training_ids": {"title", "institute", "certificate_file"},
+    "experience_ids": {"employer", "designation", "start_date", "experience_letter_file"},
+    "skill_ids": {"category", "skill"},
+    "language_ids": {"language", "speaking"},
+    "reference_ids": {"name", "relation", "phone"},
+    "document_ids": {"document_type", "document_file"},
+    "family_ids": {"name", "relation", "is_nominee", "nominee_pct"},
+}
+
+
+def test_the_candidate_form_captures_the_whole_biodata(m58):
+    form = m58["screens"]["M58-form-candidate"]
+    grids = {g["field"]: g for g in form["grids"]}
+    assert set(BIODATA_GRIDS) <= set(grids)
+    for field, needed in BIODATA_GRIDS.items():
+        grid = grids[field]
+        assert grid["tab"] in form["tabs"], field
+        missing = needed - {f["name"] for f in grid["fields"] if not f["readonly"]}
+        assert not missing, "%s cannot capture %s" % (field, sorted(missing))
+        # a verdict is never typed in a grid
+        for f in grid["fields"]:
+            if f["name"] in ("verification_state", "verified_by_id"):
+                assert f["readonly"], (field, f["name"])
+    assert {
+        "father_name",
+        "mother_name",
+        "present_district",
+        "permanent_division",
+        "cv_file",
+        "expected_salary",
+        "declaration_accepted",
+    } <= _fields(m58, "M58-form-candidate")
+
+
+def test_the_whitelist_lets_every_biodata_grid_save():
+    text = (HERE.parent / "controllers" / "a09" / "writable.py").read_text(encoding="utf-8")
+    block = text[text.index('"fix.candidate": frozenset(') :]
+    block = block[: block.index("),")]
+    for field in BIODATA_GRIDS:
+        assert '"%s"' % field in block, field
+    assert '"declaration_on"' not in block
+
+
+def test_candidate_evidence_is_decided_on_its_own_lists(m58):
+    for sid, model in {
+        "M58-cand-documents": "fix.candidate.document",
+        "M58-cand-education": "fix.candidate.education",
+        "M58-cand-experience": "fix.candidate.experience",
+        "M58-cand-training": "fix.candidate.training",
+    }.items():
+        cfg = m58["screens"][sid]
+        assert cfg["model"] == model and cfg["create"] is False and cfg["empty"], sid
+        assert {"action_verify", "action_flag_discrepancy"} <= set(cfg["actions"]), sid
+        assert sid in m58["nav"], sid

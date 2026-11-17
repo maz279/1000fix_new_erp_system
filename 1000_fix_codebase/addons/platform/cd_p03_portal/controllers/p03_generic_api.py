@@ -962,6 +962,7 @@ class P03GenericApiController(http.Controller):
         lang=None,
         lines=None,
         status_field=None,
+        grids=None,
         **kw,
     ):
         """Schema + values for a D365 in-workspace form screen.
@@ -974,6 +975,11 @@ class P03GenericApiController(http.Controller):
         lines (optional): {field, fields:[{name,label,type?}]} — a declared
         one2many child grid (allocation targets, template lines). Returns the
         child field metadata and, for an existing record, its rows.
+
+        grids (optional): [{field, fields:[...]}] - several such child grids
+        on one form (a candidate's education, training, experience and
+        documents, 18 Nov 2026), each returned under its field name. A file
+        cell in a grid row is served as a link, never as its bytes.
         """
         _require_internal(request.env)
         env = request.env
@@ -1016,6 +1022,12 @@ class P03GenericApiController(http.Controller):
             line_payload = None
             if lines and lines.get("field"):
                 line_payload = self._form_lines(env, model, lines, record_id)
+            grid_payload = {}
+            for grid in grids or []:
+                if isinstance(grid, dict) and grid.get("field"):
+                    grid_payload[grid["field"]] = self._form_lines(
+                        env, model, grid, record_id, files_as_links=True
+                    )
             # The form's status pill reads a workflow field that is usually NOT
             # one of its inputs (a state is never editable), so it is served on
             # its own; without this the pill never rendered on such a form.
@@ -1029,6 +1041,7 @@ class P03GenericApiController(http.Controller):
                 "record": record,
                 "defaults": {} if rec else self._form_defaults(env, model, out_fields),
                 "lines": line_payload,
+                "grids": grid_payload,
                 "status_value": status_value,
                 "title": conf.get("form_title") or env[model]._description,
             }
@@ -1197,8 +1210,12 @@ class P03GenericApiController(http.Controller):
                 record[entry["name"]] = value if value is not False else ""
         return record
 
-    def _form_lines(self, env, model, lines, record_id):
-        """A declared one2many child grid: field meta + existing rows."""
+    def _form_lines(self, env, model, lines, record_id, files_as_links=False):
+        """A declared one2many child grid: field meta + existing rows.
+
+        files_as_links: a binary cell is served as {stored, filename, size,
+        url} (the record's own /web/content link), so a grid of scanned
+        certificates does not ship every file to the browser."""
         field_name = lines.get("field")
         field = env[model]._fields.get(field_name)
         if not field or field.type != "one2many":
@@ -1212,8 +1229,19 @@ class P03GenericApiController(http.Controller):
             read_model = env[model] if conf.get("rules") else env[model].sudo()
             rec = read_model.browse(int(record_id)).exists()
             if rec:
+                binaries = [m["name"] for m in out_fields if m["type"] == "binary"]
+                plain = (
+                    [m for m in out_fields if m["type"] != "binary"]
+                    if files_as_links
+                    else out_fields
+                )
                 for child in rec[field_name]:
-                    rows.append(self._form_record(child, out_fields))
+                    row = self._form_record(child, plain)
+                    if files_as_links:
+                        sized = child.with_context(bin_size=True)
+                        for name in binaries:
+                            row[name] = self._grid_file(sized, name)
+                    rows.append(row)
                 # a row's value beyond the choice limit must still display
                 for meta in out_fields:
                     if meta["type"] != "many2one":
@@ -1225,6 +1253,37 @@ class P03GenericApiController(http.Controller):
                             known.add(value["id"])
                             meta["choices"].append({"id": value["id"], "label": value["label"]})
         return {"field": field_name, "model": comodel, "fields": out_fields, "rows": rows}
+
+    @staticmethod
+    def _grid_file(child, name):
+        """A stored file of a grid row, as a link (None when there is none)."""
+        size = child[name]
+        if not size:
+            return None
+        fname = ""
+        fname_field = None
+        for cand in (
+            name + "_filename",
+            name.removesuffix("_file") + "_filename",
+            name.removesuffix("_file") + "_name",
+            "file_name",
+        ):
+            if cand in child._fields and child[cand]:
+                fname, fname_field = child[cand], cand
+                break
+        size = size.decode() if isinstance(size, bytes) else str(size)
+        return {
+            "stored": True,
+            "filename": fname or name,
+            "size": size,
+            "url": "/web/content/%s/%d/%s?download=true%s"
+            % (
+                child._name,
+                child.id,
+                name,
+                "&filename_field=%s" % fname_field if fname_field else "",
+            ),
+        }
 
     @http.route("/p03/model/choices", type="jsonrpc", auth="user", readonly=True)
     def model_choices(
@@ -1265,7 +1324,7 @@ class P03GenericApiController(http.Controller):
             return {"error": _FAILED}
 
     @http.route("/p03/model/write", type="jsonrpc", auth="user")
-    def model_write(self, model=None, record_id=None, values=None, lines=None, **kw):
+    def model_write(self, model=None, record_id=None, values=None, lines=None, grids=None, **kw):
         """Create/update one record from a D365 in-workspace form.
 
         The caller's own ACL applies (no sudo on write); the whole write runs
@@ -1327,6 +1386,10 @@ class P03GenericApiController(http.Controller):
         )
         if lines and lines.get("field") and writable is not None and lines["field"] not in writable:
             return {"error": "This screen does not edit %s." % lines["field"]}
+        grids = [g for g in (grids or []) if isinstance(g, dict) and g.get("field")]
+        for grid in grids:
+            if writable is not None and grid["field"] not in writable:
+                return {"error": "This screen does not edit %s." % grid["field"]}
         if record_id:
             for names, why in (
                 (workflow, "is read-only and changes only through its workflow action."),
@@ -1379,32 +1442,13 @@ class P03GenericApiController(http.Controller):
                     attachment = _store_upload(env, value)
                     uploads |= attachment
                     vals[key] = attachment.id
-                if lines and lines.get("field"):
-                    field = env[model]._fields.get(lines.get("field"))
+                for spec in ([lines] if lines and lines.get("field") else []) + grids:
+                    field = env[model]._fields.get(spec.get("field"))
                     if not field or field.type != "one2many":
                         return {"error": "This form's child grid is not a one2many"}
-                    commands = [(2, int(i)) for i in (lines.get("removed") or [])]
-                    children = env[field.comodel_name]
-                    for row in lines.get("rows") or []:
-                        row_vals = self._coerce_vals(row.get("values"))
-                        self._datetimes_to_utc(env, field.comodel_name, row_vals)
-                        if not row_vals:
-                            continue
-                        if row.get("id"):
-                            child = children.browse(int(row["id"])).exists()
-                            row_vals = {
-                                k: v
-                                for k, v in row_vals.items()
-                                if k not in children._fields
-                                or not child
-                                or _child_value_changed(child, children._fields[k], v)
-                            }
-                            if row_vals:
-                                commands.append((1, int(row["id"]), row_vals))
-                        else:
-                            commands.append((0, 0, row_vals))
+                    commands = self._grid_commands(env, field, spec)
                     if commands:
-                        vals[lines["field"]] = commands
+                        vals[spec["field"]] = commands
                 if record_id:
                     env[model].check_access("write")
                     rec = env[model].browse(int(record_id)).exists()
@@ -1462,6 +1506,35 @@ class P03GenericApiController(http.Controller):
         for key, value in vals.items():
             if getattr(spec.get(key), "type", "") == "datetime":
                 vals[key] = _datetime_to_utc(env, value)
+
+    def _grid_commands(self, env, field, spec):
+        """One2many commands for a child grid: {rows:[{id?, values}], removed}.
+        An unchanged echo of an existing row is not rewritten."""
+        commands = [(2, int(i)) for i in (spec.get("removed") or [])]
+        children = env[field.comodel_name]
+        for row in spec.get("rows") or []:
+            row_vals = self._coerce_vals(row.get("values"))
+            # a stored file comes back as its link: it is kept, not rewritten
+            row_vals = {
+                k: v for k, v in row_vals.items() if not (isinstance(v, dict) and v.get("stored"))
+            }
+            self._datetimes_to_utc(env, field.comodel_name, row_vals)
+            if not row_vals:
+                continue
+            if row.get("id"):
+                child = children.browse(int(row["id"])).exists()
+                row_vals = {
+                    k: v
+                    for k, v in row_vals.items()
+                    if k not in children._fields
+                    or not child
+                    or _child_value_changed(child, children._fields[k], v)
+                }
+                if row_vals:
+                    commands.append((1, int(row["id"]), row_vals))
+            else:
+                commands.append((0, 0, row_vals))
+        return commands
 
     @staticmethod
     def _coerce_vals(values):

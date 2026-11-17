@@ -2250,6 +2250,8 @@ export class P03Workspace extends Component {
         const kind = this.state.gl && this.state.gl.data && this.state.gl.data.kinds
             ? this.state.gl.data.kinds[field] : null;
         if (kind === "monetary") return fmtBDT(v);
+        // a year is a label, not a quantity: 2026, never "2,026"
+        if (kind === "integer" && /(^|_)year$/.test(field)) return String(v);
         if (kind === "integer") return fmtNum(v);
         if (typeof v === "number" && Math.abs(v) >= 1000) return fmtNum(v);
         return String(v);
@@ -2595,6 +2597,8 @@ export class P03Workspace extends Component {
             mlState: "__all",
             form: { recordId, values: {}, busy: false, error: null,
                     activeTab, lineMeta: [], lineValues: [], lineRemoved: [],
+                    // `grids`: several declared one2many grids on one form
+                    grids: {},
                     // `pickRecord`: the form acts on an existing record (a hold
                     // is placed on an order), so with none it first asks which
                     picking: !recordId && !!cfg.pickRecord,
@@ -2643,6 +2647,7 @@ export class P03Workspace extends Component {
                 // bilingual labels: field/selection text follows the UI language
                 lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
                 lines: gl.formCfg.lines || false,
+                grids: (gl.formCfg.grids || []).map((g) => ({ field: g.field, fields: g.fields })),
                 status_field: (gl.formCfg.status && gl.formCfg.status.field) || false,
             });
             gl.data = res;
@@ -2650,6 +2655,15 @@ export class P03Workspace extends Component {
             gl.form.lineMeta = (res.lines && res.lines.fields) || [];
             gl.form.lineValues = ((res.lines && res.lines.rows) || []).map((r) => ({ ...r }));
             gl.form.lineRemoved = [];
+            gl.form.grids = {};
+            for (const g of gl.formCfg.grids || []) {
+                const payload = (res.grids && res.grids[g.field]) || {};
+                gl.form.grids[g.field] = {
+                    meta: payload.fields || [],
+                    rows: (payload.rows || []).map((r) => ({ ...r })),
+                    removed: [],
+                };
+            }
             if (res.error) {
                 // the form could not be LOADED at all (model not served by
                 // the workspace registry, or ACL-denied). Distinct from a
@@ -3302,6 +3316,169 @@ export class P03Workspace extends Component {
         return Math.round(sum * 100) / 100;
     }
 
+    /* ---- several declared one2many grids on one form (18 Nov 2026) ----
+     * `grids: [{field, title, note, tab, fields[], addLabel}]`: a candidate's
+     * education, training, experience, languages, referees, family and
+     * documents are each an add-more-lines table on their own tab, saved
+     * with the header in ONE write. A binary cell is an upload: a stored
+     * file arrives as a link ({stored, filename, url}) and is never resent. */
+    get formGridsOnTab() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !gl.form || gl.form.picking || gl.form.unavailable) return [];
+        const tab = this.formActiveTab;
+        const hasTabs = this.formTabs.length > 0;
+        return (gl.formCfg.grids || []).filter((g) => !g.tab || !hasTabs || g.tab === tab);
+    }
+
+    _gridState(field) {
+        const gl = this.state.gl;
+        return (gl && gl.form && gl.form.grids && gl.form.grids[field]) || { meta: [], rows: [], removed: [] };
+    }
+
+    formGridFields(field) {
+        return this._gridState(field).meta;
+    }
+
+    formGridRows(field) {
+        return this._gridState(field).rows;
+    }
+
+    /* The columns a grid shows: a file's name travels with its file cell. */
+    formGridColumns(field) {
+        const meta = this.formGridFields(field);
+        const binaries = meta.filter((m) => m.type === "binary").map((m) => m.name);
+        const companions = new Set();
+        for (const b of binaries) {
+            const fn = this._gridFilenameField(field, b);
+            if (fn) companions.add(fn);
+        }
+        return meta.filter((m) => !companions.has(m.name));
+    }
+
+    formGridCount(field) {
+        return this._gridState(field).rows.length;
+    }
+
+    formGridLocked(grid) {
+        const gl = this.state.gl;
+        if (grid.readonlyGrid) return true;
+        if (grid.lockOnRecord && gl && gl.form && gl.form.recordId) return true;
+        return false;
+    }
+
+    _gridMeta(field, name) {
+        return this.formGridFields(field).find((f) => f.name === name) || {};
+    }
+
+    formGridValue(field, i, name) {
+        const row = this.formGridRows(field)[i] || {};
+        const v = row[name];
+        return v === undefined || v === null ? "" : v;
+    }
+
+    formGridSelectValue(field, i, name) {
+        const raw = this.formGridValue(field, i, name);
+        return raw && typeof raw === "object" ? raw.id : raw;
+    }
+
+    formGridDisplay(field, i, name) {
+        const raw = this.formGridValue(field, i, name);
+        const meta = this._gridMeta(field, name);
+        if (raw && typeof raw === "object") return raw.label || raw.filename || "";
+        if (meta.type === "selection") {
+            const hit = (meta.choices || []).find((c) => c.key === raw);
+            return hit ? this.t(hit.label) : raw;
+        }
+        if (meta.type === "boolean") return raw ? this.t("Yes") : this.t("No");
+        return raw;
+    }
+
+    formGridSet(field, i, name, value) {
+        const row = this.formGridRows(field)[i];
+        if (!row) return;
+        const meta = this._gridMeta(field, name);
+        if (meta.type === "many2one") {
+            value = value === "" || value === false || value === null ? false : Number(value);
+        } else if (meta.type === "boolean") {
+            value = !!value;
+        } else if (meta.type === "monetary" || meta.type === "float" || meta.type === "integer") {
+            value = value === "" || value === false ? false : Number(value);
+        }
+        row[name] = value;
+        row.__dirty = row.__dirty || {};
+        row.__dirty[name] = true;
+        if (meta.type === "boolean" || meta.type === "selection") this.render(true);
+    }
+
+    formGridAdd(field) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        const cfg = (gl.formCfg.grids || []).find((g) => g.field === field);
+        const state = gl.form.grids[field] || (gl.form.grids[field] = { meta: [], rows: [], removed: [] });
+        state.rows.push({ ...((cfg && cfg.defaults) || {}) });
+        this.render(true);
+    }
+
+    formGridRemove(field, i) {
+        const state = this._gridState(field);
+        const row = state.rows[i];
+        if (row && row.id) state.removed.push(row.id);
+        state.rows.splice(i, 1);
+        this.render(true);
+    }
+
+    _gridFilenameField(field, name) {
+        const names = this.formGridFields(field).map((f) => f.name);
+        const cands = [name + "_filename", name.replace(/_file$/, "") + "_filename",
+                       name.replace(/_file$/, "") + "_name", "file_name"];
+        return cands.find((c) => names.includes(c)) || null;
+    }
+
+    formGridFileName(field, i, name) {
+        const v = this.formGridValue(field, i, name);
+        if (!v) return "";
+        if (typeof v === "object") return v.filename || "";
+        const fn = this._gridFilenameField(field, name);
+        return (fn && this.formGridValue(field, i, fn)) || this.t("New file");
+    }
+
+    formGridFileHref(field, i, name) {
+        const v = this.formGridValue(field, i, name);
+        if (!v) return "#";
+        if (typeof v === "object") return v.url || "#";
+        if (v.startsWith("JVBERi")) return `data:application/pdf;base64,${v}`;
+        if (v.startsWith("iVBORw0KGgo")) return `data:image/png;base64,${v}`;
+        if (v.startsWith("/9j/")) return `data:image/jpeg;base64,${v}`;
+        return `data:application/octet-stream;base64,${v}`;
+    }
+
+    formGridUpload(field, i, name, ev) {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            this.showToast("⚠ " + this.t("The file is larger than 10 MB."));
+            ev.target.value = "";
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            this.formGridSet(field, i, name, base64);
+            const fn = this._gridFilenameField(field, name);
+            if (fn) this.formGridSet(field, i, fn, file.name);
+            this.render(true);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    formGridClearFile(field, i, name) {
+        this.formGridSet(field, i, name, false);
+        const fn = this._gridFilenameField(field, name);
+        if (fn) this.formGridSet(field, i, fn, "");
+        this.render(true);
+    }
+
     /* Step one of a `pickRecord` form: the records it can act on, searched
      * through the same whitelisted reader the lists use. */
     async formPickLoad() {
@@ -3440,12 +3617,32 @@ export class P03Workspace extends Component {
             }
             lines = { field: lineCfg.field, rows, removed: gl.form.lineRemoved || [] };
         }
+        const grids = [];
+        for (const g of gl.formCfg.grids || []) {
+            const state = (gl.form.grids || {})[g.field];
+            if (!state || g.readonlyGrid) continue;
+            const editable = (state.meta || []).filter((m) => !m.readonly).map((m) => m.name);
+            const rows = [];
+            for (const row of state.rows) {
+                const vals = {};
+                for (const name of editable) {
+                    const v = row[name];
+                    // a stored file comes back as a link: it is kept, not resent
+                    if (v && typeof v === "object" && v.stored) continue;
+                    if (v !== undefined && v !== null && v !== "") vals[name] = v;
+                    else if (row.id && row.__dirty && row.__dirty[name]) vals[name] = false;
+                }
+                if (Object.keys(vals).length) rows.push({ id: row.id || null, values: vals });
+            }
+            grids.push({ field: g.field, rows, removed: state.removed || [] });
+        }
         try {
             const res = await this.rpc("/p03/model/write", {
                 model: gl.formCfg.model,
                 record_id: gl.form.recordId || false,
                 values,
                 lines,
+                grids,
             });
             if (res.error) {
                 gl.form.error = res.error;

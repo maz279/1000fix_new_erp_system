@@ -3772,6 +3772,113 @@
                                     <div t-if="formLineCfg.note" class="d365-note" t-esc="t(formLineCfg.note)"/>
                                 </div>
 
+                                <!-- ============ several child grids (declared `grids`) ============
+                                     One add-more-lines table per register (a candidate's
+                                     education, training, experience, documents...), each on
+                                     its tab; a file cell uploads a scan or photo per row. -->
+                                <t t-foreach="formGridsOnTab" t-as="grid" t-key="grid.field">
+                                    <t t-set="gridLocked" t-value="formGridLocked(grid)"/>
+                                    <div class="d365-section d365-lines-card d365-grid-card" t-att-data-grid="grid.field">
+                                        <div class="d365-sectiontitle">
+                                            <t t-esc="t(grid.title || 'Lines')"/>
+                                            <span class="d365-grid-count"> (<t t-esc="formGridCount(grid.field)"/>)</span>
+                                        </div>
+                                        <div class="d365-grid-scroll" style="overflow-x: auto; max-width: 100%;">
+                                            <table class="d365-lines" role="grid" t-att-aria-label="t(grid.title || 'Lines')">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 32px;">#</th>
+                                                        <t t-foreach="formGridColumns(grid.field)" t-as="gf" t-key="gf.name">
+                                                            <th><t t-esc="t(gf.label)"/><span t-if="gf.required &amp;&amp; !gf.readonly" class="d365-req">*</span></th>
+                                                        </t>
+                                                        <th t-if="!gridLocked" style="width: 40px;"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr t-if="!formGridCount(grid.field)">
+                                                        <td t-att-colspan="formGridColumns(grid.field).length + 2" class="d365-note">
+                                                            <t t-esc="t(grid.empty || 'Nothing recorded yet.')"/>
+                                                        </td>
+                                                    </tr>
+                                                    <tr t-foreach="formGridRows(grid.field)" t-as="grow" t-key="grow_index">
+                                                        <td><t t-esc="grow_index + 1"/></td>
+                                                        <td t-foreach="formGridColumns(grid.field)" t-as="gf" t-key="gf.name">
+                                                            <t t-set="gridCellId" t-value="'d365_grid_' + grid.field + '_' + grow_index + '_' + gf.name"/>
+                                                            <!-- a file: stored link, or the one just picked -->
+                                                            <div t-if="gf.type === 'binary'" class="d365-grid-file">
+                                                                <a t-if="formGridValue(grid.field, grow_index, gf.name)"
+                                                                   t-att-href="formGridFileHref(grid.field, grow_index, gf.name)"
+                                                                   t-att-download="formGridFileName(grid.field, grow_index, gf.name)"
+                                                                   target="_blank" class="d365-grid-file-link"
+                                                                   t-att-title="formGridFileName(grid.field, grow_index, gf.name)">
+                                                                    📄 <t t-esc="formGridFileName(grid.field, grow_index, gf.name)"/>
+                                                                </a>
+                                                                <span t-elif="gf.readonly || gridLocked" class="d365-many-empty"><t t-esc='t("No file")'/></span>
+                                                                <t t-if="!gf.readonly &amp;&amp; !gridLocked">
+                                                                    <label class="btn btn-sm d365-file-btn" t-att-for="gridCellId"
+                                                                           t-att-title="t('PDF, JPG, PNG or DOCX, up to 10 MB')">
+                                                                        <t t-if="formGridValue(grid.field, grow_index, gf.name)">🔄</t>
+                                                                        <t t-else="">📁 <t t-esc='t("Upload")'/></t>
+                                                                        <input type="file" class="d365-file-input" style="display: none;"
+                                                                               t-att-id="gridCellId"
+                                                                               t-att-aria-label="t('Upload') + ' ' + t(gf.label)"
+                                                                               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                               t-on-change="(ev) => this.formGridUpload(grid.field, grow_index, gf.name, ev)"/>
+                                                                    </label>
+                                                                    <button t-if="formGridValue(grid.field, grow_index, gf.name)" type="button"
+                                                                            class="btn btn-sm d365-line-remove" t-att-aria-label="t('Remove file')"
+                                                                            t-on-click="() => this.formGridClearFile(grid.field, grow_index, gf.name)">🗑</button>
+                                                                </t>
+                                                            </div>
+                                                            <span t-elif="gf.readonly || gridLocked" t-esc="formGridDisplay(grid.field, grow_index, gf.name)"/>
+                                                            <select t-elif="gf.type === 'selection' || gf.type === 'many2one'" class="d365-input"
+                                                                    t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                    t-on-change="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.value)">
+                                                                <option value=""></option>
+                                                                <t t-foreach="gf.choices || []" t-as="gopt" t-key="gopt.key || gopt.id">
+                                                                    <option t-att-value="gopt.key !== undefined ? gopt.key : gopt.id"
+                                                                            t-att-selected="formGridSelectValue(grid.field, grow_index, gf.name) == (gopt.key !== undefined ? gopt.key : gopt.id)"
+                                                                            t-esc="t(gopt.label)"/>
+                                                                </t>
+                                                            </select>
+                                                            <input t-elif="gf.type === 'boolean'" type="checkbox" class="d365-checkbox"
+                                                                   t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                   t-att-checked="!!formGridValue(grid.field, grow_index, gf.name)"
+                                                                   t-on-change="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.checked)"/>
+                                                            <input t-elif="gf.type === 'date'" type="date" class="d365-input"
+                                                                   t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                   t-att-value="formGridValue(grid.field, grow_index, gf.name)"
+                                                                   t-on-input="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.value)"/>
+                                                            <input t-elif="gf.type === 'monetary' || gf.type === 'float' || gf.type === 'integer'" type="number" step="any" class="d365-input"
+                                                                   t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                   t-att-value="formGridValue(grid.field, grow_index, gf.name)"
+                                                                   t-on-input="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.value)"/>
+                                                            <textarea t-elif="gf.type === 'text'" class="d365-input" rows="2"
+                                                                      t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                      t-esc="formGridValue(grid.field, grow_index, gf.name)"
+                                                                      t-on-input="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.value)"/>
+                                                            <input t-else="" type="text" class="d365-input"
+                                                                   t-att-id="gridCellId" t-att-aria-label="t(gf.label)"
+                                                                   t-att-value="formGridValue(grid.field, grow_index, gf.name)"
+                                                                   t-on-input="(ev) => this.formGridSet(grid.field, grow_index, gf.name, ev.target.value)"/>
+                                                        </td>
+                                                        <td t-if="!gridLocked">
+                                                            <button class="btn d365-line-remove" t-att-title="t('Remove line')" t-att-aria-label="t('Remove line')"
+                                                                    t-on-click="() => this.formGridRemove(grid.field, grow_index)">✕</button>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="d365-lines-bar" t-if="!gridLocked">
+                                            <button class="btn" t-att-id="'d365_grid_add_' + grid.field" t-on-click="() => this.formGridAdd(grid.field)">
+                                                <t t-esc="t(grid.addLabel || '+ Add line')"/>
+                                            </button>
+                                        </div>
+                                        <div t-if="grid.note" class="d365-note" t-esc="t(grid.note)"/>
+                                    </div>
+                                </t>
+
                                 <!-- The documents of a SAVED record (controllers/p03_attachments.py):
                                      listed as the user, uploaded only with write access to it -->
                                 <div t-if="state.gl.form.recordId &amp;&amp; !state.gl.form.picking &amp;&amp; !state.gl.form.unavailable &amp;&amp; state.gl.form.att"

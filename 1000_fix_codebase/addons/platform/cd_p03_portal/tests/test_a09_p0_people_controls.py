@@ -162,6 +162,7 @@ def test_a2_recruiter_completes_a_hire(x):
             "name": "A09 P0 Candidate",
             "requisition_id": req.id,
             "consent_given": True,
+            "declaration_accepted": True,
             "date_of_birth": "1998-03-01",
             "state": "offered",
         }
