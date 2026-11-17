@@ -27,3 +27,11 @@ officer_fix_data_incident,fix.data.incident officer,model_fix_data_incident,grou
 officer_fix_retention_policy,fix.data.retention.policy officer,model_fix_data_retention_policy,group_data_governance_officer,1,1,1,0
 officer_fix_data_declass_auth,fix.data.declassification.auth officer,model_fix_data_declassification_auth,group_data_governance_officer,1,1,1,0
 officer_fix_data_purge_evidence,fix.data.purge.evidence officer,model_fix_data_purge_evidence,group_data_governance_officer,1,0,1,0
+access_fix_data_source,fix.data.source,model_fix_data_source,base.group_user,1,0,0,0
+officer_fix_data_source,fix.data.source officer,model_fix_data_source,group_data_governance_officer,1,1,1,0
+access_fix_data_dimension,fix.data.dimension,model_fix_data_dimension,base.group_user,1,0,0,0
+officer_fix_data_dimension,fix.data.dimension officer,model_fix_data_dimension,group_data_governance_officer,1,1,1,1
+access_fix_glossary_term,fix.glossary.term,model_fix_glossary_term,base.group_user,1,0,0,0
+officer_fix_glossary_term,fix.glossary.term officer,model_fix_glossary_term,group_data_governance_officer,1,1,1,0
+officer_fix_data_erasure,fix.data.erasure officer,model_fix_data_erasure,group_data_governance_officer,1,1,1,0
+dpo_fix_data_erasure,fix.data.erasure dpo,model_fix_data_erasure,cd_party_master.group_party_dpo,1,0,0,0

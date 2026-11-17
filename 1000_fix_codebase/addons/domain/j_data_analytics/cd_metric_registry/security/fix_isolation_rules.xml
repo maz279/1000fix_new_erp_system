@@ -18,6 +18,11 @@
         <field name="model_id" ref="model_fix_data_declassification_auth"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_data_dimension_company" model="ir.rule">
+        <field name="name">fix.data.dimension: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_dimension"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_data_entity_company" model="ir.rule">
         <field name="name">fix.data.entity: allowed companies</field>
         <field name="model_id" ref="model_fix_data_entity"/>
@@ -28,6 +33,11 @@
         <field name="model_id" ref="model_fix_data_entity"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_erasure_company" model="ir.rule">
+        <field name="name">fix.data.erasure: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_erasure"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_data_incident_company" model="ir.rule">
         <field name="name">fix.data.incident: allowed companies</field>
@@ -79,6 +89,16 @@
     <record id="rule_fix_data_run_company" model="ir.rule">
         <field name="name">fix.data.run: allowed companies</field>
         <field name="model_id" ref="model_fix_data_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_source_company" model="ir.rule">
+        <field name="name">fix.data.source: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_source"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_glossary_term_company" model="ir.rule">
+        <field name="name">fix.glossary.term: allowed companies</field>
+        <field name="model_id" ref="model_fix_glossary_term"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_metric_consumer_company" model="ir.rule">

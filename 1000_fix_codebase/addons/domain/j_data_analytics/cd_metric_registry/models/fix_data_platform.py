@@ -997,7 +997,11 @@ class FixDataIncident(models.Model):
             ],
             limit=1,
         ):
-            severity = "high" if float(payload.get("result") or 0.0) < 50.0 else "medium"
+            # The rule's own severity when it states one (FR-DAT-024, M62
+            # capture audit 2026-11-18); else derived from the result.
+            severity = rule.severity or (
+                "high" if float(payload.get("result") or 0.0) < 50.0 else "medium"
+            )
             self.sudo().create(
                 {
                     "name": "New",

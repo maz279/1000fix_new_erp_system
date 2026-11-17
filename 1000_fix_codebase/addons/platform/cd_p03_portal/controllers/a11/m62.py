@@ -27,13 +27,41 @@ WRITABLE = {
             "load_mode",
             "schedule",
             "freshness_sla_minutes",
+            "data_source_id",
+            "layer",
+            "owner_id",
+            "upstream_ids",
         }
     ),
     "fix.data.run": frozenset(
-        {"pipeline_id", "kind", "stage", "started_at", "rows_read", "rows_written", "rows_rejected"}
+        {
+            "pipeline_id",
+            "kind",
+            "stage",
+            "started_at",
+            "rows_read",
+            "rows_written",
+            "rows_rejected",
+            "period_from",
+            "period_to",
+            "replay_of_run_id",
+            "reason",
+        }
     ),
     "fix.data.entity": frozenset(
-        {"name", "entity_type", "owner_module", "steward_id", "classification", "retention_policy"}
+        {
+            "name",
+            "entity_type",
+            "owner_module",
+            "steward_id",
+            "classification",
+            "retention_policy",
+            "res_model",
+            "warehouse_layer",
+            "model_kind",
+            "grain_declaration",
+            "description",
+        }
     ),
     "fix.data.lineage": frozenset(
         {
@@ -43,6 +71,7 @@ WRITABLE = {
             "target_entity_id",
             "operating_unit_id",
             "lineage_order",
+            "transformation",
         }
     ),
     "fix.data.contract": frozenset(
@@ -56,14 +85,33 @@ WRITABLE = {
             "freshness_sla_minutes",
             "breaking_change_notice_days",
             "guarantees",
+            "producer_signatory_id",
+            "data_source_id",
         }
     ),
     "fix.metric.definition": frozenset(
         {"code", "name", "domain_area", "grain", "source_entity_id", "owner_role", "definition"}
     ),
-    "fix.metric.version": frozenset(),
-    "fix.metric.consumer": frozenset(),
-    "fix.data.quality.rule": frozenset({"name", "entity_id", "rule_type", "threshold", "active"}),
+    # A version is DRAFTED from a form (M62 capture audit 2026-11-18: with an
+    # empty list no version could be drafted in the workspace, so no metric
+    # could ever be published there). Its state, review and publication
+    # stamps and the impact list are never on it: they come from its actions.
+    "fix.metric.version": frozenset(
+        {"definition_id", "definition_text", "grain", "source_entity_id", "change_reason"}
+    ),
+    "fix.metric.consumer": frozenset({"definition_id", "consumer", "consumer_type", "note"}),
+    "fix.data.quality.rule": frozenset(
+        {
+            "name",
+            "entity_id",
+            "rule_type",
+            "threshold",
+            "active",
+            "check_field",
+            "freshness_window_hours",
+            "severity",
+        }
+    ),
     # The threshold is NOT form-editable: the evidence row records the rule's
     # threshold at run time (the model stamps it whatever the caller sends).
     "fix.data.quality.test": frozenset({"rule_id", "checked_at", "observed_value", "note"}),
@@ -78,6 +126,7 @@ WRITABLE = {
             "description",
             "resolution",
             "root_cause",
+            "classification",
         }
     ),
     "fix.data.retention.policy": frozenset(
@@ -89,10 +138,67 @@ WRITABLE = {
             "storage_cost_per_gb",
             "purge_rule",
             "active",
+            "statutory_floor_months",
+            "legal_hold",
         }
     ),
-    "fix.data.declassification.auth": frozenset(),
+    # The request itself; its approval and expiry are the engine's.
+    "fix.data.declassification.auth": frozenset(
+        {"entity_id", "from_classification", "to_classification", "reason", "expires_on"}
+    ),
     "fix.data.purge.evidence": frozenset(),
+    # M62 capture audit 2026-11-18: the registers each page lacked.
+    "fix.data.source": frozenset(
+        {
+            "code",
+            "name",
+            "source_type",
+            "owner_module",
+            "connection_ref",
+            "business_owner_id",
+            "steward_id",
+            "active_from",
+            "description",
+        }
+    ),
+    "fix.data.dimension": frozenset(
+        {
+            "name",
+            "entity_id",
+            "natural_key",
+            "surrogate_key_strategy",
+            "scd_type",
+            "tracked_attributes",
+            "attributes",
+            "source_master_module",
+            "fact_entity_ids",
+        }
+    ),
+    "fix.glossary.term": frozenset(
+        {
+            "term_en",
+            "term_bn",
+            "definition",
+            "definition_bn",
+            "owner_id",
+            "synonyms",
+            "metric_ids",
+            "entity_ids",
+        }
+    ),
+    # Layer by layer while open; completion is the officer's action.
+    "fix.data.erasure": frozenset(
+        {
+            "request_id",
+            "bronze_done",
+            "silver_done",
+            "gold_done",
+            "feature_store_done",
+            "extracts_done",
+            "evidence_ref",
+            "note",
+        }
+    ),
 }
 
 SURFACES = {
@@ -185,6 +291,31 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
         "writable": WRITABLE["fix.data.purge.evidence"],
+    },
+    # M62 capture audit 2026-11-18.
+    "fix.data.source": {
+        "order": "code",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+        "writable": WRITABLE["fix.data.source"],
+    },
+    "fix.data.dimension": {
+        "order": "name",
+        "limit": 300,
+        "actions": set(),
+        "writable": WRITABLE["fix.data.dimension"],
+    },
+    "fix.glossary.term": {
+        "order": "term_en",
+        "limit": 500,
+        "actions": set(),
+        "writable": WRITABLE["fix.glossary.term"],
+    },
+    "fix.data.erasure": {
+        "order": "requested_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_complete"},
+        "writable": WRITABLE["fix.data.erasure"],
     },
 }
 

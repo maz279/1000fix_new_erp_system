@@ -474,17 +474,16 @@ class TestMetricVersions:
         )
 
     def _version(self, env, user, definition, text="fixed first visit / all dispatched"):
-        return (
-            env["fix.metric.version"]
-            .with_user(user)
-            .create(
-                {
-                    "definition_id": definition.id,
-                    "version": len(definition.version_ids) + 1,
-                    "definition_text": text,
-                }
-            )
-        )
+        vals = {
+            "definition_id": definition.id,
+            "version": len(definition.version_ids) + 1,
+            "definition_text": text,
+        }
+        if definition.version_ids:
+            # FR-DAT-019 (M62 capture audit 2026-11-18): a later version
+            # records why the definition changes before it is routed.
+            vals["change_reason"] = "denominator corrected"
+        return env["fix.metric.version"].with_user(user).create(vals)
 
     def test_the_steward_reviews_before_the_request(self, env, officer, make_user):
         d = self._definition(env, officer)

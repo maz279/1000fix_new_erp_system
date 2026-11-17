@@ -3,7 +3,7 @@
     "name": "1000FiX Data Platform & Governance",
     "summary": "M62: Data Platform & Governance",
     "description": "CD-M62-01 (P11).",
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
@@ -16,6 +16,9 @@
         "cd_workflow_engine",
         "cd_service_order",
         "cd_warranty_claims",
+        # M62 capture audit 2026-11-18: an erasure request (M33) is propagated
+        # through the analytical layers (fix.data.erasure).
+        "cd_party_master",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

@@ -1071,7 +1071,22 @@ def test_m62_54_p03_surfaces_have_writable_whitelist(c, p03):
     assert not ({"last_success_at", "last_run_at"} & M.WRITABLE["fix.data.pipeline"])
     assert "threshold" not in M.WRITABLE["fix.data.quality.test"]
     assert not M.WRITABLE["fix.data.purge.evidence"], "evidence is append-only"
-    assert not M.WRITABLE["fix.metric.version"], "a version changes only through its actions"
+    # M62 capture audit 2026-11-18: a version is DRAFTED from a form (with an
+    # empty list no version could be drafted, so nothing could be published
+    # from the workspace); its state, review/publication stamps and impact
+    # list still change only through its actions.
+    assert not (
+        {
+            "state",
+            "version",
+            "steward_reviewed_by",
+            "steward_reviewed_at",
+            "published_by",
+            "published_at",
+            "impact_snapshot",
+        }
+        & M.WRITABLE["fix.metric.version"]
+    ), "a version's lifecycle changes only through its actions"
 
 
 def test_m62_55_reference_superuser_rule_check(c):

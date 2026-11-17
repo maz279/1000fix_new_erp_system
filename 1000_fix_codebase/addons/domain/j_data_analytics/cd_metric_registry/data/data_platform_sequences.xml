@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <record id="seq_fix_data_erasure" model="ir.sequence">
+            <field name="name">Analytical Erasure Propagation</field>
+            <field name="code">fix.data.erasure</field>
+            <field name="prefix">ERA/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_data_run" model="ir.sequence">
             <field name="name">Data Pipeline Run</field>
             <field name="code">fix.data.run</field>
