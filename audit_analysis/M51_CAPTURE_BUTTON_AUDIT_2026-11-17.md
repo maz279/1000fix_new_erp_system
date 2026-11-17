@@ -106,7 +106,7 @@ Found only by running: a refused `create` inside `pytest.raises` without a savep
 
 ## 5. State
 
-- Built and tested in worktree `m51cap-wt` (branch `fix/m51-capture-buttons`, from 94bf9e99). **Not committed, not deployed.**
-- The shared branch has since moved to 56e4457f (M54, M53, M52 landed). Only `controllers/a08/writable.py` overlaps; it is generated and is regenerated after the rebase.
-- fix_real is unchanged by this work. Deploying needs: a backup, `-u cd_tax_engine_bd,cd_billing_engine,cd_p03_portal` on fix_real, a version-gap check over the installed cd_ modules, and one 8069 restart, coordinated with the other sessions deploying today.
-- The NID threshold row (BDT 50,000) and the new models arrive with the upgrade; nothing else changes for the counter.
+- Landed on the working branch `fix/a03-live-data-and-pending-work`: fix c3820c11 and report 3d6f64f9, rebased onto c5feece6 (after M54, M53, M52 and the M49 gaps) and fast-forwarded by compare-and-swap. **Not pushed.**
+- After the rebase the clone was upgraded with every module changed since 94bf9e99 (exit 0, 0 errors) and the guards and regression re-run: **1,611 passed, 4 failed**: the same 4 A09 salary-TDS relay tests that fail on HEAD.
+- **Not deployed.** fix_real (8069) and fix_dev (8090) are unchanged by this work. Deploying needs a backup, `-u cd_tax_engine_bd,cd_billing_engine,cd_p03_portal`, a version-gap check over the installed cd_ modules, and one restart, coordinated with the other sessions deploying today.
+- The NID threshold row (BDT 50,000) and the new models arrive with that upgrade; nothing else changes for the counter.
