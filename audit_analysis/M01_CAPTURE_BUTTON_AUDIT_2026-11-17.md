@@ -97,10 +97,16 @@ Code: `cd_service_order/models/fix_sla_escalation.py`, module version 19.0.2.1.0
 
 ## 8. Deployment
 
-Not deployed. Deploying needs:
+**DEPLOYED 18 Nov 2026 (01:03 local), on user approval.**
 
-1. Commit.
-2. `-u cd_service_order,cd_p03_portal` on fix_real (and fix_dev).
-3. One restart of 8069/8090: new models and controller surfaces do not reach a running server without one.
+1. **Commit.** 821559bc on `fix/a03-live-data-and-pending-work`, landed as a fast-forward from a520b717 (M56) with a compare-and-swap ref update. The shared checkout was synced and is clean. Not pushed.
+   - The rebase merged a peer's identical 541→542 bump of the event registry count. Corrected to 543 (543 entries).
+2. **Backups.** `_migration/backups/fix_real_pre_m01_capture_2026-11-18.dump` (50.2 MB) and `fix_dev_pre_m01_capture_2026-11-18.dump` (45.7 MB).
+3. **Upgrade.** `-u cd_service_order,cd_p03_portal` on fix_real and fix_dev: exit 0, 0 errors. Both are now at cd_service_order 19.0.2.2.0, with both escalation models and 3 access rules.
+   - The version-gap check over every `cd_` module was clean on both databases before the restart.
+4. **Restart.**
+   - 8069 (fix_real): new server PID 82916, login 200, 155 modules loaded, 0 errors. The supervisor loop was caught by the process match and stopped too; the parent watchdog relaunched it at once (now PID 35296).
+   - 8090 (fix_dev): new server PID 3304 under the same supervisor (37700), login 200, 151 modules, 0 errors.
+5. **Live bundle.** Both servers serve bundle b22b767, which contains the five new forms, the Escalations Raised list, the page mappings to M09 and M37, and the escalation-rule list.
 
-Before restarting, coordinate with the live M55/M56/M57 sessions.
+fix_real holds 0 service orders and 0 escalation rules. The pages work, but the escalation matrix stays inactive until someone defines the rules (§7).
