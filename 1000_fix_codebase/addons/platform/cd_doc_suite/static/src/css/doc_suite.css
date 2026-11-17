@@ -15,6 +15,13 @@
     padding-bottom: 8px;
     margin-bottom: 6px;
 }
+/* The standard letterhead prints the company's postal address under the logo.
+   A full multi-line address is taller than the 58 mm top margin and overprints
+   the document title (seen on fix_real). The footer carries the address on
+   every page, and the commercial title band prints it beside the seller BIN. */
+.header [name="company_address"] {
+    display: none;
+}
 
 .cds-doc {
     /* Bengali families first for the ৳ symbol of the monetary widget (wkhtmltopdf
@@ -277,3 +284,11 @@ table.cds-foot .cds-totals { width: 100%; margin-left: 0; }
 .cds-policy { border-left-color: #B8860B; font-size: 7.5pt; }
 table.cds-sign3 td { width: 33%; }
 .cds-computer { text-align: center; font-size: 7pt; color: #888; margin-top: 8px; }
+
+/* seller identity in the title band (Mushak-6.3: supplier name, address, BIN) */
+.cds-title-band .cds-seller-name {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #242424;
+    margin-top: 3px;
+}

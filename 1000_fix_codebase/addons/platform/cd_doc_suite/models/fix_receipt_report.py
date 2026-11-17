@@ -83,6 +83,9 @@ class FixDocPrintReceipt(models.AbstractModel):
             mm += POLICY_MM
         if p.get("service_item"):
             mm += META_MM
+        address = (p.get("company") or {}).get("address") or ""
+        if address:  # the seller address line under the name: ~44 characters a row
+            mm += WRAP_MM * (1 + len(address) // 44)
         return int(round(mm))
 
     def _fix_receipt_page_height(self):

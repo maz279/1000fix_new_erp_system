@@ -123,8 +123,15 @@ class FixDocPrintMixin(models.AbstractModel):
         if not bin_no and Invoice is not None and hasattr(Invoice, "_company_bin"):
             bin_no = Invoice.sudo()._company_bin(company) or ""
         banks = company.partner_id.bank_ids if company.partner_id else []
+        # one line under the seller name (Mushak-6.3 states the supplier's address);
+        # the letterhead's multi-line address block is hidden in doc_suite.css
+        city_zip = " ".join(x for x in (company.city, company.zip) if x)
+        address = ", ".join(
+            x for x in (company.street, company.street2, city_zip, company.country_id.name) if x
+        )
         return {
             "name": company.name,
+            "address": address,
             "bin": bin_no,
             "banks": [
                 "%s — A/C %s%s"

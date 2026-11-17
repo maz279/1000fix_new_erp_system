@@ -57,6 +57,7 @@
     <template id="receipt_80_body">
         <div class="rcpt">
             <div class="rcpt-c rcpt-co" t-esc="p['company']['name']"/>
+            <div class="rcpt-c rcpt-small" t-if="p['company'].get('address')" t-esc="p['company']['address']"/>
             <div class="rcpt-c rcpt-small">ISO 9001:2015 Certified · Hotline 16743 · 1000fix.com</div>
             <div class="rcpt-c rcpt-small" t-if="p['company'].get('bin')">BIN: <b t-esc="p['company']['bin']"/></div>
             <div class="rcpt-rule2"/>

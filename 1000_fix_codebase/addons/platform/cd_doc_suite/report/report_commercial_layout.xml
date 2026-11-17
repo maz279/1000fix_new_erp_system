@@ -84,6 +84,8 @@
                 </td>
                 <td class="cds-title-right">
                     <div t-if="p.get('mushak')" class="cds-mushak-tag">MUSHAK - 6.3</div>
+                    <div class="cds-seller-name" t-esc="p['company'].get('name')"/>
+                    <div class="cds-title-sub" t-if="p['company'].get('address')" t-esc="p['company']['address']"/>
                     <div class="cds-title-sub" t-if="p['company'].get('bin')">Seller BIN: <b t-esc="p['company']['bin']"/></div>
                 </td>
             </tr></table>
