@@ -122,4 +122,18 @@ The A12 seed (`db/seeds/a12_finish_m67.py`) closes its walk project. It now reco
 
 ## 6. Deployment
 
-Not deployed yet. fix_real has no projects, so the new closure rules change nothing live. Deploying needs `-u cd_ppm,cd_p03_portal` on fix_real and one 8069 restart, because the controller serves new models.
+**18 Nov 2026, user: "Land and deploy".**
+
+- **Landed:** `af818981` and `97104e41` on `fix/a03-live-data-and-pending-work`, on top of `8ed0dc47`, by compare-and-swap. The shared checkout was synced. Not pushed to origin.
+- **Backup:** `fix_real_pre_m67_capture_2026-11-18.dump` (51.4 MB) in `_migration/backups`.
+- **Upgraded:** `-u cd_ppm,cd_p03_portal` on fix_real and on fix_dev, each exiting 0 with no errors. cd_ppm is 19.0.0.2.0 on both, and the five new tables exist. The version-gap check is empty on both databases.
+- **Restart:** one restart of 8069 (PID 85492 became 48332) and of 8090 (34372 became 71496). The only busy peer session, M63, confirmed it needed no hold. Both login pages answer 200, and the 8069 log has no errors.
+- **Live check on fix_real:**
+  - The rebuilt asset bundle (attachment 10331) carries the five new forms and the renamed page 6.
+  - A non-admin project manager and sponsor probe served 12 lists, 12 forms and 10 reports with 0 errors, including the two new KPIs.
+  - fix_real still has 0 projects: nothing live was closed or blocked by the new rules.
+- **Next steps for the business:**
+  - Record projects with their budget split by category.
+  - Register deliverables against milestones.
+  - Raise scope changes through the Governance page.
+  - Before closure, pass a lesson to Quality and, for internal initiatives, have a sponsor measure the benefit.
