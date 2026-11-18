@@ -90,6 +90,7 @@
                     <table class="supply">
                         <thead>
                             <tr>
+                                <th class="sl">ক্রমিক নং / SL</th>
                                 <th>সরবরাহকারীর চালানপত্র নং ও তারিখ / Supplier challan no. &amp; date</th>
                                 <th>সরবরাহের বিবরণ / Description of supply</th>
                                 <th>সরবরাহের মূল্য / Value of supply</th>
@@ -99,6 +100,7 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td class="sl">1</td>
                                 <td>
                                     <span class="mono supplier-challan" t-esc="sp['ref']"/>
                                     <span t-if="sp['date']" t-esc="sp['date'].strftime('%d/%m/%Y')"/>
@@ -188,6 +190,7 @@
                     <table class="payment">
                         <thead>
                             <tr>
+                                <th class="sl">ক্রমিক নং / SL</th>
                                 <th>পরিশোধের সূত্র / Payment reference</th>
                                 <th>পরিশোধিত মোট অর্থ / Gross amount paid</th>
                                 <th>কর্তনের হার / Rate</th>
@@ -196,6 +199,7 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td class="sl">1</td>
                                 <td class="mono payment-ref" t-esc="sp['ref']"/>
                                 <td class="numeric gross-amount" t-esc="fmt_bdt(doc.base_amount)"/>
                                 <td class="numeric tds-rate" t-esc="fmt_rate(doc.rate_percent)"/>

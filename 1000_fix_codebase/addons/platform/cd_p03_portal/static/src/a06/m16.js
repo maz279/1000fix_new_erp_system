@@ -130,7 +130,8 @@ export const SCREENS = {
         states: ['draft', 'sent', 'acknowledged', 'partially_received'] },
       { m: 'action_create_change_order', l: 'Raise Change Order' },
       { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
-      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
+      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' },
+      { m: 'action_fix_print', l: '🖨 Print Purchase Order (PDF)' }
     ] },
   'M16-pos-import': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
     domain: [['purchase_type', '=', 'import']],
@@ -144,7 +145,8 @@ export const SCREENS = {
       { m: 'action_create_import_order', l: 'Create Import Order (M44)', states: ['draft', 'sent', 'acknowledged', 'partially_received'] },
       { m: 'action_create_change_order', l: 'Raise Change Order' },
       { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
-      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
+      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' },
+      { m: 'action_fix_print', l: '🖨 Print Purchase Order (PDF)' }
     ] },
   /* A local supplier's proforma invoice and the advance paid against it
    * (12 Nov 2026): imports had both in M44, a local purchase had neither. */

@@ -265,6 +265,8 @@ class P03CommercialDocs(http.Controller):
             "fix.sales.proforma": "cd_doc_suite.report_sales_proforma",
             "fix.quotation": "cd_doc_suite.report_quotation",
             "fix.estimate": "cd_doc_suite.report_estimate",
+            "fix.purchase.order": "cd_doc_suite.report_po",
+            "fix.vendor.invoice": "cd_doc_suite.report_vendor_bill",
         }
         receipts = {
             "fix.ar.invoice": "cd_doc_suite.report_invoice_receipt",

@@ -100,7 +100,7 @@ export const SCREENS = {
   'M52-bills': { kind: 'model_list', model: 'fix.vendor.invoice',
     cols: ['vendor_id','invoice_ref','invoice_date','due_date','gross_amount','tds_amount','vds_amount','advance_applied','total_payable','tds_category_review','match_state','approval_state','payment_state'],
     stateField: 'approval_state',
-    actions: [{m:'action_submit_approval',l:'Submit for Approval'},{m:'action_confirm_tds_category',l:'Confirm Defaulted TDS Category'},{m:'action_request_payment',l:'Request Payment'}] },
+    actions: [{m:'action_submit_approval',l:'Submit for Approval'},{m:'action_confirm_tds_category',l:'Confirm Defaulted TDS Category'},{m:'action_request_payment',l:'Request Payment'},{m:'action_fix_print',l:'🖨 Print Vendor Bill (PDF)'}] },
   'M52-match': { kind: 'model_list', model: 'fix.vendor.invoice', create: false,
     cols: ['vendor_id','invoice_ref','invoice_date','total_payable','match_state','match_detail','open_match_case_id'],
     stateField: 'match_state', domain: [['match_state','in',['unmatched','blocked']]],

@@ -207,6 +207,7 @@ class TestMushak66Report:
         assert "fix-statutory-bn" in html  # the Bengali font path (TR-07)
         for text in (
             "মূসক-৬.৬ / Mushak-6.6",
+            "ক্রমিক নং / SL",  # the serial column of the NBR form
             "উৎসে কর কর্তন সনদপত্র",
             "Certificate of VAT Deduction at Source",
             "See rule 40(1), VAT",
@@ -288,6 +289,7 @@ class TestIncomeTaxWithholdingReport:
         assert "fix-statutory-bn" in html
         for text in (
             "উৎসে কর কর্তনের সনদপত্র",
+            "ক্রমিক নং / SL",
             "Certificate of Tax Deducted at Source",
             "আয়কর আইন ২০২৩, ধারা ৫২ / Income Tax Act 2023, Section 52",
             cert.certificate_no,

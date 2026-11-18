@@ -71,6 +71,38 @@
         <t t-elif="k == 'For 1000FiX Services Ltd. — Authorised Signature'">For 1000FiX Services Ltd. — Authorised Signature</t>
         <t t-elif="k == 'Customer Approval — signature &amp; date'">Customer Approval — signature &amp; date</t>
         <t t-elif="k == 'For 1000FiX Services Ltd. — Service Manager'">For 1000FiX Services Ltd. — Service Manager</t>
+        <t t-elif="k == 'Bill To'">Bill To</t>
+        <t t-elif="k == 'Seller BIN'">Seller BIN</t>
+        <t t-elif="k == 'Buyer BIN / e-TIN'">Buyer BIN / e-TIN</t>
+        <t t-elif="k == 'Buyer BIN'">Buyer BIN</t>
+        <t t-elif="k == 'Supplier'">Supplier</t>
+        <t t-elif="k == 'Supplier BIN'">Supplier BIN</t>
+        <t t-elif="k == 'PURCHASE ORDER'">PURCHASE ORDER</t>
+        <t t-elif="k == 'VENDOR BILL'">VENDOR BILL</t>
+        <t t-elif="k == 'PO No.'">PO No.</t>
+        <t t-elif="k == 'PO'">PO</t>
+        <t t-elif="k == 'Order Date'">Order Date</t>
+        <t t-elif="k == 'Expected Delivery'">Expected Delivery</t>
+        <t t-elif="k == 'Deliver To'">Deliver To</t>
+        <t t-elif="k == 'Requisition'">Requisition</t>
+        <t t-elif="k == 'Buyer'">Buyer</t>
+        <t t-elif="k == 'Bill No.'">Bill No.</t>
+        <t t-elif="k == 'Bill Date'">Bill Date</t>
+        <t t-elif="k == 'Supplier Mushak 6.3 No.'">Supplier Mushak 6.3 No.</t>
+        <t t-elif="k == '3-Way Match'">3-Way Match</t>
+        <t t-elif="k == 'Order Total (excl. VAT)'">Order Total (excl. VAT)</t>
+        <t t-elif="k == 'Subtotal (excl. VAT)'">Subtotal (excl. VAT)</t>
+        <t t-elif="k == 'Input VAT (Mushak-6.3)'">Input VAT (Mushak-6.3)</t>
+        <t t-elif="k == 'Gross Amount (incl. VAT)'">Gross Amount (incl. VAT)</t>
+        <t t-elif="k == 'Less: VDS withheld'">Less: VDS withheld</t>
+        <t t-elif="k == 'Less: TDS withheld'">Less: TDS withheld</t>
+        <t t-elif="k == 'Less: Advance adjusted'">Less: Advance adjusted</t>
+        <t t-elif="k == 'Prepared by (Procurement)'">Prepared by (Procurement)</t>
+        <t t-elif="k == 'Approved by — Authorised Signature'">Approved by — Authorised Signature</t>
+        <t t-elif="k == 'Supplier Acceptance — signature, seal &amp; date'">Supplier Acceptance — signature, seal &amp; date</t>
+        <t t-elif="k == 'Submitted by (AP Clerk)'">Submitted by (AP Clerk)</t>
+        <t t-elif="k == 'Checked by'">Checked by</t>
+        <t t-elif="k == 'Approved by (Finance)'">Approved by (Finance)</t>
         <t t-else="" t-esc="k"/>
     </template>
 
@@ -86,14 +118,14 @@
                     <div t-if="p.get('mushak')" class="cds-mushak-tag">MUSHAK - 6.3</div>
                     <div class="cds-seller-name" t-esc="p['company'].get('name')"/>
                     <div class="cds-title-sub" t-if="p['company'].get('address')" t-esc="p['company']['address']"/>
-                    <div class="cds-title-sub" t-if="p['company'].get('bin')">Seller BIN: <b t-esc="p['company']['bin']"/></div>
+                    <div class="cds-title-sub" t-if="p['company'].get('bin')"><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="p.get('company_bin_label') or 'Seller BIN'"/></t>: <b t-esc="p['company']['bin']"/></div>
                 </td>
             </tr></table>
         </div>
         <table class="cds-parties">
             <tr>
                 <td>
-                    <div class="cds-party-label">Bill To <span t-if="p['bill_to'].get('category')" class="cds-cat" t-esc="p['bill_to']['category']"/></div>
+                    <div class="cds-party-label"><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="p.get('party_label') or 'Bill To'"/></t> <span t-if="p['bill_to'].get('category')" class="cds-cat" t-esc="p['bill_to']['category']"/></div>
                     <div class="cds-party-name"><t t-esc="p['bill_to']['name']"/><span t-if="p['bill_to'].get('code')" class="cds-code"> [<t t-esc="p['bill_to']['code']"/>]</span></div>
                     <div t-if="p['bill_to'].get('address')" t-esc="p['bill_to']['address']"/>
                     <div t-if="p['bill_to'].get('phone') or p['bill_to'].get('email')">
@@ -101,7 +133,7 @@
                         <t t-if="p['bill_to'].get('phone') and p['bill_to'].get('email')"> · </t>
                         <t t-if="p['bill_to'].get('email')"><t t-esc="p['bill_to']['email']"/></t>
                     </div>
-                    <div t-if="p['bill_to'].get('bin')">Buyer BIN / e-TIN: <b t-esc="p['bill_to']['bin']"/></div>
+                    <div t-if="p['bill_to'].get('bin')"><t t-call="cd_doc_suite.commercial_label"><t t-set="k" t-value="p.get('party_bin_label') or 'Buyer BIN / e-TIN'"/></t>: <b t-esc="p['bill_to']['bin']"/></div>
                 </td>
                 <td>
                     <table class="cds-meta">
@@ -192,8 +224,8 @@
     <template id="commercial_notes">
         <div class="cds-notes" t-if="p.get('notes') or p['company'].get('banks')">
             <div t-foreach="p.get('notes') or []" t-as="note" t-esc="note"/>
-            <div t-if="p['company'].get('banks')"><b>Bank accounts:</b> <t t-esc="'; '.join(p['company']['banks'])"/>.</div>
-            <div>Payable to <b t-esc="p['company']['name']"/> · Hotline 16743 · info@1000fix.com · https://1000fix.com</div>
+            <div t-if="p['company'].get('banks') and not p.get('no_payable_line')"><b>Bank accounts:</b> <t t-esc="'; '.join(p['company']['banks'])"/>.</div>
+            <div t-if="not p.get('no_payable_line')">Payable to <b t-esc="p['company']['name']"/> · Hotline 16743 · info@1000fix.com · https://1000fix.com</div>
         </div>
         <div class="cds-notes cds-policy" t-if="p.get('policy')" t-esc="p['policy']"/>
     </template>

@@ -33,6 +33,11 @@
     text-align: right;
 }
 
+.fix-statutory-bn .sl {
+    width: 7%;
+    text-align: center; /* ক্রমিক নং: the serial column of the NBR forms */
+}
+
 .fix-statutory-bn .deposit {
     font-weight: bold; /* DT-013 L-13-b: as prominent as the deducted amount */
 }

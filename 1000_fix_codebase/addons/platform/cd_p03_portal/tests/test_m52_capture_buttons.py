@@ -376,12 +376,32 @@ def test_every_screen_on_a_page_has_a_navigation_label(m52):
     assert not unlabelled, unlabelled
 
 
+def _printed_models():
+    """The documents cd_doc_suite prints (PRINT_REPORTS): they inherit
+    fix.doc.print.mixin, which serves action_fix_print / _receipt."""
+    path = HERE.parents[1] / "cd_doc_suite" / "models" / "fix_doc_print.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and getattr(node.targets[0], "id", "") == "PRINT_REPORTS"
+            and isinstance(node.value, ast.Dict)
+        ):
+            return {k.value for k in node.value.keys}
+    return set()
+
+
+PRINT_ACTIONS = {"action_fix_print", "action_fix_print_receipt"}
+
+
 def test_every_served_action_exists_on_its_model():
     classes = _model_classes()
+    printed = _printed_models()
+    assert "fix.vendor.invoice" in printed
     for model, acts in _surfaces().items():
         if model not in classes:
             continue  # served models defined outside cd_ap_ext (take-on, cd_gl_ext)
-        missing = acts - classes[model][1]
+        missing = acts - classes[model][1] - (PRINT_ACTIONS if model in printed else set())
         assert not missing, "%s serves %s, which the model lacks" % (model, sorted(missing))
 
 

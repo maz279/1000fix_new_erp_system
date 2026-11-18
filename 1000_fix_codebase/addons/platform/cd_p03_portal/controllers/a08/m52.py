@@ -39,6 +39,8 @@ SURFACES = {
             "action_reset_draft",
             "action_confirm_tds_category",
             "action_open_match_case",
+            # the commercial document standard PDF (18 Nov 2026)
+            "action_fix_print",
         },
     },
     "fix.expense.claim": {

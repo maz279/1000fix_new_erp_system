@@ -78,6 +78,7 @@
                     <table class="mushak-lines">
                         <thead>
                             <tr>
+                                <th class="sl">ক্রমিক নং / SL</th>
                                 <th>বিবরণ / Description</th>
                                 <th>করযোগ্য মূল্য / Taxable Value</th>
                                 <th>ভ্যাট / VAT</th>
@@ -86,6 +87,7 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td class="sl">1</td>
                                 <td t-esc="doc.invoice_ref"/>
                                 <!-- Odoo 19 QWeb refuses a field widget ON a <td>
                                      (the invoice failed to render): the widget sits in a span -->

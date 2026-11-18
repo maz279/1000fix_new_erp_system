@@ -45,6 +45,8 @@ SURFACES = {
             "action_start_receipt",
             # an import purchase order raises its M44 import order
             "action_create_import_order",
+            # the commercial document standard PDF (18 Nov 2026)
+            "action_fix_print",
         },
     },
     "fix.purchase.order.line": {"order": "order_id, id", "limit": 400, "actions": set()},

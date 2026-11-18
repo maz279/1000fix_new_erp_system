@@ -523,8 +523,245 @@ class FixEstimatePrint(models.Model):
         return totals
 
 
-# The PDFs of each document: (A4, 80 mm receipt).
+def _plain_rows(lines, qty_field, sub_of=None):
+    """Purchase-side lines in the shared shape. The supplier's lines carry no
+    discount, unit or per-line VAT of their own: the code and unit come from
+    the product, the discount prints as '—'."""
+    rows = []
+    for sl, line in enumerate(lines, start=1):
+        product = line.product_id
+        qty = line[qty_field] or 0.0
+        rows.append(
+            {
+                "sl": sl,
+                "code": product.default_code or "",
+                "type": sub_of(line) if sub_of else "",
+                "description": line.description or product.name or "",
+                "serial": "",
+                "qty": fmt_qty(qty),
+                "uom": product.uom_id.name if product and product.uom_id else "",
+                "price": fmt_money(line.unit_price),
+                "disc": "",
+                "disc_pct": "",
+                "gross": fmt_money(line.line_total),
+                "amount": fmt_money(line.line_total),
+                "vat_rate": "",
+                "vat": "",
+                "total": fmt_money(line.line_total),
+            }
+        )
+    return rows
+
+
+def _vendor_block(partner):
+    """The supplier, printed where a customer document prints Bill To."""
+    if not partner:
+        return {"name": "", "code": "", "address": "", "phone": "", "email": "", "bin": ""}
+    address = ", ".join(
+        x
+        for x in (
+            partner.street,
+            partner.street2,
+            " ".join(y for y in (partner.city, partner.zip) if y),
+            partner.country_id.name if partner.country_id else "",
+        )
+        if x
+    )
+    return {
+        "name": partner.name or "",
+        "code": getattr(partner, "legacy_reference", "") or partner.ref or "",
+        "address": address,
+        "phone": partner.phone or "",
+        "email": partner.email or "",
+        "bin": partner.vat or "",
+        "category": "",
+    }
+
+
+PO_STATES = {
+    "draft": "DRAFT",
+    "sent": "SENT",
+    "acknowledged": "ACKNOWLEDGED",
+    "partially_received": "PARTIALLY RECEIVED",
+    "received": "RECEIVED",
+    "closed": "CLOSED",
+    "cancelled": "CANCELLED",
+    "superseded": "SUPERSEDED",
+}
+BILL_STATES = {
+    "draft": "DRAFT",
+    "to_approve": "TO APPROVE",
+    "approved": "APPROVED",
+    "rejected": "REJECTED",
+}
+
+
+class FixPurchaseOrderPrint(models.Model):
+    _name = "fix.purchase.order"
+    _inherit = ["fix.purchase.order", "fix.doc.print.mixin"]
+
+    def _fix_print_payload(self):
+        self.ensure_one()
+        lines = self.line_ids.sorted("id")
+
+        def received(line):
+            if line.qty_received or line.qty_accepted:
+                return "Received %s / %s" % (fmt_qty(line.qty_received), fmt_qty(line.qty_ordered))
+            return ""
+
+        number = self.name or "(draft)"
+        if (self.revision or 0) > 1:
+            number += " · Rev %s" % self.revision
+        meta = [("PO No.", number), ("Order Date", fmt_date(self.date_order))]
+        if self.promised_date:
+            meta.append(("Expected Delivery", fmt_date(self.promised_date)))
+        if self.branch_id:
+            meta.append(("Deliver To", self.branch_id.name))
+        if self.requisition_id:
+            meta.append(("Requisition", self.requisition_id.display_name))
+        if self.buyer_id:
+            meta.append(("Buyer", self.buyer_id.name))
+        if "is_capex" in self._fields and self.is_capex:
+            meta.append(("Type", "CAPEX"))
+        total_qty = sum(lines.mapped("qty_ordered"))
+        totals = [
+            ("Total Items / Qty", "%s / %s" % (len(lines), fmt_qty(total_qty)), ""),
+            ("Order Total (excl. VAT)", fmt_money(self.amount_total), "grand"),
+        ]
+        notes = [
+            "Prices exclude VAT. The supplier's Mushak-6.3 tax invoice states VAT separately; "
+            "input VAT and VDS are settled on the vendor bill.",
+            "Delivery to the branch above by the expected date; partial deliveries must be "
+            "pre-agreed.",
+            "Goods supplied against manufacturer/part warranty; warranty defects are returnable "
+            "at supplier cost.",
+            "Invoices must quote this PO number and the supplier BIN / Mushak-6.3 reference; "
+            "payment is processed per agreed credit terms after 3-way match.",
+        ]
+        if self.vendor_confirmed_date:
+            notes.append("Vendor confirmed: %s." % fmt_date(self.vendor_confirmed_date))
+        return {
+            "title": "PURCHASE ORDER",
+            "mushak": False,
+            "chip": PO_STATES.get(self.state, (self.state or "").upper()),
+            "watermark": "DRAFT" if self.state == "draft" else "",
+            "company": self._fix_doc_company_block(),
+            "company_bin_label": "Buyer BIN",
+            "party_label": "Supplier",
+            "party_bin_label": "Supplier BIN",
+            "bill_to": _vendor_block(self.vendor_id),
+            "meta": meta,
+            "service_item": "",
+            "delivery_address": "",
+            "vehicle": "",
+            "lines": _plain_rows(lines, "qty_ordered", received),
+            "vat_columns": False,
+            "totals": totals,
+            "words": _safe_words(self.amount_total),
+            "notes": notes,
+            "no_payable_line": True,
+            "policy": "",
+            "sign": [
+                "Prepared by (Procurement)",
+                "Approved by — Authorised Signature",
+                "Supplier Acceptance — signature, seal & date",
+            ],
+        }
+
+
+class FixVendorInvoicePrint(models.Model):
+    _name = "fix.vendor.invoice"
+    _inherit = ["fix.vendor.invoice", "fix.doc.print.mixin"]
+
+    def _fix_print_payload(self):
+        self.ensure_one()
+        lines = self.line_ids.sorted("id")
+        cur = self.currency_id
+
+        def tds(line):
+            if not line.tds_amount:
+                return ""
+            multiplier = line.tds_multiplier or 1.0
+            return "TDS %s @ %g%%%s: %s" % (
+                line.tds_section or "",
+                line.tds_rate or 0.0,
+                (" × %g (non-filer)" % multiplier) if multiplier != 1.0 else "",
+                fmt_money(line.tds_amount),
+            )
+
+        bill_types = {"po": "PO-based", "non_po": "Non-PO"}
+        matches = {
+            "unmatched": "Unmatched",
+            "matched": "Matched",
+            "blocked": "Blocked",
+            "not_required": "Not Required",
+        }
+        meta = [
+            ("Bill No.", self.invoice_ref or "(draft)"),
+            ("Bill Date", fmt_date(self.invoice_date)),
+        ]
+        if self.due_date:
+            meta.append(("Due Date", fmt_date(self.due_date)))
+        if self.supplier_mushak_no:
+            meta.append(("Supplier Mushak 6.3 No.", self.supplier_mushak_no))
+        meta.append(("Type", bill_types.get(self.bill_type, self.bill_type or "")))
+        if self.requisition_id:
+            meta.append(("PO", self.requisition_id.display_name))
+        meta.append(("3-Way Match", matches.get(self.match_state, self.match_state or "")))
+        if self.payment_term_days:
+            meta.append(("Payment Terms", "%s days" % self.payment_term_days))
+        totals = [
+            (
+                "Total Items / Qty",
+                "%s / %s" % (len(lines), fmt_qty(sum(lines.mapped("quantity")))),
+                "",
+            ),
+            ("Subtotal (excl. VAT)", fmt_money(self.subtotal), ""),
+            ("Input VAT (Mushak-6.3)", fmt_money(self.vat_amount), ""),
+            ("Gross Amount (incl. VAT)", fmt_money(self.gross_amount), ""),
+        ]
+        if self.vds_amount:
+            totals.append(("Less: VDS withheld", "- " + fmt_money(self.vds_amount), ""))
+        if self.tds_amount:
+            totals.append(("Less: TDS withheld", "- " + fmt_money(self.tds_amount), ""))
+        if self.advance_applied:
+            totals.append(("Less: Advance adjusted", "- " + fmt_money(self.advance_applied), ""))
+        totals.append(
+            ("Net Payable (%s)" % (cur.name or "BDT"), fmt_money(self.total_payable), "grand")
+        )
+        return {
+            "title": "VENDOR BILL",
+            "mushak": False,
+            "chip": BILL_STATES.get(self.approval_state, (self.approval_state or "").upper()),
+            "watermark": "",
+            "company": self._fix_doc_company_block(),
+            "company_bin_label": "Buyer BIN",
+            "party_label": "Supplier",
+            "party_bin_label": "Supplier BIN",
+            "bill_to": _vendor_block(self.vendor_id),
+            "meta": meta,
+            "service_item": "",
+            "delivery_address": "",
+            "vehicle": "",
+            "lines": _plain_rows(lines, "quantity", tds),
+            "vat_columns": False,
+            "totals": totals,
+            "words": _safe_words(self.total_payable),
+            "notes": [
+                "Payment is scheduled per the agreed credit terms after three-way match and "
+                "approval. VAT is deducted at source (VDS, Mushak-6.6) and TDS is withheld per "
+                "the Income Tax Act 2023; the withholding certificates are issued to the supplier.",
+            ],
+            "no_payable_line": True,
+            "policy": "",
+            "sign": ["Submitted by (AP Clerk)", "Checked by", "Approved by (Finance)"],
+        }
+
+
+# The PDFs of each document: (A4, 80 mm receipt or None).
 PRINT_REPORTS = {
+    "fix.purchase.order": ("cd_doc_suite.report_po", None),
+    "fix.vendor.invoice": ("cd_doc_suite.report_vendor_bill", None),
     "fix.ar.invoice": ("cd_doc_suite.report_invoice", "cd_doc_suite.report_invoice_receipt"),
     "fix.sales.proforma": (
         "cd_doc_suite.report_sales_proforma",
@@ -545,9 +782,10 @@ class FixDocPrintActions(models.AbstractModel):
         self.ensure_one()
         self.check_access("read")
         names = PRINT_REPORTS.get(self._name)
-        if not names:
+        name = names and names[1 if receipt else 0]
+        if not name:
             return {}
-        return {"print_url": "/report/pdf/%s/%s" % (names[1 if receipt else 0], self.id)}
+        return {"print_url": "/report/pdf/%s/%s" % (name, self.id)}
 
     def action_fix_print(self):
         return self._fix_print_url()

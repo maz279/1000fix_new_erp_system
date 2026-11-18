@@ -6,9 +6,10 @@
   - RFQ               fix.procurement.rfq  (cd_requisition)
   - Vendor Bill       fix.vendor.invoice   (cd_ap_ext — 3-way-match AP document)
 
-  These replace the stock-Odoo look of the legacy outputs (samples
-  "Purchase Order - P10153.pdf" / "vendor BILL_2026_11_0120.pdf") with the
-  1000FiX letterhead, BIN block, terms and dual signature blocks.
+  The purchase order and vendor bill print the commercial document standard
+  (report_commercial_layout.xml, 18 Nov 2026): SL / item code / description /
+  qty / unit / unit price / discount / amount lines, the totals box and the
+  amount in words, from the payload in models/fix_doc_print.py.
 -->
 <odoo>
 
@@ -29,95 +30,9 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
                 <t t-call="web.external_layout">
-                    <div class="page cds-doc">
-
-                        <div class="cds-title-band">
-                            <h1>PURCHASE ORDER <span class="cds-chip" t-esc="{'draft':'DRAFT','sent':'SENT','acknowledged':'ACKNOWLEDGED','partially_received':'PARTIALLY RECEIVED','received':'RECEIVED','closed':'CLOSED','cancelled':'CANCELLED','superseded':'SUPERSEDED'}.get(doc.state, doc.state)"/></h1>
-                            <div class="cds-title-sub">
-                                PO No. <b t-esc="doc.name"/>
-                                <t t-if="doc.revision and doc.revision > 1"> · Rev <b t-esc="doc.revision"/></t>
-                                · Order Date <b t-field="doc.date_order" t-options='{"widget": "date"}'/>
-                                <t t-if="doc.promised_date"> · Expected <b t-field="doc.promised_date"/></t>
-                            </div>
-                        </div>
-
-                        <table class="cds-parties">
-                            <tr>
-                                <td>
-                                    <div class="cds-party-label">Vendor</div>
-                                    <div class="cds-party-name" t-esc="doc.vendor_id.name or ''"/>
-                                    <div t-field="doc.vendor_id"
-                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email", "vat"], "no_marker": true}'/>
-                                </td>
-                                <td>
-                                    <div class="cds-party-label">Order Details</div>
-                                    <table class="cds-meta">
-                                        <tr t-if="doc.buyer_id"><td class="cds-meta-label">Buyer</td><td t-esc="doc.buyer_id.name"/></tr>
-                                        <tr t-if="doc.branch_id"><td class="cds-meta-label">Deliver To</td><td t-esc="doc.branch_id.name"/></tr>
-                                        <tr t-if="doc.requisition_id"><td class="cds-meta-label">Requisition</td><td t-esc="doc.requisition_id.display_name"/></tr>
-                                        <tr t-if="doc.is_capex"><td class="cds-meta-label">Type</td><td>CAPEX</td></tr>
-                                        <tr><td class="cds-meta-label">Supplier BIN</td><td t-esc="doc.vendor_id.vat or '—'"/></tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <table class="cds-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 6%;">SL</th>
-                                    <th>Description</th>
-                                    <th class="cds-num" style="width: 10%;">Qty</th>
-                                    <th class="cds-num" style="width: 16%;">Unit Price</th>
-                                    <th class="cds-num" style="width: 18%;">Line Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="doc.line_ids" t-as="line">
-                                    <td class="cds-ctr" t-esc="line_index + 1"/>
-                                    <td>
-                                        <t t-esc="line.description or (line.product_id.name or '')"/>
-                                        <t t-if="line.qty_received or line.qty_accepted"><div style="font-size:8pt;color:#555;">Received: <t t-esc="str(line.qty_received or 0) + ' / ' + str(line.qty_ordered or 0)"/></div></t>
-                                    </td>
-                                    <td class="cds-num" t-esc="str(line.qty_ordered or 0)"/>
-                                    <td class="cds-num"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                    <td class="cds-num"><span t-field="line.line_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                </tr>
-                                <tr t-if="not doc.line_ids">
-                                    <td colspan="5" style="text-align:center;color:#777;">No order lines recorded.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <table class="cds-totals">
-                            <tr class="cds-grand"><td class="cds-tot-label">Order Total</td><td class="cds-tot-value"><span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                        </table>
-
-                        <div class="cds-words" t-if="doc.amount_in_words_en">
-                            <span class="cds-words-label">In Words:</span>
-                            <span t-esc="doc.amount_in_words_en"/>
-                        </div>
-
-                        <div class="cds-notes">
-                            <b>Terms &amp; Conditions</b>
-                            <ul style="margin: 4px 0 0 16px; padding: 0;">
-                                <li>Delivery to the branch above by the expected date; partial deliveries must be pre-agreed.</li>
-                                <li>Goods supplied against manufacturer/part warranty; warranty defects are returnable at supplier cost.</li>
-                                <li>Invoices must quote this PO number and the supplier BIN / Mushak 6.3 reference; payment is processed per agreed credit terms after 3-way match.</li>
-                                <li t-if="doc.vendor_confirmed_date">Vendor confirmed: <b t-field="doc.vendor_confirmed_date"/>.</li>
-                            </ul>
-                        </div>
-
-                        <table class="cds-sign">
-                            <tr>
-                                <td class="cds-sign-pad">Prepared by<br/>Buyer / Procurement</td>
-                                <td class="cds-sign-pad">Approved by<br/>Authorized Signature, 1000FiX Services Ltd.</td>
-                            </tr>
-                            <tr>
-                                <td class="cds-sign-pad" colspan="2">Vendor Acceptance<br/>Signature, Seal &amp; Date</td>
-                            </tr>
-                        </table>
-
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
                     </div>
                 </t>
             </t>
@@ -205,92 +120,9 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
                 <t t-call="web.external_layout">
-                    <div class="page cds-doc">
-
-                        <div class="cds-title-band">
-                            <h1>VENDOR BILL <span class="cds-chip" t-esc="{'draft':'DRAFT','to_approve':'TO APPROVE','approved':'APPROVED','rejected':'REJECTED'}.get(doc.approval_state, doc.approval_state)"/></h1>
-                            <div class="cds-title-sub">
-                                Bill No. <b t-esc="doc.invoice_ref"/> ·
-                                Bill Date <b t-field="doc.invoice_date"/>
-                                <t t-if="doc.due_date"> · Due <b t-field="doc.due_date"/></t>
-                                <t t-if="doc.supplier_mushak_no"> · Supplier Mushak <b t-esc="doc.supplier_mushak_no"/></t>
-                            </div>
-                        </div>
-
-                        <table class="cds-parties">
-                            <tr>
-                                <td>
-                                    <div class="cds-party-label">Vendor</div>
-                                    <div class="cds-party-name" t-esc="doc.vendor_id.name or ''"/>
-                                    <div t-field="doc.vendor_id"
-                                         t-options='{"widget": "contact", "fields": ["address", "phone", "email", "vat"], "no_marker": true}'/>
-                                </td>
-                                <td>
-                                    <div class="cds-party-label">Processing</div>
-                                    <table class="cds-meta">
-                                        <tr><td class="cds-meta-label">Type</td><td t-esc="{'po':'PO-based','non_po':'Non-PO'}.get(doc.bill_type, doc.bill_type or '')"/></tr>
-                                        <tr t-if="doc.requisition_id"><td class="cds-meta-label">PO</td><td t-esc="doc.requisition_id.display_name"/></tr>
-                                        <tr><td class="cds-meta-label">3-Way Match</td><td t-esc="{'unmatched':'Unmatched','matched':'Matched','blocked':'Blocked','not_required':'Not Required'}.get(doc.match_state, doc.match_state or '')"/></tr>
-                                        <tr><td class="cds-meta-label">Payment</td><td><t t-esc="{'not_paid':'Not Paid','in_run':'In Payment Run','paid':'Paid'}.get(doc.payment_state, doc.payment_state or '')"/> <t t-if="doc.payment_term_days">· <t t-esc="doc.payment_term_days"/> days</t></td></tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <table class="cds-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 6%;">SL</th>
-                                    <th>Description</th>
-                                    <th class="cds-num" style="width: 9%;">Qty</th>
-                                    <th class="cds-num" style="width: 16%;">Unit Price</th>
-                                    <th class="cds-num" style="width: 18%;">Line Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="doc.line_ids" t-as="line">
-                                    <td class="cds-ctr" t-esc="line_index + 1"/>
-                                    <td>
-                                        <t t-esc="line.description or (line.product_id.name or '')"/>
-                                        <t t-if="line.tds_amount"><div style="font-size:8pt;color:#555;">TDS <t t-esc="line.tds_section or ''"/> @ <t t-esc="str(line.tds_rate or 0) + '%'"/>: <span t-field="line.tds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></div></t>
-                                    </td>
-                                    <td class="cds-num" t-esc="str(line.quantity or 0)"/>
-                                    <td class="cds-num"><span t-field="line.unit_price" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                    <td class="cds-num"><span t-field="line.line_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
-                                </tr>
-                                <tr t-if="not doc.line_ids">
-                                    <td colspan="5" style="text-align:center;color:#777;">No bill lines recorded.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <table class="cds-totals">
-                            <tr><td class="cds-tot-label">Subtotal</td><td class="cds-tot-value"><span t-field="doc.subtotal" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.vat_amount"><td class="cds-tot-label">Input VAT</td><td class="cds-tot-value"><span t-field="doc.vat_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.vds_amount"><td class="cds-tot-label">VDS</td><td class="cds-tot-value"><span t-field="doc.vds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr t-if="doc.tds_amount"><td class="cds-tot-label">TDS withheld</td><td class="cds-tot-value">- <span t-field="doc.tds_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                            <tr class="cds-grand"><td class="cds-tot-label">Net Payable</td><td class="cds-tot-value"><span t-field="doc.total_payable" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td></tr>
-                        </table>
-
-                        <div class="cds-words" t-if="doc.amount_in_words_en">
-                            <span class="cds-words-label">In Words:</span>
-                            <span t-esc="doc.amount_in_words_en"/>
-                        </div>
-
-                        <div class="cds-notes">
-                            <b>Accounts Payable.</b>
-                            Payment is scheduled per the agreed credit terms after three-way match and approval.
-                            TDS is withheld at source per the Income Tax Act 2023 and a withholding certificate
-                            (Mushak 6.6 / s.52) will be issued. Hotline 16743 · info@1000fix.com
-                        </div>
-
-                        <table class="cds-sign">
-                            <tr>
-                                <td class="cds-sign-pad">Submitted by<br/>AP Clerk</td>
-                                <td class="cds-sign-pad">Approved by<br/>Finance, 1000FiX Services Ltd.</td>
-                            </tr>
-                        </table>
-
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="doc._fix_print_payload()"/>
+                        <t t-call="cd_doc_suite.commercial_body"/>
                     </div>
                 </t>
             </t>

@@ -314,6 +314,75 @@ class TestDocSuiteRendering(TransactionCase):
     def test_10_vendor_bill_pdf(self):
         self._render("cd_doc_suite.action_report_vendor_bill", self._vendor_bill())
 
+    # ---- the commercial document standard on the purchase side (18 Nov 2026) ----
+
+    def _html(self, report, record):
+        html, _kind = self.env["ir.actions.report"]._render_qweb_html(report, record.ids)
+        return html.decode("utf-8")
+
+    def test_10a_po_prints_the_commercial_standard(self):
+        self.product.default_code = "DS-PART-01"
+        self.vendor.vat = "0099887766554"
+        po = self._po()
+        p = po._fix_print_payload()
+        row = p["lines"][0]
+        self.assertEqual(row["sl"], 1)
+        self.assertEqual(row["code"], "DS-PART-01")
+        self.assertEqual(row["qty"], "2")
+        self.assertEqual(row["uom"], self.product.uom_id.name)
+        self.assertEqual(row["amount"], "27,000.00")
+        self.assertEqual(p["party_label"], "Supplier")
+        self.assertEqual(p["totals"][-1][:3], ("Order Total (excl. VAT)", "27,000.00", "grand"))
+        self.assertEqual(p["words"], "Taka Twenty-Seven Thousand Only")
+        html = self._html("cd_doc_suite.report_po", po)
+        for text in (
+            "SL",
+            "Item Code",
+            "DS-PART-01",
+            "Unit Price",
+            "Discount",
+            "In Words",
+            "Supplier BIN",
+            "0099887766554",
+            "Buyer BIN",
+            "PURCHASE ORDER",
+        ):
+            self.assertIn(text, html)
+        # we are the payer: no "Payable to 1000FiX" line on a purchase document
+        self.assertNotIn("Payable to", html)
+        self.assertEqual(
+            po.action_fix_print(), {"print_url": "/report/pdf/cd_doc_suite.report_po/%s" % po.id}
+        )
+        self.assertEqual(po.action_fix_print_receipt(), {})
+
+    def test_10b_vendor_bill_prints_the_commercial_standard(self):
+        self.product.default_code = "DS-PART-01"
+        bill = self._vendor_bill()
+        p = bill._fix_print_payload()
+        row = p["lines"][0]
+        self.assertEqual((row["sl"], row["code"], row["qty"]), (1, "DS-PART-01", "1"))
+        labels = [t[0] for t in p["totals"]]
+        self.assertIn("Input VAT (Mushak-6.3)", labels)
+        self.assertTrue(labels[-1].startswith("Net Payable"))
+        self.assertEqual(p["totals"][-1][1], f"{bill.total_payable:,.2f}")
+        self.assertTrue(p["words"])
+        html = self._html("cd_doc_suite.report_vendor_bill", bill)
+        for text in (
+            "SL",
+            "Item Code",
+            "DS-PART-01",
+            "VENDOR BILL",
+            "VI-TEST-0001",
+            "Supplier Mushak 6.3 No.",
+            "In Words",
+        ):
+            self.assertIn(text, html)
+        self.assertNotIn("Payable to", html)
+
+    def test_10c_mushak63_has_a_serial_column(self):
+        html = self._html("cd_tax_engine_bd.action_report_fix_mushak", self._mushak())
+        self.assertIn("ক্রমিক নং / SL", html)
+
     def test_11_mushak63_in_words_pdf(self):
         pdf = self._render("cd_tax_engine_bd.action_report_fix_mushak", self._mushak())
         # the inherited in-words line must not break the statutory template
